@@ -838,6 +838,21 @@ code, .mono-inline {
   border: 1px solid var(--rule-1);
   border-radius: var(--radius-1);
 }
+.link-list li .cross-vfr {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 13px;
+  color: var(--ink-3);
+}
+.link-list li a:hover .cross-vfr { color: var(--signal); }
+.link-list li .cross-vfr-bad {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--state-warn);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-left: 6px;
+}
 
 /* Findings toolbar — search + state chips above the table */
 .vf-toolbar {
@@ -1832,7 +1847,11 @@ fn render_finding_html(
         );
     }
 
-    // Links — outgoing references to other findings in this same frontier.
+    // Links — outgoing references. v0.8 splits these:
+    //   · Local (vf_…)            → in-frontier click-through
+    //   · Cross (vf_…@vfr_…)      → cross-frontier click-through when
+    //                               the target's vfr_id is a declared
+    //                               dep of this frontier; raw id otherwise.
     let mut links_html = String::new();
     if !bundle.links.is_empty() {
         let id_index: std::collections::HashMap<&str, &FindingBundle> = project
@@ -1842,21 +1861,55 @@ fn render_finding_html(
             .collect();
         let mut items = Vec::new();
         for link in &bundle.links {
-            let target_label = if let Some(target) = id_index.get(link.target.as_str()) {
-                let claim = if target.assertion.text.len() > 60 {
-                    format!("{}…", &target.assertion.text[..60])
-                } else {
-                    target.assertion.text.clone()
-                };
-                format!(
-                    r#"<a href="/entries/{vfr}/findings/{vf}">{claim}</a>"#,
-                    vfr = vfr_safe,
-                    vf = escape_html(&target.id),
-                    claim = escape_html(&claim),
-                )
-            } else {
-                // Cross-frontier link or unknown target — render the raw id.
-                format!("<code>{}</code>", escape_html(&link.target))
+            use vela_protocol::bundle::LinkRef;
+            let target_label = match LinkRef::parse(&link.target) {
+                Ok(LinkRef::Local { vf_id }) => {
+                    if let Some(target) = id_index.get(vf_id.as_str()) {
+                        let claim = if target.assertion.text.len() > 60 {
+                            format!("{}…", &target.assertion.text[..60])
+                        } else {
+                            target.assertion.text.clone()
+                        };
+                        format!(
+                            r#"<a href="/entries/{vfr}/findings/{vf}">{claim}</a>"#,
+                            vfr = vfr_safe,
+                            vf = escape_html(&target.id),
+                            claim = escape_html(&claim),
+                        )
+                    } else {
+                        // Local target whose vf_id isn't in this frontier
+                        // — usually a dangling reference. Render as code.
+                        format!("<code>{}</code>", escape_html(&link.target))
+                    }
+                }
+                Ok(LinkRef::Cross { vf_id, vfr_id }) => {
+                    let dep = project.dep_for_vfr(&vfr_id);
+                    let dep_name = dep
+                        .map(|d| d.name.clone())
+                        .unwrap_or_else(|| vfr_id.clone());
+                    if dep.is_some() {
+                        // Declared cross-frontier dep — link out to the
+                        // hub's entry page for that frontier and finding.
+                        format!(
+                            r#"<a href="/entries/{vfr_id_e}/findings/{vf_id_e}">{vf_id_e}<span class="cross-vfr"> @ {dep_name_e}</span></a>"#,
+                            vfr_id_e = escape_html(&vfr_id),
+                            vf_id_e = escape_html(&vf_id),
+                            dep_name_e = escape_html(&dep_name),
+                        )
+                    } else {
+                        // Cross-frontier syntax but no declared dep —
+                        // strict validation would have flagged this; on
+                        // the hub we just render the raw id with a hint.
+                        format!(
+                            r#"<code>{}</code> <span class="cross-vfr-bad">(undeclared dep)</span>"#,
+                            escape_html(&link.target),
+                        )
+                    }
+                }
+                Err(_) => {
+                    // Malformed target. Surface raw bytes for debugging.
+                    format!("<code>{}</code>", escape_html(&link.target))
+                }
             };
             items.push(format!(
                 r#"<li><span class="link-rel">{rel}</span> {target}</li>"#,
