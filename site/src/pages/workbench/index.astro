@@ -235,6 +235,9 @@ const API_PATH = "/api/frontier";
     state: string;
     text: string;
     type: string;
+    /// "local" = a finding in this frontier; "ghost" = an external
+    /// vfr_id surfaced because a cross-frontier link points at it.
+    kind: "local" | "ghost";
     x: number;
     y: number;
     vx: number;
@@ -245,6 +248,8 @@ const API_PATH = "/api/frontier";
     s: number;
     t: number;
     type: string;
+    /// True for cross-frontier (ghost-target) edges — render dashed.
+    cross: boolean;
   };
 
   function renderRete(findings: RawFinding[]): void {
@@ -257,8 +262,11 @@ const API_PATH = "/api/frontier";
     const W = 800;
     const H = 320;
 
-    // Build nodes + edge list. Skip cross-frontier targets we cannot
-    // resolve in this frontier (will get rendered for v0.8 substrate).
+    // Build nodes + edge list. v0.8: cross-frontier link targets
+    // (`vf_…@vfr_…`) become "ghost" nodes pinned to the rim of the
+    // canvas — one per distinct external `vfr_id`. Edges to ghost
+    // nodes render dashed and clicking jumps to the hub's entry page
+    // for that frontier.
     const idIndex = new Map<string, number>();
     findings.forEach((f, i) => idIndex.set(f.id, i));
 
@@ -270,6 +278,7 @@ const API_PATH = "/api/frontier";
         state: deriveState(f),
         text: f.assertion?.text || "",
         type: (f.assertion?.type || "").split(/\s+/)[0] || "",
+        kind: "local",
         x: W / 2 + r * Math.cos(angle),
         y: H / 2 + r * Math.sin(angle),
         vx: 0,
@@ -278,16 +287,51 @@ const API_PATH = "/api/frontier";
       };
     });
 
+    // Ghost node index: external vfr_id → node index (added on demand).
+    const ghostIndex = new Map<string, number>();
+    function ensureGhost(vfrId: string): number {
+      const hit = ghostIndex.get(vfrId);
+      if (hit !== undefined) return hit;
+      const i = nodes.length;
+      // Pin ghosts on a wider ring so they sit at the rim.
+      const angle = (i / 8) * Math.PI * 2;
+      const r = 130;
+      nodes.push({
+        id: vfrId,
+        state: "external",
+        text: `external frontier · ${vfrId}`,
+        type: "frontier",
+        kind: "ghost",
+        x: W / 2 + r * Math.cos(angle),
+        y: H / 2 + r * Math.sin(angle),
+        vx: 0,
+        vy: 0,
+        deg: 0,
+      });
+      ghostIndex.set(vfrId, i);
+      return i;
+    }
+
     const edges: GraphEdge[] = [];
     for (const f of findings) {
       const s = idIndex.get(f.id);
       if (s === undefined) continue;
       for (const l of f.links || []) {
-        const t = idIndex.get(l.target);
-        if (t === undefined) continue; // cross-frontier target: skip (for now)
-        edges.push({ s, t, type: l.type || "link" });
-        nodes[s].deg++;
-        nodes[t].deg++;
+        // Parse target: `vf_…` (local) | `vf_…@vfr_…` (cross).
+        const at = l.target.indexOf("@");
+        if (at === -1) {
+          const t = idIndex.get(l.target);
+          if (t === undefined) continue; // dangling local target
+          edges.push({ s, t, type: l.type || "link", cross: false });
+          nodes[s].deg++;
+          nodes[t].deg++;
+        } else {
+          const vfrId = l.target.slice(at + 1);
+          const t = ensureGhost(vfrId);
+          edges.push({ s, t, type: l.type || "link", cross: true });
+          nodes[s].deg++;
+          nodes[t].deg++;
+        }
       }
     }
 
@@ -353,8 +397,15 @@ const API_PATH = "/api/frontier";
         b.vx -= fx;
         b.vy -= fy;
       }
-      // Center pull + integrate.
+      // Center pull + integrate. Ghost nodes stay pinned where they
+      // were placed (rim positions); they receive no forces and don't
+      // count against the kinetic-energy convergence test.
       for (const n of nodes) {
+        if (n.kind === "ghost") {
+          n.vx = 0;
+          n.vy = 0;
+          continue;
+        }
         n.vx += (W / 2 - n.x) * CENTER_K;
         n.vy += (H / 2 - n.y) * CENTER_K;
         n.vx *= DAMPING;
@@ -402,7 +453,7 @@ const API_PATH = "/api/frontier";
       line.setAttribute("y1", a.y.toFixed(1));
       line.setAttribute("x2", b.x.toFixed(1));
       line.setAttribute("y2", b.y.toFixed(1));
-      line.setAttribute("class", "edge");
+      line.setAttribute("class", e.cross ? "edge edge--cross" : "edge");
       line.dataset.s = String(e.s);
       line.dataset.t = String(e.t);
       edgesGroup.appendChild(line);
@@ -413,23 +464,37 @@ const API_PATH = "/api/frontier";
     for (let i = 0; i < nodes.length; i++) {
       const n = nodes[i];
       const cls = STATE_TO_CLASS[n.state] || "muted";
-      const r = 4 + Math.min(6, n.deg * 0.5);
+      const r = n.kind === "ghost" ? 7 : 4 + Math.min(6, n.deg * 0.5);
       const g = document.createElementNS(SVGNS, "g");
-      g.setAttribute("class", "node");
+      g.setAttribute("class", n.kind === "ghost" ? "node node--ghost" : "node");
       g.setAttribute("transform", `translate(${n.x.toFixed(1)},${n.y.toFixed(1)})`);
       g.dataset.idx = String(i);
       g.dataset.vfid = n.id;
+      g.dataset.kind = n.kind;
 
-      const dot = document.createElementNS(SVGNS, "circle");
-      dot.setAttribute("r", r.toFixed(1));
-      dot.setAttribute("fill", `var(--state-${cls})`);
-
-      const stroke = document.createElementNS(SVGNS, "circle");
-      stroke.setAttribute("r", (r + 2).toFixed(1));
-      stroke.setAttribute("class", "node-stroke");
-
-      g.appendChild(dot);
-      g.appendChild(stroke);
+      if (n.kind === "ghost") {
+        // Ghost: a small open square (different shape from dots)
+        // pinned at the rim, stroked in signal blue.
+        const rect = document.createElementNS(SVGNS, "rect");
+        const sz = r * 1.6;
+        rect.setAttribute("x", (-sz / 2).toFixed(1));
+        rect.setAttribute("y", (-sz / 2).toFixed(1));
+        rect.setAttribute("width", sz.toFixed(1));
+        rect.setAttribute("height", sz.toFixed(1));
+        rect.setAttribute("fill", "var(--paper-0)");
+        rect.setAttribute("stroke", "var(--signal)");
+        rect.setAttribute("stroke-width", "1.2");
+        g.appendChild(rect);
+      } else {
+        const dot = document.createElementNS(SVGNS, "circle");
+        dot.setAttribute("r", r.toFixed(1));
+        dot.setAttribute("fill", `var(--state-${cls})`);
+        const stroke = document.createElementNS(SVGNS, "circle");
+        stroke.setAttribute("r", (r + 2).toFixed(1));
+        stroke.setAttribute("class", "node-stroke");
+        g.appendChild(dot);
+        g.appendChild(stroke);
+      }
       nodesGroup.appendChild(g);
       nodeEls.push(g);
     }
@@ -498,7 +563,13 @@ const API_PATH = "/api/frontier";
       el.addEventListener("mouseleave", () => highlight(null));
       el.addEventListener("click", () => {
         const id = el.dataset.vfid!;
-        window.location.href = `/workbench/finding?id=${encodeURIComponent(id)}`;
+        const kind = el.dataset.kind || "local";
+        if (kind === "ghost") {
+          // External vfr_id — jump to the hub's entry page for that frontier.
+          window.location.href = `https://vela-hub.fly.dev/entries/${encodeURIComponent(id)}`;
+        } else {
+          window.location.href = `/workbench/finding?id=${encodeURIComponent(id)}`;
+        }
       });
     });
   }
@@ -763,6 +834,15 @@ const API_PATH = "/api/frontier";
   #lf-rete .edge { stroke: var(--rule-3); stroke-width: 1; opacity: 0.55; }
   #lf-rete .edge.muted { opacity: 0.18; }
   #lf-rete .edge.hot { stroke: var(--ink-1); opacity: 0.9; stroke-width: 1.2; }
+  /* Cross-frontier edges: dashed signal-blue, distinct register from
+     in-frontier hairlines. */
+  #lf-rete .edge.edge--cross {
+    stroke: var(--signal);
+    stroke-width: 1;
+    opacity: 0.65;
+    stroke-dasharray: 4 3;
+  }
+  #lf-rete .edge.edge--cross.hot { opacity: 0.95; stroke-width: 1.4; }
   #lf-rete .node {
     cursor: pointer;
     transition: r 120ms var(--ease, ease);
