@@ -1,0 +1,91 @@
+name: BBB-extension living repo
+
+# v0.8 worked example. Republishes the BBB-extension companion frontier
+# to https://vela-hub.fly.dev each Monday at 14:30 UTC (offset from
+# the BBB workflow so the cron runs don't collide). The signed manifest
+# gets a fresh signed_publish_at on every run.
+#
+# This frontier declares BBB Flagship (vfr_093f7f15b6c79386) as a
+# cross-frontier dependency with a pinned snapshot. The single finding
+# in this frontier extends one BBB finding via a `vf_…@vfr_…` link;
+# `vela registry pull --transitive` walks both and verifies.
+
+on:
+  schedule:
+    - cron: '30 14 * * 1'
+  workflow_dispatch:
+
+env:
+  HUB_URL: https://vela-hub.fly.dev
+  FRONTIER_PATH: frontiers/bbb-extension.json
+  RAW_LOCATOR: https://raw.githubusercontent.com/vela-science/vela/main/frontiers/bbb-extension.json
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: '1.89'
+
+      - name: Cache cargo build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-bbb-extension-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build vela CLI
+        run: cargo build --release -p vela-protocol --bin vela
+
+      - name: Stage bot key (mode 0600)
+        env:
+          VELA_BBB_EXTENSION_BOT_KEY: ${{ secrets.VELA_BBB_EXTENSION_BOT_KEY }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/keys" && chmod 700 "$RUNNER_TEMP/keys"
+          umask 077
+          printf '%s' "$VELA_BBB_EXTENSION_BOT_KEY" > "$RUNNER_TEMP/keys/bbb-extension-bot.key"
+
+      - name: Publish to public hub
+        id: publish
+        run: |
+          set -euo pipefail
+          OUT=$(./target/release/vela registry publish "$FRONTIER_PATH" \
+            --owner reviewer:bbb-extension-bot \
+            --key "$RUNNER_TEMP/keys/bbb-extension-bot.key" \
+            --locator "$RAW_LOCATOR" \
+            --to "$HUB_URL" \
+            --json)
+          echo "$OUT"
+          echo "$OUT" > "$RUNNER_TEMP/publish.json"
+          {
+            echo "vfr_id=$(jq -r .vfr_id < "$RUNNER_TEMP/publish.json")"
+            echo "snapshot_hash=$(jq -r .snapshot_hash < "$RUNNER_TEMP/publish.json")"
+            echo "event_log_hash=$(jq -r .event_log_hash < "$RUNNER_TEMP/publish.json")"
+            echo "signed_publish_at=$(jq -r .signed_publish_at < "$RUNNER_TEMP/publish.json")"
+            echo "duplicate=$(jq -r .duplicate < "$RUNNER_TEMP/publish.json")"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Job summary
+        run: |
+          {
+            echo "## BBB-extension living-repo publish"
+            echo ""
+            echo "- **vfr_id**: \`${{ steps.publish.outputs.vfr_id }}\`"
+            echo "- **snapshot_hash**: \`${{ steps.publish.outputs.snapshot_hash }}\`"
+            echo "- **event_log_hash**: \`${{ steps.publish.outputs.event_log_hash }}\`"
+            echo "- **signed_publish_at**: \`${{ steps.publish.outputs.signed_publish_at }}\`"
+            echo "- **duplicate**: \`${{ steps.publish.outputs.duplicate }}\`"
+            echo "- **public hub**: <https://vela-hub.fly.dev/entries/${{ steps.publish.outputs.vfr_id }}>"
+            echo ""
+            echo "Pulls transitively against BBB Flagship via the cross-frontier dep."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Wipe staged bot key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/keys/bbb-extension-bot.key"
