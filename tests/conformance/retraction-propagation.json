@@ -1,0 +1,88 @@
+{
+  "suite": "retraction-propagation",
+  "description": "Correction propagation through the link graph. When a finding is retracted, findings with supports/depends links targeting it are flagged. BFS with max depth 3. Retraction marks dependents as contested. Confidence reduction only propagates if new_score < 0.5.",
+  "cases": [
+    {
+      "name": "retraction flags direct dependent",
+      "input": {
+        "findings": [
+          {"id": "a", "confidence": 0.8, "links": []},
+          {"id": "b", "confidence": 0.7, "links": [{"target": "a", "type": "depends"}]}
+        ],
+        "action": {"type": "retracted", "finding_id": "a"}
+      },
+      "expected_output": {
+        "source_retracted": true,
+        "affected_count": 1,
+        "cascade": [["b"]],
+        "contested_findings": ["b"]
+      }
+    },
+    {
+      "name": "retraction cascades through chain up to depth 3",
+      "input": {
+        "findings": [
+          {"id": "a", "confidence": 0.8, "links": []},
+          {"id": "b", "confidence": 0.7, "links": [{"target": "a", "type": "depends"}]},
+          {"id": "c", "confidence": 0.7, "links": [{"target": "b", "type": "depends"}]},
+          {"id": "d", "confidence": 0.7, "links": [{"target": "c", "type": "depends"}]},
+          {"id": "e", "confidence": 0.7, "links": [{"target": "d", "type": "depends"}]}
+        ],
+        "action": {"type": "retracted", "finding_id": "a"}
+      },
+      "expected_output": {
+        "source_retracted": true,
+        "affected_at_most": 3,
+        "e_not_affected": true,
+        "reason": "MAX_DEPTH is 3, so e at depth 4 is not reached"
+      }
+    },
+    {
+      "name": "confidence reduction below 0.5 propagates",
+      "input": {
+        "findings": [
+          {"id": "a", "confidence": 0.8, "links": []},
+          {"id": "b", "confidence": 0.7, "links": [{"target": "a", "type": "supports"}]}
+        ],
+        "action": {"type": "confidence_reduced", "finding_id": "a", "new_score": 0.3}
+      },
+      "expected_output": {
+        "source_confidence": 0.3,
+        "affected_count": 1,
+        "cascade": [["b"]]
+      }
+    },
+    {
+      "name": "confidence reduction above 0.5 does not propagate",
+      "input": {
+        "findings": [
+          {"id": "a", "confidence": 0.8, "links": []},
+          {"id": "b", "confidence": 0.7, "links": [{"target": "a", "type": "supports"}]}
+        ],
+        "action": {"type": "confidence_reduced", "finding_id": "a", "new_score": 0.6}
+      },
+      "expected_output": {
+        "source_confidence": 0.6,
+        "affected_count": 0,
+        "cascade": []
+      }
+    },
+    {
+      "name": "extends and contradicts links do not propagate",
+      "input": {
+        "findings": [
+          {"id": "a", "confidence": 0.8, "links": []},
+          {"id": "b", "confidence": 0.7, "links": [{"target": "a", "type": "extends"}]},
+          {"id": "c", "confidence": 0.7, "links": [{"target": "a", "type": "contradicts"}]}
+        ],
+        "action": {"type": "retracted", "finding_id": "a"}
+      },
+      "expected_output": {
+        "source_retracted": true,
+        "affected_count": 0,
+        "cascade": [],
+        "reason": "only supports and depends links carry propagation"
+      }
+    }
+  ]
+}

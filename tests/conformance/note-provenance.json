@@ -1,0 +1,49 @@
+{
+  "suite": "note-provenance",
+  "description": "Phase β (v0.6): structured `provenance` on `finding.note` proposal payloads. The canonical preimage SHA-256 is pinned so two implementations following only the canonical-JSON spec produce byte-identical signing bytes, and adding `provenance` to a note creates a DIFFERENT `vpr_…` than the same text without it (correct: different logical content).",
+  "cases": [
+    {
+      "name": "note proposal WITH structured provenance — pin proposal_id",
+      "input": {
+        "schema": "vela.proposal.v0.1",
+        "kind": "finding.note",
+        "target": {"type": "finding", "id": "vf_test_finding"},
+        "actor": {"id": "reviewer:test", "type": "human"},
+        "reason": "annotated from NEJM 2024",
+        "payload": {
+          "text": "FUS+aducanumab reduced Aβ in n=3 humans over 6 months",
+          "provenance": {
+            "doi": "10.1056/nejmoa2308719",
+            "pmid": "38169490",
+            "title": "Ultrasound BBB Opening and Aducanumab in AD"
+          }
+        },
+        "source_refs": [],
+        "caveats": []
+      },
+      "expected_output": {
+        "id_length": 20,
+        "prefix": "vpr_"
+      }
+    },
+    {
+      "name": "note proposal WITHOUT provenance — different vpr_ even with same text",
+      "input": {
+        "schema": "vela.proposal.v0.1",
+        "kind": "finding.note",
+        "target": {"type": "finding", "id": "vf_test_finding"},
+        "actor": {"id": "reviewer:test", "type": "human"},
+        "reason": "annotated from NEJM 2024",
+        "payload": {
+          "text": "FUS+aducanumab reduced Aβ in n=3 humans over 6 months"
+        },
+        "source_refs": [],
+        "caveats": []
+      },
+      "expected_output": {
+        "id_length": 20,
+        "prefix": "vpr_"
+      }
+    }
+  ]
+}

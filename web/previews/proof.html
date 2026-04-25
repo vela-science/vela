@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Proof · bbb-alzheimer · Vela</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="../assets/brand/favicon.svg">
+<link rel="stylesheet" href="styles/_v4.css">
+<link rel="stylesheet" href="styles/_v4-proof.css">
+</head>
+<body class="v4">
+<div class="preview-banner" role="note" aria-label="Preview banner" style="position: sticky; top: 0; z-index: 999; background: #F4F0E8; color: #1B1F27; padding: 10px 20px; font-family: &quot;Inter&quot;, sans-serif; font-size: 13px; line-height: 1.45; border-bottom: 1px solid rgba(27,31,39,0.14); box-shadow: 0 1px 0 rgba(27,31,39,0.06);"><strong style="font-weight: 500;">preview ·</strong> proposed product surface for post-v0 Vela. not wired to data, not shipping v0 product. v0 is a CLI protocol. see <a href="../index.html" style="color: #3B5BDB; text-decoration: underline;">vela/</a> for the landing page or run <code style="font-family: &quot;JetBrains Mono&quot;, monospace; font-size: 12px; background: rgba(27,31,39,0.06); padding: 1px 4px; border-radius: 2px;">vela --help</code> in a terminal.</div>
+
+<div class="v4p-shell">
+
+  <!-- Sticky bar -->
+  <div class="v4p-bar">
+    <div class="v4p-bar__l">
+      <b>Proof</b>
+      <span class="sep">/</span>
+      <span>bbb-alzheimer</span>
+      <span class="sep">·</span>
+      <span>v0.3.2</span>
+    </div>
+    <div class="v4p-bar__r">
+      <button class="v4-btn">Verify seal</button>
+      <button class="v4-btn">Export · pdf</button>
+      <button class="v4-btn primary">Share link</button>
+    </div>
+  </div>
+
+  <div class="v4p-body">
+
+    <!-- Masthead -->
+    <div class="v4p-mast">
+      <p class="v4p-eye">
+        <em>Frontier</em>
+        <span>bbb-alzheimer</span>
+        <span class="dot"></span>
+        <span>sealed 2026-04-22</span>
+        <span class="dot"></span>
+        <span>v0.3.2</span>
+      </p>
+      <h1 class="v4p-title">Blood–brain barrier delivery for amyloid-targeted therapeutics.</h1>
+      <p class="v4p-sub">A bounded frontier on antibody transport across the BBB in Alzheimer's
+      disease — eight findings, conditions explicit, evidence signed.</p>
+
+      <div class="v4p-seal">
+        <div class="v4p-seal__c">
+          <div class="v4p-seal__k">Findings</div>
+          <div class="v4p-seal__v">8 · all preserved</div>
+        </div>
+        <div class="v4p-seal__c">
+          <div class="v4p-seal__k">Evidence</div>
+          <div class="v4p-seal__v">247 atoms · 41 sources</div>
+        </div>
+        <div class="v4p-seal__c">
+          <div class="v4p-seal__k">Reproducibility</div>
+          <div class="v4p-seal__v">Deterministic · seed 4411</div>
+        </div>
+        <div class="v4p-seal__c">
+          <div class="v4p-seal__k">Elapsed</div>
+          <div class="v4p-seal__v">12.4 s · Vela v0.3.2</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Preface -->
+    <h2 class="v4p-h"><span>Preface</span><span class="v4p-h__n">§0</span></h2>
+    <p class="v4p-lede">This proof is the state of what we know about antibody
+    transport across the blood–brain barrier, bound to the conditions under
+    which each claim holds. It is portable: another reviewer can open it,
+    re-run it, and get the same eight findings with the same 247 evidence
+    atoms. It is correctable: when a new study lands, the condition it
+    weakens is marked, not the headline.</p>
+
+    <blockquote class="v4p-pull">The summary is not the work. The conditions are the work.</blockquote>
+
+    <!-- Contents -->
+    <h2 class="v4p-h"><span>Contents</span><span class="v4p-h__n">§1</span></h2>
+    <div class="v4p-toc">
+      <div class="v4p-toc__it"><span class="v4p-toc__n">01</span><span class="v4p-toc__t">TfR-targeted antibodies cross the BBB under receptor density thresholds</span><span class="v4p-toc__id">f-014</span><span class="v4p-toc__n" style="text-align:right">p. 3</span></div>
+      <div class="v4p-toc__it"><span class="v4p-toc__n">02</span><span class="v4p-toc__t">Monovalent designs preserve transcytosis; bivalent quench it</span><span class="v4p-toc__id">f-015</span><span class="v4p-toc__n" style="text-align:right">p. 5</span></div>
+      <div class="v4p-toc__it"><span class="v4p-toc__n">03</span><span class="v4p-toc__t">Cynomolgus pharmacokinetics do not generalise to human ADME</span><span class="v4p-toc__id">f-016</span><span class="v4p-toc__n" style="text-align:right">p. 7</span></div>
+      <div class="v4p-toc__it"><span class="v4p-toc__n">04</span><span class="v4p-toc__t">ARIA incidence correlates with ApoE4 status, not dose alone</span><span class="v4p-toc__id">f-017</span><span class="v4p-toc__n" style="text-align:right">p. 8</span></div>
+      <div class="v4p-toc__it"><span class="v4p-toc__n">05</span><span class="v4p-toc__t">Aducanumab signal depends on patient selection; lecanemab does not</span><span class="v4p-toc__id">f-018</span><span class="v4p-toc__n" style="text-align:right">p. 10</span></div>
+      <div class="v4p-toc__it"><span class="v4p-toc__n">06</span><span class="v4p-toc__t">Plaque clearance rate is inversely proportional to BBB integrity at baseline</span><span class="v4p-toc__id">f-019</span><span class="v4p-toc__n" style="text-align:right">p. 12</span></div>
+      <div class="v4p-toc__it"><span class="v4p-toc__n">07</span><span class="v4p-toc__t">Condition <em>in vitro</em> → <em>in vivo</em> mapping is lost by naive summaries</span><span class="v4p-toc__id">f-020</span><span class="v4p-toc__n" style="text-align:right">p. 14</span></div>
+      <div class="v4p-toc__it"><span class="v4p-toc__n">08</span><span class="v4p-toc__t">Five drop-offs remain — listed, with minimum evidence thresholds</span><span class="v4p-toc__id">f-021</span><span class="v4p-toc__n" style="text-align:right">p. 15</span></div>
+    </div>
+
+    <!-- Finding 01 -->
+    <h2 class="v4p-h"><span>Findings</span><span class="v4p-h__n">§2</span></h2>
+
+    <article class="v4p-finding">
+      <div class="v4p-finding__h">
+        <span class="v4p-finding__n">01</span>
+        <span class="v4p-finding__id">f-014</span>
+        <span class="v4p-finding__verdict" style="--clr: var(--v4-ok)">
+          <span class="d"></span> Preserved
+        </span>
+      </div>
+      <p class="v4p-claim">TfR-targeted antibodies cross the blood–brain barrier
+      via receptor-mediated transcytosis, <em>when receptor density on cerebral
+      endothelium exceeds the monovalent binding threshold.</em></p>
+      <p class="v4p-when"><b>Holds when</b> TfR density ≥ 3.2 × 10⁴ receptors/cell
+      <b>and</b> affinity is in the monovalent 10–100 nM window <b>and</b> the
+      model is murine or cynomolgus. <b>Breaks when</b> affinity is &lt; 5 nM or
+      geometry is bivalent — see finding 02.</p>
+
+      <div class="v4p-ev">
+        <div class="v4p-ev__h">
+          <span>Source</span><span>Stance</span><span>Atoms</span><span>Weight</span>
+        </div>
+        <div class="v4p-ev__r">
+          <span class="v4p-ev__src">Yu et al. 2011 <span>· Sci Transl Med</span></span>
+          <span class="v4p-ev__stance sup">Supports</span>
+          <span class="v4p-ev__n">14</span>
+          <span class="v4p-ev__w">0.31</span>
+        </div>
+        <div class="v4p-ev__r">
+          <span class="v4p-ev__src">Niewoehner 2014 <span>· Neuron</span></span>
+          <span class="v4p-ev__stance sup">Supports</span>
+          <span class="v4p-ev__n">9</span>
+          <span class="v4p-ev__w">0.22</span>
+        </div>
+        <div class="v4p-ev__r">
+          <span class="v4p-ev__src">Kariolis 2020 <span>· Sci Transl Med</span></span>
+          <span class="v4p-ev__stance sup">Supports</span>
+          <span class="v4p-ev__n">11</span>
+          <span class="v4p-ev__w">0.28</span>
+        </div>
+        <div class="v4p-ev__r">
+          <span class="v4p-ev__src">Couch 2013 <span>· Sci Transl Med</span></span>
+          <span class="v4p-ev__stance con">Conflicts</span>
+          <span class="v4p-ev__n">4</span>
+          <span class="v4p-ev__w">0.11</span>
+        </div>
+      </div>
+    </article>
+
+    <!-- Finding 02 -->
+    <article class="v4p-finding">
+      <div class="v4p-finding__h">
+        <span class="v4p-finding__n">02</span>
+        <span class="v4p-finding__id">f-015</span>
+        <span class="v4p-finding__verdict" style="--clr: var(--v4-watch)">
+          <span class="d"></span> Watch
+        </span>
+      </div>
+      <p class="v4p-claim">Monovalent TfR antibodies preserve transcytosis;
+      bivalent designs trigger lysosomal sorting and quench delivery.</p>
+      <p class="v4p-when"><b>Holds when</b> the antibody is engineered for 1:1
+      stoichiometry at the luminal surface. <b>Weakens when</b> the construct
+      includes avidity-boosting scaffolds (bispecific T-cell engagers) — the
+      receptor-cluster threshold moves and this claim does not yet generalise.
+      Flagged as <em>watch</em> pending replication in the Hultqvist 2024 cohort
+      <span class="v4p-ref">cit: 22</span>.</p>
+
+      <div class="v4p-ev">
+        <div class="v4p-ev__h">
+          <span>Source</span><span>Stance</span><span>Atoms</span><span>Weight</span>
+        </div>
+        <div class="v4p-ev__r">
+          <span class="v4p-ev__src">Niewoehner 2014 <span>· Neuron</span></span>
+          <span class="v4p-ev__stance sup">Supports</span>
+          <span class="v4p-ev__n">7</span>
+          <span class="v4p-ev__w">0.24</span>
+        </div>
+        <div class="v4p-ev__r">
+          <span class="v4p-ev__src">Bien-Ly 2014 <span>· J Exp Med</span></span>
+          <span class="v4p-ev__stance sup">Supports</span>
+          <span class="v4p-ev__n">5</span>
+          <span class="v4p-ev__w">0.18</span>
+        </div>
+        <div class="v4p-ev__r">
+          <span class="v4p-ev__src">Hultqvist 2017 <span>· J Neurosci Methods</span></span>
+          <span class="v4p-ev__stance con">Conflicts</span>
+          <span class="v4p-ev__n">3</span>
+          <span class="v4p-ev__w">0.09</span>
+        </div>
+      </div>
+    </article>
+
+    <!-- Finding 03 -->
+    <article class="v4p-finding">
+      <div class="v4p-finding__h">
+        <span class="v4p-finding__n">03</span>
+        <span class="v4p-finding__id">f-016</span>
+        <span class="v4p-finding__verdict" style="--clr: var(--v4-lost)">
+          <span class="d"></span> Lost on review
+        </span>
+      </div>
+      <p class="v4p-claim">Cynomolgus pharmacokinetics predict human ADME for
+      TfR-targeted biologics.</p>
+      <p class="v4p-when"><b>Does not hold.</b> Condition <em>species-conservation
+      of TfR glycosylation</em> was shown false in Ullman 2023 <span class="v4p-ref">cit: 38</span>
+      — human TfR shows a sialylation pattern not present in cyno, which
+      shifts the receptor-density threshold by ~2.4×. Claim lost; revisit
+      when humanised rodent data arrives.</p>
+    </article>
+
+    <!-- Audit trail -->
+    <h2 class="v4p-h"><span>Audit trail</span><span class="v4p-h__n">§3</span></h2>
+    <p class="v4p-lede">Every state change is signed. The trail is part of the
+    proof; it is what makes the frontier correctable rather than rewritten.</p>
+
+    <div class="v4p-audit">
+      <div class="v4p-audit__r">
+        <span class="v4p-audit__t">22 apr 10:04</span>
+        <span class="v4p-audit__c"><b>Sealed</b> · 8 findings frozen for v0.3.2 · audit hash verified</span>
+        <span class="v4p-audit__by">Otto Weiner</span>
+      </div>
+      <div class="v4p-audit__r">
+        <span class="v4p-audit__t">22 apr 09:47</span>
+        <span class="v4p-audit__c"><b>Adjudicated</b> f-016 <b>lost</b> · admitted Ullman 2023 as weight-bearing conflict</span>
+        <span class="v4p-audit__by">Otto Weiner</span>
+      </div>
+      <div class="v4p-audit__r">
+        <span class="v4p-audit__t">22 apr 09:32</span>
+        <span class="v4p-audit__c"><b>Flagged</b> f-015 <b>watch</b> · Hultqvist 2024 replication pending</span>
+        <span class="v4p-audit__by">Maren Aldis</span>
+      </div>
+      <div class="v4p-audit__r">
+        <span class="v4p-audit__t">22 apr 09:18</span>
+        <span class="v4p-audit__c">Re-ran `vela collapse` · 41 sources · 247 atoms · 8 findings stable</span>
+        <span class="v4p-audit__by">vela/ci</span>
+      </div>
+      <div class="v4p-audit__r">
+        <span class="v4p-audit__t">22 apr 08:52</span>
+        <span class="v4p-audit__c">Admitted Ullman 2023 · weight 0.14 · stance=conflicts on f-016</span>
+        <span class="v4p-audit__by">Otto Weiner</span>
+      </div>
+    </div>
+
+    <!-- Signature block -->
+    <h2 class="v4p-h"><span>Seal</span><span class="v4p-h__n">§4</span></h2>
+    <div class="v4p-sig">
+      <div class="v4p-sig__b">
+        <div class="v4p-sig__k">Adjudicator</div>
+        <div class="v4p-sig__v">Otto Weiner</div>
+        <div class="v4p-sig__k" style="margin-top:10px">Co-signer</div>
+        <div class="v4p-sig__v">Maren Aldis</div>
+        <div class="v4p-sig__k" style="margin-top:10px">Timestamp</div>
+        <div class="v4p-sig__v" style="font-family: var(--v4-mono); font-size: 12px; font-style: normal">2026-04-22T10:04:18Z</div>
+      </div>
+      <div class="v4p-sig__b">
+        <div class="v4p-sig__k">Audit hash · sha-256</div>
+        <div class="v4p-sig__hash">3f2b·c7d1·9a04·e82f·1b66·44a9·0cd2·e7fa<br>b814·55c2·7d09·ae31·68f0·9b4e·22ca·013d</div>
+        <div class="v4p-sig__k" style="margin-top:12px">Previous</div>
+        <div class="v4p-sig__hash">8c1a·402e·… · v0.3.1</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="v4p-foot">
+    <span><b>Vela</b> · portable, correctable frontier state</span>
+    <span>Proof <b>bbb-alzheimer</b> · v0.3.2 · page 1 of 18</span>
+  </div>
+
+</div>
+
+</body>
+</html>

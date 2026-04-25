@@ -1,0 +1,8 @@
+DOI: 10.1038/nn.4025
+PMID: 26005850
+Year: 2015
+Journal: 
+Title: Central role for PICALM in amyloid-β blood-brain barrier transcytosis and clearance.
+
+Abstract:
+PICALM is a highly validated genetic risk factor for Alzheimer's disease (AD). We found that reduced expression of PICALM in AD and murine brain endothelium correlated with amyloid-β (Aβ) pathology and cognitive impairment. Moreover, Picalm deficiency diminished Aβ clearance across the murine blood-brain barrier (BBB) and accelerated Aβ pathology in a manner that was reversible by endothelial PICALM re-expression. Using human brain endothelial monolayers, we found that PICALM regulated PICALM/clathrin-dependent internalization of Aβ bound to the low density lipoprotein receptor related protein-1, a key Aβ clearance receptor, and guided Aβ trafficking to Rab5 and Rab11, leading to Aβ endothelial transcytosis and clearance. PICALM levels and Aβ clearance were reduced in AD-derived endothelial monolayers, which was reversible by adenoviral-mediated PICALM transfer. Inducible pluripotent stem cell-derived human endothelial cells carrying the rs3851179 protective allele exhibited higher PICALM levels and enhanced Aβ clearance. Thus, PICALM regulates Aβ BBB transcytosis and clearance, which has implications for Aβ brain homeostasis and clearance therapy.

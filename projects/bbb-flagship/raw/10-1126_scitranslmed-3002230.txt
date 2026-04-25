@@ -1,0 +1,8 @@
+DOI: 10.1126/scitranslmed.3002230
+PMID: 21613623
+Year: 2011
+Journal: 
+Title: Boosting brain uptake of a therapeutic antibody by reducing its affinity for a transcytosis target.
+
+Abstract:
+Monoclonal antibodies have therapeutic potential for treating diseases of the central nervous system, but their accumulation in the brain is limited by the blood-brain barrier (BBB). Here, we show that reducing the affinity of an antibody for the transferrin receptor (TfR) enhances receptor-mediated transcytosis of the anti-TfR antibody across the BBB into the mouse brain where it reaches therapeutically relevant concentrations. Anti-TfR antibodies that bind with high affinity to TfR remain associated with the BBB, whereas lower-affinity anti-TfR antibody variants are released from the BBB into the brain and show a broad distribution 24 hours after dosing. We designed a bispecific antibody that binds with low affinity to TfR and with high affinity to the enzyme β-secretase (BACE1), which processes amyloid precursor protein into amyloid-β (Aβ) peptides including those associated with Alzheimer's disease. Compared to monospecific anti-BACE1 antibody, the bispecific antibody accumulated in the mouse brain and led to a greater reduction in brain Aβ after a single systemic dose. TfR-facilitated transcytosis of this bispecific antibody across the BBB may enhance its potency as an anti-BACE1 therapy for treating Alzheimer's disease.

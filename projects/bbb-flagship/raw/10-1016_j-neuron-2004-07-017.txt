@@ -1,0 +1,8 @@
+DOI: 10.1016/j.neuron.2004.07.017
+PMID: 15294142
+Year: 2004
+Journal: 
+Title: LRP/amyloid beta-peptide interaction mediates differential brain efflux of Abeta isoforms.
+
+Abstract:
+LRP (low-density lipoprotein receptor-related protein) is linked to Alzheimer's disease (AD). Here, we report amyloid beta-peptide Abeta40 binds to immobilized LRP clusters II and IV with high affinity (Kd = 0.6-1.2 nM) compared to Abeta42 and mutant Abeta, and LRP-mediated Abeta brain capillary binding, endocytosis, and transcytosis across the mouse blood-brain barrier are substantially reduced by the high beta sheet content in Abeta and deletion of the receptor-associated protein gene. Despite low Abeta production in the brain, transgenic mice expressing low LRP-clearance mutant Abeta develop robust Abeta cerebral accumulations much earlier than Tg-2576 Abeta-overproducing mice. While Abeta does not affect LRP internalization and synthesis, it promotes proteasome-dependent LRP degradation in endothelium at concentrations > 1 microM, consistent with reduced brain capillary LRP levels in Abeta-accumulating transgenic mice, AD, and patients with cerebrovascular beta-amyloidosis. Thus, low-affinity LRP/Abeta interaction and/or Abeta-induced LRP loss at the BBB mediate brain accumulation of neurotoxic Abeta.

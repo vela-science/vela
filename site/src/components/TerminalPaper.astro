@@ -1,0 +1,45 @@
+---
+interface Props {
+  title: string;
+}
+const { title } = Astro.props;
+---
+<div class="tm-paper">
+  <div class="tm-paper__bar"><span>{title}</span></div>
+  <div class="tm-paper__body"><slot /></div>
+</div>
+
+<style>
+  .tm-paper {
+    background: var(--paper-1);
+    border: 1px solid var(--rule-2);
+    border-radius: var(--radius-1);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    line-height: 1.65;
+    color: var(--ink-1);
+    overflow: hidden;
+    margin: 16px 0 24px;
+  }
+  .tm-paper__bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 14px;
+    border-bottom: 1px solid var(--rule-2);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    background: var(--paper-0);
+  }
+  .tm-paper__body {
+    padding: 14px 18px 16px;
+    white-space: pre;
+    overflow-x: auto;
+  }
+  .tm-paper__body :global(.tm-ps) { color: var(--ink-3); }
+  .tm-paper__body :global(.tm-cmd) { color: var(--ink-0); }
+  .tm-paper__body :global(.tm-flag) { color: var(--ink-2); }
+</style>

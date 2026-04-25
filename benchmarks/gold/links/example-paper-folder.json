@@ -1,0 +1,14 @@
+[
+  {
+    "source_id": "vf_c4bf737129fe5c50",
+    "target_id": "vf_53b50b3d51170f64",
+    "link_type": "extends",
+    "note": "Curated BBB transport assertions share amyloid-beta."
+  },
+  {
+    "source_id": "vf_c4bf737129fe5c50",
+    "target_id": "vf_12fc02a7ce89a886",
+    "link_type": "extends",
+    "note": "Curated LRP1 assertion links to extracted BBB transport context."
+  }
+]

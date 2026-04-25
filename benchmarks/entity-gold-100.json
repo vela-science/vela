@@ -1,0 +1,802 @@
+[
+  {
+    "name": "hemagglutinin",
+    "type": "protein",
+    "expected_source": "uniprot",
+    "expected_id": "P16995",
+    "expected_confidence": 0.8,
+    "alternatives": []
+  },
+  {
+    "name": "neuraminidase",
+    "type": "protein",
+    "expected_source": "uniprot",
+    "expected_id": "P03474",
+    "expected_confidence": 0.8,
+    "alternatives": []
+  },
+  {
+    "name": "transthyretin",
+    "type": "protein",
+    "expected_source": "uniprot",
+    "expected_id": "P02766",
+    "expected_confidence": 0.8,
+    "alternatives": []
+  },
+  {
+    "name": "beta-lactoglobulin",
+    "type": "protein",
+    "expected_source": "uniprot",
+    "expected_id": "P02754",
+    "expected_confidence": 0.8,
+    "alternatives": []
+  },
+  {
+    "name": "insulin",
+    "type": "protein",
+    "expected_source": "uniprot",
+    "expected_id": "P01308",
+    "expected_confidence": 0.8,
+    "alternatives": []
+  },
+  {
+    "name": "Evasin-4",
+    "type": "protein",
+    "expected_source": "uniprot",
+    "expected_id": "P0C8E9",
+    "expected_confidence": 0.8,
+    "alternatives": []
+  },
+  {
+    "name": "Evasin-1",
+    "type": "protein",
+    "expected_source": "uniprot",
+    "expected_id": "P0C8E7",
+    "expected_confidence": 0.8,
+    "alternatives": []
+  },
+  {
+    "name": "eotaxin",
+    "type": "protein",
+    "expected_source": "uniprot",
+    "expected_id": "P51671",
+    "expected_confidence": 0.8,
+    "alternatives": []
+  },
+  {
+    "name": "malate synthase G",
+    "type": "protein",
+    "expected_source": "uniprot",
+    "expected_id": "P9WK16",
+    "expected_confidence": 0.8,
+    "alternatives": []
+  },
+  {
+    "name": "vitronectin",
+    "type": "protein",
+    "expected_source": "uniprot",
+    "expected_id": "P04004",
+    "expected_confidence": 0.8,
+    "alternatives": []
+  },
+  {
+    "name": "caveolin-1",
+    "type": "protein",
+    "expected_source": "uniprot",
+    "expected_id": "P79132",
+    "expected_confidence": 0.8,
+    "alternatives": []
+  },
+  {
+    "name": "periphilin-1",
+    "type": "protein",
+    "expected_source": "uniprot",
+    "expected_id": "Q8K2H1",
+    "expected_confidence": 0.8,
+    "alternatives": []
+  },
+  {
+    "name": "mannosylglycerate synthase",
+    "type": "protein",
+    "expected_source": "uniprot",
+    "expected_id": "Q9RFR0",
+    "expected_confidence": 0.8,
+    "alternatives": []
+  },
+  {
+    "name": "Photosystem II",
+    "type": "protein",
+    "expected_source": "uniprot",
+    "expected_id": "Q8DJI1",
+    "expected_confidence": 0.65,
+    "alternatives": []
+  },
+  {
+    "name": "protein",
+    "type": "protein",
+    "expected_source": "uniprot",
+    "expected_id": "Q9H3P7",
+    "expected_confidence": 0.65,
+    "alternatives": []
+  },
+  {
+    "name": "Notch",
+    "type": "protein",
+    "expected_source": "uniprot",
+    "expected_id": "P07207",
+    "expected_confidence": 0.65,
+    "alternatives": []
+  },
+  {
+    "name": "Delta",
+    "type": "protein",
+    "expected_source": "uniprot",
+    "expected_id": "Q13557",
+    "expected_confidence": 0.65,
+    "alternatives": []
+  },
+  {
+    "name": "Toll-like receptor",
+    "type": "protein",
+    "expected_source": "uniprot",
+    "expected_id": "Q7KIN0",
+    "expected_confidence": 0.65,
+    "alternatives": []
+  },
+  {
+    "name": "antigen",
+    "type": "protein",
+    "expected_source": "uniprot",
+    "expected_id": "P43358",
+    "expected_confidence": 0.65,
+    "alternatives": []
+  },
+  {
+    "name": "chitinase",
+    "type": "protein",
+    "expected_source": "uniprot",
+    "expected_id": "Q15782",
+    "expected_confidence": 0.65,
+    "alternatives": []
+  },
+  {
+    "name": "GerE",
+    "type": "protein",
+    "expected_source": "uniprot",
+    "expected_id": "P11470",
+    "expected_confidence": 0.65,
+    "alternatives": []
+  },
+  {
+    "name": "cellulose synthase",
+    "type": "protein",
+    "expected_source": "uniprot",
+    "expected_id": "P0CW87",
+    "expected_confidence": 0.65,
+    "alternatives": []
+  },
+  {
+    "name": "phytochrome",
+    "type": "protein",
+    "expected_source": "uniprot",
+    "expected_id": "P42497",
+    "expected_confidence": 0.65,
+    "alternatives": []
+  },
+  {
+    "name": "factor H",
+    "type": "protein",
+    "expected_source": "uniprot",
+    "expected_id": "Q9JXV4",
+    "expected_confidence": 0.65,
+    "alternatives": []
+  },
+  {
+    "name": "factor B",
+    "type": "protein",
+    "expected_source": "uniprot",
+    "expected_id": "P00751",
+    "expected_confidence": 0.65,
+    "alternatives": []
+  },
+  {
+    "name": "tau",
+    "type": "protein",
+    "expected_source": "uniprot",
+    "expected_id": "P10636",
+    "expected_confidence": 0.65,
+    "alternatives": []
+  },
+  {
+    "name": "extensin",
+    "type": "protein",
+    "expected_source": "uniprot",
+    "expected_id": "Q38913",
+    "expected_confidence": 0.65,
+    "alternatives": []
+  },
+  {
+    "name": "glycoside hydrolase",
+    "type": "protein",
+    "expected_source": "uniprot",
+    "expected_id": "E4Q361",
+    "expected_confidence": 0.65,
+    "alternatives": []
+  },
+  {
+    "name": "factor I",
+    "type": "protein",
+    "expected_source": "uniprot",
+    "expected_id": "Q5U2Y1",
+    "expected_confidence": 0.65,
+    "alternatives": []
+  },
+  {
+    "name": "MyD88",
+    "type": "protein",
+    "expected_source": "uniprot",
+    "expected_id": "Q5XJ85",
+    "expected_confidence": 0.65,
+    "alternatives": []
+  },
+  {
+    "name": "Pneumonia",
+    "type": "disease",
+    "expected_source": "mesh",
+    "expected_id": "D061387",
+    "expected_confidence": 0.55,
+    "alternatives": []
+  },
+  {
+    "name": "liver",
+    "type": "disease",
+    "expected_source": "mesh",
+    "expected_id": "D065290",
+    "expected_confidence": 0.55,
+    "alternatives": []
+  },
+  {
+    "name": "tumor",
+    "type": "disease",
+    "expected_source": "mesh",
+    "expected_id": "D018254",
+    "expected_confidence": 0.55,
+    "alternatives": []
+  },
+  {
+    "name": "Mycobacterium avium subsp. paratuberculosis",
+    "type": "disease",
+    "expected_source": "mesh",
+    "expected_id": "D016927",
+    "expected_confidence": 0.51,
+    "alternatives": []
+  },
+  {
+    "name": "Klebsiella pneumoniae",
+    "type": "disease",
+    "expected_source": "mesh",
+    "expected_id": "D007711",
+    "expected_confidence": 0.51,
+    "alternatives": []
+  },
+  {
+    "name": "Necroptosis",
+    "type": "disease",
+    "expected_source": "mesh",
+    "expected_id": "D000079302",
+    "expected_confidence": 0.51,
+    "alternatives": []
+  },
+  {
+    "name": "Apoptosis",
+    "type": "disease",
+    "expected_source": "mesh",
+    "expected_id": "D017209",
+    "expected_confidence": 0.51,
+    "alternatives": []
+  },
+  {
+    "name": "Streptococcus pneumoniae",
+    "type": "disease",
+    "expected_source": "mesh",
+    "expected_id": "D013296",
+    "expected_confidence": 0.51,
+    "alternatives": []
+  },
+  {
+    "name": "apoptosis",
+    "type": "disease",
+    "expected_source": "mesh",
+    "expected_id": "D017209",
+    "expected_confidence": 0.51,
+    "alternatives": []
+  },
+  {
+    "name": "Neutrophil",
+    "type": "disease",
+    "expected_source": "mesh",
+    "expected_id": "D056648",
+    "expected_confidence": 0.5,
+    "alternatives": []
+  },
+  {
+    "name": "water",
+    "type": "compound",
+    "expected_source": "pubchem",
+    "expected_id": "962",
+    "expected_confidence": 0.75,
+    "alternatives": []
+  },
+  {
+    "name": "lanosterol",
+    "type": "compound",
+    "expected_source": "pubchem",
+    "expected_id": "246983",
+    "expected_confidence": 0.75,
+    "alternatives": []
+  },
+  {
+    "name": "triazole",
+    "type": "compound",
+    "expected_source": "pubchem",
+    "expected_id": "2764127",
+    "expected_confidence": 0.75,
+    "alternatives": []
+  },
+  {
+    "name": "urea",
+    "type": "compound",
+    "expected_source": "pubchem",
+    "expected_id": "1176",
+    "expected_confidence": 0.75,
+    "alternatives": []
+  },
+  {
+    "name": "citrate",
+    "type": "compound",
+    "expected_source": "pubchem",
+    "expected_id": "31348",
+    "expected_confidence": 0.75,
+    "alternatives": []
+  },
+  {
+    "name": "Thioflavin T",
+    "type": "compound",
+    "expected_source": "pubchem",
+    "expected_id": "16953",
+    "expected_confidence": 0.75,
+    "alternatives": []
+  },
+  {
+    "name": "CDDO",
+    "type": "compound",
+    "expected_source": "pubchem",
+    "expected_id": "400010",
+    "expected_confidence": 0.75,
+    "alternatives": []
+  },
+  {
+    "name": "iso-ADP-ribose",
+    "type": "compound",
+    "expected_source": "pubchem",
+    "expected_id": "3080702",
+    "expected_confidence": 0.75,
+    "alternatives": []
+  },
+  {
+    "name": "oligomannose-5",
+    "type": "compound",
+    "expected_source": "pubchem",
+    "expected_id": "131864308",
+    "expected_confidence": 0.75,
+    "alternatives": []
+  },
+  {
+    "name": "mannotriose",
+    "type": "compound",
+    "expected_source": "pubchem",
+    "expected_id": "122314",
+    "expected_confidence": 0.75,
+    "alternatives": []
+  },
+  {
+    "name": "mannopentaose",
+    "type": "compound",
+    "expected_source": "pubchem",
+    "expected_id": "44153497",
+    "expected_confidence": 0.75,
+    "alternatives": []
+  },
+  {
+    "name": "mannose",
+    "type": "compound",
+    "expected_source": "pubchem",
+    "expected_id": "18950",
+    "expected_confidence": 0.75,
+    "alternatives": []
+  },
+  {
+    "name": "CO2",
+    "type": "compound",
+    "expected_source": "pubchem",
+    "expected_id": "280",
+    "expected_confidence": 0.75,
+    "alternatives": []
+  },
+  {
+    "name": "Mg(2+)",
+    "type": "compound",
+    "expected_source": "pubchem",
+    "expected_id": "888",
+    "expected_confidence": 0.75,
+    "alternatives": []
+  },
+  {
+    "name": "sialyl Lewis x",
+    "type": "compound",
+    "expected_source": "pubchem",
+    "expected_id": "643990",
+    "expected_confidence": 0.75,
+    "alternatives": []
+  },
+  {
+    "name": "RACK1",
+    "type": "gene",
+    "expected_source": "uniprot",
+    "expected_id": "P63244",
+    "expected_confidence": 0.65,
+    "alternatives": []
+  },
+  {
+    "name": "CD4",
+    "type": "gene",
+    "expected_source": "uniprot",
+    "expected_id": "P01730",
+    "expected_confidence": 0.65,
+    "alternatives": []
+  },
+  {
+    "name": "RNF146",
+    "type": "gene",
+    "expected_source": "uniprot",
+    "expected_id": "Q9NTX7",
+    "expected_confidence": 0.65,
+    "alternatives": []
+  },
+  {
+    "name": "XIAP",
+    "type": "gene",
+    "expected_source": "uniprot",
+    "expected_id": "A5D8Q0",
+    "expected_confidence": 0.65,
+    "alternatives": []
+  },
+  {
+    "name": "CD99",
+    "type": "gene",
+    "expected_source": "uniprot",
+    "expected_id": "Q8VCN6",
+    "expected_confidence": 0.65,
+    "alternatives": []
+  },
+  {
+    "name": "ERG27",
+    "type": "gene",
+    "expected_source": "uniprot",
+    "expected_id": "Q12452",
+    "expected_confidence": 0.65,
+    "alternatives": []
+  },
+  {
+    "name": "US28",
+    "type": "gene",
+    "expected_source": "uniprot",
+    "expected_id": "P69332",
+    "expected_confidence": 0.65,
+    "alternatives": []
+  },
+  {
+    "name": "MLO",
+    "type": "gene",
+    "expected_source": "uniprot",
+    "expected_id": "P93766",
+    "expected_confidence": 0.65,
+    "alternatives": []
+  },
+  {
+    "name": "CCL3",
+    "type": "gene",
+    "expected_source": "uniprot",
+    "expected_id": "M4IS88",
+    "expected_confidence": 0.65,
+    "alternatives": []
+  },
+  {
+    "name": "GCN2",
+    "type": "gene",
+    "expected_source": "uniprot",
+    "expected_id": "Q9LX30",
+    "expected_confidence": 0.65,
+    "alternatives": []
+  },
+  {
+    "name": "SPAST",
+    "type": "gene",
+    "expected_source": "uniprot",
+    "expected_id": "A2VDN5",
+    "expected_confidence": 0.5,
+    "alternatives": []
+  },
+  {
+    "name": "ARX",
+    "type": "gene",
+    "expected_source": "uniprot",
+    "expected_id": "Q96QS3",
+    "expected_confidence": 0.5,
+    "alternatives": []
+  },
+  {
+    "name": "WRKY",
+    "type": "gene",
+    "expected_source": "uniprot",
+    "expected_id": "Q75L34",
+    "expected_confidence": 0.5,
+    "alternatives": []
+  },
+  {
+    "name": "DMC1",
+    "type": "gene",
+    "expected_source": "uniprot",
+    "expected_id": "Q14565",
+    "expected_confidence": 0.5,
+    "alternatives": []
+  },
+  {
+    "name": "SPO11",
+    "type": "gene",
+    "expected_source": "uniprot",
+    "expected_id": "Q9M4A2",
+    "expected_confidence": 0.5,
+    "alternatives": []
+  },
+  {
+    "name": "electron transport",
+    "type": "pathway",
+    "expected_source": "mesh",
+    "expected_id": "D004579",
+    "expected_confidence": 0.51,
+    "alternatives": []
+  },
+  {
+    "name": "metabolism",
+    "type": "pathway",
+    "expected_source": "mesh",
+    "expected_id": "D000592",
+    "expected_confidence": 0.5,
+    "alternatives": []
+  },
+  {
+    "name": "electron transport chain",
+    "type": "pathway",
+    "expected_source": "mesh",
+    "expected_id": "D045222",
+    "expected_confidence": 0.5,
+    "alternatives": []
+  },
+  {
+    "name": "classical pathway",
+    "type": "pathway",
+    "expected_source": "mesh",
+    "expected_id": "D051574",
+    "expected_confidence": 0.5,
+    "alternatives": []
+  },
+  {
+    "name": "COVID-19",
+    "type": "other",
+    "expected_source": "mesh",
+    "expected_id": "D000086382",
+    "expected_confidence": 0.8,
+    "alternatives": []
+  },
+  {
+    "name": "blood-brain barrier",
+    "type": "other",
+    "expected_source": "mesh",
+    "expected_id": "D001812",
+    "expected_confidence": 0.8,
+    "alternatives": []
+  },
+  {
+    "name": "centromere",
+    "type": "other",
+    "expected_source": "mesh",
+    "expected_id": "D002503",
+    "expected_confidence": 0.8,
+    "alternatives": []
+  },
+  {
+    "name": "ileum",
+    "type": "other",
+    "expected_source": "mesh",
+    "expected_id": "D007082",
+    "expected_confidence": 0.8,
+    "alternatives": []
+  },
+  {
+    "name": "pancreas",
+    "type": "other",
+    "expected_source": "mesh",
+    "expected_id": "D010179",
+    "expected_confidence": 0.8,
+    "alternatives": []
+  },
+  {
+    "name": "macronucleus",
+    "type": "other",
+    "expected_source": "mesh",
+    "expected_id": "D048648",
+    "expected_confidence": 0.8,
+    "alternatives": []
+  },
+  {
+    "name": "thylakoid membrane",
+    "type": "other",
+    "expected_source": "mesh",
+    "expected_id": "D060431",
+    "expected_confidence": 0.55,
+    "alternatives": []
+  },
+  {
+    "name": "bladder",
+    "type": "other",
+    "expected_source": "mesh",
+    "expected_id": "D001746",
+    "expected_confidence": 0.55,
+    "alternatives": []
+  },
+  {
+    "name": "microfibril",
+    "type": "other",
+    "expected_source": "mesh",
+    "expected_id": "D020894",
+    "expected_confidence": 0.55,
+    "alternatives": []
+  },
+  {
+    "name": "eye",
+    "type": "other",
+    "expected_source": "mesh",
+    "expected_id": "D000869",
+    "expected_confidence": 0.55,
+    "alternatives": []
+  },
+  {
+    "name": "SARS-CoV-2",
+    "type": "disease",
+    "expected_source": "mesh",
+    "expected_id": "D000086402",
+    "expected_confidence": 0.51,
+    "alternatives": []
+  },
+  {
+    "name": "Dengue virus",
+    "type": "disease",
+    "expected_source": "mesh",
+    "expected_id": "D003716",
+    "expected_confidence": 0.51,
+    "alternatives": []
+  },
+  {
+    "name": "HIV-1",
+    "type": "disease",
+    "expected_source": "mesh",
+    "expected_id": "D015497",
+    "expected_confidence": 0.51,
+    "alternatives": []
+  },
+  {
+    "name": "Influenza A virus",
+    "type": "disease",
+    "expected_source": "mesh",
+    "expected_id": "D057921",
+    "expected_confidence": 0.5,
+    "alternatives": []
+  },
+  {
+    "name": "cytomegalovirus",
+    "type": "disease",
+    "expected_source": "mesh",
+    "expected_id": "D003587",
+    "expected_confidence": 0.51,
+    "alternatives": []
+  },
+  {
+    "name": "Plasmodium falciparum",
+    "type": "disease",
+    "expected_source": "mesh",
+    "expected_id": "D010963",
+    "expected_confidence": 0.51,
+    "alternatives": []
+  },
+  {
+    "name": "photosynthesis",
+    "type": "pathway",
+    "expected_source": "mesh",
+    "expected_id": "D010788",
+    "expected_confidence": 0.51,
+    "alternatives": []
+  },
+  {
+    "name": "RNA editing",
+    "type": "pathway",
+    "expected_source": "mesh",
+    "expected_id": "D017393",
+    "expected_confidence": 0.51,
+    "alternatives": []
+  },
+  {
+    "name": "pharmacokinetics",
+    "type": "pathway",
+    "expected_source": "mesh",
+    "expected_id": "D010599",
+    "expected_confidence": 0.51,
+    "alternatives": []
+  },
+  {
+    "name": "hydrogen bonding",
+    "type": "pathway",
+    "expected_source": "mesh",
+    "expected_id": "D006860",
+    "expected_confidence": 0.51,
+    "alternatives": []
+  },
+  {
+    "name": "Escherichia coli",
+    "type": "other",
+    "expected_source": "mesh",
+    "expected_id": "D018830",
+    "expected_confidence": 0.5,
+    "alternatives": []
+  },
+  {
+    "name": "interferon",
+    "type": "protein",
+    "expected_source": "uniprot",
+    "expected_id": "P40305",
+    "expected_confidence": 0.65,
+    "alternatives": []
+  },
+  {
+    "name": "RIG-I",
+    "type": "protein",
+    "expected_source": "uniprot",
+    "expected_id": "O95786",
+    "expected_confidence": 0.65,
+    "alternatives": []
+  },
+  {
+    "name": "tetratricopeptide repeat",
+    "type": "protein",
+    "expected_source": "uniprot",
+    "expected_id": "Q96AE7",
+    "expected_confidence": 0.65,
+    "alternatives": []
+  },
+  {
+    "name": "leucine-rich repeat",
+    "type": "protein",
+    "expected_source": "uniprot",
+    "expected_id": "Q53EV4",
+    "expected_confidence": 0.65,
+    "alternatives": []
+  },
+  {
+    "name": "protease",
+    "type": "protein",
+    "expected_source": "uniprot",
+    "expected_id": "P05154",
+    "expected_confidence": 0.65,
+    "alternatives": []
+  }
+]

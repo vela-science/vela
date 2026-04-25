@@ -1,0 +1,81 @@
+# Build artifacts
+/target
+
+# Next.js
+web/.next/
+web/node_modules/
+web/out/
+
+# Node
+node_modules/
+
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# OS
+.DS_Store
+*.swp
+*.swo
+
+# IDE
+.idea/
+.vscode/
+.claude/
+*.code-workspace
+.vela-runs/
+
+# Compiled frontier/frontier files (large, compile locally)
+frontiers/*.json
+!frontiers/bbb-alzheimer.json
+!frontiers/README.md
+frontier.json
+!examples/paper-folder/expected/frontier.json
+frontier-*.json
+test*.json
+
+# Non-release local project worktrees
+projects/crispr-delivery/
+projects/nlrp3/
+
+# Non-release material archived outside the OSS release surface
+hub/
+desktop/
+future/
+docs/archive/
+docs/reference/
+
+# Generated sites scratch
+sites/
+
+# Astro site build outputs (the source lives in site/, only build outputs are ignored)
+site/node_modules/
+site/dist/
+site/.astro/
+
+# Generated proof/demo packets
+proof-packet/
+proof-packet*/
+demo/bbb-proof-run-*/
+
+# Generated HTML files
+*.html
+!docs/**/*.html
+!web/**/*.html
+
+# Web public mock data
+web/public/entities/
+web/public/orgs/
+web/public/users/
+
+# Next.js build
+.next/

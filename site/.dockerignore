@@ -1,0 +1,16 @@
+# Build context for the static site Dockerfile is the site/ folder.
+# We only need dist/ + nginx.conf + the Dockerfile at deploy time.
+node_modules
+src
+public
+.astro
+.gitignore
+README.md
+package.json
+package-lock.json
+tsconfig.json
+astro.config.mjs
+.vscode
+fly.toml
+*.log
+.DS_Store

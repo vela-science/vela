@@ -1,0 +1,63 @@
+{
+  "id": "example-paper-folder-v0",
+  "name": "Example Paper Folder Fixture",
+  "description": "Small local-corpus benchmark tied to examples/paper-folder.",
+  "frontier": "../../examples/paper-folder/expected/frontier.json",
+  "tasks": [
+    {
+      "id": "example-findings",
+      "mode": "finding",
+      "description": "Curated CSV assertions should remain present after local corpus compile.",
+      "gold": "../gold/findings/example-paper-folder.json",
+      "thresholds": {
+        "min_f1": 0.42,
+        "min_precision": 0.25,
+        "min_recall": 1.0,
+        "min_entity_accuracy": 1.0,
+        "min_confidence_calibration": 1.0,
+        "min_type_accuracy": 1.0
+      }
+    },
+    {
+      "id": "example-entities",
+      "mode": "entity",
+      "description": "Core local corpus entities should be present with expected types.",
+      "gold": "../gold/entities/example-paper-folder.json",
+      "thresholds": {
+        "min_f1": 1.0,
+        "min_precision": 1.0,
+        "min_recall": 1.0,
+        "min_type_accuracy": 1.0
+      }
+    },
+    {
+      "id": "example-links",
+      "mode": "link",
+      "description": "Curated LRP1/RAGE findings should link to local extracted context through shared entities.",
+      "gold": "../gold/links/example-paper-folder.json",
+      "thresholds": {
+        "min_f1": 1.0,
+        "min_precision": 1.0,
+        "min_recall": 1.0
+      }
+    },
+    {
+      "id": "example-workflow",
+      "mode": "workflow",
+      "description": "Minimum workflow readiness for first-use local corpus demo.",
+      "workflow": {
+        "min_findings": 6,
+        "min_links": 2,
+        "min_entity_mentions": 10,
+        "min_evidence_spans": 6,
+        "min_provenance_complete": 6,
+        "min_assertion_types": 3,
+        "min_gap_flags": 1,
+        "min_contested_flags": 0
+      },
+      "thresholds": {
+        "min_workflow_score": 1.0
+      }
+    }
+  ]
+}

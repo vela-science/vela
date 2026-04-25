@@ -1,0 +1,23 @@
+---
+interface Props {
+  variant?: "live" | "ok" | "warn" | "stale" | "lost" | "muted";
+  label: string;
+}
+const { variant = "muted", label } = Astro.props;
+
+const colorVar = {
+  live: "var(--state-live)",
+  ok: "var(--state-ok)",
+  warn: "var(--state-warn)",
+  stale: "var(--state-stale)",
+  lost: "var(--state-lost)",
+  muted: "var(--ink-3)",
+}[variant];
+---
+<span
+  class={`wb-chip${variant === "live" ? " wb-chip--live" : ""}`}
+  style={`--chip:${colorVar};`}
+>
+  <span class="wb-chip__dot"></span>
+  {label}
+</span>

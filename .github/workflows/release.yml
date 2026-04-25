@@ -1,0 +1,62 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-apple-darwin
+            os: macos-latest
+            name: vela-macos-x86_64
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            name: vela-macos-aarch64
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            name: vela-linux-x86_64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+      - name: Build
+        run: cargo build --release -p vela-protocol --target ${{ matrix.target }}
+      - name: Package
+        run: |
+          mkdir -p dist
+          cp target/${{ matrix.target }}/release/vela dist/${{ matrix.name }}
+          chmod +x dist/${{ matrix.name }}
+          shasum -a 256 dist/${{ matrix.name }} > dist/${{ matrix.name }}.sha256
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.name }}
+          path: |
+            dist/${{ matrix.name }}
+            dist/${{ matrix.name }}.sha256
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Add canonical release assets
+        run: |
+          ./scripts/package-release-assets.sh artifacts/release-assets
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/**/*
+          generate_release_notes: true

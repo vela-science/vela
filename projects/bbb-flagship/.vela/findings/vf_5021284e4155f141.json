@@ -1,0 +1,155 @@
+{
+  "id": "vf_5021284e4155f141",
+  "version": 1,
+  "previous_version": null,
+  "assertion": {
+    "text": "Altered activities of RAGE and LRP1 at the blood-brain barrier contribute to the accumulation of amyloid beta-peptide in the central nervous system.",
+    "type": "mechanism",
+    "entities": [
+      {
+        "name": "RAGE",
+        "type": "protein",
+        "identifiers": {},
+        "candidates": [],
+        "aliases": [
+          "receptor for advanced glycation end products"
+        ],
+        "resolution_provenance": "checked-in raw/source-visible alias normalization",
+        "resolution_confidence": 1.0,
+        "resolution_method": "manual",
+        "species_context": "Homo sapiens"
+      },
+      {
+        "name": "LRP1",
+        "type": "protein",
+        "identifiers": {},
+        "candidates": [],
+        "aliases": [
+          "LRP",
+          "low-density lipoprotein receptor-related protein",
+          "low-density lipoprotein receptor related protein 1"
+        ],
+        "resolution_provenance": "checked-in raw/source-visible alias normalization",
+        "resolution_confidence": 1.0,
+        "resolution_method": "manual",
+        "species_context": "Homo sapiens"
+      },
+      {
+        "name": "amyloid-beta",
+        "type": "protein",
+        "identifiers": {},
+        "candidates": [],
+        "aliases": [
+          "amyloid beta-peptide",
+          "Aβ",
+          "Abeta",
+          "amyloid-beta peptide",
+          "beta-amyloid"
+        ],
+        "resolution_provenance": "checked-in raw/source-visible alias normalization",
+        "resolution_confidence": 1.0,
+        "resolution_method": "manual",
+        "species_context": "Homo sapiens"
+      }
+    ],
+    "relation": "causes",
+    "direction": "positive"
+  },
+  "evidence": {
+    "type": "experimental",
+    "model_system": "animal models of AD",
+    "species": "Mus musculus",
+    "method": "transport assay",
+    "sample_size": null,
+    "effect_size": null,
+    "p_value": null,
+    "replicated": false,
+    "replication_count": null,
+    "evidence_spans": [
+      {
+        "section": "abstract",
+        "text": "how altered activities in these 2 receptors at the blood-brain barrier may contribute to the CNS Abeta accumulation"
+      }
+    ]
+  },
+  "conditions": {
+    "text": "Altered receptor activity at the blood-brain barrier.",
+    "species_verified": [],
+    "species_unverified": [],
+    "in_vitro": false,
+    "in_vivo": true,
+    "human_data": false,
+    "clinical_trial": false,
+    "concentration_range": null,
+    "duration": null,
+    "age_group": null,
+    "cell_type": null
+  },
+  "confidence": {
+    "kind": "frontier_epistemic",
+    "score": 0.269,
+    "basis": "frontier_epistemic: evidence=0.80 * replication=0.70 * model=0.80 * sample=0.60 - review_penalty=0.00 + calibration=0.00 = 0.269",
+    "method": "computed",
+    "components": {
+      "evidence_strength": 0.8,
+      "replication_strength": 0.7,
+      "sample_strength": 0.6,
+      "model_relevance": 0.8,
+      "review_penalty": 0.0,
+      "calibration_adjustment": 0.0
+    },
+    "extraction_confidence": 0.85
+  },
+  "provenance": {
+    "source_type": "published_paper",
+    "doi": "10.1161/01.str.0000143452.85382.d1",
+    "pmid": "15459432",
+    "pmc": null,
+    "openalex_id": null,
+    "title": "RAGE (yin) versus LRP (yang) balance regulates alzheimer amyloid beta-peptide clearance through transport across the blood-brain barrier.",
+    "authors": [
+      {
+        "name": "Deane R",
+        "orcid": null
+      },
+      {
+        "name": "Wu Z",
+        "orcid": null
+      },
+      {
+        "name": "Zlokovic BV",
+        "orcid": null
+      }
+    ],
+    "year": 2004,
+    "journal": "Stroke",
+    "extraction": {
+      "method": "llm_extraction",
+      "model": "gemini-3-flash-preview",
+      "model_version": null,
+      "extracted_at": "2026-04-10T04:01:06.595806+00:00",
+      "extractor_version": "vela/0.2.0"
+    },
+    "review": null,
+    "citation_count": 0
+  },
+  "flags": {
+    "gap": false,
+    "negative_space": false,
+    "contested": false,
+    "retracted": false,
+    "declining": false,
+    "gravity_well": false
+  },
+  "links": [],
+  "annotations": [
+    {
+      "id": "ann_d76a0c5e6949ee22",
+      "text": "Curation limitation: checked-in source text for this finding contains title and abstract only; evidence is grounded to the abstract span and does not verify full-text methods, figures, tables, supplementary material, or exact controls/sample details.",
+      "author": "worker_a_bbb_curation",
+      "timestamp": "2026-04-22T00:00:00Z"
+    }
+  ],
+  "created": "2026-04-10T04:01:06.595943+00:00",
+  "updated": null
+}

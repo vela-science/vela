@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en" data-v4>
+<head>
+<meta charset="utf-8">
+<title>Proposals · Vela Workbench</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;1,8..60,400&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles/_v4.css">
+<link rel="icon" type="image/svg+xml" href="../assets/brand/favicon.svg">
+<style>
+  /* Proposals page-specific overrides on top of _v4.css */
+  .pq-page { padding: 32px 40px; max-width: 1100px; margin: 0 auto; font-family: "Inter", sans-serif; color: var(--ink-1, #1B1F27); }
+  .pq-eyebrow { font-family: "JetBrains Mono", monospace; font-size: 11px; letter-spacing: 0.08em; color: var(--ink-3, #6B7386); text-transform: uppercase; margin-bottom: 4px; }
+  .pq-h1 { font-family: "Source Serif 4", serif; font-size: 32px; font-weight: 500; margin: 0 0 6px; color: var(--ink-0, #15181E); }
+  .pq-sub { font-size: 14px; color: var(--ink-2, #3A4151); margin-bottom: 28px; }
+  .pq-status { font-family: "JetBrains Mono", monospace; font-size: 12px; padding: 8px 12px; border: 1px solid rgba(27,31,39,0.14); margin-bottom: 24px; background: #EFEAE0; }
+  .pq-status.live { border-color: rgba(59,91,219,0.32); }
+  .pq-status .live-dot { display:inline-block; width:6px; height:6px; background:#3B5BDB; vertical-align:middle; margin-right:6px; }
+  .pq-list { border-top: 1px solid rgba(27,31,39,0.14); }
+  .pq-row { display: grid; grid-template-columns: 140px 1fr auto; gap: 16px; padding: 16px 0; border-bottom: 1px solid rgba(27,31,39,0.08); }
+  .pq-kind { font-family: "JetBrains Mono", monospace; font-size: 12px; color: var(--ink-3, #6B7386); }
+  .pq-meta { font-family: "Source Serif 4", serif; font-size: 15px; line-height: 1.4; }
+  .pq-meta .id { font-family: "JetBrains Mono", monospace; font-size: 12px; color: var(--ink-3); }
+  .pq-meta .actor { color: var(--ink-2); }
+  .pq-meta .reason { display:block; margin-top: 4px; color: var(--ink-2); font-style: italic; }
+  .pq-actions { display: flex; gap: 6px; align-items: flex-start; }
+  .pq-btn { font-family: "Inter", sans-serif; font-size: 12px; padding: 6px 10px; border: 1px solid rgba(27,31,39,0.24); background: #F4F0E8; cursor: pointer; }
+  .pq-btn:hover { background: #EFEAE0; }
+  .pq-btn.accept { border-color: rgba(63,107,78,0.4); color: #3F6B4E; }
+  .pq-btn.reject { border-color: rgba(166,78,67,0.4); color: #A64E43; }
+  .pq-btn.note { border-color: rgba(27,31,39,0.14); }
+  .pq-empty { text-align: center; padding: 60px 20px; color: var(--ink-3); font-style: italic; }
+  .pq-toast { position: fixed; bottom: 24px; right: 24px; background: #15181E; color: #F4F0E8; padding: 10px 14px; font-family: "JetBrains Mono", monospace; font-size: 12px; max-width: 360px; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
+  .pq-toast.show { opacity: 1; }
+  .pq-status-chip { font-family: "JetBrains Mono", monospace; font-size: 10px; padding: 2px 6px; background: rgba(27,31,39,0.06); margin-left: 6px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-2); }
+  .pq-tip { font-family: "Inter", sans-serif; font-size: 12px; color: var(--ink-3); margin-top: 36px; line-height: 1.5; }
+  .pq-tip code { font-family: "JetBrains Mono", monospace; font-size: 11px; background: rgba(27,31,39,0.06); padding: 1px 4px; }
+</style>
+</head>
+<body class="v4">
+<div class="pq-page">
+  <div class="pq-eyebrow">Workbench · Proposals · Live</div>
+  <h1 class="pq-h1" id="pq-frontier-name">Loading frontier…</h1>
+  <div class="pq-sub" id="pq-frontier-sub">—</div>
+
+  <div class="pq-status live"><span class="live-dot"></span><span id="pq-status-text">connecting to /api/frontier…</span></div>
+
+  <div class="pq-list" id="pq-list">
+    <div class="pq-empty">Loading proposals…</div>
+  </div>
+
+  <div class="pq-tip">
+    Decisions queue locally. Sign and apply them with:<br>
+    <code>vela queue sign --actor &lt;your-id&gt; --key ~/.vela/keys/private.key</code><br>
+    The Ed25519 key never enters the browser. Phase R doctrine: signing is a deliberate human act on a terminal.
+  </div>
+</div>
+
+<div class="pq-toast" id="pq-toast"></div>
+
+<script>
+const BASE = window.location.origin;
+
+function toast(msg, ms = 2500) {
+  const el = document.getElementById('pq-toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), ms);
+}
+
+function el(tag, props, children) {
+  const node = document.createElement(tag);
+  if (props) Object.assign(node, props);
+  if (children) {
+    for (const c of children) {
+      if (typeof c === 'string') node.appendChild(document.createTextNode(c));
+      else if (c) node.appendChild(c);
+    }
+  }
+  return node;
+}
+
+async function loadFrontier() {
+  const r = await fetch(`${BASE}/api/frontier`);
+  if (!r.ok) throw new Error(`frontier load failed: ${r.status}`);
+  return r.json();
+}
+
+async function queueAction(kind, args) {
+  const r = await fetch(`${BASE}/api/queue`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ kind, args }),
+  });
+  const data = await r.json();
+  if (!r.ok) throw new Error(data.error || `queue append failed: ${r.status}`);
+  return data;
+}
+
+function renderProposals(proposals, currentReviewer) {
+  const list = document.getElementById('pq-list');
+  list.innerHTML = '';
+  const pending = proposals.filter(p => p.status === 'pending_review');
+  if (pending.length === 0) {
+    list.appendChild(el('div', { className: 'pq-empty' }, ['No pending proposals.']));
+    return;
+  }
+  for (const p of pending) {
+    const row = el('div', { className: 'pq-row' });
+    row.appendChild(el('div', { className: 'pq-kind' }, [p.kind]));
+    const meta = el('div', { className: 'pq-meta' });
+    const idLine = el('div');
+    idLine.appendChild(el('span', { className: 'id' }, [p.id]));
+    idLine.appendChild(document.createTextNode(' → '));
+    // Phase γ (v0.6): link target id to live-finding.html for triage navigation.
+    const targetLink = el('a', {
+      className: 'id',
+      href: `live-finding.html?id=${encodeURIComponent(p.target.id)}`,
+      style: 'color: #3B5BDB; text-decoration: underline;',
+    }, [p.target.id]);
+    idLine.appendChild(targetLink);
+    idLine.appendChild(el('span', { className: 'pq-status-chip' }, [p.status]));
+    meta.appendChild(idLine);
+    meta.appendChild(el('div', { className: 'actor' }, [`proposed by ${p.actor.id}`]));
+    meta.appendChild(el('span', { className: 'reason' }, [p.reason]));
+    row.appendChild(meta);
+    const actions = el('div', { className: 'pq-actions' });
+    const acceptBtn = el('button', { className: 'pq-btn accept', textContent: 'Accept' });
+    const rejectBtn = el('button', { className: 'pq-btn reject', textContent: 'Reject' });
+    acceptBtn.onclick = () => onDecision('accept_proposal', p.id, currentReviewer);
+    rejectBtn.onclick = () => onDecision('reject_proposal', p.id, currentReviewer);
+    actions.appendChild(acceptBtn);
+    actions.appendChild(rejectBtn);
+    row.appendChild(actions);
+    list.appendChild(row);
+  }
+}
+
+async function onDecision(kind, proposal_id, reviewer_id) {
+  const reason = prompt(
+    `Reason for ${kind === 'accept_proposal' ? 'accepting' : 'rejecting'} ${proposal_id}:`,
+    kind === 'accept_proposal' ? 'reviewed and accepted' : 'reviewed and rejected'
+  );
+  if (!reason) return;
+  try {
+    const data = await queueAction(kind, {
+      proposal_id,
+      reviewer_id,
+      reason,
+      timestamp: new Date().toISOString(),
+    });
+    toast(`queued ${kind} on ${proposal_id} — sign with vela queue sign`);
+  } catch (err) {
+    toast(`error: ${err.message}`, 4000);
+  }
+}
+
+async function bootstrap() {
+  try {
+    const frontier = await loadFrontier();
+    document.getElementById('pq-frontier-name').textContent = frontier.frontier?.name || frontier.project?.name || 'Frontier';
+    const desc = frontier.frontier?.description || frontier.project?.description || '';
+    const findingsCount = (frontier.findings || []).length;
+    const proposalsCount = (frontier.proposals || []).length;
+    document.getElementById('pq-frontier-sub').textContent =
+      `${desc} · ${findingsCount} findings · ${proposalsCount} proposals`;
+    document.getElementById('pq-status-text').textContent =
+      `live frontier · ${frontier.frontier_id || '(no vfr_id)'}`;
+    // Pick a default reviewer: first registered actor, or prompt.
+    const actors = frontier.actors || [];
+    let reviewer = (actors[0] && actors[0].id) || localStorage.getItem('vela.reviewer') || '';
+    if (!reviewer) {
+      reviewer = prompt('Reviewer id (must be registered via `vela actor add`):', 'reviewer:you');
+      if (reviewer) localStorage.setItem('vela.reviewer', reviewer);
+    }
+    renderProposals(frontier.proposals || [], reviewer);
+  } catch (err) {
+    document.getElementById('pq-list').innerHTML = '';
+    document.getElementById('pq-list').appendChild(
+      el('div', { className: 'pq-empty' }, [`Error: ${err.message}`])
+    );
+  }
+}
+
+bootstrap();
+</script>
+</body>
+</html>

@@ -1,0 +1,74 @@
+[
+  {
+    "assertion_text": "NLRP3 activates caspase-1 in microglia leading to IL-1B release",
+    "assertion_type": "mechanism",
+    "entities": ["NLRP3", "caspase-1", "microglia", "IL-1B"],
+    "confidence_range": { "low": 0.80, "high": 0.98 }
+  },
+  {
+    "assertion_text": "Systemic inflammation increases neutrophil-derived MMP-9 in the brain after MCAo, mediating sustained blood-brain barrier disruption",
+    "assertion_type": "mechanism",
+    "entities": ["MMP-9", "neutrophil", "claudin-5"],
+    "confidence_range": { "low": 0.85, "high": 0.98 }
+  },
+  {
+    "assertion_text": "Translational inhibitors that suppress stress granule formation also suppress TDP-43 inclusion formation",
+    "assertion_type": "therapeutic",
+    "entities": ["translational inhibitors", "TDP-43", "stress granules"],
+    "confidence_range": { "low": 0.80, "high": 0.95 }
+  },
+  {
+    "assertion_text": "The specific molecular mechanisms by which gut microbiota-associated metabolites alter brain functions remain incompletely understood",
+    "assertion_type": "mechanism",
+    "entities": ["gut microbiota", "metabolites", "brain"],
+    "confidence_range": { "low": 0.90, "high": 1.00 }
+  },
+  {
+    "assertion_text": "Prolonged pharmacological inhibition of CSF1R using GW2580 blocks microglial proliferation",
+    "assertion_type": "therapeutic",
+    "entities": ["CSF1R", "GW2580", "microglia"],
+    "confidence_range": { "low": 0.85, "high": 0.98 }
+  },
+  {
+    "assertion_text": "Non-steroidal anti-inflammatory drugs reduce the risk of developing Alzheimer's Disease and decrease amyloid-beta",
+    "assertion_type": "therapeutic",
+    "entities": ["non-steroidal anti-inflammatory drugs", "Alzheimer's disease", "amyloid-beta"],
+    "confidence_range": { "low": 0.60, "high": 0.85 }
+  },
+  {
+    "assertion_text": "Specific inhibition of GSK3B reduces BACE1-mediated cleavage of APP and amyloid-beta production",
+    "assertion_type": "mechanism",
+    "entities": ["GSK3B", "BACE1", "APP", "amyloid-beta"],
+    "confidence_range": { "low": 0.85, "high": 0.98 }
+  },
+  {
+    "assertion_text": "Tau pathology develops within white matter tracts that interconnect brain regions showing tau propagation",
+    "assertion_type": "mechanism",
+    "entities": ["tau", "white matter tracts"],
+    "confidence_range": { "low": 0.80, "high": 0.95 }
+  },
+  {
+    "assertion_text": "Transcranial photobiomodulation is effective in treating symptoms or pathology in animal models of Alzheimer's disease",
+    "assertion_type": "therapeutic",
+    "entities": ["tPBM", "Alzheimer's disease"],
+    "confidence_range": { "low": 0.80, "high": 0.95 }
+  },
+  {
+    "assertion_text": "An estimated 6.7 million Americans age 65 and older are living with Alzheimer's dementia in 2023",
+    "assertion_type": "epidemiological",
+    "entities": ["Alzheimer's dementia"],
+    "confidence_range": { "low": 0.90, "high": 1.00 }
+  },
+  {
+    "assertion_text": "Co-stimulation with CD40L during microglial challenge with beta-amyloid shifts the microglial response",
+    "assertion_type": "mechanism",
+    "entities": ["microglia", "CD40L", "beta-amyloid"],
+    "confidence_range": { "low": 0.75, "high": 0.92 }
+  },
+  {
+    "assertion_text": "Misfolded oligomers from Alzheimer's, Parkinson's, and Huntington's disease share a common structure that impairs the proteasome",
+    "assertion_type": "mechanism",
+    "entities": ["proteasome", "Alzheimer's disease", "Parkinson's disease", "Huntington's disease"],
+    "confidence_range": { "low": 0.85, "high": 0.98 }
+  }
+]

@@ -1,0 +1,66 @@
+---
+import "../styles/global.css";
+import WbRim from "../components/WbRim.astro";
+import WbHead from "../components/WbHead.astro";
+import WbFoot from "../components/WbFoot.astro";
+
+interface Props {
+  title: string;
+  description?: string;
+  active?: string;
+  eyebrow?: string;
+  pageTitle: string;
+  subtitle?: string;
+  ogImage?: string;
+}
+
+const {
+  title,
+  description = "A git-native protocol for replayable scientific frontier state.",
+  active,
+  eyebrow,
+  pageTitle,
+  subtitle,
+  ogImage = "/brand/og-image.png",
+} = Astro.props;
+
+const canonical = new URL(Astro.url.pathname, Astro.site);
+---
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>{title}</title>
+  <meta name="description" content={description} />
+  <link rel="canonical" href={canonical} />
+
+  <meta property="og:title" content={title} />
+  <meta property="og:description" content={description} />
+  <meta property="og:image" content={new URL(ogImage, Astro.site)} />
+  <meta property="og:url" content={canonical} />
+  <meta property="og:type" content="website" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:image" content={new URL(ogImage, Astro.site)} />
+
+  <link rel="icon" type="image/svg+xml" href="/brand/favicon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600&family=Source+Serif+4:ital,wght@0,400;0,500;1,400&family=JetBrains+Mono:wght@400;500&display=swap"
+  />
+</head>
+<body>
+  <div class="wb">
+    <WbRim active={active} />
+    <WbHead eyebrow={eyebrow} title={pageTitle} subtitle={subtitle}>
+      <slot name="aside" slot="aside" />
+    </WbHead>
+    <main class="wb-main">
+      <slot />
+    </main>
+    <WbFoot />
+  </div>
+</body>
+</html>

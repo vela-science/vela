@@ -1,0 +1,1073 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Vela · a git-native protocol for replayable scientific frontier state</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Vela turns a folder of papers into a bounded, reviewable state that a scientist or an agent can correct, replay, and sign.">
+<meta property="og:title" content="Vela · frontier state for science">
+<meta property="og:description" content="A git-native protocol for replayable scientific frontier state.">
+<meta property="og:image" content="assets/brand/og-image.png">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="assets/brand/og-image.png">
+<link rel="icon" type="image/svg+xml" href="assets/brand/favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;1,8..60,400&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles/tokens.css">
+<link rel="stylesheet" href="styles/site.css">
+<style data-inline="vela-tokens-site">
+/* =========================================================================
+   Vela Design System · tokens
+
+   "Less, but better." Ancient instrument + Swiss grid + literary type.
+   Warm off-white paper. Deep ink. One cool accent. Hairlines, not borders.
+   ========================================================================= */
+
+:root {
+  /* ---------- Paper & ink ---------- */
+  --paper-0:      #F4F0E8;   /* page — warm off-white, astrolabe vellum */
+  --paper-1:      #EFEAE0;   /* raised surface */
+  --paper-2:      #E7E1D4;   /* sunken / inset */
+  --paper-edge:   #DCD4C3;   /* folded edge */
+
+  --ink-0:        #15181E;   /* strongest ink */
+  --ink-1:        #1B1F27;   /* body ink */
+  --ink-2:        #3A4151;   /* secondary */
+  --ink-3:        #6B7386;   /* tertiary / caption */
+  --ink-4:        #9199A8;   /* placeholder */
+
+  /* Hairlines — warm graphite, never pure gray */
+  --rule-1:       rgba(27, 31, 39, 0.08);   /* faintest tick */
+  --rule-2:       rgba(27, 31, 39, 0.14);   /* standard hairline */
+  --rule-3:       rgba(27, 31, 39, 0.24);   /* emphasis rule */
+  --rule-ink:     rgba(27, 31, 39, 0.88);   /* engraved line */
+
+  /* ---------- The single accent ---------- */
+  /* Signal blue — cool, precise, used ONLY for live state, alidade,
+     current cursor. Never as a decorative fill. */
+  --signal:       #3B5BDB;
+  --signal-soft:  rgba(59, 91, 219, 0.10);
+  --signal-edge:  rgba(59, 91, 219, 0.32);
+
+  /* State — all derived from ink + signal, never from a fresh palette.
+     Muted so they feel engraved, not traffic-light. */
+  --state-live:   #3B5BDB;   /* live = signal */
+  --state-ok:     #3F6B4E;   /* moss */
+  --state-warn:   #8A6A1F;   /* brass */
+  --state-stale:  #7A6F5C;   /* dust */
+  --state-lost:   #8A3A3A;   /* madder */
+
+  /* ---------- Type ---------- */
+  --font-sans:   "Inter Display", "Inter Tight", "Neue Haas Grotesk Display Pro", "Söhne", ui-sans-serif, -apple-system, system-ui, sans-serif;
+  --font-serif:  "Source Serif 4", "Source Serif Pro", "Iowan Old Style", Charter, "Iowan", Georgia, serif;
+  --font-mono:   "JetBrains Mono", "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Scale — major third, anchored to 16px body */
+  --size-xs:     11px;   /* tick labels, indices */
+  --size-sm:     13px;   /* caption, chrome */
+  --size-base:   16px;   /* UI body */
+  --size-md:     18px;   /* reading body when serif */
+  --size-lg:     22px;   /* section head */
+  --size-xl:     32px;   /* page head */
+  --size-2xl:    48px;   /* hero */
+  --size-3xl:    72px;   /* display */
+
+  /* Reading rhythm */
+  --leading-tight: 1.15;
+  --leading-snug:  1.30;
+  --leading-body:  1.55;
+  --leading-read:  1.68;   /* serif reading */
+
+  /* Tracking — instrument labels use positive tracking, display uses tight */
+  --track-tight:  -0.015em;
+  --track-none:   0;
+  --track-label:  0.08em;   /* SMALL CAPS style chrome */
+  --track-tick:   0.14em;   /* numeric indices "01 / 02 / 03" */
+
+  /* ---------- Rhythm & spacing ---------- */
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-5:  24px;
+  --space-6:  32px;
+  --space-7:  48px;
+  --space-8:  72px;
+  --space-9:  120px;
+
+  /* Radii — almost none. 2px for inputs, 0 for everything else. */
+  --radius-0:  0;
+  --radius-1:  2px;
+  --radius-2:  4px;
+
+  /* Elevation — only two levels. Never a drop shadow for decoration. */
+  --lift-1:  0 1px 0 var(--rule-2);
+  --lift-2:  0 1px 2px rgba(27, 31, 39, 0.06), 0 0 0 1px var(--rule-2);
+
+  /* Motion */
+  --ease:      cubic-bezier(0.2, 0.6, 0.2, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --dur-1:     120ms;
+  --dur-2:     200ms;
+  --dur-3:     360ms;
+}
+
+/* =========================================================================
+   Dark theme — the instrument in darkness
+   Applied with [data-theme="dark"] on <html>
+   ========================================================================= */
+:root[data-theme="dark"] {
+  --paper-0:      #0E1014;
+  --paper-1:      #14171D;
+  --paper-2:      #1A1D24;
+  --paper-edge:   #22262E;
+
+  --ink-0:        #F4F0E8;
+  --ink-1:        #E6E1D4;
+  --ink-2:        #A8AEBE;
+  --ink-3:        #6E7689;
+  --ink-4:        #4A5163;
+
+  --rule-1:       rgba(244, 240, 232, 0.06);
+  --rule-2:       rgba(244, 240, 232, 0.10);
+  --rule-3:       rgba(244, 240, 232, 0.18);
+  --rule-ink:     rgba(244, 240, 232, 0.72);
+
+  --signal:       #6C8CFF;
+  --signal-soft:  rgba(108, 140, 255, 0.14);
+  --signal-edge:  rgba(108, 140, 255, 0.44);
+
+  --state-live:   #6C8CFF;
+  --state-ok:     #6FB88A;
+  --state-warn:   #C9A34E;
+  --state-stale:  #8C8472;
+  --state-lost:   #CF6B6B;
+
+  --lift-1:  0 1px 0 var(--rule-2);
+  --lift-2:  0 1px 0 rgba(0,0,0,0.4), 0 0 0 1px var(--rule-2);
+}
+
+/* =========================================================================
+   Base
+   ========================================================================= */
+html, body {
+  background: var(--paper-0);
+  color: var(--ink-1);
+  font-family: var(--font-sans);
+  font-size: var(--size-base);
+  line-height: var(--leading-body);
+  font-feature-settings: "ss01", "cv11", "calt";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* =========================================================================
+   Type roles
+   ========================================================================= */
+
+/* Display — tight, confident, used once per page */
+.t-display {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-size: var(--size-3xl);
+  line-height: var(--leading-tight);
+  letter-spacing: var(--track-tight);
+  color: var(--ink-0);
+}
+
+/* Page title */
+.t-hero {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-size: var(--size-2xl);
+  line-height: 1.1;
+  letter-spacing: var(--track-tight);
+  color: var(--ink-0);
+}
+
+/* Section heads */
+.t-section {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: var(--size-lg);
+  line-height: var(--leading-snug);
+  letter-spacing: var(--track-tight);
+  color: var(--ink-0);
+}
+
+/* Reading body — when it's prose, it's serif */
+.t-read {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-size: var(--size-md);
+  line-height: var(--leading-read);
+  color: var(--ink-1);
+}
+.t-read p + p { margin-top: 1.1em; text-indent: 1.3em; }
+.t-read p:first-of-type { text-indent: 0; }
+
+/* Instrument label — small caps, tracked, ink-3 */
+.t-label {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: var(--size-xs);
+  line-height: 1;
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+/* Numeric index — "01 / 02 / 03" style tick-marks for sections */
+.t-tick {
+  font-family: var(--font-mono);
+  font-weight: 400;
+  font-size: var(--size-xs);
+  letter-spacing: var(--track-tick);
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Mono readout — instrument output */
+.t-mono {
+  font-family: var(--font-mono);
+  font-size: var(--size-sm);
+  line-height: 1.5;
+  color: var(--ink-1);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Caption */
+.t-caption {
+  font-family: var(--font-sans);
+  font-size: var(--size-sm);
+  line-height: 1.45;
+  color: var(--ink-3);
+}
+
+/* =========================================================================
+   Primitives — hairlines, tick rows, the rete motif
+   ========================================================================= */
+
+/* A hairline rule. Default horizontal; .v for vertical. */
+.rule        { background: var(--rule-2); height: 1px; width: 100%; }
+.rule--v     { background: var(--rule-2); width: 1px;  height: 100%; }
+.rule--heavy { background: var(--rule-3); }
+
+/* Tick row — the engraved edge. Used at top of sections, proof packets, etc.
+   Renders as a repeating linear gradient of 1px black marks. */
+.ticks {
+  height: 8px;
+  background-image: linear-gradient(to right,
+    var(--rule-3) 0 1px,
+    transparent 1px 100%);
+  background-size: 12px 100%;
+  background-repeat: repeat-x;
+  background-position: left bottom;
+}
+.ticks--tight { background-size: 6px 100%; }
+.ticks--wide  { background-size: 24px 100%; }
+
+/* Alidade — the one bright index line. A horizontal 1px signal-blue rule
+   that marks "here, now." Use sparingly. */
+.alidade {
+  height: 1px;
+  background: var(--signal);
+  box-shadow: 0 0 0 1px var(--signal-soft);
+}
+
+
+/* ============== site.css ============== */
+
+/* =========================================================================
+   Vela · landing site
+   Layered on tokens.css + workbench.css. This file shapes the one public
+   landing page and the previews index.
+   ========================================================================= */
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--paper-0);
+  color: var(--ink-1);
+  font-family: var(--font-sans);
+  min-height: 100vh;
+  font-feature-settings: "ss01", "cv11", "calt";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+* { box-sizing: border-box; }
+
+a { color: var(--ink-0); text-decoration: none; border-bottom: 1px solid var(--rule-2); }
+a:hover { border-bottom-color: var(--rule-ink); }
+
+/* ============================================================
+   Frame — left tick rim, main column, foot
+   ============================================================ */
+.site {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  grid-template-rows: auto 1fr auto;
+  grid-template-areas:
+    "rim head"
+    "rim body"
+    "rim foot";
+}
+
+.site-rim {
+  grid-area: rim;
+  border-right: 1px solid var(--rule-2);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 24px 0 32px;
+  background: var(--paper-0);
+}
+.site-rim::before {
+  content: "";
+  position: absolute;
+  inset: 24px 0 32px 0;
+  background-image: linear-gradient(
+    to bottom,
+    var(--rule-2) 0 1px,
+    transparent 1px 100%
+  );
+  background-size: 100% 16px;
+  background-position: right top;
+  background-repeat: repeat-y;
+  opacity: 0.6;
+  pointer-events: none;
+}
+.site-rim__mark {
+  display: flex;
+  justify-content: center;
+}
+.site-rim__mark svg { width: 28px; height: 28px; display: block; }
+.site-rim__nav {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+  position: relative;
+  z-index: 1;
+}
+.site-rim__link {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  padding: 10px 4px;
+  text-decoration: none;
+  border: 0;
+  position: relative;
+  transition: color var(--dur-1) var(--ease);
+}
+.site-rim__link:hover { color: var(--ink-0); }
+.site-rim__link--on { color: var(--ink-0); }
+.site-rim__link--on::before {
+  content: "";
+  position: absolute;
+  left: -5px;
+  top: 50%;
+  transform: translateY(-50%) rotate(180deg);
+  width: 1px;
+  height: 18px;
+  background: var(--signal);
+  transition: height var(--dur-2) var(--ease);
+}
+.site-rim__tag {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  color: var(--ink-4);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  text-transform: uppercase;
+}
+
+/* ============================================================
+   Head
+   ============================================================ */
+.site-head {
+  grid-area: head;
+  padding: 48px 48px 0 40px;
+  max-width: 980px;
+}
+.site-head__row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 32px;
+  padding-bottom: 16px;
+}
+.site-head__eyebrow {
+  font-family: var(--font-mono);
+  font-size: var(--size-xs);
+  letter-spacing: var(--track-tick);
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin: 0 0 14px 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.site-head__eyebrow::before {
+  content: "";
+  display: inline-block;
+  width: 18px;
+  height: 1px;
+  background: var(--rule-3);
+}
+.site-head__title {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-size: 72px;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--ink-0);
+  margin: 0;
+}
+.site-head__sub {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: var(--size-lg);
+  color: var(--ink-2);
+  margin: 14px 0 0;
+  max-width: 52ch;
+}
+.site-head__aside {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  font-family: var(--font-mono);
+  font-size: var(--size-xs);
+  letter-spacing: 0.06em;
+  color: var(--ink-3);
+  white-space: nowrap;
+  text-transform: uppercase;
+}
+.ticks {
+  height: 8px;
+  margin-top: 28px;
+  background-image: linear-gradient(
+    to right,
+    var(--rule-3) 0 1px,
+    transparent 1px 100%
+  );
+  background-size: 18px 100%;
+  background-repeat: repeat-x;
+  background-position: left bottom;
+}
+.ticks--tight { background-size: 8px 100%; }
+.ticks--wide { background-size: 32px 100%; }
+
+/* ============================================================
+   Body
+   ============================================================ */
+.site-body {
+  grid-area: body;
+  padding: 40px 48px 48px 40px;
+  max-width: 980px;
+}
+
+.site-body section + section { margin-top: 72px; }
+
+.site-body .t-read {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-size: var(--size-md);
+  line-height: var(--leading-read);
+  color: var(--ink-1);
+  max-width: 58ch;
+}
+.site-body .t-read + .t-read { margin-top: 1.1em; }
+
+.section-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-family: var(--font-mono);
+  font-size: var(--size-xs);
+  letter-spacing: var(--track-tick);
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin: 0 0 14px 0;
+}
+.section-eyebrow::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--rule-2);
+}
+.section-title {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-size: var(--size-lg);
+  letter-spacing: var(--track-tight);
+  color: var(--ink-0);
+  margin: 0 0 18px 0;
+}
+
+/* ---------- Install block ---------- */
+.install-block {
+  font-family: var(--font-mono);
+  font-size: var(--size-sm);
+  background: var(--paper-1);
+  border: 1px solid var(--rule-2);
+  border-radius: var(--radius-1);
+  padding: 16px 18px;
+  color: var(--ink-1);
+  white-space: pre-wrap;
+  line-height: 1.6;
+  max-width: 78ch;
+}
+.install-block .prompt { color: var(--signal); margin-right: 6px; }
+.install-block .comment { color: var(--ink-3); }
+
+/* ---------- First-frontier transcript ---------- */
+.transcript {
+  font-family: var(--font-mono);
+  font-size: var(--size-sm);
+  background: var(--paper-1);
+  border: 1px solid var(--rule-2);
+  border-radius: var(--radius-1);
+  padding: 20px 0;
+  overflow-x: auto;
+  max-width: 78ch;
+}
+.transcript__row {
+  display: grid;
+  grid-template-columns: 38px 18px 1fr;
+  padding: 2px 20px;
+  column-gap: 10px;
+  line-height: 1.55;
+}
+.transcript__row:hover { background: var(--paper-2); }
+.transcript__ln {
+  color: var(--ink-4);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  user-select: none;
+}
+.transcript__caret { color: var(--signal); }
+.transcript__cmd { color: var(--ink-0); }
+.transcript__out { grid-column: 2 / 4; color: var(--ink-2); }
+
+/* ---------- Bundle definition list ---------- */
+.bundle-dl {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 36px 48px;
+  margin: 0;
+  max-width: 78ch;
+}
+.bundle-dl > div { display: contents; }
+.bundle-dl dt {
+  font-family: var(--font-mono);
+  font-size: var(--size-xs);
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--rule-2);
+}
+.bundle-dl dd {
+  font-family: var(--font-serif);
+  font-size: var(--size-md);
+  line-height: var(--leading-read);
+  color: var(--ink-1);
+  margin: 0 0 20px 0;
+  grid-column: 1 / -1;
+}
+.bundle-dl dt + dd { grid-column: auto; margin-bottom: 0; }
+
+/* Simpler: every dt/dd pair becomes a 2-col row. Use flex instead. */
+.bundle-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 32px 48px;
+  margin: 0;
+  max-width: 78ch;
+  font: inherit;
+}
+.bundle-grid__item dt {
+  font-family: var(--font-mono);
+  font-size: var(--size-xs);
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--rule-2);
+}
+.bundle-grid__item dd {
+  font-family: var(--font-serif);
+  font-size: var(--size-md);
+  line-height: var(--leading-read);
+  color: var(--ink-1);
+  margin: 0;
+}
+
+/* ---------- Proof plate ---------- */
+.proof-plate {
+  position: relative;
+  max-width: 78ch;
+  padding: 48px 56px;
+  background: var(--paper-1);
+  border: 1px solid var(--rule-2);
+}
+.proof-plate::before,
+.proof-plate::after {
+  content: "";
+  display: block;
+  height: 8px;
+  background-image: linear-gradient(
+    to right,
+    var(--rule-3) 0 1px,
+    transparent 1px 100%
+  );
+  background-size: 12px 100%;
+  background-repeat: repeat-x;
+  position: absolute;
+  left: 0;
+  right: 0;
+}
+.proof-plate::before { top: 0; }
+.proof-plate::after { bottom: 0; }
+.proof-plate__seal {
+  display: flex;
+  justify-content: center;
+  margin: 8px 0 24px 0;
+}
+.proof-plate__seal svg {
+  width: 160px;
+  height: 160px;
+  display: block;
+}
+.proof-plate__sigs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+  margin: 32px 0;
+  font-family: var(--font-mono);
+  font-size: var(--size-xs);
+  color: var(--ink-3);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.proof-plate__sig {
+  padding-top: 18px;
+  border-top: 1px solid var(--rule-3);
+}
+.proof-plate__sig strong {
+  display: block;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-weight: 400;
+  font-size: var(--size-md);
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ink-1);
+  margin-bottom: 6px;
+}
+.proof-plate__manifest {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 6px 24px;
+  font-family: var(--font-mono);
+  font-size: var(--size-sm);
+  color: var(--ink-2);
+  border-top: 1px solid var(--rule-2);
+  padding-top: 18px;
+}
+.proof-plate__manifest dt {
+  color: var(--ink-3);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-size: var(--size-xs);
+  align-self: baseline;
+  padding-top: 2px;
+}
+
+/* ---------- Read-next chips ---------- */
+.read-next {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px 20px;
+  max-width: 78ch;
+}
+.read-next__chip {
+  display: block;
+  padding: 14px 16px;
+  border: 1px solid var(--rule-2);
+  border-radius: var(--radius-1);
+  background: var(--paper-0);
+  color: var(--ink-0);
+  font-family: var(--font-sans);
+  font-size: var(--size-sm);
+  line-height: 1.35;
+  transition: background var(--dur-1) var(--ease),
+    border-color var(--dur-1) var(--ease);
+}
+.read-next__chip:hover {
+  background: var(--paper-1);
+  border-color: var(--rule-ink);
+}
+.read-next__chip strong {
+  display: block;
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-size: var(--size-md);
+  color: var(--ink-0);
+  margin-bottom: 4px;
+}
+.read-next__chip span {
+  color: var(--ink-3);
+  font-family: var(--font-mono);
+  font-size: var(--size-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* ============================================================
+   Foot
+   ============================================================ */
+.site-foot {
+  grid-area: foot;
+  padding: 18px 48px 22px 40px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+  border-top: 1px solid var(--rule-2);
+  font-family: var(--font-mono);
+  font-size: var(--size-xs);
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+  text-transform: uppercase;
+}
+.site-foot a {
+  color: var(--ink-3);
+  border-bottom-color: var(--rule-2);
+}
+.site-foot a:hover { color: var(--ink-0); }
+.site-foot__star {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--signal);
+  box-shadow: 0 0 0 2px var(--signal-soft);
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+/* ============================================================
+   Previews index — reused minimal layout without the rim
+   ============================================================ */
+main.site {
+  /* previews index uses the single-column rimless layout */
+  grid-template-columns: 1fr;
+  grid-template-areas: "head" "body" "foot";
+}
+.preview-grid {
+  margin: 32px 0 0 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px 48px;
+  max-width: 78ch;
+}
+.preview-grid dt {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-size: var(--size-lg);
+  letter-spacing: var(--track-tight);
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--rule-2);
+}
+.preview-grid dt a { border-bottom: 0; color: var(--ink-0); }
+.preview-grid dt a:hover { color: var(--signal); }
+.preview-grid dd {
+  font-family: var(--font-serif);
+  font-size: var(--size-md);
+  line-height: var(--leading-read);
+  color: var(--ink-2);
+  margin: 0 0 18px 0;
+}
+
+/* ============================================================
+   Responsive
+   ============================================================ */
+@media (max-width: 760px) {
+  .site { grid-template-columns: 40px 1fr; }
+  .site-rim { padding: 16px 0 20px; }
+  .site-rim__link { padding: 6px 2px; }
+  .site-head { padding: 28px 24px 0 16px; }
+  .site-head__title { font-size: 48px; }
+  .site-body { padding: 28px 24px 32px 16px; }
+  .site-foot { padding: 16px 24px 18px 16px; flex-wrap: wrap; }
+  .bundle-grid { grid-template-columns: 1fr; }
+  .preview-grid { grid-template-columns: 1fr; }
+  .read-next { grid-template-columns: 1fr; }
+  .proof-plate { padding: 36px 20px; }
+  .proof-plate__sigs { grid-template-columns: 1fr; }
+}
+
+/* ============================================================
+   Reduced motion
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0s !important;
+    transition-duration: 0s !important;
+  }
+}
+
+</style>
+
+</head>
+<body>
+
+<main class="site" style="grid-template-columns: 56px 1fr; grid-template-areas: 'rim head' 'rim body' 'rim foot';">
+
+  <!-- Rim -->
+  <aside class="site-rim" aria-label="Section navigation">
+    <div class="site-rim__mark">
+      <svg viewBox="0 0 64 64" fill="none" aria-label="Vela mark" role="img">
+        <circle cx="32" cy="32" r="28" stroke="#1B1F27" stroke-width="1"></circle>
+        <circle cx="32" cy="32" r="20" stroke="#1B1F27" stroke-width="1"></circle>
+        <circle cx="32" cy="32" r="11" stroke="#1B1F27" stroke-width="1"></circle>
+        <line x1="8" y1="32" x2="56" y2="32" stroke="#1B1F27" stroke-width="1" transform="rotate(-25 32 32)"></line>
+        <circle cx="32" cy="32" r="1.8" fill="#1B1F27"></circle>
+        <circle cx="52" cy="22" r="1.2" fill="#3B5BDB"></circle>
+      </svg>
+    </div>
+
+    <nav class="site-rim__nav">
+      <a class="site-rim__link" href="#install" data-alidade-target="install">01 · Install</a>
+      <a class="site-rim__link" href="#first-frontier" data-alidade-target="first-frontier">02 · First frontier</a>
+      <a class="site-rim__link" href="#bundle" data-alidade-target="bundle">03 · The bundle</a>
+      <a class="site-rim__link" href="#proof" data-alidade-target="proof">04 · Proof</a>
+      <a class="site-rim__link" href="#read-next" data-alidade-target="read-next">05 · Read next</a>
+    </nav>
+
+    <div class="site-rim__tag">v0.2.0</div>
+  </aside>
+
+  <!-- Head -->
+  <header class="site-head">
+    <div class="site-head__row">
+      <div>
+        <p class="site-head__eyebrow">Vela · v0.2.0 · git-native frontier state</p>
+        <h1 class="site-head__title">Vela</h1>
+        <p class="site-head__sub">A git-native protocol for replayable scientific frontier state.</p>
+      </div>
+      <div class="site-head__aside">
+        <span>Apache-2.0</span>
+        <span>·</span>
+        <span>Rust</span>
+        <span>·</span>
+        <span>macOS · Linux</span>
+      </div>
+    </div>
+    <div class="ticks"></div>
+  </header>
+
+  <!-- Body -->
+  <div class="site-body">
+
+    <section aria-labelledby="intro">
+      <h2 id="intro" class="section-title" style="font-size: 22px;">What it is</h2>
+      <p class="t-read">
+        Vela turns a folder of papers into a bounded, reviewable state that a scientist or an agent can correct, replay, and sign. The release primitive is not the paper. It is the <em>frontier</em>: a state snapshot made of findings, evidence, conditions, and provenance, with a write path — proposal, accepted canonical event, reducer — that makes corrections part of the record.
+      </p>
+      <p class="t-read">
+        The core write path is narrow. A <em>finding bundle</em> (assertion, evidence, conditions, entities, confidence, provenance, links) is the primary object. A <em>proposal</em> is the public write boundary. An accepted proposal becomes a canonical event, which replays deterministically into the frontier. A <em>proof packet</em> seals the current state so another party can re-verify it offline.
+      </p>
+      <p class="t-read">
+        v0 proves state, not extraction. Lab runtime, federation network, autonomous agent loops, hubs, desktop apps — those stay roadmap. v0's claim is small and checkable: scientific work can become inspectable, correctable, replayable frontier state.
+      </p>
+    </section>
+
+    <section id="install" aria-labelledby="install-title">
+      <p class="section-eyebrow">01 · install</p>
+      <h2 id="install-title" class="section-title">One binary, one command.</h2>
+      <div class="install-block"><span class="prompt">$</span> git clone https://github.com/vela-science/vela &amp;&amp; cd vela
+<span class="prompt">$</span> cargo build --release -p vela-protocol
+<span class="prompt">$</span> ./target/release/vela --help
+<span class="comment"># or, from source tree:</span>
+<span class="prompt">$</span> ./install.sh</div>
+      <p class="t-read" style="margin-top: 20px;">
+        Requires Rust 1.78+. No network calls required for local corpora. See the <a href="https://github.com/vela-science/vela#quick-start">Quick start</a> for LLM backend setup (optional).
+      </p>
+    </section>
+
+    <section id="first-frontier" aria-labelledby="first-frontier-title">
+      <p class="section-eyebrow">02 · first frontier</p>
+      <h2 id="first-frontier-title" class="section-title">Compile, review, replay, seal.</h2>
+      <div class="transcript" aria-label="First-frontier transcript">
+        <div class="transcript__row"><span class="transcript__ln">1</span><span class="transcript__caret">$</span><span class="transcript__cmd">vela compile ./papers --output frontier.json</span></div>
+        <div class="transcript__row"><span class="transcript__ln">2</span><span class="transcript__caret">$</span><span class="transcript__cmd">vela check frontier.json --strict --json</span></div>
+        <div class="transcript__row"><span class="transcript__ln">3</span><span class="transcript__caret">$</span><span class="transcript__cmd">vela normalize frontier.json --out frontier.normalized.json</span></div>
+        <div class="transcript__row"><span class="transcript__ln">4</span><span class="transcript__caret">$</span><span class="transcript__cmd">FINDING_ID=$(jq -r '.findings[0].id' frontier.json)</span></div>
+        <div class="transcript__row"><span class="transcript__ln">5</span><span class="transcript__caret">$</span><span class="transcript__cmd">vela review frontier.normalized.json "$FINDING_ID" \</span></div>
+        <div class="transcript__row"><span class="transcript__ln">&nbsp;</span><span class="transcript__caret">&nbsp;</span><span class="transcript__cmd">&nbsp;&nbsp;--status contested --reason "Mouse-only evidence" \</span></div>
+        <div class="transcript__row"><span class="transcript__ln">&nbsp;</span><span class="transcript__caret">&nbsp;</span><span class="transcript__cmd">&nbsp;&nbsp;--reviewer reviewer:demo --apply</span></div>
+        <div class="transcript__row"><span class="transcript__ln">6</span><span class="transcript__caret">$</span><span class="transcript__cmd">vela history frontier.normalized.json "$FINDING_ID"</span></div>
+        <div class="transcript__row"><span class="transcript__ln">7</span><span class="transcript__caret">$</span><span class="transcript__cmd">vela proof frontier.normalized.json --out proof-packet</span></div>
+        <div class="transcript__row"><span class="transcript__ln">8</span><span class="transcript__caret">$</span><span class="transcript__cmd">vela serve frontier.normalized.json</span></div>
+      </div>
+      <p class="t-read" style="margin-top: 20px;">
+        The proof moment: a reviewed correction becomes canonical history, the inherited frontier changes, the prior proof packet is marked stale, and a refreshed packet seals the corrected state. That path is the v0 claim. Run <code>./demo/v0-state-proof-demo.sh</code> to watch it execute end to end.
+      </p>
+    </section>
+
+    <section id="bundle" aria-labelledby="bundle-title">
+      <p class="section-eyebrow">03 · the bundle</p>
+      <h2 id="bundle-title" class="section-title">Six nouns, no more.</h2>
+      <dl class="bundle-grid">
+        <div class="bundle-grid__item">
+          <dt>Frontier</dt>
+          <dd>A bounded, reviewable frontier state over a scientific question.</dd>
+        </div>
+        <div class="bundle-grid__item">
+          <dt>Finding bundle</dt>
+          <dd>The primary state object — an assertion with evidence, conditions, entities, confidence, provenance, and links.</dd>
+        </div>
+        <div class="bundle-grid__item">
+          <dt>Evidence</dt>
+          <dd>The exact span, row, table, measurement, run, metric, or weak provenance unit bearing on a finding.</dd>
+        </div>
+        <div class="bundle-grid__item">
+          <dt>Condition</dt>
+          <dd>The boundary where a claim stops — species, assay, comparator, exposure, endpoint, translation scope.</dd>
+        </div>
+        <div class="bundle-grid__item">
+          <dt>Canonical event</dt>
+          <dd>The authoritative state-transition record. Every durable write lands here, via a proposal.</dd>
+        </div>
+        <div class="bundle-grid__item">
+          <dt>Proof packet</dt>
+          <dd>A portable review artifact — manifest, source and evidence tables, signals, event/replay data, proposals, proof trace.</dd>
+        </div>
+      </dl>
+    </section>
+
+    <section id="proof" aria-labelledby="proof-title">
+      <p class="section-eyebrow">04 · proof</p>
+      <h2 id="proof-title" class="section-title">A sealed, reviewable artifact.</h2>
+      <p class="t-read">
+        Every proof packet is a folder of pinned JSON plus a replayable trace. Another party can verify it offline — no network, no trust in the sender, no hidden state. If a reviewed correction lands upstream, the old packet is marked stale and the refresh is mechanical.
+      </p>
+      <div class="proof-plate" role="group" aria-label="Proof packet anatomy">
+        <div class="proof-plate__seal" aria-hidden="true">
+          <svg viewBox="0 0 400 400" fill="none" stroke="#1B1F27">
+            <g opacity="0.92">
+              <circle cx="200" cy="200" r="190" stroke-width="0.75"/>
+              <circle cx="200" cy="200" r="180" stroke-width="0.5"/>
+              <g stroke-width="0.8">
+                <line x1="200" y1="10" x2="200" y2="30"/>
+                <line x1="200" y1="370" x2="200" y2="390"/>
+                <line x1="10" y1="200" x2="30" y2="200"/>
+                <line x1="370" y1="200" x2="390" y2="200"/>
+              </g>
+              <circle cx="200" cy="200" r="155" stroke-width="0.5"/>
+              <circle cx="200" cy="200" r="145" stroke-width="0.5"/>
+              <circle cx="200" cy="230" r="95" stroke-width="0.5" stroke-dasharray="1 3"/>
+              <circle cx="200" cy="170" r="60" stroke-width="0.5"/>
+              <line x1="20" y1="200" x2="380" y2="200" stroke-width="0.6"/>
+              <line x1="200" y1="20" x2="200" y2="380" stroke-width="0.6"/>
+              <ellipse cx="200" cy="200" rx="130" ry="70" stroke-width="0.4"/>
+              <ellipse cx="200" cy="200" rx="95" ry="50" stroke-width="0.4"/>
+              <ellipse cx="200" cy="200" rx="60" ry="32" stroke-width="0.4"/>
+              <g stroke-width="0.6">
+                <line x1="200" y1="200" x2="310" y2="110"/>
+                <line x1="200" y1="200" x2="120" y2="90"/>
+                <line x1="200" y1="200" x2="270" y2="310"/>
+              </g>
+              <circle cx="310" cy="110" r="2.5" fill="#1B1F27"/>
+              <circle cx="120" cy="90" r="2" fill="#1B1F27"/>
+              <circle cx="270" cy="310" r="1.8" fill="#1B1F27"/>
+              <circle cx="200" cy="200" r="3" fill="#3B5BDB" stroke="none"/>
+            </g>
+          </svg>
+        </div>
+
+        <dl class="proof-plate__manifest">
+          <dt>Manifest</dt><dd>packet.lock.json · overview.json · scope.json</dd>
+          <dt>Sources</dt><dd>source-table.json (N entries, pinned hashes)</dd>
+          <dt>Evidence</dt><dd>evidence-matrix.json (per-finding provenance)</dd>
+          <dt>Signals</dt><dd>signals.json (gaps, bridges, tensions)</dd>
+          <dt>Events</dt><dd>canonical event log + replay trace</dd>
+          <dt>Quality</dt><dd>quality-table.json · frontier-quality.md</dd>
+          <dt>Trace</dt><dd>proof-trace.json (replay-to-frontier walk)</dd>
+        </dl>
+
+        <div class="proof-plate__sigs">
+          <div class="proof-plate__sig">
+            <strong>Reviewer</strong>
+            human · ed25519 · time &amp; identity
+          </div>
+          <div class="proof-plate__sig">
+            <strong>Agent</strong>
+            optional · ed25519 · model &amp; tool lineage
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="read-next" aria-labelledby="read-next-title">
+      <p class="section-eyebrow">05 · read next</p>
+      <h2 id="read-next-title" class="section-title">Five docs, in order.</h2>
+      <div class="read-next">
+        <a class="read-next__chip" href="https://github.com/vela-science/vela/blob/main/docs/CORE_DOCTRINE.md">
+          <strong>Core doctrine</strong>
+          <span>01 · canonical v0 claim boundary</span>
+        </a>
+        <a class="read-next__chip" href="https://github.com/vela-science/vela/blob/main/docs/FIRST_FRONTIER.md">
+          <strong>First frontier</strong>
+          <span>02 · paper-folder workflow</span>
+        </a>
+        <a class="read-next__chip" href="https://github.com/vela-science/vela/blob/main/docs/PROTOCOL.md">
+          <strong>Protocol</strong>
+          <span>03 · v0 state + event semantics</span>
+        </a>
+        <a class="read-next__chip" href="https://github.com/vela-science/vela/blob/main/docs/PROOF.md">
+          <strong>Proof</strong>
+          <span>04 · packet contract</span>
+        </a>
+        <a class="read-next__chip" href="https://github.com/vela-science/vela/blob/main/docs/BRAND.md">
+          <strong>Brand</strong>
+          <span>05 · voice · color · mark</span>
+        </a>
+        <a class="read-next__chip" href="previews/index.html">
+          <strong>Workbench previews</strong>
+          <span>future product surface · not v0</span>
+        </a>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- Foot -->
+  <footer class="site-foot">
+    <span>Vela v0.2.0 · Apache-2.0 · <a href="https://github.com/vela-science/vela">github.com/vela-science/vela</a></span>
+    <span class="site-foot__star" aria-hidden="true"></span>
+    <span>proof state, not extraction</span>
+  </footer>
+
+</main>
+
+<script src="scripts/alidade.js" defer></script>
+</body>
+</html>

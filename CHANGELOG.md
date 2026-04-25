@@ -1,0 +1,509 @@
+# Changelog
+
+## 0.7.0 - 2026-04-25
+
+The public-hub run. v0.6 left the substrate complete and gave us a
+local Postgres-backed hub. v0.7 puts the hub on a public URL, opens
+the publish path, and stands up the BBB living-repo workflow. "There
+is somewhere visible to send a signed manifest" stops being theatre.
+
+### Hub
+
+- **`POST /entries`** on `crates/vela-hub`. Anyone can submit a signed
+  manifest; the hub deserializes, calls
+  `vela_protocol::registry::verify_entry`, and INSERTs with `ON
+  CONFLICT (vfr_id, signature) DO NOTHING`. 201 fresh, 200 duplicate,
+  400 tamper or schema mismatch, 500 DB error. Doctrine: the signature
+  is the bind, not access control. No allowlist, no rate limit.
+- **`UNIQUE (vfr_id, signature)`** on `registry_entries` carries the
+  substrate's idempotency guarantee into the transport. Byte-identical
+  replays dedupe at the DB layer.
+- **Public deploy** at <https://vela-hub.fly.dev>. `crates/vela-hub`
+  ships with `Dockerfile` + `fly.toml` + `.dockerignore`. The Fly app
+  runs in the `vela-237` org behind a fresh Postgres role with
+  `INSERT/SELECT` only on `registry_entries`, distinct from the dev
+  sandbox. Production credential lives only in Fly secrets.
+
+### Substrate
+
+- **`registry::publish_remote(entry, hub_url) -> PublishResponse`**
+  in `crates/vela-protocol/src/registry.rs`. POSTs canonical bytes via
+  `reqwest::blocking`; surfaces `{ok, vfr_id, signed_publish_at,
+  duplicate}` from the hub.
+- **`vela registry publish --to https://...`** routes through
+  `publish_remote`. Local file paths and `file://` URLs keep working
+  byte-identically. The signing path (`sign_entry`) is unchanged
+  whether the destination is a file or a hub.
+
+### BBB living repo
+
+- **`reviewer:bbb-bot`** registered in `frontiers/bbb-alzheimer.json`
+  with `tier=auto-notes`. The bot's private key lives only in the
+  `VELA_BBB_BOT_KEY` GitHub Actions secret; the local copy is wiped
+  after registration, so rotation requires generating a new key, not
+  reading the secret out.
+- **`.github/workflows/bbb-living-repo.yml`** (Mondays 14:00 UTC,
+  also `workflow_dispatch`). Builds the CLI, signs, POSTs to
+  `https://vela-hub.fly.dev`, summarizes `vfr_id` + `snapshot_hash` +
+  `event_log_hash` + `signed_publish_at` in the job summary.
+  Recompilation lives outside CI (it would need LLM credentials and
+  human review); the workflow republishes whatever's in `main` with a
+  fresh `signed_publish_at`, which is enough for the "living repo"
+  claim.
+
+### Docs
+
+- New [docs/HUB.md](docs/HUB.md): doctrine, endpoints, publish/pull
+  recipes, the CI-bot pattern, self-hosting notes, operational
+  hygiene around credentials.
+- [docs/REGISTRY.md](docs/REGISTRY.md) updated for HTTP push.
+- [README.md](README.md) names the public hub URL.
+- [scripts/hub-publish.sh](scripts/hub-publish.sh) header reframed as
+  optional — direct-DB path remains for backfills, but `vela registry
+  publish --to https://<hub>` is preferred.
+
+### Cut
+
+- Workspace + crate versions: `0.6.0 → 0.7.0`.
+- `VELA_SCHEMA_URL` / `VELA_SCHEMA_VERSION` / `VELA_COMPILER_VERSION`
+  → `v0.7.0` / `0.7.0` / `vela/0.7.0`.
+- `default_formula_version() → "v0.7"` (cosmetic; same scoring math).
+- `frontiers/bbb-alzheimer.json` and
+  `examples/paper-folder/expected/frontier.json` migrated.
+- `schema/finding-bundle.v0.7.0.json` published.
+- Command banners (`compile`, `bridge`, `jats`, `ingest`,
+  `frontier`) bumped to `V0.7.0`.
+
+### Deferred to v0.8+
+
+- Cross-frontier links (`vf_…@vfr_…` references) — verifiable
+  composition. Defer until v0.7 generates pull pressure for it.
+- Hub-to-hub federation. Defer until ≥ 2 hubs exist.
+- Hub-hosted frontier blobs. Locator points elsewhere; the hub is
+  manifest-only.
+- Browser-side WebCrypto signing. Drafts-then-CLI-signs unchanged.
+- Webhooks / SSE on the hub.
+- `vela ingest --paper <path> --propose` CLI shortcut.
+- `propose_with_routing` SDK method.
+- Tier-permitted auto-apply for state-changing kinds.
+- Per-pubkey rate limits, allowlists, abuse handling.
+- A real domain. The Fly URL is sufficient for v0.7.
+
+## 0.6.0 - 2026-04-25
+
+The trusted-agent run. v0.5 made the substrate writable, reviewable, and
+distributable. The Sonnet-vs-Haiku stress test surfaced three concrete
+friction items, all driven by real pain. v0.6 fixes them without
+re-opening the sprawl problem the v0.3 focusing run closed.
+
+### Substrate
+
+- **Trust-tiered auto-apply** (`sign.rs`, `serve.rs`, `tool_registry.rs`).
+  `ActorRecord.tier: Option<String>` registered alongside the pubkey.
+  The only tier in v0.6 is `"auto-notes"`. New MCP tool
+  `propose_and_apply_note` signs once and applies in one call when the
+  actor's tier permits the kind. Doctrine: tiers permit review-context
+  kinds only — never state-changing kinds (review, retract, revise,
+  caveated). New CLI flag `vela actor add --tier auto-notes`. Halves
+  the signing surface for trusted bulk-note extractors.
+- **Structured note provenance** (`bundle.rs`, `events.rs`,
+  `reducer.rs`, `proposals.rs`). `Annotation.provenance:
+  Option<ProvenanceRef>` with `{doi?, pmid?, title?, span?}`. The
+  `finding.note` and `finding.caveated` payload schema accepts an
+  optional `provenance` object; at least one of doi/pmid/title must be
+  set when present. Provenance threads through proposal → applied event
+  → materialized annotation, so reviewers can query "show every
+  annotation from PMID X" via a typed field rather than parsing prose.
+- **Workbench live triage surface**
+  (`web/previews/live-frontier.html`, `live-finding.html`,
+  `web/scripts/workbench.js`). Two new live pages alongside the static
+  brand-canon fixtures: `live-frontier.html` is a live findings table
+  with client-side search/filter/scope chips, click-through to live
+  detail; `live-finding.html` is a two-column triage view (full
+  finding bundle on the left with linked DOI/PMID; queued-review
+  sidebar on the right with accept/reject buttons that POST to
+  `/api/queue` for `vela queue sign`). The Ed25519 key never enters
+  the browser. `proposals.html` proposal-target IDs hyperlink to
+  `live-finding.html` for triage navigation.
+
+### Conformance + docs
+
+- New conformance suites: `auto-apply-tier.json` (7 cases pinning the
+  tier-gate predicate) and `note-provenance.json` (2 cases pinning
+  the canonical preimage shape with/without provenance). Total: 47 → 56
+  cases.
+- New `docs/TIERS.md` — full tier model, doctrine, idempotency, and
+  forward-compat semantics.
+- Updated `docs/MCP.md` (tool count 17 → 18), `docs/WORKBENCH.md` (live
+  pages as entry surface), `docs/PYTHON.md` (`propose_and_apply_note`
+  and `provenance` examples).
+
+### Substrate metadata
+
+- `Cargo.toml` workspace version: 0.5.0 → 0.6.0.
+- `VELA_SCHEMA_URL` / `VELA_SCHEMA_VERSION` / `VELA_COMPILER_VERSION`
+  bumped to v0.6.0.
+- `schema/finding-bundle.v0.6.0.json` published.
+- `default_formula_version()` → `"v0.6"`.
+- `vela --version` → `vela 0.6.0`.
+- BBB fixture and paper-folder example migrated.
+- All command banners read V0.6.0.
+
+### Deferred to v0.7+ (intentionally)
+
+- Cross-frontier links (`vf_…@vfr_…`).
+- Hosted hub at `hub.vela.science`.
+- Federation peers / gossip protocol.
+- Multi-frontier workspace primitive.
+- Hosted Workbench (multi-user, deployed).
+- Browser-side WebCrypto signing.
+- HTTP / git transports for registries.
+- Webhooks (pull/SSE remains sufficient).
+- `vela ingest --paper <path> --propose` CLI shortcut.
+- `propose_with_routing` SDK method (entity-overlap routing).
+- Tier-permitted auto-apply for state-changing kinds.
+
+The substrate is now strong enough to host these without re-deriving
+the protocol. v0.6 leaves the next investment outside the substrate:
+make BBB a public living repo, write the canonical essay, find the
+first external writer.
+
+## 0.5.0 - 2026-04-25
+
+The accessible-substrate run. v0.4 hardened the kernel; v0.5 makes it
+writable from anywhere a writer needs to be — by AI agents through MCP
+and HTTP, by human reviewers through a Workbench wired to live state,
+and by other Vela instances through a verifiable-distribution registry.
+
+### Substrate
+
+- **Content-addressed proposals + idempotent apply** (`proposals.rs`).
+  `created_at` is no longer in the `vpr_…` preimage. Identical logical
+  proposals at different timestamps deterministically produce the
+  same id. `create_or_apply` is upsert-by-content-address: agent
+  retries return the same proposal_id and applied_event_id, with no
+  duplicate proposal or event in the frontier.
+- **Read-stream API** (`serve.rs`, `tool_registry.rs`).
+  `GET /api/events?since=<vev_…>&limit=<n>` and the matching MCP tool
+  `list_events_since` give cursor-paginated reads over the canonical
+  event log. Same surface serves agent-loop completion signals and
+  public-consumer diff watching. No auth on read.
+- **Write surface (MCP + HTTP)** (`serve.rs`, `tool_registry.rs`,
+  `sign.rs`). Six new tools: `propose_review`, `propose_note`,
+  `propose_revise_confidence`, `propose_retract`, `accept_proposal`,
+  `reject_proposal`. Each requires a registered actor (Phase M from
+  v0.4) and an Ed25519 signature over the canonical preimage.
+  `sign::proposal_signing_bytes` and `sign::verify_action_signature`
+  reuse the same canonical-JSON discipline as `vev_…`/`vpr_…` derivation.
+- **Workbench: drafts + CLI signs** (`web/previews/proposals.html`,
+  `crates/vela-protocol/src/queue.rs`, new `vela queue list/sign/clear`).
+  `vela serve --workbench` mounts `web/` alongside the API.
+  Browser POSTs unsigned decisions to `/api/queue`; `vela queue sign`
+  walks the queue, signs with the actor's key, and applies. The
+  Ed25519 private key never enters the browser.
+- **Registry primitive: verifiable distribution**
+  (`crates/vela-protocol/src/registry.rs`, new `vela registry
+  add/list/publish/pull`). Flat signed manifests
+  `(vfr_id, name, owner, snapshot_hash, event_log_hash, locator,
+  timestamp, signature)`. Pull verifies signature plus
+  snapshot_hash plus event_log_hash; any mismatch is total
+  rejection. Latest-publish-wins. `file://` and bare-path
+  transports; HTTP/git deferred to v0.6.
+
+### Adoption surface
+
+- **Python SDK** (`bindings/python/vela/__init__.py`). Single-file
+  client for `vela serve --http`. `Frontier.connect()`, `list_findings`,
+  `events_since` generator, signed `propose_*` methods,
+  `accept`/`reject`. Reuses the canonical-JSON rule in Python so
+  `vpr_…` and signature derivation are byte-identical to the Rust
+  kernel.
+- **Hello-world agent** (`examples/python-agent/extract_and_propose.py`).
+  Paper text → optional Anthropic-API claim extraction → propose
+  notes against a live frontier → events_since print-out → pointer at
+  the Workbench. ~50 lines of agent code.
+
+### Conformance + docs
+
+- New conformance vectors: `tests/conformance/proposal-idempotency.json`,
+  `tests/conformance/registry-publish-pull.json`. Total: 47 cases.
+- New docs: `docs/MCP.md`, `docs/WORKBENCH.md`, `docs/REGISTRY.md`,
+  `docs/PYTHON.md`. Each is the public contract for its v0.5 surface.
+
+### Substrate metadata
+
+- `Cargo.toml` workspace version: 0.4.0 → 0.5.0.
+- `VELA_SCHEMA_URL` / `VELA_SCHEMA_VERSION` / `VELA_COMPILER_VERSION`
+  bumped to v0.5.0.
+- `schema/finding-bundle.v0.5.0.json` published.
+- `default_formula_version()` → `"v0.5"` (cosmetic; same scoring math).
+- `vela --version` → `vela 0.5.0`.
+- BBB fixture and paper-folder example migrated to v0.5 schema URLs
+  and formula versions.
+- All command banners (`compile`, `bridge`, `jats`, `ingest`, `actor`,
+  `queue`, `registry`) read V0.5.0.
+
+### Deferred to v0.6 (intentionally)
+
+- Cross-frontier links (`vf_…@vfr_…` references). Composition is a
+  separate value prop from distribution.
+- Hosted hub (`hub.vela.science`). v0.5's registry is local +
+  `file://` URL; managed hub is operational, not protocol.
+- Federation peers / gossip protocol. Push/pull only in v0.5.
+- Multi-frontier workspace primitive.
+- Hosted Workbench (multi-user, deployed). Local-only Workbench in
+  v0.5.
+- Browser-side signing via WebCrypto. The drafts-then-CLI-signs
+  model is the v0.5 doctrine.
+- HTTP/git transports for registries.
+- Webhooks. Pull/SSE is sufficient for v0.5.
+
+The substrate is now strong enough to host these without re-deriving
+the protocol.
+
+## 0.4.0 - 2026-04-25
+
+The substrate-hardening run. v0.3 made the kernel a real protocol; v0.4
+makes its load-bearing claims doctrine-grounded rather than convenient.
+
+### Substrate
+
+- **`frontier.created` is a real `events[0]` genesis event**
+  (`crates/vela-protocol/src/project.rs`).
+  Every freshly compiled frontier emits a canonical event whose
+  hash IS the frontier_id. `frontier_id_from_genesis(events)`
+  derives `vfr_…` from the same canonical preimage shape as
+  `vev_…`, so a second implementation follows one rule. Legacy
+  v0.3 frontiers without a genesis event fall back to meta-derivation.
+- **Canonical/derived packet split** (`packet.rs`).
+  `CANONICAL_PACKET_FILES` (15) carry replay-bearing protocol state;
+  `DERIVED_PACKET_ARTIFACTS` (13) ship for inspection but are
+  regenerable projections. `proof-trace.checked_artifacts` requires
+  canonical only — derived artifacts are validated structurally.
+- **Retraction cascade as per-dependent canonical events**
+  (`proposals.rs`, `events.rs`, `reducer.rs`).
+  A retraction now emits one `finding.dependency_invalidated` event
+  per affected dependent in BFS depth order, each carrying
+  `upstream_finding_id`, `upstream_event_id`, and `depth`. A pure
+  reducer reproduces post-cascade state from the event log alone —
+  no hidden propagation in summary fields.
+- **Registered actors and signed events under `--strict`**
+  (`sign.rs`, `signals.rs`, new `vela actor add/list` CLI).
+  `Project.actors` maps stable actor.ids to Ed25519 public keys.
+  `--strict` emits `unsigned_registered_actor` and blocks
+  strict_check whenever a registered actor writes an event without a
+  verifying signature. `event_signing_bytes`, `sign_event`,
+  `verify_event_signature` operate on the same canonical preimage
+  shape as `vev_…` derivation.
+- **Provenance authority unification** (`sources.rs`, `signals.rs`,
+  `vela normalize --resync-provenance`).
+  `Project.sources` is canonical; `FindingBundle.provenance` is the
+  denormalized cache. `--strict` emits `provenance_drift` blockers
+  when title/year disagree; `vela normalize --resync-provenance --write`
+  rewrites the cache from the canonical SourceRecord.
+
+### Doctrine
+
+- The reducer now treats `frontier.created` as a structural anchor
+  and `finding.dependency_invalidated` as a state-mutating event.
+- Five new `--strict` doctrine signals: cascade events, registered-actor
+  signatures, provenance drift, plus the three v0.3 signals
+  (conditions_undeclared, evidence_atom_missing, agent_typed_unreviewed).
+- Schema URL bumped from v0.3.0 → v0.4.0; confidence
+  `formula_version` defaults to `"v0.4"`.
+- `vela --version` reports `vela 0.4.0`.
+
+### Substrate metadata
+
+- `Cargo.toml` workspace version: 0.3.0 → 0.4.0.
+- `VELA_SCHEMA_URL` / `VELA_SCHEMA_VERSION` / `VELA_COMPILER_VERSION`
+  bumped to v0.4.0.
+- `schema/finding-bundle.v0.4.0.json` published.
+- `frontiers/bbb-alzheimer.json` and the paper-folder fixture
+  migrated to v0.4 schema URLs.
+- All command banners (`compile`, `bridge`, `jats`, `ingest`, etc.)
+  now read V0.4.0.
+
+### Deferred to v0.5 (intentionally)
+
+- `vela event sign` CLI for minting signatures on existing events.
+- A registry (`hub.vela.science`) and federation peers.
+- Multi-frontier workspace primitive.
+- Cross-frontier links and propagation across frontier boundaries.
+- Constellation projection product surface.
+
+The substrate is now strong enough to host these without re-deriving
+the protocol.
+
+## 0.3.0 - 2026-04-24
+
+The focusing run. v0.3 turns the state kernel into a real protocol — one
+that two implementations can independently produce byte-identical IDs
+for, that has a separable reducer, that enforces doctrine at the kernel
+level, that emits typed events, that carries a stable address primitive,
+and that calls itself a coherent version on every surface.
+
+This is the v0 the doctrine has been describing all along.
+
+### Protocol — substrate
+
+- **Canonical JSON hashing** (`crates/vela-protocol/src/canonical.rs`).
+  Every content-addressed ID — `vf_…`, `vev_…`, `vpr_…`, snapshot hash,
+  event-log hash — now derives from RFC 8785-style canonical JSON
+  (lexicographic key ordering at every depth, no whitespace, validated
+  finite numbers, UTF-8 strings preserved verbatim). A second
+  implementation conforming to the canonical-JSON rule produces
+  byte-identical hashes for the same logical content.
+- **Pure separable reducer** (`crates/vela-protocol/src/reducer.rs`).
+  `apply_event(state, event)` is the deterministic state-transition
+  function. The reducer is callable independently of proposal
+  construction, so canonical event logs can be replayed from genesis
+  by any conforming implementation.
+- **Per-kind event payload validation**
+  (`events::validate_event_payload`). Each event kind has a normative
+  payload schema; payloads that don't match are conformance failures.
+  Replay reports surface them as conflicts; `vela check --strict`
+  treats them as failures.
+- **frontier_id as address primitive**. Every frontier carries a
+  `vfr_<hash>` derived from canonical creation metadata. The same
+  triple (name, compiled_at, compiler) always produces the same vfr_id.
+  Legacy v0.2 frontiers derive on read.
+
+### Protocol — semantics
+
+- **Typed three-state review verdict.** The pre-v0.3 collapse of
+  contested / needs_revision / rejected to one bit becomes
+  `Flags.review_state: Option<ReviewState>` with explicit variants.
+  `flags.contested` is preserved as a derived bit for v0.2 readers.
+- **Confidence formula version stamp.** `ConfidenceComponents.formula_version`
+  now defaults to `"v0.3"`. A second implementation can refuse to
+  interpret components computed under an unknown formula version.
+
+### Doctrine invariants enforced under --strict
+
+- `conditions_undeclared` (line 3): a finding with empty conditions and
+  no scope flag (in_vivo / in_vitro / human_data / clinical_trial), and
+  not theoretical, blocks strict_check.
+- `evidence_atom_missing` (line 4): every active finding must have at
+  least one materialized evidence atom. Lifted from packet-validation-
+  only into vela check.
+- `agent_typed_unreviewed` (line 5): findings with source_type =
+  model_output / expert_assertion / agent_trace require explicit
+  review or gap-flag before strict acceptance. Doctrine: an agent
+  trace is not truth without typed consequence.
+
+### Pruning
+
+- `vela ask`, `vela workspace`, `vela depend`, `vela merge` removed.
+  All four were premature consumer or multi-frontier surface that
+  v0.3's substrate-first focus rejects. ~2200 LOC excised.
+- `flags.gap_info` and the GapStatus / GapPriority / GapNote / GapInfo
+  types removed. GitHub-issue-tracker fields on a finding had no
+  doctrine motivation. `vela gaps rank` (the doctrine-aligned derived
+  ranking) stays.
+- `crates/vela-protocol/src/gaps.rs` deleted.
+
+### Substrate metadata
+
+- `Cargo.toml` workspace version: 0.2.0 → 0.3.0.
+- `VELA_SCHEMA_URL` / `VELA_SCHEMA_VERSION` / `VELA_COMPILER_VERSION`:
+  v0.2.0 → v0.3.0.
+- `vela --version` reports `vela 0.3.0`; `print_strict_help` masthead
+  reads `Vela 0.3.0`.
+- `frontiers/bbb-alzheimer.json` and the paper-folder fixture migrated
+  to v0.3 schema URLs.
+- `schema/finding-bundle.v0.3.0.json` published.
+
+### Deferred to v0.4 (intentionally)
+
+- Cross-frontier links and propagation across frontier boundaries.
+- A registry (`hub.vela.science`) and federation peers.
+- Multi-frontier workspace primitive.
+- A `frontier.created` canonical event in `events[0]` and per-finding
+  asserted events from compile (the genesis-event surface is in place
+  as `derive_frontier_id_from_meta`; v0.4 promotes it to a proper
+  event log entry).
+- Identity-bound signatures required under --strict.
+- Canonical/derived packet split.
+- Provenance-authority unification (sources canonical, finding.provenance
+  derived).
+- Retraction cascade as per-dependent canonical events.
+
+These are real next-chapter work that's enabled — not blocked — by what
+landed in v0.3. The substrate is now strong enough that they can be
+built without re-deriving the protocol.
+
+## 0.2.1 - 2026-04-24
+
+This is a design-unification pass on top of the v0.2.0 release shape. No
+protocol, schema, or proof-packet format changes. CLI output, docs voice, and
+brand surface now share one canon.
+
+### Design canon
+
+- Ships `assets/brand/` with mark, wordmark, favicon, rete motif, and OG image.
+- Adds `docs/BRAND.md` as the single reference for voice, color tokens, type
+  families, asset usage, and the tick motif.
+- Adds `web/` with a GitHub Pages-ready static landing page at `web/index.html`
+  using the design-system tokens.
+- Stages the proposed post-v0 product surface as static previews under
+  `web/previews/` — explicitly labeled as proposals, not shipping v0 product.
+
+### CLI surface
+
+- Rebuilds banners across `compile`, `stats`, `validate`, `depend`, `diff`,
+  `tensions`, `serve --check-tools`, `jats`, and conformance output. Every
+  banner is now a dim mono eyebrow + tick row, never `===` or `---` separators.
+- Reserves signal blue for live state only. Removes `.green()` traffic-light
+  coloring from numeric counts and success indicators; maps `PASS/FAIL` and
+  success/failure outcomes to engraved state chips (moss / brass / dust /
+  madder).
+- Gates all ANSI output on `stdout` being a terminal and `NO_COLOR` being
+  unset. Piped and `NO_COLOR=1` runs emit no escape codes.
+- Retools the `compile` progress bar to a hairline motif (`── ` fill) and `·`
+  as the separator.
+- Adds `crates/vela-protocol/src/cli_style.rs` as the single routing point for
+  palette, chips, eyebrow, tick row, progress-bar style, and error prefix.
+
+### Docs voice
+
+- Rewrites the `README.md` opener as one concrete grounding sentence before
+  introducing the core vocabulary. Adds the wordmark header and a footer link
+  to `docs/BRAND.md` + the landing page.
+- Unifies `belief state` → `frontier state` in `docs/PROTOCOL.md` and
+  `docs/CORE_DOCTRINE.md`. `docs/MATH.md` keeps `belief state` with a footnote
+  linking theory-side and operational nomenclature.
+- Fixes title-case h3s in this `CHANGELOG.md` to sentence case.
+- Adds `scripts/voice-check.sh` and wires it into `scripts/release-check.sh`.
+
+## 0.2.0 - 2026-04-23
+
+This is the first strict OSS release candidate for Vela v0.
+
+### Core release shape
+
+- Consolidates the public product around portable frontier state for science.
+- Keeps the release workflow focused on `compile`, `check`, `proof`, `serve`, and `bench`.
+- Removes tangential UI, runtime, inherited coding-agent, archive, and generated artifact surfaces from the tracked release repo.
+- Keeps BBB/Alzheimer as the canonical proof frontier and demo path.
+
+### Protocol and proof
+
+- Uses schema v0.2.0 for the checked-in release frontier.
+- Exports deterministic proof packets with `proof-trace.json`.
+- Validates proof traces when packet validation sees them.
+- Adds canonical release asset packaging for the BBB frontier, proof packet, check report, benchmark report, manifest, and checksums.
+
+### Benchmarking
+
+- Promotes `vela bench` as the public benchmark command.
+- Adds default BBB benchmark inputs.
+- Adds thresholded pass/fail behavior for finding benchmarks.
+- Documents benchmark JSON as a compatibility surface.
+
+### Release operations
+
+- Adds `scripts/release-check.sh` as the local release gate.
+- Adds `scripts/package-release-assets.sh` for release assets.
+- Adds `scripts/clean-clone-smoke.sh` for fresh-clone verification.
+- Updates installer behavior and release workflow packaging.

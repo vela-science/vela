@@ -1,0 +1,878 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Previews · Vela</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" type="image/svg+xml" href="../assets/brand/favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;1,8..60,400&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../styles/tokens.css">
+<link rel="stylesheet" href="../styles/site.css">
+<style data-inline="vela-tokens-site">
+/* =========================================================================
+   Vela Design System · tokens
+
+   "Less, but better." Ancient instrument + Swiss grid + literary type.
+   Warm off-white paper. Deep ink. One cool accent. Hairlines, not borders.
+   ========================================================================= */
+
+:root {
+  /* ---------- Paper & ink ---------- */
+  --paper-0:      #F4F0E8;   /* page — warm off-white, astrolabe vellum */
+  --paper-1:      #EFEAE0;   /* raised surface */
+  --paper-2:      #E7E1D4;   /* sunken / inset */
+  --paper-edge:   #DCD4C3;   /* folded edge */
+
+  --ink-0:        #15181E;   /* strongest ink */
+  --ink-1:        #1B1F27;   /* body ink */
+  --ink-2:        #3A4151;   /* secondary */
+  --ink-3:        #6B7386;   /* tertiary / caption */
+  --ink-4:        #9199A8;   /* placeholder */
+
+  /* Hairlines — warm graphite, never pure gray */
+  --rule-1:       rgba(27, 31, 39, 0.08);   /* faintest tick */
+  --rule-2:       rgba(27, 31, 39, 0.14);   /* standard hairline */
+  --rule-3:       rgba(27, 31, 39, 0.24);   /* emphasis rule */
+  --rule-ink:     rgba(27, 31, 39, 0.88);   /* engraved line */
+
+  /* ---------- The single accent ---------- */
+  /* Signal blue — cool, precise, used ONLY for live state, alidade,
+     current cursor. Never as a decorative fill. */
+  --signal:       #3B5BDB;
+  --signal-soft:  rgba(59, 91, 219, 0.10);
+  --signal-edge:  rgba(59, 91, 219, 0.32);
+
+  /* State — all derived from ink + signal, never from a fresh palette.
+     Muted so they feel engraved, not traffic-light. */
+  --state-live:   #3B5BDB;   /* live = signal */
+  --state-ok:     #3F6B4E;   /* moss */
+  --state-warn:   #8A6A1F;   /* brass */
+  --state-stale:  #7A6F5C;   /* dust */
+  --state-lost:   #8A3A3A;   /* madder */
+
+  /* ---------- Type ---------- */
+  --font-sans:   "Inter Display", "Inter Tight", "Neue Haas Grotesk Display Pro", "Söhne", ui-sans-serif, -apple-system, system-ui, sans-serif;
+  --font-serif:  "Source Serif 4", "Source Serif Pro", "Iowan Old Style", Charter, "Iowan", Georgia, serif;
+  --font-mono:   "JetBrains Mono", "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Scale — major third, anchored to 16px body */
+  --size-xs:     11px;   /* tick labels, indices */
+  --size-sm:     13px;   /* caption, chrome */
+  --size-base:   16px;   /* UI body */
+  --size-md:     18px;   /* reading body when serif */
+  --size-lg:     22px;   /* section head */
+  --size-xl:     32px;   /* page head */
+  --size-2xl:    48px;   /* hero */
+  --size-3xl:    72px;   /* display */
+
+  /* Reading rhythm */
+  --leading-tight: 1.15;
+  --leading-snug:  1.30;
+  --leading-body:  1.55;
+  --leading-read:  1.68;   /* serif reading */
+
+  /* Tracking — instrument labels use positive tracking, display uses tight */
+  --track-tight:  -0.015em;
+  --track-none:   0;
+  --track-label:  0.08em;   /* SMALL CAPS style chrome */
+  --track-tick:   0.14em;   /* numeric indices "01 / 02 / 03" */
+
+  /* ---------- Rhythm & spacing ---------- */
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-5:  24px;
+  --space-6:  32px;
+  --space-7:  48px;
+  --space-8:  72px;
+  --space-9:  120px;
+
+  /* Radii — almost none. 2px for inputs, 0 for everything else. */
+  --radius-0:  0;
+  --radius-1:  2px;
+  --radius-2:  4px;
+
+  /* Elevation — only two levels. Never a drop shadow for decoration. */
+  --lift-1:  0 1px 0 var(--rule-2);
+  --lift-2:  0 1px 2px rgba(27, 31, 39, 0.06), 0 0 0 1px var(--rule-2);
+
+  /* Motion */
+  --ease:      cubic-bezier(0.2, 0.6, 0.2, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --dur-1:     120ms;
+  --dur-2:     200ms;
+  --dur-3:     360ms;
+}
+
+/* =========================================================================
+   Dark theme — the instrument in darkness
+   Applied with [data-theme="dark"] on <html>
+   ========================================================================= */
+:root[data-theme="dark"] {
+  --paper-0:      #0E1014;
+  --paper-1:      #14171D;
+  --paper-2:      #1A1D24;
+  --paper-edge:   #22262E;
+
+  --ink-0:        #F4F0E8;
+  --ink-1:        #E6E1D4;
+  --ink-2:        #A8AEBE;
+  --ink-3:        #6E7689;
+  --ink-4:        #4A5163;
+
+  --rule-1:       rgba(244, 240, 232, 0.06);
+  --rule-2:       rgba(244, 240, 232, 0.10);
+  --rule-3:       rgba(244, 240, 232, 0.18);
+  --rule-ink:     rgba(244, 240, 232, 0.72);
+
+  --signal:       #6C8CFF;
+  --signal-soft:  rgba(108, 140, 255, 0.14);
+  --signal-edge:  rgba(108, 140, 255, 0.44);
+
+  --state-live:   #6C8CFF;
+  --state-ok:     #6FB88A;
+  --state-warn:   #C9A34E;
+  --state-stale:  #8C8472;
+  --state-lost:   #CF6B6B;
+
+  --lift-1:  0 1px 0 var(--rule-2);
+  --lift-2:  0 1px 0 rgba(0,0,0,0.4), 0 0 0 1px var(--rule-2);
+}
+
+/* =========================================================================
+   Base
+   ========================================================================= */
+html, body {
+  background: var(--paper-0);
+  color: var(--ink-1);
+  font-family: var(--font-sans);
+  font-size: var(--size-base);
+  line-height: var(--leading-body);
+  font-feature-settings: "ss01", "cv11", "calt";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* =========================================================================
+   Type roles
+   ========================================================================= */
+
+/* Display — tight, confident, used once per page */
+.t-display {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-size: var(--size-3xl);
+  line-height: var(--leading-tight);
+  letter-spacing: var(--track-tight);
+  color: var(--ink-0);
+}
+
+/* Page title */
+.t-hero {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-size: var(--size-2xl);
+  line-height: 1.1;
+  letter-spacing: var(--track-tight);
+  color: var(--ink-0);
+}
+
+/* Section heads */
+.t-section {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: var(--size-lg);
+  line-height: var(--leading-snug);
+  letter-spacing: var(--track-tight);
+  color: var(--ink-0);
+}
+
+/* Reading body — when it's prose, it's serif */
+.t-read {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-size: var(--size-md);
+  line-height: var(--leading-read);
+  color: var(--ink-1);
+}
+.t-read p + p { margin-top: 1.1em; text-indent: 1.3em; }
+.t-read p:first-of-type { text-indent: 0; }
+
+/* Instrument label — small caps, tracked, ink-3 */
+.t-label {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: var(--size-xs);
+  line-height: 1;
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+/* Numeric index — "01 / 02 / 03" style tick-marks for sections */
+.t-tick {
+  font-family: var(--font-mono);
+  font-weight: 400;
+  font-size: var(--size-xs);
+  letter-spacing: var(--track-tick);
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Mono readout — instrument output */
+.t-mono {
+  font-family: var(--font-mono);
+  font-size: var(--size-sm);
+  line-height: 1.5;
+  color: var(--ink-1);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Caption */
+.t-caption {
+  font-family: var(--font-sans);
+  font-size: var(--size-sm);
+  line-height: 1.45;
+  color: var(--ink-3);
+}
+
+/* =========================================================================
+   Primitives — hairlines, tick rows, the rete motif
+   ========================================================================= */
+
+/* A hairline rule. Default horizontal; .v for vertical. */
+.rule        { background: var(--rule-2); height: 1px; width: 100%; }
+.rule--v     { background: var(--rule-2); width: 1px;  height: 100%; }
+.rule--heavy { background: var(--rule-3); }
+
+/* Tick row — the engraved edge. Used at top of sections, proof packets, etc.
+   Renders as a repeating linear gradient of 1px black marks. */
+.ticks {
+  height: 8px;
+  background-image: linear-gradient(to right,
+    var(--rule-3) 0 1px,
+    transparent 1px 100%);
+  background-size: 12px 100%;
+  background-repeat: repeat-x;
+  background-position: left bottom;
+}
+.ticks--tight { background-size: 6px 100%; }
+.ticks--wide  { background-size: 24px 100%; }
+
+/* Alidade — the one bright index line. A horizontal 1px signal-blue rule
+   that marks "here, now." Use sparingly. */
+.alidade {
+  height: 1px;
+  background: var(--signal);
+  box-shadow: 0 0 0 1px var(--signal-soft);
+}
+
+
+/* ============== site.css ============== */
+
+/* =========================================================================
+   Vela · landing site
+   Layered on tokens.css + workbench.css. This file shapes the one public
+   landing page and the previews index.
+   ========================================================================= */
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--paper-0);
+  color: var(--ink-1);
+  font-family: var(--font-sans);
+  min-height: 100vh;
+  font-feature-settings: "ss01", "cv11", "calt";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+* { box-sizing: border-box; }
+
+a { color: var(--ink-0); text-decoration: none; border-bottom: 1px solid var(--rule-2); }
+a:hover { border-bottom-color: var(--rule-ink); }
+
+/* ============================================================
+   Frame — left tick rim, main column, foot
+   ============================================================ */
+.site {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  grid-template-rows: auto 1fr auto;
+  grid-template-areas:
+    "rim head"
+    "rim body"
+    "rim foot";
+}
+
+.site-rim {
+  grid-area: rim;
+  border-right: 1px solid var(--rule-2);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 24px 0 32px;
+  background: var(--paper-0);
+}
+.site-rim::before {
+  content: "";
+  position: absolute;
+  inset: 24px 0 32px 0;
+  background-image: linear-gradient(
+    to bottom,
+    var(--rule-2) 0 1px,
+    transparent 1px 100%
+  );
+  background-size: 100% 16px;
+  background-position: right top;
+  background-repeat: repeat-y;
+  opacity: 0.6;
+  pointer-events: none;
+}
+.site-rim__mark {
+  display: flex;
+  justify-content: center;
+}
+.site-rim__mark svg { width: 28px; height: 28px; display: block; }
+.site-rim__nav {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+  position: relative;
+  z-index: 1;
+}
+.site-rim__link {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  padding: 10px 4px;
+  text-decoration: none;
+  border: 0;
+  position: relative;
+  transition: color var(--dur-1) var(--ease);
+}
+.site-rim__link:hover { color: var(--ink-0); }
+.site-rim__link--on { color: var(--ink-0); }
+.site-rim__link--on::before {
+  content: "";
+  position: absolute;
+  left: -5px;
+  top: 50%;
+  transform: translateY(-50%) rotate(180deg);
+  width: 1px;
+  height: 18px;
+  background: var(--signal);
+  transition: height var(--dur-2) var(--ease);
+}
+.site-rim__tag {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  color: var(--ink-4);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  text-transform: uppercase;
+}
+
+/* ============================================================
+   Head
+   ============================================================ */
+.site-head {
+  grid-area: head;
+  padding: 48px 48px 0 40px;
+  max-width: 980px;
+}
+.site-head__row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 32px;
+  padding-bottom: 16px;
+}
+.site-head__eyebrow {
+  font-family: var(--font-mono);
+  font-size: var(--size-xs);
+  letter-spacing: var(--track-tick);
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin: 0 0 14px 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.site-head__eyebrow::before {
+  content: "";
+  display: inline-block;
+  width: 18px;
+  height: 1px;
+  background: var(--rule-3);
+}
+.site-head__title {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-size: 72px;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--ink-0);
+  margin: 0;
+}
+.site-head__sub {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: var(--size-lg);
+  color: var(--ink-2);
+  margin: 14px 0 0;
+  max-width: 52ch;
+}
+.site-head__aside {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  font-family: var(--font-mono);
+  font-size: var(--size-xs);
+  letter-spacing: 0.06em;
+  color: var(--ink-3);
+  white-space: nowrap;
+  text-transform: uppercase;
+}
+.ticks {
+  height: 8px;
+  margin-top: 28px;
+  background-image: linear-gradient(
+    to right,
+    var(--rule-3) 0 1px,
+    transparent 1px 100%
+  );
+  background-size: 18px 100%;
+  background-repeat: repeat-x;
+  background-position: left bottom;
+}
+.ticks--tight { background-size: 8px 100%; }
+.ticks--wide { background-size: 32px 100%; }
+
+/* ============================================================
+   Body
+   ============================================================ */
+.site-body {
+  grid-area: body;
+  padding: 40px 48px 48px 40px;
+  max-width: 980px;
+}
+
+.site-body section + section { margin-top: 72px; }
+
+.site-body .t-read {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-size: var(--size-md);
+  line-height: var(--leading-read);
+  color: var(--ink-1);
+  max-width: 58ch;
+}
+.site-body .t-read + .t-read { margin-top: 1.1em; }
+
+.section-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-family: var(--font-mono);
+  font-size: var(--size-xs);
+  letter-spacing: var(--track-tick);
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin: 0 0 14px 0;
+}
+.section-eyebrow::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--rule-2);
+}
+.section-title {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-size: var(--size-lg);
+  letter-spacing: var(--track-tight);
+  color: var(--ink-0);
+  margin: 0 0 18px 0;
+}
+
+/* ---------- Install block ---------- */
+.install-block {
+  font-family: var(--font-mono);
+  font-size: var(--size-sm);
+  background: var(--paper-1);
+  border: 1px solid var(--rule-2);
+  border-radius: var(--radius-1);
+  padding: 16px 18px;
+  color: var(--ink-1);
+  white-space: pre-wrap;
+  line-height: 1.6;
+  max-width: 78ch;
+}
+.install-block .prompt { color: var(--signal); margin-right: 6px; }
+.install-block .comment { color: var(--ink-3); }
+
+/* ---------- First-frontier transcript ---------- */
+.transcript {
+  font-family: var(--font-mono);
+  font-size: var(--size-sm);
+  background: var(--paper-1);
+  border: 1px solid var(--rule-2);
+  border-radius: var(--radius-1);
+  padding: 20px 0;
+  overflow-x: auto;
+  max-width: 78ch;
+}
+.transcript__row {
+  display: grid;
+  grid-template-columns: 38px 18px 1fr;
+  padding: 2px 20px;
+  column-gap: 10px;
+  line-height: 1.55;
+}
+.transcript__row:hover { background: var(--paper-2); }
+.transcript__ln {
+  color: var(--ink-4);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  user-select: none;
+}
+.transcript__caret { color: var(--signal); }
+.transcript__cmd { color: var(--ink-0); }
+.transcript__out { grid-column: 2 / 4; color: var(--ink-2); }
+
+/* ---------- Bundle definition list ---------- */
+.bundle-dl {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 36px 48px;
+  margin: 0;
+  max-width: 78ch;
+}
+.bundle-dl > div { display: contents; }
+.bundle-dl dt {
+  font-family: var(--font-mono);
+  font-size: var(--size-xs);
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--rule-2);
+}
+.bundle-dl dd {
+  font-family: var(--font-serif);
+  font-size: var(--size-md);
+  line-height: var(--leading-read);
+  color: var(--ink-1);
+  margin: 0 0 20px 0;
+  grid-column: 1 / -1;
+}
+.bundle-dl dt + dd { grid-column: auto; margin-bottom: 0; }
+
+/* Simpler: every dt/dd pair becomes a 2-col row. Use flex instead. */
+.bundle-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 32px 48px;
+  margin: 0;
+  max-width: 78ch;
+  font: inherit;
+}
+.bundle-grid__item dt {
+  font-family: var(--font-mono);
+  font-size: var(--size-xs);
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--rule-2);
+}
+.bundle-grid__item dd {
+  font-family: var(--font-serif);
+  font-size: var(--size-md);
+  line-height: var(--leading-read);
+  color: var(--ink-1);
+  margin: 0;
+}
+
+/* ---------- Proof plate ---------- */
+.proof-plate {
+  position: relative;
+  max-width: 78ch;
+  padding: 48px 56px;
+  background: var(--paper-1);
+  border: 1px solid var(--rule-2);
+}
+.proof-plate::before,
+.proof-plate::after {
+  content: "";
+  display: block;
+  height: 8px;
+  background-image: linear-gradient(
+    to right,
+    var(--rule-3) 0 1px,
+    transparent 1px 100%
+  );
+  background-size: 12px 100%;
+  background-repeat: repeat-x;
+  position: absolute;
+  left: 0;
+  right: 0;
+}
+.proof-plate::before { top: 0; }
+.proof-plate::after { bottom: 0; }
+.proof-plate__seal {
+  display: flex;
+  justify-content: center;
+  margin: 8px 0 24px 0;
+}
+.proof-plate__seal svg {
+  width: 160px;
+  height: 160px;
+  display: block;
+}
+.proof-plate__sigs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+  margin: 32px 0;
+  font-family: var(--font-mono);
+  font-size: var(--size-xs);
+  color: var(--ink-3);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.proof-plate__sig {
+  padding-top: 18px;
+  border-top: 1px solid var(--rule-3);
+}
+.proof-plate__sig strong {
+  display: block;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-weight: 400;
+  font-size: var(--size-md);
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ink-1);
+  margin-bottom: 6px;
+}
+.proof-plate__manifest {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 6px 24px;
+  font-family: var(--font-mono);
+  font-size: var(--size-sm);
+  color: var(--ink-2);
+  border-top: 1px solid var(--rule-2);
+  padding-top: 18px;
+}
+.proof-plate__manifest dt {
+  color: var(--ink-3);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-size: var(--size-xs);
+  align-self: baseline;
+  padding-top: 2px;
+}
+
+/* ---------- Read-next chips ---------- */
+.read-next {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px 20px;
+  max-width: 78ch;
+}
+.read-next__chip {
+  display: block;
+  padding: 14px 16px;
+  border: 1px solid var(--rule-2);
+  border-radius: var(--radius-1);
+  background: var(--paper-0);
+  color: var(--ink-0);
+  font-family: var(--font-sans);
+  font-size: var(--size-sm);
+  line-height: 1.35;
+  transition: background var(--dur-1) var(--ease),
+    border-color var(--dur-1) var(--ease);
+}
+.read-next__chip:hover {
+  background: var(--paper-1);
+  border-color: var(--rule-ink);
+}
+.read-next__chip strong {
+  display: block;
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-size: var(--size-md);
+  color: var(--ink-0);
+  margin-bottom: 4px;
+}
+.read-next__chip span {
+  color: var(--ink-3);
+  font-family: var(--font-mono);
+  font-size: var(--size-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* ============================================================
+   Foot
+   ============================================================ */
+.site-foot {
+  grid-area: foot;
+  padding: 18px 48px 22px 40px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+  border-top: 1px solid var(--rule-2);
+  font-family: var(--font-mono);
+  font-size: var(--size-xs);
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+  text-transform: uppercase;
+}
+.site-foot a {
+  color: var(--ink-3);
+  border-bottom-color: var(--rule-2);
+}
+.site-foot a:hover { color: var(--ink-0); }
+.site-foot__star {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--signal);
+  box-shadow: 0 0 0 2px var(--signal-soft);
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+/* ============================================================
+   Previews index — reused minimal layout without the rim
+   ============================================================ */
+main.site {
+  /* previews index uses the single-column rimless layout */
+  grid-template-columns: 1fr;
+  grid-template-areas: "head" "body" "foot";
+}
+.preview-grid {
+  margin: 32px 0 0 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px 48px;
+  max-width: 78ch;
+}
+.preview-grid dt {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-size: var(--size-lg);
+  letter-spacing: var(--track-tight);
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--rule-2);
+}
+.preview-grid dt a { border-bottom: 0; color: var(--ink-0); }
+.preview-grid dt a:hover { color: var(--signal); }
+.preview-grid dd {
+  font-family: var(--font-serif);
+  font-size: var(--size-md);
+  line-height: var(--leading-read);
+  color: var(--ink-2);
+  margin: 0 0 18px 0;
+}
+
+/* ============================================================
+   Responsive
+   ============================================================ */
+@media (max-width: 760px) {
+  .site { grid-template-columns: 40px 1fr; }
+  .site-rim { padding: 16px 0 20px; }
+  .site-rim__link { padding: 6px 2px; }
+  .site-head { padding: 28px 24px 0 16px; }
+  .site-head__title { font-size: 48px; }
+  .site-body { padding: 28px 24px 32px 16px; }
+  .site-foot { padding: 16px 24px 18px 16px; flex-wrap: wrap; }
+  .bundle-grid { grid-template-columns: 1fr; }
+  .preview-grid { grid-template-columns: 1fr; }
+  .read-next { grid-template-columns: 1fr; }
+  .proof-plate { padding: 36px 20px; }
+  .proof-plate__sigs { grid-template-columns: 1fr; }
+}
+
+/* ============================================================
+   Reduced motion
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0s !important;
+    transition-duration: 0s !important;
+  }
+}
+
+</style>
+
+</head>
+<body>
+
+<main class="site">
+  <header class="site-head">
+    <div class="site-head__eyebrow">VELA · PREVIEWS · POST-V0 SURFACE</div>
+    <h1 class="site-head__title">Workbench previews</h1>
+    <p class="site-head__sub">Four proposed product surfaces. Not shipping v0.</p>
+    <div class="ticks"></div>
+  </header>
+
+  <section class="site-body">
+    <p class="t-read">
+      These HTML files are design-bundle proposals from the Vela design system
+      for what a future workbench GUI could look like. They are not wired to
+      data, do not reflect shipping v0 functionality, and are published here
+      only as a brand reference.
+    </p>
+    <p class="t-read">
+      Vela v0 is a CLI protocol. See the
+      <a href="../index.html">landing page</a> or run <code>vela --help</code>
+      in a terminal.
+    </p>
+
+    <dl class="preview-grid">
+      <dt><a href="frontier.html">01 · Frontier</a></dt>
+      <dd>The table of findings. Search, facet pills, sortable rows with engraved state chips.</dd>
+
+      <dt><a href="finding.html">02 · Finding</a></dt>
+      <dd>One finding read end to end. Serif claim, conditions, evidence, history ledger in the margin.</dd>
+
+      <dt><a href="terminal.html">03 · Terminal</a></dt>
+      <dd>The CLI. Paper-toned, line-numbered, serif block-quotes for cited evidence, signal caret.</dd>
+
+      <dt><a href="proof.html">04 · Proof</a></dt>
+      <dd>The sealed document. Ceremonial plate, rete seal with alidade, human + agent signatures, audit panel.</dd>
+    </dl>
+  </section>
+
+  <footer class="site-foot">
+    <span>vela previews · post-v0 proposal</span>
+    <span class="site-foot__star"></span>
+    <span>proof state, not extraction</span>
+  </footer>
+</main>
+
+</body>
+</html>

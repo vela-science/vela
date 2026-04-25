@@ -1,0 +1,171 @@
+{
+  "id": "vf_d51f3496b4e30c17",
+  "version": 1,
+  "previous_version": null,
+  "assertion": {
+    "text": "Monovalent binding to the transferrin receptor (TfR) facilitates transcellular transport across the blood-brain barrier, whereas bivalent binding leads to lysosomal sorting.",
+    "type": "mechanism",
+    "entities": [
+      {
+        "name": "transferrin receptor",
+        "type": "protein",
+        "identifiers": {},
+        "candidates": [],
+        "aliases": [
+          "TfR"
+        ],
+        "resolution_provenance": "checked-in raw/source-visible alias normalization",
+        "resolution_confidence": 1.0,
+        "resolution_method": "manual",
+        "species_context": "Mus musculus"
+      },
+      {
+        "name": "lysosome",
+        "type": "anatomical_structure",
+        "identifiers": {},
+        "candidates": [],
+        "aliases": [],
+        "resolution_confidence": 1.0
+      }
+    ],
+    "relation": "facilitates",
+    "direction": "positive"
+  },
+  "evidence": {
+    "type": "experimental",
+    "model_system": "in vitro and in vivo",
+    "species": "Mus musculus",
+    "method": "trafficking assay",
+    "sample_size": null,
+    "effect_size": null,
+    "p_value": null,
+    "replicated": false,
+    "replication_count": null,
+    "evidence_spans": [
+      {
+        "section": "abstract",
+        "text": "We provide in vitro and in vivo evidence that the monovalent binding mode facilitates transcellular transport, whereas a bivalent binding mode leads to lysosome sorting."
+      }
+    ]
+  },
+  "conditions": {
+    "text": "Monovalent vs bivalent binding mode to the transferrin receptor (TfR).",
+    "species_verified": [],
+    "species_unverified": [],
+    "in_vitro": true,
+    "in_vivo": true,
+    "human_data": false,
+    "clinical_trial": false,
+    "concentration_range": null,
+    "duration": null,
+    "age_group": null,
+    "cell_type": null
+  },
+  "confidence": {
+    "kind": "frontier_epistemic",
+    "score": 0.269,
+    "basis": "frontier_epistemic: evidence=0.80 * replication=0.70 * model=0.80 * sample=0.60 - review_penalty=0.00 + calibration=0.00 = 0.269",
+    "method": "computed",
+    "components": {
+      "evidence_strength": 0.8,
+      "replication_strength": 0.7,
+      "sample_strength": 0.6,
+      "model_relevance": 0.8,
+      "review_penalty": 0.0,
+      "calibration_adjustment": 0.0
+    },
+    "extraction_confidence": 0.85
+  },
+  "provenance": {
+    "source_type": "published_paper",
+    "doi": "10.1016/j.neuron.2013.10.061",
+    "pmid": "24411731",
+    "pmc": null,
+    "openalex_id": null,
+    "title": "Increased brain penetration and potency of a therapeutic antibody using a monovalent molecular shuttle.",
+    "authors": [
+      {
+        "name": "Niewoehner J",
+        "orcid": null
+      },
+      {
+        "name": "Bohrmann B",
+        "orcid": null
+      },
+      {
+        "name": "Collin L",
+        "orcid": null
+      },
+      {
+        "name": "Urich E",
+        "orcid": null
+      },
+      {
+        "name": "Sade H",
+        "orcid": null
+      },
+      {
+        "name": "Maier P",
+        "orcid": null
+      },
+      {
+        "name": "Rueger P",
+        "orcid": null
+      },
+      {
+        "name": "Stracke JO",
+        "orcid": null
+      },
+      {
+        "name": "Lau W",
+        "orcid": null
+      },
+      {
+        "name": "Tissot AC",
+        "orcid": null
+      },
+      {
+        "name": "Loetscher H",
+        "orcid": null
+      },
+      {
+        "name": "Ghosh A",
+        "orcid": null
+      },
+      {
+        "name": "Freskgård PO",
+        "orcid": null
+      }
+    ],
+    "year": 2014,
+    "journal": "Neuron",
+    "extraction": {
+      "method": "llm_extraction",
+      "model": "gemini-3-flash-preview",
+      "model_version": null,
+      "extracted_at": "2026-04-10T04:16:55.253914+00:00",
+      "extractor_version": "vela/0.2.0"
+    },
+    "review": null,
+    "citation_count": 0
+  },
+  "flags": {
+    "gap": false,
+    "negative_space": false,
+    "contested": false,
+    "retracted": false,
+    "declining": false,
+    "gravity_well": false
+  },
+  "links": [],
+  "annotations": [
+    {
+      "id": "ann_8abfacd6362992f8",
+      "text": "Curation limitation: checked-in source text for this finding contains title and abstract only; evidence is grounded to the abstract span and does not verify full-text methods, figures, tables, supplementary material, or exact controls/sample details.",
+      "author": "worker_a_bbb_curation",
+      "timestamp": "2026-04-22T00:00:00Z"
+    }
+  ],
+  "created": "2026-04-10T04:16:55.254030+00:00",
+  "updated": null
+}

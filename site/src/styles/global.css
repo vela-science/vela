@@ -1,0 +1,228 @@
+/* Global styles.
+   The design tokens and workbench chrome live in web/styles/, symlinked
+   into ./tokens.css and ./workbench.css. This file adds the patterns
+   the marketing site, essays, and docs share on top of that base. */
+
+@import "./tokens.css";
+@import "./workbench.css";
+
+/* Fix workbench.css's hard-coded fallbacks: the dark-theme tokens get
+   shadowed unless the body falls through to var(). */
+html, body { background: var(--paper-0); color: var(--ink-1); }
+
+a { color: var(--ink-1); text-decoration: none; transition: color var(--dur-1) var(--ease); }
+a:hover { color: var(--ink-0); }
+
+/* ----- Reading layout ----- */
+
+.reading {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 0 8px;
+}
+.reading h1 {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-size: var(--size-xl);
+  line-height: 1.1;
+  letter-spacing: var(--track-tight);
+  color: var(--ink-0);
+  margin: 0 0 12px;
+}
+.reading h2 {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: var(--size-lg);
+  line-height: var(--leading-snug);
+  letter-spacing: -0.005em;
+  color: var(--ink-0);
+  margin: 40px 0 12px;
+}
+.reading h3 {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: 17px;
+  color: var(--ink-0);
+  margin: 28px 0 8px;
+}
+.reading p {
+  font-family: var(--font-serif);
+  font-size: var(--size-md);
+  line-height: var(--leading-read);
+  color: var(--ink-1);
+  margin: 0 0 18px;
+}
+.reading p:has(+ p) + p { /* readable paragraph rhythm */ }
+.reading hr {
+  border: 0;
+  border-top: 1px solid var(--rule-2);
+  margin: 32px 0;
+}
+.reading blockquote {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 17px;
+  color: var(--ink-2);
+  border-left: 1px solid var(--rule-ink);
+  padding-left: 18px;
+  margin: 18px 0;
+}
+.reading code {
+  font-family: var(--font-mono);
+  font-size: 0.88em;
+  color: var(--ink-1);
+  background: var(--paper-1);
+  padding: 1px 5px;
+  border: 1px solid var(--rule-1);
+  border-radius: var(--radius-1);
+}
+.reading pre {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.6;
+  background: var(--paper-1);
+  border: 1px solid var(--rule-2);
+  padding: 14px 18px;
+  overflow-x: auto;
+  border-radius: var(--radius-1);
+  margin: 18px 0;
+}
+.reading pre code {
+  background: transparent;
+  border: 0;
+  padding: 0;
+}
+.reading ul, .reading ol {
+  font-family: var(--font-serif);
+  font-size: var(--size-md);
+  line-height: var(--leading-read);
+  color: var(--ink-1);
+  padding-left: 22px;
+  margin: 0 0 18px;
+}
+.reading li { margin-bottom: 6px; }
+.reading a {
+  color: var(--ink-1);
+  border-bottom: 1px solid var(--rule-3);
+}
+.reading a:hover { border-bottom-color: var(--rule-ink); }
+.reading table {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  border-collapse: collapse;
+  margin: 18px 0;
+  width: 100%;
+}
+.reading th, .reading td {
+  text-align: left;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--rule-1);
+}
+.reading th {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--ink-3);
+  border-bottom-color: var(--rule-2);
+}
+.reading em { font-style: italic; }
+.reading strong { font-weight: 500; color: var(--ink-0); }
+
+/* ----- Lead paragraph for marketing-style intros ----- */
+.t-lead {
+  font-family: var(--font-serif);
+  font-size: 20px;
+  line-height: var(--leading-read);
+  color: var(--ink-1);
+  max-width: 64ch;
+  margin: 0 0 24px;
+}
+
+/* ----- Inline endpoint list (used on landing) ----- */
+.endpoint-list { list-style: none; padding: 0; margin: 0; }
+.endpoint-list li {
+  display: flex;
+  align-items: baseline;
+  gap: 24px;
+  padding: 10px 0;
+  border-bottom: 1px dashed var(--rule-1);
+}
+.endpoint-list li:last-child { border-bottom: 0; }
+.endpoint-list .verb {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--ink-2);
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+.endpoint-list .verb .v {
+  color: var(--ink-3);
+  letter-spacing: 0.06em;
+  margin-right: 8px;
+}
+.endpoint-list .desc {
+  color: var(--ink-2);
+  font-family: var(--font-sans);
+  font-size: 14px;
+}
+.endpoint-list .desc a { border-bottom: 1px solid var(--rule-3); }
+.endpoint-list .desc a:hover { border-bottom-color: var(--rule-ink); }
+
+/* ----- Card grid ----- */
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 24px;
+  margin: 32px 0;
+}
+.card {
+  border: 1px solid var(--rule-2);
+  padding: 22px 24px 24px;
+  background: var(--paper-0);
+  display: flex;
+  flex-direction: column;
+  text-decoration: none;
+  color: var(--ink-1);
+  transition: border-color var(--dur-1) var(--ease), background var(--dur-1) var(--ease);
+}
+.card:hover { border-color: var(--rule-ink); background: var(--paper-1); }
+.card .eyebrow {
+  font-family: var(--font-mono);
+  font-size: var(--size-xs);
+  letter-spacing: var(--track-tick);
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin-bottom: 8px;
+}
+.card .title {
+  font-family: var(--font-serif);
+  font-size: 20px;
+  color: var(--ink-0);
+  margin: 0 0 8px;
+  letter-spacing: -0.005em;
+}
+.card .blurb {
+  font-family: var(--font-serif);
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--ink-2);
+  margin: 0;
+}
+
+/* ----- Quickstart row (paired terminal-papers on landing) ----- */
+.quickstart {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+@media (max-width: 900px) {
+  .quickstart { grid-template-columns: 1fr; }
+}
+
+/* ----- Mobile rim fallback ----- */
+@media (max-width: 720px) {
+  .wb { grid-template-columns: 0 1fr 0 !important; }
+  .wb-rim { display: none !important; }
+  .wb-head, .wb-main, .wb-foot { padding-left: 20px !important; padding-right: 20px !important; }
+}

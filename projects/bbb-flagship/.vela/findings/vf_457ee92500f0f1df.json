@@ -1,0 +1,373 @@
+{
+  "id": "vf_457ee92500f0f1df",
+  "version": 1,
+  "previous_version": null,
+  "assertion": {
+    "text": "ATV:TREM2 enhances TREM2 signaling in the brain compared to a standard anti-TREM2 antibody following peripheral delivery in mice.",
+    "type": "mechanism",
+    "entities": [
+      {
+        "name": "ATV:TREM2",
+        "type": "compound",
+        "identifiers": {},
+        "candidates": [],
+        "aliases": [
+          "antibody transport vehicle:TREM2",
+          "TREM2 antibody transport vehicle"
+        ],
+        "resolution_provenance": "checked-in raw/source-visible alias normalization",
+        "resolution_confidence": 1.0,
+        "resolution_method": "manual",
+        "species_context": "Homo sapiens"
+      },
+      {
+        "name": "TREM2",
+        "type": "protein",
+        "identifiers": {},
+        "candidates": [],
+        "aliases": [],
+        "resolution_confidence": 1.0,
+        "species_context": "Homo sapiens"
+      }
+    ],
+    "relation": "activates",
+    "direction": "positive"
+  },
+  "evidence": {
+    "type": "experimental",
+    "model_system": "mouse",
+    "species": "Mus musculus",
+    "method": "signaling assay",
+    "sample_size": null,
+    "effect_size": null,
+    "p_value": null,
+    "replicated": false,
+    "replication_count": null,
+    "evidence_spans": [
+      {
+        "section": "abstract",
+        "text": "Upon peripheral delivery in mice, ATV:TREM2 showed improved brain biodistribution and enhanced signaling compared to a standard anti-TREM2 antibody."
+      }
+    ]
+  },
+  "conditions": {
+    "text": "Peripheral delivery of ATV:TREM2 vs standard anti-TREM2 antibody.",
+    "species_verified": [],
+    "species_unverified": [],
+    "in_vitro": false,
+    "in_vivo": true,
+    "human_data": false,
+    "clinical_trial": false,
+    "concentration_range": null,
+    "duration": null,
+    "age_group": null,
+    "cell_type": null
+  },
+  "confidence": {
+    "kind": "frontier_epistemic",
+    "score": 0.269,
+    "basis": "frontier_epistemic: evidence=0.80 * replication=0.70 * model=0.80 * sample=0.60 - review_penalty=0.00 + calibration=0.00 = 0.269",
+    "method": "computed",
+    "components": {
+      "evidence_strength": 0.8,
+      "replication_strength": 0.7,
+      "sample_strength": 0.6,
+      "model_relevance": 0.8,
+      "review_penalty": 0.0,
+      "calibration_adjustment": 0.0
+    },
+    "extraction_confidence": 0.85
+  },
+  "provenance": {
+    "source_type": "published_paper",
+    "doi": "10.1038/s41593-022-01240-0",
+    "pmid": "36635496",
+    "pmc": null,
+    "openalex_id": null,
+    "title": "A TREM2-activating antibody with a blood-brain barrier transport vehicle enhances microglial metabolism in Alzheimer's disease models.",
+    "authors": [
+      {
+        "name": "van Lengerich B",
+        "orcid": null
+      },
+      {
+        "name": "Zhan L",
+        "orcid": null
+      },
+      {
+        "name": "Xia D",
+        "orcid": null
+      },
+      {
+        "name": "Chan D",
+        "orcid": null
+      },
+      {
+        "name": "Joy D",
+        "orcid": null
+      },
+      {
+        "name": "Park JI",
+        "orcid": null
+      },
+      {
+        "name": "Tatarakis D",
+        "orcid": null
+      },
+      {
+        "name": "Calvert M",
+        "orcid": null
+      },
+      {
+        "name": "Hummel S",
+        "orcid": null
+      },
+      {
+        "name": "Lianoglou S",
+        "orcid": null
+      },
+      {
+        "name": "Pizzo ME",
+        "orcid": null
+      },
+      {
+        "name": "Prorok R",
+        "orcid": null
+      },
+      {
+        "name": "Thomsen E",
+        "orcid": null
+      },
+      {
+        "name": "Bartos LM",
+        "orcid": null
+      },
+      {
+        "name": "Beumers P",
+        "orcid": null
+      },
+      {
+        "name": "Capell A",
+        "orcid": null
+      },
+      {
+        "name": "Davis SS",
+        "orcid": null
+      },
+      {
+        "name": "de Weerd L",
+        "orcid": null
+      },
+      {
+        "name": "Dugas JC",
+        "orcid": null
+      },
+      {
+        "name": "Duque J",
+        "orcid": null
+      },
+      {
+        "name": "Earr T",
+        "orcid": null
+      },
+      {
+        "name": "Gadkar K",
+        "orcid": null
+      },
+      {
+        "name": "Giese T",
+        "orcid": null
+      },
+      {
+        "name": "Gill A",
+        "orcid": null
+      },
+      {
+        "name": "Gnörich J",
+        "orcid": null
+      },
+      {
+        "name": "Ha C",
+        "orcid": null
+      },
+      {
+        "name": "Kannuswamy M",
+        "orcid": null
+      },
+      {
+        "name": "Kim DJ",
+        "orcid": null
+      },
+      {
+        "name": "Kunte ST",
+        "orcid": null
+      },
+      {
+        "name": "Kunze LH",
+        "orcid": null
+      },
+      {
+        "name": "Lac D",
+        "orcid": null
+      },
+      {
+        "name": "Lechtenberg K",
+        "orcid": null
+      },
+      {
+        "name": "Leung AW",
+        "orcid": null
+      },
+      {
+        "name": "Liang CC",
+        "orcid": null
+      },
+      {
+        "name": "Lopez I",
+        "orcid": null
+      },
+      {
+        "name": "McQuade P",
+        "orcid": null
+      },
+      {
+        "name": "Modi A",
+        "orcid": null
+      },
+      {
+        "name": "Torres VO",
+        "orcid": null
+      },
+      {
+        "name": "Nguyen HN",
+        "orcid": null
+      },
+      {
+        "name": "Pesämaa I",
+        "orcid": null
+      },
+      {
+        "name": "Propson N",
+        "orcid": null
+      },
+      {
+        "name": "Reich M",
+        "orcid": null
+      },
+      {
+        "name": "Robles-Colmenares Y",
+        "orcid": null
+      },
+      {
+        "name": "Schlepckow K",
+        "orcid": null
+      },
+      {
+        "name": "Slemann L",
+        "orcid": null
+      },
+      {
+        "name": "Solanoy H",
+        "orcid": null
+      },
+      {
+        "name": "Suh JH",
+        "orcid": null
+      },
+      {
+        "name": "Thorne RG",
+        "orcid": null
+      },
+      {
+        "name": "Vieira C",
+        "orcid": null
+      },
+      {
+        "name": "Wind-Mark K",
+        "orcid": null
+      },
+      {
+        "name": "Xiong K",
+        "orcid": null
+      },
+      {
+        "name": "Zuchero YJY",
+        "orcid": null
+      },
+      {
+        "name": "Diaz D",
+        "orcid": null
+      },
+      {
+        "name": "Dennis MS",
+        "orcid": null
+      },
+      {
+        "name": "Huang F",
+        "orcid": null
+      },
+      {
+        "name": "Scearce-Levie K",
+        "orcid": null
+      },
+      {
+        "name": "Watts RJ",
+        "orcid": null
+      },
+      {
+        "name": "Haass C",
+        "orcid": null
+      },
+      {
+        "name": "Lewcock JW",
+        "orcid": null
+      },
+      {
+        "name": "Di Paolo G",
+        "orcid": null
+      },
+      {
+        "name": "Brendel M",
+        "orcid": null
+      },
+      {
+        "name": "Sanchez PE",
+        "orcid": null
+      },
+      {
+        "name": "Monroe KM",
+        "orcid": null
+      }
+    ],
+    "year": 2023,
+    "journal": "Nat Neurosci",
+    "extraction": {
+      "method": "llm_extraction",
+      "model": "gemini-3-flash-preview",
+      "model_version": null,
+      "extracted_at": "2026-04-10T04:17:57.965460+00:00",
+      "extractor_version": "vela/0.2.0"
+    },
+    "review": null,
+    "citation_count": 0
+  },
+  "flags": {
+    "gap": false,
+    "negative_space": false,
+    "contested": false,
+    "retracted": false,
+    "declining": false,
+    "gravity_well": false
+  },
+  "links": [],
+  "annotations": [
+    {
+      "id": "ann_087d6ac5158bb017",
+      "text": "Curation limitation: checked-in source text for this finding contains title and abstract only; evidence is grounded to the abstract span and does not verify full-text methods, figures, tables, supplementary material, or exact controls/sample details.",
+      "author": "worker_a_bbb_curation",
+      "timestamp": "2026-04-22T00:00:00Z"
+    }
+  ],
+  "created": "2026-04-10T04:17:57.965557+00:00",
+  "updated": null
+}

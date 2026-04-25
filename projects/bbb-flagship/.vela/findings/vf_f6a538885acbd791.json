@@ -1,0 +1,183 @@
+{
+  "id": "vf_f6a538885acbd791",
+  "version": 1,
+  "previous_version": null,
+  "assertion": {
+    "text": "A bispecific antibody targeting TfR with low affinity and BACE1 with high affinity accumulates in the mouse brain more effectively than a monospecific anti-BACE1 antibody.",
+    "type": "therapeutic",
+    "entities": [
+      {
+        "name": "transferrin receptor",
+        "type": "protein",
+        "identifiers": {},
+        "candidates": [],
+        "aliases": [
+          "TfR"
+        ],
+        "resolution_provenance": "checked-in raw/source-visible alias normalization",
+        "resolution_confidence": 1.0,
+        "resolution_method": "manual",
+        "species_context": "Mus musculus"
+      },
+      {
+        "name": "BACE1",
+        "type": "protein",
+        "identifiers": {},
+        "candidates": [],
+        "aliases": [
+          "β-secretase",
+          "beta-secretase"
+        ],
+        "resolution_provenance": "checked-in raw/source-visible alias normalization",
+        "resolution_confidence": 1.0,
+        "resolution_method": "manual",
+        "species_context": "Mus musculus"
+      },
+      {
+        "name": "BACE1",
+        "type": "protein",
+        "identifiers": {},
+        "candidates": [],
+        "aliases": [
+          "β-secretase",
+          "beta-secretase"
+        ],
+        "resolution_provenance": "checked-in raw/source-visible alias normalization",
+        "resolution_confidence": 1.0,
+        "resolution_method": "manual",
+        "species_context": "Mus musculus"
+      }
+    ],
+    "relation": "causes",
+    "direction": "positive"
+  },
+  "evidence": {
+    "type": "experimental",
+    "model_system": "mouse",
+    "species": "Mus musculus",
+    "method": "systemic dosing and brain accumulation measurement",
+    "sample_size": null,
+    "effect_size": null,
+    "p_value": null,
+    "replicated": false,
+    "replication_count": null,
+    "evidence_spans": [
+      {
+        "section": "abstract",
+        "text": "Compared to monospecific anti-BACE1 antibody, the bispecific antibody accumulated in the mouse brain"
+      }
+    ]
+  },
+  "conditions": {
+    "text": "bispecific antibody (low-affinity TfR, high-affinity BACE1) vs monospecific anti-BACE1",
+    "species_verified": [],
+    "species_unverified": [],
+    "in_vitro": false,
+    "in_vivo": true,
+    "human_data": false,
+    "clinical_trial": false,
+    "concentration_range": null,
+    "duration": null,
+    "age_group": null,
+    "cell_type": null
+  },
+  "confidence": {
+    "kind": "frontier_epistemic",
+    "score": 0.269,
+    "basis": "frontier_epistemic: evidence=0.80 * replication=0.70 * model=0.80 * sample=0.60 - review_penalty=0.00 + calibration=0.00 = 0.269",
+    "method": "computed",
+    "components": {
+      "evidence_strength": 0.8,
+      "replication_strength": 0.7,
+      "sample_strength": 0.6,
+      "model_relevance": 0.8,
+      "review_penalty": 0.0,
+      "calibration_adjustment": 0.0
+    },
+    "extraction_confidence": 0.85
+  },
+  "provenance": {
+    "source_type": "published_paper",
+    "doi": "10.1126/scitranslmed.3002230",
+    "pmid": "21613623",
+    "pmc": null,
+    "openalex_id": null,
+    "title": "Boosting brain uptake of a therapeutic antibody by reducing its affinity for a transcytosis target.",
+    "authors": [
+      {
+        "name": "Yu YJ",
+        "orcid": null
+      },
+      {
+        "name": "Zhang Y",
+        "orcid": null
+      },
+      {
+        "name": "Kenrick M",
+        "orcid": null
+      },
+      {
+        "name": "Hoyte K",
+        "orcid": null
+      },
+      {
+        "name": "Luk W",
+        "orcid": null
+      },
+      {
+        "name": "Lu Y",
+        "orcid": null
+      },
+      {
+        "name": "Atwal J",
+        "orcid": null
+      },
+      {
+        "name": "Elliott JM",
+        "orcid": null
+      },
+      {
+        "name": "Prabhu S",
+        "orcid": null
+      },
+      {
+        "name": "Watts RJ",
+        "orcid": null
+      },
+      {
+        "name": "Dennis MS",
+        "orcid": null
+      }
+    ],
+    "year": 2011,
+    "journal": "Sci Transl Med",
+    "extraction": {
+      "method": "llm_extraction",
+      "model": "gemini-3-flash-preview",
+      "model_version": null,
+      "extracted_at": "2026-04-10T04:16:37.546418+00:00",
+      "extractor_version": "vela/0.2.0"
+    },
+    "review": null,
+    "citation_count": 0
+  },
+  "flags": {
+    "gap": false,
+    "negative_space": false,
+    "contested": false,
+    "retracted": false,
+    "declining": false,
+    "gravity_well": false
+  },
+  "links": [],
+  "annotations": [
+    {
+      "id": "ann_b6928fc7ad3f3c47",
+      "text": "Curation limitation: checked-in source text for this finding contains title and abstract only; evidence is grounded to the abstract span and does not verify full-text methods, figures, tables, supplementary material, or exact controls/sample details.",
+      "author": "worker_a_bbb_curation",
+      "timestamp": "2026-04-22T00:00:00Z"
+    }
+  ],
+  "created": "2026-04-10T04:16:37.548202+00:00",
+  "updated": null
+}

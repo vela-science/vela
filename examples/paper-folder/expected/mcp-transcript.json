@@ -1,0 +1,63 @@
+{
+  "schema": "vela.mcp-transcript.v0",
+  "source": "examples/paper-folder/expected/frontier.json",
+  "purpose": "Deterministic first-user transcript shape for MCP clients.",
+  "tool_calls": [
+    {
+      "tool": "frontier_stats",
+      "arguments": {},
+      "expected": {
+        "findings": 11,
+        "links": 11,
+        "gaps": 1
+      }
+    },
+    {
+      "tool": "search_findings",
+      "arguments": {
+        "query": "amyloid-beta LRP1",
+        "limit": 3
+      },
+      "expected_finding_ids": [
+        "vf_c4bf737129fe5c50",
+        "vf_8673ba9b7f661859",
+        "vf_ac1bf0d4dedfc0bf"
+      ]
+    },
+    {
+      "tool": "get_finding",
+      "arguments": {
+        "id": "vf_c4bf737129fe5c50"
+      },
+      "expected": {
+        "citation_id": "vf_c4bf737129fe5c50",
+        "preserve_caveat": "Curated from a local corpus CSV row; verify against source before reuse."
+      }
+    },
+    {
+      "tool": "list_gaps",
+      "arguments": {},
+      "expected_finding_ids": [
+        "vf_36ce6037ac9d35ee"
+      ],
+      "caveat": "Candidate gaps require review before becoming experiment targets."
+    },
+    {
+      "tool": "trace_evidence_chain",
+      "arguments": {
+        "finding_id": "vf_c4bf737129fe5c50",
+        "depth": 1
+      },
+      "expected": {
+        "structured_data": true,
+        "signals_array": true,
+        "caveats_array": true
+      }
+    }
+  ],
+  "final_answer_shape": {
+    "must_cite_finding_ids": true,
+    "must_preserve_caveats": true,
+    "example": "The fixture supports a review lead that LRP1 is associated with amyloid-beta clearance across the blood-brain barrier (`vf_c4bf737129fe5c50`). This is curated local corpus state, not a field-level conclusion."
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "suite": "auto-apply-tier",
+  "description": "Phase α (v0.6): the `sign::actor_can_auto_apply` predicate gates which (tier, kind) pairs may be applied without prior human review. Doctrine: tier permits review-context kinds only (annotations); never state-changing kinds (review verdicts, retractions, confidence revisions). Pre-v0.6 actors with tier=None always fall through to the not-permitted branch.",
+  "cases": [
+    {
+      "name": "tier=auto-notes + finding.note → permits",
+      "input": {"tier": "auto-notes", "kind": "finding.note"},
+      "expected_output": {"permits": true}
+    },
+    {
+      "name": "tier=auto-notes + finding.review → rejects (state-changing)",
+      "input": {"tier": "auto-notes", "kind": "finding.review"},
+      "expected_output": {"permits": false}
+    },
+    {
+      "name": "tier=auto-notes + finding.retract → rejects",
+      "input": {"tier": "auto-notes", "kind": "finding.retract"},
+      "expected_output": {"permits": false}
+    },
+    {
+      "name": "tier=auto-notes + finding.confidence_revise → rejects",
+      "input": {"tier": "auto-notes", "kind": "finding.confidence_revise"},
+      "expected_output": {"permits": false}
+    },
+    {
+      "name": "tier=auto-notes + finding.caveated → rejects (caveat is state context, defer to v0.7)",
+      "input": {"tier": "auto-notes", "kind": "finding.caveated"},
+      "expected_output": {"permits": false}
+    },
+    {
+      "name": "no tier (None) + finding.note → rejects (untiered actors never auto-apply)",
+      "input": {"tier": null, "kind": "finding.note"},
+      "expected_output": {"permits": false}
+    },
+    {
+      "name": "unknown tier + finding.note → rejects (forward-compat: unknown tiers never grant)",
+      "input": {"tier": "auto-everything", "kind": "finding.note"},
+      "expected_output": {"permits": false}
+    }
+  ]
+}

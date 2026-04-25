@@ -1,0 +1,38 @@
+---
+import Page from "./Page.astro";
+
+interface Props {
+  title: string;
+  description?: string;
+  pubDate?: string;
+  active?: string;
+}
+const { title, description, pubDate, active = "essays" } = Astro.props;
+const fullTitle = `${title} · Vela`;
+---
+<Page
+  title={fullTitle}
+  description={description}
+  active={active}
+  eyebrow={pubDate ? `Essay · <span style="color:var(--ink-2);">${pubDate}</span>` : "Essay"}
+  pageTitle={title}
+  subtitle={description}
+>
+  <a href="/" slot="aside" class="back-link">← back</a>
+  <article class="reading">
+    <slot />
+  </article>
+</Page>
+
+<style>
+  article.reading {
+    padding: 8px 0 32px;
+  }
+  .back-link {
+    font-family: var(--font-mono);
+    font-size: var(--size-xs);
+    letter-spacing: 0.06em;
+    color: var(--ink-3);
+  }
+  .back-link:hover { color: var(--ink-0); }
+</style>

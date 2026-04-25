@@ -1,0 +1,66 @@
+---
+import Page from "../../layouts/Page.astro";
+
+const groups = [
+  {
+    title: "Start here",
+    docs: [
+      { slug: "protocol", title: "Protocol", blurb: "The on-disk shape: findings, frontiers, events, signatures." },
+      { slug: "first-frontier", title: "Your first frontier", blurb: "Compile a folder of papers into reviewable state in 10 minutes." },
+      { slug: "core-doctrine", title: "Core doctrine", blurb: "What Vela is and isn't. The lines that hold across versions." },
+    ],
+  },
+  {
+    title: "Distribution",
+    docs: [
+      { slug: "registry", title: "Registry", blurb: "Verifiable distribution. Sign a manifest; anyone can pull and verify." },
+      { slug: "hub", title: "Hub", blurb: "HTTP transport over the registry. The public hub at vela-hub.fly.dev." },
+    ],
+  },
+  {
+    title: "Surfaces",
+    docs: [
+      { slug: "python", title: "Python SDK", blurb: "Programmatic access to a Vela frontier from Python." },
+      { slug: "mcp", title: "MCP", blurb: "Tool surface for agents — read, propose, sign." },
+      { slug: "workbench", title: "Workbench", blurb: "The browser-based review surface." },
+      { slug: "tiers", title: "Trust tiers", blurb: "Trusted-bulk-extractor flow without a per-claim signing tax." },
+    ],
+  },
+];
+---
+<Page
+  title="Docs · Vela"
+  description="Reference documentation for the Vela protocol, hub, registry, and surfaces."
+  active="docs"
+  eyebrow="03 · Docs"
+  pageTitle="Documentation"
+  subtitle="The protocol, the hub, the surfaces. Read in any order; everything is bounded."
+>
+  {groups.map((g) => (
+    <section class="doc-group">
+      <h2>{g.title}</h2>
+      <div class="card-grid">
+        {g.docs.map((d) => (
+          <a class="card" href={`/docs/${d.slug}`}>
+            <span class="eyebrow">{d.slug}</span>
+            <h3 class="title">{d.title}</h3>
+            <p class="blurb">{d.blurb}</p>
+          </a>
+        ))}
+      </div>
+    </section>
+  ))}
+</Page>
+
+<style>
+  .doc-group { margin: 32px 0; }
+  .doc-group h2 {
+    font-family: var(--font-sans);
+    font-weight: 500;
+    font-size: 18px;
+    color: var(--ink-0);
+    margin: 0 0 4px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--rule-2);
+  }
+</style>

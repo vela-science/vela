@@ -1,0 +1,58 @@
+{
+  "suite": "proposal-idempotency",
+  "description": "Phase P (v0.5): proposal_id is content-addressed over the canonical preimage, EXCLUDING `created_at`. Identical logical proposals at different timestamps must produce the same `vpr_…`.",
+  "cases": [
+    {
+      "name": "review proposal — same content, different timestamps",
+      "input": {
+        "schema": "vela.proposal.v0.1",
+        "kind": "finding.review",
+        "target": {"type": "finding", "id": "vf_test_finding"},
+        "actor": {"id": "reviewer:test", "type": "human"},
+        "reason": "scope narrower than claim",
+        "payload": {"status": "contested"},
+        "source_refs": [],
+        "caveats": []
+      },
+      "expected_output": {
+        "id": "vpr_f8544bbfa5d1a696",
+        "id_length": 20,
+        "prefix": "vpr_"
+      }
+    },
+    {
+      "name": "note proposal — distinct content",
+      "input": {
+        "schema": "vela.proposal.v0.1",
+        "kind": "finding.note",
+        "target": {"type": "finding", "id": "vf_test_finding"},
+        "actor": {"id": "reviewer:test", "type": "human"},
+        "reason": "track mouse-only evidence",
+        "payload": {"text": "Track mouse-only evidence"},
+        "source_refs": [],
+        "caveats": []
+      },
+      "expected_output": {
+        "id_length": 20,
+        "prefix": "vpr_"
+      }
+    },
+    {
+      "name": "retract proposal — empty payload",
+      "input": {
+        "schema": "vela.proposal.v0.1",
+        "kind": "finding.retract",
+        "target": {"type": "finding", "id": "vf_other"},
+        "actor": {"id": "reviewer:test", "type": "human"},
+        "reason": "source paper retracted",
+        "payload": {},
+        "source_refs": [],
+        "caveats": []
+      },
+      "expected_output": {
+        "id_length": 20,
+        "prefix": "vpr_"
+      }
+    }
+  ]
+}

@@ -1,0 +1,41 @@
+---
+import Mark from "./Mark.astro";
+
+interface NavLink {
+  id: string;
+  href: string;
+  label: string;
+}
+interface Props {
+  active?: string;
+  links?: NavLink[];
+  version?: string;
+}
+
+const defaultLinks: NavLink[] = [
+  { id: "home", href: "/", label: "01 · Vela" },
+  { id: "essays", href: "/essays/science-needs-state", label: "02 · Essays" },
+  { id: "docs", href: "/docs/protocol", label: "03 · Docs" },
+  { id: "hub", href: "https://vela-hub.fly.dev", label: "04 · Hub" },
+];
+
+const { active = "home", links = defaultLinks, version = "v0.7" } = Astro.props;
+---
+<aside class="wb-rim">
+  <div class="wb-rim__mark" style="color: var(--ink-1);">
+    <a href="/" aria-label="Vela home">
+      <Mark size={26} />
+    </a>
+  </div>
+  <nav class="wb-rim__nav" aria-label="Site sections">
+    {links.map((l) => (
+      <a
+        class={`wb-rim__link${l.id === active ? " wb-rim__link--on" : ""}`}
+        href={l.href}
+      >
+        {l.label}
+      </a>
+    ))}
+  </nav>
+  <div class="wb-rim__index">{version}</div>
+</aside>

@@ -1,0 +1,2942 @@
+[
+  {
+    "id": "vf_0411794b8cf15127",
+    "assertion_text": "MARK4 kinase may relay NLRP3 inflammasome activation to tau phosphorylation, as STRING-DB shows MARK4 interacts with both NLRP3 (score 0.645) and MAPT (score 0.659). Butyrate (gut microbiota metabolite) modulation of this MARK4 relay has zero prior publications.",
+    "assertion_type": "mechanism",
+    "entities": [
+      "MARK4",
+      "NLRP3",
+      "MAPT",
+      "butyrate"
+    ],
+    "confidence_range": {
+      "low": 0.5,
+      "high": 0.75
+    },
+    "entity_details": [
+      {
+        "name": "MARK4",
+        "type": "protein"
+      },
+      {
+        "name": "NLRP3",
+        "type": "protein"
+      },
+      {
+        "name": "MAPT",
+        "type": "protein"
+      },
+      {
+        "name": "butyrate",
+        "type": "compound"
+      }
+    ]
+  },
+  {
+    "id": "vf_1a9d2ec537657c1f",
+    "assertion_text": "Senescent cells and their senescence-associated secretory phenotypes (SASPs) contribute to neuro-inflammation and subsequent neurodegeneration.",
+    "assertion_type": "mechanism",
+    "entities": [
+      "senescent cells",
+      "SASP",
+      "neuro-inflammation"
+    ],
+    "confidence_range": {
+      "low": 0.55,
+      "high": 0.8
+    },
+    "entity_details": [
+      {
+        "name": "senescent cells",
+        "type": "cell_type"
+      },
+      {
+        "name": "SASP",
+        "type": "pathway"
+      },
+      {
+        "name": "neuro-inflammation",
+        "type": "other"
+      }
+    ]
+  },
+  {
+    "id": "vf_37d617dc97f14219",
+    "assertion_text": "The HIV-1 protein Nef impairs cellular cholesterol homeostasis and lipid rafts, contributing to the pathogenesis of HAND.",
+    "assertion_type": "mechanism",
+    "entities": [
+      "Nef",
+      "cholesterol",
+      "lipid rafts",
+      "HAND"
+    ],
+    "confidence_range": {
+      "low": 0.57,
+      "high": 0.82
+    },
+    "entity_details": [
+      {
+        "name": "Nef",
+        "type": "protein"
+      },
+      {
+        "name": "cholesterol",
+        "type": "compound"
+      },
+      {
+        "name": "lipid rafts",
+        "type": "anatomical_structure"
+      },
+      {
+        "name": "HAND",
+        "type": "disease"
+      }
+    ]
+  },
+  {
+    "id": "vf_2eabf94b195fe177",
+    "assertion_text": "Antrodia camphorata has the potential to regulate the gut-microbiome-brain axis to influence cerebral neuropathology.",
+    "assertion_type": "mechanism",
+    "entities": [
+      "Antrodia camphorata",
+      "gut-microbiome-brain axis"
+    ],
+    "confidence_range": {
+      "low": 0.57,
+      "high": 0.82
+    },
+    "entity_details": [
+      {
+        "name": "Antrodia camphorata",
+        "type": "organism"
+      },
+      {
+        "name": "gut-microbiome-brain axis",
+        "type": "pathway"
+      }
+    ]
+  },
+  {
+    "id": "vf_a84c37da00811d33",
+    "assertion_text": "Alterations in gut microbiota composition contribute to increased amyloid-\u03b2 aggregation, neuroinflammation, and insulin resistance in the brain.",
+    "assertion_type": "mechanism",
+    "entities": [
+      "gut microbiota",
+      "amyloid-beta",
+      "neuroinflammation",
+      "insulin resistance"
+    ],
+    "confidence_range": {
+      "low": 0.57,
+      "high": 0.82
+    },
+    "entity_details": [
+      {
+        "name": "gut microbiota",
+        "type": "other"
+      },
+      {
+        "name": "amyloid-beta",
+        "type": "protein"
+      },
+      {
+        "name": "neuroinflammation",
+        "type": "pathway"
+      },
+      {
+        "name": "insulin resistance",
+        "type": "pathway"
+      }
+    ]
+  },
+  {
+    "id": "vf_69ad6627c57d9dd5",
+    "assertion_text": "The therapeutic mechanism of HLJDD in Alzheimer's disease is predicted to involve the regulation of VEGF, NF-\u03baB, and Ca2+ signaling pathways.",
+    "assertion_type": "mechanism",
+    "entities": [
+      "VEGF signaling pathway",
+      "NF-kappa B signaling pathway",
+      "Calcium signaling pathway",
+      "Alzheimer's disease"
+    ],
+    "confidence_range": {
+      "low": 0.58,
+      "high": 0.83
+    },
+    "entity_details": [
+      {
+        "name": "VEGF signaling pathway",
+        "type": "pathway"
+      },
+      {
+        "name": "NF-kappa B signaling pathway",
+        "type": "pathway"
+      },
+      {
+        "name": "Calcium signaling pathway",
+        "type": "pathway"
+      },
+      {
+        "name": "Alzheimer's disease",
+        "type": "disease"
+      }
+    ]
+  },
+  {
+    "id": "vf_88de3e4f8e22ae01",
+    "assertion_text": "Long non-coding RNAs (lncRNAs) participate in the regulation of neuroinflammatory and immunological pathways consequential to cerebrovascular abnormalities in VCI.",
+    "assertion_type": "mechanism",
+    "entities": [
+      "lncRNA",
+      "VCI",
+      "neuroinflammatory processes"
+    ],
+    "confidence_range": {
+      "low": 0.58,
+      "high": 0.83
+    },
+    "entity_details": [
+      {
+        "name": "lncRNA",
+        "type": "gene"
+      },
+      {
+        "name": "VCI",
+        "type": "disease"
+      },
+      {
+        "name": "neuroinflammatory processes",
+        "type": "pathway"
+      }
+    ]
+  },
+  {
+    "id": "vf_e7da7fb0fdb5601c",
+    "assertion_text": "Ferroptosis is a primary underlying mechanism driving accelerated brain aging and neurodegeneration in survivors of COVID-19.",
+    "assertion_type": "mechanism",
+    "entities": [
+      "ferroptosis",
+      "COVID-19",
+      "neurodegeneration"
+    ],
+    "confidence_range": {
+      "low": 0.59,
+      "high": 0.84
+    },
+    "entity_details": [
+      {
+        "name": "ferroptosis",
+        "type": "pathway"
+      },
+      {
+        "name": "COVID-19",
+        "type": "disease"
+      },
+      {
+        "name": "neurodegeneration",
+        "type": "disease"
+      }
+    ]
+  },
+  {
+    "id": "vf_e562029bad1b9760",
+    "assertion_text": "Ketone bodies (acetoacetate and \u03b2-hydroxybutyrate) are metabolized into acetyl-CoA in extrahepatic tissues to enter the tricarboxylic acid cycle and electron transport chain for ATP production during glucose deficiency.",
+    "assertion_type": "mechanism",
+    "entities": [
+      "acetoacetate",
+      "\u03b2-hydroxybutyrate",
+      "acetyl-CoA",
+      "tricarboxylic acid cycle",
+      "ATP"
+    ],
+    "confidence_range": {
+      "low": 0.84,
+      "high": 1.0
+    },
+    "entity_details": [
+      {
+        "name": "acetoacetate",
+        "type": "compound"
+      },
+      {
+        "name": "\u03b2-hydroxybutyrate",
+        "type": "compound"
+      },
+      {
+        "name": "acetyl-CoA",
+        "type": "compound"
+      },
+      {
+        "name": "tricarboxylic acid cycle",
+        "type": "pathway"
+      },
+      {
+        "name": "ATP",
+        "type": "compound"
+      }
+    ]
+  },
+  {
+    "id": "vf_9130a29a7b3eb3eb",
+    "assertion_text": "HSP60 maintains mitochondrial proteome integrity and homeostasis by facilitating the folding of native proteins.",
+    "assertion_type": "mechanism",
+    "entities": [
+      "HSP60",
+      "mitochondrial proteome"
+    ],
+    "confidence_range": {
+      "low": 0.84,
+      "high": 1.0
+    },
+    "entity_details": [
+      {
+        "name": "HSP60",
+        "type": "protein"
+      },
+      {
+        "name": "mitochondrial proteome",
+        "type": "other"
+      }
+    ]
+  },
+  {
+    "id": "vf_552d0987b33cf08d",
+    "assertion_text": "The specific mechanisms by which gut microbiota mediate lipid metabolism in Alzheimer's disease pathology are currently not fully understood.",
+    "assertion_type": "mechanism",
+    "entities": [
+      "gut microbiota",
+      "lipid metabolism",
+      "Alzheimer's disease"
+    ],
+    "confidence_range": {
+      "low": 0.84,
+      "high": 1.0
+    },
+    "entity_details": [
+      {
+        "name": "gut microbiota",
+        "type": "organism"
+      },
+      {
+        "name": "lipid metabolism",
+        "type": "pathway"
+      },
+      {
+        "name": "Alzheimer's disease",
+        "type": "disease"
+      }
+    ]
+  },
+  {
+    "id": "vf_507936e1c07665b8",
+    "assertion_text": "The specific molecular mechanisms underlying the interactions between environmental risk factors and microglial phenotypes in Alzheimer's disease remain largely unknown.",
+    "assertion_type": "mechanism",
+    "entities": [
+      "microglia",
+      "Alzheimer's disease"
+    ],
+    "confidence_range": {
+      "low": 0.84,
+      "high": 1.0
+    },
+    "entity_details": [
+      {
+        "name": "microglia",
+        "type": "cell_type"
+      },
+      {
+        "name": "Alzheimer's disease",
+        "type": "disease"
+      }
+    ]
+  },
+  {
+    "id": "vf_bab02e4bb6382862",
+    "assertion_text": "Mutations in the \u03b1-Syn gene lead to the expression of pathological \u03b1-Syn protein which can cause Parkinson's disease.",
+    "assertion_type": "mechanism",
+    "entities": [
+      "\u03b1-Syn",
+      "Parkinson's disease"
+    ],
+    "confidence_range": {
+      "low": 0.84,
+      "high": 1.0
+    },
+    "entity_details": [
+      {
+        "name": "\u03b1-Syn",
+        "type": "protein"
+      },
+      {
+        "name": "Parkinson's disease",
+        "type": "disease"
+      }
+    ]
+  },
+  {
+    "id": "vf_64d3ea83eaffa1ff",
+    "assertion_text": "A 60% kcal high-fat diet (HFD) induces significant increases in body weight and impairs glucose tolerance in wild-type mice compared to regular chow controls.",
+    "assertion_type": "mechanism",
+    "entities": [
+      "high-fat diet",
+      "glucose"
+    ],
+    "confidence_range": {
+      "low": 0.84,
+      "high": 1.0
+    },
+    "entity_details": [
+      {
+        "name": "high-fat diet",
+        "type": "compound"
+      },
+      {
+        "name": "glucose",
+        "type": "compound"
+      }
+    ]
+  },
+  {
+    "id": "vf_a982f22152e85f99",
+    "assertion_text": "The non-parenchymal tissues of the CNS, including the meninges, perivascular space, and choroid plexus, are populated by resident innate immune cells.",
+    "assertion_type": "mechanism",
+    "entities": [
+      "meninges",
+      "perivascular space",
+      "choroid plexus",
+      "resident immune cells"
+    ],
+    "confidence_range": {
+      "low": 0.84,
+      "high": 1.0
+    },
+    "entity_details": [
+      {
+        "name": "meninges",
+        "type": "anatomical_structure"
+      },
+      {
+        "name": "perivascular space",
+        "type": "anatomical_structure"
+      },
+      {
+        "name": "choroid plexus",
+        "type": "anatomical_structure"
+      },
+      {
+        "name": "resident immune cells",
+        "type": "cell_type"
+      }
+    ]
+  },
+  {
+    "id": "vf_04ae787edc3d2de4",
+    "assertion_text": "Mutations in amyloid precursor protein (APP), presenilin-1 (PSEN1), and presenilin-2 (PSEN2) are linked to familial Alzheimer's disease.",
+    "assertion_type": "mechanism",
+    "entities": [
+      "amyloid precursor protein",
+      "presenilin-1",
+      "presenilin-2",
+      "Alzheimer's disease"
+    ],
+    "confidence_range": {
+      "low": 0.84,
+      "high": 1.0
+    },
+    "entity_details": [
+      {
+        "name": "amyloid precursor protein",
+        "type": "protein"
+      },
+      {
+        "name": "presenilin-1",
+        "type": "protein"
+      },
+      {
+        "name": "presenilin-2",
+        "type": "protein"
+      },
+      {
+        "name": "Alzheimer's disease",
+        "type": "disease"
+      }
+    ]
+  },
+  {
+    "id": "vf_81ae1be8674c2443",
+    "assertion_text": "Oral nCUR treatment enhances hippocampal neurogenesis and normalizes synaptophysin puncta expression in a chronic rat model of GWI.",
+    "assertion_type": "mechanism",
+    "entities": [
+      "synaptophysin",
+      "hippocampus"
+    ],
+    "confidence_range": {
+      "low": 0.76,
+      "high": 1.0
+    },
+    "entity_details": [
+      {
+        "name": "synaptophysin",
+        "type": "protein"
+      },
+      {
+        "name": "hippocampus",
+        "type": "anatomical_structure"
+      }
+    ]
+  },
+  {
+    "id": "vf_f2af33687647b8c4",
+    "assertion_text": "HSV-1 proteins ICP34.5 and US11 inhibit PRKN-dependent mitophagy by deregulating the EIF2S1-ATF4 axis to suppress PRKN mRNA expression.",
+    "assertion_type": "mechanism",
+    "entities": [
+      "ICP34.5",
+      "US11",
+      "EIF2S1",
+      "ATF4",
+      "PRKN",
+      "HSV-1"
+    ],
+    "confidence_range": {
+      "low": 0.78,
+      "high": 1.0
+    },
+    "entity_details": [
+      {
+        "name": "ICP34.5",
+        "type": "protein"
+      },
+      {
+        "name": "US11",
+        "type": "protein"
+      },
+      {
+        "name": "EIF2S1",
+        "type": "protein"
+      },
+      {
+        "name": "ATF4",
+        "type": "protein"
+      },
+      {
+        "name": "PRKN",
+        "type": "gene"
+      },
+      {
+        "name": "HSV-1",
+        "type": "organism"
+      }
+    ]
+  },
+  {
+    "id": "vf_c65867e071ba1b01",
+    "assertion_text": "Inflammaging and cellular senescence contribute to the development of chronic kidney disease (CKD) and impaired renal regeneration.",
+    "assertion_type": "mechanism",
+    "entities": [
+      "chronic kidney disease",
+      "kidney",
+      "inflammaging"
+    ],
+    "confidence_range": {
+      "low": 0.79,
+      "high": 1.0
+    },
+    "entity_details": [
+      {
+        "name": "chronic kidney disease",
+        "type": "disease"
+      },
+      {
+        "name": "kidney",
+        "type": "anatomical_structure"
+      },
+      {
+        "name": "inflammaging",
+        "type": "pathway"
+      }
+    ]
+  },
+  {
+    "id": "vf_1e4fcb0355090645",
+    "assertion_text": "Microglia and astrocytes initiate neuroinflammation and toxic tau and amyloid-\u03b2 accumulation in Alzheimer's disease.",
+    "assertion_type": "mechanism",
+    "entities": [
+      "microglia",
+      "astrocytes",
+      "tau",
+      "amyloid-beta",
+      "Alzheimer's disease"
+    ],
+    "confidence_range": {
+      "low": 0.79,
+      "high": 1.0
+    },
+    "entity_details": [
+      {
+        "name": "microglia",
+        "type": "cell_type"
+      },
+      {
+        "name": "astrocytes",
+        "type": "cell_type"
+      },
+      {
+        "name": "tau",
+        "type": "protein"
+      },
+      {
+        "name": "amyloid-beta",
+        "type": "protein"
+      },
+      {
+        "name": "Alzheimer's disease",
+        "type": "disease"
+      }
+    ]
+  },
+  {
+    "id": "vf_0fe902d8e43c9259",
+    "assertion_text": "The gut microbiota-brain axis regulates the neuro-immune and endocrine systems in the context of Alzheimer's disease.",
+    "assertion_type": "mechanism",
+    "entities": [
+      "Gut microbiota",
+      "Brain",
+      "Neuro-immune system",
+      "Endocrine system",
+      "Alzheimer's disease"
+    ],
+    "confidence_range": {
+      "low": 0.79,
+      "high": 1.0
+    },
+    "entity_details": [
+      {
+        "name": "Gut microbiota",
+        "type": "other"
+      },
+      {
+        "name": "Brain",
+        "type": "anatomical_structure"
+      },
+      {
+        "name": "Neuro-immune system",
+        "type": "pathway"
+      },
+      {
+        "name": "Endocrine system",
+        "type": "pathway"
+      },
+      {
+        "name": "Alzheimer's disease",
+        "type": "disease"
+      }
+    ]
+  },
+  {
+    "id": "vf_775bc01025c654a7",
+    "assertion_text": "Perturbation of HSP60 results in the loss of mitochondrial integrity and the activation of apoptosis.",
+    "assertion_type": "mechanism",
+    "entities": [
+      "HSP60",
+      "mitochondria",
+      "apoptosis"
+    ],
+    "confidence_range": {
+      "low": 0.79,
+      "high": 1.0
+    },
+    "entity_details": [
+      {
+        "name": "HSP60",
+        "type": "protein"
+      },
+      {
+        "name": "mitochondria",
+        "type": "anatomical_structure"
+      },
+      {
+        "name": "apoptosis",
+        "type": "pathway"
+      }
+    ]
+  },
+  {
+    "id": "vf_deb4b6bfe3662f89",
+    "assertion_text": "SIRT1, Nrf2, NF-\u03baB, Cox-2, and iNOS/NO\u00b7 serve as core regulatory molecules within the shared pathways governing both ferroptosis and neuroinflammation.",
+    "assertion_type": "mechanism",
+    "entities": [
+      "SIRT1",
+      "Nrf2",
+      "NF-\u03baB",
+      "Cox-2",
+      "iNOS"
+    ],
+    "confidence_range": {
+      "low": 0.79,
+      "high": 1.0
+    },
+    "entity_details": [
+      {
+        "name": "SIRT1",
+        "type": "protein"
+      },
+      {
+        "name": "Nrf2",
+        "type": "protein"
+      },
+      {
+        "name": "NF-\u03baB",
+        "type": "protein"
+      },
+      {
+        "name": "Cox-2",
+        "type": "protein"
+      },
+      {
+        "name": "iNOS",
+        "type": "protein"
+      }
+    ]
+  },
+  {
+    "id": "vf_1eaa43dd3fdeeb2b",
+    "assertion_text": "Gut dysbiosis leads to increased production of oxidized low-density lipoproteins (OX-LDLs), which restrict blood vessels and cause hypertension.",
+    "assertion_type": "mechanism",
+    "entities": [
+      "OX-LDLs",
+      "hypertension",
+      "dysbiosis"
+    ],
+    "confidence_range": {
+      "low": 0.76,
+      "high": 1.0
+    },
+    "entity_details": [
+      {
+        "name": "OX-LDLs",
+        "type": "compound"
+      },
+      {
+        "name": "hypertension",
+        "type": "disease"
+      },
+      {
+        "name": "dysbiosis",
+        "type": "other"
+      }
+    ]
+  },
+  {
+    "id": "vf_06ba09b23f9a83a0",
+    "assertion_text": "Capsaicin treatment increases serum tryptophan metabolism and decreases lipid metabolism in APP/PS1 mice.",
+    "assertion_type": "mechanism",
+    "entities": [
+      "Capsaicin",
+      "tryptophan",
+      "lipid",
+      "APP/PS1"
+    ],
+    "confidence_range": {
+      "low": 0.74,
+      "high": 0.99
+    },
+    "entity_details": [
+      {
+        "name": "Capsaicin",
+        "type": "compound"
+      },
+      {
+        "name": "tryptophan",
+        "type": "compound"
+      },
+      {
+        "name": "lipid",
+        "type": "compound"
+      },
+      {
+        "name": "APP/PS1",
+        "type": "organism"
+      }
+    ]
+  },
+  {
+    "id": "vf_942c2f6cef588719",
+    "assertion_text": "RNA editing events occur in transcripts for the protein-coding gene synaptotagmin 1 in human brain datasets associated with Alzheimer's disease.",
+    "assertion_type": "mechanism",
+    "entities": [
+      "synaptotagmin 1",
+      "Alzheimer's disease"
+    ],
+    "confidence_range": {
+      "low": 0.76,
+      "high": 1.0
+    },
+    "entity_details": [
+      {
+        "name": "synaptotagmin 1",
+        "type": "gene"
+      },
+      {
+        "name": "Alzheimer's disease",
+        "type": "disease"
+      }
+    ]
+  },
+  {
+    "id": "vf_5125e5db5d49335b",
+    "assertion_text": "Transient Middle Cerebral Artery occlusion (tMCAo) causes a time-dependent increase in miR-223-3p, miR-155-5p, miR-3473, and miR-448-5p expression in the ipsilateral cerebral cortex.",
+    "assertion_type": "mechanism",
+    "entities": [
+      "miR-223-3p",
+      "miR-155-5p",
+      "miR-3473",
+      "miR-448-5p",
+      "cerebral cortex"
+    ],
+    "confidence_range": {
+      "low": 0.77,
+      "high": 1.0
+    },
+    "entity_details": [
+      {
+        "name": "miR-223-3p",
+        "type": "gene"
+      },
+      {
+        "name": "miR-155-5p",
+        "type": "gene"
+      },
+      {
+        "name": "miR-3473",
+        "type": "gene"
+      },
+      {
+        "name": "miR-448-5p",
+        "type": "gene"
+      },
+      {
+        "name": "cerebral cortex",
+        "type": "anatomical_structure"
+      }
+    ]
+  },
+  {
+    "id": "vf_fd586c6589af955d",
+    "assertion_text": "Alteration in gut microbiota composition weakens the intestinal barrier, facilitating the translocation of prions from the gut to the brain.",
+    "assertion_type": "mechanism",
+    "entities": [
+      "gut microbiota",
+      "prion",
+      "intestinal barrier"
+    ],
+    "confidence_range": {
+      "low": 0.73,
+      "high": 0.98
+    },
+    "entity_details": [
+      {
+        "name": "gut microbiota",
+        "type": "other"
+      },
+      {
+        "name": "prion",
+        "type": "protein"
+      },
+      {
+        "name": "intestinal barrier",
+        "type": "anatomical_structure"
+      }
+    ]
+  },
+  {
+    "id": "vf_d12106a694faf5b5",
+    "assertion_text": "HMGCR-mediated dysregulation of cholesterol metabolism contributes to the pathogenesis of Alzheimer's disease through the promotion of amyloid-\u03b2 (A\u03b2) deposition.",
+    "assertion_type": "mechanism",
+    "entities": [
+      "HMGCR",
+      "amyloid-beta",
+      "Alzheimer's disease",
+      "cholesterol"
+    ],
+    "confidence_range": {
+      "low": 0.79,
+      "high": 1.0
+    },
+    "entity_details": [
+      {
+        "name": "HMGCR",
+        "type": "protein"
+      },
+      {
+        "name": "amyloid-beta",
+        "type": "protein"
+      },
+      {
+        "name": "Alzheimer's disease",
+        "type": "disease"
+      },
+      {
+        "name": "cholesterol",
+        "type": "compound"
+      }
+    ]
+  },
+  {
+    "id": "vf_b5d8954697f40c54",
+    "assertion_text": "The specific mechanisms driving sex-dependent microglial responses in Alzheimer's Disease are not yet fully understood.",
+    "assertion_type": "mechanism",
+    "entities": [
+      "microglia",
+      "Alzheimer's Disease"
+    ],
+    "confidence_range": {
+      "low": 0.82,
+      "high": 1.0
+    },
+    "entity_details": [
+      {
+        "name": "microglia",
+        "type": "cell_type"
+      },
+      {
+        "name": "Alzheimer's Disease",
+        "type": "disease"
+      }
+    ]
+  },
+  {
+    "id": "vf_94244d74c02cb4a1",
+    "assertion_text": "NLRP3 inflammasome activation in gingival macrophages reduces their phagocytic capability and promotes a proinflammatory state, exacerbating periodontitis.",
+    "assertion_type": "mechanism",
+    "entities": [
+      "NLRP3",
+      "Macrophages",
+      "Gingiva"
+    ],
+    "confidence_range": {
+      "low": 0.75,
+      "high": 1.0
+    },
+    "entity_details": [
+      {
+        "name": "NLRP3",
+        "type": "protein"
+      },
+      {
+        "name": "Macrophages",
+        "type": "cell_type"
+      },
+      {
+        "name": "Gingiva",
+        "type": "anatomical_structure"
+      }
+    ]
+  },
+  {
+    "id": "vf_777428a03ff976cd",
+    "assertion_text": "Mitochondrial deterioration during aging is driven by impaired biogenesis, disrupted dynamics, dysregulated stress responses, and defective clearance of damaged mitochondria.",
+    "assertion_type": "mechanism",
+    "entities": [
+      "mitochondria",
+      "mitophagy",
+      "mitochondrial biogenesis"
+    ],
+    "confidence_range": {
+      "low": 0.79,
+      "high": 1.0
+    },
+    "entity_details": [
+      {
+        "name": "mitochondria",
+        "type": "anatomical_structure"
+      },
+      {
+        "name": "mitophagy",
+        "type": "pathway"
+      },
+      {
+        "name": "mitochondrial biogenesis",
+        "type": "pathway"
+      }
+    ]
+  },
+  {
+    "id": "vf_0f7243e440270a40",
+    "assertion_text": "Low zinc concentrations suppress amyloid-beta induced neurotoxicity by selectively precipitating aggregation intermediates in Alzheimer's disease.",
+    "assertion_type": "mechanism",
+    "entities": [
+      "zinc",
+      "beta-amyloid",
+      "Alzheimer's disease"
+    ],
+    "confidence_range": {
+      "low": 0.76,
+      "high": 1.0
+    },
+    "entity_details": [
+      {
+        "name": "zinc",
+        "type": "compound"
+      },
+      {
+        "name": "beta-amyloid",
+        "type": "protein"
+      },
+      {
+        "name": "Alzheimer's disease",
+        "type": "disease"
+      }
+    ]
+  },
+  {
+    "id": "vf_1ba04064a9a8dd3f",
+    "assertion_text": "Mice lacking gut microbiota exhibit increased blood-CSF barrier permeability associated with disorganized tight junction proteins including ZO-1, OCLN, and CDH1.",
+    "assertion_type": "mechanism",
+    "entities": [
+      "gut microbiota",
+      "blood-CSF barrier",
+      "ZO-1",
+      "OCLN",
+      "CDH1"
+    ],
+    "confidence_range": {
+      "low": 0.79,
+      "high": 1.0
+    },
+    "entity_details": [
+      {
+        "name": "gut microbiota",
+        "type": "organism"
+      },
+      {
+        "name": "blood-CSF barrier",
+        "type": "anatomical_structure"
+      },
+      {
+        "name": "ZO-1",
+        "type": "protein"
+      },
+      {
+        "name": "OCLN",
+        "type": "protein"
+      },
+      {
+        "name": "CDH1",
+        "type": "protein"
+      }
+    ]
+  },
+  {
+    "id": "vf_5f2debaff403cadd",
+    "assertion_text": "TGR5 expression is specifically upregulated in neurons of 5\u00d7FAD mouse brains at an early stage and is induced by DCA.",
+    "assertion_type": "mechanism",
+    "entities": [
+      "TGR5",
+      "deoxycholic acid",
+      "neuron",
+      "5\u00d7FAD"
+    ],
+    "confidence_range": {
+      "low": 0.79,
+      "high": 1.0
+    },
+    "entity_details": [
+      {
+        "name": "TGR5",
+        "type": "protein"
+      },
+      {
+        "name": "deoxycholic acid",
+        "type": "compound"
+      },
+      {
+        "name": "neuron",
+        "type": "cell_type"
+      },
+      {
+        "name": "5\u00d7FAD",
+        "type": "organism"
+      }
+    ]
+  },
+  {
+    "id": "vf_1c36d7701e1d9143",
+    "assertion_text": "Epigenetic alterations contribute to the aberrant expression of genes involved in neuroinflammation, protein aggregation, and neuronal death in neurodegenerative diseases such as Alzheimer's and Parkinson's.",
+    "assertion_type": "mechanism",
+    "entities": [
+      "neuroinflammation",
+      "protein aggregation",
+      "Alzheimer's disease",
+      "Parkinson's disease"
+    ],
+    "confidence_range": {
+      "low": 0.79,
+      "high": 1.0
+    },
+    "entity_details": [
+      {
+        "name": "neuroinflammation",
+        "type": "pathway"
+      },
+      {
+        "name": "protein aggregation",
+        "type": "pathway"
+      },
+      {
+        "name": "Alzheimer's disease",
+        "type": "disease"
+      },
+      {
+        "name": "Parkinson's disease",
+        "type": "disease"
+      }
+    ]
+  },
+  {
+    "id": "vf_880d48e8c268b936",
+    "assertion_text": "Flavonoids inhibit the formation of protein aggregates and promote their removal in the context of neurodegenerative diseases.",
+    "assertion_type": "mechanism",
+    "entities": [
+      "flavonoids",
+      "protein aggregates"
+    ],
+    "confidence_range": {
+      "low": 0.79,
+      "high": 1.0
+    },
+    "entity_details": [
+      {
+        "name": "flavonoids",
+        "type": "compound"
+      },
+      {
+        "name": "protein aggregates",
+        "type": "other"
+      }
+    ]
+  },
+  {
+    "id": "vf_aef856528f6e6632",
+    "assertion_text": "The gut microbiota of 5xFAD mice is characterized by a significant reduction in the abundance of Bifidobacterium, Faecalibaculum, and Desulfomicrobium compared to wild-type mice.",
+    "assertion_type": "mechanism",
+    "entities": [
+      "Bifidobacterium",
+      "Faecalibaculum",
+      "Desulfomicrobium",
+      "5xFAD"
+    ],
+    "confidence_range": {
+      "low": 0.79,
+      "high": 1.0
+    },
+    "entity_details": [
+      {
+        "name": "Bifidobacterium",
+        "type": "organism"
+      },
+      {
+        "name": "Faecalibaculum",
+        "type": "organism"
+      },
+      {
+        "name": "Desulfomicrobium",
+        "type": "organism"
+      },
+      {
+        "name": "5xFAD",
+        "type": "organism"
+      }
+    ]
+  },
+  {
+    "id": "vf_08e83358b992add4",
+    "assertion_text": "Melatonin treatment reduces the levels of pro-inflammatory cytokines (IL-1\u03b2, IL-6, TNF-\u03b1) and inflammatory enzymes (iNOS, COX2) in the hippocampus of sleep-deprived rats.",
+    "assertion_type": "mechanism",
+    "entities": [
+      "Melatonin",
+      "IL-1\u03b2",
+      "IL-6",
+      "TNF-\u03b1",
+      "iNOS",
+      "COX2"
+    ],
+    "confidence_range": {
+      "low": 0.79,
+      "high": 1.0
+    },
+    "entity_details": [
+      {
+        "name": "Melatonin",
+        "type": "compound"
+      },
+      {
+        "name": "IL-1\u03b2",
+        "type": "protein"
+      },
+      {
+        "name": "IL-6",
+        "type": "protein"
+      },
+      {
+        "name": "TNF-\u03b1",
+        "type": "protein"
+      },
+      {
+        "name": "iNOS",
+        "type": "protein"
+      },
+      {
+        "name": "COX2",
+        "type": "protein"
+      }
+    ]
+  },
+  {
+    "id": "vf_b99701e10ce97eda",
+    "assertion_text": "Translocated lung bacteria induce neuroinflammation characterized by the activation of microglia and astrocytes via bacterial infection-related pathways.",
+    "assertion_type": "mechanism",
+    "entities": [
+      "microglia",
+      "astrocyte",
+      "A\u03b2 protein"
+    ],
+    "confidence_range": {
+      "low": 0.76,
+      "high": 1.0
+    },
+    "entity_details": [
+      {
+        "name": "microglia",
+        "type": "cell_type"
+      },
+      {
+        "name": "astrocyte",
+        "type": "cell_type"
+      },
+      {
+        "name": "A\u03b2 protein",
+        "type": "protein"
+      }
+    ]
+  },
+  {
+    "id": "vf_6e4a632370cf2bad",
+    "assertion_text": "lncRNA profiles and functions can guide the development of targeted immunization strategies to mitigate or prevent vascular cognitive impairment.",
+    "assertion_type": "therapeutic",
+    "entities": [
+      "lncRNA",
+      "VCI",
+      "vaccine"
+    ],
+    "confidence_range": {
+      "low": 0.38,
+      "high": 0.63
+    },
+    "entity_details": [
+      {
+        "name": "lncRNA",
+        "type": "gene"
+      },
+      {
+        "name": "VCI",
+        "type": "disease"
+      },
+      {
+        "name": "vaccine",
+        "type": "compound"
+      }
+    ]
+  },
+  {
+    "id": "vf_a602b5c93d040355",
+    "assertion_text": "GMEVs and their cargo routes represent a viable pathway for the delivery of therapeutic drugs to the CNS.",
+    "assertion_type": "therapeutic",
+    "entities": [
+      "GMEVs",
+      "drug delivery",
+      "neurodegenerative illnesses"
+    ],
+    "confidence_range": {
+      "low": 0.48,
+      "high": 0.73
+    },
+    "entity_details": [
+      {
+        "name": "GMEVs",
+        "type": "other"
+      },
+      {
+        "name": "drug delivery",
+        "type": "assay"
+      },
+      {
+        "name": "neurodegenerative illnesses",
+        "type": "disease"
+      }
+    ]
+  },
+  {
+    "id": "vf_85951a75e743bcf7",
+    "assertion_text": "Inhibition of Cathepsin B (CatB) or Cathepsin S (CatS) serves as a therapeutic approach to delay the onset of Alzheimer's disease by dampening inflammation.",
+    "assertion_type": "therapeutic",
+    "entities": [
+      "Cathepsin B",
+      "Cathepsin S",
+      "Alzheimer's disease"
+    ],
+    "confidence_range": {
+      "low": 0.55,
+      "high": 0.8
+    },
+    "entity_details": [
+      {
+        "name": "Cathepsin B",
+        "type": "protein"
+      },
+      {
+        "name": "Cathepsin S",
+        "type": "protein"
+      },
+      {
+        "name": "Alzheimer's disease",
+        "type": "disease"
+      }
+    ]
+  },
+  {
+    "id": "vf_0149bd3aeefdb624",
+    "assertion_text": "Restoring normal cholesterol metabolism in the liver is a potential therapeutic strategy for treating Alzheimer's disease.",
+    "assertion_type": "therapeutic",
+    "entities": [
+      "cholesterol",
+      "liver",
+      "Alzheimer's disease"
+    ],
+    "confidence_range": {
+      "low": 0.56,
+      "high": 0.81
+    },
+    "entity_details": [
+      {
+        "name": "cholesterol",
+        "type": "compound"
+      },
+      {
+        "name": "liver",
+        "type": "anatomical_structure"
+      },
+      {
+        "name": "Alzheimer's disease",
+        "type": "disease"
+      }
+    ]
+  },
+  {
+    "id": "vf_8e5561cc7217f558",
+    "assertion_text": "Natural TRPV1 agonists represent a promising future treatment strategy for chronic neurodegenerative diseases.",
+    "assertion_type": "therapeutic",
+    "entities": [
+      "TRPV1",
+      "natural products",
+      "neurodegenerative diseases"
+    ],
+    "confidence_range": {
+      "low": 0.57,
+      "high": 0.82
+    },
+    "entity_details": [
+      {
+        "name": "TRPV1",
+        "type": "protein"
+      },
+      {
+        "name": "natural products",
+        "type": "compound"
+      },
+      {
+        "name": "neurodegenerative diseases",
+        "type": "disease"
+      }
+    ]
+  },
+  {
+    "id": "vf_20cc8c3b6a4f41fb",
+    "assertion_text": "Crude extracts and active metabolites of Antrodia camphorata alleviate neurological symptoms at cellular and molecular levels.",
+    "assertion_type": "therapeutic",
+    "entities": [
+      "Antrodia camphorata",
+      "neurological disorders"
+    ],
+    "confidence_range": {
+      "low": 0.82,
+      "high": 1.0
+    },
+    "entity_details": [
+      {
+        "name": "Antrodia camphorata",
+        "type": "organism"
+      },
+      {
+        "name": "neurological disorders",
+        "type": "disease"
+      }
+    ]
+  },
+  {
+    "id": "vf_702e3b9dfe7aa563",
+    "assertion_text": "Oral administration of Lactobacillus gasseri MG4247 and Lacticaseibacillus rhamnosus MG4644 significantly improves spatial memory and learning ability in amyloid beta-induced mice.",
+    "assertion_type": "therapeutic",
+    "entities": [
+      "Lactobacillus gasseri MG4247",
+      "Lacticaseibacillus rhamnosus MG4644",
+      "amyloid-beta"
+    ],
+    "confidence_range": {
+      "low": 0.82,
+      "high": 1.0
+    },
+    "entity_details": [
+      {
+        "name": "Lactobacillus gasseri MG4247",
+        "type": "organism"
+      },
+      {
+        "name": "Lacticaseibacillus rhamnosus MG4644",
+        "type": "organism"
+      },
+      {
+        "name": "amyloid-beta",
+        "type": "protein"
+      }
+    ]
+  },
+  {
+    "id": "vf_c8eea5cd698eb4a6",
+    "assertion_text": "Current cholinesterase inhibitor medications for Alzheimer's disease are unable to completely arrest disease progression.",
+    "assertion_type": "therapeutic",
+    "entities": [
+      "cholinesterase inhibitors",
+      "Alzheimer's disease"
+    ],
+    "confidence_range": {
+      "low": 0.82,
+      "high": 1.0
+    },
+    "entity_details": [
+      {
+        "name": "cholinesterase inhibitors",
+        "type": "compound"
+      },
+      {
+        "name": "Alzheimer's disease",
+        "type": "disease"
+      }
+    ]
+  },
+  {
+    "id": "vf_f6e630db53704b5e",
+    "assertion_text": "Targeting inflammasomes with specific therapies is a viable strategy for developing disease-modifying treatments currently being evaluated in clinical trials.",
+    "assertion_type": "therapeutic",
+    "entities": [
+      "inflammasome",
+      "clinical trials"
+    ],
+    "confidence_range": {
+      "low": 0.84,
+      "high": 1.0
+    },
+    "entity_details": [
+      {
+        "name": "inflammasome",
+        "type": "protein"
+      },
+      {
+        "name": "clinical trials",
+        "type": "assay"
+      }
+    ]
+  },
+  {
+    "id": "vf_4507d6d4c534e5a5",
+    "assertion_text": "Reducing blood Lipopolysaccharide (LPS) levels has not yet been proven to reduce Alzheimer's disease risk or progression in humans.",
+    "assertion_type": "therapeutic",
+    "entities": [
+      "Lipopolysaccharide",
+      "Alzheimer's disease"
+    ],
+    "confidence_range": {
+      "low": 0.84,
+      "high": 1.0
+    },
+    "entity_details": [
+      {
+        "name": "Lipopolysaccharide",
+        "type": "compound"
+      },
+      {
+        "name": "Alzheimer's disease",
+        "type": "disease"
+      }
+    ]
+  },
+  {
+    "id": "vf_a8e0d9a268df2731",
+    "assertion_text": "HDAC inhibitors show promise in ameliorating symptoms of neurological diseases, suggesting potential for treating Alzheimer's disease.",
+    "assertion_type": "therapeutic",
+    "entities": [
+      "HDAC inhibitors",
+      "Alzheimer's disease",
+      "ALS"
+    ],
+    "confidence_range": {
+      "low": 0.71,
+      "high": 0.96
+    },
+    "entity_details": [
+      {
+        "name": "HDAC inhibitors",
+        "type": "compound"
+      },
+      {
+        "name": "Alzheimer's disease",
+        "type": "disease"
+      },
+      {
+        "name": "ALS",
+        "type": "disease"
+      }
+    ]
+  },
+  {
+    "id": "vf_a516ea3e0d88b2a3",
+    "assertion_text": "Conventional antioxidant and anti-inflammatory therapies, including NSAIDs, corticosteroids, and dietary antioxidants, exhibit limited and inconsistent long-term clinical efficacy due to issues with safety, bioavailability, and efficacy.",
+    "assertion_type": "therapeutic",
+    "entities": [
+      "NSAIDs",
+      "corticosteroids",
+      "dietary antioxidants"
+    ],
+    "confidence_range": {
+      "low": 0.79,
+      "high": 1.0
+    },
+    "entity_details": [
+      {
+        "name": "NSAIDs",
+        "type": "compound"
+      },
+      {
+        "name": "corticosteroids",
+        "type": "compound"
+      },
+      {
+        "name": "dietary antioxidants",
+        "type": "compound"
+      }
+    ]
+  },
+  {
+    "id": "vf_3553c59a2e27fe7e",
+    "assertion_text": "Gasdermin D (GSDMD) knockout inhibits astrocyte pyroptosis and reduces neuroinflammation and vascular damage in APP/PS1 mice.",
+    "assertion_type": "therapeutic",
+    "entities": [
+      "GSDMD",
+      "astrocytes",
+      "APP/PS1 mice",
+      "Alzheimer's disease"
+    ],
+    "confidence_range": {
+      "low": 0.76,
+      "high": 1.0
+    },
+    "entity_details": [
+      {
+        "name": "GSDMD",
+        "type": "protein"
+      },
+      {
+        "name": "astrocytes",
+        "type": "cell_type"
+      },
+      {
+        "name": "APP/PS1 mice",
+        "type": "organism"
+      },
+      {
+        "name": "Alzheimer's disease",
+        "type": "disease"
+      }
+    ]
+  },
+  {
+    "id": "vf_325728b7436b7f4b",
+    "assertion_text": "Lingonberries and their insoluble fraction provide a neuroprotective effect on altered synaptic plasticity in ApoE-/- mice.",
+    "assertion_type": "therapeutic",
+    "entities": [
+      "Lingonberry",
+      "ApoE",
+      "synaptic plasticity"
+    ],
+    "confidence_range": {
+      "low": 0.58,
+      "high": 0.83
+    },
+    "entity_details": [
+      {
+        "name": "Lingonberry",
+        "type": "organism"
+      },
+      {
+        "name": "ApoE",
+        "type": "gene"
+      },
+      {
+        "name": "synaptic plasticity",
+        "type": "pathway"
+      }
+    ]
+  },
+  {
+    "id": "vf_32491cebb7589b79",
+    "assertion_text": "Naringin treatment can alleviate the toxic side effects associated with other pharmacological agents.",
+    "assertion_type": "therapeutic",
+    "entities": [
+      "naringin",
+      "toxic side effects"
+    ],
+    "confidence_range": {
+      "low": 0.76,
+      "high": 1.0
+    },
+    "entity_details": [
+      {
+        "name": "naringin",
+        "type": "compound"
+      },
+      {
+        "name": "toxic side effects",
+        "type": "other"
+      }
+    ]
+  },
+  {
+    "id": "vf_026b95f62c6a2b67",
+    "assertion_text": "4-octyl itaconate (OI) treatment significantly alleviates anesthesia/surgery-induced cognitive impairment in aged mice.",
+    "assertion_type": "therapeutic",
+    "entities": [
+      "4-octyl itaconate",
+      "postoperative cognitive dysfunction"
+    ],
+    "confidence_range": {
+      "low": 0.82,
+      "high": 1.0
+    },
+    "entity_details": [
+      {
+        "name": "4-octyl itaconate",
+        "type": "compound"
+      },
+      {
+        "name": "postoperative cognitive dysfunction",
+        "type": "disease"
+      }
+    ]
+  },
+  {
+    "id": "vf_8b094448204c5b67",
+    "assertion_text": "PEA treatment reduces the accumulation of A\u03b2 and \u03b1-synuclein in the colon of SAMP8 mice.",
+    "assertion_type": "therapeutic",
+    "entities": [
+      "palmitoylethanolamide",
+      "\u03b2-amyloid",
+      "\u03b1-synuclein",
+      "colon"
+    ],
+    "confidence_range": {
+      "low": 0.79,
+      "high": 1.0
+    },
+    "entity_details": [
+      {
+        "name": "palmitoylethanolamide",
+        "type": "compound"
+      },
+      {
+        "name": "\u03b2-amyloid",
+        "type": "protein"
+      },
+      {
+        "name": "\u03b1-synuclein",
+        "type": "protein"
+      },
+      {
+        "name": "colon",
+        "type": "anatomical_structure"
+      }
+    ]
+  },
+  {
+    "id": "vf_8f9e45530102ebb9",
+    "assertion_text": "Specific antidiabetic drugs decrease the risk of Parkinson's disease and delay its clinical progression.",
+    "assertion_type": "therapeutic",
+    "entities": [
+      "antidiabetic drugs",
+      "Parkinson's disease"
+    ],
+    "confidence_range": {
+      "low": 0.76,
+      "high": 1.0
+    },
+    "entity_details": [
+      {
+        "name": "antidiabetic drugs",
+        "type": "compound"
+      },
+      {
+        "name": "Parkinson's disease",
+        "type": "disease"
+      }
+    ]
+  },
+  {
+    "id": "vf_739a5c843c495297",
+    "assertion_text": "Oral administration of Mitoapocynin (MA) at 3 mg/kg attenuates ODE-induced neuroinflammation and reverses sensory-motor deficits.",
+    "assertion_type": "therapeutic",
+    "entities": [
+      "Mitoapocynin",
+      "organic dust extract",
+      "HMGB1",
+      "3-nitrotyrosine"
+    ],
+    "confidence_range": {
+      "low": 0.75,
+      "high": 1.0
+    },
+    "entity_details": [
+      {
+        "name": "Mitoapocynin",
+        "type": "compound"
+      },
+      {
+        "name": "organic dust extract",
+        "type": "other"
+      },
+      {
+        "name": "HMGB1",
+        "type": "protein"
+      },
+      {
+        "name": "3-nitrotyrosine",
+        "type": "compound"
+      }
+    ]
+  },
+  {
+    "id": "vf_a016ce551a90dc6f",
+    "assertion_text": "JDYZF modulates specific gut microbial taxa in AD rats, notably increasing the abundance of Lactobacillus and decreasing Helicobacter.",
+    "assertion_type": "therapeutic",
+    "entities": [
+      "JDYZF",
+      "Lactobacillus",
+      "Helicobacter"
+    ],
+    "confidence_range": {
+      "low": 0.77,
+      "high": 1.0
+    },
+    "entity_details": [
+      {
+        "name": "JDYZF",
+        "type": "compound"
+      },
+      {
+        "name": "Lactobacillus",
+        "type": "organism"
+      },
+      {
+        "name": "Helicobacter",
+        "type": "organism"
+      }
+    ]
+  },
+  {
+    "id": "vf_ea04f8008a0ecafd",
+    "assertion_text": "Oral administration of Kampo formulas (kososan [KS], nobiletin-rich kososan [NKS], and hachimijiogan [HJG]) for 13 weeks significantly reduces depression-like behavior in SAMP8 mice as measured by the tail suspension test.",
+    "assertion_type": "therapeutic",
+    "entities": [
+      "kososan",
+      "nobiletin-rich kososan",
+      "hachimijiogan",
+      "SAMP8"
+    ],
+    "confidence_range": {
+      "low": 0.81,
+      "high": 1.0
+    },
+    "entity_details": [
+      {
+        "name": "kososan",
+        "type": "compound"
+      },
+      {
+        "name": "nobiletin-rich kososan",
+        "type": "compound"
+      },
+      {
+        "name": "hachimijiogan",
+        "type": "compound"
+      },
+      {
+        "name": "SAMP8",
+        "type": "organism"
+      }
+    ]
+  },
+  {
+    "id": "vf_5138961a71ad169b",
+    "assertion_text": "Oral administration of PEA (5 mg/kg/day) significantly improves in vitro colonic longitudinal muscle contractile activity in SAMP8 mice.",
+    "assertion_type": "therapeutic",
+    "entities": [
+      "palmitoylethanolamide",
+      "SAMP8",
+      "colonic longitudinal muscle"
+    ],
+    "confidence_range": {
+      "low": 0.82,
+      "high": 1.0
+    },
+    "entity_details": [
+      {
+        "name": "palmitoylethanolamide",
+        "type": "compound"
+      },
+      {
+        "name": "SAMP8",
+        "type": "organism"
+      },
+      {
+        "name": "colonic longitudinal muscle",
+        "type": "anatomical_structure"
+      }
+    ]
+  },
+  {
+    "id": "vf_1dae1b4e43e11b58",
+    "assertion_text": "Oleocanthal significantly inhibits the production of pro-inflammatory cytokines and reduces the expression of inflammatory genes in LPS-activated BV-2 microglial cells.",
+    "assertion_type": "therapeutic",
+    "entities": [
+      "oleocanthal",
+      "lipopolysaccharide",
+      "BV-2",
+      "cytokines"
+    ],
+    "confidence_range": {
+      "low": 0.79,
+      "high": 1.0
+    },
+    "entity_details": [
+      {
+        "name": "oleocanthal",
+        "type": "compound"
+      },
+      {
+        "name": "lipopolysaccharide",
+        "type": "compound"
+      },
+      {
+        "name": "BV-2",
+        "type": "cell_type"
+      },
+      {
+        "name": "cytokines",
+        "type": "protein"
+      }
+    ]
+  },
+  {
+    "id": "vf_d228d9d7852f0ab2",
+    "assertion_text": "Puerarin demonstrates neuroprotective functions in the treatment of Alzheimer\u2019s disease.",
+    "assertion_type": "therapeutic",
+    "entities": [
+      "Puerarin",
+      "Alzheimer\u2019s disease"
+    ],
+    "confidence_range": {
+      "low": 0.79,
+      "high": 1.0
+    },
+    "entity_details": [
+      {
+        "name": "Puerarin",
+        "type": "compound"
+      },
+      {
+        "name": "Alzheimer\u2019s disease",
+        "type": "disease"
+      }
+    ]
+  },
+  {
+    "id": "vf_9a40fb3802b64b20",
+    "assertion_text": "Sodium oligomannate (GV-971) binds directly to the GIANLDKL repeats of the Rib adhesin to disrupt bacterial adherence and alleviate Th1-skewed inflammation.",
+    "assertion_type": "therapeutic",
+    "entities": [
+      "Sodium oligomannate",
+      "Rib",
+      "Th1"
+    ],
+    "confidence_range": {
+      "low": 0.77,
+      "high": 1.0
+    },
+    "entity_details": [
+      {
+        "name": "Sodium oligomannate",
+        "type": "compound"
+      },
+      {
+        "name": "Rib",
+        "type": "protein"
+      },
+      {
+        "name": "Th1",
+        "type": "cell_type"
+      }
+    ]
+  },
+  {
+    "id": "vf_615de9f6e6a69598",
+    "assertion_text": "A combination of inflammatory factors (IL-6, INF-\u03b3), phosphatidylcholines (PCs), and SCFA-producing bacteria serve as potential early diagnostic biomarkers for Alzheimer's disease.",
+    "assertion_type": "diagnostic",
+    "entities": [
+      "IL-6",
+      "INF-\u03b3",
+      "phosphatidylcholines",
+      "SCFA-producing bacteria",
+      "Alzheimer's disease"
+    ],
+    "confidence_range": {
+      "low": 0.71,
+      "high": 0.96
+    },
+    "entity_details": [
+      {
+        "name": "IL-6",
+        "type": "protein"
+      },
+      {
+        "name": "INF-\u03b3",
+        "type": "protein"
+      },
+      {
+        "name": "phosphatidylcholines",
+        "type": "compound"
+      },
+      {
+        "name": "SCFA-producing bacteria",
+        "type": "organism"
+      },
+      {
+        "name": "Alzheimer's disease",
+        "type": "disease"
+      }
+    ]
+  },
+  {
+    "id": "vf_a716c7558ca80d2e",
+    "assertion_text": "A set of ten genes, including eight up-regulated (SLC22A2, ITGB2-AS1, NIT1, FGF14-AS2, SEMA3E, PYCARD, PRORY, ADIRF) and two down-regulated (AKAIN1, TRMT2B), are differentially expressed in the entorhinal cortex and serve as potential diagnostic targets for AD.",
+    "assertion_type": "diagnostic",
+    "entities": [
+      "SLC22A2",
+      "ITGB2-AS1",
+      "NIT1",
+      "FGF14-AS2",
+      "SEMA3E",
+      "PYCARD",
+      "PRORY",
+      "ADIRF",
+      "AKAIN1",
+      "TRMT2B"
+    ],
+    "confidence_range": {
+      "low": 0.71,
+      "high": 0.96
+    },
+    "entity_details": [
+      {
+        "name": "SLC22A2",
+        "type": "gene"
+      },
+      {
+        "name": "ITGB2-AS1",
+        "type": "gene"
+      },
+      {
+        "name": "NIT1",
+        "type": "gene"
+      },
+      {
+        "name": "FGF14-AS2",
+        "type": "gene"
+      },
+      {
+        "name": "SEMA3E",
+        "type": "gene"
+      },
+      {
+        "name": "PYCARD",
+        "type": "gene"
+      },
+      {
+        "name": "PRORY",
+        "type": "gene"
+      },
+      {
+        "name": "ADIRF",
+        "type": "gene"
+      },
+      {
+        "name": "AKAIN1",
+        "type": "gene"
+      },
+      {
+        "name": "TRMT2B",
+        "type": "gene"
+      }
+    ]
+  },
+  {
+    "id": "vf_f7449cac110c213a",
+    "assertion_text": "Changes in butyrate levels serve as an early warning indicator for colon cancer.",
+    "assertion_type": "diagnostic",
+    "entities": [
+      "butyrate",
+      "colon cancer"
+    ],
+    "confidence_range": {
+      "low": 0.79,
+      "high": 1.0
+    },
+    "entity_details": [
+      {
+        "name": "butyrate",
+        "type": "compound"
+      },
+      {
+        "name": "colon cancer",
+        "type": "disease"
+      }
+    ]
+  },
+  {
+    "id": "vf_ca70debe902095fa",
+    "assertion_text": "Brain glucose metabolism reduction in Alzheimer's disease occurs presymptomatically and follows a progressive, region-specific pattern.",
+    "assertion_type": "diagnostic",
+    "entities": [
+      "Alzheimer's disease",
+      "glucose",
+      "brain"
+    ],
+    "confidence_range": {
+      "low": 0.82,
+      "high": 1.0
+    },
+    "entity_details": [
+      {
+        "name": "Alzheimer's disease",
+        "type": "disease"
+      },
+      {
+        "name": "glucose",
+        "type": "compound"
+      },
+      {
+        "name": "brain",
+        "type": "anatomical_structure"
+      }
+    ]
+  },
+  {
+    "id": "vf_e3ce4e91f8e632e5",
+    "assertion_text": "Children exposed to high air pollution exhibit significantly higher concentrations of Nickel and antibodies to Myelin Basic Protein (MBP) in their cerebrospinal fluid (CSF).",
+    "assertion_type": "diagnostic",
+    "entities": [
+      "myelin basic protein",
+      "Nickel",
+      "cerebrospinal fluid"
+    ],
+    "confidence_range": {
+      "low": 0.76,
+      "high": 1.0
+    },
+    "entity_details": [
+      {
+        "name": "myelin basic protein",
+        "type": "protein"
+      },
+      {
+        "name": "Nickel",
+        "type": "compound"
+      },
+      {
+        "name": "cerebrospinal fluid",
+        "type": "anatomical_structure"
+      }
+    ]
+  },
+  {
+    "id": "vf_72a1beea19ace4a2",
+    "assertion_text": "[18F]ROStrace retention is significantly elevated in the cortex, striatum, and midbrain of 3-month-old MitoPark mice compared to wild-type controls.",
+    "assertion_type": "diagnostic",
+    "entities": [
+      "[18F]ROStrace",
+      "cortex",
+      "striatum",
+      "midbrain"
+    ],
+    "confidence_range": {
+      "low": 0.77,
+      "high": 1.0
+    },
+    "entity_details": [
+      {
+        "name": "[18F]ROStrace",
+        "type": "compound"
+      },
+      {
+        "name": "cortex",
+        "type": "anatomical_structure"
+      },
+      {
+        "name": "striatum",
+        "type": "anatomical_structure"
+      },
+      {
+        "name": "midbrain",
+        "type": "anatomical_structure"
+      }
+    ]
+  },
+  {
+    "id": "vf_b32d4f81b28ecda0",
+    "assertion_text": "PYCARD is significantly up-regulated in the entorhinal cortex of Alzheimer's disease patients and demonstrates high diagnostic accuracy with an AUC of 0.95.",
+    "assertion_type": "diagnostic",
+    "entities": [
+      "PYCARD",
+      "Alzheimer's disease",
+      "entorhinal cortex"
+    ],
+    "confidence_range": {
+      "low": 0.76,
+      "high": 1.0
+    },
+    "entity_details": [
+      {
+        "name": "PYCARD",
+        "type": "gene"
+      },
+      {
+        "name": "Alzheimer's disease",
+        "type": "disease"
+      },
+      {
+        "name": "entorhinal cortex",
+        "type": "anatomical_structure"
+      }
+    ]
+  },
+  {
+    "id": "vf_3ef695bcf14833ea",
+    "assertion_text": "[18F]ROStrace PET imaging identifies increased whole-brain superoxide levels in MitoPark mice as early as 2 months of age, during the prodromal phase of Parkinson's-like pathology.",
+    "assertion_type": "diagnostic",
+    "entities": [
+      "[18F]ROStrace",
+      "superoxide",
+      "MitoPark",
+      "Parkinson's disease"
+    ],
+    "confidence_range": {
+      "low": 0.77,
+      "high": 1.0
+    },
+    "entity_details": [
+      {
+        "name": "[18F]ROStrace",
+        "type": "compound"
+      },
+      {
+        "name": "superoxide",
+        "type": "compound"
+      },
+      {
+        "name": "MitoPark",
+        "type": "organism"
+      },
+      {
+        "name": "Parkinson's disease",
+        "type": "disease"
+      }
+    ]
+  },
+  {
+    "id": "vf_612cc86485ccd266",
+    "assertion_text": "Brain-derived neurotrophic factor (BDNF) levels serve as a biomarker for the inflammatory processes involved in late-life depression.",
+    "assertion_type": "diagnostic",
+    "entities": [
+      "BDNF",
+      "late-life depression"
+    ],
+    "confidence_range": {
+      "low": 0.79,
+      "high": 1.0
+    },
+    "entity_details": [
+      {
+        "name": "BDNF",
+        "type": "protein"
+      },
+      {
+        "name": "late-life depression",
+        "type": "disease"
+      }
+    ]
+  },
+  {
+    "id": "vf_3c4c74a8eaf26954",
+    "assertion_text": "Children residing in high-pollution areas (MCMA) exhibit significantly elevated serum levels of antibodies (IgG, IgA, IgM) against tight junction proteins (occludin, zonulin 1) and neural proteins (actin, MOG, MBP, S-100).",
+    "assertion_type": "diagnostic",
+    "entities": [
+      "actin",
+      "occludin",
+      "zonulin 1",
+      "myelin oligodendrocyte glycoprotein",
+      "myelin basic protein",
+      "S-100"
+    ],
+    "confidence_range": {
+      "low": 0.79,
+      "high": 1.0
+    },
+    "entity_details": [
+      {
+        "name": "actin",
+        "type": "protein"
+      },
+      {
+        "name": "occludin",
+        "type": "protein"
+      },
+      {
+        "name": "zonulin 1",
+        "type": "protein"
+      },
+      {
+        "name": "myelin oligodendrocyte glycoprotein",
+        "type": "protein"
+      },
+      {
+        "name": "myelin basic protein",
+        "type": "protein"
+      },
+      {
+        "name": "S-100",
+        "type": "protein"
+      }
+    ]
+  },
+  {
+    "id": "vf_1bb9d5df7c8a0f92",
+    "assertion_text": "The oral microbiome is a potentially modifiable risk factor in the development of Alzheimer's disease.",
+    "assertion_type": "epidemiological",
+    "entities": [
+      "oral microbiome",
+      "Alzheimer's disease"
+    ],
+    "confidence_range": {
+      "low": 0.58,
+      "high": 0.83
+    },
+    "entity_details": [
+      {
+        "name": "oral microbiome",
+        "type": "other"
+      },
+      {
+        "name": "Alzheimer's disease",
+        "type": "disease"
+      }
+    ]
+  },
+  {
+    "id": "vf_e5a4ecac890238dc",
+    "assertion_text": "Fibroblast growth factor basic (FGF-basic) is associated with an increased risk of developing vascular dementia (VaD).",
+    "assertion_type": "epidemiological",
+    "entities": [
+      "fibroblast growth factor basic",
+      "vascular dementia"
+    ],
+    "confidence_range": {
+      "low": 0.6,
+      "high": 0.85
+    },
+    "entity_details": [
+      {
+        "name": "fibroblast growth factor basic",
+        "type": "protein"
+      },
+      {
+        "name": "vascular dementia",
+        "type": "disease"
+      }
+    ]
+  },
+  {
+    "id": "vf_2f8ab515ecb19e6d",
+    "assertion_text": "Elevated serum homocysteine (Hcy) levels are associated with an increased risk of Alzheimer's disease and Parkinson's disease compared to healthy controls.",
+    "assertion_type": "epidemiological",
+    "entities": [
+      "homocysteine",
+      "Parkinson's disease",
+      "Alzheimer's disease"
+    ],
+    "confidence_range": {
+      "low": 0.82,
+      "high": 1.0
+    },
+    "entity_details": [
+      {
+        "name": "homocysteine",
+        "type": "compound"
+      },
+      {
+        "name": "Parkinson's disease",
+        "type": "disease"
+      },
+      {
+        "name": "Alzheimer's disease",
+        "type": "disease"
+      }
+    ]
+  },
+  {
+    "id": "vf_bbba1712a5a6fe8e",
+    "assertion_text": "Apolipoprotein-E \u03b54 (APOE \u03b54) is the strongest common genetic risk allele for Alzheimer's disease.",
+    "assertion_type": "epidemiological",
+    "entities": [
+      "APOE \u03b54",
+      "Alzheimer's disease"
+    ],
+    "confidence_range": {
+      "low": 0.84,
+      "high": 1.0
+    },
+    "entity_details": [
+      {
+        "name": "APOE \u03b54",
+        "type": "gene"
+      },
+      {
+        "name": "Alzheimer's disease",
+        "type": "disease"
+      }
+    ]
+  },
+  {
+    "id": "vf_39f4482fe3f3301f",
+    "assertion_text": "Serum water-soluble vitamin levels are positively correlated with neuropsychological assessment scores (MMSE, MoCA, BNT) and negatively correlated with dementia severity scales (CDR, UPDRS).",
+    "assertion_type": "epidemiological",
+    "entities": [
+      "MMSE",
+      "MoCA",
+      "BNT",
+      "CDR",
+      "UPDRS",
+      "water-soluble vitamins"
+    ],
+    "confidence_range": {
+      "low": 0.76,
+      "high": 1.0
+    },
+    "entity_details": [
+      {
+        "name": "MMSE",
+        "type": "assay"
+      },
+      {
+        "name": "MoCA",
+        "type": "assay"
+      },
+      {
+        "name": "BNT",
+        "type": "assay"
+      },
+      {
+        "name": "CDR",
+        "type": "assay"
+      },
+      {
+        "name": "UPDRS",
+        "type": "assay"
+      },
+      {
+        "name": "water-soluble vitamins",
+        "type": "compound"
+      }
+    ]
+  },
+  {
+    "id": "vf_7283384111137d3f",
+    "assertion_text": "The APOE4 allele is geographically concentrated in regions with high parasitic burden and provides protection against childhood tropical infections and hepatitis C.",
+    "assertion_type": "epidemiological",
+    "entities": [
+      "APOE4",
+      "parasitic burden",
+      "hepatitis C"
+    ],
+    "confidence_range": {
+      "low": 0.79,
+      "high": 1.0
+    },
+    "entity_details": [
+      {
+        "name": "APOE4",
+        "type": "gene"
+      },
+      {
+        "name": "parasitic burden",
+        "type": "other"
+      },
+      {
+        "name": "hepatitis C",
+        "type": "disease"
+      }
+    ]
+  },
+  {
+    "id": "vf_9e26b28883d505c3",
+    "assertion_text": "Serum levels of palmitoyl-L-carnitine (C16:0) and related acylcarnitines increase significantly with age in mice.",
+    "assertion_type": "epidemiological",
+    "entities": [
+      "palmitoyl-L-carnitine",
+      "acylcarnitines"
+    ],
+    "confidence_range": {
+      "low": 0.77,
+      "high": 1.0
+    },
+    "entity_details": [
+      {
+        "name": "palmitoyl-L-carnitine",
+        "type": "compound"
+      },
+      {
+        "name": "acylcarnitines",
+        "type": "compound"
+      }
+    ]
+  },
+  {
+    "id": "vf_e0c12d3ceb4e1bee",
+    "assertion_text": "Periodontitis and Alzheimer's disease share common risk factors, including advanced age, smoking, diabetes, and hypertension.",
+    "assertion_type": "epidemiological",
+    "entities": [
+      "periodontitis",
+      "Alzheimer's disease",
+      "diabetes",
+      "hypertension"
+    ],
+    "confidence_range": {
+      "low": 0.82,
+      "high": 1.0
+    },
+    "entity_details": [
+      {
+        "name": "periodontitis",
+        "type": "disease"
+      },
+      {
+        "name": "Alzheimer's disease",
+        "type": "disease"
+      },
+      {
+        "name": "diabetes",
+        "type": "disease"
+      },
+      {
+        "name": "hypertension",
+        "type": "disease"
+      }
+    ]
+  },
+  {
+    "id": "vf_4d47632c9e0c9b66",
+    "assertion_text": "Lower levels of serum vitamins B2, B6, 5mTHF, and B12 are associated with a higher risk of dementia in patients with Parkinson's disease.",
+    "assertion_type": "epidemiological",
+    "entities": [
+      "VB2",
+      "VB6",
+      "5mTHF",
+      "VB12",
+      "Parkinson's disease",
+      "dementia"
+    ],
+    "confidence_range": {
+      "low": 0.71,
+      "high": 0.96
+    },
+    "entity_details": [
+      {
+        "name": "VB2",
+        "type": "compound"
+      },
+      {
+        "name": "VB6",
+        "type": "compound"
+      },
+      {
+        "name": "5mTHF",
+        "type": "compound"
+      },
+      {
+        "name": "VB12",
+        "type": "compound"
+      },
+      {
+        "name": "Parkinson's disease",
+        "type": "disease"
+      },
+      {
+        "name": "dementia",
+        "type": "disease"
+      }
+    ]
+  },
+  {
+    "id": "vf_a0626f0cf7289ee2",
+    "assertion_text": "A shift in the gut microbiome to a pro-inflammatory phenotype is associated with the onset and progression of Parkinson's disease.",
+    "assertion_type": "epidemiological",
+    "entities": [
+      "gut microbiome",
+      "Parkinson's disease"
+    ],
+    "confidence_range": {
+      "low": 0.72,
+      "high": 0.97
+    },
+    "entity_details": [
+      {
+        "name": "gut microbiome",
+        "type": "other"
+      },
+      {
+        "name": "Parkinson's disease",
+        "type": "disease"
+      }
+    ]
+  },
+  {
+    "id": "vf_707d0bfbd8f845fa",
+    "assertion_text": "The utilization of natural products in drug discovery for neurodegenerative disorders is currently limited by unresolved ethical issues.",
+    "assertion_type": "methodological",
+    "entities": [
+      "natural products",
+      "neurodegenerative disorders"
+    ],
+    "confidence_range": {
+      "low": 0.57,
+      "high": 0.82
+    },
+    "entity_details": [
+      {
+        "name": "natural products",
+        "type": "compound"
+      },
+      {
+        "name": "neurodegenerative disorders",
+        "type": "disease"
+      }
+    ]
+  },
+  {
+    "id": "vf_d4f1e4818e5ba23e",
+    "assertion_text": "There is a necessity for additional investigation on glial cells and their specific involvement in neurological illnesses.",
+    "assertion_type": "methodological",
+    "entities": [
+      "glial cells"
+    ],
+    "confidence_range": {
+      "low": 0.84,
+      "high": 1.0
+    },
+    "entity_details": [
+      {
+        "name": "glial cells",
+        "type": "cell_type"
+      }
+    ]
+  },
+  {
+    "id": "vf_46a00ab723dc21fc",
+    "assertion_text": "NLRP3 inflammasome, TREM2, gut microbiota, and extracellular vesicles (exosomes) are identified as the primary research hotspots and emerging trends in the study of microglia in Alzheimer's disease.",
+    "assertion_type": "methodological",
+    "entities": [
+      "NLRP3 inflammasome",
+      "TREM2",
+      "gut microbiota",
+      "exosomes",
+      "microglia",
+      "Alzheimer's disease"
+    ],
+    "confidence_range": {
+      "low": 0.73,
+      "high": 0.98
+    },
+    "entity_details": [
+      {
+        "name": "NLRP3 inflammasome",
+        "type": "protein"
+      },
+      {
+        "name": "TREM2",
+        "type": "protein"
+      },
+      {
+        "name": "gut microbiota",
+        "type": "organism"
+      },
+      {
+        "name": "exosomes",
+        "type": "other"
+      },
+      {
+        "name": "microglia",
+        "type": "cell_type"
+      },
+      {
+        "name": "Alzheimer's disease",
+        "type": "disease"
+      }
+    ]
+  },
+  {
+    "id": "vf_8f9c22d550022ce1",
+    "assertion_text": "There are significant challenges and future opportunities in establishing acupuncture as a standardized treatment for Alzheimer's disease via gut microbiota modulation.",
+    "assertion_type": "methodological",
+    "entities": [
+      "Acupuncture",
+      "Alzheimer's disease",
+      "Gut microbiota"
+    ],
+    "confidence_range": {
+      "low": 0.66,
+      "high": 0.91
+    },
+    "entity_details": [
+      {
+        "name": "Acupuncture",
+        "type": "other"
+      },
+      {
+        "name": "Alzheimer's disease",
+        "type": "disease"
+      },
+      {
+        "name": "Gut microbiota",
+        "type": "other"
+      }
+    ]
+  },
+  {
+    "id": "vf_33b6851a406124f7",
+    "assertion_text": "Polyphenols are characterized by low bioavailability, which limits their therapeutic potential for brain health and cognitive function.",
+    "assertion_type": "methodological",
+    "entities": [
+      "polyphenols"
+    ],
+    "confidence_range": {
+      "low": 0.82,
+      "high": 1.0
+    },
+    "entity_details": [
+      {
+        "name": "polyphenols",
+        "type": "compound"
+      }
+    ]
+  },
+  {
+    "id": "vf_660eb1c2831472bf",
+    "assertion_text": "Bacterial outer membrane vesicles from Gram-negative bacteria potentially contribute to Parkinson's disease pathogenesis by traversing the gut lumen to trigger local, systemic, and neuroinflammation.",
+    "assertion_type": "theoretical",
+    "entities": [
+      "outer membrane vesicles",
+      "Parkinson's disease",
+      "neuroinflammation"
+    ],
+    "confidence_range": {
+      "low": 0.35,
+      "high": 0.6
+    },
+    "entity_details": [
+      {
+        "name": "outer membrane vesicles",
+        "type": "other"
+      },
+      {
+        "name": "Parkinson's disease",
+        "type": "disease"
+      },
+      {
+        "name": "neuroinflammation",
+        "type": "pathway"
+      }
+    ]
+  },
+  {
+    "id": "vf_e6b1e371bcd161d5",
+    "assertion_text": "The specific cellular mechanisms and molecular signatures that facilitate the crosstalk between obesity, T2D, and AD during disease progression remain largely unknown.",
+    "assertion_type": "theoretical",
+    "entities": [
+      "Obesity",
+      "T2D",
+      "Alzheimer's disease"
+    ],
+    "confidence_range": {
+      "low": 0.84,
+      "high": 1.0
+    },
+    "entity_details": [
+      {
+        "name": "Obesity",
+        "type": "disease"
+      },
+      {
+        "name": "T2D",
+        "type": "disease"
+      },
+      {
+        "name": "Alzheimer's disease",
+        "type": "disease"
+      }
+    ]
+  },
+  {
+    "id": "vf_af240d8a6c42d6a6",
+    "assertion_text": "Conventional animal-based models are limited in their ability to model the multifactorial and gradual progression of human neurodegenerative diseases.",
+    "assertion_type": "theoretical",
+    "entities": [
+      "animal-based models",
+      "neurodegenerative diseases"
+    ],
+    "confidence_range": {
+      "low": 0.82,
+      "high": 1.0
+    },
+    "entity_details": [
+      {
+        "name": "animal-based models",
+        "type": "organism"
+      },
+      {
+        "name": "neurodegenerative diseases",
+        "type": "disease"
+      }
+    ]
+  },
+  {
+    "id": "vf_9bcb9d4e42f35ff7",
+    "assertion_text": "Peripheral inflammation overwhelms glymphatic system performance, triggering chronic neuroinflammation and neurodegeneration.",
+    "assertion_type": "theoretical",
+    "entities": [
+      "peripheral inflammation",
+      "glymphatic system",
+      "neuroinflammation",
+      "neurodegeneration"
+    ],
+    "confidence_range": {
+      "low": 0.51,
+      "high": 0.76
+    },
+    "entity_details": [
+      {
+        "name": "peripheral inflammation",
+        "type": "disease"
+      },
+      {
+        "name": "glymphatic system",
+        "type": "anatomical_structure"
+      },
+      {
+        "name": "neuroinflammation",
+        "type": "disease"
+      },
+      {
+        "name": "neurodegeneration",
+        "type": "disease"
+      }
+    ]
+  },
+  {
+    "id": "vf_87ed8f155e77c0e3",
+    "assertion_text": "Aromatic-turmerone, Apocynin, and Matrine are identified as the most promising neuroprotective candidates for modulating microglial polarization based on computational screening of 54 phytochemicals.",
+    "assertion_type": "computational",
+    "entities": [
+      "Aromatic-turmerone",
+      "Apocynin",
+      "Matrine",
+      "microglia",
+      "neurodegenerative diseases"
+    ],
+    "confidence_range": {
+      "low": 0.56,
+      "high": 0.81
+    },
+    "entity_details": [
+      {
+        "name": "Aromatic-turmerone",
+        "type": "compound"
+      },
+      {
+        "name": "Apocynin",
+        "type": "compound"
+      },
+      {
+        "name": "Matrine",
+        "type": "compound"
+      },
+      {
+        "name": "microglia",
+        "type": "cell_type"
+      },
+      {
+        "name": "neurodegenerative diseases",
+        "type": "disease"
+      }
+    ]
+  },
+  {
+    "id": "vf_30b5db4efcfa7850",
+    "assertion_text": "The majority of the 54 screened neuroprotective phytochemicals are predicted to possess anti-inflammatory activity using the PASS online webserver.",
+    "assertion_type": "computational",
+    "entities": [
+      "phytochemicals",
+      "anti-inflammatory"
+    ],
+    "confidence_range": {
+      "low": 0.61,
+      "high": 0.86
+    },
+    "entity_details": [
+      {
+        "name": "phytochemicals",
+        "type": "compound"
+      },
+      {
+        "name": "anti-inflammatory",
+        "type": "pathway"
+      }
+    ]
+  },
+  {
+    "id": "vf_3415c2ce0a9ed421",
+    "assertion_text": "HLJDD targets 163 unique proteins associated with Alzheimer's disease, with AKT1, TNF, TP53, VEGFA, FOS, PTGS2, MMP9, and CASP3 identified as core therapeutic targets.",
+    "assertion_type": "computational",
+    "entities": [
+      "AKT1",
+      "TNF",
+      "VEGFA",
+      "Alzheimer's disease"
+    ],
+    "confidence_range": {
+      "low": 0.63,
+      "high": 0.88
+    },
+    "entity_details": [
+      {
+        "name": "AKT1",
+        "type": "protein"
+      },
+      {
+        "name": "TNF",
+        "type": "protein"
+      },
+      {
+        "name": "VEGFA",
+        "type": "protein"
+      },
+      {
+        "name": "Alzheimer's disease",
+        "type": "disease"
+      }
+    ]
+  },
+  {
+    "id": "vf_e7d74183b392b233",
+    "assertion_text": "Coarse particulate matter (PM2.5\u201310) does not have a significant causal association with Alzheimer's Disease.",
+    "assertion_type": "negative",
+    "entities": [
+      "PM2.5\u201310",
+      "Alzheimer's disease"
+    ],
+    "confidence_range": {
+      "low": 0.69,
+      "high": 0.94
+    },
+    "entity_details": [
+      {
+        "name": "PM2.5\u201310",
+        "type": "compound"
+      },
+      {
+        "name": "Alzheimer's disease",
+        "type": "disease"
+      }
+    ]
+  },
+  {
+    "id": "vf_af714ccfd7c588f7",
+    "assertion_text": "Natural extracellular vesicles are limited in clinical utility due to poor targeting specificity and rapid systemic clearance.",
+    "assertion_type": "negative",
+    "entities": [
+      "extracellular vesicles"
+    ],
+    "confidence_range": {
+      "low": 0.72,
+      "high": 0.97
+    },
+    "entity_details": [
+      {
+        "name": "extracellular vesicles",
+        "type": "other"
+      }
+    ]
+  },
+  {
+    "id": "vf_4418eb0b54456040",
+    "assertion_text": "The Y-maze test fails to show cognitive deficits in APP/PS1 mice or therapeutic response to \u03b2-glucan treatment under the study conditions.",
+    "assertion_type": "negative",
+    "entities": [
+      "Y-maze",
+      "\u03b2-glucan",
+      "APP/PS1"
+    ],
+    "confidence_range": {
+      "low": 0.73,
+      "high": 0.98
+    },
+    "entity_details": [
+      {
+        "name": "Y-maze",
+        "type": "assay"
+      },
+      {
+        "name": "\u03b2-glucan",
+        "type": "compound"
+      },
+      {
+        "name": "APP/PS1",
+        "type": "organism"
+      }
+    ]
+  }
+]

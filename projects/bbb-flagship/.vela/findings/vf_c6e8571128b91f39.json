@@ -1,0 +1,234 @@
+{
+  "id": "vf_c6e8571128b91f39",
+  "version": 1,
+  "previous_version": null,
+  "assertion": {
+    "text": "PICALM regulates clathrin-dependent internalization of amyloid-β (Aβ) bound to LRP1 in human brain endothelial monolayers.",
+    "type": "mechanism",
+    "entities": [
+      {
+        "name": "PICALM",
+        "type": "protein",
+        "identifiers": {},
+        "candidates": [],
+        "aliases": [],
+        "resolution_confidence": 1.0,
+        "species_context": "Homo sapiens"
+      },
+      {
+        "name": "amyloid-beta",
+        "type": "protein",
+        "identifiers": {},
+        "candidates": [],
+        "aliases": [
+          "Aβ",
+          "Abeta",
+          "amyloid beta-peptide"
+        ],
+        "resolution_provenance": "checked-in raw/source-visible alias normalization",
+        "resolution_confidence": 1.0,
+        "resolution_method": "manual",
+        "species_context": "Homo sapiens"
+      },
+      {
+        "name": "LRP1",
+        "type": "protein",
+        "identifiers": {},
+        "candidates": [],
+        "aliases": [
+          "LRP",
+          "low-density lipoprotein receptor-related protein",
+          "low-density lipoprotein receptor related protein 1"
+        ],
+        "resolution_provenance": "checked-in raw/source-visible alias normalization",
+        "resolution_confidence": 1.0,
+        "resolution_method": "manual",
+        "species_context": "Homo sapiens"
+      },
+      {
+        "name": "clathrin",
+        "type": "protein",
+        "identifiers": {},
+        "candidates": [],
+        "aliases": [],
+        "resolution_confidence": 1.0,
+        "species_context": "Homo sapiens"
+      }
+    ],
+    "relation": "regulates",
+    "direction": "positive"
+  },
+  "evidence": {
+    "type": "experimental",
+    "model_system": "human brain endothelial monolayers",
+    "species": "Homo sapiens",
+    "method": "internalization assay",
+    "sample_size": null,
+    "effect_size": null,
+    "p_value": null,
+    "replicated": false,
+    "replication_count": null,
+    "evidence_spans": [
+      {
+        "section": "abstract",
+        "text": "PICALM regulated PICALM/clathrin-dependent internalization of Aβ bound to the low density lipoprotein receptor related protein-1"
+      }
+    ]
+  },
+  "conditions": {
+    "text": "human brain endothelial monolayers, Aβ bound to LRP1",
+    "species_verified": [],
+    "species_unverified": [],
+    "in_vitro": true,
+    "in_vivo": false,
+    "human_data": true,
+    "clinical_trial": false,
+    "concentration_range": null,
+    "duration": null,
+    "age_group": null,
+    "cell_type": null
+  },
+  "confidence": {
+    "kind": "frontier_epistemic",
+    "score": 0.336,
+    "basis": "frontier_epistemic: evidence=0.80 * replication=0.70 * model=1.00 * sample=0.60 - review_penalty=0.00 + calibration=0.00 = 0.336",
+    "method": "computed",
+    "components": {
+      "evidence_strength": 0.8,
+      "replication_strength": 0.7,
+      "sample_strength": 0.6,
+      "model_relevance": 1.0,
+      "review_penalty": 0.0,
+      "calibration_adjustment": 0.0
+    },
+    "extraction_confidence": 0.85
+  },
+  "provenance": {
+    "source_type": "published_paper",
+    "doi": "10.1038/nn.4025",
+    "pmid": "26005850",
+    "pmc": null,
+    "openalex_id": null,
+    "title": "Central role for PICALM in amyloid-β blood-brain barrier transcytosis and clearance.",
+    "authors": [
+      {
+        "name": "Zhao Z",
+        "orcid": null
+      },
+      {
+        "name": "Sagare AP",
+        "orcid": null
+      },
+      {
+        "name": "Ma Q",
+        "orcid": null
+      },
+      {
+        "name": "Halliday MR",
+        "orcid": null
+      },
+      {
+        "name": "Kong P",
+        "orcid": null
+      },
+      {
+        "name": "Kisler K",
+        "orcid": null
+      },
+      {
+        "name": "Winkler EA",
+        "orcid": null
+      },
+      {
+        "name": "Ramanathan A",
+        "orcid": null
+      },
+      {
+        "name": "Kanekiyo T",
+        "orcid": null
+      },
+      {
+        "name": "Bu G",
+        "orcid": null
+      },
+      {
+        "name": "Owens NC",
+        "orcid": null
+      },
+      {
+        "name": "Rege SV",
+        "orcid": null
+      },
+      {
+        "name": "Si G",
+        "orcid": null
+      },
+      {
+        "name": "Ahuja A",
+        "orcid": null
+      },
+      {
+        "name": "Zhu D",
+        "orcid": null
+      },
+      {
+        "name": "Miller CA",
+        "orcid": null
+      },
+      {
+        "name": "Schneider JA",
+        "orcid": null
+      },
+      {
+        "name": "Maeda M",
+        "orcid": null
+      },
+      {
+        "name": "Maeda T",
+        "orcid": null
+      },
+      {
+        "name": "Sugawara T",
+        "orcid": null
+      },
+      {
+        "name": "Ichida JK",
+        "orcid": null
+      },
+      {
+        "name": "Zlokovic BV",
+        "orcid": null
+      }
+    ],
+    "year": 2015,
+    "journal": "Nat Neurosci",
+    "extraction": {
+      "method": "llm_extraction",
+      "model": "gemini-3-flash-preview",
+      "model_version": null,
+      "extracted_at": "2026-04-10T03:59:53.891103+00:00",
+      "extractor_version": "vela/0.2.0"
+    },
+    "review": null,
+    "citation_count": 0
+  },
+  "flags": {
+    "gap": false,
+    "negative_space": false,
+    "contested": false,
+    "retracted": false,
+    "declining": false,
+    "gravity_well": false
+  },
+  "links": [],
+  "annotations": [
+    {
+      "id": "ann_50039ca77b556325",
+      "text": "Curation limitation: checked-in source text for this finding contains title and abstract only; evidence is grounded to the abstract span and does not verify full-text methods, figures, tables, supplementary material, or exact controls/sample details.",
+      "author": "worker_a_bbb_curation",
+      "timestamp": "2026-04-22T00:00:00Z"
+    }
+  ],
+  "created": "2026-04-10T03:59:53.891326+00:00",
+  "updated": null
+}

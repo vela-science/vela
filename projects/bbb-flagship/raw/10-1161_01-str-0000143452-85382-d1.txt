@@ -1,0 +1,8 @@
+DOI: 10.1161/01.str.0000143452.85382.d1
+PMID: 15459432
+Year: 2004
+Journal: 
+Title: RAGE (yin) versus LRP (yang) balance regulates alzheimer amyloid beta-peptide clearance through transport across the blood-brain barrier.
+
+Abstract:
+Accumulation of amyloid beta-peptide (Abeta) in the central nervous system (CNS) may initiate pathogenic cascades mediating neurovascular and neuronal dysfunctions associated with the development of cerebral beta-amyloidosis and cognitive decline in patients with Alzheimer disease (AD) and with related familial cerebrovascular disorders. Whether Abeta-related pathology in the CNS is reversible or not and what key therapeutic targets are controlling Abeta/amyloid levels in the aging brain remain debatable. In this article, we summarize recent evidence why the receptor for advanced glycation end products and low-density lipoprotein receptor related protein 1 in the vascular CNS barriers are critical for regulation of Abeta homeostasis in the CNS and how altered activities in these 2 receptors at the blood-brain barrier may contribute to the CNS Abeta accumulation resulting in neuroinflammation, disconnect between the cerebral blood flow and metabolism, altered synaptic transmission, neuronal injury, and amyloid deposition into parenchymal and neurovascular lesions. We briefly discuss the potential of advanced glycation end products and low-density lipoprotein receptor related protein 1-based therapeutic strategies to control brain Abeta in animal models of AD and ultimately in patients with AD and related familial cerebrovascular beta-amyloidoses.

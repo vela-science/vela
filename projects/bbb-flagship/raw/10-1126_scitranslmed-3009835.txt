@@ -1,0 +1,8 @@
+DOI: 10.1126/scitranslmed.3009835
+PMID: 25378646
+Year: 2014
+Journal: 
+Title: Therapeutic bispecific antibodies cross the blood-brain barrier in nonhuman primates.
+
+Abstract:
+Using therapeutic antibodies that need to cross the blood-brain barrier (BBB) to treat neurological disease is a difficult challenge. We have shown that bispecific antibodies with optimized binding to the transferrin receptor (TfR) that target β-secretase (BACE1) can cross the BBB and reduce brain amyloid-β (Aβ) in mice. Can TfR enhance antibody uptake in the primate brain? We describe two humanized TfR/BACE1 bispecific antibody variants. Using a human TfR knock-in mouse, we observed that anti-TfR/BACE1 antibodies could cross the BBB and reduce brain Aβ in a TfR affinity-dependent fashion. Intravenous dosing of monkeys with anti-TfR/BACE1 antibodies also reduced Aβ both in cerebral spinal fluid and in brain tissue, and the degree of reduction correlated with the brain concentration of anti-TfR/BACE1 antibody. These results demonstrate that the TfR bispecific antibody platform can robustly and safely deliver therapeutic antibody across the BBB in the primate brain.

@@ -1,0 +1,3 @@
+assertion,type,evidence,confidence,entities,source,span,direction
+"LRP1-mediated amyloid-beta clearance should be reviewed separately from RAGE-mediated influx when using this fixture as agent context.",mechanism,curated_review,0.70,"LRP1:protein; amyloid-beta:protein; RAGE:protein","Example reviewer override","reviewed separately from RAGE-mediated influx",
+"Focused ultrasound BBB opening claims in this fixture should retain caveats about small local evidence scope.",methodological,curated_review,0.65,"focused ultrasound:method; blood-brain barrier:anatomy","Example reviewer override","retain caveats about small local evidence scope",

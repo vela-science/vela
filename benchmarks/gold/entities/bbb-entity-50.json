@@ -1,0 +1,66 @@
+[
+  {
+    "name": "blood-brain barrier",
+    "type": "anatomical_structure",
+    "expected_source": "",
+    "expected_id": "",
+    "expected_confidence": 1.0,
+    "alternatives": []
+  },
+  {
+    "name": "RAGE",
+    "type": "protein",
+    "expected_source": "",
+    "expected_id": "",
+    "expected_confidence": 1.0,
+    "alternatives": []
+  },
+  {
+    "name": "LRP1",
+    "type": "protein",
+    "expected_source": "",
+    "expected_id": "",
+    "expected_confidence": 1.0,
+    "alternatives": []
+  },
+  {
+    "name": "amyloid-beta",
+    "type": "protein",
+    "expected_source": "",
+    "expected_id": "",
+    "expected_confidence": 1.0,
+    "alternatives": []
+  },
+  {
+    "name": "transferrin receptor",
+    "type": "protein",
+    "expected_source": "",
+    "expected_id": "",
+    "expected_confidence": 1.0,
+    "alternatives": []
+  },
+  {
+    "name": "TREM2",
+    "type": "protein",
+    "expected_source": "",
+    "expected_id": "",
+    "expected_confidence": 1.0,
+    "alternatives": []
+  },
+  {
+    "name": "PICALM",
+    "type": "gene",
+    "expected_source": "",
+    "expected_id": "",
+    "expected_confidence": 1.0,
+    "alternatives": []
+  },
+  {
+    "name": "microglia",
+    "type": "cell_type",
+    "expected_source": "",
+    "expected_id": "",
+    "expected_confidence": 1.0,
+    "alternatives": []
+  }
+]

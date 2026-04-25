@@ -1,0 +1,17 @@
+---
+interface Props {
+  left?: string;
+  right?: string;
+}
+const {
+  left = "vela.science",
+  right = "Vela · scientific frontier state, signed and replayable",
+} = Astro.props;
+---
+<footer class="wb-foot">
+  <div class="wb-foot__left">
+    <span><span class="wb-foot__star"></span> live · vela.science</span>
+    <span set:html={left} />
+  </div>
+  <div>{right}</div>
+</footer>

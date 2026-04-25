@@ -1,0 +1,1756 @@
+{
+  "vela_version": "0.7.0",
+  "schema": "https://vela.science/schema/finding-bundle/v0.7.0",
+  "frontier": {
+    "name": "papers",
+    "description": "Compiled from local corpus 'examples/paper-folder/papers'. Candidate outputs require review before scientific use.",
+    "compiled_at": "2026-04-23T03:03:39.733159+00:00",
+    "compiler": "vela/0.2.0",
+    "papers_processed": 4,
+    "errors": 0,
+    "dependencies": []
+  },
+  "stats": {
+    "findings": 11,
+    "links": 11,
+    "replicated": 0,
+    "unreplicated": 11,
+    "avg_confidence": 0.248,
+    "gaps": 1,
+    "negative_space": 0,
+    "contested": 0,
+    "categories": {
+      "theoretical": 1,
+      "observational": 5,
+      "mechanism": 2,
+      "methodological": 3
+    },
+    "link_types": {
+      "extends": 11
+    },
+    "human_reviewed": 0,
+    "review_event_count": 0,
+    "confidence_update_count": 0,
+    "event_count": 0,
+    "source_count": 4,
+    "evidence_atom_count": 11,
+    "condition_record_count": 11,
+    "confidence_distribution": {
+      "high_gt_80": 0,
+      "medium_60_80": 0,
+      "low_lt_60": 11
+    }
+  },
+  "findings": [
+    {
+      "id": "vf_c4bf737129fe5c50",
+      "version": 1,
+      "previous_version": null,
+      "assertion": {
+        "text": "LRP1 supports amyloid-beta clearance across the blood-brain barrier.",
+        "type": "mechanism",
+        "entities": [
+          {
+            "name": "LRP1",
+            "type": "protein",
+            "identifiers": {},
+            "candidates": [],
+            "aliases": [],
+            "resolution_provenance": "local corpus CSV",
+            "resolution_confidence": 1.0,
+            "resolution_method": "manual"
+          },
+          {
+            "name": "amyloid-beta",
+            "type": "protein",
+            "identifiers": {},
+            "candidates": [],
+            "aliases": [],
+            "resolution_provenance": "local corpus CSV",
+            "resolution_confidence": 1.0,
+            "resolution_method": "manual"
+          },
+          {
+            "name": "blood-brain barrier",
+            "type": "anatomical_structure",
+            "identifiers": {},
+            "candidates": [],
+            "aliases": [],
+            "resolution_provenance": "local corpus CSV",
+            "resolution_confidence": 1.0,
+            "resolution_method": "manual"
+          }
+        ],
+        "relation": null,
+        "direction": "positive"
+      },
+      "evidence": {
+        "type": "observational",
+        "model_system": "curated local corpus row",
+        "species": null,
+        "method": "manual CSV curation",
+        "sample_size": null,
+        "effect_size": null,
+        "p_value": null,
+        "replicated": false,
+        "replication_count": null,
+        "evidence_spans": [
+          {
+            "section": "curated_csv",
+            "text": "LRP1 supports amyloid-beta clearance across the blood-brain barrier."
+          }
+        ]
+      },
+      "conditions": {
+        "text": "Curated from a local corpus CSV row; verify against source before reuse.",
+        "species_verified": [],
+        "species_unverified": [],
+        "in_vitro": false,
+        "in_vivo": false,
+        "human_data": false,
+        "clinical_trial": false,
+        "concentration_range": null,
+        "duration": null,
+        "age_group": null,
+        "cell_type": null
+      },
+      "confidence": {
+        "score": 0.58,
+        "basis": "computed: grade=0.65 * replication=0.70 * species=0.50 * sample=0.60 - penalty=0.00 = 0.136; local CSV confidence retained for review fixture",
+        "method": "computed",
+        "components": {
+          "evidence_grade": 0.65,
+          "replication_factor": 0.7,
+          "sample_strength": 0.6,
+          "species_relevance": 0.5,
+          "contradiction_penalty": 0.0
+        },
+        "extraction_confidence": 0.85
+      },
+      "provenance": {
+        "source_type": "database_record",
+        "doi": null,
+        "pmid": null,
+        "pmc": null,
+        "openalex_id": null,
+        "title": "Curated BBB mini corpus",
+        "authors": [],
+        "year": 2026,
+        "journal": null,
+        "extraction": {
+          "method": "manual_curation",
+          "model": null,
+          "model_version": null,
+          "extracted_at": "2026-04-23T03:03:39.713875+00:00",
+          "extractor_version": "vela/0.2.0-local-corpus"
+        },
+        "review": null,
+        "citation_count": null
+      },
+      "flags": {
+        "gap": false,
+        "negative_space": false,
+        "contested": false,
+        "retracted": false,
+        "declining": false,
+        "gravity_well": false
+      },
+      "links": [
+        {
+          "target": "vf_53b50b3d51170f64",
+          "type": "extends",
+          "note": "Cross-paper shared entity: amyloid-beta",
+          "inferred_by": "compiler",
+          "created_at": "2026-04-23T03:03:39.732936+00:00"
+        },
+        {
+          "target": "vf_12fc02a7ce89a886",
+          "type": "extends",
+          "note": "Cross-paper shared entities: blood-brain barrier, amyloid-beta (strong overlap)",
+          "inferred_by": "compiler",
+          "created_at": "2026-04-23T03:03:39.732938+00:00"
+        },
+        {
+          "target": "vf_7bafcd47867cc2fa",
+          "type": "extends",
+          "note": "Cross-paper shared entities: amyloid-beta, blood-brain barrier (strong overlap)",
+          "inferred_by": "compiler",
+          "created_at": "2026-04-23T03:03:39.732939+00:00"
+        },
+        {
+          "target": "vf_8673ba9b7f661859",
+          "type": "extends",
+          "note": "Cross-paper shared entities: lrp1, amyloid-beta (strong overlap)",
+          "inferred_by": "compiler",
+          "created_at": "2026-04-23T03:03:39.732940+00:00"
+        },
+        {
+          "target": "vf_ac1bf0d4dedfc0bf",
+          "type": "extends",
+          "note": "Cross-paper shared entities: lrp1, amyloid-beta (strong overlap)",
+          "inferred_by": "compiler",
+          "created_at": "2026-04-23T03:03:39.732940+00:00"
+        },
+        {
+          "target": "vf_1d02e69f390e8b07",
+          "type": "extends",
+          "note": "Cross-paper shared entities: lrp1, amyloid-beta (strong overlap)",
+          "inferred_by": "compiler",
+          "created_at": "2026-04-23T03:03:39.732942+00:00"
+        }
+      ],
+      "created": "2026-04-23T03:03:39.713892+00:00",
+      "updated": null
+    },
+    {
+      "id": "vf_53b50b3d51170f64",
+      "version": 1,
+      "previous_version": null,
+      "assertion": {
+        "text": "RAGE is associated with amyloid-beta influx into the brain across BBB endothelium.",
+        "type": "mechanism",
+        "entities": [
+          {
+            "name": "RAGE",
+            "type": "protein",
+            "identifiers": {},
+            "candidates": [],
+            "aliases": [],
+            "resolution_provenance": "local corpus CSV",
+            "resolution_confidence": 1.0,
+            "resolution_method": "manual"
+          },
+          {
+            "name": "amyloid-beta",
+            "type": "protein",
+            "identifiers": {},
+            "candidates": [],
+            "aliases": [],
+            "resolution_provenance": "local corpus CSV",
+            "resolution_confidence": 1.0,
+            "resolution_method": "manual"
+          },
+          {
+            "name": "brain",
+            "type": "anatomical_structure",
+            "identifiers": {},
+            "candidates": [],
+            "aliases": [],
+            "resolution_provenance": "local corpus CSV",
+            "resolution_confidence": 1.0,
+            "resolution_method": "manual"
+          }
+        ],
+        "relation": null,
+        "direction": "positive"
+      },
+      "evidence": {
+        "type": "observational",
+        "model_system": "curated local corpus row",
+        "species": null,
+        "method": "manual CSV curation",
+        "sample_size": null,
+        "effect_size": null,
+        "p_value": null,
+        "replicated": false,
+        "replication_count": null,
+        "evidence_spans": [
+          {
+            "section": "curated_csv",
+            "text": "RAGE is associated with amyloid-beta influx into the brain across BBB endothelium."
+          }
+        ]
+      },
+      "conditions": {
+        "text": "Curated from a local corpus CSV row; verify against source before reuse.",
+        "species_verified": [],
+        "species_unverified": [],
+        "in_vitro": false,
+        "in_vivo": false,
+        "human_data": false,
+        "clinical_trial": false,
+        "concentration_range": null,
+        "duration": null,
+        "age_group": null,
+        "cell_type": null
+      },
+      "confidence": {
+        "score": 0.54,
+        "basis": "computed: grade=0.65 * replication=0.70 * species=0.50 * sample=0.60 - penalty=0.00 = 0.136; local CSV confidence retained for review fixture",
+        "method": "computed",
+        "components": {
+          "evidence_grade": 0.65,
+          "replication_factor": 0.7,
+          "sample_strength": 0.6,
+          "species_relevance": 0.5,
+          "contradiction_penalty": 0.0
+        },
+        "extraction_confidence": 0.85
+      },
+      "provenance": {
+        "source_type": "database_record",
+        "doi": null,
+        "pmid": null,
+        "pmc": null,
+        "openalex_id": null,
+        "title": "Curated BBB mini corpus",
+        "authors": [],
+        "year": 2026,
+        "journal": null,
+        "extraction": {
+          "method": "manual_curation",
+          "model": null,
+          "model_version": null,
+          "extracted_at": "2026-04-23T03:03:39.714070+00:00",
+          "extractor_version": "vela/0.2.0-local-corpus"
+        },
+        "review": null,
+        "citation_count": null
+      },
+      "flags": {
+        "gap": false,
+        "negative_space": false,
+        "contested": false,
+        "retracted": false,
+        "declining": false,
+        "gravity_well": false
+      },
+      "links": [
+        {
+          "target": "vf_12fc02a7ce89a886",
+          "type": "extends",
+          "note": "Cross-paper shared entity: amyloid-beta",
+          "inferred_by": "compiler",
+          "created_at": "2026-04-23T03:03:39.732943+00:00"
+        },
+        {
+          "target": "vf_7bafcd47867cc2fa",
+          "type": "extends",
+          "note": "Cross-paper shared entity: amyloid-beta",
+          "inferred_by": "compiler",
+          "created_at": "2026-04-23T03:03:39.732944+00:00"
+        },
+        {
+          "target": "vf_8673ba9b7f661859",
+          "type": "extends",
+          "note": "Cross-paper shared entity: amyloid-beta",
+          "inferred_by": "compiler",
+          "created_at": "2026-04-23T03:03:39.732945+00:00"
+        },
+        {
+          "target": "vf_ac1bf0d4dedfc0bf",
+          "type": "extends",
+          "note": "Cross-paper shared entity: amyloid-beta",
+          "inferred_by": "compiler",
+          "created_at": "2026-04-23T03:03:39.732948+00:00"
+        },
+        {
+          "target": "vf_1d02e69f390e8b07",
+          "type": "extends",
+          "note": "Cross-paper shared entity: amyloid-beta",
+          "inferred_by": "compiler",
+          "created_at": "2026-04-23T03:03:39.732950+00:00"
+        }
+      ],
+      "created": "2026-04-23T03:03:39.714072+00:00",
+      "updated": null
+    },
+    {
+      "id": "vf_36ce6037ac9d35ee",
+      "version": 1,
+      "previous_version": null,
+      "assertion": {
+        "text": "Focused ultrasound BBB opening needs standardized safety and dosing evidence before broad Alzheimer use.",
+        "type": "theoretical",
+        "entities": [
+          {
+            "name": "focused ultrasound dosing",
+            "type": "other",
+            "identifiers": {},
+            "candidates": [],
+            "aliases": [],
+            "resolution_provenance": "local corpus CSV",
+            "resolution_confidence": 1.0,
+            "resolution_method": "manual"
+          },
+          {
+            "name": "safety evidence",
+            "type": "other",
+            "identifiers": {},
+            "candidates": [],
+            "aliases": [],
+            "resolution_provenance": "local corpus CSV",
+            "resolution_confidence": 1.0,
+            "resolution_method": "manual"
+          }
+        ],
+        "relation": null,
+        "direction": "null"
+      },
+      "evidence": {
+        "type": "theoretical",
+        "model_system": "curated local corpus row",
+        "species": null,
+        "method": "manual CSV curation",
+        "sample_size": null,
+        "effect_size": null,
+        "p_value": null,
+        "replicated": false,
+        "replication_count": null,
+        "evidence_spans": [
+          {
+            "section": "curated_csv",
+            "text": "Focused ultrasound BBB opening needs standardized safety and dosing evidence before broad Alzheimer use."
+          }
+        ]
+      },
+      "conditions": {
+        "text": "Curated from a local corpus CSV row; verify against source before reuse.",
+        "species_verified": [],
+        "species_unverified": [],
+        "in_vitro": false,
+        "in_vivo": false,
+        "human_data": false,
+        "clinical_trial": false,
+        "concentration_range": null,
+        "duration": null,
+        "age_group": null,
+        "cell_type": null
+      },
+      "confidence": {
+        "score": 0.35,
+        "basis": "computed: grade=0.30 * replication=0.70 * species=0.50 * sample=0.60 - penalty=0.00 = 0.063; local CSV confidence retained for review fixture",
+        "method": "computed",
+        "components": {
+          "evidence_grade": 0.3,
+          "replication_factor": 0.7,
+          "sample_strength": 0.6,
+          "species_relevance": 0.5,
+          "contradiction_penalty": 0.0
+        },
+        "extraction_confidence": 0.85
+      },
+      "provenance": {
+        "source_type": "database_record",
+        "doi": null,
+        "pmid": null,
+        "pmc": null,
+        "openalex_id": null,
+        "title": "Curated BBB mini corpus",
+        "authors": [],
+        "year": 2026,
+        "journal": null,
+        "extraction": {
+          "method": "manual_curation",
+          "model": null,
+          "model_version": null,
+          "extracted_at": "2026-04-23T03:03:39.714134+00:00",
+          "extractor_version": "vela/0.2.0-local-corpus"
+        },
+        "review": null,
+        "citation_count": null
+      },
+      "flags": {
+        "gap": true,
+        "negative_space": false,
+        "contested": false,
+        "retracted": false,
+        "declining": false,
+        "gravity_well": false
+      },
+      "links": [],
+      "created": "2026-04-23T03:03:39.714135+00:00",
+      "updated": null
+    },
+    {
+      "id": "vf_0d5d84a88889df91",
+      "version": 1,
+      "previous_version": null,
+      "assertion": {
+        "text": "Focused ultrasound blood brain barrier opening in Alzheimer disease\nFocused ultrasound can transiently open the blood brain barrier and may improve delivery of\ntherapeutic agents in Alzheimer disease models.",
+        "type": "methodological",
+        "entities": [
+          {
+            "name": "alzheimer",
+            "type": "disease",
+            "identifiers": {},
+            "candidates": [],
+            "aliases": [],
+            "resolution_confidence": 1.0
+          }
+        ],
+        "relation": null,
+        "direction": null
+      },
+      "evidence": {
+        "type": "observational",
+        "model_system": "abstract-only deterministic extraction",
+        "species": null,
+        "method": "abstract sentence extraction",
+        "sample_size": null,
+        "effect_size": null,
+        "p_value": null,
+        "replicated": false,
+        "replication_count": null,
+        "evidence_spans": [
+          {
+            "section": "abstract",
+            "text": "Focused ultrasound blood brain barrier opening in Alzheimer disease\nFocused ultrasound can transiently open the blood brain barrier and may improve delivery of\ntherapeutic agents in Alzheimer disease models."
+          }
+        ]
+      },
+      "conditions": {
+        "text": "Extracted from paper abstract; requires human review before interpretation.",
+        "species_verified": [],
+        "species_unverified": [],
+        "in_vitro": false,
+        "in_vivo": false,
+        "human_data": false,
+        "clinical_trial": false,
+        "concentration_range": null,
+        "duration": null,
+        "age_group": null,
+        "cell_type": null
+      },
+      "confidence": {
+        "score": 0.136,
+        "basis": "computed: grade=0.65 * replication=0.70 * species=0.50 * sample=0.60 - penalty=0.00 = 0.136; deterministic abstract-only fallback",
+        "method": "computed",
+        "components": {
+          "evidence_grade": 0.65,
+          "replication_factor": 0.7,
+          "sample_strength": 0.6,
+          "species_relevance": 0.5,
+          "contradiction_penalty": 0.0
+        },
+        "extraction_confidence": 0.35
+      },
+      "provenance": {
+        "source_type": "published_paper",
+        "doi": null,
+        "pmid": null,
+        "pmc": null,
+        "openalex_id": null,
+        "title": "Focused ultrasound blood brain barrier opening in Alzheimer disease",
+        "authors": [],
+        "year": 2026,
+        "journal": null,
+        "extraction": {
+          "method": "hybrid",
+          "model": null,
+          "model_version": null,
+          "extracted_at": "2026-04-23T03:03:39.730583+00:00",
+          "extractor_version": "vela/0.2.0-offline"
+        },
+        "review": null,
+        "citation_count": 0
+      },
+      "flags": {
+        "gap": false,
+        "negative_space": false,
+        "contested": false,
+        "retracted": false,
+        "declining": false,
+        "gravity_well": false
+      },
+      "links": [],
+      "created": "2026-04-23T03:03:39.730962+00:00",
+      "updated": null
+    },
+    {
+      "id": "vf_642c0af838a053db",
+      "version": 1,
+      "previous_version": null,
+      "assertion": {
+        "text": "Safety, reversibility, and dosing schedules remain important review questions for clinical\ntranslation.",
+        "type": "observational",
+        "entities": [
+          {
+            "name": "alzheimer",
+            "type": "disease",
+            "identifiers": {},
+            "candidates": [],
+            "aliases": [],
+            "resolution_confidence": 1.0
+          }
+        ],
+        "relation": null,
+        "direction": null
+      },
+      "evidence": {
+        "type": "observational",
+        "model_system": "abstract-only deterministic extraction",
+        "species": null,
+        "method": "abstract sentence extraction",
+        "sample_size": null,
+        "effect_size": null,
+        "p_value": null,
+        "replicated": false,
+        "replication_count": null,
+        "evidence_spans": [
+          {
+            "section": "abstract",
+            "text": "Safety, reversibility, and dosing schedules remain important review questions for clinical\ntranslation."
+          }
+        ]
+      },
+      "conditions": {
+        "text": "Extracted from paper abstract; requires human review before interpretation.",
+        "species_verified": [],
+        "species_unverified": [],
+        "in_vitro": false,
+        "in_vivo": false,
+        "human_data": true,
+        "clinical_trial": false,
+        "concentration_range": null,
+        "duration": null,
+        "age_group": null,
+        "cell_type": null
+      },
+      "confidence": {
+        "score": 0.273,
+        "basis": "computed: grade=0.65 * replication=0.70 * species=1.00 * sample=0.60 - penalty=0.00 = 0.273; deterministic abstract-only fallback",
+        "method": "computed",
+        "components": {
+          "evidence_grade": 0.65,
+          "replication_factor": 0.7,
+          "sample_strength": 0.6,
+          "species_relevance": 1.0,
+          "contradiction_penalty": 0.0
+        },
+        "extraction_confidence": 0.35
+      },
+      "provenance": {
+        "source_type": "published_paper",
+        "doi": null,
+        "pmid": null,
+        "pmc": null,
+        "openalex_id": null,
+        "title": "Focused ultrasound blood brain barrier opening in Alzheimer disease",
+        "authors": [],
+        "year": 2026,
+        "journal": null,
+        "extraction": {
+          "method": "hybrid",
+          "model": null,
+          "model_version": null,
+          "extracted_at": "2026-04-23T03:03:39.730583+00:00",
+          "extractor_version": "vela/0.2.0-offline"
+        },
+        "review": null,
+        "citation_count": 0
+      },
+      "flags": {
+        "gap": false,
+        "negative_space": false,
+        "contested": false,
+        "retracted": false,
+        "declining": false,
+        "gravity_well": false
+      },
+      "links": [],
+      "created": "2026-04-23T03:03:39.731058+00:00",
+      "updated": null
+    },
+    {
+      "id": "vf_efe2a52c86fb4f3a",
+      "version": 1,
+      "previous_version": null,
+      "assertion": {
+        "text": "This fixture is a valid small PDF so Vela can exercise the PDF ingestion path without\nstoring a large binary.",
+        "type": "observational",
+        "entities": [
+          {
+            "name": "alzheimer",
+            "type": "disease",
+            "identifiers": {},
+            "candidates": [],
+            "aliases": [],
+            "resolution_confidence": 1.0
+          }
+        ],
+        "relation": null,
+        "direction": null
+      },
+      "evidence": {
+        "type": "observational",
+        "model_system": "abstract-only deterministic extraction",
+        "species": null,
+        "method": "abstract sentence extraction",
+        "sample_size": null,
+        "effect_size": null,
+        "p_value": null,
+        "replicated": false,
+        "replication_count": null,
+        "evidence_spans": [
+          {
+            "section": "abstract",
+            "text": "This fixture is a valid small PDF so Vela can exercise the PDF ingestion path without\nstoring a large binary."
+          }
+        ]
+      },
+      "conditions": {
+        "text": "Extracted from paper abstract; requires human review before interpretation.",
+        "species_verified": [],
+        "species_unverified": [],
+        "in_vitro": false,
+        "in_vivo": false,
+        "human_data": false,
+        "clinical_trial": false,
+        "concentration_range": null,
+        "duration": null,
+        "age_group": null,
+        "cell_type": null
+      },
+      "confidence": {
+        "score": 0.136,
+        "basis": "computed: grade=0.65 * replication=0.70 * species=0.50 * sample=0.60 - penalty=0.00 = 0.136; deterministic abstract-only fallback",
+        "method": "computed",
+        "components": {
+          "evidence_grade": 0.65,
+          "replication_factor": 0.7,
+          "sample_strength": 0.6,
+          "species_relevance": 0.5,
+          "contradiction_penalty": 0.0
+        },
+        "extraction_confidence": 0.35
+      },
+      "provenance": {
+        "source_type": "published_paper",
+        "doi": null,
+        "pmid": null,
+        "pmc": null,
+        "openalex_id": null,
+        "title": "Focused ultrasound blood brain barrier opening in Alzheimer disease",
+        "authors": [],
+        "year": 2026,
+        "journal": null,
+        "extraction": {
+          "method": "hybrid",
+          "model": null,
+          "model_version": null,
+          "extracted_at": "2026-04-23T03:03:39.730583+00:00",
+          "extractor_version": "vela/0.2.0-offline"
+        },
+        "review": null,
+        "citation_count": 0
+      },
+      "flags": {
+        "gap": false,
+        "negative_space": false,
+        "contested": false,
+        "retracted": false,
+        "declining": false,
+        "gravity_well": false
+      },
+      "links": [],
+      "created": "2026-04-23T03:03:39.731120+00:00",
+      "updated": null
+    },
+    {
+      "id": "vf_12fc02a7ce89a886",
+      "version": 1,
+      "previous_version": null,
+      "assertion": {
+        "text": "Blood-brain barrier transport mechanisms influence amyloid-beta movement between blood and brain compartments.",
+        "type": "observational",
+        "entities": [
+          {
+            "name": "blood-brain barrier",
+            "type": "anatomical_structure",
+            "identifiers": {},
+            "candidates": [],
+            "aliases": [],
+            "resolution_confidence": 1.0
+          },
+          {
+            "name": "alzheimer",
+            "type": "disease",
+            "identifiers": {},
+            "candidates": [],
+            "aliases": [],
+            "resolution_confidence": 1.0
+          },
+          {
+            "name": "amyloid",
+            "type": "protein",
+            "identifiers": {},
+            "candidates": [],
+            "aliases": [],
+            "resolution_confidence": 1.0
+          },
+          {
+            "name": "amyloid-beta",
+            "type": "protein",
+            "identifiers": {},
+            "candidates": [],
+            "aliases": [],
+            "resolution_confidence": 1.0
+          }
+        ],
+        "relation": null,
+        "direction": null
+      },
+      "evidence": {
+        "type": "observational",
+        "model_system": "abstract-only deterministic extraction",
+        "species": null,
+        "method": "abstract sentence extraction",
+        "sample_size": null,
+        "effect_size": null,
+        "p_value": null,
+        "replicated": false,
+        "replication_count": null,
+        "evidence_spans": [
+          {
+            "section": "abstract",
+            "text": "Blood-brain barrier transport mechanisms influence amyloid-beta movement between blood and brain compartments."
+          }
+        ]
+      },
+      "conditions": {
+        "text": "Extracted from paper abstract; requires human review before interpretation.",
+        "species_verified": [],
+        "species_unverified": [],
+        "in_vitro": false,
+        "in_vivo": false,
+        "human_data": false,
+        "clinical_trial": false,
+        "concentration_range": null,
+        "duration": null,
+        "age_group": null,
+        "cell_type": null
+      },
+      "confidence": {
+        "score": 0.136,
+        "basis": "computed: grade=0.65 * replication=0.70 * species=0.50 * sample=0.60 - penalty=0.00 = 0.136; deterministic abstract-only fallback",
+        "method": "computed",
+        "components": {
+          "evidence_grade": 0.65,
+          "replication_factor": 0.7,
+          "sample_strength": 0.6,
+          "species_relevance": 0.5,
+          "contradiction_penalty": 0.0
+        },
+        "extraction_confidence": 0.35
+      },
+      "provenance": {
+        "source_type": "published_paper",
+        "doi": null,
+        "pmid": null,
+        "pmc": null,
+        "openalex_id": null,
+        "title": "Blood-brain barrier transport in Alzheimer disease models",
+        "authors": [],
+        "year": 2024,
+        "journal": null,
+        "extraction": {
+          "method": "hybrid",
+          "model": null,
+          "model_version": null,
+          "extracted_at": "2026-04-23T03:03:39.731803+00:00",
+          "extractor_version": "vela/0.2.0-offline"
+        },
+        "review": null,
+        "citation_count": 0
+      },
+      "flags": {
+        "gap": false,
+        "negative_space": false,
+        "contested": false,
+        "retracted": false,
+        "declining": false,
+        "gravity_well": false
+      },
+      "links": [],
+      "created": "2026-04-23T03:03:39.731871+00:00",
+      "updated": null
+    },
+    {
+      "id": "vf_7bafcd47867cc2fa",
+      "version": 1,
+      "previous_version": null,
+      "assertion": {
+        "text": "Model studies suggest that transporter balance, endothelial injury, and inflammatory signaling can change amyloid-beta exposure in Alzheimer disease contexts.",
+        "type": "methodological",
+        "entities": [
+          {
+            "name": "blood-brain barrier",
+            "type": "anatomical_structure",
+            "identifiers": {},
+            "candidates": [],
+            "aliases": [],
+            "resolution_confidence": 1.0
+          },
+          {
+            "name": "alzheimer",
+            "type": "disease",
+            "identifiers": {},
+            "candidates": [],
+            "aliases": [],
+            "resolution_confidence": 1.0
+          },
+          {
+            "name": "amyloid",
+            "type": "protein",
+            "identifiers": {},
+            "candidates": [],
+            "aliases": [],
+            "resolution_confidence": 1.0
+          },
+          {
+            "name": "amyloid-beta",
+            "type": "protein",
+            "identifiers": {},
+            "candidates": [],
+            "aliases": [],
+            "resolution_confidence": 1.0
+          }
+        ],
+        "relation": null,
+        "direction": null
+      },
+      "evidence": {
+        "type": "observational",
+        "model_system": "abstract-only deterministic extraction",
+        "species": null,
+        "method": "abstract sentence extraction",
+        "sample_size": null,
+        "effect_size": null,
+        "p_value": null,
+        "replicated": false,
+        "replication_count": null,
+        "evidence_spans": [
+          {
+            "section": "abstract",
+            "text": "Model studies suggest that transporter balance, endothelial injury, and inflammatory signaling can change amyloid-beta exposure in Alzheimer disease contexts."
+          }
+        ]
+      },
+      "conditions": {
+        "text": "Extracted from paper abstract; requires human review before interpretation.",
+        "species_verified": [],
+        "species_unverified": [],
+        "in_vitro": false,
+        "in_vivo": false,
+        "human_data": false,
+        "clinical_trial": false,
+        "concentration_range": null,
+        "duration": null,
+        "age_group": null,
+        "cell_type": null
+      },
+      "confidence": {
+        "score": 0.136,
+        "basis": "computed: grade=0.65 * replication=0.70 * species=0.50 * sample=0.60 - penalty=0.00 = 0.136; deterministic abstract-only fallback",
+        "method": "computed",
+        "components": {
+          "evidence_grade": 0.65,
+          "replication_factor": 0.7,
+          "sample_strength": 0.6,
+          "species_relevance": 0.5,
+          "contradiction_penalty": 0.0
+        },
+        "extraction_confidence": 0.35
+      },
+      "provenance": {
+        "source_type": "published_paper",
+        "doi": null,
+        "pmid": null,
+        "pmc": null,
+        "openalex_id": null,
+        "title": "Blood-brain barrier transport in Alzheimer disease models",
+        "authors": [],
+        "year": 2024,
+        "journal": null,
+        "extraction": {
+          "method": "hybrid",
+          "model": null,
+          "model_version": null,
+          "extracted_at": "2026-04-23T03:03:39.731803+00:00",
+          "extractor_version": "vela/0.2.0-offline"
+        },
+        "review": null,
+        "citation_count": 0
+      },
+      "flags": {
+        "gap": false,
+        "negative_space": false,
+        "contested": false,
+        "retracted": false,
+        "declining": false,
+        "gravity_well": false
+      },
+      "links": [],
+      "created": "2026-04-23T03:03:39.731921+00:00",
+      "updated": null
+    },
+    {
+      "id": "vf_8673ba9b7f661859",
+      "version": 1,
+      "previous_version": null,
+      "assertion": {
+        "text": "# PICALM and LRP1 at the blood brain barrier\n\nPICALM regulates clathrin-dependent internalization of amyloid-beta bound to LRP1 in brain endothelial cells.",
+        "type": "observational",
+        "entities": [
+          {
+            "name": "amyloid",
+            "type": "protein",
+            "identifiers": {},
+            "candidates": [],
+            "aliases": [],
+            "resolution_confidence": 1.0
+          },
+          {
+            "name": "amyloid-beta",
+            "type": "protein",
+            "identifiers": {},
+            "candidates": [],
+            "aliases": [],
+            "resolution_confidence": 1.0
+          },
+          {
+            "name": "lrp1",
+            "type": "protein",
+            "identifiers": {},
+            "candidates": [],
+            "aliases": [],
+            "resolution_confidence": 1.0
+          }
+        ],
+        "relation": null,
+        "direction": null
+      },
+      "evidence": {
+        "type": "observational",
+        "model_system": "abstract-only deterministic extraction",
+        "species": null,
+        "method": "abstract sentence extraction",
+        "sample_size": null,
+        "effect_size": null,
+        "p_value": null,
+        "replicated": false,
+        "replication_count": null,
+        "evidence_spans": [
+          {
+            "section": "abstract",
+            "text": "# PICALM and LRP1 at the blood brain barrier\n\nPICALM regulates clathrin-dependent internalization of amyloid-beta bound to LRP1 in brain endothelial cells."
+          }
+        ]
+      },
+      "conditions": {
+        "text": "Extracted from paper abstract; requires human review before interpretation.",
+        "species_verified": [],
+        "species_unverified": [],
+        "in_vitro": true,
+        "in_vivo": false,
+        "human_data": false,
+        "clinical_trial": false,
+        "concentration_range": null,
+        "duration": null,
+        "age_group": null,
+        "cell_type": null
+      },
+      "confidence": {
+        "score": 0.164,
+        "basis": "computed: grade=0.65 * replication=0.70 * species=0.60 * sample=0.60 - penalty=0.00 = 0.164; deterministic abstract-only fallback",
+        "method": "computed",
+        "components": {
+          "evidence_grade": 0.65,
+          "replication_factor": 0.7,
+          "sample_strength": 0.6,
+          "species_relevance": 0.6,
+          "contradiction_penalty": 0.0
+        },
+        "extraction_confidence": 0.35
+      },
+      "provenance": {
+        "source_type": "published_paper",
+        "doi": null,
+        "pmid": null,
+        "pmc": null,
+        "openalex_id": null,
+        "title": "PICALM and LRP1 at the blood brain barrier",
+        "authors": [],
+        "year": 2026,
+        "journal": null,
+        "extraction": {
+          "method": "hybrid",
+          "model": null,
+          "model_version": null,
+          "extracted_at": "2026-04-23T03:03:39.732141+00:00",
+          "extractor_version": "vela/0.2.0-offline"
+        },
+        "review": null,
+        "citation_count": 0
+      },
+      "flags": {
+        "gap": false,
+        "negative_space": false,
+        "contested": false,
+        "retracted": false,
+        "declining": false,
+        "gravity_well": false
+      },
+      "links": [],
+      "created": "2026-04-23T03:03:39.732239+00:00",
+      "updated": null
+    },
+    {
+      "id": "vf_ac1bf0d4dedfc0bf",
+      "version": 1,
+      "previous_version": null,
+      "assertion": {
+        "text": "Loss of PICALM reduces amyloid-beta clearance across blood brain barrier models and may increase vascular amyloid burden.",
+        "type": "methodological",
+        "entities": [
+          {
+            "name": "amyloid",
+            "type": "protein",
+            "identifiers": {},
+            "candidates": [],
+            "aliases": [],
+            "resolution_confidence": 1.0
+          },
+          {
+            "name": "amyloid-beta",
+            "type": "protein",
+            "identifiers": {},
+            "candidates": [],
+            "aliases": [],
+            "resolution_confidence": 1.0
+          },
+          {
+            "name": "lrp1",
+            "type": "protein",
+            "identifiers": {},
+            "candidates": [],
+            "aliases": [],
+            "resolution_confidence": 1.0
+          }
+        ],
+        "relation": null,
+        "direction": null
+      },
+      "evidence": {
+        "type": "observational",
+        "model_system": "abstract-only deterministic extraction",
+        "species": null,
+        "method": "abstract sentence extraction",
+        "sample_size": null,
+        "effect_size": null,
+        "p_value": null,
+        "replicated": false,
+        "replication_count": null,
+        "evidence_spans": [
+          {
+            "section": "abstract",
+            "text": "Loss of PICALM reduces amyloid-beta clearance across blood brain barrier models and may increase vascular amyloid burden."
+          }
+        ]
+      },
+      "conditions": {
+        "text": "Extracted from paper abstract; requires human review before interpretation.",
+        "species_verified": [],
+        "species_unverified": [],
+        "in_vitro": false,
+        "in_vivo": false,
+        "human_data": false,
+        "clinical_trial": false,
+        "concentration_range": null,
+        "duration": null,
+        "age_group": null,
+        "cell_type": null
+      },
+      "confidence": {
+        "score": 0.136,
+        "basis": "computed: grade=0.65 * replication=0.70 * species=0.50 * sample=0.60 - penalty=0.00 = 0.136; deterministic abstract-only fallback",
+        "method": "computed",
+        "components": {
+          "evidence_grade": 0.65,
+          "replication_factor": 0.7,
+          "sample_strength": 0.6,
+          "species_relevance": 0.5,
+          "contradiction_penalty": 0.0
+        },
+        "extraction_confidence": 0.35
+      },
+      "provenance": {
+        "source_type": "published_paper",
+        "doi": null,
+        "pmid": null,
+        "pmc": null,
+        "openalex_id": null,
+        "title": "PICALM and LRP1 at the blood brain barrier",
+        "authors": [],
+        "year": 2026,
+        "journal": null,
+        "extraction": {
+          "method": "hybrid",
+          "model": null,
+          "model_version": null,
+          "extracted_at": "2026-04-23T03:03:39.732141+00:00",
+          "extractor_version": "vela/0.2.0-offline"
+        },
+        "review": null,
+        "citation_count": 0
+      },
+      "flags": {
+        "gap": false,
+        "negative_space": false,
+        "contested": false,
+        "retracted": false,
+        "declining": false,
+        "gravity_well": false
+      },
+      "links": [],
+      "created": "2026-04-23T03:03:39.732296+00:00",
+      "updated": null
+    },
+    {
+      "id": "vf_1d02e69f390e8b07",
+      "version": 1,
+      "previous_version": null,
+      "assertion": {
+        "text": "These claims are source notes for a local fixture and require review against the cited paper before scientific use.",
+        "type": "observational",
+        "entities": [
+          {
+            "name": "amyloid",
+            "type": "protein",
+            "identifiers": {},
+            "candidates": [],
+            "aliases": [],
+            "resolution_confidence": 1.0
+          },
+          {
+            "name": "amyloid-beta",
+            "type": "protein",
+            "identifiers": {},
+            "candidates": [],
+            "aliases": [],
+            "resolution_confidence": 1.0
+          },
+          {
+            "name": "lrp1",
+            "type": "protein",
+            "identifiers": {},
+            "candidates": [],
+            "aliases": [],
+            "resolution_confidence": 1.0
+          }
+        ],
+        "relation": null,
+        "direction": null
+      },
+      "evidence": {
+        "type": "observational",
+        "model_system": "abstract-only deterministic extraction",
+        "species": null,
+        "method": "abstract sentence extraction",
+        "sample_size": null,
+        "effect_size": null,
+        "p_value": null,
+        "replicated": false,
+        "replication_count": null,
+        "evidence_spans": [
+          {
+            "section": "abstract",
+            "text": "These claims are source notes for a local fixture and require review against the cited paper before scientific use."
+          }
+        ]
+      },
+      "conditions": {
+        "text": "Extracted from paper abstract; requires human review before interpretation.",
+        "species_verified": [],
+        "species_unverified": [],
+        "in_vitro": false,
+        "in_vivo": false,
+        "human_data": false,
+        "clinical_trial": false,
+        "concentration_range": null,
+        "duration": null,
+        "age_group": null,
+        "cell_type": null
+      },
+      "confidence": {
+        "score": 0.136,
+        "basis": "computed: grade=0.65 * replication=0.70 * species=0.50 * sample=0.60 - penalty=0.00 = 0.136; deterministic abstract-only fallback",
+        "method": "computed",
+        "components": {
+          "evidence_grade": 0.65,
+          "replication_factor": 0.7,
+          "sample_strength": 0.6,
+          "species_relevance": 0.5,
+          "contradiction_penalty": 0.0
+        },
+        "extraction_confidence": 0.35
+      },
+      "provenance": {
+        "source_type": "published_paper",
+        "doi": null,
+        "pmid": null,
+        "pmc": null,
+        "openalex_id": null,
+        "title": "PICALM and LRP1 at the blood brain barrier",
+        "authors": [],
+        "year": 2026,
+        "journal": null,
+        "extraction": {
+          "method": "hybrid",
+          "model": null,
+          "model_version": null,
+          "extracted_at": "2026-04-23T03:03:39.732141+00:00",
+          "extractor_version": "vela/0.2.0-offline"
+        },
+        "review": null,
+        "citation_count": 0
+      },
+      "flags": {
+        "gap": false,
+        "negative_space": false,
+        "contested": false,
+        "retracted": false,
+        "declining": false,
+        "gravity_well": false
+      },
+      "links": [],
+      "created": "2026-04-23T03:03:39.732344+00:00",
+      "updated": null
+    }
+  ],
+  "sources": [
+    {
+      "id": "vs_849302a08fac1d21",
+      "source_type": "text",
+      "locator": "title:PICALM and LRP1 at the blood brain barrier",
+      "content_hash": "sha256:e4f6059f0a5cebf2cf73d7a493ea9afd87cf65b90c18adba1db5513df9e36d3c",
+      "title": "PICALM and LRP1 at the blood brain barrier",
+      "authors": [],
+      "year": 2026,
+      "imported_at": "2026-04-23T03:03:39.732141+00:00",
+      "extraction_mode": "hybrid",
+      "source_quality": "declared",
+      "caveats": [],
+      "finding_ids": [
+        "vf_1d02e69f390e8b07",
+        "vf_8673ba9b7f661859",
+        "vf_ac1bf0d4dedfc0bf"
+      ]
+    },
+    {
+      "id": "vs_b185f853f4112645",
+      "source_type": "jats",
+      "locator": "title:Blood-brain barrier transport in Alzheimer disease models",
+      "content_hash": "sha256:0662ff32f07b8a7117b3ae45a81a16009a67d125bac58b1538565a749c0da8a1",
+      "title": "Blood-brain barrier transport in Alzheimer disease models",
+      "authors": [],
+      "year": 2024,
+      "imported_at": "2026-04-23T03:03:39.731803+00:00",
+      "extraction_mode": "hybrid",
+      "source_quality": "declared",
+      "caveats": [],
+      "finding_ids": [
+        "vf_12fc02a7ce89a886",
+        "vf_7bafcd47867cc2fa"
+      ]
+    },
+    {
+      "id": "vs_f71b17c96c1774e9",
+      "source_type": "csv",
+      "locator": "title:Curated BBB mini corpus",
+      "content_hash": "sha256:fc07f3741d8ca2815f52506af8ace4d0ae1911474fbf09317d43412a67af4897",
+      "title": "Curated BBB mini corpus",
+      "authors": [],
+      "year": 2026,
+      "imported_at": "2026-04-23T03:03:39.713875+00:00",
+      "extraction_mode": "manual_curation",
+      "source_quality": "declared",
+      "caveats": [],
+      "finding_ids": [
+        "vf_36ce6037ac9d35ee",
+        "vf_53b50b3d51170f64",
+        "vf_c4bf737129fe5c50"
+      ]
+    },
+    {
+      "id": "vs_fa743cf78869fe67",
+      "source_type": "pdf",
+      "locator": "title:Focused ultrasound blood brain barrier opening in Alzheimer disease",
+      "content_hash": "sha256:870ee7aece935bdd6aa9c1ce260309c1075ed8c718de25027fd35423a54f8fad",
+      "title": "Focused ultrasound blood brain barrier opening in Alzheimer disease",
+      "authors": [],
+      "year": 2026,
+      "imported_at": "2026-04-23T03:03:39.730583+00:00",
+      "extraction_mode": "hybrid",
+      "source_quality": "declared",
+      "caveats": [],
+      "finding_ids": [
+        "vf_0d5d84a88889df91",
+        "vf_642c0af838a053db",
+        "vf_efe2a52c86fb4f3a"
+      ]
+    }
+  ],
+  "evidence_atoms": [
+    {
+      "id": "vea_be7ef18aa3ffbf6c",
+      "source_id": "vs_849302a08fac1d21",
+      "finding_id": "vf_ac1bf0d4dedfc0bf",
+      "locator": "section:abstract",
+      "evidence_type": "observational",
+      "measurement_or_claim": "Loss of PICALM reduces amyloid-beta clearance across blood brain barrier models and may increase vascular amyloid burden.",
+      "supports_or_challenges": "supports",
+      "condition_refs": [
+        "vcnd_df74202401af982f"
+      ],
+      "extraction_method": "hybrid",
+      "human_verified": false,
+      "caveats": []
+    },
+    {
+      "id": "vea_d85e30fe922caf99",
+      "source_id": "vs_fa743cf78869fe67",
+      "finding_id": "vf_642c0af838a053db",
+      "locator": "section:abstract",
+      "evidence_type": "observational",
+      "measurement_or_claim": "Safety, reversibility, and dosing schedules remain important review questions for clinical\ntranslation.",
+      "supports_or_challenges": "supports",
+      "condition_refs": [
+        "vcnd_024cc236b1fdd6ed"
+      ],
+      "extraction_method": "hybrid",
+      "human_verified": false,
+      "caveats": []
+    },
+    {
+      "id": "vea_e40da62ab7c768b5",
+      "source_id": "vs_f71b17c96c1774e9",
+      "finding_id": "vf_36ce6037ac9d35ee",
+      "locator": "section:curated_csv",
+      "evidence_type": "theoretical",
+      "measurement_or_claim": "Focused ultrasound BBB opening needs standardized safety and dosing evidence before broad Alzheimer use.",
+      "supports_or_challenges": "supports",
+      "condition_refs": [
+        "vcnd_bb4e22bcef348c2b"
+      ],
+      "extraction_method": "manual_curation",
+      "human_verified": false,
+      "caveats": []
+    },
+    {
+      "id": "vea_b3fe1dd7192ff747",
+      "source_id": "vs_849302a08fac1d21",
+      "finding_id": "vf_8673ba9b7f661859",
+      "locator": "section:abstract",
+      "evidence_type": "observational",
+      "measurement_or_claim": "# PICALM and LRP1 at the blood brain barrier\n\nPICALM regulates clathrin-dependent internalization of amyloid-beta bound to LRP1 in brain endothelial cells.",
+      "supports_or_challenges": "supports",
+      "condition_refs": [
+        "vcnd_32f345e4692d34a1"
+      ],
+      "extraction_method": "hybrid",
+      "human_verified": false,
+      "caveats": []
+    },
+    {
+      "id": "vea_bb7adf75e935c202",
+      "source_id": "vs_fa743cf78869fe67",
+      "finding_id": "vf_efe2a52c86fb4f3a",
+      "locator": "section:abstract",
+      "evidence_type": "observational",
+      "measurement_or_claim": "This fixture is a valid small PDF so Vela can exercise the PDF ingestion path without\nstoring a large binary.",
+      "supports_or_challenges": "supports",
+      "condition_refs": [
+        "vcnd_2248543c1e5bd11f"
+      ],
+      "extraction_method": "hybrid",
+      "human_verified": false,
+      "caveats": []
+    },
+    {
+      "id": "vea_58f798f84cddde91",
+      "source_id": "vs_b185f853f4112645",
+      "finding_id": "vf_7bafcd47867cc2fa",
+      "locator": "section:abstract",
+      "evidence_type": "observational",
+      "measurement_or_claim": "Model studies suggest that transporter balance, endothelial injury, and inflammatory signaling can change amyloid-beta exposure in Alzheimer disease contexts.",
+      "supports_or_challenges": "supports",
+      "condition_refs": [
+        "vcnd_0c1fa2e25b410a65"
+      ],
+      "extraction_method": "hybrid",
+      "human_verified": false,
+      "caveats": []
+    },
+    {
+      "id": "vea_80d2fbd976f12ff1",
+      "source_id": "vs_f71b17c96c1774e9",
+      "finding_id": "vf_c4bf737129fe5c50",
+      "locator": "section:curated_csv",
+      "evidence_type": "observational",
+      "measurement_or_claim": "LRP1 supports amyloid-beta clearance across the blood-brain barrier.",
+      "supports_or_challenges": "supports",
+      "condition_refs": [
+        "vcnd_1fa875a5e3386393"
+      ],
+      "extraction_method": "manual_curation",
+      "human_verified": false,
+      "caveats": []
+    },
+    {
+      "id": "vea_7936486082a4d446",
+      "source_id": "vs_b185f853f4112645",
+      "finding_id": "vf_12fc02a7ce89a886",
+      "locator": "section:abstract",
+      "evidence_type": "observational",
+      "measurement_or_claim": "Blood-brain barrier transport mechanisms influence amyloid-beta movement between blood and brain compartments.",
+      "supports_or_challenges": "supports",
+      "condition_refs": [
+        "vcnd_e400df5b020de90d"
+      ],
+      "extraction_method": "hybrid",
+      "human_verified": false,
+      "caveats": []
+    },
+    {
+      "id": "vea_1e3fd82c4f5ec215",
+      "source_id": "vs_f71b17c96c1774e9",
+      "finding_id": "vf_53b50b3d51170f64",
+      "locator": "section:curated_csv",
+      "evidence_type": "observational",
+      "measurement_or_claim": "RAGE is associated with amyloid-beta influx into the brain across BBB endothelium.",
+      "supports_or_challenges": "supports",
+      "condition_refs": [
+        "vcnd_42b7e6c4b986efad"
+      ],
+      "extraction_method": "manual_curation",
+      "human_verified": false,
+      "caveats": []
+    },
+    {
+      "id": "vea_67958196eed25bb9",
+      "source_id": "vs_849302a08fac1d21",
+      "finding_id": "vf_1d02e69f390e8b07",
+      "locator": "section:abstract",
+      "evidence_type": "observational",
+      "measurement_or_claim": "These claims are source notes for a local fixture and require review against the cited paper before scientific use.",
+      "supports_or_challenges": "supports",
+      "condition_refs": [
+        "vcnd_b0402a72ef032a09"
+      ],
+      "extraction_method": "hybrid",
+      "human_verified": false,
+      "caveats": []
+    },
+    {
+      "id": "vea_b80f6d5e8a912f6a",
+      "source_id": "vs_fa743cf78869fe67",
+      "finding_id": "vf_0d5d84a88889df91",
+      "locator": "section:abstract",
+      "evidence_type": "observational",
+      "measurement_or_claim": "Focused ultrasound blood brain barrier opening in Alzheimer disease\nFocused ultrasound can transiently open the blood brain barrier and may improve delivery of\ntherapeutic agents in Alzheimer disease models.",
+      "supports_or_challenges": "supports",
+      "condition_refs": [
+        "vcnd_6b2a4227a8e1b4f1"
+      ],
+      "extraction_method": "hybrid",
+      "human_verified": false,
+      "caveats": []
+    }
+  ],
+  "condition_records": [
+    {
+      "id": "vcnd_024cc236b1fdd6ed",
+      "finding_id": "vf_642c0af838a053db",
+      "text": "Extracted from paper abstract; requires human review before interpretation.",
+      "model_system": "abstract-only deterministic extraction",
+      "method": "abstract sentence extraction",
+      "in_vitro": false,
+      "in_vivo": false,
+      "human_data": true,
+      "clinical_trial": false,
+      "exposure_or_efficacy": "efficacy",
+      "comparator_status": "missing_or_unclear",
+      "translation_scope": "human",
+      "caveats": [
+        "comparator or baseline missing or unclear"
+      ]
+    },
+    {
+      "id": "vcnd_0c1fa2e25b410a65",
+      "finding_id": "vf_7bafcd47867cc2fa",
+      "text": "Extracted from paper abstract; requires human review before interpretation.",
+      "model_system": "abstract-only deterministic extraction",
+      "method": "abstract sentence extraction",
+      "in_vitro": false,
+      "in_vivo": false,
+      "human_data": false,
+      "clinical_trial": false,
+      "exposure_or_efficacy": "exposure",
+      "comparator_status": "missing_or_unclear",
+      "translation_scope": "unspecified",
+      "caveats": [
+        "comparator or baseline missing or unclear"
+      ]
+    },
+    {
+      "id": "vcnd_1fa875a5e3386393",
+      "finding_id": "vf_c4bf737129fe5c50",
+      "text": "Curated from a local corpus CSV row; verify against source before reuse.",
+      "model_system": "curated local corpus row",
+      "method": "manual CSV curation",
+      "in_vitro": false,
+      "in_vivo": false,
+      "human_data": false,
+      "clinical_trial": false,
+      "exposure_or_efficacy": "unknown",
+      "comparator_status": "missing_or_unclear",
+      "translation_scope": "unspecified",
+      "caveats": [
+        "comparator or baseline missing or unclear"
+      ]
+    },
+    {
+      "id": "vcnd_2248543c1e5bd11f",
+      "finding_id": "vf_efe2a52c86fb4f3a",
+      "text": "Extracted from paper abstract; requires human review before interpretation.",
+      "model_system": "abstract-only deterministic extraction",
+      "method": "abstract sentence extraction",
+      "in_vitro": false,
+      "in_vivo": false,
+      "human_data": false,
+      "clinical_trial": false,
+      "exposure_or_efficacy": "unknown",
+      "comparator_status": "missing_or_unclear",
+      "translation_scope": "unspecified",
+      "caveats": [
+        "comparator or baseline missing or unclear"
+      ]
+    },
+    {
+      "id": "vcnd_32f345e4692d34a1",
+      "finding_id": "vf_8673ba9b7f661859",
+      "text": "Extracted from paper abstract; requires human review before interpretation.",
+      "model_system": "abstract-only deterministic extraction",
+      "method": "abstract sentence extraction",
+      "in_vitro": true,
+      "in_vivo": false,
+      "human_data": false,
+      "clinical_trial": false,
+      "exposure_or_efficacy": "unknown",
+      "comparator_status": "missing_or_unclear",
+      "translation_scope": "in_vitro",
+      "caveats": [
+        "comparator or baseline missing or unclear"
+      ]
+    },
+    {
+      "id": "vcnd_42b7e6c4b986efad",
+      "finding_id": "vf_53b50b3d51170f64",
+      "text": "Curated from a local corpus CSV row; verify against source before reuse.",
+      "model_system": "curated local corpus row",
+      "method": "manual CSV curation",
+      "in_vitro": false,
+      "in_vivo": false,
+      "human_data": false,
+      "clinical_trial": false,
+      "exposure_or_efficacy": "unknown",
+      "comparator_status": "missing_or_unclear",
+      "translation_scope": "unspecified",
+      "caveats": [
+        "comparator or baseline missing or unclear"
+      ]
+    },
+    {
+      "id": "vcnd_6b2a4227a8e1b4f1",
+      "finding_id": "vf_0d5d84a88889df91",
+      "text": "Extracted from paper abstract; requires human review before interpretation.",
+      "model_system": "abstract-only deterministic extraction",
+      "method": "abstract sentence extraction",
+      "in_vitro": false,
+      "in_vivo": false,
+      "human_data": false,
+      "clinical_trial": false,
+      "exposure_or_efficacy": "both",
+      "comparator_status": "missing_or_unclear",
+      "translation_scope": "unspecified",
+      "caveats": [
+        "comparator or baseline missing or unclear",
+        "exposure and efficacy language both present; review for overgeneralization"
+      ]
+    },
+    {
+      "id": "vcnd_b0402a72ef032a09",
+      "finding_id": "vf_1d02e69f390e8b07",
+      "text": "Extracted from paper abstract; requires human review before interpretation.",
+      "model_system": "abstract-only deterministic extraction",
+      "method": "abstract sentence extraction",
+      "in_vitro": false,
+      "in_vivo": false,
+      "human_data": false,
+      "clinical_trial": false,
+      "exposure_or_efficacy": "unknown",
+      "comparator_status": "missing_or_unclear",
+      "translation_scope": "unspecified",
+      "caveats": [
+        "comparator or baseline missing or unclear"
+      ]
+    },
+    {
+      "id": "vcnd_bb4e22bcef348c2b",
+      "finding_id": "vf_36ce6037ac9d35ee",
+      "text": "Curated from a local corpus CSV row; verify against source before reuse.",
+      "model_system": "curated local corpus row",
+      "method": "manual CSV curation",
+      "in_vitro": false,
+      "in_vivo": false,
+      "human_data": false,
+      "clinical_trial": false,
+      "exposure_or_efficacy": "unknown",
+      "comparator_status": "missing_or_unclear",
+      "translation_scope": "unspecified",
+      "caveats": [
+        "comparator or baseline missing or unclear"
+      ]
+    },
+    {
+      "id": "vcnd_df74202401af982f",
+      "finding_id": "vf_ac1bf0d4dedfc0bf",
+      "text": "Extracted from paper abstract; requires human review before interpretation.",
+      "model_system": "abstract-only deterministic extraction",
+      "method": "abstract sentence extraction",
+      "in_vitro": false,
+      "in_vivo": false,
+      "human_data": false,
+      "clinical_trial": false,
+      "exposure_or_efficacy": "unknown",
+      "comparator_status": "missing_or_unclear",
+      "translation_scope": "unspecified",
+      "caveats": [
+        "comparator or baseline missing or unclear"
+      ]
+    },
+    {
+      "id": "vcnd_e400df5b020de90d",
+      "finding_id": "vf_12fc02a7ce89a886",
+      "text": "Extracted from paper abstract; requires human review before interpretation.",
+      "model_system": "abstract-only deterministic extraction",
+      "method": "abstract sentence extraction",
+      "in_vitro": false,
+      "in_vivo": false,
+      "human_data": false,
+      "clinical_trial": false,
+      "exposure_or_efficacy": "exposure",
+      "comparator_status": "missing_or_unclear",
+      "translation_scope": "unspecified",
+      "caveats": [
+        "comparator or baseline missing or unclear"
+      ]
+    }
+  ],
+  "review_events": [],
+  "confidence_updates": [],
+  "events": [],
+  "signatures": []
+}

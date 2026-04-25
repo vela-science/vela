@@ -1,0 +1,30 @@
+[
+  {
+    "name": "LRP1",
+    "type": "protein",
+    "expected_source": "",
+    "expected_id": "",
+    "expected_confidence": 1.0
+  },
+  {
+    "name": "amyloid-beta",
+    "type": "protein",
+    "expected_source": "",
+    "expected_id": "",
+    "expected_confidence": 1.0
+  },
+  {
+    "name": "blood-brain barrier",
+    "type": "anatomical_structure",
+    "expected_source": "",
+    "expected_id": "",
+    "expected_confidence": 1.0
+  },
+  {
+    "name": "RAGE",
+    "type": "protein",
+    "expected_source": "",
+    "expected_id": "",
+    "expected_confidence": 1.0
+  }
+]

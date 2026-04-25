@@ -1,0 +1,282 @@
+{
+  "suite": "link-inference",
+  "description": "Deterministic entity-overlap link inference recorded with compiler provenance. Given two findings with shared entities, expects a specific link type and direction based on entity overlap, assertion direction, year, and confidence.",
+  "cases": [
+    {
+      "name": "shared entity different papers creates extends",
+      "input": {
+        "findings": [
+          {
+            "id": "f1",
+            "entities": [{"name": "NLRP3", "type": "protein"}],
+            "direction": null,
+            "doi": "10.1/a",
+            "year": 2020,
+            "confidence": 0.7
+          },
+          {
+            "id": "f2",
+            "entities": [{"name": "NLRP3", "type": "protein"}],
+            "direction": null,
+            "doi": "10.1/b",
+            "year": 2021,
+            "confidence": 0.7
+          }
+        ]
+      },
+      "expected_output": {
+        "link_count": 1,
+        "links": [
+          {"from": "f1", "to": "f2", "type": "extends", "inferred_by": "compiler"}
+        ]
+      }
+    },
+    {
+      "name": "opposite directions creates contradicts",
+      "input": {
+        "findings": [
+          {
+            "id": "f1",
+            "entities": [{"name": "NLRP3", "type": "protein"}],
+            "direction": "positive",
+            "doi": "10.1/a",
+            "year": 2020,
+            "confidence": 0.7
+          },
+          {
+            "id": "f2",
+            "entities": [{"name": "NLRP3", "type": "protein"}],
+            "direction": "negative",
+            "doi": "10.1/b",
+            "year": 2021,
+            "confidence": 0.7
+          }
+        ]
+      },
+      "expected_output": {
+        "link_count": 1,
+        "links": [
+          {"from": "f1", "to": "f2", "type": "contradicts", "inferred_by": "compiler"}
+        ]
+      }
+    },
+    {
+      "name": "newer higher confidence supersedes",
+      "input": {
+        "findings": [
+          {
+            "id": "f1",
+            "entities": [{"name": "NLRP3", "type": "protein"}],
+            "direction": "positive",
+            "doi": "10.1/a",
+            "year": 2018,
+            "confidence": 0.6
+          },
+          {
+            "id": "f2",
+            "entities": [{"name": "NLRP3", "type": "protein"}],
+            "direction": "positive",
+            "doi": "10.1/b",
+            "year": 2024,
+            "confidence": 0.9
+          }
+        ]
+      },
+      "expected_output": {
+        "link_count": 1,
+        "links": [
+          {"from": "f2", "to": "f1", "type": "supersedes", "inferred_by": "compiler"}
+        ]
+      }
+    },
+    {
+      "name": "no shared entities no links",
+      "input": {
+        "findings": [
+          {
+            "id": "f1",
+            "entities": [{"name": "NLRP3", "type": "protein"}],
+            "direction": null,
+            "doi": "10.1/a",
+            "year": 2020,
+            "confidence": 0.7
+          },
+          {
+            "id": "f2",
+            "entities": [{"name": "APOE4", "type": "gene"}],
+            "direction": null,
+            "doi": "10.1/b",
+            "year": 2021,
+            "confidence": 0.7
+          }
+        ]
+      },
+      "expected_output": {
+        "link_count": 0,
+        "links": []
+      }
+    },
+    {
+      "name": "same paper same entity skipped",
+      "input": {
+        "findings": [
+          {
+            "id": "f1",
+            "entities": [{"name": "NLRP3", "type": "protein"}],
+            "direction": null,
+            "doi": "10.1/same",
+            "year": 2020,
+            "confidence": 0.7
+          },
+          {
+            "id": "f2",
+            "entities": [{"name": "NLRP3", "type": "protein"}],
+            "direction": null,
+            "doi": "10.1/same",
+            "year": 2020,
+            "confidence": 0.7
+          }
+        ]
+      },
+      "expected_output": {
+        "link_count": 0,
+        "links": []
+      }
+    },
+    {
+      "name": "strong overlap with two shared entities",
+      "input": {
+        "findings": [
+          {
+            "id": "f1",
+            "entities": [{"name": "NLRP3", "type": "protein"}, {"name": "IL-1\u03b2", "type": "protein"}],
+            "direction": null,
+            "doi": "10.1/a",
+            "year": 2020,
+            "confidence": 0.7
+          },
+          {
+            "id": "f2",
+            "entities": [{"name": "NLRP3", "type": "protein"}, {"name": "IL-1\u03b2", "type": "protein"}],
+            "direction": null,
+            "doi": "10.1/b",
+            "year": 2021,
+            "confidence": 0.7
+          }
+        ]
+      },
+      "expected_output": {
+        "link_count": 1,
+        "links": [
+          {"from": "f1", "to": "f2", "type": "extends", "inferred_by": "compiler", "note_contains": "strong overlap"}
+        ]
+      }
+    },
+    {
+      "name": "case-insensitive entity matching",
+      "input": {
+        "findings": [
+          {
+            "id": "f1",
+            "entities": [{"name": "nlrp3", "type": "protein"}],
+            "direction": null,
+            "doi": "10.1/a",
+            "year": 2020,
+            "confidence": 0.7
+          },
+          {
+            "id": "f2",
+            "entities": [{"name": "NLRP3", "type": "protein"}],
+            "direction": null,
+            "doi": "10.1/b",
+            "year": 2021,
+            "confidence": 0.7
+          }
+        ]
+      },
+      "expected_output": {
+        "link_count": 1,
+        "links": [
+          {"from": "f1", "to": "f2", "type": "extends", "inferred_by": "compiler"}
+        ]
+      }
+    },
+    {
+      "name": "alias matching creates link",
+      "input": {
+        "findings": [
+          {
+            "id": "f1",
+            "entities": [{"name": "NLRP3", "type": "protein", "aliases": ["cryopyrin"]}],
+            "direction": null,
+            "doi": "10.1/a",
+            "year": 2020,
+            "confidence": 0.7
+          },
+          {
+            "id": "f2",
+            "entities": [{"name": "cryopyrin", "type": "protein"}],
+            "direction": null,
+            "doi": "10.1/b",
+            "year": 2021,
+            "confidence": 0.7
+          }
+        ]
+      },
+      "expected_output": {
+        "link_count": 1,
+        "links": [
+          {"from": "f1", "to": "f2", "type": "extends", "inferred_by": "compiler"}
+        ]
+      }
+    },
+    {
+      "name": "same direction same confidence creates extends not supersedes",
+      "input": {
+        "findings": [
+          {
+            "id": "f1",
+            "entities": [{"name": "NLRP3", "type": "protein"}],
+            "direction": "positive",
+            "doi": "10.1/a",
+            "year": 2020,
+            "confidence": 0.7
+          },
+          {
+            "id": "f2",
+            "entities": [{"name": "NLRP3", "type": "protein"}],
+            "direction": "positive",
+            "doi": "10.1/b",
+            "year": 2022,
+            "confidence": 0.7
+          }
+        ]
+      },
+      "expected_output": {
+        "link_count": 1,
+        "links": [
+          {"from": "f1", "to": "f2", "type": "extends", "inferred_by": "compiler"}
+        ]
+      }
+    },
+    {
+      "name": "single finding produces no links",
+      "input": {
+        "findings": [
+          {
+            "id": "f1",
+            "entities": [{"name": "NLRP3", "type": "protein"}],
+            "direction": null,
+            "doi": "10.1/a",
+            "year": 2020,
+            "confidence": 0.7
+          }
+        ]
+      },
+      "expected_output": {
+        "link_count": 0,
+        "links": []
+      }
+    }
+  ]
+}

@@ -1,0 +1,214 @@
+---
+import Page from "../layouts/Page.astro";
+import Section from "../components/Section.astro";
+import TerminalPaper from "../components/TerminalPaper.astro";
+import LiveHub from "../components/LiveHub.astro";
+import Chip from "../components/Chip.astro";
+---
+<Page
+  title="Vela · scientific frontier state, signed and replayable"
+  description="A git-native protocol for replayable scientific frontier state. Findings with conditions, signed by their reviewers, distributed by signed manifest."
+  active="home"
+  eyebrow="00 · Vela"
+  pageTitle="Vela"
+  subtitle="A git-native protocol for replayable scientific frontier state."
+>
+  <div slot="aside">
+    <a href="https://github.com/vela-science/vela" class="aside-link">github</a>
+    <span>·</span>
+    <a href="https://vela-hub.fly.dev" class="aside-link">hub</a>
+    <span>·</span>
+    <Chip variant="live" label="v0.7" />
+  </div>
+
+  <p class="t-lead">
+    Vela turns a folder of papers into a bounded, reviewable state — claims with their evidence, conditions, confidence, and provenance — that a scientist or an agent can correct, replay, and sign.
+  </p>
+
+  <p class="t-lead" style="font-size: 17px; color: var(--ink-2);">
+    A finding has a content-addressed id. A frontier has a content-addressed id. Two implementations agree byte-for-byte. The hub is dumb transport; clients verify locally. The signature is the bind.
+  </p>
+
+  <Section num="§1" title="Pull a live frontier" aside="public hub · vela-hub.fly.dev">
+    <p style="font-family: var(--font-serif); font-size: 17px; color: var(--ink-2); max-width: 64ch; margin: 0 0 12px;">
+      The BBB Flagship frontier — 48 signed findings about blood-brain barrier translation in Alzheimer's research — re-publishes from CI every Monday at 14:00 UTC, signed by a bot whose pubkey lives in the frontier itself.
+    </p>
+    <LiveHub />
+    <TerminalPaper title="vela registry pull">
+      <span class="tm-ps">$</span> <span class="tm-cmd">vela registry pull</span> vfr_d0a962d3251133dd \
+  <span class="tm-flag">--from</span> https://vela-hub.fly.dev/entries \
+  <span class="tm-flag">--out</span> ./bbb.json
+    </TerminalPaper>
+  </Section>
+
+  <Section num="§2" title="Read the essay" aside="why state · what state · what composes">
+    <a class="essay-card" href="/essays/science-needs-state">
+      <span class="eyebrow">Essay · 2026-04-25</span>
+      <h3 class="title">Science Needs State</h3>
+      <p class="blurb">
+        Two papers contradict each other. A foundation officer makes a decision in the shower the next morning, and the reasoning evaporates. The thing science is missing is state. Here is the smallest substrate that holds.
+      </p>
+      <span class="readmore">Read →</span>
+    </a>
+  </Section>
+
+  <Section num="§3" title="Install" aside="one binary, one command">
+    <div class="quickstart">
+      <TerminalPaper title="cargo install">
+        <span class="tm-ps">$</span> <span class="tm-cmd">git clone</span> https://github.com/vela-science/vela
+<span class="tm-ps">$</span> <span class="tm-cmd">cd</span> vela <span class="tm-ps">&&</span> <span class="tm-cmd">cargo build</span> <span class="tm-flag">--release</span>
+<span class="tm-ps">$</span> <span class="tm-cmd">./target/release/vela</span> <span class="tm-flag">--version</span>
+      </TerminalPaper>
+      <TerminalPaper title="compile your first frontier">
+        <span class="tm-ps">$</span> <span class="tm-cmd">vela compile</span> ./papers <span class="tm-flag">--output</span> frontier.json
+<span class="tm-ps">$</span> <span class="tm-cmd">vela check</span> frontier.json <span class="tm-flag">--strict</span>
+<span class="tm-ps">$</span> <span class="tm-cmd">vela serve</span> frontier.json
+      </TerminalPaper>
+    </div>
+  </Section>
+
+  <Section num="§4" title="Six nouns" aside="content-addressed · canonical-JSON · Ed25519">
+    <ul class="nouns">
+      <li>
+        <span class="k">finding</span>
+        <span class="d">A typed assertion: what was observed, in what conditions, with what evidence, by whom, citing what. Has a content-addressed <code>vf_…</code> id.</span>
+      </li>
+      <li>
+        <span class="k">frontier</span>
+        <span class="d">A bounded scope holding findings, links, actors, and the event log that records every change. Has a content-addressed <code>vfr_…</code> id.</span>
+      </li>
+      <li>
+        <span class="k">proposal</span>
+        <span class="d">A signed change-request: revise, retract, contest, annotate. Becomes a canonical event when reviewed and accepted.</span>
+      </li>
+      <li>
+        <span class="k">event</span>
+        <span class="d">An immutable record in the log. Replay events on a fresh frontier and you reconstruct state byte-identically.</span>
+      </li>
+      <li>
+        <span class="k">registry</span>
+        <span class="d">A directory of signed manifests pointing at frontier publications. Anyone can publish; clients verify on read.</span>
+      </li>
+      <li>
+        <span class="k">proof packet</span>
+        <span class="d">A sealed snapshot another party can re-verify offline. The snapshot hash, the event-log hash, and the signatures are the audit.</span>
+      </li>
+    </ul>
+  </Section>
+
+  <Section num="§5" title="Read the docs" aside="five-doc tour">
+    <div class="card-grid">
+      <a class="card" href="/docs/protocol">
+        <span class="eyebrow">01 · protocol</span>
+        <h3 class="title">Protocol</h3>
+        <p class="blurb">The on-disk shape: findings, frontiers, events, signatures.</p>
+      </a>
+      <a class="card" href="/docs/first-frontier">
+        <span class="eyebrow">02 · first frontier</span>
+        <h3 class="title">Your first frontier</h3>
+        <p class="blurb">Compile a folder of papers into reviewable state in 10 minutes.</p>
+      </a>
+      <a class="card" href="/docs/registry">
+        <span class="eyebrow">03 · registry</span>
+        <h3 class="title">Registry</h3>
+        <p class="blurb">Verifiable distribution. Sign a manifest; anyone can pull and verify.</p>
+      </a>
+      <a class="card" href="/docs/hub">
+        <span class="eyebrow">04 · hub</span>
+        <h3 class="title">Hub</h3>
+        <p class="blurb">HTTP transport over the registry. The public hub at <code>vela-hub.fly.dev</code>.</p>
+      </a>
+      <a class="card" href="/docs/python">
+        <span class="eyebrow">05 · python</span>
+        <h3 class="title">Python SDK</h3>
+        <p class="blurb">Programmatic access to a Vela frontier from Python.</p>
+      </a>
+    </div>
+  </Section>
+</Page>
+
+<style>
+  .aside-link {
+    font-family: var(--font-mono);
+    font-size: var(--size-xs);
+    letter-spacing: 0.06em;
+    color: var(--ink-3);
+  }
+  .aside-link:hover { color: var(--ink-0); }
+  div[slot="aside"] {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .essay-card {
+    display: block;
+    border: 1px solid var(--rule-2);
+    padding: 22px 26px;
+    background: var(--paper-0);
+    transition: border-color var(--dur-1) var(--ease), background var(--dur-1) var(--ease);
+  }
+  .essay-card:hover { border-color: var(--rule-ink); background: var(--paper-1); }
+  .essay-card .eyebrow {
+    font-family: var(--font-mono);
+    font-size: var(--size-xs);
+    letter-spacing: var(--track-tick);
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin-bottom: 8px;
+    display: block;
+  }
+  .essay-card .title {
+    font-family: var(--font-serif);
+    font-size: 26px;
+    color: var(--ink-0);
+    margin: 0 0 8px;
+    letter-spacing: -0.01em;
+  }
+  .essay-card .blurb {
+    font-family: var(--font-serif);
+    font-size: 16px;
+    line-height: 1.55;
+    color: var(--ink-2);
+    margin: 0 0 12px;
+    max-width: 64ch;
+  }
+  .essay-card .readmore {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+  }
+  .essay-card:hover .readmore { color: var(--signal); }
+
+  .nouns {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    border-top: 1px solid var(--rule-2);
+  }
+  .nouns li {
+    display: grid;
+    grid-template-columns: 140px 1fr;
+    gap: 24px;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--rule-1);
+    align-items: baseline;
+  }
+  .nouns li .k {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  .nouns li .d {
+    font-family: var(--font-serif);
+    font-size: 16px;
+    line-height: 1.55;
+    color: var(--ink-1);
+  }
+  @media (max-width: 720px) {
+    .nouns li { grid-template-columns: 1fr; gap: 4px; }
+  }
+</style>

@@ -1,0 +1,63 @@
+{
+  "id": "bbb-alzheimer-quality-gate-v0",
+  "name": "BBB Alzheimer Quality Gate",
+  "description": "Suite-based benchmark gate tied to frontiers/bbb-alzheimer.json.",
+  "frontier": "../../frontiers/bbb-alzheimer.json",
+  "tasks": [
+    {
+      "id": "bbb-findings",
+      "mode": "finding",
+      "description": "One-to-one finding alignment against frozen BBB gold finding IDs.",
+      "gold": "../gold/findings/bbb-core-50.json",
+      "thresholds": {
+        "min_f1": 0.28,
+        "min_precision": 0.15,
+        "min_recall": 1.0,
+        "min_entity_accuracy": 1.0,
+        "min_confidence_calibration": 1.0,
+        "min_type_accuracy": 1.0
+      }
+    },
+    {
+      "id": "bbb-entities",
+      "mode": "entity",
+      "description": "Entity presence, type, and resolution-confidence checks for core BBB concepts.",
+      "gold": "../gold/entities/bbb-entity-50.json",
+      "thresholds": {
+        "min_f1": 1.0,
+        "min_precision": 1.0,
+        "min_recall": 1.0,
+        "min_type_accuracy": 1.0
+      }
+    },
+    {
+      "id": "bbb-links",
+      "mode": "link",
+      "description": "Typed link fixture tied to existing source-target frontier links.",
+      "gold": "../gold/links/bbb-link-50.json",
+      "thresholds": {
+        "min_f1": 1.0,
+        "min_precision": 1.0,
+        "min_recall": 1.0
+      }
+    },
+    {
+      "id": "bbb-workflow",
+      "mode": "workflow",
+      "description": "Frontier workflow readiness minimums for proof/check/serve demos.",
+      "workflow": {
+        "min_findings": 48,
+        "min_links": 200,
+        "min_entity_mentions": 120,
+        "min_evidence_spans": 48,
+        "min_provenance_complete": 48,
+        "min_assertion_types": 6,
+        "min_gap_flags": 1,
+        "min_contested_flags": 1
+      },
+      "thresholds": {
+        "min_workflow_score": 1.0
+      }
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+[
+  {
+    "id": "vf_c4bf737129fe5c50",
+    "assertion_text": "LRP1 supports amyloid-beta clearance across the blood-brain barrier.",
+    "assertion_type": "mechanism",
+    "entities": ["LRP1", "amyloid-beta", "blood-brain barrier"],
+    "confidence_range": {"low": 0.55, "high": 0.61},
+    "notes": "Curated CSV fixture."
+  },
+  {
+    "id": "vf_53b50b3d51170f64",
+    "assertion_text": "RAGE is associated with amyloid-beta influx into the brain across BBB endothelium.",
+    "assertion_type": "mechanism",
+    "entities": ["RAGE", "amyloid-beta", "brain"],
+    "confidence_range": {"low": 0.50, "high": 0.58},
+    "notes": "Curated CSV fixture."
+  },
+  {
+    "id": "vf_36ce6037ac9d35ee",
+    "assertion_text": "Focused ultrasound BBB opening needs standardized safety and dosing evidence before broad Alzheimer use.",
+    "assertion_type": "theoretical",
+    "entities": ["focused ultrasound dosing", "safety evidence"],
+    "confidence_range": {"low": 0.30, "high": 0.40},
+    "notes": "Curated candidate gap fixture."
+  }
+]

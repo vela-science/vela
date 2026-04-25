@@ -1,0 +1,319 @@
+/* Workbench — page chrome layered on colors_and_type.css tokens.
+   One instrument, four screens. Every screen shares the same rim,
+   header, and footer so the metaphor holds across tasks. */
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: #F4F0E8;
+  background: var(--paper-0);
+  color: #1B1F27;
+  color: var(--ink-1);
+  min-height: 100%;
+}
+* { box-sizing: border-box; }
+
+body {
+  font-family: var(--font-sans);
+  font-size: var(--size-base);
+  line-height: var(--leading-body);
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+
+.wb {
+  background: var(--paper-0);
+}
+
+/* ============================================================
+   Frame — the instrument body
+   ============================================================ */
+.wb {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 56px 1fr 40px;
+  grid-template-rows: auto 1fr auto;
+  grid-template-areas:
+    "rim head head"
+    "rim main main"
+    "rim foot foot";
+}
+
+/* Left rim — the tick limb. Runs the full height. */
+.wb-rim {
+  grid-area: rim;
+  border-right: 1px solid var(--rule-2);
+  position: relative;
+  background: var(--paper-0);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 24px 0 32px;
+}
+.wb-rim::before {
+  content: "";
+  position: absolute;
+  inset: 24px 0 32px 0;
+  background-image: linear-gradient(to bottom,
+    var(--rule-2) 0 1px,
+    transparent 1px 100%);
+  background-size: 100% 16px;
+  background-position: right top;
+  background-repeat: repeat-y;
+  opacity: 0.6;
+  pointer-events: none;
+}
+.wb-rim__mark {
+  display: flex;
+  justify-content: center;
+}
+.wb-rim__nav {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+  position: relative;
+  z-index: 1;
+}
+.wb-rim__link {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  padding: 10px 4px;
+  text-decoration: none;
+  position: relative;
+  transition: color var(--dur-1) var(--ease);
+}
+.wb-rim__link:hover { color: var(--ink-0); }
+.wb-rim__link--on   { color: var(--ink-0); }
+.wb-rim__link--on::before {
+  content: "";
+  position: absolute;
+  left: -5px; top: 50%;
+  transform: translateY(-50%) rotate(180deg);
+  width: 1px; height: 18px;
+  background: var(--signal);
+}
+.wb-rim__index {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  color: var(--ink-4);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ============================================================
+   Head — the page title zone
+   ============================================================ */
+.wb-head {
+  grid-area: head;
+  padding: 28px 48px 0 40px;
+}
+.wb-head__row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 32px;
+  padding-bottom: 20px;
+  margin-bottom: 0;
+}
+.wb-head__eyebrow {
+  font-family: var(--font-mono);
+  font-size: var(--size-xs);
+  letter-spacing: var(--track-tick);
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.wb-head__eyebrow::before {
+  content: "";
+  display: inline-block;
+  width: 18px; height: 1px;
+  background: var(--rule-3);
+}
+.wb-head__title {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-size: var(--size-xl);
+  line-height: 1.1;
+  letter-spacing: -0.015em;
+  color: var(--ink-0);
+  margin: 0;
+}
+.wb-head__sub {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: var(--size-md);
+  color: var(--ink-2);
+  margin: 10px 0 0;
+  max-width: 52ch;
+}
+.wb-head__aside {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  font-family: var(--font-mono);
+  font-size: var(--size-xs);
+  letter-spacing: 0.06em;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+.wb-head__ticks {
+  height: 8px;
+  margin-top: 20px;
+  background-image: linear-gradient(to right,
+    var(--rule-3) 0 1px,
+    transparent 1px 100%);
+  background-size: 18px 100%;
+  background-repeat: repeat-x;
+  background-position: left bottom;
+}
+
+/* ============================================================
+   Main — the work surface
+   ============================================================ */
+.wb-main {
+  grid-area: main;
+  padding: 32px 48px 48px 40px;
+  min-width: 0;
+}
+.wb-main--narrow {
+  max-width: 780px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* ============================================================
+   Foot — instrument signature
+   ============================================================ */
+.wb-foot {
+  grid-area: foot;
+  padding: 16px 48px 20px 40px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid var(--rule-2);
+  font-family: var(--font-mono);
+  font-size: var(--size-xs);
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+}
+.wb-foot__left { display: flex; gap: 24px; }
+.wb-foot__star {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: var(--signal);
+  box-shadow: 0 0 0 2px var(--signal-soft);
+  display: inline-block;
+  vertical-align: 1px;
+}
+
+/* ============================================================
+   Common parts
+   ============================================================ */
+
+/* Buttons — three only */
+.wb-btn {
+  font-family: var(--font-sans);
+  font-size: var(--size-sm);
+  font-weight: 500;
+  line-height: 1;
+  padding: 9px 14px;
+  border-radius: var(--radius-1);
+  border: 1px solid var(--rule-3);
+  background: var(--paper-0);
+  color: var(--ink-0);
+  cursor: pointer;
+  transition: background var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease);
+  letter-spacing: 0.01em;
+}
+.wb-btn:hover { background: var(--paper-1); border-color: var(--rule-ink); }
+.wb-btn--ink {
+  background: var(--ink-0);
+  color: var(--paper-0);
+  border-color: var(--ink-0);
+}
+.wb-btn--ink:hover { background: #000; border-color: #000; }
+.wb-btn--ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--ink-2);
+  padding: 9px 10px;
+}
+.wb-btn--ghost:hover { color: var(--ink-0); background: var(--paper-1); }
+.wb-btn__kbd {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 5px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--ink-3);
+  border: 1px solid var(--rule-2);
+  border-radius: var(--radius-1);
+  background: var(--paper-0);
+  letter-spacing: 0.08em;
+}
+
+/* Input — a thin underlined field, not a box */
+.wb-input {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 2px;
+  border: 0;
+  border-bottom: 1px solid var(--rule-3);
+  background: transparent;
+}
+.wb-input:focus-within { border-bottom-color: var(--signal); }
+.wb-input input {
+  flex: 1; border: 0; outline: 0; background: transparent;
+  font: inherit; color: var(--ink-0);
+  font-size: var(--size-base);
+}
+.wb-input input::placeholder { color: var(--ink-4); }
+.wb-input__kbd {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--ink-3);
+  border: 1px solid var(--rule-2);
+  border-radius: var(--radius-1);
+  padding: 1px 5px;
+  letter-spacing: 0.08em;
+}
+
+/* State chip — engraved pill, no fills */
+.wb-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--chip, var(--ink-3));
+  border: 1px solid color-mix(in oklab, var(--chip, var(--ink-3)) 40%, transparent);
+  border-radius: var(--radius-1);
+  line-height: 1.5;
+  background: transparent;
+}
+.wb-chip__dot {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: var(--chip, var(--ink-3));
+}
+
+/* Live chip (signal) — only for the current "now" state */
+.wb-chip--live {
+  --chip: var(--signal);
+  color: var(--signal);
+}
+.wb-chip--live .wb-chip__dot {
+  box-shadow: 0 0 0 2px var(--signal-soft);
+}

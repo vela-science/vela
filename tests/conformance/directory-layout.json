@@ -1,0 +1,64 @@
+{
+  "suite": "directory-layout",
+  "description": "Expected file paths in a .vela/ directory structure. The v0 public layout is config, finding bundles, canonical events, proposals, and proof-state. Older link/review sidecars are compatibility inputs, not required public storage.",
+  "cases": [
+    {
+      "name": "empty initialized repository",
+      "input": {
+        "finding_count": 0,
+        "name": "test-frontier"
+      },
+      "expected_output": {
+        "required_paths": [
+          ".vela/config.toml",
+          ".vela/findings/",
+          ".vela/events/",
+          ".vela/proposals/",
+          ".vela/proof-state.json"
+        ],
+        "finding_files": [],
+        "config_contains": "name = \"test-frontier\""
+      }
+    },
+    {
+      "name": "repository with 3 findings",
+      "input": {
+        "finding_count": 3,
+        "finding_ids": ["vf_abc123def456gh", "vf_111222333444aa", "vf_deadbeefcafe01"],
+        "name": "alzheimer-frontier"
+      },
+      "expected_output": {
+        "required_paths": [
+          ".vela/config.toml",
+          ".vela/findings/vf_abc123def456gh.json",
+          ".vela/findings/vf_111222333444aa.json",
+          ".vela/findings/vf_deadbeefcafe01.json",
+          ".vela/events/",
+          ".vela/proposals/",
+          ".vela/proof-state.json"
+        ],
+        "finding_file_pattern": ".vela/findings/vf_*.json",
+        "finding_file_count": 3
+      }
+    },
+    {
+      "name": "repository with canonical events and proposals",
+      "input": {
+        "finding_count": 1,
+        "finding_ids": ["vf_aabbccdd11223344"],
+        "event_ids": ["vev_0011223344556677"],
+        "proposal_ids": ["vpr_0011223344556677"],
+        "name": "nlrp3-frontier"
+      },
+      "expected_output": {
+        "required_paths": [
+          ".vela/config.toml",
+          ".vela/findings/vf_aabbccdd11223344.json",
+          ".vela/events/vev_0011223344556677.json",
+          ".vela/proposals/vpr_0011223344556677.json",
+          ".vela/proof-state.json"
+        ]
+      }
+    }
+  ]
+}

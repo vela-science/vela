@@ -1,0 +1,302 @@
+[
+  {
+    "source_id": "vf_d66a722c489a0a58",
+    "target_id": "vf_760739a4d542e55f",
+    "link_type": "supports",
+    "note": "The translocation of intranasal LPS to the olfactory bulb provides a plausible anatomical pathway for how intranasal ODE induces neuroinflammation."
+  },
+  {
+    "source_id": "vf_11c48dae28c00c01",
+    "target_id": "vf_e09c6196f26cdc8d",
+    "link_type": "supports",
+    "note": "Confirms that noise and air pollution lead to cerebral damage, supporting their status as risk factors."
+  },
+  {
+    "source_id": "vf_d4c8b53484cbcd74",
+    "target_id": "vf_e9559bce88da3370",
+    "link_type": "supports",
+    "note": "Inhibition of apoptosis via Bax/Bcl-2 regulation explains the preservation of learning and memory by Palmatine."
+  },
+  {
+    "source_id": "vf_23bac5adfab96713",
+    "target_id": "vf_d582aef76546a5ac",
+    "link_type": "supports",
+    "note": "The bidirectional link between neuroinflammation and epilepsy justifies the use of anti-inflammatory drugs for seizure treatment."
+  },
+  {
+    "source_id": "vf_f6760c451e7283ef",
+    "target_id": "vf_6d6225c9345e78d0",
+    "link_type": "supports",
+    "note": "Finding 6 identifies the specific molecular pathways (GSK-3\u03b2, CDK5, calpain) mediating the tau phosphorylation reported in finding 4."
+  },
+  {
+    "source_id": "vf_9e83b6fd40d53e29",
+    "target_id": "vf_65cd34dc3fa276e9",
+    "link_type": "supports",
+    "note": "Neurotrophic activity (neurite growth) is another mechanism for A\u03b225-35's protective effect against LPS."
+  },
+  {
+    "source_id": "vf_a6577e8e8596d032",
+    "target_id": "vf_026b95f62c6a2b67",
+    "link_type": "supports",
+    "note": "Provides the cellular basis (neurogenesis and anti-apoptosis) for OI's cognitive benefits."
+  },
+  {
+    "source_id": "vf_700b831df3d84487",
+    "target_id": "vf_f83d68a6f6590276",
+    "link_type": "supports",
+    "note": "Gut microbiota influence on AD is a primary focus of gut-brain axis (GBA) investigations. [entity_overlap: Cross-paper shared entity: alzheimer's disease]"
+  },
+  {
+    "source_id": "vf_e553316bd5787b5d",
+    "target_id": "vf_5db5d38fee6f903b",
+    "link_type": "supports",
+    "note": "Impairment of the glial lymphatic system is a proposed mechanism for how sleep deprivation leads to amyloid-beta deposition."
+  },
+  {
+    "source_id": "vf_9a055d50866e2a00",
+    "target_id": "vf_d4551fba67e1b4ec",
+    "link_type": "supports",
+    "note": "Antioxidant and anti-inflammatory mechanisms explain the increased survival rate of A\u03b2-treated PC12 cells."
+  },
+  {
+    "source_id": "vf_7bb22e7049f3bd39",
+    "target_id": "vf_be7ac1399e224e78",
+    "link_type": "contradicts",
+    "note": "Opposite directions on shared entity: polyphenols"
+  },
+  {
+    "source_id": "vf_dfa40808efe43c78",
+    "target_id": "vf_5950620b6c38d15f",
+    "link_type": "contradicts",
+    "note": "Opposite directions on shared entity: alzheimer's disease"
+  },
+  {
+    "source_id": "vf_a417cb7398ec266a",
+    "target_id": "vf_c8e142423072c0c7",
+    "link_type": "contradicts",
+    "note": "Opposite directions on shared entity: hippocampus"
+  },
+  {
+    "source_id": "vf_3c7617d0058a145e",
+    "target_id": "vf_3aa4032c98c28c5e",
+    "link_type": "contradicts",
+    "note": "Opposite directions on shared entity: alzheimer's disease"
+  },
+  {
+    "source_id": "vf_dfa40808efe43c78",
+    "target_id": "vf_04ae787edc3d2de4",
+    "link_type": "contradicts",
+    "note": "Opposite directions on shared entity: alzheimer's disease"
+  },
+  {
+    "source_id": "vf_8b094448204c5b67",
+    "target_id": "vf_5db5d38fee6f903b",
+    "link_type": "contradicts",
+    "note": "Opposite directions on shared entities: alzheimer disease amyloid a4 protein homolog, abpp, amyloid-beta precursor protein, amyloid precursor protein, amyloid-beta a4 protein (strong overlap)"
+  },
+  {
+    "source_id": "vf_791bdd9c47495ef0",
+    "target_id": "vf_69e9c158e9bb3b7c",
+    "link_type": "contradicts",
+    "note": "Opposite directions on shared entity: neuroinflammation"
+  },
+  {
+    "source_id": "vf_320dec678c55a2bf",
+    "target_id": "vf_e0df0579780f8e15",
+    "link_type": "contradicts",
+    "note": "Opposite directions on shared entity: blood-brain barrier"
+  },
+  {
+    "source_id": "vf_9265583226322553",
+    "target_id": "vf_7492502019f395a2",
+    "link_type": "contradicts",
+    "note": "Opposite directions on shared entities: appi, amyloid precursor protein, alzheimer disease amyloid protein, abpp, alzheimer disease amyloid a4 protein homolog, prea4, amyloid-beta (a4) precursor pr..."
+  },
+  {
+    "source_id": "vf_a7c58592750b3501",
+    "target_id": "vf_51f301625e373434",
+    "link_type": "contradicts",
+    "note": "Opposite directions on shared entities: cryopyrin, nacht, lrr and pyd domains-containing protein 3 (strong overlap)"
+  },
+  {
+    "source_id": "vf_6c9e73052c2569f3",
+    "target_id": "vf_a032d1f68eb49217",
+    "link_type": "extends",
+    "note": "Cross-paper shared entity: alzheimer's disease"
+  },
+  {
+    "source_id": "vf_36605a98137b6788",
+    "target_id": "vf_7146758822ac6890",
+    "link_type": "extends",
+    "note": "Cross-paper shared entity: alzheimer's disease"
+  },
+  {
+    "source_id": "vf_a502b992255b6107",
+    "target_id": "vf_c683cad8d7dc3cc6",
+    "link_type": "extends",
+    "note": "Cross-paper shared entity: microglia"
+  },
+  {
+    "source_id": "vf_4418eb0b54456040",
+    "target_id": "vf_4ad6276fe85c616a",
+    "link_type": "extends",
+    "note": "Cross-paper shared entity: app/ps1"
+  },
+  {
+    "source_id": "vf_8d63c7ec79ce670b",
+    "target_id": "vf_9265583226322553",
+    "link_type": "extends",
+    "note": "Cross-paper shared entities: amyloid-beta a4 protein, amyloid-beta precursor protein, alzheimer disease amyloid a4 protein homolog, abpp, amyloid precursor protein, alzheimer disease amyloid protei..."
+  },
+  {
+    "source_id": "vf_6ef2d3fc69b8cf5b",
+    "target_id": "vf_507936e1c07665b8",
+    "link_type": "extends",
+    "note": "Cross-paper shared entity: alzheimer's disease"
+  },
+  {
+    "source_id": "vf_6c9e73052c2569f3",
+    "target_id": "vf_5e0c29b2e892b2ac",
+    "link_type": "extends",
+    "note": "Cross-paper shared entity: alzheimer's disease"
+  },
+  {
+    "source_id": "vf_1e4fcb0355090645",
+    "target_id": "vf_a8e0d9a268df2731",
+    "link_type": "extends",
+    "note": "Cross-paper shared entity: alzheimer's disease"
+  },
+  {
+    "source_id": "vf_8d0ec3876296318a",
+    "target_id": "vf_adcdcc8112667057",
+    "link_type": "extends",
+    "note": "Cross-paper shared entity: hippocampus"
+  },
+  {
+    "source_id": "vf_8af0147e91fcdfd0",
+    "target_id": "vf_445dcfd374f10461",
+    "link_type": "extends",
+    "note": "Cross-paper shared entity: alzheimer's disease"
+  },
+  {
+    "source_id": "vf_51c1db2382c7274b",
+    "target_id": "vf_85ddc0d9f44d2339",
+    "link_type": "depends",
+    "note": "The contribution of gut microbiota to post-stroke brain complications relies on the bidirectional signaling of the MGBA."
+  },
+  {
+    "source_id": "vf_c73babe5b5ef8b5c",
+    "target_id": "vf_7eb0f1ceefb57392",
+    "link_type": "depends",
+    "note": "The reliance on oxidative phosphorylation in M2 microglia is regulated by metabolic sensors like AMPK."
+  },
+  {
+    "source_id": "vf_5bc4a060aacd6dce",
+    "target_id": "vf_1aa71870e2be6d9a",
+    "link_type": "depends",
+    "note": "The production of SAA via GPR81 is dependent on the presence of the Rib-high L. murinus strain."
+  },
+  {
+    "source_id": "vf_8155c721b481a6fd",
+    "target_id": "vf_507936e1c07665b8",
+    "link_type": "depends",
+    "note": "Lifestyle factors modulate microglia, but the underlying molecular mechanisms remain to be fully elucidated."
+  },
+  {
+    "source_id": "vf_44697d289074e32b",
+    "target_id": "vf_1089e5f0c1ec8c0d",
+    "link_type": "depends",
+    "note": "The ability of the nanosystem to target microglia depends on the preservation of exosomal membrane markers during the fusion process."
+  },
+  {
+    "source_id": "vf_70165d9587b15ae9",
+    "target_id": "vf_dfa40808efe43c78",
+    "link_type": "replicates",
+    "note": "Both findings independently show that specific treatments (HLJDD and polyphenols) reduce pro-inflammatory cytokines in the context of neurodegeneration."
+  },
+  {
+    "source_id": "vf_0bb27c417bcff580",
+    "target_id": "vf_c06f3979c7080304",
+    "link_type": "replicates",
+    "note": "Both HSD and probiotics demonstrate the ability to reduce amyloid-beta in different AD mouse models (SAMP8 and 5XFAD)."
+  },
+  {
+    "source_id": "vf_6a64457643f46a99",
+    "target_id": "vf_7e26bf1c8be20334",
+    "link_type": "replicates",
+    "note": "Both JDYZF and HEAL9 treatments demonstrate the reduction of Caspase-1, a key component of the neuroinflammatory response."
+  },
+  {
+    "source_id": "vf_bb124dc5f1f16fe5",
+    "target_id": "vf_96dec55595df4bd2",
+    "link_type": "replicates",
+    "note": "Both identify the induction of autophagy as a key mechanism for neuroprotection in different disease models."
+  },
+  {
+    "source_id": "vf_4d47632c9e0c9b66",
+    "target_id": "vf_8d097e016d623b02",
+    "link_type": "replicates",
+    "note": "Independently finds similar B-vitamin deficiencies in Parkinson's-related dementia as seen in Alzheimer's patients."
+  },
+  {
+    "source_id": "vf_09d24030e5b61d30",
+    "target_id": "vf_bd7021863cb4d68f",
+    "link_type": "supersedes",
+    "note": "Newer/higher-confidence finding on shared entity: alzheimer's disease"
+  },
+  {
+    "source_id": "vf_33b7cca80a2925ff",
+    "target_id": "vf_2fd09f3db579e08b",
+    "link_type": "supersedes",
+    "note": "Newer/higher-confidence finding on shared entity: alzheimer's disease"
+  },
+  {
+    "source_id": "vf_84a0087dfae6a0e3",
+    "target_id": "vf_f0f0628a532390ab",
+    "link_type": "supersedes",
+    "note": "Newer/higher-confidence finding on shared entity: alzheimer's disease"
+  },
+  {
+    "source_id": "vf_7e7cf7bb235a3ac0",
+    "target_id": "vf_0864643e8a84b965",
+    "link_type": "supersedes",
+    "note": "Newer/higher-confidence finding on shared entity: parkinson's disease"
+  },
+  {
+    "source_id": "vf_6ef2d3fc69b8cf5b",
+    "target_id": "vf_588aa35a69d9fcff",
+    "link_type": "supersedes",
+    "note": "Newer/higher-confidence finding on shared entity: alzheimer's disease"
+  },
+  {
+    "source_id": "vf_09d24030e5b61d30",
+    "target_id": "vf_d6a3bf8ead1392a9",
+    "link_type": "supersedes",
+    "note": "Newer/higher-confidence finding on shared entity: alzheimer's disease"
+  },
+  {
+    "source_id": "vf_4ae6d63251feeb45",
+    "target_id": "vf_c170b515fdd8c21a",
+    "link_type": "supersedes",
+    "note": "Newer/higher-confidence finding on shared entity: microglia"
+  },
+  {
+    "source_id": "vf_d766a1ce6e04a2fe",
+    "target_id": "vf_0a772777e8b8cfb2",
+    "link_type": "supersedes",
+    "note": "Newer/higher-confidence finding on shared entity: alzheimer's disease"
+  },
+  {
+    "source_id": "vf_d4551fba67e1b4ec",
+    "target_id": "vf_e50372737d2b4ec2",
+    "link_type": "supersedes",
+    "note": "Newer/higher-confidence finding on shared entity: a\u03b225-35"
+  },
+  {
+    "source_id": "vf_edc59bc7de7c6786",
+    "target_id": "vf_6ff99ef4feda3574",
+    "link_type": "supersedes",
+    "note": "Newer/higher-confidence finding on shared entity: alzheimer's disease"
+  }
+]

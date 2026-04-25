@@ -1,0 +1,23 @@
+{
+  "suite": "registry-publish-pull",
+  "description": "Phase S (v0.5): a registry entry's signature is Ed25519 over the canonical preimage of all entry fields except `signature` itself. Two implementations must agree on the signing-bytes derivation.",
+  "cases": [
+    {
+      "name": "canonical entry signing-bytes for a stable entry",
+      "input": {
+        "schema": "vela.registry-entry.v0.1",
+        "vfr_id": "vfr_aaaaaaaaaaaaaaaa",
+        "name": "Test Frontier",
+        "owner_actor_id": "reviewer:test",
+        "owner_pubkey": "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+        "latest_snapshot_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "latest_event_log_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "network_locator": "/tmp/x.json",
+        "signed_publish_at": "2026-04-25T00:00:00Z"
+      },
+      "expected_output": {
+        "preimage_sha256": "b8c531313b312112adf54fa47febd308e0953056a30b2e9d535b037a77a1317d"
+      }
+    }
+  ]
+}

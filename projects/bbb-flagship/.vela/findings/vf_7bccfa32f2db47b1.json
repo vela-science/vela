@@ -1,0 +1,138 @@
+{
+  "id": "vf_7bccfa32f2db47b1",
+  "version": 1,
+  "previous_version": null,
+  "assertion": {
+    "text": "The reversibility of amyloid beta-peptide-related pathology and the identity of key therapeutic targets for controlling amyloid levels in the aging brain remain debatable.",
+    "type": "theoretical",
+    "entities": [
+      {
+        "name": "amyloid-beta",
+        "type": "protein",
+        "identifiers": {},
+        "candidates": [],
+        "aliases": [
+          "amyloid beta-peptide",
+          "Aβ",
+          "Abeta",
+          "amyloid-beta peptide",
+          "beta-amyloid"
+        ],
+        "resolution_provenance": "checked-in raw/source-visible alias normalization",
+        "resolution_confidence": 1.0,
+        "resolution_method": "manual",
+        "species_context": "Homo sapiens"
+      }
+    ],
+    "relation": "correlates_with",
+    "direction": null
+  },
+  "evidence": {
+    "type": "theoretical",
+    "model_system": "",
+    "species": "Homo sapiens",
+    "method": "",
+    "sample_size": null,
+    "effect_size": null,
+    "p_value": null,
+    "replicated": false,
+    "replication_count": null,
+    "evidence_spans": [
+      {
+        "section": "abstract",
+        "text": "Whether Abeta-related pathology in the CNS is reversible or not and what key therapeutic targets are controlling Abeta/amyloid levels in the aging brain remain debatable."
+      }
+    ]
+  },
+  "conditions": {
+    "text": "Aging brain and Alzheimer's disease pathology.",
+    "species_verified": [],
+    "species_unverified": [],
+    "in_vitro": false,
+    "in_vivo": false,
+    "human_data": true,
+    "clinical_trial": false,
+    "concentration_range": null,
+    "duration": null,
+    "age_group": null,
+    "cell_type": null
+  },
+  "confidence": {
+    "kind": "frontier_epistemic",
+    "score": 0.0,
+    "basis": "frontier_epistemic: evidence=0.30 * replication=0.70 * model=1.00 * sample=0.60 - review_penalty=0.15 + calibration=0.00 = 0.000",
+    "method": "computed",
+    "components": {
+      "evidence_strength": 0.3,
+      "replication_strength": 0.7,
+      "sample_strength": 0.6,
+      "model_relevance": 1.0,
+      "review_penalty": 0.15,
+      "calibration_adjustment": 0.0
+    },
+    "extraction_confidence": 0.85
+  },
+  "provenance": {
+    "source_type": "published_paper",
+    "doi": "10.1161/01.str.0000143452.85382.d1",
+    "pmid": "15459432",
+    "pmc": null,
+    "openalex_id": null,
+    "title": "RAGE (yin) versus LRP (yang) balance regulates alzheimer amyloid beta-peptide clearance through transport across the blood-brain barrier.",
+    "authors": [
+      {
+        "name": "Deane R",
+        "orcid": null
+      },
+      {
+        "name": "Wu Z",
+        "orcid": null
+      },
+      {
+        "name": "Zlokovic BV",
+        "orcid": null
+      }
+    ],
+    "year": 2004,
+    "journal": "Stroke",
+    "extraction": {
+      "method": "llm_extraction",
+      "model": "gemini-3-flash-preview",
+      "model_version": null,
+      "extracted_at": "2026-04-10T04:01:06.595806+00:00",
+      "extractor_version": "vela/0.2.0"
+    },
+    "review": null,
+    "citation_count": 0
+  },
+  "flags": {
+    "gap": true,
+    "negative_space": false,
+    "contested": true,
+    "retracted": false,
+    "declining": false,
+    "gravity_well": false,
+    "gap_info": {
+      "gap_status": "open",
+      "gap_priority": "high",
+      "gap_notes": [
+        {
+          "author": "worker_a_bbb_curation",
+          "text": "Structured from the source-visible abstract statement that Abeta pathology reversibility and key therapeutic targets for controlling aging-brain Abeta/amyloid levels remain debatable. Treat as a candidate gap, not as a validated experiment target.",
+          "timestamp": "2026-04-22T00:00:00Z"
+        }
+      ]
+    }
+  },
+  "links": [],
+  "annotations": [
+    {
+      "id": "ann_cbe07acddd06be08",
+      "text": "Curation limitation: checked-in source text for this finding contains title and abstract only; evidence is grounded to the abstract span and does not verify full-text methods, figures, tables, supplementary material, or exact controls/sample details.",
+      "author": "worker_a_bbb_curation",
+      "timestamp": "2026-04-22T00:00:00Z"
+    }
+  ],
+  "created": "2026-04-10T04:01:06.596021+00:00",
+  "updated": null
+}

@@ -1,0 +1,195 @@
+{
+  "id": "vf_171833bd31b24037",
+  "version": 1,
+  "previous_version": null,
+  "assertion": {
+    "text": "Brain capillary LRP levels are reduced in patients with Alzheimer's disease and cerebrovascular beta-amyloidosis.",
+    "type": "observational",
+    "entities": [
+      {
+        "name": "LRP1",
+        "type": "protein",
+        "identifiers": {},
+        "candidates": [],
+        "aliases": [
+          "LRP",
+          "low-density lipoprotein receptor-related protein",
+          "low-density lipoprotein receptor related protein 1"
+        ],
+        "resolution_provenance": "checked-in raw/source-visible alias normalization",
+        "resolution_confidence": 1.0,
+        "resolution_method": "manual",
+        "species_context": "Homo sapiens"
+      },
+      {
+        "name": "Alzheimer's disease",
+        "type": "disease",
+        "identifiers": {},
+        "candidates": [],
+        "aliases": [],
+        "resolution_confidence": 1.0,
+        "species_context": "Homo sapiens"
+      },
+      {
+        "name": "cerebrovascular beta-amyloidosis",
+        "type": "disease",
+        "identifiers": {},
+        "candidates": [],
+        "aliases": [],
+        "resolution_confidence": 1.0,
+        "species_context": "Homo sapiens"
+      }
+    ],
+    "relation": "correlates_with",
+    "direction": "negative"
+  },
+  "evidence": {
+    "type": "observational",
+    "model_system": "human brain tissue",
+    "species": "Homo sapiens",
+    "method": "immunohistochemistry or Western blot of brain capillaries",
+    "sample_size": null,
+    "effect_size": null,
+    "p_value": null,
+    "replicated": false,
+    "replication_count": null,
+    "evidence_spans": [
+      {
+        "section": "abstract",
+        "text": "reduced brain capillary LRP levels in Abeta-accumulating transgenic mice, AD, and patients with cerebrovascular beta-amyloidosis."
+      }
+    ]
+  },
+  "conditions": {
+    "text": "Alzheimer's disease, cerebrovascular beta-amyloidosis",
+    "species_verified": [],
+    "species_unverified": [],
+    "in_vitro": false,
+    "in_vivo": false,
+    "human_data": true,
+    "clinical_trial": false,
+    "concentration_range": null,
+    "duration": null,
+    "age_group": null,
+    "cell_type": null
+  },
+  "confidence": {
+    "kind": "frontier_epistemic",
+    "score": 0.273,
+    "basis": "frontier_epistemic: evidence=0.65 * replication=0.70 * model=1.00 * sample=0.60 - review_penalty=0.00 + calibration=0.00 = 0.273",
+    "method": "computed",
+    "components": {
+      "evidence_strength": 0.65,
+      "replication_strength": 0.7,
+      "sample_strength": 0.6,
+      "model_relevance": 1.0,
+      "review_penalty": 0.0,
+      "calibration_adjustment": 0.0
+    },
+    "extraction_confidence": 0.85
+  },
+  "provenance": {
+    "source_type": "published_paper",
+    "doi": "10.1016/j.neuron.2004.07.017",
+    "pmid": "15294142",
+    "pmc": null,
+    "openalex_id": null,
+    "title": "LRP/amyloid beta-peptide interaction mediates differential brain efflux of Abeta isoforms.",
+    "authors": [
+      {
+        "name": "Deane R",
+        "orcid": null
+      },
+      {
+        "name": "Wu Z",
+        "orcid": null
+      },
+      {
+        "name": "Sagare A",
+        "orcid": null
+      },
+      {
+        "name": "Davis J",
+        "orcid": null
+      },
+      {
+        "name": "Du Yan S",
+        "orcid": null
+      },
+      {
+        "name": "Hamm K",
+        "orcid": null
+      },
+      {
+        "name": "Xu F",
+        "orcid": null
+      },
+      {
+        "name": "Parisi M",
+        "orcid": null
+      },
+      {
+        "name": "LaRue B",
+        "orcid": null
+      },
+      {
+        "name": "Hu HW",
+        "orcid": null
+      },
+      {
+        "name": "Spijkers P",
+        "orcid": null
+      },
+      {
+        "name": "Guo H",
+        "orcid": null
+      },
+      {
+        "name": "Song X",
+        "orcid": null
+      },
+      {
+        "name": "Lenting PJ",
+        "orcid": null
+      },
+      {
+        "name": "Van Nostrand WE",
+        "orcid": null
+      },
+      {
+        "name": "Zlokovic BV",
+        "orcid": null
+      }
+    ],
+    "year": 2004,
+    "journal": "Neuron",
+    "extraction": {
+      "method": "llm_extraction",
+      "model": "gemini-3-flash-preview",
+      "model_version": null,
+      "extracted_at": "2026-04-10T03:59:36.942244+00:00",
+      "extractor_version": "vela/0.2.0"
+    },
+    "review": null,
+    "citation_count": 0
+  },
+  "flags": {
+    "gap": false,
+    "negative_space": false,
+    "contested": false,
+    "retracted": false,
+    "declining": false,
+    "gravity_well": false
+  },
+  "links": [],
+  "annotations": [
+    {
+      "id": "ann_ffb898e26b90c420",
+      "text": "Curation limitation: checked-in source text for this finding contains title and abstract only; evidence is grounded to the abstract span and does not verify full-text methods, figures, tables, supplementary material, or exact controls/sample details.",
+      "author": "worker_a_bbb_curation",
+      "timestamp": "2026-04-22T00:00:00Z"
+    }
+  ],
+  "created": "2026-04-10T03:59:36.942543+00:00",
+  "updated": null
+}

@@ -1,0 +1,8 @@
+DOI: 10.1038/s41467-018-04529-6
+PMID: 30046032
+Year: 2018
+Journal: 
+Title: Blood-brain barrier opening in Alzheimer's disease using MR-guided focused ultrasound.
+
+Abstract:
+Magnetic resonance-guided focused ultrasound in combination with intravenously injected microbubbles has been shown to transiently open the blood-brain barrier, and reduce beta-amyloid and tau pathology in animal models of Alzheimer's disease. Here, we used focused ultrasound to open the blood-brain barrier in five patients with early to moderate Alzheimer's disease in a phase I safety trial. In all patients, the blood-brain barrier within the target volume was safely, reversibly, and repeatedly opened. Opening the blood-brain barrier did not result in serious clinical or radiographic adverse events, as well as no clinically significant worsening on cognitive scores at three months compared to baseline. Beta-amyloid levels were measured before treatment using [<sup>18</sup>F]-florbetaben PET to confirm amyloid deposition at the target site. Exploratory analysis suggested no group-wise changes in amyloid post-sonication. The results of this safety and feasibility study support the continued investigation of focused ultrasound as a potential novel treatment and delivery strategy for patients with Alzheimer's disease.

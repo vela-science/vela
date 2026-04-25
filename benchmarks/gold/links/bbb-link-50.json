@@ -1,0 +1,50 @@
+[
+  {
+    "source_id": "vf_08c81dd507f6a047",
+    "target_id": "vf_360d7404e3581d52",
+    "link_type": "extends",
+    "note": "Cross-paper shared Alzheimer's disease context."
+  },
+  {
+    "source_id": "vf_0d9407f02d2fc4ef",
+    "target_id": "vf_cef95b1b18c2f30e",
+    "link_type": "extends",
+    "note": "Cross-paper shared amyloid-beta peptide and RAGE context."
+  },
+  {
+    "source_id": "vf_171833bd31b24037",
+    "target_id": "vf_99342d2a82fdc7a9",
+    "link_type": "extends",
+    "note": "Cross-paper shared LRP context."
+  },
+  {
+    "source_id": "vf_22fce8c7f8c04c5c",
+    "target_id": "vf_47ebdf11b9b45680",
+    "link_type": "extends",
+    "note": "Cross-paper shared amyloid-beta context."
+  },
+  {
+    "source_id": "vf_360d7404e3581d52",
+    "target_id": "vf_22fce8c7f8c04c5c",
+    "link_type": "extends",
+    "note": "Cross-paper shared amyloid-beta and PICALM context."
+  },
+  {
+    "source_id": "vf_47ebdf11b9b45680",
+    "target_id": "vf_138c6e88e8273ba6",
+    "link_type": "extends",
+    "note": "Cross-paper shared LRP context."
+  },
+  {
+    "source_id": "vf_5021284e4155f141",
+    "target_id": "vf_8dfd242d30a1d4d0",
+    "link_type": "extends",
+    "note": "Cross-paper shared RAGE, LRP1, and amyloid beta-peptide context."
+  },
+  {
+    "source_id": "vf_746ba25290eb022f",
+    "target_id": "vf_8389130295d81413",
+    "link_type": "extends",
+    "note": "Cross-paper shared ATV:TREM2 and microglia context."
+  }
+]

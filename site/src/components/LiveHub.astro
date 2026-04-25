@@ -1,0 +1,107 @@
+---
+// Lightweight progressive-enhancement island. Server-renders a static
+// placeholder; on viewport-visible the inline script swaps in the live
+// count and latest-publish-at fetched directly from the public hub.
+// No framework runtime.
+---
+<aside class="live-hub" data-live-hub>
+  <div class="live-hub__row">
+    <span class="live-hub__dot" aria-hidden="true"></span>
+    <span class="live-hub__label">Hub status</span>
+    <span class="live-hub__sep">·</span>
+    <span class="live-hub__count" data-count>—</span>
+    <span class="live-hub__sep">·</span>
+    <span class="live-hub__latest" data-latest>—</span>
+    <a class="live-hub__link" href="https://vela-hub.fly.dev/entries">
+      vela-hub.fly.dev →
+    </a>
+  </div>
+</aside>
+
+<style>
+  .live-hub {
+    border: 1px solid var(--rule-2);
+    padding: 12px 18px;
+    background: var(--paper-1);
+    margin: 0 0 16px;
+    border-radius: var(--radius-1);
+  }
+  .live-hub__row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 10px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--ink-2);
+  }
+  .live-hub__dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--signal);
+    box-shadow: 0 0 0 2px var(--signal-soft);
+    align-self: center;
+  }
+  .live-hub__label {
+    color: var(--ink-3);
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    font-size: 10px;
+  }
+  .live-hub__sep { color: var(--ink-3); }
+  .live-hub__count { color: var(--ink-0); font-variant-numeric: tabular-nums; }
+  .live-hub__latest {
+    color: var(--ink-2);
+    font-variant-numeric: tabular-nums;
+  }
+  .live-hub__link {
+    margin-left: auto;
+    color: var(--ink-3);
+    border-bottom: 1px solid var(--rule-2);
+  }
+  .live-hub__link:hover { color: var(--ink-0); border-bottom-color: var(--rule-ink); }
+</style>
+
+<script>
+  // Fetch the registry summary from the public hub. Fail silent —
+  // the rendered placeholder text remains if anything goes wrong, and
+  // we never block the page on the network.
+  (async function () {
+    const root = document.querySelector("[data-live-hub]");
+    if (!root) return;
+
+    try {
+      const resp = await fetch("https://vela-hub.fly.dev/entries", {
+        headers: { accept: "application/json" },
+      });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const data: { entries: Array<{ signed_publish_at?: string }> } =
+        await resp.json();
+      const count = data.entries?.length ?? 0;
+      const latest = data.entries?.reduce<string | undefined>(
+        (acc, e) =>
+          !acc || (e.signed_publish_at && e.signed_publish_at > acc)
+            ? e.signed_publish_at
+            : acc,
+        undefined,
+      );
+      const countEl = root.querySelector("[data-count]");
+      const latestEl = root.querySelector("[data-latest]");
+      if (countEl) {
+        countEl.textContent = `${count} ${count === 1 ? "frontier" : "frontiers"}`;
+      }
+      if (latestEl) {
+        if (latest) {
+          const d = new Date(latest);
+          latestEl.textContent = `latest publish ${d.toISOString().slice(0, 16).replace("T", " ")}Z`;
+        } else {
+          latestEl.textContent = "no publishes yet";
+        }
+      }
+    } catch (err) {
+      const countEl = root.querySelector("[data-count]");
+      if (countEl) countEl.textContent = "(hub unreachable)";
+    }
+  })();
+</script>

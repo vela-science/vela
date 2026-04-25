@@ -1,0 +1,201 @@
+{
+  "id": "vf_f4445212405c2730",
+  "version": 1,
+  "previous_version": null,
+  "assertion": {
+    "text": "Transgenic mice expressing mutant Abeta with low LRP-clearance develop robust cerebral Abeta accumulations earlier than Tg-2576 mice that overproduce Abeta.",
+    "type": "observational",
+    "entities": [
+      {
+        "name": "amyloid-beta",
+        "type": "protein",
+        "identifiers": {},
+        "candidates": [],
+        "aliases": [
+          "Aβ",
+          "Abeta",
+          "amyloid beta-peptide"
+        ],
+        "resolution_provenance": "checked-in raw/source-visible alias normalization",
+        "resolution_confidence": 1.0,
+        "resolution_method": "manual",
+        "species_context": "Mus musculus"
+      },
+      {
+        "name": "LRP1",
+        "type": "protein",
+        "identifiers": {},
+        "candidates": [],
+        "aliases": [
+          "LRP",
+          "low-density lipoprotein receptor-related protein",
+          "low-density lipoprotein receptor related protein 1"
+        ],
+        "resolution_provenance": "checked-in raw/source-visible alias normalization",
+        "resolution_confidence": 1.0,
+        "resolution_method": "manual",
+        "species_context": "Mus musculus"
+      },
+      {
+        "name": "Tg-2576",
+        "type": "organism",
+        "identifiers": {},
+        "candidates": [],
+        "aliases": [],
+        "resolution_confidence": 1.0,
+        "species_context": "Mus musculus"
+      }
+    ],
+    "relation": "correlates_with",
+    "direction": "positive"
+  },
+  "evidence": {
+    "type": "experimental",
+    "model_system": "mouse, transgenic (low LRP-clearance mutant vs Tg-2576)",
+    "species": "Mus musculus",
+    "method": "histology/biochemical accumulation analysis",
+    "sample_size": null,
+    "effect_size": null,
+    "p_value": null,
+    "replicated": false,
+    "replication_count": null,
+    "evidence_spans": [
+      {
+        "section": "abstract",
+        "text": "transgenic mice expressing low LRP-clearance mutant Abeta develop robust Abeta cerebral accumulations much earlier than Tg-2576 Abeta-overproducing mice."
+      }
+    ]
+  },
+  "conditions": {
+    "text": "comparison of low LRP-clearance mutant Abeta vs Abeta-overproducing Tg-2576",
+    "species_verified": [],
+    "species_unverified": [],
+    "in_vitro": false,
+    "in_vivo": true,
+    "human_data": false,
+    "clinical_trial": false,
+    "concentration_range": null,
+    "duration": null,
+    "age_group": null,
+    "cell_type": null
+  },
+  "confidence": {
+    "kind": "frontier_epistemic",
+    "score": 0.269,
+    "basis": "frontier_epistemic: evidence=0.80 * replication=0.70 * model=0.80 * sample=0.60 - review_penalty=0.00 + calibration=0.00 = 0.269",
+    "method": "computed",
+    "components": {
+      "evidence_strength": 0.8,
+      "replication_strength": 0.7,
+      "sample_strength": 0.6,
+      "model_relevance": 0.8,
+      "review_penalty": 0.0,
+      "calibration_adjustment": 0.0
+    },
+    "extraction_confidence": 0.85
+  },
+  "provenance": {
+    "source_type": "published_paper",
+    "doi": "10.1016/j.neuron.2004.07.017",
+    "pmid": "15294142",
+    "pmc": null,
+    "openalex_id": null,
+    "title": "LRP/amyloid beta-peptide interaction mediates differential brain efflux of Abeta isoforms.",
+    "authors": [
+      {
+        "name": "Deane R",
+        "orcid": null
+      },
+      {
+        "name": "Wu Z",
+        "orcid": null
+      },
+      {
+        "name": "Sagare A",
+        "orcid": null
+      },
+      {
+        "name": "Davis J",
+        "orcid": null
+      },
+      {
+        "name": "Du Yan S",
+        "orcid": null
+      },
+      {
+        "name": "Hamm K",
+        "orcid": null
+      },
+      {
+        "name": "Xu F",
+        "orcid": null
+      },
+      {
+        "name": "Parisi M",
+        "orcid": null
+      },
+      {
+        "name": "LaRue B",
+        "orcid": null
+      },
+      {
+        "name": "Hu HW",
+        "orcid": null
+      },
+      {
+        "name": "Spijkers P",
+        "orcid": null
+      },
+      {
+        "name": "Guo H",
+        "orcid": null
+      },
+      {
+        "name": "Song X",
+        "orcid": null
+      },
+      {
+        "name": "Lenting PJ",
+        "orcid": null
+      },
+      {
+        "name": "Van Nostrand WE",
+        "orcid": null
+      },
+      {
+        "name": "Zlokovic BV",
+        "orcid": null
+      }
+    ],
+    "year": 2004,
+    "journal": "Neuron",
+    "extraction": {
+      "method": "llm_extraction",
+      "model": "gemini-3-flash-preview",
+      "model_version": null,
+      "extracted_at": "2026-04-10T03:59:36.942244+00:00",
+      "extractor_version": "vela/0.2.0"
+    },
+    "review": null,
+    "citation_count": 0
+  },
+  "flags": {
+    "gap": false,
+    "negative_space": false,
+    "contested": false,
+    "retracted": false,
+    "declining": false,
+    "gravity_well": false
+  },
+  "links": [],
+  "annotations": [
+    {
+      "id": "ann_a031b423096bdfee",
+      "text": "Curation limitation: checked-in source text for this finding contains title and abstract only; evidence is grounded to the abstract span and does not verify full-text methods, figures, tables, supplementary material, or exact controls/sample details.",
+      "author": "worker_a_bbb_curation",
+      "timestamp": "2026-04-22T00:00:00Z"
+    }
+  ],
+  "created": "2026-04-10T03:59:36.942480+00:00",
+  "updated": null
+}

@@ -1,0 +1,2 @@
+This file intentionally uses an unsupported extension. Vela should skip it and
+record the skip in compile-report.json instead of silently ignoring it.

@@ -1,0 +1,207 @@
+{
+  "id": "vf_601efd54eb136de8",
+  "version": 1,
+  "previous_version": null,
+  "assertion": {
+    "text": "The degree of amyloid-beta reduction in the primate brain correlates with the brain concentration of the anti-TfR/BACE1 antibody.",
+    "type": "mechanism",
+    "entities": [
+      {
+        "name": "amyloid-beta",
+        "type": "protein",
+        "identifiers": {},
+        "candidates": [],
+        "aliases": [
+          "Aβ",
+          "Abeta",
+          "amyloid beta-peptide"
+        ],
+        "resolution_provenance": "checked-in raw/source-visible alias normalization",
+        "resolution_confidence": 1.0,
+        "resolution_method": "manual",
+        "species_context": "nonhuman primate"
+      },
+      {
+        "name": "anti-TfR/BACE1 bispecific antibody",
+        "type": "compound",
+        "identifiers": {},
+        "candidates": [],
+        "aliases": [
+          "anti-TfR/BACE1 antibody",
+          "TfR/BACE1 bispecific antibody"
+        ],
+        "resolution_provenance": "checked-in raw/source-visible alias normalization",
+        "resolution_confidence": 1.0,
+        "resolution_method": "manual",
+        "species_context": "humanized"
+      }
+    ],
+    "relation": "correlates_with",
+    "direction": "positive"
+  },
+  "evidence": {
+    "type": "experimental",
+    "model_system": "monkey",
+    "species": "nonhuman primate",
+    "method": "intravenous dosing, concentration-effect analysis",
+    "sample_size": null,
+    "effect_size": null,
+    "p_value": null,
+    "replicated": false,
+    "replication_count": null,
+    "evidence_spans": [
+      {
+        "section": "abstract",
+        "text": "the degree of reduction correlated with the brain concentration of anti-TfR/BACE1 antibody."
+      }
+    ]
+  },
+  "conditions": {
+    "text": "intravenous dosing of anti-TfR/BACE1 antibodies",
+    "species_verified": [],
+    "species_unverified": [],
+    "in_vitro": false,
+    "in_vivo": true,
+    "human_data": false,
+    "clinical_trial": false,
+    "concentration_range": null,
+    "duration": null,
+    "age_group": null,
+    "cell_type": null
+  },
+  "confidence": {
+    "kind": "frontier_epistemic",
+    "score": 0.269,
+    "basis": "frontier_epistemic: evidence=0.80 * replication=0.70 * model=0.80 * sample=0.60 - review_penalty=0.00 + calibration=0.00 = 0.269",
+    "method": "computed",
+    "components": {
+      "evidence_strength": 0.8,
+      "replication_strength": 0.7,
+      "sample_strength": 0.6,
+      "model_relevance": 0.8,
+      "review_penalty": 0.0,
+      "calibration_adjustment": 0.0
+    },
+    "extraction_confidence": 0.85
+  },
+  "provenance": {
+    "source_type": "published_paper",
+    "doi": "10.1126/scitranslmed.3009835",
+    "pmid": "25378646",
+    "pmc": null,
+    "openalex_id": null,
+    "title": "Therapeutic bispecific antibodies cross the blood-brain barrier in nonhuman primates.",
+    "authors": [
+      {
+        "name": "Yu YJ",
+        "orcid": null
+      },
+      {
+        "name": "Atwal JK",
+        "orcid": null
+      },
+      {
+        "name": "Zhang Y",
+        "orcid": null
+      },
+      {
+        "name": "Tong RK",
+        "orcid": null
+      },
+      {
+        "name": "Wildsmith KR",
+        "orcid": null
+      },
+      {
+        "name": "Tan C",
+        "orcid": null
+      },
+      {
+        "name": "Bien-Ly N",
+        "orcid": null
+      },
+      {
+        "name": "Hersom M",
+        "orcid": null
+      },
+      {
+        "name": "Maloney JA",
+        "orcid": null
+      },
+      {
+        "name": "Meilandt WJ",
+        "orcid": null
+      },
+      {
+        "name": "Bumbaca D",
+        "orcid": null
+      },
+      {
+        "name": "Gadkar K",
+        "orcid": null
+      },
+      {
+        "name": "Hoyte K",
+        "orcid": null
+      },
+      {
+        "name": "Luk W",
+        "orcid": null
+      },
+      {
+        "name": "Lu Y",
+        "orcid": null
+      },
+      {
+        "name": "Ernst JA",
+        "orcid": null
+      },
+      {
+        "name": "Scearce-Levie K",
+        "orcid": null
+      },
+      {
+        "name": "Couch JA",
+        "orcid": null
+      },
+      {
+        "name": "Dennis MS",
+        "orcid": null
+      },
+      {
+        "name": "Watts RJ",
+        "orcid": null
+      }
+    ],
+    "year": 2014,
+    "journal": "Sci Transl Med",
+    "extraction": {
+      "method": "llm_extraction",
+      "model": "gemini-3-flash-preview",
+      "model_version": null,
+      "extracted_at": "2026-04-10T04:17:43.380586+00:00",
+      "extractor_version": "vela/0.2.0"
+    },
+    "review": null,
+    "citation_count": 0
+  },
+  "flags": {
+    "gap": false,
+    "negative_space": false,
+    "contested": false,
+    "retracted": false,
+    "declining": false,
+    "gravity_well": false
+  },
+  "links": [],
+  "annotations": [
+    {
+      "id": "ann_2a7f81f0d2d393da",
+      "text": "Curation limitation: checked-in source text for this finding contains title and abstract only; evidence is grounded to the abstract span and does not verify full-text methods, figures, tables, supplementary material, or exact controls/sample details.",
+      "author": "worker_a_bbb_curation",
+      "timestamp": "2026-04-22T00:00:00Z"
+    }
+  ],
+  "created": "2026-04-10T04:17:43.380920+00:00",
+  "updated": null
+}

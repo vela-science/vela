@@ -1,0 +1,854 @@
+{
+  "suite": "id-generation",
+  "description": "Content-addressed finding IDs: vf_ + first 16 hex chars of SHA-256(normalize(assertion.text) | assertion.type | provenance identifier).",
+  "cases": [
+    {
+      "name": "meta-analysis mechanism finding",
+      "input": {
+        "assertion": {
+          "text": "NLRP3 activates IL-1B",
+          "type": "mechanism",
+          "entities": [
+            {
+              "name": "NLRP3",
+              "type": "protein",
+              "identifiers": {},
+              "candidates": [],
+              "aliases": [],
+              "resolution_confidence": 1.0
+            }
+          ],
+          "relation": "activates",
+          "direction": "positive"
+        },
+        "evidence": {
+          "type": "meta_analysis",
+          "model_system": "human",
+          "species": "Homo sapiens",
+          "method": "systematic review",
+          "sample_size": "n=5000",
+          "effect_size": "OR=2.1",
+          "p_value": "p<0.001",
+          "replicated": true,
+          "replication_count": 10,
+          "evidence_spans": []
+        },
+        "conditions": {
+          "text": "Human clinical data",
+          "species_verified": [
+            "Homo sapiens"
+          ],
+          "species_unverified": [],
+          "in_vitro": false,
+          "in_vivo": false,
+          "human_data": true,
+          "clinical_trial": true,
+          "concentration_range": null,
+          "duration": null,
+          "age_group": null,
+          "cell_type": null
+        },
+        "confidence": {
+          "score": 0.95,
+          "basis": "meta-analysis",
+          "extraction_confidence": 0.9
+        },
+        "provenance": {
+          "source_type": "published_paper",
+          "doi": "10.1038/s41586-024-00001",
+          "pmid": null,
+          "pmc": null,
+          "openalex_id": null,
+          "title": "Meta-analysis of NLRP3 inflammasome",
+          "authors": [
+            {
+              "name": "Chen L",
+              "orcid": null
+            }
+          ],
+          "year": 2024,
+          "journal": "Nature",
+          "extraction": {
+            "method": "llm_extraction",
+            "model": null,
+            "model_version": null,
+            "extracted_at": "",
+            "extractor_version": "vela/0.2.0"
+          },
+          "review": null,
+          "citation_count": 500
+        }
+      },
+      "expected_output": {
+        "id": "vf_cad83d22fd2c511d",
+        "id_length": 19,
+        "prefix": "vf_"
+      }
+    },
+    {
+      "name": "therapeutic RCT finding with two entities",
+      "input": {
+        "assertion": {
+          "text": "Donepezil improves cognitive function in mild AD",
+          "type": "therapeutic",
+          "entities": [
+            {
+              "name": "Donepezil",
+              "type": "compound",
+              "identifiers": {},
+              "candidates": [],
+              "aliases": [],
+              "resolution_confidence": 1.0
+            },
+            {
+              "name": "Alzheimer's disease",
+              "type": "disease",
+              "identifiers": {},
+              "candidates": [],
+              "aliases": [],
+              "resolution_confidence": 1.0
+            }
+          ],
+          "relation": "treats",
+          "direction": "positive"
+        },
+        "evidence": {
+          "type": "experimental",
+          "model_system": "human",
+          "species": "Homo sapiens",
+          "method": "randomized controlled trial",
+          "sample_size": "n=300",
+          "effect_size": "Cohen d=0.4",
+          "p_value": "p=0.002",
+          "replicated": true,
+          "replication_count": 5,
+          "evidence_spans": []
+        },
+        "conditions": {
+          "text": "Mild Alzheimer's disease patients",
+          "species_verified": [
+            "Homo sapiens"
+          ],
+          "species_unverified": [],
+          "in_vitro": false,
+          "in_vivo": false,
+          "human_data": true,
+          "clinical_trial": true,
+          "concentration_range": "5-10mg daily",
+          "duration": "24 weeks",
+          "age_group": "65+",
+          "cell_type": null
+        },
+        "confidence": {
+          "score": 0.88,
+          "basis": "RCT with replication",
+          "extraction_confidence": 0.92
+        },
+        "provenance": {
+          "source_type": "published_paper",
+          "doi": "10.1016/j.jalz.2024.01.001",
+          "pmid": null,
+          "pmc": null,
+          "openalex_id": null,
+          "title": "Donepezil efficacy meta-analysis",
+          "authors": [
+            {
+              "name": "Wang K",
+              "orcid": null
+            }
+          ],
+          "year": 2024,
+          "journal": "Alzheimer's & Dementia",
+          "extraction": {
+            "method": "llm_extraction",
+            "model": null,
+            "model_version": null,
+            "extracted_at": "",
+            "extractor_version": "vela/0.2.0"
+          },
+          "review": null,
+          "citation_count": 200
+        }
+      },
+      "expected_output": {
+        "id": "vf_db04908711cf9f79",
+        "id_length": 19,
+        "prefix": "vf_"
+      }
+    },
+    {
+      "name": "unicode text with Greek letters and superscripts",
+      "input": {
+        "assertion": {
+          "text": "Amyloid-β oligomers impair synaptic plasticity via Ca²⁺ dysregulation",
+          "type": "mechanism",
+          "entities": [
+            {
+              "name": "Amyloid-β",
+              "type": "protein",
+              "identifiers": {},
+              "candidates": [],
+              "aliases": [],
+              "resolution_confidence": 1.0
+            }
+          ],
+          "relation": "impairs",
+          "direction": "negative"
+        },
+        "evidence": {
+          "type": "experimental",
+          "model_system": "rat hippocampal slices",
+          "species": "Rattus norvegicus",
+          "method": "electrophysiology",
+          "sample_size": "n=24",
+          "effect_size": null,
+          "p_value": "p<0.01",
+          "replicated": false,
+          "replication_count": null,
+          "evidence_spans": []
+        },
+        "conditions": {
+          "text": "In vitro hippocampal slice preparation",
+          "species_verified": [
+            "Rattus norvegicus"
+          ],
+          "species_unverified": [],
+          "in_vitro": true,
+          "in_vivo": false,
+          "human_data": false,
+          "clinical_trial": false,
+          "concentration_range": "100nM-1μM",
+          "duration": "2 hours",
+          "age_group": null,
+          "cell_type": "hippocampal neurons"
+        },
+        "confidence": {
+          "score": 0.72,
+          "basis": "single study",
+          "extraction_confidence": 0.85
+        },
+        "provenance": {
+          "source_type": "published_paper",
+          "doi": "10.1523/JNEUROSCI.2024.00123",
+          "pmid": null,
+          "pmc": null,
+          "openalex_id": null,
+          "title": "Amyloid-β and synaptic Ca²⁺ signaling",
+          "authors": [
+            {
+              "name": "Tanaka Y",
+              "orcid": null
+            }
+          ],
+          "year": 2023,
+          "journal": "Journal of Neuroscience",
+          "extraction": {
+            "method": "llm_extraction",
+            "model": null,
+            "model_version": null,
+            "extracted_at": "",
+            "extractor_version": "vela/0.2.0"
+          },
+          "review": null,
+          "citation_count": 45
+        }
+      },
+      "expected_output": {
+        "id": "vf_244970e20576a1fe",
+        "id_length": 19,
+        "prefix": "vf_"
+      }
+    },
+    {
+      "name": "missing DOI with PMID only",
+      "input": {
+        "assertion": {
+          "text": "Tau phosphorylation at Thr231 correlates with disease severity",
+          "type": "biomarker",
+          "entities": [
+            {
+              "name": "Tau",
+              "type": "protein",
+              "identifiers": {},
+              "candidates": [],
+              "aliases": [],
+              "resolution_confidence": 1.0
+            }
+          ],
+          "relation": "correlates",
+          "direction": "positive"
+        },
+        "evidence": {
+          "type": "observational",
+          "model_system": "human CSF",
+          "species": "Homo sapiens",
+          "method": "ELISA",
+          "sample_size": "n=150",
+          "effect_size": "r=0.65",
+          "p_value": "p<0.001",
+          "replicated": true,
+          "replication_count": 3,
+          "evidence_spans": []
+        },
+        "conditions": {
+          "text": "CSF samples from AD patients",
+          "species_verified": [
+            "Homo sapiens"
+          ],
+          "species_unverified": [],
+          "in_vitro": false,
+          "in_vivo": false,
+          "human_data": true,
+          "clinical_trial": false,
+          "concentration_range": null,
+          "duration": null,
+          "age_group": "60-85",
+          "cell_type": null
+        },
+        "confidence": {
+          "score": 0.8,
+          "basis": "observational with replication",
+          "extraction_confidence": 0.88
+        },
+        "provenance": {
+          "source_type": "published_paper",
+          "doi": null,
+          "pmid": "38012345",
+          "pmc": null,
+          "openalex_id": null,
+          "title": "Phospho-tau biomarkers in AD",
+          "authors": [
+            {
+              "name": "Park J",
+              "orcid": null
+            }
+          ],
+          "year": 2023,
+          "journal": "Neurology",
+          "extraction": {
+            "method": "llm_extraction",
+            "model": null,
+            "model_version": null,
+            "extracted_at": "",
+            "extractor_version": "vela/0.2.0"
+          },
+          "review": null,
+          "citation_count": 80
+        }
+      },
+      "expected_output": {
+        "id": "vf_78dc70dfd1b3d4dd",
+        "id_length": 19,
+        "prefix": "vf_"
+      }
+    },
+    {
+      "name": "empty strings everywhere (edge case)",
+      "input": {
+        "assertion": {
+          "text": "",
+          "type": "mechanism",
+          "entities": [],
+          "relation": null,
+          "direction": null
+        },
+        "evidence": {
+          "type": "experimental",
+          "model_system": "",
+          "species": null,
+          "method": "",
+          "sample_size": null,
+          "effect_size": null,
+          "p_value": null,
+          "replicated": false,
+          "replication_count": null,
+          "evidence_spans": []
+        },
+        "conditions": {
+          "text": "",
+          "species_verified": [],
+          "species_unverified": [],
+          "in_vitro": false,
+          "in_vivo": false,
+          "human_data": false,
+          "clinical_trial": false,
+          "concentration_range": null,
+          "duration": null,
+          "age_group": null,
+          "cell_type": null
+        },
+        "confidence": {
+          "score": 0.5,
+          "basis": "",
+          "extraction_confidence": 0.85
+        },
+        "provenance": {
+          "source_type": "published_paper",
+          "doi": null,
+          "pmid": null,
+          "pmc": null,
+          "openalex_id": null,
+          "title": "",
+          "authors": [],
+          "year": null,
+          "journal": null,
+          "extraction": {
+            "method": "llm_extraction",
+            "model": null,
+            "model_version": null,
+            "extracted_at": "",
+            "extractor_version": "vela/0.2.0"
+          },
+          "review": null,
+          "citation_count": null
+        }
+      },
+      "expected_output": {
+        "id": "vf_85ba789d1f395571",
+        "id_length": 19,
+        "prefix": "vf_"
+      }
+    },
+    {
+      "name": "epidemiological cohort study",
+      "input": {
+        "assertion": {
+          "text": "APOE4 carriers have 3x risk of late-onset Alzheimer's",
+          "type": "epidemiological",
+          "entities": [
+            {
+              "name": "APOE4",
+              "type": "gene",
+              "identifiers": {},
+              "candidates": [],
+              "aliases": [],
+              "resolution_confidence": 1.0
+            },
+            {
+              "name": "Alzheimer's disease",
+              "type": "disease",
+              "identifiers": {},
+              "candidates": [],
+              "aliases": [],
+              "resolution_confidence": 1.0
+            }
+          ],
+          "relation": "risk factor",
+          "direction": "positive"
+        },
+        "evidence": {
+          "type": "observational",
+          "model_system": "human cohort",
+          "species": "Homo sapiens",
+          "method": "prospective cohort study",
+          "sample_size": "n=10000",
+          "effect_size": "OR=3.2",
+          "p_value": "p<0.0001",
+          "replicated": true,
+          "replication_count": 20,
+          "evidence_spans": []
+        },
+        "conditions": {
+          "text": "Community-dwelling elderly cohort",
+          "species_verified": [
+            "Homo sapiens"
+          ],
+          "species_unverified": [],
+          "in_vitro": false,
+          "in_vivo": false,
+          "human_data": true,
+          "clinical_trial": false,
+          "concentration_range": null,
+          "duration": "15 years",
+          "age_group": "65+",
+          "cell_type": null
+        },
+        "confidence": {
+          "score": 0.93,
+          "basis": "large cohort with extensive replication",
+          "extraction_confidence": 0.95
+        },
+        "provenance": {
+          "source_type": "published_paper",
+          "doi": "10.1001/jama.2024.5678",
+          "pmid": null,
+          "pmc": null,
+          "openalex_id": null,
+          "title": "APOE genotype and Alzheimer's risk",
+          "authors": [
+            {
+              "name": "Johnson R",
+              "orcid": null
+            }
+          ],
+          "year": 2024,
+          "journal": "JAMA",
+          "extraction": {
+            "method": "llm_extraction",
+            "model": null,
+            "model_version": null,
+            "extracted_at": "",
+            "extractor_version": "vela/0.2.0"
+          },
+          "review": null,
+          "citation_count": 1200
+        }
+      },
+      "expected_output": {
+        "id": "vf_4899a4ae328c0f32",
+        "id_length": 19,
+        "prefix": "vf_"
+      }
+    },
+    {
+      "name": "in-vitro compound assay",
+      "input": {
+        "assertion": {
+          "text": "Compound X inhibits BACE1 with IC50 of 50nM",
+          "type": "mechanism",
+          "entities": [
+            {
+              "name": "Compound X",
+              "type": "compound",
+              "identifiers": {},
+              "candidates": [],
+              "aliases": [],
+              "resolution_confidence": 1.0
+            },
+            {
+              "name": "BACE1",
+              "type": "protein",
+              "identifiers": {},
+              "candidates": [],
+              "aliases": [],
+              "resolution_confidence": 1.0
+            }
+          ],
+          "relation": "inhibits",
+          "direction": "negative"
+        },
+        "evidence": {
+          "type": "experimental",
+          "model_system": "cell-free assay",
+          "species": null,
+          "method": "fluorescence polarization assay",
+          "sample_size": "n=3 replicates",
+          "effect_size": "IC50=50nM",
+          "p_value": null,
+          "replicated": false,
+          "replication_count": null,
+          "evidence_spans": []
+        },
+        "conditions": {
+          "text": "Cell-free enzymatic assay",
+          "species_verified": [],
+          "species_unverified": [],
+          "in_vitro": true,
+          "in_vivo": false,
+          "human_data": false,
+          "clinical_trial": false,
+          "concentration_range": "1nM-10uM",
+          "duration": "30 minutes",
+          "age_group": null,
+          "cell_type": null
+        },
+        "confidence": {
+          "score": 0.65,
+          "basis": "single in-vitro study",
+          "extraction_confidence": 0.88
+        },
+        "provenance": {
+          "source_type": "published_paper",
+          "doi": "10.1021/jm.2024.00456",
+          "pmid": null,
+          "pmc": null,
+          "openalex_id": null,
+          "title": "Novel BACE1 inhibitors",
+          "authors": [
+            {
+              "name": "Liu M",
+              "orcid": null
+            }
+          ],
+          "year": 2024,
+          "journal": "J Med Chem",
+          "extraction": {
+            "method": "llm_extraction",
+            "model": null,
+            "model_version": null,
+            "extracted_at": "",
+            "extractor_version": "vela/0.2.0"
+          },
+          "review": null,
+          "citation_count": 15
+        }
+      },
+      "expected_output": {
+        "id": "vf_765c1d9d127cadb1",
+        "id_length": 19,
+        "prefix": "vf_"
+      }
+    },
+    {
+      "name": "theoretical computational model",
+      "input": {
+        "assertion": {
+          "text": "Prion-like propagation of alpha-synuclein may underlie PD progression",
+          "type": "mechanism",
+          "entities": [
+            {
+              "name": "alpha-synuclein",
+              "type": "protein",
+              "identifiers": {},
+              "candidates": [],
+              "aliases": [],
+              "resolution_confidence": 1.0
+            }
+          ],
+          "relation": "propagates",
+          "direction": "positive"
+        },
+        "evidence": {
+          "type": "theoretical",
+          "model_system": "computational model",
+          "species": null,
+          "method": "molecular dynamics simulation",
+          "sample_size": null,
+          "effect_size": null,
+          "p_value": null,
+          "replicated": false,
+          "replication_count": null,
+          "evidence_spans": []
+        },
+        "conditions": {
+          "text": "Computational modeling of protein aggregation",
+          "species_verified": [],
+          "species_unverified": [],
+          "in_vitro": false,
+          "in_vivo": false,
+          "human_data": false,
+          "clinical_trial": false,
+          "concentration_range": null,
+          "duration": null,
+          "age_group": null,
+          "cell_type": null
+        },
+        "confidence": {
+          "score": 0.45,
+          "basis": "theoretical model",
+          "extraction_confidence": 0.8
+        },
+        "provenance": {
+          "source_type": "published_paper",
+          "doi": "10.1371/journal.pcbi.2024.1234",
+          "pmid": null,
+          "pmc": null,
+          "openalex_id": null,
+          "title": "Prion-like synuclein propagation model",
+          "authors": [
+            {
+              "name": "Kumar S",
+              "orcid": null
+            }
+          ],
+          "year": 2023,
+          "journal": "PLoS Comp Bio",
+          "extraction": {
+            "method": "llm_extraction",
+            "model": null,
+            "model_version": null,
+            "extracted_at": "",
+            "extractor_version": "vela/0.2.0"
+          },
+          "review": null,
+          "citation_count": 30
+        }
+      },
+      "expected_output": {
+        "id": "vf_288fdd9a9534f32a",
+        "id_length": 19,
+        "prefix": "vf_"
+      }
+    },
+    {
+      "name": "case report with single patient",
+      "input": {
+        "assertion": {
+          "text": "Patient with TREM2 R47H variant showed rapid cognitive decline",
+          "type": "diagnostic",
+          "entities": [
+            {
+              "name": "TREM2",
+              "type": "gene",
+              "identifiers": {},
+              "candidates": [],
+              "aliases": [],
+              "resolution_confidence": 1.0
+            }
+          ],
+          "relation": "associated",
+          "direction": "negative"
+        },
+        "evidence": {
+          "type": "observational",
+          "model_system": "human case report",
+          "species": "Homo sapiens",
+          "method": "clinical observation",
+          "sample_size": "n=1",
+          "effect_size": null,
+          "p_value": null,
+          "replicated": false,
+          "replication_count": null,
+          "evidence_spans": []
+        },
+        "conditions": {
+          "text": "Single patient case report",
+          "species_verified": [
+            "Homo sapiens"
+          ],
+          "species_unverified": [],
+          "in_vitro": false,
+          "in_vivo": false,
+          "human_data": true,
+          "clinical_trial": false,
+          "concentration_range": null,
+          "duration": "18 months",
+          "age_group": "58",
+          "cell_type": null
+        },
+        "confidence": {
+          "score": 0.4,
+          "basis": "case report",
+          "extraction_confidence": 0.85
+        },
+        "provenance": {
+          "source_type": "published_paper",
+          "doi": "10.1136/bmj.2024.00789",
+          "pmid": null,
+          "pmc": null,
+          "openalex_id": null,
+          "title": "TREM2 variant case report",
+          "authors": [
+            {
+              "name": "Smith A",
+              "orcid": null
+            }
+          ],
+          "year": 2024,
+          "journal": "BMJ Case Reports",
+          "extraction": {
+            "method": "llm_extraction",
+            "model": null,
+            "model_version": null,
+            "extracted_at": "",
+            "extractor_version": "vela/0.2.0"
+          },
+          "review": null,
+          "citation_count": 5
+        }
+      },
+      "expected_output": {
+        "id": "vf_caf73309199add1b",
+        "id_length": 19,
+        "prefix": "vf_"
+      }
+    },
+    {
+      "name": "gap finding (flags excluded from hash)",
+      "input": {
+        "assertion": {
+          "text": "No studies have examined GLP-1 receptor agonists in frontotemporal dementia",
+          "type": "mechanism",
+          "entities": [
+            {
+              "name": "GLP-1",
+              "type": "protein",
+              "identifiers": {},
+              "candidates": [],
+              "aliases": [],
+              "resolution_confidence": 1.0
+            },
+            {
+              "name": "frontotemporal dementia",
+              "type": "disease",
+              "identifiers": {},
+              "candidates": [],
+              "aliases": [],
+              "resolution_confidence": 1.0
+            }
+          ],
+          "relation": null,
+          "direction": null
+        },
+        "evidence": {
+          "type": "theoretical",
+          "model_system": "",
+          "species": null,
+          "method": "literature review",
+          "sample_size": null,
+          "effect_size": null,
+          "p_value": null,
+          "replicated": false,
+          "replication_count": null,
+          "evidence_spans": []
+        },
+        "conditions": {
+          "text": "",
+          "species_verified": [],
+          "species_unverified": [],
+          "in_vitro": false,
+          "in_vivo": false,
+          "human_data": false,
+          "clinical_trial": false,
+          "concentration_range": null,
+          "duration": null,
+          "age_group": null,
+          "cell_type": null
+        },
+        "confidence": {
+          "score": 0.3,
+          "basis": "gap identification",
+          "extraction_confidence": 0.7
+        },
+        "provenance": {
+          "source_type": "published_paper",
+          "doi": "10.1002/ana.2024.5678",
+          "pmid": null,
+          "pmc": null,
+          "openalex_id": null,
+          "title": "GLP-1 and neurodegeneration review",
+          "authors": [
+            {
+              "name": "Garcia M",
+              "orcid": null
+            }
+          ],
+          "year": 2024,
+          "journal": "Annals of Neurology",
+          "extraction": {
+            "method": "llm_extraction",
+            "model": null,
+            "model_version": null,
+            "extracted_at": "",
+            "extractor_version": "vela/0.2.0"
+          },
+          "review": null,
+          "citation_count": 25
+        },
+        "flags": {
+          "gap": true,
+          "negative_space": false,
+          "contested": false,
+          "retracted": false,
+          "declining": false,
+          "gravity_well": false
+        }
+      },
+      "expected_output": {
+        "id": "vf_69cb6ea4ab3d67cd",
+        "id_length": 19,
+        "prefix": "vf_"
+      }
+    }
+  ]
+}

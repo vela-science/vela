@@ -1,0 +1,302 @@
+[
+  {
+    "assertion_text": "High molecular weight (HMW) soluble phospho-tau isolated from human Alzheimer's disease brain tissue undergoes liquid-liquid phase separation.",
+    "assertion_type": "mechanism",
+    "entities": ["tau", "Alzheimer's disease"],
+    "confidence_range": { "low": 0.70, "high": 0.90 }
+  },
+  {
+    "assertion_text": "A single traumatic brain injury can lead to persistent, reactive microgliosis in the white matter for up to 18 years post-injury.",
+    "assertion_type": "mechanism",
+    "entities": ["traumatic brain injury", "microglia", "CR3/43", "CD68", "corpus callosum"],
+    "confidence_range": { "low": 0.65, "high": 0.85 }
+  },
+  {
+    "assertion_text": "LPS-induced neuroinflammation is characterized by microglia activation and neuronal cell loss in the hippocampus.",
+    "assertion_type": "mechanism",
+    "entities": ["IBA-1", "MAP-2", "microglia", "hippocampus"],
+    "confidence_range": { "low": 0.60, "high": 0.90 }
+  },
+  {
+    "assertion_text": "Microglial cell activation is a critical component of the neurodegenerative process in Alzheimer's disease.",
+    "assertion_type": "mechanism",
+    "entities": ["Microglia", "Alzheimer's disease"],
+    "confidence_range": { "low": 0.70, "high": 0.90 }
+  },
+  {
+    "assertion_text": "Bone marrow-derived macrophages engrafted in the brain parenchyma maintain distinct transcriptomes and chromatin accessibility landscapes compared to yolk sac-derived host microglia, despite acquiring similar morphology and longevity.",
+    "assertion_type": "mechanism",
+    "entities": ["microglia", "macrophage", "bone marrow"],
+    "confidence_range": { "low": 0.55, "high": 0.85 }
+  },
+  {
+    "assertion_text": "Neurodegeneration is mediated by a specific set of inflammatory and neurotoxic mediators, including IL-1\u03b2, TNF-\u03b1, and ROS, released by activated microglia, astrocytes, and mast cells.",
+    "assertion_type": "mechanism",
+    "entities": ["IL-1\u03b2", "TNF-\u03b1", "microglia", "astrocytes", "mast cells"],
+    "confidence_range": { "low": 0.90, "high": 1.00 }
+  },
+  {
+    "assertion_text": "Engrafted BM-derived macrophages display discrete gene expression responses to peripheral endotoxin challenge compared to host microglia.",
+    "assertion_type": "mechanism",
+    "entities": ["endotoxin", "microglia", "macrophage"],
+    "confidence_range": { "low": 0.55, "high": 0.85 }
+  },
+  {
+    "assertion_text": "In the absence of microglia, amyloid-beta deposits accumulate in cortical blood vessels, resembling cerebral amyloid angiopathy (CAA), rather than forming parenchymal plaques.",
+    "assertion_type": "mechanism",
+    "entities": ["microglia", "amyloid-beta", "cerebral amyloid angiopathy", "cortical blood vessels"],
+    "confidence_range": { "low": 0.55, "high": 0.85 }
+  },
+  {
+    "assertion_text": "In human HSC transplant recipients, engrafted macrophages remain molecularly distinct from host microglia, mirroring observations in mouse models.",
+    "assertion_type": "mechanism",
+    "entities": ["hematopoietic stem cell", "microglia", "macrophage"],
+    "confidence_range": { "low": 0.65, "high": 0.85 }
+  },
+  {
+    "assertion_text": "Resident brain microglia are biologically divergent from peripherally infiltrated macrophages.",
+    "assertion_type": "mechanism",
+    "entities": ["microglia", "macrophages"],
+    "confidence_range": { "low": 0.60, "high": 0.90 }
+  },
+  {
+    "assertion_text": "Microglial depletion reverses the altered gene expression profile observed in the hippocampus of 5xFAD mice.",
+    "assertion_type": "mechanism",
+    "entities": ["microglia", "hippocampus", "5xFAD"],
+    "confidence_range": { "low": 0.55, "high": 0.85 }
+  },
+  {
+    "assertion_text": "Hyperphosphorylation of Tau in Alzheimer's disease leads to a loss of its microtubule-stabilizing capacity.",
+    "assertion_type": "mechanism",
+    "entities": ["Tau", "Alzheimer's disease", "Microtubules"],
+    "confidence_range": { "low": 0.75, "high": 0.95 }
+  },
+  {
+    "assertion_text": "Microglia constitute the innate immune system of the central nervous system and serve as key cellular mediators of neuroinflammatory processes.",
+    "assertion_type": "mechanism",
+    "entities": ["Microglia", "central nervous system"],
+    "confidence_range": { "low": 0.70, "high": 0.90 }
+  },
+  {
+    "assertion_text": "Mouse microglia reach transcriptional maturity by the second postnatal week.",
+    "assertion_type": "mechanism",
+    "entities": ["microglia"],
+    "confidence_range": { "low": 0.60, "high": 0.90 }
+  },
+  {
+    "assertion_text": "CSF-1R is expressed exclusively in microglia and not in neurons, astrocytes, or other glial cells in the postnatal mouse brain.",
+    "assertion_type": "mechanism",
+    "entities": ["CSF-1R", "microglia", "neuron", "astrocyte"],
+    "confidence_range": { "low": 0.60, "high": 0.90 }
+  },
+  {
+    "assertion_text": "Indirubin-3'-monoxime inhibits the phosphorylation of tau protein at Alzheimer's disease-specific sites in both in vitro and in vivo models.",
+    "assertion_type": "therapeutic",
+    "entities": ["Indirubin-3'-monoxime", "tau", "Alzheimer's disease"],
+    "confidence_range": { "low": 0.55, "high": 0.85 }
+  },
+  {
+    "assertion_text": "Lithium chloride administration inhibits GSK-3 activity and reduces tau phosphorylation at Alzheimer's-associated epitopes in mutant human tau transgenic mice.",
+    "assertion_type": "therapeutic",
+    "entities": ["lithium chloride", "GSK-3", "tau", "Alzheimer's disease"],
+    "confidence_range": { "low": 0.60, "high": 0.90 }
+  },
+  {
+    "assertion_text": "Inhibition of mTOR by rapamycin reduces Amyloid-\u03b2 levels in a transgenic mouse model of Alzheimer's Disease.",
+    "assertion_type": "therapeutic",
+    "entities": ["mTOR", "Rapamycin", "amyloid-beta", "Alzheimer's Disease"],
+    "confidence_range": { "low": 0.55, "high": 0.85 }
+  },
+  {
+    "assertion_text": "Sustained microglial depletion using the CSF1R inhibitor PLX5622 prevents the development of parenchymal amyloid-beta plaques in 5xFAD mice.",
+    "assertion_type": "therapeutic",
+    "entities": ["PLX5622", "CSF1R", "microglia", "amyloid-beta plaques"],
+    "confidence_range": { "low": 0.55, "high": 0.85 }
+  },
+  {
+    "assertion_text": "Deletion of the CX3CR1 gene or anti-A\u03b2 immunotherapy increases microglia coverage of plaques and reduces neuritic dystrophy.",
+    "assertion_type": "therapeutic",
+    "entities": ["CX3CR1", "microglia", "neuritic dystrophy", "anti-A\u03b2 immunotherapy"],
+    "confidence_range": { "low": 0.55, "high": 0.85 }
+  },
+  {
+    "assertion_text": "Female microglia retain their neuroprotective functional ability when transferred into the brains of male mice.",
+    "assertion_type": "therapeutic",
+    "entities": ["microglia", "brain"],
+    "confidence_range": { "low": 0.55, "high": 0.85 }
+  },
+  {
+    "assertion_text": "Acute 7-day oral treatment with pioglitazone or ibuprofen reduces the number of activated microglia and reactive astrocytes in the hippocampus and cortex of 10-month-old APPV717I mice.",
+    "assertion_type": "therapeutic",
+    "entities": ["pioglitazone", "ibuprofen", "microglia", "astrocytes"],
+    "confidence_range": { "low": 0.55, "high": 0.85 }
+  },
+  {
+    "assertion_text": "Lecanemab significantly reduces brain amyloid burden as measured by PET imaging in patients with early Alzheimer's disease.",
+    "assertion_type": "therapeutic",
+    "entities": ["lecanemab", "amyloid", "Alzheimer's disease"],
+    "confidence_range": { "low": 0.75, "high": 0.95 }
+  },
+  {
+    "assertion_text": "A\u03b2-induced Tau missorting, microtubule depletion, and spine loss are prevented by the microtubule-stabilizing drug taxol.",
+    "assertion_type": "therapeutic",
+    "entities": ["taxol", "amyloid-beta", "microtubules", "Tau"],
+    "confidence_range": { "low": 0.45, "high": 0.75 }
+  },
+  {
+    "assertion_text": "Elimination of microglia rescues dendritic spine loss and prevents neuronal loss in 5xfAD mice.",
+    "assertion_type": "therapeutic",
+    "entities": ["microglia", "dendritic spine", "neuron"],
+    "confidence_range": { "low": 0.55, "high": 0.85 }
+  },
+  {
+    "assertion_text": "Alteration of tight junction complexes and blood-brain barrier dysfunction correlate with the progression of CNS diseases including stroke, multiple sclerosis, brain tumors, Parkinson's, and Alzheimer's diseases.",
+    "assertion_type": "epidemiological",
+    "entities": ["tight junctions", "blood-brain barrier", "stroke", "multiple sclerosis", "brain tumors", "Parkinson's disease", "Alzheimer's disease"],
+    "confidence_range": { "low": 0.85, "high": 1.00 }
+  },
+  {
+    "assertion_text": "Between 2000 and 2019, reported deaths from Alzheimer's disease increased by more than 145%, while deaths from stroke, heart disease, and HIV decreased.",
+    "assertion_type": "epidemiological",
+    "entities": ["Alzheimer's disease", "stroke", "heart disease", "HIV"],
+    "confidence_range": { "low": 0.70, "high": 0.90 }
+  },
+  {
+    "assertion_text": "Average per-person Medicare payments for beneficiaries age 65 and older with Alzheimer's or other dementias are approximately three times higher than for those without these conditions.",
+    "assertion_type": "epidemiological",
+    "entities": ["Medicare", "Alzheimer's disease", "dementia"],
+    "confidence_range": { "low": 0.70, "high": 0.90 }
+  },
+  {
+    "assertion_text": "Chronic neuroinflammation and elevated cytokine levels are associated with the pathophysiology of multiple neurodegenerative disorders including MS, AD, PD, HD, ALS, and ARMD.",
+    "assertion_type": "epidemiological",
+    "entities": ["multiple sclerosis", "Alzheimer's disease", "Parkinson's disease", "cytokines"],
+    "confidence_range": { "low": 0.85, "high": 1.00 }
+  },
+  {
+    "assertion_text": "The number of Alzheimer's disease drug compounds progressing to regulatory review is among the lowest found in any therapeutic area.",
+    "assertion_type": "epidemiological",
+    "entities": ["Alzheimer's disease"],
+    "confidence_range": { "low": 0.90, "high": 1.00 }
+  },
+  {
+    "assertion_text": "Porphyromonas gingivalis and its toxic proteases, gingipains, are present in the brains of Alzheimer's disease patients and correlate with tau and ubiquitin pathology.",
+    "assertion_type": "diagnostic",
+    "entities": ["Porphyromonas gingivalis", "gingipains", "Alzheimer's disease", "tau", "ubiquitin"],
+    "confidence_range": { "low": 0.65, "high": 0.85 }
+  },
+  {
+    "assertion_text": "Transmembrane protein 119 (Tmem119) is a highly expressed, microglia-specific cell-surface marker in both mouse and human CNS that distinguishes microglia from other myeloid cells.",
+    "assertion_type": "diagnostic",
+    "entities": ["Tmem119", "microglia", "myeloid cells"],
+    "confidence_range": { "low": 0.75, "high": 0.95 }
+  },
+  {
+    "assertion_text": "Plasma GFAP levels are significantly higher in cognitively normal older adults with high brain amyloid-\u03b2 load compared to those with low brain amyloid-\u03b2 load.",
+    "assertion_type": "diagnostic",
+    "entities": ["GFAP", "amyloid-beta", "Alzheimer's disease"],
+    "confidence_range": { "low": 0.70, "high": 0.90 }
+  },
+  {
+    "assertion_text": "Core 2 biomarkers, such as tau PET and biofluid markers, provide prognostic information regarding the likelihood that Alzheimer's disease is the cause of clinical symptoms.",
+    "assertion_type": "diagnostic",
+    "entities": ["tau PET", "Alzheimer's disease"],
+    "confidence_range": { "low": 0.85, "high": 1.00 }
+  },
+  {
+    "assertion_text": "An abnormal result in Core 1 biomarkers (amyloid PET, approved CSF biomarkers, or accurate plasma biomarkers) is sufficient to establish a biological diagnosis of Alzheimer's disease.",
+    "assertion_type": "diagnostic",
+    "entities": ["amyloid PET", "Alzheimer's disease", "plasma biomarkers"],
+    "confidence_range": { "low": 0.85, "high": 1.00 }
+  },
+  {
+    "assertion_text": "Chronic microglial elimination does not alter amyloid-\u03b2 levels or plaque load in 5xfAD mice.",
+    "assertion_type": "negative",
+    "entities": ["microglia", "amyloid-beta", "plaque"],
+    "confidence_range": { "low": 0.55, "high": 0.85 }
+  },
+  {
+    "assertion_text": "Astrocytes, microglia/macrophages, and pericytes do not play a significant role in LPS-mediated blood-brain barrier disruption.",
+    "assertion_type": "negative",
+    "entities": ["astrocytes", "microglia", "pericytes", "blood-brain barrier"],
+    "confidence_range": { "low": 0.55, "high": 0.85 }
+  },
+  {
+    "assertion_text": "High-dose aducanumab did not meet primary or secondary clinical endpoints in the ENGAGE Phase 3 trial.",
+    "assertion_type": "negative",
+    "entities": ["aducanumab", "Alzheimer's disease"],
+    "confidence_range": { "low": 0.70, "high": 0.90 }
+  },
+  {
+    "assertion_text": "LPS-induced blood-brain barrier disruption is not dependent on oxidative stress.",
+    "assertion_type": "negative",
+    "entities": ["LPS", "blood-brain barrier", "oxidative stress"],
+    "confidence_range": { "low": 0.55, "high": 0.85 }
+  },
+  {
+    "assertion_text": "Chronic microglial elimination via CSF1R inhibition does not alter amyloid-\u03b2 levels or plaque load in 10-month-old 5xfAD mice.",
+    "assertion_type": "negative",
+    "entities": ["Microglia", "amyloid-beta", "CSF1R"],
+    "confidence_range": { "low": 0.55, "high": 0.85 }
+  },
+  {
+    "assertion_text": "The 2021 Alzheimer's disease drug development pipeline shows a diversification of target biological processes beyond traditional amyloid and tau hypotheses.",
+    "assertion_type": "methodological",
+    "entities": ["Alzheimer's disease", "amyloid", "tau"],
+    "confidence_range": { "low": 0.70, "high": 0.90 }
+  },
+  {
+    "assertion_text": "Monoclonal antibodies against Tmem119 enable the isolation of pure, nonactivated microglia from the CNS using fluorescence-activated cell sorting (FACS).",
+    "assertion_type": "methodological",
+    "entities": ["Tmem119", "microglia", "FACS"],
+    "confidence_range": { "low": 0.60, "high": 0.90 }
+  },
+  {
+    "assertion_text": "The human BBB chip maintains high-level barrier function, mimicking in vivo conditions, for at least seven days in culture.",
+    "assertion_type": "methodological",
+    "entities": ["blood-brain barrier", "astrocytes", "pericytes"],
+    "confidence_range": { "low": 0.70, "high": 0.90 }
+  },
+  {
+    "assertion_text": "The inclusion of Alzheimer disease diagnoses into risk frontier calculations by the Centers for Medicare & Medicaid Services (CMS) incentivizes Medicare Advantage organizations to invest in early detection and diagnosis.",
+    "assertion_type": "theoretical",
+    "entities": ["Alzheimer's disease", "Centers for Medicare & Medicaid Services", "Medicare Advantage"],
+    "confidence_range": { "low": 0.65, "high": 0.85 }
+  },
+  {
+    "assertion_text": "White matter hyperintensities are a core feature of Alzheimer's disease pathogenesis and represent a potential therapeutic target.",
+    "assertion_type": "theoretical",
+    "entities": ["white matter hyperintensity", "Alzheimer's disease"],
+    "confidence_range": { "low": 0.65, "high": 0.85 }
+  },
+  {
+    "assertion_text": "Pathological conditions such as CNS inflammation, Alzheimer's disease, Parkinson's disease, and epilepsy cause blood-brain barrier (BBB) disruption characterized by increased paracellular permeability and leukocyte infiltration.",
+    "assertion_type": "mechanism",
+    "entities": ["blood-brain barrier", "CNS inflammation", "Alzheimer's disease", "Parkinson's disease", "epilepsy", "leukocytes"],
+    "confidence_range": { "low": 0.90, "high": 1.00 }
+  },
+  {
+    "assertion_text": "The success rate for advancing Alzheimer's disease drug candidates from one clinical trial phase to another is low compared to other therapeutic areas.",
+    "assertion_type": "epidemiological",
+    "entities": ["Alzheimer's disease"],
+    "confidence_range": { "low": 0.90, "high": 1.00 }
+  },
+  {
+    "assertion_text": "The volume of clinical trials undertaken for Alzheimer's disease therapeutics is disproportionately low relative to the magnitude of the public health problem.",
+    "assertion_type": "epidemiological",
+    "entities": ["Alzheimer's disease"],
+    "confidence_range": { "low": 0.90, "high": 1.00 }
+  },
+  {
+    "assertion_text": "Microglia and T cells interact in a functional equilibrium to maintain central nervous system (CNS) immunological homeostasis and influence neurodegenerative disease progression.",
+    "assertion_type": "mechanism",
+    "entities": ["microglia", "T cells", "CNS"],
+    "confidence_range": { "low": 0.90, "high": 1.00 }
+  },
+  {
+    "assertion_text": "The 2021 Alzheimer's disease drug development pipeline exhibits a diversification of target biological processes beyond traditional amyloid and tau hypotheses.",
+    "assertion_type": "methodological",
+    "entities": ["Alzheimer's disease", "amyloid", "tau"],
+    "confidence_range": { "low": 0.90, "high": 1.00 }
+  }
+]

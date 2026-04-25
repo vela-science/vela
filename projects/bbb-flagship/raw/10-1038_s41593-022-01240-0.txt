@@ -1,0 +1,8 @@
+DOI: 10.1038/s41593-022-01240-0
+PMID: 36635496
+Year: 2023
+Journal: 
+Title: A TREM2-activating antibody with a blood-brain barrier transport vehicle enhances microglial metabolism in Alzheimer's disease models.
+
+Abstract:
+Loss-of-function variants of TREM2 are associated with increased risk of Alzheimer's disease (AD), suggesting that activation of this innate immune receptor may be a useful therapeutic strategy. Here we describe a high-affinity human TREM2-activating antibody engineered with a monovalent transferrin receptor (TfR) binding site, termed antibody transport vehicle (ATV), to facilitate blood-brain barrier transcytosis. Upon peripheral delivery in mice, ATV:TREM2 showed improved brain biodistribution and enhanced signaling compared to a standard anti-TREM2 antibody. In human induced pluripotent stem cell (iPSC)-derived microglia, ATV:TREM2 induced proliferation and improved mitochondrial metabolism. Single-cell RNA sequencing and morphometry revealed that ATV:TREM2 shifted microglia to metabolically responsive states, which were distinct from those induced by amyloid pathology. In an AD mouse model, ATV:TREM2 boosted brain microglial activity and glucose metabolism. Thus, ATV:TREM2 represents a promising approach to improve microglial function and treat brain hypometabolism found in patients with AD.

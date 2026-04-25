@@ -1,0 +1,51 @@
+---
+interface Props {
+  num: string;
+  title: string;
+  aside?: string;
+}
+const { num, title, aside } = Astro.props;
+---
+<section class="wb-section">
+  <div class="wb-section__head">
+    <span class="wb-section__num">{num}</span>
+    <span class="wb-section__t">{title}</span>
+    {aside && <span class="wb-section__aside">{aside}</span>}
+  </div>
+  <slot />
+</section>
+
+<style>
+  .wb-section {
+    margin: 32px 0 16px;
+  }
+  .wb-section__head {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--rule-2);
+    margin-bottom: 14px;
+  }
+  .wb-section__num {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    color: var(--ink-3);
+  }
+  .wb-section__t {
+    font-family: var(--font-sans);
+    font-weight: 500;
+    font-size: 18px;
+    color: var(--ink-0);
+    letter-spacing: -0.005em;
+  }
+  .wb-section__aside {
+    margin-left: auto;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+</style>

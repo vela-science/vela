@@ -1,0 +1,194 @@
+{
+  "suite": "confidence-scoring",
+  "description": "Citation-grounded confidence calibration. Given a pre-calibration score, citation count, year, evidence type, and evidence spans, the calibration pass adjusts the score. The formula: calibrated = (seed_score + adjustment).clamp(0,1), final = (0.6*seed_score + 0.4*calibrated).clamp(0.05,0.99), rounded to 3 decimals. Adjustments: citations (log-scaled, -0.15..+0.15), recency (<=3y: +0.05, 3-10y: 0, >10y: -0.05), evidence type (meta_analysis/systematic_review: +0.10, experimental+human: +0.05, theoretical/computational: -0.05), spans (present: +0.05, absent: -0.05).",
+  "cases": [
+    {
+      "name": "meta-analysis high citations recent with spans",
+      "input": {
+        "seed_score": 0.90,
+        "citation_count": 5000,
+        "year": 2025,
+        "evidence_type": "meta_analysis",
+        "human_data": false,
+        "has_evidence_spans": true
+      },
+      "expected_output": {
+        "score_higher_than": 0.90,
+        "score_range": [0.90, 0.99],
+        "direction": "boosted"
+      }
+    },
+    {
+      "name": "theoretical low citations old no spans",
+      "input": {
+        "seed_score": 0.70,
+        "citation_count": 2,
+        "year": 2005,
+        "evidence_type": "theoretical",
+        "human_data": false,
+        "has_evidence_spans": false
+      },
+      "expected_output": {
+        "score_lower_than": 0.70,
+        "score_range": [0.05, 0.70],
+        "direction": "penalized"
+      }
+    },
+    {
+      "name": "experimental human data moderate citations",
+      "input": {
+        "seed_score": 0.75,
+        "citation_count": 100,
+        "year": 2024,
+        "evidence_type": "experimental",
+        "human_data": true,
+        "has_evidence_spans": false
+      },
+      "expected_output": {
+        "score_range": [0.73, 0.85],
+        "direction": "slightly_boosted"
+      }
+    },
+    {
+      "name": "systematic review recent",
+      "input": {
+        "seed_score": 0.80,
+        "citation_count": 300,
+        "year": 2025,
+        "evidence_type": "systematic_review",
+        "human_data": false,
+        "has_evidence_spans": true
+      },
+      "expected_output": {
+        "score_higher_than": 0.80,
+        "score_range": [0.80, 0.99],
+        "direction": "boosted"
+      }
+    },
+    {
+      "name": "observational is neutral evidence type",
+      "input": {
+        "seed_score": 0.70,
+        "citation_count": 50,
+        "year": 2020,
+        "evidence_type": "observational",
+        "human_data": false,
+        "has_evidence_spans": false
+      },
+      "expected_output": {
+        "score_range": [0.60, 0.76],
+        "direction": "slightly_penalized"
+      }
+    },
+    {
+      "name": "very low initial score stays above floor",
+      "input": {
+        "seed_score": 0.05,
+        "citation_count": 0,
+        "year": 1990,
+        "evidence_type": "theoretical",
+        "human_data": false,
+        "has_evidence_spans": false
+      },
+      "expected_output": {
+        "score_range": [0.05, 0.10],
+        "score_at_least": 0.05,
+        "direction": "floor_clamped"
+      }
+    },
+    {
+      "name": "very high initial score stays below ceiling",
+      "input": {
+        "seed_score": 0.99,
+        "citation_count": 10000,
+        "year": 2025,
+        "evidence_type": "meta_analysis",
+        "human_data": true,
+        "has_evidence_spans": true
+      },
+      "expected_output": {
+        "score_range": [0.95, 0.99],
+        "score_at_most": 0.99,
+        "direction": "ceiling_clamped"
+      }
+    },
+    {
+      "name": "meta-analysis beats theoretical same base score",
+      "input": {
+        "comparison": true,
+        "finding_a": {
+          "seed_score": 0.70,
+          "citation_count": 100,
+          "year": 2020,
+          "evidence_type": "meta_analysis",
+          "human_data": false,
+          "has_evidence_spans": false
+        },
+        "finding_b": {
+          "seed_score": 0.70,
+          "citation_count": 100,
+          "year": 2020,
+          "evidence_type": "theoretical",
+          "human_data": false,
+          "has_evidence_spans": false
+        }
+      },
+      "expected_output": {
+        "a_higher_than_b": true,
+        "reason": "meta_analysis gets +0.10, theoretical gets -0.05"
+      }
+    },
+    {
+      "name": "recent paper beats old paper same evidence",
+      "input": {
+        "comparison": true,
+        "finding_a": {
+          "seed_score": 0.70,
+          "citation_count": 100,
+          "year": 2025,
+          "evidence_type": "experimental",
+          "human_data": false,
+          "has_evidence_spans": false
+        },
+        "finding_b": {
+          "seed_score": 0.70,
+          "citation_count": 100,
+          "year": 2010,
+          "evidence_type": "experimental",
+          "human_data": false,
+          "has_evidence_spans": false
+        }
+      },
+      "expected_output": {
+        "a_higher_than_b": true,
+        "reason": "recent (<=3y) gets +0.05, old (>10y) gets -0.05"
+      }
+    },
+    {
+      "name": "evidence spans present beats absent",
+      "input": {
+        "comparison": true,
+        "finding_a": {
+          "seed_score": 0.70,
+          "citation_count": 100,
+          "year": 2020,
+          "evidence_type": "experimental",
+          "human_data": false,
+          "has_evidence_spans": true
+        },
+        "finding_b": {
+          "seed_score": 0.70,
+          "citation_count": 100,
+          "year": 2020,
+          "evidence_type": "experimental",
+          "human_data": false,
+          "has_evidence_spans": false
+        }
+      },
+      "expected_output": {
+        "a_higher_than_b": true,
+        "reason": "spans present gets +0.05, absent gets -0.05"
+      }
+    }
+  ]
+}

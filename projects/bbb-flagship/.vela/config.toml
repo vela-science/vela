@@ -1,0 +1,5 @@
+[project]
+name = "BBB Flagship"
+description = "Bounded flagship frontier for BBB delivery strategies for Alzheimer's-relevant therapeutics"
+compiler = "vela/0.2.0"
+papers_processed = 10

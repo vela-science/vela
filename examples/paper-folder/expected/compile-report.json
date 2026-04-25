@@ -1,0 +1,119 @@
+{
+  "schema": "vela.compile-report.v0",
+  "command": "compile",
+  "source": {
+    "path": "examples/paper-folder/papers",
+    "mode": "local_corpus"
+  },
+  "output": {
+    "frontier": "examples/paper-folder/expected/frontier.json"
+  },
+  "summary": {
+    "files_seen": 4,
+    "accepted": 4,
+    "skipped": 0,
+    "errors": 0,
+    "findings": 11,
+    "links": 11
+  },
+  "source_coverage": {
+    "csv": 1,
+    "jats": 1,
+    "pdf": 1,
+    "text": 1
+  },
+  "extraction_modes": {
+    "curated_csv": 1,
+    "offline_jats": 1,
+    "offline_pdf": 1,
+    "offline_text": 1
+  },
+  "sources": [
+    {
+      "path": "examples/paper-folder/papers/findings.csv",
+      "source_type": "csv",
+      "status": "accepted",
+      "extraction_mode": "curated_csv",
+      "findings": 3,
+      "diagnostics": {
+        "text_quality": "curated",
+        "content_hash": "sha256:fc07f3741d8ca2815f52506af8ace4d0ae1911474fbf09317d43412a67af4897",
+        "caveats": [
+          "Curated CSV rows are accepted as user-provided review state."
+        ]
+      },
+      "warnings": []
+    },
+    {
+      "path": "examples/paper-folder/papers/focused-ultrasound.pdf",
+      "source_type": "pdf",
+      "status": "accepted",
+      "extraction_mode": "offline_pdf",
+      "findings": 3,
+      "diagnostics": {
+        "page_count": 2,
+        "text_chars": 424,
+        "word_count": 61,
+        "text_quality": "thin_text",
+        "detected_title": "Focused ultrasound blood brain barrier opening in Alzheimer disease",
+        "content_hash": "sha256:870ee7aece935bdd6aa9c1ce260309c1075ed8c718de25027fd35423a54f8fad",
+        "caveats": [
+          "pdf source has limited extractable text; verify evidence spans before use."
+        ]
+      },
+      "warnings": [
+        "pdf source has limited extractable text; verify evidence spans before use.",
+        "Used deterministic fallback extraction; review findings before scientific use."
+      ]
+    },
+    {
+      "path": "examples/paper-folder/papers/mini-bbb.jats.xml",
+      "source_type": "jats",
+      "status": "accepted",
+      "extraction_mode": "offline_jats",
+      "findings": 2,
+      "diagnostics": {
+        "text_chars": 820,
+        "word_count": 70,
+        "text_quality": "thin_text",
+        "detected_title": "Blood-brain barrier transport in Alzheimer disease models",
+        "content_hash": "sha256:0662ff32f07b8a7117b3ae45a81a16009a67d125bac58b1538565a749c0da8a1",
+        "caveats": [
+          "jats source has limited extractable text; verify evidence spans before use."
+        ]
+      },
+      "warnings": [
+        "Used deterministic fallback extraction; review findings before scientific use."
+      ]
+    },
+    {
+      "path": "examples/paper-folder/papers/picalm-note.md",
+      "source_type": "text",
+      "status": "accepted",
+      "extraction_mode": "offline_text",
+      "findings": 3,
+      "diagnostics": {
+        "text_chars": 394,
+        "word_count": 58,
+        "text_quality": "thin_text",
+        "detected_title": "PICALM and LRP1 at the blood brain barrier",
+        "content_hash": "sha256:e4f6059f0a5cebf2cf73d7a493ea9afd87cf65b90c18adba1db5513df9e36d3c",
+        "caveats": [
+          "text source has limited extractable text; verify evidence spans before use."
+        ]
+      },
+      "warnings": [
+        "text source has limited extractable text; verify evidence spans before use.",
+        "Used deterministic fallback extraction; review findings before scientific use."
+      ]
+    }
+  ],
+  "warnings": [
+    "No LLM backend configured; text, JATS, PDF, and DOI sources used deterministic fallback extraction with explicit caveats."
+  ],
+  "artifacts": {
+    "compile_report": "examples/paper-folder/expected/compile-report.json",
+    "quality_table": "examples/paper-folder/expected/quality-table.json",
+    "frontier_quality": "examples/paper-folder/expected/frontier-quality.md"
+  }
+}

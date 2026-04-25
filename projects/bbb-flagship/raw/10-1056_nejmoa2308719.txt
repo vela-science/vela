@@ -1,0 +1,8 @@
+DOI: 10.1056/nejmoa2308719
+PMID: 38169490
+Year: 2024
+Journal: 
+Title: Ultrasound Blood-Brain Barrier Opening and Aducanumab in Alzheimer's Disease.
+
+Abstract:
+Antiamyloid antibodies have been used to reduce cerebral amyloid-beta (Aβ) load in patients with Alzheimer's disease. We applied focused ultrasound with each of six monthly aducanumab infusions to temporarily open the blood-brain barrier with the goal of enhancing amyloid removal in selected brain regions in three participants over a period of 6 months. The reduction in the level of Aβ was numerically greater in regions treated with focused ultrasound than in the homologous regions in the contralateral hemisphere that were not treated with focused ultrasound, as measured by fluorine-18 florbetaben positron-emission tomography. Cognitive tests and safety evaluations were conducted over a period of 30 to 180 days after treatment. (Funded by the Harry T. Mangurian, Jr. Foundation and the West Virginia University Rockefeller Neuroscience Institute.).

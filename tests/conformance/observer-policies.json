@@ -1,0 +1,182 @@
+{
+  "suite": "observer-policies",
+  "description": "Observer policy scoring. Each policy is a named lens with weights for clinical_trial, replication, human_data, recency, citations, evidence_spans, min_confidence, and priority assertion types. Score = base_confidence * product_of_applicable_weights. Findings below min_confidence are hidden.",
+  "cases": [
+    {
+      "name": "pharma policy prioritizes clinical trials and human data",
+      "input": {
+        "policy": "pharma",
+        "findings": [
+          {
+            "id": "f1", "confidence": 0.85,
+            "clinical_trial": true, "human_data": true, "replicated": true,
+            "year": 2025, "citation_count": 200, "has_spans": false,
+            "assertion_type": "therapeutic", "gap": false, "negative_space": false,
+            "entity_types": ["compound"]
+          },
+          {
+            "id": "f2", "confidence": 0.80,
+            "clinical_trial": false, "human_data": false, "replicated": false,
+            "year": 2020, "citation_count": 10, "has_spans": false,
+            "assertion_type": "mechanism", "gap": false, "negative_space": false,
+            "entity_types": ["protein"]
+          },
+          {
+            "id": "f3", "confidence": 0.60,
+            "clinical_trial": false, "human_data": false, "replicated": false,
+            "year": 2019, "citation_count": 5, "has_spans": false,
+            "assertion_type": "mechanism", "gap": false, "negative_space": false,
+            "entity_types": ["protein"]
+          }
+        ]
+      },
+      "expected_output": {
+        "ranking": ["f1", "f2"],
+        "hidden_ids": ["f3"],
+        "hidden_count": 1,
+        "reason": "pharma min_confidence=0.7, f3 (0.60) is hidden. f1 gets clinical_trial*1.5, human_data*1.5, replication*1.0, recency*1.0, citations*1.3 boosts plus therapeutic*1.2"
+      }
+    },
+    {
+      "name": "academic policy prioritizes replication and spans",
+      "input": {
+        "policy": "academic",
+        "findings": [
+          {
+            "id": "f1", "confidence": 0.75,
+            "clinical_trial": false, "human_data": false, "replicated": true,
+            "year": 2025, "citation_count": 50, "has_spans": true,
+            "assertion_type": "mechanism", "gap": false, "negative_space": false,
+            "entity_types": ["protein"]
+          },
+          {
+            "id": "f2", "confidence": 0.80,
+            "clinical_trial": true, "human_data": true, "replicated": false,
+            "year": 2018, "citation_count": 500, "has_spans": false,
+            "assertion_type": "therapeutic", "gap": false, "negative_space": false,
+            "entity_types": ["compound"]
+          },
+          {
+            "id": "f3", "confidence": 0.40,
+            "clinical_trial": false, "human_data": false, "replicated": false,
+            "year": 2015, "citation_count": 2, "has_spans": false,
+            "assertion_type": "mechanism", "gap": false, "negative_space": false,
+            "entity_types": ["protein"]
+          }
+        ]
+      },
+      "expected_output": {
+        "f1_rank_better_than_f2": true,
+        "hidden_ids": ["f3"],
+        "hidden_count": 1,
+        "reason": "academic min_confidence=0.5. f1 gets replication*1.5, spans*1.3, recency*1.2. f2 gets clinical_trial*1.0 (neutral), citations*1.0 (neutral for academic), but no replication or spans. f3 at 0.40 is below threshold."
+      }
+    },
+    {
+      "name": "regulatory policy demands human data and high confidence",
+      "input": {
+        "policy": "regulatory",
+        "findings": [
+          {
+            "id": "f1", "confidence": 0.90,
+            "clinical_trial": true, "human_data": true, "replicated": true,
+            "year": 2024, "citation_count": 300, "has_spans": true,
+            "assertion_type": "diagnostic", "gap": false, "negative_space": false,
+            "entity_types": ["protein"]
+          },
+          {
+            "id": "f2", "confidence": 0.85,
+            "clinical_trial": false, "human_data": false, "replicated": true,
+            "year": 2024, "citation_count": 200, "has_spans": true,
+            "assertion_type": "mechanism", "gap": false, "negative_space": false,
+            "entity_types": ["protein"]
+          },
+          {
+            "id": "f3", "confidence": 0.75,
+            "clinical_trial": false, "human_data": false, "replicated": false,
+            "year": 2020, "citation_count": 10, "has_spans": false,
+            "assertion_type": "mechanism", "gap": false, "negative_space": false,
+            "entity_types": ["protein"]
+          }
+        ]
+      },
+      "expected_output": {
+        "ranking": ["f1", "f2"],
+        "hidden_ids": ["f3"],
+        "hidden_count": 1,
+        "reason": "regulatory min_confidence=0.8. f3 is hidden. f1 gets clinical_trial*2.0, human_data*2.0, spans*1.5, diagnostic*1.2 priority type boosts"
+      }
+    },
+    {
+      "name": "exploration policy shows everything including gaps",
+      "input": {
+        "policy": "exploration",
+        "findings": [
+          {
+            "id": "f1", "confidence": 0.90,
+            "clinical_trial": false, "human_data": false, "replicated": false,
+            "year": 2024, "citation_count": 100, "has_spans": false,
+            "assertion_type": "mechanism", "gap": false, "negative_space": false,
+            "entity_types": ["protein"]
+          },
+          {
+            "id": "f2", "confidence": 0.30,
+            "clinical_trial": false, "human_data": false, "replicated": false,
+            "year": 2023, "citation_count": 5, "has_spans": false,
+            "assertion_type": "mechanism", "gap": true, "negative_space": false,
+            "entity_types": ["protein"]
+          },
+          {
+            "id": "f3", "confidence": 0.10,
+            "clinical_trial": false, "human_data": false, "replicated": false,
+            "year": 2020, "citation_count": 1, "has_spans": false,
+            "assertion_type": "mechanism", "gap": false, "negative_space": true,
+            "entity_types": ["protein"]
+          }
+        ]
+      },
+      "expected_output": {
+        "hidden_count": 0,
+        "all_visible": true,
+        "f2_boosted": true,
+        "f3_boosted": true,
+        "reason": "exploration min_confidence=0.0 (nothing hidden), dark_territory=2.0 boosts gaps and negative_space findings"
+      }
+    },
+    {
+      "name": "clinical policy weights human data and replication for clinical relevance",
+      "input": {
+        "policy": "clinical",
+        "findings": [
+          {
+            "id": "f1", "confidence": 0.85,
+            "clinical_trial": false, "human_data": true, "replicated": true,
+            "year": 2025, "citation_count": 50, "has_spans": false,
+            "assertion_type": "therapeutic", "gap": false, "negative_space": false,
+            "entity_types": ["compound"]
+          },
+          {
+            "id": "f2", "confidence": 0.85,
+            "clinical_trial": false, "human_data": false, "replicated": false,
+            "year": 2018, "citation_count": 200, "has_spans": true,
+            "assertion_type": "mechanism", "gap": false, "negative_space": false,
+            "entity_types": ["protein"]
+          },
+          {
+            "id": "f3", "confidence": 0.50,
+            "clinical_trial": false, "human_data": false, "replicated": false,
+            "year": 2015, "citation_count": 5, "has_spans": false,
+            "assertion_type": "mechanism", "gap": false, "negative_space": false,
+            "entity_types": ["protein"]
+          }
+        ]
+      },
+      "expected_output": {
+        "f1_rank_better_than_f2": true,
+        "hidden_ids": ["f3"],
+        "hidden_count": 1,
+        "reason": "clinical min_confidence=0.6. f3 is hidden. f1 gets human_data*1.5, replication*1.5, recency*1.3, therapeutic*1.2 boosts"
+      }
+    }
+  ]
+}

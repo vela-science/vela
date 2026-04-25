@@ -1,0 +1,1205 @@
+//! Schema validation for finding bundles in a frontier or VelaRepo.
+
+use std::collections::HashSet;
+use std::path::Path;
+
+use chrono::DateTime;
+use colored::Colorize;
+
+use crate::cli_style as style;
+use serde::{Deserialize, Serialize};
+
+use crate::bundle::{ConfidenceMethod, FindingBundle, VALID_ENTITY_TYPES};
+use crate::lint;
+use crate::normalize;
+use crate::packet;
+use crate::repo;
+
+/// Valid assertion types per schema (extended to include types the compiler produces).
+const VALID_ASSERTION_TYPES: &[&str] = &[
+    "mechanism",
+    "therapeutic",
+    "diagnostic",
+    "epidemiological",
+    "observational",
+    "review",
+    "methodological",
+    "computational",
+    "theoretical",
+    "negative",
+];
+
+/// Valid evidence types per schema.
+const VALID_EVIDENCE_TYPES: &[&str] = &[
+    "experimental",
+    "observational",
+    "computational",
+    "theoretical",
+    "meta_analysis",
+    "systematic_review",
+    "case_report",
+];
+
+const VALID_PROVENANCE_SOURCE_TYPES: &[&str] = &[
+    "published_paper",
+    "preprint",
+    "clinical_trial",
+    "lab_notebook",
+    "model_output",
+    "expert_assertion",
+    "database_record",
+];
+
+const VALID_EXTRACT_METHODS: &[&str] = &[
+    "llm_extraction",
+    "manual_curation",
+    "database_import",
+    "hybrid",
+];
+
+const VALID_LINK_TYPES: &[&str] = &[
+    "supports",
+    "contradicts",
+    "extends",
+    "depends",
+    "replicates",
+    "supersedes",
+    "synthesized_from",
+];
+
+const VALID_LINK_INFERRED_BY: &[&str] = &["compiler", "reviewer", "author"];
+
+/// A single validation error.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ValidationError {
+    pub file: String,
+    pub error: String,
+}
+
+/// Summary of a validation run.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ValidationReport {
+    pub total_files: usize,
+    pub valid: usize,
+    pub invalid: usize,
+    pub errors: Vec<ValidationError>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Fixability {
+    Safe,
+    ManualReview,
+    NotFixable,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct QualityCheckOptions {
+    pub schema: bool,
+    pub lint: bool,
+    pub graph: bool,
+    pub repair_plan: bool,
+}
+
+impl Default for QualityCheckOptions {
+    fn default() -> Self {
+        Self {
+            schema: true,
+            lint: true,
+            graph: true,
+            repair_plan: true,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct QualityDiagnostic {
+    pub check_id: String,
+    pub severity: String,
+    pub rule_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub finding_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub file: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub path: Option<String>,
+    pub message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub suggestion: Option<String>,
+    pub fixability: Fixability,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct QualityCheckSection {
+    pub id: String,
+    pub status: String,
+    pub checked: usize,
+    pub failed: usize,
+    pub diagnostics: Vec<QualityDiagnostic>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct QualitySummary {
+    pub status: String,
+    pub checked_findings: usize,
+    pub valid_findings: usize,
+    pub invalid_findings: usize,
+    pub errors: usize,
+    pub warnings: usize,
+    pub info: usize,
+    pub safe_repairs: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct RepairPlanItem {
+    pub id: String,
+    pub finding_id: String,
+    pub path: String,
+    pub action: String,
+    pub before: serde_json::Value,
+    pub after: serde_json::Value,
+    pub safe: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct RepairPlan {
+    pub deterministic: bool,
+    pub safe_items: usize,
+    pub items: Vec<RepairPlanItem>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct QualityCheckReport {
+    pub ok: bool,
+    pub command: String,
+    pub schema_version: String,
+    pub source: String,
+    pub source_kind: String,
+    pub summary: QualitySummary,
+    pub checks: Vec<QualityCheckSection>,
+    pub repair_plan: RepairPlan,
+}
+
+/// Reusable report API for `vela check --json` style consumers.
+///
+/// The report combines schema validation, statistical lint diagnostics, graph
+/// diagnostics, and deterministic safe normalization repairs.
+pub fn quality_report(source_path: &Path, options: QualityCheckOptions) -> QualityCheckReport {
+    let source = source_path.display().to_string();
+    let source_kind = repo::detect(source_path)
+        .map(|s| source_kind(&s).to_string())
+        .unwrap_or_else(|_| "unknown".to_string());
+
+    let validation = if options.schema {
+        validate(source_path)
+    } else {
+        ValidationReport {
+            total_files: 0,
+            valid: 0,
+            invalid: 0,
+            errors: Vec::new(),
+        }
+    };
+
+    let mut checks = Vec::new();
+    if options.schema {
+        checks.push(schema_section(&validation));
+    }
+
+    let mut repair_items = Vec::new();
+    let mut loaded_findings = None;
+    if let Ok(frontier) = repo::load_from_path(source_path) {
+        loaded_findings = Some(frontier.findings.len());
+        if options.lint {
+            checks.push(lint_section("lint", lint::lint(&frontier, None, None)));
+        }
+        if options.graph {
+            checks.push(lint_section("graph", lint::lint_frontier(&frontier)));
+        }
+        if options.repair_plan {
+            repair_items = normalize::plan_project_changes(&frontier)
+                .into_iter()
+                .enumerate()
+                .map(|(idx, change)| RepairPlanItem {
+                    id: format!("repair_{:04}", idx + 1),
+                    finding_id: change.finding_id,
+                    path: change.path,
+                    action: change.description,
+                    before: change.before,
+                    after: change.after,
+                    safe: change.safe,
+                })
+                .collect();
+        }
+    } else if !options.schema {
+        checks.push(QualityCheckSection {
+            id: "load".to_string(),
+            status: "fail".to_string(),
+            checked: 0,
+            failed: 1,
+            diagnostics: vec![QualityDiagnostic {
+                check_id: "load".to_string(),
+                severity: "error".to_string(),
+                rule_id: "load".to_string(),
+                finding_id: None,
+                file: Some(source.clone()),
+                path: None,
+                message: "Failed to load frontier source".to_string(),
+                suggestion: Some(
+                    "Provide a frontier JSON file, VelaRepo, or packet directory".to_string(),
+                ),
+                fixability: Fixability::ManualReview,
+            }],
+        });
+    }
+
+    let errors = checks
+        .iter()
+        .flat_map(|c| c.diagnostics.iter())
+        .filter(|d| d.severity == "error")
+        .count();
+    let warnings = checks
+        .iter()
+        .flat_map(|c| c.diagnostics.iter())
+        .filter(|d| d.severity == "warning")
+        .count();
+    let info = checks
+        .iter()
+        .flat_map(|c| c.diagnostics.iter())
+        .filter(|d| d.severity == "info")
+        .count();
+    let status = if errors > 0 {
+        "fail"
+    } else if warnings > 0 || info > 0 {
+        "warn"
+    } else {
+        "pass"
+    };
+    let safe_repairs = repair_items.iter().filter(|item| item.safe).count();
+
+    QualityCheckReport {
+        ok: errors == 0,
+        command: "check".to_string(),
+        schema_version: crate::project::VELA_SCHEMA_VERSION.to_string(),
+        source,
+        source_kind,
+        summary: QualitySummary {
+            status: status.to_string(),
+            checked_findings: if options.schema {
+                validation.total_files
+            } else {
+                loaded_findings.unwrap_or(0)
+            },
+            valid_findings: if options.schema {
+                validation.valid
+            } else {
+                loaded_findings.unwrap_or(0)
+            },
+            invalid_findings: if options.schema {
+                validation.invalid
+            } else {
+                errors
+            },
+            errors,
+            warnings,
+            info,
+            safe_repairs,
+        },
+        checks,
+        repair_plan: RepairPlan {
+            deterministic: true,
+            safe_items: safe_repairs,
+            items: repair_items,
+        },
+    }
+}
+
+pub fn quality_report_json(
+    source_path: &Path,
+    options: QualityCheckOptions,
+) -> Result<String, serde_json::Error> {
+    serde_json::to_string_pretty(&quality_report(source_path, options))
+}
+
+fn schema_section(report: &ValidationReport) -> QualityCheckSection {
+    let diagnostics = report
+        .errors
+        .iter()
+        .map(|error| QualityDiagnostic {
+            check_id: "schema".to_string(),
+            severity: "error".to_string(),
+            rule_id: schema_rule_id(&error.error).to_string(),
+            finding_id: if error.file.starts_with("vf_") {
+                Some(error.file.clone())
+            } else {
+                None
+            },
+            file: Some(error.file.clone()),
+            path: None,
+            message: error.error.clone(),
+            suggestion: schema_suggestion(&error.error).map(str::to_string),
+            fixability: schema_fixability(&error.error),
+        })
+        .collect::<Vec<_>>();
+
+    QualityCheckSection {
+        id: "schema".to_string(),
+        status: if diagnostics.is_empty() {
+            "pass".to_string()
+        } else {
+            "fail".to_string()
+        },
+        checked: report.total_files,
+        failed: report.invalid,
+        diagnostics,
+    }
+}
+
+fn lint_section(id: &str, report: lint::LintReport) -> QualityCheckSection {
+    let failed = report
+        .diagnostics
+        .iter()
+        .filter(|d| d.severity == lint::Severity::Error)
+        .count();
+    let diagnostics = report
+        .diagnostics
+        .into_iter()
+        .map(|diagnostic| QualityDiagnostic {
+            check_id: id.to_string(),
+            severity: diagnostic.severity.to_string(),
+            rule_id: diagnostic.rule_id.clone(),
+            finding_id: Some(diagnostic.finding_id),
+            file: None,
+            path: None,
+            message: diagnostic.message,
+            suggestion: Some(diagnostic.suggestion),
+            fixability: lint_fixability(&diagnostic.rule_id),
+        })
+        .collect::<Vec<_>>();
+
+    QualityCheckSection {
+        id: id.to_string(),
+        status: if failed > 0 {
+            "fail".to_string()
+        } else if diagnostics.is_empty() {
+            "pass".to_string()
+        } else {
+            "warn".to_string()
+        },
+        checked: report.findings_checked,
+        failed,
+        diagnostics,
+    }
+}
+
+fn schema_rule_id(message: &str) -> &'static str {
+    if message.contains("Invalid entity type") {
+        "schema.entity_type"
+    } else if message.contains("Invalid assertion type") {
+        "schema.assertion_type"
+    } else if message.contains("Invalid evidence type") {
+        "schema.evidence_type"
+    } else if message.contains("does not match content-address") {
+        "schema.content_address"
+    } else if message.contains("Duplicate finding ID") {
+        "schema.duplicate_id"
+    } else if message.contains("does not exist in frontier") {
+        "schema.link_target"
+    } else if message.contains("not RFC3339") {
+        "schema.timestamp"
+    } else if message.contains("Project stats.") {
+        "schema.project_stats"
+    } else if message.contains("Packet validation failed") {
+        "schema.packet"
+    } else if message.contains("Failed to load") {
+        "schema.load"
+    } else {
+        "schema"
+    }
+}
+
+fn schema_suggestion(message: &str) -> Option<&'static str> {
+    if message.contains("Invalid entity type") {
+        Some("Run the normalization plan/apply API to map entity types to schema vocabulary")
+    } else if message.contains("Project stats.") {
+        Some("Reassemble or resave the frontier after applying content changes")
+    } else if message.contains("does not match content-address") {
+        Some(
+            "Recompute finding IDs and update dependent links only after reviewing the identity change",
+        )
+    } else if message.contains("does not exist in frontier") {
+        Some("Remove the broken link or add the missing target finding")
+    } else {
+        None
+    }
+}
+
+fn schema_fixability(message: &str) -> Fixability {
+    if message.contains("Invalid entity type") {
+        Fixability::Safe
+    } else if message.contains("Packet validation failed") || message.contains("Failed to load") {
+        Fixability::NotFixable
+    } else {
+        Fixability::ManualReview
+    }
+}
+
+fn lint_fixability(rule_id: &str) -> Fixability {
+    match rule_id {
+        "orphan"
+        | "missing_crossref"
+        | "unresolved_contradiction"
+        | "critical_gap"
+        | "fragile_anchor"
+        | "stale_superseded"
+        | "L001"
+        | "L002"
+        | "L003"
+        | "L004"
+        | "L005"
+        | "L006"
+        | "L007"
+        | "L008"
+        | "L009"
+        | "L010" => Fixability::ManualReview,
+        _ => Fixability::NotFixable,
+    }
+}
+
+fn source_kind(source: &repo::VelaSource) -> &'static str {
+    match source {
+        repo::VelaSource::ProjectFile(_) => "project_file",
+        repo::VelaSource::VelaRepo(_) => "vela_repo",
+        repo::VelaSource::PacketDir(_) => "packet_dir",
+    }
+}
+
+/// Validate all findings in a frontier against the schema.
+pub fn validate(source_path: &Path) -> ValidationReport {
+    let source_label = source_path.display().to_string();
+    let frontier = match repo::load_from_path(source_path) {
+        Ok(c) => c,
+        Err(e) => {
+            return ValidationReport {
+                total_files: 0,
+                valid: 0,
+                invalid: 0,
+                errors: vec![ValidationError {
+                    file: source_path.display().to_string(),
+                    error: format!("Failed to load: {e}"),
+                }],
+            };
+        }
+    };
+
+    let mut errors: Vec<ValidationError> = Vec::new();
+    let mut seen_ids: HashSet<String> = HashSet::new();
+    let all_ids: HashSet<String> = frontier.findings.iter().map(|f| f.id.clone()).collect();
+
+    if matches!(
+        repo::detect(source_path),
+        Ok(repo::VelaSource::PacketDir(_))
+    ) && let Err(packet_err) = packet::validate(source_path)
+    {
+        errors.push(ValidationError {
+            file: source_label.clone(),
+            error: format!("Packet validation failed: {packet_err}"),
+        });
+    }
+
+    validate_project_metadata(&frontier, source_path, &mut errors);
+
+    for finding in &frontier.findings {
+        let file_label = &finding.id;
+        validate_finding(finding, file_label, &all_ids, &mut seen_ids, &mut errors);
+    }
+
+    let invalid_count = errors.iter().map(|e| &e.file).collect::<HashSet<_>>().len();
+    let valid_count = frontier.findings.len().saturating_sub(invalid_count);
+
+    ValidationReport {
+        total_files: frontier.findings.len(),
+        valid: valid_count,
+        invalid: invalid_count,
+        errors,
+    }
+}
+
+fn validate_finding(
+    finding: &FindingBundle,
+    file_label: &str,
+    all_ids: &HashSet<String>,
+    seen_ids: &mut HashSet<String>,
+    errors: &mut Vec<ValidationError>,
+) {
+    // Check ID pattern: vf_ + 16 hex chars
+    let id_valid = finding.id.starts_with("vf_")
+        && finding.id.len() == 19
+        && finding.id[3..].chars().all(|c| c.is_ascii_hexdigit());
+    if !id_valid {
+        errors.push(ValidationError {
+            file: file_label.to_string(),
+            error: format!(
+                "Invalid ID format '{}': expected vf_ + 16 hex chars",
+                finding.id
+            ),
+        });
+    }
+
+    // Duplicate ID check
+    if !seen_ids.insert(finding.id.clone()) {
+        errors.push(ValidationError {
+            file: file_label.to_string(),
+            error: format!("Duplicate finding ID '{}'", finding.id),
+        });
+    }
+
+    // Required fields presence (these are enforced by Rust types, but
+    // check for empty strings which indicate missing data)
+    if finding.assertion.text.is_empty() {
+        errors.push(ValidationError {
+            file: file_label.to_string(),
+            error: "Assertion text is empty".to_string(),
+        });
+    }
+
+    if finding.created.is_empty() {
+        errors.push(ValidationError {
+            file: file_label.to_string(),
+            error: "Created timestamp is empty".to_string(),
+        });
+    }
+    if !finding.created.is_empty() && DateTime::parse_from_rfc3339(&finding.created).is_err() {
+        errors.push(ValidationError {
+            file: file_label.to_string(),
+            error: format!("Created timestamp '{}' is not RFC3339", finding.created),
+        });
+    }
+    if let Some(updated) = &finding.updated
+        && !updated.is_empty()
+        && DateTime::parse_from_rfc3339(updated).is_err()
+    {
+        errors.push(ValidationError {
+            file: file_label.to_string(),
+            error: format!("Updated timestamp '{}' is not RFC3339", updated),
+        });
+    }
+
+    let expected_id = FindingBundle::content_address(&finding.assertion, &finding.provenance);
+    if finding.id != expected_id {
+        errors.push(ValidationError {
+            file: file_label.to_string(),
+            error: format!(
+                "Finding id '{}' does not match content-address '{}'",
+                finding.id, expected_id
+            ),
+        });
+    }
+
+    // Confidence score range
+    if !(0.0..=1.0).contains(&finding.confidence.score) {
+        errors.push(ValidationError {
+            file: file_label.to_string(),
+            error: format!(
+                "Confidence score {} is outside 0.0-1.0 range",
+                finding.confidence.score
+            ),
+        });
+    }
+
+    // Assertion type validation
+    if !VALID_ASSERTION_TYPES.contains(&finding.assertion.assertion_type.as_str()) {
+        errors.push(ValidationError {
+            file: file_label.to_string(),
+            error: format!(
+                "Invalid assertion type '{}'. Valid: {}",
+                finding.assertion.assertion_type,
+                VALID_ASSERTION_TYPES.join(", "),
+            ),
+        });
+    }
+
+    // Evidence type validation
+    if !VALID_EVIDENCE_TYPES.contains(&finding.evidence.evidence_type.as_str()) {
+        errors.push(ValidationError {
+            file: file_label.to_string(),
+            error: format!(
+                "Invalid evidence type '{}'. Valid: {}",
+                finding.evidence.evidence_type,
+                VALID_EVIDENCE_TYPES.join(", "),
+            ),
+        });
+    }
+
+    for entity in &finding.assertion.entities {
+        if !VALID_ENTITY_TYPES.contains(&entity.entity_type.as_str()) {
+            errors.push(ValidationError {
+                file: file_label.to_string(),
+                error: format!(
+                    "Invalid entity type '{}' for entity '{}'. Valid: {}",
+                    entity.entity_type,
+                    entity.name,
+                    VALID_ENTITY_TYPES.join(", "),
+                ),
+            });
+        }
+    }
+
+    if !VALID_PROVENANCE_SOURCE_TYPES.contains(&finding.provenance.source_type.as_str()) {
+        errors.push(ValidationError {
+            file: file_label.to_string(),
+            error: format!(
+                "Invalid source_type '{}'. Valid: {}",
+                finding.provenance.source_type,
+                VALID_PROVENANCE_SOURCE_TYPES.join(", "),
+            ),
+        });
+    }
+
+    if !VALID_EXTRACT_METHODS.contains(&finding.provenance.extraction.method.as_str()) {
+        errors.push(ValidationError {
+            file: file_label.to_string(),
+            error: format!(
+                "Invalid extraction method '{}'. Valid: {}",
+                finding.provenance.extraction.method,
+                VALID_EXTRACT_METHODS.join(", "),
+            ),
+        });
+    }
+
+    if finding.confidence.method == ConfidenceMethod::Computed
+        && finding.confidence.components.is_none()
+    {
+        errors.push(ValidationError {
+            file: file_label.to_string(),
+            error: "Computed confidence must include components".to_string(),
+        });
+    }
+
+    // Link targets must reference existing finding IDs
+    for link in &finding.links {
+        if !link.target.starts_with("vf_")
+            || link.target.len() != 19
+            || !link.target[3..].chars().all(|c| c.is_ascii_hexdigit())
+        {
+            errors.push(ValidationError {
+                file: file_label.to_string(),
+                error: format!("Invalid link target format '{}'", link.target),
+            });
+        } else if !all_ids.contains(&link.target) {
+            errors.push(ValidationError {
+                file: file_label.to_string(),
+                error: format!("Link target '{}' does not exist in frontier", link.target),
+            });
+        }
+        if link.created_at.is_empty() {
+            errors.push(ValidationError {
+                file: file_label.to_string(),
+                error: format!("Link created_at is empty for target '{}'", link.target),
+            });
+        } else if DateTime::parse_from_rfc3339(&link.created_at).is_err() {
+            errors.push(ValidationError {
+                file: file_label.to_string(),
+                error: format!("Link created_at '{}' is not RFC3339", link.created_at),
+            });
+        }
+        if !VALID_LINK_TYPES.contains(&link.link_type.as_str()) {
+            errors.push(ValidationError {
+                file: file_label.to_string(),
+                error: format!("Invalid link type '{}'", link.link_type),
+            });
+        }
+        if !VALID_LINK_INFERRED_BY.contains(&link.inferred_by.as_str()) {
+            errors.push(ValidationError {
+                file: file_label.to_string(),
+                error: format!("Invalid link inferred_by '{}'", link.inferred_by),
+            });
+        }
+    }
+}
+
+fn validate_project_metadata(
+    frontier: &crate::project::Project,
+    source_path: &Path,
+    errors: &mut Vec<ValidationError>,
+) {
+    if frontier.vela_version != crate::project::VELA_SCHEMA_VERSION {
+        errors.push(ValidationError {
+            file: source_path.display().to_string(),
+            error: format!(
+                "Invalid vela_version '{}': expected {}",
+                frontier.vela_version,
+                crate::project::VELA_SCHEMA_VERSION
+            ),
+        });
+    }
+    if frontier.schema != crate::project::VELA_SCHEMA_URL {
+        errors.push(ValidationError {
+            file: source_path.display().to_string(),
+            error: format!(
+                "Invalid schema '{}': expected {}",
+                frontier.schema,
+                crate::project::VELA_SCHEMA_URL
+            ),
+        });
+    }
+    if frontier.project.compiler != crate::project::VELA_COMPILER_VERSION {
+        errors.push(ValidationError {
+            file: source_path.display().to_string(),
+            error: format!(
+                "Invalid compiler '{}': expected {}",
+                frontier.project.compiler,
+                crate::project::VELA_COMPILER_VERSION
+            ),
+        });
+    }
+    if frontier.project.compiled_at.is_empty() {
+        errors.push(ValidationError {
+            file: source_path.display().to_string(),
+            error: "Project compiled_at is empty".to_string(),
+        });
+    } else if DateTime::parse_from_rfc3339(&frontier.project.compiled_at).is_err() {
+        errors.push(ValidationError {
+            file: source_path.display().to_string(),
+            error: format!(
+                "Project compiled_at '{}' is not RFC3339",
+                frontier.project.compiled_at
+            ),
+        });
+    }
+
+    let expected_links: usize = frontier.findings.iter().map(|f| f.links.len()).sum();
+    if frontier.stats.findings != frontier.findings.len() {
+        errors.push(ValidationError {
+            file: source_path.display().to_string(),
+            error: format!(
+                "Project stats.findings {} does not match findings length {}",
+                frontier.stats.findings,
+                frontier.findings.len()
+            ),
+        });
+    }
+    if frontier.stats.links != expected_links {
+        errors.push(ValidationError {
+            file: source_path.display().to_string(),
+            error: format!(
+                "Project stats.links {} does not match aggregated links {}",
+                frontier.stats.links, expected_links
+            ),
+        });
+    }
+}
+
+/// CLI entry point for `vela validate`.
+pub fn run(source: &Path) {
+    let report = validate(source);
+
+    println!();
+    println!("  {}", "VELA · VALIDATE".dimmed());
+    println!("  {}", style::tick_row(60));
+    println!("  total findings: {}", report.total_files);
+    println!(
+        "  valid:           {}",
+        style::moss(report.valid.to_string())
+    );
+    println!(
+        "  invalid:         {}",
+        if report.invalid > 0 {
+            style::madder(report.invalid.to_string()).to_string()
+        } else {
+            report.invalid.to_string()
+        }
+    );
+
+    if !report.errors.is_empty() {
+        println!();
+        println!("  {}", "ERRORS".dimmed());
+        for err in &report.errors {
+            println!(
+                "  {} {} · {}",
+                style::madder("-"),
+                err.file.dimmed(),
+                err.error
+            );
+        }
+    } else {
+        println!("\n  {} all findings valid.", style::ok("ok"));
+    }
+
+    if report.invalid > 0 {
+        std::process::exit(1);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::bundle::*;
+    use crate::project;
+    use chrono::Utc;
+    use tempfile::TempDir;
+
+    fn make_valid_finding(seed: &str) -> FindingBundle {
+        let assertion = Assertion {
+            text: format!("Test assertion {}", seed),
+            assertion_type: "mechanism".into(),
+            entities: vec![],
+            relation: None,
+            direction: None,
+        };
+        let provenance = Provenance {
+            source_type: "published_paper".into(),
+            doi: Some(format!("10.0000/{}", seed)),
+            pmid: None,
+            pmc: None,
+            openalex_id: None,
+            title: format!("Test {seed}"),
+            authors: vec![],
+            year: Some(2024),
+            journal: None,
+            license: None,
+            publisher: None,
+            funders: vec![],
+            extraction: Extraction {
+                method: "llm_extraction".into(),
+                model: None,
+                model_version: None,
+                extracted_at: "1970-01-01T00:00:00Z".to_string(),
+                extractor_version: "vela/0.2.0".to_string(),
+            },
+            review: None,
+            citation_count: None,
+        };
+        let mut finding = FindingBundle::new(
+            assertion,
+            Evidence {
+                evidence_type: "experimental".into(),
+                model_system: String::new(),
+                species: None,
+                method: String::new(),
+                sample_size: None,
+                effect_size: None,
+                p_value: None,
+                replicated: false,
+                replication_count: None,
+                evidence_spans: vec![],
+            },
+            Conditions {
+                text: String::new(),
+                species_verified: vec![],
+                species_unverified: vec![],
+                in_vitro: false,
+                in_vivo: false,
+                human_data: false,
+                clinical_trial: false,
+                concentration_range: None,
+                duration: None,
+                age_group: None,
+                cell_type: None,
+            },
+            Confidence::legacy(0.85, "test", 0.9),
+            provenance,
+            Flags {
+                gap: false,
+                negative_space: false,
+                contested: false,
+                retracted: false,
+                declining: false,
+                gravity_well: false,
+                review_state: None,
+            },
+        );
+        finding.id = FindingBundle::content_address(&finding.assertion, &finding.provenance);
+        finding
+    }
+
+    fn write_frontier(dir: &Path, findings: Vec<FindingBundle>) -> std::path::PathBuf {
+        let c = project::assemble("test", findings, 1, 0, "Test");
+        let path = dir.join("test.json");
+        let json = serde_json::to_string_pretty(&c).unwrap();
+        std::fs::write(&path, json).unwrap();
+        path
+    }
+
+    fn write_project(dir: &Path, frontier: &project::Project) -> std::path::PathBuf {
+        let path = dir.join("test.json");
+        let json = serde_json::to_string_pretty(frontier).unwrap();
+        std::fs::write(&path, json).unwrap();
+        path
+    }
+
+    #[test]
+    fn valid_frontier_passes() {
+        let tmp = TempDir::new().unwrap();
+        let path = write_frontier(
+            tmp.path(),
+            vec![
+                make_valid_finding("vf_0000000000000001"),
+                make_valid_finding("vf_0000000000000002"),
+            ],
+        );
+        let report = validate(&path);
+        assert_eq!(report.total_files, 2);
+        assert_eq!(report.valid, 2);
+        assert_eq!(report.invalid, 0);
+        assert!(report.errors.is_empty());
+    }
+
+    #[test]
+    fn project_metadata_validation() {
+        let tmp = TempDir::new().unwrap();
+        let mut c = project::assemble(
+            "test",
+            vec![make_valid_finding("vf_0000000000000001")],
+            1,
+            0,
+            "Test",
+        );
+        c.vela_version = "0.1.0".into();
+        let path = write_project(tmp.path(), &c);
+        let report = validate(&path);
+        assert!(
+            report
+                .errors
+                .iter()
+                .any(|e| e.error.contains("Invalid vela_version"))
+        );
+    }
+
+    #[test]
+    fn invalid_provenance_source_type_detected() {
+        let tmp = TempDir::new().unwrap();
+        let mut f = make_valid_finding("vf_0000000000000001");
+        f.provenance.source_type = "invalid_source".into();
+        let path = write_frontier(tmp.path(), vec![f]);
+        let report = validate(&path);
+        assert!(
+            report
+                .errors
+                .iter()
+                .any(|e| e.error.contains("Invalid source_type"))
+        );
+    }
+
+    #[test]
+    fn invalid_extraction_method_detected() {
+        let tmp = TempDir::new().unwrap();
+        let mut f = make_valid_finding("vf_0000000000000001");
+        f.provenance.extraction.method = "invalid_method".into();
+        let path = write_frontier(tmp.path(), vec![f]);
+        let report = validate(&path);
+        assert!(
+            report
+                .errors
+                .iter()
+                .any(|e| e.error.contains("Invalid extraction method"))
+        );
+    }
+
+    #[test]
+    fn invalid_computed_confidence_components_detected() {
+        let tmp = TempDir::new().unwrap();
+        let mut f = make_valid_finding("vf_0000000000000001");
+        f.confidence.method = ConfidenceMethod::Computed;
+        f.confidence.components = None;
+        let path = write_frontier(tmp.path(), vec![f]);
+        let report = validate(&path);
+        assert!(report.errors.iter().any(|e| {
+            e.error
+                .contains("Computed confidence must include components")
+        }));
+    }
+
+    #[test]
+    fn invalid_content_address_detected() {
+        let tmp = TempDir::new().unwrap();
+        let mut f = make_valid_finding("vf_0000000000000001");
+        f.id = "vf_0000000000000002".into();
+        let path = write_frontier(tmp.path(), vec![f]);
+        let report = validate(&path);
+        assert!(
+            report
+                .errors
+                .iter()
+                .any(|e| e.error.contains("does not match content-address"))
+        );
+    }
+
+    #[test]
+    fn invalid_link_type_detected() {
+        let tmp = TempDir::new().unwrap();
+        let mut f = make_valid_finding("vf_link_type");
+        let target = f.id.clone();
+        f.links.push(Link {
+            target,
+            link_type: "bad_type".into(),
+            note: String::new(),
+            inferred_by: "compiler".into(),
+            created_at: Utc::now().to_rfc3339(),
+        });
+        let path = write_frontier(tmp.path(), vec![f]);
+        let report = validate(&path);
+        assert!(
+            report
+                .errors
+                .iter()
+                .any(|e| e.error.contains("Invalid link type"))
+        );
+    }
+
+    #[test]
+    fn invalid_id_format_detected() {
+        let tmp = TempDir::new().unwrap();
+        let mut f = make_valid_finding("bad_id");
+        f.id = "bad_id".into();
+        let path = write_frontier(tmp.path(), vec![f]);
+        let report = validate(&path);
+        assert!(report.invalid > 0);
+        assert!(
+            report
+                .errors
+                .iter()
+                .any(|e| e.error.contains("Invalid ID format"))
+        );
+    }
+
+    #[test]
+    fn invalid_confidence_detected() {
+        let tmp = TempDir::new().unwrap();
+        let mut f = make_valid_finding("vf_0000000000000001");
+        f.confidence.score = 1.5;
+        let path = write_frontier(tmp.path(), vec![f]);
+        let report = validate(&path);
+        assert!(
+            report
+                .errors
+                .iter()
+                .any(|e| e.error.contains("Confidence score"))
+        );
+    }
+
+    #[test]
+    fn invalid_assertion_type_detected() {
+        let tmp = TempDir::new().unwrap();
+        let mut f = make_valid_finding("vf_0000000000000001");
+        f.assertion.assertion_type = "bogus_type".into();
+        let path = write_frontier(tmp.path(), vec![f]);
+        let report = validate(&path);
+        assert!(
+            report
+                .errors
+                .iter()
+                .any(|e| e.error.contains("Invalid assertion type"))
+        );
+    }
+
+    #[test]
+    fn invalid_evidence_type_detected() {
+        let tmp = TempDir::new().unwrap();
+        let mut f = make_valid_finding("vf_0000000000000001");
+        f.evidence.evidence_type = "anecdotal".into();
+        let path = write_frontier(tmp.path(), vec![f]);
+        let report = validate(&path);
+        assert!(
+            report
+                .errors
+                .iter()
+                .any(|e| e.error.contains("Invalid evidence type"))
+        );
+    }
+
+    #[test]
+    fn broken_link_target_detected() {
+        let tmp = TempDir::new().unwrap();
+        let mut f = make_valid_finding("vf_0000000000000001");
+        f.links.push(Link {
+            target: "vf_deadbeefdeadbeef".into(),
+            link_type: "extends".into(),
+            note: String::new(),
+            inferred_by: "compiler".into(),
+            created_at: Utc::now().to_rfc3339(),
+        });
+        let path = write_frontier(tmp.path(), vec![f]);
+        let report = validate(&path);
+        assert!(
+            report
+                .errors
+                .iter()
+                .any(|e| e.error.contains("does not exist"))
+        );
+    }
+
+    #[test]
+    fn duplicate_id_detected() {
+        let tmp = TempDir::new().unwrap();
+        let f1 = make_valid_finding("vf_0000000000000001");
+        let f2 = make_valid_finding("vf_0000000000000001");
+        let path = write_frontier(tmp.path(), vec![f1, f2]);
+        let report = validate(&path);
+        assert!(report.errors.iter().any(|e| e.error.contains("Duplicate")));
+    }
+
+    #[test]
+    fn invalid_entity_type_detected_and_marked_fixable() {
+        let tmp = TempDir::new().unwrap();
+        let mut f = make_valid_finding("vf_0000000000000001");
+        f.assertion.entities.push(Entity {
+            name: "BBB".into(),
+            entity_type: "biological_barrier".into(),
+            identifiers: serde_json::Map::new(),
+            canonical_id: None,
+            candidates: vec![],
+            aliases: vec![],
+            resolution_provenance: None,
+            resolution_confidence: 1.0,
+            resolution_method: None,
+            species_context: None,
+            needs_review: false,
+        });
+        f.id = FindingBundle::content_address(&f.assertion, &f.provenance);
+        let path = write_frontier(tmp.path(), vec![f]);
+
+        let report = quality_report(&path, QualityCheckOptions::default());
+
+        assert!(
+            report
+                .checks
+                .iter()
+                .flat_map(|check| check.diagnostics.iter())
+                .any(|diagnostic| diagnostic.rule_id == "schema.entity_type"
+                    && diagnostic.fixability == Fixability::Safe)
+        );
+        assert!(report.repair_plan.safe_items >= 2);
+    }
+
+    #[test]
+    fn quality_report_includes_schema_lint_and_graph_sections() {
+        let tmp = TempDir::new().unwrap();
+        let mut f = make_valid_finding("vf_0000000000000001");
+        f.evidence.sample_size = Some("n=4".into());
+        f.evidence.replicated = false;
+        f.confidence.score = 0.9;
+        f.id = FindingBundle::content_address(&f.assertion, &f.provenance);
+        let path = write_frontier(tmp.path(), vec![f]);
+
+        let report = quality_report(&path, QualityCheckOptions::default());
+
+        assert!(report.checks.iter().any(|check| check.id == "schema"));
+        assert!(report.checks.iter().any(|check| check.id == "lint"));
+        assert!(report.checks.iter().any(|check| check.id == "graph"));
+        assert!(
+            report
+                .checks
+                .iter()
+                .flat_map(|check| check.diagnostics.iter())
+                .any(|diagnostic| diagnostic.rule_id == "L001")
+        );
+        assert!(
+            report
+                .checks
+                .iter()
+                .flat_map(|check| check.diagnostics.iter())
+                .any(|diagnostic| diagnostic.rule_id == "orphan")
+        );
+    }
+}

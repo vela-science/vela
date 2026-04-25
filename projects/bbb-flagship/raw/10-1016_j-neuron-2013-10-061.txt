@@ -1,0 +1,8 @@
+DOI: 10.1016/j.neuron.2013.10.061
+PMID: 24411731
+Year: 2014
+Journal: 
+Title: Increased brain penetration and potency of a therapeutic antibody using a monovalent molecular shuttle.
+
+Abstract:
+Although biotherapeutics have vast potential for treating brain disorders, their use has been limited due to low exposure across the blood-brain barrier (BBB). We report that by manipulating the binding mode of an antibody fragment to the transferrin receptor (TfR), we have developed a Brain Shuttle module, which can be engineered into a standard therapeutic antibody for successful BBB transcytosis. Brain Shuttle version of an anti-Aβ antibody, which uses a monovalent binding mode to the TfR, increases β-Amyloid target engagement in a mouse model of Alzheimer's disease by 55-fold compared to the parent antibody. We provide in vitro and in vivo evidence that the monovalent binding mode facilitates transcellular transport, whereas a bivalent binding mode leads to lysosome sorting. Enhanced target engagement of the Brain Shuttle module translates into a significant improvement in amyloid reduction. These findings have major implications for the development of biologics-based treatment of brain disorders.

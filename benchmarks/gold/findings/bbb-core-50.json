@@ -1,0 +1,66 @@
+[
+  {
+    "id": "vf_08c81dd507f6a047",
+    "assertion_text": "The Brain Shuttle version of an anti-A\u03b2 antibody, utilizing a monovalent binding mode to the transferrin receptor (TfR), increases \u03b2-Amyloid target engagement in an Alzheimer's disease mouse model by 55-fold compared to the parent antibody.",
+    "assertion_type": "therapeutic",
+    "entities": ["anti-amyloid-beta antibody", "amyloid-beta", "transferrin receptor", "Alzheimer's disease"],
+    "confidence_range": { "low": 0.25, "high": 0.30 },
+    "notes": "BBB gold fixture tied to the checked-in frontier finding id."
+  },
+  {
+    "id": "vf_0d9407f02d2fc4ef",
+    "assertion_text": "Abeta interaction with RAGE-bearing cells in the vessel wall results in the expression of proinflammatory cytokines.",
+    "assertion_type": "mechanism",
+    "entities": ["amyloid-beta", "RAGE", "proinflammatory cytokines"],
+    "confidence_range": { "low": 0.25, "high": 0.30 },
+    "notes": "RAGE-mediated vascular inflammation finding."
+  },
+  {
+    "id": "vf_138c6e88e8273ba6",
+    "assertion_text": "Amyloid beta-peptide amyloid-beta 1-40 binds to immobilized LRP clusters II and IV with high affinity, with a dissociation constant (Kd) ranging from 0.6 to 1.2 nM.",
+    "assertion_type": "mechanism",
+    "entities": ["amyloid-beta 1-40", "LRP1"],
+    "confidence_range": { "low": 0.19, "high": 0.22 },
+    "notes": "LRP binding affinity finding."
+  },
+  {
+    "id": "vf_171833bd31b24037",
+    "assertion_text": "Brain capillary LRP levels are reduced in patients with Alzheimer's disease and cerebrovascular beta-amyloidosis.",
+    "assertion_type": "observational",
+    "entities": ["LRP1", "Alzheimer's disease", "cerebrovascular beta-amyloidosis"],
+    "confidence_range": { "low": 0.26, "high": 0.29 },
+    "notes": "Human observational LRP reduction finding."
+  },
+  {
+    "id": "vf_47ebdf11b9b45680",
+    "assertion_text": "LRP mediates the binding, endocytosis, and transcytosis of Abeta across the mouse blood-brain barrier.",
+    "assertion_type": "mechanism",
+    "entities": ["LRP1", "amyloid-beta", "blood-brain barrier"],
+    "confidence_range": { "low": 0.25, "high": 0.30 },
+    "notes": "Core BBB transport mechanism finding."
+  },
+  {
+    "id": "vf_5021284e4155f141",
+    "assertion_text": "Altered activities of RAGE and LRP1 at the blood-brain barrier contribute to the accumulation of amyloid beta-peptide in the central nervous system.",
+    "assertion_type": "mechanism",
+    "entities": ["RAGE", "LRP1", "amyloid-beta"],
+    "confidence_range": { "low": 0.25, "high": 0.30 },
+    "notes": "RAGE/LRP1 balance finding."
+  },
+  {
+    "id": "vf_7bccfa32f2db47b1",
+    "assertion_text": "The reversibility of amyloid beta-peptide-related pathology and the identity of key therapeutic targets for controlling amyloid levels in the aging brain remain debatable.",
+    "assertion_type": "theoretical",
+    "entities": ["amyloid-beta"],
+    "confidence_range": { "low": 0.0, "high": 0.05 },
+    "notes": "Contested/gap-oriented frontier state fixture."
+  },
+  {
+    "id": "vf_8dfd242d30a1d4d0",
+    "assertion_text": "The balance between RAGE and LRP1 at the blood-brain barrier regulates the clearance and transport of amyloid beta-peptide across the barrier.",
+    "assertion_type": "mechanism",
+    "entities": ["RAGE", "LRP1", "amyloid-beta", "blood-brain barrier"],
+    "confidence_range": { "low": 0.25, "high": 0.30 },
+    "notes": "Core RAGE/LRP1 BBB clearance fixture."
+  }
+]

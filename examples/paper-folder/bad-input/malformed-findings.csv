@@ -1,0 +1,2 @@
+assertion,type,evidence,confidence,entities,source,span
+,mechanism,observational,0.5,"LRP1:protein","Malformed CSV fixture","missing assertion should become a source error"

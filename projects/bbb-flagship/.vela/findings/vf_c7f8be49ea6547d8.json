@@ -1,0 +1,167 @@
+{
+  "id": "vf_c7f8be49ea6547d8",
+  "version": 1,
+  "previous_version": null,
+  "assertion": {
+    "text": "High-affinity anti-TfR antibodies remain associated with the blood-brain barrier vasculature, whereas lower-affinity variants are released into the brain parenchyma.",
+    "type": "observational",
+    "entities": [
+      {
+        "name": "transferrin receptor",
+        "type": "protein",
+        "identifiers": {},
+        "candidates": [],
+        "aliases": [
+          "TfR"
+        ],
+        "resolution_provenance": "checked-in raw/source-visible alias normalization",
+        "resolution_confidence": 1.0,
+        "resolution_method": "manual",
+        "species_context": "Mus musculus"
+      },
+      {
+        "name": "blood-brain barrier",
+        "type": "anatomical_structure",
+        "identifiers": {},
+        "candidates": [],
+        "aliases": [
+          "BBB"
+        ],
+        "resolution_provenance": "checked-in raw/source-visible alias normalization",
+        "resolution_confidence": 1.0,
+        "resolution_method": "manual"
+      }
+    ],
+    "relation": "correlates_with",
+    "direction": "negative"
+  },
+  "evidence": {
+    "type": "experimental",
+    "model_system": "mouse",
+    "species": "Mus musculus",
+    "method": "distribution analysis 24 hours after dosing",
+    "sample_size": null,
+    "effect_size": null,
+    "p_value": null,
+    "replicated": false,
+    "replication_count": null,
+    "evidence_spans": [
+      {
+        "section": "abstract",
+        "text": "Anti-TfR antibodies that bind with high affinity to TfR remain associated with the BBB, whereas lower-affinity anti-TfR antibody variants are released from the BBB into the brain and show a broad distribution 24 hours after dosing."
+      }
+    ]
+  },
+  "conditions": {
+    "text": "24 hours after systemic dosing of anti-TfR antibody variants",
+    "species_verified": [],
+    "species_unverified": [],
+    "in_vitro": false,
+    "in_vivo": true,
+    "human_data": false,
+    "clinical_trial": false,
+    "concentration_range": null,
+    "duration": null,
+    "age_group": null,
+    "cell_type": null
+  },
+  "confidence": {
+    "kind": "frontier_epistemic",
+    "score": 0.269,
+    "basis": "frontier_epistemic: evidence=0.80 * replication=0.70 * model=0.80 * sample=0.60 - review_penalty=0.00 + calibration=0.00 = 0.269",
+    "method": "computed",
+    "components": {
+      "evidence_strength": 0.8,
+      "replication_strength": 0.7,
+      "sample_strength": 0.6,
+      "model_relevance": 0.8,
+      "review_penalty": 0.0,
+      "calibration_adjustment": 0.0
+    },
+    "extraction_confidence": 0.85
+  },
+  "provenance": {
+    "source_type": "published_paper",
+    "doi": "10.1126/scitranslmed.3002230",
+    "pmid": "21613623",
+    "pmc": null,
+    "openalex_id": null,
+    "title": "Boosting brain uptake of a therapeutic antibody by reducing its affinity for a transcytosis target.",
+    "authors": [
+      {
+        "name": "Yu YJ",
+        "orcid": null
+      },
+      {
+        "name": "Zhang Y",
+        "orcid": null
+      },
+      {
+        "name": "Kenrick M",
+        "orcid": null
+      },
+      {
+        "name": "Hoyte K",
+        "orcid": null
+      },
+      {
+        "name": "Luk W",
+        "orcid": null
+      },
+      {
+        "name": "Lu Y",
+        "orcid": null
+      },
+      {
+        "name": "Atwal J",
+        "orcid": null
+      },
+      {
+        "name": "Elliott JM",
+        "orcid": null
+      },
+      {
+        "name": "Prabhu S",
+        "orcid": null
+      },
+      {
+        "name": "Watts RJ",
+        "orcid": null
+      },
+      {
+        "name": "Dennis MS",
+        "orcid": null
+      }
+    ],
+    "year": 2011,
+    "journal": "Sci Transl Med",
+    "extraction": {
+      "method": "llm_extraction",
+      "model": "gemini-3-flash-preview",
+      "model_version": null,
+      "extracted_at": "2026-04-10T04:16:37.546418+00:00",
+      "extractor_version": "vela/0.2.0"
+    },
+    "review": null,
+    "citation_count": 0
+  },
+  "flags": {
+    "gap": false,
+    "negative_space": false,
+    "contested": false,
+    "retracted": false,
+    "declining": false,
+    "gravity_well": false
+  },
+  "links": [],
+  "annotations": [
+    {
+      "id": "ann_6ef3d7e02188db98",
+      "text": "Curation limitation: checked-in source text for this finding contains title and abstract only; evidence is grounded to the abstract span and does not verify full-text methods, figures, tables, supplementary material, or exact controls/sample details.",
+      "author": "worker_a_bbb_curation",
+      "timestamp": "2026-04-22T00:00:00Z"
+    }
+  ],
+  "created": "2026-04-10T04:16:37.548153+00:00",
+  "updated": null
+}
