@@ -1,0 +1,245 @@
+---
+import Page from "../layouts/Page.astro";
+import Section from "../components/Section.astro";
+import TerminalPaper from "../components/TerminalPaper.astro";
+import Chip from "../components/Chip.astro";
+import { HUB_URL, REPO_URL, VERSION } from "../config";
+
+const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
+---
+<Page
+  title="Vela · publish your own frontier"
+  description="The minimum-viable path from a bounded scientific question to a signed frontier on the public hub. Five commands; no allowlist; no gatekeeper."
+  active="publish"
+  eyebrow="04 · Publish"
+  pageTitle="Publish"
+  subtitle="From a bounded question to a signed manifest on the public hub."
+>
+  <div slot="aside">
+    <a href={`${REPO_URL}/blob/main/docs/PUBLISHING.md`} class="aside-link">full doc</a>
+    <span>·</span>
+    <a href={HUB_URL} class="aside-link">hub</a>
+    <span>·</span>
+    <Chip variant="live" label={`v${VERSION}`} />
+  </div>
+
+  <p class="t-lead">
+    The hub at <code>{HUB_HOST}</code> is dumb signed transport. Anyone with an Ed25519 key can publish their own <code>vfr_id</code>. There is no allowlist, no rate limit, no gatekeeper. The signature is the bind.
+  </p>
+
+  <p class="t-lead" style="font-size: 17px; color: var(--ink-2);">
+    The whole loop below takes ~10 minutes the first time and ~2 minutes after that. Five commands.
+  </p>
+
+  <Section num="§0" title="Get the binary" aside="one rust toolchain">
+    <TerminalPaper title="build">
+      <span class="tm-ps">$</span> <span class="tm-cmd">git clone</span> {REPO_URL}
+<span class="tm-ps">$</span> <span class="tm-cmd">cd</span> vela <span class="tm-ps">&&</span> <span class="tm-cmd">cargo build</span> <span class="tm-flag">--release</span> <span class="tm-flag">-p</span> vela-protocol
+<span class="tm-ps">$</span> <span class="tm-cmd">export</span> PATH=<span class="tm-flag">"$PWD/target/release:$PATH"</span>
+<span class="tm-ps">$</span> <span class="tm-cmd">vela</span> <span class="tm-flag">--version</span>   <span class="tm-ps"># vela {VERSION}.0</span>
+    </TerminalPaper>
+  </Section>
+
+  <Section num="§1" title="Scaffold a publishable stub" aside="frontier new">
+    <p class="step-blurb">
+      Writes a fresh <code>frontier.json</code> that passes <code>vela check --strict</code> immediately. Use this — not <code>vela init</code> — when your target is the hub.
+    </p>
+    <TerminalPaper title="scaffold">
+      <span class="tm-ps">$</span> <span class="tm-cmd">vela frontier new</span> ./frontier.json \
+    <span class="tm-flag">--name</span> <span class="tm-arg">"Your bounded question"</span> \
+    <span class="tm-flag">--description</span> <span class="tm-arg">"One paragraph on the scope."</span>
+    </TerminalPaper>
+  </Section>
+
+  <Section num="§2" title="Add findings" aside="finding add (proposal → event → reducer)">
+    <p class="step-blurb">
+      Each call appends a content-addressed finding via the standard proposal flow. The CLI rejects schema-invalid <code>--type</code>, <code>--evidence-type</code>, <code>--source-type</code>, and entity types at add-time — no surprises at strict-validation time.
+    </p>
+    <TerminalPaper title="finding">
+      <span class="tm-ps">$</span> <span class="tm-cmd">vela finding add</span> ./frontier.json \
+    <span class="tm-flag">--assertion</span> <span class="tm-arg">"Liraglutide reduces amyloid plaque burden in APP/PS1 mice"</span> \
+    <span class="tm-flag">--type</span> therapeutic <span class="tm-flag">--evidence-type</span> experimental \
+    <span class="tm-flag">--source</span> <span class="tm-arg">"Hansen et al., 2015"</span> <span class="tm-flag">--source-type</span> published_paper \
+    <span class="tm-flag">--author</span> <span class="tm-arg">"reviewer:you"</span> <span class="tm-flag">--confidence</span> 0.55 \
+    <span class="tm-flag">--entities</span> <span class="tm-arg">"liraglutide:compound,amyloid-beta:protein,APP/PS1:organism"</span> \
+    <span class="tm-flag">--apply</span>
+    </TerminalPaper>
+    <details class="enums">
+      <summary>Schema enums (single-sourced with the validator)</summary>
+      <dl>
+        <dt><code>--type</code></dt>
+        <dd>mechanism · therapeutic · diagnostic · epidemiological · observational · review · methodological · computational · theoretical · negative</dd>
+        <dt><code>--evidence-type</code></dt>
+        <dd>experimental · observational · computational · theoretical · meta_analysis · systematic_review · case_report</dd>
+        <dt><code>--source-type</code></dt>
+        <dd>published_paper · preprint · clinical_trial · lab_notebook · model_output · expert_assertion · database_record</dd>
+        <dt>entity types</dt>
+        <dd>gene · protein · compound · disease · cell_type · organism · pathway · assay · anatomical_structure · other</dd>
+      </dl>
+    </details>
+  </Section>
+
+  <Section num="§3" title="Compose with another frontier (optional)" aside="cross-frontier · v0.8">
+    <p class="step-blurb">
+      If a finding extends, contradicts, or depends on a finding in another hub-published frontier, declare the dep first (pinning by <code>vfr_id</code> + snapshot hash), then add the typed link. Strict validation refuses cross-frontier targets without a declared dep.
+    </p>
+    <TerminalPaper title="dep + link">
+      <span class="tm-ps">$</span> <span class="tm-cmd">vela frontier add-dep</span> ./frontier.json vfr_093f7f15b6c79386 \
+    <span class="tm-flag">--locator</span> https://raw.githubusercontent.com/vela-science/vela/main/frontiers/bbb-alzheimer.json \
+    <span class="tm-flag">--snapshot</span> f23b4aba173f3fb840c6ec2555715bdcdd7c90864019aff399a43a6ff554c6ec \
+    <span class="tm-flag">--name</span> <span class="tm-arg">"BBB Flagship"</span>
+
+<span class="tm-ps">$</span> <span class="tm-cmd">vela link add</span> ./frontier.json \
+    <span class="tm-flag">--from</span> vf_&lt;your&gt; <span class="tm-flag">--to</span> vf_&lt;remote&gt;@vfr_093f7f15b6c79386 \
+    <span class="tm-flag">--type</span> extends <span class="tm-flag">--inferred-by</span> reviewer
+    </TerminalPaper>
+  </Section>
+
+  <Section num="§4" title="Sign and register your identity" aside="ed25519 · actor add">
+    <p class="step-blurb">
+      Generate a keypair locally; register the public key in the frontier under your stable actor id. Treat <code>keys/private.key</code> like a production secret — for CI, store it in a secret manager.
+    </p>
+    <TerminalPaper title="keys + actor">
+      <span class="tm-ps">$</span> <span class="tm-cmd">vela sign generate-keypair</span> <span class="tm-flag">--out</span> keys
+<span class="tm-ps">$</span> <span class="tm-cmd">vela actor add</span> ./frontier.json reviewer:you \
+    <span class="tm-flag">--pubkey</span> <span class="tm-arg">"$(cat keys/public.key)"</span>
+    </TerminalPaper>
+  </Section>
+
+  <Section num="§5" title="Publish to the hub" aside={HUB_HOST}>
+    <p class="step-blurb">
+      The hub stores the signed manifest. The frontier file lives wherever you host it — a raw GitHub URL, an S3 object, your own domain. Anyone can pull and verify.
+    </p>
+    <TerminalPaper title="publish">
+      <span class="tm-ps">$</span> <span class="tm-cmd">vela registry publish</span> ./frontier.json \
+    <span class="tm-flag">--owner</span> reviewer:you \
+    <span class="tm-flag">--key</span> keys/private.key \
+    <span class="tm-flag">--locator</span> https://your-host.example.com/frontier.json \
+    <span class="tm-flag">--to</span> {HUB_URL}
+    </TerminalPaper>
+    <TerminalPaper title="verify (any third party)">
+      <span class="tm-ps">$</span> <span class="tm-cmd">curl</span> {HUB_URL}/entries/&lt;your-vfr_id&gt;
+<span class="tm-ps">$</span> <span class="tm-cmd">vela registry pull</span> &lt;your-vfr_id&gt; \
+    <span class="tm-flag">--from</span> {HUB_URL}/entries \
+    <span class="tm-flag">--out</span> ./pulled.json
+    </TerminalPaper>
+  </Section>
+
+  <Section num="§6" title="Republish from CI (the BBB pattern)" aside="signed by a bot · weekly">
+    <p class="step-blurb">
+      A bot is just an actor whose private key lives in a CI secret. The substrate treats human-signs and bot-signs identically. The BBB workflow republishes weekly with a fresh <code>signed_publish_at</code>; recompilation lives outside CI.
+    </p>
+    <p class="step-blurb">
+      Worked example: <a class="inline-link" href={`${REPO_URL}/blob/main/.github/workflows/bbb-living-repo.yml`}><code>.github/workflows/bbb-living-repo.yml</code></a>.
+    </p>
+  </Section>
+
+  <Section num="§7" title="Doctrine" aside="why the hub stays dumb">
+    <ul class="doctrine">
+      <li><strong>Open publish, signature-gated.</strong> Anyone with a key can publish their own <code>vfr_id</code>. No allowlist; no rate limit in v{VERSION}. Abuse mitigations land when abuse appears.</li>
+      <li><strong>Manifests, not blobs.</strong> The hub stores the signed entry. The frontier file lives at your <code>--locator</code>. <code>vela registry pull</code> fetches and verifies hashes.</li>
+      <li><strong>Hub controls availability, not authenticity.</strong> A compromised hub can withhold or reorder, but cannot fabricate or tamper without breaking signatures. Clients verify locally on read.</li>
+      <li><strong>Latest-publish-wins.</strong> Multiple publications under the same <code>vfr_id</code> are appended; the hub returns the newest <code>signed_publish_at</code>. Idempotency on <code>(vfr_id, signature)</code>.</li>
+    </ul>
+    <p class="step-blurb" style="margin-top: 18px;">
+      Full reference with troubleshooting: <a class="inline-link" href="/docs/publishing">docs/publishing</a>.
+    </p>
+  </Section>
+</Page>
+
+<style>
+  .aside-link {
+    font-family: var(--font-mono);
+    font-size: var(--size-xs);
+    letter-spacing: 0.06em;
+    color: var(--ink-3);
+  }
+  .aside-link:hover { color: var(--ink-0); }
+  div[slot="aside"] {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .step-blurb {
+    font-family: var(--font-serif);
+    font-size: 16px;
+    line-height: 1.55;
+    color: var(--ink-2);
+    max-width: 64ch;
+    margin: 0 0 10px;
+  }
+  .step-blurb code,
+  .doctrine code {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--ink-1);
+    background: var(--paper-1);
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+  .inline-link {
+    color: var(--signal);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    text-decoration-thickness: 1px;
+  }
+  .tm-paper :global(.tm-arg) {
+    color: var(--signal);
+  }
+  .enums {
+    margin: 12px 0 0;
+    border: 1px solid var(--rule-1);
+    border-radius: var(--radius-1);
+    padding: 0 14px;
+    background: var(--paper-0);
+  }
+  .enums summary {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    padding: 10px 0;
+    cursor: pointer;
+  }
+  .enums summary:hover { color: var(--ink-1); }
+  .enums dl {
+    margin: 0 0 12px;
+    display: grid;
+    grid-template-columns: 130px 1fr;
+    gap: 6px 18px;
+    align-items: baseline;
+  }
+  .enums dt {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--ink-2);
+  }
+  .enums dd {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--ink-1);
+    margin: 0;
+    line-height: 1.6;
+  }
+  .doctrine {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    border-top: 1px solid var(--rule-2);
+  }
+  .doctrine li {
+    padding: 12px 0;
+    border-bottom: 1px solid var(--rule-1);
+    font-family: var(--font-serif);
+    font-size: 16px;
+    line-height: 1.55;
+    color: var(--ink-2);
+    max-width: 72ch;
+  }
+  .doctrine li strong {
+    font-family: var(--font-sans);
+    font-weight: 500;
+    color: var(--ink-0);
+  }
+</style>

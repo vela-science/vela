@@ -54,19 +54,24 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
     </a>
   </Section>
 
-  <Section num="§3" title="Install" aside="one binary, one command">
+  <Section num="§3" title="Install and publish" aside="one binary · five commands">
     <div class="quickstart">
-      <TerminalPaper title="cargo install">
+      <TerminalPaper title="install">
         <span class="tm-ps">$</span> <span class="tm-cmd">git clone</span> {REPO_URL}
 <span class="tm-ps">$</span> <span class="tm-cmd">cd</span> vela <span class="tm-ps">&&</span> <span class="tm-cmd">cargo build</span> <span class="tm-flag">--release</span>
 <span class="tm-ps">$</span> <span class="tm-cmd">./target/release/vela</span> <span class="tm-flag">--version</span>
       </TerminalPaper>
-      <TerminalPaper title="compile your first frontier">
-        <span class="tm-ps">$</span> <span class="tm-cmd">vela compile</span> ./papers <span class="tm-flag">--output</span> frontier.json
-<span class="tm-ps">$</span> <span class="tm-cmd">vela check</span> frontier.json <span class="tm-flag">--strict</span>
-<span class="tm-ps">$</span> <span class="tm-cmd">vela serve</span> frontier.json
+      <TerminalPaper title="publish your own frontier">
+        <span class="tm-ps">$</span> <span class="tm-cmd">vela frontier new</span> ./frontier.json <span class="tm-flag">--name</span> "Your bounded question"
+<span class="tm-ps">$</span> <span class="tm-cmd">vela finding add</span> ./frontier.json <span class="tm-flag">--assertion</span> "..." <span class="tm-flag">--author</span> reviewer:you <span class="tm-flag">--apply</span>
+<span class="tm-ps">$</span> <span class="tm-cmd">vela sign generate-keypair</span> <span class="tm-flag">--out</span> keys
+<span class="tm-ps">$</span> <span class="tm-cmd">vela actor add</span> ./frontier.json reviewer:you <span class="tm-flag">--pubkey</span> "$(cat keys/public.key)"
+<span class="tm-ps">$</span> <span class="tm-cmd">vela registry publish</span> ./frontier.json <span class="tm-flag">--owner</span> reviewer:you <span class="tm-flag">--key</span> keys/private.key <span class="tm-flag">--locator</span> &lt;url&gt; <span class="tm-flag">--to</span> {HUB_URL}
       </TerminalPaper>
     </div>
+    <p style="font-family: var(--font-serif); font-size: 15px; color: var(--ink-2); margin: 12px 0 0;">
+      Walk-through with cross-frontier composition and the BBB-style CI pattern at <a class="inline-link" href="/publish">/publish</a>.
+    </p>
   </Section>
 
   <Section num="§4" title="Six nouns" aside="content-addressed · canonical-JSON · Ed25519">
@@ -182,6 +187,13 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
     color: var(--ink-2);
   }
   .essay-card:hover .readmore { color: var(--signal); }
+
+  .inline-link {
+    color: var(--signal);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    text-decoration-thickness: 1px;
+  }
 
   .nouns {
     list-style: none;
