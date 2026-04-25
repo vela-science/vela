@@ -8,11 +8,21 @@
     "compiler": "vela/0.10.0",
     "papers_processed": 0,
     "errors": 0,
-    "dependencies": []
+    "dependencies": [
+      {
+        "name": "BBB Flagship",
+        "source": "vela.hub",
+        "version": null,
+        "pinned_hash": null,
+        "vfr_id": "vfr_093f7f15b6c79386",
+        "locator": "https://raw.githubusercontent.com/vela-science/vela/main/frontiers/bbb-alzheimer.json",
+        "pinned_snapshot_hash": "f23b4aba173f3fb840c6ec2555715bdcdd7c90864019aff399a43a6ff554c6ec"
+      }
+    ]
   },
   "stats": {
     "findings": 11,
-    "links": 7,
+    "links": 8,
     "replicated": 0,
     "unreplicated": 11,
     "avg_confidence": 0.759,
@@ -22,13 +32,13 @@
     "categories": {
       "review": 1,
       "therapeutic": 2,
-      "mechanism": 3,
       "observational": 3,
+      "mechanism": 3,
       "epidemiological": 2
     },
     "link_types": {
+      "extends": 2,
       "supports": 5,
-      "extends": 1,
       "contradicts": 1
     },
     "human_reviewed": 4,
@@ -289,6 +299,13 @@
           "note": "Lecanemab partial efficacy is the strongest recent vindication of the amyloid hypothesis",
           "inferred_by": "reviewer",
           "created_at": "2026-04-25T22:38:44Z"
+        },
+        {
+          "target": "vf_08c81dd507f6a047@vfr_093f7f15b6c79386",
+          "type": "extends",
+          "note": "Lecanemab's clinical efficacy extends the case that anti-Aβ antibodies can reduce brain amyloid; BBB's TfR-shuttle work established the same principle preclinically via a different delivery route. Both target the brain-amyloid-clearance bottleneck.",
+          "inferred_by": "reviewer",
+          "created_at": "2026-04-25T22:57:00Z"
         }
       ],
       "created": "2026-04-25T22:38:09.788620+00:00",
