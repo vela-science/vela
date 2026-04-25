@@ -55,7 +55,7 @@ The reference implementation is Vela. It is a single Rust binary, one Postgres-b
 There is one frontier you can pull right now. It's called BBB Flagship. It contains forty-eight signed findings about the blood-brain barrier and Alzheimer's translation: the antibody-conjugate work, the transferrin-receptor mechanism, the contradictory delivery results, the assay-condition reasoning that resolves them. It has a `vfr_id` that re-derives from canonical JSON alone, a snapshot hash that any client can verify, and an event log that replays deterministically.
 
 ```
-vela registry pull vfr_d0a962d3251133dd \
+vela registry pull vfr_7344e96c0f2669d5 \
   --from https://vela-hub.fly.dev/entries \
   --out ./bbb.json
 ```
