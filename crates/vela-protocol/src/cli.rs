@@ -334,6 +334,13 @@ enum Commands {
         #[command(subcommand)]
         action: ActorAction,
     },
+    /// Manage frontier-level metadata: cross-frontier dependencies (v0.8).
+    /// Use `vela frontier add-dep` to declare a remote frontier this
+    /// frontier links into via `vf_…@vfr_…` references.
+    Frontier {
+        #[command(subcommand)]
+        action: FrontierAction,
+    },
     /// Walk the local Workbench draft queue (Phase R, v0.5):
     /// list, sign-and-apply, or clear queued review actions
     Queue {
@@ -564,6 +571,46 @@ enum ActorAction {
     /// List registered actors in a frontier
     List {
         frontier: PathBuf,
+        #[arg(long)]
+        json: bool,
+    },
+}
+
+#[derive(Subcommand)]
+enum FrontierAction {
+    /// Declare a cross-frontier dependency. Subsequent links of the
+    /// form `vf_<id>@vfr_<id>` resolve through this entry; strict
+    /// validation refuses cross-frontier targets without one.
+    AddDep {
+        /// Path to the frontier file
+        frontier: PathBuf,
+        /// The remote frontier's content-addressed id (`vfr_…`)
+        vfr_id: String,
+        /// Where to fetch the remote frontier file from. Typically
+        /// an `https://…` URL pointing at raw JSON.
+        #[arg(long)]
+        locator: String,
+        /// SHA-256 of the remote's canonical snapshot. Strict pull
+        /// verifies the fetched dependency's snapshot matches this.
+        #[arg(long)]
+        snapshot: String,
+        /// Optional human-readable name for the dependency.
+        #[arg(long)]
+        name: Option<String>,
+        #[arg(long)]
+        json: bool,
+    },
+    /// List the frontier's declared dependencies.
+    ListDeps {
+        frontier: PathBuf,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Remove a previously-declared cross-frontier dependency by `vfr_id`.
+    /// Refuses if any link target still references it.
+    RemoveDep {
+        frontier: PathBuf,
+        vfr_id: String,
         #[arg(long)]
         json: bool,
     },
@@ -1015,6 +1062,7 @@ pub async fn run_command() {
         Commands::Version => println!("vela 0.8.0"),
         Commands::Sign { action } => cmd_sign(action),
         Commands::Actor { action } => cmd_actor(action),
+        Commands::Frontier { action } => cmd_frontier(action),
         Commands::Queue { action } => cmd_queue(action),
         Commands::Registry { action } => cmd_registry(action),
         Commands::Init { path, name } => cmd_init(&path, &name),
@@ -3021,6 +3069,167 @@ fn sign_and_apply(
     }
 }
 
+/// v0.8: frontier-level metadata commands. Manages cross-frontier
+/// dependency declarations on a frontier file. The substrate enforces
+/// that any link target of the form `vf_…@vfr_…` references a declared
+/// dependency; these commands edit the declaration list.
+fn cmd_frontier(action: FrontierAction) {
+    use crate::project::ProjectDependency;
+    use crate::repo;
+    match action {
+        FrontierAction::AddDep {
+            frontier,
+            vfr_id,
+            locator,
+            snapshot,
+            name,
+            json,
+        } => {
+            let mut p = repo::load_from_path(&frontier).unwrap_or_else(|e| fail_return(&e));
+            if p.project
+                .dependencies
+                .iter()
+                .any(|d| d.vfr_id.as_deref() == Some(&vfr_id))
+            {
+                fail(&format!(
+                    "cross-frontier dependency '{vfr_id}' already declared; remove it first via `vela frontier remove-dep`"
+                ));
+            }
+            let dep = ProjectDependency {
+                name: name.unwrap_or_else(|| vfr_id.clone()),
+                source: "vela.hub".into(),
+                version: None,
+                pinned_hash: None,
+                vfr_id: Some(vfr_id.clone()),
+                locator: Some(locator.clone()),
+                pinned_snapshot_hash: Some(snapshot.clone()),
+            };
+            p.project.dependencies.push(dep);
+            repo::save_to_path(&frontier, &p).unwrap_or_else(|e| fail_return(&e));
+            let payload = json!({
+                "ok": true,
+                "command": "frontier.add-dep",
+                "frontier": frontier.display().to_string(),
+                "vfr_id": vfr_id,
+                "locator": locator,
+                "pinned_snapshot_hash": snapshot,
+                "declared_count": p.project.dependencies.len(),
+            });
+            if json {
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&payload)
+                        .expect("failed to serialize frontier.add-dep")
+                );
+            } else {
+                println!(
+                    "{} declared cross-frontier dep {vfr_id}",
+                    style::ok("frontier")
+                );
+                println!("  locator:  {locator}");
+                println!("  snapshot: {snapshot}");
+            }
+        }
+        FrontierAction::ListDeps { frontier, json } => {
+            let p = repo::load_from_path(&frontier).unwrap_or_else(|e| fail_return(&e));
+            let deps: Vec<&ProjectDependency> = p.project.dependencies.iter().collect();
+            if json {
+                let payload = json!({
+                    "ok": true,
+                    "command": "frontier.list-deps",
+                    "frontier": frontier.display().to_string(),
+                    "count": deps.len(),
+                    "dependencies": deps,
+                });
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&payload)
+                        .expect("failed to serialize frontier.list-deps")
+                );
+            } else {
+                println!();
+                println!(
+                    "  {}",
+                    format!("VELA · FRONTIER · LIST-DEPS · {}", frontier.display())
+                        .to_uppercase()
+                        .dimmed()
+                );
+                println!("  {}", style::tick_row(60));
+                if deps.is_empty() {
+                    println!("  (no dependencies declared)");
+                } else {
+                    for d in &deps {
+                        let kind = if d.is_cross_frontier() {
+                            "cross-frontier"
+                        } else {
+                            "compile-time"
+                        };
+                        println!("  · {} [{kind}]", d.name);
+                        if let Some(v) = &d.vfr_id {
+                            println!("    vfr_id:   {v}");
+                        }
+                        if let Some(l) = &d.locator {
+                            println!("    locator:  {l}");
+                        }
+                        if let Some(s) = &d.pinned_snapshot_hash {
+                            println!("    snapshot: {s}");
+                        }
+                    }
+                }
+            }
+        }
+        FrontierAction::RemoveDep {
+            frontier,
+            vfr_id,
+            json,
+        } => {
+            let mut p = repo::load_from_path(&frontier).unwrap_or_else(|e| fail_return(&e));
+            // Refuse if any link still references this vfr_id.
+            for f in &p.findings {
+                for l in &f.links {
+                    if let Ok(crate::bundle::LinkRef::Cross { vfr_id: ref v, .. }) =
+                        crate::bundle::LinkRef::parse(&l.target)
+                        && v == &vfr_id
+                    {
+                        fail(&format!(
+                            "cannot remove dep '{vfr_id}': finding {} still links to it via {}",
+                            f.id, l.target
+                        ));
+                    }
+                }
+            }
+            let before = p.project.dependencies.len();
+            p.project
+                .dependencies
+                .retain(|d| d.vfr_id.as_deref() != Some(&vfr_id));
+            let removed = before - p.project.dependencies.len();
+            if removed == 0 {
+                fail(&format!("no cross-frontier dependency '{vfr_id}' found"));
+            }
+            repo::save_to_path(&frontier, &p).unwrap_or_else(|e| fail_return(&e));
+            let payload = json!({
+                "ok": true,
+                "command": "frontier.remove-dep",
+                "frontier": frontier.display().to_string(),
+                "vfr_id": vfr_id,
+                "removed": removed,
+            });
+            if json {
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&payload)
+                        .expect("failed to serialize frontier.remove-dep")
+                );
+            } else {
+                println!(
+                    "{} removed cross-frontier dep {vfr_id}",
+                    style::ok("frontier")
+                );
+            }
+        }
+    }
+}
+
 /// Phase S (v0.5): registry CLI — publish/pull a frontier through a
 /// signed manifest. Verifiable distribution: any third party can pull
 /// and confirm the snapshot and event-log hashes match what the owner
@@ -4416,6 +4625,7 @@ const SCIENCE_SUBCOMMANDS: &[&str] = &[
     "version",
     "sign",
     "actor",
+    "frontier",
     "queue",
     "registry",
     "init",
@@ -4471,7 +4681,8 @@ State commands:
   import        Import frontier.json into a .vela repo
   diff          Compare two frontiers
   proposals     Inspect, validate, export, import, accept, or reject write proposals
-  finding      Add or manage finding bundles as frontier state
+  finding       Add or manage finding bundles as frontier state
+  frontier      Manage frontier-level metadata: cross-frontier dependencies (v0.8)
   review        Create a review proposal or review interactively
   note          Add a lightweight note to a finding
   caveat        Create an explicit caveat proposal
