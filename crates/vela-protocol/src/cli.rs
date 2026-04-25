@@ -643,9 +643,19 @@ enum RegistryAction {
         /// Registry to pull from
         #[arg(long)]
         from: Option<String>,
-        /// Output path for the pulled frontier
+        /// Output path for the pulled frontier. With --transitive, this
+        /// is the directory dependencies are also written into; without
+        /// it, this is the file path the primary lands at.
         #[arg(long)]
         out: PathBuf,
+        /// v0.8: also pull every cross-frontier dependency the primary
+        /// declares, recursively, verifying each pinned snapshot.
+        #[arg(long)]
+        transitive: bool,
+        /// v0.8: maximum recursion depth when --transitive is set.
+        /// Primary is depth 0; its direct deps are depth 1.
+        #[arg(long, default_value = "4")]
+        depth: usize,
         #[arg(long)]
         json: bool,
     },
@@ -3202,6 +3212,8 @@ fn cmd_registry(action: RegistryAction) {
             vfr_id,
             from,
             out,
+            transitive,
+            depth,
             json,
         } => {
             // Phase γ-hub (v0.7): both the registry and the frontier
@@ -3229,6 +3241,53 @@ fn cmd_registry(action: RegistryAction) {
             };
             let entry = registry::find_latest(&registry_data, &vfr_id)
                 .unwrap_or_else(|| fail_return(&format!("{vfr_id} not found in registry")));
+
+            if transitive {
+                // v0.8: --transitive walks the dep graph. `out` is
+                // interpreted as a directory; the primary lands at
+                // out/<vfr>.json, deps at out/<dep_vfr>.json.
+                let result = registry::pull_transitive(&registry_data, &vfr_id, &out, depth)
+                    .unwrap_or_else(|e| fail_return(&format!("transitive pull failed: {e}")));
+
+                let dep_paths_json: serde_json::Value = serde_json::Value::Object(
+                    result
+                        .deps
+                        .iter()
+                        .map(|(k, v)| (k.clone(), serde_json::json!(v.display().to_string())))
+                        .collect(),
+                );
+                let payload = json!({
+                    "ok": true,
+                    "command": "registry.pull",
+                    "registry": registry_label,
+                    "vfr_id": vfr_id,
+                    "transitive": true,
+                    "depth": depth,
+                    "out_dir": out.display().to_string(),
+                    "primary": result.primary_path.display().to_string(),
+                    "verified": result.verified,
+                    "deps": dep_paths_json,
+                });
+                if json {
+                    println!(
+                        "{}",
+                        serde_json::to_string_pretty(&payload)
+                            .expect("failed to serialize registry.pull")
+                    );
+                } else {
+                    println!(
+                        "{} pulled {vfr_id} (transitive) → {}",
+                        style::ok("registry"),
+                        out.display()
+                    );
+                    println!("  verified {} frontier(s):", result.verified.len());
+                    for v in &result.verified {
+                        println!("    · {v}");
+                    }
+                    println!("  every cross-frontier dependency's pinned snapshot hash matched");
+                }
+                return;
+            }
 
             // Fetch the frontier from its locator (file:// or https://)
             // and verify hashes + signature.
