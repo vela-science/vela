@@ -164,6 +164,7 @@ state, changes what a human or agent inherits, and marks prior proof stale. See
 ## Brand
 
 Voice, color, and asset canon live in [docs/BRAND.md](docs/BRAND.md).
-The static landing page at `web/index.html` is GitHub Pages deployable and
-uses those tokens. Workbench preview HTMLs under `web/previews/` are proposed
-product surfaces for post-v0 Vela — not shipping v0 product.
+Design tokens are in `web/styles/{tokens,workbench}.css` — used by every
+Vela surface (the marketing site, the hub, the Workbench). The Astro
+project under `site/` is the live source for everything served from
+[vela.science](https://vela.science) (currently <https://vela-site.fly.dev>).

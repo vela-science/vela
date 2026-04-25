@@ -357,9 +357,10 @@ pub async fn run_http(source: ProjectSource, backend: Option<&str>, port: u16, w
         .route("/api/tools", get(http_tools_list))
         .route("/api/tool", post(http_tool_call));
 
-    // Phase R: when --workbench, serve the static `web/` directory at /
-    // alongside the API. Browser opens http://localhost:3848/previews/...
-    // and the JS calls into /api/...
+    // When --workbench, also serve the static `web/` directory at /
+    // alongside the API. The canonical Workbench UI now lives in the
+    // Astro site (vela-site.fly.dev/workbench) and proxies /api/* here;
+    // --workbench remains for local development against any web/ tree.
     if workbench {
         let web_dir = workbench_web_dir();
         if web_dir.exists() {
@@ -387,8 +388,7 @@ pub async fn run_http(source: ProjectSource, backend: Option<&str>, port: u16, w
     eprintln!("  {}", crate::cli_style::tick_row(60));
     eprintln!("  listening on http://{addr}");
     if workbench {
-        eprintln!("  workbench: http://{addr}/previews/live-frontier.html");
-        eprintln!("             http://{addr}/previews/proposals.html");
+        eprintln!("  workbench UI: https://vela-site.fly.dev/workbench (or `cd site && npm run dev`)");
     }
     eprintln!("  endpoints: /api/frontier, /api/findings, /api/events, /api/queue, /api/tool");
     let listener = tokio::net::TcpListener::bind(&addr)

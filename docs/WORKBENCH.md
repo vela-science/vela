@@ -29,23 +29,30 @@ localhost. v0.5 rejects that.
 
 ## Running
 
+The Workbench UI lives in the Astro site under `site/src/pages/workbench/`
+and is served from [vela-site.fly.dev/workbench](https://vela-site.fly.dev/workbench).
+It fetches against any `vela serve` instance over `/api/*`. Local
+development:
+
 ```bash
 # 1. Register your reviewer identity in the frontier
 vela sign generate-keypair --out ~/.vela/keys
 vela actor add frontier.json reviewer:will-blair --pubkey "$(cat ~/.vela/keys/public.key)"
 
-# 2. Start the Workbench
-vela serve frontier.json --workbench
+# 2. Start the API server
+vela serve --http 3848 frontier.json
 
-# 3. Browse to:
-open http://localhost:3848/previews/live-frontier.html      # findings table (Phase γ)
-open http://localhost:3848/previews/proposals.html          # pending review queue (Phase R)
-# clicking a row in live-frontier opens live-finding.html?id=vf_… for full detail.
+# 3. Run the Astro site against it (proxies /api/* to localhost:3848 in dev)
+cd site && npm run dev
+# open http://localhost:4321/workbench           findings table
+# open http://localhost:4321/workbench/finding   single finding view
+# clicking a row navigates to /workbench/finding?id=vf_…
 ```
 
-The proposals page fetches `/api/frontier`, renders each pending proposal,
-and posts your accept/reject decisions to `/api/queue`. The page never
-touches the private key.
+The single-finding page fetches `/api/findings/{id}` and `/api/frontier`,
+renders the finding plus any pending proposals targeting it, and posts
+accept/reject decisions to `/api/queue`. The page never touches the
+private key.
 
 ## Walking the queue
 

@@ -42,6 +42,18 @@ const API_PATH = "/api/frontier";
     </div>
   </section>
 
+  <section class="lf-rete-section">
+    <header class="lf-rete-head">
+      <span class="lf-rete-eyebrow">Rete</span>
+      <span class="lf-rete-meta" id="lf-rete-meta">—</span>
+      <span class="lf-rete-legend" id="lf-rete-legend"></span>
+    </header>
+    <div class="lf-rete-stage">
+      <svg id="lf-rete" viewBox="0 0 800 320" preserveAspectRatio="xMidYMid meet" aria-label="Finding link graph"></svg>
+      <div class="lf-rete-tooltip" id="lf-rete-tt" hidden></div>
+    </div>
+  </section>
+
   <div class="lf-toolbar">
     <label class="lf-search">
       <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" aria-hidden="true">
@@ -92,6 +104,7 @@ const API_PATH = "/api/frontier";
       review_state?: string;
     };
     evidence?: { replicated?: boolean };
+    links?: Array<{ target: string; type?: string }>;
   };
   type Frontier = {
     frontier_id?: string;
@@ -208,6 +221,288 @@ const API_PATH = "/api/frontier";
     });
   }
 
+  // ─── Rete: link-graph view ────────────────────────────────────────
+  //
+  // Vanilla force simulation over (findings, links). 48 nodes ×
+  // 215 edges in BBB is small enough that O(n²) repulsion is fine.
+  // Settles for ~250 ticks then renders statically; hover/click on
+  // nodes update the highlight state without re-running physics.
+  // Honours prefers-reduced-motion by skipping the animation phase
+  // and rendering the settled layout directly.
+
+  type GraphNode = {
+    id: string;
+    state: string;
+    text: string;
+    type: string;
+    x: number;
+    y: number;
+    vx: number;
+    vy: number;
+    deg: number;
+  };
+  type GraphEdge = {
+    s: number;
+    t: number;
+    type: string;
+  };
+
+  function renderRete(findings: RawFinding[]): void {
+    const svg = document.getElementById("lf-rete") as SVGSVGElement | null;
+    const meta = document.getElementById("lf-rete-meta");
+    const legend = document.getElementById("lf-rete-legend");
+    const tt = document.getElementById("lf-rete-tt") as HTMLDivElement | null;
+    if (!svg || !meta || !legend || !tt) return;
+
+    const W = 800;
+    const H = 320;
+
+    // Build nodes + edge list. Skip cross-frontier targets we cannot
+    // resolve in this frontier (will get rendered for v0.8 substrate).
+    const idIndex = new Map<string, number>();
+    findings.forEach((f, i) => idIndex.set(f.id, i));
+
+    const nodes: GraphNode[] = findings.map((f, i) => {
+      const angle = (i / Math.max(1, findings.length)) * Math.PI * 2;
+      const r = 90 + (i % 3) * 18;
+      return {
+        id: f.id,
+        state: deriveState(f),
+        text: f.assertion?.text || "",
+        type: (f.assertion?.type || "").split(/\s+/)[0] || "",
+        x: W / 2 + r * Math.cos(angle),
+        y: H / 2 + r * Math.sin(angle),
+        vx: 0,
+        vy: 0,
+        deg: 0,
+      };
+    });
+
+    const edges: GraphEdge[] = [];
+    for (const f of findings) {
+      const s = idIndex.get(f.id);
+      if (s === undefined) continue;
+      for (const l of f.links || []) {
+        const t = idIndex.get(l.target);
+        if (t === undefined) continue; // cross-frontier target: skip (for now)
+        edges.push({ s, t, type: l.type || "link" });
+        nodes[s].deg++;
+        nodes[t].deg++;
+      }
+    }
+
+    meta.textContent = `${nodes.length} findings · ${edges.length} links`;
+
+    const stateOrder = ["replicated", "supported", "contested", "gap", "retracted"] as const;
+    const stateCounts = new Map<string, number>();
+    for (const n of nodes) stateCounts.set(n.state, (stateCounts.get(n.state) || 0) + 1);
+    legend.innerHTML = stateOrder
+      .filter((k) => (stateCounts.get(k) || 0) > 0)
+      .map(
+        (k) =>
+          `<span><span class="swatch" style="background:var(--state-${STATE_TO_CLASS[k]});"></span>${k}</span>`,
+      )
+      .join("");
+
+    // Force simulation. Coulomb repulsion + Hooke springs along edges
+    // + soft pull toward center. No frameworks; ~80 lines of physics.
+    const REPULSION = 1200;
+    const SPRING_K = 0.04;
+    const SPRING_LEN = 60;
+    const CENTER_K = 0.012;
+    const DAMPING = 0.86;
+    const MAX_VEL = 6;
+
+    function step(): number {
+      let totalKE = 0;
+      // Repulsion (n²).
+      for (let i = 0; i < nodes.length; i++) {
+        const a = nodes[i];
+        for (let j = i + 1; j < nodes.length; j++) {
+          const b = nodes[j];
+          let dx = a.x - b.x;
+          let dy = a.y - b.y;
+          let d2 = dx * dx + dy * dy;
+          if (d2 < 1) {
+            d2 = 1;
+            dx = Math.random() - 0.5;
+            dy = Math.random() - 0.5;
+          }
+          const f = REPULSION / d2;
+          const d = Math.sqrt(d2);
+          const fx = (f * dx) / d;
+          const fy = (f * dy) / d;
+          a.vx += fx;
+          a.vy += fy;
+          b.vx -= fx;
+          b.vy -= fy;
+        }
+      }
+      // Springs along edges.
+      for (const e of edges) {
+        const a = nodes[e.s];
+        const b = nodes[e.t];
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        const d = Math.sqrt(dx * dx + dy * dy) || 1;
+        const f = (d - SPRING_LEN) * SPRING_K;
+        const fx = (f * dx) / d;
+        const fy = (f * dy) / d;
+        a.vx += fx;
+        a.vy += fy;
+        b.vx -= fx;
+        b.vy -= fy;
+      }
+      // Center pull + integrate.
+      for (const n of nodes) {
+        n.vx += (W / 2 - n.x) * CENTER_K;
+        n.vy += (H / 2 - n.y) * CENTER_K;
+        n.vx *= DAMPING;
+        n.vy *= DAMPING;
+        // Velocity clamp.
+        const v = Math.hypot(n.vx, n.vy);
+        if (v > MAX_VEL) {
+          n.vx *= MAX_VEL / v;
+          n.vy *= MAX_VEL / v;
+        }
+        n.x += n.vx;
+        n.y += n.vy;
+        // Bounds.
+        const margin = 14;
+        if (n.x < margin) { n.x = margin; n.vx = 0; }
+        if (n.x > W - margin) { n.x = W - margin; n.vx = 0; }
+        if (n.y < margin) { n.y = margin; n.vy = 0; }
+        if (n.y > H - margin) { n.y = H - margin; n.vy = 0; }
+        totalKE += n.vx * n.vx + n.vy * n.vy;
+      }
+      return totalKE;
+    }
+
+    // Run to steady state.
+    for (let i = 0; i < 280; i++) {
+      const ke = step();
+      if (ke < 0.05 && i > 60) break;
+    }
+
+    // Build SVG.
+    const SVGNS = "http://www.w3.org/2000/svg";
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+
+    const edgesGroup = document.createElementNS(SVGNS, "g");
+    edgesGroup.setAttribute("class", "edges");
+    const nodesGroup = document.createElementNS(SVGNS, "g");
+    nodesGroup.setAttribute("class", "nodes");
+
+    const edgeEls: SVGLineElement[] = [];
+    for (const e of edges) {
+      const a = nodes[e.s];
+      const b = nodes[e.t];
+      const line = document.createElementNS(SVGNS, "line");
+      line.setAttribute("x1", a.x.toFixed(1));
+      line.setAttribute("y1", a.y.toFixed(1));
+      line.setAttribute("x2", b.x.toFixed(1));
+      line.setAttribute("y2", b.y.toFixed(1));
+      line.setAttribute("class", "edge");
+      line.dataset.s = String(e.s);
+      line.dataset.t = String(e.t);
+      edgesGroup.appendChild(line);
+      edgeEls.push(line);
+    }
+
+    const nodeEls: SVGGElement[] = [];
+    for (let i = 0; i < nodes.length; i++) {
+      const n = nodes[i];
+      const cls = STATE_TO_CLASS[n.state] || "muted";
+      const r = 4 + Math.min(6, n.deg * 0.5);
+      const g = document.createElementNS(SVGNS, "g");
+      g.setAttribute("class", "node");
+      g.setAttribute("transform", `translate(${n.x.toFixed(1)},${n.y.toFixed(1)})`);
+      g.dataset.idx = String(i);
+      g.dataset.vfid = n.id;
+
+      const dot = document.createElementNS(SVGNS, "circle");
+      dot.setAttribute("r", r.toFixed(1));
+      dot.setAttribute("fill", `var(--state-${cls})`);
+
+      const stroke = document.createElementNS(SVGNS, "circle");
+      stroke.setAttribute("r", (r + 2).toFixed(1));
+      stroke.setAttribute("class", "node-stroke");
+
+      g.appendChild(dot);
+      g.appendChild(stroke);
+      nodesGroup.appendChild(g);
+      nodeEls.push(g);
+    }
+
+    svg.appendChild(edgesGroup);
+    svg.appendChild(nodesGroup);
+
+    // Adjacency for hover-highlight.
+    const adj = new Map<number, Set<number>>();
+    edges.forEach((e) => {
+      if (!adj.has(e.s)) adj.set(e.s, new Set());
+      if (!adj.has(e.t)) adj.set(e.t, new Set());
+      adj.get(e.s)!.add(e.t);
+      adj.get(e.t)!.add(e.s);
+    });
+
+    function highlight(idx: number | null): void {
+      if (idx === null) {
+        edgeEls.forEach((el) => el.classList.remove("muted", "hot"));
+        nodeEls.forEach((el) => el.classList.remove("hot"));
+        tt!.hidden = true;
+        return;
+      }
+      const neighbors = adj.get(idx) || new Set();
+      edgeEls.forEach((el) => {
+        const s = Number(el.dataset.s);
+        const t = Number(el.dataset.t);
+        if (s === idx || t === idx) {
+          el.classList.add("hot");
+          el.classList.remove("muted");
+        } else {
+          el.classList.add("muted");
+          el.classList.remove("hot");
+        }
+      });
+      nodeEls.forEach((el, i) => {
+        if (i === idx || neighbors.has(i)) el.classList.add("hot");
+        else el.classList.remove("hot");
+      });
+    }
+
+    function showTooltip(idx: number, ev: MouseEvent): void {
+      const n = nodes[idx];
+      const claim = n.text.length > 220 ? n.text.slice(0, 220) + "…" : n.text;
+      tt!.innerHTML =
+        `<span class="tt-id">${escapeHtml(n.id)} · ${escapeHtml(n.state)}${n.type ? " · " + escapeHtml(n.type) : ""}</span>` +
+        escapeHtml(claim);
+      tt!.hidden = false;
+      // Position relative to stage.
+      const stage = svg.parentElement!;
+      const rect = stage.getBoundingClientRect();
+      const x = ev.clientX - rect.left + 12;
+      const y = ev.clientY - rect.top + 12;
+      tt!.style.transform = `translate(${x}px, ${y}px)`;
+    }
+
+    nodeEls.forEach((el) => {
+      const idx = Number(el.dataset.idx);
+      el.addEventListener("mouseenter", (ev) => {
+        highlight(idx);
+        showTooltip(idx, ev as MouseEvent);
+      });
+      el.addEventListener("mousemove", (ev) => {
+        showTooltip(idx, ev as MouseEvent);
+      });
+      el.addEventListener("mouseleave", () => highlight(null));
+      el.addEventListener("click", () => {
+        const id = el.dataset.vfid!;
+        window.location.href = `/workbench/finding?id=${encodeURIComponent(id)}`;
+      });
+    });
+  }
+
   async function bootstrap(): Promise<void> {
     try {
       const r = await fetch("/api/frontier", { headers: { accept: "application/json" } });
@@ -261,6 +556,10 @@ const API_PATH = "/api/frontier";
         });
       }
       render();
+
+      // Run the rete after the table — the simulation can hang the
+      // main thread for ~50–150ms; defer so the table paints first.
+      requestAnimationFrame(() => renderRete(state.findings));
     } catch (err) {
       const live = document.getElementById("lf-live");
       if (live) {
@@ -407,6 +706,104 @@ const API_PATH = "/api/frontier";
   .lf-empty {
     font-family: var(--font-serif); font-style: italic;
     color: var(--ink-3); padding: 28px 0; text-align: center;
+  }
+
+  /* Rete — link graph */
+  .lf-rete-section {
+    margin: 24px 0 28px;
+    border-top: 1px solid var(--rule-2);
+    border-bottom: 1px solid var(--rule-2);
+  }
+  .lf-rete-head {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    padding: 12px 4px 10px;
+    flex-wrap: wrap;
+  }
+  .lf-rete-eyebrow {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  .lf-rete-meta {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--ink-2);
+    font-variant-numeric: tabular-nums;
+  }
+  .lf-rete-legend {
+    margin-left: auto;
+    display: flex; gap: 14px; flex-wrap: wrap;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--ink-3);
+  }
+  .lf-rete-legend .swatch {
+    display: inline-block;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    margin-right: 5px;
+    vertical-align: 0px;
+  }
+  .lf-rete-stage {
+    position: relative;
+    background:
+      radial-gradient(circle at 50% 55%, var(--paper-1) 0%, var(--paper-0) 70%);
+  }
+  #lf-rete {
+    display: block;
+    width: 100%;
+    height: 320px;
+  }
+  #lf-rete .edge { stroke: var(--rule-3); stroke-width: 1; opacity: 0.55; }
+  #lf-rete .edge.muted { opacity: 0.18; }
+  #lf-rete .edge.hot { stroke: var(--ink-1); opacity: 0.9; stroke-width: 1.2; }
+  #lf-rete .node {
+    cursor: pointer;
+    transition: r 120ms var(--ease, ease);
+  }
+  #lf-rete .node-stroke {
+    fill: none; stroke: var(--rule-ink);
+    stroke-width: 0.8;
+    pointer-events: none;
+  }
+  #lf-rete .node.hot .node-stroke {
+    stroke: var(--signal);
+    stroke-width: 1.4;
+  }
+  .lf-rete-tooltip {
+    position: absolute;
+    left: 0; top: 0;
+    pointer-events: none;
+    max-width: 320px;
+    padding: 8px 10px;
+    background: var(--ink-0);
+    color: var(--paper-0);
+    font-family: var(--font-serif);
+    font-size: 13px;
+    line-height: 1.4;
+    border-radius: var(--radius-1);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+    transform: translate(0, 0);
+    z-index: 5;
+  }
+  .lf-rete-tooltip .tt-id {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--ink-3);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+    color: rgba(244, 240, 232, 0.6);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    #lf-rete .node { transition: none; }
   }
 
   .lf-tip {

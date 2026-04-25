@@ -177,15 +177,19 @@ Automatic GitHub Pages deploy: push to `main` triggers
 publishes to the repo's Pages environment. Enable Pages once in
 **Settings → Pages → GitHub Actions** for the first run.
 
-## 10. the workbench previews
+## 10. the workbench
 
-The HTMLs under `web/previews/` are the design-system's proposal for a
-future Vela product surface — Frontier, Finding, Terminal, Proof. They are
-not wired to data and are not shipping v0 product. Every preview page carries
-a banner saying so.
+The Workbench UI lives in the Astro site under `site/src/pages/workbench/`
+and renders against any `vela serve` instance via `/api/*`. The deployed
+copy at <https://vela-site.fly.dev/workbench> reads the BBB Flagship
+frontier through a same-origin proxy to `vela-workbench.fly.dev`.
 
-Vela v0 is a CLI protocol. Any public messaging that implies v0 has a GUI is
-wrong.
+The Workbench is a read+propose surface — accept/reject buttons on
+queued proposals POST to `/api/queue` and the CLI signs them with
+`vela queue sign`. The browser never touches a private key.
+
+Vela's substrate remains a CLI protocol. The Workbench is one rendering
+of that protocol's state, not a replacement for the binary.
 
 ---
 

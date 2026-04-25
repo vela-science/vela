@@ -19,7 +19,8 @@ report() {
 }
 
 # Which docs to check. Covers the public-facing markdown surface.
-# web/previews is excluded — those are proposal HTML, not v0 docs.
+# The Astro site (`site/`) renders these directly, so anything here
+# becomes user-visible.
 MD_PATHS=(
   "README.md"
   "CHANGELOG.md"
@@ -28,6 +29,7 @@ MD_PATHS=(
   "AGENTS.md"
   "docs"
   "demo"
+  "essays"
   "examples"
 )
 

@@ -183,7 +183,7 @@ def main() -> int:
         cursor = event.id
 
     print("\nDone. Review and accept queued proposals via the Workbench:")
-    print(f"   open {args.frontier_url}/previews/proposals.html")
+    print("   open https://vela-site.fly.dev/workbench (or, locally, http://localhost:4321/workbench)")
     return 0
 
 
