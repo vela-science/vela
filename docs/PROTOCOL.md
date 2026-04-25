@@ -140,6 +140,24 @@ Links may include confidence, notes, evidence spans, conditional text, and
 inference provenance. Link-derived outputs are review surfaces unless accepted
 through normal frontier review.
 
+### v0.8 — cross-frontier link targets
+
+`Link.target` may take two shapes:
+
+- `vf_<16hex>` — references a finding in this same frontier.
+- `vf_<16hex>@vfr_<16hex>` — references a finding in a different frontier
+  (the trailing `vfr_` is the target frontier's content-addressed id).
+
+Cross-frontier targets are valid only if the dependent frontier declares a
+matching `vfr_id` in `frontier.dependencies` with both a `locator` and a
+`pinned_snapshot_hash`. Strict validation refuses cross-frontier targets
+without a declared dep.
+
+`vela registry pull <vfr> --transitive` walks the dependency graph and
+verifies that every fetched dep's actual snapshot matches the dependent's
+pinned hash. The pin is the integrity guarantee; partial trust is not a
+state v0.8 supports.
+
 ## 6. proposal and event protocol
 
 The public write boundary is a `vela.proposal.v0.1` proposal. Truth-changing

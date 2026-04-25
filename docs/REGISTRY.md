@@ -11,8 +11,11 @@ This is the npm-tarball-with-a-signature shape. Use cases:
   and verify byte-identical reconstruction.
 - Integrity-checked transfer between collaborating institutions.
 
-Cross-frontier *links* (`vf_…@vfr_…` references) — composition — are
-deferred to v0.6. v0.5's registry does *distribution* only.
+v0.8 added **cross-frontier composition** on top: a finding in one frontier
+can reference a finding in another via `vf_…@vfr_…`, and `vela registry
+pull --transitive` walks the dep graph, verifying each pinned snapshot
+against the registry. See the "Transitive pull" section below and
+[PROTOCOL.md §5](PROTOCOL.md) for the link-target syntax.
 
 ## CLI
 
@@ -93,7 +96,36 @@ Write-side (`--to`):
   verifies the signature against the declared `owner_pubkey` and stores
   the canonical bytes verbatim. See [HUB.md](HUB.md) for hub semantics.
 
-`git+...` is deferred to v0.8+.
+`git+...` is deferred to v0.9+.
+
+## Transitive pull (v0.8)
+
+A frontier may declare cross-frontier dependencies in
+`frontier.dependencies`, each pinning a remote `vfr_id` to a specific
+snapshot hash via:
+
+```json
+{
+  "name": "BBB Flagship",
+  "source": "vela.hub",
+  "vfr_id": "vfr_…",
+  "locator": "https://…/bbb-alzheimer.json",
+  "pinned_snapshot_hash": "<sha256 hex>"
+}
+```
+
+`vela registry pull <vfr> --transitive [--depth N]` walks the dependency
+graph, fetches each dep's frontier, verifies signature + snapshot +
+event-log hashes, *and* verifies the dep's actual snapshot equals the
+dependent's pinned hash. Mismatch is a hard failure naming the divergent
+`vfr_id` and the expected vs found hash.
+
+Cycle protection is automatic — content-addressing makes cycles
+impossible (a `vfr_id` is a hash that includes the dependency list), and
+a visited-set catches accidental redeclarations.
+
+Use `vela frontier add-dep` and `vela frontier list-deps` to manage
+dependencies on a frontier file.
 
 ## Doctrine
 

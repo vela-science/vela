@@ -1,5 +1,116 @@
 # Changelog
 
+## 0.8.0 - 2026-04-25
+
+The composition run. v0.7 stood up the public hub, the deployed
+Workbench, and the BBB living repo. The next substrate move forced
+by the protocol's own shape was *composition*: a finding in one
+frontier referencing a finding in another. v0.8 closes that gap with
+the smallest substrate change that keeps the whole verification
+chain — canonical-JSON, signature, snapshot pin — extending across
+frontier boundaries.
+
+### Substrate
+
+- **Cross-frontier link targets** (`crates/vela-protocol/src/bundle.rs`).
+  `Link.target` now parses as `LinkRef::Local { vf_id }` (in-frontier,
+  pre-v0.8 shape) or `LinkRef::Cross { vf_id, vfr_id }` (cross-frontier,
+  new). Round-trip identity via `format()`. The wire shape stays
+  `String` — canonical-JSON unchanged, no schema churn.
+- **`ProjectDependency` extension** (`crates/vela-protocol/src/project.rs`).
+  Three new optional fields — `vfr_id`, `locator`, `pinned_snapshot_hash`
+  — turn the existing compile-time dependency record into a verifiable
+  cross-frontier dep declaration. `Project::cross_frontier_deps()` and
+  `Project::dep_for_vfr()` helpers; serde-skipped when None so pre-v0.8
+  frontiers serialize byte-identically.
+- **Strict cross-frontier validation** (`crates/vela-protocol/src/validate.rs`).
+  Any link target with `@vfr_…` must have a matching declared dep; any
+  cross-frontier dep must declare both `locator` and `pinned_snapshot_hash`.
+  Pinned-by-default — mirrors Cargo.lock / package-lock.json. Strict mode
+  fails with the missing dep / missing pin named.
+- **Transitive pull-and-verify** (`crates/vela-protocol/src/registry.rs`).
+  `pull_transitive(registry, primary_vfr, out_dir, max_depth) -> PullResult`
+  walks the dep graph BFS, fetches each dep's frontier, verifies signature
+  + snapshot + event-log + that the dep's actual snapshot matches the
+  dependent's pinned hash. Cycle-safe (visited-set + content-addressing).
+  `vela registry pull --transitive [--depth N]` exposes it; `--depth` defaults
+  to 4. Total verification — partial trust isn't a state v0.8 supports.
+
+### CLI
+
+- **`vela frontier add-dep / list-deps / remove-dep`** (`crates/vela-protocol/src/cli.rs`).
+  New subcommand group for managing cross-frontier dependency declarations
+  on a frontier file. `add-dep` writes a complete
+  `vfr_id`+`locator`+`pinned_snapshot_hash` triple; `remove-dep` refuses
+  if any link still references the dep.
+
+### Surfaces
+
+- **Hub renders cross-frontier links as click-through**
+  (`crates/vela-hub/src/main.rs`). When a finding's link target parses
+  as `vf_…@vfr_…` and the target's `vfr_id` matches a declared dep,
+  the link becomes `<a href="/entries/{vfr}/findings/{vf}">{vf} @
+  {dep_name}</a>` — italic-serif `cross-vfr` badge, navigable to the
+  remote frontier's entry page. Undeclared cross-frontier targets get
+  a brass `(undeclared dep)` chip.
+- **Workbench rete: dashed cross-frontier edges + ghost nodes**
+  (`site/src/pages/workbench/index.astro`). External `vfr_id`s appear
+  as small open-square ghost nodes pinned to the canvas rim, one per
+  distinct external frontier. Edges to ghosts are dashed signal-blue.
+  Click a ghost to jump to the hub's `/entries/{vfr}` page.
+
+### Conformance
+
+- **2-frontier conformance vector** (`tests/conformance/cross-frontier/`).
+  Frontier A (1 finding, no deps) + Frontier B (1 finding linking to A
+  via `vf_…@vfr_…`, declares A as a dep) + `expected.json` listing every
+  derived id and the resolution shape. A second implementation grades
+  itself by reproducing each id and confirming the dep's snapshot pin
+  matches A's actual snapshot.
+- **`scripts/cross_impl_conformance.py --cross-frontier <path>`** loads
+  each declared dep and checks two new properties: every cross-frontier
+  link resolves to a declared dep, and every dep's `pinned_snapshot_hash`
+  matches the loaded dep's actual snapshot. Verified PASS on the
+  positive vector and FAIL (exit 1) on a tampered copy.
+
+### Worked example
+
+- **`frontiers/bbb-extension.json`** + `.github/workflows/bbb-extension-living-repo.yml`.
+  A small companion frontier ("BBB Flagship · follow-up") with one
+  finding that extends BBB's first finding via the v0.8 link-target
+  syntax. Declares BBB as a cross-frontier dep with the v0.8 vfr_id
+  and snapshot pin. Separate `reviewer:bbb-extension-bot` actor;
+  weekly cron 14:30 UTC (offset from BBB's 14:00). The hub now serves
+  two frontiers; `vela registry pull vfr_… --transitive --from
+  https://vela-hub.fly.dev/entries` walks both end-to-end.
+
+### Cut
+
+- Workspace + crate versions: `0.7.0 → 0.8.0`.
+- `VELA_SCHEMA_URL` / `VELA_SCHEMA_VERSION` / `VELA_COMPILER_VERSION`
+  → `v0.8.0` / `0.8.0` / `vela/0.8.0`.
+- `default_formula_version() → "v0.8"` (cosmetic; same scoring math).
+- `frontiers/bbb-alzheimer.json` and `examples/paper-folder/expected/frontier.json`
+  migrated.
+- `schema/finding-bundle.v0.8.0.json` published.
+- All command banners (`compile`, `bridge`, `jats`, `ingest`,
+  `frontier`) → `V0.8.0`.
+
+### Deferred to v0.9+
+
+- Hub-to-hub federation (still needs ≥ 2 hubs).
+- Hub-hosted frontier blobs. The locator stays wherever the publisher
+  hosts the file.
+- Browser-side WebCrypto signing.
+- Webhooks / SSE on the hub.
+- `vela ingest --paper <path> --propose` CLI shortcut.
+- `propose_with_routing` SDK method.
+- Tier-permitted auto-apply for state-changing kinds.
+- Per-pubkey rate limits, allowlists, abuse handling.
+- Multi-frontier Workbench mode (loading two frontiers into one rete
+  view; v0.8 ships dashed-edge-to-ghost-node only).
+- A real domain.
+
 ## 0.7.0 - 2026-04-25
 
 The public-hub run. v0.6 left the substrate complete and gave us a

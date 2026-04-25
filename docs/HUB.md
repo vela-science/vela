@@ -28,11 +28,27 @@ The public hub for v0.7 is **<https://vela-hub.fly.dev>**.
 | `GET /` | Banner + endpoint list + version. |
 | `GET /healthz` | Liveness; reports DB reachability. |
 | `GET /entries` | Full registry, latest-publish-wins per `vfr_id`. |
-| `GET /entries/{vfr_id}` | Latest entry for one `vfr_id`. |
+| `GET /entries/{vfr_id}` | Latest entry for one `vfr_id`. v0.8: HTML view fetches the frontier from its locator and renders findings inline; cross-frontier link targets render as click-through to the other entry. |
+| `GET /entries/{vfr_id}/findings/{vf_id}` | Single-finding view: claim, conditions, evidence, links. v0.8: cross-frontier links navigate. |
 | `POST /entries` | Publish a signed manifest. 201 fresh, 200 duplicate, 400 tamper or schema mismatch, 500 DB error. |
 
 `POST /entries` body shape: a single registry entry matching
 `vela.registry-entry.v0.1`. See [REGISTRY.md](REGISTRY.md#manifest-format).
+
+### v0.8: cross-frontier composition
+
+A frontier published to the hub may declare cross-frontier dependencies
+in its `frontier.dependencies` array, pinning each remote frontier by
+`vfr_id` and `pinned_snapshot_hash`. Findings in the dependent frontier
+can then link to findings in the dep via `vf_<id>@vfr_<id>` link
+targets. The hub renders such links as clickable navigation between
+entries; clients use `vela registry pull <vfr> --transitive --from
+https://vela-hub.fly.dev/entries` to fetch and verify the whole chain.
+
+The hub itself remains dumb transport — it does not resolve cross-
+frontier references at storage time. Resolution happens client-side at
+pull time, where the canonical-JSON snapshot pin is the integrity
+guarantee.
 
 Idempotency: `(vfr_id, signature)` is unique. Re-POSTing identical
 canonical bytes returns 200 with `duplicate=true`; the row is not
