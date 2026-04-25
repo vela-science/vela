@@ -1,0 +1,307 @@
+{
+  "vela_version": "0.8.0",
+  "schema": "https://vela.science/schema/finding-bundle/v0.8.0",
+  "frontier": {
+    "name": "BBB Flagship · follow-up",
+    "description": "v0.8 worked example of cross-frontier composition. One follow-up finding that extends the BBB Flagship frontier via a `vf_…@vfr_…` link, pinned to the BBB snapshot at the time this companion frontier was written. Demonstrates how a second researcher's follow-up artifact composes with an existing frontier without copying its findings.",
+    "compiled_at": "2026-04-25T20:00:00Z",
+    "compiler": "vela/0.8.0",
+    "papers_processed": 0,
+    "errors": 0,
+    "dependencies": [
+      {
+        "name": "BBB Flagship",
+        "source": "vela.hub",
+        "version": null,
+        "pinned_hash": null,
+        "vfr_id": "vfr_093f7f15b6c79386",
+        "locator": "https://raw.githubusercontent.com/vela-science/vela/main/frontiers/bbb-alzheimer.json",
+        "pinned_snapshot_hash": "f23b4aba173f3fb840c6ec2555715bdcdd7c90864019aff399a43a6ff554c6ec"
+      }
+    ]
+  },
+  "stats": {
+    "findings": 1,
+    "links": 1,
+    "replicated": 0,
+    "unreplicated": 1,
+    "avg_confidence": 0.7,
+    "gaps": 0,
+    "negative_space": 0,
+    "contested": 0,
+    "categories": {
+      "therapeutic": 1
+    },
+    "link_types": {
+      "extends": 1
+    },
+    "human_reviewed": 0,
+    "review_event_count": 1,
+    "confidence_update_count": 0,
+    "event_count": 1,
+    "source_count": 0,
+    "evidence_atom_count": 0,
+    "condition_record_count": 0,
+    "proposal_count": 1,
+    "confidence_distribution": {
+      "high_gt_80": 0,
+      "medium_60_80": 1,
+      "low_lt_60": 0
+    }
+  },
+  "findings": [
+    {
+      "id": "vf_968dd69eb2a34be7",
+      "version": 1,
+      "previous_version": null,
+      "assertion": {
+        "text": "Independent replication of the Brain Shuttle bispecific TfR delivery effect at lower TfR-binding affinity (Kd ~500 nM) reproduces enhanced parenchymal antibody concentration in mouse brain, supporting the affinity-tuned-shuttle mechanism. The original report (Niewoehner et al., 2014) holds under independent replication.",
+        "type": "therapeutic",
+        "entities": [],
+        "relation": null,
+        "direction": null
+      },
+      "evidence": {
+        "type": "experimental",
+        "model_system": "",
+        "species": null,
+        "method": "manual state transition",
+        "sample_size": null,
+        "effect_size": null,
+        "p_value": null,
+        "replicated": false,
+        "replication_count": null,
+        "evidence_spans": []
+      },
+      "conditions": {
+        "text": "Manually added finding; requires evidence review before scientific use.",
+        "species_verified": [],
+        "species_unverified": [],
+        "in_vitro": false,
+        "in_vivo": false,
+        "human_data": false,
+        "clinical_trial": false,
+        "concentration_range": null,
+        "duration": null,
+        "age_group": null,
+        "cell_type": null
+      },
+      "confidence": {
+        "kind": "frontier_epistemic",
+        "score": 0.7,
+        "basis": "operator-supplied frontier prior; review required",
+        "method": "expert_judgment",
+        "extraction_confidence": 1.0
+      },
+      "provenance": {
+        "source_type": "preprint",
+        "doi": null,
+        "pmid": null,
+        "pmc": null,
+        "openalex_id": null,
+        "title": "Bbb-extension follow-up paper (synthetic for v0.8 demo)",
+        "authors": [
+          {
+            "name": "reviewer:bbb-extension-bot",
+            "orcid": null
+          }
+        ],
+        "year": null,
+        "journal": null,
+        "extraction": {
+          "method": "manual_curation",
+          "model": null,
+          "model_version": null,
+          "extracted_at": "2026-04-25T20:53:57.224534+00:00",
+          "extractor_version": "vela/0.8.0"
+        },
+        "review": {
+          "reviewed": false,
+          "reviewer": null,
+          "reviewed_at": null,
+          "corrections": []
+        },
+        "citation_count": null
+      },
+      "flags": {
+        "gap": false,
+        "negative_space": false,
+        "contested": false,
+        "retracted": false,
+        "declining": false,
+        "gravity_well": false
+      },
+      "links": [
+        {
+          "target": "vf_08c81dd507f6a047@vfr_093f7f15b6c79386",
+          "type": "extends",
+          "note": "Independent replication of the Brain Shuttle bispecific TfR delivery effect (the originating finding in BBB Flagship).",
+          "inferred_by": "author",
+          "created_at": "2026-04-25T20:00:00Z"
+        }
+      ],
+      "created": "2026-04-25T20:53:57.224542+00:00",
+      "updated": null
+    }
+  ],
+  "sources": [],
+  "evidence_atoms": [],
+  "condition_records": [],
+  "events": [
+    {
+      "schema": "vela.event.v0.1",
+      "id": "vev_0891ecf399d8ffc6",
+      "kind": "finding.asserted",
+      "target": {
+        "type": "finding",
+        "id": "vf_968dd69eb2a34be7"
+      },
+      "actor": {
+        "id": "reviewer:bbb-extension-bot",
+        "type": "human"
+      },
+      "timestamp": "2026-04-25T20:53:57.226010+00:00",
+      "reason": "Manual finding added to frontier state",
+      "before_hash": "sha256:null",
+      "after_hash": "sha256:1e35907f8500bcfafa47aa11333b8ea01427975869751d5e45416376334c8392",
+      "payload": {
+        "proposal_id": "vpr_2ca857c65b93401e"
+      },
+      "caveats": [
+        "Manual findings require evidence review before scientific use."
+      ]
+    }
+  ],
+  "proposals": [
+    {
+      "schema": "vela.proposal.v0.1",
+      "id": "vpr_2ca857c65b93401e",
+      "kind": "finding.add",
+      "target": {
+        "type": "finding",
+        "id": "vf_968dd69eb2a34be7"
+      },
+      "actor": {
+        "id": "reviewer:bbb-extension-bot",
+        "type": "human"
+      },
+      "created_at": "2026-04-25T20:53:57.224584+00:00",
+      "reason": "Manual finding added to frontier state",
+      "payload": {
+        "finding": {
+          "assertion": {
+            "direction": null,
+            "entities": [],
+            "relation": null,
+            "text": "Independent replication of the Brain Shuttle bispecific TfR delivery effect at lower TfR-binding affinity (Kd ~500 nM) reproduces enhanced parenchymal antibody concentration in mouse brain, supporting the affinity-tuned-shuttle mechanism. The original report (Niewoehner et al., 2014) holds under independent replication.",
+            "type": "therapeutic"
+          },
+          "conditions": {
+            "age_group": null,
+            "cell_type": null,
+            "clinical_trial": false,
+            "concentration_range": null,
+            "duration": null,
+            "human_data": false,
+            "in_vitro": false,
+            "in_vivo": false,
+            "species_unverified": [],
+            "species_verified": [],
+            "text": "Manually added finding; requires evidence review before scientific use."
+          },
+          "confidence": {
+            "basis": "operator-supplied frontier prior; review required",
+            "extraction_confidence": 1.0,
+            "kind": "frontier_epistemic",
+            "method": "expert_judgment",
+            "score": 0.7
+          },
+          "created": "2026-04-25T20:53:57.224542+00:00",
+          "evidence": {
+            "effect_size": null,
+            "evidence_spans": [],
+            "method": "manual state transition",
+            "model_system": "",
+            "p_value": null,
+            "replicated": false,
+            "replication_count": null,
+            "sample_size": null,
+            "species": null,
+            "type": "experimental"
+          },
+          "flags": {
+            "contested": false,
+            "declining": false,
+            "gap": false,
+            "gravity_well": false,
+            "negative_space": false,
+            "retracted": false
+          },
+          "id": "vf_968dd69eb2a34be7",
+          "links": [],
+          "previous_version": null,
+          "provenance": {
+            "authors": [
+              {
+                "name": "reviewer:bbb-extension-bot",
+                "orcid": null
+              }
+            ],
+            "citation_count": null,
+            "doi": null,
+            "extraction": {
+              "extracted_at": "2026-04-25T20:53:57.224534+00:00",
+              "extractor_version": "vela/0.8.0",
+              "method": "manual_curation",
+              "model": null,
+              "model_version": null
+            },
+            "journal": null,
+            "openalex_id": null,
+            "pmc": null,
+            "pmid": null,
+            "review": {
+              "corrections": [],
+              "reviewed": false,
+              "reviewed_at": null,
+              "reviewer": null
+            },
+            "source_type": "preprint",
+            "title": "Bbb-extension follow-up paper (synthetic for v0.8 demo)",
+            "year": null
+          },
+          "updated": null,
+          "version": 1
+        }
+      },
+      "source_refs": [],
+      "status": "applied",
+      "reviewed_by": "reviewer:bbb-extension-bot",
+      "reviewed_at": "2026-04-25T20:53:57.225637+00:00",
+      "decision_reason": "Applied locally from proposal creation",
+      "applied_event_id": "vev_0891ecf399d8ffc6",
+      "caveats": [
+        "Manual findings require evidence review before scientific use."
+      ]
+    }
+  ],
+  "proof_state": {
+    "latest_packet": {
+      "generated_at": null,
+      "snapshot_hash": null,
+      "event_log_hash": null,
+      "packet_manifest_hash": null,
+      "status": "never_exported"
+    }
+  },
+  "signatures": [],
+  "actors": [
+    {
+      "id": "reviewer:bbb-extension-bot",
+      "public_key": "13aa9ac48b3fe6b5b8e9c19bf7c70ce0cd5fef2f32e36cdaa85de81d84943493",
+      "algorithm": "ed25519",
+      "created_at": "2026-04-25T20:54:21.316104+00:00",
+      "tier": "auto-notes"
+    }
+  ]
+}
