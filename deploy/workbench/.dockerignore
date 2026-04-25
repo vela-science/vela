@@ -1,0 +1,23 @@
+# Build context for the workbench is the repo root; exclude the obvious
+# heavy and irrelevant directories. The Dockerfile only COPY's
+# {Cargo.toml,Cargo.lock,crates,web,assets,frontiers}.
+target
+**/target
+node_modules
+**/node_modules
+site/dist
+site/.astro
+.git
+.github
+docs
+projects
+tests
+schema
+scripts
+demo
+examples
+benchmarks
+bindings
+deploy
+*.log
+.DS_Store

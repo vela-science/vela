@@ -5,6 +5,7 @@
 
 export const SITE_URL = "https://vela.science";
 export const HUB_URL = "https://vela-hub.fly.dev";
+export const WORKBENCH_URL = "https://vela-workbench.fly.dev";
 export const REPO_URL = "https://github.com/vela-science/vela";
 export const ARCHIVE_URL = "https://github.com/willblair0708/vela-archive";
 

@@ -174,6 +174,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/healthz", get(healthz))
         .route("/entries", get(list_entries).post(publish_entry))
         .route("/entries/{vfr_id}", get(get_entry))
+        .route("/entries/{vfr_id}/findings/{vf_id}", get(get_finding))
         .route("/static/tokens.css", get(static_tokens_css))
         .route("/static/workbench.css", get(static_workbench_css))
         .route("/static/site.css", get(static_site_css))
@@ -383,6 +384,111 @@ async fn get_entry(
             Json(json!({"error": format!("query: {e}")})),
         )
             .into_response(),
+    }
+}
+
+/// Single-finding detail page. Fetches the cached frontier (same one
+/// the entry detail page uses), looks up the finding by id, renders
+/// claim + conditions + evidence + history in workbench finding-pattern.
+/// JSON path returns the finding bundle as-is.
+async fn get_finding(
+    State(state): State<AppState>,
+    Path((vfr_id, vf_id)): Path<(String, String)>,
+    headers: HeaderMap,
+) -> Response {
+    // Find the entry to get the locator.
+    let entry = sqlx::query_scalar::<_, serde_json::Value>(
+        r#"
+        SELECT raw_json FROM registry_entries
+        WHERE vfr_id = $1
+        ORDER BY signed_publish_at DESC
+        LIMIT 1
+        "#,
+    )
+    .bind(&vfr_id)
+    .fetch_optional(&state.pool)
+    .await;
+    let entry = match entry {
+        Ok(Some(v)) => v,
+        Ok(None) => {
+            if wants_html(&headers) {
+                return (
+                    StatusCode::NOT_FOUND,
+                    Html(render_not_found_html(&state.urls, &vfr_id)),
+                )
+                    .into_response();
+            }
+            return (
+                StatusCode::NOT_FOUND,
+                Json(json!({"error": format!("{vfr_id} not found")})),
+            )
+                .into_response();
+        }
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({"error": format!("query: {e}")})),
+            )
+                .into_response();
+        }
+    };
+
+    let signed_at = entry
+        .get("signed_publish_at")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+    let locator = entry
+        .get("network_locator")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+    let frontier = if signed_at.is_empty() || locator.is_empty() {
+        None
+    } else {
+        fetch_frontier_cached(&state, &vfr_id, signed_at, locator).await
+    };
+
+    let Some(project) = frontier else {
+        if wants_html(&headers) {
+            return Html(render_finding_unavailable_html(
+                &state.urls,
+                &vfr_id,
+                &vf_id,
+            ))
+            .into_response();
+        }
+        return (
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(json!({"error": "frontier file unreachable; pull via the CLI to inspect"})),
+        )
+            .into_response();
+    };
+
+    let Some(bundle) = project.findings.iter().find(|b| b.id == vf_id) else {
+        if wants_html(&headers) {
+            return (
+                StatusCode::NOT_FOUND,
+                Html(render_finding_not_found_html(&state.urls, &vfr_id, &vf_id)),
+            )
+                .into_response();
+        }
+        return (
+            StatusCode::NOT_FOUND,
+            Json(json!({"error": format!("{vf_id} not in {vfr_id}")})),
+        )
+            .into_response();
+    };
+
+    if wants_html(&headers) {
+        Html(render_finding_html(&state.urls, &vfr_id, &project, bundle)).into_response()
+    } else {
+        match serde_json::to_value(bundle) {
+            Ok(v) => (StatusCode::OK, Json(v)).into_response(),
+            Err(e) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({"error": format!("serialize: {e}")})),
+            )
+                .into_response(),
+        }
     }
 }
 
@@ -672,6 +778,117 @@ code, .mono-inline {
   letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-3);
 }
 
+/* Finding page — provenance, annotations, links */
+.fd-prov-meta {
+  margin-top: 6px;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--ink-3);
+}
+.fd-dial__gauge {
+  margin-top: 10px;
+  height: 3px;
+  background: var(--rule-1);
+  position: relative;
+}
+.fd-dial__gauge i {
+  position: absolute; top: 0; left: 0; height: 100%;
+  background: var(--ink-2);
+}
+
+.ann-list, .link-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  border-top: 1px solid var(--rule-2);
+}
+.ann-list li, .link-list li {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--rule-1);
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 18px;
+  align-items: baseline;
+}
+.ann-author, .link-rel {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-3);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.ann-text {
+  font-family: var(--font-serif);
+  font-size: 16px;
+  color: var(--ink-1);
+  line-height: 1.55;
+}
+.link-list li a {
+  font-family: var(--font-serif);
+  font-size: 15px;
+  color: var(--ink-1);
+  border-bottom: 1px solid var(--rule-3);
+}
+.link-list li a:hover { border-bottom-color: var(--rule-ink); }
+.link-list li code {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  background: var(--paper-1);
+  padding: 1px 5px;
+  border: 1px solid var(--rule-1);
+  border-radius: var(--radius-1);
+}
+
+/* Findings toolbar — search + state chips above the table */
+.vf-toolbar {
+  display: flex; gap: 18px; align-items: center;
+  flex-wrap: wrap;
+  padding: 12px 0 6px;
+  border-bottom: 1px solid var(--rule-1);
+  margin-bottom: 4px;
+}
+.vf-search {
+  display: flex; align-items: center; gap: 8px;
+  flex: 1 1 320px; min-width: 240px;
+  padding: 6px 4px;
+  border-bottom: 1px solid var(--rule-2);
+  color: var(--ink-3);
+}
+.vf-search:focus-within { border-bottom-color: var(--signal); color: var(--ink-2); }
+.vf-search input {
+  flex: 1; border: 0; outline: 0; background: transparent;
+  font-family: var(--font-sans); font-size: 14px; color: var(--ink-0);
+}
+.vf-search input::placeholder { color: var(--ink-4); }
+.vf-search__count {
+  font-family: var(--font-mono); font-size: 11px;
+  color: var(--ink-3); font-variant-numeric: tabular-nums;
+}
+.vf-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.vf-chip {
+  font-family: var(--font-mono); font-size: 10px;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--ink-3);
+  border: 1px solid var(--rule-2);
+  background: transparent;
+  padding: 4px 9px; border-radius: var(--radius-1);
+  cursor: pointer;
+  transition: border-color var(--dur-1) var(--ease), color var(--dur-1) var(--ease), background var(--dur-1) var(--ease);
+}
+.vf-chip:hover { color: var(--ink-1); border-color: var(--rule-3); }
+.vf-chip--on {
+  color: var(--ink-0); border-color: var(--rule-ink); background: var(--paper-1);
+}
+.vf-chip span {
+  margin-left: 6px; color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+.vf-chip--on span { color: var(--ink-2); }
+.vf-empty {
+  font-family: var(--font-serif); font-style: italic;
+  color: var(--ink-3); padding: 28px 0; text-align: center;
+}
+
 /* Findings table — workbench frontier-pattern, embedded in entry detail */
 .vf-table { width: 100%; border-collapse: collapse; margin-top: 8px; }
 .vf-table thead th {
@@ -682,8 +899,12 @@ code, .mono-inline {
 .vf-table thead th.num { text-align: right; }
 .vf-table tbody tr {
   border-bottom: 1px solid var(--rule-1);
+  cursor: pointer;
+  transition: background var(--dur-1) var(--ease);
 }
 .vf-table tbody tr:hover { background: var(--paper-1); }
+.vf-table tbody td a { color: inherit; border: 0; }
+.vf-table tbody td a:hover { color: var(--ink-0); }
 .vf-table tbody td {
   padding: 14px 10px; vertical-align: top; font-size: 14px;
 }
@@ -1063,7 +1284,7 @@ fn render_entry_html(
         )
     };
 
-    let findings_section = render_findings_section(frontier);
+    let findings_section = render_findings_section(vfr_id, frontier);
 
     let main = format!(
         r#"<div class="fd">
@@ -1219,7 +1440,7 @@ fn finding_state(b: &vela_protocol::bundle::FindingBundle) -> (&'static str, &'s
     ("supported", "ok")
 }
 
-fn render_findings_section(frontier: Option<&Project>) -> String {
+fn render_findings_section(vfr_id: &str, frontier: Option<&Project>) -> String {
     let Some(p) = frontier else {
         return String::from(
             r#"<section class="wb-section">
@@ -1274,18 +1495,29 @@ fn render_findings_section(frontier: Option<&Project>) -> String {
             .split_whitespace()
             .next()
             .unwrap_or(&b.assertion.assertion_type);
+        let vf_safe = escape_html(&b.id);
+        let vfr_safe = escape_html(vfr_id);
+        let href = format!("/entries/{vfr_safe}/findings/{vf_safe}");
         rows.push_str(&format!(
-            r#"<tr>
-              <td class="vf-id">{vf_id}</td>
+            r#"<tr onclick="location.href='{href}'">
+              <td class="vf-id"><a href="{href}">{vf_safe}</a></td>
               <td class="vf-cls">{cls}</td>
-              <td class="vf-claim">{claim}</td>
+              <td class="vf-claim"><a href="{href}">{claim}</a></td>
               <td class="vf-state"><span class="wb-chip{live_class}" style="--chip:var(--state-{state_class});"><span class="wb-chip__dot"></span>{label}</span></td>
               <td class="vf-conf"><span class="vf-bar"><i style="width:{pct}%;"></i></span><span class="vf-num">{score:.2}</span></td>
             </tr>"#,
-            vf_id = escape_html(&b.id),
             cls = escape_html(assertion_type),
             claim = escape_html(&b.assertion.text),
             score = b.confidence.score,
+        ));
+    }
+
+    // State-filter chip row. data-state matches finding_state()'s label set.
+    let mut chip_html =
+        String::from(r#"<button class="vf-chip vf-chip--on" data-state="all">all</button>"#);
+    for (label, n) in by_state.iter() {
+        chip_html.push_str(&format!(
+            r#"<button class="vf-chip" data-state="{label}">{label} <span>{n}</span></button>"#
         ));
     }
 
@@ -1296,7 +1528,15 @@ fn render_findings_section(frontier: Option<&Project>) -> String {
             <span class="wb-section__t">Findings · {count}</span>
             <span class="wb-section__aside">{counts}</span>
           </div>
-          <table class="vf-table">
+          <div class="vf-toolbar">
+            <label class="vf-search">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" aria-hidden="true"><circle cx="7" cy="7" r="5" stroke-width="1"/><line x1="11" y1="11" x2="15" y2="15" stroke-width="1"/></svg>
+              <input type="search" placeholder="filter by claim, class, vf_id…" data-vf-search>
+              <span class="vf-search__count" data-vf-count>{count} / {count}</span>
+            </label>
+            <div class="vf-chips" data-vf-chips>{chip_html}</div>
+          </div>
+          <table class="vf-table" data-vf-table>
             <thead>
               <tr>
                 <th>vf_id</th>
@@ -1308,6 +1548,48 @@ fn render_findings_section(frontier: Option<&Project>) -> String {
             </thead>
             <tbody>{rows}</tbody>
           </table>
+          <p class="vf-empty" data-vf-empty hidden>No findings match the current filter.</p>
+          <script>
+          (function() {{
+            var search = document.querySelector('[data-vf-search]');
+            var chips  = document.querySelectorAll('[data-vf-chips] button');
+            var rows   = document.querySelectorAll('[data-vf-table] tbody tr');
+            var empty  = document.querySelector('[data-vf-empty]');
+            var countEl = document.querySelector('[data-vf-count]');
+            var total = rows.length;
+            var activeState = 'all';
+            var query = '';
+
+            function rowMatches(r) {{
+              if (activeState !== 'all') {{
+                var st = r.querySelector('.vf-state .wb-chip');
+                if (!st || !st.textContent.toLowerCase().includes(activeState)) return false;
+              }}
+              if (!query) return true;
+              return (r.textContent || '').toLowerCase().includes(query);
+            }}
+            function apply() {{
+              var shown = 0;
+              rows.forEach(function(r) {{
+                if (rowMatches(r)) {{ r.hidden = false; shown++; }} else {{ r.hidden = true; }}
+              }});
+              if (countEl) countEl.textContent = shown + ' / ' + total;
+              if (empty)   empty.hidden = shown !== 0;
+            }}
+            if (search) search.addEventListener('input', function(e) {{
+              query = (e.target.value || '').toLowerCase();
+              apply();
+            }});
+            chips.forEach(function(c) {{
+              c.addEventListener('click', function() {{
+                activeState = c.getAttribute('data-state');
+                chips.forEach(function(b) {{ b.classList.remove('vf-chip--on'); }});
+                c.classList.add('vf-chip--on');
+                apply();
+              }});
+            }});
+          }})();
+          </script>
         </section>"#,
         count = p.findings.len(),
     )
@@ -1336,6 +1618,385 @@ fn render_margin_extras(frontier: Option<&Project>) -> String {
         actors = actor_count,
         events = event_count,
         proposals = proposal_count,
+    )
+}
+
+/// Single-finding detail. Workbench finding-pattern: serif claim,
+/// italic note, conditions table, evidence atoms with stance, history
+/// ledger in the margin. Reuses the cached frontier so navigation
+/// from /entries/{vfr_id} adds zero round trips.
+fn render_finding_html(
+    urls: &PublicUrls,
+    vfr_id: &str,
+    project: &Project,
+    bundle: &vela_protocol::bundle::FindingBundle,
+) -> String {
+    use vela_protocol::bundle::FindingBundle;
+
+    let vfr_safe = escape_html(vfr_id);
+    let vf_safe = escape_html(&bundle.id);
+    let claim_html = escape_html(&bundle.assertion.text);
+    let assertion_type = escape_html(&bundle.assertion.assertion_type);
+    let (state_label, state_class) = finding_state(bundle);
+
+    // Conditions row — surface only the fields that have content,
+    // and present the structured ones as small chips alongside the
+    // free-text description.
+    let cond = &bundle.conditions;
+    let mut cond_rows: Vec<String> = Vec::new();
+    if !cond.text.is_empty() {
+        cond_rows.push(format!(
+            r#"<div class="fd-cond"><dt>scope</dt><dd class="serif">{}</dd></div>"#,
+            escape_html(&cond.text),
+        ));
+    }
+    if !cond.species_verified.is_empty() {
+        cond_rows.push(format!(
+            r#"<div class="fd-cond"><dt>species</dt><dd class="serif">{}</dd></div>"#,
+            escape_html(&cond.species_verified.join(", ")),
+        ));
+    }
+    let mut model_chips = Vec::new();
+    if cond.in_vivo {
+        model_chips.push("in vivo");
+    }
+    if cond.in_vitro {
+        model_chips.push("in vitro");
+    }
+    if cond.human_data {
+        model_chips.push("human data");
+    }
+    if cond.clinical_trial {
+        model_chips.push("clinical trial");
+    }
+    if !model_chips.is_empty() {
+        cond_rows.push(format!(
+            r#"<div class="fd-cond"><dt>model</dt><dd>{}</dd></div>"#,
+            escape_html(&model_chips.join(" · ")),
+        ));
+    }
+    if let Some(c) = &cond.concentration_range {
+        cond_rows.push(format!(
+            r#"<div class="fd-cond"><dt>concentration</dt><dd>{}</dd></div>"#,
+            escape_html(c),
+        ));
+    }
+    if let Some(d) = &cond.duration {
+        cond_rows.push(format!(
+            r#"<div class="fd-cond"><dt>duration</dt><dd>{}</dd></div>"#,
+            escape_html(d),
+        ));
+    }
+    if let Some(c) = &cond.cell_type {
+        cond_rows.push(format!(
+            r#"<div class="fd-cond"><dt>cell_type</dt><dd>{}</dd></div>"#,
+            escape_html(c),
+        ));
+    }
+    if let Some(a) = &cond.age_group {
+        cond_rows.push(format!(
+            r#"<div class="fd-cond"><dt>age_group</dt><dd>{}</dd></div>"#,
+            escape_html(a),
+        ));
+    }
+    let conditions_dl = if cond_rows.is_empty() {
+        String::from(r#"<p class="empty">No structured conditions declared.</p>"#)
+    } else {
+        format!(r#"<dl class="fd-conditions">{}</dl>"#, cond_rows.join(""),)
+    };
+
+    // Evidence row.
+    let ev = &bundle.evidence;
+    let mut ev_rows: Vec<String> = Vec::new();
+    if !ev.evidence_type.is_empty() {
+        ev_rows.push(format!(
+            r#"<div class="fd-cond"><dt>type</dt><dd>{}</dd></div>"#,
+            escape_html(&ev.evidence_type),
+        ));
+    }
+    if !ev.method.is_empty() {
+        ev_rows.push(format!(
+            r#"<div class="fd-cond"><dt>method</dt><dd>{}</dd></div>"#,
+            escape_html(&ev.method),
+        ));
+    }
+    if !ev.model_system.is_empty() {
+        ev_rows.push(format!(
+            r#"<div class="fd-cond"><dt>model system</dt><dd>{}</dd></div>"#,
+            escape_html(&ev.model_system),
+        ));
+    }
+    if let Some(s) = &ev.species {
+        ev_rows.push(format!(
+            r#"<div class="fd-cond"><dt>species</dt><dd>{}</dd></div>"#,
+            escape_html(s),
+        ));
+    }
+    if let Some(s) = &ev.sample_size {
+        ev_rows.push(format!(
+            r#"<div class="fd-cond"><dt>sample size</dt><dd>{}</dd></div>"#,
+            escape_html(s),
+        ));
+    }
+    if let Some(es) = &ev.effect_size {
+        ev_rows.push(format!(
+            r#"<div class="fd-cond"><dt>effect size</dt><dd>{}</dd></div>"#,
+            escape_html(es),
+        ));
+    }
+    if let Some(p) = &ev.p_value {
+        ev_rows.push(format!(
+            r#"<div class="fd-cond"><dt>p-value</dt><dd>{}</dd></div>"#,
+            escape_html(p),
+        ));
+    }
+    let replicated_label = if ev.replicated {
+        format!(
+            "yes{}",
+            ev.replication_count
+                .map_or(String::new(), |n| format!(" · {n}×"))
+        )
+    } else {
+        "no".to_string()
+    };
+    ev_rows.push(format!(
+        r#"<div class="fd-cond"><dt>replicated</dt><dd>{}</dd></div>"#,
+        escape_html(&replicated_label),
+    ));
+    let evidence_dl = format!(r#"<dl class="fd-conditions">{}</dl>"#, ev_rows.join(""));
+
+    // Provenance — link to source paper.
+    let prov = &bundle.provenance;
+    let prov_link = if let Some(doi) = &prov.doi {
+        format!(
+            r#"<a href="https://doi.org/{}" rel="noopener">{}</a>"#,
+            escape_html(doi),
+            escape_html(&prov.title),
+        )
+    } else if let Some(pmid) = &prov.pmid {
+        format!(
+            r#"<a href="https://pubmed.ncbi.nlm.nih.gov/{}" rel="noopener">{}</a>"#,
+            escape_html(pmid),
+            escape_html(&prov.title),
+        )
+    } else {
+        escape_html(&prov.title)
+    };
+    let mut prov_meta = Vec::new();
+    if !prov.authors.is_empty() {
+        let n = prov.authors.len();
+        let first = prov.authors.first().map(|a| a.name.as_str()).unwrap_or("");
+        prov_meta.push(if n > 1 {
+            format!("{first} et al.")
+        } else {
+            first.to_string()
+        });
+    }
+    if let Some(j) = &prov.journal {
+        prov_meta.push(j.clone());
+    }
+    if let Some(y) = prov.year {
+        prov_meta.push(y.to_string());
+    }
+    let prov_meta_html = if prov_meta.is_empty() {
+        String::new()
+    } else {
+        format!(
+            r#"<div class="fd-prov-meta">{}</div>"#,
+            escape_html(&prov_meta.join(" · ")),
+        )
+    };
+
+    // Annotations (notes from reviewers).
+    let mut annotations_html = String::new();
+    if !bundle.annotations.is_empty() {
+        let mut items = Vec::new();
+        for a in &bundle.annotations {
+            items.push(format!(
+                r#"<li><span class="ann-author">{author}</span><span class="ann-text">{text}</span></li>"#,
+                author = escape_html(&a.author),
+                text = escape_html(&a.text),
+            ));
+        }
+        annotations_html = format!(
+            r#"<section class="wb-section">
+              <div class="wb-section__head">
+                <span class="wb-section__num">§3</span>
+                <span class="wb-section__t">Annotations · {n}</span>
+                <span class="wb-section__aside">notes from reviewers</span>
+              </div>
+              <ul class="ann-list">{items}</ul>
+            </section>"#,
+            n = bundle.annotations.len(),
+            items = items.join(""),
+        );
+    }
+
+    // Links — outgoing references to other findings in this same frontier.
+    let mut links_html = String::new();
+    if !bundle.links.is_empty() {
+        let id_index: std::collections::HashMap<&str, &FindingBundle> = project
+            .findings
+            .iter()
+            .map(|f| (f.id.as_str(), f))
+            .collect();
+        let mut items = Vec::new();
+        for link in &bundle.links {
+            let target_label = if let Some(target) = id_index.get(link.target.as_str()) {
+                let claim = if target.assertion.text.len() > 60 {
+                    format!("{}…", &target.assertion.text[..60])
+                } else {
+                    target.assertion.text.clone()
+                };
+                format!(
+                    r#"<a href="/entries/{vfr}/findings/{vf}">{claim}</a>"#,
+                    vfr = vfr_safe,
+                    vf = escape_html(&target.id),
+                    claim = escape_html(&claim),
+                )
+            } else {
+                // Cross-frontier link or unknown target — render the raw id.
+                format!("<code>{}</code>", escape_html(&link.target))
+            };
+            items.push(format!(
+                r#"<li><span class="link-rel">{rel}</span> {target}</li>"#,
+                rel = escape_html(&link.link_type),
+                target = target_label,
+            ));
+        }
+        links_html = format!(
+            r#"<section class="wb-section">
+              <div class="wb-section__head">
+                <span class="wb-section__num">§4</span>
+                <span class="wb-section__t">Links · {n}</span>
+                <span class="wb-section__aside">references in this frontier</span>
+              </div>
+              <ul class="link-list">{items}</ul>
+            </section>"#,
+            n = bundle.links.len(),
+            items = items.join(""),
+        );
+    }
+
+    let live_class = if state_label == "replicated" {
+        " wb-chip--live"
+    } else {
+        ""
+    };
+    let conf_pct = (bundle.confidence.score.clamp(0.0, 1.0) * 100.0).round() as u32;
+
+    let main = format!(
+        r#"<div class="fd">
+  <article>
+    <p class="fd-claim">{claim_html}</p>
+    <p class="fd-note">{prov_link}{prov_meta_html}</p>
+
+    <section class="wb-section">
+      <div class="wb-section__head">
+        <span class="wb-section__num">§1</span>
+        <span class="wb-section__t">Conditions</span>
+        <span class="wb-section__aside">declared on creation · immutable</span>
+      </div>
+      {conditions_dl}
+    </section>
+
+    <section class="wb-section">
+      <div class="wb-section__head">
+        <span class="wb-section__num">§2</span>
+        <span class="wb-section__t">Evidence</span>
+        <span class="wb-section__aside">{assertion_type}</span>
+      </div>
+      {evidence_dl}
+    </section>
+
+    {annotations_html}
+    {links_html}
+  </article>
+
+  <aside class="fd-margin">
+    <div class="fd-dial">
+      <div class="fd-dial__k">state</div>
+      <div class="fd-dial__v"><span class="wb-chip{live_class}" style="--chip:var(--state-{state_class});"><span class="wb-chip__dot"></span>{state_label}</span></div>
+      <div class="fd-dial__k" style="margin-top:16px;">confidence</div>
+      <div class="fd-dial__v" style="font-family:var(--font-mono);font-variant-numeric:tabular-nums;">{score:.2}</div>
+      <div class="fd-dial__gauge"><i style="width:{conf_pct}%"></i></div>
+    </div>
+
+    <div class="fd-dial">
+      <div class="fd-dial__k">vf_id</div>
+      <div class="fd-dial__v mono">{vf_safe}</div>
+      <div class="fd-dial__k" style="margin-top:14px;">version</div>
+      <div class="fd-dial__v mono">{version}</div>
+      <div class="fd-dial__k" style="margin-top:14px;">created</div>
+      <div class="fd-dial__v mono">{created}</div>
+    </div>
+
+    <div class="fd-dial">
+      <div class="fd-dial__k">JSON</div>
+      <div style="font-family:var(--font-mono);font-size:12px;line-height:1.6;color:var(--ink-1);margin-top:6px;">
+        <a href="/entries/{vfr_safe}/findings/{vf_safe}" style="border-bottom:1px solid var(--rule-3);">/entries/{vfr_safe}/findings/{vf_safe}</a>
+        <div style="color:var(--ink-3);margin-top:4px;">with <code>Accept: application/json</code></div>
+      </div>
+    </div>
+  </aside>
+</div>"#,
+        score = bundle.confidence.score,
+        version = bundle.version,
+        created = escape_html(&bundle.created),
+    );
+
+    shell(
+        urls,
+        &format!("Vela Hub · {}", &bundle.id),
+        "entries",
+        &format!("03 · Finding · <span style=\"color:var(--ink-2);\">{vf_safe}</span>"),
+        "Finding",
+        &claim_html,
+        &format!(
+            r#"<a href="/entries/{vfr_safe}">← {vfr_safe}</a><span>·</span><a href="/entries/{vfr_safe}/findings/{vf_safe}">JSON</a>"#
+        ),
+        &main,
+        &format!("{vf_safe} @ {vfr_safe}"),
+    )
+}
+
+fn render_finding_unavailable_html(urls: &PublicUrls, vfr_id: &str, vf_id: &str) -> String {
+    let vfr_safe = escape_html(vfr_id);
+    let vf_safe = escape_html(vf_id);
+    let main = format!(
+        r#"<p class="t-lead">The frontier file for <code>{vfr_safe}</code> is not currently reachable from its <code>network_locator</code>, so we cannot show finding <code>{vf_safe}</code>. The manifest is still verifiable; pull the frontier with the CLI to inspect.</p>
+<p class="t-lead"><a href="/entries/{vfr_safe}" style="border-bottom:1px solid var(--rule-3);">← back to entry</a></p>"#
+    );
+    shell(
+        urls,
+        "Vela Hub · finding unavailable",
+        "entries",
+        "503 · Frontier unavailable",
+        "Frontier unavailable",
+        "The manifest is verifiable from the hub; the underlying frontier file lives at the publisher's locator.",
+        "",
+        &main,
+        &vfr_safe,
+    )
+}
+
+fn render_finding_not_found_html(urls: &PublicUrls, vfr_id: &str, vf_id: &str) -> String {
+    let vfr_safe = escape_html(vfr_id);
+    let vf_safe = escape_html(vf_id);
+    let main = format!(
+        r#"<p class="t-lead">No finding <code>{vf_safe}</code> in <code>{vfr_safe}</code>. The id may belong to a different frontier or an earlier publish.</p>
+<p class="t-lead"><a href="/entries/{vfr_safe}" style="border-bottom:1px solid var(--rule-3);">← back to entry</a></p>"#
+    );
+    shell(
+        urls,
+        "Vela Hub · finding not found",
+        "entries",
+        "404 · Finding not found",
+        "Not found",
+        "Findings are content-addressed; their ids change with content.",
+        "",
+        &main,
+        &vfr_safe,
     )
 }
 
