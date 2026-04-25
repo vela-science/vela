@@ -168,7 +168,7 @@ pub struct ConfidenceComponents {
 }
 
 fn default_formula_version() -> String {
-    "v0.7".to_string()
+    "v0.8".to_string()
 }
 
 /// Confidence method: how the score was determined.

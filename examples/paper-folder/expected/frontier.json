@@ -1,6 +1,6 @@
 {
-  "vela_version": "0.7.0",
-  "schema": "https://vela.science/schema/finding-bundle/v0.7.0",
+  "vela_version": "0.8.0",
+  "schema": "https://vela.science/schema/finding-bundle/v0.8.0",
   "frontier": {
     "name": "papers",
     "description": "Compiled from local corpus 'examples/paper-folder/papers'. Candidate outputs require review before scientific use.",
