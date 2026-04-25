@@ -20,25 +20,25 @@
     "negative_space": 0,
     "contested": 0,
     "categories": {
-      "observational": 3,
-      "epidemiological": 2,
-      "mechanism": 3,
       "review": 1,
-      "therapeutic": 2
+      "therapeutic": 2,
+      "mechanism": 3,
+      "observational": 3,
+      "epidemiological": 2
     },
     "link_types": {
-      "contradicts": 1,
+      "supports": 5,
       "extends": 1,
-      "supports": 5
+      "contradicts": 1
     },
-    "human_reviewed": 0,
-    "review_event_count": 11,
+    "human_reviewed": 4,
+    "review_event_count": 15,
     "confidence_update_count": 0,
-    "event_count": 11,
+    "event_count": 15,
     "source_count": 0,
     "evidence_atom_count": 0,
     "condition_record_count": 0,
-    "proposal_count": 11,
+    "proposal_count": 15,
     "confidence_distribution": {
       "high_gt_80": 2,
       "medium_60_80": 9,
@@ -159,6 +159,14 @@
         "gravity_well": false
       },
       "links": [],
+      "annotations": [
+        {
+          "id": "ann_89a1306313eff0f3",
+          "text": "Curator open question: is the right therapeutic strategy to target one pathway, or to combine across amyloid + tau + microglial? The 'gravity well' nature of cascade-thinking biases toward single-pathway intervention design even when the evidence supports multifactorial models.",
+          "author": "reviewer:will-blair",
+          "timestamp": "2026-04-25T22:43:47.609218+00:00"
+        }
+      ],
       "created": "2026-04-25T22:38:09.775255+00:00",
       "updated": null
     },
@@ -513,6 +521,14 @@
         "gravity_well": false
       },
       "links": [],
+      "annotations": [
+        {
+          "id": "ann_6d0eac971d883c06",
+          "text": "Curator open question: should the verubecestat/atabecestat failures map to confidence drift on the amyloid cascade itself? The trials failed for mechanism-independent reasons; the cleanest reading is that they should NOT be evidence against amyloid as a target. But the field treats them as such, which is itself a structural fact about how disconfirmation propagates in the evidence graph.",
+          "author": "reviewer:will-blair",
+          "timestamp": "2026-04-25T22:43:47.601670+00:00"
+        }
+      ],
       "created": "2026-04-25T22:38:09.802449+00:00",
       "updated": null
     },
@@ -989,6 +1005,14 @@
           "created_at": "2026-04-25T22:38:44Z"
         }
       ],
+      "annotations": [
+        {
+          "id": "ann_6243f57cf04eec85",
+          "text": "Therapeutic implication is timing-dependent: activating microglia in late-stage disease where neurodegeneration is established may produce inflammatory harm. Activated microglia also release inflammatory cytokines. The 'when' of TREM2 activation matters as much as the 'what'.",
+          "author": "reviewer:will-blair",
+          "timestamp": "2026-04-25T22:43:39.125594+00:00"
+        }
+      ],
       "created": "2026-04-25T22:38:28.262763+00:00",
       "updated": null
     },
@@ -1105,6 +1129,14 @@
         "gravity_well": false
       },
       "links": [],
+      "annotations": [
+        {
+          "id": "ann_4ad294de43f6930f",
+          "text": "TREM2-dependent and TREM2-independent microglial activation pathways operate in parallel; a TREM2 agonist would only restore the dependent arm, not full microglial function. The single on/off-switch model of TREM2 is wrong.",
+          "author": "reviewer:will-blair",
+          "timestamp": "2026-04-25T22:43:39.132442+00:00"
+        }
+      ],
       "created": "2026-04-25T22:38:28.269146+00:00",
       "updated": null
     },
@@ -1595,6 +1627,98 @@
       "caveats": [
         "Manual findings require evidence review before scientific use."
       ]
+    },
+    {
+      "schema": "vela.event.v0.1",
+      "id": "vev_8679f800c11b53a0",
+      "kind": "finding.caveated",
+      "target": {
+        "type": "finding",
+        "id": "vf_d8e6a10a357310da"
+      },
+      "actor": {
+        "id": "reviewer:will-blair",
+        "type": "human"
+      },
+      "timestamp": "2026-04-25T22:43:39.125629+00:00",
+      "reason": "Therapeutic implication is timing-dependent: activating microglia in late-stage disease where neurodegeneration is established may produce inflammatory harm. Activated microglia also release inflammatory cytokines. The 'when' of TREM2 activation matters as much as the 'what'.",
+      "before_hash": "sha256:36deebc4f1ab7f647eee7605855d9deb26a8b5687b0ce8e63ccc9ed034151959",
+      "after_hash": "sha256:cfe6d72ce98a20d21580cad2b55af5dee992c28d3eaef4b73501a7137ca13220",
+      "payload": {
+        "annotation_id": "ann_6243f57cf04eec85",
+        "proposal_id": "vpr_c72c3a61622b59cc",
+        "text": "Therapeutic implication is timing-dependent: activating microglia in late-stage disease where neurodegeneration is established may produce inflammatory harm. Activated microglia also release inflammatory cytokines. The 'when' of TREM2 activation matters as much as the 'what'."
+      },
+      "caveats": []
+    },
+    {
+      "schema": "vela.event.v0.1",
+      "id": "vev_a7530ae190c65e1f",
+      "kind": "finding.caveated",
+      "target": {
+        "type": "finding",
+        "id": "vf_3d2442675353d79b"
+      },
+      "actor": {
+        "id": "reviewer:will-blair",
+        "type": "human"
+      },
+      "timestamp": "2026-04-25T22:43:39.132474+00:00",
+      "reason": "TREM2-dependent and TREM2-independent microglial activation pathways operate in parallel; a TREM2 agonist would only restore the dependent arm, not full microglial function. The single on/off-switch model of TREM2 is wrong.",
+      "before_hash": "sha256:3d3baf0bb30d0cd17d663f5c46d21129dac5297b2341cbbc04335136f9b4be53",
+      "after_hash": "sha256:ebaeee34578d3f2c77da01ed957c3ac0d4ad9ec3483978f60b702946554521f2",
+      "payload": {
+        "annotation_id": "ann_4ad294de43f6930f",
+        "proposal_id": "vpr_30a62b5267982b69",
+        "text": "TREM2-dependent and TREM2-independent microglial activation pathways operate in parallel; a TREM2 agonist would only restore the dependent arm, not full microglial function. The single on/off-switch model of TREM2 is wrong."
+      },
+      "caveats": []
+    },
+    {
+      "schema": "vela.event.v0.1",
+      "id": "vev_b82a18b65787a356",
+      "kind": "finding.noted",
+      "target": {
+        "type": "finding",
+        "id": "vf_a0bde1de78324125"
+      },
+      "actor": {
+        "id": "reviewer:will-blair",
+        "type": "human"
+      },
+      "timestamp": "2026-04-25T22:43:47.601704+00:00",
+      "reason": "Curator open question: should the verubecestat/atabecestat failures map to confidence drift on the amyloid cascade itself? The trials failed for mechanism-independent reasons; the cleanest reading is that they should NOT be evidence against amyloid as a target. But the field treats them as such, which is itself a structural fact about how disconfirmation propagates in the evidence graph.",
+      "before_hash": "sha256:06058632464c2aa6697c37a481aff89fd27a989a1c56142f3ec1ff5065a0d935",
+      "after_hash": "sha256:83b8104a03c4c984c052ac7313fde351849242b4e85573df23d8d00768362d1f",
+      "payload": {
+        "annotation_id": "ann_6d0eac971d883c06",
+        "proposal_id": "vpr_4f563fa5a67d9cc0",
+        "text": "Curator open question: should the verubecestat/atabecestat failures map to confidence drift on the amyloid cascade itself? The trials failed for mechanism-independent reasons; the cleanest reading is that they should NOT be evidence against amyloid as a target. But the field treats them as such, which is itself a structural fact about how disconfirmation propagates in the evidence graph."
+      },
+      "caveats": []
+    },
+    {
+      "schema": "vela.event.v0.1",
+      "id": "vev_6d836944922d0166",
+      "kind": "finding.noted",
+      "target": {
+        "type": "finding",
+        "id": "vf_03457ee82055bbe5"
+      },
+      "actor": {
+        "id": "reviewer:will-blair",
+        "type": "human"
+      },
+      "timestamp": "2026-04-25T22:43:47.609254+00:00",
+      "reason": "Curator open question: is the right therapeutic strategy to target one pathway, or to combine across amyloid + tau + microglial? The 'gravity well' nature of cascade-thinking biases toward single-pathway intervention design even when the evidence supports multifactorial models.",
+      "before_hash": "sha256:a5d60521cd97e05dbe03f8dde40b6c8120cb5d752670f2b81bad19adb36c1669",
+      "after_hash": "sha256:509500681501a50a054ca237a3135e1522e2f200ca2b24fa17930826a84b9027",
+      "payload": {
+        "annotation_id": "ann_89a1306313eff0f3",
+        "proposal_id": "vpr_98b0d4da8c0b23bc",
+        "text": "Curator open question: is the right therapeutic strategy to target one pathway, or to combine across amyloid + tau + microglial? The 'gravity well' nature of cascade-thinking biases toward single-pathway intervention design even when the evidence supports multifactorial models."
+      },
+      "caveats": []
     }
   ],
   "proposals": [
@@ -3119,6 +3243,106 @@
       "caveats": [
         "Manual findings require evidence review before scientific use."
       ]
+    },
+    {
+      "schema": "vela.proposal.v0.1",
+      "id": "vpr_c72c3a61622b59cc",
+      "kind": "finding.caveat",
+      "target": {
+        "type": "finding",
+        "id": "vf_d8e6a10a357310da"
+      },
+      "actor": {
+        "id": "reviewer:will-blair",
+        "type": "human"
+      },
+      "created_at": "2026-04-25T22:43:39.121206+00:00",
+      "reason": "Therapeutic implication is timing-dependent: activating microglia in late-stage disease where neurodegeneration is established may produce inflammatory harm. Activated microglia also release inflammatory cytokines. The 'when' of TREM2 activation matters as much as the 'what'.",
+      "payload": {
+        "text": "Therapeutic implication is timing-dependent: activating microglia in late-stage disease where neurodegeneration is established may produce inflammatory harm. Activated microglia also release inflammatory cytokines. The 'when' of TREM2 activation matters as much as the 'what'."
+      },
+      "source_refs": [],
+      "status": "applied",
+      "reviewed_by": "reviewer:will-blair",
+      "reviewed_at": "2026-04-25T22:43:39.125229+00:00",
+      "decision_reason": "Applied locally from proposal creation",
+      "applied_event_id": "vev_8679f800c11b53a0",
+      "caveats": []
+    },
+    {
+      "schema": "vela.proposal.v0.1",
+      "id": "vpr_30a62b5267982b69",
+      "kind": "finding.caveat",
+      "target": {
+        "type": "finding",
+        "id": "vf_3d2442675353d79b"
+      },
+      "actor": {
+        "id": "reviewer:will-blair",
+        "type": "human"
+      },
+      "created_at": "2026-04-25T22:43:39.132116+00:00",
+      "reason": "TREM2-dependent and TREM2-independent microglial activation pathways operate in parallel; a TREM2 agonist would only restore the dependent arm, not full microglial function. The single on/off-switch model of TREM2 is wrong.",
+      "payload": {
+        "text": "TREM2-dependent and TREM2-independent microglial activation pathways operate in parallel; a TREM2 agonist would only restore the dependent arm, not full microglial function. The single on/off-switch model of TREM2 is wrong."
+      },
+      "source_refs": [],
+      "status": "applied",
+      "reviewed_by": "reviewer:will-blair",
+      "reviewed_at": "2026-04-25T22:43:39.132403+00:00",
+      "decision_reason": "Applied locally from proposal creation",
+      "applied_event_id": "vev_a7530ae190c65e1f",
+      "caveats": []
+    },
+    {
+      "schema": "vela.proposal.v0.1",
+      "id": "vpr_4f563fa5a67d9cc0",
+      "kind": "finding.note",
+      "target": {
+        "type": "finding",
+        "id": "vf_a0bde1de78324125"
+      },
+      "actor": {
+        "id": "reviewer:will-blair",
+        "type": "human"
+      },
+      "created_at": "2026-04-25T22:43:47.601133+00:00",
+      "reason": "Curator open question: should the verubecestat/atabecestat failures map to confidence drift on the amyloid cascade itself? The trials failed for mechanism-independent reasons; the cleanest reading is that they should NOT be evidence against amyloid as a target. But the field treats them as such, which is itself a structural fact about how disconfirmation propagates in the evidence graph.",
+      "payload": {
+        "text": "Curator open question: should the verubecestat/atabecestat failures map to confidence drift on the amyloid cascade itself? The trials failed for mechanism-independent reasons; the cleanest reading is that they should NOT be evidence against amyloid as a target. But the field treats them as such, which is itself a structural fact about how disconfirmation propagates in the evidence graph."
+      },
+      "source_refs": [],
+      "status": "applied",
+      "reviewed_by": "reviewer:will-blair",
+      "reviewed_at": "2026-04-25T22:43:47.601623+00:00",
+      "decision_reason": "Applied locally from proposal creation",
+      "applied_event_id": "vev_b82a18b65787a356",
+      "caveats": []
+    },
+    {
+      "schema": "vela.proposal.v0.1",
+      "id": "vpr_98b0d4da8c0b23bc",
+      "kind": "finding.note",
+      "target": {
+        "type": "finding",
+        "id": "vf_03457ee82055bbe5"
+      },
+      "actor": {
+        "id": "reviewer:will-blair",
+        "type": "human"
+      },
+      "created_at": "2026-04-25T22:43:47.608842+00:00",
+      "reason": "Curator open question: is the right therapeutic strategy to target one pathway, or to combine across amyloid + tau + microglial? The 'gravity well' nature of cascade-thinking biases toward single-pathway intervention design even when the evidence supports multifactorial models.",
+      "payload": {
+        "text": "Curator open question: is the right therapeutic strategy to target one pathway, or to combine across amyloid + tau + microglial? The 'gravity well' nature of cascade-thinking biases toward single-pathway intervention design even when the evidence supports multifactorial models."
+      },
+      "source_refs": [],
+      "status": "applied",
+      "reviewed_by": "reviewer:will-blair",
+      "reviewed_at": "2026-04-25T22:43:47.609171+00:00",
+      "decision_reason": "Applied locally from proposal creation",
+      "applied_event_id": "vev_6d836944922d0166",
+      "caveats": []
     }
   ],
   "proof_state": {
