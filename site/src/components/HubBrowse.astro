@@ -1,0 +1,188 @@
+---
+// Browse-the-hub widget. Server-renders a placeholder; on viewport-visible
+// the inline script fetches `/entries` from the configured hub URL and
+// renders one row per entry with a click-through to the multi-frontier
+// Workbench. Fail-silent: if the hub is unreachable the placeholder stays.
+import { HUB_URL } from "../config";
+const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
+---
+<aside class="hub-browse" data-hub-browse data-hub-url={HUB_URL}>
+  <header class="hub-browse__head">
+    <span class="hub-browse__eyebrow">Hub · {HUB_HOST}</span>
+    <span class="hub-browse__meta" data-meta>connecting…</span>
+    <a class="hub-browse__source" href={`${HUB_URL}/entries`}>raw json →</a>
+  </header>
+  <div class="hub-browse__list" data-list>
+    <div class="hub-browse__placeholder">loading entries…</div>
+  </div>
+</aside>
+
+<style>
+  .hub-browse {
+    border: 1px solid var(--rule-2);
+    background: var(--paper-0);
+    border-radius: var(--radius-1);
+    margin: 0 0 24px;
+    overflow: hidden;
+  }
+  .hub-browse__head {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--rule-2);
+    background: var(--paper-1);
+  }
+  .hub-browse__eyebrow {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  .hub-browse__meta {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--ink-2);
+  }
+  .hub-browse__source {
+    margin-left: auto;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    color: var(--ink-3);
+  }
+  .hub-browse__source:hover { color: var(--signal); }
+  .hub-browse__list {
+    display: flex;
+    flex-direction: column;
+  }
+  .hub-browse__placeholder {
+    padding: 18px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--ink-3);
+    text-align: center;
+  }
+  .hub-browse__row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: baseline;
+    gap: 16px;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--rule-1);
+    color: var(--ink-1);
+    text-decoration: none;
+    transition: background var(--dur-1) var(--ease);
+  }
+  .hub-browse__row:last-child { border-bottom: 0; }
+  .hub-browse__row:hover { background: var(--paper-1); }
+  .hub-browse__row:hover .hub-browse__name { color: var(--signal); }
+  .hub-browse__name {
+    font-family: var(--font-serif);
+    font-size: 16px;
+    line-height: 1.35;
+    color: var(--ink-0);
+    transition: color var(--dur-1) var(--ease);
+  }
+  .hub-browse__sub {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--ink-3);
+    margin-top: 4px;
+    overflow-wrap: anywhere;
+  }
+  .hub-browse__sub strong {
+    color: var(--ink-2);
+    font-weight: 500;
+  }
+  .hub-browse__when {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--ink-3);
+    white-space: nowrap;
+    align-self: start;
+    padding-top: 3px;
+  }
+</style>
+
+<script>
+  type HubEntry = {
+    vfr_id: string;
+    name: string;
+    owner_actor_id: string;
+    owner_pubkey: string;
+    network_locator: string;
+    latest_snapshot_hash: string;
+    signed_publish_at: string;
+  };
+
+  function escapeHtml(s: string): string {
+    return s.replace(/[&<>"']/g, (c) => {
+      const map: Record<string, string> = {
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      };
+      return map[c]!;
+    });
+  }
+
+  function shortDate(iso: string): string {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return iso.slice(0, 10);
+    return d.toISOString().slice(0, 10);
+  }
+
+  (async function () {
+    const root = document.querySelector("[data-hub-browse]");
+    if (!root) return;
+    const hubUrl =
+      (root as HTMLElement).dataset.hubUrl ?? "https://vela-hub.fly.dev";
+    const meta = root.querySelector("[data-meta]");
+    const list = root.querySelector("[data-list]");
+    if (!meta || !list) return;
+    try {
+      const resp = await fetch(`${hubUrl}/entries`, {
+        headers: { accept: "application/json" },
+      });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const data = (await resp.json()) as { entries: HubEntry[] };
+      const entries = (data.entries || [])
+        .slice()
+        .sort((a, b) =>
+          a.signed_publish_at < b.signed_publish_at ? 1 : -1,
+        );
+      const count = entries.length;
+      const owners = new Set(entries.map((e) => e.owner_actor_id)).size;
+      meta.textContent = `${count} ${count === 1 ? "entry" : "entries"} · ${owners} ${owners === 1 ? "actor" : "actors"}`;
+      if (count === 0) {
+        list.innerHTML = `<div class="hub-browse__placeholder">no entries yet</div>`;
+        return;
+      }
+      list.innerHTML = entries
+        .map((e) => {
+          const href = `/workbench?vfr=${encodeURIComponent(e.vfr_id)}`;
+          const name = escapeHtml(e.name);
+          const owner = escapeHtml(e.owner_actor_id);
+          const vfr = escapeHtml(e.vfr_id);
+          const when = shortDate(e.signed_publish_at);
+          return `<a class="hub-browse__row" href="${href}" title="open in Workbench">
+  <span>
+    <div class="hub-browse__name">${name}</div>
+    <div class="hub-browse__sub"><strong>${vfr}</strong> · ${owner}</div>
+  </span>
+  <span class="hub-browse__when">${when}</span>
+</a>`;
+        })
+        .join("");
+    } catch (err) {
+      meta.textContent = "(hub unreachable)";
+      list.innerHTML = `<div class="hub-browse__placeholder">${escapeHtml(
+        err instanceof Error ? err.message : String(err),
+      )}</div>`;
+    }
+  })();
+</script>

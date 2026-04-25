@@ -3,6 +3,7 @@ import Page from "../layouts/Page.astro";
 import Section from "../components/Section.astro";
 import TerminalPaper from "../components/TerminalPaper.astro";
 import LiveHub from "../components/LiveHub.astro";
+import HubBrowse from "../components/HubBrowse.astro";
 import Chip from "../components/Chip.astro";
 import { HUB_URL, REPO_URL, BBB, VERSION } from "../config";
 
@@ -32,14 +33,16 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
     A finding has a content-addressed id. A frontier has a content-addressed id. Two implementations agree byte-for-byte. The hub is dumb transport; clients verify locally. The signature is the bind.
   </p>
 
-  <Section num="§1" title="Pull a live frontier" aside={`public hub · ${HUB_HOST}`}>
+  <Section num="§1" title="Browse the live hub" aside={`public hub · ${HUB_HOST}`}>
     <p style="font-family: var(--font-serif); font-size: 17px; color: var(--ink-2); max-width: 64ch; margin: 0 0 12px;">
-      The {BBB.name} frontier &mdash; {BBB.description} It re-publishes from CI every Monday at 14:00 UTC, signed by a bot whose pubkey lives in the frontier itself.
+      Every entry below is a signed manifest pointing at a frontier file the publisher hosts elsewhere. Click any row to open it in the Workbench. {BBB.name} republishes weekly from CI; the others are one-shot publications.
     </p>
     <LiveHub />
-    <TerminalPaper title="list and pull">
+    <HubBrowse />
+    <TerminalPaper title="list and pull from the command line">
       <span class="tm-ps">$</span> <span class="tm-cmd">vela registry list</span> <span class="tm-flag">--from</span> {HUB_URL}/entries
-<span class="tm-ps">$</span> <span class="tm-cmd">vela registry pull</span> &lt;vfr_id&gt; <span class="tm-flag">--from</span> {HUB_URL}/entries <span class="tm-flag">--out</span> ./bbb.json
+<span class="tm-ps">$</span> <span class="tm-cmd">vela registry pull</span> &lt;vfr_id&gt; <span class="tm-flag">--from</span> {HUB_URL}/entries <span class="tm-flag">--out</span> ./pulled.json
+<span class="tm-ps">$</span> <span class="tm-cmd">vela registry pull</span> &lt;vfr_id&gt; <span class="tm-flag">--from</span> {HUB_URL}/entries <span class="tm-flag">--transitive</span> <span class="tm-flag">--out</span> ./out  <span class="tm-ps"># walks cross-frontier deps</span>
     </TerminalPaper>
   </Section>
 
