@@ -23,6 +23,14 @@ const API_PATH = "/api/frontier";
     </span>
   </div>
 
+  <section class="lf-picker" aria-label="Frontier picker">
+    <span class="lf-picker__eyebrow">Frontier</span>
+    <div class="lf-picker__list" id="lf-picker">
+      <button class="lf-picker__btn lf-picker__btn--on" data-vfr="">BBB Flagship · default</button>
+    </div>
+    <a class="lf-picker__source" id="lf-picker-source" href="https://vela-hub.fly.dev/entries">hub list →</a>
+  </section>
+
   <section class="lf-meta">
     <div class="lf-meta__cell">
       <div class="lf-meta__k">findings</div>
@@ -574,11 +582,80 @@ const API_PATH = "/api/frontier";
     });
   }
 
-  async function bootstrap(): Promise<void> {
-    try {
+  type HubEntry = {
+    vfr_id: string;
+    name: string;
+    network_locator: string;
+    latest_snapshot_hash: string;
+    owner_actor_id: string;
+    signed_publish_at: string;
+  };
+
+  // Source-of-truth selector. Default path stays the same — fetch the
+  // BBB frontier through /api/frontier (vela-workbench API). When the
+  // page is loaded with `?vfr=<id>`, fetch that frontier directly from
+  // the public hub: hub entry → network_locator → frontier JSON. The
+  // hub is dumb signed transport (CORS open); github raw also serves
+  // CORS *. No proxy required.
+  const HUB_BASE = "https://vela-hub.fly.dev";
+
+  async function loadFrontier(): Promise<{ data: Frontier; sourceLabel: string }> {
+    const params = new URLSearchParams(window.location.search);
+    const vfr = params.get("vfr");
+    if (!vfr) {
       const r = await fetch("/api/frontier", { headers: { accept: "application/json" } });
       if (!r.ok) throw new Error(`/api/frontier ${r.status}`);
-      const data: Frontier = await r.json();
+      const data = (await r.json()) as Frontier;
+      return { data, sourceLabel: "/api/frontier (BBB Flagship)" };
+    }
+    const er = await fetch(`${HUB_BASE}/entries/${encodeURIComponent(vfr)}`, {
+      headers: { accept: "application/json" },
+    });
+    if (!er.ok) throw new Error(`hub entry ${vfr}: ${er.status}`);
+    const entry = (await er.json()) as HubEntry;
+    const fr = await fetch(entry.network_locator, { headers: { accept: "application/json" } });
+    if (!fr.ok) throw new Error(`locator ${entry.network_locator}: ${fr.status}`);
+    const data = (await fr.json()) as Frontier;
+    return { data, sourceLabel: `${entry.vfr_id} · ${entry.owner_actor_id}` };
+  }
+
+  async function buildPicker(): Promise<void> {
+    const picker = document.getElementById("lf-picker");
+    if (!picker) return;
+    try {
+      const r = await fetch(`${HUB_BASE}/entries`, { headers: { accept: "application/json" } });
+      if (!r.ok) return;
+      const list = ((await r.json()) as { entries: HubEntry[] }).entries || [];
+      const params = new URLSearchParams(window.location.search);
+      const activeVfr = params.get("vfr") || "";
+      // Render: one button per hub entry, plus the BBB-default button (no vfr param).
+      picker.innerHTML = "";
+      const defaultBtn = document.createElement("a");
+      defaultBtn.className =
+        "lf-picker__btn" + (activeVfr === "" ? " lf-picker__btn--on" : "");
+      defaultBtn.href = "/workbench";
+      defaultBtn.textContent = "BBB · default";
+      picker.appendChild(defaultBtn);
+      for (const e of list) {
+        const a = document.createElement("a");
+        a.className =
+          "lf-picker__btn" + (activeVfr === e.vfr_id ? " lf-picker__btn--on" : "");
+        a.href = `/workbench?vfr=${encodeURIComponent(e.vfr_id)}`;
+        const shortName = e.name.length > 40 ? e.name.slice(0, 38) + "…" : e.name;
+        a.textContent = `${shortName} · ${e.owner_actor_id}`;
+        a.title = `${e.vfr_id}\n${e.network_locator}`;
+        picker.appendChild(a);
+      }
+    } catch {
+      // Picker is best-effort; if hub is unreachable, fall back to the
+      // default-only button already in the DOM.
+    }
+  }
+
+  async function bootstrap(): Promise<void> {
+    buildPicker(); // fire-and-forget; doesn't block frontier load
+    try {
+      const { data } = await loadFrontier();
       state.findings = data.findings || [];
 
       // Header.
@@ -643,7 +720,10 @@ const API_PATH = "/api/frontier";
       const body = document.getElementById("lf-body");
       if (body) {
         const message = err instanceof Error ? err.message : String(err);
-        body.innerHTML = `<tr><td colspan="5" class="lf-empty">Connection to <code>/api/frontier</code> failed: ${escapeHtml(message)}</td></tr>`;
+        const params = new URLSearchParams(window.location.search);
+        const vfr = params.get("vfr");
+        const where = vfr ? `hub frontier <code>${escapeHtml(vfr)}</code>` : "<code>/api/frontier</code>";
+        body.innerHTML = `<tr><td colspan="5" class="lf-empty">Failed to load ${where}: ${escapeHtml(message)}</td></tr>`;
       }
     }
   }
@@ -652,6 +732,62 @@ const API_PATH = "/api/frontier";
 
 <style>
   /* Page-specific. Tokens + chrome come from /static/tokens.css + workbench.css. */
+  .lf-picker {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 10px 0 16px;
+    border-bottom: 1px solid var(--rule-1);
+    margin-bottom: 16px;
+  }
+  .lf-picker__eyebrow {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  .lf-picker__list {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    flex: 1;
+  }
+  .lf-picker__btn {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--ink-2);
+    padding: 4px 10px;
+    border: 1px solid var(--rule-1);
+    border-radius: var(--radius-1);
+    background: var(--paper-0);
+    cursor: pointer;
+    text-decoration: none;
+    transition: border-color var(--dur-1) var(--ease), color var(--dur-1) var(--ease), background var(--dur-1) var(--ease);
+  }
+  .lf-picker__btn:hover {
+    border-color: var(--rule-ink);
+    color: var(--ink-0);
+    background: var(--paper-1);
+  }
+  .lf-picker__btn--on {
+    border-color: var(--signal);
+    color: var(--ink-0);
+    background: var(--paper-1);
+  }
+  .lf-picker__source {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    color: var(--ink-3);
+    text-decoration: none;
+    margin-left: auto;
+  }
+  .lf-picker__source:hover { color: var(--signal); }
+
   .lf-meta {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
