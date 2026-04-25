@@ -1,0 +1,32 @@
+{
+  "comment": "Vela v0.8 cross-frontier conformance vector. A second implementation that follows canonical-JSON + the LinkRef parsing rule must reproduce these IDs and the cross-frontier resolution byte-for-byte. Frontier B has one finding whose links[0].target = '<vf_id>@<vfr_id>', referencing a finding in Frontier A. Strict pull verifies that B's frontier.dependencies[0].pinned_snapshot_hash equals A's actual snapshot hash.",
+  "schema_version": "0.8.0",
+  "frontier_a": {
+    "path": "frontier-a.json",
+    "vfr_id": "vfr_4011872364a0ee6a",
+    "snapshot_hash": "bc8962064fb64cd0a8790f39aae9bf427f3e9d86ff3c7dc70588354c6a6a9d9d",
+    "event_log_hash": "36b1de68a8574a5afd60d3e2ef5c8b4da91f482877b37e056d9edf4d8b312b5e",
+    "finding_id": "vf_d5c5bb18b954136c"
+  },
+  "frontier_b": {
+    "path": "frontier-b.json",
+    "vfr_id": "vfr_db642d4ecdeb42e2",
+    "snapshot_hash": "5d13b5bd02ad4664ba66571aaa5f2575c3e89356f18c3e5aece1fa25751256d6",
+    "event_log_hash": "dcb582e28ab83d5d1ba4b355190083a97ec46203b66ee7e0873681fc30eefc5a",
+    "finding_id": "vf_b84cb34f4f3f6e14"
+  },
+  "cross_frontier_link": {
+    "from_frontier": "vfr_db642d4ecdeb42e2",
+    "from_finding": "vf_b84cb34f4f3f6e14",
+    "target": "vf_d5c5bb18b954136c@vfr_4011872364a0ee6a",
+    "to_frontier": "vfr_4011872364a0ee6a",
+    "to_finding": "vf_d5c5bb18b954136c",
+    "link_type": "extends"
+  },
+  "dependency_pin": {
+    "in_frontier": "vfr_db642d4ecdeb42e2",
+    "vfr_id": "vfr_4011872364a0ee6a",
+    "pinned_snapshot_hash": "bc8962064fb64cd0a8790f39aae9bf427f3e9d86ff3c7dc70588354c6a6a9d9d",
+    "must_match_actual_snapshot_of": "vfr_4011872364a0ee6a"
+  }
+}

@@ -234,9 +234,91 @@ def validate(frontier: dict) -> Result:
 
 # --- main -------------------------------------------------------------------
 
+def parse_link_target(s: str) -> tuple[str, str | None]:
+    """v0.8: parse `vf_<id>` (local) or `vf_<id>@vfr_<id>` (cross-frontier).
+
+    Returns (vf_id, vfr_id_or_None). Mirrors the canonical Rust
+    `LinkRef::parse` behaviour.
+    """
+    if not s:
+        raise ValueError("empty link target")
+    if s.count("@") > 1:
+        raise ValueError(f"link target has more than one '@': {s!r}")
+    if "@" in s:
+        local, remote = s.split("@", 1)
+        if not local.startswith("vf_") or len(local) <= 3:
+            raise ValueError(f"link target's vf_ part is malformed: {s!r}")
+        if not remote.startswith("vfr_") or len(remote) <= 4:
+            raise ValueError(f"link target's vfr_ part is malformed: {s!r}")
+        return local, remote
+    if not s.startswith("vf_") or len(s) <= 3:
+        raise ValueError(f"link target must start with 'vf_': {s!r}")
+    return s, None
+
+
+def validate_cross_frontier(
+    primary: dict[str, Any],
+    deps: dict[str, dict[str, Any]],
+) -> tuple[bool, list[str]]:
+    """v0.8: validate that every cross-frontier link in `primary` resolves
+    to a declared dep whose `pinned_snapshot_hash` matches the actual
+    snapshot of the loaded dep frontier (`deps[vfr_id]`).
+    """
+    errors: list[str] = []
+    declared = {
+        d.get("vfr_id"): d
+        for d in primary.get("frontier", {}).get("dependencies", [])
+        if d.get("vfr_id")
+    }
+
+    for f in primary.get("findings", []):
+        for link in f.get("links", []):
+            try:
+                _, vfr_id = parse_link_target(link.get("target", ""))
+            except ValueError as e:
+                errors.append(f"link parse: {e}")
+                continue
+            if vfr_id is None:
+                continue  # local link — not a cross-frontier check
+            dep = declared.get(vfr_id)
+            if dep is None:
+                errors.append(
+                    f"finding {f.get('id')} → {link.get('target')}: "
+                    f"vfr_id {vfr_id!r} not declared in frontier.dependencies"
+                )
+                continue
+            pinned = dep.get("pinned_snapshot_hash") or ""
+            if not pinned:
+                errors.append(
+                    f"dep {vfr_id}: missing pinned_snapshot_hash"
+                )
+                continue
+            actual_dep = deps.get(vfr_id)
+            if actual_dep is None:
+                errors.append(
+                    f"dep {vfr_id}: not provided to validator (use --cross-frontier <path>)"
+                )
+                continue
+            actual_snap = derive_snapshot_hash(actual_dep)
+            if actual_snap != pinned:
+                errors.append(
+                    f"dep {vfr_id}: pinned snapshot {pinned} but actual is {actual_snap}"
+                )
+    return (not errors), errors
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("frontier", help="Path to a Vela frontier JSON file")
+    ap.add_argument(
+        "--cross-frontier",
+        action="append",
+        default=[],
+        metavar="PATH",
+        help="v0.8: also load this frontier as a declared dependency and "
+        "verify the cross-frontier link resolution + snapshot pin. May be "
+        "repeated for multiple deps.",
+    )
     ap.add_argument("--json", action="store_true", help="Emit JSON result")
     args = ap.parse_args()
 
@@ -245,14 +327,31 @@ def main() -> int:
 
     result = validate(frontier)
 
+    # v0.8: cross-frontier resolution check.
+    cross_ok = True
+    cross_errors: list[str] = []
+    if args.cross_frontier:
+        deps: dict[str, dict[str, Any]] = {}
+        for path in args.cross_frontier:
+            with open(path, encoding="utf-8") as fh:
+                dep_frontier = json.load(fh)
+            dep_vfr = derive_frontier_id(dep_frontier)
+            deps[dep_vfr] = dep_frontier
+        cross_ok, cross_errors = validate_cross_frontier(frontier, deps)
+
     if args.json:
         print(json.dumps({
-            "ok": result.mismatches == 0,
+            "ok": result.mismatches == 0 and cross_ok,
             "mismatches": result.mismatches,
             "checks": result.checks,
             "computed": result.computed,
+            "cross_frontier": {
+                "ok": cross_ok,
+                "errors": cross_errors,
+                "deps_loaded": len(args.cross_frontier),
+            },
         }, indent=2))
-        return 0 if result.mismatches == 0 else 1
+        return 0 if (result.mismatches == 0 and cross_ok) else 1
 
     by_kind: dict[str, tuple[int, int]] = {}
     for c in result.checks:
@@ -285,6 +384,18 @@ def main() -> int:
                 print(f"    stored:  {c['expected']}")
                 print(f"    derived: {c['actual']}")
         return 1
+
+    if args.cross_frontier:
+        print(f"Cross-frontier resolution ({len(args.cross_frontier)} dep(s) loaded):")
+        if cross_ok:
+            print("  ok all cross-frontier links resolve to declared deps")
+            print("  ok every dep's pinned_snapshot_hash matches its actual snapshot")
+        else:
+            print(f"  FAIL — {len(cross_errors)} issue(s):")
+            for e in cross_errors:
+                print(f"    · {e}")
+            return 1
+        print()
 
     print("PASS — every content-addressed ID re-derives bit-identically from canonical JSON alone.")
     return 0
