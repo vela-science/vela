@@ -1,0 +1,546 @@
+---
+import Page from "../../layouts/Page.astro";
+---
+<Page
+  title="Finding · Vela Workbench"
+  description="One signed finding read end-to-end: claim, conditions, evidence, history, queued proposals."
+  active="workbench"
+  eyebrow="Workbench · Finding · live"
+  pageTitle="Loading finding…"
+  subtitle="Reading from /api/findings"
+>
+  <div slot="aside">
+    <a href="/workbench" class="back">← back to frontier</a>
+  </div>
+
+  <div class="fd">
+    <article id="fd-main">
+      <p class="empty">Loading…</p>
+    </article>
+    <aside class="fd-margin">
+      <div class="fd-dial" id="fd-dial">
+        <div class="fd-dial__k">state</div>
+        <div class="fd-dial__v" id="fd-state">—</div>
+        <div class="fd-dial__k" style="margin-top:14px;">confidence</div>
+        <div class="fd-dial__v" id="fd-conf" style="font-family:var(--font-mono);font-variant-numeric:tabular-nums;">—</div>
+        <div class="fd-dial__gauge"><i id="fd-gauge"></i></div>
+      </div>
+
+      <div class="fd-dial">
+        <div class="fd-dial__k">queued review</div>
+        <div id="fd-queue"><span class="empty-inline">—</span></div>
+      </div>
+
+      <div class="fd-dial">
+        <div class="fd-dial__k">id</div>
+        <div class="fd-dial__v mono" id="fd-id">—</div>
+        <div class="fd-dial__k" style="margin-top:14px;">version</div>
+        <div class="fd-dial__v mono" id="fd-version">—</div>
+      </div>
+    </aside>
+  </div>
+
+  <div class="fd-toast" id="fd-toast" hidden></div>
+</Page>
+
+<script>
+  type Finding = {
+    id: string;
+    version?: number;
+    assertion?: { text?: string; type?: string };
+    confidence?: { score?: number; basis?: string };
+    conditions?: {
+      text?: string;
+      species_verified?: string[];
+      in_vitro?: boolean;
+      in_vivo?: boolean;
+      human_data?: boolean;
+      clinical_trial?: boolean;
+      concentration_range?: string | null;
+      duration?: string | null;
+      cell_type?: string | null;
+      age_group?: string | null;
+    };
+    evidence?: {
+      type?: string;
+      method?: string;
+      model_system?: string;
+      species?: string | null;
+      sample_size?: string | null;
+      effect_size?: string | null;
+      p_value?: string | null;
+      replicated?: boolean;
+      replication_count?: number | null;
+      evidence_spans?: Array<{ text?: string }>;
+    };
+    flags?: {
+      retracted?: boolean;
+      gap?: boolean;
+      negative_space?: boolean;
+      contested?: boolean;
+      review_state?: string;
+    };
+    links?: Array<{ target: string; type?: string; note?: string }>;
+    annotations?: Array<{
+      id: string;
+      text: string;
+      author: string;
+      timestamp: string;
+      provenance?: { doi?: string; pmid?: string; title?: string; span?: string };
+    }>;
+    provenance?: {
+      doi?: string;
+      pmid?: string;
+      title?: string;
+      year?: number;
+      journal?: string;
+      authors?: Array<{ name: string }>;
+    };
+    created?: string;
+  };
+
+  type Frontier = {
+    actors?: Array<{ id: string }>;
+    proposals?: Array<{
+      id: string;
+      kind: string;
+      status: string;
+      target?: { id?: string };
+      actor: { id: string };
+      reason: string;
+      payload?: { text?: string; status?: string };
+    }>;
+  };
+
+  function escapeHtml(s: string | undefined | null): string {
+    const div = document.createElement("div");
+    div.textContent = s == null ? "" : String(s);
+    return div.innerHTML;
+  }
+
+  function deriveState(f: Finding): { label: string; cls: string } {
+    const flags = f.flags || {};
+    const ev = f.evidence || {};
+    if (flags.retracted) return { label: "retracted", cls: "lost" };
+    if (flags.gap || flags.negative_space) return { label: "gap", cls: "stale" };
+    const rs = flags.review_state;
+    if (rs === "contested" || rs === "needs_revision") return { label: "contested", cls: "warn" };
+    if (rs === "rejected") return { label: "retracted", cls: "lost" };
+    if (rs === "accepted") return { label: ev.replicated ? "replicated" : "supported", cls: "ok" };
+    if (flags.contested) return { label: "contested", cls: "warn" };
+    return { label: ev.replicated ? "replicated" : "supported", cls: "ok" };
+  }
+
+  function provLink(p?: Finding["provenance"]): string {
+    if (!p) return "—";
+    const title = escapeHtml(p.title || "");
+    if (p.doi) return `<a href="https://doi.org/${escapeHtml(p.doi)}" target="_blank" rel="noopener">${title || "doi:" + escapeHtml(p.doi)}</a>`;
+    if (p.pmid) return `<a href="https://pubmed.ncbi.nlm.nih.gov/${escapeHtml(p.pmid)}" target="_blank" rel="noopener">${title || "PMID:" + escapeHtml(p.pmid)}</a>`;
+    return title || "—";
+  }
+
+  function condRows(f: Finding): string {
+    const c = f.conditions || {};
+    const rows: string[] = [];
+    if (c.text) rows.push(`<div class="fd-cond"><dt>scope</dt><dd class="serif">${escapeHtml(c.text)}</dd></div>`);
+    if (c.species_verified && c.species_verified.length) rows.push(`<div class="fd-cond"><dt>species</dt><dd class="serif">${escapeHtml(c.species_verified.join(", "))}</dd></div>`);
+    const model: string[] = [];
+    if (c.in_vivo) model.push("in vivo");
+    if (c.in_vitro) model.push("in vitro");
+    if (c.human_data) model.push("human data");
+    if (c.clinical_trial) model.push("clinical trial");
+    if (model.length) rows.push(`<div class="fd-cond"><dt>model</dt><dd>${escapeHtml(model.join(" · "))}</dd></div>`);
+    if (c.concentration_range) rows.push(`<div class="fd-cond"><dt>concentration</dt><dd>${escapeHtml(c.concentration_range)}</dd></div>`);
+    if (c.duration) rows.push(`<div class="fd-cond"><dt>duration</dt><dd>${escapeHtml(c.duration)}</dd></div>`);
+    if (c.cell_type) rows.push(`<div class="fd-cond"><dt>cell_type</dt><dd>${escapeHtml(c.cell_type)}</dd></div>`);
+    if (c.age_group) rows.push(`<div class="fd-cond"><dt>age_group</dt><dd>${escapeHtml(c.age_group)}</dd></div>`);
+    return rows.length
+      ? `<dl class="fd-conditions">${rows.join("")}</dl>`
+      : `<p class="empty">No structured conditions declared.</p>`;
+  }
+
+  function evidenceRows(f: Finding): string {
+    const ev = f.evidence || {};
+    const rows: string[] = [];
+    if (ev.type) rows.push(`<div class="fd-cond"><dt>type</dt><dd>${escapeHtml(ev.type)}</dd></div>`);
+    if (ev.method) rows.push(`<div class="fd-cond"><dt>method</dt><dd>${escapeHtml(ev.method)}</dd></div>`);
+    if (ev.model_system) rows.push(`<div class="fd-cond"><dt>model system</dt><dd>${escapeHtml(ev.model_system)}</dd></div>`);
+    if (ev.species) rows.push(`<div class="fd-cond"><dt>species</dt><dd>${escapeHtml(ev.species)}</dd></div>`);
+    if (ev.sample_size) rows.push(`<div class="fd-cond"><dt>sample size</dt><dd>${escapeHtml(ev.sample_size)}</dd></div>`);
+    if (ev.effect_size) rows.push(`<div class="fd-cond"><dt>effect size</dt><dd>${escapeHtml(ev.effect_size)}</dd></div>`);
+    if (ev.p_value) rows.push(`<div class="fd-cond"><dt>p-value</dt><dd>${escapeHtml(ev.p_value)}</dd></div>`);
+    const replabel = ev.replicated
+      ? `yes${ev.replication_count != null ? ` · ${ev.replication_count}×` : ""}`
+      : "no";
+    rows.push(`<div class="fd-cond"><dt>replicated</dt><dd>${escapeHtml(replabel)}</dd></div>`);
+    return `<dl class="fd-conditions">${rows.join("")}</dl>`;
+  }
+
+  function spansHtml(f: Finding): string {
+    const spans = f.evidence?.evidence_spans || [];
+    if (!spans.length) return `<p class="empty">No evidence spans recorded.</p>`;
+    return `<ul class="span-list">${spans
+      .map((s) => `<li>${escapeHtml(s.text || JSON.stringify(s))}</li>`)
+      .join("")}</ul>`;
+  }
+
+  function annotationsHtml(f: Finding): string {
+    const ann = f.annotations || [];
+    if (!ann.length) return "";
+    const items = ann
+      .map(
+        (a) =>
+          `<li>
+             <span class="ann-author">${escapeHtml(a.author)}</span>
+             <span class="ann-text">${escapeHtml(a.text)}</span>
+           </li>`,
+      )
+      .join("");
+    return `<section class="wb-section">
+      <div class="wb-section__head">
+        <span class="wb-section__num">§3</span>
+        <span class="wb-section__t">Annotations · ${ann.length}</span>
+        <span class="wb-section__aside">notes from reviewers</span>
+      </div>
+      <ul class="ann-list">${items}</ul>
+    </section>`;
+  }
+
+  function linksHtml(f: Finding): string {
+    const links = f.links || [];
+    if (!links.length) return "";
+    const items = links
+      .map(
+        (l) =>
+          `<li>
+             <span class="link-rel">${escapeHtml(l.type || "link")}</span>
+             <a href="/workbench/finding?id=${encodeURIComponent(l.target)}">${escapeHtml(l.target)}</a>
+             ${l.note ? ` · <span class="link-note">${escapeHtml(l.note)}</span>` : ""}
+           </li>`,
+      )
+      .join("");
+    return `<section class="wb-section">
+      <div class="wb-section__head">
+        <span class="wb-section__num">§4</span>
+        <span class="wb-section__t">Links · ${links.length}</span>
+        <span class="wb-section__aside">references in this frontier</span>
+      </div>
+      <ul class="link-list">${items}</ul>
+    </section>`;
+  }
+
+  function showToast(msg: string, ms = 2500): void {
+    const el = document.getElementById("fd-toast")!;
+    el.textContent = msg;
+    el.hidden = false;
+    setTimeout(() => {
+      el.hidden = true;
+    }, ms);
+  }
+
+  function getReviewer(actors: Array<{ id: string }>): string {
+    let r = localStorage.getItem("vela.reviewer") || "";
+    if (!r) {
+      const fallback = actors[0]?.id || "reviewer:you";
+      r = window.prompt("Reviewer id (must be registered via `vela actor add`):", fallback) || "";
+      if (r) localStorage.setItem("vela.reviewer", r);
+    }
+    return r;
+  }
+
+  async function decideProposal(
+    kind: "accept_proposal" | "reject_proposal",
+    proposal_id: string,
+    reviewer_id: string,
+  ): Promise<void> {
+    const reason = window.prompt(
+      `Reason for ${kind === "accept_proposal" ? "accepting" : "rejecting"} ${proposal_id}:`,
+      kind === "accept_proposal" ? "reviewed and accepted" : "reviewed and rejected",
+    );
+    if (!reason) return;
+    try {
+      const r = await fetch("/api/queue", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          kind,
+          args: { proposal_id, reviewer_id, reason, timestamp: new Date().toISOString() },
+        }),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || `queue ${r.status}`);
+      showToast(`queued ${kind} on ${proposal_id} — sign with \`vela queue sign\``);
+    } catch (err) {
+      showToast(`error: ${err instanceof Error ? err.message : String(err)}`, 4000);
+    }
+  }
+
+  function renderQueue(
+    proposals: NonNullable<Frontier["proposals"]>,
+    reviewer: string,
+  ): void {
+    const el = document.getElementById("fd-queue")!;
+    if (!proposals.length) {
+      el.innerHTML = `<span class="empty-inline">no pending proposals</span>`;
+      return;
+    }
+    el.innerHTML = "";
+    for (const p of proposals) {
+      const text = p.payload?.text
+        ? `"${p.payload.text.slice(0, 140)}…"`
+        : p.payload?.status || "";
+      const card = document.createElement("div");
+      card.className = "fd-prop";
+      card.innerHTML = `
+        <div class="fd-prop-meta">${escapeHtml(p.kind)} · ${escapeHtml(p.actor.id)}</div>
+        <div class="fd-prop-text">${escapeHtml(p.reason)}</div>
+        ${text ? `<div class="fd-prop-text" style="color:var(--ink-3);font-size:12px;margin-top:4px;">${escapeHtml(text)}</div>` : ""}
+        <div class="fd-prop-actions">
+          <button class="wb-btn-mini accept">Accept</button>
+          <button class="wb-btn-mini reject">Reject</button>
+        </div>
+      `;
+      card.querySelector<HTMLButtonElement>(".accept")!.addEventListener("click", () =>
+        decideProposal("accept_proposal", p.id, reviewer),
+      );
+      card.querySelector<HTMLButtonElement>(".reject")!.addEventListener("click", () =>
+        decideProposal("reject_proposal", p.id, reviewer),
+      );
+      el.appendChild(card);
+    }
+  }
+
+  function renderFinding(f: Finding): void {
+    const { label: stateLabel, cls: stateClass } = deriveState(f);
+    const liveClass = stateLabel === "replicated" ? " wb-chip--live" : "";
+    const conf = f.confidence?.score ?? 0;
+    const pct = Math.round(Math.max(0, Math.min(1, conf)) * 100);
+
+    // Header.
+    const titleEl = document.querySelector<HTMLHeadingElement>(".wb-head__title");
+    if (titleEl) titleEl.textContent = f.assertion?.text || "(no claim)";
+    const subEl = document.querySelector<HTMLParagraphElement>(".wb-head__sub");
+    if (subEl) {
+      subEl.innerHTML = provLink(f.provenance);
+    }
+
+    // Margin dial.
+    const stateEl = document.getElementById("fd-state")!;
+    stateEl.innerHTML = `<span class="wb-chip${liveClass}" style="--chip:var(--state-${stateClass});"><span class="wb-chip__dot"></span>${stateLabel}</span>`;
+    document.getElementById("fd-conf")!.textContent = conf.toFixed(2);
+    (document.getElementById("fd-gauge") as HTMLElement).style.width = `${pct}%`;
+    document.getElementById("fd-id")!.textContent = f.id;
+    document.getElementById("fd-version")!.textContent = String(f.version ?? 1);
+
+    // Body.
+    document.getElementById("fd-main")!.innerHTML = `
+      <p class="fd-claim">${escapeHtml(f.assertion?.text || "")}</p>
+      <p class="fd-note">${provLink(f.provenance)}</p>
+
+      <section class="wb-section">
+        <div class="wb-section__head">
+          <span class="wb-section__num">§1</span>
+          <span class="wb-section__t">Conditions</span>
+          <span class="wb-section__aside">declared on creation · immutable</span>
+        </div>
+        ${condRows(f)}
+      </section>
+
+      <section class="wb-section">
+        <div class="wb-section__head">
+          <span class="wb-section__num">§2</span>
+          <span class="wb-section__t">Evidence</span>
+          <span class="wb-section__aside">${escapeHtml(f.assertion?.type || "")}</span>
+        </div>
+        ${evidenceRows(f)}
+        ${spansHtml(f)}
+      </section>
+
+      ${annotationsHtml(f)}
+      ${linksHtml(f)}
+    `;
+  }
+
+  async function bootstrap(): Promise<void> {
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get("id");
+    if (!id) {
+      document.getElementById("fd-main")!.innerHTML =
+        '<p class="empty">Missing <code>?id=</code>. Open from <a href="/workbench">/workbench</a>.</p>';
+      return;
+    }
+    try {
+      const [findingResp, frontierResp] = await Promise.all([
+        fetch(`/api/findings/${encodeURIComponent(id)}`, { headers: { accept: "application/json" } }),
+        fetch("/api/frontier", { headers: { accept: "application/json" } }),
+      ]);
+      if (!findingResp.ok) throw new Error(`/api/findings/${id} ${findingResp.status}`);
+      if (!frontierResp.ok) throw new Error(`/api/frontier ${frontierResp.status}`);
+      const finding: Finding = await findingResp.json();
+      const frontier: Frontier = await frontierResp.json();
+      renderFinding(finding);
+      const reviewer = getReviewer(frontier.actors || []);
+      const queued = (frontier.proposals || []).filter(
+        (p) => p.status === "pending_review" && p.target?.id === id,
+      );
+      renderQueue(queued, reviewer);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      document.getElementById("fd-main")!.innerHTML =
+        `<p class="empty">Error: ${escapeHtml(message)}</p>`;
+    }
+  }
+
+  bootstrap();
+</script>
+
+<style>
+  .back {
+    font-family: var(--font-mono);
+    font-size: var(--size-xs);
+    letter-spacing: 0.06em;
+    color: var(--ink-3);
+  }
+  .back:hover { color: var(--ink-0); }
+
+  .fd { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 56px; padding-top: 8px; }
+  @media (max-width: 1080px) { .fd { grid-template-columns: 1fr; gap: 32px; } }
+
+  .fd-claim {
+    font-family: var(--font-serif); font-size: 30px; line-height: 1.25;
+    letter-spacing: -0.015em; color: var(--ink-0); margin: 0 0 14px;
+  }
+  .fd-note {
+    font-family: var(--font-serif); font-style: italic; font-size: 17px;
+    color: var(--ink-2); line-height: 1.55; max-width: 56ch;
+    padding-left: 18px; border-left: 1px solid var(--rule-ink); margin: 0 0 32px;
+  }
+
+  .fd-conditions { border-top: 1px solid var(--rule-2); margin: 0; padding: 0; }
+  .fd-cond {
+    display: grid; grid-template-columns: 180px 1fr;
+    padding: 12px 0; border-bottom: 1px solid var(--rule-1); align-items: baseline;
+    margin: 0;
+  }
+  .fd-cond dt {
+    font-family: var(--font-mono); font-size: 11px; color: var(--ink-3);
+    letter-spacing: 0.1em; text-transform: uppercase; margin: 0;
+  }
+  .fd-cond dd {
+    font-family: var(--font-mono); font-size: 13px; color: var(--ink-0);
+    word-break: break-all; margin: 0;
+  }
+  .fd-cond dd.serif { font-family: var(--font-serif); font-size: 15px; word-break: normal; }
+
+  .fd-margin { padding-top: 4px; }
+  .fd-dial {
+    border: 1px solid var(--rule-2); padding: 18px; margin-bottom: 22px;
+    position: relative; background: var(--paper-0);
+  }
+  .fd-dial__k {
+    font-family: var(--font-mono); font-size: 10px;
+    letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 8px;
+  }
+  .fd-dial__v {
+    font-family: var(--font-serif); font-size: 22px;
+    letter-spacing: -0.01em; color: var(--ink-0);
+  }
+  .fd-dial__v.mono {
+    font-family: var(--font-mono); font-size: 14px; word-break: break-all;
+  }
+  .fd-dial__gauge {
+    margin-top: 10px; height: 3px;
+    background: var(--rule-1); position: relative;
+  }
+  .fd-dial__gauge i {
+    position: absolute; top: 0; left: 0; height: 100%;
+    background: var(--ink-2); width: 0;
+  }
+
+  .span-list {
+    list-style: none; padding: 0; margin: 16px 0 0;
+    border-top: 1px solid var(--rule-1);
+  }
+  .span-list li {
+    font-family: var(--font-serif); font-size: 15px;
+    line-height: 1.55; color: var(--ink-1);
+    padding: 12px 0;
+    border-bottom: 1px solid var(--rule-1);
+  }
+
+  .ann-list, .link-list {
+    list-style: none; padding: 0; margin: 0;
+    border-top: 1px solid var(--rule-2);
+  }
+  .ann-list li, .link-list li {
+    padding: 12px 0;
+    border-bottom: 1px solid var(--rule-1);
+    display: grid; grid-template-columns: 140px 1fr; gap: 18px;
+    align-items: baseline;
+  }
+  .ann-author, .link-rel {
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--ink-3); letter-spacing: 0.1em; text-transform: uppercase;
+  }
+  .ann-text {
+    font-family: var(--font-serif); font-size: 16px;
+    color: var(--ink-1); line-height: 1.55;
+  }
+  .link-list li a {
+    font-family: var(--font-mono); font-size: 13px; color: var(--ink-1);
+    border-bottom: 1px solid var(--rule-3);
+  }
+  .link-list li a:hover { border-bottom-color: var(--rule-ink); }
+  .link-note { font-family: var(--font-serif); font-size: 14px; color: var(--ink-2); }
+
+  .fd-prop {
+    border: 1px solid var(--rule-2);
+    padding: 10px 12px;
+    background: var(--paper-1);
+    margin-bottom: 8px;
+    border-radius: var(--radius-1);
+  }
+  .fd-prop-meta {
+    font-family: var(--font-mono); font-size: 10px;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--ink-3); margin-bottom: 6px;
+  }
+  .fd-prop-text {
+    font-family: var(--font-serif); font-size: 14px;
+    color: var(--ink-1); line-height: 1.45;
+  }
+  .fd-prop-actions { display: flex; gap: 6px; margin-top: 10px; }
+  .wb-btn-mini {
+    font-family: var(--font-mono); font-size: 10px;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    border: 1px solid var(--rule-3); background: var(--paper-0);
+    color: var(--ink-1); padding: 4px 9px; cursor: pointer;
+    border-radius: var(--radius-1);
+    transition: all var(--dur-1) var(--ease);
+  }
+  .wb-btn-mini:hover { border-color: var(--rule-ink); }
+  .wb-btn-mini.accept { color: var(--state-ok); border-color: color-mix(in oklab, var(--state-ok) 40%, transparent); }
+  .wb-btn-mini.reject { color: var(--state-lost); border-color: color-mix(in oklab, var(--state-lost) 40%, transparent); }
+
+  .empty {
+    font-family: var(--font-serif); font-style: italic;
+    color: var(--ink-3); padding: 12px 0;
+  }
+  .empty-inline {
+    font-family: var(--font-serif); font-style: italic;
+    color: var(--ink-3); font-size: 14px;
+  }
+
+  .fd-toast {
+    position: fixed; bottom: 24px; right: 24px;
+    background: var(--ink-0); color: var(--paper-0);
+    padding: 10px 14px;
+    font-family: var(--font-mono); font-size: 12px;
+    max-width: 360px;
+    border-radius: var(--radius-1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 100;
+  }
+
+  div[slot="aside"] { display: flex; align-items: center; gap: 12px; }
+</style>

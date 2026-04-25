@@ -1,0 +1,429 @@
+---
+import Page from "../../layouts/Page.astro";
+import { WORKBENCH_URL } from "../../config";
+
+// API proxied through the site's nginx (`/api/*` → vela-workbench).
+// At build time the URL the page references is `/api/frontier`; at
+// runtime the proxy forwards to the workbench API. Same origin,
+// no CORS, single domain.
+const API_PATH = "/api/frontier";
+---
+<Page
+  title="Workbench · Vela"
+  description="Live read-only view of the BBB Flagship frontier — claims, conditions, evidence, state."
+  active="workbench"
+  eyebrow="Workbench · Frontier"
+  pageTitle="Loading frontier…"
+  subtitle="Live read-only view of the active frontier. Click any row to inspect a finding end-to-end."
+>
+  <div slot="aside">
+    <span class="wb-chip wb-chip--live" id="lf-live"
+          style="--chip:var(--state-live);">
+      <span class="wb-chip__dot"></span>connecting
+    </span>
+  </div>
+
+  <section class="lf-meta">
+    <div class="lf-meta__cell">
+      <div class="lf-meta__k">findings</div>
+      <div class="lf-meta__v" id="lf-m-findings">—</div>
+    </div>
+    <div class="lf-meta__cell">
+      <div class="lf-meta__k">events</div>
+      <div class="lf-meta__v" id="lf-m-events">—</div>
+    </div>
+    <div class="lf-meta__cell">
+      <div class="lf-meta__k">pending proposals</div>
+      <div class="lf-meta__v" id="lf-m-proposals">—</div>
+    </div>
+    <div class="lf-meta__cell">
+      <div class="lf-meta__k">snapshot</div>
+      <div class="lf-meta__v mono" id="lf-m-snapshot">—</div>
+    </div>
+  </section>
+
+  <div class="lf-toolbar">
+    <label class="lf-search">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" aria-hidden="true">
+        <circle cx="7" cy="7" r="5" stroke-width="1" />
+        <line x1="11" y1="11" x2="15" y2="15" stroke-width="1" />
+      </svg>
+      <input type="search" id="lf-search" placeholder="filter by claim, class, vf_id…" />
+      <span class="lf-search__count" id="lf-count">— / —</span>
+    </label>
+    <div class="lf-chips" id="lf-chips">
+      <button class="lf-chip-btn lf-chip-btn--on" data-state="all">all</button>
+    </div>
+  </div>
+
+  <table class="lf-table">
+    <thead>
+      <tr>
+        <th>vf_id</th>
+        <th>class</th>
+        <th>claim</th>
+        <th>state</th>
+        <th class="num">conf</th>
+      </tr>
+    </thead>
+    <tbody id="lf-body">
+      <tr><td colspan="5" class="lf-empty">connecting…</td></tr>
+    </tbody>
+  </table>
+
+  <p class="lf-tip">
+    The Workbench fetches from <code>/api/frontier</code>, served by <a href={WORKBENCH_URL} class="ext">vela-workbench</a> behind a same-origin proxy. Click any finding to read its evidence, conditions, links, and history.
+  </p>
+</Page>
+
+<script>
+  // Workbench frontier-table: live-fetch /api/frontier and render
+  // workbench frontier-pattern. Self-contained, no framework.
+
+  type RawFinding = {
+    id: string;
+    assertion?: { text?: string; type?: string };
+    confidence?: { score?: number };
+    flags?: {
+      retracted?: boolean;
+      gap?: boolean;
+      negative_space?: boolean;
+      contested?: boolean;
+      review_state?: string;
+    };
+    evidence?: { replicated?: boolean };
+  };
+  type Frontier = {
+    frontier_id?: string;
+    frontier?: { name?: string; description?: string };
+    project?: { name?: string; description?: string };
+    findings?: RawFinding[];
+    events?: unknown[];
+    proposals?: Array<{ status?: string; target?: { id?: string } }>;
+    snapshot_hash?: string;
+  };
+
+  const STATE_TO_CLASS: Record<string, string> = {
+    retracted: "lost",
+    gap: "stale",
+    contested: "warn",
+    replicated: "ok",
+    supported: "ok",
+  };
+
+  function deriveState(f: RawFinding): string {
+    const flags = f.flags || {};
+    const ev = f.evidence || {};
+    if (flags.retracted) return "retracted";
+    if (flags.gap || flags.negative_space) return "gap";
+    const rs = flags.review_state;
+    if (rs === "contested" || rs === "needs_revision") return "contested";
+    if (rs === "rejected") return "retracted";
+    if (rs === "accepted") return ev.replicated ? "replicated" : "supported";
+    if (flags.contested) return "contested";
+    return ev.replicated ? "replicated" : "supported";
+  }
+
+  function escapeHtml(s: string): string {
+    const div = document.createElement("div");
+    div.textContent = s == null ? "" : String(s);
+    return div.innerHTML;
+  }
+
+  type State = {
+    findings: RawFinding[];
+    search: string;
+    activeState: string;
+  };
+  const state: State = { findings: [], search: "", activeState: "all" };
+
+  function rowHtml(f: RawFinding): string {
+    const stateLabel = deriveState(f);
+    const stateClass = STATE_TO_CLASS[stateLabel] || "muted";
+    const liveClass = stateLabel === "replicated" ? " wb-chip--live" : "";
+    const conf = f.confidence?.score ?? 0;
+    const pct = Math.round(Math.max(0, Math.min(1, conf)) * 100);
+    const cls = (f.assertion?.type || "").split(/\s+/)[0] || "";
+    return `
+      <tr data-vfid="${escapeHtml(f.id)}">
+        <td class="idx">${escapeHtml(f.id)}</td>
+        <td class="cls">${escapeHtml(cls)}</td>
+        <td class="claim">${escapeHtml(f.assertion?.text || "")}</td>
+        <td class="state"><span class="wb-chip${liveClass}" style="--chip:var(--state-${stateClass});"><span class="wb-chip__dot"></span>${stateLabel}</span></td>
+        <td class="conf"><span class="lf-bar"><i style="width:${pct}%"></i></span><span class="lf-num">${conf.toFixed(2)}</span></td>
+      </tr>`;
+  }
+
+  function rowMatches(f: RawFinding): boolean {
+    if (state.activeState !== "all" && deriveState(f) !== state.activeState) return false;
+    if (!state.search) return true;
+    const q = state.search.toLowerCase();
+    return (
+      (f.assertion?.text || "").toLowerCase().includes(q) ||
+      (f.assertion?.type || "").toLowerCase().includes(q) ||
+      (f.id || "").toLowerCase().includes(q)
+    );
+  }
+
+  function render(): void {
+    const body = document.getElementById("lf-body")!;
+    const filtered = state.findings.filter(rowMatches);
+    document.getElementById("lf-count")!.textContent =
+      `${filtered.length} / ${state.findings.length}`;
+    if (filtered.length === 0) {
+      body.innerHTML = '<tr><td colspan="5" class="lf-empty">No findings match the current filter.</td></tr>';
+      return;
+    }
+    body.innerHTML = filtered.map(rowHtml).join("");
+    body.querySelectorAll<HTMLTableRowElement>("tr[data-vfid]").forEach((tr) => {
+      tr.addEventListener("click", () => {
+        const id = tr.getAttribute("data-vfid")!;
+        window.location.href = `/workbench/finding?id=${encodeURIComponent(id)}`;
+      });
+    });
+  }
+
+  function buildChips(stateCounts: Map<string, number>): void {
+    const order = ["replicated", "supported", "contested", "gap", "retracted"];
+    const wrap = document.getElementById("lf-chips")!;
+    wrap.innerHTML = '<button class="lf-chip-btn lf-chip-btn--on" data-state="all">all</button>';
+    for (const k of order) {
+      const n = stateCounts.get(k) || 0;
+      if (!n) continue;
+      const b = document.createElement("button");
+      b.className = "lf-chip-btn";
+      b.dataset.state = k;
+      b.innerHTML = `${k} <span>${n}</span>`;
+      wrap.appendChild(b);
+    }
+    wrap.querySelectorAll<HTMLButtonElement>("button").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        state.activeState = btn.dataset.state || "all";
+        wrap.querySelectorAll<HTMLButtonElement>("button").forEach((x) =>
+          x.classList.remove("lf-chip-btn--on"),
+        );
+        btn.classList.add("lf-chip-btn--on");
+        render();
+      });
+    });
+  }
+
+  async function bootstrap(): Promise<void> {
+    try {
+      const r = await fetch("/api/frontier", { headers: { accept: "application/json" } });
+      if (!r.ok) throw new Error(`/api/frontier ${r.status}`);
+      const data: Frontier = await r.json();
+      state.findings = data.findings || [];
+
+      // Header.
+      const name = data.frontier?.name || data.project?.name || "Frontier";
+      const desc = data.frontier?.description || data.project?.description || "";
+      const titleEl = document.querySelector<HTMLHeadingElement>(".wb-head__title");
+      if (titleEl) titleEl.textContent = name;
+      const subEl = document.querySelector<HTMLParagraphElement>(".wb-head__sub");
+      if (subEl) subEl.textContent = desc;
+
+      const live = document.getElementById("lf-live")!;
+      const lastNode = live.lastChild;
+      if (lastNode && lastNode.nodeType === Node.TEXT_NODE) {
+        lastNode.textContent = "live";
+      }
+
+      // Metrics.
+      document.getElementById("lf-m-findings")!.textContent = String(state.findings.length);
+      document.getElementById("lf-m-events")!.textContent = String((data.events || []).length);
+      const proposalsByTarget = new Map<string, number>();
+      for (const p of data.proposals || []) {
+        if (p.status === "pending_review" && p.target?.id) {
+          proposalsByTarget.set(p.target.id, (proposalsByTarget.get(p.target.id) || 0) + 1);
+        }
+      }
+      const pending = Array.from(proposalsByTarget.values()).reduce((a, b) => a + b, 0);
+      document.getElementById("lf-m-proposals")!.textContent = String(pending);
+      const snapshot = data.snapshot_hash || "";
+      document.getElementById("lf-m-snapshot")!.textContent =
+        snapshot ? `${snapshot.slice(0, 12)}…` : "—";
+
+      // Chips + state counts.
+      const stateCounts = new Map<string, number>();
+      for (const f of state.findings) {
+        const k = deriveState(f);
+        stateCounts.set(k, (stateCounts.get(k) || 0) + 1);
+      }
+      buildChips(stateCounts);
+
+      // Search.
+      const searchInput = document.getElementById("lf-search") as HTMLInputElement | null;
+      if (searchInput) {
+        searchInput.addEventListener("input", (e) => {
+          state.search = (e.target as HTMLInputElement).value || "";
+          render();
+        });
+      }
+      render();
+    } catch (err) {
+      const live = document.getElementById("lf-live");
+      if (live) {
+        live.style.setProperty("--chip", "var(--state-lost)");
+        const lastNode = live.lastChild;
+        if (lastNode && lastNode.nodeType === Node.TEXT_NODE) {
+          lastNode.textContent = "unreachable";
+        }
+      }
+      const body = document.getElementById("lf-body");
+      if (body) {
+        const message = err instanceof Error ? err.message : String(err);
+        body.innerHTML = `<tr><td colspan="5" class="lf-empty">Connection to <code>/api/frontier</code> failed: ${escapeHtml(message)}</td></tr>`;
+      }
+    }
+  }
+  bootstrap();
+</script>
+
+<style>
+  /* Page-specific. Tokens + chrome come from /static/tokens.css + workbench.css. */
+  .lf-meta {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    border-top: 1px solid var(--rule-2);
+    border-bottom: 1px solid var(--rule-2);
+    margin: 0 0 24px;
+  }
+  .lf-meta__cell {
+    padding: 16px 18px;
+    border-right: 1px solid var(--rule-2);
+  }
+  .lf-meta__cell:last-child { border-right: 0; }
+  .lf-meta__k {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--ink-3);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .lf-meta__v {
+    font-family: var(--font-serif);
+    font-size: 22px;
+    color: var(--ink-0);
+    letter-spacing: -0.01em;
+  }
+  .lf-meta__v.mono {
+    font-family: var(--font-mono);
+    font-size: 14px;
+    word-break: break-all;
+  }
+
+  .lf-toolbar {
+    display: flex; flex-wrap: wrap; gap: 18px; align-items: center;
+    padding: 12px 0 6px;
+    border-bottom: 1px solid var(--rule-1);
+    margin-bottom: 4px;
+  }
+  .lf-search {
+    display: flex; align-items: center; gap: 8px;
+    flex: 1 1 320px; min-width: 240px;
+    padding: 6px 4px;
+    border-bottom: 1px solid var(--rule-2);
+    color: var(--ink-3);
+  }
+  .lf-search:focus-within { border-bottom-color: var(--signal); color: var(--ink-2); }
+  .lf-search input {
+    flex: 1; border: 0; outline: 0; background: transparent;
+    font-family: var(--font-sans); font-size: 14px; color: var(--ink-0);
+  }
+  .lf-search input::placeholder { color: var(--ink-4); }
+  .lf-search__count {
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--ink-3); font-variant-numeric: tabular-nums;
+  }
+  .lf-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .lf-chip-btn {
+    font-family: var(--font-mono); font-size: 10px;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--ink-3);
+    border: 1px solid var(--rule-2);
+    background: transparent;
+    padding: 4px 9px;
+    border-radius: var(--radius-1);
+    cursor: pointer;
+    transition: all var(--dur-1) var(--ease);
+  }
+  .lf-chip-btn:hover { color: var(--ink-1); border-color: var(--rule-3); }
+  .lf-chip-btn--on {
+    color: var(--ink-0); border-color: var(--rule-ink); background: var(--paper-1);
+  }
+  .lf-chip-btn span {
+    margin-left: 6px; color: var(--ink-3);
+    font-variant-numeric: tabular-nums;
+  }
+  .lf-chip-btn--on span { color: var(--ink-2); }
+
+  .lf-table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+  .lf-table thead th {
+    font-family: var(--font-mono); font-size: 10px; font-weight: 400;
+    text-transform: uppercase; letter-spacing: 0.14em; color: var(--ink-3);
+    text-align: left; padding: 12px 10px; border-bottom: 1px solid var(--rule-2);
+  }
+  .lf-table thead th.num { text-align: right; }
+  .lf-table tbody tr {
+    border-bottom: 1px solid var(--rule-1);
+    cursor: pointer;
+    transition: background var(--dur-1) var(--ease);
+  }
+  .lf-table tbody tr:hover { background: var(--paper-1); }
+  .lf-table tbody td { padding: 14px 10px; vertical-align: top; font-size: 14px; }
+  .lf-table td.idx {
+    font-family: var(--font-mono); font-size: 11px; color: var(--ink-3);
+    white-space: nowrap; width: 130px;
+  }
+  .lf-table td.cls {
+    font-family: var(--font-sans); font-size: 11px;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--ink-3); white-space: nowrap; width: 110px;
+  }
+  .lf-table td.claim {
+    font-family: var(--font-serif); font-size: 15px; color: var(--ink-0);
+    line-height: 1.45;
+  }
+  .lf-table td.state { width: 130px; white-space: nowrap; }
+  .lf-table td.conf {
+    width: 92px; text-align: right;
+    display: flex; align-items: center; justify-content: flex-end; gap: 8px;
+    padding-top: 16px;
+  }
+  .lf-bar {
+    display: inline-block; width: 36px; height: 3px;
+    background: var(--rule-1); position: relative;
+  }
+  .lf-bar i {
+    position: absolute; top: 0; left: 0; height: 100%;
+    background: var(--ink-2);
+  }
+  .lf-num {
+    font-family: var(--font-mono); font-size: 12px;
+    color: var(--ink-2); font-variant-numeric: tabular-nums;
+  }
+  .lf-empty {
+    font-family: var(--font-serif); font-style: italic;
+    color: var(--ink-3); padding: 28px 0; text-align: center;
+  }
+
+  .lf-tip {
+    font-family: var(--font-sans); font-size: 13px;
+    color: var(--ink-3); line-height: 1.55;
+    margin: 32px 0 0;
+    padding-top: 16px;
+    border-top: 1px solid var(--rule-1);
+  }
+  .lf-tip a.ext { border-bottom: 1px solid var(--rule-3); color: var(--ink-2); }
+  .lf-tip a.ext:hover { color: var(--ink-0); border-bottom-color: var(--rule-ink); }
+
+  div[slot="aside"] {
+    display: flex; align-items: center; gap: 12px;
+  }
+
+  @media (max-width: 720px) {
+    .lf-table td.cls, .lf-table thead th:nth-child(2) { display: none; }
+  }
+</style>
