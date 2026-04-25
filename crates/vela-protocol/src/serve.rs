@@ -388,7 +388,9 @@ pub async fn run_http(source: ProjectSource, backend: Option<&str>, port: u16, w
     eprintln!("  {}", crate::cli_style::tick_row(60));
     eprintln!("  listening on http://{addr}");
     if workbench {
-        eprintln!("  workbench UI: https://vela-site.fly.dev/workbench (or `cd site && npm run dev`)");
+        eprintln!(
+            "  workbench UI: https://vela-site.fly.dev/workbench (or `cd site && npm run dev`)"
+        );
     }
     eprintln!("  endpoints: /api/frontier, /api/findings, /api/events, /api/queue, /api/tool");
     let listener = tokio::net::TcpListener::bind(&addr)

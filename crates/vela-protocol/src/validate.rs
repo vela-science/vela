@@ -495,6 +495,12 @@ pub fn validate(source_path: &Path) -> ValidationReport {
     let mut errors: Vec<ValidationError> = Vec::new();
     let mut seen_ids: HashSet<String> = HashSet::new();
     let all_ids: HashSet<String> = frontier.findings.iter().map(|f| f.id.clone()).collect();
+    // v0.8: declared cross-frontier dependencies. Any link target of
+    // the form `vf_X@vfr_Y` must reference a Y in this set.
+    let declared_deps: HashSet<String> = frontier
+        .cross_frontier_deps()
+        .filter_map(|d| d.vfr_id.clone())
+        .collect();
 
     if matches!(
         repo::detect(source_path),
@@ -509,9 +515,37 @@ pub fn validate(source_path: &Path) -> ValidationReport {
 
     validate_project_metadata(&frontier, source_path, &mut errors);
 
+    // v0.8: every cross-frontier dep must declare both a locator and
+    // a pinned snapshot hash. Without those the dep can be neither
+    // fetched nor verified, so a strict reader rejects.
+    for dep in frontier.cross_frontier_deps() {
+        let Some(vfr) = &dep.vfr_id else { continue };
+        if dep.locator.as_deref().unwrap_or("").is_empty() {
+            errors.push(ValidationError {
+                file: source_label.clone(),
+                error: format!("Cross-frontier dependency '{vfr}' is missing 'locator'"),
+            });
+        }
+        if dep.pinned_snapshot_hash.as_deref().unwrap_or("").is_empty() {
+            errors.push(ValidationError {
+                file: source_label.clone(),
+                error: format!(
+                    "Cross-frontier dependency '{vfr}' is missing 'pinned_snapshot_hash'"
+                ),
+            });
+        }
+    }
+
     for finding in &frontier.findings {
         let file_label = &finding.id;
-        validate_finding(finding, file_label, &all_ids, &mut seen_ids, &mut errors);
+        validate_finding(
+            finding,
+            file_label,
+            &all_ids,
+            &declared_deps,
+            &mut seen_ids,
+            &mut errors,
+        );
     }
 
     let invalid_count = errors.iter().map(|e| &e.file).collect::<HashSet<_>>().len();
@@ -529,6 +563,7 @@ fn validate_finding(
     finding: &FindingBundle,
     file_label: &str,
     all_ids: &HashSet<String>,
+    declared_deps: &HashSet<String>,
     seen_ids: &mut HashSet<String>,
     errors: &mut Vec<ValidationError>,
 ) {
@@ -676,21 +711,72 @@ fn validate_finding(
         });
     }
 
-    // Link targets must reference existing finding IDs
+    // Link targets must either reference an existing in-frontier vf_id
+    // (`vf_…`) or, in v0.8+, a vf_id in a declared cross-frontier dep
+    // (`vf_…@vfr_…`).
     for link in &finding.links {
-        if !link.target.starts_with("vf_")
-            || link.target.len() != 19
-            || !link.target[3..].chars().all(|c| c.is_ascii_hexdigit())
-        {
-            errors.push(ValidationError {
-                file: file_label.to_string(),
-                error: format!("Invalid link target format '{}'", link.target),
-            });
-        } else if !all_ids.contains(&link.target) {
-            errors.push(ValidationError {
-                file: file_label.to_string(),
-                error: format!("Link target '{}' does not exist in frontier", link.target),
-            });
+        match crate::bundle::LinkRef::parse(&link.target) {
+            Err(e) => {
+                errors.push(ValidationError {
+                    file: file_label.to_string(),
+                    error: format!("Invalid link target '{}': {e}", link.target),
+                });
+            }
+            Ok(crate::bundle::LinkRef::Local { vf_id }) => {
+                // Old shape: must be vf_ + 16 hex (19 chars total) and
+                // exist in the current frontier.
+                let id_well_formed =
+                    vf_id.len() == 19 && vf_id[3..].chars().all(|c| c.is_ascii_hexdigit());
+                if !id_well_formed {
+                    errors.push(ValidationError {
+                        file: file_label.to_string(),
+                        error: format!("Invalid link target format '{}'", link.target),
+                    });
+                } else if !all_ids.contains(&vf_id) {
+                    errors.push(ValidationError {
+                        file: file_label.to_string(),
+                        error: format!("Link target '{}' does not exist in frontier", link.target),
+                    });
+                }
+            }
+            Ok(crate::bundle::LinkRef::Cross { vf_id, vfr_id }) => {
+                // v0.8 cross-frontier link: well-formed ids, plus the
+                // referenced vfr_id must appear in
+                // `frontier.dependencies`. We don't verify the remote's
+                // snapshot_hash here — that's the registry's job at
+                // pull time. Validation only enforces declaration.
+                let vf_well_formed =
+                    vf_id.len() == 19 && vf_id[3..].chars().all(|c| c.is_ascii_hexdigit());
+                let vfr_well_formed =
+                    vfr_id.len() == 20 && vfr_id[4..].chars().all(|c| c.is_ascii_hexdigit());
+                if !vf_well_formed {
+                    errors.push(ValidationError {
+                        file: file_label.to_string(),
+                        error: format!(
+                            "Invalid cross-frontier link target '{}': vf_ part must be 19 chars (vf_ + 16 hex)",
+                            link.target
+                        ),
+                    });
+                }
+                if !vfr_well_formed {
+                    errors.push(ValidationError {
+                        file: file_label.to_string(),
+                        error: format!(
+                            "Invalid cross-frontier link target '{}': vfr_ part must be 20 chars (vfr_ + 16 hex)",
+                            link.target
+                        ),
+                    });
+                }
+                if vfr_well_formed && !declared_deps.contains(&vfr_id) {
+                    errors.push(ValidationError {
+                        file: file_label.to_string(),
+                        error: format!(
+                            "Cross-frontier link target '{}' references undeclared dependency '{}'; add it via `vela frontier add-dep`",
+                            link.target, vfr_id
+                        ),
+                    });
+                }
+            }
         }
         if link.created_at.is_empty() {
             errors.push(ValidationError {
@@ -1200,6 +1286,125 @@ mod tests {
                 .iter()
                 .flat_map(|check| check.diagnostics.iter())
                 .any(|diagnostic| diagnostic.rule_id == "orphan")
+        );
+    }
+
+    // ── v0.8: cross-frontier link validation ──────────────────────────
+
+    fn make_finding_with_link(seed: &str, target: &str) -> FindingBundle {
+        let mut f = make_valid_finding(seed);
+        f.links = vec![Link {
+            target: target.to_string(),
+            link_type: "extends".to_string(),
+            note: String::new(),
+            inferred_by: "compiler".to_string(),
+            created_at: "2024-01-01T00:00:00Z".to_string(),
+        }];
+        f
+    }
+
+    #[test]
+    fn cross_frontier_link_with_declared_dep_passes() {
+        let tmp = TempDir::new().unwrap();
+        let target_vfr = "vfr_0000000000000aaa";
+        let f1 = make_valid_finding("vf_0000000000000001");
+        let f2 = make_finding_with_link(
+            "vf_0000000000000002",
+            &format!("vf_0000000000000003@{target_vfr}"),
+        );
+        let mut c = project::assemble("test", vec![f1, f2], 1, 0, "Test");
+        c.project.dependencies.push(project::ProjectDependency {
+            name: "ext-frontier".into(),
+            source: "vela.hub".into(),
+            version: None,
+            pinned_hash: None,
+            vfr_id: Some(target_vfr.into()),
+            locator: Some("https://example.test/ext.json".into()),
+            pinned_snapshot_hash: Some("a".repeat(64)),
+        });
+        let path = write_project(tmp.path(), &c);
+        let report = validate(&path);
+        let cross_errors: Vec<_> = report
+            .errors
+            .iter()
+            .filter(|e| e.error.contains("cross-frontier") || e.error.contains("undeclared"))
+            .collect();
+        assert!(
+            cross_errors.is_empty(),
+            "expected no cross-frontier errors, got: {cross_errors:?}",
+        );
+    }
+
+    #[test]
+    fn cross_frontier_link_without_declared_dep_fails() {
+        let tmp = TempDir::new().unwrap();
+        let f = make_finding_with_link(
+            "vf_0000000000000001",
+            "vf_0000000000000002@vfr_0000000000000bbb",
+        );
+        let path = write_frontier(tmp.path(), vec![f]);
+        let report = validate(&path);
+        assert!(
+            report
+                .errors
+                .iter()
+                .any(|e| e.error.contains("undeclared dependency")),
+            "expected undeclared-dep error, got: {:?}",
+            report.errors
+        );
+    }
+
+    #[test]
+    fn cross_frontier_dep_without_locator_or_snapshot_fails() {
+        let tmp = TempDir::new().unwrap();
+        let mut c = project::assemble(
+            "test",
+            vec![make_valid_finding("vf_0000000000000001")],
+            1,
+            0,
+            "Test",
+        );
+        c.project.dependencies.push(project::ProjectDependency {
+            name: "incomplete-dep".into(),
+            source: "vela.hub".into(),
+            version: None,
+            pinned_hash: None,
+            vfr_id: Some("vfr_0000000000000ccc".into()),
+            locator: None,
+            pinned_snapshot_hash: None,
+        });
+        let path = write_project(tmp.path(), &c);
+        let report = validate(&path);
+        assert!(
+            report
+                .errors
+                .iter()
+                .any(|e| e.error.contains("missing 'locator'")),
+            "expected missing-locator error",
+        );
+        assert!(
+            report
+                .errors
+                .iter()
+                .any(|e| e.error.contains("missing 'pinned_snapshot_hash'")),
+            "expected missing-snapshot error",
+        );
+    }
+
+    #[test]
+    fn malformed_cross_frontier_link_target_fails() {
+        let tmp = TempDir::new().unwrap();
+        // bad: vfr_ part is not 16 hex chars
+        let f = make_finding_with_link("vf_0000000000000001", "vf_0000000000000002@vfr_too_short");
+        let path = write_frontier(tmp.path(), vec![f]);
+        let report = validate(&path);
+        assert!(
+            report
+                .errors
+                .iter()
+                .any(|e| e.error.contains("vfr_ part must be 20 chars")),
+            "expected malformed-vfr error, got: {:?}",
+            report.errors
         );
     }
 }

@@ -500,6 +500,185 @@ fn default_compiler() -> String {
     "compiler".into()
 }
 
+/// v0.8: typed reference resolved from `Link.target`.
+///
+/// Targets stay opaque `String` on the wire (canonical-JSON stable). At
+/// validation/render time callers parse via `LinkRef::parse`. The
+/// `Local` variant is the v0–v0.7 shape; `Cross` is new in v0.8 and
+/// requires the dependent frontier to declare a matching `vfr_id` in
+/// `frontier.dependencies`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LinkRef {
+    /// `vf_<16hex>` — the target finding lives in this same frontier.
+    Local { vf_id: String },
+    /// `vf_<16hex>@vfr_<16hex>` — the target finding lives in a
+    /// different frontier. Strict validation requires the `vfr_id` to
+    /// appear in `Project.frontier.dependencies`.
+    Cross { vf_id: String, vfr_id: String },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LinkParseError {
+    Empty,
+    BadVfPrefix,
+    BadVfrPrefix,
+    EmptyVfId,
+    EmptyVfrId,
+    TooManyAtSigns,
+}
+
+impl std::fmt::Display for LinkParseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            LinkParseError::Empty => write!(f, "empty link target"),
+            LinkParseError::BadVfPrefix => write!(f, "link target must start with 'vf_'"),
+            LinkParseError::BadVfrPrefix => {
+                write!(f, "cross-frontier suffix must start with 'vfr_'")
+            }
+            LinkParseError::EmptyVfId => write!(f, "link target's vf_ id is empty"),
+            LinkParseError::EmptyVfrId => write!(f, "cross-frontier vfr_ id is empty"),
+            LinkParseError::TooManyAtSigns => {
+                write!(f, "link target has more than one '@' separator")
+            }
+        }
+    }
+}
+
+impl std::error::Error for LinkParseError {}
+
+impl LinkRef {
+    /// Parse `vf_<id>` or `vf_<id>@vfr_<id>` into a typed reference.
+    /// Treats inputs as opaque hex-ish blobs — does not validate hex
+    /// length or character set, since the substrate's content-address
+    /// derivation already handles that.
+    pub fn parse(s: &str) -> Result<Self, LinkParseError> {
+        if s.is_empty() {
+            return Err(LinkParseError::Empty);
+        }
+        let mut parts = s.split('@');
+        let local = parts.next().ok_or(LinkParseError::Empty)?;
+        let remote = parts.next();
+        if parts.next().is_some() {
+            return Err(LinkParseError::TooManyAtSigns);
+        }
+        let vf_id = local
+            .strip_prefix("vf_")
+            .ok_or(LinkParseError::BadVfPrefix)?;
+        if vf_id.is_empty() {
+            return Err(LinkParseError::EmptyVfId);
+        }
+        match remote {
+            None => Ok(LinkRef::Local {
+                vf_id: local.to_string(),
+            }),
+            Some(r) => {
+                let vfr_id = r.strip_prefix("vfr_").ok_or(LinkParseError::BadVfrPrefix)?;
+                if vfr_id.is_empty() {
+                    return Err(LinkParseError::EmptyVfrId);
+                }
+                Ok(LinkRef::Cross {
+                    vf_id: local.to_string(),
+                    vfr_id: r.to_string(),
+                })
+            }
+        }
+    }
+
+    /// Round-trip: format back to the canonical wire string.
+    pub fn format(&self) -> String {
+        match self {
+            LinkRef::Local { vf_id } => vf_id.clone(),
+            LinkRef::Cross { vf_id, vfr_id } => format!("{vf_id}@{vfr_id}"),
+        }
+    }
+
+    /// True if this reference points outside the current frontier.
+    pub fn is_cross_frontier(&self) -> bool {
+        matches!(self, LinkRef::Cross { .. })
+    }
+}
+
+#[cfg(test)]
+mod link_ref_tests {
+    use super::*;
+
+    #[test]
+    fn parses_local_vf_id() {
+        let r = LinkRef::parse("vf_abc123").unwrap();
+        assert_eq!(
+            r,
+            LinkRef::Local {
+                vf_id: "vf_abc123".into()
+            }
+        );
+        assert_eq!(r.format(), "vf_abc123");
+        assert!(!r.is_cross_frontier());
+    }
+
+    #[test]
+    fn parses_cross_frontier_target() {
+        let r = LinkRef::parse("vf_abc@vfr_def").unwrap();
+        assert_eq!(
+            r,
+            LinkRef::Cross {
+                vf_id: "vf_abc".into(),
+                vfr_id: "vfr_def".into(),
+            }
+        );
+        assert_eq!(r.format(), "vf_abc@vfr_def");
+        assert!(r.is_cross_frontier());
+    }
+
+    #[test]
+    fn rejects_empty() {
+        assert_eq!(LinkRef::parse(""), Err(LinkParseError::Empty));
+    }
+
+    #[test]
+    fn rejects_missing_vf_prefix() {
+        assert_eq!(LinkRef::parse("xx_abc"), Err(LinkParseError::BadVfPrefix));
+    }
+
+    #[test]
+    fn rejects_empty_vf_id() {
+        assert_eq!(LinkRef::parse("vf_"), Err(LinkParseError::EmptyVfId));
+    }
+
+    #[test]
+    fn rejects_missing_vfr_prefix_after_at() {
+        assert_eq!(
+            LinkRef::parse("vf_abc@xxx_def"),
+            Err(LinkParseError::BadVfrPrefix)
+        );
+    }
+
+    #[test]
+    fn rejects_empty_vfr_id() {
+        assert_eq!(
+            LinkRef::parse("vf_abc@vfr_"),
+            Err(LinkParseError::EmptyVfrId)
+        );
+    }
+
+    #[test]
+    fn rejects_double_at() {
+        assert_eq!(
+            LinkRef::parse("vf_abc@vfr_def@x"),
+            Err(LinkParseError::TooManyAtSigns)
+        );
+    }
+
+    #[test]
+    fn round_trips_real_ids() {
+        for s in [
+            "vf_d0a962d3251133dd",
+            "vf_d0a962d3251133dd@vfr_7344e96c0f2669d5",
+        ] {
+            assert_eq!(LinkRef::parse(s).unwrap().format(), s);
+        }
+    }
+}
+
 /// A lightweight annotation on a finding — like a comment on a line of code.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Annotation {

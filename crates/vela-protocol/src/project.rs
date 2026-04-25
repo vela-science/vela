@@ -12,12 +12,39 @@ use crate::sign::{ActorRecord, SignedEnvelope};
 use crate::sources::{ConditionRecord, EvidenceAtom, SourceRecord};
 
 /// A dependency on another project (like a Cargo dependency for science).
+///
+/// v0.8 extends this with three optional fields that turn it into a
+/// **cross-frontier dependency**: when `vfr_id` is set, the entry pins
+/// a remote frontier by its content-addressed id and a snapshot hash.
+/// `Link.target` values of the form `vf_<id>@vfr_<id>` resolve through
+/// here. Without `vfr_id`, the entry behaves as a pre-v0.8 compile-time
+/// dependency record.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ProjectDependency {
     pub name: String,
     pub source: String,
     pub version: Option<String>,
     pub pinned_hash: Option<String>,
+    /// v0.8: content-addressed id of the dependent frontier.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub vfr_id: Option<String>,
+    /// v0.8: where to fetch the dependent frontier file from
+    /// (typically an `https://…` URL pointing at raw JSON).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub locator: Option<String>,
+    /// v0.8: SHA-256 of the canonical snapshot the dependent commits
+    /// to. Strict pull verifies the fetched dependency's actual
+    /// `snapshot_hash` matches this value before satisfying any link.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pinned_snapshot_hash: Option<String>,
+}
+
+impl ProjectDependency {
+    /// True if this entry declares a cross-frontier dependency
+    /// (`vfr_id` is set). Pre-v0.8 entries return `false`.
+    pub fn is_cross_frontier(&self) -> bool {
+        self.vfr_id.is_some()
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -282,6 +309,69 @@ impl Project {
             self.frontier_id = Some(self.frontier_id());
         }
         self.frontier_id.clone().unwrap()
+    }
+
+    /// v0.8: iterate the cross-frontier dependencies (those with
+    /// `vfr_id` set). Pre-v0.8 compile-time deps without `vfr_id`
+    /// are filtered out.
+    pub fn cross_frontier_deps(&self) -> impl Iterator<Item = &ProjectDependency> {
+        self.project
+            .dependencies
+            .iter()
+            .filter(|d| d.is_cross_frontier())
+    }
+
+    /// v0.8: look up the dependency record for a specific `vfr_id`.
+    /// Returns `None` if no matching cross-frontier dep is declared.
+    pub fn dep_for_vfr(&self, vfr_id: &str) -> Option<&ProjectDependency> {
+        self.cross_frontier_deps()
+            .find(|d| d.vfr_id.as_deref() == Some(vfr_id))
+    }
+}
+
+#[cfg(test)]
+mod cross_frontier_dep_tests {
+    use super::*;
+
+    fn dep_local(name: &str) -> ProjectDependency {
+        ProjectDependency {
+            name: name.into(),
+            source: "local".into(),
+            version: None,
+            pinned_hash: None,
+            vfr_id: None,
+            locator: None,
+            pinned_snapshot_hash: None,
+        }
+    }
+
+    fn dep_cross(vfr: &str) -> ProjectDependency {
+        ProjectDependency {
+            name: "ext".into(),
+            source: "vela.hub".into(),
+            version: None,
+            pinned_hash: None,
+            vfr_id: Some(vfr.into()),
+            locator: Some(format!("https://example.test/{vfr}.json")),
+            pinned_snapshot_hash: Some("a".repeat(64)),
+        }
+    }
+
+    #[test]
+    fn is_cross_frontier_only_when_vfr_id_set() {
+        assert!(!dep_local("x").is_cross_frontier());
+        assert!(dep_cross("vfr_abc").is_cross_frontier());
+    }
+
+    #[test]
+    fn dep_serializes_byte_identical_when_v0_8_fields_absent() {
+        // Backward compat: a pre-v0.8 dep round-trips through serde
+        // without emitting any of the new optional v0.8 fields.
+        let d = dep_local("legacy");
+        let s = serde_json::to_string(&d).unwrap();
+        assert!(!s.contains("vfr_id"));
+        assert!(!s.contains("locator"));
+        assert!(!s.contains("pinned_snapshot_hash"));
     }
 }
 
