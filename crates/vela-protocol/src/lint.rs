@@ -730,6 +730,7 @@ mod tests {
                 pmid: None,
                 pmc: None,
                 openalex_id: None,
+                url: None,
                 title: "Test paper".into(),
                 authors: vec![],
                 year: Some(2024),

@@ -617,6 +617,7 @@ fn parse_curated_csv(path: &Path) -> Result<Vec<FindingBundle>, String> {
                 pmid: None,
                 pmc: None,
                 openalex_id: None,
+                url: None,
                 title: source_title.to_string(),
                 authors: Vec::new(),
                 year: Some(chrono::Utc::now().naive_utc().year()),

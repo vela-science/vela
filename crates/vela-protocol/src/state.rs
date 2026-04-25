@@ -43,6 +43,39 @@ pub struct FindingDraftOptions {
     pub confidence: f64,
     pub evidence_type: String,
     pub entities: Vec<(String, String)>,
+    /// v0.11: structured provenance — populates the existing `Provenance`
+    /// fields instead of jamming everything into `title`. Each is optional
+    /// so `vela finding add` callers don't have to know all of them up front;
+    /// the substrate has the fields, the CLI just exposes them.
+    #[allow(dead_code)] // populated by CLI; consumed by build_add_finding_proposal
+    pub doi: Option<String>,
+    #[allow(dead_code)]
+    pub pmid: Option<String>,
+    #[allow(dead_code)]
+    pub year: Option<i32>,
+    #[allow(dead_code)]
+    pub journal: Option<String>,
+    #[allow(dead_code)]
+    pub url: Option<String>,
+    /// Authors of the source artifact (the paper/preprint/etc).
+    /// Distinct from `author` above, which is the Vela actor doing the curation.
+    #[allow(dead_code)]
+    pub source_authors: Vec<String>,
+    /// v0.11: structured conditions — replaces the placeholder
+    /// "Manually added finding; requires evidence review…" that was on
+    /// every manually-added finding in v0.10. Each field independently optional.
+    #[allow(dead_code)]
+    pub conditions_text: Option<String>,
+    #[allow(dead_code)]
+    pub species: Vec<String>,
+    #[allow(dead_code)]
+    pub in_vivo: bool,
+    #[allow(dead_code)]
+    pub in_vitro: bool,
+    #[allow(dead_code)]
+    pub human_data: bool,
+    #[allow(dead_code)]
+    pub clinical_trial: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -496,14 +529,20 @@ fn build_add_finding_proposal(options: FindingDraftOptions) -> Result<StatePropo
         replication_count: None,
         evidence_spans: Vec::new(),
     };
+    // v0.11: conditions text falls back to the v0.10 placeholder only when
+    // the caller didn't supply --conditions-text. The placeholder is a
+    // signal to a reviewer that scope needs to be added; once a real
+    // conditions string is provided, the placeholder isn't useful.
     let conditions = Conditions {
-        text: "Manually added finding; requires evidence review before scientific use.".to_string(),
-        species_verified: Vec::new(),
+        text: options.conditions_text.clone().unwrap_or_else(|| {
+            "Manually added finding; requires evidence review before scientific use.".to_string()
+        }),
+        species_verified: options.species.clone(),
         species_unverified: Vec::new(),
-        in_vitro: false,
-        in_vivo: false,
-        human_data: false,
-        clinical_trial: false,
+        in_vitro: options.in_vitro,
+        in_vivo: options.in_vivo,
+        human_data: options.human_data,
+        clinical_trial: options.clinical_trial,
         concentration_range: None,
         duration: None,
         age_group: None,
@@ -517,19 +556,36 @@ fn build_add_finding_proposal(options: FindingDraftOptions) -> Result<StatePropo
         components: None,
         extraction_confidence: 1.0,
     };
-    let provenance = Provenance {
-        source_type: options.source_type.clone(),
-        doi: None,
-        pmid: None,
-        pmc: None,
-        openalex_id: None,
-        title: options.source.clone(),
-        authors: vec![Author {
+    // v0.11: structured provenance. Source authors (the paper's authors)
+    // are distinct from the Vela actor that curated the finding. When
+    // --authors is omitted, fall back to the curator-as-author shape used
+    // pre-v0.11 so existing scripts keep working.
+    let source_authors = if options.source_authors.is_empty() {
+        vec![Author {
             name: options.author.clone(),
             orcid: None,
-        }],
-        year: None,
-        journal: None,
+        }]
+    } else {
+        options
+            .source_authors
+            .iter()
+            .map(|name| Author {
+                name: name.clone(),
+                orcid: None,
+            })
+            .collect()
+    };
+    let provenance = Provenance {
+        source_type: options.source_type.clone(),
+        doi: options.doi.clone(),
+        pmid: options.pmid.clone(),
+        pmc: None,
+        openalex_id: None,
+        url: options.url.clone(),
+        title: options.source.clone(),
+        authors: source_authors,
+        year: options.year,
+        journal: options.journal.clone(),
         license: None,
         publisher: None,
         funders: Vec::new(),
@@ -604,5 +660,112 @@ fn validate_score(score: f64) -> Result<(), String> {
         Ok(())
     } else {
         Err("--confidence must be between 0.0 and 1.0".to_string())
+    }
+}
+
+#[cfg(test)]
+mod v0_11_finding_tests {
+    use super::*;
+    use crate::bundle;
+
+    fn base_options() -> FindingDraftOptions {
+        FindingDraftOptions {
+            text: "Test claim".to_string(),
+            assertion_type: "mechanism".to_string(),
+            source: "Test 2024".to_string(),
+            source_type: "published_paper".to_string(),
+            author: "reviewer:test".to_string(),
+            confidence: 0.5,
+            evidence_type: "experimental".to_string(),
+            entities: Vec::new(),
+            doi: None,
+            pmid: None,
+            year: None,
+            journal: None,
+            url: None,
+            source_authors: Vec::new(),
+            conditions_text: None,
+            species: Vec::new(),
+            in_vivo: false,
+            in_vitro: false,
+            human_data: false,
+            clinical_trial: false,
+        }
+    }
+
+    #[test]
+    fn provenance_flags_populate_structured_fields() {
+        let mut opts = base_options();
+        opts.doi = Some("10.1056/NEJMoa2212948".to_string());
+        opts.pmid = Some("36449413".to_string());
+        opts.year = Some(2023);
+        opts.journal = Some("NEJM".to_string());
+        opts.url = Some("https://nejm.org/...".to_string());
+        opts.source_authors = vec!["van Dyck CH".to_string(), "Swanson CJ".to_string()];
+        let proposal = build_add_finding_proposal(opts).unwrap();
+        let finding: bundle::FindingBundle =
+            serde_json::from_value(proposal.payload["finding"].clone()).unwrap();
+        assert_eq!(
+            finding.provenance.doi.as_deref(),
+            Some("10.1056/NEJMoa2212948")
+        );
+        assert_eq!(finding.provenance.pmid.as_deref(), Some("36449413"));
+        assert_eq!(finding.provenance.year, Some(2023));
+        assert_eq!(finding.provenance.journal.as_deref(), Some("NEJM"));
+        assert_eq!(
+            finding.provenance.url.as_deref(),
+            Some("https://nejm.org/...")
+        );
+        assert_eq!(
+            finding
+                .provenance
+                .authors
+                .iter()
+                .map(|a| a.name.as_str())
+                .collect::<Vec<_>>(),
+            vec!["van Dyck CH", "Swanson CJ"],
+        );
+    }
+
+    #[test]
+    fn conditions_flags_populate_structured_fields() {
+        let mut opts = base_options();
+        opts.conditions_text = Some("Phase 3 RCT, 18 mo".to_string());
+        opts.species = vec!["Homo sapiens".to_string()];
+        opts.in_vivo = true;
+        opts.human_data = true;
+        opts.clinical_trial = true;
+        let proposal = build_add_finding_proposal(opts).unwrap();
+        let finding: bundle::FindingBundle =
+            serde_json::from_value(proposal.payload["finding"].clone()).unwrap();
+        assert_eq!(finding.conditions.text, "Phase 3 RCT, 18 mo");
+        assert_eq!(
+            finding.conditions.species_verified,
+            vec!["Homo sapiens".to_string()]
+        );
+        assert!(finding.conditions.in_vivo);
+        assert!(finding.conditions.human_data);
+        assert!(finding.conditions.clinical_trial);
+    }
+
+    #[test]
+    fn omitted_flags_fall_back_to_pre_v011_shape() {
+        let proposal = build_add_finding_proposal(base_options()).unwrap();
+        let finding: bundle::FindingBundle =
+            serde_json::from_value(proposal.payload["finding"].clone()).unwrap();
+        // Pre-v0.11 placeholder remains when --conditions-text is omitted.
+        assert!(
+            finding
+                .conditions
+                .text
+                .starts_with("Manually added finding")
+        );
+        // No --source-authors → curator fills the authors slot, as in v0.10.
+        assert_eq!(finding.provenance.authors.len(), 1);
+        assert_eq!(finding.provenance.authors[0].name, "reviewer:test");
+        // None of the new optional provenance fields populated.
+        assert!(finding.provenance.doi.is_none());
+        assert!(finding.provenance.year.is_none());
+        assert!(finding.provenance.url.is_none());
     }
 }

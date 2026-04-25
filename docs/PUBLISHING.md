@@ -39,16 +39,25 @@ proposal → event → reducer flow:
 
 ```bash
 vela finding add ./frontier.json \
-  --assertion "Liraglutide reduces amyloid plaque burden in APP/PS1 mice" \
+  --assertion "Lecanemab showed modest cognitive benefit in Clarity AD" \
   --type therapeutic \
   --evidence-type experimental \
-  --source "Hansen et al., 2015, J Neuroinflammation" \
-  --source-type published_paper \
+  --source "van Dyck et al., 2023, NEJM 388:9-21 (Clarity AD)" \
+  --source-type clinical_trial \
   --author "reviewer:you" \
-  --confidence 0.55 \
-  --entities "liraglutide:compound,amyloid-beta:protein,APP/PS1:organism" \
+  --confidence 0.80 \
+  --doi "10.1056/NEJMoa2212948" \
+  --year 2023 \
+  --journal "New England Journal of Medicine" \
+  --source-authors "van Dyck CH;Swanson CJ;Aisen P" \
+  --conditions-text "Patients with mild cognitive impairment or mild AD dementia, ages 50-90, with confirmed amyloid PET positivity. Phase 3 RCT, 18 months, biweekly IV infusion." \
+  --species "Homo sapiens" \
+  --human-data --clinical-trial \
+  --entities "Lecanemab:compound,amyloid-beta:protein,Alzheimers disease:disease" \
   --apply
 ```
+
+The v0.11 flags above (`--doi`, `--pmid`, `--year`, `--journal`, `--url`, `--source-authors`, `--conditions-text`, `--species`, `--in-vivo`, `--in-vitro`, `--human-data`, `--clinical-trial`) populate the structured `Provenance` and `Conditions` fields of the finding bundle. They're all optional — pre-v0.11 invocations still work — but every one you supply makes the finding queryable and verifiable in ways prose alone is not.
 
 Valid enum values are surfaced in `vela finding add --help`. Invalid values
 are rejected at add-time, not deferred to strict validation.
@@ -93,6 +102,21 @@ vela link add ./frontier.json \
   --type extends \
   --inferred-by reviewer
 ```
+
+When the dep republishes (BBB does so weekly via CI), your local pin
+goes stale. Refresh it:
+
+```bash
+# v0.11: re-pin every cross-frontier dep to the hub's current snapshot.
+# Use --dry-run first to see what would change.
+vela frontier refresh-deps ./frontier.json --dry-run
+vela frontier refresh-deps ./frontier.json
+```
+
+The command reports per-dep `unchanged`, `refreshed` (with old → new
+snapshot), `missing` (dep no longer on the hub), or `unreachable`
+(network failure). After a successful refresh, republish the frontier
+to the hub so your manifest reflects the new pin.
 
 ## 4. Sign and register your publisher identity
 

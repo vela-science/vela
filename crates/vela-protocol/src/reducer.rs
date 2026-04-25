@@ -380,6 +380,7 @@ mod tests {
                 pmid: None,
                 pmc: None,
                 openalex_id: None,
+                url: None,
                 title: format!("Source for {id}"),
                 authors: Vec::new(),
                 year: Some(2026),

@@ -537,6 +537,7 @@ mod tests {
                 pmid: None,
                 pmc: None,
                 openalex_id: None,
+                url: None,
                 title: "Test Paper".into(),
                 authors: vec![Author {
                     name: "Smith J".into(),

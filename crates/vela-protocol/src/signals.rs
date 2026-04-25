@@ -1149,6 +1149,7 @@ mod tests {
             pmid: None,
             pmc: None,
             openalex_id: None,
+            url: None,
             title: String::new(),
             authors: vec![],
             year: Some(2020),

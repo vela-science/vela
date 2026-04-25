@@ -433,6 +433,7 @@ pub async fn extract_paper(
             pmid: None,
             pmc: None,
             openalex_id: paper.openalex_id.clone(),
+            url: None,
             title: paper.title.clone(),
             authors: paper
                 .authors
@@ -542,6 +543,7 @@ pub fn extract_paper_offline(paper: &Paper) -> Vec<FindingBundle> {
             pmid: None,
             pmc: None,
             openalex_id: paper.openalex_id.clone(),
+            url: None,
             title: paper.title.clone(),
             authors: paper
                 .authors

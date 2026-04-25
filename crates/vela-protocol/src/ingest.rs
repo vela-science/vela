@@ -111,6 +111,7 @@ pub fn run(frontier_path: &Path, args: IngestArgs) {
         pmid: None,
         pmc: None,
         openalex_id: None,
+        url: None,
         title: args.source.clone(),
         authors: Vec::new(),
         year: Some(chrono::Utc::now().naive_utc().year()),
@@ -184,7 +185,7 @@ pub fn run(frontier_path: &Path, args: IngestArgs) {
 
     // Report.
     println!();
-    println!("  {}", "VELA · INGEST · V0.10.0".dimmed());
+    println!("  {}", "VELA · INGEST · V0.11.0".dimmed());
     println!("  {}", style::tick_row(60));
     println!("  ingested into: {}", frontier.project.name);
     println!("  existing findings: {existing_count}");
@@ -682,6 +683,7 @@ fn ingest_csv(
             pmid: None,
             pmc: None,
             openalex_id: None,
+            url: None,
             title: path.display().to_string(),
             authors: vec![],
             year: Some(chrono::Utc::now().naive_utc().year()),

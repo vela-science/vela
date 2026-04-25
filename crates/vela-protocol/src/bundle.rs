@@ -463,6 +463,11 @@ pub struct Provenance {
     pub pmid: Option<String>,
     pub pmc: Option<String>,
     pub openalex_id: Option<String>,
+    /// v0.11: generic source URL when none of the structured identifiers
+    /// fit (preprint server URL, dataset landing page, talk recording, etc.).
+    /// Skipped when None so pre-v0.11 frontiers serialise byte-identically.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub url: Option<String>,
     #[serde(default)]
     pub title: String,
     #[serde(default)]
@@ -1082,6 +1087,7 @@ mod tests {
             pmid: None,
             pmc: None,
             openalex_id: None,
+            url: None,
             title: "Test Paper".into(),
             authors: vec![Author {
                 name: "Smith J".into(),
@@ -1499,6 +1505,7 @@ mod tests {
             pmid: None,
             pmc: None,
             openalex_id: None,
+            url: None,
             title: "Mitochondria in AD".into(),
             authors: vec![],
             year: Some(2023),
@@ -1537,6 +1544,7 @@ mod tests {
             pmid: Some("37654321".into()),
             pmc: None,
             openalex_id: None,
+            url: None,
             title: "Different title".into(),
             authors: vec![Author {
                 name: "Jones A".into(),

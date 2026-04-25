@@ -20,7 +20,7 @@ use sha2::{Digest, Sha256};
 use tokio::sync::Semaphore;
 
 #[derive(Parser)]
-#[command(name = "vela", version = "0.10.0")]
+#[command(name = "vela", version = "0.11.0")]
 #[command(about = "Portable frontier state for science")]
 struct Cli {
     #[command(subcommand)]
@@ -642,6 +642,23 @@ enum FrontierAction {
         #[arg(long)]
         json: bool,
     },
+    /// v0.11: re-pin every declared cross-frontier dependency to the
+    /// hub's current snapshot for that `vfr_id`. Useful when a dep
+    /// (e.g. BBB) republishes weekly and your local pin goes stale.
+    /// Reports per-dep status: unchanged, refreshed (with old → new
+    /// snapshot), missing (vfr_id not on hub), or unreachable. Does
+    /// nothing destructive if --dry-run is passed.
+    RefreshDeps {
+        frontier: PathBuf,
+        /// Hub URL to query. Defaults to https://vela-hub.fly.dev.
+        #[arg(long, default_value = "https://vela-hub.fly.dev")]
+        from: String,
+        /// Show what would change without writing.
+        #[arg(long)]
+        dry_run: bool,
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 #[derive(Subcommand)]
@@ -806,9 +823,45 @@ enum FindingCommands {
         /// Evidence type. One of: experimental, observational, computational, theoretical, meta_analysis, systematic_review, case_report
         #[arg(long, default_value = "theoretical")]
         evidence_type: String,
-        /// Entities as comma-separated name:type pairs. Entity types: gene, protein, compound, disease, cell_type, organism, pathway, assay, anatomical_structure, other
+        /// Entities as comma-separated name:type pairs. Entity types: gene, protein, compound, disease, cell_type, organism, pathway, assay, anatomical_structure, particle, instrument, dataset, quantity, other
         #[arg(long, default_value = "")]
         entities: String,
+        /// v0.11: DOI of the source artifact (e.g. "10.1038/s41586-024-...")
+        #[arg(long)]
+        doi: Option<String>,
+        /// v0.11: PubMed ID
+        #[arg(long)]
+        pmid: Option<String>,
+        /// v0.11: Publication year
+        #[arg(long)]
+        year: Option<i32>,
+        /// v0.11: Journal name
+        #[arg(long)]
+        journal: Option<String>,
+        /// v0.11: Generic source URL when none of the structured identifiers fit
+        #[arg(long)]
+        url: Option<String>,
+        /// v0.11: Source-paper authors as semicolon-separated list (distinct from --author which is the curating Vela actor)
+        #[arg(long)]
+        source_authors: Option<String>,
+        /// v0.11: Conditions/scope text. Replaces the placeholder otherwise written. Should describe scope boundaries (species, dosing, age range, model, etc.)
+        #[arg(long)]
+        conditions_text: Option<String>,
+        /// v0.11: Verified species as semicolon-separated list (e.g. "Mus musculus;Homo sapiens")
+        #[arg(long)]
+        species: Option<String>,
+        /// v0.11: Mark the finding as in vivo
+        #[arg(long)]
+        in_vivo: bool,
+        /// v0.11: Mark the finding as in vitro
+        #[arg(long)]
+        in_vitro: bool,
+        /// v0.11: Mark the finding as having human data
+        #[arg(long)]
+        human_data: bool,
+        /// v0.11: Mark the finding as a clinical trial
+        #[arg(long)]
+        clinical_trial: bool,
         /// Output stable JSON
         #[arg(long)]
         json: bool,
@@ -1116,7 +1169,7 @@ pub async fn run_command() {
         Commands::Conformance { dir } => {
             let _ = conformance::run(&dir);
         }
-        Commands::Version => println!("vela 0.10.0"),
+        Commands::Version => println!("vela 0.11.0"),
         Commands::Sign { action } => cmd_sign(action),
         Commands::Actor { action } => cmd_actor(action),
         Commands::Frontier { action } => cmd_frontier(action),
@@ -1143,6 +1196,18 @@ pub async fn run_command() {
                 confidence,
                 evidence_type,
                 entities,
+                doi,
+                pmid,
+                year,
+                journal,
+                url,
+                source_authors,
+                conditions_text,
+                species,
+                in_vivo,
+                in_vitro,
+                human_data,
+                clinical_trial,
                 json,
                 apply,
             } => {
@@ -1168,6 +1233,22 @@ pub async fn run_command() {
                         ));
                     }
                 }
+                let parsed_source_authors = source_authors
+                    .map(|s| {
+                        s.split(';')
+                            .map(|a| a.trim().to_string())
+                            .filter(|a| !a.is_empty())
+                            .collect()
+                    })
+                    .unwrap_or_default();
+                let parsed_species = species
+                    .map(|s| {
+                        s.split(';')
+                            .map(|a| a.trim().to_string())
+                            .filter(|a| !a.is_empty())
+                            .collect()
+                    })
+                    .unwrap_or_default();
                 let report = state::add_finding(
                     &frontier,
                     state::FindingDraftOptions {
@@ -1179,6 +1260,18 @@ pub async fn run_command() {
                         confidence,
                         evidence_type,
                         entities: parsed_entities,
+                        doi,
+                        pmid,
+                        year,
+                        journal,
+                        url,
+                        source_authors: parsed_source_authors,
+                        conditions_text,
+                        species: parsed_species,
+                        in_vivo,
+                        in_vitro,
+                        human_data,
+                        clinical_trial,
                     },
                     apply,
                 )
@@ -1347,7 +1440,7 @@ pub async fn cmd_compile(
         match corpus::compile_local_corpus(local_source, output, backend).await {
             Ok(report) => {
                 println!();
-                println!("  {}", "VELA · COMPILE · V0.10.0".dimmed());
+                println!("  {}", "VELA · COMPILE · V0.11.0".dimmed());
                 println!("  {}", style::tick_row(60));
                 println!("source: {}", local_source.display());
                 println!("mode: local corpus");
@@ -1382,7 +1475,7 @@ pub async fn cmd_compile(
     let client = Client::new();
 
     println!();
-    println!("  {}", "VELA · COMPILE · V0.10.0".dimmed());
+    println!("  {}", "VELA · COMPILE · V0.11.0".dimmed());
     println!("  {}", style::tick_row(60));
     println!("topic: {topic}");
     println!("papers: {max_papers}");
@@ -2440,7 +2533,7 @@ fn cmd_stats(path: &Path) {
     let frontier = repo::load_from_path(path).expect("Failed to load frontier");
     let s = &frontier.stats;
     println!();
-    println!("  {}", "FRONTIER · V0.10.0".dimmed());
+    println!("  {}", "FRONTIER · V0.11.0".dimmed());
     println!("  {}", frontier.project.name.bold());
     println!("  {}", style::tick_row(60));
     println!("  id:             {}", frontier.frontier_id());
@@ -3495,6 +3588,171 @@ fn cmd_frontier(action: FrontierAction) {
                 );
             }
         }
+        FrontierAction::RefreshDeps {
+            frontier,
+            from,
+            dry_run,
+            json,
+        } => {
+            let mut p = repo::load_from_path(&frontier).unwrap_or_else(|e| fail_return(&e));
+            let cross_deps: Vec<String> = p
+                .project
+                .dependencies
+                .iter()
+                .filter_map(|d| d.vfr_id.clone())
+                .collect();
+            if cross_deps.is_empty() {
+                if json {
+                    println!(
+                        "{}",
+                        serde_json::to_string_pretty(&json!({
+                            "ok": true,
+                            "command": "frontier.refresh-deps",
+                            "frontier": frontier.display().to_string(),
+                            "from": from,
+                            "dry_run": dry_run,
+                            "deps": [],
+                            "summary": { "total": 0, "refreshed": 0, "unchanged": 0, "missing": 0, "unreachable": 0 },
+                        })).expect("serialize")
+                    );
+                } else {
+                    println!(
+                        "{} no cross-frontier deps declared in {}",
+                        style::ok("frontier"),
+                        frontier.display()
+                    );
+                }
+                return;
+            }
+            let client = reqwest::blocking::Client::builder()
+                .timeout(std::time::Duration::from_secs(20))
+                .build()
+                .unwrap_or_else(|e| fail_return(&format!("http client init failed: {e}")));
+            let base = from.trim_end_matches('/');
+            #[derive(serde::Deserialize)]
+            struct HubEntry {
+                latest_snapshot_hash: String,
+            }
+            let mut per_dep: Vec<serde_json::Value> = Vec::new();
+            let (mut refreshed, mut unchanged, mut missing, mut unreachable) =
+                (0u32, 0u32, 0u32, 0u32);
+            for vfr in &cross_deps {
+                let url = format!("{base}/entries/{vfr}");
+                let resp = client.get(&url).send();
+                let outcome = match resp {
+                    Ok(r) if r.status().as_u16() == 404 => {
+                        missing += 1;
+                        json!({ "vfr_id": vfr, "status": "missing", "url": url })
+                    }
+                    Ok(r) if !r.status().is_success() => {
+                        unreachable += 1;
+                        json!({ "vfr_id": vfr, "status": "unreachable", "http_status": r.status().as_u16() })
+                    }
+                    Err(e) => {
+                        unreachable += 1;
+                        json!({ "vfr_id": vfr, "status": "unreachable", "error": e.to_string() })
+                    }
+                    Ok(r) => match r.json::<HubEntry>() {
+                        Err(e) => {
+                            unreachable += 1;
+                            json!({ "vfr_id": vfr, "status": "unreachable", "error": format!("invalid hub response: {e}") })
+                        }
+                        Ok(entry) => {
+                            // Locate the dep in our project to compare + (maybe) mutate.
+                            match p
+                                .project
+                                .dependencies
+                                .iter()
+                                .position(|d| d.vfr_id.as_deref() == Some(vfr.as_str()))
+                            {
+                                None => {
+                                    unreachable += 1;
+                                    json!({ "vfr_id": vfr, "status": "unreachable", "error": "dep disappeared mid-scan" })
+                                }
+                                Some(idx) => {
+                                    let local_pin =
+                                        p.project.dependencies[idx].pinned_snapshot_hash.clone();
+                                    let new_pin = entry.latest_snapshot_hash;
+                                    if local_pin.as_deref() == Some(new_pin.as_str()) {
+                                        unchanged += 1;
+                                        json!({ "vfr_id": vfr, "status": "unchanged", "snapshot": new_pin })
+                                    } else {
+                                        if !dry_run {
+                                            p.project.dependencies[idx].pinned_snapshot_hash =
+                                                Some(new_pin.clone());
+                                        }
+                                        refreshed += 1;
+                                        json!({
+                                            "vfr_id": vfr,
+                                            "status": "refreshed",
+                                            "old_snapshot": local_pin,
+                                            "new_snapshot": new_pin,
+                                        })
+                                    }
+                                }
+                            }
+                        }
+                    },
+                };
+                per_dep.push(outcome);
+            }
+            if !dry_run && refreshed > 0 {
+                repo::save_to_path(&frontier, &p).unwrap_or_else(|e| fail_return(&e));
+            }
+            let payload = json!({
+                "ok": true,
+                "command": "frontier.refresh-deps",
+                "frontier": frontier.display().to_string(),
+                "from": from,
+                "dry_run": dry_run,
+                "deps": per_dep,
+                "summary": {
+                    "total": cross_deps.len(),
+                    "refreshed": refreshed,
+                    "unchanged": unchanged,
+                    "missing": missing,
+                    "unreachable": unreachable,
+                },
+            });
+            if json {
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&payload)
+                        .expect("failed to serialize frontier.refresh-deps")
+                );
+            } else {
+                let mode = if dry_run { " (dry-run)" } else { "" };
+                println!(
+                    "{} refresh-deps{mode} · {} total · {refreshed} refreshed · {unchanged} unchanged · {missing} missing · {unreachable} unreachable",
+                    style::ok("frontier"),
+                    cross_deps.len()
+                );
+                for d in &per_dep {
+                    let vfr = d["vfr_id"].as_str().unwrap_or("?");
+                    let status = d["status"].as_str().unwrap_or("?");
+                    match status {
+                        "refreshed" => println!(
+                            "  {vfr}  refreshed  {} → {}",
+                            d["old_snapshot"]
+                                .as_str()
+                                .unwrap_or("(none)")
+                                .chars()
+                                .take(16)
+                                .collect::<String>(),
+                            d["new_snapshot"]
+                                .as_str()
+                                .unwrap_or("?")
+                                .chars()
+                                .take(16)
+                                .collect::<String>(),
+                        ),
+                        "unchanged" => println!("  {vfr}  unchanged"),
+                        "missing" => println!("  {vfr}  missing on hub"),
+                        _ => println!("  {vfr}  unreachable"),
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -4044,7 +4302,7 @@ async fn cmd_bridge(inputs: &[PathBuf], check_novelty: bool, top_n: usize) {
         fail("need at least 2 frontier files for bridge detection.");
     }
     println!();
-    println!("  {}", "VELA · BRIDGE · V0.10.0".dimmed());
+    println!("  {}", "VELA · BRIDGE · V0.11.0".dimmed());
     println!("  {}", style::tick_row(60));
     println!("  loading {} frontiers...", inputs.len());
     let mut named_projects = Vec::<(String, project::Project)>::new();
@@ -4339,7 +4597,7 @@ async fn cmd_jats(source: &str, output: &Path, backend: Option<&str>) {
     let config = llm::LlmConfig::from_env(backend).unwrap_or_else(|e| fail_return(&e));
     let client = Client::new();
     println!();
-    println!("  {}", "VELA · JATS · V0.10.0".dimmed());
+    println!("  {}", "VELA · JATS · V0.11.0".dimmed());
     println!("  {}", style::tick_row(60));
     println!("source: {source}");
     println!("backend: {}", config.backend.label());
@@ -4919,7 +5177,7 @@ pub fn is_science_subcommand(name: &str) -> bool {
 
 fn print_strict_help() {
     println!(
-        r#"Vela 0.10.0
+        r#"Vela 0.11.0
 Portable frontier state for science.
 
 Usage:
@@ -4991,7 +5249,7 @@ pub fn run_from_args() {
             return;
         }
         Some("-V" | "--version" | "version") => {
-            println!("vela 0.10.0");
+            println!("vela 0.11.0");
             return;
         }
         Some(cmd) if !is_science_subcommand(cmd) => {

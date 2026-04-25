@@ -696,6 +696,7 @@ mod tests {
                 pmid: None,
                 pmc: None,
                 openalex_id: None,
+                url: None,
                 title: "Test".into(),
                 authors: vec![],
                 year: Some(2024),

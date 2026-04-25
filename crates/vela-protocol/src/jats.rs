@@ -486,6 +486,7 @@ pub fn jats_to_provenance(paper: &JatsPaper) -> Provenance {
         pmid: paper.pmid.clone(),
         pmc: paper.pmc.clone(),
         openalex_id: None,
+        url: None,
         title: paper.title.clone(),
         authors: paper
             .authors

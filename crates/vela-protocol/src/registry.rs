@@ -617,6 +617,7 @@ mod tests {
             pmid: None,
             pmc: None,
             openalex_id: None,
+            url: None,
             title: format!("Test {seed}"),
             authors: vec![],
             year: Some(2024),

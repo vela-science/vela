@@ -1400,6 +1400,7 @@ mod tests {
                 pmid: None,
                 pmc: None,
                 openalex_id: None,
+                url: None,
                 title: "NLRP3 inflammasome paper".into(),
                 authors: vec![Author {
                     name: "Smith J".into(),

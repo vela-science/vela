@@ -1313,6 +1313,7 @@ mod tests {
                 pmid: None,
                 pmc: None,
                 openalex_id: None,
+                url: None,
                 title: "Test".to_string(),
                 authors: Vec::new(),
                 year: Some(2024),

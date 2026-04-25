@@ -1,5 +1,60 @@
 # Changelog
 
+## 0.11.0 - 2026-04-25
+
+The richer-finding-add release. v0.10 fixed the CLI's biology-leaning enums.
+Inspecting Will's first non-bot frontier on the public hub surfaced the next
+shallow-data problem: every finding's provenance was just a citation string
+(no DOI, PMID, year, journal as structured fields), every finding's
+conditions were the same placeholder ("Manually added finding; requires
+evidence review…"), and there was no way to refresh a stale cross-frontier
+dependency pin when the upstream frontier republished. The substrate had the
+fields; the CLI just didn't ask for them. v0.11 fills the gaps.
+
+### CLI surface
+
+- **`vela finding add` provenance flags** — `--doi`, `--pmid`, `--year`,
+  `--journal`, `--url`, `--source-authors`. Each populates the corresponding
+  structured `Provenance` field (`url` is new in v0.11; serde-skipped when
+  None so pre-v0.11 frontiers serialise byte-identically). `--source-authors`
+  takes a semicolon-separated list and writes one `Author` per name (distinct
+  from `--author`, which remains the curating Vela actor). When omitted, the
+  curator-as-author fallback from v0.10 still applies.
+- **`vela finding add` conditions flags** — `--conditions-text`, `--species`,
+  `--in-vivo`, `--in-vitro`, `--human-data`, `--clinical-trial`. Replaces the
+  hardcoded "Manually added finding; requires evidence review…" placeholder
+  that was on every manual finding from v0.5–v0.10. `--species` takes a
+  semicolon-separated list and populates `species_verified`.
+- **`vela frontier refresh-deps`** — fetches the current hub snapshot for
+  every declared cross-frontier dep and re-pins. Reports per-dep
+  `unchanged`, `refreshed` (with old → new), `missing` (vfr_id not on hub),
+  or `unreachable`. `--dry-run` shows the diff without writing. `--from`
+  defaults to https://vela-hub.fly.dev. The forcing function: BBB
+  republishes weekly via CI; without refresh, your local pin goes stale
+  silently.
+
+### Substrate
+
+- `Provenance.url` (new optional field) — generic source URL when none of
+  the structured identifiers fit (preprint server URL, dataset landing
+  page, talk recording). Serde-skipped when None; pre-v0.11 frontiers
+  validate byte-identically.
+
+### Tests
+
+- Three new unit tests in `state::v0_11_finding_tests` covering provenance
+  flag round-trip, conditions flag round-trip, and the back-compat
+  fallback when no v0.11 flags are supplied. 343 tests passing.
+
+### Versioning
+
+- Workspace `0.10.0 → 0.11.0`.
+- `vela --version → 0.11.0`; banner stamps bump in lockstep.
+- `VELA_COMPILER_VERSION → vela/0.11.0` for new frontier scaffolds; pre-v0.11
+  publisher stamps continue to validate (compiler-stamp softening from v0.9).
+- Schema version stays at `v0.10.0` — `Provenance.url` is additive and
+  serde-skipped, so no schema URL bump.
+
 ## 0.10.0 - 2026-04-25
 
 The first non-bio frontier. Same dogfood mechanic as v0.9: I played a second
