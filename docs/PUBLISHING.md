@@ -55,10 +55,12 @@ are rejected at add-time, not deferred to strict validation.
 
 | Flag | Allowed values |
 |---|---|
-| `--type` | `mechanism`, `therapeutic`, `diagnostic`, `epidemiological`, `observational`, `review`, `methodological`, `computational`, `theoretical`, `negative` |
+| `--type` | `mechanism`, `therapeutic`, `diagnostic`, `epidemiological`, `observational`, `review`, `methodological`, `computational`, `theoretical`, `negative`, `measurement`, `exclusion` |
 | `--evidence-type` | `experimental`, `observational`, `computational`, `theoretical`, `meta_analysis`, `systematic_review`, `case_report` |
-| `--source-type` | `published_paper`, `preprint`, `clinical_trial`, `lab_notebook`, `model_output`, `expert_assertion`, `database_record` |
-| Entity types | `gene`, `protein`, `compound`, `disease`, `cell_type`, `organism`, `pathway`, `assay`, `anatomical_structure`, `other` |
+| `--source-type` | `published_paper`, `preprint`, `clinical_trial`, `lab_notebook`, `model_output`, `expert_assertion`, `database_record`, `data_release` |
+| Entity types | `gene`, `protein`, `compound`, `disease`, `cell_type`, `organism`, `pathway`, `assay`, `anatomical_structure`, `particle`, `instrument`, `dataset`, `quantity`, `other` |
+
+v0.10 added the domain-neutral entries — `measurement`/`exclusion` for assertion type, `data_release` for source type, and `particle`/`instrument`/`dataset`/`quantity` for entity type. They surfaced from publishing the first non-bio frontier on the public hub (a particle-astrophysics WIMP-direct-detection frontier). Pre-v0.10 frontiers continue to validate; the additions widen expressiveness without churning content addressing.
 
 Validate any time:
 

@@ -1,5 +1,80 @@
 # Changelog
 
+## 0.10.0 - 2026-04-25
+
+The first non-bio frontier. Same dogfood mechanic as v0.9: I played a second
+external publisher — a particle-astrophysics postdoc with a frontier on
+direct-detection constraints on spin-independent WIMP-nucleon cross-section.
+The path completed end-to-end (`vfr_dede3b473cac72cf` is on `vela-hub.fly.dev`),
+but the schema's biology-leaning enums leaked badly. v0.10 closes that gap
+additively — every pre-v0.10 frontier replays byte-identically.
+
+### Substrate
+
+- **Entity type extensions** (`crates/vela-protocol/src/bundle.rs`).
+  `VALID_ENTITY_TYPES` adds `particle` (WIMPs, photons), `instrument`
+  (XENONnT, JWST — capital objects that run measurements), `dataset`
+  (instrument data releases, distinct from the paper that reports them),
+  and `quantity` (named numerical values with units, e.g. `28 GeV/c^2`).
+  Pre-v0.10 entries unchanged; `other` remains the escape valve.
+- **Assertion type extensions.** `VALID_ASSERTION_TYPES` adds `measurement`
+  (numerical-quantity reports) and `exclusion` (upper/lower bounds at a
+  confidence level — "WIMP mass < X at 90% CL"). Pre-v0.10 entries unchanged.
+- **Source type extension.** `VALID_PROVENANCE_SOURCE_TYPES` adds
+  `data_release` for instrument runs, observation campaigns, and dataset
+  versions that are themselves the substantive object (XENONnT SR0, Planck
+  data releases, JWST observation runs).
+- **Schema URL bumps `v0.8.0 → v0.10.0`** for new frontiers. The validator
+  now accepts either URL (`KNOWN_SCHEMA_URLS = ["v0.8.0", "v0.10.0"]`)
+  with the same publisher-claimed doctrine the v0.9 compiler-stamp softening
+  established. Pre-v0.10 frontiers (BBB, BBB-extension, the v0.8
+  cross-frontier conformance vector, all entries already on the public hub)
+  validate byte-identically under v0.10 — no churn to content addressing.
+
+### Conformance
+
+- **`tests/conformance/non-bio-domain/`**: a new physics frontier that
+  exercises every v0.10 enum extension on two findings (XENONnT exposure
+  measurement + WIMP cross-section exclusion limit) plus a `depends` link
+  between them. `expected.json` pins re-derived snapshot/event-log hashes;
+  `python3 scripts/cross_impl_conformance.py tests/conformance/non-bio-domain/frontier.json`
+  PASSes.
+
+### Documentation
+
+- **`docs/PUBLISHING.md`** enum tables updated with the v0.10 additions
+  and a paragraph explaining their domain-neutral provenance.
+- **`docs/PROTOCOL.md`** §5.1 (new) documents the v0.10 enum extensions
+  and the back-compat schema URL pattern; spec-version stamp bumps to
+  v0.10.0.
+
+### Versioning
+
+- Workspace version `0.9.0 → 0.10.0`.
+- `vela --version → 0.10.0`; banner stamps bump in lockstep.
+- `VELA_SCHEMA_URL` and `VELA_SCHEMA_VERSION` bump to `v0.10.0`/`0.10.0`;
+  the validator accepts both `0.8.0` and `0.10.0` for back-compat.
+- `VELA_COMPILER_VERSION` bumps to `vela/0.10.0` for new frontier scaffolds;
+  pre-v0.10 publisher stamps continue to validate (v0.9 compiler-stamp
+  softening was the precedent).
+
+### What is deferred to v0.11+
+
+- **Per-domain extension packs.** v0.10 widens the canonical enums to handle
+  one second domain (physics). When ≥ 3 non-bio frontiers exist with
+  divergent vocabulary needs, a `frontier.domain` declaration + per-domain
+  enum extension may become forced. Until then, the additive default is
+  enough.
+- **Structured numerical-claim representation.** A `measurement` finding's
+  substance is `value · unit · confidence_level · target_quantity`; today
+  it lives in prose under `assertion.text`. A first-class `claim_numeric`
+  block on the finding bundle would make claims comparable across implementations
+  and queryable. Holding until ≥ 2 publishers reach for it.
+- **Conditions struct extensions** (instrument live-time, exposure,
+  fiducial mass, blinding regime). Pre-v0.10 conditions are bio-heavy; the
+  current `text` field still holds for non-bio findings, but a domain-aware
+  conditions schema is open.
+
 ## 0.9.0 - 2026-04-25
 
 The first-publisher cleanup. v0.8 proved cross-frontier composition end-to-end

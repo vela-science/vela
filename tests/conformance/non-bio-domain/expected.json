@@ -1,0 +1,35 @@
+{
+  "comment": "Vela v0.10 non-bio domain conformance vector. Exercises every v0.10 enum extension on a single physics frontier (XENONnT WIMP exclusion). A second implementation that follows canonical-JSON + the v0.10 schema URL must reproduce these IDs and hashes byte-for-byte. Tests: assertion types {measurement, exclusion}, entity types {particle, instrument, dataset, quantity}, source type {data_release}.",
+  "schema_version": "0.10.0",
+  "frontier": {
+    "path": "frontier.json",
+    "snapshot_hash": "e89406f697d5e0727a14d5fce5a6d3534c8a6d90941183e96c2fc56416dbe5c4",
+    "event_log_hash": "6c553c73d7eec4e49bc2e6024acdfe26e290c6f12af01d6d151282de1c860cd8",
+    "findings": [
+      {
+        "id": "vf_caab4aaee589b965",
+        "assertion_type": "measurement",
+        "source_type": "data_release",
+        "entity_types_used": ["instrument", "dataset", "quantity"]
+      },
+      {
+        "id": "vf_06ba7e3deca8a15f",
+        "assertion_type": "exclusion",
+        "source_type": "published_paper",
+        "entity_types_used": ["particle", "instrument", "quantity"]
+      }
+    ],
+    "links": [
+      {
+        "from": "vf_06ba7e3deca8a15f",
+        "to": "vf_caab4aaee589b965",
+        "type": "depends"
+      }
+    ]
+  },
+  "v0_10_enum_coverage": {
+    "assertion_types": ["measurement", "exclusion"],
+    "entity_types": ["particle", "instrument", "dataset", "quantity"],
+    "source_types": ["data_release"]
+  }
+}

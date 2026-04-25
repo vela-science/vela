@@ -43,8 +43,10 @@ frontier.json
 !examples/paper-folder/expected/frontier.json
 frontier-*.json
 !tests/conformance/cross-frontier/frontier-*.json
+!tests/conformance/non-bio-domain/frontier.json
 test*.json
 !tests/conformance/cross-frontier/*.json
+!tests/conformance/non-bio-domain/*.json
 
 # Non-release local project worktrees
 projects/crispr-delivery/

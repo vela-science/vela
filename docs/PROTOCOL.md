@@ -1,4 +1,4 @@
-# Vela protocol specification v0.2.0
+# Vela protocol specification v0.10.0
 
 This document defines the shipped v0 language kernel for portable,
 correctable frontier state. It is normative for finding bundles, typed links,
@@ -140,6 +140,28 @@ Links may include confidence, notes, evidence spans, conditional text, and
 inference provenance. Link-derived outputs are review surfaces unless accepted
 through normal frontier review.
 
+### v0.10 — domain-neutral enum extensions
+
+The first non-bio frontier published to the public hub (a particle-astrophysics
+WIMP direct-detection frontier) surfaced that the v0 enum sets were
+biology-leaning. v0.10 added domain-neutral entries — additively — without
+changing content addressing for pre-v0.10 frontiers:
+
+- **Entity type:** `particle` (WIMPs, photons), `instrument` (XENONnT, JWST —
+  capital objects that run measurements), `dataset` (instrument data releases
+  distinct from the paper that reports them), `quantity` (named numerical
+  values with units, e.g. `28 GeV/c^2`). The pre-v0.10 entries (`gene`,
+  `protein`, …) and the `other` escape valve remain.
+- **Assertion type:** `measurement` (numerical-quantity reports), `exclusion`
+  (upper/lower bound at a confidence level). Pre-v0.10 entries unchanged.
+- **Provenance source type:** `data_release` (instrument runs, observation
+  campaigns, dataset versions that are themselves the substantive object).
+  Pre-v0.10 entries unchanged.
+
+Schema URL bumps `v0.8.0 → v0.10.0` for new frontiers; the validator accepts
+both URLs so pre-v0.10 frontiers (BBB, BBB-extension, the v0.8 cross-frontier
+conformance vector) replay byte-identically under a v0.10 binary.
+
 ### v0.8 — cross-frontier link targets
 
 `Link.target` may take two shapes:
@@ -277,4 +299,4 @@ writeback, proof/export, review, and merge semantics first.
 
 ---
 
-*Vela Protocol Specification v0.2.0 - April 2026*
+*Vela Protocol Specification v0.10.0 - April 2026*

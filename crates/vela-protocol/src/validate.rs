@@ -767,23 +767,34 @@ fn validate_project_metadata(
     source_path: &Path,
     errors: &mut Vec<ValidationError>,
 ) {
-    if frontier.vela_version != crate::project::VELA_SCHEMA_VERSION {
+    // `vela_version` and `schema` are publisher-claimed, like the compiler
+    // stamp. Pre-v0.10 frontiers (BBB at v0.8.0, the v0.8 conformance vector)
+    // must continue to validate under newer binaries without recomputing
+    // their content-addressed identity. v0.10's enum extensions are additive,
+    // so any pre-v0.10 schema URL listed in `KNOWN_SCHEMA_URLS` validates
+    // against the current code.
+    const KNOWN_VELA_VERSIONS: &[&str] = &["0.8.0", "0.10.0"];
+    const KNOWN_SCHEMA_URLS: &[&str] = &[
+        "https://vela.science/schema/finding-bundle/v0.8.0",
+        "https://vela.science/schema/finding-bundle/v0.10.0",
+    ];
+    if !KNOWN_VELA_VERSIONS.contains(&frontier.vela_version.as_str()) {
         errors.push(ValidationError {
             file: source_path.display().to_string(),
             error: format!(
-                "Invalid vela_version '{}': expected {}",
+                "Unknown vela_version '{}': expected one of {}",
                 frontier.vela_version,
-                crate::project::VELA_SCHEMA_VERSION
+                KNOWN_VELA_VERSIONS.join(", "),
             ),
         });
     }
-    if frontier.schema != crate::project::VELA_SCHEMA_URL {
+    if !KNOWN_SCHEMA_URLS.contains(&frontier.schema.as_str()) {
         errors.push(ValidationError {
             file: source_path.display().to_string(),
             error: format!(
-                "Invalid schema '{}': expected {}",
+                "Unknown schema '{}': expected one of {}",
                 frontier.schema,
-                crate::project::VELA_SCHEMA_URL
+                KNOWN_SCHEMA_URLS.join(", "),
             ),
         });
     }
@@ -1013,7 +1024,7 @@ mod tests {
             report
                 .errors
                 .iter()
-                .any(|e| e.error.contains("Invalid vela_version"))
+                .any(|e| e.error.contains("Unknown vela_version"))
         );
     }
 

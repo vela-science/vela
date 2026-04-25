@@ -6,7 +6,13 @@ use sha2::{Digest, Sha256};
 
 /// Valid entity types per schema. Single source of truth shared by the validator
 /// and the `vela finding add` CLI; do not duplicate.
+///
+/// v0.10 added domain-neutral entries — `particle`, `instrument`, `dataset`,
+/// `quantity` — surfaced by the first non-bio frontier on the public hub
+/// (Nakamura's dark-matter constraints). The biology-leaning entries remain
+/// for back-compat; the additions widen expressiveness without churn.
 pub const VALID_ENTITY_TYPES: &[&str] = &[
+    // bio (pre-v0.10)
     "gene",
     "protein",
     "compound",
@@ -16,10 +22,20 @@ pub const VALID_ENTITY_TYPES: &[&str] = &[
     "pathway",
     "assay",
     "anatomical_structure",
+    // domain-neutral (v0.10)
+    "particle",
+    "instrument",
+    "dataset",
+    "quantity",
+    // escape valve
     "other",
 ];
 
 /// Valid assertion types per schema.
+///
+/// v0.10 added `measurement` and `exclusion` for measurement-heavy domains
+/// (physics, chemistry, climate, materials) where the substance of a
+/// finding is a numerical value or an exclusion limit at a confidence level.
 pub const VALID_ASSERTION_TYPES: &[&str] = &[
     "mechanism",
     "therapeutic",
@@ -31,6 +47,9 @@ pub const VALID_ASSERTION_TYPES: &[&str] = &[
     "computational",
     "theoretical",
     "negative",
+    // v0.10
+    "measurement",
+    "exclusion",
 ];
 
 /// Valid evidence types per schema.
@@ -45,6 +64,11 @@ pub const VALID_EVIDENCE_TYPES: &[&str] = &[
 ];
 
 /// Valid provenance source types per schema.
+///
+/// v0.10 added `data_release` for instrument runs, observation campaigns,
+/// and dataset versions that are themselves the substantive object — distinct
+/// from the paper that reports them (XENONnT SR0, Planck data releases,
+/// JWST observation runs, LHC analysis releases).
 pub const VALID_PROVENANCE_SOURCE_TYPES: &[&str] = &[
     "published_paper",
     "preprint",
@@ -53,6 +77,8 @@ pub const VALID_PROVENANCE_SOURCE_TYPES: &[&str] = &[
     "model_output",
     "expert_assertion",
     "database_record",
+    // v0.10
+    "data_release",
 ];
 
 /// Valid link types per protocol §5.
@@ -1339,11 +1365,22 @@ mod tests {
 
     #[test]
     fn valid_entity_types_list() {
-        assert!(VALID_ENTITY_TYPES.contains(&"gene"));
-        assert!(VALID_ENTITY_TYPES.contains(&"protein"));
-        assert!(VALID_ENTITY_TYPES.contains(&"compound"));
-        assert!(VALID_ENTITY_TYPES.contains(&"other"));
-        assert_eq!(VALID_ENTITY_TYPES.len(), 10);
+        // Pre-v0.10 (bio) entries
+        for t in ["gene", "protein", "compound", "other"] {
+            assert!(VALID_ENTITY_TYPES.contains(&t), "missing {t}");
+        }
+        // v0.10 domain-neutral additions
+        for t in ["particle", "instrument", "dataset", "quantity"] {
+            assert!(VALID_ENTITY_TYPES.contains(&t), "missing {t}");
+        }
+        assert_eq!(VALID_ENTITY_TYPES.len(), 14);
+    }
+
+    #[test]
+    fn v0_10_assertion_and_source_extensions() {
+        assert!(VALID_ASSERTION_TYPES.contains(&"measurement"));
+        assert!(VALID_ASSERTION_TYPES.contains(&"exclusion"));
+        assert!(VALID_PROVENANCE_SOURCE_TYPES.contains(&"data_release"));
     }
 
     // ── Different fields change the ID ───────────────────────────────
