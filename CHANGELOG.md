@@ -1,5 +1,81 @@
 # Changelog
 
+## 0.9.0 - 2026-04-25
+
+The first-publisher cleanup. v0.8 proved cross-frontier composition end-to-end
+on the public hub. A dogfood run pretending to be an external publisher
+("Dr. M, 4 GLP-1/Alzheimer's findings, zero prior context") surfaced 12
+distinct frictions on the path from `vela-hub.fly.dev` landing → signed
+manifest live. None required a substrate change. v0.9 fixes the surface so
+the next *real* external publisher hits a coherent path.
+
+### CLI surface
+
+- **`vela frontier new <path> --name "..."`** scaffolds a publishable
+  `frontier.json` stub that passes `vela check --strict` immediately. Closes
+  the bootstrap gap between `vela init` (creates `.vela/` repo, not
+  publishable) and `vela finding add` (requires the file to pre-exist). Use
+  `frontier new` whenever the target is the hub.
+- **`vela link add <frontier> --from vf_… --to vf_…[@vfr_…] --type …`**
+  is the CLI on-ramp for typed links. Until v0.9, links required hand-editing
+  JSON — the proposal/event flow had no link counterpart. The handler validates
+  the target via `LinkRef::parse`, checks that local targets exist, refuses
+  cross-frontier targets without a declared dep (with the exact `frontier
+  add-dep` invocation in the error), and recomputes `stats.links` /
+  `stats.link_types` so strict validation stays green.
+- **CLI enums single-sourced with the validator** (`crates/vela-protocol/src/bundle.rs`).
+  `VALID_ASSERTION_TYPES`, `VALID_EVIDENCE_TYPES`, `VALID_PROVENANCE_SOURCE_TYPES`,
+  `VALID_LINK_TYPES`, and `VALID_ENTITY_TYPES` now live next to the bundle
+  types and are imported by both `cmd_finding_add`/`cmd_link_add` and
+  `validate.rs`. Invalid `--type`/`--evidence-type`/`--source-type`/entity
+  values fail at add-time with the full valid set in the error message
+  instead of at strict-check time after the (now content-addressed) finding
+  has been written.
+- **`actor`, `link`, `registry` surfaced in `vela --help`.** Pre-v0.9 these
+  worked but were absent from the strict-help banner — invisible to a new
+  user reading the CLI surface. Help also adds a "Publish your own frontier"
+  block walking the five-command path end-to-end.
+- **`vela check --json` returns per-failure detail.** `checks[].errors[]`
+  carries the schema validator's `{file, message}` records; `checks[].blockers[]`
+  surfaces the `{id, kind, severity, reason}` of every signal that blocks
+  strict mode. Pre-v0.9, `--json` reported `failed: 4` with no per-failure
+  context.
+
+### Documentation
+
+- **`docs/PUBLISHING.md`** — the end-to-end "first publish" walkthrough.
+  Linked from the README quick start; covers scaffold → findings → optional
+  cross-frontier deps + links → keypair → actor registration → publish →
+  verify on hub → CI republish pattern. Includes the enum table and a
+  troubleshooting section keyed off the actual error strings v0.9 emits.
+- **README publishing block** at the top of the file. The pre-v0.9
+  README's quick start went `compile → check → proof`; the publish path
+  was buried at line 39 under HUB.md. v0.9 puts the five-command publish
+  path on the front page.
+
+### Versioning
+
+- Workspace version `0.8.0 → 0.9.0`.
+- `vela --version → 0.9.0`; banner stamps bump in lockstep.
+- Schema version stays at `v0.8.0` — v0.9 ships *no* schema changes. Pre-v0.9
+  frontiers (BBB, BBB-extension, the v0.8 conformance vector) replay
+  byte-identically; their `vela_version` and `compiler` stamps are publisher-
+  claimed and unchanged.
+
+### What is deferred to v0.10+
+
+- Hub-to-hub federation. Forced by ≥ 2 hubs; still 1.
+- Hub-hosted frontier blobs. Locator stays where the publisher hosts it.
+- Browser-side WebCrypto signing.
+- Webhooks/SSE on the hub.
+- Multi-frontier Workbench mode (load two frontiers simultaneously into one
+  rete view). The dashed-edge-to-ghost-node treatment shipped in v0.8
+  remains sufficient for the cross-frontier viewer.
+- A real domain (`vela-hub.fly.dev` is sufficient).
+- `vela finding rekey` for content-address repair after a hand-edit. v0.9's
+  enum guard at add-time removes the most common path into that breakage;
+  the cure for the rest is "delete and re-add."
+
 ## 0.8.0 - 2026-04-25
 
 The composition run. v0.7 stood up the public hub, the deployed

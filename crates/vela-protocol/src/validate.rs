@@ -9,62 +9,20 @@ use colored::Colorize;
 use crate::cli_style as style;
 use serde::{Deserialize, Serialize};
 
-use crate::bundle::{ConfidenceMethod, FindingBundle, VALID_ENTITY_TYPES};
+use crate::bundle::{
+    ConfidenceMethod, FindingBundle, VALID_ASSERTION_TYPES, VALID_ENTITY_TYPES,
+    VALID_EVIDENCE_TYPES, VALID_LINK_TYPES, VALID_PROVENANCE_SOURCE_TYPES,
+};
 use crate::lint;
 use crate::normalize;
 use crate::packet;
 use crate::repo;
-
-/// Valid assertion types per schema (extended to include types the compiler produces).
-const VALID_ASSERTION_TYPES: &[&str] = &[
-    "mechanism",
-    "therapeutic",
-    "diagnostic",
-    "epidemiological",
-    "observational",
-    "review",
-    "methodological",
-    "computational",
-    "theoretical",
-    "negative",
-];
-
-/// Valid evidence types per schema.
-const VALID_EVIDENCE_TYPES: &[&str] = &[
-    "experimental",
-    "observational",
-    "computational",
-    "theoretical",
-    "meta_analysis",
-    "systematic_review",
-    "case_report",
-];
-
-const VALID_PROVENANCE_SOURCE_TYPES: &[&str] = &[
-    "published_paper",
-    "preprint",
-    "clinical_trial",
-    "lab_notebook",
-    "model_output",
-    "expert_assertion",
-    "database_record",
-];
 
 const VALID_EXTRACT_METHODS: &[&str] = &[
     "llm_extraction",
     "manual_curation",
     "database_import",
     "hybrid",
-];
-
-const VALID_LINK_TYPES: &[&str] = &[
-    "supports",
-    "contradicts",
-    "extends",
-    "depends",
-    "replicates",
-    "supersedes",
-    "synthesized_from",
 ];
 
 const VALID_LINK_INFERRED_BY: &[&str] = &["compiler", "reviewer", "author"];
@@ -829,13 +787,20 @@ fn validate_project_metadata(
             ),
         });
     }
-    if frontier.project.compiler != crate::project::VELA_COMPILER_VERSION {
+    // The compiler stamp is publisher-claimed — it records which binary
+    // *produced* the canonical bytes, not which binary may validate them.
+    // We require the `vela/X.Y.Z` shape (so it's still a structured field
+    // and not free-form prose) but allow any version, current or older,
+    // so frontiers compiled with a v0.7 binary continue to validate under
+    // a v0.9 binary without churning their content-addressed identity.
+    if !frontier.project.compiler.starts_with("vela/")
+        || frontier.project.compiler.len() <= "vela/".len()
+    {
         errors.push(ValidationError {
             file: source_path.display().to_string(),
             error: format!(
-                "Invalid compiler '{}': expected {}",
+                "Invalid compiler '{}': expected 'vela/X.Y.Z'",
                 frontier.project.compiler,
-                crate::project::VELA_COMPILER_VERSION
             ),
         });
     }

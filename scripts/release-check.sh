@@ -54,7 +54,10 @@ import
 diff
 proposals
 finding
+link
 frontier
+actor
+registry
 review
 note
 caveat
@@ -170,7 +173,7 @@ if git ls-files | rg -n '^projects/bbb-flagship/\.vela/(links|reviews|runs|trail
 fi
 
 echo "== Current docs gate =="
-approved_docs='^docs/(BENCHMARKS|BRAND|CLI_JSON|CORE_DOCTRINE|EVAL_CARD|FIRST_FRONTIER|FRONTIER_REVIEW|HUB|MATH|MCP|MCP_SETUP|PRIVATE_EVALUATOR_NOTE|PROOF|PROTOCOL|PYTHON|REGISTRY|STATE_TRANSITION_SPEC|THEORY|TIERS|TRACE_FORMAT|V0_DOGFOOD_REPORT|V0_RELEASE_NOTES|WORKBENCH)\.md$'
+approved_docs='^docs/(BENCHMARKS|BRAND|CLI_JSON|CORE_DOCTRINE|EVAL_CARD|FIRST_FRONTIER|FRONTIER_REVIEW|HUB|MATH|MCP|MCP_SETUP|PRIVATE_EVALUATOR_NOTE|PROOF|PROTOCOL|PUBLISHING|PYTHON|REGISTRY|STATE_TRANSITION_SPEC|THEORY|TIERS|TRACE_FORMAT|V0_DOGFOOD_REPORT|V0_RELEASE_NOTES|WORKBENCH)\.md$'
 if find docs -maxdepth 1 -type f | sort | rg -v "$approved_docs"; then
   echo "Docs outside the current v0 surface are present."
   exit 1

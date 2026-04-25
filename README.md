@@ -36,7 +36,47 @@ inspectable, correctable, replayable frontier state.
 
 A public hub at <https://vela-hub.fly.dev> serves signed frontier manifests
 over HTTPS. Anyone with an Ed25519 key can publish their own `vfr_id`. The
-signature is the bind, not access control. See [docs/HUB.md](docs/HUB.md).
+signature is the bind, not access control. See [docs/HUB.md](docs/HUB.md)
+and [docs/PUBLISHING.md](docs/PUBLISHING.md) for the end-to-end first-publish
+walkthrough.
+
+## Publish your own frontier
+
+The minimum-viable path from "I have a bounded scientific question" to "my
+signed frontier is on the public hub":
+
+```bash
+# 1. Scaffold a fresh frontier file (passes `check --strict` immediately)
+vela frontier new ./frontier.json --name "Your bounded question"
+
+# 2. Add findings (the CLI rejects schema-invalid types up front)
+vela finding add ./frontier.json \
+  --assertion "Your one-sentence claim, scoped narrowly" \
+  --type therapeutic --evidence-type experimental \
+  --source "Author et al., 2024" --source-type published_paper \
+  --author "reviewer:you" --confidence 0.5 --apply
+
+# 3. (Optional) compose with another hub frontier — declare the dep,
+#    then add a typed cross-frontier link
+vela frontier add-dep ./frontier.json vfr_<hex> \
+  --locator https://… --snapshot <sha256>
+vela link add ./frontier.json \
+  --from vf_<your> --to vf_<remote>@vfr_<remote> --type extends
+
+# 4. Sign and register your publisher identity
+vela sign generate-keypair --out keys
+vela actor add ./frontier.json reviewer:you --pubkey "$(cat keys/public.key)"
+
+# 5. Publish to the public hub (or your own)
+vela registry publish ./frontier.json \
+  --owner reviewer:you --key keys/private.key \
+  --locator https://your-host.example.com/frontier.json \
+  --to https://vela-hub.fly.dev
+```
+
+The hub doctrine is dumb signed transport: anyone with a key can publish their
+own `vfr_id`; no allowlist, no rate limit in v0.9. A compromised hub can
+withhold but cannot fabricate — clients verify locally on read.
 
 ## What it does
 
@@ -137,6 +177,7 @@ state, changes what a human or agent inherits, and marks prior proof stale. See
 ## Documentation
 
 - [Core Doctrine](docs/CORE_DOCTRINE.md) - canonical v0 claim boundary
+- [Publishing](docs/PUBLISHING.md) - end-to-end first-publish to the public hub
 - [First Frontier](docs/FIRST_FRONTIER.md) - first-user paper-folder workflow
 - [Frontier Review](docs/FRONTIER_REVIEW.md) - correction and proposal workflow
 - [Protocol](docs/PROTOCOL.md) - normative v0 state and event semantics

@@ -45,14 +45,7 @@ Return a JSON array:
 
 Return ONLY the JSON array."#;
 
-const VALID_LINK_TYPES: &[&str] = &[
-    "supports",
-    "contradicts",
-    "extends",
-    "depends",
-    "replicates",
-    "supersedes",
-];
+use crate::bundle::VALID_LINK_TYPES;
 
 // ── Deterministic entity-overlap linking ─────────────────────────────
 

@@ -20,7 +20,7 @@ use sha2::{Digest, Sha256};
 use tokio::sync::Semaphore;
 
 #[derive(Parser)]
-#[command(name = "vela", version = "0.8.0")]
+#[command(name = "vela", version = "0.9.0")]
 #[command(about = "Portable frontier state for science")]
 struct Cli {
     #[command(subcommand)]
@@ -385,6 +385,13 @@ enum Commands {
         #[command(subcommand)]
         command: FindingCommands,
     },
+    /// Add typed links between findings — including cross-frontier
+    /// references of the form `vf_<id>@vfr_<id>` (v0.8). Until v0.9
+    /// link state lived only in JSON; `vela link add` is the CLI on-ramp.
+    Link {
+        #[command(subcommand)]
+        action: LinkAction,
+    },
     /// Create or apply one proposal-backed finding review
     Review {
         /// Frontier JSON file or Vela repo
@@ -578,6 +585,27 @@ enum ActorAction {
 
 #[derive(Subcommand)]
 enum FrontierAction {
+    /// Scaffold a fresh, publishable `frontier.json` stub. The result
+    /// passes `vela check --strict` immediately and is ready to accept
+    /// findings via `vela finding add` and a publish via `vela registry
+    /// publish`. Use this instead of `vela init` when you intend to
+    /// publish to a hub — `init` creates a `.vela/` repo, which is not
+    /// directly publishable in v0.
+    New {
+        /// Path to write the new frontier file (e.g. `./frontier.json`).
+        path: PathBuf,
+        /// Human-readable frontier name.
+        #[arg(long)]
+        name: String,
+        /// Optional one-paragraph description of the bounded question.
+        #[arg(long, default_value = "")]
+        description: String,
+        /// Overwrite if the file already exists.
+        #[arg(long)]
+        force: bool,
+        #[arg(long)]
+        json: bool,
+    },
     /// Declare a cross-frontier dependency. Subsequent links of the
     /// form `vf_<id>@vfr_<id>` resolve through this entry; strict
     /// validation refuses cross-frontier targets without one.
@@ -723,6 +751,35 @@ enum GapsAction {
 }
 
 #[derive(Subcommand)]
+enum LinkAction {
+    /// Append a typed link from one finding to another. The target
+    /// may be a local `vf_<hex>` or a cross-frontier `vf_<hex>@vfr_<hex>`
+    /// (v0.8). Cross-frontier targets require a matching declared dep —
+    /// run `vela frontier add-dep` first or strict validation will refuse.
+    Add {
+        /// Frontier JSON file or Vela repo
+        frontier: PathBuf,
+        /// Source finding id (`vf_<hex>`)
+        #[arg(long)]
+        from: String,
+        /// Target. Either `vf_<hex>` (local) or `vf_<hex>@vfr_<hex>` (cross).
+        #[arg(long)]
+        to: String,
+        /// Link type. One of: supports, contradicts, extends, depends, replicates, supersedes, synthesized_from
+        #[arg(long, default_value = "supports")]
+        r#type: String,
+        /// Optional human-readable note
+        #[arg(long, default_value = "")]
+        note: String,
+        /// Who inferred the link. One of: compiler, reviewer, author
+        #[arg(long, default_value = "reviewer")]
+        inferred_by: String,
+        #[arg(long)]
+        json: bool,
+    },
+}
+
+#[derive(Subcommand)]
 enum FindingCommands {
     /// Add a manual finding bundle with an assertion field
     Add {
@@ -731,13 +788,13 @@ enum FindingCommands {
         /// Assertion text inside the finding bundle
         #[arg(long)]
         assertion: String,
-        /// Assertion type
+        /// Assertion type. One of: mechanism, therapeutic, diagnostic, epidemiological, observational, review, methodological, computational, theoretical, negative
         #[arg(long, default_value = "mechanism")]
         r#type: String,
         /// Source label for the finding
         #[arg(long, default_value = "manual finding")]
         source: String,
-        /// Source type: published_paper, preprint, clinical_trial, lab_notebook, model_output, expert_assertion, database_record
+        /// Source type. One of: published_paper, preprint, clinical_trial, lab_notebook, model_output, expert_assertion, database_record
         #[arg(long, default_value = "expert_assertion")]
         source_type: String,
         /// Author/reviewer identifier
@@ -746,10 +803,10 @@ enum FindingCommands {
         /// Initial confidence score from 0.0 to 1.0
         #[arg(long, default_value = "0.3")]
         confidence: f64,
-        /// Evidence type for the finding
+        /// Evidence type. One of: experimental, observational, computational, theoretical, meta_analysis, systematic_review, case_report
         #[arg(long, default_value = "theoretical")]
         evidence_type: String,
-        /// Entities as comma-separated name:type pairs
+        /// Entities as comma-separated name:type pairs. Entity types: gene, protein, compound, disease, cell_type, organism, pathway, assay, anatomical_structure, other
         #[arg(long, default_value = "")]
         entities: String,
         /// Output stable JSON
@@ -1059,7 +1116,7 @@ pub async fn run_command() {
         Commands::Conformance { dir } => {
             let _ = conformance::run(&dir);
         }
-        Commands::Version => println!("vela 0.8.0"),
+        Commands::Version => println!("vela 0.9.0"),
         Commands::Sign { action } => cmd_sign(action),
         Commands::Actor { action } => cmd_actor(action),
         Commands::Frontier { action } => cmd_frontier(action),
@@ -1074,6 +1131,7 @@ pub async fn run_command() {
             quiet,
         } => diff::run(&frontier_a, &frontier_b, json, quiet),
         Commands::Proposals { action } => cmd_proposals(action),
+        Commands::Link { action } => cmd_link(action),
         Commands::Finding { command } => match command {
             FindingCommands::Add {
                 frontier,
@@ -1088,6 +1146,28 @@ pub async fn run_command() {
                 json,
                 apply,
             } => {
+                validate_enum_arg("--type", &r#type, bundle::VALID_ASSERTION_TYPES);
+                validate_enum_arg(
+                    "--evidence-type",
+                    &evidence_type,
+                    bundle::VALID_EVIDENCE_TYPES,
+                );
+                validate_enum_arg(
+                    "--source-type",
+                    &source_type,
+                    bundle::VALID_PROVENANCE_SOURCE_TYPES,
+                );
+                let parsed_entities = parse_entities(&entities);
+                for (name, etype) in &parsed_entities {
+                    if !bundle::VALID_ENTITY_TYPES.contains(&etype.as_str()) {
+                        fail(&format!(
+                            "invalid entity type '{}' for '{}'. Valid: {}",
+                            etype,
+                            name,
+                            bundle::VALID_ENTITY_TYPES.join(", "),
+                        ));
+                    }
+                }
                 let report = state::add_finding(
                     &frontier,
                     state::FindingDraftOptions {
@@ -1098,7 +1178,7 @@ pub async fn run_command() {
                         author,
                         confidence,
                         evidence_type,
-                        entities: parse_entities(&entities),
+                        entities: parsed_entities,
                     },
                     apply,
                 )
@@ -1267,7 +1347,7 @@ pub async fn cmd_compile(
         match corpus::compile_local_corpus(local_source, output, backend).await {
             Ok(report) => {
                 println!();
-                println!("  {}", "VELA · COMPILE · V0.8.0".dimmed());
+                println!("  {}", "VELA · COMPILE · V0.9.0".dimmed());
                 println!("  {}", style::tick_row(60));
                 println!("source: {}", local_source.display());
                 println!("mode: local corpus");
@@ -1302,7 +1382,7 @@ pub async fn cmd_compile(
     let client = Client::new();
 
     println!();
-    println!("  {}", "VELA · COMPILE · V0.8.0".dimmed());
+    println!("  {}", "VELA · COMPILE · V0.9.0".dimmed());
     println!("  {}", style::tick_row(60));
     println!("topic: {topic}");
     println!("papers: {max_papers}");
@@ -2002,6 +2082,10 @@ fn check_json_payload(src: &Path, schema_only: bool, strict: bool) -> Value {
                 "status": if report.invalid == 0 { "pass" } else { "fail" },
                 "checked": report.total_files,
                 "failed": report.invalid,
+                "errors": report.errors.iter().map(|e| json!({
+                    "file": e.file,
+                    "message": e.error,
+                })).collect::<Vec<_>>(),
             },
             {
                 "id": "methodology",
@@ -2028,6 +2112,15 @@ fn check_json_payload(src: &Path, schema_only: bool, strict: bool) -> Value {
                 "failed": strict_blockers,
                 "warnings": signal_report.proof_readiness.warnings,
                 "skipped": loaded.is_none(),
+                "blockers": signal_report.signals.iter()
+                    .filter(|s| s.blocks.iter().any(|b| b == "strict_check"))
+                    .map(|s| json!({
+                        "id": s.id,
+                        "kind": s.kind,
+                        "severity": s.severity,
+                        "reason": s.reason,
+                    }))
+                    .collect::<Vec<_>>(),
             },
             {
                 "id": "events",
@@ -2347,7 +2440,7 @@ fn cmd_stats(path: &Path) {
     let frontier = repo::load_from_path(path).expect("Failed to load frontier");
     let s = &frontier.stats;
     println!();
-    println!("  {}", "FRONTIER · V0.8.0".dimmed());
+    println!("  {}", "FRONTIER · V0.9.0".dimmed());
     println!("  {}", frontier.project.name.bold());
     println!("  {}", style::tick_row(60));
     println!("  id:             {}", frontier.frontier_id());
@@ -3073,10 +3166,185 @@ fn sign_and_apply(
 /// dependency declarations on a frontier file. The substrate enforces
 /// that any link target of the form `vf_…@vfr_…` references a declared
 /// dependency; these commands edit the declaration list.
+/// v0.9: typed link addition. Until v0.9 the only way to add a link
+/// was to hand-edit JSON; this command is the CLI on-ramp. Links go
+/// directly onto `findings[i].links` (links are not a state-changing
+/// proposal kind in v0).
+fn cmd_link(action: LinkAction) {
+    use crate::bundle::{Link, LinkRef};
+    match action {
+        LinkAction::Add {
+            frontier,
+            from,
+            to,
+            r#type,
+            note,
+            inferred_by,
+            json,
+        } => {
+            validate_enum_arg("--type", &r#type, bundle::VALID_LINK_TYPES);
+            if !["compiler", "reviewer", "author"].contains(&inferred_by.as_str()) {
+                fail(&format!(
+                    "invalid --inferred-by '{inferred_by}'. Valid: compiler, reviewer, author"
+                ));
+            }
+            let parsed = LinkRef::parse(&to).unwrap_or_else(|e| {
+                fail(&format!(
+                    "invalid --to '{to}': {e}. Expected vf_<hex> or vf_<hex>@vfr_<hex>"
+                ))
+            });
+            let mut p = repo::load_from_path(&frontier).unwrap_or_else(|e| fail_return(&e));
+            let source_idx = p
+                .findings
+                .iter()
+                .position(|f| f.id == from)
+                .unwrap_or_else(|| {
+                    fail_return(&format!("--from finding '{from}' not in frontier"))
+                });
+            if let LinkRef::Local { vf_id } = &parsed
+                && !p.findings.iter().any(|f| &f.id == vf_id)
+            {
+                fail(&format!(
+                    "local --to target '{vf_id}' not in frontier; add the target finding first"
+                ));
+            }
+            if let LinkRef::Cross { vfr_id, .. } = &parsed
+                && p.dep_for_vfr(vfr_id).is_none()
+            {
+                fail(&format!(
+                    "cross-frontier --to references vfr_id '{vfr_id}' but no matching dep is declared. Run `vela frontier add-dep {vfr_id} --locator <url> --snapshot <hash>` first."
+                ));
+            }
+            let now = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
+            let link = Link {
+                target: to.clone(),
+                link_type: r#type.clone(),
+                note: note.clone(),
+                inferred_by: inferred_by.clone(),
+                created_at: now,
+            };
+            p.findings[source_idx].links.push(link);
+            project::recompute_stats(&mut p);
+            repo::save_to_path(&frontier, &p).unwrap_or_else(|e| fail_return(&e));
+            let payload = json!({
+                "ok": true,
+                "command": "link.add",
+                "frontier": frontier.display().to_string(),
+                "from": from,
+                "to": to,
+                "type": r#type,
+                "cross_frontier": parsed.is_cross_frontier(),
+            });
+            if json {
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&payload).expect("failed to serialize link.add")
+                );
+            } else {
+                println!(
+                    "{} {} --[{}]--> {}{}",
+                    style::ok("link"),
+                    from,
+                    r#type,
+                    to,
+                    if parsed.is_cross_frontier() {
+                        " (cross-frontier)"
+                    } else {
+                        ""
+                    }
+                );
+            }
+        }
+    }
+}
+
 fn cmd_frontier(action: FrontierAction) {
     use crate::project::ProjectDependency;
     use crate::repo;
     match action {
+        FrontierAction::New {
+            path,
+            name,
+            description,
+            force,
+            json,
+        } => {
+            if path.exists() && !force {
+                fail(&format!(
+                    "{} already exists; pass --force to overwrite",
+                    path.display()
+                ));
+            }
+            let now = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
+            let project = project::Project {
+                vela_version: project::VELA_SCHEMA_VERSION.to_string(),
+                schema: project::VELA_SCHEMA_URL.to_string(),
+                frontier_id: None,
+                project: project::ProjectMeta {
+                    name: name.clone(),
+                    description: description.clone(),
+                    compiled_at: now,
+                    compiler: project::VELA_COMPILER_VERSION.to_string(),
+                    papers_processed: 0,
+                    errors: 0,
+                    dependencies: Vec::new(),
+                },
+                stats: project::ProjectStats::default(),
+                findings: Vec::new(),
+                sources: Vec::new(),
+                evidence_atoms: Vec::new(),
+                condition_records: Vec::new(),
+                review_events: Vec::new(),
+                confidence_updates: Vec::new(),
+                events: Vec::new(),
+                proposals: Vec::new(),
+                proof_state: proposals::ProofState::default(),
+                signatures: Vec::new(),
+                actors: Vec::new(),
+            };
+            repo::save_to_path(&path, &project).unwrap_or_else(|e| fail_return(&e));
+            let payload = json!({
+                "ok": true,
+                "command": "frontier.new",
+                "path": path.display().to_string(),
+                "name": name,
+                "schema": project::VELA_SCHEMA_URL,
+                "vela_version": env!("CARGO_PKG_VERSION"),
+                "next_steps": [
+                    "vela finding add <path> --assertion '...' --author 'reviewer:you' --apply",
+                    "vela sign generate-keypair --out keys",
+                    "vela actor add <path> reviewer:you --pubkey \"$(cat keys/public.key)\"",
+                    "vela registry publish <path> --owner reviewer:you --key keys/private.key --locator <url> --to https://vela-hub.fly.dev",
+                ],
+            });
+            if json {
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&payload)
+                        .expect("failed to serialize frontier.new")
+                );
+            } else {
+                println!(
+                    "{} scaffolded frontier '{name}' at {}",
+                    style::ok("frontier"),
+                    path.display()
+                );
+                println!("  next steps:");
+                println!(
+                    "    1. vela finding add {} --assertion '...' --author 'reviewer:you' --apply",
+                    path.display()
+                );
+                println!("    2. vela sign generate-keypair --out keys");
+                println!(
+                    "    3. vela actor add {} reviewer:you --pubkey \"$(cat keys/public.key)\"",
+                    path.display()
+                );
+                println!(
+                    "    4. vela registry publish {} --owner reviewer:you --key keys/private.key --locator <url> --to https://vela-hub.fly.dev",
+                    path.display()
+                );
+            }
+        }
         FrontierAction::AddDep {
             frontier,
             vfr_id,
@@ -3776,7 +4044,7 @@ async fn cmd_bridge(inputs: &[PathBuf], check_novelty: bool, top_n: usize) {
         fail("need at least 2 frontier files for bridge detection.");
     }
     println!();
-    println!("  {}", "VELA · BRIDGE · V0.8.0".dimmed());
+    println!("  {}", "VELA · BRIDGE · V0.9.0".dimmed());
     println!("  {}", style::tick_row(60));
     println!("  loading {} frontiers...", inputs.len());
     let mut named_projects = Vec::<(String, project::Project)>::new();
@@ -4071,7 +4339,7 @@ async fn cmd_jats(source: &str, output: &Path, backend: Option<&str>) {
     let config = llm::LlmConfig::from_env(backend).unwrap_or_else(|e| fail_return(&e));
     let client = Client::new();
     println!();
-    println!("  {}", "VELA · JATS · V0.8.0".dimmed());
+    println!("  {}", "VELA · JATS · V0.9.0".dimmed());
     println!("  {}", style::tick_row(60));
     println!("source: {source}");
     println!("backend: {}", config.backend.label());
@@ -4633,6 +4901,7 @@ const SCIENCE_SUBCOMMANDS: &[&str] = &[
     "diff",
     "proposals",
     "finding",
+    "link",
     "review",
     "note",
     "caveat",
@@ -4650,7 +4919,7 @@ pub fn is_science_subcommand(name: &str) -> bool {
 
 fn print_strict_help() {
     println!(
-        r#"Vela 0.8.0
+        r#"Vela 0.9.0
 Portable frontier state for science.
 
 Usage:
@@ -4682,7 +4951,10 @@ State commands:
   diff          Compare two frontiers
   proposals     Inspect, validate, export, import, accept, or reject write proposals
   finding       Add or manage finding bundles as frontier state
-  frontier      Manage frontier-level metadata: cross-frontier dependencies (v0.8)
+  link          Add typed links between findings (incl. cross-frontier vf_at-vfr targets)
+  frontier      Scaffold (`new`) and manage frontier metadata + cross-frontier deps
+  actor         Register Ed25519 publisher identities in a frontier
+  registry      Publish, list, or pull frontiers (open hub at https://vela-hub.fly.dev)
   review        Create a review proposal or review interactively
   note          Add a lightweight note to a finding
   caveat        Create an explicit caveat proposal
@@ -4698,10 +4970,14 @@ Quick start:
   vela check frontier.json --strict --json
   FINDING_ID=$(jq -r '.findings[0].id' frontier.json)
   vela review frontier.json "$FINDING_ID" --status contested --reason "Mouse-only evidence" --reviewer reviewer:demo --apply
-  vela history frontier.json "$FINDING_ID"
-  vela normalize frontier.json --out frontier.normalized.json
-  vela proof frontier.normalized.json --out proof-packet
-  vela serve frontier.normalized.json
+
+Publish your own frontier (see docs/PUBLISHING.md):
+  vela frontier new ./frontier.json --name "Your bounded question"
+  vela finding add ./frontier.json --assertion "..." --author "reviewer:you" --apply
+  vela sign generate-keypair --out keys
+  vela actor add ./frontier.json reviewer:you --pubkey "$(cat keys/public.key)"
+  vela registry publish ./frontier.json --owner reviewer:you --key keys/private.key \
+      --locator <https-url> --to https://vela-hub.fly.dev
 "#
     );
 }
@@ -4715,7 +4991,7 @@ pub fn run_from_args() {
             return;
         }
         Some("-V" | "--version" | "version") => {
-            println!("vela 0.8.0");
+            println!("vela 0.9.0");
             return;
         }
         Some(cmd) if !is_science_subcommand(cmd) => {
@@ -4735,6 +5011,19 @@ pub fn run_from_args() {
 fn fail(message: &str) -> ! {
     eprintln!("{} {message}", style::err_prefix());
     std::process::exit(1);
+}
+
+/// Validate that a CLI string argument is one of the allowed enum values.
+/// On mismatch, prints a friendly error naming the flag and the valid set
+/// and exits with code 1. Used at finding-add time so users learn before
+/// strict validation rejects the resulting frontier.
+fn validate_enum_arg(flag: &str, value: &str, valid: &[&str]) {
+    if !valid.contains(&value) {
+        fail(&format!(
+            "invalid {flag} '{value}'. Valid: {}",
+            valid.join(", ")
+        ));
+    }
 }
 
 fn fail_return<T>(message: &str) -> T {

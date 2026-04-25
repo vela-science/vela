@@ -4,8 +4,8 @@ use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-/// Valid entity types per schema.
-#[allow(dead_code)]
+/// Valid entity types per schema. Single source of truth shared by the validator
+/// and the `vela finding add` CLI; do not duplicate.
 pub const VALID_ENTITY_TYPES: &[&str] = &[
     "gene",
     "protein",
@@ -17,6 +17,53 @@ pub const VALID_ENTITY_TYPES: &[&str] = &[
     "assay",
     "anatomical_structure",
     "other",
+];
+
+/// Valid assertion types per schema.
+pub const VALID_ASSERTION_TYPES: &[&str] = &[
+    "mechanism",
+    "therapeutic",
+    "diagnostic",
+    "epidemiological",
+    "observational",
+    "review",
+    "methodological",
+    "computational",
+    "theoretical",
+    "negative",
+];
+
+/// Valid evidence types per schema.
+pub const VALID_EVIDENCE_TYPES: &[&str] = &[
+    "experimental",
+    "observational",
+    "computational",
+    "theoretical",
+    "meta_analysis",
+    "systematic_review",
+    "case_report",
+];
+
+/// Valid provenance source types per schema.
+pub const VALID_PROVENANCE_SOURCE_TYPES: &[&str] = &[
+    "published_paper",
+    "preprint",
+    "clinical_trial",
+    "lab_notebook",
+    "model_output",
+    "expert_assertion",
+    "database_record",
+];
+
+/// Valid link types per protocol §5.
+pub const VALID_LINK_TYPES: &[&str] = &[
+    "supports",
+    "contradicts",
+    "extends",
+    "depends",
+    "replicates",
+    "supersedes",
+    "synthesized_from",
 ];
 
 /// A resolved identifier from a scientific database.
