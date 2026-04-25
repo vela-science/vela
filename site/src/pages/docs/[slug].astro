@@ -6,6 +6,9 @@ export async function getStaticPaths() {
   // Curated list of docs the public site publishes. Anything else in
   // docs/ stays unrendered until promoted here. Defined inside the
   // function so Astro's static-paths bundler picks it up.
+  // (Inlined HUB_HOST literal to avoid pulling /config into this
+  // bundler-detached function.)
+  const HUB_HOST = "vela-hub.fly.dev";
   const PUBLIC: Record<string, { id: string; title: string; description: string }> = {
     protocol: {
       id: "protocol",
@@ -20,7 +23,7 @@ export async function getStaticPaths() {
     hub: {
       id: "hub",
       title: "Hub",
-      description: "HTTP transport over the registry. The public hub at vela-hub.fly.dev.",
+      description: `HTTP transport over the registry. The public hub at ${HUB_HOST}.`,
     },
     "first-frontier": {
       id: "first_frontier",

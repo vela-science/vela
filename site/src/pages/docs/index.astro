@@ -1,6 +1,8 @@
 ---
 import Page from "../../layouts/Page.astro";
+import { HUB_URL } from "../../config";
 
+const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
 const groups = [
   {
     title: "Start here",
@@ -14,7 +16,7 @@ const groups = [
     title: "Distribution",
     docs: [
       { slug: "registry", title: "Registry", blurb: "Verifiable distribution. Sign a manifest; anyone can pull and verify." },
-      { slug: "hub", title: "Hub", blurb: "HTTP transport over the registry. The public hub at vela-hub.fly.dev." },
+      { slug: "hub", title: "Hub", blurb: `HTTP transport over the registry. The public hub at ${HUB_HOST}.` },
     ],
   },
   {

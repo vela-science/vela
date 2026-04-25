@@ -1,16 +1,19 @@
 ---
+import { SITE_URL } from "../config";
+
 interface Props {
   left?: string;
   right?: string;
 }
+const SITE_HOST = SITE_URL.replace(/^https?:\/\//, "");
 const {
-  left = "vela.science",
+  left = SITE_HOST,
   right = "Vela · scientific frontier state, signed and replayable",
 } = Astro.props;
 ---
 <footer class="wb-foot">
   <div class="wb-foot__left">
-    <span><span class="wb-foot__star"></span> live · vela.science</span>
+    <span><span class="wb-foot__star"></span> live · {SITE_HOST}</span>
     <span set:html={left} />
   </div>
   <div>{right}</div>

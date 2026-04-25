@@ -44,9 +44,42 @@ use vela_protocol::registry::{RegistryEntry as ProtocolEntry, verify_entry};
 const HUB_VERSION: &str = env!("CARGO_PKG_VERSION");
 const REGISTRY_SCHEMA: &str = "vela.registry.v0.1";
 
+const DEFAULT_PUBLIC_URL: &str = "https://vela-hub.fly.dev";
+const DEFAULT_REPO_URL: &str = "https://github.com/vela-science/vela";
+const DEFAULT_SITE_URL: &str = "https://vela.science";
+
 /// Cache key: (vfr_id, signed_publish_at). A fresh publish gets a new
 /// timestamp, so the key changes and the next read re-fetches.
 type FrontierCache = Arc<RwLock<HashMap<(String, String), Arc<Project>>>>;
+
+/// URL strings the hub renders into HTML. Sourced at startup from env
+/// vars (`VELA_HUB_PUBLIC_URL`, `VELA_REPO_URL`, `VELA_SITE_URL`) with
+/// hardcoded defaults that match the v0.7 deploy. Changing the deploy
+/// target is one secret-set away.
+#[derive(Clone)]
+struct PublicUrls {
+    hub: String,
+    repo: String,
+    site: String,
+}
+
+impl PublicUrls {
+    fn from_env() -> Self {
+        let strip = |s: String| s.trim_end_matches('/').to_string();
+        Self {
+            hub: strip(
+                env::var("VELA_HUB_PUBLIC_URL").unwrap_or_else(|_| DEFAULT_PUBLIC_URL.into()),
+            ),
+            repo: strip(env::var("VELA_REPO_URL").unwrap_or_else(|_| DEFAULT_REPO_URL.into())),
+            site: strip(env::var("VELA_SITE_URL").unwrap_or_else(|_| DEFAULT_SITE_URL.into())),
+        }
+    }
+    fn hub_host(&self) -> &str {
+        self.hub
+            .trim_start_matches("https://")
+            .trim_start_matches("http://")
+    }
+}
 
 #[derive(Clone)]
 struct AppState {
@@ -59,6 +92,9 @@ struct AppState {
     /// Shared reqwest client. Connection pool reuse matters for
     /// repeat fetches against the same locator host.
     http: reqwest::Client,
+    /// Public-facing URLs the rendered HTML quotes back to readers.
+    /// Configurable via env so the same binary serves any deployment.
+    urls: PublicUrls,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -119,10 +155,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .user_agent(concat!("vela-hub/", env!("CARGO_PKG_VERSION")))
         .timeout(Duration::from_secs(8))
         .build()?;
+    let urls = PublicUrls::from_env();
     let state = AppState {
         pool,
         frontier_cache: Arc::new(RwLock::new(HashMap::new())),
         http,
+        urls,
     };
 
     let port: u16 = env::var("VELA_HUB_PORT")
@@ -180,9 +218,9 @@ fn root_json() -> Value {
     })
 }
 
-async fn root(headers: HeaderMap) -> Response {
+async fn root(State(state): State<AppState>, headers: HeaderMap) -> Response {
     if wants_html(&headers) {
-        Html(render_root_html()).into_response()
+        Html(render_root_html(&state.urls)).into_response()
     } else {
         Json(root_json()).into_response()
     }
@@ -218,7 +256,7 @@ async fn list_entries(State(state): State<AppState>, headers: HeaderMap) -> Resp
     match rows {
         Ok(values) => {
             if wants_html(&headers) {
-                Html(render_entries_html(&values)).into_response()
+                Html(render_entries_html(&state.urls, &values)).into_response()
             } else {
                 (
                     StatusCode::OK,
@@ -314,14 +352,24 @@ async fn get_entry(
                 } else {
                     fetch_frontier_cached(&state, &vfr_id, signed_at, locator).await
                 };
-                Html(render_entry_html(&vfr_id, &value, frontier.as_deref())).into_response()
+                Html(render_entry_html(
+                    &state.urls,
+                    &vfr_id,
+                    &value,
+                    frontier.as_deref(),
+                ))
+                .into_response()
             } else {
                 (StatusCode::OK, Json(value)).into_response()
             }
         }
         Ok(None) => {
             if wants_html(&headers) {
-                (StatusCode::NOT_FOUND, Html(render_not_found_html(&vfr_id))).into_response()
+                (
+                    StatusCode::NOT_FOUND,
+                    Html(render_not_found_html(&state.urls, &vfr_id)),
+                )
+                    .into_response()
             } else {
                 (
                     StatusCode::NOT_FOUND,
@@ -697,9 +745,11 @@ fn escape_html(s: &str) -> String {
 
 /// Build the workbench frame around a page body. `active` controls which
 /// rim link is marked with the alidade; `eyebrow` is the small mono label
-/// above the title.
+/// above the title. URLs in the rim and foot come from `urls` so the
+/// same render code works for any deploy.
 #[allow(clippy::too_many_arguments)]
 fn shell(
+    urls: &PublicUrls,
     title: &str,
     active: &str,
     eyebrow_html: &str,
@@ -765,16 +815,23 @@ fn shell(
 </main>
 <footer class="wb-foot">
   <div class="wb-foot__left">
-    <span><span class="wb-foot__star"></span> live · vela-hub.fly.dev</span>
+    <span><span class="wb-foot__star"></span> live · {hub_host}</span>
     <span>{foot_left_html}</span>
   </div>
-  <div>Vela · scientific frontier state, signed and replayable</div>
+  <div>Vela · <a href="{repo_url}" style="color:var(--ink-3);">{repo_short}</a></div>
 </footer>
 </div>
 </body>
 </html>
 "#,
         title = escape_html(title),
+        hub_host = escape_html(urls.hub_host()),
+        repo_url = escape_html(&urls.repo),
+        repo_short = escape_html(
+            urls.repo
+                .trim_start_matches("https://")
+                .trim_start_matches("http://")
+        ),
     )
 }
 
@@ -833,8 +890,15 @@ async fn static_rete_svg() -> Response {
     svg_response(RETE_SVG)
 }
 
-fn render_root_html() -> String {
-    let main = r#"<p class="t-lead">A signed-manifest registry for scientific frontiers. Anyone with an Ed25519 key can publish their own <code>vfr_id</code>; clients verify locally. The hub stores canonical bytes verbatim.</p>
+fn render_root_html(urls: &PublicUrls) -> String {
+    let hub_url = escape_html(&urls.hub);
+    let site_host = escape_html(
+        urls.site
+            .trim_start_matches("https://")
+            .trim_start_matches("http://"),
+    );
+    let main = format!(
+        r#"<p class="t-lead">A signed-manifest registry for scientific frontiers. Anyone with an Ed25519 key can publish their own <code>vfr_id</code>; clients verify locally. The hub stores canonical bytes verbatim.</p>
 
 <section class="wb-section">
   <div class="wb-section__head">
@@ -863,7 +927,7 @@ fn render_root_html() -> String {
   <span class="tm-flag">--owner</span> reviewer:my-id \
   <span class="tm-flag">--key</span> ~/.vela/keys/private.key \
   <span class="tm-flag">--locator</span> https://example.com/frontier.json \
-  <span class="tm-flag">--to</span> https://vela-hub.fly.dev</div>
+  <span class="tm-flag">--to</span> {hub_url}</div>
   </div>
 </section>
 
@@ -874,13 +938,14 @@ fn render_root_html() -> String {
     <span class="wb-section__aside">byte-identical reconstruction</span>
   </div>
   <div class="tm-paper">
-    <div class="tm-paper__bar"><span>vela registry pull</span></div>
-    <div class="tm-paper__body"><span class="tm-ps">$</span> <span class="tm-cmd">vela registry pull</span> vfr_… \
-  <span class="tm-flag">--from</span> https://vela-hub.fly.dev/entries \
-  <span class="tm-flag">--out</span> ./pulled.json</div>
+    <div class="tm-paper__bar"><span>vela registry list / pull</span></div>
+    <div class="tm-paper__body"><span class="tm-ps">$</span> <span class="tm-cmd">vela registry list</span> <span class="tm-flag">--from</span> {hub_url}/entries
+<span class="tm-ps">$</span> <span class="tm-cmd">vela registry pull</span> &lt;vfr_id&gt; <span class="tm-flag">--from</span> {hub_url}/entries <span class="tm-flag">--out</span> ./pulled.json</div>
   </div>
-</section>"#;
+</section>"#,
+    );
     shell(
+        urls,
         "Vela Hub",
         "hub",
         "00 · Hub",
@@ -889,12 +954,12 @@ fn render_root_html() -> String {
         &format!(
             r#"<span>v{HUB_VERSION}</span><span>·</span><a class="wb-chip wb-chip--live"><span class="wb-chip__dot"></span>live</a>"#
         ),
-        main,
-        "vela.science",
+        &main,
+        &site_host,
     )
 }
 
-fn render_entries_html(entries: &[Value]) -> String {
+fn render_entries_html(urls: &PublicUrls, entries: &[Value]) -> String {
     let row = |entry: &Value| -> String {
         let s = |key: &str| -> String {
             entry
@@ -938,6 +1003,7 @@ fn render_entries_html(entries: &[Value]) -> String {
         )
     };
     shell(
+        urls,
         "Vela Hub · Entries",
         "entries",
         &format!("01 · Entries · <span style=\"color:var(--ink-2);\">{count} signed</span>"),
@@ -948,11 +1014,17 @@ fn render_entries_html(entries: &[Value]) -> String {
             plural = if count == 1 { "entry" } else { "entries" }
         ),
         &main,
-        "registry · v0.7",
+        &format!("registry · v{HUB_VERSION}"),
     )
 }
 
-fn render_entry_html(vfr_id: &str, entry: &Value, frontier: Option<&Project>) -> String {
+fn render_entry_html(
+    urls: &PublicUrls,
+    vfr_id: &str,
+    entry: &Value,
+    frontier: Option<&Project>,
+) -> String {
+    let hub_url = escape_html(&urls.hub);
     let s = |key: &str| -> String {
         entry
             .get(key)
@@ -1010,7 +1082,7 @@ fn render_entry_html(vfr_id: &str, entry: &Value, frontier: Option<&Project>) ->
       <div class="tm-paper">
         <div class="tm-paper__bar"><span>vela registry pull · {vfr_safe}</span></div>
         <div class="tm-paper__body"><span class="tm-ps">$</span> <span class="tm-cmd">vela registry pull</span> {vfr_safe} \
-  <span class="tm-flag">--from</span> https://vela-hub.fly.dev/entries \
+  <span class="tm-flag">--from</span> {hub_url}/entries \
   <span class="tm-flag">--out</span> ./pulled.json</div>
       </div>
     </section>
@@ -1098,6 +1170,7 @@ fn render_entry_html(vfr_id: &str, entry: &Value, frontier: Option<&Project>) ->
     );
 
     shell(
+        urls,
         &format!("Vela Hub · {vfr_id}"),
         "entries",
         &format!("02 · Entry · <span style=\"color:var(--ink-2);\">{vfr_safe}</span>"),
@@ -1266,13 +1339,14 @@ fn render_margin_extras(frontier: Option<&Project>) -> String {
     )
 }
 
-fn render_not_found_html(vfr_id: &str) -> String {
+fn render_not_found_html(urls: &PublicUrls, vfr_id: &str) -> String {
     let vfr_safe = escape_html(vfr_id);
     let main = format!(
         r#"<p class="t-lead">No entry for <code>{vfr_safe}</code> in this hub. The id may belong to a different registry, or the publisher may not have pushed yet.</p>
 <p class="t-lead"><a href="/entries" style="border-bottom:1px solid var(--rule-3);">← back to entries</a></p>"#
     );
     shell(
+        urls,
         "Vela Hub · not found",
         "entries",
         "404 · Not found",

@@ -4,6 +4,9 @@ import Section from "../components/Section.astro";
 import TerminalPaper from "../components/TerminalPaper.astro";
 import LiveHub from "../components/LiveHub.astro";
 import Chip from "../components/Chip.astro";
+import { HUB_URL, REPO_URL, BBB, VERSION } from "../config";
+
+const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
 ---
 <Page
   title="Vela · scientific frontier state, signed and replayable"
@@ -14,11 +17,11 @@ import Chip from "../components/Chip.astro";
   subtitle="A git-native protocol for replayable scientific frontier state."
 >
   <div slot="aside">
-    <a href="https://github.com/vela-science/vela" class="aside-link">github</a>
+    <a href={REPO_URL} class="aside-link">github</a>
     <span>·</span>
-    <a href="https://vela-hub.fly.dev" class="aside-link">hub</a>
+    <a href={HUB_URL} class="aside-link">hub</a>
     <span>·</span>
-    <Chip variant="live" label="v0.7" />
+    <Chip variant="live" label={`v${VERSION}`} />
   </div>
 
   <p class="t-lead">
@@ -29,15 +32,14 @@ import Chip from "../components/Chip.astro";
     A finding has a content-addressed id. A frontier has a content-addressed id. Two implementations agree byte-for-byte. The hub is dumb transport; clients verify locally. The signature is the bind.
   </p>
 
-  <Section num="§1" title="Pull a live frontier" aside="public hub · vela-hub.fly.dev">
+  <Section num="§1" title="Pull a live frontier" aside={`public hub · ${HUB_HOST}`}>
     <p style="font-family: var(--font-serif); font-size: 17px; color: var(--ink-2); max-width: 64ch; margin: 0 0 12px;">
-      The BBB Flagship frontier — 48 signed findings about blood-brain barrier translation in Alzheimer's research — re-publishes from CI every Monday at 14:00 UTC, signed by a bot whose pubkey lives in the frontier itself.
+      The {BBB.name} frontier &mdash; {BBB.description} It re-publishes from CI every Monday at 14:00 UTC, signed by a bot whose pubkey lives in the frontier itself.
     </p>
     <LiveHub />
-    <TerminalPaper title="vela registry pull">
-      <span class="tm-ps">$</span> <span class="tm-cmd">vela registry pull</span> vfr_7344e96c0f2669d5 \
-  <span class="tm-flag">--from</span> https://vela-hub.fly.dev/entries \
-  <span class="tm-flag">--out</span> ./bbb.json
+    <TerminalPaper title="list and pull">
+      <span class="tm-ps">$</span> <span class="tm-cmd">vela registry list</span> <span class="tm-flag">--from</span> {HUB_URL}/entries
+<span class="tm-ps">$</span> <span class="tm-cmd">vela registry pull</span> &lt;vfr_id&gt; <span class="tm-flag">--from</span> {HUB_URL}/entries <span class="tm-flag">--out</span> ./bbb.json
     </TerminalPaper>
   </Section>
 
@@ -55,7 +57,7 @@ import Chip from "../components/Chip.astro";
   <Section num="§3" title="Install" aside="one binary, one command">
     <div class="quickstart">
       <TerminalPaper title="cargo install">
-        <span class="tm-ps">$</span> <span class="tm-cmd">git clone</span> https://github.com/vela-science/vela
+        <span class="tm-ps">$</span> <span class="tm-cmd">git clone</span> {REPO_URL}
 <span class="tm-ps">$</span> <span class="tm-cmd">cd</span> vela <span class="tm-ps">&&</span> <span class="tm-cmd">cargo build</span> <span class="tm-flag">--release</span>
 <span class="tm-ps">$</span> <span class="tm-cmd">./target/release/vela</span> <span class="tm-flag">--version</span>
       </TerminalPaper>
@@ -116,7 +118,7 @@ import Chip from "../components/Chip.astro";
       <a class="card" href="/docs/hub">
         <span class="eyebrow">04 · hub</span>
         <h3 class="title">Hub</h3>
-        <p class="blurb">HTTP transport over the registry. The public hub at <code>vela-hub.fly.dev</code>.</p>
+        <p class="blurb">HTTP transport over the registry. The public hub at <code>{HUB_HOST}</code>.</p>
       </a>
       <a class="card" href="/docs/python">
         <span class="eyebrow">05 · python</span>

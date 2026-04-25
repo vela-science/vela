@@ -1,5 +1,6 @@
 ---
 import Mark from "./Mark.astro";
+import { HUB_URL, VERSION } from "../config";
 
 interface NavLink {
   id: string;
@@ -16,10 +17,11 @@ const defaultLinks: NavLink[] = [
   { id: "home", href: "/", label: "01 · Vela" },
   { id: "essays", href: "/essays/science-needs-state", label: "02 · Essays" },
   { id: "docs", href: "/docs/protocol", label: "03 · Docs" },
-  { id: "hub", href: "https://vela-hub.fly.dev", label: "04 · Hub" },
+  { id: "hub", href: HUB_URL, label: "04 · Hub" },
 ];
 
-const { active = "home", links = defaultLinks, version = "v0.7" } = Astro.props;
+const { active = "home", links = defaultLinks, version = `v${VERSION}` } =
+  Astro.props;
 ---
 <aside class="wb-rim">
   <div class="wb-rim__mark" style="color: var(--ink-1);">

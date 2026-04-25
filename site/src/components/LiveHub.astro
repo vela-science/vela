@@ -1,10 +1,12 @@
 ---
 // Lightweight progressive-enhancement island. Server-renders a static
 // placeholder; on viewport-visible the inline script swaps in the live
-// count and latest-publish-at fetched directly from the public hub.
+// count and latest-publish-at fetched from the configured hub URL.
 // No framework runtime.
+import { HUB_URL } from "../config";
+const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
 ---
-<aside class="live-hub" data-live-hub>
+<aside class="live-hub" data-live-hub data-hub-url={HUB_URL}>
   <div class="live-hub__row">
     <span class="live-hub__dot" aria-hidden="true"></span>
     <span class="live-hub__label">Hub status</span>
@@ -12,8 +14,8 @@
     <span class="live-hub__count" data-count>—</span>
     <span class="live-hub__sep">·</span>
     <span class="live-hub__latest" data-latest>—</span>
-    <a class="live-hub__link" href="https://vela-hub.fly.dev/entries">
-      vela-hub.fly.dev →
+    <a class="live-hub__link" href={`${HUB_URL}/entries`}>
+      {HUB_HOST} →
     </a>
   </div>
 </aside>
@@ -71,8 +73,11 @@
     const root = document.querySelector("[data-live-hub]");
     if (!root) return;
 
+    const hubUrl =
+      (root as HTMLElement).dataset.hubUrl ?? "https://vela-hub.fly.dev";
+
     try {
-      const resp = await fetch("https://vela-hub.fly.dev/entries", {
+      const resp = await fetch(`${hubUrl}/entries`, {
         headers: { accept: "application/json" },
       });
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
