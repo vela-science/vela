@@ -199,7 +199,11 @@ const API_PATH = "/api/frontier";
     body.querySelectorAll<HTMLTableRowElement>("tr[data-vfid]").forEach((tr) => {
       tr.addEventListener("click", () => {
         const id = tr.getAttribute("data-vfid")!;
-        window.location.href = `/workbench/finding?id=${encodeURIComponent(id)}`;
+        {
+          const vfr = new URLSearchParams(window.location.search).get("vfr");
+          const suffix = vfr ? `&vfr=${encodeURIComponent(vfr)}` : "";
+          window.location.href = `/workbench/finding?id=${encodeURIComponent(id)}${suffix}`;
+        }
       });
     });
   }
@@ -576,7 +580,11 @@ const API_PATH = "/api/frontier";
           // External vfr_id — jump to the hub's entry page for that frontier.
           window.location.href = `https://vela-hub.fly.dev/entries/${encodeURIComponent(id)}`;
         } else {
-          window.location.href = `/workbench/finding?id=${encodeURIComponent(id)}`;
+          {
+          const vfr = new URLSearchParams(window.location.search).get("vfr");
+          const suffix = vfr ? `&vfr=${encodeURIComponent(vfr)}` : "";
+          window.location.href = `/workbench/finding?id=${encodeURIComponent(id)}${suffix}`;
+        }
         }
       });
     });

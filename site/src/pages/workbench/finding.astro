@@ -10,7 +10,7 @@ import Page from "../../layouts/Page.astro";
   subtitle="Reading from /api/findings"
 >
   <div slot="aside">
-    <a href="/workbench" class="back">← back to frontier</a>
+    <a href="/workbench" class="back" id="fd-back">← back to frontier</a>
   </div>
 
   <div class="fd">
@@ -364,20 +364,48 @@ import Page from "../../layouts/Page.astro";
   async function bootstrap(): Promise<void> {
     const params = new URLSearchParams(window.location.search);
     const id = params.get("id");
+    const vfr = params.get("vfr");
+    if (vfr) {
+      const back = document.getElementById("fd-back") as HTMLAnchorElement | null;
+      if (back) back.href = `/workbench?vfr=${encodeURIComponent(vfr)}`;
+    }
     if (!id) {
       document.getElementById("fd-main")!.innerHTML =
         '<p class="empty">Missing <code>?id=</code>. Open from <a href="/workbench">/workbench</a>.</p>';
       return;
     }
     try {
-      const [findingResp, frontierResp] = await Promise.all([
-        fetch(`/api/findings/${encodeURIComponent(id)}`, { headers: { accept: "application/json" } }),
-        fetch("/api/frontier", { headers: { accept: "application/json" } }),
-      ]);
-      if (!findingResp.ok) throw new Error(`/api/findings/${id} ${findingResp.status}`);
-      if (!frontierResp.ok) throw new Error(`/api/frontier ${frontierResp.status}`);
-      const finding: Finding = await findingResp.json();
-      const frontier: Frontier = await frontierResp.json();
+      let finding: Finding;
+      let frontier: Frontier;
+      if (vfr) {
+        // Multi-frontier mode: fetch the whole frontier from the hub
+        // locator and extract the finding client-side. The finding
+        // bundle is content-addressed, so a server-side single-finding
+        // endpoint isn't required.
+        const HUB_BASE = "https://vela-hub.fly.dev";
+        const er = await fetch(`${HUB_BASE}/entries/${encodeURIComponent(vfr)}`, {
+          headers: { accept: "application/json" },
+        });
+        if (!er.ok) throw new Error(`hub entry ${vfr}: ${er.status}`);
+        const entry = (await er.json()) as { network_locator: string };
+        const fr = await fetch(entry.network_locator, {
+          headers: { accept: "application/json" },
+        });
+        if (!fr.ok) throw new Error(`locator ${entry.network_locator}: ${fr.status}`);
+        frontier = (await fr.json()) as Frontier;
+        const found = (frontier.findings || []).find((f) => f.id === id);
+        if (!found) throw new Error(`finding ${id} not in frontier ${vfr}`);
+        finding = found as Finding;
+      } else {
+        const [findingResp, frontierResp] = await Promise.all([
+          fetch(`/api/findings/${encodeURIComponent(id)}`, { headers: { accept: "application/json" } }),
+          fetch("/api/frontier", { headers: { accept: "application/json" } }),
+        ]);
+        if (!findingResp.ok) throw new Error(`/api/findings/${id} ${findingResp.status}`);
+        if (!frontierResp.ok) throw new Error(`/api/frontier ${frontierResp.status}`);
+        finding = await findingResp.json();
+        frontier = await frontierResp.json();
+      }
       renderFinding(finding);
       const reviewer = getReviewer(frontier.actors || []);
       const queued = (frontier.proposals || []).filter(
