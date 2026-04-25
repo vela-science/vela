@@ -1,0 +1,3142 @@
+{
+  "vela_version": "0.10.0",
+  "schema": "https://vela.science/schema/finding-bundle/v0.10.0",
+  "frontier": {
+    "name": "Alzheimer's drug-target landscape",
+    "description": "Curated frontier of the five major Alzheimer's drug targets (Aβ, BACE1, Tau, TREM2, ApoE), bounded to one curator's synthesis of the literature. Each finding is an evergreen declarative claim from a working zettelkasten; links record the contradictions and supports the curator sees in the field.",
+    "compiled_at": "2026-04-25T22:37:51Z",
+    "compiler": "vela/0.10.0",
+    "papers_processed": 0,
+    "errors": 0,
+    "dependencies": []
+  },
+  "stats": {
+    "findings": 11,
+    "links": 7,
+    "replicated": 0,
+    "unreplicated": 11,
+    "avg_confidence": 0.759,
+    "gaps": 0,
+    "negative_space": 0,
+    "contested": 0,
+    "categories": {
+      "observational": 3,
+      "epidemiological": 2,
+      "mechanism": 3,
+      "review": 1,
+      "therapeutic": 2
+    },
+    "link_types": {
+      "contradicts": 1,
+      "extends": 1,
+      "supports": 5
+    },
+    "human_reviewed": 0,
+    "review_event_count": 11,
+    "confidence_update_count": 0,
+    "event_count": 11,
+    "source_count": 0,
+    "evidence_atom_count": 0,
+    "condition_record_count": 0,
+    "proposal_count": 11,
+    "confidence_distribution": {
+      "high_gt_80": 2,
+      "medium_60_80": 9,
+      "low_lt_60": 0
+    }
+  },
+  "findings": [
+    {
+      "id": "vf_03457ee82055bbe5",
+      "version": 1,
+      "previous_version": null,
+      "assertion": {
+        "text": "Amyloid cascade hypothesis remains dominant despite clinical failures",
+        "type": "review",
+        "entities": [
+          {
+            "name": "amyloid-beta",
+            "type": "protein",
+            "identifiers": {},
+            "candidates": [],
+            "aliases": [],
+            "resolution_provenance": "manual_state_transition",
+            "resolution_confidence": 0.6,
+            "needs_review": true
+          },
+          {
+            "name": "Alzheimer's disease",
+            "type": "disease",
+            "identifiers": {},
+            "candidates": [],
+            "aliases": [],
+            "resolution_provenance": "manual_state_transition",
+            "resolution_confidence": 0.6,
+            "needs_review": true
+          },
+          {
+            "name": "amyloid cascade",
+            "type": "pathway",
+            "identifiers": {},
+            "candidates": [],
+            "aliases": [],
+            "resolution_provenance": "manual_state_transition",
+            "resolution_confidence": 0.6,
+            "needs_review": true
+          }
+        ],
+        "relation": null,
+        "direction": null
+      },
+      "evidence": {
+        "type": "systematic_review",
+        "model_system": "",
+        "species": null,
+        "method": "manual state transition",
+        "sample_size": null,
+        "effect_size": null,
+        "p_value": null,
+        "replicated": false,
+        "replication_count": null,
+        "evidence_spans": []
+      },
+      "conditions": {
+        "text": "Manually added finding; requires evidence review before scientific use.",
+        "species_verified": [],
+        "species_unverified": [],
+        "in_vitro": false,
+        "in_vivo": false,
+        "human_data": false,
+        "clinical_trial": false,
+        "concentration_range": null,
+        "duration": null,
+        "age_group": null,
+        "cell_type": null
+      },
+      "confidence": {
+        "kind": "frontier_epistemic",
+        "score": 0.65,
+        "basis": "operator-supplied frontier prior; review required",
+        "method": "expert_judgment",
+        "extraction_confidence": 1.0
+      },
+      "provenance": {
+        "source_type": "published_paper",
+        "doi": null,
+        "pmid": null,
+        "pmc": null,
+        "openalex_id": null,
+        "title": "Selkoe & Hardy, 2016, EMBO Mol Med — amyloid cascade hypothesis revision",
+        "authors": [
+          {
+            "name": "reviewer:will-blair",
+            "orcid": null
+          }
+        ],
+        "year": null,
+        "journal": null,
+        "extraction": {
+          "method": "manual_curation",
+          "model": null,
+          "model_version": null,
+          "extracted_at": "2026-04-25T22:38:09.774797+00:00",
+          "extractor_version": "vela/0.10.0"
+        },
+        "review": {
+          "reviewed": false,
+          "reviewer": null,
+          "reviewed_at": null,
+          "corrections": []
+        },
+        "citation_count": null
+      },
+      "flags": {
+        "gap": false,
+        "negative_space": false,
+        "contested": false,
+        "retracted": false,
+        "declining": false,
+        "gravity_well": false
+      },
+      "links": [],
+      "created": "2026-04-25T22:38:09.775255+00:00",
+      "updated": null
+    },
+    {
+      "id": "vf_def8b61b15ccbec5",
+      "version": 1,
+      "previous_version": null,
+      "assertion": {
+        "text": "Lecanemab showed modest but real efficacy in the Clarity AD trial",
+        "type": "therapeutic",
+        "entities": [
+          {
+            "name": "Lecanemab",
+            "type": "compound",
+            "identifiers": {},
+            "candidates": [],
+            "aliases": [],
+            "resolution_provenance": "manual_state_transition",
+            "resolution_confidence": 0.6,
+            "needs_review": true
+          },
+          {
+            "name": "amyloid-beta",
+            "type": "protein",
+            "identifiers": {},
+            "candidates": [],
+            "aliases": [],
+            "resolution_provenance": "manual_state_transition",
+            "resolution_confidence": 0.6,
+            "needs_review": true
+          },
+          {
+            "name": "Alzheimer's disease",
+            "type": "disease",
+            "identifiers": {},
+            "candidates": [],
+            "aliases": [],
+            "resolution_provenance": "manual_state_transition",
+            "resolution_confidence": 0.6,
+            "needs_review": true
+          }
+        ],
+        "relation": null,
+        "direction": null
+      },
+      "evidence": {
+        "type": "experimental",
+        "model_system": "",
+        "species": null,
+        "method": "manual state transition",
+        "sample_size": null,
+        "effect_size": null,
+        "p_value": null,
+        "replicated": false,
+        "replication_count": null,
+        "evidence_spans": []
+      },
+      "conditions": {
+        "text": "Manually added finding; requires evidence review before scientific use.",
+        "species_verified": [],
+        "species_unverified": [],
+        "in_vitro": false,
+        "in_vivo": false,
+        "human_data": false,
+        "clinical_trial": false,
+        "concentration_range": null,
+        "duration": null,
+        "age_group": null,
+        "cell_type": null
+      },
+      "confidence": {
+        "kind": "frontier_epistemic",
+        "score": 0.8,
+        "basis": "operator-supplied frontier prior; review required",
+        "method": "expert_judgment",
+        "extraction_confidence": 1.0
+      },
+      "provenance": {
+        "source_type": "clinical_trial",
+        "doi": null,
+        "pmid": null,
+        "pmc": null,
+        "openalex_id": null,
+        "title": "van Dyck et al., 2023, NEJM 388:9-21 (Clarity AD)",
+        "authors": [
+          {
+            "name": "reviewer:will-blair",
+            "orcid": null
+          }
+        ],
+        "year": null,
+        "journal": null,
+        "extraction": {
+          "method": "manual_curation",
+          "model": null,
+          "model_version": null,
+          "extracted_at": "2026-04-25T22:38:09.788613+00:00",
+          "extractor_version": "vela/0.10.0"
+        },
+        "review": {
+          "reviewed": false,
+          "reviewer": null,
+          "reviewed_at": null,
+          "corrections": []
+        },
+        "citation_count": null
+      },
+      "flags": {
+        "gap": false,
+        "negative_space": false,
+        "contested": false,
+        "retracted": false,
+        "declining": false,
+        "gravity_well": false
+      },
+      "links": [
+        {
+          "target": "vf_03457ee82055bbe5",
+          "type": "supports",
+          "note": "Lecanemab partial efficacy is the strongest recent vindication of the amyloid hypothesis",
+          "inferred_by": "reviewer",
+          "created_at": "2026-04-25T22:38:44Z"
+        }
+      ],
+      "created": "2026-04-25T22:38:09.788620+00:00",
+      "updated": null
+    },
+    {
+      "id": "vf_e315edc9f24d716f",
+      "version": 1,
+      "previous_version": null,
+      "assertion": {
+        "text": "Aβ plaque burden correlates poorly with cognitive decline",
+        "type": "observational",
+        "entities": [
+          {
+            "name": "amyloid-beta",
+            "type": "protein",
+            "identifiers": {},
+            "candidates": [],
+            "aliases": [],
+            "resolution_provenance": "manual_state_transition",
+            "resolution_confidence": 0.6,
+            "needs_review": true
+          },
+          {
+            "name": "Alzheimer's disease",
+            "type": "disease",
+            "identifiers": {},
+            "candidates": [],
+            "aliases": [],
+            "resolution_provenance": "manual_state_transition",
+            "resolution_confidence": 0.6,
+            "needs_review": true
+          }
+        ],
+        "relation": null,
+        "direction": null
+      },
+      "evidence": {
+        "type": "observational",
+        "model_system": "",
+        "species": null,
+        "method": "manual state transition",
+        "sample_size": null,
+        "effect_size": null,
+        "p_value": null,
+        "replicated": false,
+        "replication_count": null,
+        "evidence_spans": []
+      },
+      "conditions": {
+        "text": "Manually added finding; requires evidence review before scientific use.",
+        "species_verified": [],
+        "species_unverified": [],
+        "in_vitro": false,
+        "in_vivo": false,
+        "human_data": false,
+        "clinical_trial": false,
+        "concentration_range": null,
+        "duration": null,
+        "age_group": null,
+        "cell_type": null
+      },
+      "confidence": {
+        "kind": "frontier_epistemic",
+        "score": 0.75,
+        "basis": "operator-supplied frontier prior; review required",
+        "method": "expert_judgment",
+        "extraction_confidence": 1.0
+      },
+      "provenance": {
+        "source_type": "published_paper",
+        "doi": null,
+        "pmid": null,
+        "pmc": null,
+        "openalex_id": null,
+        "title": "Jack et al., 2010, Lancet Neurol 9:119-128",
+        "authors": [
+          {
+            "name": "reviewer:will-blair",
+            "orcid": null
+          }
+        ],
+        "year": null,
+        "journal": null,
+        "extraction": {
+          "method": "manual_curation",
+          "model": null,
+          "model_version": null,
+          "extracted_at": "2026-04-25T22:38:09.795636+00:00",
+          "extractor_version": "vela/0.10.0"
+        },
+        "review": {
+          "reviewed": false,
+          "reviewer": null,
+          "reviewed_at": null,
+          "corrections": []
+        },
+        "citation_count": null
+      },
+      "flags": {
+        "gap": false,
+        "negative_space": false,
+        "contested": false,
+        "retracted": false,
+        "declining": false,
+        "gravity_well": false
+      },
+      "links": [
+        {
+          "target": "vf_03457ee82055bbe5",
+          "type": "contradicts",
+          "note": "Plaque-cognition decoupling is the central tension against the amyloid cascade as sole explanation",
+          "inferred_by": "reviewer",
+          "created_at": "2026-04-25T22:38:44Z"
+        }
+      ],
+      "created": "2026-04-25T22:38:09.795649+00:00",
+      "updated": null
+    },
+    {
+      "id": "vf_a0bde1de78324125",
+      "version": 1,
+      "previous_version": null,
+      "assertion": {
+        "text": "BACE1 inhibitor trials failed due to mechanism-independent side effects",
+        "type": "therapeutic",
+        "entities": [
+          {
+            "name": "BACE1",
+            "type": "protein",
+            "identifiers": {},
+            "candidates": [],
+            "aliases": [],
+            "resolution_provenance": "manual_state_transition",
+            "resolution_confidence": 0.6,
+            "needs_review": true
+          },
+          {
+            "name": "verubecestat",
+            "type": "compound",
+            "identifiers": {},
+            "candidates": [],
+            "aliases": [],
+            "resolution_provenance": "manual_state_transition",
+            "resolution_confidence": 0.6,
+            "needs_review": true
+          },
+          {
+            "name": "Alzheimer's disease",
+            "type": "disease",
+            "identifiers": {},
+            "candidates": [],
+            "aliases": [],
+            "resolution_provenance": "manual_state_transition",
+            "resolution_confidence": 0.6,
+            "needs_review": true
+          }
+        ],
+        "relation": null,
+        "direction": null
+      },
+      "evidence": {
+        "type": "experimental",
+        "model_system": "",
+        "species": null,
+        "method": "manual state transition",
+        "sample_size": null,
+        "effect_size": null,
+        "p_value": null,
+        "replicated": false,
+        "replication_count": null,
+        "evidence_spans": []
+      },
+      "conditions": {
+        "text": "Manually added finding; requires evidence review before scientific use.",
+        "species_verified": [],
+        "species_unverified": [],
+        "in_vitro": false,
+        "in_vivo": false,
+        "human_data": false,
+        "clinical_trial": false,
+        "concentration_range": null,
+        "duration": null,
+        "age_group": null,
+        "cell_type": null
+      },
+      "confidence": {
+        "kind": "frontier_epistemic",
+        "score": 0.75,
+        "basis": "operator-supplied frontier prior; review required",
+        "method": "expert_judgment",
+        "extraction_confidence": 1.0
+      },
+      "provenance": {
+        "source_type": "clinical_trial",
+        "doi": null,
+        "pmid": null,
+        "pmc": null,
+        "openalex_id": null,
+        "title": "Egan et al., 2019, NEJM 380:1408-1420 (verubecestat)",
+        "authors": [
+          {
+            "name": "reviewer:will-blair",
+            "orcid": null
+          }
+        ],
+        "year": null,
+        "journal": null,
+        "extraction": {
+          "method": "manual_curation",
+          "model": null,
+          "model_version": null,
+          "extracted_at": "2026-04-25T22:38:09.802441+00:00",
+          "extractor_version": "vela/0.10.0"
+        },
+        "review": {
+          "reviewed": false,
+          "reviewer": null,
+          "reviewed_at": null,
+          "corrections": []
+        },
+        "citation_count": null
+      },
+      "flags": {
+        "gap": false,
+        "negative_space": false,
+        "contested": false,
+        "retracted": false,
+        "declining": false,
+        "gravity_well": false
+      },
+      "links": [],
+      "created": "2026-04-25T22:38:09.802449+00:00",
+      "updated": null
+    },
+    {
+      "id": "vf_9b06fa5c13fd582c",
+      "version": 1,
+      "previous_version": null,
+      "assertion": {
+        "text": "BACE1 has essential non-amyloid substrates that explain inhibitor toxicity",
+        "type": "mechanism",
+        "entities": [
+          {
+            "name": "BACE1",
+            "type": "protein",
+            "identifiers": {},
+            "candidates": [],
+            "aliases": [],
+            "resolution_provenance": "manual_state_transition",
+            "resolution_confidence": 0.6,
+            "needs_review": true
+          },
+          {
+            "name": "APP",
+            "type": "protein",
+            "identifiers": {},
+            "candidates": [],
+            "aliases": [],
+            "resolution_provenance": "manual_state_transition",
+            "resolution_confidence": 0.6,
+            "needs_review": true
+          }
+        ],
+        "relation": null,
+        "direction": null
+      },
+      "evidence": {
+        "type": "experimental",
+        "model_system": "",
+        "species": null,
+        "method": "manual state transition",
+        "sample_size": null,
+        "effect_size": null,
+        "p_value": null,
+        "replicated": false,
+        "replication_count": null,
+        "evidence_spans": []
+      },
+      "conditions": {
+        "text": "Manually added finding; requires evidence review before scientific use.",
+        "species_verified": [],
+        "species_unverified": [],
+        "in_vitro": false,
+        "in_vivo": false,
+        "human_data": false,
+        "clinical_trial": false,
+        "concentration_range": null,
+        "duration": null,
+        "age_group": null,
+        "cell_type": null
+      },
+      "confidence": {
+        "kind": "frontier_epistemic",
+        "score": 0.7,
+        "basis": "operator-supplied frontier prior; review required",
+        "method": "expert_judgment",
+        "extraction_confidence": 1.0
+      },
+      "provenance": {
+        "source_type": "published_paper",
+        "doi": null,
+        "pmid": null,
+        "pmc": null,
+        "openalex_id": null,
+        "title": "Vassar et al., 2014, Nat Neurosci 17:1183-1191 — BACE1 substrate review",
+        "authors": [
+          {
+            "name": "reviewer:will-blair",
+            "orcid": null
+          }
+        ],
+        "year": null,
+        "journal": null,
+        "extraction": {
+          "method": "manual_curation",
+          "model": null,
+          "model_version": null,
+          "extracted_at": "2026-04-25T22:38:09.809075+00:00",
+          "extractor_version": "vela/0.10.0"
+        },
+        "review": {
+          "reviewed": false,
+          "reviewer": null,
+          "reviewed_at": null,
+          "corrections": []
+        },
+        "citation_count": null
+      },
+      "flags": {
+        "gap": false,
+        "negative_space": false,
+        "contested": false,
+        "retracted": false,
+        "declining": false,
+        "gravity_well": false
+      },
+      "links": [
+        {
+          "target": "vf_a0bde1de78324125",
+          "type": "supports",
+          "note": "Non-amyloid substrates explain the mechanism-independent toxicity that killed verubecestat",
+          "inferred_by": "reviewer",
+          "created_at": "2026-04-25T22:38:44Z"
+        }
+      ],
+      "created": "2026-04-25T22:38:09.809084+00:00",
+      "updated": null
+    },
+    {
+      "id": "vf_7ddb018fa1f264b5",
+      "version": 1,
+      "previous_version": null,
+      "assertion": {
+        "text": "Tau pathology tracks cognitive decline more closely than amyloid",
+        "type": "observational",
+        "entities": [
+          {
+            "name": "tau",
+            "type": "protein",
+            "identifiers": {},
+            "candidates": [],
+            "aliases": [],
+            "resolution_provenance": "manual_state_transition",
+            "resolution_confidence": 0.6,
+            "needs_review": true
+          },
+          {
+            "name": "amyloid-beta",
+            "type": "protein",
+            "identifiers": {},
+            "candidates": [],
+            "aliases": [],
+            "resolution_provenance": "manual_state_transition",
+            "resolution_confidence": 0.6,
+            "needs_review": true
+          },
+          {
+            "name": "Alzheimer's disease",
+            "type": "disease",
+            "identifiers": {},
+            "candidates": [],
+            "aliases": [],
+            "resolution_provenance": "manual_state_transition",
+            "resolution_confidence": 0.6,
+            "needs_review": true
+          }
+        ],
+        "relation": null,
+        "direction": null
+      },
+      "evidence": {
+        "type": "observational",
+        "model_system": "",
+        "species": null,
+        "method": "manual state transition",
+        "sample_size": null,
+        "effect_size": null,
+        "p_value": null,
+        "replicated": false,
+        "replication_count": null,
+        "evidence_spans": []
+      },
+      "conditions": {
+        "text": "Manually added finding; requires evidence review before scientific use.",
+        "species_verified": [],
+        "species_unverified": [],
+        "in_vitro": false,
+        "in_vivo": false,
+        "human_data": false,
+        "clinical_trial": false,
+        "concentration_range": null,
+        "duration": null,
+        "age_group": null,
+        "cell_type": null
+      },
+      "confidence": {
+        "kind": "frontier_epistemic",
+        "score": 0.8,
+        "basis": "operator-supplied frontier prior; review required",
+        "method": "expert_judgment",
+        "extraction_confidence": 1.0
+      },
+      "provenance": {
+        "source_type": "published_paper",
+        "doi": null,
+        "pmid": null,
+        "pmc": null,
+        "openalex_id": null,
+        "title": "Hanseeuw et al., 2019, JAMA Neurol 76:915-924",
+        "authors": [
+          {
+            "name": "reviewer:will-blair",
+            "orcid": null
+          }
+        ],
+        "year": null,
+        "journal": null,
+        "extraction": {
+          "method": "manual_curation",
+          "model": null,
+          "model_version": null,
+          "extracted_at": "2026-04-25T22:38:28.249302+00:00",
+          "extractor_version": "vela/0.10.0"
+        },
+        "review": {
+          "reviewed": false,
+          "reviewer": null,
+          "reviewed_at": null,
+          "corrections": []
+        },
+        "citation_count": null
+      },
+      "flags": {
+        "gap": false,
+        "negative_space": false,
+        "contested": false,
+        "retracted": false,
+        "declining": false,
+        "gravity_well": false
+      },
+      "links": [
+        {
+          "target": "vf_e315edc9f24d716f",
+          "type": "supports",
+          "note": "Tau-cognition coupling reinforces the case that amyloid is not the proximal driver of decline",
+          "inferred_by": "reviewer",
+          "created_at": "2026-04-25T22:38:44Z"
+        }
+      ],
+      "created": "2026-04-25T22:38:28.249314+00:00",
+      "updated": null
+    },
+    {
+      "id": "vf_92999ad692613315",
+      "version": 1,
+      "previous_version": null,
+      "assertion": {
+        "text": "Tau propagation follows predictable Braak staging patterns",
+        "type": "mechanism",
+        "entities": [
+          {
+            "name": "tau",
+            "type": "protein",
+            "identifiers": {},
+            "candidates": [],
+            "aliases": [],
+            "resolution_provenance": "manual_state_transition",
+            "resolution_confidence": 0.6,
+            "needs_review": true
+          },
+          {
+            "name": "Alzheimer's disease",
+            "type": "disease",
+            "identifiers": {},
+            "candidates": [],
+            "aliases": [],
+            "resolution_provenance": "manual_state_transition",
+            "resolution_confidence": 0.6,
+            "needs_review": true
+          }
+        ],
+        "relation": null,
+        "direction": null
+      },
+      "evidence": {
+        "type": "observational",
+        "model_system": "",
+        "species": null,
+        "method": "manual state transition",
+        "sample_size": null,
+        "effect_size": null,
+        "p_value": null,
+        "replicated": false,
+        "replication_count": null,
+        "evidence_spans": []
+      },
+      "conditions": {
+        "text": "Manually added finding; requires evidence review before scientific use.",
+        "species_verified": [],
+        "species_unverified": [],
+        "in_vitro": false,
+        "in_vivo": false,
+        "human_data": false,
+        "clinical_trial": false,
+        "concentration_range": null,
+        "duration": null,
+        "age_group": null,
+        "cell_type": null
+      },
+      "confidence": {
+        "kind": "frontier_epistemic",
+        "score": 0.85,
+        "basis": "operator-supplied frontier prior; review required",
+        "method": "expert_judgment",
+        "extraction_confidence": 1.0
+      },
+      "provenance": {
+        "source_type": "published_paper",
+        "doi": null,
+        "pmid": null,
+        "pmc": null,
+        "openalex_id": null,
+        "title": "Braak & Braak, 1991, Acta Neuropathol 82:239-259",
+        "authors": [
+          {
+            "name": "reviewer:will-blair",
+            "orcid": null
+          }
+        ],
+        "year": null,
+        "journal": null,
+        "extraction": {
+          "method": "manual_curation",
+          "model": null,
+          "model_version": null,
+          "extracted_at": "2026-04-25T22:38:28.256093+00:00",
+          "extractor_version": "vela/0.10.0"
+        },
+        "review": {
+          "reviewed": false,
+          "reviewer": null,
+          "reviewed_at": null,
+          "corrections": []
+        },
+        "citation_count": null
+      },
+      "flags": {
+        "gap": false,
+        "negative_space": false,
+        "contested": false,
+        "retracted": false,
+        "declining": false,
+        "gravity_well": false
+      },
+      "links": [
+        {
+          "target": "vf_7ddb018fa1f264b5",
+          "type": "supports",
+          "note": "Braak staging gives tau a stronger progression logic than amyloid burden",
+          "inferred_by": "reviewer",
+          "created_at": "2026-04-25T22:38:44Z"
+        }
+      ],
+      "created": "2026-04-25T22:38:28.256099+00:00",
+      "updated": null
+    },
+    {
+      "id": "vf_d8e6a10a357310da",
+      "version": 1,
+      "previous_version": null,
+      "assertion": {
+        "text": "TREM2 loss-of-function increases amyloid plaque density",
+        "type": "mechanism",
+        "entities": [
+          {
+            "name": "TREM2",
+            "type": "protein",
+            "identifiers": {},
+            "candidates": [],
+            "aliases": [],
+            "resolution_provenance": "manual_state_transition",
+            "resolution_confidence": 0.6,
+            "needs_review": true
+          },
+          {
+            "name": "amyloid-beta",
+            "type": "protein",
+            "identifiers": {},
+            "candidates": [],
+            "aliases": [],
+            "resolution_provenance": "manual_state_transition",
+            "resolution_confidence": 0.6,
+            "needs_review": true
+          },
+          {
+            "name": "microglia",
+            "type": "cell_type",
+            "identifiers": {},
+            "candidates": [],
+            "aliases": [],
+            "resolution_provenance": "manual_state_transition",
+            "resolution_confidence": 0.6,
+            "needs_review": true
+          }
+        ],
+        "relation": null,
+        "direction": null
+      },
+      "evidence": {
+        "type": "experimental",
+        "model_system": "",
+        "species": null,
+        "method": "manual state transition",
+        "sample_size": null,
+        "effect_size": null,
+        "p_value": null,
+        "replicated": false,
+        "replication_count": null,
+        "evidence_spans": []
+      },
+      "conditions": {
+        "text": "Manually added finding; requires evidence review before scientific use.",
+        "species_verified": [],
+        "species_unverified": [],
+        "in_vitro": false,
+        "in_vivo": false,
+        "human_data": false,
+        "clinical_trial": false,
+        "concentration_range": null,
+        "duration": null,
+        "age_group": null,
+        "cell_type": null
+      },
+      "confidence": {
+        "kind": "frontier_epistemic",
+        "score": 0.75,
+        "basis": "operator-supplied frontier prior; review required",
+        "method": "expert_judgment",
+        "extraction_confidence": 1.0
+      },
+      "provenance": {
+        "source_type": "published_paper",
+        "doi": null,
+        "pmid": null,
+        "pmc": null,
+        "openalex_id": null,
+        "title": "Gratuze et al., 2023, Nat Rev Neurol — TREM2 review",
+        "authors": [
+          {
+            "name": "reviewer:will-blair",
+            "orcid": null
+          }
+        ],
+        "year": null,
+        "journal": null,
+        "extraction": {
+          "method": "manual_curation",
+          "model": null,
+          "model_version": null,
+          "extracted_at": "2026-04-25T22:38:28.262755+00:00",
+          "extractor_version": "vela/0.10.0"
+        },
+        "review": {
+          "reviewed": false,
+          "reviewer": null,
+          "reviewed_at": null,
+          "corrections": []
+        },
+        "citation_count": null
+      },
+      "flags": {
+        "gap": false,
+        "negative_space": false,
+        "contested": false,
+        "retracted": false,
+        "declining": false,
+        "gravity_well": false
+      },
+      "links": [
+        {
+          "target": "vf_03457ee82055bbe5",
+          "type": "supports",
+          "note": "TREM2 LOF increasing plaques is consistent with amyloid being a real driver, just not the only one",
+          "inferred_by": "reviewer",
+          "created_at": "2026-04-25T22:38:44Z"
+        }
+      ],
+      "created": "2026-04-25T22:38:28.262763+00:00",
+      "updated": null
+    },
+    {
+      "id": "vf_3d2442675353d79b",
+      "version": 1,
+      "previous_version": null,
+      "assertion": {
+        "text": "TREM2 variants represent the strongest genetic risk after ApoE4",
+        "type": "epidemiological",
+        "entities": [
+          {
+            "name": "TREM2",
+            "type": "protein",
+            "identifiers": {},
+            "candidates": [],
+            "aliases": [],
+            "resolution_provenance": "manual_state_transition",
+            "resolution_confidence": 0.6,
+            "needs_review": true
+          },
+          {
+            "name": "ApoE",
+            "type": "protein",
+            "identifiers": {},
+            "candidates": [],
+            "aliases": [],
+            "resolution_provenance": "manual_state_transition",
+            "resolution_confidence": 0.6,
+            "needs_review": true
+          },
+          {
+            "name": "Alzheimer's disease",
+            "type": "disease",
+            "identifiers": {},
+            "candidates": [],
+            "aliases": [],
+            "resolution_provenance": "manual_state_transition",
+            "resolution_confidence": 0.6,
+            "needs_review": true
+          }
+        ],
+        "relation": null,
+        "direction": null
+      },
+      "evidence": {
+        "type": "meta_analysis",
+        "model_system": "",
+        "species": null,
+        "method": "manual state transition",
+        "sample_size": null,
+        "effect_size": null,
+        "p_value": null,
+        "replicated": false,
+        "replication_count": null,
+        "evidence_spans": []
+      },
+      "conditions": {
+        "text": "Manually added finding; requires evidence review before scientific use.",
+        "species_verified": [],
+        "species_unverified": [],
+        "in_vitro": false,
+        "in_vivo": false,
+        "human_data": false,
+        "clinical_trial": false,
+        "concentration_range": null,
+        "duration": null,
+        "age_group": null,
+        "cell_type": null
+      },
+      "confidence": {
+        "kind": "frontier_epistemic",
+        "score": 0.75,
+        "basis": "operator-supplied frontier prior; review required",
+        "method": "expert_judgment",
+        "extraction_confidence": 1.0
+      },
+      "provenance": {
+        "source_type": "published_paper",
+        "doi": null,
+        "pmid": null,
+        "pmc": null,
+        "openalex_id": null,
+        "title": "Gratuze et al., 2023, Nat Rev Neurol — TREM2 review",
+        "authors": [
+          {
+            "name": "reviewer:will-blair",
+            "orcid": null
+          }
+        ],
+        "year": null,
+        "journal": null,
+        "extraction": {
+          "method": "manual_curation",
+          "model": null,
+          "model_version": null,
+          "extracted_at": "2026-04-25T22:38:28.269138+00:00",
+          "extractor_version": "vela/0.10.0"
+        },
+        "review": {
+          "reviewed": false,
+          "reviewer": null,
+          "reviewed_at": null,
+          "corrections": []
+        },
+        "citation_count": null
+      },
+      "flags": {
+        "gap": false,
+        "negative_space": false,
+        "contested": false,
+        "retracted": false,
+        "declining": false,
+        "gravity_well": false
+      },
+      "links": [],
+      "created": "2026-04-25T22:38:28.269146+00:00",
+      "updated": null
+    },
+    {
+      "id": "vf_713ebab7b8230664",
+      "version": 1,
+      "previous_version": null,
+      "assertion": {
+        "text": "ApoE4 increases Alzheimer's risk 3-12x depending on copy number",
+        "type": "epidemiological",
+        "entities": [
+          {
+            "name": "ApoE",
+            "type": "protein",
+            "identifiers": {},
+            "candidates": [],
+            "aliases": [],
+            "resolution_provenance": "manual_state_transition",
+            "resolution_confidence": 0.6,
+            "needs_review": true
+          },
+          {
+            "name": "Alzheimer's disease",
+            "type": "disease",
+            "identifiers": {},
+            "candidates": [],
+            "aliases": [],
+            "resolution_provenance": "manual_state_transition",
+            "resolution_confidence": 0.6,
+            "needs_review": true
+          }
+        ],
+        "relation": null,
+        "direction": null
+      },
+      "evidence": {
+        "type": "meta_analysis",
+        "model_system": "",
+        "species": null,
+        "method": "manual state transition",
+        "sample_size": null,
+        "effect_size": null,
+        "p_value": null,
+        "replicated": false,
+        "replication_count": null,
+        "evidence_spans": []
+      },
+      "conditions": {
+        "text": "Manually added finding; requires evidence review before scientific use.",
+        "species_verified": [],
+        "species_unverified": [],
+        "in_vitro": false,
+        "in_vivo": false,
+        "human_data": false,
+        "clinical_trial": false,
+        "concentration_range": null,
+        "duration": null,
+        "age_group": null,
+        "cell_type": null
+      },
+      "confidence": {
+        "kind": "frontier_epistemic",
+        "score": 0.9,
+        "basis": "operator-supplied frontier prior; review required",
+        "method": "expert_judgment",
+        "extraction_confidence": 1.0
+      },
+      "provenance": {
+        "source_type": "published_paper",
+        "doi": null,
+        "pmid": null,
+        "pmc": null,
+        "openalex_id": null,
+        "title": "Corder et al., 1993, Science 261:921-923; subsequent meta-analyses",
+        "authors": [
+          {
+            "name": "reviewer:will-blair",
+            "orcid": null
+          }
+        ],
+        "year": null,
+        "journal": null,
+        "extraction": {
+          "method": "manual_curation",
+          "model": null,
+          "model_version": null,
+          "extracted_at": "2026-04-25T22:38:28.277329+00:00",
+          "extractor_version": "vela/0.10.0"
+        },
+        "review": {
+          "reviewed": false,
+          "reviewer": null,
+          "reviewed_at": null,
+          "corrections": []
+        },
+        "citation_count": null
+      },
+      "flags": {
+        "gap": false,
+        "negative_space": false,
+        "contested": false,
+        "retracted": false,
+        "declining": false,
+        "gravity_well": false
+      },
+      "links": [],
+      "created": "2026-04-25T22:38:28.277341+00:00",
+      "updated": null
+    },
+    {
+      "id": "vf_ef076b17acda1221",
+      "version": 1,
+      "previous_version": null,
+      "assertion": {
+        "text": "ApoE Christchurch variant may be protective even with PSEN1 mutations",
+        "type": "observational",
+        "entities": [
+          {
+            "name": "ApoE",
+            "type": "protein",
+            "identifiers": {},
+            "candidates": [],
+            "aliases": [],
+            "resolution_provenance": "manual_state_transition",
+            "resolution_confidence": 0.6,
+            "needs_review": true
+          },
+          {
+            "name": "PSEN1",
+            "type": "gene",
+            "identifiers": {},
+            "candidates": [],
+            "aliases": [],
+            "resolution_provenance": "manual_state_transition",
+            "resolution_confidence": 0.6,
+            "needs_review": true
+          },
+          {
+            "name": "Alzheimer's disease",
+            "type": "disease",
+            "identifiers": {},
+            "candidates": [],
+            "aliases": [],
+            "resolution_provenance": "manual_state_transition",
+            "resolution_confidence": 0.6,
+            "needs_review": true
+          }
+        ],
+        "relation": null,
+        "direction": null
+      },
+      "evidence": {
+        "type": "case_report",
+        "model_system": "",
+        "species": null,
+        "method": "manual state transition",
+        "sample_size": null,
+        "effect_size": null,
+        "p_value": null,
+        "replicated": false,
+        "replication_count": null,
+        "evidence_spans": []
+      },
+      "conditions": {
+        "text": "Manually added finding; requires evidence review before scientific use.",
+        "species_verified": [],
+        "species_unverified": [],
+        "in_vitro": false,
+        "in_vivo": false,
+        "human_data": false,
+        "clinical_trial": false,
+        "concentration_range": null,
+        "duration": null,
+        "age_group": null,
+        "cell_type": null
+      },
+      "confidence": {
+        "kind": "frontier_epistemic",
+        "score": 0.65,
+        "basis": "operator-supplied frontier prior; review required",
+        "method": "expert_judgment",
+        "extraction_confidence": 1.0
+      },
+      "provenance": {
+        "source_type": "published_paper",
+        "doi": null,
+        "pmid": null,
+        "pmc": null,
+        "openalex_id": null,
+        "title": "Arboleda-Velasquez et al., 2019, Nature Medicine 25:1680-1683",
+        "authors": [
+          {
+            "name": "reviewer:will-blair",
+            "orcid": null
+          }
+        ],
+        "year": null,
+        "journal": null,
+        "extraction": {
+          "method": "manual_curation",
+          "model": null,
+          "model_version": null,
+          "extracted_at": "2026-04-25T22:38:28.283866+00:00",
+          "extractor_version": "vela/0.10.0"
+        },
+        "review": {
+          "reviewed": false,
+          "reviewer": null,
+          "reviewed_at": null,
+          "corrections": []
+        },
+        "citation_count": null
+      },
+      "flags": {
+        "gap": false,
+        "negative_space": false,
+        "contested": false,
+        "retracted": false,
+        "declining": false,
+        "gravity_well": false
+      },
+      "links": [
+        {
+          "target": "vf_713ebab7b8230664",
+          "type": "extends",
+          "note": "Christchurch case shows ApoE variation can blunt risk in directions unsuspected by the simple ApoE4 risk model",
+          "inferred_by": "reviewer",
+          "created_at": "2026-04-25T22:38:44Z"
+        }
+      ],
+      "created": "2026-04-25T22:38:28.283873+00:00",
+      "updated": null
+    }
+  ],
+  "sources": [],
+  "evidence_atoms": [],
+  "condition_records": [],
+  "events": [
+    {
+      "schema": "vela.event.v0.1",
+      "id": "vev_347d86ff040ebbad",
+      "kind": "finding.asserted",
+      "target": {
+        "type": "finding",
+        "id": "vf_03457ee82055bbe5"
+      },
+      "actor": {
+        "id": "reviewer:will-blair",
+        "type": "human"
+      },
+      "timestamp": "2026-04-25T22:38:09.780670+00:00",
+      "reason": "Manual finding added to frontier state",
+      "before_hash": "sha256:null",
+      "after_hash": "sha256:a5d60521cd97e05dbe03f8dde40b6c8120cb5d752670f2b81bad19adb36c1669",
+      "payload": {
+        "proposal_id": "vpr_ac9cd84048f65838"
+      },
+      "caveats": [
+        "Manual findings require evidence review before scientific use."
+      ]
+    },
+    {
+      "schema": "vela.event.v0.1",
+      "id": "vev_383e72e84307b08f",
+      "kind": "finding.asserted",
+      "target": {
+        "type": "finding",
+        "id": "vf_def8b61b15ccbec5"
+      },
+      "actor": {
+        "id": "reviewer:will-blair",
+        "type": "human"
+      },
+      "timestamp": "2026-04-25T22:38:09.788913+00:00",
+      "reason": "Manual finding added to frontier state",
+      "before_hash": "sha256:null",
+      "after_hash": "sha256:6ed3408be5a1f1658b627cadd03986749cfb9871d26e84cf87ee26707eb5c180",
+      "payload": {
+        "proposal_id": "vpr_26a07a790d8daef6"
+      },
+      "caveats": [
+        "Manual findings require evidence review before scientific use."
+      ]
+    },
+    {
+      "schema": "vela.event.v0.1",
+      "id": "vev_bdfaedd726417acf",
+      "kind": "finding.asserted",
+      "target": {
+        "type": "finding",
+        "id": "vf_e315edc9f24d716f"
+      },
+      "actor": {
+        "id": "reviewer:will-blair",
+        "type": "human"
+      },
+      "timestamp": "2026-04-25T22:38:09.796042+00:00",
+      "reason": "Manual finding added to frontier state",
+      "before_hash": "sha256:null",
+      "after_hash": "sha256:a986ea82f5317a2e6e0439592a853109217442ab39b016d4964b1be413a2bb0a",
+      "payload": {
+        "proposal_id": "vpr_3e5eed13f7a00563"
+      },
+      "caveats": [
+        "Manual findings require evidence review before scientific use."
+      ]
+    },
+    {
+      "schema": "vela.event.v0.1",
+      "id": "vev_3559f8f933ad93b4",
+      "kind": "finding.asserted",
+      "target": {
+        "type": "finding",
+        "id": "vf_a0bde1de78324125"
+      },
+      "actor": {
+        "id": "reviewer:will-blair",
+        "type": "human"
+      },
+      "timestamp": "2026-04-25T22:38:09.802814+00:00",
+      "reason": "Manual finding added to frontier state",
+      "before_hash": "sha256:null",
+      "after_hash": "sha256:06058632464c2aa6697c37a481aff89fd27a989a1c56142f3ec1ff5065a0d935",
+      "payload": {
+        "proposal_id": "vpr_9d531e6512cb2225"
+      },
+      "caveats": [
+        "Manual findings require evidence review before scientific use."
+      ]
+    },
+    {
+      "schema": "vela.event.v0.1",
+      "id": "vev_51ee8f5e66693083",
+      "kind": "finding.asserted",
+      "target": {
+        "type": "finding",
+        "id": "vf_9b06fa5c13fd582c"
+      },
+      "actor": {
+        "id": "reviewer:will-blair",
+        "type": "human"
+      },
+      "timestamp": "2026-04-25T22:38:09.809436+00:00",
+      "reason": "Manual finding added to frontier state",
+      "before_hash": "sha256:null",
+      "after_hash": "sha256:25b2b2073865e94084ec37486ff5b268fdf23e860caaf943863d3050cce33bc7",
+      "payload": {
+        "proposal_id": "vpr_5e36191b2f16c066"
+      },
+      "caveats": [
+        "Manual findings require evidence review before scientific use."
+      ]
+    },
+    {
+      "schema": "vela.event.v0.1",
+      "id": "vev_8527b1e89bbcef4e",
+      "kind": "finding.asserted",
+      "target": {
+        "type": "finding",
+        "id": "vf_7ddb018fa1f264b5"
+      },
+      "actor": {
+        "id": "reviewer:will-blair",
+        "type": "human"
+      },
+      "timestamp": "2026-04-25T22:38:28.249731+00:00",
+      "reason": "Manual finding added to frontier state",
+      "before_hash": "sha256:null",
+      "after_hash": "sha256:b580c58f18d43d6d8939c1d3a5002303efd95ee13e45b8aaabfe6dcbf85b6a3b",
+      "payload": {
+        "proposal_id": "vpr_5ce90e0956f9f118"
+      },
+      "caveats": [
+        "Manual findings require evidence review before scientific use."
+      ]
+    },
+    {
+      "schema": "vela.event.v0.1",
+      "id": "vev_88d31457121c6f9d",
+      "kind": "finding.asserted",
+      "target": {
+        "type": "finding",
+        "id": "vf_92999ad692613315"
+      },
+      "actor": {
+        "id": "reviewer:will-blair",
+        "type": "human"
+      },
+      "timestamp": "2026-04-25T22:38:28.256462+00:00",
+      "reason": "Manual finding added to frontier state",
+      "before_hash": "sha256:null",
+      "after_hash": "sha256:2b798f9ae558afe4925f9a5bba744dc4b917d0fb1eed9896612d8bac718efd43",
+      "payload": {
+        "proposal_id": "vpr_b82db6aabb5012da"
+      },
+      "caveats": [
+        "Manual findings require evidence review before scientific use."
+      ]
+    },
+    {
+      "schema": "vela.event.v0.1",
+      "id": "vev_34dd12859302eb96",
+      "kind": "finding.asserted",
+      "target": {
+        "type": "finding",
+        "id": "vf_d8e6a10a357310da"
+      },
+      "actor": {
+        "id": "reviewer:will-blair",
+        "type": "human"
+      },
+      "timestamp": "2026-04-25T22:38:28.263183+00:00",
+      "reason": "Manual finding added to frontier state",
+      "before_hash": "sha256:null",
+      "after_hash": "sha256:4970bd8d70320f2f05266b8fb8e9c43a7342535b01e70d26e7b39961f984ceec",
+      "payload": {
+        "proposal_id": "vpr_40cecb3ee6bedce8"
+      },
+      "caveats": [
+        "Manual findings require evidence review before scientific use."
+      ]
+    },
+    {
+      "schema": "vela.event.v0.1",
+      "id": "vev_1b7e5573c888c06d",
+      "kind": "finding.asserted",
+      "target": {
+        "type": "finding",
+        "id": "vf_3d2442675353d79b"
+      },
+      "actor": {
+        "id": "reviewer:will-blair",
+        "type": "human"
+      },
+      "timestamp": "2026-04-25T22:38:28.269596+00:00",
+      "reason": "Manual finding added to frontier state",
+      "before_hash": "sha256:null",
+      "after_hash": "sha256:3d3baf0bb30d0cd17d663f5c46d21129dac5297b2341cbbc04335136f9b4be53",
+      "payload": {
+        "proposal_id": "vpr_d7cef96185856bc9"
+      },
+      "caveats": [
+        "Manual findings require evidence review before scientific use."
+      ]
+    },
+    {
+      "schema": "vela.event.v0.1",
+      "id": "vev_b336ff7ceb639f0b",
+      "kind": "finding.asserted",
+      "target": {
+        "type": "finding",
+        "id": "vf_713ebab7b8230664"
+      },
+      "actor": {
+        "id": "reviewer:will-blair",
+        "type": "human"
+      },
+      "timestamp": "2026-04-25T22:38:28.277798+00:00",
+      "reason": "Manual finding added to frontier state",
+      "before_hash": "sha256:null",
+      "after_hash": "sha256:5c06f80aec30d4c81a0a273751a940216279546f1757fe5fd58a48cbbca74281",
+      "payload": {
+        "proposal_id": "vpr_36d276b6839be1a3"
+      },
+      "caveats": [
+        "Manual findings require evidence review before scientific use."
+      ]
+    },
+    {
+      "schema": "vela.event.v0.1",
+      "id": "vev_8a0df1455fc796e8",
+      "kind": "finding.asserted",
+      "target": {
+        "type": "finding",
+        "id": "vf_ef076b17acda1221"
+      },
+      "actor": {
+        "id": "reviewer:will-blair",
+        "type": "human"
+      },
+      "timestamp": "2026-04-25T22:38:28.284348+00:00",
+      "reason": "Manual finding added to frontier state",
+      "before_hash": "sha256:null",
+      "after_hash": "sha256:67e4c69d4177fd4901cfdafa0cc5e797d2caec2372b0eede4185ddc9a2c9b245",
+      "payload": {
+        "proposal_id": "vpr_585de5ce8eb9a0c9"
+      },
+      "caveats": [
+        "Manual findings require evidence review before scientific use."
+      ]
+    }
+  ],
+  "proposals": [
+    {
+      "schema": "vela.proposal.v0.1",
+      "id": "vpr_ac9cd84048f65838",
+      "kind": "finding.add",
+      "target": {
+        "type": "finding",
+        "id": "vf_03457ee82055bbe5"
+      },
+      "actor": {
+        "id": "reviewer:will-blair",
+        "type": "human"
+      },
+      "created_at": "2026-04-25T22:38:09.777242+00:00",
+      "reason": "Manual finding added to frontier state",
+      "payload": {
+        "finding": {
+          "assertion": {
+            "direction": null,
+            "entities": [
+              {
+                "aliases": [],
+                "candidates": [],
+                "identifiers": {},
+                "name": "amyloid-beta",
+                "needs_review": true,
+                "resolution_confidence": 0.6,
+                "resolution_provenance": "manual_state_transition",
+                "type": "protein"
+              },
+              {
+                "aliases": [],
+                "candidates": [],
+                "identifiers": {},
+                "name": "Alzheimer's disease",
+                "needs_review": true,
+                "resolution_confidence": 0.6,
+                "resolution_provenance": "manual_state_transition",
+                "type": "disease"
+              },
+              {
+                "aliases": [],
+                "candidates": [],
+                "identifiers": {},
+                "name": "amyloid cascade",
+                "needs_review": true,
+                "resolution_confidence": 0.6,
+                "resolution_provenance": "manual_state_transition",
+                "type": "pathway"
+              }
+            ],
+            "relation": null,
+            "text": "Amyloid cascade hypothesis remains dominant despite clinical failures",
+            "type": "review"
+          },
+          "conditions": {
+            "age_group": null,
+            "cell_type": null,
+            "clinical_trial": false,
+            "concentration_range": null,
+            "duration": null,
+            "human_data": false,
+            "in_vitro": false,
+            "in_vivo": false,
+            "species_unverified": [],
+            "species_verified": [],
+            "text": "Manually added finding; requires evidence review before scientific use."
+          },
+          "confidence": {
+            "basis": "operator-supplied frontier prior; review required",
+            "extraction_confidence": 1.0,
+            "kind": "frontier_epistemic",
+            "method": "expert_judgment",
+            "score": 0.65
+          },
+          "created": "2026-04-25T22:38:09.775255+00:00",
+          "evidence": {
+            "effect_size": null,
+            "evidence_spans": [],
+            "method": "manual state transition",
+            "model_system": "",
+            "p_value": null,
+            "replicated": false,
+            "replication_count": null,
+            "sample_size": null,
+            "species": null,
+            "type": "systematic_review"
+          },
+          "flags": {
+            "contested": false,
+            "declining": false,
+            "gap": false,
+            "gravity_well": false,
+            "negative_space": false,
+            "retracted": false
+          },
+          "id": "vf_03457ee82055bbe5",
+          "links": [],
+          "previous_version": null,
+          "provenance": {
+            "authors": [
+              {
+                "name": "reviewer:will-blair",
+                "orcid": null
+              }
+            ],
+            "citation_count": null,
+            "doi": null,
+            "extraction": {
+              "extracted_at": "2026-04-25T22:38:09.774797+00:00",
+              "extractor_version": "vela/0.10.0",
+              "method": "manual_curation",
+              "model": null,
+              "model_version": null
+            },
+            "journal": null,
+            "openalex_id": null,
+            "pmc": null,
+            "pmid": null,
+            "review": {
+              "corrections": [],
+              "reviewed": false,
+              "reviewed_at": null,
+              "reviewer": null
+            },
+            "source_type": "published_paper",
+            "title": "Selkoe & Hardy, 2016, EMBO Mol Med — amyloid cascade hypothesis revision",
+            "year": null
+          },
+          "updated": null,
+          "version": 1
+        }
+      },
+      "source_refs": [],
+      "status": "applied",
+      "reviewed_by": "reviewer:will-blair",
+      "reviewed_at": "2026-04-25T22:38:09.780250+00:00",
+      "decision_reason": "Applied locally from proposal creation",
+      "applied_event_id": "vev_347d86ff040ebbad",
+      "caveats": [
+        "Manual findings require evidence review before scientific use."
+      ]
+    },
+    {
+      "schema": "vela.proposal.v0.1",
+      "id": "vpr_26a07a790d8daef6",
+      "kind": "finding.add",
+      "target": {
+        "type": "finding",
+        "id": "vf_def8b61b15ccbec5"
+      },
+      "actor": {
+        "id": "reviewer:will-blair",
+        "type": "human"
+      },
+      "created_at": "2026-04-25T22:38:09.788661+00:00",
+      "reason": "Manual finding added to frontier state",
+      "payload": {
+        "finding": {
+          "assertion": {
+            "direction": null,
+            "entities": [
+              {
+                "aliases": [],
+                "candidates": [],
+                "identifiers": {},
+                "name": "Lecanemab",
+                "needs_review": true,
+                "resolution_confidence": 0.6,
+                "resolution_provenance": "manual_state_transition",
+                "type": "compound"
+              },
+              {
+                "aliases": [],
+                "candidates": [],
+                "identifiers": {},
+                "name": "amyloid-beta",
+                "needs_review": true,
+                "resolution_confidence": 0.6,
+                "resolution_provenance": "manual_state_transition",
+                "type": "protein"
+              },
+              {
+                "aliases": [],
+                "candidates": [],
+                "identifiers": {},
+                "name": "Alzheimer's disease",
+                "needs_review": true,
+                "resolution_confidence": 0.6,
+                "resolution_provenance": "manual_state_transition",
+                "type": "disease"
+              }
+            ],
+            "relation": null,
+            "text": "Lecanemab showed modest but real efficacy in the Clarity AD trial",
+            "type": "therapeutic"
+          },
+          "conditions": {
+            "age_group": null,
+            "cell_type": null,
+            "clinical_trial": false,
+            "concentration_range": null,
+            "duration": null,
+            "human_data": false,
+            "in_vitro": false,
+            "in_vivo": false,
+            "species_unverified": [],
+            "species_verified": [],
+            "text": "Manually added finding; requires evidence review before scientific use."
+          },
+          "confidence": {
+            "basis": "operator-supplied frontier prior; review required",
+            "extraction_confidence": 1.0,
+            "kind": "frontier_epistemic",
+            "method": "expert_judgment",
+            "score": 0.8
+          },
+          "created": "2026-04-25T22:38:09.788620+00:00",
+          "evidence": {
+            "effect_size": null,
+            "evidence_spans": [],
+            "method": "manual state transition",
+            "model_system": "",
+            "p_value": null,
+            "replicated": false,
+            "replication_count": null,
+            "sample_size": null,
+            "species": null,
+            "type": "experimental"
+          },
+          "flags": {
+            "contested": false,
+            "declining": false,
+            "gap": false,
+            "gravity_well": false,
+            "negative_space": false,
+            "retracted": false
+          },
+          "id": "vf_def8b61b15ccbec5",
+          "links": [],
+          "previous_version": null,
+          "provenance": {
+            "authors": [
+              {
+                "name": "reviewer:will-blair",
+                "orcid": null
+              }
+            ],
+            "citation_count": null,
+            "doi": null,
+            "extraction": {
+              "extracted_at": "2026-04-25T22:38:09.788613+00:00",
+              "extractor_version": "vela/0.10.0",
+              "method": "manual_curation",
+              "model": null,
+              "model_version": null
+            },
+            "journal": null,
+            "openalex_id": null,
+            "pmc": null,
+            "pmid": null,
+            "review": {
+              "corrections": [],
+              "reviewed": false,
+              "reviewed_at": null,
+              "reviewer": null
+            },
+            "source_type": "clinical_trial",
+            "title": "van Dyck et al., 2023, NEJM 388:9-21 (Clarity AD)",
+            "year": null
+          },
+          "updated": null,
+          "version": 1
+        }
+      },
+      "source_refs": [],
+      "status": "applied",
+      "reviewed_by": "reviewer:will-blair",
+      "reviewed_at": "2026-04-25T22:38:09.788874+00:00",
+      "decision_reason": "Applied locally from proposal creation",
+      "applied_event_id": "vev_383e72e84307b08f",
+      "caveats": [
+        "Manual findings require evidence review before scientific use."
+      ]
+    },
+    {
+      "schema": "vela.proposal.v0.1",
+      "id": "vpr_3e5eed13f7a00563",
+      "kind": "finding.add",
+      "target": {
+        "type": "finding",
+        "id": "vf_e315edc9f24d716f"
+      },
+      "actor": {
+        "id": "reviewer:will-blair",
+        "type": "human"
+      },
+      "created_at": "2026-04-25T22:38:09.795711+00:00",
+      "reason": "Manual finding added to frontier state",
+      "payload": {
+        "finding": {
+          "assertion": {
+            "direction": null,
+            "entities": [
+              {
+                "aliases": [],
+                "candidates": [],
+                "identifiers": {},
+                "name": "amyloid-beta",
+                "needs_review": true,
+                "resolution_confidence": 0.6,
+                "resolution_provenance": "manual_state_transition",
+                "type": "protein"
+              },
+              {
+                "aliases": [],
+                "candidates": [],
+                "identifiers": {},
+                "name": "Alzheimer's disease",
+                "needs_review": true,
+                "resolution_confidence": 0.6,
+                "resolution_provenance": "manual_state_transition",
+                "type": "disease"
+              }
+            ],
+            "relation": null,
+            "text": "Aβ plaque burden correlates poorly with cognitive decline",
+            "type": "observational"
+          },
+          "conditions": {
+            "age_group": null,
+            "cell_type": null,
+            "clinical_trial": false,
+            "concentration_range": null,
+            "duration": null,
+            "human_data": false,
+            "in_vitro": false,
+            "in_vivo": false,
+            "species_unverified": [],
+            "species_verified": [],
+            "text": "Manually added finding; requires evidence review before scientific use."
+          },
+          "confidence": {
+            "basis": "operator-supplied frontier prior; review required",
+            "extraction_confidence": 1.0,
+            "kind": "frontier_epistemic",
+            "method": "expert_judgment",
+            "score": 0.75
+          },
+          "created": "2026-04-25T22:38:09.795649+00:00",
+          "evidence": {
+            "effect_size": null,
+            "evidence_spans": [],
+            "method": "manual state transition",
+            "model_system": "",
+            "p_value": null,
+            "replicated": false,
+            "replication_count": null,
+            "sample_size": null,
+            "species": null,
+            "type": "observational"
+          },
+          "flags": {
+            "contested": false,
+            "declining": false,
+            "gap": false,
+            "gravity_well": false,
+            "negative_space": false,
+            "retracted": false
+          },
+          "id": "vf_e315edc9f24d716f",
+          "links": [],
+          "previous_version": null,
+          "provenance": {
+            "authors": [
+              {
+                "name": "reviewer:will-blair",
+                "orcid": null
+              }
+            ],
+            "citation_count": null,
+            "doi": null,
+            "extraction": {
+              "extracted_at": "2026-04-25T22:38:09.795636+00:00",
+              "extractor_version": "vela/0.10.0",
+              "method": "manual_curation",
+              "model": null,
+              "model_version": null
+            },
+            "journal": null,
+            "openalex_id": null,
+            "pmc": null,
+            "pmid": null,
+            "review": {
+              "corrections": [],
+              "reviewed": false,
+              "reviewed_at": null,
+              "reviewer": null
+            },
+            "source_type": "published_paper",
+            "title": "Jack et al., 2010, Lancet Neurol 9:119-128",
+            "year": null
+          },
+          "updated": null,
+          "version": 1
+        }
+      },
+      "source_refs": [],
+      "status": "applied",
+      "reviewed_by": "reviewer:will-blair",
+      "reviewed_at": "2026-04-25T22:38:09.795998+00:00",
+      "decision_reason": "Applied locally from proposal creation",
+      "applied_event_id": "vev_bdfaedd726417acf",
+      "caveats": [
+        "Manual findings require evidence review before scientific use."
+      ]
+    },
+    {
+      "schema": "vela.proposal.v0.1",
+      "id": "vpr_9d531e6512cb2225",
+      "kind": "finding.add",
+      "target": {
+        "type": "finding",
+        "id": "vf_a0bde1de78324125"
+      },
+      "actor": {
+        "id": "reviewer:will-blair",
+        "type": "human"
+      },
+      "created_at": "2026-04-25T22:38:09.802497+00:00",
+      "reason": "Manual finding added to frontier state",
+      "payload": {
+        "finding": {
+          "assertion": {
+            "direction": null,
+            "entities": [
+              {
+                "aliases": [],
+                "candidates": [],
+                "identifiers": {},
+                "name": "BACE1",
+                "needs_review": true,
+                "resolution_confidence": 0.6,
+                "resolution_provenance": "manual_state_transition",
+                "type": "protein"
+              },
+              {
+                "aliases": [],
+                "candidates": [],
+                "identifiers": {},
+                "name": "verubecestat",
+                "needs_review": true,
+                "resolution_confidence": 0.6,
+                "resolution_provenance": "manual_state_transition",
+                "type": "compound"
+              },
+              {
+                "aliases": [],
+                "candidates": [],
+                "identifiers": {},
+                "name": "Alzheimer's disease",
+                "needs_review": true,
+                "resolution_confidence": 0.6,
+                "resolution_provenance": "manual_state_transition",
+                "type": "disease"
+              }
+            ],
+            "relation": null,
+            "text": "BACE1 inhibitor trials failed due to mechanism-independent side effects",
+            "type": "therapeutic"
+          },
+          "conditions": {
+            "age_group": null,
+            "cell_type": null,
+            "clinical_trial": false,
+            "concentration_range": null,
+            "duration": null,
+            "human_data": false,
+            "in_vitro": false,
+            "in_vivo": false,
+            "species_unverified": [],
+            "species_verified": [],
+            "text": "Manually added finding; requires evidence review before scientific use."
+          },
+          "confidence": {
+            "basis": "operator-supplied frontier prior; review required",
+            "extraction_confidence": 1.0,
+            "kind": "frontier_epistemic",
+            "method": "expert_judgment",
+            "score": 0.75
+          },
+          "created": "2026-04-25T22:38:09.802449+00:00",
+          "evidence": {
+            "effect_size": null,
+            "evidence_spans": [],
+            "method": "manual state transition",
+            "model_system": "",
+            "p_value": null,
+            "replicated": false,
+            "replication_count": null,
+            "sample_size": null,
+            "species": null,
+            "type": "experimental"
+          },
+          "flags": {
+            "contested": false,
+            "declining": false,
+            "gap": false,
+            "gravity_well": false,
+            "negative_space": false,
+            "retracted": false
+          },
+          "id": "vf_a0bde1de78324125",
+          "links": [],
+          "previous_version": null,
+          "provenance": {
+            "authors": [
+              {
+                "name": "reviewer:will-blair",
+                "orcid": null
+              }
+            ],
+            "citation_count": null,
+            "doi": null,
+            "extraction": {
+              "extracted_at": "2026-04-25T22:38:09.802441+00:00",
+              "extractor_version": "vela/0.10.0",
+              "method": "manual_curation",
+              "model": null,
+              "model_version": null
+            },
+            "journal": null,
+            "openalex_id": null,
+            "pmc": null,
+            "pmid": null,
+            "review": {
+              "corrections": [],
+              "reviewed": false,
+              "reviewed_at": null,
+              "reviewer": null
+            },
+            "source_type": "clinical_trial",
+            "title": "Egan et al., 2019, NEJM 380:1408-1420 (verubecestat)",
+            "year": null
+          },
+          "updated": null,
+          "version": 1
+        }
+      },
+      "source_refs": [],
+      "status": "applied",
+      "reviewed_by": "reviewer:will-blair",
+      "reviewed_at": "2026-04-25T22:38:09.802770+00:00",
+      "decision_reason": "Applied locally from proposal creation",
+      "applied_event_id": "vev_3559f8f933ad93b4",
+      "caveats": [
+        "Manual findings require evidence review before scientific use."
+      ]
+    },
+    {
+      "schema": "vela.proposal.v0.1",
+      "id": "vpr_5e36191b2f16c066",
+      "kind": "finding.add",
+      "target": {
+        "type": "finding",
+        "id": "vf_9b06fa5c13fd582c"
+      },
+      "actor": {
+        "id": "reviewer:will-blair",
+        "type": "human"
+      },
+      "created_at": "2026-04-25T22:38:09.809123+00:00",
+      "reason": "Manual finding added to frontier state",
+      "payload": {
+        "finding": {
+          "assertion": {
+            "direction": null,
+            "entities": [
+              {
+                "aliases": [],
+                "candidates": [],
+                "identifiers": {},
+                "name": "BACE1",
+                "needs_review": true,
+                "resolution_confidence": 0.6,
+                "resolution_provenance": "manual_state_transition",
+                "type": "protein"
+              },
+              {
+                "aliases": [],
+                "candidates": [],
+                "identifiers": {},
+                "name": "APP",
+                "needs_review": true,
+                "resolution_confidence": 0.6,
+                "resolution_provenance": "manual_state_transition",
+                "type": "protein"
+              }
+            ],
+            "relation": null,
+            "text": "BACE1 has essential non-amyloid substrates that explain inhibitor toxicity",
+            "type": "mechanism"
+          },
+          "conditions": {
+            "age_group": null,
+            "cell_type": null,
+            "clinical_trial": false,
+            "concentration_range": null,
+            "duration": null,
+            "human_data": false,
+            "in_vitro": false,
+            "in_vivo": false,
+            "species_unverified": [],
+            "species_verified": [],
+            "text": "Manually added finding; requires evidence review before scientific use."
+          },
+          "confidence": {
+            "basis": "operator-supplied frontier prior; review required",
+            "extraction_confidence": 1.0,
+            "kind": "frontier_epistemic",
+            "method": "expert_judgment",
+            "score": 0.7
+          },
+          "created": "2026-04-25T22:38:09.809084+00:00",
+          "evidence": {
+            "effect_size": null,
+            "evidence_spans": [],
+            "method": "manual state transition",
+            "model_system": "",
+            "p_value": null,
+            "replicated": false,
+            "replication_count": null,
+            "sample_size": null,
+            "species": null,
+            "type": "experimental"
+          },
+          "flags": {
+            "contested": false,
+            "declining": false,
+            "gap": false,
+            "gravity_well": false,
+            "negative_space": false,
+            "retracted": false
+          },
+          "id": "vf_9b06fa5c13fd582c",
+          "links": [],
+          "previous_version": null,
+          "provenance": {
+            "authors": [
+              {
+                "name": "reviewer:will-blair",
+                "orcid": null
+              }
+            ],
+            "citation_count": null,
+            "doi": null,
+            "extraction": {
+              "extracted_at": "2026-04-25T22:38:09.809075+00:00",
+              "extractor_version": "vela/0.10.0",
+              "method": "manual_curation",
+              "model": null,
+              "model_version": null
+            },
+            "journal": null,
+            "openalex_id": null,
+            "pmc": null,
+            "pmid": null,
+            "review": {
+              "corrections": [],
+              "reviewed": false,
+              "reviewed_at": null,
+              "reviewer": null
+            },
+            "source_type": "published_paper",
+            "title": "Vassar et al., 2014, Nat Neurosci 17:1183-1191 — BACE1 substrate review",
+            "year": null
+          },
+          "updated": null,
+          "version": 1
+        }
+      },
+      "source_refs": [],
+      "status": "applied",
+      "reviewed_by": "reviewer:will-blair",
+      "reviewed_at": "2026-04-25T22:38:09.809398+00:00",
+      "decision_reason": "Applied locally from proposal creation",
+      "applied_event_id": "vev_51ee8f5e66693083",
+      "caveats": [
+        "Manual findings require evidence review before scientific use."
+      ]
+    },
+    {
+      "schema": "vela.proposal.v0.1",
+      "id": "vpr_5ce90e0956f9f118",
+      "kind": "finding.add",
+      "target": {
+        "type": "finding",
+        "id": "vf_7ddb018fa1f264b5"
+      },
+      "actor": {
+        "id": "reviewer:will-blair",
+        "type": "human"
+      },
+      "created_at": "2026-04-25T22:38:28.249360+00:00",
+      "reason": "Manual finding added to frontier state",
+      "payload": {
+        "finding": {
+          "assertion": {
+            "direction": null,
+            "entities": [
+              {
+                "aliases": [],
+                "candidates": [],
+                "identifiers": {},
+                "name": "tau",
+                "needs_review": true,
+                "resolution_confidence": 0.6,
+                "resolution_provenance": "manual_state_transition",
+                "type": "protein"
+              },
+              {
+                "aliases": [],
+                "candidates": [],
+                "identifiers": {},
+                "name": "amyloid-beta",
+                "needs_review": true,
+                "resolution_confidence": 0.6,
+                "resolution_provenance": "manual_state_transition",
+                "type": "protein"
+              },
+              {
+                "aliases": [],
+                "candidates": [],
+                "identifiers": {},
+                "name": "Alzheimer's disease",
+                "needs_review": true,
+                "resolution_confidence": 0.6,
+                "resolution_provenance": "manual_state_transition",
+                "type": "disease"
+              }
+            ],
+            "relation": null,
+            "text": "Tau pathology tracks cognitive decline more closely than amyloid",
+            "type": "observational"
+          },
+          "conditions": {
+            "age_group": null,
+            "cell_type": null,
+            "clinical_trial": false,
+            "concentration_range": null,
+            "duration": null,
+            "human_data": false,
+            "in_vitro": false,
+            "in_vivo": false,
+            "species_unverified": [],
+            "species_verified": [],
+            "text": "Manually added finding; requires evidence review before scientific use."
+          },
+          "confidence": {
+            "basis": "operator-supplied frontier prior; review required",
+            "extraction_confidence": 1.0,
+            "kind": "frontier_epistemic",
+            "method": "expert_judgment",
+            "score": 0.8
+          },
+          "created": "2026-04-25T22:38:28.249314+00:00",
+          "evidence": {
+            "effect_size": null,
+            "evidence_spans": [],
+            "method": "manual state transition",
+            "model_system": "",
+            "p_value": null,
+            "replicated": false,
+            "replication_count": null,
+            "sample_size": null,
+            "species": null,
+            "type": "observational"
+          },
+          "flags": {
+            "contested": false,
+            "declining": false,
+            "gap": false,
+            "gravity_well": false,
+            "negative_space": false,
+            "retracted": false
+          },
+          "id": "vf_7ddb018fa1f264b5",
+          "links": [],
+          "previous_version": null,
+          "provenance": {
+            "authors": [
+              {
+                "name": "reviewer:will-blair",
+                "orcid": null
+              }
+            ],
+            "citation_count": null,
+            "doi": null,
+            "extraction": {
+              "extracted_at": "2026-04-25T22:38:28.249302+00:00",
+              "extractor_version": "vela/0.10.0",
+              "method": "manual_curation",
+              "model": null,
+              "model_version": null
+            },
+            "journal": null,
+            "openalex_id": null,
+            "pmc": null,
+            "pmid": null,
+            "review": {
+              "corrections": [],
+              "reviewed": false,
+              "reviewed_at": null,
+              "reviewer": null
+            },
+            "source_type": "published_paper",
+            "title": "Hanseeuw et al., 2019, JAMA Neurol 76:915-924",
+            "year": null
+          },
+          "updated": null,
+          "version": 1
+        }
+      },
+      "source_refs": [],
+      "status": "applied",
+      "reviewed_by": "reviewer:will-blair",
+      "reviewed_at": "2026-04-25T22:38:28.249692+00:00",
+      "decision_reason": "Applied locally from proposal creation",
+      "applied_event_id": "vev_8527b1e89bbcef4e",
+      "caveats": [
+        "Manual findings require evidence review before scientific use."
+      ]
+    },
+    {
+      "schema": "vela.proposal.v0.1",
+      "id": "vpr_b82db6aabb5012da",
+      "kind": "finding.add",
+      "target": {
+        "type": "finding",
+        "id": "vf_92999ad692613315"
+      },
+      "actor": {
+        "id": "reviewer:will-blair",
+        "type": "human"
+      },
+      "created_at": "2026-04-25T22:38:28.256133+00:00",
+      "reason": "Manual finding added to frontier state",
+      "payload": {
+        "finding": {
+          "assertion": {
+            "direction": null,
+            "entities": [
+              {
+                "aliases": [],
+                "candidates": [],
+                "identifiers": {},
+                "name": "tau",
+                "needs_review": true,
+                "resolution_confidence": 0.6,
+                "resolution_provenance": "manual_state_transition",
+                "type": "protein"
+              },
+              {
+                "aliases": [],
+                "candidates": [],
+                "identifiers": {},
+                "name": "Alzheimer's disease",
+                "needs_review": true,
+                "resolution_confidence": 0.6,
+                "resolution_provenance": "manual_state_transition",
+                "type": "disease"
+              }
+            ],
+            "relation": null,
+            "text": "Tau propagation follows predictable Braak staging patterns",
+            "type": "mechanism"
+          },
+          "conditions": {
+            "age_group": null,
+            "cell_type": null,
+            "clinical_trial": false,
+            "concentration_range": null,
+            "duration": null,
+            "human_data": false,
+            "in_vitro": false,
+            "in_vivo": false,
+            "species_unverified": [],
+            "species_verified": [],
+            "text": "Manually added finding; requires evidence review before scientific use."
+          },
+          "confidence": {
+            "basis": "operator-supplied frontier prior; review required",
+            "extraction_confidence": 1.0,
+            "kind": "frontier_epistemic",
+            "method": "expert_judgment",
+            "score": 0.85
+          },
+          "created": "2026-04-25T22:38:28.256099+00:00",
+          "evidence": {
+            "effect_size": null,
+            "evidence_spans": [],
+            "method": "manual state transition",
+            "model_system": "",
+            "p_value": null,
+            "replicated": false,
+            "replication_count": null,
+            "sample_size": null,
+            "species": null,
+            "type": "observational"
+          },
+          "flags": {
+            "contested": false,
+            "declining": false,
+            "gap": false,
+            "gravity_well": false,
+            "negative_space": false,
+            "retracted": false
+          },
+          "id": "vf_92999ad692613315",
+          "links": [],
+          "previous_version": null,
+          "provenance": {
+            "authors": [
+              {
+                "name": "reviewer:will-blair",
+                "orcid": null
+              }
+            ],
+            "citation_count": null,
+            "doi": null,
+            "extraction": {
+              "extracted_at": "2026-04-25T22:38:28.256093+00:00",
+              "extractor_version": "vela/0.10.0",
+              "method": "manual_curation",
+              "model": null,
+              "model_version": null
+            },
+            "journal": null,
+            "openalex_id": null,
+            "pmc": null,
+            "pmid": null,
+            "review": {
+              "corrections": [],
+              "reviewed": false,
+              "reviewed_at": null,
+              "reviewer": null
+            },
+            "source_type": "published_paper",
+            "title": "Braak & Braak, 1991, Acta Neuropathol 82:239-259",
+            "year": null
+          },
+          "updated": null,
+          "version": 1
+        }
+      },
+      "source_refs": [],
+      "status": "applied",
+      "reviewed_by": "reviewer:will-blair",
+      "reviewed_at": "2026-04-25T22:38:28.256418+00:00",
+      "decision_reason": "Applied locally from proposal creation",
+      "applied_event_id": "vev_88d31457121c6f9d",
+      "caveats": [
+        "Manual findings require evidence review before scientific use."
+      ]
+    },
+    {
+      "schema": "vela.proposal.v0.1",
+      "id": "vpr_40cecb3ee6bedce8",
+      "kind": "finding.add",
+      "target": {
+        "type": "finding",
+        "id": "vf_d8e6a10a357310da"
+      },
+      "actor": {
+        "id": "reviewer:will-blair",
+        "type": "human"
+      },
+      "created_at": "2026-04-25T22:38:28.262807+00:00",
+      "reason": "Manual finding added to frontier state",
+      "payload": {
+        "finding": {
+          "assertion": {
+            "direction": null,
+            "entities": [
+              {
+                "aliases": [],
+                "candidates": [],
+                "identifiers": {},
+                "name": "TREM2",
+                "needs_review": true,
+                "resolution_confidence": 0.6,
+                "resolution_provenance": "manual_state_transition",
+                "type": "protein"
+              },
+              {
+                "aliases": [],
+                "candidates": [],
+                "identifiers": {},
+                "name": "amyloid-beta",
+                "needs_review": true,
+                "resolution_confidence": 0.6,
+                "resolution_provenance": "manual_state_transition",
+                "type": "protein"
+              },
+              {
+                "aliases": [],
+                "candidates": [],
+                "identifiers": {},
+                "name": "microglia",
+                "needs_review": true,
+                "resolution_confidence": 0.6,
+                "resolution_provenance": "manual_state_transition",
+                "type": "cell_type"
+              }
+            ],
+            "relation": null,
+            "text": "TREM2 loss-of-function increases amyloid plaque density",
+            "type": "mechanism"
+          },
+          "conditions": {
+            "age_group": null,
+            "cell_type": null,
+            "clinical_trial": false,
+            "concentration_range": null,
+            "duration": null,
+            "human_data": false,
+            "in_vitro": false,
+            "in_vivo": false,
+            "species_unverified": [],
+            "species_verified": [],
+            "text": "Manually added finding; requires evidence review before scientific use."
+          },
+          "confidence": {
+            "basis": "operator-supplied frontier prior; review required",
+            "extraction_confidence": 1.0,
+            "kind": "frontier_epistemic",
+            "method": "expert_judgment",
+            "score": 0.75
+          },
+          "created": "2026-04-25T22:38:28.262763+00:00",
+          "evidence": {
+            "effect_size": null,
+            "evidence_spans": [],
+            "method": "manual state transition",
+            "model_system": "",
+            "p_value": null,
+            "replicated": false,
+            "replication_count": null,
+            "sample_size": null,
+            "species": null,
+            "type": "experimental"
+          },
+          "flags": {
+            "contested": false,
+            "declining": false,
+            "gap": false,
+            "gravity_well": false,
+            "negative_space": false,
+            "retracted": false
+          },
+          "id": "vf_d8e6a10a357310da",
+          "links": [],
+          "previous_version": null,
+          "provenance": {
+            "authors": [
+              {
+                "name": "reviewer:will-blair",
+                "orcid": null
+              }
+            ],
+            "citation_count": null,
+            "doi": null,
+            "extraction": {
+              "extracted_at": "2026-04-25T22:38:28.262755+00:00",
+              "extractor_version": "vela/0.10.0",
+              "method": "manual_curation",
+              "model": null,
+              "model_version": null
+            },
+            "journal": null,
+            "openalex_id": null,
+            "pmc": null,
+            "pmid": null,
+            "review": {
+              "corrections": [],
+              "reviewed": false,
+              "reviewed_at": null,
+              "reviewer": null
+            },
+            "source_type": "published_paper",
+            "title": "Gratuze et al., 2023, Nat Rev Neurol — TREM2 review",
+            "year": null
+          },
+          "updated": null,
+          "version": 1
+        }
+      },
+      "source_refs": [],
+      "status": "applied",
+      "reviewed_by": "reviewer:will-blair",
+      "reviewed_at": "2026-04-25T22:38:28.263139+00:00",
+      "decision_reason": "Applied locally from proposal creation",
+      "applied_event_id": "vev_34dd12859302eb96",
+      "caveats": [
+        "Manual findings require evidence review before scientific use."
+      ]
+    },
+    {
+      "schema": "vela.proposal.v0.1",
+      "id": "vpr_d7cef96185856bc9",
+      "kind": "finding.add",
+      "target": {
+        "type": "finding",
+        "id": "vf_3d2442675353d79b"
+      },
+      "actor": {
+        "id": "reviewer:will-blair",
+        "type": "human"
+      },
+      "created_at": "2026-04-25T22:38:28.269196+00:00",
+      "reason": "Manual finding added to frontier state",
+      "payload": {
+        "finding": {
+          "assertion": {
+            "direction": null,
+            "entities": [
+              {
+                "aliases": [],
+                "candidates": [],
+                "identifiers": {},
+                "name": "TREM2",
+                "needs_review": true,
+                "resolution_confidence": 0.6,
+                "resolution_provenance": "manual_state_transition",
+                "type": "protein"
+              },
+              {
+                "aliases": [],
+                "candidates": [],
+                "identifiers": {},
+                "name": "ApoE",
+                "needs_review": true,
+                "resolution_confidence": 0.6,
+                "resolution_provenance": "manual_state_transition",
+                "type": "protein"
+              },
+              {
+                "aliases": [],
+                "candidates": [],
+                "identifiers": {},
+                "name": "Alzheimer's disease",
+                "needs_review": true,
+                "resolution_confidence": 0.6,
+                "resolution_provenance": "manual_state_transition",
+                "type": "disease"
+              }
+            ],
+            "relation": null,
+            "text": "TREM2 variants represent the strongest genetic risk after ApoE4",
+            "type": "epidemiological"
+          },
+          "conditions": {
+            "age_group": null,
+            "cell_type": null,
+            "clinical_trial": false,
+            "concentration_range": null,
+            "duration": null,
+            "human_data": false,
+            "in_vitro": false,
+            "in_vivo": false,
+            "species_unverified": [],
+            "species_verified": [],
+            "text": "Manually added finding; requires evidence review before scientific use."
+          },
+          "confidence": {
+            "basis": "operator-supplied frontier prior; review required",
+            "extraction_confidence": 1.0,
+            "kind": "frontier_epistemic",
+            "method": "expert_judgment",
+            "score": 0.75
+          },
+          "created": "2026-04-25T22:38:28.269146+00:00",
+          "evidence": {
+            "effect_size": null,
+            "evidence_spans": [],
+            "method": "manual state transition",
+            "model_system": "",
+            "p_value": null,
+            "replicated": false,
+            "replication_count": null,
+            "sample_size": null,
+            "species": null,
+            "type": "meta_analysis"
+          },
+          "flags": {
+            "contested": false,
+            "declining": false,
+            "gap": false,
+            "gravity_well": false,
+            "negative_space": false,
+            "retracted": false
+          },
+          "id": "vf_3d2442675353d79b",
+          "links": [],
+          "previous_version": null,
+          "provenance": {
+            "authors": [
+              {
+                "name": "reviewer:will-blair",
+                "orcid": null
+              }
+            ],
+            "citation_count": null,
+            "doi": null,
+            "extraction": {
+              "extracted_at": "2026-04-25T22:38:28.269138+00:00",
+              "extractor_version": "vela/0.10.0",
+              "method": "manual_curation",
+              "model": null,
+              "model_version": null
+            },
+            "journal": null,
+            "openalex_id": null,
+            "pmc": null,
+            "pmid": null,
+            "review": {
+              "corrections": [],
+              "reviewed": false,
+              "reviewed_at": null,
+              "reviewer": null
+            },
+            "source_type": "published_paper",
+            "title": "Gratuze et al., 2023, Nat Rev Neurol — TREM2 review",
+            "year": null
+          },
+          "updated": null,
+          "version": 1
+        }
+      },
+      "source_refs": [],
+      "status": "applied",
+      "reviewed_by": "reviewer:will-blair",
+      "reviewed_at": "2026-04-25T22:38:28.269554+00:00",
+      "decision_reason": "Applied locally from proposal creation",
+      "applied_event_id": "vev_1b7e5573c888c06d",
+      "caveats": [
+        "Manual findings require evidence review before scientific use."
+      ]
+    },
+    {
+      "schema": "vela.proposal.v0.1",
+      "id": "vpr_36d276b6839be1a3",
+      "kind": "finding.add",
+      "target": {
+        "type": "finding",
+        "id": "vf_713ebab7b8230664"
+      },
+      "actor": {
+        "id": "reviewer:will-blair",
+        "type": "human"
+      },
+      "created_at": "2026-04-25T22:38:28.277387+00:00",
+      "reason": "Manual finding added to frontier state",
+      "payload": {
+        "finding": {
+          "assertion": {
+            "direction": null,
+            "entities": [
+              {
+                "aliases": [],
+                "candidates": [],
+                "identifiers": {},
+                "name": "ApoE",
+                "needs_review": true,
+                "resolution_confidence": 0.6,
+                "resolution_provenance": "manual_state_transition",
+                "type": "protein"
+              },
+              {
+                "aliases": [],
+                "candidates": [],
+                "identifiers": {},
+                "name": "Alzheimer's disease",
+                "needs_review": true,
+                "resolution_confidence": 0.6,
+                "resolution_provenance": "manual_state_transition",
+                "type": "disease"
+              }
+            ],
+            "relation": null,
+            "text": "ApoE4 increases Alzheimer's risk 3-12x depending on copy number",
+            "type": "epidemiological"
+          },
+          "conditions": {
+            "age_group": null,
+            "cell_type": null,
+            "clinical_trial": false,
+            "concentration_range": null,
+            "duration": null,
+            "human_data": false,
+            "in_vitro": false,
+            "in_vivo": false,
+            "species_unverified": [],
+            "species_verified": [],
+            "text": "Manually added finding; requires evidence review before scientific use."
+          },
+          "confidence": {
+            "basis": "operator-supplied frontier prior; review required",
+            "extraction_confidence": 1.0,
+            "kind": "frontier_epistemic",
+            "method": "expert_judgment",
+            "score": 0.9
+          },
+          "created": "2026-04-25T22:38:28.277341+00:00",
+          "evidence": {
+            "effect_size": null,
+            "evidence_spans": [],
+            "method": "manual state transition",
+            "model_system": "",
+            "p_value": null,
+            "replicated": false,
+            "replication_count": null,
+            "sample_size": null,
+            "species": null,
+            "type": "meta_analysis"
+          },
+          "flags": {
+            "contested": false,
+            "declining": false,
+            "gap": false,
+            "gravity_well": false,
+            "negative_space": false,
+            "retracted": false
+          },
+          "id": "vf_713ebab7b8230664",
+          "links": [],
+          "previous_version": null,
+          "provenance": {
+            "authors": [
+              {
+                "name": "reviewer:will-blair",
+                "orcid": null
+              }
+            ],
+            "citation_count": null,
+            "doi": null,
+            "extraction": {
+              "extracted_at": "2026-04-25T22:38:28.277329+00:00",
+              "extractor_version": "vela/0.10.0",
+              "method": "manual_curation",
+              "model": null,
+              "model_version": null
+            },
+            "journal": null,
+            "openalex_id": null,
+            "pmc": null,
+            "pmid": null,
+            "review": {
+              "corrections": [],
+              "reviewed": false,
+              "reviewed_at": null,
+              "reviewer": null
+            },
+            "source_type": "published_paper",
+            "title": "Corder et al., 1993, Science 261:921-923; subsequent meta-analyses",
+            "year": null
+          },
+          "updated": null,
+          "version": 1
+        }
+      },
+      "source_refs": [],
+      "status": "applied",
+      "reviewed_by": "reviewer:will-blair",
+      "reviewed_at": "2026-04-25T22:38:28.277761+00:00",
+      "decision_reason": "Applied locally from proposal creation",
+      "applied_event_id": "vev_b336ff7ceb639f0b",
+      "caveats": [
+        "Manual findings require evidence review before scientific use."
+      ]
+    },
+    {
+      "schema": "vela.proposal.v0.1",
+      "id": "vpr_585de5ce8eb9a0c9",
+      "kind": "finding.add",
+      "target": {
+        "type": "finding",
+        "id": "vf_ef076b17acda1221"
+      },
+      "actor": {
+        "id": "reviewer:will-blair",
+        "type": "human"
+      },
+      "created_at": "2026-04-25T22:38:28.283922+00:00",
+      "reason": "Manual finding added to frontier state",
+      "payload": {
+        "finding": {
+          "assertion": {
+            "direction": null,
+            "entities": [
+              {
+                "aliases": [],
+                "candidates": [],
+                "identifiers": {},
+                "name": "ApoE",
+                "needs_review": true,
+                "resolution_confidence": 0.6,
+                "resolution_provenance": "manual_state_transition",
+                "type": "protein"
+              },
+              {
+                "aliases": [],
+                "candidates": [],
+                "identifiers": {},
+                "name": "PSEN1",
+                "needs_review": true,
+                "resolution_confidence": 0.6,
+                "resolution_provenance": "manual_state_transition",
+                "type": "gene"
+              },
+              {
+                "aliases": [],
+                "candidates": [],
+                "identifiers": {},
+                "name": "Alzheimer's disease",
+                "needs_review": true,
+                "resolution_confidence": 0.6,
+                "resolution_provenance": "manual_state_transition",
+                "type": "disease"
+              }
+            ],
+            "relation": null,
+            "text": "ApoE Christchurch variant may be protective even with PSEN1 mutations",
+            "type": "observational"
+          },
+          "conditions": {
+            "age_group": null,
+            "cell_type": null,
+            "clinical_trial": false,
+            "concentration_range": null,
+            "duration": null,
+            "human_data": false,
+            "in_vitro": false,
+            "in_vivo": false,
+            "species_unverified": [],
+            "species_verified": [],
+            "text": "Manually added finding; requires evidence review before scientific use."
+          },
+          "confidence": {
+            "basis": "operator-supplied frontier prior; review required",
+            "extraction_confidence": 1.0,
+            "kind": "frontier_epistemic",
+            "method": "expert_judgment",
+            "score": 0.65
+          },
+          "created": "2026-04-25T22:38:28.283873+00:00",
+          "evidence": {
+            "effect_size": null,
+            "evidence_spans": [],
+            "method": "manual state transition",
+            "model_system": "",
+            "p_value": null,
+            "replicated": false,
+            "replication_count": null,
+            "sample_size": null,
+            "species": null,
+            "type": "case_report"
+          },
+          "flags": {
+            "contested": false,
+            "declining": false,
+            "gap": false,
+            "gravity_well": false,
+            "negative_space": false,
+            "retracted": false
+          },
+          "id": "vf_ef076b17acda1221",
+          "links": [],
+          "previous_version": null,
+          "provenance": {
+            "authors": [
+              {
+                "name": "reviewer:will-blair",
+                "orcid": null
+              }
+            ],
+            "citation_count": null,
+            "doi": null,
+            "extraction": {
+              "extracted_at": "2026-04-25T22:38:28.283866+00:00",
+              "extractor_version": "vela/0.10.0",
+              "method": "manual_curation",
+              "model": null,
+              "model_version": null
+            },
+            "journal": null,
+            "openalex_id": null,
+            "pmc": null,
+            "pmid": null,
+            "review": {
+              "corrections": [],
+              "reviewed": false,
+              "reviewed_at": null,
+              "reviewer": null
+            },
+            "source_type": "published_paper",
+            "title": "Arboleda-Velasquez et al., 2019, Nature Medicine 25:1680-1683",
+            "year": null
+          },
+          "updated": null,
+          "version": 1
+        }
+      },
+      "source_refs": [],
+      "status": "applied",
+      "reviewed_by": "reviewer:will-blair",
+      "reviewed_at": "2026-04-25T22:38:28.284305+00:00",
+      "decision_reason": "Applied locally from proposal creation",
+      "applied_event_id": "vev_8a0df1455fc796e8",
+      "caveats": [
+        "Manual findings require evidence review before scientific use."
+      ]
+    }
+  ],
+  "proof_state": {
+    "latest_packet": {
+      "generated_at": null,
+      "snapshot_hash": null,
+      "event_log_hash": null,
+      "packet_manifest_hash": null,
+      "status": "never_exported"
+    }
+  },
+  "signatures": [],
+  "actors": [
+    {
+      "id": "reviewer:will-blair",
+      "public_key": "4892f93877e637b5f59af31d9ec6704814842fb278cacb0eb94704baef99455e",
+      "algorithm": "ed25519",
+      "created_at": "2026-04-25T22:38:53.886221+00:00"
+    }
+  ]
+}

@@ -38,6 +38,7 @@ build/
 frontiers/*.json
 !frontiers/bbb-alzheimer.json
 !frontiers/bbb-extension.json
+!frontiers/will-alzheimer-landscape.json
 !frontiers/README.md
 frontier.json
 !examples/paper-folder/expected/frontier.json

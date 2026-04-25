@@ -159,8 +159,8 @@ if git ls-files | rg -n "$blocked_paths"; then
 fi
 
 echo "== Canonical artifact gate =="
-if git ls-files 'frontiers/*.json' | rg -v '^frontiers/(bbb-alzheimer|bbb-extension)\.json$'; then
-  echo "Only the canonical release frontiers (bbb-alzheimer + bbb-extension) may be tracked under frontiers/."
+if git ls-files 'frontiers/*.json' | rg -v '^frontiers/(bbb-alzheimer|bbb-extension|will-alzheimer-landscape)\.json$'; then
+  echo "Only the canonical release frontiers (bbb-alzheimer, bbb-extension, will-alzheimer-landscape) may be tracked under frontiers/."
   exit 1
 fi
 if git ls-files | rg -n '^demo/bbb-proof-run-'; then
