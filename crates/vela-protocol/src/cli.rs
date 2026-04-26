@@ -20,7 +20,7 @@ use sha2::{Digest, Sha256};
 use tokio::sync::Semaphore;
 
 #[derive(Parser)]
-#[command(name = "vela", version = "0.19.0")]
+#[command(name = "vela", version = "0.20.0")]
 #[command(about = "Portable frontier state for science")]
 struct Cli {
     #[command(subcommand)]
@@ -751,6 +751,25 @@ enum RegistryAction {
         #[arg(long)]
         json: bool,
     },
+    /// v0.20: federation primitive. Pull a signed manifest from one hub
+    /// (`--from`) and POST it verbatim to another (`--to`). Both hubs
+    /// validate the signature against the manifest's embedded
+    /// `owner_pubkey`; mirroring is a no-op for authenticity. Use this
+    /// to replicate a frontier across hubs (resilience), seed a fresh
+    /// hub from an established one, or test a hub deployment with real
+    /// signed bytes.
+    Mirror {
+        /// Frontier address (`vfr_…`) to mirror.
+        vfr_id: String,
+        /// Source hub URL.
+        #[arg(long)]
+        from: String,
+        /// Destination hub URL.
+        #[arg(long)]
+        to: String,
+        #[arg(long)]
+        json: bool,
+    },
     /// Pull and verify a frontier from a registry by `vfr_id`
     Pull {
         /// Frontier address (`vfr_…`)
@@ -1301,7 +1320,7 @@ pub async fn run_command() {
         Commands::Conformance { dir } => {
             let _ = conformance::run(&dir);
         }
-        Commands::Version => println!("vela 0.19.0"),
+        Commands::Version => println!("vela 0.20.0"),
         Commands::Sign { action } => cmd_sign(action),
         Commands::Actor { action } => cmd_actor(action),
         Commands::Frontier { action } => cmd_frontier(action),
@@ -1669,7 +1688,7 @@ pub async fn cmd_compile(
         match corpus::compile_local_corpus(local_source, output, backend).await {
             Ok(report) => {
                 println!();
-                println!("  {}", "VELA · COMPILE · V0.19.0".dimmed());
+                println!("  {}", "VELA · COMPILE · V0.20.0".dimmed());
                 println!("  {}", style::tick_row(60));
                 println!("source: {}", local_source.display());
                 println!("mode: local corpus");
@@ -1704,7 +1723,7 @@ pub async fn cmd_compile(
     let client = Client::new();
 
     println!();
-    println!("  {}", "VELA · COMPILE · V0.19.0".dimmed());
+    println!("  {}", "VELA · COMPILE · V0.20.0".dimmed());
     println!("  {}", style::tick_row(60));
     println!("topic: {topic}");
     println!("papers: {max_papers}");
@@ -2762,7 +2781,7 @@ fn cmd_stats(path: &Path) {
     let frontier = repo::load_from_path(path).expect("Failed to load frontier");
     let s = &frontier.stats;
     println!();
-    println!("  {}", "FRONTIER · V0.19.0".dimmed());
+    println!("  {}", "FRONTIER · V0.20.0".dimmed());
     println!("  {}", frontier.project.name.bold());
     println!("  {}", style::tick_row(60));
     println!("  id:             {}", frontier.frontier_id());
@@ -4193,6 +4212,80 @@ fn cmd_registry(action: RegistryAction) {
                 }
             }
         }
+        RegistryAction::Mirror {
+            vfr_id,
+            from,
+            to,
+            json,
+        } => {
+            let src_base = from.trim_end_matches('/');
+            let dst_base = to.trim_end_matches('/');
+            let src_url = format!("{src_base}/entries/{vfr_id}");
+            let dst_url = format!("{dst_base}/entries");
+            let client = reqwest::blocking::Client::builder()
+                .timeout(std::time::Duration::from_secs(30))
+                .build()
+                .unwrap_or_else(|e| fail_return(&format!("http client init: {e}")));
+
+            let entry: serde_json::Value = client
+                .get(&src_url)
+                .send()
+                .unwrap_or_else(|e| fail_return(&format!("GET {src_url}: {e}")))
+                .error_for_status()
+                .unwrap_or_else(|e| fail_return(&format!("GET {src_url}: {e}")))
+                .json()
+                .unwrap_or_else(|e| fail_return(&format!("parse {src_url}: {e}")));
+
+            let resp = client
+                .post(&dst_url)
+                .header("content-type", "application/json")
+                .body(
+                    serde_json::to_vec(&entry)
+                        .unwrap_or_else(|e| fail_return(&format!("serialize: {e}"))),
+                )
+                .send()
+                .unwrap_or_else(|e| fail_return(&format!("POST {dst_url}: {e}")));
+            let status = resp.status();
+            if !status.is_success() {
+                let body = resp.text().unwrap_or_default();
+                fail(&format!(
+                    "POST {dst_url}: HTTP {status}: {}",
+                    body.chars().take(300).collect::<String>()
+                ));
+            }
+            let body: serde_json::Value = resp
+                .json()
+                .unwrap_or_else(|e| fail_return(&format!("parse POST response: {e}")));
+            let duplicate = body
+                .get("duplicate")
+                .and_then(serde_json::Value::as_bool)
+                .unwrap_or(false);
+            let payload = json!({
+                "ok": true,
+                "command": "registry.mirror",
+                "vfr_id": vfr_id,
+                "from": src_base,
+                "to": dst_base,
+                "duplicate_on_destination": duplicate,
+                "destination_response": body,
+            });
+            if json {
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&payload).expect("serialize")
+                );
+            } else {
+                println!(
+                    "{} mirrored {vfr_id} from {src_base} → {dst_base}{}",
+                    style::ok("registry"),
+                    if duplicate {
+                        " (duplicate; signature already known)"
+                    } else {
+                        " (fresh insert)"
+                    }
+                );
+            }
+        }
         RegistryAction::List { from, json } => {
             // Phase γ-hub (v0.7): `--from <https://...>` fetches the
             // registry over HTTPS; bare paths and file:// resolve locally.
@@ -4725,7 +4818,7 @@ async fn cmd_bridge(inputs: &[PathBuf], check_novelty: bool, top_n: usize) {
         fail("need at least 2 frontier files for bridge detection.");
     }
     println!();
-    println!("  {}", "VELA · BRIDGE · V0.19.0".dimmed());
+    println!("  {}", "VELA · BRIDGE · V0.20.0".dimmed());
     println!("  {}", style::tick_row(60));
     println!("  loading {} frontiers...", inputs.len());
     let mut named_projects = Vec::<(String, project::Project)>::new();
@@ -5020,7 +5113,7 @@ async fn cmd_jats(source: &str, output: &Path, backend: Option<&str>) {
     let config = llm::LlmConfig::from_env(backend).unwrap_or_else(|e| fail_return(&e));
     let client = Client::new();
     println!();
-    println!("  {}", "VELA · JATS · V0.19.0".dimmed());
+    println!("  {}", "VELA · JATS · V0.20.0".dimmed());
     println!("  {}", style::tick_row(60));
     println!("source: {source}");
     println!("backend: {}", config.backend.label());
@@ -5601,7 +5694,7 @@ pub fn is_science_subcommand(name: &str) -> bool {
 
 fn print_strict_help() {
     println!(
-        r#"Vela 0.19.0
+        r#"Vela 0.20.0
 Portable frontier state for science.
 
 Usage:
@@ -5674,7 +5767,7 @@ pub fn run_from_args() {
             return;
         }
         Some("-V" | "--version" | "version") => {
-            println!("vela 0.19.0");
+            println!("vela 0.20.0");
             return;
         }
         Some(cmd) if !is_science_subcommand(cmd) => {

@@ -166,14 +166,68 @@ is platform-agnostic; swap the runtime.
   signature against `owner_pubkey` and the frontier's hashes against
   the manifest. The hub controls *availability*, not *authenticity*.
 
+## Federation (v0.20)
+
+Hub-to-hub federation is no longer hypothetical. A second hub instance
+runs at <https://vela-hub-2.fly.dev> (same Rust binary, separate Neon
+Postgres, separate Fly app under `vela-237`). The doctrinal claim —
+*the signature is the bind, not the hub identity* — is now empirically
+validated end-to-end.
+
+The federation primitive:
+
+```bash
+vela registry mirror <vfr_id> \
+  --from https://vela-hub.fly.dev \
+  --to https://vela-hub-2.fly.dev
+```
+
+Mechanism: GET the signed manifest from `from/entries/{vfr_id}`, POST
+the same bytes to `to/entries`. Both hubs validate the manifest's
+Ed25519 signature against the embedded `owner_pubkey`. Mirroring is a
+no-op for authenticity — neither hub gains any signing role.
+
+Validated against the live deploy:
+
+- 3 frontiers (BBB Flagship, BBB-extension, Will's Alzheimer's drug-
+  target landscape) mirrored from hub-1 → hub-2 cleanly.
+- Re-mirroring the same vfr returns `duplicate=true` from the destination
+  (idempotent on the `(vfr_id, signature)` unique constraint).
+- `vela registry pull` against hub-2 produces byte-identical bytes and
+  same `verified=true` as against hub-1.
+- Snapshot hashes match across hubs for the same vfr_id.
+
+What this unblocks:
+
+- **Resilience:** if one hub goes down, mirror to a backup ahead of
+  time and keep `vela registry pull` working.
+- **Seeding:** a fresh hub instance can be primed from an existing
+  one without any signing roundtrip.
+- **Independent deploys:** an institution running its own hub can
+  mirror the public hub's content for offline / air-gapped use, then
+  publish its own frontiers independently.
+- **The right substrate property:** pulling a frontier doesn't require
+  trusting a single hub. Any hub serving the bytes is sufficient
+  because the signature is over the publisher's content, not the
+  serving infrastructure.
+
+What v0.20 still doesn't ship:
+
+- Automatic mirror (cron-style "keep hub-2 in sync with hub-1"). The
+  `mirror` primitive is the building block; an automated mirror is one
+  bash loop or one CI job around it. Defer until someone runs into the
+  manual-replay friction.
+- Hub-A-discovers-hub-B / cross-hub queries (e.g. "which hubs have a
+  copy of this vfr_id"). Each hub stays autonomous; clients pick which
+  hub to talk to.
+
 ## What is deferred
 
-Each of these is enabled by what v0.7 ships, but not in scope:
+Each of these is enabled by what's shipped, but not in scope:
 
-- Hub-to-hub federation (one hub mirroring another).
 - Hub-hosted frontier blobs. The locator is wherever the publisher
   hosts the file.
 - Webhooks / SSE on the hub.
 - Per-pubkey rate limits, allowlists, abuse handling. Add when abuse
   exists.
-- A real domain (e.g. `hub.vela.science`). The Fly URL is sufficient.
+- A real domain (e.g. `hub.vela.science`). The Fly URLs are sufficient.

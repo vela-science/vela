@@ -1,5 +1,70 @@
 # Changelog
 
+## 0.20.0 - 2026-04-26
+
+The federation release. Hub-to-hub mirroring has been on the deferred
+list since v0.8 ("forced by ≥ 2 hubs"). v0.20 ships the second hub —
+`https://vela-hub-2.fly.dev` — and the `vela registry mirror` primitive,
+turning the substrate's "the signature is the bind, not the hub
+identity" doctrine from a claim into an empirical fact.
+
+### Infrastructure
+
+- **Second hub deployed at `https://vela-hub-2.fly.dev`** — same Rust
+  binary, separate Neon Postgres database, separate Fly app under the
+  `vela-237` org. Runs identically to `vela-hub.fly.dev`; doctrine
+  unchanged (dumb signed transport, signature-gated POST, no
+  allowlist).
+
+### CLI
+
+- **`vela registry mirror <vfr_id> --from <hub-A> --to <hub-B>`.**
+  GETs the signed manifest from `from/entries/{vfr_id}` and POSTs it
+  verbatim to `to/entries`. Both hubs validate the manifest's Ed25519
+  signature against the embedded `owner_pubkey`; mirroring is a no-op
+  for authenticity. Idempotent on the destination's
+  `(vfr_id, signature)` unique constraint — re-mirroring returns
+  `duplicate=true`.
+
+### Validation
+
+End-to-end against the live deploys:
+
+- 3 frontiers (BBB Flagship, BBB-extension, Will's Alzheimer's
+  drug-target landscape) mirrored from hub-1 → hub-2 cleanly.
+- `vela registry pull` against hub-2 produces byte-identical output
+  with `verified=true`, same as against hub-1.
+- Snapshot hashes match across hubs for the same vfr_id.
+- Re-mirror is idempotent (returns `duplicate; signature already
+  known` from the destination).
+
+### What this unblocks
+
+- **Resilience.** Mirror to a backup hub ahead of time; if one goes
+  down, `vela registry pull` keeps working against the other.
+- **Seeding.** A fresh hub instance can be primed from an existing
+  one without any signing roundtrip.
+- **Independent deploys.** An institution running its own hub can
+  mirror the public hub for offline/air-gapped use, then publish its
+  own frontiers independently.
+- **The doctrinal property the substrate has been claiming since v0.7:**
+  pulling a frontier doesn't require trusting a single hub. The
+  signature is over the publisher's content, not the serving
+  infrastructure.
+
+### Documentation
+
+- `docs/HUB.md` gains a Federation section with the live URLs, the
+  mirror command, and the doctrine line. The "What is deferred" list
+  loses the "hub-to-hub federation" entry.
+
+### Versioning
+
+- Workspace `0.19.0 → 0.20.0`.
+- `vela --version → 0.20.0`; banner stamps bump in lockstep.
+- Schema version stays at `v0.10.0` — no schema change. Federation is
+  a transport pattern, not a substrate primitive.
+
 ## 0.19.0 - 2026-04-26
 
 The bundled-ontology release. Will's frontier had 33 entities, every one
