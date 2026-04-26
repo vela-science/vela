@@ -1,5 +1,63 @@
 # Changelog
 
+## 0.19.0 - 2026-04-26
+
+The bundled-ontology release. Will's frontier had 33 entities, every one
+flagged `needs_review = true` because they were hand-added with no
+canonical-id resolution. Strict-check kept blocking on `needs_human_review`
+signals downstream of that. v0.19 adds a small bundled lookup table for
+common Alzheimer's vocabulary (UniProt for proteins, MeSH for diseases,
+DrugBank for compounds, NCBI Taxonomy for organisms, Cell Ontology for
+cell types, plus the v0.10 cross-domain physics entries). 32 of 33
+entities on Will's frontier resolve. The substrate now has a credible
+"resolved against an authoritative source" claim for matched entities;
+the rest stay flagged needs_review for honest curator follow-up.
+
+### Substrate
+
+- **`crate::entity_resolve` module.** Hardcoded `OntologyEntry` table
+  matching `(normalized_name, entity_type)` to a `ResolvedId`. About
+  ~28 entries: amyloid-beta, APP, BACE1, tau, TREM2, ApoE, PSEN1/2,
+  Alzheimer's disease, MCI, Lecanemab, Aducanumab, Donanemab,
+  Verubecestat, Liraglutide, Semaglutide, Exendin-4, microglia,
+  blood-brain barrier, Homo sapiens, Mus musculus, plus xenon, WIMP,
+  XENONnT, LZ for the cross-domain physics entries. `resolve_frontier`
+  walks every finding's entities and applies the lookup; matched
+  entities get `canonical_id`, `resolution_method = Manual`,
+  `resolution_confidence = 0.95`, `needs_review = false`.
+
+### CLI
+
+- **`vela entity resolve <frontier>`** — runs the bundled resolution
+  in place. Idempotent unless `--force` is passed. Prints a per-finding
+  summary with unresolved entity hints.
+- **`vela entity list`** — read-only inspection of the bundled table.
+
+### Conformance vector + cross-impl
+
+- **`tests/conformance/supersede-and-sources/`** — a new 2-finding
+  fixture exercising both v0.13 inline source/evidence/condition
+  materialization AND v0.14 `finding.supersede`. `expected.json` pins
+  every content-addressed id, the supersede chain (old finding's
+  `flags.superseded`, new finding's auto-injected `supersedes` link,
+  the `finding.superseded` event with `payload.new_finding_id`), and
+  the materialized projection counts.
+- `scripts/cross_impl_conformance.py` gains `--expect <path>` to
+  validate the loaded frontier against an `expected.json` fixture.
+  Walks counts, supersede chain, materialization. Used by the new
+  conformance vector to give second-implementation re-derivers a
+  precise contract to satisfy.
+
+### Versioning
+
+- Workspace `0.17.0 → 0.19.0` (skipping 0.18 which would have only
+  shipped the conformance vector — bundled with v0.19 for one cycle).
+- `vela --version → 0.19.0`; banner stamps bump in lockstep.
+- Schema version stays at `v0.10.0` — no schema change. The bundled
+  ontology table is a runtime lookup, not a substrate addition.
+- New top-level CLI command `entity` added to the strict release
+  surface (with `resolve` + `list` subcommands).
+
 ## 0.17.0 - 2026-04-26
 
 The agent-surface release. Forced by probing `vela serve` against Will's

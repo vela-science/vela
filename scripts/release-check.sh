@@ -55,6 +55,7 @@ diff
 proposals
 finding
 link
+entity
 frontier
 actor
 registry

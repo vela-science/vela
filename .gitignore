@@ -48,6 +48,7 @@ frontier-*.json
 test*.json
 !tests/conformance/cross-frontier/*.json
 !tests/conformance/non-bio-domain/*.json
+!tests/conformance/supersede-and-sources/*.json
 
 # Non-release local project worktrees
 projects/crispr-delivery/

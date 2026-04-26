@@ -20,7 +20,7 @@ use sha2::{Digest, Sha256};
 use tokio::sync::Semaphore;
 
 #[derive(Parser)]
-#[command(name = "vela", version = "0.17.0")]
+#[command(name = "vela", version = "0.19.0")]
 #[command(about = "Portable frontier state for science")]
 struct Cli {
     #[command(subcommand)]
@@ -391,6 +391,14 @@ enum Commands {
     Link {
         #[command(subcommand)]
         action: LinkAction,
+    },
+    /// v0.19: resolve unresolved entities against a bundled common-entity
+    /// table (UniProt for proteins, MeSH for diseases, ChEBI/DrugBank for
+    /// compounds, etc.). Lowers `needs_review` for matched entities and
+    /// populates `canonical_id`. Idempotent unless `--force` is passed.
+    Entity {
+        #[command(subcommand)]
+        action: EntityAction,
     },
     /// Create or apply one proposal-backed finding review
     Review {
@@ -816,6 +824,29 @@ enum LinkAction {
         /// (useful in CI or when offline).
         #[arg(long)]
         no_check_target: bool,
+        #[arg(long)]
+        json: bool,
+    },
+}
+
+#[derive(Subcommand)]
+enum EntityAction {
+    /// Walk every finding's entities and try to resolve each against
+    /// the bundled common-entity table. Matched entities get
+    /// `canonical_id` populated, `resolution_method = manual`,
+    /// `resolution_confidence = 0.95`, `needs_review = false`. Already-
+    /// resolved entities are skipped unless `--force` is passed. The
+    /// frontier file is written back atomically.
+    Resolve {
+        frontier: PathBuf,
+        /// Re-resolve entities that already have a canonical_id.
+        #[arg(long)]
+        force: bool,
+        #[arg(long)]
+        json: bool,
+    },
+    /// List the bundled lookup table.
+    List {
         #[arg(long)]
         json: bool,
     },
@@ -1270,7 +1301,7 @@ pub async fn run_command() {
         Commands::Conformance { dir } => {
             let _ = conformance::run(&dir);
         }
-        Commands::Version => println!("vela 0.17.0"),
+        Commands::Version => println!("vela 0.19.0"),
         Commands::Sign { action } => cmd_sign(action),
         Commands::Actor { action } => cmd_actor(action),
         Commands::Frontier { action } => cmd_frontier(action),
@@ -1286,6 +1317,7 @@ pub async fn run_command() {
         } => diff::run(&frontier_a, &frontier_b, json, quiet),
         Commands::Proposals { action } => cmd_proposals(action),
         Commands::Link { action } => cmd_link(action),
+        Commands::Entity { action } => cmd_entity(action),
         Commands::Finding { command } => match command {
             FindingCommands::Add {
                 frontier,
@@ -1637,7 +1669,7 @@ pub async fn cmd_compile(
         match corpus::compile_local_corpus(local_source, output, backend).await {
             Ok(report) => {
                 println!();
-                println!("  {}", "VELA · COMPILE · V0.17.0".dimmed());
+                println!("  {}", "VELA · COMPILE · V0.19.0".dimmed());
                 println!("  {}", style::tick_row(60));
                 println!("source: {}", local_source.display());
                 println!("mode: local corpus");
@@ -1672,7 +1704,7 @@ pub async fn cmd_compile(
     let client = Client::new();
 
     println!();
-    println!("  {}", "VELA · COMPILE · V0.17.0".dimmed());
+    println!("  {}", "VELA · COMPILE · V0.19.0".dimmed());
     println!("  {}", style::tick_row(60));
     println!("topic: {topic}");
     println!("papers: {max_papers}");
@@ -2730,7 +2762,7 @@ fn cmd_stats(path: &Path) {
     let frontier = repo::load_from_path(path).expect("Failed to load frontier");
     let s = &frontier.stats;
     println!();
-    println!("  {}", "FRONTIER · V0.17.0".dimmed());
+    println!("  {}", "FRONTIER · V0.19.0".dimmed());
     println!("  {}", frontier.project.name.bold());
     println!("  {}", style::tick_row(60));
     println!("  id:             {}", frontier.frontier_id());
@@ -3460,6 +3492,94 @@ fn sign_and_apply(
 /// was to hand-edit JSON; this command is the CLI on-ramp. Links go
 /// directly onto `findings[i].links` (links are not a state-changing
 /// proposal kind in v0).
+/// v0.19: bundled entity resolution. See `crate::entity_resolve` for the
+/// table + algorithm. CLI surface is two subcommands: `resolve` (mutates
+/// the frontier file) and `list` (read-only inspection of the table).
+fn cmd_entity(action: EntityAction) {
+    use crate::entity_resolve;
+    match action {
+        EntityAction::Resolve {
+            frontier,
+            force,
+            json,
+        } => {
+            let mut p = repo::load_from_path(&frontier).unwrap_or_else(|e| fail_return(&e));
+            let report = entity_resolve::resolve_frontier(&mut p, force);
+            repo::save_to_path(&frontier, &p).unwrap_or_else(|e| fail_return(&e));
+            if json {
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&serde_json::json!({
+                        "ok": true,
+                        "command": "entity.resolve",
+                        "frontier_path": frontier.display().to_string(),
+                        "report": report,
+                    }))
+                    .expect("serialize")
+                );
+            } else {
+                println!(
+                    "{} resolved {} of {} entities ({} already, {} unresolved) across {} findings",
+                    style::ok("entity"),
+                    report.resolved,
+                    report.total_entities,
+                    report.already_resolved,
+                    report.unresolved_count,
+                    report.findings_touched,
+                );
+                let unresolved_summary: std::collections::BTreeSet<&str> = report
+                    .per_finding
+                    .iter()
+                    .flat_map(|f| f.unresolved.iter().map(String::as_str))
+                    .collect();
+                if !unresolved_summary.is_empty() {
+                    let take = unresolved_summary.iter().take(8).collect::<Vec<_>>();
+                    println!(
+                        "  unresolved (first {}): {}",
+                        take.len(),
+                        take.iter().copied().cloned().collect::<Vec<_>>().join(", ")
+                    );
+                }
+            }
+        }
+        EntityAction::List { json } => {
+            let entries: Vec<serde_json::Value> = entity_resolve::iter_bundled()
+                .map(|(name, etype, source, id)| {
+                    serde_json::json!({
+                        "canonical_name": name,
+                        "entity_type": etype,
+                        "source": source,
+                        "id": id,
+                    })
+                })
+                .collect();
+            if json {
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&serde_json::json!({
+                        "ok": true,
+                        "command": "entity.list",
+                        "count": entries.len(),
+                        "entries": entries,
+                    }))
+                    .expect("serialize")
+                );
+            } else {
+                println!("{} {} bundled entries", style::ok("entity"), entries.len());
+                for e in &entries {
+                    println!(
+                        "  {:32}  {:18}  {} {}",
+                        e["canonical_name"].as_str().unwrap_or("?"),
+                        e["entity_type"].as_str().unwrap_or("?"),
+                        e["source"].as_str().unwrap_or("?"),
+                        e["id"].as_str().unwrap_or("?"),
+                    );
+                }
+            }
+        }
+    }
+}
+
 fn cmd_link(action: LinkAction) {
     use crate::bundle::{Link, LinkRef};
     match action {
@@ -4605,7 +4725,7 @@ async fn cmd_bridge(inputs: &[PathBuf], check_novelty: bool, top_n: usize) {
         fail("need at least 2 frontier files for bridge detection.");
     }
     println!();
-    println!("  {}", "VELA · BRIDGE · V0.17.0".dimmed());
+    println!("  {}", "VELA · BRIDGE · V0.19.0".dimmed());
     println!("  {}", style::tick_row(60));
     println!("  loading {} frontiers...", inputs.len());
     let mut named_projects = Vec::<(String, project::Project)>::new();
@@ -4900,7 +5020,7 @@ async fn cmd_jats(source: &str, output: &Path, backend: Option<&str>) {
     let config = llm::LlmConfig::from_env(backend).unwrap_or_else(|e| fail_return(&e));
     let client = Client::new();
     println!();
-    println!("  {}", "VELA · JATS · V0.17.0".dimmed());
+    println!("  {}", "VELA · JATS · V0.19.0".dimmed());
     println!("  {}", style::tick_row(60));
     println!("source: {source}");
     println!("backend: {}", config.backend.label());
@@ -5463,6 +5583,7 @@ const SCIENCE_SUBCOMMANDS: &[&str] = &[
     "proposals",
     "finding",
     "link",
+    "entity",
     "review",
     "note",
     "caveat",
@@ -5480,7 +5601,7 @@ pub fn is_science_subcommand(name: &str) -> bool {
 
 fn print_strict_help() {
     println!(
-        r#"Vela 0.17.0
+        r#"Vela 0.19.0
 Portable frontier state for science.
 
 Usage:
@@ -5513,6 +5634,7 @@ State commands:
   proposals     Inspect, validate, export, import, accept, or reject write proposals
   finding       Add or manage finding bundles as frontier state
   link          Add typed links between findings (incl. cross-frontier vf_at-vfr targets)
+  entity        Resolve unresolved entities against a bundled common-entity table (v0.19)
   frontier      Scaffold (`new`) and manage frontier metadata + cross-frontier deps
   actor         Register Ed25519 publisher identities in a frontier
   registry      Publish, list, or pull frontiers (open hub at https://vela-hub.fly.dev)
@@ -5552,7 +5674,7 @@ pub fn run_from_args() {
             return;
         }
         Some("-V" | "--version" | "version") => {
-            println!("vela 0.17.0");
+            println!("vela 0.19.0");
             return;
         }
         Some(cmd) if !is_science_subcommand(cmd) => {

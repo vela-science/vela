@@ -30,17 +30,17 @@
     "negative_space": 0,
     "contested": 0,
     "categories": {
-      "therapeutic": 3,
-      "observational": 3,
-      "mechanism": 3,
       "epidemiological": 2,
-      "review": 1
+      "therapeutic": 3,
+      "review": 1,
+      "mechanism": 3,
+      "observational": 3
     },
     "link_types": {
-      "contradicts": 1,
       "extends": 2,
+      "supersedes": 1,
       "supports": 5,
-      "supersedes": 1
+      "contradicts": 1
     },
     "human_reviewed": 4,
     "review_event_count": 15,
@@ -69,21 +69,33 @@
             "name": "amyloid-beta",
             "type": "protein",
             "identifiers": {},
+            "canonical_id": {
+              "source": "UniProt",
+              "id": "P05067",
+              "confidence": 0.95,
+              "matched_name": "amyloid-beta"
+            },
             "candidates": [],
             "aliases": [],
-            "resolution_provenance": "manual_state_transition",
-            "resolution_confidence": 0.6,
-            "needs_review": true
+            "resolution_provenance": "vela_entity_resolve_v0_19_bundled_table",
+            "resolution_confidence": 0.95,
+            "resolution_method": "manual"
           },
           {
             "name": "Alzheimers disease",
             "type": "disease",
             "identifiers": {},
+            "canonical_id": {
+              "source": "MeSH",
+              "id": "D000544",
+              "confidence": 0.95,
+              "matched_name": "Alzheimer's disease"
+            },
             "candidates": [],
             "aliases": [],
-            "resolution_provenance": "manual_state_transition",
-            "resolution_confidence": 0.6,
-            "needs_review": true
+            "resolution_provenance": "vela_entity_resolve_v0_19_bundled_table",
+            "resolution_confidence": 0.95,
+            "resolution_method": "manual"
           },
           {
             "name": "amyloid cascade",
@@ -199,31 +211,49 @@
             "name": "Lecanemab",
             "type": "compound",
             "identifiers": {},
+            "canonical_id": {
+              "source": "DrugBank",
+              "id": "DB16703",
+              "confidence": 0.95,
+              "matched_name": "Lecanemab"
+            },
             "candidates": [],
             "aliases": [],
-            "resolution_provenance": "manual_state_transition",
-            "resolution_confidence": 0.6,
-            "needs_review": true
+            "resolution_provenance": "vela_entity_resolve_v0_19_bundled_table",
+            "resolution_confidence": 0.95,
+            "resolution_method": "manual"
           },
           {
             "name": "amyloid-beta",
             "type": "protein",
             "identifiers": {},
+            "canonical_id": {
+              "source": "UniProt",
+              "id": "P05067",
+              "confidence": 0.95,
+              "matched_name": "amyloid-beta"
+            },
             "candidates": [],
             "aliases": [],
-            "resolution_provenance": "manual_state_transition",
-            "resolution_confidence": 0.6,
-            "needs_review": true
+            "resolution_provenance": "vela_entity_resolve_v0_19_bundled_table",
+            "resolution_confidence": 0.95,
+            "resolution_method": "manual"
           },
           {
             "name": "Alzheimers disease",
             "type": "disease",
             "identifiers": {},
+            "canonical_id": {
+              "source": "MeSH",
+              "id": "D000544",
+              "confidence": 0.95,
+              "matched_name": "Alzheimer's disease"
+            },
             "candidates": [],
             "aliases": [],
-            "resolution_provenance": "manual_state_transition",
-            "resolution_confidence": 0.6,
-            "needs_review": true
+            "resolution_provenance": "vela_entity_resolve_v0_19_bundled_table",
+            "resolution_confidence": 0.95,
+            "resolution_method": "manual"
           }
         ],
         "relation": null,
@@ -405,21 +435,33 @@
             "name": "amyloid-beta",
             "type": "protein",
             "identifiers": {},
+            "canonical_id": {
+              "source": "UniProt",
+              "id": "P05067",
+              "confidence": 0.95,
+              "matched_name": "amyloid-beta"
+            },
             "candidates": [],
             "aliases": [],
-            "resolution_provenance": "manual_state_transition",
-            "resolution_confidence": 0.6,
-            "needs_review": true
+            "resolution_provenance": "vela_entity_resolve_v0_19_bundled_table",
+            "resolution_confidence": 0.95,
+            "resolution_method": "manual"
           },
           {
             "name": "Alzheimers disease",
             "type": "disease",
             "identifiers": {},
+            "canonical_id": {
+              "source": "MeSH",
+              "id": "D000544",
+              "confidence": 0.95,
+              "matched_name": "Alzheimer's disease"
+            },
             "candidates": [],
             "aliases": [],
-            "resolution_provenance": "manual_state_transition",
-            "resolution_confidence": 0.6,
-            "needs_review": true
+            "resolution_provenance": "vela_entity_resolve_v0_19_bundled_table",
+            "resolution_confidence": 0.95,
+            "resolution_method": "manual"
           }
         ],
         "relation": null,
@@ -549,31 +591,49 @@
             "name": "BACE1",
             "type": "protein",
             "identifiers": {},
+            "canonical_id": {
+              "source": "UniProt",
+              "id": "P56817",
+              "confidence": 0.95,
+              "matched_name": "BACE1"
+            },
             "candidates": [],
             "aliases": [],
-            "resolution_provenance": "manual_state_transition",
-            "resolution_confidence": 0.6,
-            "needs_review": true
+            "resolution_provenance": "vela_entity_resolve_v0_19_bundled_table",
+            "resolution_confidence": 0.95,
+            "resolution_method": "manual"
           },
           {
             "name": "verubecestat",
             "type": "compound",
             "identifiers": {},
+            "canonical_id": {
+              "source": "DrugBank",
+              "id": "DB12089",
+              "confidence": 0.95,
+              "matched_name": "Verubecestat"
+            },
             "candidates": [],
             "aliases": [],
-            "resolution_provenance": "manual_state_transition",
-            "resolution_confidence": 0.6,
-            "needs_review": true
+            "resolution_provenance": "vela_entity_resolve_v0_19_bundled_table",
+            "resolution_confidence": 0.95,
+            "resolution_method": "manual"
           },
           {
             "name": "Alzheimers disease",
             "type": "disease",
             "identifiers": {},
+            "canonical_id": {
+              "source": "MeSH",
+              "id": "D000544",
+              "confidence": 0.95,
+              "matched_name": "Alzheimer's disease"
+            },
             "candidates": [],
             "aliases": [],
-            "resolution_provenance": "manual_state_transition",
-            "resolution_confidence": 0.6,
-            "needs_review": true
+            "resolution_provenance": "vela_entity_resolve_v0_19_bundled_table",
+            "resolution_confidence": 0.95,
+            "resolution_method": "manual"
           }
         ],
         "relation": null,
@@ -711,21 +771,33 @@
             "name": "BACE1",
             "type": "protein",
             "identifiers": {},
+            "canonical_id": {
+              "source": "UniProt",
+              "id": "P56817",
+              "confidence": 0.95,
+              "matched_name": "BACE1"
+            },
             "candidates": [],
             "aliases": [],
-            "resolution_provenance": "manual_state_transition",
-            "resolution_confidence": 0.6,
-            "needs_review": true
+            "resolution_provenance": "vela_entity_resolve_v0_19_bundled_table",
+            "resolution_confidence": 0.95,
+            "resolution_method": "manual"
           },
           {
             "name": "APP",
             "type": "protein",
             "identifiers": {},
+            "canonical_id": {
+              "source": "UniProt",
+              "id": "P05067",
+              "confidence": 0.95,
+              "matched_name": "APP"
+            },
             "candidates": [],
             "aliases": [],
-            "resolution_provenance": "manual_state_transition",
-            "resolution_confidence": 0.6,
-            "needs_review": true
+            "resolution_provenance": "vela_entity_resolve_v0_19_bundled_table",
+            "resolution_confidence": 0.95,
+            "resolution_method": "manual"
           }
         ],
         "relation": null,
@@ -852,31 +924,49 @@
             "name": "tau",
             "type": "protein",
             "identifiers": {},
+            "canonical_id": {
+              "source": "UniProt",
+              "id": "P10636",
+              "confidence": 0.95,
+              "matched_name": "tau"
+            },
             "candidates": [],
             "aliases": [],
-            "resolution_provenance": "manual_state_transition",
-            "resolution_confidence": 0.6,
-            "needs_review": true
+            "resolution_provenance": "vela_entity_resolve_v0_19_bundled_table",
+            "resolution_confidence": 0.95,
+            "resolution_method": "manual"
           },
           {
             "name": "amyloid-beta",
             "type": "protein",
             "identifiers": {},
+            "canonical_id": {
+              "source": "UniProt",
+              "id": "P05067",
+              "confidence": 0.95,
+              "matched_name": "amyloid-beta"
+            },
             "candidates": [],
             "aliases": [],
-            "resolution_provenance": "manual_state_transition",
-            "resolution_confidence": 0.6,
-            "needs_review": true
+            "resolution_provenance": "vela_entity_resolve_v0_19_bundled_table",
+            "resolution_confidence": 0.95,
+            "resolution_method": "manual"
           },
           {
             "name": "Alzheimers disease",
             "type": "disease",
             "identifiers": {},
+            "canonical_id": {
+              "source": "MeSH",
+              "id": "D000544",
+              "confidence": 0.95,
+              "matched_name": "Alzheimer's disease"
+            },
             "candidates": [],
             "aliases": [],
-            "resolution_provenance": "manual_state_transition",
-            "resolution_confidence": 0.6,
-            "needs_review": true
+            "resolution_provenance": "vela_entity_resolve_v0_19_bundled_table",
+            "resolution_confidence": 0.95,
+            "resolution_method": "manual"
           }
         ],
         "relation": null,
@@ -1014,21 +1104,33 @@
             "name": "tau",
             "type": "protein",
             "identifiers": {},
+            "canonical_id": {
+              "source": "UniProt",
+              "id": "P10636",
+              "confidence": 0.95,
+              "matched_name": "tau"
+            },
             "candidates": [],
             "aliases": [],
-            "resolution_provenance": "manual_state_transition",
-            "resolution_confidence": 0.6,
-            "needs_review": true
+            "resolution_provenance": "vela_entity_resolve_v0_19_bundled_table",
+            "resolution_confidence": 0.95,
+            "resolution_method": "manual"
           },
           {
             "name": "Alzheimers disease",
             "type": "disease",
             "identifiers": {},
+            "canonical_id": {
+              "source": "MeSH",
+              "id": "D000544",
+              "confidence": 0.95,
+              "matched_name": "Alzheimer's disease"
+            },
             "candidates": [],
             "aliases": [],
-            "resolution_provenance": "manual_state_transition",
-            "resolution_confidence": 0.6,
-            "needs_review": true
+            "resolution_provenance": "vela_entity_resolve_v0_19_bundled_table",
+            "resolution_confidence": 0.95,
+            "resolution_method": "manual"
           }
         ],
         "relation": null,
@@ -1134,31 +1236,49 @@
             "name": "TREM2",
             "type": "protein",
             "identifiers": {},
+            "canonical_id": {
+              "source": "UniProt",
+              "id": "Q9NZC2",
+              "confidence": 0.95,
+              "matched_name": "TREM2"
+            },
             "candidates": [],
             "aliases": [],
-            "resolution_provenance": "manual_state_transition",
-            "resolution_confidence": 0.6,
-            "needs_review": true
+            "resolution_provenance": "vela_entity_resolve_v0_19_bundled_table",
+            "resolution_confidence": 0.95,
+            "resolution_method": "manual"
           },
           {
             "name": "amyloid-beta",
             "type": "protein",
             "identifiers": {},
+            "canonical_id": {
+              "source": "UniProt",
+              "id": "P05067",
+              "confidence": 0.95,
+              "matched_name": "amyloid-beta"
+            },
             "candidates": [],
             "aliases": [],
-            "resolution_provenance": "manual_state_transition",
-            "resolution_confidence": 0.6,
-            "needs_review": true
+            "resolution_provenance": "vela_entity_resolve_v0_19_bundled_table",
+            "resolution_confidence": 0.95,
+            "resolution_method": "manual"
           },
           {
             "name": "microglia",
             "type": "cell_type",
             "identifiers": {},
+            "canonical_id": {
+              "source": "Cell Ontology",
+              "id": "CL:0000129",
+              "confidence": 0.95,
+              "matched_name": "microglia"
+            },
             "candidates": [],
             "aliases": [],
-            "resolution_provenance": "manual_state_transition",
-            "resolution_confidence": 0.6,
-            "needs_review": true
+            "resolution_provenance": "vela_entity_resolve_v0_19_bundled_table",
+            "resolution_confidence": 0.95,
+            "resolution_method": "manual"
           }
         ],
         "relation": null,
@@ -1281,31 +1401,49 @@
             "name": "TREM2",
             "type": "protein",
             "identifiers": {},
+            "canonical_id": {
+              "source": "UniProt",
+              "id": "Q9NZC2",
+              "confidence": 0.95,
+              "matched_name": "TREM2"
+            },
             "candidates": [],
             "aliases": [],
-            "resolution_provenance": "manual_state_transition",
-            "resolution_confidence": 0.6,
-            "needs_review": true
+            "resolution_provenance": "vela_entity_resolve_v0_19_bundled_table",
+            "resolution_confidence": 0.95,
+            "resolution_method": "manual"
           },
           {
             "name": "ApoE",
             "type": "protein",
             "identifiers": {},
+            "canonical_id": {
+              "source": "UniProt",
+              "id": "P02649",
+              "confidence": 0.95,
+              "matched_name": "ApoE"
+            },
             "candidates": [],
             "aliases": [],
-            "resolution_provenance": "manual_state_transition",
-            "resolution_confidence": 0.6,
-            "needs_review": true
+            "resolution_provenance": "vela_entity_resolve_v0_19_bundled_table",
+            "resolution_confidence": 0.95,
+            "resolution_method": "manual"
           },
           {
             "name": "Alzheimers disease",
             "type": "disease",
             "identifiers": {},
+            "canonical_id": {
+              "source": "MeSH",
+              "id": "D000544",
+              "confidence": 0.95,
+              "matched_name": "Alzheimer's disease"
+            },
             "candidates": [],
             "aliases": [],
-            "resolution_provenance": "manual_state_transition",
-            "resolution_confidence": 0.6,
-            "needs_review": true
+            "resolution_provenance": "vela_entity_resolve_v0_19_bundled_table",
+            "resolution_confidence": 0.95,
+            "resolution_method": "manual"
           }
         ],
         "relation": null,
@@ -1419,21 +1557,33 @@
             "name": "ApoE",
             "type": "protein",
             "identifiers": {},
+            "canonical_id": {
+              "source": "UniProt",
+              "id": "P02649",
+              "confidence": 0.95,
+              "matched_name": "ApoE"
+            },
             "candidates": [],
             "aliases": [],
-            "resolution_provenance": "manual_state_transition",
-            "resolution_confidence": 0.6,
-            "needs_review": true
+            "resolution_provenance": "vela_entity_resolve_v0_19_bundled_table",
+            "resolution_confidence": 0.95,
+            "resolution_method": "manual"
           },
           {
             "name": "Alzheimers disease",
             "type": "disease",
             "identifiers": {},
+            "canonical_id": {
+              "source": "MeSH",
+              "id": "D000544",
+              "confidence": 0.95,
+              "matched_name": "Alzheimer's disease"
+            },
             "candidates": [],
             "aliases": [],
-            "resolution_provenance": "manual_state_transition",
-            "resolution_confidence": 0.6,
-            "needs_review": true
+            "resolution_provenance": "vela_entity_resolve_v0_19_bundled_table",
+            "resolution_confidence": 0.95,
+            "resolution_method": "manual"
           }
         ],
         "relation": null,
@@ -1559,31 +1709,49 @@
             "name": "ApoE",
             "type": "protein",
             "identifiers": {},
+            "canonical_id": {
+              "source": "UniProt",
+              "id": "P02649",
+              "confidence": 0.95,
+              "matched_name": "ApoE"
+            },
             "candidates": [],
             "aliases": [],
-            "resolution_provenance": "manual_state_transition",
-            "resolution_confidence": 0.6,
-            "needs_review": true
+            "resolution_provenance": "vela_entity_resolve_v0_19_bundled_table",
+            "resolution_confidence": 0.95,
+            "resolution_method": "manual"
           },
           {
             "name": "PSEN1",
             "type": "gene",
             "identifiers": {},
+            "canonical_id": {
+              "source": "NCBI Gene",
+              "id": "5663",
+              "confidence": 0.95,
+              "matched_name": "PSEN1"
+            },
             "candidates": [],
             "aliases": [],
-            "resolution_provenance": "manual_state_transition",
-            "resolution_confidence": 0.6,
-            "needs_review": true
+            "resolution_provenance": "vela_entity_resolve_v0_19_bundled_table",
+            "resolution_confidence": 0.95,
+            "resolution_method": "manual"
           },
           {
             "name": "Alzheimers disease",
             "type": "disease",
             "identifiers": {},
+            "canonical_id": {
+              "source": "MeSH",
+              "id": "D000544",
+              "confidence": 0.95,
+              "matched_name": "Alzheimer's disease"
+            },
             "candidates": [],
             "aliases": [],
-            "resolution_provenance": "manual_state_transition",
-            "resolution_confidence": 0.6,
-            "needs_review": true
+            "resolution_provenance": "vela_entity_resolve_v0_19_bundled_table",
+            "resolution_confidence": 0.95,
+            "resolution_method": "manual"
           }
         ],
         "relation": null,
@@ -1721,41 +1889,65 @@
             "name": "Lecanemab",
             "type": "compound",
             "identifiers": {},
+            "canonical_id": {
+              "source": "DrugBank",
+              "id": "DB16703",
+              "confidence": 0.95,
+              "matched_name": "Lecanemab"
+            },
             "candidates": [],
             "aliases": [],
-            "resolution_provenance": "manual_state_transition",
-            "resolution_confidence": 0.6,
-            "needs_review": true
+            "resolution_provenance": "vela_entity_resolve_v0_19_bundled_table",
+            "resolution_confidence": 0.95,
+            "resolution_method": "manual"
           },
           {
             "name": "amyloid-beta",
             "type": "protein",
             "identifiers": {},
+            "canonical_id": {
+              "source": "UniProt",
+              "id": "P05067",
+              "confidence": 0.95,
+              "matched_name": "amyloid-beta"
+            },
             "candidates": [],
             "aliases": [],
-            "resolution_provenance": "manual_state_transition",
-            "resolution_confidence": 0.6,
-            "needs_review": true
+            "resolution_provenance": "vela_entity_resolve_v0_19_bundled_table",
+            "resolution_confidence": 0.95,
+            "resolution_method": "manual"
           },
           {
             "name": "Alzheimers disease",
             "type": "disease",
             "identifiers": {},
+            "canonical_id": {
+              "source": "MeSH",
+              "id": "D000544",
+              "confidence": 0.95,
+              "matched_name": "Alzheimer's disease"
+            },
             "candidates": [],
             "aliases": [],
-            "resolution_provenance": "manual_state_transition",
-            "resolution_confidence": 0.6,
-            "needs_review": true
+            "resolution_provenance": "vela_entity_resolve_v0_19_bundled_table",
+            "resolution_confidence": 0.95,
+            "resolution_method": "manual"
           },
           {
             "name": "ApoE",
             "type": "protein",
             "identifiers": {},
+            "canonical_id": {
+              "source": "UniProt",
+              "id": "P02649",
+              "confidence": 0.95,
+              "matched_name": "ApoE"
+            },
             "candidates": [],
             "aliases": [],
-            "resolution_provenance": "manual_state_transition",
-            "resolution_confidence": 0.6,
-            "needs_review": true
+            "resolution_provenance": "vela_entity_resolve_v0_19_bundled_table",
+            "resolution_confidence": 0.95,
+            "resolution_method": "manual"
           }
         ],
         "relation": null,

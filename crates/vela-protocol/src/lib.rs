@@ -7,6 +7,7 @@ pub mod conformance;
 pub mod corpus;
 pub mod crossref;
 pub mod diff;
+pub mod entity_resolve;
 pub mod events;
 pub mod export;
 pub mod extract;

@@ -320,6 +320,12 @@ def main() -> int:
         "repeated for multiple deps.",
     )
     ap.add_argument("--json", action="store_true", help="Emit JSON result")
+    ap.add_argument(
+        "--expect",
+        metavar="PATH",
+        help="v0.18: validate the frontier against an expected.json fixture "
+        "(checks supersede chain, materialization, content-addressed ids).",
+    )
     args = ap.parse_args()
 
     with open(args.frontier, encoding="utf-8") as f:
@@ -339,9 +345,84 @@ def main() -> int:
             deps[dep_vfr] = dep_frontier
         cross_ok, cross_errors = validate_cross_frontier(frontier, deps)
 
+    # v0.18: expected.json fixture validation. Confirms supersede chain,
+    # materialization, and per-id structure match an authoritative
+    # second-implementation expectation. Used by the
+    # tests/conformance/supersede-and-sources/ vector.
+    expect_ok = True
+    expect_errors: list[str] = []
+    if args.expect:
+        with open(args.expect, encoding="utf-8") as fh:
+            expected = json.load(fh)
+        # Counts
+        fix = expected.get("fixture", {})
+        actual_counts = {
+            "finding_count": len(frontier.get("findings", [])),
+            "event_count": len(frontier.get("events", [])),
+            "proposal_count": len(frontier.get("proposals", [])),
+            "source_count": len(frontier.get("sources", [])),
+            "evidence_atom_count": len(frontier.get("evidence_atoms", [])),
+            "condition_record_count": len(frontier.get("condition_records", [])),
+        }
+        for key, expected_val in fix.items():
+            if key == "path":
+                continue
+            actual = actual_counts.get(key)
+            if actual != expected_val:
+                expect_errors.append(
+                    f"fixture.{key}: expected {expected_val}, got {actual}"
+                )
+        # Supersede chain
+        sup = expected.get("supersede", {})
+        if sup:
+            old_id = sup.get("old_finding_id")
+            new_id = sup.get("new_finding_id")
+            old = next((f for f in frontier.get("findings", []) if f["id"] == old_id), None)
+            new = next((f for f in frontier.get("findings", []) if f["id"] == new_id), None)
+            if old is None:
+                expect_errors.append(f"supersede.old_finding_id {old_id} not in frontier")
+            elif old.get("flags", {}).get("superseded") != sup.get("old_flags_superseded"):
+                expect_errors.append(
+                    f"supersede.old_flags_superseded mismatch on {old_id}"
+                )
+            if new is None:
+                expect_errors.append(f"supersede.new_finding_id {new_id} not in frontier")
+            else:
+                expected_link_target = sup.get("new_supersedes_link_target")
+                actual_link_target = next(
+                    (l["target"] for l in new.get("links", []) if l["type"] == "supersedes"),
+                    None,
+                )
+                if actual_link_target != expected_link_target:
+                    expect_errors.append(
+                        f"supersede link target mismatch on new finding {new_id}: "
+                        f"expected {expected_link_target}, got {actual_link_target}"
+                    )
+            ev_id = sup.get("event_id")
+            ev = next((e for e in frontier.get("events", []) if e["id"] == ev_id), None)
+            if ev is None:
+                expect_errors.append(f"supersede.event_id {ev_id} not in event log")
+            elif ev.get("kind") != "finding.superseded":
+                expect_errors.append(
+                    f"supersede event {ev_id} kind mismatch: expected finding.superseded, got {ev.get('kind')}"
+                )
+            elif ev.get("payload", {}).get("new_finding_id") != sup.get("event_payload_new_finding_id"):
+                expect_errors.append(
+                    f"supersede event {ev_id} payload.new_finding_id mismatch"
+                )
+        # Materialization
+        mat = expected.get("materialization", {})
+        if mat.get("sources_populated_inline") and not frontier.get("sources"):
+            expect_errors.append("materialization.sources_populated_inline expected, sources[] is empty")
+        if mat.get("evidence_atoms_populated_inline") and not frontier.get("evidence_atoms"):
+            expect_errors.append("materialization.evidence_atoms_populated_inline expected, evidence_atoms[] is empty")
+        if mat.get("condition_records_populated_inline") and not frontier.get("condition_records"):
+            expect_errors.append("materialization.condition_records_populated_inline expected, condition_records[] is empty")
+        expect_ok = not expect_errors
+
     if args.json:
         print(json.dumps({
-            "ok": result.mismatches == 0 and cross_ok,
+            "ok": result.mismatches == 0 and cross_ok and expect_ok,
             "mismatches": result.mismatches,
             "checks": result.checks,
             "computed": result.computed,
@@ -350,8 +431,13 @@ def main() -> int:
                 "errors": cross_errors,
                 "deps_loaded": len(args.cross_frontier),
             },
+            "expect": {
+                "ok": expect_ok,
+                "errors": expect_errors,
+                "fixture_loaded": bool(args.expect),
+            },
         }, indent=2))
-        return 0 if (result.mismatches == 0 and cross_ok) else 1
+        return 0 if (result.mismatches == 0 and cross_ok and expect_ok) else 1
 
     by_kind: dict[str, tuple[int, int]] = {}
     for c in result.checks:
@@ -393,6 +479,17 @@ def main() -> int:
         else:
             print(f"  FAIL — {len(cross_errors)} issue(s):")
             for e in cross_errors:
+                print(f"    · {e}")
+            return 1
+        print()
+
+    if args.expect:
+        print(f"Fixture expectation ({args.expect}):")
+        if expect_ok:
+            print("  ok counts, supersede chain, and materialization match expected.json")
+        else:
+            print(f"  FAIL — {len(expect_errors)} issue(s):")
+            for e in expect_errors:
                 print(f"    · {e}")
             return 1
         print()

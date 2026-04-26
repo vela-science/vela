@@ -1,0 +1,27 @@
+{
+  "comment": "v0.18 conformance vector exercising v0.14 finding.supersede + v0.13 inline source/evidence/condition materialization. A second-implementation re-deriver should reproduce all content-addressed ids byte-identically AND honour: (a) the auto-injected supersedes link from new->old; (b) flags.superseded=true on the old finding; (c) the finding.superseded event with new_finding_id in its payload; (d) the materialized sources[]/evidence_atoms[]/condition_records[] arrays populated inline at apply-time.",
+  "schema_version": "0.10.0",
+  "fixture": {
+    "path": "fixture.json",
+    "finding_count": 2,
+    "event_count": 2,
+    "proposal_count": 2,
+    "source_count": 2,
+    "evidence_atom_count": 2,
+    "condition_record_count": 2
+  },
+  "supersede": {
+    "old_finding_id": "vf_15c467ec187f6b54",
+    "old_flags_superseded": true,
+    "new_finding_id": "vf_2c1e38e699f384f7",
+    "new_supersedes_link_target": "vf_15c467ec187f6b54",
+    "event_id": "vev_7fee2533b2eeea8d",
+    "event_target_id": "vf_15c467ec187f6b54",
+    "event_payload_new_finding_id": "vf_2c1e38e699f384f7"
+  },
+  "materialization": {
+    "sources_populated_inline": true,
+    "evidence_atoms_populated_inline": true,
+    "condition_records_populated_inline": true
+  }
+}
