@@ -30,10 +30,25 @@ fn scout_handler(
 ) -> Pin<Box<dyn Future<Output = ()> + Send>> {
     Box::pin(async move {
         use vela_scientist::scout::{ScoutInput, run};
+        // The substrate's CLI plumbs through a generic `backend`
+        // string from the `vela scout --backend` flag. v0.22's only
+        // backend is `claude-cli`, so we treat the legacy flag as a
+        // model-alias override (e.g. `--backend sonnet`) and ignore
+        // empty / "claude-cli" / "default" values.
+        let model = backend.and_then(|b| {
+            let trimmed = b.trim().to_string();
+            if trimmed.is_empty() || trimmed == "claude-cli" || trimmed == "default" {
+                None
+            } else {
+                Some(trimmed)
+            }
+        });
         let input = ScoutInput {
             folder: folder.clone(),
             frontier_path: frontier.clone(),
-            backend,
+            model,
+            cli_command: std::env::var("VELA_SCIENTIST_CLI")
+                .unwrap_or_else(|_| "claude".to_string()),
             apply: !dry_run,
         };
         match run(input).await {

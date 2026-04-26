@@ -22,7 +22,7 @@ use sha2::{Digest, Sha256};
 use tokio::sync::Semaphore;
 
 #[derive(Parser)]
-#[command(name = "vela", version = "0.21.0")]
+#[command(name = "vela", version = "0.22.0")]
 #[command(about = "Portable frontier state for science")]
 struct Cli {
     #[command(subcommand)]
@@ -1353,7 +1353,7 @@ pub async fn run_command() {
         Commands::Conformance { dir } => {
             let _ = conformance::run(&dir);
         }
-        Commands::Version => println!("vela 0.21.0"),
+        Commands::Version => println!("vela 0.22.0"),
         Commands::Sign { action } => cmd_sign(action),
         Commands::Actor { action } => cmd_actor(action),
         Commands::Frontier { action } => cmd_frontier(action),
@@ -1721,7 +1721,7 @@ pub async fn cmd_compile(
         match corpus::compile_local_corpus(local_source, output, backend).await {
             Ok(report) => {
                 println!();
-                println!("  {}", "VELA · COMPILE · V0.21.0".dimmed());
+                println!("  {}", "VELA · COMPILE · V0.22.0".dimmed());
                 println!("  {}", style::tick_row(60));
                 println!("source: {}", local_source.display());
                 println!("mode: local corpus");
@@ -1756,7 +1756,7 @@ pub async fn cmd_compile(
     let client = Client::new();
 
     println!();
-    println!("  {}", "VELA · COMPILE · V0.21.0".dimmed());
+    println!("  {}", "VELA · COMPILE · V0.22.0".dimmed());
     println!("  {}", style::tick_row(60));
     println!("topic: {topic}");
     println!("papers: {max_papers}");
@@ -2849,7 +2849,7 @@ fn cmd_stats(path: &Path) {
     let frontier = repo::load_from_path(path).expect("Failed to load frontier");
     let s = &frontier.stats;
     println!();
-    println!("  {}", "FRONTIER · V0.21.0".dimmed());
+    println!("  {}", "FRONTIER · V0.22.0".dimmed());
     println!("  {}", frontier.project.name.bold());
     println!("  {}", style::tick_row(60));
     println!("  id:             {}", frontier.frontier_id());
@@ -4886,7 +4886,7 @@ async fn cmd_bridge(inputs: &[PathBuf], check_novelty: bool, top_n: usize) {
         fail("need at least 2 frontier files for bridge detection.");
     }
     println!();
-    println!("  {}", "VELA · BRIDGE · V0.21.0".dimmed());
+    println!("  {}", "VELA · BRIDGE · V0.22.0".dimmed());
     println!("  {}", style::tick_row(60));
     println!("  loading {} frontiers...", inputs.len());
     let mut named_projects = Vec::<(String, project::Project)>::new();
@@ -5181,7 +5181,7 @@ async fn cmd_jats(source: &str, output: &Path, backend: Option<&str>) {
     let config = llm::LlmConfig::from_env(backend).unwrap_or_else(|e| fail_return(&e));
     let client = Client::new();
     println!();
-    println!("  {}", "VELA · JATS · V0.21.0".dimmed());
+    println!("  {}", "VELA · JATS · V0.22.0".dimmed());
     println!("  {}", style::tick_row(60));
     println!("source: {source}");
     println!("backend: {}", config.backend.label());
@@ -5763,7 +5763,7 @@ pub fn is_science_subcommand(name: &str) -> bool {
 
 fn print_strict_help() {
     println!(
-        r#"Vela 0.21.0
+        r#"Vela 0.22.0
 Portable frontier state for science.
 
 Usage:
@@ -5862,7 +5862,7 @@ pub fn run_from_args() {
             return;
         }
         Some("-V" | "--version" | "version") => {
-            println!("vela 0.21.0");
+            println!("vela 0.22.0");
             return;
         }
         Some(cmd) if !is_science_subcommand(cmd) => {

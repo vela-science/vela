@@ -24,11 +24,12 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use vela_protocol::bundle::FindingBundle;
 use vela_protocol::events::{StateActor, StateTarget};
-use vela_protocol::ingest::{extract_pdf_text, ingest_text_via_llm};
+use vela_protocol::ingest::extract_pdf_text;
 use vela_protocol::project::Project;
 use vela_protocol::proposals::{AgentRun, StateProposal, new_proposal};
 use vela_protocol::repo;
 
+use crate::extract::extract_via_claude_cli;
 use crate::{AGENT_ACTOR_ID_LITERATURE_SCOUT, AGENT_LITERATURE_SCOUT, new_run_id};
 
 /// Inputs to a single Literature Scout run.
@@ -40,13 +41,28 @@ pub struct ScoutInput {
     pub folder: PathBuf,
     /// Frontier file the proposals will be appended to.
     pub frontier_path: PathBuf,
-    /// LLM backend override (matches the existing `--backend` flag
-    /// on `vela ingest`). `None` reads from environment.
-    pub backend: Option<String>,
+    /// Optional model alias. Threaded through to `claude --model`.
+    /// `None` lets the user's Claude Code session pick its default.
+    pub model: Option<String>,
+    /// Path to the `claude` CLI binary. Defaults to `"claude"` on
+    /// PATH; override for tests or unusual installs.
+    pub cli_command: String,
     /// When `false`, the scout reports what it would do but never
     /// writes proposals to disk. Useful for previewing on a folder
-    /// before paying for the model calls in production.
+    /// before paying the user's Claude Code quota.
     pub apply: bool,
+}
+
+impl Default for ScoutInput {
+    fn default() -> Self {
+        Self {
+            folder: PathBuf::new(),
+            frontier_path: PathBuf::new(),
+            model: None,
+            cli_command: "claude".to_string(),
+            apply: true,
+        }
+    }
 }
 
 /// One proposed finding-add, ready to be wrapped in a
@@ -107,7 +123,7 @@ pub async fn run(input: ScoutInput) -> Result<ScoutReport, String> {
     let mut report = ScoutReport {
         run: AgentRun {
             agent: AGENT_LITERATURE_SCOUT.to_string(),
-            model: input.backend.clone().unwrap_or_default(),
+            model: input.model.clone().unwrap_or_default(),
             run_id: run_id.clone(),
             started_at: started_at.clone(),
             finished_at: None,
@@ -117,6 +133,8 @@ pub async fn run(input: ScoutInput) -> Result<ScoutReport, String> {
                     input.folder.display().to_string(),
                 ),
                 ("pdf_count".to_string(), pdfs_seen.to_string()),
+                ("backend".to_string(), "claude-cli".to_string()),
+                ("cli_command".to_string(), input.cli_command.clone()),
             ]),
         },
         pdfs_seen,
@@ -161,7 +179,12 @@ pub async fn run(input: ScoutInput) -> Result<ScoutReport, String> {
             }
         };
 
-        let bundles = match ingest_text_via_llm(&text, input.backend.as_deref(), &label).await {
+        let candidates = match extract_via_claude_cli(
+            &text,
+            pdf,
+            input.model.as_deref(),
+            &input.cli_command,
+        ) {
             Ok(b) => b,
             Err(e) => {
                 report.skipped.push(SkippedFile {
@@ -173,7 +196,7 @@ pub async fn run(input: ScoutInput) -> Result<ScoutReport, String> {
         };
 
         report.pdfs_processed += 1;
-        for finding in bundles {
+        for (rationale, finding) in candidates {
             report.candidates_emitted += 1;
 
             // Skip duplicates the substrate would reject anyway —
@@ -194,6 +217,7 @@ pub async fn run(input: ScoutInput) -> Result<ScoutReport, String> {
                 pdf,
                 &report.run,
                 &flags,
+                &rationale,
             );
             if existing_proposal_ids.contains(&proposal.id) {
                 report.skipped.push(SkippedFile {
@@ -226,10 +250,20 @@ fn build_proposal(
     pdf: &Path,
     run: &AgentRun,
     flags: &[String],
+    model_rationale: &str,
 ) -> StateProposal {
     let payload = json!({ "finding": finding });
     let source_label = pdf.display().to_string();
-    let reason = if flags.is_empty() {
+    let reason = if !model_rationale.trim().is_empty() {
+        // The model's own one-sentence rationale is the most useful
+        // thing for a reviewer to see first; fall back to a generic
+        // extraction note only when missing.
+        if flags.is_empty() {
+            model_rationale.to_string()
+        } else {
+            format!("{model_rationale} [flags: {}]", flags.join(", "))
+        }
+    } else if flags.is_empty() {
         format!("Literature Scout extracted from {source_label}")
     } else {
         format!(

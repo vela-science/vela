@@ -1,5 +1,138 @@
 # Changelog
 
+## 0.22.0 - 2026-04-26
+
+**The Agent Inbox release.** First end-to-end loop where an AI
+agent's output becomes reviewable scientific state.
+
+```
+folder of PDFs
+  → Literature Scout proposes FindingIntents
+  → local Workbench Inbox shows proposals with evidence
+  → user accepts / rejects
+  → vela queue sign --all  (CLI signs)
+  → frontier diff shows what changed
+```
+
+### Doctrinal split
+
+The substrate stays dumb. `vela-protocol` does not know whether a
+proposal came from a human, a Claude run, a GPT run, a lab pipeline,
+or a future agent. Removing the agent layer from the workspace
+would leave every accepted finding intact.
+
+- New `crates/vela-scientist` — the agent layer. Owns prompts,
+  extraction, and the LLM client. Depends on `vela-protocol`
+  one-way; emits `StateProposal`s through the existing protocol.
+- New `crates/vela-cli` — the `vela` binary. Depends on both
+  substrate and agents. Wires `vela_scientist::scout` into the
+  substrate's CLI dispatch via `register_scout_handler` so the lib
+  stays a pure substrate library.
+- `vela-protocol`'s `[[bin]]` removed; the lib survives unchanged.
+
+### Substrate
+
+- `proposals::StateProposal` gains an optional `agent_run:
+  Option<AgentRun>` carrying agent name, model id, run id, wall-
+  clock window, and a free-form context map. Skip-if-none +
+  `#[serde(default)]` so every existing frontier serializes
+  byte-identically.
+- `proposals::AgentRun` struct lives in `vela-protocol::proposals`
+  so the substrate can deserialize agent provenance for rendering;
+  no agent code in the lib reads it.
+- `ingest::extract_pdf_text` and `ingest::ingest_text_via_llm` made
+  `pub` so the agent crate can reuse the PDF parser.
+- New `cli::ScoutHandler` type + `cli::register_scout_handler()` +
+  `SCOUT_HANDLER` `OnceLock`. The Scout CLI command dispatches
+  through the registered handler.
+- Two new tests lock the byte-stability guarantee:
+  `agent_run_none_skips_serialization` and
+  `agent_run_does_not_change_proposal_id`.
+
+### Agent layer
+
+- `vela_scientist::scout::run(ScoutInput)` walks a folder of PDFs,
+  calls the extractor on each, wraps each candidate `FindingBundle`
+  as a `finding.add` proposal tagged with the scout's `AgentRun`,
+  dedupes against existing finding/proposal ids, and saves.
+- `vela_scientist::extract::extract_via_claude_cli` shells out to
+  the local `claude -p` CLI to run a one-shot extraction. Reuses
+  the user's existing Claude Code OAuth session — no separate
+  `ANTHROPIC_API_KEY` required on a Pro/Max subscription. Strict
+  JSON output via `--json-schema`. Tool calls disabled
+  (`--allowedTools ""`); permissions skipped (`--permission-mode
+  dontAsk`); session not persisted (`--no-session-persistence`).
+  System prompt instructs the model to extract specific testable
+  claims with verbatim evidence snippets and short rationales.
+
+### CLI
+
+- New `vela scout <folder> --frontier <path> [--backend <model>]
+  [--dry-run] [--json]` subcommand. Renders a report to terminal
+  with agent name, run id, model, pdfs seen/processed, candidates,
+  proposals written, and skipped reasons.
+- `--backend <name>` is treated as a model alias (e.g. `sonnet`).
+  Empty / `"claude-cli"` / `"default"` use the session default.
+- `VELA_SCIENTIST_CLI` env var overrides the `claude` binary path.
+
+### Workbench (vela-site)
+
+- New **Inbox** tab in `/frontiers/view?vfr=…`. Lists every proposal
+  in the frontier's `proposals[]`, grouped by `agent_run.run_id`.
+  Each card: claim in serif, rationale in italic, source-file
+  basenames + caveat flags as colored chips, status badge, REJECT /
+  ACCEPT buttons.
+- Accept / Reject POSTs to `/api/queue` (existing
+  `http_queue_append`). On success, card tints moss/madder, status
+  pill swaps to "STAGED · ACCEPT/REJECT", buttons disable, hint
+  reads "staged for accept · in queue". Sticky banner at top reads
+  "N actions staged in your local queue. Sign and apply with the
+  CLI: `vela queue sign --all`" with one-click Copy.
+- New **Diff** tab — newest-first list of every signed `StateEvent`
+  in the frontier. Color-coded kind chips: `finding.add` moss,
+  `finding.review` signal blue, `finding.revise/caveat` brass,
+  `finding.retract` madder, `finding.note` stale.
+- API base URL is configurable via `?api=` so the deployed Astro
+  site can drive a local `vela serve --workbench`. Without `?api=`,
+  buttons render disabled with an inline hint.
+- Browser never sees a signing key. The Workbench stages decisions
+  only; `vela queue sign` is the only path that produces signed
+  canonical state.
+
+### Dogfood result
+
+One PDF (`examples/paper-folder/papers/focused-ultrasound.pdf`,
+~1.9 KB) → 2 candidate findings extracted by Claude in ~12
+seconds, both with verbatim evidence snippets and short rationales.
+Both renderable in the Inbox tab with grouping under the same
+`agent_run.run_id`. End-to-end demonstrated through `vela scout`
+→ frontier write → browser Inbox render.
+
+### Verification
+
+- `cargo build --workspace`: clean (4 crates).
+- `cargo clippy --workspace --all-targets -- -D warnings`: clean.
+- `cargo test --workspace`: 353 protocol + 6 hub + 1 scientist
+  tests pass.
+- `vela check frontiers/bbb-alzheimer.json --strict`: passes
+  unchanged. BBB normalize dry-run: zero deltas.
+- vela-site.fly.dev redeploy: green; /frontiers/view shows the
+  new Inbox + Diff tabs.
+
+### What's not in v0.22
+
+- **v0.23: Notes Compiler** for Markdown / Obsidian vaults.
+- **v0.24: Code/Notebook Analyst** for Jupyter + scripts +
+  AnalysisRun objects.
+- **v0.25: Dataset support** for CSV / Parquet inputs.
+- **v0.26: VelaBench** for agent state-update scoring.
+
+Other deliberate non-goals: browser-side WebCrypto signing
+(CLI-only), auto-merge of any kind, edit-in-Inbox (reject and
+re-propose), multi-frontier ingestion.
+
+See `docs/AGENT_INBOX.md` for the full walkthrough.
+
 ## 0.21.0 - 2026-04-26
 
 The self-hostable release. Two pieces:

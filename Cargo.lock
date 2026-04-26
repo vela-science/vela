@@ -2777,7 +2777,7 @@ checksum = "accd4ea62f7bb7a82fe23066fb0957d48ef677f6eeb8215f372f52e48bb32426"
 
 [[package]]
 name = "vela-cli"
-version = "0.21.0"
+version = "0.22.0"
 dependencies = [
  "colored",
  "serde_json",
@@ -2788,7 +2788,7 @@ dependencies = [
 
 [[package]]
 name = "vela-hub"
-version = "0.21.0"
+version = "0.22.0"
 dependencies = [
  "axum",
  "dotenvy",
@@ -2805,7 +2805,7 @@ dependencies = [
 
 [[package]]
 name = "vela-protocol"
-version = "0.21.0"
+version = "0.22.0"
 dependencies = [
  "async-stream",
  "axum",
@@ -2837,7 +2837,7 @@ dependencies = [
 
 [[package]]
 name = "vela-scientist"
-version = "0.21.0"
+version = "0.22.0"
 dependencies = [
  "chrono",
  "hex",
