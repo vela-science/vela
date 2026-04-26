@@ -18,6 +18,63 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
   </div>
 
   <article class="fr" data-fr data-hub-url={HUB_URL} data-workbench-url={WORKBENCH_URL}>
+    {/*
+      Welcome banner — appears only on the default-landing path
+      (someone who hit /frontiers/view with no ?vfr=… and got
+      auto-routed to BBB Flagship). Quiet editorial register;
+      explains what the visitor is looking at + offers a tour.
+      JS sets data-arrived-default on the article when the
+      default-load path fires, which CSS uses to reveal this.
+    */}
+    <aside class="fr-welcome" id="fr-welcome" hidden>
+      <div class="fr-welcome__head">
+        <span class="fr-welcome__eyebrow">First visit</span>
+        <button
+          type="button"
+          class="fr-welcome__dismiss"
+          id="fr-welcome-dismiss"
+          aria-label="Dismiss welcome banner"
+        >×</button>
+      </div>
+      <h2 class="fr-welcome__title">
+        This is a real signed scientific frontier.
+      </h2>
+      <p class="fr-welcome__body">
+        BBB Flagship — 48 reviewed findings about blood-brain-barrier
+        translation in Alzheimer's research. Every finding is a typed
+        scientific claim with evidence, conditions, and provenance. Every
+        change is a signed event. The whole record replays byte-identically
+        on any machine.
+      </p>
+      <div class="fr-welcome__cta">
+        <button type="button" class="wb-btn wb-btn--ink" id="fr-tour-start">
+          Take the 90-second tour <span class="wb-btn__kbd">→</span>
+        </button>
+        <a class="fr-welcome__skip" href="#fr-skip-tour" id="fr-tour-skip">
+          Skip and explore →
+        </a>
+      </div>
+    </aside>
+
+    {/*
+      Tour overlay — 3-step guided walkthrough. Activates when
+      "Take the tour" is clicked. Each step highlights an element
+      and shows a callout with prose. Step 4 closes the tour.
+    */}
+    <div class="fr-tour" id="fr-tour" hidden aria-live="polite">
+      <div class="fr-tour__backdrop" id="fr-tour-backdrop"></div>
+      <div class="fr-tour__callout" id="fr-tour-callout">
+        <div class="fr-tour__step" id="fr-tour-step">1 / 3</div>
+        <h3 class="fr-tour__title" id="fr-tour-title">—</h3>
+        <p class="fr-tour__body" id="fr-tour-body">—</p>
+        <div class="fr-tour__nav">
+          <button type="button" class="wb-btn wb-btn--ghost" id="fr-tour-prev">← Back</button>
+          <button type="button" class="wb-btn wb-btn--ink" id="fr-tour-next">Next →</button>
+          <button type="button" class="fr-tour__close" id="fr-tour-close" aria-label="Close tour">Close</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Header card -->
     <header class="fr-hdr">
       <div class="fr-hdr__row">
@@ -1046,6 +1103,190 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
     color: var(--ink-3);
   }
 
+  /* Welcome banner — appears for default-landing visitors only.
+     Editorial register; explains what they're looking at without
+     marketing chrome. Dismissable; remembered per session. */
+  .fr-welcome {
+    position: relative;
+    background: linear-gradient(
+      180deg,
+      color-mix(in oklab, var(--vela-night-indigo, #081328) 8%, var(--paper-0)) 0%,
+      var(--paper-0) 100%
+    );
+    border: 1px solid color-mix(in oklab, var(--vela-lantern-gold, #F2C670) 25%, var(--rule-2));
+    border-radius: var(--radius-1);
+    padding: 22px 26px 24px;
+    margin-bottom: 8px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+  }
+
+  .fr-welcome__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+
+  .fr-welcome__eyebrow {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: color-mix(in oklab, var(--vela-lantern-gold, #F2C670) 60%, var(--ink-3));
+  }
+
+  .fr-welcome__dismiss {
+    background: none;
+    border: 0;
+    color: var(--ink-3);
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 4px 8px;
+    margin: -4px -8px;
+    transition: color 200ms ease;
+  }
+  .fr-welcome__dismiss:hover { color: var(--ink-0); }
+
+  .fr-welcome__title {
+    font-family: var(--font-serif);
+    font-size: 22px;
+    font-style: italic;
+    line-height: 1.25;
+    color: var(--ink-1);
+    margin: 0 0 8px;
+  }
+
+  .fr-welcome__body {
+    font-family: var(--font-serif);
+    font-size: 15px;
+    line-height: 1.55;
+    color: var(--ink-2);
+    margin: 0 0 16px;
+    max-width: 64ch;
+  }
+
+  .fr-welcome__cta {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+
+  .fr-welcome__skip {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    text-decoration: none;
+    transition: color 200ms ease;
+  }
+  .fr-welcome__skip:hover { color: var(--ink-1); }
+
+  /* Tour overlay — backdrop + callout panel. The "spot" class
+     gets applied to the highlighted element so we can ring it
+     subtly. */
+  .fr-tour {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    pointer-events: none;
+  }
+  .fr-tour__backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 18, 24, 0.18);
+    pointer-events: auto;
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+  }
+  .fr-tour__callout {
+    position: absolute;
+    bottom: 32px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(38rem, calc(100vw - 32px));
+    background: var(--paper-0);
+    border: 1px solid color-mix(in oklab, var(--vela-lantern-gold, #F2C670) 35%, var(--rule-3));
+    border-radius: var(--radius-1);
+    padding: 22px 26px 18px;
+    pointer-events: auto;
+    box-shadow:
+      0 12px 36px rgba(15, 18, 24, 0.18),
+      0 0 0 1px var(--paper-0) inset;
+  }
+  .fr-tour__step {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: color-mix(in oklab, var(--vela-lantern-gold, #F2C670) 55%, var(--ink-3));
+    margin-bottom: 8px;
+  }
+  .fr-tour__title {
+    font-family: var(--font-serif);
+    font-style: italic;
+    font-size: 19px;
+    color: var(--ink-1);
+    margin: 0 0 8px;
+  }
+  .fr-tour__body {
+    font-family: var(--font-serif);
+    font-size: 15px;
+    line-height: 1.55;
+    color: var(--ink-2);
+    margin: 0 0 16px;
+  }
+  .fr-tour__nav {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .fr-tour__close {
+    margin-left: auto;
+    background: none;
+    border: 0;
+    color: var(--ink-3);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    cursor: pointer;
+    padding: 4px 6px;
+    transition: color 200ms ease;
+  }
+  .fr-tour__close:hover { color: var(--ink-1); }
+
+  /* The element being spotlighted in the tour. A subtle gold ring
+     + raised z-index so it sits above the backdrop. */
+  :global(.fr-tour__spot) {
+    position: relative;
+    z-index: 201;
+    box-shadow:
+      0 0 0 2px color-mix(in oklab, var(--vela-lantern-gold, #F2C670) 60%, transparent),
+      0 0 0 6px color-mix(in oklab, var(--vela-lantern-gold, #F2C670) 18%, transparent),
+      0 8px 32px rgba(15, 18, 24, 0.22);
+    border-radius: var(--radius-1);
+    background: var(--paper-0);
+  }
+
+  body.fr-tour-open {
+    overflow: hidden;
+  }
+
+  @media (max-width: 720px) {
+    .fr-welcome { padding: 16px 18px 18px; }
+    .fr-welcome__title { font-size: 18px; }
+    .fr-welcome__body { font-size: 14px; }
+    .fr-tour__callout {
+      bottom: 16px;
+      padding: 16px 18px 14px;
+    }
+    .fr-tour__title { font-size: 16px; }
+    .fr-tour__body { font-size: 14px; }
+  }
+
   /* Cross-reference colophon back to Borrowed Light. */
   .fr-coda {
     margin: 36px 0 8px;
@@ -1725,7 +1966,8 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
     const hubUrl = root.dataset.hubUrl ?? "https://vela-hub.fly.dev";
 
     const url = new URL(window.location.href);
-    const vfr = url.searchParams.get("vfr");
+    let vfr = url.searchParams.get("vfr");
+    let arrivedDefault = false;
     // v0.29 local-mode: when the URL carries ?api=…, the page treats
     // the deployed Astro shell as a local Workbench client. The hub
     // is bypassed entirely; the frontier is fetched from the local
@@ -1737,10 +1979,47 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
     const apiBaseStr = (url.searchParams.get("api") ?? "").replace(/\/$/, "");
     const localMode = !!apiBaseStr;
 
+    // v0.29.4 default-landing: someone who clicks through from the
+    // Borrowed Light essay should not land on "No frontier
+    // specified". Fetch the hub and load BBB Flagship by default —
+    // the canonical 48-finding signed corridor that exists
+    // specifically as a real-world concrete instance of the
+    // architecture the essay argues for. Show a guided welcome
+    // banner the first time. Explicit `?vfr=…` always wins.
     if (!vfr && !localMode) {
-      setText("fr-name", "No frontier specified");
-      setText("fr-desc", "Add ?vfr=vfr_… to the URL, or pick one from the directory. Local mode: append ?api=http://localhost:3848 to point at a `vela serve --workbench` instance.");
-      return;
+      setText("fr-name", "Loading BBB Flagship…");
+      try {
+        const r = await fetch(`${hubUrl}/entries`, {
+          headers: { accept: "application/json" },
+        });
+        if (!r.ok) throw new Error(`hub ${r.status}`);
+        const data = (await r.json()) as { entries: HubEntry[] };
+        const entries = data.entries ?? [];
+        const bbb =
+          entries.find((e) => e.name === "BBB Flagship") ??
+          entries.find((e) => e.network_locator?.includes("bbb-alzheimer"));
+        if (!bbb) {
+          setText("fr-name", "No frontier specified");
+          setText(
+            "fr-desc",
+            "Add ?vfr=vfr_… to the URL, or pick one from the directory."
+          );
+          return;
+        }
+        vfr = bbb.vfr_id;
+        arrivedDefault = true;
+        // Keep the URL honest — back button + reload should continue
+        // to point at this frontier rather than re-resolving it.
+        history.replaceState(
+          null,
+          "",
+          `?vfr=${encodeURIComponent(vfr)}&welcome=1`
+        );
+      } catch (err) {
+        setText("fr-name", "Hub unreachable");
+        setText("fr-desc", String(err));
+        return;
+      }
     }
 
     // v0.29.2: mixed-content guard. Browsers silently block HTTPS →
@@ -1847,6 +2126,14 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
     if (ownerEl) {
       ownerEl.textContent = entry.owner_actor_id;
       (ownerEl as HTMLAnchorElement).href = `/?actor=${encodeURIComponent(entry.owner_actor_id)}`;
+    }
+
+    // Reveal the welcome banner only on the default-landing path.
+    // The user can dismiss it; once dismissed we remember via
+    // sessionStorage so a refresh doesn't keep popping it.
+    if (arrivedDefault && !sessionStorage.getItem("fr-welcome-dismissed")) {
+      const welcome = document.getElementById("fr-welcome");
+      if (welcome) welcome.hidden = false;
     }
     setText("fr-vfr", entry.vfr_id);
     setText("fr-snap", `snapshot ${shortHash(entry.latest_snapshot_hash, 18)}`);
@@ -2097,4 +2384,138 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
 </p>`;
     }
   })();
+</script>
+
+<script>
+  /*
+   * Tour: 3-step guided walkthrough of the frontier surface.
+   * Triggered from the welcome banner. Each step highlights a
+   * target element and shows a callout explaining what it is and
+   * why it matters. ESC closes; Enter advances.
+   *
+   * The tour reads as the "GitHub moment" sequence:
+   *   1. Findings — typed claims with evidence, conditions, confidence.
+   *   2. Inbox — agents propose; humans review.
+   *   3. Diff — every change becomes a signed event in the canonical log.
+   */
+
+  type TourStep = {
+    title: string;
+    body: string;
+    target: string; // CSS selector for the element to spotlight
+    activateTab?: "findings" | "inbox" | "diff" | "snapshots";
+  };
+
+  const TOUR: TourStep[] = [
+    {
+      title: "Findings — typed claims, not paragraphs.",
+      body:
+        "Each row is a structured scientific assertion: claim, evidence, conditions, confidence, provenance. Click any row to inspect the object directly.",
+      target: ".fr-pane[data-pane='findings']",
+      activateTab: "findings",
+    },
+    {
+      title: "Inbox — where agents propose.",
+      body:
+        "Run vela scout / compile-notes / compile-code / compile-data against your local research folder. Each agent proposes; humans review; the CLI signs. Nothing canonical until a human accepts.",
+      target: ".fr-pane[data-pane='inbox']",
+      activateTab: "inbox",
+    },
+    {
+      title: "Diff — the canonical event log.",
+      body:
+        "Every accepted proposal becomes a signed event here. Replay the log on any machine and you reconstruct the same state byte-for-byte. The signature is the bind.",
+      target: ".fr-pane[data-pane='diff']",
+      activateTab: "diff",
+    },
+  ];
+
+  const $ = (id: string) => document.getElementById(id);
+  const tourRoot = $("fr-tour");
+  const tourTitle = $("fr-tour-title");
+  const tourBody = $("fr-tour-body");
+  const tourStep = $("fr-tour-step");
+  const tourCallout = $("fr-tour-callout");
+  let tourIdx = 0;
+
+  function activateTab(name: string) {
+    const tabs = document.querySelectorAll<HTMLButtonElement>(".fr-tab");
+    const panes = document.querySelectorAll<HTMLElement>(".fr-pane");
+    tabs.forEach((t) =>
+      t.classList.toggle("fr-tab--on", t.dataset.tab === name)
+    );
+    panes.forEach((p) => (p.hidden = p.dataset.pane !== name));
+  }
+
+  function showStep(i: number) {
+    tourIdx = Math.max(0, Math.min(TOUR.length - 1, i));
+    const step = TOUR[tourIdx];
+    if (step.activateTab) activateTab(step.activateTab);
+    if (tourTitle) tourTitle.textContent = step.title;
+    if (tourBody) tourBody.textContent = step.body;
+    if (tourStep) tourStep.textContent = `${tourIdx + 1} / ${TOUR.length}`;
+
+    // Highlight target — add a class, scroll into view
+    document
+      .querySelectorAll(".fr-tour__spot")
+      .forEach((el) => el.classList.remove("fr-tour__spot"));
+    const target = document.querySelector(step.target);
+    if (target) {
+      target.classList.add("fr-tour__spot");
+      target.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+
+    const prevBtn = $("fr-tour-prev") as HTMLButtonElement | null;
+    const nextBtn = $("fr-tour-next") as HTMLButtonElement | null;
+    if (prevBtn) prevBtn.disabled = tourIdx === 0;
+    if (nextBtn)
+      nextBtn.textContent = tourIdx === TOUR.length - 1 ? "Done" : "Next →";
+  }
+
+  function openTour() {
+    if (!tourRoot) return;
+    tourRoot.hidden = false;
+    document.body.classList.add("fr-tour-open");
+    showStep(0);
+    // Close the welcome banner if open
+    const welcome = $("fr-welcome");
+    if (welcome) welcome.hidden = true;
+  }
+
+  function closeTour() {
+    if (!tourRoot) return;
+    tourRoot.hidden = true;
+    document.body.classList.remove("fr-tour-open");
+    document
+      .querySelectorAll(".fr-tour__spot")
+      .forEach((el) => el.classList.remove("fr-tour__spot"));
+  }
+
+  $("fr-tour-start")?.addEventListener("click", openTour);
+  $("fr-tour-skip")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    const w = $("fr-welcome");
+    if (w) w.hidden = true;
+    sessionStorage.setItem("fr-welcome-dismissed", "1");
+  });
+  $("fr-welcome-dismiss")?.addEventListener("click", () => {
+    const w = $("fr-welcome");
+    if (w) w.hidden = true;
+    sessionStorage.setItem("fr-welcome-dismissed", "1");
+  });
+  $("fr-tour-prev")?.addEventListener("click", () => showStep(tourIdx - 1));
+  $("fr-tour-next")?.addEventListener("click", () => {
+    if (tourIdx === TOUR.length - 1) closeTour();
+    else showStep(tourIdx + 1);
+  });
+  $("fr-tour-close")?.addEventListener("click", closeTour);
+  $("fr-tour-backdrop")?.addEventListener("click", closeTour);
+  document.addEventListener("keydown", (e) => {
+    if (tourRoot?.hidden) return;
+    if (e.key === "Escape") closeTour();
+    else if (e.key === "ArrowRight" || e.key === "Enter") {
+      if (tourIdx === TOUR.length - 1) closeTour();
+      else showStep(tourIdx + 1);
+    } else if (e.key === "ArrowLeft") showStep(tourIdx - 1);
+  });
 </script>
