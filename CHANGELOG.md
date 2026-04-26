@@ -1,5 +1,92 @@
 # Changelog
 
+## 0.24.0 - 2026-04-26
+
+**The Code & Notebook Analyst release.** Third agent on the
+Inbox loop. `vela compile-code <root> --frontier <path>` walks a
+research repo (Jupyter `.ipynb`, Python / R / Julia / Quarto /
+Rmd scripts), reads each file (notebooks parsed cell-by-cell with
+`text/plain` outputs), calls `claude -p` per file, and emits
+analyses, code-derived findings, and experiment intents as
+`finding.add` proposals tagged `agent_run.agent = "code-analyst"`.
+
+### Doctrinal continuity
+
+Zero substrate diff. Three new `assertion.type` values
+(`analysis_run`, `code_derived`, `experiment_intent`) ride on the
+existing `finding.add` shape. The Workbench colors them.
+
+### Agent layer
+
+- `crates/vela-scientist/src/notebook.rs` — nbformat-4 parser.
+  `parse_ipynb(path) -> ParsedNotebook` walks `cells[]`, joins
+  `source` arrays, captures `text/plain` outputs from `stream` /
+  `execute_result` / `display_data` / `error` types. Skips raw
+  cells; skips `image/*` and `text/html` outputs (extracting
+  those well needs OCR / HTML→text). `render_for_prompt(nb,
+  max_chars)` flattens to a tagged text block (`--- cell[N]
+  code/markdown ---`, outputs prefixed `>>>`).
+- `crates/vela-scientist/src/code_analyst.rs` — `code_analyst::run`.
+  Recursive walk skipping `.git` / `node_modules` / `target` /
+  `dist` / `__pycache__` / `.venv` / `venv` / `build` /
+  `.pytest_cache`. Notebooks parsed via `notebook::parse_ipynb`;
+  scripts read as plain text capped at 12k chars. One model call
+  per file. Per-run cap on files (`max_files`, default 30).
+  Emits up to three categories per file:
+  - **analyses** (purpose / dataset / method / key_result) →
+    `assertion.type = "analysis_run"`
+  - **code_findings** (claim + verbatim code excerpt + verbatim
+    output excerpt where present) → `assertion.type = "code_derived"`
+  - **experiment_intents** (intent + hypothesis_link +
+    expected_change) → `assertion.type = "experiment_intent"`
+- Four new tests cover notebook parsing + lift functions.
+
+### CLI
+
+- New `vela compile-code <root> --frontier <path>
+  [--backend <model>] [--max-files <n>] [--dry-run] [--json]`
+  subcommand. Wired through `register_code_handler` in
+  `vela_protocol::cli` (mirror of scout/notes); the binary
+  registers `code_handler` at startup. Whitelisted in
+  `is_science_subcommand`.
+
+### Workbench
+
+- Three new kind-chip variants in `kindStyleMap`:
+  - `analysis_run` → moss
+  - `code_derived` → signal blue
+  - `experiment_intent` → brass
+
+### Dogfood
+
+A 2-file repo (one `analysis.py` + one `notebook.ipynb` with 4
+cells about BBB delivery) yielded 14 reviewable proposals:
+- 4 analyses (correctly identified the smoke-check intent in both
+  files)
+- 5 code findings (caught the missing CIs at n=3 and the lack of
+  validation that n>=1 per group)
+- 5 experiment intents (proposed bootstrap CIs and a Marston-2019
+  baseline reference, each linked to a falsifiable hypothesis)
+
+The model surfaced concrete code-quality concerns (no CIs, missing
+NaN guards) and tied each proposed experiment to what the data
+would need to show. End-to-end ~25 sec for the 2-file repo.
+
+### Verification
+
+- `cargo build --workspace`: clean (4 crates, version 0.24.0).
+- `cargo clippy --workspace --all-targets -- -D warnings`: clean.
+- `cargo test --workspace`: 371 tests pass (was 367; +2 from
+  notebook.rs, +2 from code_analyst.rs).
+- `vela check frontiers/bbb-alzheimer.json --strict`: passes
+  unchanged. BBB normalize dry-run: zero deltas.
+- Real model run: 1 notebook + 1 script → 14 proposals.
+- `vela --version` → 0.24.0; site VERSION → "0.24".
+
+### What's not in v0.24
+
+- v0.25 Datasets, v0.26 VelaBench. Each gets its own slice.
+
 ## 0.23.0 - 2026-04-26
 
 **The Notes Compiler release.** Second agent on the Inbox loop.

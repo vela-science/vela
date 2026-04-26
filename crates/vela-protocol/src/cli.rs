@@ -22,7 +22,7 @@ use sha2::{Digest, Sha256};
 use tokio::sync::Semaphore;
 
 #[derive(Parser)]
-#[command(name = "vela", version = "0.23.0")]
+#[command(name = "vela", version = "0.24.0")]
 #[command(about = "Portable frontier state for science")]
 struct Cli {
     #[command(subcommand)]
@@ -89,6 +89,30 @@ enum Commands {
         #[arg(short, long)]
         backend: Option<String>,
         /// Cap on files processed (default 50).
+        #[arg(long)]
+        max_files: Option<usize>,
+        /// Preview without writing to the frontier file.
+        #[arg(long)]
+        dry_run: bool,
+        /// Output stable JSON for programmatic callers.
+        #[arg(long)]
+        json: bool,
+    },
+    /// v0.24 Agent Inbox: run Code & Notebook Analyst against a
+    /// research repo (Jupyter `.ipynb`, Python / R / Julia / Quarto
+    /// / Rmd scripts). Each analysis, code-derived finding, or
+    /// experiment intent becomes a `finding.add` `StateProposal`
+    /// tagged with the analyst's `AgentRun`. Same review loop.
+    CompileCode {
+        /// Repo / folder root to walk.
+        root: PathBuf,
+        /// Frontier file the proposals are appended to.
+        #[arg(long)]
+        frontier: PathBuf,
+        /// Optional model alias (`sonnet`, `opus`, …).
+        #[arg(short, long)]
+        backend: Option<String>,
+        /// Cap on files processed (default 30).
         #[arg(long)]
         max_files: Option<usize>,
         /// Preview without writing to the frontier file.
@@ -1180,6 +1204,24 @@ pub async fn run_command() {
             )
             .await;
         }
+        Commands::CompileCode {
+            root,
+            frontier,
+            backend,
+            max_files,
+            dry_run,
+            json,
+        } => {
+            cmd_compile_code(
+                &root,
+                &frontier,
+                backend.as_deref(),
+                max_files,
+                dry_run,
+                json,
+            )
+            .await;
+        }
         Commands::Ingest {
             frontier,
             assertion,
@@ -1396,7 +1438,7 @@ pub async fn run_command() {
         Commands::Conformance { dir } => {
             let _ = conformance::run(&dir);
         }
-        Commands::Version => println!("vela 0.23.0"),
+        Commands::Version => println!("vela 0.24.0"),
         Commands::Sign { action } => cmd_sign(action),
         Commands::Actor { action } => cmd_actor(action),
         Commands::Frontier { action } => cmd_frontier(action),
@@ -1764,7 +1806,7 @@ pub async fn cmd_compile(
         match corpus::compile_local_corpus(local_source, output, backend).await {
             Ok(report) => {
                 println!();
-                println!("  {}", "VELA · COMPILE · V0.23.0".dimmed());
+                println!("  {}", "VELA · COMPILE · V0.24.0".dimmed());
                 println!("  {}", style::tick_row(60));
                 println!("source: {}", local_source.display());
                 println!("mode: local corpus");
@@ -1799,7 +1841,7 @@ pub async fn cmd_compile(
     let client = Client::new();
 
     println!();
-    println!("  {}", "VELA · COMPILE · V0.23.0".dimmed());
+    println!("  {}", "VELA · COMPILE · V0.24.0".dimmed());
     println!("  {}", style::tick_row(60));
     println!("topic: {topic}");
     println!("papers: {max_papers}");
@@ -2056,6 +2098,38 @@ pub async fn cmd_compile(
 }
 
 #[allow(clippy::too_many_arguments)]
+/// v0.24 Agent Inbox: dispatches the registered code-analyst
+/// handler.
+async fn cmd_compile_code(
+    root: &Path,
+    frontier: &Path,
+    backend: Option<&str>,
+    max_files: Option<usize>,
+    dry_run: bool,
+    json_out: bool,
+) {
+    match CODE_HANDLER.get() {
+        Some(handler) => {
+            handler(
+                root.to_path_buf(),
+                frontier.to_path_buf(),
+                backend.map(String::from),
+                max_files,
+                dry_run,
+                json_out,
+            )
+            .await;
+        }
+        None => {
+            eprintln!(
+                "{} `vela compile-code` requires the vela CLI binary; the library is unwired without a registered code handler.",
+                style::err_prefix()
+            );
+            std::process::exit(1);
+        }
+    }
+}
+
 /// v0.23 Agent Inbox: dispatches the registered notes-compiler
 /// handler. Same rationale as `cmd_scout` — the substrate stays
 /// agent-free; the `vela` CLI binary registers the handler at
@@ -2926,7 +3000,7 @@ fn cmd_stats(path: &Path) {
     let frontier = repo::load_from_path(path).expect("Failed to load frontier");
     let s = &frontier.stats;
     println!();
-    println!("  {}", "FRONTIER · V0.23.0".dimmed());
+    println!("  {}", "FRONTIER · V0.24.0".dimmed());
     println!("  {}", frontier.project.name.bold());
     println!("  {}", style::tick_row(60));
     println!("  id:             {}", frontier.frontier_id());
@@ -4963,7 +5037,7 @@ async fn cmd_bridge(inputs: &[PathBuf], check_novelty: bool, top_n: usize) {
         fail("need at least 2 frontier files for bridge detection.");
     }
     println!();
-    println!("  {}", "VELA · BRIDGE · V0.23.0".dimmed());
+    println!("  {}", "VELA · BRIDGE · V0.24.0".dimmed());
     println!("  {}", style::tick_row(60));
     println!("  loading {} frontiers...", inputs.len());
     let mut named_projects = Vec::<(String, project::Project)>::new();
@@ -5258,7 +5332,7 @@ async fn cmd_jats(source: &str, output: &Path, backend: Option<&str>) {
     let config = llm::LlmConfig::from_env(backend).unwrap_or_else(|e| fail_return(&e));
     let client = Client::new();
     println!();
-    println!("  {}", "VELA · JATS · V0.23.0".dimmed());
+    println!("  {}", "VELA · JATS · V0.24.0".dimmed());
     println!("  {}", style::tick_row(60));
     println!("source: {source}");
     println!("backend: {}", config.backend.label());
@@ -5795,6 +5869,7 @@ pub struct ProofTrace {
 const SCIENCE_SUBCOMMANDS: &[&str] = &[
     "compile",
     "compile-notes",
+    "compile-code",
     "scout",
     "ingest",
     "jats",
@@ -5841,7 +5916,7 @@ pub fn is_science_subcommand(name: &str) -> bool {
 
 fn print_strict_help() {
     println!(
-        r#"Vela 0.23.0
+        r#"Vela 0.24.0
 Portable frontier state for science.
 
 Usage:
@@ -5860,6 +5935,7 @@ Core commands:
   bridge        Find candidate cross-domain connections
   scout         Run Literature Scout against a folder of PDFs (writes proposals)
   compile-notes Run Notes Compiler against a Markdown vault (writes proposals)
+  compile-code  Run Code & Notebook Analyst against a research repo (writes proposals)
   ingest        Add manual or file-derived findings
   jats          Compile findings from JATS XML or PMC input
   export        Export frontier artifacts
@@ -5951,6 +6027,23 @@ pub fn register_notes_handler(handler: NotesHandler) {
     let _ = NOTES_HANDLER.set(handler);
 }
 
+/// v0.24 Agent Inbox: pluggable handler for `vela compile-code`.
+pub type CodeHandler = fn(
+    root: PathBuf,
+    frontier: PathBuf,
+    backend: Option<String>,
+    max_files: Option<usize>,
+    dry_run: bool,
+    json: bool,
+) -> Pin<Box<dyn Future<Output = ()> + Send>>;
+
+static CODE_HANDLER: OnceLock<CodeHandler> = OnceLock::new();
+
+/// Install the code-analyst handler. Idempotent.
+pub fn register_code_handler(handler: CodeHandler) {
+    let _ = CODE_HANDLER.set(handler);
+}
+
 pub fn run_from_args() {
     style::init();
     let args = std::env::args().collect::<Vec<_>>();
@@ -5960,7 +6053,7 @@ pub fn run_from_args() {
             return;
         }
         Some("-V" | "--version" | "version") => {
-            println!("vela 0.23.0");
+            println!("vela 0.24.0");
             return;
         }
         Some(cmd) if !is_science_subcommand(cmd) => {

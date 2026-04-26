@@ -442,6 +442,10 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
   :global(.ff__kind--hypothesis)        { color: var(--state-warn); border-color: rgba(138, 106, 31, 0.32); }
   :global(.ff__kind--candidate_finding) { color: var(--state-ok); border-color: rgba(63, 107, 78, 0.32); }
   :global(.ff__kind--tension)           { color: var(--state-lost); border-color: rgba(138, 58, 58, 0.32); }
+  /* v0.24 Code & Notebook Analyst */
+  :global(.ff__kind--analysis_run)      { color: var(--state-ok); border-color: rgba(63, 107, 78, 0.32); }
+  :global(.ff__kind--code_derived)      { color: var(--signal); border-color: var(--signal-edge); }
+  :global(.ff__kind--experiment_intent) { color: var(--state-warn); border-color: rgba(138, 106, 31, 0.32); }
   :global(.ff__kind--unknown)           { color: var(--ink-3); }
 
   /* === Snapshots === */
@@ -1760,6 +1764,10 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
           hypothesis: "ff__kind--hypothesis",
           candidate_finding: "ff__kind--candidate_finding",
           tension: "ff__kind--tension",
+          // v0.24 Code & Notebook Analyst types
+          analysis_run: "ff__kind--analysis_run",
+          code_derived: "ff__kind--code_derived",
+          experiment_intent: "ff__kind--experiment_intent",
         };
         const kindClass = kindStyleMap[kind] ?? "ff__kind--unknown";
         const ev = f.evidence?.length ?? 0;

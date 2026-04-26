@@ -16,6 +16,7 @@ use colored::Colorize;
 fn main() {
     vela_protocol::cli::register_scout_handler(scout_handler);
     vela_protocol::cli::register_notes_handler(notes_handler);
+    vela_protocol::cli::register_code_handler(code_handler);
     vela_protocol::cli::run_from_args();
 }
 
@@ -202,6 +203,97 @@ fn notes_handler(
             }
             Err(e) => {
                 eprintln!("  notes compiler failed: {e}");
+                std::process::exit(1);
+            }
+        }
+    })
+}
+
+/// Adapter for `vela compile-code` (v0.24).
+fn code_handler(
+    root: PathBuf,
+    frontier: PathBuf,
+    backend: Option<String>,
+    max_files: Option<usize>,
+    dry_run: bool,
+    json_out: bool,
+) -> Pin<Box<dyn Future<Output = ()> + Send>> {
+    Box::pin(async move {
+        use vela_scientist::code_analyst::{CodeAnalystInput, run};
+        let model = backend.and_then(|b| {
+            let trimmed = b.trim().to_string();
+            if trimmed.is_empty() || trimmed == "claude-cli" || trimmed == "default" {
+                None
+            } else {
+                Some(trimmed)
+            }
+        });
+        let input = CodeAnalystInput {
+            root: root.clone(),
+            frontier_path: frontier.clone(),
+            model,
+            cli_command: std::env::var("VELA_SCIENTIST_CLI")
+                .unwrap_or_else(|_| "claude".to_string()),
+            apply: !dry_run,
+            max_files: max_files.or(Some(30)),
+        };
+        match run(input).await {
+            Ok(report) => {
+                if json_out {
+                    println!(
+                        "{}",
+                        serde_json::to_string_pretty(&report).unwrap_or_default()
+                    );
+                    return;
+                }
+                println!();
+                println!("  {}", "VELA · COMPILE-CODE · CODE-ANALYST".dimmed());
+                println!("  {}", tick_row(60));
+                println!("  agent:                {}", report.run.agent);
+                println!("  run id:               {}", report.run.run_id);
+                println!(
+                    "  model:                {}",
+                    if report.run.model.is_empty() {
+                        "(env default)"
+                    } else {
+                        &report.run.model
+                    }
+                );
+                println!("  root:                 {}", root.display());
+                println!("  frontier:             {}", frontier.display());
+                println!("  files seen:           {}", report.files_seen);
+                println!("  notebooks processed:  {}", report.notebooks_processed);
+                println!("  scripts processed:    {}", report.scripts_processed);
+                println!("  analyses:             {}", report.analyses_emitted);
+                println!("  code findings:        {}", report.code_findings_emitted);
+                println!("  experiment intents:   {}", report.experiment_intents_emitted);
+                println!(
+                    "  proposals:            {} {}",
+                    report.proposals_written,
+                    if dry_run {
+                        "(dry-run, not written)"
+                    } else {
+                        "(appended to frontier)"
+                    }
+                );
+                if !report.skipped.is_empty() {
+                    println!("  skipped:              {} files", report.skipped.len());
+                    for s in report.skipped.iter().take(5) {
+                        println!("    - {}: {}", s.path, s.reason);
+                    }
+                    if report.skipped.len() > 5 {
+                        println!("    … {} more", report.skipped.len() - 5);
+                    }
+                }
+                println!();
+                if !dry_run && report.proposals_written > 0 {
+                    println!(
+                        "  next: review in the Workbench Inbox, then `vela queue sign --all`."
+                    );
+                }
+            }
+            Err(e) => {
+                eprintln!("  code analyst failed: {e}");
                 std::process::exit(1);
             }
         }

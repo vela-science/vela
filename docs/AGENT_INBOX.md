@@ -162,13 +162,37 @@ that the Workbench colors distinctly:
 - `candidate_finding` → moss (accept-worthy)
 - `tension` → madder (disagreement to surface)
 
-## What's not in v0.23
+## v0.24 — Code & Notebook Analyst
 
-Held to keep scope tight. Each lands as its own slice when the
-loop holds:
+The third agent. Reads a research repo (Jupyter `.ipynb` plus
+Python / R / Julia / Quarto / Rmd scripts) and emits analyses,
+code-derived findings, and experiment intents as `finding.add`
+proposals tagged `agent_run.agent = "code-analyst"`.
 
-- **v0.24: Code/Notebook Analyst** for Jupyter + scripts +
-  AnalysisRun objects.
+```bash
+./target/release/vela compile-code ./my-repo \
+  --frontier ./my-frontier.json
+```
+
+Recursive walk; skips `.git`, `node_modules`, `target`, `dist`,
+`__pycache__`, `.venv`, `venv`, `build`, `.pytest_cache`.
+Notebooks parsed cell-by-cell — `text/plain` outputs included,
+images and HTML dropped. Scripts capped at 12k chars per file.
+
+Each file → one `claude -p` call → up to 4 items per category:
+
+- **analyses** — what the file does end-to-end (purpose, dataset,
+  method, key result). `assertion.type = "analysis_run"` (moss).
+- **code_findings** — claims the code makes that a reviewer should
+  audit, with verbatim ≤200-char `code_excerpt` + (when present)
+  ≤200-char `output_excerpt`. `assertion.type = "code_derived"`
+  (signal blue).
+- **experiment_intents** — concrete next experiments the code
+  suggests, with `hypothesis_link` and `expected_change`.
+  `assertion.type = "experiment_intent"` (brass).
+
+## What's not in v0.24
+
 - **v0.25: Dataset support** for CSV / Parquet inputs and dataset
   versioning.
 - **v0.26: VelaBench** for agent state-update scoring.

@@ -31,4 +31,4 @@ export const BBB = {
   locator: `${REPO_RAW_BASE}/frontiers/bbb-alzheimer.json`,
 };
 
-export const VERSION = "0.23";
+export const VERSION = "0.24";

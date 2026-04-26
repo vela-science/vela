@@ -10,8 +10,10 @@
 //! one at a time in v0.23+.
 
 pub mod agent;
+pub mod code_analyst;
 pub mod extract;
 pub mod llm_cli;
+pub mod notebook;
 pub mod notes;
 pub mod scout;
 
