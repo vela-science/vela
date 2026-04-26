@@ -1,0 +1,527 @@
+---
+// FrontierDirectory — the directory of public frontiers, rendered as
+// rich GitHub/HuggingFace-style cards. Server-renders a placeholder;
+// fetches `/entries` from the configured hub on mount and groups by
+// (name, owner) so each card is one logical frontier with its
+// snapshot history folded in. Sortable, filterable, click-through to
+// the frontier detail page.
+import { HUB_URL } from "../config";
+const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
+---
+<section class="fdir" data-fdir data-hub-url={HUB_URL}>
+  <header class="fdir__head">
+    <div class="fdir__lead">
+      <span class="fdir__eyebrow">Public hub · {HUB_HOST}</span>
+      <h2 class="fdir__title">Frontiers</h2>
+      <p class="fdir__sub" data-meta>
+        Loading the registry…
+      </p>
+    </div>
+    <div class="fdir__controls">
+      <label class="fdir__search">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" aria-hidden="true">
+          <circle cx="7" cy="7" r="5" stroke-width="1.2"/>
+          <line x1="11" y1="11" x2="15" y2="15" stroke-width="1.2"/>
+        </svg>
+        <input
+          type="search"
+          placeholder="Filter by name, actor, or vfr_id"
+          data-filter
+          autocomplete="off"
+          spellcheck="false"
+        />
+      </label>
+      <div class="fdir__sorts" role="tablist" aria-label="Sort">
+        <button class="fdir__sort fdir__sort--on" data-sort="updated" role="tab">recently updated</button>
+        <button class="fdir__sort" data-sort="name" role="tab">name</button>
+        <button class="fdir__sort" data-sort="snapshots" role="tab">snapshots</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="fdir__grid" data-grid>
+    <div class="fdir__placeholder">
+      <span class="fdir__skel"></span>
+      <span class="fdir__skel"></span>
+      <span class="fdir__skel"></span>
+    </div>
+  </div>
+
+  <footer class="fdir__foot">
+    <span>Anyone with an Ed25519 key publishes their own <code>vfr_id</code>. The hub is dumb signed transport — clients verify locally.</span>
+    <a class="fdir__raw" href={`${HUB_URL}/entries`}>raw json →</a>
+  </footer>
+</section>
+
+<style>
+  .fdir {
+    margin: 0 0 56px;
+  }
+
+  .fdir__head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 32px;
+    padding-bottom: 18px;
+    border-bottom: 1px solid var(--rule-2);
+    margin-bottom: 18px;
+  }
+  .fdir__lead { min-width: 0; }
+  .fdir__eyebrow {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  .fdir__title {
+    font-family: var(--font-serif);
+    font-size: 32px;
+    line-height: 1.1;
+    letter-spacing: -0.015em;
+    color: var(--ink-0);
+    margin: 6px 0 6px;
+  }
+  .fdir__sub {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--ink-3);
+    margin: 0;
+    letter-spacing: 0.04em;
+  }
+
+  .fdir__controls {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: flex-end;
+    flex: 0 0 auto;
+  }
+  .fdir__search {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid var(--rule-2);
+    border-radius: 4px;
+    padding: 6px 12px;
+    background: var(--paper-0);
+    width: 280px;
+    transition: border-color var(--dur-1) var(--ease);
+  }
+  .fdir__search:focus-within { border-color: var(--rule-ink); }
+  .fdir__search svg { color: var(--ink-3); flex-shrink: 0; }
+  .fdir__search input {
+    border: 0;
+    outline: 0;
+    background: transparent;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--ink-1);
+    width: 100%;
+  }
+  .fdir__search input::placeholder { color: var(--ink-4); }
+
+  .fdir__sorts { display: inline-flex; gap: 0; }
+  .fdir__sort {
+    border: 1px solid var(--rule-2);
+    border-right: 0;
+    background: var(--paper-0);
+    padding: 5px 11px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    color: var(--ink-3);
+    cursor: pointer;
+    transition: color var(--dur-1) var(--ease), background var(--dur-1) var(--ease);
+  }
+  .fdir__sort:first-child { border-radius: 4px 0 0 4px; }
+  .fdir__sort:last-child { border-right: 1px solid var(--rule-2); border-radius: 0 4px 4px 0; }
+  .fdir__sort:hover { color: var(--ink-0); background: var(--paper-1); }
+  .fdir__sort--on { color: var(--ink-0); background: var(--paper-1); }
+
+  .fdir__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+    gap: 14px;
+  }
+  .fdir__placeholder {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+    gap: 14px;
+  }
+  .fdir__skel {
+    height: 168px;
+    background: linear-gradient(90deg,
+      var(--paper-1) 0%,
+      var(--paper-0) 50%,
+      var(--paper-1) 100%);
+    background-size: 200% 100%;
+    animation: fdir-shimmer 1.4s var(--ease) infinite;
+    border-radius: var(--radius-1);
+    border: 1px solid var(--rule-1);
+  }
+  @keyframes fdir-shimmer {
+    from { background-position: 200% 0; }
+    to   { background-position: -200% 0; }
+  }
+
+  .fdir__foot {
+    margin-top: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 16px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--ink-3);
+    border-top: 1px solid var(--rule-1);
+    padding-top: 12px;
+  }
+  .fdir__foot code {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--ink-2);
+    background: var(--paper-1);
+    padding: 1px 5px;
+    border-radius: 2px;
+  }
+  .fdir__raw {
+    color: var(--ink-3);
+    border-bottom: 1px solid var(--rule-2);
+    flex-shrink: 0;
+  }
+  .fdir__raw:hover { color: var(--signal); border-bottom-color: var(--signal); }
+
+  /* === Card === */
+  .fc {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 18px 18px 16px;
+    background: var(--paper-0);
+    border: 1px solid var(--rule-2);
+    border-radius: var(--radius-1);
+    text-decoration: none;
+    color: var(--ink-1);
+    transition: border-color var(--dur-1) var(--ease),
+                background var(--dur-1) var(--ease),
+                transform var(--dur-1) var(--ease);
+    position: relative;
+    min-height: 168px;
+  }
+  .fc::before {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 6px;
+    background-image: linear-gradient(to right,
+      var(--rule-3) 0 1px,
+      transparent 1px 100%);
+    background-size: 12px 100%;
+    background-repeat: repeat-x;
+    opacity: 0.55;
+    border-radius: var(--radius-1) var(--radius-1) 0 0;
+  }
+  .fc:hover {
+    border-color: var(--rule-ink);
+    background: var(--paper-1);
+  }
+  .fc:hover .fc__name { color: var(--signal); }
+
+  .fc__top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding-top: 4px;
+  }
+  .fc__owner {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--ink-3);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .fc__owner strong { color: var(--ink-2); font-weight: 500; }
+  .fc__verified {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-family: var(--font-mono);
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--state-ok);
+    flex-shrink: 0;
+  }
+  .fc__verified::before {
+    content: "";
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: var(--state-ok);
+    box-shadow: 0 0 0 2px rgba(63, 107, 78, 0.16);
+  }
+
+  .fc__name {
+    font-family: var(--font-serif);
+    font-size: 22px;
+    line-height: 1.22;
+    letter-spacing: -0.012em;
+    color: var(--ink-0);
+    margin: 0;
+    transition: color var(--dur-1) var(--ease);
+    /* clamp at 2 lines */
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    word-break: break-word;
+  }
+
+  .fc__desc {
+    font-family: var(--font-serif);
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--ink-2);
+    margin: 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .fc__meta {
+    margin-top: auto;
+    padding-top: 10px;
+    border-top: 1px solid var(--rule-1);
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0 14px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--ink-3);
+    letter-spacing: 0.04em;
+  }
+  .fc__meta .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .fc__meta .pill strong {
+    color: var(--ink-1);
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+  }
+  .fc__meta .pill .dot {
+    width: 3px; height: 3px; border-radius: 50%;
+    background: var(--ink-4);
+  }
+  .fc__meta .vfr {
+    margin-left: auto;
+    color: var(--ink-3);
+    font-size: 10px;
+  }
+
+  @media (max-width: 720px) {
+    .fdir__head { flex-direction: column; align-items: stretch; }
+    .fdir__controls { align-items: stretch; }
+    .fdir__search { width: auto; }
+    .fdir__grid { grid-template-columns: 1fr; }
+  }
+</style>
+
+<script>
+  type HubEntry = {
+    vfr_id: string;
+    name: string;
+    owner_actor_id: string;
+    owner_pubkey: string;
+    network_locator: string;
+    latest_snapshot_hash: string;
+    signed_publish_at: string;
+  };
+
+  type Group = {
+    key: string;
+    name: string;
+    owner: string;
+    latest: HubEntry;
+    snapshots: HubEntry[];
+  };
+
+  function escapeHtml(s: string): string {
+    return s.replace(/[&<>"']/g, (c) => {
+      const map: Record<string, string> = {
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      };
+      return map[c]!;
+    });
+  }
+
+  function shortVfr(v: string, len = 14): string {
+    if (v.length <= len) return v;
+    return `${v.slice(0, len - 1)}…`;
+  }
+
+  function relativeTime(iso: string): string {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return iso.slice(0, 10);
+    const diff = (Date.now() - d.getTime()) / 1000;
+    if (diff < 60) return "just now";
+    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+    if (diff < 604800) return `${Math.floor(diff / 86400)}d ago`;
+    return d.toISOString().slice(0, 10);
+  }
+
+  function locatorHost(url: string): string {
+    try {
+      const u = new URL(url);
+      return u.hostname.replace(/^www\./, "");
+    } catch {
+      return "external";
+    }
+  }
+
+  function renderCard(g: Group): string {
+    const href = `/frontiers/view?vfr=${encodeURIComponent(g.latest.vfr_id)}`;
+    const name = escapeHtml(g.name);
+    const owner = escapeHtml(g.owner);
+    const desc = escapeHtml(
+      // Until we wire in description from the locator, surface the
+      // most concrete piece of metadata: where it lives, when it
+      // last moved, and how many snapshots have been signed. Reads
+      // like a working subtitle without making things up.
+      `Signed manifest at ${locatorHost(g.latest.network_locator)} · ${g.snapshots.length} snapshot${g.snapshots.length === 1 ? "" : "s"} on the public hub`,
+    );
+    const vfr = escapeHtml(shortVfr(g.latest.vfr_id, 18));
+    const fullVfr = escapeHtml(g.latest.vfr_id);
+    const when = relativeTime(g.latest.signed_publish_at);
+    const host = escapeHtml(locatorHost(g.latest.network_locator));
+    return `<a class="fc" href="${href}" title="open frontier">
+  <div class="fc__top">
+    <span class="fc__owner"><strong>${owner}</strong></span>
+    <span class="fc__verified" title="signature verified by hub">signed</span>
+  </div>
+  <h3 class="fc__name">${name}</h3>
+  <p class="fc__desc">${desc}</p>
+  <div class="fc__meta">
+    <span class="pill"><strong>${g.snapshots.length}</strong> snapshot${g.snapshots.length === 1 ? "" : "s"}</span>
+    <span class="pill"><span class="dot"></span> ${host}</span>
+    <span class="pill"><span class="dot"></span> ${escapeHtml(when)}</span>
+    <span class="vfr" title="${fullVfr}">${vfr}</span>
+  </div>
+</a>`;
+  }
+
+  (async function () {
+    const root = document.querySelector("[data-fdir]");
+    if (!root) return;
+    const hubUrl =
+      (root as HTMLElement).dataset.hubUrl ?? "https://vela-hub.fly.dev";
+    const meta = root.querySelector("[data-meta]");
+    const grid = root.querySelector("[data-grid]");
+    const filter = root.querySelector("[data-filter]") as HTMLInputElement | null;
+    const sortBtns = Array.from(
+      root.querySelectorAll<HTMLButtonElement>("[data-sort]"),
+    );
+    if (!meta || !grid) return;
+
+    let groups: Group[] = [];
+    let sortMode: "updated" | "name" | "snapshots" = "updated";
+
+    function sortGroups(gs: Group[]): Group[] {
+      const out = gs.slice();
+      if (sortMode === "name") {
+        out.sort((a, b) => a.name.localeCompare(b.name));
+      } else if (sortMode === "snapshots") {
+        out.sort((a, b) => b.snapshots.length - a.snapshots.length);
+      } else {
+        out.sort((a, b) =>
+          a.latest.signed_publish_at < b.latest.signed_publish_at ? 1 : -1,
+        );
+      }
+      return out;
+    }
+
+    function render() {
+      const q = (filter?.value ?? "").trim().toLowerCase();
+      const visible = q
+        ? groups.filter(
+            (g) =>
+              g.name.toLowerCase().includes(q) ||
+              g.owner.toLowerCase().includes(q) ||
+              g.latest.vfr_id.toLowerCase().includes(q),
+          )
+        : groups;
+      const sorted = sortGroups(visible);
+      if (sorted.length === 0) {
+        grid!.innerHTML = `<div class="fdir__placeholder" style="grid-column: 1 / -1; padding: 40px 0; text-align: center; font-family: var(--font-mono); font-size: 12px; color: var(--ink-3);">No frontiers match.</div>`;
+        return;
+      }
+      grid!.innerHTML = sorted.map(renderCard).join("");
+    }
+
+    try {
+      const resp = await fetch(`${hubUrl}/entries`, {
+        headers: { accept: "application/json" },
+      });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const data = (await resp.json()) as { entries: HubEntry[] };
+      const entries = (data.entries ?? []).slice();
+
+      const byKey = new Map<string, Group>();
+      for (const e of entries) {
+        const key = `${e.name}\u0000${e.owner_actor_id}`;
+        const existing = byKey.get(key);
+        if (existing) {
+          existing.snapshots.push(e);
+          if (e.signed_publish_at > existing.latest.signed_publish_at) {
+            existing.latest = e;
+          }
+        } else {
+          byKey.set(key, {
+            key,
+            name: e.name,
+            owner: e.owner_actor_id,
+            latest: e,
+            snapshots: [e],
+          });
+        }
+      }
+      groups = Array.from(byKey.values());
+
+      const owners = new Set(entries.map((e) => e.owner_actor_id)).size;
+      meta.textContent = `${groups.length} frontier${groups.length === 1 ? "" : "s"} · ${entries.length} signed snapshot${entries.length === 1 ? "" : "s"} · ${owners} actor${owners === 1 ? "" : "s"}`;
+
+      if (entries.length === 0) {
+        grid.innerHTML = `<div class="fdir__placeholder" style="grid-column: 1 / -1; padding: 40px 0; text-align: center; font-family: var(--font-mono); font-size: 12px; color: var(--ink-3);">No frontiers published yet.</div>`;
+        return;
+      }
+
+      render();
+
+      filter?.addEventListener("input", render);
+      sortBtns.forEach((btn) => {
+        btn.addEventListener("click", () => {
+          sortMode = btn.dataset.sort as typeof sortMode;
+          sortBtns.forEach((b) => b.classList.toggle("fdir__sort--on", b === btn));
+          render();
+        });
+      });
+    } catch (err) {
+      meta.textContent = "Hub unreachable.";
+      grid.innerHTML = `<div class="fdir__placeholder" style="grid-column: 1 / -1; padding: 40px 0; text-align: center; font-family: var(--font-mono); font-size: 12px; color: var(--state-lost);">${escapeHtml(
+        err instanceof Error ? err.message : String(err),
+      )}</div>`;
+    }
+  })();
+</script>

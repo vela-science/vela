@@ -1,21 +1,19 @@
 ---
 import Page from "../layouts/Page.astro";
-import Section from "../components/Section.astro";
+import FrontierDirectory from "../components/FrontierDirectory.astro";
 import TerminalPaper from "../components/TerminalPaper.astro";
-import LiveHub from "../components/LiveHub.astro";
-import HubBrowse from "../components/HubBrowse.astro";
 import Chip from "../components/Chip.astro";
-import { HUB_URL, REPO_URL, BBB, VERSION } from "../config";
+import { HUB_URL, REPO_URL, VERSION } from "../config";
 
 const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
 ---
 <Page
   title="Vela · scientific frontier state, signed and replayable"
-  description="A git-native protocol for replayable scientific frontier state. Findings with conditions, signed by their reviewers, distributed by signed manifest."
+  description="A directory of public scientific frontiers — claims, evidence, conditions, and signatures, content-addressed and replayable. The git-native protocol for science."
   active="home"
-  eyebrow="00 · Vela"
+  eyebrow="Vela"
   pageTitle="Vela"
-  subtitle="A git-native protocol for replayable scientific frontier state."
+  subtitle="A directory of public scientific frontiers — content-addressed, signed, replayable."
 >
   <div slot="aside">
     <a href={REPO_URL} class="aside-link">github</a>
@@ -25,123 +23,79 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
     <Chip variant="live" label={`v${VERSION}`} />
   </div>
 
-  <p class="t-lead">
-    Vela turns a folder of papers into a bounded, reviewable state — claims with their evidence, conditions, confidence, and provenance — that a scientist or an agent can correct, replay, and sign.
-  </p>
+  <!-- The directory IS the page. Everything else is supporting context. -->
+  <FrontierDirectory />
 
-  <p class="t-lead" style="font-size: 17px; color: var(--ink-2);">
-    A finding has a content-addressed id. A frontier has a content-addressed id. Two implementations agree byte-for-byte. The hub is dumb transport; clients verify locally. The signature is the bind.
-  </p>
-
-  <aside class="why-card">
-    <div class="why-card__eyebrow">Why this exists</div>
-    <p class="why-card__body">
-      Science publishes claims; it has no shared object for state. Two papers contradict each other and the disagreement lives in someone's head. A retraction reaches one lab and not the three depending on it. An agent recompiles the same field every Monday because nothing it learned on Friday persisted. Vela is the smallest substrate that holds: a finding has a content-addressed id, a frontier has a content-addressed id, two implementations agree byte-for-byte, the signature is the bind.
-    </p>
-  </aside>
-
-  <Section num="§1" title="Browse the live hub" aside={`public hub · ${HUB_HOST}`}>
-    <p style="font-family: var(--font-serif); font-size: 17px; color: var(--ink-2); max-width: 64ch; margin: 0 0 12px;">
-      Every entry below is a signed manifest pointing at a frontier file the publisher hosts elsewhere. Click any row to open it in the Workbench. {BBB.name} republishes weekly from CI; the others are one-shot publications.
-    </p>
-    <LiveHub />
-    <HubBrowse />
-    <TerminalPaper title="list and pull from the command line">
-      <span class="tm-ps">$</span> <span class="tm-cmd">vela registry list</span> <span class="tm-flag">--from</span> {HUB_URL}/entries
-<span class="tm-ps">$</span> <span class="tm-cmd">vela registry pull</span> &lt;vfr_id&gt; <span class="tm-flag">--from</span> {HUB_URL}/entries <span class="tm-flag">--out</span> ./pulled.json
-<span class="tm-ps">$</span> <span class="tm-cmd">vela registry pull</span> &lt;vfr_id&gt; <span class="tm-flag">--from</span> {HUB_URL}/entries <span class="tm-flag">--transitive</span> <span class="tm-flag">--out</span> ./out  <span class="tm-ps"># walks cross-frontier deps</span>
-    </TerminalPaper>
-  </Section>
-
-  <Section num="§2" title="Read the essay" aside="why state · what state · what composes">
-    <a class="essay-card" href="/essays/science-needs-state">
-      <span class="eyebrow">Essay · 2026-04-25</span>
-      <h3 class="title">Science Needs State</h3>
-      <p class="blurb">
-        Two papers contradict each other. A foundation officer makes a decision in the shower the next morning, and the reasoning evaporates. The thing science is missing is state. Here is the smallest substrate that holds.
+  <!-- Quickstart: install + publish, side-by-side. -->
+  <section class="qs">
+    <header class="qs__head">
+      <span class="qs__eyebrow">Get started</span>
+      <h2 class="qs__title">Publish your own frontier</h2>
+      <p class="qs__sub">
+        One Rust binary. Five commands. No allowlist, no gatekeeper — anyone with an Ed25519 key can publish their own <code>vfr_id</code>.
       </p>
-      <span class="readmore">Read →</span>
-    </a>
-  </Section>
-
-  <Section num="§3" title="Install and publish" aside="one binary · five commands">
-    <div class="quickstart">
+    </header>
+    <div class="qs__grid">
       <TerminalPaper title="install">
         <span class="tm-ps">$</span> <span class="tm-cmd">git clone</span> {REPO_URL}
 <span class="tm-ps">$</span> <span class="tm-cmd">cd</span> vela <span class="tm-ps">&&</span> <span class="tm-cmd">cargo build</span> <span class="tm-flag">--release</span>
 <span class="tm-ps">$</span> <span class="tm-cmd">./target/release/vela</span> <span class="tm-flag">--version</span>
       </TerminalPaper>
-      <TerminalPaper title="publish your own frontier">
+      <TerminalPaper title="publish">
         <span class="tm-ps">$</span> <span class="tm-cmd">vela frontier new</span> ./frontier.json <span class="tm-flag">--name</span> "Your bounded question"
-<span class="tm-ps">$</span> <span class="tm-cmd">vela finding add</span> ./frontier.json <span class="tm-flag">--assertion</span> "..." <span class="tm-flag">--author</span> reviewer:you <span class="tm-flag">--apply</span>
 <span class="tm-ps">$</span> <span class="tm-cmd">vela sign generate-keypair</span> <span class="tm-flag">--out</span> keys
 <span class="tm-ps">$</span> <span class="tm-cmd">vela actor add</span> ./frontier.json reviewer:you <span class="tm-flag">--pubkey</span> "$(cat keys/public.key)"
 <span class="tm-ps">$</span> <span class="tm-cmd">vela registry publish</span> ./frontier.json <span class="tm-flag">--owner</span> reviewer:you <span class="tm-flag">--key</span> keys/private.key <span class="tm-flag">--locator</span> &lt;url&gt; <span class="tm-flag">--to</span> {HUB_URL}
       </TerminalPaper>
     </div>
-    <p style="font-family: var(--font-serif); font-size: 15px; color: var(--ink-2); margin: 12px 0 0;">
-      Walk-through with cross-frontier composition and the BBB-style CI pattern at <a class="inline-link" href="/publish">/publish</a>.
+    <p class="qs__more">
+      Full walk-through with cross-frontier composition and CI signing at <a class="inline-link" href="/publish">/publish</a>.
     </p>
-  </Section>
+  </section>
 
-  <Section num="§4" title="Six nouns" aside="content-addressed · canonical-JSON · Ed25519">
-    <ul class="nouns">
-      <li>
-        <span class="k">finding</span>
-        <span class="d">A typed assertion: what was observed, in what conditions, with what evidence, by whom, citing what. Has a content-addressed <code>vf_…</code> id.</span>
-      </li>
-      <li>
-        <span class="k">frontier</span>
-        <span class="d">A bounded scope holding findings, links, actors, and the event log that records every change. Has a content-addressed <code>vfr_…</code> id.</span>
-      </li>
-      <li>
-        <span class="k">proposal</span>
-        <span class="d">A signed change-request: revise, retract, contest, annotate. Becomes a canonical event when reviewed and accepted.</span>
-      </li>
-      <li>
-        <span class="k">event</span>
-        <span class="d">An immutable record in the log. Replay events on a fresh frontier and you reconstruct state byte-identically.</span>
-      </li>
-      <li>
-        <span class="k">registry</span>
-        <span class="d">A directory of signed manifests pointing at frontier publications. Anyone can publish; clients verify on read.</span>
-      </li>
-      <li>
-        <span class="k">proof packet</span>
-        <span class="d">A sealed snapshot another party can re-verify offline. The snapshot hash, the event-log hash, and the signatures are the audit.</span>
-      </li>
-    </ul>
-  </Section>
-
-  <Section num="§5" title="Read the docs" aside="five-doc tour">
-    <div class="card-grid">
-      <a class="card" href="/docs/protocol">
-        <span class="eyebrow">01 · protocol</span>
-        <h3 class="title">Protocol</h3>
-        <p class="blurb">The on-disk shape: findings, frontiers, events, signatures.</p>
-      </a>
-      <a class="card" href="/docs/first-frontier">
-        <span class="eyebrow">02 · first frontier</span>
-        <h3 class="title">Your first frontier</h3>
-        <p class="blurb">Compile a folder of papers into reviewable state in 10 minutes.</p>
-      </a>
-      <a class="card" href="/docs/registry">
-        <span class="eyebrow">03 · registry</span>
-        <h3 class="title">Registry</h3>
-        <p class="blurb">Verifiable distribution. Sign a manifest; anyone can pull and verify.</p>
-      </a>
-      <a class="card" href="/docs/hub">
-        <span class="eyebrow">04 · hub</span>
-        <h3 class="title">Hub</h3>
-        <p class="blurb">HTTP transport over the registry. The public hub at <code>{HUB_HOST}</code>.</p>
-      </a>
-      <a class="card" href="/docs/python">
-        <span class="eyebrow">05 · python</span>
-        <h3 class="title">Python SDK</h3>
-        <p class="blurb">Programmatic access to a Vela frontier from Python.</p>
-      </a>
+  <!-- Concepts: the six nouns, compact, scannable. -->
+  <section class="cn">
+    <header class="cn__head">
+      <span class="cn__eyebrow">Concepts</span>
+      <h2 class="cn__title">Six nouns</h2>
+    </header>
+    <div class="cn__grid">
+      <article class="ct">
+        <span class="ct__k">finding</span>
+        <p class="ct__d">A typed assertion: what was observed, in what conditions, with what evidence, by whom, citing what. Content-addressed <code>vf_…</code> id.</p>
+      </article>
+      <article class="ct">
+        <span class="ct__k">frontier</span>
+        <p class="ct__d">A bounded scope holding findings, links, actors, and the event log that records every change. Content-addressed <code>vfr_…</code> id.</p>
+      </article>
+      <article class="ct">
+        <span class="ct__k">proposal</span>
+        <p class="ct__d">A signed change-request — revise, retract, contest, annotate. Becomes a canonical event when reviewed and accepted.</p>
+      </article>
+      <article class="ct">
+        <span class="ct__k">event</span>
+        <p class="ct__d">An immutable record in the log. Replay events on a fresh frontier and you reconstruct state byte-identically.</p>
+      </article>
+      <article class="ct">
+        <span class="ct__k">registry</span>
+        <p class="ct__d">A directory of signed manifests pointing at frontier publications. Anyone publishes; clients verify on read.</p>
+      </article>
+      <article class="ct">
+        <span class="ct__k">proof packet</span>
+        <p class="ct__d">A sealed snapshot another party can re-verify offline. Snapshot hash + event-log hash + signatures are the audit.</p>
+      </article>
     </div>
-  </Section>
+  </section>
+
+  <!-- Quiet "why" + essay link, last. -->
+  <aside class="why">
+    <div class="why__inner">
+      <p class="why__text">
+        Science publishes claims; it has no shared object for state. Two papers contradict each other and the disagreement lives in someone's head. A retraction reaches one lab and not the three depending on it. Vela is the smallest substrate that holds: a finding has a content-addressed id, a frontier has a content-addressed id, two implementations agree byte-for-byte, the signature is the bind.
+      </p>
+      <a class="why__link" href="/essays/science-needs-state">Read the essay →</a>
+    </div>
+  </aside>
 </Page>
 
 <style>
@@ -157,105 +111,148 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
     align-items: center;
     gap: 12px;
   }
-  .why-card {
-    border-left: 2px solid var(--signal);
-    padding: 18px 24px 20px;
-    margin: 8px 0 32px;
-    background: var(--paper-1);
-  }
-  .why-card__eyebrow {
+
+  /* === Quickstart === */
+  .qs { margin: 0 0 56px; }
+  .qs__head { margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid var(--rule-2); }
+  .qs__eyebrow {
     font-family: var(--font-mono);
     font-size: 10px;
-    letter-spacing: 0.18em;
+    letter-spacing: 0.16em;
     text-transform: uppercase;
     color: var(--ink-3);
-    margin-bottom: 10px;
   }
-  .why-card__body {
-    font-family: var(--font-serif);
-    font-size: 17px;
-    line-height: 1.55;
-    color: var(--ink-1);
-    margin: 0;
-    max-width: 64ch;
-  }
-
-  .essay-card {
-    display: block;
-    border: 1px solid var(--rule-2);
-    padding: 22px 26px;
-    background: var(--paper-0);
-    transition: border-color var(--dur-1) var(--ease), background var(--dur-1) var(--ease);
-  }
-  .essay-card:hover { border-color: var(--rule-ink); background: var(--paper-1); }
-  .essay-card .eyebrow {
-    font-family: var(--font-mono);
-    font-size: var(--size-xs);
-    letter-spacing: var(--track-tick);
-    text-transform: uppercase;
-    color: var(--ink-3);
-    margin-bottom: 8px;
-    display: block;
-  }
-  .essay-card .title {
+  .qs__title {
     font-family: var(--font-serif);
     font-size: 26px;
+    line-height: 1.15;
+    letter-spacing: -0.012em;
     color: var(--ink-0);
-    margin: 0 0 8px;
-    letter-spacing: -0.01em;
+    margin: 6px 0 8px;
   }
-  .essay-card .blurb {
+  .qs__sub {
     font-family: var(--font-serif);
     font-size: 16px;
     line-height: 1.55;
     color: var(--ink-2);
-    margin: 0 0 12px;
+    margin: 0;
     max-width: 64ch;
   }
-  .essay-card .readmore {
+  .qs__sub code {
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: 13px;
+    color: var(--ink-1);
+    background: var(--paper-1);
+    padding: 1px 5px;
+    border-radius: 2px;
+  }
+  .qs__grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+  @media (max-width: 900px) {
+    .qs__grid { grid-template-columns: 1fr; }
+  }
+  .qs__more {
+    font-family: var(--font-serif);
+    font-size: 14px;
+    color: var(--ink-2);
+    margin: 14px 0 0;
+  }
+
+  /* === Concepts === */
+  .cn { margin: 0 0 56px; }
+  .cn__head { margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid var(--rule-2); }
+  .cn__eyebrow {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  .cn__title {
+    font-family: var(--font-serif);
+    font-size: 26px;
+    line-height: 1.15;
+    letter-spacing: -0.012em;
+    color: var(--ink-0);
+    margin: 6px 0 0;
+  }
+  .cn__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 14px;
+  }
+  .ct {
+    padding: 14px 16px;
+    background: var(--paper-0);
+    border: 1px solid var(--rule-1);
+    border-radius: var(--radius-1);
+  }
+  .ct__k {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 10px;
     letter-spacing: 0.14em;
     text-transform: uppercase;
-    color: var(--ink-2);
+    color: var(--ink-3);
+    margin-bottom: 8px;
   }
-  .essay-card:hover .readmore { color: var(--signal); }
+  .ct__d {
+    font-family: var(--font-serif);
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--ink-1);
+    margin: 0;
+  }
+  .ct__d code {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--ink-2);
+    background: var(--paper-1);
+    padding: 1px 4px;
+    border-radius: 2px;
+  }
+
+  /* === Why (quiet) === */
+  .why {
+    margin: 0 0 32px;
+    padding: 18px 0;
+    border-top: 1px solid var(--rule-2);
+    border-bottom: 1px solid var(--rule-2);
+  }
+  .why__inner {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 32px;
+    flex-wrap: wrap;
+  }
+  .why__text {
+    font-family: var(--font-serif);
+    font-size: 15px;
+    line-height: 1.55;
+    color: var(--ink-2);
+    margin: 0;
+    max-width: 64ch;
+    flex: 1;
+    min-width: 0;
+  }
+  .why__link {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    color: var(--ink-3);
+    border-bottom: 1px solid var(--rule-2);
+    flex-shrink: 0;
+  }
+  .why__link:hover { color: var(--signal); border-bottom-color: var(--signal); }
 
   .inline-link {
     color: var(--signal);
     text-decoration: underline;
     text-underline-offset: 2px;
     text-decoration-thickness: 1px;
-  }
-
-  .nouns {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    border-top: 1px solid var(--rule-2);
-  }
-  .nouns li {
-    display: grid;
-    grid-template-columns: 140px 1fr;
-    gap: 24px;
-    padding: 14px 0;
-    border-bottom: 1px solid var(--rule-1);
-    align-items: baseline;
-  }
-  .nouns li .k {
-    font-family: var(--font-mono);
-    font-size: 11px;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: var(--ink-3);
-  }
-  .nouns li .d {
-    font-family: var(--font-serif);
-    font-size: 16px;
-    line-height: 1.55;
-    color: var(--ink-1);
-  }
-  @media (max-width: 720px) {
-    .nouns li { grid-template-columns: 1fr; gap: 4px; }
   }
 </style>

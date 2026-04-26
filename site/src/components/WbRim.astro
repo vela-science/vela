@@ -14,12 +14,12 @@ interface Props {
 }
 
 const defaultLinks: NavLink[] = [
-  { id: "home", href: "/", label: "01 · Vela" },
-  { id: "essays", href: "/essays/science-needs-state", label: "02 · Essays" },
-  { id: "docs", href: "/docs/protocol", label: "03 · Docs" },
-  { id: "publish", href: "/publish", label: "04 · Publish" },
-  { id: "hub", href: HUB_URL, label: "05 · Hub" },
-  { id: "workbench", href: "/workbench", label: "06 · Workbench" },
+  { id: "home", href: "/", label: "01 · Frontiers" },
+  { id: "workbench", href: "/workbench", label: "02 · Workbench" },
+  { id: "publish", href: "/publish", label: "03 · Publish" },
+  { id: "docs", href: "/docs/protocol", label: "04 · Docs" },
+  { id: "essays", href: "/essays/science-needs-state", label: "05 · Essay" },
+  { id: "hub", href: HUB_URL, label: "06 · Hub ↗" },
 ];
 
 const { active = "home", links = defaultLinks, version = `v${VERSION}` } =

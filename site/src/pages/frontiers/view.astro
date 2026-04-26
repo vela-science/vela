@@ -1,0 +1,967 @@
+---
+import Page from "../../layouts/Page.astro";
+import { HUB_URL, WORKBENCH_URL } from "../../config";
+const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
+---
+<Page
+  title="Frontier · Vela"
+  description="A signed scientific frontier on the public Vela hub."
+  active="home"
+  eyebrow="Frontier"
+  pageTitle="Loading frontier…"
+  subtitle="Signed manifest, content-addressed, replayable."
+>
+  <div slot="aside">
+    <a class="aside-link" href={`${HUB_URL}/entries`}>hub</a>
+    <span>·</span>
+    <a class="aside-link" id="fr-rawmanifest" href="#">manifest</a>
+  </div>
+
+  <article class="fr" data-fr data-hub-url={HUB_URL} data-workbench-url={WORKBENCH_URL}>
+    <!-- Header card -->
+    <header class="fr-hdr">
+      <div class="fr-hdr__row">
+        <div class="fr-hdr__main">
+          <div class="fr-hdr__owner-line">
+            <a class="fr-hdr__owner" href="/" id="fr-owner">—</a>
+            <span class="fr-hdr__sep">/</span>
+            <span class="fr-hdr__name" id="fr-name">…</span>
+            <span class="fr-hdr__sig" id="fr-sig" title="hub-validated signature">signed</span>
+          </div>
+          <p class="fr-hdr__desc" id="fr-desc">—</p>
+          <div class="fr-hdr__chiprow">
+            <span class="frc" id="fr-vfr">vfr_…</span>
+            <span class="frc frc--mono" id="fr-snap">snapshot —</span>
+            <span class="frc frc--ok" id="fr-ver">verified</span>
+            <span class="frc" id="fr-when">—</span>
+          </div>
+        </div>
+        <div class="fr-hdr__cta">
+          <a class="wb-btn wb-btn--ink" id="fr-open-wb" href="#">
+            Open in Workbench
+            <span class="wb-btn__kbd">↗</span>
+          </a>
+          <button class="wb-btn" id="fr-copy-pull" type="button">
+            Copy pull command
+          </button>
+          <a class="wb-btn wb-btn--ghost" id="fr-locator" href="#" rel="noopener">
+            View raw frontier ↗
+          </a>
+        </div>
+      </div>
+    </header>
+
+    <!-- Tabs -->
+    <nav class="fr-tabs" role="tablist" aria-label="Frontier sections">
+      <button class="fr-tab fr-tab--on" data-tab="findings" role="tab">
+        Findings <span class="fr-tab__count" id="fr-tab-findings">—</span>
+      </button>
+      <button class="fr-tab" data-tab="snapshots" role="tab">
+        Snapshots <span class="fr-tab__count" id="fr-tab-snapshots">—</span>
+      </button>
+      <button class="fr-tab" data-tab="deps" role="tab">
+        Cross-frontier deps <span class="fr-tab__count" id="fr-tab-deps">—</span>
+      </button>
+      <button class="fr-tab" data-tab="actors" role="tab">
+        Actors <span class="fr-tab__count" id="fr-tab-actors">—</span>
+      </button>
+      <button class="fr-tab" data-tab="about" role="tab">About</button>
+    </nav>
+
+    <!-- Two-col layout: main + sidebar -->
+    <div class="fr-body">
+      <div class="fr-main">
+        <section class="fr-pane" data-pane="findings">
+          <div class="fr-toolbar">
+            <label class="fr-search">
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" aria-hidden="true">
+                <circle cx="7" cy="7" r="5" stroke-width="1.2"/><line x1="11" y1="11" x2="15" y2="15" stroke-width="1.2"/>
+              </svg>
+              <input type="search" id="fr-find-q" placeholder="filter findings by claim, vf_id, kind…" autocomplete="off" spellcheck="false" />
+              <span class="fr-search__count" id="fr-find-count">— / —</span>
+            </label>
+          </div>
+          <div class="fr-findings" id="fr-findings"></div>
+        </section>
+
+        <section class="fr-pane" data-pane="snapshots" hidden>
+          <div class="fr-snaps" id="fr-snaps"></div>
+        </section>
+
+        <section class="fr-pane" data-pane="deps" hidden>
+          <div class="fr-deps" id="fr-deps">
+            <div class="fr-empty">No cross-frontier dependencies.</div>
+          </div>
+        </section>
+
+        <section class="fr-pane" data-pane="actors" hidden>
+          <div class="fr-actors" id="fr-actors">
+            <div class="fr-empty">No actors registered.</div>
+          </div>
+        </section>
+
+        <section class="fr-pane" data-pane="about" hidden>
+          <div class="fr-about" id="fr-about"></div>
+        </section>
+      </div>
+
+      <aside class="fr-side">
+        <div class="fr-side__group">
+          <h4 class="fr-side__head">About</h4>
+          <p class="fr-side__about" id="fr-side-desc">—</p>
+        </div>
+        <div class="fr-side__group">
+          <h4 class="fr-side__head">Identity</h4>
+          <dl class="fr-side__dl">
+            <dt>vfr_id</dt><dd id="fr-side-vfr">—</dd>
+            <dt>schema</dt><dd id="fr-side-schema">—</dd>
+            <dt>compiler</dt><dd id="fr-side-compiler">—</dd>
+            <dt>compiled</dt><dd id="fr-side-compiled">—</dd>
+          </dl>
+        </div>
+        <div class="fr-side__group">
+          <h4 class="fr-side__head">Signature</h4>
+          <dl class="fr-side__dl">
+            <dt>owner</dt><dd id="fr-side-owner">—</dd>
+            <dt>pubkey</dt><dd id="fr-side-pubkey" title="">—</dd>
+            <dt>signed</dt><dd id="fr-side-signed">—</dd>
+            <dt>locator</dt><dd id="fr-side-locator">—</dd>
+          </dl>
+        </div>
+        <div class="fr-side__group">
+          <h4 class="fr-side__head">Stats</h4>
+          <dl class="fr-side__dl">
+            <dt>findings</dt><dd id="fr-side-fc">—</dd>
+            <dt>events</dt><dd id="fr-side-ec">—</dd>
+            <dt>proposals</dt><dd id="fr-side-pc">—</dd>
+            <dt>snapshots</dt><dd id="fr-side-sc">—</dd>
+          </dl>
+        </div>
+        <div class="fr-side__group">
+          <h4 class="fr-side__head">Pull this frontier</h4>
+          <pre class="fr-side__cmd" id="fr-side-cmd">vela registry pull …</pre>
+        </div>
+      </aside>
+    </div>
+  </article>
+</Page>
+
+<style>
+  .fr {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  /* === Header card === */
+  .fr-hdr {
+    background: var(--paper-0);
+    border: 1px solid var(--rule-2);
+    border-radius: var(--radius-1);
+    padding: 22px 24px;
+    position: relative;
+  }
+  .fr-hdr::before {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 6px;
+    background-image: linear-gradient(to right, var(--rule-3) 0 1px, transparent 1px 100%);
+    background-size: 12px 100%;
+    background-repeat: repeat-x;
+    opacity: 0.5;
+    border-radius: var(--radius-1) var(--radius-1) 0 0;
+  }
+  .fr-hdr__row {
+    display: flex;
+    gap: 28px;
+    align-items: flex-start;
+    justify-content: space-between;
+    padding-top: 6px;
+  }
+  .fr-hdr__main { min-width: 0; flex: 1; }
+  .fr-hdr__owner-line {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 6px;
+    font-family: var(--font-serif);
+    font-size: 26px;
+    line-height: 1.15;
+    letter-spacing: -0.012em;
+    color: var(--ink-0);
+    margin-bottom: 12px;
+  }
+  .fr-hdr__owner {
+    font-family: var(--font-mono);
+    font-size: 14px;
+    color: var(--ink-3);
+    border-bottom: 1px solid transparent;
+  }
+  .fr-hdr__owner:hover { color: var(--ink-1); border-bottom-color: var(--rule-2); }
+  .fr-hdr__sep { color: var(--ink-4); font-family: var(--font-mono); font-size: 14px; }
+  .fr-hdr__name { color: var(--ink-0); }
+  .fr-hdr__sig {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--state-ok);
+    margin-left: 8px;
+    align-self: center;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .fr-hdr__sig::before {
+    content: "";
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: var(--state-ok);
+    box-shadow: 0 0 0 2px rgba(63, 107, 78, 0.16);
+  }
+
+  .fr-hdr__desc {
+    font-family: var(--font-serif);
+    font-size: 16px;
+    line-height: 1.55;
+    color: var(--ink-2);
+    margin: 0 0 14px;
+    max-width: 64ch;
+  }
+
+  .fr-hdr__chiprow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .frc {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.04em;
+    color: var(--ink-2);
+    background: var(--paper-1);
+    border: 1px solid var(--rule-1);
+    padding: 3px 8px;
+    border-radius: 3px;
+    white-space: nowrap;
+  }
+  .frc--mono { color: var(--ink-3); }
+  .frc--ok { color: var(--state-ok); border-color: rgba(63, 107, 78, 0.18); background: rgba(63, 107, 78, 0.06); }
+
+  .fr-hdr__cta {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex-shrink: 0;
+    min-width: 200px;
+  }
+  .fr-hdr__cta .wb-btn { justify-content: space-between; }
+
+  /* === Tabs === */
+  .fr-tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--rule-2);
+    margin: 0;
+    overflow-x: auto;
+  }
+  .fr-tab {
+    border: 0;
+    background: transparent;
+    padding: 12px 16px;
+    font-family: var(--font-sans);
+    font-size: 13px;
+    color: var(--ink-3);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: color var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease);
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .fr-tab:hover { color: var(--ink-1); }
+  .fr-tab--on { color: var(--ink-0); border-bottom-color: var(--ink-0); }
+  .fr-tab__count {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--ink-3);
+    background: var(--paper-1);
+    border: 1px solid var(--rule-1);
+    padding: 1px 6px;
+    border-radius: 8px;
+    font-variant-numeric: tabular-nums;
+  }
+  .fr-tab--on .fr-tab__count { color: var(--ink-1); border-color: var(--rule-2); }
+
+  /* === Body === */
+  .fr-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 280px;
+    gap: 36px;
+  }
+  @media (max-width: 960px) {
+    .fr-body { grid-template-columns: 1fr; }
+    .fr-hdr__row { flex-direction: column; }
+    .fr-hdr__cta { width: 100%; min-width: 0; flex-direction: row; flex-wrap: wrap; }
+  }
+
+  .fr-pane[hidden] { display: none; }
+
+  /* Toolbar (findings) */
+  .fr-toolbar {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+  .fr-search {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid var(--rule-2);
+    border-radius: 4px;
+    padding: 6px 10px;
+    background: var(--paper-0);
+    width: 100%;
+  }
+  .fr-search:focus-within { border-color: var(--rule-ink); }
+  .fr-search svg { color: var(--ink-3); flex-shrink: 0; }
+  .fr-search input {
+    flex: 1;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--ink-1);
+  }
+  .fr-search input::placeholder { color: var(--ink-4); }
+  .fr-search__count {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--ink-3);
+    flex-shrink: 0;
+  }
+
+  /* === Findings list === */
+  .fr-findings {
+    display: flex;
+    flex-direction: column;
+    border-top: 1px solid var(--rule-1);
+  }
+  .ff {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 16px;
+    padding: 14px 4px;
+    border-bottom: 1px solid var(--rule-1);
+    color: var(--ink-1);
+    text-decoration: none;
+    transition: background var(--dur-1) var(--ease);
+  }
+  .ff:hover { background: var(--paper-1); }
+  .ff:hover .ff__claim { color: var(--signal); }
+  .ff__main { min-width: 0; }
+  .ff__claim {
+    font-family: var(--font-serif);
+    font-size: 16px;
+    line-height: 1.4;
+    color: var(--ink-0);
+    margin-bottom: 6px;
+    transition: color var(--dur-1) var(--ease);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .ff__sub {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--ink-3);
+    letter-spacing: 0.04em;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 12px;
+  }
+  .ff__sub strong { color: var(--ink-2); font-weight: 500; }
+  .ff__meta {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--ink-3);
+    text-align: right;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .ff__kind {
+    display: inline-block;
+    padding: 2px 7px;
+    border: 1px solid var(--rule-2);
+    border-radius: 3px;
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+  .ff__kind--retraction { color: var(--state-lost); border-color: rgba(138, 58, 58, 0.32); }
+  .ff__kind--revision   { color: var(--state-warn); border-color: rgba(138, 106, 31, 0.32); }
+  .ff__kind--annotation { color: var(--state-stale); border-color: var(--rule-2); }
+  .ff__kind--observation { color: var(--state-ok); border-color: rgba(63, 107, 78, 0.32); }
+  .ff__kind--unknown { color: var(--ink-3); }
+
+  /* === Snapshots === */
+  .fr-snaps {
+    display: flex;
+    flex-direction: column;
+    border-top: 1px solid var(--rule-1);
+  }
+  .fs {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    padding: 12px 4px;
+    border-bottom: 1px solid var(--rule-1);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--ink-2);
+  }
+  .fs__hash { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--ink-1); }
+  .fs__when { color: var(--ink-3); white-space: nowrap; }
+  .fs__sig { color: var(--state-ok); font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; }
+  .fs__open {
+    color: var(--ink-3);
+    border-bottom: 1px solid var(--rule-2);
+    text-decoration: none;
+    font-size: 10px;
+  }
+  .fs__open:hover { color: var(--signal); border-bottom-color: var(--signal); }
+
+  /* === Deps === */
+  .fd {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 14px 4px;
+    border-bottom: 1px solid var(--rule-1);
+  }
+  .fd__name {
+    font-family: var(--font-serif);
+    font-size: 16px;
+    color: var(--ink-0);
+  }
+  .fd__sub {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--ink-3);
+  }
+
+  /* === Actors === */
+  .fa {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    padding: 12px 4px;
+    border-bottom: 1px solid var(--rule-1);
+  }
+  .fa__handle {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--ink-1);
+    min-width: 200px;
+  }
+  .fa__pubkey {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--ink-3);
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .fa__tier {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    border: 1px solid var(--rule-2);
+    padding: 2px 7px;
+    border-radius: 3px;
+  }
+
+  /* === About === */
+  .fr-about {
+    font-family: var(--font-serif);
+    font-size: 16px;
+    line-height: 1.6;
+    color: var(--ink-1);
+    max-width: 64ch;
+    padding: 8px 0;
+  }
+  .fr-about p { margin: 0 0 1em; }
+  .fr-about pre {
+    background: var(--paper-1);
+    border: 1px solid var(--rule-1);
+    padding: 12px;
+    border-radius: var(--radius-1);
+    overflow-x: auto;
+    font-family: var(--font-mono);
+    font-size: 12px;
+  }
+
+  .fr-empty {
+    padding: 32px 8px;
+    text-align: center;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--ink-3);
+  }
+
+  /* === Sidebar === */
+  .fr-side {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    align-self: start;
+    position: sticky;
+    top: 24px;
+  }
+  @media (max-width: 960px) {
+    .fr-side { position: static; }
+  }
+  .fr-side__group { }
+  .fr-side__head {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin: 0 0 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--rule-1);
+  }
+  .fr-side__about {
+    font-family: var(--font-serif);
+    font-size: 14px;
+    line-height: 1.55;
+    color: var(--ink-1);
+    margin: 0;
+  }
+  .fr-side__dl {
+    margin: 0;
+    display: grid;
+    grid-template-columns: 78px 1fr;
+    row-gap: 7px;
+    column-gap: 10px;
+  }
+  .fr-side__dl dt {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--ink-3);
+    letter-spacing: 0.04em;
+  }
+  .fr-side__dl dd {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--ink-1);
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+  .fr-side__dl dd a { color: var(--ink-1); border-bottom: 1px solid var(--rule-2); }
+  .fr-side__dl dd a:hover { color: var(--signal); border-bottom-color: var(--signal); }
+
+  .fr-side__cmd {
+    background: var(--ink-0);
+    color: #E6E1D4;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    line-height: 1.5;
+    padding: 12px;
+    border-radius: var(--radius-1);
+    overflow-x: auto;
+    margin: 0;
+    white-space: pre;
+  }
+</style>
+
+<script>
+  type HubEntry = {
+    vfr_id: string;
+    name: string;
+    owner_actor_id: string;
+    owner_pubkey: string;
+    network_locator: string;
+    latest_snapshot_hash: string;
+    latest_event_log_hash: string;
+    signed_publish_at: string;
+    signature: string;
+    schema: string;
+  };
+
+  type Finding = {
+    id: string;
+    assertion?: { claim?: string };
+    kind?: string;
+    confidence?: { class?: string; tier?: string };
+    evidence?: unknown[];
+    links?: unknown[];
+    conditions?: unknown[];
+    provenance?: { authors?: Array<{ id?: string }> };
+    updated?: string;
+    created?: string;
+  };
+
+  type FrontierFile = {
+    vela_version?: string;
+    schema?: string;
+    frontier?: {
+      name?: string;
+      description?: string;
+      compiled_at?: string;
+      compiler?: string;
+      papers_processed?: number;
+      dependencies?: Array<{
+        name?: string;
+        vfr_id?: string;
+        locator?: string;
+        pinned_snapshot_hash?: string;
+      }>;
+    };
+    findings?: Finding[];
+    events?: unknown[];
+    proposals?: unknown[];
+    actors?: Array<{ id: string; pubkey?: string; tier?: string }>;
+    stats?: Record<string, unknown>;
+  };
+
+  function escapeHtml(s: string): string {
+    return s.replace(/[&<>"']/g, (c) => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;",
+    }[c]!));
+  }
+
+  function shortVfr(v: string, len = 16): string {
+    return v.length <= len ? v : `${v.slice(0, len - 1)}…`;
+  }
+  function shortHash(h: string, len = 14): string {
+    return h.length <= len ? h : `${h.slice(0, len - 1)}…`;
+  }
+
+  function relativeTime(iso?: string): string {
+    if (!iso) return "—";
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return iso.slice(0, 10);
+    const diff = (Date.now() - d.getTime()) / 1000;
+    if (diff < 60) return "just now";
+    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+    if (diff < 604800) return `${Math.floor(diff / 86400)}d ago`;
+    return d.toISOString().slice(0, 10);
+  }
+
+  function locatorHost(url?: string): string {
+    if (!url) return "external";
+    try { return new URL(url).hostname.replace(/^www\./, ""); }
+    catch { return "external"; }
+  }
+
+  function findingKind(f: Finding): string {
+    return (f.kind ?? f.confidence?.class ?? "observation").toLowerCase();
+  }
+
+  function setText(id: string, text: string): void {
+    const el = document.getElementById(id);
+    if (el) el.textContent = text;
+  }
+
+  function setHref(id: string, href: string): void {
+    const el = document.getElementById(id) as HTMLAnchorElement | null;
+    if (el) el.href = href;
+  }
+
+  (async function () {
+    const root = document.querySelector("[data-fr]") as HTMLElement | null;
+    if (!root) return;
+    const hubUrl = root.dataset.hubUrl ?? "https://vela-hub.fly.dev";
+
+    const url = new URL(window.location.href);
+    const vfr = url.searchParams.get("vfr");
+    if (!vfr) {
+      setText("fr-name", "No frontier specified");
+      setText("fr-desc", "Add ?vfr=vfr_… to the URL, or pick one from the directory.");
+      return;
+    }
+
+    // Page meta
+    document.title = `${vfr} · Vela`;
+    setHref("fr-rawmanifest", `${hubUrl}/entries/${encodeURIComponent(vfr)}`);
+
+    // Tabs
+    const tabs = Array.from(root.querySelectorAll<HTMLButtonElement>(".fr-tab"));
+    const panes = Array.from(root.querySelectorAll<HTMLElement>(".fr-pane"));
+    tabs.forEach((t) => {
+      t.addEventListener("click", () => {
+        tabs.forEach((x) => x.classList.toggle("fr-tab--on", x === t));
+        const target = t.dataset.tab;
+        panes.forEach((p) => {
+          p.hidden = p.dataset.pane !== target;
+        });
+      });
+    });
+
+    // Fetch the entry from the hub.
+    let entry: HubEntry | null = null;
+    let allEntries: HubEntry[] = [];
+    try {
+      const r = await fetch(`${hubUrl}/entries`, { headers: { accept: "application/json" } });
+      if (!r.ok) throw new Error(`hub ${r.status}`);
+      const data = (await r.json()) as { entries: HubEntry[] };
+      allEntries = data.entries ?? [];
+      // The hub returns latest-publish-wins per vfr_id; we still pick by vfr_id.
+      entry = allEntries.find((e) => e.vfr_id === vfr) ?? null;
+    } catch (err) {
+      setText("fr-name", "Hub unreachable");
+      setText("fr-desc", String(err));
+      return;
+    }
+
+    if (!entry) {
+      setText("fr-name", "Frontier not found on hub");
+      setText("fr-desc", `No entry for ${vfr}.`);
+      return;
+    }
+
+    // Header from hub data
+    const headEyebrow = document.querySelector(".wb-head__eyebrow");
+    if (headEyebrow) headEyebrow.innerHTML = `Frontier · <span style="color:var(--ink-2);">${escapeHtml(entry.name)}</span>`;
+    const headTitle = document.querySelector(".wb-head__title");
+    if (headTitle) headTitle.textContent = entry.name;
+
+    setText("fr-name", entry.name);
+    const ownerEl = document.getElementById("fr-owner");
+    if (ownerEl) {
+      ownerEl.textContent = entry.owner_actor_id;
+      (ownerEl as HTMLAnchorElement).href = `/?actor=${encodeURIComponent(entry.owner_actor_id)}`;
+    }
+    setText("fr-vfr", entry.vfr_id);
+    setText("fr-snap", `snapshot ${shortHash(entry.latest_snapshot_hash, 18)}`);
+    setText("fr-when", relativeTime(entry.signed_publish_at));
+
+    // Sidebar from hub data (description filled in after the locator fetch)
+    setText("fr-side-vfr", entry.vfr_id);
+    setText("fr-side-schema", entry.schema);
+    setText("fr-side-owner", entry.owner_actor_id);
+    setText("fr-side-pubkey", shortHash(entry.owner_pubkey, 22));
+    const pubkeyEl = document.getElementById("fr-side-pubkey");
+    if (pubkeyEl) pubkeyEl.title = entry.owner_pubkey;
+    setText("fr-side-signed", new Date(entry.signed_publish_at).toISOString().replace("T", " ").slice(0, 19) + "Z");
+
+    const locDd = document.getElementById("fr-side-locator");
+    if (locDd) {
+      locDd.innerHTML = `<a href="${escapeHtml(entry.network_locator)}" rel="noopener" title="${escapeHtml(entry.network_locator)}">${escapeHtml(locatorHost(entry.network_locator))} ↗</a>`;
+    }
+    setHref("fr-locator", entry.network_locator);
+    setHref("fr-open-wb", `/workbench?vfr=${encodeURIComponent(entry.vfr_id)}`);
+
+    const cmd = `vela registry pull ${entry.vfr_id} \\\n  --from ${hubUrl}/entries \\\n  --out ./pulled.json`;
+    setText("fr-side-cmd", cmd);
+
+    // Copy-pull-command button
+    const copyBtn = document.getElementById("fr-copy-pull");
+    copyBtn?.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(cmd);
+        const original = copyBtn.textContent;
+        copyBtn.textContent = "Copied ✓";
+        setTimeout(() => { copyBtn.textContent = original; }, 1400);
+      } catch {
+        // ignore
+      }
+    });
+
+    // Snapshots: filter all entries with same name+owner.
+    const snapshots = allEntries
+      .filter((e) => e.name === entry!.name && e.owner_actor_id === entry!.owner_actor_id)
+      .sort((a, b) => (a.signed_publish_at < b.signed_publish_at ? 1 : -1));
+    setText("fr-tab-snapshots", String(snapshots.length));
+    setText("fr-side-sc", String(snapshots.length));
+
+    const snapsHost = document.getElementById("fr-snaps");
+    if (snapsHost) {
+      snapsHost.innerHTML = snapshots.map((s) => {
+        const isCurrent = s.vfr_id === entry!.vfr_id;
+        const href = `/frontiers/view?vfr=${encodeURIComponent(s.vfr_id)}`;
+        return `<div class="fs">
+  <span class="fs__hash" title="${escapeHtml(s.latest_snapshot_hash)}">${escapeHtml(s.latest_snapshot_hash.slice(0, 24))}…</span>
+  <span class="fs__sig">signed</span>
+  <span class="fs__when">${escapeHtml(relativeTime(s.signed_publish_at))}</span>
+  ${isCurrent ? `<span class="frc">current</span>` : `<a class="fs__open" href="${href}">open →</a>`}
+</div>`;
+      }).join("");
+    }
+
+    // Now fetch the actual frontier file from the locator (best-effort).
+    let frontier: FrontierFile | null = null;
+    try {
+      const r = await fetch(entry.network_locator);
+      if (r.ok) frontier = (await r.json()) as FrontierFile;
+    } catch {
+      // ignore — frontier may be unreachable; the hub-side metadata is enough.
+    }
+
+    if (!frontier) {
+      setText("fr-desc", `Manifest signed and verified by the hub. The frontier file at ${locatorHost(entry.network_locator)} is currently unreachable; metadata above is from the signed manifest.`);
+      setText("fr-side-desc", "Frontier file unreachable.");
+      setText("fr-tab-findings", "—");
+      setText("fr-tab-deps", "—");
+      setText("fr-tab-actors", "—");
+      const fHost = document.getElementById("fr-findings");
+      if (fHost) fHost.innerHTML = `<div class="fr-empty">Frontier file at ${escapeHtml(locatorHost(entry.network_locator))} not reachable. Try the raw locator link, or pull with the CLI.</div>`;
+      return;
+    }
+
+    // Description — prose from frontier.description.
+    const desc = frontier.frontier?.description ?? "";
+    if (desc) {
+      const short = desc.length > 320 ? desc.slice(0, 320).trim() + "…" : desc;
+      setText("fr-desc", short);
+      setText("fr-side-desc", desc.length > 220 ? desc.slice(0, 220) + "…" : desc);
+    } else {
+      setText("fr-desc", "No description in frontier file.");
+      setText("fr-side-desc", "—");
+    }
+
+    setText("fr-side-schema", frontier.schema ?? entry.schema);
+    setText("fr-side-compiler", frontier.frontier?.compiler ?? "—");
+    setText("fr-side-compiled",
+      frontier.frontier?.compiled_at
+        ? new Date(frontier.frontier.compiled_at).toISOString().slice(0, 10)
+        : "—");
+
+    const findings = frontier.findings ?? [];
+    const events = frontier.events ?? [];
+    const proposals = frontier.proposals ?? [];
+    const actors = frontier.actors ?? [];
+    const deps = frontier.frontier?.dependencies ?? [];
+
+    setText("fr-tab-findings", String(findings.length));
+    setText("fr-tab-deps", String(deps.length));
+    setText("fr-tab-actors", String(actors.length));
+    setText("fr-side-fc", String(findings.length));
+    setText("fr-side-ec", String(events.length));
+    setText("fr-side-pc", String(proposals.length));
+
+    // === Findings ===
+    const findingsHost = document.getElementById("fr-findings");
+    const searchInput = document.getElementById("fr-find-q") as HTMLInputElement | null;
+    const countEl = document.getElementById("fr-find-count");
+
+    function renderFindings(filterText: string) {
+      const q = filterText.trim().toLowerCase();
+      const filtered = q
+        ? findings.filter((f) =>
+            (f.id ?? "").toLowerCase().includes(q) ||
+            (f.assertion?.claim ?? "").toLowerCase().includes(q) ||
+            findingKind(f).includes(q),
+          )
+        : findings;
+      if (countEl) countEl.textContent = `${filtered.length} / ${findings.length}`;
+      if (!findingsHost) return;
+      if (filtered.length === 0) {
+        findingsHost.innerHTML = `<div class="fr-empty">No findings match.</div>`;
+        return;
+      }
+      findingsHost.innerHTML = filtered.map((f) => {
+        const claim = escapeHtml(f.assertion?.claim ?? f.id ?? "(no claim)");
+        const id = escapeHtml(f.id ?? "");
+        const kind = findingKind(f);
+        const kindClass = ["retraction", "revision", "annotation", "observation"].includes(kind)
+          ? `ff__kind--${kind}` : "ff__kind--unknown";
+        const ev = f.evidence?.length ?? 0;
+        const links = f.links?.length ?? 0;
+        const conds = f.conditions?.length ?? 0;
+        const author = f.provenance?.authors?.[0]?.id ?? "—";
+        const when = relativeTime(f.updated ?? f.created);
+        const href = `/workbench/finding?id=${encodeURIComponent(f.id ?? "")}&vfr=${encodeURIComponent(entry!.vfr_id)}`;
+        return `<a class="ff" href="${href}">
+  <div class="ff__main">
+    <div class="ff__claim">${claim}</div>
+    <div class="ff__sub">
+      <span><strong>${id}</strong></span>
+      <span>${ev} evidence</span>
+      <span>${links} links</span>
+      <span>${conds} conditions</span>
+      <span>${escapeHtml(author)}</span>
+    </div>
+  </div>
+  <div class="ff__meta">
+    <span class="ff__kind ${kindClass}">${escapeHtml(kind)}</span>
+    <div style="margin-top: 6px;">${escapeHtml(when)}</div>
+  </div>
+</a>`;
+      }).join("");
+    }
+    renderFindings("");
+    searchInput?.addEventListener("input", () => renderFindings(searchInput.value));
+
+    // === Cross-frontier deps ===
+    const depsHost = document.getElementById("fr-deps");
+    if (depsHost) {
+      const cross = deps.filter((d) => d.vfr_id);
+      if (cross.length === 0) {
+        depsHost.innerHTML = `<div class="fr-empty">This frontier declares no cross-frontier dependencies. Findings here stand on their own.</div>`;
+      } else {
+        depsHost.innerHTML = cross.map((d) => {
+          const href = d.vfr_id ? `/frontiers/view?vfr=${encodeURIComponent(d.vfr_id)}` : "#";
+          return `<a class="fd" href="${href}">
+  <span class="fd__name">${escapeHtml(d.name ?? d.vfr_id ?? "—")}</span>
+  <span class="fd__sub">
+    ${escapeHtml(d.vfr_id ?? "")} · pinned ${escapeHtml((d.pinned_snapshot_hash ?? "").slice(0, 18))}…
+    · locator ${escapeHtml(locatorHost(d.locator))}
+  </span>
+</a>`;
+        }).join("");
+      }
+    }
+
+    // === Actors ===
+    const actorsHost = document.getElementById("fr-actors");
+    if (actorsHost) {
+      if (actors.length === 0) {
+        actorsHost.innerHTML = `<div class="fr-empty">No actors registered in the frontier.</div>`;
+      } else {
+        actorsHost.innerHTML = actors.map((a) => {
+          return `<div class="fa">
+  <span class="fa__handle">${escapeHtml(a.id)}</span>
+  <span class="fa__pubkey" title="${escapeHtml(a.pubkey ?? "")}">${escapeHtml(shortHash(a.pubkey ?? "", 28))}</span>
+  ${a.tier ? `<span class="fa__tier">${escapeHtml(a.tier)}</span>` : ""}
+</div>`;
+        }).join("");
+      }
+    }
+
+    // === About ===
+    const aboutHost = document.getElementById("fr-about");
+    if (aboutHost) {
+      aboutHost.innerHTML = `
+<p>${escapeHtml(desc || "(no description)")}</p>
+<p style="font-family:var(--font-mono); font-size:13px; color:var(--ink-2);">
+  Compiled with <strong>${escapeHtml(frontier.frontier?.compiler ?? "—")}</strong>
+  on ${escapeHtml(frontier.frontier?.compiled_at ?? "—")}.
+  Schema <code>${escapeHtml(frontier.schema ?? "—")}</code>.
+  Vela <code>${escapeHtml(frontier.vela_version ?? "—")}</code>.
+</p>
+<p>To pull this frontier and verify it locally:</p>
+<pre>${escapeHtml(cmd)}</pre>
+<p style="font-family:var(--font-serif); font-size:14px; color:var(--ink-2);">
+  The pull verifies the manifest signature, fetches the frontier from its
+  locator, and re-hashes both the snapshot and the event log. Any mismatch
+  rejects.
+</p>`;
+    }
+  })();
+</script>
