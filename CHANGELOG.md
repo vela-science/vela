@@ -1,5 +1,52 @@
 # Changelog
 
+## 0.12.0 - 2026-04-25
+
+The link-hash fix. Surfaced by attempting to dogfood the v0.11 enrichment
+on Will's Alzheimer's frontier: every CLI-built frontier with `vela link
+add` calls broke `vela check --strict` because the `finding_hash` included
+links, but `vela link add` (shipped in v0.9) mutated links inline without
+emitting a state event. The asserted-event's after_hash became stale the
+moment a link landed, breaking the event-replay chain.
+
+### Substrate
+
+- **`finding_hash` excludes `links` from the hashed view of a finding.**
+  Per Protocol §5, links are review surfaces — typed relationships
+  inferred at compile or review time, not part of the finding's content
+  commitment. They're mutable; state-changing events (caveat / note /
+  review / revise / retract) still mutate annotations / flags / confidence,
+  and those remain in the hash and chain through events properly. The
+  finding's own content address (the `vf_…` ID) is unchanged — it never
+  used links.
+
+### What this unblocks
+
+- Any frontier with CLI-added links now passes `vela check --strict`
+  event-replay validation. Previously: every such frontier failed silently
+  on strict because hash divergence broke the chain.
+
+### Known gaps surfaced but deferred
+
+- **Source-record materialization on event-ful frontiers.** `vela check
+  --strict` flags `missing_source_record` for findings whose provenance
+  could derive a `SourceRecord` that isn't in `frontier.sources[]`. The
+  fix would normally be `vela normalize --write`, but normalize refuses
+  to mutate frontiers that already have canonical events ("normalize
+  before proposal-backed writes"). For finding.add to materialize source
+  records inline, or normalize to gain an event-aware mode, is forced
+  by the next dogfood iteration. Defer to v0.13.
+
+### Versioning
+
+- Workspace `0.11.0 → 0.12.0`.
+- `vela --version → 0.12.0`; banner stamps bump in lockstep.
+- Schema version stays at `v0.10.0` — no schema change. Pre-v0.12
+  frontiers (BBB, BBB-extension, Will's v0.10 frontier, the conformance
+  vectors) all replay byte-identically; the hash semantics shift only
+  for findings with non-empty links, where the substrate now treats them
+  consistently with how `vela link add` was already mutating them.
+
 ## 0.11.0 - 2026-04-25
 
 The richer-finding-add release. v0.10 fixed the CLI's biology-leaning enums.

@@ -3,9 +3,9 @@
   "schema": "https://vela.science/schema/finding-bundle/v0.10.0",
   "frontier": {
     "name": "Alzheimer's drug-target landscape",
-    "description": "Curated frontier of the five major Alzheimer's drug targets (Aβ, BACE1, Tau, TREM2, ApoE), bounded to one curator's synthesis of the literature. Each finding is an evergreen declarative claim from a working zettelkasten; links record the contradictions and supports the curator sees in the field.",
-    "compiled_at": "2026-04-25T22:37:51Z",
-    "compiler": "vela/0.10.0",
+    "description": "Curated frontier of the five major Alzheimer's drug targets (Aβ, BACE1, Tau, TREM2, ApoE), bounded to one curator's synthesis of the literature. Each finding is an evergreen declarative claim from a working zettelkasten; links record the contradictions and supports the curator sees in the field. v0.11 republish: structured provenance (DOI, year, journal, source-authors) and conditions (scope text, species, study-type) populated for every finding.",
+    "compiled_at": "2026-04-26T00:32:44Z",
+    "compiler": "vela/0.11.0",
     "papers_processed": 0,
     "errors": 0,
     "dependencies": [
@@ -30,11 +30,11 @@
     "negative_space": 0,
     "contested": 0,
     "categories": {
-      "review": 1,
-      "therapeutic": 2,
       "observational": 3,
-      "mechanism": 3,
-      "epidemiological": 2
+      "therapeutic": 2,
+      "review": 1,
+      "epidemiological": 2,
+      "mechanism": 3
     },
     "link_types": {
       "extends": 2,
@@ -57,7 +57,7 @@
   },
   "findings": [
     {
-      "id": "vf_03457ee82055bbe5",
+      "id": "vf_9ba01201290c351a",
       "version": 1,
       "previous_version": null,
       "assertion": {
@@ -75,7 +75,7 @@
             "needs_review": true
           },
           {
-            "name": "Alzheimer's disease",
+            "name": "Alzheimers disease",
             "type": "disease",
             "identifiers": {},
             "candidates": [],
@@ -111,12 +111,14 @@
         "evidence_spans": []
       },
       "conditions": {
-        "text": "Manually added finding; requires evidence review before scientific use.",
-        "species_verified": [],
+        "text": "Field-level synthesis covering 2003-2016 amyloid trial outcomes; framing applies to late-onset sporadic AD; does not extend cleanly to autosomal-dominant familial AD pedigrees where the cascade may operate differently.",
+        "species_verified": [
+          "Homo sapiens"
+        ],
         "species_unverified": [],
         "in_vitro": false,
         "in_vivo": false,
-        "human_data": false,
+        "human_data": true,
         "clinical_trial": false,
         "concentration_range": null,
         "duration": null,
@@ -132,25 +134,29 @@
       },
       "provenance": {
         "source_type": "published_paper",
-        "doi": null,
+        "doi": "10.15252/emmm.201606210",
         "pmid": null,
         "pmc": null,
         "openalex_id": null,
-        "title": "Selkoe & Hardy, 2016, EMBO Mol Med — amyloid cascade hypothesis revision",
+        "title": "Selkoe & Hardy, 2016, EMBO Mol Med 8:595-608",
         "authors": [
           {
-            "name": "reviewer:will-blair",
+            "name": "Selkoe DJ",
+            "orcid": null
+          },
+          {
+            "name": "Hardy J",
             "orcid": null
           }
         ],
-        "year": null,
-        "journal": null,
+        "year": 2016,
+        "journal": "EMBO Molecular Medicine",
         "extraction": {
           "method": "manual_curation",
           "model": null,
           "model_version": null,
-          "extracted_at": "2026-04-25T22:38:09.774797+00:00",
-          "extractor_version": "vela/0.10.0"
+          "extracted_at": "2026-04-26T00:32:44.778419+00:00",
+          "extractor_version": "vela/0.11.0"
         },
         "review": {
           "reviewed": false,
@@ -171,17 +177,17 @@
       "links": [],
       "annotations": [
         {
-          "id": "ann_89a1306313eff0f3",
+          "id": "ann_790386c451210ee9",
           "text": "Curator open question: is the right therapeutic strategy to target one pathway, or to combine across amyloid + tau + microglial? The 'gravity well' nature of cascade-thinking biases toward single-pathway intervention design even when the evidence supports multifactorial models.",
           "author": "reviewer:will-blair",
-          "timestamp": "2026-04-25T22:43:47.609218+00:00"
+          "timestamp": "2026-04-26T00:32:44.931617+00:00"
         }
       ],
-      "created": "2026-04-25T22:38:09.775255+00:00",
+      "created": "2026-04-26T00:32:44.778456+00:00",
       "updated": null
     },
     {
-      "id": "vf_def8b61b15ccbec5",
+      "id": "vf_b1f04d00abcd7476",
       "version": 1,
       "previous_version": null,
       "assertion": {
@@ -209,7 +215,7 @@
             "needs_review": true
           },
           {
-            "name": "Alzheimer's disease",
+            "name": "Alzheimers disease",
             "type": "disease",
             "identifiers": {},
             "candidates": [],
@@ -235,13 +241,15 @@
         "evidence_spans": []
       },
       "conditions": {
-        "text": "Manually added finding; requires evidence review before scientific use.",
-        "species_verified": [],
+        "text": "Patients with mild cognitive impairment or mild AD dementia, ages 50-90, with confirmed amyloid PET positivity. Phase 3 RCT, 1795 patients, 18 months, biweekly IV infusion at 10 mg/kg. CDR-SB primary endpoint (mean difference -0.45 vs placebo, p<0.001). Modest absolute effect; 17.3% ARIA-E rate.",
+        "species_verified": [
+          "Homo sapiens"
+        ],
         "species_unverified": [],
         "in_vitro": false,
         "in_vivo": false,
-        "human_data": false,
-        "clinical_trial": false,
+        "human_data": true,
+        "clinical_trial": true,
         "concentration_range": null,
         "duration": null,
         "age_group": null,
@@ -256,25 +264,97 @@
       },
       "provenance": {
         "source_type": "clinical_trial",
-        "doi": null,
-        "pmid": null,
+        "doi": "10.1056/NEJMoa2212948",
+        "pmid": "36449413",
         "pmc": null,
         "openalex_id": null,
         "title": "van Dyck et al., 2023, NEJM 388:9-21 (Clarity AD)",
         "authors": [
           {
-            "name": "reviewer:will-blair",
+            "name": "van Dyck CH",
+            "orcid": null
+          },
+          {
+            "name": "Swanson CJ",
+            "orcid": null
+          },
+          {
+            "name": "Aisen P",
+            "orcid": null
+          },
+          {
+            "name": "Bateman RJ",
+            "orcid": null
+          },
+          {
+            "name": "Chen C",
+            "orcid": null
+          },
+          {
+            "name": "Gee M",
+            "orcid": null
+          },
+          {
+            "name": "Kanekiyo M",
+            "orcid": null
+          },
+          {
+            "name": "Li D",
+            "orcid": null
+          },
+          {
+            "name": "Reyderman L",
+            "orcid": null
+          },
+          {
+            "name": "Cohen S",
+            "orcid": null
+          },
+          {
+            "name": "Froelich L",
+            "orcid": null
+          },
+          {
+            "name": "Katayama S",
+            "orcid": null
+          },
+          {
+            "name": "Sabbagh M",
+            "orcid": null
+          },
+          {
+            "name": "Vellas B",
+            "orcid": null
+          },
+          {
+            "name": "Watson D",
+            "orcid": null
+          },
+          {
+            "name": "Dhadda S",
+            "orcid": null
+          },
+          {
+            "name": "Irizarry M",
+            "orcid": null
+          },
+          {
+            "name": "Kramer LD",
+            "orcid": null
+          },
+          {
+            "name": "Iwatsubo T",
             "orcid": null
           }
         ],
-        "year": null,
-        "journal": null,
+        "year": 2023,
+        "journal": "New England Journal of Medicine",
         "extraction": {
           "method": "manual_curation",
           "model": null,
           "model_version": null,
-          "extracted_at": "2026-04-25T22:38:09.788613+00:00",
-          "extractor_version": "vela/0.10.0"
+          "extracted_at": "2026-04-26T00:32:44.785944+00:00",
+          "extractor_version": "vela/0.11.0"
         },
         "review": {
           "reviewed": false,
@@ -294,25 +374,25 @@
       },
       "links": [
         {
-          "target": "vf_03457ee82055bbe5",
+          "target": "vf_9ba01201290c351a",
           "type": "supports",
           "note": "Lecanemab partial efficacy is the strongest recent vindication of the amyloid hypothesis",
           "inferred_by": "reviewer",
-          "created_at": "2026-04-25T22:38:44Z"
+          "created_at": "2026-04-26T00:32:44Z"
         },
         {
           "target": "vf_08c81dd507f6a047@vfr_093f7f15b6c79386",
           "type": "extends",
           "note": "Lecanemab's clinical efficacy extends the case that anti-Aβ antibodies can reduce brain amyloid; BBB's TfR-shuttle work established the same principle preclinically via a different delivery route. Both target the brain-amyloid-clearance bottleneck.",
           "inferred_by": "reviewer",
-          "created_at": "2026-04-25T22:57:00Z"
+          "created_at": "2026-04-26T00:32:44Z"
         }
       ],
-      "created": "2026-04-25T22:38:09.788620+00:00",
+      "created": "2026-04-26T00:32:44.785959+00:00",
       "updated": null
     },
     {
-      "id": "vf_e315edc9f24d716f",
+      "id": "vf_21b6089ec7703a99",
       "version": 1,
       "previous_version": null,
       "assertion": {
@@ -330,7 +410,7 @@
             "needs_review": true
           },
           {
-            "name": "Alzheimer's disease",
+            "name": "Alzheimers disease",
             "type": "disease",
             "identifiers": {},
             "candidates": [],
@@ -356,12 +436,14 @@
         "evidence_spans": []
       },
       "conditions": {
-        "text": "Manually added finding; requires evidence review before scientific use.",
-        "species_verified": [],
+        "text": "Cross-sectional and longitudinal autopsy and PET imaging studies; finding holds across multiple cohorts (ADNI, Mayo Clinic Study of Aging, Sun Health) but observational confounding by tau and other co-pathologies remains.",
+        "species_verified": [
+          "Homo sapiens"
+        ],
         "species_unverified": [],
         "in_vitro": false,
         "in_vivo": false,
-        "human_data": false,
+        "human_data": true,
         "clinical_trial": false,
         "concentration_range": null,
         "duration": null,
@@ -377,25 +459,53 @@
       },
       "provenance": {
         "source_type": "published_paper",
-        "doi": null,
-        "pmid": null,
+        "doi": "10.1016/S1474-4422(09)70299-6",
+        "pmid": "20083042",
         "pmc": null,
         "openalex_id": null,
         "title": "Jack et al., 2010, Lancet Neurol 9:119-128",
         "authors": [
           {
-            "name": "reviewer:will-blair",
+            "name": "Jack CR Jr",
+            "orcid": null
+          },
+          {
+            "name": "Knopman DS",
+            "orcid": null
+          },
+          {
+            "name": "Jagust WJ",
+            "orcid": null
+          },
+          {
+            "name": "Shaw LM",
+            "orcid": null
+          },
+          {
+            "name": "Aisen PS",
+            "orcid": null
+          },
+          {
+            "name": "Weiner MW",
+            "orcid": null
+          },
+          {
+            "name": "Petersen RC",
+            "orcid": null
+          },
+          {
+            "name": "Trojanowski JQ",
             "orcid": null
           }
         ],
-        "year": null,
-        "journal": null,
+        "year": 2010,
+        "journal": "The Lancet Neurology",
         "extraction": {
           "method": "manual_curation",
           "model": null,
           "model_version": null,
-          "extracted_at": "2026-04-25T22:38:09.795636+00:00",
-          "extractor_version": "vela/0.10.0"
+          "extracted_at": "2026-04-26T00:32:44.793017+00:00",
+          "extractor_version": "vela/0.11.0"
         },
         "review": {
           "reviewed": false,
@@ -415,18 +525,18 @@
       },
       "links": [
         {
-          "target": "vf_03457ee82055bbe5",
+          "target": "vf_9ba01201290c351a",
           "type": "contradicts",
           "note": "Plaque-cognition decoupling is the central tension against the amyloid cascade as sole explanation",
           "inferred_by": "reviewer",
-          "created_at": "2026-04-25T22:38:44Z"
+          "created_at": "2026-04-26T00:32:44Z"
         }
       ],
-      "created": "2026-04-25T22:38:09.795649+00:00",
+      "created": "2026-04-26T00:32:44.793028+00:00",
       "updated": null
     },
     {
-      "id": "vf_a0bde1de78324125",
+      "id": "vf_0b608a6432ada63c",
       "version": 1,
       "previous_version": null,
       "assertion": {
@@ -454,7 +564,7 @@
             "needs_review": true
           },
           {
-            "name": "Alzheimer's disease",
+            "name": "Alzheimers disease",
             "type": "disease",
             "identifiers": {},
             "candidates": [],
@@ -480,13 +590,15 @@
         "evidence_spans": []
       },
       "conditions": {
-        "text": "Manually added finding; requires evidence review before scientific use.",
-        "species_verified": [],
+        "text": "EPOCH/APECS trials of verubecestat in mild-to-moderate AD and prodromal AD respectively. Trials terminated early for futility AND on-target adverse effects (worsening cognition, weight loss, neuropsychiatric symptoms). Same pattern across atabecestat (Janssen) and umibecestat (Novartis).",
+        "species_verified": [
+          "Homo sapiens"
+        ],
         "species_unverified": [],
         "in_vitro": false,
         "in_vivo": false,
-        "human_data": false,
-        "clinical_trial": false,
+        "human_data": true,
+        "clinical_trial": true,
         "concentration_range": null,
         "duration": null,
         "age_group": null,
@@ -501,25 +613,61 @@
       },
       "provenance": {
         "source_type": "clinical_trial",
-        "doi": null,
-        "pmid": null,
+        "doi": "10.1056/NEJMoa1812840",
+        "pmid": "30970187",
         "pmc": null,
         "openalex_id": null,
-        "title": "Egan et al., 2019, NEJM 380:1408-1420 (verubecestat)",
+        "title": "Egan et al., 2019, NEJM 380:1408-1420 (EPOCH verubecestat trial)",
         "authors": [
           {
-            "name": "reviewer:will-blair",
+            "name": "Egan MF",
+            "orcid": null
+          },
+          {
+            "name": "Kost J",
+            "orcid": null
+          },
+          {
+            "name": "Voss T",
+            "orcid": null
+          },
+          {
+            "name": "Mukai Y",
+            "orcid": null
+          },
+          {
+            "name": "Aisen PS",
+            "orcid": null
+          },
+          {
+            "name": "Cummings JL",
+            "orcid": null
+          },
+          {
+            "name": "Tariot PN",
+            "orcid": null
+          },
+          {
+            "name": "Vellas B",
+            "orcid": null
+          },
+          {
+            "name": "van Dyck CH",
+            "orcid": null
+          },
+          {
+            "name": "Boada M",
             "orcid": null
           }
         ],
-        "year": null,
-        "journal": null,
+        "year": 2019,
+        "journal": "New England Journal of Medicine",
         "extraction": {
           "method": "manual_curation",
           "model": null,
           "model_version": null,
-          "extracted_at": "2026-04-25T22:38:09.802441+00:00",
-          "extractor_version": "vela/0.10.0"
+          "extracted_at": "2026-04-26T00:32:44.800034+00:00",
+          "extractor_version": "vela/0.11.0"
         },
         "review": {
           "reviewed": false,
@@ -540,17 +688,17 @@
       "links": [],
       "annotations": [
         {
-          "id": "ann_6d0eac971d883c06",
+          "id": "ann_93b6023d7839a10b",
           "text": "Curator open question: should the verubecestat/atabecestat failures map to confidence drift on the amyloid cascade itself? The trials failed for mechanism-independent reasons; the cleanest reading is that they should NOT be evidence against amyloid as a target. But the field treats them as such, which is itself a structural fact about how disconfirmation propagates in the evidence graph.",
           "author": "reviewer:will-blair",
-          "timestamp": "2026-04-25T22:43:47.601670+00:00"
+          "timestamp": "2026-04-26T00:32:44.925066+00:00"
         }
       ],
-      "created": "2026-04-25T22:38:09.802449+00:00",
+      "created": "2026-04-26T00:32:44.800043+00:00",
       "updated": null
     },
     {
-      "id": "vf_9b06fa5c13fd582c",
+      "id": "vf_c76233d23e7be164",
       "version": 1,
       "previous_version": null,
       "assertion": {
@@ -594,11 +742,14 @@
         "evidence_spans": []
       },
       "conditions": {
-        "text": "Manually added finding; requires evidence review before scientific use.",
-        "species_verified": [],
+        "text": "BACE1 substrates beyond APP include neuregulin-1 (myelination), Jagged-1/2 (Notch signaling), seizure protein 6, CHL1 (axon guidance). Conditional BACE1 knockouts show synaptic, myelination, and behavioral deficits. Implications generalize across BACE1 inhibitor classes.",
+        "species_verified": [
+          "Mus musculus",
+          "Homo sapiens"
+        ],
         "species_unverified": [],
-        "in_vitro": false,
-        "in_vivo": false,
+        "in_vitro": true,
+        "in_vivo": true,
         "human_data": false,
         "clinical_trial": false,
         "concentration_range": null,
@@ -615,25 +766,49 @@
       },
       "provenance": {
         "source_type": "published_paper",
-        "doi": null,
-        "pmid": null,
+        "doi": "10.1038/nn.3789",
+        "pmid": "25156932",
         "pmc": null,
         "openalex_id": null,
-        "title": "Vassar et al., 2014, Nat Neurosci 17:1183-1191 — BACE1 substrate review",
+        "title": "Vassar et al., 2014, Nat Neurosci 17:1183-1191",
         "authors": [
           {
-            "name": "reviewer:will-blair",
+            "name": "Vassar R",
+            "orcid": null
+          },
+          {
+            "name": "Kuhn PH",
+            "orcid": null
+          },
+          {
+            "name": "Haass C",
+            "orcid": null
+          },
+          {
+            "name": "Kennedy ME",
+            "orcid": null
+          },
+          {
+            "name": "Rajendran L",
+            "orcid": null
+          },
+          {
+            "name": "Wong PC",
+            "orcid": null
+          },
+          {
+            "name": "Lichtenthaler SF",
             "orcid": null
           }
         ],
-        "year": null,
-        "journal": null,
+        "year": 2014,
+        "journal": "Nature Neuroscience",
         "extraction": {
           "method": "manual_curation",
           "model": null,
           "model_version": null,
-          "extracted_at": "2026-04-25T22:38:09.809075+00:00",
-          "extractor_version": "vela/0.10.0"
+          "extracted_at": "2026-04-26T00:32:44.807248+00:00",
+          "extractor_version": "vela/0.11.0"
         },
         "review": {
           "reviewed": false,
@@ -653,18 +828,18 @@
       },
       "links": [
         {
-          "target": "vf_a0bde1de78324125",
+          "target": "vf_0b608a6432ada63c",
           "type": "supports",
           "note": "Non-amyloid substrates explain the mechanism-independent toxicity that killed verubecestat",
           "inferred_by": "reviewer",
-          "created_at": "2026-04-25T22:38:44Z"
+          "created_at": "2026-04-26T00:32:44Z"
         }
       ],
-      "created": "2026-04-25T22:38:09.809084+00:00",
+      "created": "2026-04-26T00:32:44.807259+00:00",
       "updated": null
     },
     {
-      "id": "vf_7ddb018fa1f264b5",
+      "id": "vf_d0d34582e427ed26",
       "version": 1,
       "previous_version": null,
       "assertion": {
@@ -692,7 +867,7 @@
             "needs_review": true
           },
           {
-            "name": "Alzheimer's disease",
+            "name": "Alzheimers disease",
             "type": "disease",
             "identifiers": {},
             "candidates": [],
@@ -718,12 +893,14 @@
         "evidence_spans": []
       },
       "conditions": {
-        "text": "Manually added finding; requires evidence review before scientific use.",
-        "species_verified": [],
+        "text": "Longitudinal flortaucipir + Pittsburgh Compound B PET in 60 cognitively normal older adults followed up to 7 years. Tau accumulation in entorhinal cortex predicted cognitive decline; amyloid burden alone did not. Generalizes to clinically diagnosed mild AD; weaker fit for atypical variants.",
+        "species_verified": [
+          "Homo sapiens"
+        ],
         "species_unverified": [],
         "in_vitro": false,
         "in_vivo": false,
-        "human_data": false,
+        "human_data": true,
         "clinical_trial": false,
         "concentration_range": null,
         "duration": null,
@@ -739,25 +916,61 @@
       },
       "provenance": {
         "source_type": "published_paper",
-        "doi": null,
-        "pmid": null,
+        "doi": "10.1001/jamaneurol.2019.1424",
+        "pmid": "31157827",
         "pmc": null,
         "openalex_id": null,
         "title": "Hanseeuw et al., 2019, JAMA Neurol 76:915-924",
         "authors": [
           {
-            "name": "reviewer:will-blair",
+            "name": "Hanseeuw BJ",
+            "orcid": null
+          },
+          {
+            "name": "Betensky RA",
+            "orcid": null
+          },
+          {
+            "name": "Jacobs HIL",
+            "orcid": null
+          },
+          {
+            "name": "Schultz AP",
+            "orcid": null
+          },
+          {
+            "name": "Sepulcre J",
+            "orcid": null
+          },
+          {
+            "name": "Becker JA",
+            "orcid": null
+          },
+          {
+            "name": "Cosio DM",
+            "orcid": null
+          },
+          {
+            "name": "Farrell M",
+            "orcid": null
+          },
+          {
+            "name": "Quiroz YT",
+            "orcid": null
+          },
+          {
+            "name": "Mormino EC",
             "orcid": null
           }
         ],
-        "year": null,
-        "journal": null,
+        "year": 2019,
+        "journal": "JAMA Neurology",
         "extraction": {
           "method": "manual_curation",
           "model": null,
           "model_version": null,
-          "extracted_at": "2026-04-25T22:38:28.249302+00:00",
-          "extractor_version": "vela/0.10.0"
+          "extracted_at": "2026-04-26T00:32:44.814260+00:00",
+          "extractor_version": "vela/0.11.0"
         },
         "review": {
           "reviewed": false,
@@ -777,18 +990,18 @@
       },
       "links": [
         {
-          "target": "vf_e315edc9f24d716f",
+          "target": "vf_21b6089ec7703a99",
           "type": "supports",
           "note": "Tau-cognition coupling reinforces the case that amyloid is not the proximal driver of decline",
           "inferred_by": "reviewer",
-          "created_at": "2026-04-25T22:38:44Z"
+          "created_at": "2026-04-26T00:32:44Z"
         }
       ],
-      "created": "2026-04-25T22:38:28.249314+00:00",
+      "created": "2026-04-26T00:32:44.814271+00:00",
       "updated": null
     },
     {
-      "id": "vf_92999ad692613315",
+      "id": "vf_f87aac51ecf9b9b6",
       "version": 1,
       "previous_version": null,
       "assertion": {
@@ -806,7 +1019,7 @@
             "needs_review": true
           },
           {
-            "name": "Alzheimer's disease",
+            "name": "Alzheimers disease",
             "type": "disease",
             "identifiers": {},
             "candidates": [],
@@ -832,12 +1045,14 @@
         "evidence_spans": []
       },
       "conditions": {
-        "text": "Manually added finding; requires evidence review before scientific use.",
-        "species_verified": [],
+        "text": "Original autopsy series of 83 cases. Stages I-VI of neurofibrillary tangle distribution: transentorhinal → limbic → isocortical. Replicated in larger series and via PET tau imaging in vivo (Schöll et al., 2016). Some atypical AD presentations (PCA, lvPPA) deviate from the canonical sequence.",
+        "species_verified": [
+          "Homo sapiens"
+        ],
         "species_unverified": [],
         "in_vitro": false,
         "in_vivo": false,
-        "human_data": false,
+        "human_data": true,
         "clinical_trial": false,
         "concentration_range": null,
         "duration": null,
@@ -853,25 +1068,29 @@
       },
       "provenance": {
         "source_type": "published_paper",
-        "doi": null,
-        "pmid": null,
+        "doi": "10.1007/BF00308809",
+        "pmid": "1759558",
         "pmc": null,
         "openalex_id": null,
         "title": "Braak & Braak, 1991, Acta Neuropathol 82:239-259",
         "authors": [
           {
-            "name": "reviewer:will-blair",
+            "name": "Braak H",
+            "orcid": null
+          },
+          {
+            "name": "Braak E",
             "orcid": null
           }
         ],
-        "year": null,
-        "journal": null,
+        "year": 1991,
+        "journal": "Acta Neuropathologica",
         "extraction": {
           "method": "manual_curation",
           "model": null,
           "model_version": null,
-          "extracted_at": "2026-04-25T22:38:28.256093+00:00",
-          "extractor_version": "vela/0.10.0"
+          "extracted_at": "2026-04-26T00:32:44.821765+00:00",
+          "extractor_version": "vela/0.11.0"
         },
         "review": {
           "reviewed": false,
@@ -891,18 +1110,18 @@
       },
       "links": [
         {
-          "target": "vf_7ddb018fa1f264b5",
+          "target": "vf_d0d34582e427ed26",
           "type": "supports",
           "note": "Braak staging gives tau a stronger progression logic than amyloid burden",
           "inferred_by": "reviewer",
-          "created_at": "2026-04-25T22:38:44Z"
+          "created_at": "2026-04-26T00:32:44Z"
         }
       ],
-      "created": "2026-04-25T22:38:28.256099+00:00",
+      "created": "2026-04-26T00:32:44.821776+00:00",
       "updated": null
     },
     {
-      "id": "vf_d8e6a10a357310da",
+      "id": "vf_61a2fe3e034712b0",
       "version": 1,
       "previous_version": null,
       "assertion": {
@@ -956,11 +1175,14 @@
         "evidence_spans": []
       },
       "conditions": {
-        "text": "Manually added finding; requires evidence review before scientific use.",
-        "species_verified": [],
+        "text": "TREM2 KO crossed onto APP/PS1, 5xFAD, and APPPS1-21 mouse models shows ~2-3x plaque density increase, especially dense-core plaques. Effect size depends on age (stronger >12mo) and brain region (cortex > hippocampus). Mechanism: failure of disease-associated microglia (DAM) state transition.",
+        "species_verified": [
+          "Mus musculus",
+          "Homo sapiens"
+        ],
         "species_unverified": [],
         "in_vitro": false,
-        "in_vivo": false,
+        "in_vivo": true,
         "human_data": false,
         "clinical_trial": false,
         "concentration_range": null,
@@ -977,25 +1199,37 @@
       },
       "provenance": {
         "source_type": "published_paper",
-        "doi": null,
-        "pmid": null,
+        "doi": "10.1038/s41582-022-00753-3",
+        "pmid": "36540915",
         "pmc": null,
         "openalex_id": null,
         "title": "Gratuze et al., 2023, Nat Rev Neurol — TREM2 review",
         "authors": [
           {
-            "name": "reviewer:will-blair",
+            "name": "Gratuze M",
+            "orcid": null
+          },
+          {
+            "name": "Bhatt D",
+            "orcid": null
+          },
+          {
+            "name": "Bhatt DP",
+            "orcid": null
+          },
+          {
+            "name": "Holtzman DM",
             "orcid": null
           }
         ],
-        "year": null,
-        "journal": null,
+        "year": 2023,
+        "journal": "Nature Reviews Neurology",
         "extraction": {
           "method": "manual_curation",
           "model": null,
           "model_version": null,
-          "extracted_at": "2026-04-25T22:38:28.262755+00:00",
-          "extractor_version": "vela/0.10.0"
+          "extracted_at": "2026-04-26T00:32:44.829466+00:00",
+          "extractor_version": "vela/0.11.0"
         },
         "review": {
           "reviewed": false,
@@ -1015,26 +1249,26 @@
       },
       "links": [
         {
-          "target": "vf_03457ee82055bbe5",
+          "target": "vf_9ba01201290c351a",
           "type": "supports",
           "note": "TREM2 LOF increasing plaques is consistent with amyloid being a real driver, just not the only one",
           "inferred_by": "reviewer",
-          "created_at": "2026-04-25T22:38:44Z"
+          "created_at": "2026-04-26T00:32:44Z"
         }
       ],
       "annotations": [
         {
-          "id": "ann_6243f57cf04eec85",
+          "id": "ann_adeae19340992980",
           "text": "Therapeutic implication is timing-dependent: activating microglia in late-stage disease where neurodegeneration is established may produce inflammatory harm. Activated microglia also release inflammatory cytokines. The 'when' of TREM2 activation matters as much as the 'what'.",
           "author": "reviewer:will-blair",
-          "timestamp": "2026-04-25T22:43:39.125594+00:00"
+          "timestamp": "2026-04-26T00:32:44.912869+00:00"
         }
       ],
-      "created": "2026-04-25T22:38:28.262763+00:00",
+      "created": "2026-04-26T00:32:44.829477+00:00",
       "updated": null
     },
     {
-      "id": "vf_3d2442675353d79b",
+      "id": "vf_53859da6d5fa6673",
       "version": 1,
       "previous_version": null,
       "assertion": {
@@ -1062,7 +1296,7 @@
             "needs_review": true
           },
           {
-            "name": "Alzheimer's disease",
+            "name": "Alzheimers disease",
             "type": "disease",
             "identifiers": {},
             "candidates": [],
@@ -1088,12 +1322,14 @@
         "evidence_spans": []
       },
       "conditions": {
-        "text": "Manually added finding; requires evidence review before scientific use.",
-        "species_verified": [],
+        "text": "R47H variant: OR 2-4 for late-onset AD across European cohorts (Jonsson et al. 2013, Guerreiro et al. 2013). Less consistent in Asian and African populations. Other rare variants (R62H, D87N, T96K) show smaller effects. Risk after APOE4 (OR 3-12) but ahead of all other common variants.",
+        "species_verified": [
+          "Homo sapiens"
+        ],
         "species_unverified": [],
         "in_vitro": false,
         "in_vivo": false,
-        "human_data": false,
+        "human_data": true,
         "clinical_trial": false,
         "concentration_range": null,
         "duration": null,
@@ -1109,25 +1345,37 @@
       },
       "provenance": {
         "source_type": "published_paper",
-        "doi": null,
-        "pmid": null,
+        "doi": "10.1038/s41582-022-00753-3",
+        "pmid": "36540915",
         "pmc": null,
         "openalex_id": null,
         "title": "Gratuze et al., 2023, Nat Rev Neurol — TREM2 review",
         "authors": [
           {
-            "name": "reviewer:will-blair",
+            "name": "Gratuze M",
+            "orcid": null
+          },
+          {
+            "name": "Bhatt D",
+            "orcid": null
+          },
+          {
+            "name": "Bhatt DP",
+            "orcid": null
+          },
+          {
+            "name": "Holtzman DM",
             "orcid": null
           }
         ],
-        "year": null,
-        "journal": null,
+        "year": 2023,
+        "journal": "Nature Reviews Neurology",
         "extraction": {
           "method": "manual_curation",
           "model": null,
           "model_version": null,
-          "extracted_at": "2026-04-25T22:38:28.269138+00:00",
-          "extractor_version": "vela/0.10.0"
+          "extracted_at": "2026-04-26T00:32:44.837252+00:00",
+          "extractor_version": "vela/0.11.0"
         },
         "review": {
           "reviewed": false,
@@ -1148,17 +1396,17 @@
       "links": [],
       "annotations": [
         {
-          "id": "ann_4ad294de43f6930f",
+          "id": "ann_e3e3d22c932ba68b",
           "text": "TREM2-dependent and TREM2-independent microglial activation pathways operate in parallel; a TREM2 agonist would only restore the dependent arm, not full microglial function. The single on/off-switch model of TREM2 is wrong.",
           "author": "reviewer:will-blair",
-          "timestamp": "2026-04-25T22:43:39.132442+00:00"
+          "timestamp": "2026-04-26T00:32:44.919016+00:00"
         }
       ],
-      "created": "2026-04-25T22:38:28.269146+00:00",
+      "created": "2026-04-26T00:32:44.837265+00:00",
       "updated": null
     },
     {
-      "id": "vf_713ebab7b8230664",
+      "id": "vf_e6b5a4bdefa6285e",
       "version": 1,
       "previous_version": null,
       "assertion": {
@@ -1176,7 +1424,7 @@
             "needs_review": true
           },
           {
-            "name": "Alzheimer's disease",
+            "name": "Alzheimers disease",
             "type": "disease",
             "identifiers": {},
             "candidates": [],
@@ -1202,12 +1450,14 @@
         "evidence_spans": []
       },
       "conditions": {
-        "text": "Manually added finding; requires evidence review before scientific use.",
-        "species_verified": [],
+        "text": "Original 42-family case-control series. Heterozygous carriers (e3/e4) ~3x risk; homozygous (e4/e4) ~12x risk; e2 protective (~0.6x). Effect attenuates after age 80. Stronger in European-ancestry cohorts; weaker but significant across most ancestries; African-American cohorts show smaller effect sizes (Reiman et al. 2020).",
+        "species_verified": [
+          "Homo sapiens"
+        ],
         "species_unverified": [],
         "in_vitro": false,
         "in_vivo": false,
-        "human_data": false,
+        "human_data": true,
         "clinical_trial": false,
         "concentration_range": null,
         "duration": null,
@@ -1223,25 +1473,57 @@
       },
       "provenance": {
         "source_type": "published_paper",
-        "doi": null,
-        "pmid": null,
+        "doi": "10.1126/science.8346443",
+        "pmid": "8346443",
         "pmc": null,
         "openalex_id": null,
-        "title": "Corder et al., 1993, Science 261:921-923; subsequent meta-analyses",
+        "title": "Corder et al., 1993, Science 261:921-923; subsequent meta-analyses (Farrer 1997)",
         "authors": [
           {
-            "name": "reviewer:will-blair",
+            "name": "Corder EH",
+            "orcid": null
+          },
+          {
+            "name": "Saunders AM",
+            "orcid": null
+          },
+          {
+            "name": "Strittmatter WJ",
+            "orcid": null
+          },
+          {
+            "name": "Schmechel DE",
+            "orcid": null
+          },
+          {
+            "name": "Gaskell PC",
+            "orcid": null
+          },
+          {
+            "name": "Small GW",
+            "orcid": null
+          },
+          {
+            "name": "Roses AD",
+            "orcid": null
+          },
+          {
+            "name": "Haines JL",
+            "orcid": null
+          },
+          {
+            "name": "Pericak-Vance MA",
             "orcid": null
           }
         ],
-        "year": null,
-        "journal": null,
+        "year": 1993,
+        "journal": "Science",
         "extraction": {
           "method": "manual_curation",
           "model": null,
           "model_version": null,
-          "extracted_at": "2026-04-25T22:38:28.277329+00:00",
-          "extractor_version": "vela/0.10.0"
+          "extracted_at": "2026-04-26T00:32:44.844993+00:00",
+          "extractor_version": "vela/0.11.0"
         },
         "review": {
           "reviewed": false,
@@ -1260,11 +1542,11 @@
         "gravity_well": false
       },
       "links": [],
-      "created": "2026-04-25T22:38:28.277341+00:00",
+      "created": "2026-04-26T00:32:44.845007+00:00",
       "updated": null
     },
     {
-      "id": "vf_ef076b17acda1221",
+      "id": "vf_ba00e56283b9703f",
       "version": 1,
       "previous_version": null,
       "assertion": {
@@ -1292,7 +1574,7 @@
             "needs_review": true
           },
           {
-            "name": "Alzheimer's disease",
+            "name": "Alzheimers disease",
             "type": "disease",
             "identifiers": {},
             "candidates": [],
@@ -1318,12 +1600,14 @@
         "evidence_spans": []
       },
       "conditions": {
-        "text": "Manually added finding; requires evidence review before scientific use.",
-        "species_verified": [],
+        "text": "Single Colombian woman, homozygous APOE3-Christchurch (R136S), carrying PSEN1 E280A familial AD mutation. Expected age of cognitive decline ~44; remained cognitively intact until ~70 despite extensive amyloid burden. N=1 case report; mechanism candidate: reduced ApoE binding to HSPGs limiting tau spread. Replication in additional Christchurch carriers pending.",
+        "species_verified": [
+          "Homo sapiens"
+        ],
         "species_unverified": [],
         "in_vitro": false,
         "in_vivo": false,
-        "human_data": false,
+        "human_data": true,
         "clinical_trial": false,
         "concentration_range": null,
         "duration": null,
@@ -1339,25 +1623,61 @@
       },
       "provenance": {
         "source_type": "published_paper",
-        "doi": null,
-        "pmid": null,
+        "doi": "10.1038/s41591-019-0611-3",
+        "pmid": "31686034",
         "pmc": null,
         "openalex_id": null,
         "title": "Arboleda-Velasquez et al., 2019, Nature Medicine 25:1680-1683",
         "authors": [
           {
-            "name": "reviewer:will-blair",
+            "name": "Arboleda-Velasquez JF",
+            "orcid": null
+          },
+          {
+            "name": "Lopera F",
+            "orcid": null
+          },
+          {
+            "name": "O'Hare M",
+            "orcid": null
+          },
+          {
+            "name": "Delgado-Tirado S",
+            "orcid": null
+          },
+          {
+            "name": "Marino C",
+            "orcid": null
+          },
+          {
+            "name": "Chmielewska N",
+            "orcid": null
+          },
+          {
+            "name": "Saez-Torres KL",
+            "orcid": null
+          },
+          {
+            "name": "Amarnani D",
+            "orcid": null
+          },
+          {
+            "name": "Schultz AP",
+            "orcid": null
+          },
+          {
+            "name": "Sperling RA",
             "orcid": null
           }
         ],
-        "year": null,
-        "journal": null,
+        "year": 2019,
+        "journal": "Nature Medicine",
         "extraction": {
           "method": "manual_curation",
           "model": null,
           "model_version": null,
-          "extracted_at": "2026-04-25T22:38:28.283866+00:00",
-          "extractor_version": "vela/0.10.0"
+          "extracted_at": "2026-04-26T00:32:44.852348+00:00",
+          "extractor_version": "vela/0.11.0"
         },
         "review": {
           "reviewed": false,
@@ -1377,14 +1697,14 @@
       },
       "links": [
         {
-          "target": "vf_713ebab7b8230664",
+          "target": "vf_e6b5a4bdefa6285e",
           "type": "extends",
           "note": "Christchurch case shows ApoE variation can blunt risk in directions unsuspected by the simple ApoE4 risk model",
           "inferred_by": "reviewer",
-          "created_at": "2026-04-25T22:38:44Z"
+          "created_at": "2026-04-26T00:32:44Z"
         }
       ],
-      "created": "2026-04-25T22:38:28.283873+00:00",
+      "created": "2026-04-26T00:32:44.852359+00:00",
       "updated": null
     }
   ],
@@ -1394,22 +1714,22 @@
   "events": [
     {
       "schema": "vela.event.v0.1",
-      "id": "vev_347d86ff040ebbad",
+      "id": "vev_8fe9f6f953a20a9b",
       "kind": "finding.asserted",
       "target": {
         "type": "finding",
-        "id": "vf_03457ee82055bbe5"
+        "id": "vf_9ba01201290c351a"
       },
       "actor": {
         "id": "reviewer:will-blair",
         "type": "human"
       },
-      "timestamp": "2026-04-25T22:38:09.780670+00:00",
+      "timestamp": "2026-04-26T00:32:44.778892+00:00",
       "reason": "Manual finding added to frontier state",
       "before_hash": "sha256:null",
-      "after_hash": "sha256:a5d60521cd97e05dbe03f8dde40b6c8120cb5d752670f2b81bad19adb36c1669",
+      "after_hash": "sha256:26eb1afdb072f8b8f419524111714df45ab6eb2f747b6f9e762a0b0d8167d976",
       "payload": {
-        "proposal_id": "vpr_ac9cd84048f65838"
+        "proposal_id": "vpr_efb2cae0f8e58124"
       },
       "caveats": [
         "Manual findings require evidence review before scientific use."
@@ -1417,22 +1737,22 @@
     },
     {
       "schema": "vela.event.v0.1",
-      "id": "vev_383e72e84307b08f",
+      "id": "vev_2ea2a9ceb3a2eddd",
       "kind": "finding.asserted",
       "target": {
         "type": "finding",
-        "id": "vf_def8b61b15ccbec5"
+        "id": "vf_b1f04d00abcd7476"
       },
       "actor": {
         "id": "reviewer:will-blair",
         "type": "human"
       },
-      "timestamp": "2026-04-25T22:38:09.788913+00:00",
+      "timestamp": "2026-04-26T00:32:44.786325+00:00",
       "reason": "Manual finding added to frontier state",
       "before_hash": "sha256:null",
-      "after_hash": "sha256:6ed3408be5a1f1658b627cadd03986749cfb9871d26e84cf87ee26707eb5c180",
+      "after_hash": "sha256:59cd70fdf706bb7a5becd1dac0f6887a65948c2806c1cc1a99d15ce41a1dea4c",
       "payload": {
-        "proposal_id": "vpr_26a07a790d8daef6"
+        "proposal_id": "vpr_76aa1265eb334f8c"
       },
       "caveats": [
         "Manual findings require evidence review before scientific use."
@@ -1440,22 +1760,22 @@
     },
     {
       "schema": "vela.event.v0.1",
-      "id": "vev_bdfaedd726417acf",
+      "id": "vev_91a5adc158af2ba4",
       "kind": "finding.asserted",
       "target": {
         "type": "finding",
-        "id": "vf_e315edc9f24d716f"
+        "id": "vf_21b6089ec7703a99"
       },
       "actor": {
         "id": "reviewer:will-blair",
         "type": "human"
       },
-      "timestamp": "2026-04-25T22:38:09.796042+00:00",
+      "timestamp": "2026-04-26T00:32:44.793373+00:00",
       "reason": "Manual finding added to frontier state",
       "before_hash": "sha256:null",
-      "after_hash": "sha256:a986ea82f5317a2e6e0439592a853109217442ab39b016d4964b1be413a2bb0a",
+      "after_hash": "sha256:8fc98434bd289aaf40063a0cde76ebeb4c79fa2a5cfe6475a2ec864962ae1e58",
       "payload": {
-        "proposal_id": "vpr_3e5eed13f7a00563"
+        "proposal_id": "vpr_6486f68fcbab5af4"
       },
       "caveats": [
         "Manual findings require evidence review before scientific use."
@@ -1463,22 +1783,22 @@
     },
     {
       "schema": "vela.event.v0.1",
-      "id": "vev_3559f8f933ad93b4",
+      "id": "vev_04d19e069ce967ef",
       "kind": "finding.asserted",
       "target": {
         "type": "finding",
-        "id": "vf_a0bde1de78324125"
+        "id": "vf_0b608a6432ada63c"
       },
       "actor": {
         "id": "reviewer:will-blair",
         "type": "human"
       },
-      "timestamp": "2026-04-25T22:38:09.802814+00:00",
+      "timestamp": "2026-04-26T00:32:44.800389+00:00",
       "reason": "Manual finding added to frontier state",
       "before_hash": "sha256:null",
-      "after_hash": "sha256:06058632464c2aa6697c37a481aff89fd27a989a1c56142f3ec1ff5065a0d935",
+      "after_hash": "sha256:0a27375549fff02f34154259ea724ccf84691e387b70b7f9da3baad5d680ab1a",
       "payload": {
-        "proposal_id": "vpr_9d531e6512cb2225"
+        "proposal_id": "vpr_3da787498f672aab"
       },
       "caveats": [
         "Manual findings require evidence review before scientific use."
@@ -1486,22 +1806,22 @@
     },
     {
       "schema": "vela.event.v0.1",
-      "id": "vev_51ee8f5e66693083",
+      "id": "vev_6a73d6b30bca5b14",
       "kind": "finding.asserted",
       "target": {
         "type": "finding",
-        "id": "vf_9b06fa5c13fd582c"
+        "id": "vf_c76233d23e7be164"
       },
       "actor": {
         "id": "reviewer:will-blair",
         "type": "human"
       },
-      "timestamp": "2026-04-25T22:38:09.809436+00:00",
+      "timestamp": "2026-04-26T00:32:44.807633+00:00",
       "reason": "Manual finding added to frontier state",
       "before_hash": "sha256:null",
-      "after_hash": "sha256:25b2b2073865e94084ec37486ff5b268fdf23e860caaf943863d3050cce33bc7",
+      "after_hash": "sha256:90d7efe2ca49b4f5dede25a8dd8a3647a2a30faa8a89d9155ba49f20d1a0b378",
       "payload": {
-        "proposal_id": "vpr_5e36191b2f16c066"
+        "proposal_id": "vpr_eea6477336dd8b78"
       },
       "caveats": [
         "Manual findings require evidence review before scientific use."
@@ -1509,22 +1829,22 @@
     },
     {
       "schema": "vela.event.v0.1",
-      "id": "vev_8527b1e89bbcef4e",
+      "id": "vev_16348300819725bc",
       "kind": "finding.asserted",
       "target": {
         "type": "finding",
-        "id": "vf_7ddb018fa1f264b5"
+        "id": "vf_d0d34582e427ed26"
       },
       "actor": {
         "id": "reviewer:will-blair",
         "type": "human"
       },
-      "timestamp": "2026-04-25T22:38:28.249731+00:00",
+      "timestamp": "2026-04-26T00:32:44.814673+00:00",
       "reason": "Manual finding added to frontier state",
       "before_hash": "sha256:null",
-      "after_hash": "sha256:b580c58f18d43d6d8939c1d3a5002303efd95ee13e45b8aaabfe6dcbf85b6a3b",
+      "after_hash": "sha256:25a849b3862e55790033ae814c9241670bb15711aac69cbadf53b312292a3478",
       "payload": {
-        "proposal_id": "vpr_5ce90e0956f9f118"
+        "proposal_id": "vpr_7d9770483d1a831e"
       },
       "caveats": [
         "Manual findings require evidence review before scientific use."
@@ -1532,22 +1852,22 @@
     },
     {
       "schema": "vela.event.v0.1",
-      "id": "vev_88d31457121c6f9d",
+      "id": "vev_916c27c584ad4a6e",
       "kind": "finding.asserted",
       "target": {
         "type": "finding",
-        "id": "vf_92999ad692613315"
+        "id": "vf_f87aac51ecf9b9b6"
       },
       "actor": {
         "id": "reviewer:will-blair",
         "type": "human"
       },
-      "timestamp": "2026-04-25T22:38:28.256462+00:00",
+      "timestamp": "2026-04-26T00:32:44.822153+00:00",
       "reason": "Manual finding added to frontier state",
       "before_hash": "sha256:null",
-      "after_hash": "sha256:2b798f9ae558afe4925f9a5bba744dc4b917d0fb1eed9896612d8bac718efd43",
+      "after_hash": "sha256:ba6a474356e5acee106ce7a32d6636b3e2660ee428e7896027d338591ffb32c2",
       "payload": {
-        "proposal_id": "vpr_b82db6aabb5012da"
+        "proposal_id": "vpr_cf35683aebabd952"
       },
       "caveats": [
         "Manual findings require evidence review before scientific use."
@@ -1555,22 +1875,22 @@
     },
     {
       "schema": "vela.event.v0.1",
-      "id": "vev_34dd12859302eb96",
+      "id": "vev_1dd1eafe42f7eb8a",
       "kind": "finding.asserted",
       "target": {
         "type": "finding",
-        "id": "vf_d8e6a10a357310da"
+        "id": "vf_61a2fe3e034712b0"
       },
       "actor": {
         "id": "reviewer:will-blair",
         "type": "human"
       },
-      "timestamp": "2026-04-25T22:38:28.263183+00:00",
+      "timestamp": "2026-04-26T00:32:44.829889+00:00",
       "reason": "Manual finding added to frontier state",
       "before_hash": "sha256:null",
-      "after_hash": "sha256:4970bd8d70320f2f05266b8fb8e9c43a7342535b01e70d26e7b39961f984ceec",
+      "after_hash": "sha256:2c377dae18b6d079199347bc096b9ed433cfbfa6158b33a9a8c6e139050661e3",
       "payload": {
-        "proposal_id": "vpr_40cecb3ee6bedce8"
+        "proposal_id": "vpr_41cf29e350976a6e"
       },
       "caveats": [
         "Manual findings require evidence review before scientific use."
@@ -1578,22 +1898,22 @@
     },
     {
       "schema": "vela.event.v0.1",
-      "id": "vev_1b7e5573c888c06d",
+      "id": "vev_375ada2084ea06b0",
       "kind": "finding.asserted",
       "target": {
         "type": "finding",
-        "id": "vf_3d2442675353d79b"
+        "id": "vf_53859da6d5fa6673"
       },
       "actor": {
         "id": "reviewer:will-blair",
         "type": "human"
       },
-      "timestamp": "2026-04-25T22:38:28.269596+00:00",
+      "timestamp": "2026-04-26T00:32:44.837710+00:00",
       "reason": "Manual finding added to frontier state",
       "before_hash": "sha256:null",
-      "after_hash": "sha256:3d3baf0bb30d0cd17d663f5c46d21129dac5297b2341cbbc04335136f9b4be53",
+      "after_hash": "sha256:ceb0ab74ea516c225eb0fb785b270d22d6e9a06335810f28a4ade8984b5f375d",
       "payload": {
-        "proposal_id": "vpr_d7cef96185856bc9"
+        "proposal_id": "vpr_9842f68e1bbba80d"
       },
       "caveats": [
         "Manual findings require evidence review before scientific use."
@@ -1601,22 +1921,22 @@
     },
     {
       "schema": "vela.event.v0.1",
-      "id": "vev_b336ff7ceb639f0b",
+      "id": "vev_beec795d027db4e6",
       "kind": "finding.asserted",
       "target": {
         "type": "finding",
-        "id": "vf_713ebab7b8230664"
+        "id": "vf_e6b5a4bdefa6285e"
       },
       "actor": {
         "id": "reviewer:will-blair",
         "type": "human"
       },
-      "timestamp": "2026-04-25T22:38:28.277798+00:00",
+      "timestamp": "2026-04-26T00:32:44.845476+00:00",
       "reason": "Manual finding added to frontier state",
       "before_hash": "sha256:null",
-      "after_hash": "sha256:5c06f80aec30d4c81a0a273751a940216279546f1757fe5fd58a48cbbca74281",
+      "after_hash": "sha256:0ba161606422f335575d995f08b03793962ad39d6c1d33d5558fff446a69d1f5",
       "payload": {
-        "proposal_id": "vpr_36d276b6839be1a3"
+        "proposal_id": "vpr_7fa99106c9e32bde"
       },
       "caveats": [
         "Manual findings require evidence review before scientific use."
@@ -1624,22 +1944,22 @@
     },
     {
       "schema": "vela.event.v0.1",
-      "id": "vev_8a0df1455fc796e8",
+      "id": "vev_4c0937ea725d454f",
       "kind": "finding.asserted",
       "target": {
         "type": "finding",
-        "id": "vf_ef076b17acda1221"
+        "id": "vf_ba00e56283b9703f"
       },
       "actor": {
         "id": "reviewer:will-blair",
         "type": "human"
       },
-      "timestamp": "2026-04-25T22:38:28.284348+00:00",
+      "timestamp": "2026-04-26T00:32:44.852848+00:00",
       "reason": "Manual finding added to frontier state",
       "before_hash": "sha256:null",
-      "after_hash": "sha256:67e4c69d4177fd4901cfdafa0cc5e797d2caec2372b0eede4185ddc9a2c9b245",
+      "after_hash": "sha256:987318c6d79807e22a4c5a31fd0798ed7ec19793ee31dd4040ecbf1ea888fe17",
       "payload": {
-        "proposal_id": "vpr_585de5ce8eb9a0c9"
+        "proposal_id": "vpr_51cbe3dfbe8aeb8b"
       },
       "caveats": [
         "Manual findings require evidence review before scientific use."
@@ -1647,92 +1967,92 @@
     },
     {
       "schema": "vela.event.v0.1",
-      "id": "vev_8679f800c11b53a0",
+      "id": "vev_d67d20494e64a54e",
       "kind": "finding.caveated",
       "target": {
         "type": "finding",
-        "id": "vf_d8e6a10a357310da"
+        "id": "vf_61a2fe3e034712b0"
       },
       "actor": {
         "id": "reviewer:will-blair",
         "type": "human"
       },
-      "timestamp": "2026-04-25T22:43:39.125629+00:00",
+      "timestamp": "2026-04-26T00:32:44.912904+00:00",
       "reason": "Therapeutic implication is timing-dependent: activating microglia in late-stage disease where neurodegeneration is established may produce inflammatory harm. Activated microglia also release inflammatory cytokines. The 'when' of TREM2 activation matters as much as the 'what'.",
-      "before_hash": "sha256:36deebc4f1ab7f647eee7605855d9deb26a8b5687b0ce8e63ccc9ed034151959",
-      "after_hash": "sha256:cfe6d72ce98a20d21580cad2b55af5dee992c28d3eaef4b73501a7137ca13220",
+      "before_hash": "sha256:2c377dae18b6d079199347bc096b9ed433cfbfa6158b33a9a8c6e139050661e3",
+      "after_hash": "sha256:24b4658a69d4e3872915250a7c3762ebeb5643883ba18acf39d1f181a5c9208c",
       "payload": {
-        "annotation_id": "ann_6243f57cf04eec85",
-        "proposal_id": "vpr_c72c3a61622b59cc",
+        "annotation_id": "ann_adeae19340992980",
+        "proposal_id": "vpr_f87b203dfa1a845d",
         "text": "Therapeutic implication is timing-dependent: activating microglia in late-stage disease where neurodegeneration is established may produce inflammatory harm. Activated microglia also release inflammatory cytokines. The 'when' of TREM2 activation matters as much as the 'what'."
       },
       "caveats": []
     },
     {
       "schema": "vela.event.v0.1",
-      "id": "vev_a7530ae190c65e1f",
+      "id": "vev_49aaaebf6302f7e7",
       "kind": "finding.caveated",
       "target": {
         "type": "finding",
-        "id": "vf_3d2442675353d79b"
+        "id": "vf_53859da6d5fa6673"
       },
       "actor": {
         "id": "reviewer:will-blair",
         "type": "human"
       },
-      "timestamp": "2026-04-25T22:43:39.132474+00:00",
+      "timestamp": "2026-04-26T00:32:44.919057+00:00",
       "reason": "TREM2-dependent and TREM2-independent microglial activation pathways operate in parallel; a TREM2 agonist would only restore the dependent arm, not full microglial function. The single on/off-switch model of TREM2 is wrong.",
-      "before_hash": "sha256:3d3baf0bb30d0cd17d663f5c46d21129dac5297b2341cbbc04335136f9b4be53",
-      "after_hash": "sha256:ebaeee34578d3f2c77da01ed957c3ac0d4ad9ec3483978f60b702946554521f2",
+      "before_hash": "sha256:ceb0ab74ea516c225eb0fb785b270d22d6e9a06335810f28a4ade8984b5f375d",
+      "after_hash": "sha256:48b3278f0cb76398a2e7ee1f98d4288a062525cddb71dc156f845d5ff44eb267",
       "payload": {
-        "annotation_id": "ann_4ad294de43f6930f",
-        "proposal_id": "vpr_30a62b5267982b69",
+        "annotation_id": "ann_e3e3d22c932ba68b",
+        "proposal_id": "vpr_0b939c70aa5f57c4",
         "text": "TREM2-dependent and TREM2-independent microglial activation pathways operate in parallel; a TREM2 agonist would only restore the dependent arm, not full microglial function. The single on/off-switch model of TREM2 is wrong."
       },
       "caveats": []
     },
     {
       "schema": "vela.event.v0.1",
-      "id": "vev_b82a18b65787a356",
+      "id": "vev_a4bd72f8dac83371",
       "kind": "finding.noted",
       "target": {
         "type": "finding",
-        "id": "vf_a0bde1de78324125"
+        "id": "vf_0b608a6432ada63c"
       },
       "actor": {
         "id": "reviewer:will-blair",
         "type": "human"
       },
-      "timestamp": "2026-04-25T22:43:47.601704+00:00",
+      "timestamp": "2026-04-26T00:32:44.925104+00:00",
       "reason": "Curator open question: should the verubecestat/atabecestat failures map to confidence drift on the amyloid cascade itself? The trials failed for mechanism-independent reasons; the cleanest reading is that they should NOT be evidence against amyloid as a target. But the field treats them as such, which is itself a structural fact about how disconfirmation propagates in the evidence graph.",
-      "before_hash": "sha256:06058632464c2aa6697c37a481aff89fd27a989a1c56142f3ec1ff5065a0d935",
-      "after_hash": "sha256:83b8104a03c4c984c052ac7313fde351849242b4e85573df23d8d00768362d1f",
+      "before_hash": "sha256:0a27375549fff02f34154259ea724ccf84691e387b70b7f9da3baad5d680ab1a",
+      "after_hash": "sha256:95942101285bfde5ff5ee8c40dd3d4048c1ddb388e69f8c7d9d6245d9e4e0f08",
       "payload": {
-        "annotation_id": "ann_6d0eac971d883c06",
-        "proposal_id": "vpr_4f563fa5a67d9cc0",
+        "annotation_id": "ann_93b6023d7839a10b",
+        "proposal_id": "vpr_afbe588c1c7c55d6",
         "text": "Curator open question: should the verubecestat/atabecestat failures map to confidence drift on the amyloid cascade itself? The trials failed for mechanism-independent reasons; the cleanest reading is that they should NOT be evidence against amyloid as a target. But the field treats them as such, which is itself a structural fact about how disconfirmation propagates in the evidence graph."
       },
       "caveats": []
     },
     {
       "schema": "vela.event.v0.1",
-      "id": "vev_6d836944922d0166",
+      "id": "vev_26ece124896e57ab",
       "kind": "finding.noted",
       "target": {
         "type": "finding",
-        "id": "vf_03457ee82055bbe5"
+        "id": "vf_9ba01201290c351a"
       },
       "actor": {
         "id": "reviewer:will-blair",
         "type": "human"
       },
-      "timestamp": "2026-04-25T22:43:47.609254+00:00",
+      "timestamp": "2026-04-26T00:32:44.931652+00:00",
       "reason": "Curator open question: is the right therapeutic strategy to target one pathway, or to combine across amyloid + tau + microglial? The 'gravity well' nature of cascade-thinking biases toward single-pathway intervention design even when the evidence supports multifactorial models.",
-      "before_hash": "sha256:a5d60521cd97e05dbe03f8dde40b6c8120cb5d752670f2b81bad19adb36c1669",
-      "after_hash": "sha256:509500681501a50a054ca237a3135e1522e2f200ca2b24fa17930826a84b9027",
+      "before_hash": "sha256:26eb1afdb072f8b8f419524111714df45ab6eb2f747b6f9e762a0b0d8167d976",
+      "after_hash": "sha256:ca51f45cf9f1750494dd9c537127a11b67f0c452a22f130222301b9c80fa1046",
       "payload": {
-        "annotation_id": "ann_89a1306313eff0f3",
-        "proposal_id": "vpr_98b0d4da8c0b23bc",
+        "annotation_id": "ann_790386c451210ee9",
+        "proposal_id": "vpr_ffe6b42371b67b45",
         "text": "Curator open question: is the right therapeutic strategy to target one pathway, or to combine across amyloid + tau + microglial? The 'gravity well' nature of cascade-thinking biases toward single-pathway intervention design even when the evidence supports multifactorial models."
       },
       "caveats": []
@@ -1741,17 +2061,17 @@
   "proposals": [
     {
       "schema": "vela.proposal.v0.1",
-      "id": "vpr_ac9cd84048f65838",
+      "id": "vpr_efb2cae0f8e58124",
       "kind": "finding.add",
       "target": {
         "type": "finding",
-        "id": "vf_03457ee82055bbe5"
+        "id": "vf_9ba01201290c351a"
       },
       "actor": {
         "id": "reviewer:will-blair",
         "type": "human"
       },
-      "created_at": "2026-04-25T22:38:09.777242+00:00",
+      "created_at": "2026-04-26T00:32:44.778509+00:00",
       "reason": "Manual finding added to frontier state",
       "payload": {
         "finding": {
@@ -1772,7 +2092,7 @@
                 "aliases": [],
                 "candidates": [],
                 "identifiers": {},
-                "name": "Alzheimer's disease",
+                "name": "Alzheimers disease",
                 "needs_review": true,
                 "resolution_confidence": 0.6,
                 "resolution_provenance": "manual_state_transition",
@@ -1799,12 +2119,14 @@
             "clinical_trial": false,
             "concentration_range": null,
             "duration": null,
-            "human_data": false,
+            "human_data": true,
             "in_vitro": false,
             "in_vivo": false,
             "species_unverified": [],
-            "species_verified": [],
-            "text": "Manually added finding; requires evidence review before scientific use."
+            "species_verified": [
+              "Homo sapiens"
+            ],
+            "text": "Field-level synthesis covering 2003-2016 amyloid trial outcomes; framing applies to late-onset sporadic AD; does not extend cleanly to autosomal-dominant familial AD pedigrees where the cascade may operate differently."
           },
           "confidence": {
             "basis": "operator-supplied frontier prior; review required",
@@ -1813,7 +2135,7 @@
             "method": "expert_judgment",
             "score": 0.65
           },
-          "created": "2026-04-25T22:38:09.775255+00:00",
+          "created": "2026-04-26T00:32:44.778456+00:00",
           "evidence": {
             "effect_size": null,
             "evidence_spans": [],
@@ -1834,26 +2156,30 @@
             "negative_space": false,
             "retracted": false
           },
-          "id": "vf_03457ee82055bbe5",
+          "id": "vf_9ba01201290c351a",
           "links": [],
           "previous_version": null,
           "provenance": {
             "authors": [
               {
-                "name": "reviewer:will-blair",
+                "name": "Selkoe DJ",
+                "orcid": null
+              },
+              {
+                "name": "Hardy J",
                 "orcid": null
               }
             ],
             "citation_count": null,
-            "doi": null,
+            "doi": "10.15252/emmm.201606210",
             "extraction": {
-              "extracted_at": "2026-04-25T22:38:09.774797+00:00",
-              "extractor_version": "vela/0.10.0",
+              "extracted_at": "2026-04-26T00:32:44.778419+00:00",
+              "extractor_version": "vela/0.11.0",
               "method": "manual_curation",
               "model": null,
               "model_version": null
             },
-            "journal": null,
+            "journal": "EMBO Molecular Medicine",
             "openalex_id": null,
             "pmc": null,
             "pmid": null,
@@ -1864,8 +2190,8 @@
               "reviewer": null
             },
             "source_type": "published_paper",
-            "title": "Selkoe & Hardy, 2016, EMBO Mol Med — amyloid cascade hypothesis revision",
-            "year": null
+            "title": "Selkoe & Hardy, 2016, EMBO Mol Med 8:595-608",
+            "year": 2016
           },
           "updated": null,
           "version": 1
@@ -1874,26 +2200,26 @@
       "source_refs": [],
       "status": "applied",
       "reviewed_by": "reviewer:will-blair",
-      "reviewed_at": "2026-04-25T22:38:09.780250+00:00",
+      "reviewed_at": "2026-04-26T00:32:44.778832+00:00",
       "decision_reason": "Applied locally from proposal creation",
-      "applied_event_id": "vev_347d86ff040ebbad",
+      "applied_event_id": "vev_8fe9f6f953a20a9b",
       "caveats": [
         "Manual findings require evidence review before scientific use."
       ]
     },
     {
       "schema": "vela.proposal.v0.1",
-      "id": "vpr_26a07a790d8daef6",
+      "id": "vpr_76aa1265eb334f8c",
       "kind": "finding.add",
       "target": {
         "type": "finding",
-        "id": "vf_def8b61b15ccbec5"
+        "id": "vf_b1f04d00abcd7476"
       },
       "actor": {
         "id": "reviewer:will-blair",
         "type": "human"
       },
-      "created_at": "2026-04-25T22:38:09.788661+00:00",
+      "created_at": "2026-04-26T00:32:44.786006+00:00",
       "reason": "Manual finding added to frontier state",
       "payload": {
         "finding": {
@@ -1924,7 +2250,7 @@
                 "aliases": [],
                 "candidates": [],
                 "identifiers": {},
-                "name": "Alzheimer's disease",
+                "name": "Alzheimers disease",
                 "needs_review": true,
                 "resolution_confidence": 0.6,
                 "resolution_provenance": "manual_state_transition",
@@ -1938,15 +2264,17 @@
           "conditions": {
             "age_group": null,
             "cell_type": null,
-            "clinical_trial": false,
+            "clinical_trial": true,
             "concentration_range": null,
             "duration": null,
-            "human_data": false,
+            "human_data": true,
             "in_vitro": false,
             "in_vivo": false,
             "species_unverified": [],
-            "species_verified": [],
-            "text": "Manually added finding; requires evidence review before scientific use."
+            "species_verified": [
+              "Homo sapiens"
+            ],
+            "text": "Patients with mild cognitive impairment or mild AD dementia, ages 50-90, with confirmed amyloid PET positivity. Phase 3 RCT, 1795 patients, 18 months, biweekly IV infusion at 10 mg/kg. CDR-SB primary endpoint (mean difference -0.45 vs placebo, p<0.001). Modest absolute effect; 17.3% ARIA-E rate."
           },
           "confidence": {
             "basis": "operator-supplied frontier prior; review required",
@@ -1955,7 +2283,7 @@
             "method": "expert_judgment",
             "score": 0.8
           },
-          "created": "2026-04-25T22:38:09.788620+00:00",
+          "created": "2026-04-26T00:32:44.785959+00:00",
           "evidence": {
             "effect_size": null,
             "evidence_spans": [],
@@ -1976,29 +2304,101 @@
             "negative_space": false,
             "retracted": false
           },
-          "id": "vf_def8b61b15ccbec5",
+          "id": "vf_b1f04d00abcd7476",
           "links": [],
           "previous_version": null,
           "provenance": {
             "authors": [
               {
-                "name": "reviewer:will-blair",
+                "name": "van Dyck CH",
+                "orcid": null
+              },
+              {
+                "name": "Swanson CJ",
+                "orcid": null
+              },
+              {
+                "name": "Aisen P",
+                "orcid": null
+              },
+              {
+                "name": "Bateman RJ",
+                "orcid": null
+              },
+              {
+                "name": "Chen C",
+                "orcid": null
+              },
+              {
+                "name": "Gee M",
+                "orcid": null
+              },
+              {
+                "name": "Kanekiyo M",
+                "orcid": null
+              },
+              {
+                "name": "Li D",
+                "orcid": null
+              },
+              {
+                "name": "Reyderman L",
+                "orcid": null
+              },
+              {
+                "name": "Cohen S",
+                "orcid": null
+              },
+              {
+                "name": "Froelich L",
+                "orcid": null
+              },
+              {
+                "name": "Katayama S",
+                "orcid": null
+              },
+              {
+                "name": "Sabbagh M",
+                "orcid": null
+              },
+              {
+                "name": "Vellas B",
+                "orcid": null
+              },
+              {
+                "name": "Watson D",
+                "orcid": null
+              },
+              {
+                "name": "Dhadda S",
+                "orcid": null
+              },
+              {
+                "name": "Irizarry M",
+                "orcid": null
+              },
+              {
+                "name": "Kramer LD",
+                "orcid": null
+              },
+              {
+                "name": "Iwatsubo T",
                 "orcid": null
               }
             ],
             "citation_count": null,
-            "doi": null,
+            "doi": "10.1056/NEJMoa2212948",
             "extraction": {
-              "extracted_at": "2026-04-25T22:38:09.788613+00:00",
-              "extractor_version": "vela/0.10.0",
+              "extracted_at": "2026-04-26T00:32:44.785944+00:00",
+              "extractor_version": "vela/0.11.0",
               "method": "manual_curation",
               "model": null,
               "model_version": null
             },
-            "journal": null,
+            "journal": "New England Journal of Medicine",
             "openalex_id": null,
             "pmc": null,
-            "pmid": null,
+            "pmid": "36449413",
             "review": {
               "corrections": [],
               "reviewed": false,
@@ -2007,7 +2407,7 @@
             },
             "source_type": "clinical_trial",
             "title": "van Dyck et al., 2023, NEJM 388:9-21 (Clarity AD)",
-            "year": null
+            "year": 2023
           },
           "updated": null,
           "version": 1
@@ -2016,26 +2416,26 @@
       "source_refs": [],
       "status": "applied",
       "reviewed_by": "reviewer:will-blair",
-      "reviewed_at": "2026-04-25T22:38:09.788874+00:00",
+      "reviewed_at": "2026-04-26T00:32:44.786265+00:00",
       "decision_reason": "Applied locally from proposal creation",
-      "applied_event_id": "vev_383e72e84307b08f",
+      "applied_event_id": "vev_2ea2a9ceb3a2eddd",
       "caveats": [
         "Manual findings require evidence review before scientific use."
       ]
     },
     {
       "schema": "vela.proposal.v0.1",
-      "id": "vpr_3e5eed13f7a00563",
+      "id": "vpr_6486f68fcbab5af4",
       "kind": "finding.add",
       "target": {
         "type": "finding",
-        "id": "vf_e315edc9f24d716f"
+        "id": "vf_21b6089ec7703a99"
       },
       "actor": {
         "id": "reviewer:will-blair",
         "type": "human"
       },
-      "created_at": "2026-04-25T22:38:09.795711+00:00",
+      "created_at": "2026-04-26T00:32:44.793070+00:00",
       "reason": "Manual finding added to frontier state",
       "payload": {
         "finding": {
@@ -2056,7 +2456,7 @@
                 "aliases": [],
                 "candidates": [],
                 "identifiers": {},
-                "name": "Alzheimer's disease",
+                "name": "Alzheimers disease",
                 "needs_review": true,
                 "resolution_confidence": 0.6,
                 "resolution_provenance": "manual_state_transition",
@@ -2073,12 +2473,14 @@
             "clinical_trial": false,
             "concentration_range": null,
             "duration": null,
-            "human_data": false,
+            "human_data": true,
             "in_vitro": false,
             "in_vivo": false,
             "species_unverified": [],
-            "species_verified": [],
-            "text": "Manually added finding; requires evidence review before scientific use."
+            "species_verified": [
+              "Homo sapiens"
+            ],
+            "text": "Cross-sectional and longitudinal autopsy and PET imaging studies; finding holds across multiple cohorts (ADNI, Mayo Clinic Study of Aging, Sun Health) but observational confounding by tau and other co-pathologies remains."
           },
           "confidence": {
             "basis": "operator-supplied frontier prior; review required",
@@ -2087,7 +2489,7 @@
             "method": "expert_judgment",
             "score": 0.75
           },
-          "created": "2026-04-25T22:38:09.795649+00:00",
+          "created": "2026-04-26T00:32:44.793028+00:00",
           "evidence": {
             "effect_size": null,
             "evidence_spans": [],
@@ -2108,29 +2510,57 @@
             "negative_space": false,
             "retracted": false
           },
-          "id": "vf_e315edc9f24d716f",
+          "id": "vf_21b6089ec7703a99",
           "links": [],
           "previous_version": null,
           "provenance": {
             "authors": [
               {
-                "name": "reviewer:will-blair",
+                "name": "Jack CR Jr",
+                "orcid": null
+              },
+              {
+                "name": "Knopman DS",
+                "orcid": null
+              },
+              {
+                "name": "Jagust WJ",
+                "orcid": null
+              },
+              {
+                "name": "Shaw LM",
+                "orcid": null
+              },
+              {
+                "name": "Aisen PS",
+                "orcid": null
+              },
+              {
+                "name": "Weiner MW",
+                "orcid": null
+              },
+              {
+                "name": "Petersen RC",
+                "orcid": null
+              },
+              {
+                "name": "Trojanowski JQ",
                 "orcid": null
               }
             ],
             "citation_count": null,
-            "doi": null,
+            "doi": "10.1016/S1474-4422(09)70299-6",
             "extraction": {
-              "extracted_at": "2026-04-25T22:38:09.795636+00:00",
-              "extractor_version": "vela/0.10.0",
+              "extracted_at": "2026-04-26T00:32:44.793017+00:00",
+              "extractor_version": "vela/0.11.0",
               "method": "manual_curation",
               "model": null,
               "model_version": null
             },
-            "journal": null,
+            "journal": "The Lancet Neurology",
             "openalex_id": null,
             "pmc": null,
-            "pmid": null,
+            "pmid": "20083042",
             "review": {
               "corrections": [],
               "reviewed": false,
@@ -2139,7 +2569,7 @@
             },
             "source_type": "published_paper",
             "title": "Jack et al., 2010, Lancet Neurol 9:119-128",
-            "year": null
+            "year": 2010
           },
           "updated": null,
           "version": 1
@@ -2148,26 +2578,26 @@
       "source_refs": [],
       "status": "applied",
       "reviewed_by": "reviewer:will-blair",
-      "reviewed_at": "2026-04-25T22:38:09.795998+00:00",
+      "reviewed_at": "2026-04-26T00:32:44.793321+00:00",
       "decision_reason": "Applied locally from proposal creation",
-      "applied_event_id": "vev_bdfaedd726417acf",
+      "applied_event_id": "vev_91a5adc158af2ba4",
       "caveats": [
         "Manual findings require evidence review before scientific use."
       ]
     },
     {
       "schema": "vela.proposal.v0.1",
-      "id": "vpr_9d531e6512cb2225",
+      "id": "vpr_3da787498f672aab",
       "kind": "finding.add",
       "target": {
         "type": "finding",
-        "id": "vf_a0bde1de78324125"
+        "id": "vf_0b608a6432ada63c"
       },
       "actor": {
         "id": "reviewer:will-blair",
         "type": "human"
       },
-      "created_at": "2026-04-25T22:38:09.802497+00:00",
+      "created_at": "2026-04-26T00:32:44.800077+00:00",
       "reason": "Manual finding added to frontier state",
       "payload": {
         "finding": {
@@ -2198,7 +2628,7 @@
                 "aliases": [],
                 "candidates": [],
                 "identifiers": {},
-                "name": "Alzheimer's disease",
+                "name": "Alzheimers disease",
                 "needs_review": true,
                 "resolution_confidence": 0.6,
                 "resolution_provenance": "manual_state_transition",
@@ -2212,15 +2642,17 @@
           "conditions": {
             "age_group": null,
             "cell_type": null,
-            "clinical_trial": false,
+            "clinical_trial": true,
             "concentration_range": null,
             "duration": null,
-            "human_data": false,
+            "human_data": true,
             "in_vitro": false,
             "in_vivo": false,
             "species_unverified": [],
-            "species_verified": [],
-            "text": "Manually added finding; requires evidence review before scientific use."
+            "species_verified": [
+              "Homo sapiens"
+            ],
+            "text": "EPOCH/APECS trials of verubecestat in mild-to-moderate AD and prodromal AD respectively. Trials terminated early for futility AND on-target adverse effects (worsening cognition, weight loss, neuropsychiatric symptoms). Same pattern across atabecestat (Janssen) and umibecestat (Novartis)."
           },
           "confidence": {
             "basis": "operator-supplied frontier prior; review required",
@@ -2229,7 +2661,7 @@
             "method": "expert_judgment",
             "score": 0.75
           },
-          "created": "2026-04-25T22:38:09.802449+00:00",
+          "created": "2026-04-26T00:32:44.800043+00:00",
           "evidence": {
             "effect_size": null,
             "evidence_spans": [],
@@ -2250,29 +2682,65 @@
             "negative_space": false,
             "retracted": false
           },
-          "id": "vf_a0bde1de78324125",
+          "id": "vf_0b608a6432ada63c",
           "links": [],
           "previous_version": null,
           "provenance": {
             "authors": [
               {
-                "name": "reviewer:will-blair",
+                "name": "Egan MF",
+                "orcid": null
+              },
+              {
+                "name": "Kost J",
+                "orcid": null
+              },
+              {
+                "name": "Voss T",
+                "orcid": null
+              },
+              {
+                "name": "Mukai Y",
+                "orcid": null
+              },
+              {
+                "name": "Aisen PS",
+                "orcid": null
+              },
+              {
+                "name": "Cummings JL",
+                "orcid": null
+              },
+              {
+                "name": "Tariot PN",
+                "orcid": null
+              },
+              {
+                "name": "Vellas B",
+                "orcid": null
+              },
+              {
+                "name": "van Dyck CH",
+                "orcid": null
+              },
+              {
+                "name": "Boada M",
                 "orcid": null
               }
             ],
             "citation_count": null,
-            "doi": null,
+            "doi": "10.1056/NEJMoa1812840",
             "extraction": {
-              "extracted_at": "2026-04-25T22:38:09.802441+00:00",
-              "extractor_version": "vela/0.10.0",
+              "extracted_at": "2026-04-26T00:32:44.800034+00:00",
+              "extractor_version": "vela/0.11.0",
               "method": "manual_curation",
               "model": null,
               "model_version": null
             },
-            "journal": null,
+            "journal": "New England Journal of Medicine",
             "openalex_id": null,
             "pmc": null,
-            "pmid": null,
+            "pmid": "30970187",
             "review": {
               "corrections": [],
               "reviewed": false,
@@ -2280,8 +2748,8 @@
               "reviewer": null
             },
             "source_type": "clinical_trial",
-            "title": "Egan et al., 2019, NEJM 380:1408-1420 (verubecestat)",
-            "year": null
+            "title": "Egan et al., 2019, NEJM 380:1408-1420 (EPOCH verubecestat trial)",
+            "year": 2019
           },
           "updated": null,
           "version": 1
@@ -2290,26 +2758,26 @@
       "source_refs": [],
       "status": "applied",
       "reviewed_by": "reviewer:will-blair",
-      "reviewed_at": "2026-04-25T22:38:09.802770+00:00",
+      "reviewed_at": "2026-04-26T00:32:44.800337+00:00",
       "decision_reason": "Applied locally from proposal creation",
-      "applied_event_id": "vev_3559f8f933ad93b4",
+      "applied_event_id": "vev_04d19e069ce967ef",
       "caveats": [
         "Manual findings require evidence review before scientific use."
       ]
     },
     {
       "schema": "vela.proposal.v0.1",
-      "id": "vpr_5e36191b2f16c066",
+      "id": "vpr_eea6477336dd8b78",
       "kind": "finding.add",
       "target": {
         "type": "finding",
-        "id": "vf_9b06fa5c13fd582c"
+        "id": "vf_c76233d23e7be164"
       },
       "actor": {
         "id": "reviewer:will-blair",
         "type": "human"
       },
-      "created_at": "2026-04-25T22:38:09.809123+00:00",
+      "created_at": "2026-04-26T00:32:44.807298+00:00",
       "reason": "Manual finding added to frontier state",
       "payload": {
         "finding": {
@@ -2348,11 +2816,14 @@
             "concentration_range": null,
             "duration": null,
             "human_data": false,
-            "in_vitro": false,
-            "in_vivo": false,
+            "in_vitro": true,
+            "in_vivo": true,
             "species_unverified": [],
-            "species_verified": [],
-            "text": "Manually added finding; requires evidence review before scientific use."
+            "species_verified": [
+              "Mus musculus",
+              "Homo sapiens"
+            ],
+            "text": "BACE1 substrates beyond APP include neuregulin-1 (myelination), Jagged-1/2 (Notch signaling), seizure protein 6, CHL1 (axon guidance). Conditional BACE1 knockouts show synaptic, myelination, and behavioral deficits. Implications generalize across BACE1 inhibitor classes."
           },
           "confidence": {
             "basis": "operator-supplied frontier prior; review required",
@@ -2361,7 +2832,7 @@
             "method": "expert_judgment",
             "score": 0.7
           },
-          "created": "2026-04-25T22:38:09.809084+00:00",
+          "created": "2026-04-26T00:32:44.807259+00:00",
           "evidence": {
             "effect_size": null,
             "evidence_spans": [],
@@ -2382,29 +2853,53 @@
             "negative_space": false,
             "retracted": false
           },
-          "id": "vf_9b06fa5c13fd582c",
+          "id": "vf_c76233d23e7be164",
           "links": [],
           "previous_version": null,
           "provenance": {
             "authors": [
               {
-                "name": "reviewer:will-blair",
+                "name": "Vassar R",
+                "orcid": null
+              },
+              {
+                "name": "Kuhn PH",
+                "orcid": null
+              },
+              {
+                "name": "Haass C",
+                "orcid": null
+              },
+              {
+                "name": "Kennedy ME",
+                "orcid": null
+              },
+              {
+                "name": "Rajendran L",
+                "orcid": null
+              },
+              {
+                "name": "Wong PC",
+                "orcid": null
+              },
+              {
+                "name": "Lichtenthaler SF",
                 "orcid": null
               }
             ],
             "citation_count": null,
-            "doi": null,
+            "doi": "10.1038/nn.3789",
             "extraction": {
-              "extracted_at": "2026-04-25T22:38:09.809075+00:00",
-              "extractor_version": "vela/0.10.0",
+              "extracted_at": "2026-04-26T00:32:44.807248+00:00",
+              "extractor_version": "vela/0.11.0",
               "method": "manual_curation",
               "model": null,
               "model_version": null
             },
-            "journal": null,
+            "journal": "Nature Neuroscience",
             "openalex_id": null,
             "pmc": null,
-            "pmid": null,
+            "pmid": "25156932",
             "review": {
               "corrections": [],
               "reviewed": false,
@@ -2412,8 +2907,8 @@
               "reviewer": null
             },
             "source_type": "published_paper",
-            "title": "Vassar et al., 2014, Nat Neurosci 17:1183-1191 — BACE1 substrate review",
-            "year": null
+            "title": "Vassar et al., 2014, Nat Neurosci 17:1183-1191",
+            "year": 2014
           },
           "updated": null,
           "version": 1
@@ -2422,26 +2917,26 @@
       "source_refs": [],
       "status": "applied",
       "reviewed_by": "reviewer:will-blair",
-      "reviewed_at": "2026-04-25T22:38:09.809398+00:00",
+      "reviewed_at": "2026-04-26T00:32:44.807586+00:00",
       "decision_reason": "Applied locally from proposal creation",
-      "applied_event_id": "vev_51ee8f5e66693083",
+      "applied_event_id": "vev_6a73d6b30bca5b14",
       "caveats": [
         "Manual findings require evidence review before scientific use."
       ]
     },
     {
       "schema": "vela.proposal.v0.1",
-      "id": "vpr_5ce90e0956f9f118",
+      "id": "vpr_7d9770483d1a831e",
       "kind": "finding.add",
       "target": {
         "type": "finding",
-        "id": "vf_7ddb018fa1f264b5"
+        "id": "vf_d0d34582e427ed26"
       },
       "actor": {
         "id": "reviewer:will-blair",
         "type": "human"
       },
-      "created_at": "2026-04-25T22:38:28.249360+00:00",
+      "created_at": "2026-04-26T00:32:44.814324+00:00",
       "reason": "Manual finding added to frontier state",
       "payload": {
         "finding": {
@@ -2472,7 +2967,7 @@
                 "aliases": [],
                 "candidates": [],
                 "identifiers": {},
-                "name": "Alzheimer's disease",
+                "name": "Alzheimers disease",
                 "needs_review": true,
                 "resolution_confidence": 0.6,
                 "resolution_provenance": "manual_state_transition",
@@ -2489,12 +2984,14 @@
             "clinical_trial": false,
             "concentration_range": null,
             "duration": null,
-            "human_data": false,
+            "human_data": true,
             "in_vitro": false,
             "in_vivo": false,
             "species_unverified": [],
-            "species_verified": [],
-            "text": "Manually added finding; requires evidence review before scientific use."
+            "species_verified": [
+              "Homo sapiens"
+            ],
+            "text": "Longitudinal flortaucipir + Pittsburgh Compound B PET in 60 cognitively normal older adults followed up to 7 years. Tau accumulation in entorhinal cortex predicted cognitive decline; amyloid burden alone did not. Generalizes to clinically diagnosed mild AD; weaker fit for atypical variants."
           },
           "confidence": {
             "basis": "operator-supplied frontier prior; review required",
@@ -2503,7 +3000,7 @@
             "method": "expert_judgment",
             "score": 0.8
           },
-          "created": "2026-04-25T22:38:28.249314+00:00",
+          "created": "2026-04-26T00:32:44.814271+00:00",
           "evidence": {
             "effect_size": null,
             "evidence_spans": [],
@@ -2524,29 +3021,65 @@
             "negative_space": false,
             "retracted": false
           },
-          "id": "vf_7ddb018fa1f264b5",
+          "id": "vf_d0d34582e427ed26",
           "links": [],
           "previous_version": null,
           "provenance": {
             "authors": [
               {
-                "name": "reviewer:will-blair",
+                "name": "Hanseeuw BJ",
+                "orcid": null
+              },
+              {
+                "name": "Betensky RA",
+                "orcid": null
+              },
+              {
+                "name": "Jacobs HIL",
+                "orcid": null
+              },
+              {
+                "name": "Schultz AP",
+                "orcid": null
+              },
+              {
+                "name": "Sepulcre J",
+                "orcid": null
+              },
+              {
+                "name": "Becker JA",
+                "orcid": null
+              },
+              {
+                "name": "Cosio DM",
+                "orcid": null
+              },
+              {
+                "name": "Farrell M",
+                "orcid": null
+              },
+              {
+                "name": "Quiroz YT",
+                "orcid": null
+              },
+              {
+                "name": "Mormino EC",
                 "orcid": null
               }
             ],
             "citation_count": null,
-            "doi": null,
+            "doi": "10.1001/jamaneurol.2019.1424",
             "extraction": {
-              "extracted_at": "2026-04-25T22:38:28.249302+00:00",
-              "extractor_version": "vela/0.10.0",
+              "extracted_at": "2026-04-26T00:32:44.814260+00:00",
+              "extractor_version": "vela/0.11.0",
               "method": "manual_curation",
               "model": null,
               "model_version": null
             },
-            "journal": null,
+            "journal": "JAMA Neurology",
             "openalex_id": null,
             "pmc": null,
-            "pmid": null,
+            "pmid": "31157827",
             "review": {
               "corrections": [],
               "reviewed": false,
@@ -2555,7 +3088,7 @@
             },
             "source_type": "published_paper",
             "title": "Hanseeuw et al., 2019, JAMA Neurol 76:915-924",
-            "year": null
+            "year": 2019
           },
           "updated": null,
           "version": 1
@@ -2564,26 +3097,26 @@
       "source_refs": [],
       "status": "applied",
       "reviewed_by": "reviewer:will-blair",
-      "reviewed_at": "2026-04-25T22:38:28.249692+00:00",
+      "reviewed_at": "2026-04-26T00:32:44.814625+00:00",
       "decision_reason": "Applied locally from proposal creation",
-      "applied_event_id": "vev_8527b1e89bbcef4e",
+      "applied_event_id": "vev_16348300819725bc",
       "caveats": [
         "Manual findings require evidence review before scientific use."
       ]
     },
     {
       "schema": "vela.proposal.v0.1",
-      "id": "vpr_b82db6aabb5012da",
+      "id": "vpr_cf35683aebabd952",
       "kind": "finding.add",
       "target": {
         "type": "finding",
-        "id": "vf_92999ad692613315"
+        "id": "vf_f87aac51ecf9b9b6"
       },
       "actor": {
         "id": "reviewer:will-blair",
         "type": "human"
       },
-      "created_at": "2026-04-25T22:38:28.256133+00:00",
+      "created_at": "2026-04-26T00:32:44.821815+00:00",
       "reason": "Manual finding added to frontier state",
       "payload": {
         "finding": {
@@ -2604,7 +3137,7 @@
                 "aliases": [],
                 "candidates": [],
                 "identifiers": {},
-                "name": "Alzheimer's disease",
+                "name": "Alzheimers disease",
                 "needs_review": true,
                 "resolution_confidence": 0.6,
                 "resolution_provenance": "manual_state_transition",
@@ -2621,12 +3154,14 @@
             "clinical_trial": false,
             "concentration_range": null,
             "duration": null,
-            "human_data": false,
+            "human_data": true,
             "in_vitro": false,
             "in_vivo": false,
             "species_unverified": [],
-            "species_verified": [],
-            "text": "Manually added finding; requires evidence review before scientific use."
+            "species_verified": [
+              "Homo sapiens"
+            ],
+            "text": "Original autopsy series of 83 cases. Stages I-VI of neurofibrillary tangle distribution: transentorhinal → limbic → isocortical. Replicated in larger series and via PET tau imaging in vivo (Schöll et al., 2016). Some atypical AD presentations (PCA, lvPPA) deviate from the canonical sequence."
           },
           "confidence": {
             "basis": "operator-supplied frontier prior; review required",
@@ -2635,7 +3170,7 @@
             "method": "expert_judgment",
             "score": 0.85
           },
-          "created": "2026-04-25T22:38:28.256099+00:00",
+          "created": "2026-04-26T00:32:44.821776+00:00",
           "evidence": {
             "effect_size": null,
             "evidence_spans": [],
@@ -2656,29 +3191,33 @@
             "negative_space": false,
             "retracted": false
           },
-          "id": "vf_92999ad692613315",
+          "id": "vf_f87aac51ecf9b9b6",
           "links": [],
           "previous_version": null,
           "provenance": {
             "authors": [
               {
-                "name": "reviewer:will-blair",
+                "name": "Braak H",
+                "orcid": null
+              },
+              {
+                "name": "Braak E",
                 "orcid": null
               }
             ],
             "citation_count": null,
-            "doi": null,
+            "doi": "10.1007/BF00308809",
             "extraction": {
-              "extracted_at": "2026-04-25T22:38:28.256093+00:00",
-              "extractor_version": "vela/0.10.0",
+              "extracted_at": "2026-04-26T00:32:44.821765+00:00",
+              "extractor_version": "vela/0.11.0",
               "method": "manual_curation",
               "model": null,
               "model_version": null
             },
-            "journal": null,
+            "journal": "Acta Neuropathologica",
             "openalex_id": null,
             "pmc": null,
-            "pmid": null,
+            "pmid": "1759558",
             "review": {
               "corrections": [],
               "reviewed": false,
@@ -2687,7 +3226,7 @@
             },
             "source_type": "published_paper",
             "title": "Braak & Braak, 1991, Acta Neuropathol 82:239-259",
-            "year": null
+            "year": 1991
           },
           "updated": null,
           "version": 1
@@ -2696,26 +3235,26 @@
       "source_refs": [],
       "status": "applied",
       "reviewed_by": "reviewer:will-blair",
-      "reviewed_at": "2026-04-25T22:38:28.256418+00:00",
+      "reviewed_at": "2026-04-26T00:32:44.822110+00:00",
       "decision_reason": "Applied locally from proposal creation",
-      "applied_event_id": "vev_88d31457121c6f9d",
+      "applied_event_id": "vev_916c27c584ad4a6e",
       "caveats": [
         "Manual findings require evidence review before scientific use."
       ]
     },
     {
       "schema": "vela.proposal.v0.1",
-      "id": "vpr_40cecb3ee6bedce8",
+      "id": "vpr_41cf29e350976a6e",
       "kind": "finding.add",
       "target": {
         "type": "finding",
-        "id": "vf_d8e6a10a357310da"
+        "id": "vf_61a2fe3e034712b0"
       },
       "actor": {
         "id": "reviewer:will-blair",
         "type": "human"
       },
-      "created_at": "2026-04-25T22:38:28.262807+00:00",
+      "created_at": "2026-04-26T00:32:44.829518+00:00",
       "reason": "Manual finding added to frontier state",
       "payload": {
         "finding": {
@@ -2765,10 +3304,13 @@
             "duration": null,
             "human_data": false,
             "in_vitro": false,
-            "in_vivo": false,
+            "in_vivo": true,
             "species_unverified": [],
-            "species_verified": [],
-            "text": "Manually added finding; requires evidence review before scientific use."
+            "species_verified": [
+              "Mus musculus",
+              "Homo sapiens"
+            ],
+            "text": "TREM2 KO crossed onto APP/PS1, 5xFAD, and APPPS1-21 mouse models shows ~2-3x plaque density increase, especially dense-core plaques. Effect size depends on age (stronger >12mo) and brain region (cortex > hippocampus). Mechanism: failure of disease-associated microglia (DAM) state transition."
           },
           "confidence": {
             "basis": "operator-supplied frontier prior; review required",
@@ -2777,7 +3319,7 @@
             "method": "expert_judgment",
             "score": 0.75
           },
-          "created": "2026-04-25T22:38:28.262763+00:00",
+          "created": "2026-04-26T00:32:44.829477+00:00",
           "evidence": {
             "effect_size": null,
             "evidence_spans": [],
@@ -2798,29 +3340,41 @@
             "negative_space": false,
             "retracted": false
           },
-          "id": "vf_d8e6a10a357310da",
+          "id": "vf_61a2fe3e034712b0",
           "links": [],
           "previous_version": null,
           "provenance": {
             "authors": [
               {
-                "name": "reviewer:will-blair",
+                "name": "Gratuze M",
+                "orcid": null
+              },
+              {
+                "name": "Bhatt D",
+                "orcid": null
+              },
+              {
+                "name": "Bhatt DP",
+                "orcid": null
+              },
+              {
+                "name": "Holtzman DM",
                 "orcid": null
               }
             ],
             "citation_count": null,
-            "doi": null,
+            "doi": "10.1038/s41582-022-00753-3",
             "extraction": {
-              "extracted_at": "2026-04-25T22:38:28.262755+00:00",
-              "extractor_version": "vela/0.10.0",
+              "extracted_at": "2026-04-26T00:32:44.829466+00:00",
+              "extractor_version": "vela/0.11.0",
               "method": "manual_curation",
               "model": null,
               "model_version": null
             },
-            "journal": null,
+            "journal": "Nature Reviews Neurology",
             "openalex_id": null,
             "pmc": null,
-            "pmid": null,
+            "pmid": "36540915",
             "review": {
               "corrections": [],
               "reviewed": false,
@@ -2829,7 +3383,7 @@
             },
             "source_type": "published_paper",
             "title": "Gratuze et al., 2023, Nat Rev Neurol — TREM2 review",
-            "year": null
+            "year": 2023
           },
           "updated": null,
           "version": 1
@@ -2838,26 +3392,26 @@
       "source_refs": [],
       "status": "applied",
       "reviewed_by": "reviewer:will-blair",
-      "reviewed_at": "2026-04-25T22:38:28.263139+00:00",
+      "reviewed_at": "2026-04-26T00:32:44.829843+00:00",
       "decision_reason": "Applied locally from proposal creation",
-      "applied_event_id": "vev_34dd12859302eb96",
+      "applied_event_id": "vev_1dd1eafe42f7eb8a",
       "caveats": [
         "Manual findings require evidence review before scientific use."
       ]
     },
     {
       "schema": "vela.proposal.v0.1",
-      "id": "vpr_d7cef96185856bc9",
+      "id": "vpr_9842f68e1bbba80d",
       "kind": "finding.add",
       "target": {
         "type": "finding",
-        "id": "vf_3d2442675353d79b"
+        "id": "vf_53859da6d5fa6673"
       },
       "actor": {
         "id": "reviewer:will-blair",
         "type": "human"
       },
-      "created_at": "2026-04-25T22:38:28.269196+00:00",
+      "created_at": "2026-04-26T00:32:44.837307+00:00",
       "reason": "Manual finding added to frontier state",
       "payload": {
         "finding": {
@@ -2888,7 +3442,7 @@
                 "aliases": [],
                 "candidates": [],
                 "identifiers": {},
-                "name": "Alzheimer's disease",
+                "name": "Alzheimers disease",
                 "needs_review": true,
                 "resolution_confidence": 0.6,
                 "resolution_provenance": "manual_state_transition",
@@ -2905,12 +3459,14 @@
             "clinical_trial": false,
             "concentration_range": null,
             "duration": null,
-            "human_data": false,
+            "human_data": true,
             "in_vitro": false,
             "in_vivo": false,
             "species_unverified": [],
-            "species_verified": [],
-            "text": "Manually added finding; requires evidence review before scientific use."
+            "species_verified": [
+              "Homo sapiens"
+            ],
+            "text": "R47H variant: OR 2-4 for late-onset AD across European cohorts (Jonsson et al. 2013, Guerreiro et al. 2013). Less consistent in Asian and African populations. Other rare variants (R62H, D87N, T96K) show smaller effects. Risk after APOE4 (OR 3-12) but ahead of all other common variants."
           },
           "confidence": {
             "basis": "operator-supplied frontier prior; review required",
@@ -2919,7 +3475,7 @@
             "method": "expert_judgment",
             "score": 0.75
           },
-          "created": "2026-04-25T22:38:28.269146+00:00",
+          "created": "2026-04-26T00:32:44.837265+00:00",
           "evidence": {
             "effect_size": null,
             "evidence_spans": [],
@@ -2940,29 +3496,41 @@
             "negative_space": false,
             "retracted": false
           },
-          "id": "vf_3d2442675353d79b",
+          "id": "vf_53859da6d5fa6673",
           "links": [],
           "previous_version": null,
           "provenance": {
             "authors": [
               {
-                "name": "reviewer:will-blair",
+                "name": "Gratuze M",
+                "orcid": null
+              },
+              {
+                "name": "Bhatt D",
+                "orcid": null
+              },
+              {
+                "name": "Bhatt DP",
+                "orcid": null
+              },
+              {
+                "name": "Holtzman DM",
                 "orcid": null
               }
             ],
             "citation_count": null,
-            "doi": null,
+            "doi": "10.1038/s41582-022-00753-3",
             "extraction": {
-              "extracted_at": "2026-04-25T22:38:28.269138+00:00",
-              "extractor_version": "vela/0.10.0",
+              "extracted_at": "2026-04-26T00:32:44.837252+00:00",
+              "extractor_version": "vela/0.11.0",
               "method": "manual_curation",
               "model": null,
               "model_version": null
             },
-            "journal": null,
+            "journal": "Nature Reviews Neurology",
             "openalex_id": null,
             "pmc": null,
-            "pmid": null,
+            "pmid": "36540915",
             "review": {
               "corrections": [],
               "reviewed": false,
@@ -2971,7 +3539,7 @@
             },
             "source_type": "published_paper",
             "title": "Gratuze et al., 2023, Nat Rev Neurol — TREM2 review",
-            "year": null
+            "year": 2023
           },
           "updated": null,
           "version": 1
@@ -2980,26 +3548,26 @@
       "source_refs": [],
       "status": "applied",
       "reviewed_by": "reviewer:will-blair",
-      "reviewed_at": "2026-04-25T22:38:28.269554+00:00",
+      "reviewed_at": "2026-04-26T00:32:44.837662+00:00",
       "decision_reason": "Applied locally from proposal creation",
-      "applied_event_id": "vev_1b7e5573c888c06d",
+      "applied_event_id": "vev_375ada2084ea06b0",
       "caveats": [
         "Manual findings require evidence review before scientific use."
       ]
     },
     {
       "schema": "vela.proposal.v0.1",
-      "id": "vpr_36d276b6839be1a3",
+      "id": "vpr_7fa99106c9e32bde",
       "kind": "finding.add",
       "target": {
         "type": "finding",
-        "id": "vf_713ebab7b8230664"
+        "id": "vf_e6b5a4bdefa6285e"
       },
       "actor": {
         "id": "reviewer:will-blair",
         "type": "human"
       },
-      "created_at": "2026-04-25T22:38:28.277387+00:00",
+      "created_at": "2026-04-26T00:32:44.845051+00:00",
       "reason": "Manual finding added to frontier state",
       "payload": {
         "finding": {
@@ -3020,7 +3588,7 @@
                 "aliases": [],
                 "candidates": [],
                 "identifiers": {},
-                "name": "Alzheimer's disease",
+                "name": "Alzheimers disease",
                 "needs_review": true,
                 "resolution_confidence": 0.6,
                 "resolution_provenance": "manual_state_transition",
@@ -3037,12 +3605,14 @@
             "clinical_trial": false,
             "concentration_range": null,
             "duration": null,
-            "human_data": false,
+            "human_data": true,
             "in_vitro": false,
             "in_vivo": false,
             "species_unverified": [],
-            "species_verified": [],
-            "text": "Manually added finding; requires evidence review before scientific use."
+            "species_verified": [
+              "Homo sapiens"
+            ],
+            "text": "Original 42-family case-control series. Heterozygous carriers (e3/e4) ~3x risk; homozygous (e4/e4) ~12x risk; e2 protective (~0.6x). Effect attenuates after age 80. Stronger in European-ancestry cohorts; weaker but significant across most ancestries; African-American cohorts show smaller effect sizes (Reiman et al. 2020)."
           },
           "confidence": {
             "basis": "operator-supplied frontier prior; review required",
@@ -3051,7 +3621,7 @@
             "method": "expert_judgment",
             "score": 0.9
           },
-          "created": "2026-04-25T22:38:28.277341+00:00",
+          "created": "2026-04-26T00:32:44.845007+00:00",
           "evidence": {
             "effect_size": null,
             "evidence_spans": [],
@@ -3072,29 +3642,61 @@
             "negative_space": false,
             "retracted": false
           },
-          "id": "vf_713ebab7b8230664",
+          "id": "vf_e6b5a4bdefa6285e",
           "links": [],
           "previous_version": null,
           "provenance": {
             "authors": [
               {
-                "name": "reviewer:will-blair",
+                "name": "Corder EH",
+                "orcid": null
+              },
+              {
+                "name": "Saunders AM",
+                "orcid": null
+              },
+              {
+                "name": "Strittmatter WJ",
+                "orcid": null
+              },
+              {
+                "name": "Schmechel DE",
+                "orcid": null
+              },
+              {
+                "name": "Gaskell PC",
+                "orcid": null
+              },
+              {
+                "name": "Small GW",
+                "orcid": null
+              },
+              {
+                "name": "Roses AD",
+                "orcid": null
+              },
+              {
+                "name": "Haines JL",
+                "orcid": null
+              },
+              {
+                "name": "Pericak-Vance MA",
                 "orcid": null
               }
             ],
             "citation_count": null,
-            "doi": null,
+            "doi": "10.1126/science.8346443",
             "extraction": {
-              "extracted_at": "2026-04-25T22:38:28.277329+00:00",
-              "extractor_version": "vela/0.10.0",
+              "extracted_at": "2026-04-26T00:32:44.844993+00:00",
+              "extractor_version": "vela/0.11.0",
               "method": "manual_curation",
               "model": null,
               "model_version": null
             },
-            "journal": null,
+            "journal": "Science",
             "openalex_id": null,
             "pmc": null,
-            "pmid": null,
+            "pmid": "8346443",
             "review": {
               "corrections": [],
               "reviewed": false,
@@ -3102,8 +3704,8 @@
               "reviewer": null
             },
             "source_type": "published_paper",
-            "title": "Corder et al., 1993, Science 261:921-923; subsequent meta-analyses",
-            "year": null
+            "title": "Corder et al., 1993, Science 261:921-923; subsequent meta-analyses (Farrer 1997)",
+            "year": 1993
           },
           "updated": null,
           "version": 1
@@ -3112,26 +3714,26 @@
       "source_refs": [],
       "status": "applied",
       "reviewed_by": "reviewer:will-blair",
-      "reviewed_at": "2026-04-25T22:38:28.277761+00:00",
+      "reviewed_at": "2026-04-26T00:32:44.845426+00:00",
       "decision_reason": "Applied locally from proposal creation",
-      "applied_event_id": "vev_b336ff7ceb639f0b",
+      "applied_event_id": "vev_beec795d027db4e6",
       "caveats": [
         "Manual findings require evidence review before scientific use."
       ]
     },
     {
       "schema": "vela.proposal.v0.1",
-      "id": "vpr_585de5ce8eb9a0c9",
+      "id": "vpr_51cbe3dfbe8aeb8b",
       "kind": "finding.add",
       "target": {
         "type": "finding",
-        "id": "vf_ef076b17acda1221"
+        "id": "vf_ba00e56283b9703f"
       },
       "actor": {
         "id": "reviewer:will-blair",
         "type": "human"
       },
-      "created_at": "2026-04-25T22:38:28.283922+00:00",
+      "created_at": "2026-04-26T00:32:44.852401+00:00",
       "reason": "Manual finding added to frontier state",
       "payload": {
         "finding": {
@@ -3162,7 +3764,7 @@
                 "aliases": [],
                 "candidates": [],
                 "identifiers": {},
-                "name": "Alzheimer's disease",
+                "name": "Alzheimers disease",
                 "needs_review": true,
                 "resolution_confidence": 0.6,
                 "resolution_provenance": "manual_state_transition",
@@ -3179,12 +3781,14 @@
             "clinical_trial": false,
             "concentration_range": null,
             "duration": null,
-            "human_data": false,
+            "human_data": true,
             "in_vitro": false,
             "in_vivo": false,
             "species_unverified": [],
-            "species_verified": [],
-            "text": "Manually added finding; requires evidence review before scientific use."
+            "species_verified": [
+              "Homo sapiens"
+            ],
+            "text": "Single Colombian woman, homozygous APOE3-Christchurch (R136S), carrying PSEN1 E280A familial AD mutation. Expected age of cognitive decline ~44; remained cognitively intact until ~70 despite extensive amyloid burden. N=1 case report; mechanism candidate: reduced ApoE binding to HSPGs limiting tau spread. Replication in additional Christchurch carriers pending."
           },
           "confidence": {
             "basis": "operator-supplied frontier prior; review required",
@@ -3193,7 +3797,7 @@
             "method": "expert_judgment",
             "score": 0.65
           },
-          "created": "2026-04-25T22:38:28.283873+00:00",
+          "created": "2026-04-26T00:32:44.852359+00:00",
           "evidence": {
             "effect_size": null,
             "evidence_spans": [],
@@ -3214,29 +3818,65 @@
             "negative_space": false,
             "retracted": false
           },
-          "id": "vf_ef076b17acda1221",
+          "id": "vf_ba00e56283b9703f",
           "links": [],
           "previous_version": null,
           "provenance": {
             "authors": [
               {
-                "name": "reviewer:will-blair",
+                "name": "Arboleda-Velasquez JF",
+                "orcid": null
+              },
+              {
+                "name": "Lopera F",
+                "orcid": null
+              },
+              {
+                "name": "O'Hare M",
+                "orcid": null
+              },
+              {
+                "name": "Delgado-Tirado S",
+                "orcid": null
+              },
+              {
+                "name": "Marino C",
+                "orcid": null
+              },
+              {
+                "name": "Chmielewska N",
+                "orcid": null
+              },
+              {
+                "name": "Saez-Torres KL",
+                "orcid": null
+              },
+              {
+                "name": "Amarnani D",
+                "orcid": null
+              },
+              {
+                "name": "Schultz AP",
+                "orcid": null
+              },
+              {
+                "name": "Sperling RA",
                 "orcid": null
               }
             ],
             "citation_count": null,
-            "doi": null,
+            "doi": "10.1038/s41591-019-0611-3",
             "extraction": {
-              "extracted_at": "2026-04-25T22:38:28.283866+00:00",
-              "extractor_version": "vela/0.10.0",
+              "extracted_at": "2026-04-26T00:32:44.852348+00:00",
+              "extractor_version": "vela/0.11.0",
               "method": "manual_curation",
               "model": null,
               "model_version": null
             },
-            "journal": null,
+            "journal": "Nature Medicine",
             "openalex_id": null,
             "pmc": null,
-            "pmid": null,
+            "pmid": "31686034",
             "review": {
               "corrections": [],
               "reviewed": false,
@@ -3245,7 +3885,7 @@
             },
             "source_type": "published_paper",
             "title": "Arboleda-Velasquez et al., 2019, Nature Medicine 25:1680-1683",
-            "year": null
+            "year": 2019
           },
           "updated": null,
           "version": 1
@@ -3254,26 +3894,26 @@
       "source_refs": [],
       "status": "applied",
       "reviewed_by": "reviewer:will-blair",
-      "reviewed_at": "2026-04-25T22:38:28.284305+00:00",
+      "reviewed_at": "2026-04-26T00:32:44.852794+00:00",
       "decision_reason": "Applied locally from proposal creation",
-      "applied_event_id": "vev_8a0df1455fc796e8",
+      "applied_event_id": "vev_4c0937ea725d454f",
       "caveats": [
         "Manual findings require evidence review before scientific use."
       ]
     },
     {
       "schema": "vela.proposal.v0.1",
-      "id": "vpr_c72c3a61622b59cc",
+      "id": "vpr_f87b203dfa1a845d",
       "kind": "finding.caveat",
       "target": {
         "type": "finding",
-        "id": "vf_d8e6a10a357310da"
+        "id": "vf_61a2fe3e034712b0"
       },
       "actor": {
         "id": "reviewer:will-blair",
         "type": "human"
       },
-      "created_at": "2026-04-25T22:43:39.121206+00:00",
+      "created_at": "2026-04-26T00:32:44.912482+00:00",
       "reason": "Therapeutic implication is timing-dependent: activating microglia in late-stage disease where neurodegeneration is established may produce inflammatory harm. Activated microglia also release inflammatory cytokines. The 'when' of TREM2 activation matters as much as the 'what'.",
       "payload": {
         "text": "Therapeutic implication is timing-dependent: activating microglia in late-stage disease where neurodegeneration is established may produce inflammatory harm. Activated microglia also release inflammatory cytokines. The 'when' of TREM2 activation matters as much as the 'what'."
@@ -3281,24 +3921,24 @@
       "source_refs": [],
       "status": "applied",
       "reviewed_by": "reviewer:will-blair",
-      "reviewed_at": "2026-04-25T22:43:39.125229+00:00",
+      "reviewed_at": "2026-04-26T00:32:44.912815+00:00",
       "decision_reason": "Applied locally from proposal creation",
-      "applied_event_id": "vev_8679f800c11b53a0",
+      "applied_event_id": "vev_d67d20494e64a54e",
       "caveats": []
     },
     {
       "schema": "vela.proposal.v0.1",
-      "id": "vpr_30a62b5267982b69",
+      "id": "vpr_0b939c70aa5f57c4",
       "kind": "finding.caveat",
       "target": {
         "type": "finding",
-        "id": "vf_3d2442675353d79b"
+        "id": "vf_53859da6d5fa6673"
       },
       "actor": {
         "id": "reviewer:will-blair",
         "type": "human"
       },
-      "created_at": "2026-04-25T22:43:39.132116+00:00",
+      "created_at": "2026-04-26T00:32:44.918615+00:00",
       "reason": "TREM2-dependent and TREM2-independent microglial activation pathways operate in parallel; a TREM2 agonist would only restore the dependent arm, not full microglial function. The single on/off-switch model of TREM2 is wrong.",
       "payload": {
         "text": "TREM2-dependent and TREM2-independent microglial activation pathways operate in parallel; a TREM2 agonist would only restore the dependent arm, not full microglial function. The single on/off-switch model of TREM2 is wrong."
@@ -3306,24 +3946,24 @@
       "source_refs": [],
       "status": "applied",
       "reviewed_by": "reviewer:will-blair",
-      "reviewed_at": "2026-04-25T22:43:39.132403+00:00",
+      "reviewed_at": "2026-04-26T00:32:44.918958+00:00",
       "decision_reason": "Applied locally from proposal creation",
-      "applied_event_id": "vev_a7530ae190c65e1f",
+      "applied_event_id": "vev_49aaaebf6302f7e7",
       "caveats": []
     },
     {
       "schema": "vela.proposal.v0.1",
-      "id": "vpr_4f563fa5a67d9cc0",
+      "id": "vpr_afbe588c1c7c55d6",
       "kind": "finding.note",
       "target": {
         "type": "finding",
-        "id": "vf_a0bde1de78324125"
+        "id": "vf_0b608a6432ada63c"
       },
       "actor": {
         "id": "reviewer:will-blair",
         "type": "human"
       },
-      "created_at": "2026-04-25T22:43:47.601133+00:00",
+      "created_at": "2026-04-26T00:32:44.924708+00:00",
       "reason": "Curator open question: should the verubecestat/atabecestat failures map to confidence drift on the amyloid cascade itself? The trials failed for mechanism-independent reasons; the cleanest reading is that they should NOT be evidence against amyloid as a target. But the field treats them as such, which is itself a structural fact about how disconfirmation propagates in the evidence graph.",
       "payload": {
         "text": "Curator open question: should the verubecestat/atabecestat failures map to confidence drift on the amyloid cascade itself? The trials failed for mechanism-independent reasons; the cleanest reading is that they should NOT be evidence against amyloid as a target. But the field treats them as such, which is itself a structural fact about how disconfirmation propagates in the evidence graph."
@@ -3331,24 +3971,24 @@
       "source_refs": [],
       "status": "applied",
       "reviewed_by": "reviewer:will-blair",
-      "reviewed_at": "2026-04-25T22:43:47.601623+00:00",
+      "reviewed_at": "2026-04-26T00:32:44.925017+00:00",
       "decision_reason": "Applied locally from proposal creation",
-      "applied_event_id": "vev_b82a18b65787a356",
+      "applied_event_id": "vev_a4bd72f8dac83371",
       "caveats": []
     },
     {
       "schema": "vela.proposal.v0.1",
-      "id": "vpr_98b0d4da8c0b23bc",
+      "id": "vpr_ffe6b42371b67b45",
       "kind": "finding.note",
       "target": {
         "type": "finding",
-        "id": "vf_03457ee82055bbe5"
+        "id": "vf_9ba01201290c351a"
       },
       "actor": {
         "id": "reviewer:will-blair",
         "type": "human"
       },
-      "created_at": "2026-04-25T22:43:47.608842+00:00",
+      "created_at": "2026-04-26T00:32:44.931238+00:00",
       "reason": "Curator open question: is the right therapeutic strategy to target one pathway, or to combine across amyloid + tau + microglial? The 'gravity well' nature of cascade-thinking biases toward single-pathway intervention design even when the evidence supports multifactorial models.",
       "payload": {
         "text": "Curator open question: is the right therapeutic strategy to target one pathway, or to combine across amyloid + tau + microglial? The 'gravity well' nature of cascade-thinking biases toward single-pathway intervention design even when the evidence supports multifactorial models."
@@ -3356,9 +3996,9 @@
       "source_refs": [],
       "status": "applied",
       "reviewed_by": "reviewer:will-blair",
-      "reviewed_at": "2026-04-25T22:43:47.609171+00:00",
+      "reviewed_at": "2026-04-26T00:32:44.931565+00:00",
       "decision_reason": "Applied locally from proposal creation",
-      "applied_event_id": "vev_6d836944922d0166",
+      "applied_event_id": "vev_26ece124896e57ab",
       "caveats": []
     }
   ],
@@ -3377,7 +4017,7 @@
       "id": "reviewer:will-blair",
       "public_key": "4892f93877e637b5f59af31d9ec6704814842fb278cacb0eb94704baef99455e",
       "algorithm": "ed25519",
-      "created_at": "2026-04-25T22:38:53.886221+00:00"
+      "created_at": "2026-04-26T00:32:44.940254+00:00"
     }
   ]
 }

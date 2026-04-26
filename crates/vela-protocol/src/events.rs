@@ -115,7 +115,19 @@ pub fn new_finding_event(input: FindingEventInput<'_>) -> StateEvent {
 }
 
 pub fn finding_hash(finding: &FindingBundle) -> String {
-    let bytes = canonical::to_canonical_bytes(finding).unwrap_or_default();
+    // Per Protocol §5, links are "review surfaces" — typed relationships
+    // between findings inferred at compile or review time, NOT part of the
+    // finding's content commitment. They are mutable: `vela link add`
+    // appends links without emitting a state-event (links don't change
+    // what the finding asserts; they change which findings know about
+    // each other). For event-replay validity the finding hash must therefore
+    // exclude `links`, otherwise any CLI-added link breaks the asserted-event
+    // chain. v0.12: hash a links-cleared copy. State-changing events
+    // (caveat/note/review/revise/retract) still mutate annotations/flags/
+    // confidence — those remain in the hash and chain through events properly.
+    let mut hashable = finding.clone();
+    hashable.links.clear();
+    let bytes = canonical::to_canonical_bytes(&hashable).unwrap_or_default();
     format!("sha256:{}", hex::encode(Sha256::digest(bytes)))
 }
 
