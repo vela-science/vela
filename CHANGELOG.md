@@ -1,5 +1,120 @@
 # Changelog
 
+## 0.26.0 - 2026-04-26
+
+**The VelaBench release.** Reproducible scoring harness for AI-
+agent state-update quality. Compares a *candidate* frontier
+(typically agent-generated) against a *gold* frontier (curator-
+validated) and produces a deterministic composite score.
+
+The forcing function for any future agent: *"How does it score
+on `bbb-scout-bench-001`?"*
+
+### Doctrine
+
+- **Pure data comparison.** No LLM call, no network at bench
+  time. The scorer reads two `Project` structs and produces
+  numbers.
+- **Deterministic.** Sort by `vf_id`. No wall-clock, no RNG.
+- **Substrate-level.** Lives in `vela-protocol::agent_bench`;
+  zero LLM dependency.
+- **Pre- and post-review both score.** Candidate set is the
+  union of `frontier.findings` (signed) and `finding.add`
+  proposal payloads (unsigned agent output). Same scoring path.
+
+### Substrate
+
+- New `crates/vela-protocol/src/agent_bench.rs`. Greedy matcher
+  (content-address first, claim-text Jaccard ≥ 0.4 fallback);
+  six metrics; composite formula; pretty + JSON renderers.
+  Six unit tests covering jaccard, matching, F1 at full overlap,
+  duplicate detection, empty-candidate handling.
+
+### Metrics
+
+| Metric | Formula | Target |
+|---|---|---|
+| `claim_match_rate` | `2·|M| / (|G| + |C|)` | ≥ 0.70 |
+| `scope_accuracy` | mean of `0.5·organism_eq + 0.5·intervention_overlap` over `M` | ≥ 0.80 |
+| `evidence_fidelity` | candidate spans that substring-match a `--sources` file | ≥ 0.95 |
+| `duplicate_rate` (reported as `1 − duplicate_rate`) | `1 − unique(vf_id)/|C|` | ≤ 0.02 |
+| `novelty_rate` | `|C ∖ M| / |C|` | report only |
+| `contradiction_recall` | gold contradictions detected / total gold | ≥ 0.60 |
+| `downstream_link_rate` | novel candidate findings linking to a gold `vf_id` / total novel | ≥ 0.75 |
+
+Composite (weights sum to 1.0):
+
+```
+composite = 0.25·claim_match
+          + 0.20·scope_accuracy
+          + 0.20·evidence_fidelity   (when --sources provided)
+          + 0.15·contradiction_recall
+          + 0.10·downstream_link_rate
+          + 0.10·(1 − duplicate_rate)
+```
+
+When `--sources` isn't supplied, evidence_fidelity drops out
+and remaining weights rebalance proportionally.
+
+### CLI
+
+- `vela bench` now accepts `--candidate <frontier> [--sources
+  <dir>] [--threshold <f64>] [--report <path>]`. Presence of
+  `--candidate` selects the v0.26 agent-bench scorer; existing
+  `--gold` semantics (legacy extraction harness) preserved
+  for invocations without `--candidate`.
+- Non-zero exit when `composite < threshold` (default 0.0 = no
+  gate, report only). CI-friendly.
+
+### First vector: `benchmarks/bbb-scout-bench-001/`
+
+- `candidate.json` — frozen one-paper Literature Scout output
+  (focused-ultrasound review → 2 proposals).
+- `inputs/papers/focused-ultrasound.{pdf,txt}` — the input PDF
+  + `pdftotext` extract for evidence_fidelity scoring.
+- `expected.json` — regression band: composite expected
+  `[0.30, 0.55]`, `evidence_fidelity ≥ 0.90`, `novelty_rate ≥
+  0.80`, `claim_match_rate ≤ 0.30`. Low by design — BBB's gold
+  focuses on TfR-shuttle / amyloid antibody delivery; the
+  candidate is novel relative to that. Bench's job here is to
+  detect drift, not certify quality.
+
+### Workbench
+
+No new chips for v0.26 (bench output is a separate JSON
+artifact, not proposals). A `Bench` sidebar tab on
+`/frontiers/view` is queued as a v0.27 polish.
+
+### Documentation
+
+- New `docs/VELABENCH.md`. Covers metric formulas, composite,
+  CLI flags, vector layout, and the recipe for adding a new
+  vector.
+
+### Verification
+
+- `cargo build --workspace`: clean (4 crates @ 0.26.0).
+- `cargo clippy --workspace --all-targets -- -D warnings`: clean.
+- `cargo test --workspace`: 380 tests pass (was 374; +6 from
+  agent_bench).
+- `vela bench --gold frontiers/bbb-alzheimer.json --candidate
+  benchmarks/bbb-scout-bench-001/candidate.json`: composite
+  0.312 (no `--sources`); 0.450 with `--sources`. Matches the
+  expected.json band. evidence_fidelity = 1.0 — both scout-
+  generated evidence snippets verifiably appear in the source
+  PDF text.
+- `vela check frontiers/bbb-alzheimer.json --strict`: passes
+  unchanged. Normalize dry-run: zero deltas.
+- `vela --version` → 0.26.0; site VERSION → "0.26".
+
+### What's not in v0.26
+
+- Reviewer-acceptance scoring (needs accumulated manual-review
+  data; v0.27+).
+- Workbench bench-tab visualization (polish; v0.27).
+- Hungarian matcher (greedy is sufficient and deterministic).
+- Cross-vector roll-up (one-liner bash today).
+
 ## 0.25.0 - 2026-04-26
 
 **The Datasets release.** Fourth agent on the Inbox loop. `vela

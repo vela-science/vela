@@ -1,0 +1,9 @@
+Focused ultrasound blood brain barrier opening in Alzheimer disease
+Focused ultrasound can transiently open the blood brain barrier and may improve delivery of
+therapeutic agents in Alzheimer disease models.
+Safety, reversibility, and dosing schedules remain important review questions for clinical
+translation.
+This fixture is a valid small PDF so Vela can exercise the PDF ingestion path without
+storing a large binary.
+
+

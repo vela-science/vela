@@ -22,7 +22,7 @@ use sha2::{Digest, Sha256};
 use tokio::sync::Semaphore;
 
 #[derive(Parser)]
-#[command(name = "vela", version = "0.25.0")]
+#[command(name = "vela", version = "0.26.0")]
 #[command(about = "Portable frontier state for science")]
 struct Cli {
     #[command(subcommand)]
@@ -388,12 +388,41 @@ enum Commands {
         #[command(subcommand)]
         action: PacketAction,
     },
-    /// Run deterministic benchmark gates
+    /// Run deterministic benchmark gates.
+    ///
+    /// Two modes:
+    ///   - **legacy** (extraction quality): `--gold <gold.json>`
+    ///     against an extracted-findings frontier. Pre-v0.26
+    ///     behaviour, unchanged.
+    ///   - **v0.26 VelaBench** (agent state-update scoring): pass
+    ///     `--candidate <frontier.json>` together with `--gold`
+    ///     to compare a candidate frontier (typically agent-
+    ///     generated) against a curator-validated gold. Composite
+    ///     score with optional `--threshold` for CI gating.
     Bench {
-        /// Frontier file for single-task benchmark
+        /// Frontier file for single-task benchmark (legacy mode).
         frontier: Option<PathBuf>,
+        /// Gold frontier (used by both modes).
         #[arg(long)]
         gold: Option<PathBuf>,
+        /// v0.26: Candidate frontier to score against `--gold`.
+        /// Presence of this flag selects VelaBench (agent state-
+        /// update scoring) instead of the legacy extraction harness.
+        #[arg(long)]
+        candidate: Option<PathBuf>,
+        /// v0.26: Optional source-files directory for
+        /// `evidence_fidelity` checks. Without it, that metric is
+        /// dropped from the composite (weights rebalanced).
+        #[arg(long)]
+        sources: Option<PathBuf>,
+        /// v0.26: Composite-score threshold; non-zero exit if
+        /// composite < threshold. Default 0.0 (report only).
+        #[arg(long)]
+        threshold: Option<f64>,
+        /// v0.26: Write the JSON report to this path in addition
+        /// to printing.
+        #[arg(long)]
+        report: Option<PathBuf>,
         #[arg(long)]
         entity_gold: Option<PathBuf>,
         #[arg(long)]
@@ -1454,6 +1483,10 @@ pub async fn run_command() {
         Commands::Bench {
             frontier,
             gold,
+            candidate,
+            sources,
+            threshold,
+            report,
             entity_gold,
             link_gold,
             suite,
@@ -1463,23 +1496,40 @@ pub async fn run_command() {
             min_recall,
             no_thresholds,
             json,
-        } => cmd_bench(BenchArgs {
-            frontier,
-            gold,
-            entity_gold,
-            link_gold,
-            suite,
-            suite_ready,
-            min_f1,
-            min_precision,
-            min_recall,
-            no_thresholds,
-            json,
-        }),
+        } => {
+            // v0.26 VelaBench routing: presence of `--candidate`
+            // selects the agent state-update scorer. The legacy
+            // extraction harness keeps every other invocation
+            // unchanged.
+            if let Some(cand) = candidate.clone() {
+                let Some(g) = gold.clone() else {
+                    eprintln!(
+                        "{} `vela bench --candidate <…>` requires `--gold <…>`",
+                        style::err_prefix()
+                    );
+                    std::process::exit(2);
+                };
+                cmd_agent_bench(&g, &cand, sources.as_deref(), threshold, report.as_deref(), json);
+            } else {
+                cmd_bench(BenchArgs {
+                    frontier,
+                    gold,
+                    entity_gold,
+                    link_gold,
+                    suite,
+                    suite_ready,
+                    min_f1,
+                    min_precision,
+                    min_recall,
+                    no_thresholds,
+                    json,
+                });
+            }
+        }
         Commands::Conformance { dir } => {
             let _ = conformance::run(&dir);
         }
-        Commands::Version => println!("vela 0.25.0"),
+        Commands::Version => println!("vela 0.26.0"),
         Commands::Sign { action } => cmd_sign(action),
         Commands::Actor { action } => cmd_actor(action),
         Commands::Frontier { action } => cmd_frontier(action),
@@ -1847,7 +1897,7 @@ pub async fn cmd_compile(
         match corpus::compile_local_corpus(local_source, output, backend).await {
             Ok(report) => {
                 println!();
-                println!("  {}", "VELA · COMPILE · V0.25.0".dimmed());
+                println!("  {}", "VELA · COMPILE · V0.26.0".dimmed());
                 println!("  {}", style::tick_row(60));
                 println!("source: {}", local_source.display());
                 println!("mode: local corpus");
@@ -1882,7 +1932,7 @@ pub async fn cmd_compile(
     let client = Client::new();
 
     println!();
-    println!("  {}", "VELA · COMPILE · V0.25.0".dimmed());
+    println!("  {}", "VELA · COMPILE · V0.26.0".dimmed());
     println!("  {}", style::tick_row(60));
     println!("topic: {topic}");
     println!("papers: {max_papers}");
@@ -3072,7 +3122,7 @@ fn cmd_stats(path: &Path) {
     let frontier = repo::load_from_path(path).expect("Failed to load frontier");
     let s = &frontier.stats;
     println!();
-    println!("  {}", "FRONTIER · V0.25.0".dimmed());
+    println!("  {}", "FRONTIER · V0.26.0".dimmed());
     println!("  {}", frontier.project.name.bold());
     println!("  {}", style::tick_row(60));
     println!("  id:             {}", frontier.frontier_id());
@@ -5109,7 +5159,7 @@ async fn cmd_bridge(inputs: &[PathBuf], check_novelty: bool, top_n: usize) {
         fail("need at least 2 frontier files for bridge detection.");
     }
     println!();
-    println!("  {}", "VELA · BRIDGE · V0.25.0".dimmed());
+    println!("  {}", "VELA · BRIDGE · V0.26.0".dimmed());
     println!("  {}", style::tick_row(60));
     println!("  loading {} frontiers...", inputs.len());
     let mut named_projects = Vec::<(String, project::Project)>::new();
@@ -5162,6 +5212,58 @@ struct BenchArgs {
     min_recall: Option<f64>,
     no_thresholds: bool,
     json: bool,
+}
+
+/// v0.26 VelaBench: compare a candidate frontier (typically agent-
+/// generated) against a gold frontier. Pure data comparison —
+/// no LLM call, no network, deterministic. Exits non-zero when
+/// the composite falls below `threshold` (default 0.0 = report only).
+fn cmd_agent_bench(
+    gold: &Path,
+    candidate: &Path,
+    sources: Option<&Path>,
+    threshold: Option<f64>,
+    report_path: Option<&Path>,
+    json_out: bool,
+) {
+    let input = crate::agent_bench::BenchInput {
+        gold_path: gold.to_path_buf(),
+        candidate_path: candidate.to_path_buf(),
+        sources: sources.map(Path::to_path_buf),
+        threshold: threshold.unwrap_or(0.0),
+    };
+    let report = match crate::agent_bench::run(input) {
+        Ok(r) => r,
+        Err(e) => {
+            eprintln!("{} bench failed: {e}", style::err_prefix());
+            std::process::exit(1);
+        }
+    };
+
+    let json = serde_json::to_string_pretty(&report).unwrap_or_default();
+    if let Some(path) = report_path
+        && let Err(e) = std::fs::write(path, &json)
+    {
+        eprintln!(
+            "{} failed to write report to {}: {e}",
+            style::err_prefix(),
+            path.display()
+        );
+    }
+
+    if json_out {
+        println!("{json}");
+    } else {
+        println!();
+        println!("  {}", "VELA · BENCH · AGENT STATE-UPDATE".dimmed());
+        println!("  {}", style::tick_row(60));
+        print!("{}", crate::agent_bench::render_pretty(&report));
+        println!();
+    }
+
+    if !report.pass {
+        std::process::exit(1);
+    }
 }
 
 fn cmd_bench(args: BenchArgs) {
@@ -5404,7 +5506,7 @@ async fn cmd_jats(source: &str, output: &Path, backend: Option<&str>) {
     let config = llm::LlmConfig::from_env(backend).unwrap_or_else(|e| fail_return(&e));
     let client = Client::new();
     println!();
-    println!("  {}", "VELA · JATS · V0.25.0".dimmed());
+    println!("  {}", "VELA · JATS · V0.26.0".dimmed());
     println!("  {}", style::tick_row(60));
     println!("source: {source}");
     println!("backend: {}", config.backend.label());
@@ -5989,7 +6091,7 @@ pub fn is_science_subcommand(name: &str) -> bool {
 
 fn print_strict_help() {
     println!(
-        r#"Vela 0.25.0
+        r#"Vela 0.26.0
 Portable frontier state for science.
 
 Usage:
@@ -6144,7 +6246,7 @@ pub fn run_from_args() {
             return;
         }
         Some("-V" | "--version" | "version") => {
-            println!("vela 0.25.0");
+            println!("vela 0.26.0");
             return;
         }
         Some(cmd) if !is_science_subcommand(cmd) => {

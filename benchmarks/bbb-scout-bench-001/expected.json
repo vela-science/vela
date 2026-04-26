@@ -1,0 +1,14 @@
+{
+  "vector_id": "bbb-scout-bench-001",
+  "purpose": "Regression band for one-paper Literature Scout output against the BBB Flagship gold frontier. The candidate is small (one focused-ultrasound review paper, two extracted findings) and the bench is expected to score low on overlap metrics — it's a sentinel for *changes* in agent behaviour, not an absolute quality gate.",
+  "composite_band": [0.30, 0.55],
+  "expected_metrics": {
+    "claim_match_rate": [0.0, 0.30],
+    "scope_accuracy": [0.0, 0.50],
+    "evidence_fidelity": [0.90, 1.0],
+    "novelty_rate": [0.80, 1.0],
+    "contradiction_recall": [0.95, 1.0],
+    "downstream_link_rate": [0.0, 1.0]
+  },
+  "notes": "Agent extracted two BBB-adjacent claims (focused-ultrasound permeability + safety/dosing open questions). Neither overlaps with BBB's TfR-shuttle / amyloid focus, so claim_match_rate is expected to stay near zero. The bench's job here is to detect drift — the moment scout starts producing claims that *do* match BBB findings (or the moment evidence_fidelity drops below 0.90), the band breaks and CI flags it."
+}
