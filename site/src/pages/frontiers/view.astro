@@ -430,14 +430,19 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
     text-transform: uppercase;
     letter-spacing: 0.1em;
   }
-  :global(.ff__kind--retraction)    { color: var(--state-lost); border-color: rgba(138, 58, 58, 0.32); }
-  :global(.ff__kind--revision)      { color: var(--state-warn); border-color: rgba(138, 106, 31, 0.32); }
-  :global(.ff__kind--annotation)    { color: var(--state-stale); border-color: var(--rule-2); }
-  :global(.ff__kind--observation)   { color: var(--state-ok); border-color: rgba(63, 107, 78, 0.32); }
-  :global(.ff__kind--therapeutic)   { color: var(--signal); border-color: var(--signal-edge); }
-  :global(.ff__kind--mechanistic)   { color: var(--ink-2); border-color: var(--rule-3); }
-  :global(.ff__kind--methodological){ color: var(--state-stale); border-color: var(--rule-2); }
-  :global(.ff__kind--unknown)       { color: var(--ink-3); }
+  :global(.ff__kind--retraction)        { color: var(--state-lost); border-color: rgba(138, 58, 58, 0.32); }
+  :global(.ff__kind--revision)          { color: var(--state-warn); border-color: rgba(138, 106, 31, 0.32); }
+  :global(.ff__kind--annotation)        { color: var(--state-stale); border-color: var(--rule-2); }
+  :global(.ff__kind--observation)       { color: var(--state-ok); border-color: rgba(63, 107, 78, 0.32); }
+  :global(.ff__kind--therapeutic)       { color: var(--signal); border-color: var(--signal-edge); }
+  :global(.ff__kind--mechanistic)       { color: var(--ink-2); border-color: var(--rule-3); }
+  :global(.ff__kind--methodological)    { color: var(--state-stale); border-color: var(--rule-2); }
+  /* v0.23 Notes Compiler */
+  :global(.ff__kind--open_question)     { color: var(--signal); border-color: var(--signal-edge); }
+  :global(.ff__kind--hypothesis)        { color: var(--state-warn); border-color: rgba(138, 106, 31, 0.32); }
+  :global(.ff__kind--candidate_finding) { color: var(--state-ok); border-color: rgba(63, 107, 78, 0.32); }
+  :global(.ff__kind--tension)           { color: var(--state-lost); border-color: rgba(138, 58, 58, 0.32); }
+  :global(.ff__kind--unknown)           { color: var(--ink-3); }
 
   /* === Snapshots === */
   .fr-snaps {
@@ -1750,6 +1755,11 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
           therapeutic: "ff__kind--therapeutic",
           mechanistic: "ff__kind--mechanistic",
           methodological: "ff__kind--methodological",
+          // v0.23 Notes Compiler types
+          open_question: "ff__kind--open_question",
+          hypothesis: "ff__kind--hypothesis",
+          candidate_finding: "ff__kind--candidate_finding",
+          tension: "ff__kind--tension",
         };
         const kindClass = kindStyleMap[kind] ?? "ff__kind--unknown";
         const ev = f.evidence?.length ?? 0;

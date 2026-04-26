@@ -125,12 +125,48 @@ and short rationales:
 End-to-end latency: about 12 seconds (PDF text extraction + one
 `claude -p` call + frontier write).
 
-## What's not in v0.22
+## v0.23 — Notes Compiler
+
+The second agent. Reads Markdown / Obsidian notes; emits open
+questions, hypotheses, candidate findings, and tensions as
+`finding.add` proposals tagged `agent_run.agent =
+"notes-compiler"`. Same Inbox + sign loop as Literature Scout.
+
+```bash
+# 1. Point at a vault.
+./target/release/vela compile-notes ./my-vault \
+  --frontier ./my-frontier.json
+
+# 2. Cap files (default 50).
+./target/release/vela compile-notes ./my-vault \
+  --frontier ./my-frontier.json --max-files 20
+
+# 3. Preview with --dry-run before paying quota.
+./target/release/vela compile-notes ./my-vault \
+  --frontier ./my-frontier.json --dry-run
+```
+
+The compiler walks recursively, skipping `.git`, `.obsidian`,
+`node_modules`, `target`, and `dist`. YAML frontmatter and
+Obsidian wikilinks `[[Note]]` get parsed and threaded into the
+prompt so the model can reason about cross-note structure.
+
+Each note → one `claude -p` call → up to 4 items per category
+(open question / hypothesis / candidate finding / tension). Items
+become `finding.add` proposals with `assertion.type` ∈
+{`open_question`, `hypothesis`, `candidate_finding`, `tension`}
+that the Workbench colors distinctly:
+
+- `open_question` → signal blue
+- `hypothesis` → brass (provisional)
+- `candidate_finding` → moss (accept-worthy)
+- `tension` → madder (disagreement to surface)
+
+## What's not in v0.23
 
 Held to keep scope tight. Each lands as its own slice when the
 loop holds:
 
-- **v0.23: Notes Compiler** for Markdown / Obsidian vaults.
 - **v0.24: Code/Notebook Analyst** for Jupyter + scripts +
   AnalysisRun objects.
 - **v0.25: Dataset support** for CSV / Parquet inputs and dataset

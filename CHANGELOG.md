@@ -1,5 +1,107 @@
 # Changelog
 
+## 0.23.0 - 2026-04-26
+
+**The Notes Compiler release.** Second agent on the Inbox loop.
+Point Vela at a folder of Markdown / Obsidian notes; get back open
+questions, hypotheses, candidate findings, and tensions as
+reviewable proposals tagged with the compiler's `agent_run`.
+Same accept/reject/sign loop as Literature Scout.
+
+### Doctrinal continuity
+
+Zero substrate diff. The Notes Compiler emits `finding.add`
+proposals with new `assertion.type` values: `open_question`,
+`hypothesis`, `candidate_finding`, `tension`. The substrate already
+accepts arbitrary type strings; the Workbench colors them. New
+proposal kinds wait for v0.27+ unless validation needs them.
+
+### Shared groundwork (committed in a182a29 ahead of this release)
+
+- `crates/vela-scientist/src/llm_cli.rs` — `ClaudeCall` struct +
+  `run_structured(call) -> Value`. One place that knows how to
+  spawn `claude -p`, hand it system + user + JSON-schema prompts,
+  parse the envelope, and return validated structured output.
+  Adds `--max-budget-usd` (default $0.20 per call) as a doctrinal
+  cost cap.
+- `crates/vela-scientist/src/agent.rs` — `AgentContext`,
+  `agent_run_meta`, `build_finding_add_proposal`, `discover_files`,
+  `discover_files_recursive` (with `skip_dirs` for `.git` /
+  `node_modules` / `target`).
+- `extract.rs` and `scout.rs` refactored to use the shared infra.
+  Public surface preserved.
+
+### Agent layer
+
+- `crates/vela-scientist/src/notes.rs` — `notes::run(NotesInput)`.
+  Walks a vault recursively (skips `.git` / `.obsidian` /
+  `node_modules` / `target` / `dist`), parses YAML frontmatter
+  + Obsidian wikilinks `[[Note]]` + standard `[text](url)` links,
+  trims body to 10k chars, calls `claude -p` with a notes-specific
+  schema, lifts each item into a `FindingBundle` (one per
+  open-question / hypothesis / candidate-finding / tension),
+  wraps as a `finding.add` `StateProposal` tagged with
+  `agent_run.agent = "notes-compiler"`. Per-run cap on files
+  (`max_files`, default 50). Two new tests cover the parser
+  (frontmatter + wikilink extraction).
+
+### CLI
+
+- New `vela compile-notes <vault> --frontier <path>
+  [--backend <model>] [--max-files <n>] [--dry-run] [--json]`
+  subcommand. Wired through `register_notes_handler` in
+  `vela_protocol::cli` (mirror of the v0.22 scout pattern); the
+  binary in `vela-cli/src/main.rs` registers the adapter at
+  startup. Whitelisted in `is_science_subcommand`.
+- Report renders: vault, frontier, notes seen / processed,
+  open_questions, hypotheses, candidate_findings, tensions,
+  proposals written, skipped files with reasons.
+
+### Workbench
+
+- Four new kind-chip variants in
+  `site/src/pages/frontiers/view.astro`'s `kindStyleMap`:
+  - `open_question` → signal blue (it's a question, not an
+    assertion)
+  - `hypothesis` → brass (provisional)
+  - `candidate_finding` → moss (a candidate to accept)
+  - `tension` → madder (disagreement)
+- Inbox grouping unchanged — proposals from `notes-compiler`
+  appear as their own run alongside any concurrent
+  `literature-scout` runs.
+
+### Dogfood
+
+A 3-note vault about BBB delivery (focused-ultrasound,
+TfR-shuttle hypotheses, mannitol osmotic disruption) yielded:
+- 7 open questions
+- 5 hypotheses (with predictions inlined into the assertion text)
+- 8 candidate findings (each with verbatim evidence quotes)
+- 3 tensions (the model correctly identified a real Marston-2019
+  internal contradiction and the mannitol risk-benefit tension)
+- 23 total proposals appended to the frontier in ~30 seconds
+
+End-to-end latency: ~10 sec/note at default model.
+
+### Verification
+
+- `cargo build --workspace`: clean (4 crates).
+- `cargo clippy --workspace --all-targets -- -D warnings`: clean.
+- `cargo test --workspace`: 367 tests pass (was 365 in groundwork;
+  +2 from notes.rs).
+- `vela check frontiers/bbb-alzheimer.json --strict`: passes
+  unchanged. BBB normalize dry-run: zero deltas.
+- `vela check <dogfood-frontier>`: passes; 56 conformance tests
+  pass against the new frontier with 23 proposals.
+- Real model run: 3 notes → 23 reviewable proposals across all
+  four kinds.
+
+### What's not in v0.23
+
+- v0.24 Code & Notebook Analyst.
+- v0.25 Dataset support.
+- v0.26 VelaBench.
+
 ## 0.22.0 - 2026-04-26
 
 **The Agent Inbox release.** First end-to-end loop where an AI

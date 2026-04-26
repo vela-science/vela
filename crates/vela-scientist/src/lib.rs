@@ -12,6 +12,7 @@
 pub mod agent;
 pub mod extract;
 pub mod llm_cli;
+pub mod notes;
 pub mod scout;
 
 /// Stable agent name + actor id for Literature Scout. Pairs with
