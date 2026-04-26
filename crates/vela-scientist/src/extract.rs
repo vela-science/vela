@@ -18,13 +18,13 @@
 //! extractors with their own prompts.
 
 use std::path::Path;
-use std::process::Stdio;
 
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use vela_protocol::bundle::{
     Assertion, Conditions, Confidence, Evidence, Extraction, FindingBundle, Flags, Provenance,
 };
+
+use crate::llm_cli::{ClaudeCall, run_structured};
 
 /// One candidate the model returned, before we lift it into a
 /// `FindingBundle`. Mirrors the JSON schema we hand to `claude`.
@@ -84,66 +84,10 @@ pub fn extract_via_claude_cli(
     let system_prompt = build_system_prompt();
     let schema = output_schema_json();
 
-    let mut cmd = std::process::Command::new(cli_command);
-    cmd.arg("-p")
-        .arg(&user_prompt)
-        .arg("--system-prompt")
-        .arg(&system_prompt)
-        .arg("--output-format")
-        .arg("json")
-        .arg("--json-schema")
-        .arg(&schema)
-        .arg("--no-session-persistence")
-        .arg("--permission-mode")
-        .arg("dontAsk")
-        // No tool calls — pure model extraction.
-        .arg("--allowedTools")
-        .arg("");
-    if let Some(m) = model {
-        cmd.arg("--model").arg(m);
-    }
-    cmd.stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped());
-
-    let output = cmd
-        .output()
-        .map_err(|e| format!("spawn {cli_command}: {e}"))?;
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        let truncated = if stderr.len() > 600 {
-            format!("{}…", &stderr[..600])
-        } else {
-            stderr.into_owned()
-        };
-        return Err(format!(
-            "{cli_command} -p exited with {}: {truncated}",
-            output.status.code().unwrap_or(-1)
-        ));
-    }
-
-    let stdout = String::from_utf8(output.stdout)
-        .map_err(|e| format!("non-utf8 from {cli_command}: {e}"))?;
-    let envelope: Value = serde_json::from_str(stdout.trim())
-        .map_err(|e| format!("parse {cli_command} json envelope: {e}\noutput: {stdout}"))?;
-
-    let structured = envelope
-        .get("structured_output")
-        .or_else(|| envelope.get("result"))
-        .cloned()
-        .ok_or_else(|| {
-            format!(
-                "{cli_command} response missing structured_output / result field: {envelope}"
-            )
-        })?;
-
-    // structured_output may be either an object {findings: [...]} or
-    // a JSON string we still need to parse (older claude versions).
-    let findings_value: Value = match structured {
-        Value::String(s) => serde_json::from_str(&s)
-            .map_err(|e| format!("parse structured_output string: {e}\nvalue: {s}"))?,
-        v => v,
-    };
+    let mut call = ClaudeCall::new(&system_prompt, &user_prompt, &schema);
+    call.cli_command = cli_command;
+    call.model = model;
+    let findings_value = run_structured(call)?;
 
     let arr = findings_value
         .get("findings")

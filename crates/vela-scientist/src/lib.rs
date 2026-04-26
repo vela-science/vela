@@ -9,7 +9,9 @@
 //! Contradiction Finder, Experiment Planner, Reviewer Agent) land
 //! one at a time in v0.23+.
 
+pub mod agent;
 pub mod extract;
+pub mod llm_cli;
 pub mod scout;
 
 /// Stable agent name + actor id for Literature Scout. Pairs with
