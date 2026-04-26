@@ -99,12 +99,17 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
     text-align: center;
   }
 
-  .fr {
+</style>
+
+<!-- Cards are rendered via innerHTML at runtime, so they can't pick up
+     Astro's scoped style hash. Keep their CSS here in a global block. -->
+<style is:global>
+  .hb-card {
     border-bottom: 1px solid var(--rule-1);
   }
-  .fr:last-child { border-bottom: 0; }
+  .hb-card:last-child { border-bottom: 0; }
 
-  .fr__head {
+  .hb-card__head {
     display: flex;
     align-items: baseline;
     gap: 14px;
@@ -113,11 +118,11 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
     text-decoration: none;
     transition: background var(--dur-1) var(--ease);
   }
-  .fr__head:hover { background: var(--paper-1); }
-  .fr__head:hover .fr__name { color: var(--signal); }
+  .hb-card__head:hover { background: var(--paper-1); }
+  .hb-card__head:hover .hb-card__name { color: var(--signal); }
 
-  .fr__main { min-width: 0; flex: 1; }
-  .fr__name {
+  .hb-card__main { min-width: 0; flex: 1; }
+  .hb-card__name {
     font-family: var(--font-serif);
     font-size: 17px;
     line-height: 1.3;
@@ -126,7 +131,7 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  .fr__sub {
+  .hb-card__sub {
     margin-top: 4px;
     font-family: var(--font-mono);
     font-size: 10px;
@@ -136,10 +141,10 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
     flex-wrap: wrap;
     gap: 0 10px;
   }
-  .fr__sub .vfr { color: var(--ink-2); }
-  .fr__sub .actor { color: var(--ink-2); }
+  .hb-card__sub .hb-vfr { color: var(--ink-2); }
+  .hb-card__sub .hb-actor { color: var(--ink-2); }
 
-  .fr__meta {
+  .hb-card__meta {
     flex: 0 0 auto;
     text-align: right;
     font-family: var(--font-mono);
@@ -148,8 +153,8 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
     white-space: nowrap;
     line-height: 1.5;
   }
-  .fr__meta .when { color: var(--ink-2); display: block; }
-  .fr__meta .versions {
+  .hb-card__meta .hb-when { color: var(--ink-2); display: block; }
+  .hb-card__meta .hb-versions {
     display: inline-block;
     margin-top: 4px;
     padding: 2px 7px;
@@ -161,16 +166,16 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
     background: var(--paper-0);
     transition: color var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease);
   }
-  .fr__meta .versions:hover { color: var(--ink-0); border-color: var(--rule-ink); }
-  .fr.is-open .fr__meta .versions { color: var(--ink-0); border-color: var(--rule-ink); }
+  .hb-card__meta .hb-versions:hover { color: var(--ink-0); border-color: var(--rule-ink); }
+  .hb-card.is-open .hb-card__meta .hb-versions { color: var(--ink-0); border-color: var(--rule-ink); }
 
-  .fr__history {
+  .hb-card__history {
     display: none;
     background: var(--paper-1);
     border-top: 1px solid var(--rule-1);
   }
-  .fr.is-open .fr__history { display: block; }
-  .fr__history-row {
+  .hb-card.is-open .hb-card__history { display: block; }
+  .hb-card__history-row {
     display: flex;
     align-items: baseline;
     gap: 14px;
@@ -181,14 +186,14 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
     font-family: var(--font-mono);
     font-size: 11px;
   }
-  .fr__history-row:first-child { border-top: 0; }
-  .fr__history-row:hover { background: var(--paper-2, var(--paper-0)); color: var(--ink-0); }
-  .fr__history-row .h-vfr { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-  .fr__history-row .h-when { color: var(--ink-3); white-space: nowrap; }
+  .hb-card__history-row:first-child { border-top: 0; }
+  .hb-card__history-row:hover { background: var(--paper-2, var(--paper-0)); color: var(--ink-0); }
+  .hb-card__history-row .hb-h-vfr { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .hb-card__history-row .hb-h-when { color: var(--ink-3); white-space: nowrap; }
 
   @media (max-width: 540px) {
-    .fr__head { flex-direction: column; align-items: stretch; gap: 6px; }
-    .fr__meta { text-align: left; }
+    .hb-card__head { flex-direction: column; align-items: stretch; gap: 6px; }
+    .hb-card__meta { text-align: left; }
   }
 </style>
 
@@ -272,32 +277,32 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
           const versionCount = g.versions.length;
           const versionPill =
             versionCount > 1
-              ? `<span class="versions" data-toggle title="show all snapshots">${versionCount} snapshots</span>`
+              ? `<span class="hb-versions" data-toggle title="show all snapshots">${versionCount} snapshots</span>`
               : "";
           const history = g.versions
             .map((e) => {
               const href2 = `/workbench?vfr=${encodeURIComponent(e.vfr_id)}`;
-              return `<a class="fr__history-row" href="${href2}" title="${escapeHtml(e.vfr_id)}">
-  <span class="h-vfr">${escapeHtml(e.vfr_id)}</span>
-  <span class="h-when">${shortDate(e.signed_publish_at)}</span>
+              return `<a class="hb-card__history-row" href="${href2}" title="${escapeHtml(e.vfr_id)}">
+  <span class="hb-h-vfr">${escapeHtml(e.vfr_id)}</span>
+  <span class="hb-h-when">${shortDate(e.signed_publish_at)}</span>
 </a>`;
             })
             .join("");
-          return `<div class="fr">
-  <a class="fr__head" href="${href}" title="open latest in Workbench">
-    <span class="fr__main">
-      <div class="fr__name">${name}</div>
-      <div class="fr__sub">
-        <span class="actor">${owner}</span>
-        <span class="vfr" title="${fullVfr}">${vfr}</span>
+          return `<div class="hb-card">
+  <a class="hb-card__head" href="${href}" title="open latest in Workbench">
+    <span class="hb-card__main">
+      <div class="hb-card__name">${name}</div>
+      <div class="hb-card__sub">
+        <span class="hb-actor">${owner}</span>
+        <span class="hb-vfr" title="${fullVfr}">${vfr}</span>
       </div>
     </span>
-    <span class="fr__meta">
-      <span class="when">${when}</span>
+    <span class="hb-card__meta">
+      <span class="hb-when">${when}</span>
       ${versionPill}
     </span>
   </a>
-  ${versionCount > 1 ? `<div class="fr__history">${history}</div>` : ""}
+  ${versionCount > 1 ? `<div class="hb-card__history">${history}</div>` : ""}
 </div>`;
         })
         .join("");
@@ -307,7 +312,7 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
         el.addEventListener("click", (ev) => {
           ev.preventDefault();
           ev.stopPropagation();
-          const fr = (el as HTMLElement).closest(".fr");
+          const fr = (el as HTMLElement).closest(".hb-card");
           fr?.classList.toggle("is-open");
         });
       });

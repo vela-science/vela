@@ -235,7 +235,9 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
     flex-wrap: wrap;
     gap: 6px;
   }
-  .frc {
+  /* .frc chips appear both in static markup and runtime-injected
+     snapshot rows; global so both render the same. */
+  :global(.frc) {
     font-family: var(--font-mono);
     font-size: 10px;
     letter-spacing: 0.04em;
@@ -246,8 +248,8 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
     border-radius: 3px;
     white-space: nowrap;
   }
-  .frc--mono { color: var(--ink-3); }
-  .frc--ok { color: var(--state-ok); border-color: rgba(63, 107, 78, 0.18); background: rgba(63, 107, 78, 0.06); }
+  :global(.frc--mono) { color: var(--ink-3); }
+  :global(.frc--ok) { color: var(--state-ok); border-color: rgba(63, 107, 78, 0.18); background: rgba(63, 107, 78, 0.06); }
 
   .fr-hdr__cta {
     display: flex;
@@ -352,7 +354,10 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
     flex-direction: column;
     border-top: 1px solid var(--rule-1);
   }
-  .ff {
+  /* Rows below are injected via innerHTML at runtime, so they need to
+     escape Astro's scoped-style hash. Use :global() so the selectors
+     match the un-hashed elements the script generates. */
+  :global(.ff) {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     gap: 16px;
@@ -362,10 +367,10 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
     text-decoration: none;
     transition: background var(--dur-1) var(--ease);
   }
-  .ff:hover { background: var(--paper-1); }
-  .ff:hover .ff__claim { color: var(--signal); }
-  .ff__main { min-width: 0; }
-  .ff__claim {
+  :global(.ff:hover) { background: var(--paper-1); }
+  :global(.ff:hover .ff__claim) { color: var(--signal); }
+  :global(.ff__main) { min-width: 0; }
+  :global(.ff__claim) {
     font-family: var(--font-serif);
     font-size: 16px;
     line-height: 1.4;
@@ -377,7 +382,7 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
-  .ff__sub {
+  :global(.ff__sub) {
     font-family: var(--font-mono);
     font-size: 10px;
     color: var(--ink-3);
@@ -386,8 +391,8 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
     flex-wrap: wrap;
     gap: 0 12px;
   }
-  .ff__sub strong { color: var(--ink-2); font-weight: 500; }
-  .ff__meta {
+  :global(.ff__sub strong) { color: var(--ink-2); font-weight: 500; }
+  :global(.ff__meta) {
     font-family: var(--font-mono);
     font-size: 10px;
     color: var(--ink-3);
@@ -395,7 +400,7 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
     white-space: nowrap;
     flex-shrink: 0;
   }
-  .ff__kind {
+  :global(.ff__kind) {
     display: inline-block;
     padding: 2px 7px;
     border: 1px solid var(--rule-2);
@@ -404,11 +409,14 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
     text-transform: uppercase;
     letter-spacing: 0.1em;
   }
-  .ff__kind--retraction { color: var(--state-lost); border-color: rgba(138, 58, 58, 0.32); }
-  .ff__kind--revision   { color: var(--state-warn); border-color: rgba(138, 106, 31, 0.32); }
-  .ff__kind--annotation { color: var(--state-stale); border-color: var(--rule-2); }
-  .ff__kind--observation { color: var(--state-ok); border-color: rgba(63, 107, 78, 0.32); }
-  .ff__kind--unknown { color: var(--ink-3); }
+  :global(.ff__kind--retraction)    { color: var(--state-lost); border-color: rgba(138, 58, 58, 0.32); }
+  :global(.ff__kind--revision)      { color: var(--state-warn); border-color: rgba(138, 106, 31, 0.32); }
+  :global(.ff__kind--annotation)    { color: var(--state-stale); border-color: var(--rule-2); }
+  :global(.ff__kind--observation)   { color: var(--state-ok); border-color: rgba(63, 107, 78, 0.32); }
+  :global(.ff__kind--therapeutic)   { color: var(--signal); border-color: var(--signal-edge); }
+  :global(.ff__kind--mechanistic)   { color: var(--ink-2); border-color: var(--rule-3); }
+  :global(.ff__kind--methodological){ color: var(--state-stale); border-color: var(--rule-2); }
+  :global(.ff__kind--unknown)       { color: var(--ink-3); }
 
   /* === Snapshots === */
   .fr-snaps {
@@ -416,7 +424,7 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
     flex-direction: column;
     border-top: 1px solid var(--rule-1);
   }
-  .fs {
+  :global(.fs) {
     display: flex;
     align-items: baseline;
     gap: 16px;
@@ -426,51 +434,54 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
     font-size: 11px;
     color: var(--ink-2);
   }
-  .fs__hash { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--ink-1); }
-  .fs__when { color: var(--ink-3); white-space: nowrap; }
-  .fs__sig { color: var(--state-ok); font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; }
-  .fs__open {
+  :global(.fs__hash) { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--ink-1); }
+  :global(.fs__when) { color: var(--ink-3); white-space: nowrap; }
+  :global(.fs__sig) { color: var(--state-ok); font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; }
+  :global(.fs__open) {
     color: var(--ink-3);
     border-bottom: 1px solid var(--rule-2);
     text-decoration: none;
     font-size: 10px;
   }
-  .fs__open:hover { color: var(--signal); border-bottom-color: var(--signal); }
+  :global(.fs__open:hover) { color: var(--signal); border-bottom-color: var(--signal); }
 
   /* === Deps === */
-  .fd {
+  :global(.fd) {
     display: flex;
     flex-direction: column;
     gap: 8px;
     padding: 14px 4px;
     border-bottom: 1px solid var(--rule-1);
+    text-decoration: none;
   }
-  .fd__name {
+  :global(.fd:hover .fd__name) { color: var(--signal); }
+  :global(.fd__name) {
     font-family: var(--font-serif);
     font-size: 16px;
     color: var(--ink-0);
+    transition: color var(--dur-1) var(--ease);
   }
-  .fd__sub {
+  :global(.fd__sub) {
     font-family: var(--font-mono);
     font-size: 10px;
     color: var(--ink-3);
   }
 
   /* === Actors === */
-  .fa {
+  :global(.fa) {
     display: flex;
     align-items: baseline;
     gap: 14px;
     padding: 12px 4px;
     border-bottom: 1px solid var(--rule-1);
   }
-  .fa__handle {
+  :global(.fa__handle) {
     font-family: var(--font-mono);
     font-size: 13px;
     color: var(--ink-1);
     min-width: 200px;
   }
-  .fa__pubkey {
+  :global(.fa__pubkey) {
     font-family: var(--font-mono);
     font-size: 10px;
     color: var(--ink-3);
@@ -478,7 +489,7 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  .fa__tier {
+  :global(.fa__tier) {
     font-family: var(--font-mono);
     font-size: 9px;
     letter-spacing: 0.1em;
@@ -498,8 +509,9 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
     max-width: 64ch;
     padding: 8px 0;
   }
-  .fr-about p { margin: 0 0 1em; }
-  .fr-about pre {
+  /* About content is innerHTML-injected; needs :global. */
+  :global(.fr-about p) { margin: 0 0 1em; }
+  :global(.fr-about pre) {
     background: var(--paper-1);
     border: 1px solid var(--rule-1);
     padding: 12px;
@@ -508,8 +520,16 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
     font-family: var(--font-mono);
     font-size: 12px;
   }
+  :global(.fr-about code) {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    background: var(--paper-1);
+    padding: 1px 5px;
+    border-radius: 2px;
+  }
 
-  .fr-empty {
+  /* Empty-state placeholder is also injected at runtime. */
+  :global(.fr-empty) {
     padding: 32px 8px;
     text-align: center;
     font-family: var(--font-mono);
@@ -600,9 +620,9 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
 
   type Finding = {
     id: string;
-    assertion?: { claim?: string };
+    assertion?: { claim?: string; text?: string; type?: string };
     kind?: string;
-    confidence?: { class?: string; tier?: string };
+    confidence?: { class?: string; tier?: string; kind?: string; score?: number };
     evidence?: unknown[];
     links?: unknown[];
     conditions?: unknown[];
@@ -670,7 +690,10 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
   }
 
   function findingKind(f: Finding): string {
-    return (f.kind ?? f.confidence?.class ?? "observation").toLowerCase();
+    return (f.kind ?? f.assertion?.type ?? f.confidence?.class ?? "observation").toLowerCase();
+  }
+  function findingClaim(f: Finding): string {
+    return f.assertion?.claim ?? f.assertion?.text ?? f.id ?? "(no claim)";
   }
 
   function setText(id: string, text: string): void {
@@ -865,7 +888,7 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
       const filtered = q
         ? findings.filter((f) =>
             (f.id ?? "").toLowerCase().includes(q) ||
-            (f.assertion?.claim ?? "").toLowerCase().includes(q) ||
+            findingClaim(f).toLowerCase().includes(q) ||
             findingKind(f).includes(q),
           )
         : findings;
@@ -876,11 +899,19 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
         return;
       }
       findingsHost.innerHTML = filtered.map((f) => {
-        const claim = escapeHtml(f.assertion?.claim ?? f.id ?? "(no claim)");
+        const claim = escapeHtml(findingClaim(f));
         const id = escapeHtml(f.id ?? "");
         const kind = findingKind(f);
-        const kindClass = ["retraction", "revision", "annotation", "observation"].includes(kind)
-          ? `ff__kind--${kind}` : "ff__kind--unknown";
+        const kindStyleMap: Record<string, string> = {
+          retraction: "ff__kind--retraction",
+          revision: "ff__kind--revision",
+          annotation: "ff__kind--annotation",
+          observation: "ff__kind--observation",
+          therapeutic: "ff__kind--therapeutic",
+          mechanistic: "ff__kind--mechanistic",
+          methodological: "ff__kind--methodological",
+        };
+        const kindClass = kindStyleMap[kind] ?? "ff__kind--unknown";
         const ev = f.evidence?.length ?? 0;
         const links = f.links?.length ?? 0;
         const conds = f.conditions?.length ?? 0;
