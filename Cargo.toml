@@ -8,7 +8,7 @@ members = [
 resolver = "3"
 
 [workspace.package]
-version = "0.24.0"
+version = "0.25.0"
 edition = "2024"
 license = "Apache-2.0"
 publish = false
@@ -41,6 +41,12 @@ quick-xml = "0.37"
 tokio-stream = "0.1"
 futures = "0.3"
 tempfile = "3"
+
+# v0.25 Datasets — Parquet metadata + sample-row reader. Vela-
+# scientist only; substrate doesn't depend on it.
+parquet = { version = "53", default-features = false, features = ["arrow"] }
+arrow-array = { version = "53", default-features = false }
+arrow-schema = { version = "53", default-features = false }
 
 # Internal crates
 vela-protocol = { path = "crates/vela-protocol" }

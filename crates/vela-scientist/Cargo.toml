@@ -32,6 +32,10 @@ sha2 = { workspace = true }
 hex = { workspace = true }
 tokio = { workspace = true }
 reqwest = { workspace = true }
+# v0.25 Datasets
+parquet = { workspace = true }
+arrow-array = { workspace = true }
+arrow-schema = { workspace = true }
 
 [lib]
 path = "src/lib.rs"

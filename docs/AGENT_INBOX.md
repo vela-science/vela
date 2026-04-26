@@ -191,10 +191,30 @@ Each file → one `claude -p` call → up to 4 items per category:
   suggests, with `hypothesis_link` and `expected_change`.
   `assertion.type = "experiment_intent"` (brass).
 
-## What's not in v0.24
+## v0.25 — Datasets
 
-- **v0.25: Dataset support** for CSV / Parquet inputs and dataset
-  versioning.
+The fourth agent. Reads a folder of CSV / TSV / Parquet files and
+emits dataset summaries plus column-supported claims as
+`finding.add` proposals tagged `agent_run.agent = "datasets"`.
+
+```bash
+./target/release/vela compile-data ./my-data \
+  --frontier ./my-frontier.json
+```
+
+Per-format schema sniffing:
+- **CSV / TSV**: hand-rolled quoted-field parser + cascade type
+  inference (i64 → bool → f64 → string).
+- **Parquet**: footer-based schema + `text/plain` row sampling.
+
+Each dataset → one `claude -p` call → one summary plus optional
+supported claims. `assertion.type` ∈ {`dataset_summary` (stale),
+`dataset_supported_claim` (signal blue)}. Caveats (small n,
+missing values, potential confounders visible in column names)
+are surfaced into each claim's `evidence_spans`.
+
+## What's not in v0.25
+
 - **v0.26: VelaBench** for agent state-update scoring.
 
 Other deliberate non-goals for v0.22:

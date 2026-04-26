@@ -1,5 +1,94 @@
 # Changelog
 
+## 0.25.0 - 2026-04-26
+
+**The Datasets release.** Fourth agent on the Inbox loop. `vela
+compile-data <root> --frontier <path>` walks a folder of CSV /
+TSV / Parquet files, sniffs each schema (columns + inferred
+types + first ~50 rows), calls `claude -p` per dataset, and
+emits dataset summaries plus column-supported claims as
+`finding.add` proposals tagged `agent_run.agent = "datasets"`.
+
+### Doctrinal continuity
+
+Zero substrate diff. Two new `assertion.type` values
+(`dataset_summary`, `dataset_supported_claim`) ride on the
+existing `finding.add` shape. The Workbench colors them.
+
+### Substrate
+
+No change. Adds `parquet` + `arrow-array` + `arrow-schema` as
+workspace deps used only by `vela-scientist` (the substrate has
+zero new dependencies).
+
+### Agent layer
+
+- `crates/vela-scientist/src/datasets.rs` — `datasets::run`.
+  Top-level walk over `*.csv` / `*.tsv` / `*.parquet`. Per-format
+  schema sniffing:
+  - **CSV / TSV**: hand-rolled quoted-field parser + cascade type
+    inference (i64 → bool → f64 → string → unknown).
+  - **Parquet**: opens via `SerializedFileReader`, reads schema +
+    row count from footer, walks row iterator for first N rows
+    via `get_column_iter()`.
+  Schema digest (columns + inferred types + null counts in
+  sample + first 20 rows) goes to the model with a focused
+  prompt that asks for one `dataset_summary` (purpose / unit
+  of observation / key variables / potential uses) plus
+  optional `supported_claims` (each with `columns_used` +
+  `caveats`). Lifts each item into a `FindingBundle`. Three
+  unit tests cover the quoted-field parser, CSV schema
+  sniffing, and the lift function.
+
+### CLI
+
+- New `vela compile-data <root> --frontier <path>
+  [--backend <model>] [--sample-rows <n>] [--dry-run] [--json]`
+  subcommand. Wired through `register_datasets_handler` in
+  `vela_protocol::cli` (mirror of scout/notes/code); the binary
+  registers `datasets_handler` at startup. Whitelisted in
+  `is_science_subcommand`.
+
+### Workbench
+
+- Two new kind-chip variants in `kindStyleMap`:
+  - `dataset_summary` → stale (descriptive)
+  - `dataset_supported_claim` → signal blue (computed)
+
+### Dogfood
+
+A 2-file dogfood (one BBB-studies CSV with intervention/effect/
+seizure columns + one cohort metadata TSV) yielded 9 reviewable
+proposals:
+- 2 dataset summaries (correctly identified the CSV as an
+  intervention-comparison dataset and the TSV as a cohort
+  registry)
+- 7 supported claims grounded in the actual columns: the model
+  surfaced TfR > FUS > Mannitol on effect size, the
+  mannitol-only seizure rate, and the small per-intervention n
+  as a caveat without inventing columns that weren't present
+
+End-to-end ~20 sec for the 2-file root.
+
+### Verification
+
+- `cargo build --workspace`: clean (4 crates @ 0.25.0).
+- `cargo clippy --workspace --all-targets -- -D warnings`: clean.
+- `cargo test --workspace`: 374 tests pass (was 371; +3 from
+  datasets.rs).
+- `vela check frontiers/bbb-alzheimer.json --strict`: passes
+  unchanged. Normalize dry-run: zero deltas.
+- Real model run: 1 CSV + 1 TSV → 9 sensible proposals.
+- `vela --version` → 0.25.0; site VERSION → "0.25".
+
+### What's not in v0.25
+
+- Recursive walk into subdirectories (top-level only for now —
+  most dataset folders are flat; recursive walk lands when a
+  dogfood says it's needed).
+- HDF5 / feather / SQL dumps. Add when forced.
+- **v0.26 VelaBench** — the agent state-update scoring harness.
+
 ## 0.24.0 - 2026-04-26
 
 **The Code & Notebook Analyst release.** Third agent on the

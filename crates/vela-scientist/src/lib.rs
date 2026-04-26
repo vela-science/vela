@@ -11,6 +11,7 @@
 
 pub mod agent;
 pub mod code_analyst;
+pub mod datasets;
 pub mod extract;
 pub mod llm_cli;
 pub mod notebook;

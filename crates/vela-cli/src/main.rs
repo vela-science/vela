@@ -17,6 +17,7 @@ fn main() {
     vela_protocol::cli::register_scout_handler(scout_handler);
     vela_protocol::cli::register_notes_handler(notes_handler);
     vela_protocol::cli::register_code_handler(code_handler);
+    vela_protocol::cli::register_datasets_handler(datasets_handler);
     vela_protocol::cli::run_from_args();
 }
 
@@ -294,6 +295,96 @@ fn code_handler(
             }
             Err(e) => {
                 eprintln!("  code analyst failed: {e}");
+                std::process::exit(1);
+            }
+        }
+    })
+}
+
+/// Adapter for `vela compile-data` (v0.25).
+fn datasets_handler(
+    root: PathBuf,
+    frontier: PathBuf,
+    backend: Option<String>,
+    sample_rows: Option<usize>,
+    dry_run: bool,
+    json_out: bool,
+) -> Pin<Box<dyn Future<Output = ()> + Send>> {
+    Box::pin(async move {
+        use vela_scientist::datasets::{DatasetInput, run};
+        let model = backend.and_then(|b| {
+            let trimmed = b.trim().to_string();
+            if trimmed.is_empty() || trimmed == "claude-cli" || trimmed == "default" {
+                None
+            } else {
+                Some(trimmed)
+            }
+        });
+        let input = DatasetInput {
+            root: root.clone(),
+            frontier_path: frontier.clone(),
+            model,
+            cli_command: std::env::var("VELA_SCIENTIST_CLI")
+                .unwrap_or_else(|_| "claude".to_string()),
+            apply: !dry_run,
+            sample_rows: sample_rows.unwrap_or(50),
+        };
+        match run(input).await {
+            Ok(report) => {
+                if json_out {
+                    println!(
+                        "{}",
+                        serde_json::to_string_pretty(&report).unwrap_or_default()
+                    );
+                    return;
+                }
+                println!();
+                println!("  {}", "VELA · COMPILE-DATA · DATASETS".dimmed());
+                println!("  {}", tick_row(60));
+                println!("  agent:                {}", report.run.agent);
+                println!("  run id:               {}", report.run.run_id);
+                println!(
+                    "  model:                {}",
+                    if report.run.model.is_empty() {
+                        "(env default)"
+                    } else {
+                        &report.run.model
+                    }
+                );
+                println!("  root:                 {}", root.display());
+                println!("  frontier:             {}", frontier.display());
+                println!("  datasets seen:        {}", report.datasets_seen);
+                println!("  csv processed:        {}", report.csv_processed);
+                println!("  parquet processed:    {}", report.parquet_processed);
+                println!("  dataset summaries:    {}", report.dataset_summaries_emitted);
+                println!("  supported claims:     {}", report.supported_claims_emitted);
+                println!(
+                    "  proposals:            {} {}",
+                    report.proposals_written,
+                    if dry_run {
+                        "(dry-run, not written)"
+                    } else {
+                        "(appended to frontier)"
+                    }
+                );
+                if !report.skipped.is_empty() {
+                    println!("  skipped:              {} files", report.skipped.len());
+                    for s in report.skipped.iter().take(5) {
+                        println!("    - {}: {}", s.path, s.reason);
+                    }
+                    if report.skipped.len() > 5 {
+                        println!("    … {} more", report.skipped.len() - 5);
+                    }
+                }
+                println!();
+                if !dry_run && report.proposals_written > 0 {
+                    println!(
+                        "  next: review in the Workbench Inbox, then `vela queue sign --all`."
+                    );
+                }
+            }
+            Err(e) => {
+                eprintln!("  datasets agent failed: {e}");
                 std::process::exit(1);
             }
         }
