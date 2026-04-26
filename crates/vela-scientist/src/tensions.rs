@@ -3,9 +3,10 @@
 //! Walks `frontier.findings` (signed canonical state, not
 //! proposals), batches them into pairwise comparisons, asks
 //! `claude -p` to identify real contradictions, and emits one
-//! `finding.add` proposal of `assertion.type = "tension"` per
-//! detected pair. Same `tension` chip variant the v0.23 Notes
-//! Compiler already uses — no new substrate types.
+//! `finding.add` proposal of `assertion.type =
+//! "cross_finding_tension"` per detected pair. Distinct from
+//! Notes Compiler's `tension` (within-note, researcher-noted) so
+//! the Workbench can show which agent flagged which kind.
 //!
 //! Doctrine: this agent reads the substrate but writes nothing
 //! canonical. Every detected tension is a proposal a human
@@ -116,7 +117,10 @@ pub async fn run(input: TensionsInput) -> Result<TensionsReport, String> {
         skipped: Vec::new(),
     };
 
-    // Collect existing tension claim text to avoid duplicates.
+    // Collect existing cross-finding-tension claim text to avoid
+    // duplicates. We only dedupe against this agent's type so a
+    // notes-derived `tension` doesn't shadow a Contradiction Finder
+    // pair (different evidence + different review intent).
     let existing_tensions: HashSet<String> = frontier
         .proposals
         .iter()
@@ -126,7 +130,7 @@ pub async fn run(input: TensionsInput) -> Result<TensionsReport, String> {
                 .and_then(|f| f.get("assertion"))
                 .and_then(|a| {
                     let t = a.get("type").and_then(|v| v.as_str()).unwrap_or("");
-                    if t == "tension" {
+                    if t == "cross_finding_tension" {
                         a.get("text").and_then(|v| v.as_str()).map(String::from)
                     } else {
                         None
@@ -297,12 +301,17 @@ fn output_schema_json() -> String {
 
 fn lift_tension(a: &FindingBundle, b: &FindingBundle, why: &str) -> FindingBundle {
     let assertion_text = format!(
-        "Tension: \"{}\" vs \"{}\". Why: {why}",
+        "Cross-finding tension: \"{}\" vs \"{}\". Why: {why}",
         a.assertion.text, b.assertion.text
     );
     let assertion = Assertion {
         text: assertion_text,
-        assertion_type: "tension".to_string(),
+        // v0.28.x: distinct from notes-compiler's `tension` (which is
+        // a within-note contradiction surfaced by the researcher);
+        // this is a model-detected pair across two signed findings.
+        // Friction #6 fix: same chip color, different label, so the
+        // Workbench can show which agent flagged which kind.
+        assertion_type: "cross_finding_tension".to_string(),
         entities: Vec::new(),
         relation: None,
         direction: None,
@@ -471,7 +480,7 @@ mod tests {
         let a = finding("vf_a", "X increases Y");
         let b = finding("vf_b", "X decreases Y");
         let t = lift_tension(&a, &b, "opposite directions on the same intervention");
-        assert_eq!(t.assertion.assertion_type, "tension");
+        assert_eq!(t.assertion.assertion_type, "cross_finding_tension");
         assert!(t.flags.contested);
         assert_eq!(t.evidence.evidence_spans.len(), 2);
         assert!(t.assertion.text.contains("X increases Y"));

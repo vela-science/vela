@@ -196,6 +196,7 @@ fn notes_handler(
     frontier: PathBuf,
     backend: Option<String>,
     max_files: Option<usize>,
+    max_items_per_category: Option<usize>,
     dry_run: bool,
     json_out: bool,
 ) -> Pin<Box<dyn Future<Output = ()> + Send>> {
@@ -217,6 +218,7 @@ fn notes_handler(
                 .unwrap_or_else(|_| "claude".to_string()),
             apply: !dry_run,
             max_files: max_files.or(Some(50)),
+            max_items_per_category: max_items_per_category.or(Some(4)),
         };
         match run(input).await {
             Ok(report) => {

@@ -19,7 +19,7 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 
 #[derive(Parser)]
-#[command(name = "vela", version = "0.28.0")]
+#[command(name = "vela", version = "0.28.1")]
 #[command(about = "Portable frontier state for science")]
 struct Cli {
     #[command(subcommand)]
@@ -88,6 +88,12 @@ enum Commands {
         /// Cap on files processed (default 50).
         #[arg(long)]
         max_files: Option<usize>,
+        /// Per-note cap on items emitted in *each* category
+        /// (open_questions / hypotheses / candidate_findings /
+        /// tensions). Default 4. Trims the strongest items the model
+        /// returns so dense notes don't drown the Inbox.
+        #[arg(long)]
+        max_items_per_category: Option<usize>,
         /// Preview without writing to the frontier file.
         #[arg(long)]
         dry_run: bool,
@@ -1287,6 +1293,7 @@ pub async fn run_command() {
             frontier,
             backend,
             max_files,
+            max_items_per_category,
             dry_run,
             json,
         } => {
@@ -1295,6 +1302,7 @@ pub async fn run_command() {
                 &frontier,
                 backend.as_deref(),
                 max_files,
+                max_items_per_category,
                 dry_run,
                 json,
             )
@@ -1621,7 +1629,7 @@ pub async fn run_command() {
         Commands::Conformance { dir } => {
             let _ = conformance::run(&dir);
         }
-        Commands::Version => println!("vela 0.28.0"),
+        Commands::Version => println!("vela 0.28.1"),
         Commands::Sign { action } => cmd_sign(action),
         Commands::Actor { action } => cmd_actor(action),
         Commands::Frontier { action } => cmd_frontier(action),
@@ -2171,6 +2179,7 @@ async fn cmd_compile_notes(
     frontier: &Path,
     backend: Option<&str>,
     max_files: Option<usize>,
+    max_items_per_category: Option<usize>,
     dry_run: bool,
     json_out: bool,
 ) {
@@ -2181,6 +2190,7 @@ async fn cmd_compile_notes(
                 frontier.to_path_buf(),
                 backend.map(String::from),
                 max_files,
+                max_items_per_category,
                 dry_run,
                 json_out,
             )
@@ -3080,7 +3090,7 @@ fn cmd_stats(path: &Path) {
     let frontier = repo::load_from_path(path).expect("Failed to load frontier");
     let s = &frontier.stats;
     println!();
-    println!("  {}", "FRONTIER · V0.28.0".dimmed());
+    println!("  {}", "FRONTIER · V0.28.1".dimmed());
     println!("  {}", frontier.project.name.bold());
     println!("  {}", style::tick_row(60));
     println!("  id:             {}", frontier.frontier_id());
@@ -5117,7 +5127,7 @@ async fn cmd_bridge(inputs: &[PathBuf], check_novelty: bool, top_n: usize) {
         fail("need at least 2 frontier files for bridge detection.");
     }
     println!();
-    println!("  {}", "VELA · BRIDGE · V0.28.0".dimmed());
+    println!("  {}", "VELA · BRIDGE · V0.28.1".dimmed());
     println!("  {}", style::tick_row(60));
     println!("  loading {} frontiers...", inputs.len());
     let mut named_projects = Vec::<(String, project::Project)>::new();
@@ -5949,7 +5959,7 @@ pub fn is_science_subcommand(name: &str) -> bool {
 
 fn print_strict_help() {
     println!(
-        r#"Vela 0.28.0
+        r#"Vela 0.28.1
 Portable frontier state for science.
 
 Usage:
@@ -6053,6 +6063,7 @@ pub type NotesHandler = fn(
     frontier: PathBuf,
     backend: Option<String>,
     max_files: Option<usize>,
+    max_items_per_category: Option<usize>,
     dry_run: bool,
     json: bool,
 ) -> Pin<Box<dyn Future<Output = ()> + Send>>;
@@ -6217,7 +6228,7 @@ pub fn run_from_args() {
             return;
         }
         Some("-V" | "--version" | "version") => {
-            println!("vela 0.28.0");
+            println!("vela 0.28.1");
             return;
         }
         Some(cmd) if !is_science_subcommand(cmd) => {

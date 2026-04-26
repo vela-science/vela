@@ -133,11 +133,22 @@ pub async fn run(input: ReviewerInput) -> Result<ReviewerReport, String> {
         .collect();
 
     let mut new_notes: Vec<StateProposal> = Vec::new();
+    let total = to_review.len();
 
-    for proposal in &to_review {
+    for (idx, proposal) in to_review.iter().enumerate() {
+        // Streaming progress to stderr — keeps the user informed
+        // through 15+ sequential per-proposal model calls. Auto-
+        // flushed by `eprintln!`. Friction #3 fix from sim-user pass.
+        eprintln!(
+            "  reviewer [{}/{}] scoring {}…",
+            idx + 1,
+            total,
+            proposal.id
+        );
         let assessment = match call_reviewer(proposal, &input) {
             Ok(a) => a,
             Err(e) => {
+                eprintln!("    skipped: {e}");
                 report.skipped.push(SkippedProposal {
                     proposal_id: proposal.id.clone(),
                     reason: format!("model call failed: {e}"),
@@ -146,6 +157,13 @@ pub async fn run(input: ReviewerInput) -> Result<ReviewerReport, String> {
             }
         };
         report.scored += 1;
+        eprintln!(
+            "    plausibility {:.2} · evidence {:.2} · scope {:.2} · dup {:.2}",
+            assessment.plausibility,
+            assessment.evidence_quality,
+            assessment.scope_tightness,
+            assessment.duplicate_risk
+        );
 
         let note_text = format_note(&assessment);
         let payload = json!({ "text": note_text });

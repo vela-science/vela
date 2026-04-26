@@ -60,6 +60,13 @@ pub struct NotesInput {
     /// Per-run cap on files processed. Default: 50. Prevents
     /// accidental quota blowups on huge vaults.
     pub max_files: Option<usize>,
+    /// Per-note cap on items emitted in *each* category
+    /// (open_questions, hypotheses, candidate_findings, tensions).
+    /// Default: 4 — a busy 600-word note can yield 6+ open questions
+    /// and 4+ hypotheses, drowning the Inbox; this trims to the
+    /// strongest items the model returns. Friction #2 fix from sim-
+    /// user pass.
+    pub max_items_per_category: Option<usize>,
 }
 
 impl Default for NotesInput {
@@ -71,6 +78,7 @@ impl Default for NotesInput {
             cli_command: "claude".to_string(),
             apply: true,
             max_files: Some(50),
+            max_items_per_category: Some(4),
         }
     }
 }
@@ -174,7 +182,7 @@ pub async fn run(input: NotesInput) -> Result<NotesReport, String> {
             .unwrap_or("note.md")
             .to_string();
 
-        let model_output = match call_compiler(&parsed, &basename, &input) {
+        let mut model_output = match call_compiler(&parsed, &basename, &input) {
             Ok(v) => v,
             Err(e) => {
                 report.skipped.push(SkippedNote {
@@ -184,6 +192,13 @@ pub async fn run(input: NotesInput) -> Result<NotesReport, String> {
                 continue;
             }
         };
+
+        if let Some(cap) = input.max_items_per_category {
+            model_output.open_questions.truncate(cap);
+            model_output.hypotheses.truncate(cap);
+            model_output.candidate_findings.truncate(cap);
+            model_output.tensions.truncate(cap);
+        }
 
         report.notes_processed += 1;
 

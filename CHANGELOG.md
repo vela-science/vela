@@ -1,5 +1,52 @@
 # Changelog
 
+## 0.28.1 - 2026-04-26
+
+**External-user verification pass + three fixes.** Acted as a
+translational neuroscience postdoc working blood-brain-barrier
+delivery for Alzheimer's; built a real workspace (3 markdown
+notes, 1 Python script, 1 Jupyter notebook, 1 CSV with 18 rows),
+ran every ingestion agent + the v0.28 trio, signed proposals,
+ran VelaBench against the BBB gold. The full run + friction
+report lives at [`docs/SIM_USER_BBB.md`](docs/SIM_USER_BBB.md).
+Three fixes from the report ship in this point release; the
+remaining items (most prominently a local Workbench app so a
+laptop-only user doesn't need the deployed hub) move into v0.29.
+
+### Fixes
+
+- **Reviewer Agent now streams progress.** One LLM call per
+  proposal × 15+ proposals = 60+ seconds of silent grinding.
+  `vela review-pending` now prints `reviewer [n/N] scoring vp_…`
+  per proposal and the four scores after each call. Auto-flushed
+  via `eprintln!`. (`crates/vela-scientist/src/reviewer.rs`)
+
+- **Notes Compiler caps items per category.** A 600-word note
+  can yield 6+ open questions and 4+ hypotheses; multiplied
+  across a vault, the Inbox drowns. New
+  `--max-items-per-category N` flag (default 4) trims each
+  category in the model's response before lifting to proposals.
+  (`crates/vela-scientist/src/notes.rs`,
+  `crates/vela-protocol/src/cli.rs`)
+
+- **Contradiction Finder uses `cross_finding_tension`.** Same
+  chip color as Notes Compiler's `tension`, distinct label so
+  the Workbench shows which agent flagged which kind (a
+  within-note researcher-flagged tension vs. a cross-finding
+  pair the model surfaced). New `kindStyleMap` entry +
+  `.ff__kind--cross_finding_tension` CSS rule.
+  (`crates/vela-scientist/src/tensions.rs`,
+  `site/src/pages/frontiers/view.astro`)
+
+### Verified
+
+- `cargo test --workspace --release` — 384 tests pass (was 360
+  pre-v0.28).
+- `vela check frontiers/bbb-alzheimer.json --strict` — clean.
+- Browser smoke test against the v0.28.1 dev preview confirms
+  the new chip renders with the `tension` color
+  (`rgb(138, 58, 58)`).
+
 ## 0.28.0 - 2026-04-26
 
 **Three more agents on the Inbox loop.** First release built on
