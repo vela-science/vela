@@ -20,7 +20,7 @@ use sha2::{Digest, Sha256};
 use tokio::sync::Semaphore;
 
 #[derive(Parser)]
-#[command(name = "vela", version = "0.15.0")]
+#[command(name = "vela", version = "0.16.0")]
 #[command(about = "Portable frontier state for science")]
 struct Cli {
     #[command(subcommand)]
@@ -806,6 +806,16 @@ enum LinkAction {
         /// Who inferred the link. One of: compiler, reviewer, author
         #[arg(long, default_value = "reviewer")]
         inferred_by: String,
+        /// v0.16: skip the cross-frontier target-status check. By
+        /// default, when adding a cross-frontier link, the substrate
+        /// fetches the dep's frontier from its declared locator and
+        /// warns if the target finding has `flags.superseded = true`
+        /// (you'd be linking to an outdated wording). The link is
+        /// still recorded — this is a best-effort review hint, not a
+        /// hard refusal. Set this flag to skip the network fetch
+        /// (useful in CI or when offline).
+        #[arg(long)]
+        no_check_target: bool,
         #[arg(long)]
         json: bool,
     },
@@ -1260,7 +1270,7 @@ pub async fn run_command() {
         Commands::Conformance { dir } => {
             let _ = conformance::run(&dir);
         }
-        Commands::Version => println!("vela 0.15.0"),
+        Commands::Version => println!("vela 0.16.0"),
         Commands::Sign { action } => cmd_sign(action),
         Commands::Actor { action } => cmd_actor(action),
         Commands::Frontier { action } => cmd_frontier(action),
@@ -1627,7 +1637,7 @@ pub async fn cmd_compile(
         match corpus::compile_local_corpus(local_source, output, backend).await {
             Ok(report) => {
                 println!();
-                println!("  {}", "VELA · COMPILE · V0.15.0".dimmed());
+                println!("  {}", "VELA · COMPILE · V0.16.0".dimmed());
                 println!("  {}", style::tick_row(60));
                 println!("source: {}", local_source.display());
                 println!("mode: local corpus");
@@ -1662,7 +1672,7 @@ pub async fn cmd_compile(
     let client = Client::new();
 
     println!();
-    println!("  {}", "VELA · COMPILE · V0.15.0".dimmed());
+    println!("  {}", "VELA · COMPILE · V0.16.0".dimmed());
     println!("  {}", style::tick_row(60));
     println!("topic: {topic}");
     println!("papers: {max_papers}");
@@ -2720,7 +2730,7 @@ fn cmd_stats(path: &Path) {
     let frontier = repo::load_from_path(path).expect("Failed to load frontier");
     let s = &frontier.stats;
     println!();
-    println!("  {}", "FRONTIER · V0.15.0".dimmed());
+    println!("  {}", "FRONTIER · V0.16.0".dimmed());
     println!("  {}", frontier.project.name.bold());
     println!("  {}", style::tick_row(60));
     println!("  id:             {}", frontier.frontier_id());
@@ -3460,6 +3470,7 @@ fn cmd_link(action: LinkAction) {
             r#type,
             note,
             inferred_by,
+            no_check_target,
             json,
         } => {
             validate_enum_arg("--type", &r#type, bundle::VALID_LINK_TYPES);
@@ -3495,6 +3506,50 @@ fn cmd_link(action: LinkAction) {
                     "cross-frontier --to references vfr_id '{vfr_id}' but no matching dep is declared. Run `vela frontier add-dep {vfr_id} --locator <url> --snapshot <hash>` first."
                 ));
             }
+
+            // v0.16: best-effort cross-frontier target-status check. The
+            // substrate doctrine is "client verifies on read", but at
+            // link-add time it's worth a one-shot fetch to warn the user
+            // if their target has been superseded. Failure to fetch is
+            // a hint, not a hard error — the link still records.
+            let mut target_warning: Option<String> = None;
+            if let LinkRef::Cross {
+                vfr_id: target_vfr,
+                vf_id: target_vf,
+            } = &parsed
+                && !no_check_target
+                && let Some(dep) = p.dep_for_vfr(target_vfr)
+                && let Some(locator) = dep.locator.as_deref()
+                && (locator.starts_with("http://") || locator.starts_with("https://"))
+            {
+                let client = reqwest::blocking::Client::builder()
+                    .timeout(std::time::Duration::from_secs(15))
+                    .build()
+                    .ok();
+                if let Some(client) = client
+                    && let Ok(resp) = client.get(locator).send()
+                    && resp.status().is_success()
+                    && let Ok(dep_project) = resp.json::<crate::project::Project>()
+                {
+                    if let Some(target_finding) =
+                        dep_project.findings.iter().find(|f| &f.id == target_vf)
+                    {
+                        if target_finding.flags.superseded {
+                            target_warning = Some(format!(
+                                "warn · cross-frontier target '{target_vf}' in '{target_vfr}' has flags.superseded = true. \
+You may be linking to outdated wording. Pull --transitive and inspect the supersedes chain to find the current finding. \
+Use --no-check-target to skip this check."
+                            ));
+                        }
+                    } else {
+                        target_warning = Some(format!(
+                            "warn · cross-frontier target '{target_vf}' not found in dep '{target_vfr}' (fetched from {locator}). \
+The target may have been removed or never existed in the pinned snapshot."
+                        ));
+                    }
+                }
+            }
+
             let now = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
             let link = Link {
                 target: to.clone(),
@@ -3516,9 +3571,18 @@ fn cmd_link(action: LinkAction) {
                 "cross_frontier": parsed.is_cross_frontier(),
             });
             if json {
+                let mut p2 = payload.clone();
+                if let Some(w) = &target_warning
+                    && let serde_json::Value::Object(m) = &mut p2
+                {
+                    m.insert(
+                        "target_warning".to_string(),
+                        serde_json::Value::String(w.clone()),
+                    );
+                }
                 println!(
                     "{}",
-                    serde_json::to_string_pretty(&payload).expect("failed to serialize link.add")
+                    serde_json::to_string_pretty(&p2).expect("failed to serialize link.add")
                 );
             } else {
                 println!(
@@ -3533,6 +3597,9 @@ fn cmd_link(action: LinkAction) {
                         ""
                     }
                 );
+                if let Some(w) = target_warning {
+                    println!("  {w}");
+                }
             }
         }
     }
@@ -4538,7 +4605,7 @@ async fn cmd_bridge(inputs: &[PathBuf], check_novelty: bool, top_n: usize) {
         fail("need at least 2 frontier files for bridge detection.");
     }
     println!();
-    println!("  {}", "VELA · BRIDGE · V0.15.0".dimmed());
+    println!("  {}", "VELA · BRIDGE · V0.16.0".dimmed());
     println!("  {}", style::tick_row(60));
     println!("  loading {} frontiers...", inputs.len());
     let mut named_projects = Vec::<(String, project::Project)>::new();
@@ -4833,7 +4900,7 @@ async fn cmd_jats(source: &str, output: &Path, backend: Option<&str>) {
     let config = llm::LlmConfig::from_env(backend).unwrap_or_else(|e| fail_return(&e));
     let client = Client::new();
     println!();
-    println!("  {}", "VELA · JATS · V0.15.0".dimmed());
+    println!("  {}", "VELA · JATS · V0.16.0".dimmed());
     println!("  {}", style::tick_row(60));
     println!("source: {source}");
     println!("backend: {}", config.backend.label());
@@ -5413,7 +5480,7 @@ pub fn is_science_subcommand(name: &str) -> bool {
 
 fn print_strict_help() {
     println!(
-        r#"Vela 0.15.0
+        r#"Vela 0.16.0
 Portable frontier state for science.
 
 Usage:
@@ -5485,7 +5552,7 @@ pub fn run_from_args() {
             return;
         }
         Some("-V" | "--version" | "version") => {
-            println!("vela 0.15.0");
+            println!("vela 0.16.0");
             return;
         }
         Some(cmd) if !is_science_subcommand(cmd) => {

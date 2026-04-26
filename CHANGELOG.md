@@ -1,5 +1,51 @@
 # Changelog
 
+## 0.16.0 - 2026-04-26
+
+The supersede-aware composition release. Closes the two frictions surfaced
+by the v0.15 Patel dogfood:
+1. `vela link add` accepted a cross-frontier `contradicts` link to a
+   `flags.superseded = true` finding silently — Patel could be contradicting
+   wording that's already been refined.
+2. The hub's `/depends-on` endpoint shipped in v0.15 had no Workbench
+   surface; users had to `curl` to see who referenced their frontier.
+
+### CLI
+
+- **`vela link add` cross-frontier target-status check.** When the link
+  target is `vf_<id>@vfr_<id>`, the substrate fetches the dep's frontier
+  from its declared locator (HTTPS, ~15s timeout) and inspects the target
+  finding's `flags.superseded`. If `true`, prints a one-line warning
+  (`warn · cross-frontier target … has flags.superseded = true. You may
+  be linking to outdated wording. …`) suggesting `pull --transitive` to
+  inspect the supersedes chain. The link is still recorded — this is a
+  best-effort review hint, not a hard refusal. `--no-check-target` skips
+  the network fetch (CI / offline use). Failure to fetch is silent.
+
+### Workbench
+
+- **Referenced-by panel on `/workbench`.** When loaded with `?vfr=…`,
+  fetches `/entries/{vfr}/depends-on` from the hub and renders one row
+  per dependent (vfr_id, name, owner_actor_id, publish date) with
+  click-through to the dependent's own /workbench view. Hidden when the
+  hub returns zero dependents or is unreachable (fail-quiet).
+
+### What this unblocks
+
+- The bidirectional view of cross-frontier composition is now visible
+  not just queryable. A visitor on Will's frontier sees who in the world
+  references it; click-through navigates the network.
+- Publishers writing cross-frontier `contradicts` / `extends` / `depends`
+  links get a same-shell warning when their target's wording has been
+  refined out from under them.
+
+### Versioning
+
+- Workspace `0.15.0 → 0.16.0`.
+- `vela --version → 0.16.0`; banner stamps bump in lockstep.
+- Schema version stays at `v0.10.0` — no schema change. The hub
+  endpoint shipped at v0.15 unchanged.
+
 ## 0.15.0 - 2026-04-26
 
 The bidirectional release. Cross-frontier composition has been one-directional

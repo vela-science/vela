@@ -99,6 +99,14 @@ const API_PATH = "/api/frontier";
     <ul class="lf-sources-list" id="lf-sources-list"></ul>
   </section>
 
+  <section class="lf-refby" id="lf-refby" hidden>
+    <header class="lf-sources-head">
+      <span class="lf-sources-eyebrow">Referenced by</span>
+      <span class="lf-sources-meta" id="lf-refby-meta">—</span>
+    </header>
+    <ul class="lf-sources-list" id="lf-refby-list"></ul>
+  </section>
+
   <p class="lf-tip">
     The Workbench fetches from <code>/api/frontier</code>, served by <a href={WORKBENCH_URL} class="ext">vela-workbench</a> behind a same-origin proxy. Click any finding to read its evidence, conditions, links, and history.
   </p>
@@ -756,6 +764,57 @@ const API_PATH = "/api/frontier";
       .join("");
   }
 
+  // v0.16: render the "Referenced by" panel using the hub's
+  // /entries/{vfr}/depends-on endpoint. Surfaces "who in the world is
+  // referencing this frontier" — the bidirectional view of cross-frontier
+  // composition. Hidden when there are zero dependents or when the hub
+  // is unreachable.
+  type DependsOnEntry = {
+    vfr_id: string;
+    name: string;
+    owner_actor_id: string;
+    signed_publish_at: string;
+  };
+
+  async function renderReferencedBy(vfr: string): Promise<void> {
+    const section = document.getElementById("lf-refby");
+    const meta = document.getElementById("lf-refby-meta");
+    const list = document.getElementById("lf-refby-list");
+    if (!section || !meta || !list) return;
+    try {
+      const r = await fetch(`${HUB_BASE}/entries/${encodeURIComponent(vfr)}/depends-on`, {
+        headers: { accept: "application/json" },
+      });
+      if (!r.ok) return; // fail-quiet
+      const body = (await r.json()) as { dependents?: DependsOnEntry[] };
+      const dependents = body.dependents || [];
+      if (dependents.length === 0) return; // nothing to show; stay hidden
+      section.removeAttribute("hidden");
+      meta.textContent = `${dependents.length} ${dependents.length === 1 ? "frontier" : "frontiers"} reference this one`;
+      list.innerHTML = dependents
+        .map((e) => {
+          const href = `/workbench?vfr=${encodeURIComponent(e.vfr_id)}`;
+          const title = escapeHtml(e.name);
+          const id = escapeHtml(e.vfr_id);
+          const owner = escapeHtml(e.owner_actor_id);
+          const when = e.signed_publish_at
+            ? escapeHtml(e.signed_publish_at.slice(0, 10))
+            : "—";
+          return `<li class="src-item">
+  <a class="src-title" href="${href}">${title}</a>
+  <div class="src-meta">
+    <span class="src-id">${id}</span>
+    <span class="src-meta-bits">${owner}</span>
+    <span class="src-meta-bits">${when}</span>
+  </div>
+</li>`;
+        })
+        .join("");
+    } catch {
+      // Hub unreachable — leave hidden silently.
+    }
+  }
+
   async function bootstrap(): Promise<void> {
     buildPicker(); // fire-and-forget; doesn't block frontier load
     try {
@@ -817,6 +876,16 @@ const API_PATH = "/api/frontier";
       // populate inline at proposal-apply time). Fail-quiet if `sources`
       // is empty for legacy frontiers.
       renderSources(data);
+
+      // v0.16: render the "Referenced by" panel from the hub's
+      // /entries/{vfr}/depends-on endpoint. Only meaningful for
+      // hub-loaded frontiers (via ?vfr=…); skipped for the default
+      // BBB-via-/api/frontier path which doesn't know its own vfr_id.
+      const params = new URLSearchParams(window.location.search);
+      const activeVfr = params.get("vfr");
+      if (activeVfr) {
+        renderReferencedBy(activeVfr);
+      }
     } catch (err) {
       const live = document.getElementById("lf-live");
       if (live) {
