@@ -174,6 +174,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/healthz", get(healthz))
         .route("/entries", get(list_entries).post(publish_entry))
         .route("/entries/{vfr_id}", get(get_entry))
+        .route("/entries/{vfr_id}/depends-on", get(get_depends_on))
         .route("/entries/{vfr_id}/findings/{vf_id}", get(get_finding))
         .route("/static/tokens.css", get(static_tokens_css))
         .route("/static/workbench.css", get(static_workbench_css))
@@ -385,6 +386,83 @@ async fn get_entry(
         )
             .into_response(),
     }
+}
+
+/// v0.15: hub-level reverse lookup. Returns the registry entries
+/// (latest-publish-wins per vfr_id) whose frontier declares a
+/// cross-frontier dependency on `{vfr_id}`. Surfaces "who in the world
+/// is referencing my frontier" — closes the bidirectional gap in the
+/// cross-frontier composition story.
+///
+/// Implementation is O(N) over current entries: the hub doesn't store
+/// dependency lists in its registry rows; we walk the latest-per-vfr
+/// view, fetch each frontier through the existing
+/// `fetch_frontier_cached` LRU, and filter. For a hub of N entries this
+/// is at most N HTTP fetches on a cold cache; warm cache makes
+/// subsequent calls O(N) memory-only. A future optimization would
+/// denormalize a `dependent_vfrs` JSONB column at POST time and back
+/// this with a SQL `?` lookup.
+async fn get_depends_on(
+    State(state): State<AppState>,
+    Path(vfr_id): Path<String>,
+    headers: HeaderMap,
+) -> Response {
+    let _ = &headers; // reserved for future HTML rendering
+    let rows = match sqlx::query_scalar::<_, serde_json::Value>(LATEST_PER_VFR_SQL)
+        .fetch_all(&state.pool)
+        .await
+    {
+        Ok(v) => v,
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({"error": format!("query: {e}")})),
+            )
+                .into_response();
+        }
+    };
+
+    let mut dependents: Vec<serde_json::Value> = Vec::new();
+    for entry in &rows {
+        let entry_vfr = entry.get("vfr_id").and_then(|v| v.as_str()).unwrap_or("");
+        if entry_vfr == vfr_id {
+            continue; // a frontier doesn't depend on itself
+        }
+        let signed_at = entry
+            .get("signed_publish_at")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        let locator = entry
+            .get("network_locator")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        let Some(project) = fetch_frontier_cached(&state, entry_vfr, signed_at, locator).await
+        else {
+            // Locator unreachable / parse-failed — entry can't be classified.
+            // Skip silently; the per-entry page surfaces the same failure
+            // when a user hits it directly.
+            continue;
+        };
+        if project
+            .project
+            .dependencies
+            .iter()
+            .any(|d| d.vfr_id.as_deref() == Some(vfr_id.as_str()))
+        {
+            dependents.push(entry.clone());
+        }
+    }
+
+    (
+        StatusCode::OK,
+        Json(json!({
+            "schema": "vela.depends-on.v0.1",
+            "target_vfr_id": vfr_id,
+            "dependents": dependents,
+            "count": dependents.len(),
+        })),
+    )
+        .into_response()
 }
 
 /// Single-finding detail page. Fetches the cached frontier (same one

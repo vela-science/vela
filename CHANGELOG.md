@@ -1,5 +1,59 @@
 # Changelog
 
+## 0.15.0 - 2026-04-26
+
+The bidirectional release. Cross-frontier composition has been one-directional
+since v0.8: a dependent frontier declares + pins its deps, but the upstream
+has no way to learn who is referencing it. Surfaced by another dogfood pass
+(Patel persona — clinical pharmacologist publishing a Lecanemab null-result
+replication that contradicts Will's frontier): the substrate let her publish
+and link cleanly, but Will would have no signal that the contradiction
+exists. v0.15 closes that gap at the hub layer.
+
+### Hub
+
+- **`GET /entries/{vfr_id}/depends-on`**. Returns the registry entries
+  whose frontier declares a cross-frontier dependency on `{vfr_id}`.
+  Implementation walks the latest-per-vfr view, fetches each frontier
+  through the existing `fetch_frontier_cached` LRU, and filters by
+  `frontier.dependencies[].vfr_id`. O(N) on cold cache, memory-only on
+  warm. A future optimization would denormalize a `dependent_vfrs` JSONB
+  column at POST time and back this with a SQL `?` lookup.
+
+### CLI
+
+- **`vela registry depends-on <vfr_id> [--from <hub>]`** — calls the
+  new endpoint and prints "N frontiers depend on vfr_X" with the list.
+  `--json` returns the raw `vela.depends-on.v0.1` envelope.
+
+### What this unblocks
+
+- The bidirectional view of cross-frontier composition. Pre-v0.15 the
+  question "who is referencing my frontier?" required scraping every
+  hub entry's frontier file and grep-ing for your `vfr_id`. Now it's
+  one HTTP call. Validates the substrate's "this is a network, not a
+  file format" claim concretely — running against the live hub right
+  now, BBB Flagship (`vfr_093f7f15b6c79386`) reports 4 dependents:
+  three versions of Will's Alzheimer's frontier and BBB-extension.
+
+### Known frictions surfaced but deferred
+
+- **No warning when `vela link add` targets a finding with
+  `flags.superseded = true`.** Patel's contradicts-link to Will's
+  superseded Lecanemab finding (`vf_b1f04d00abcd7476`) was accepted
+  silently; the substrate doesn't currently check the dep's local cache
+  for `superseded` flags at link-add time. Best-effort warning at link-add
+  + a `--allow-superseded` escape would close this. Defer to v0.16.
+- **Workbench "Referenced by" panel** to surface the new endpoint
+  visually on `/workbench` and `/workbench/finding`. Defer to v0.16.
+
+### Versioning
+
+- Workspace `0.14.0 → 0.15.0`.
+- `vela --version → 0.15.0`; banner stamps bump in lockstep.
+- Schema version stays at `v0.10.0` — no schema change. Hub schema
+  for the new endpoint envelope is `vela.depends-on.v0.1`.
+
 ## 0.14.0 - 2026-04-26
 
 The supersede release. Until v0.14 every other proposal kind existed

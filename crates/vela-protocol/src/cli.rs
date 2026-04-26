@@ -20,7 +20,7 @@ use sha2::{Digest, Sha256};
 use tokio::sync::Semaphore;
 
 #[derive(Parser)]
-#[command(name = "vela", version = "0.14.0")]
+#[command(name = "vela", version = "0.15.0")]
 #[command(about = "Portable frontier state for science")]
 struct Cli {
     #[command(subcommand)]
@@ -728,6 +728,21 @@ enum RegistryAction {
         #[arg(long)]
         json: bool,
     },
+    /// v0.15: list registry entries whose frontier declares a
+    /// cross-frontier dependency on the given `vfr_id`. Surfaces
+    /// "who is referencing my frontier" — the bidirectional view
+    /// of cross-frontier composition. Hub-only (no local-registry
+    /// equivalent yet); requires the hub to support
+    /// `GET /entries/{vfr_id}/depends-on`.
+    DependsOn {
+        /// Frontier address (`vfr_…`) to look up dependents of.
+        vfr_id: String,
+        /// Hub URL. Required for v0.15 (no local file walk yet).
+        #[arg(long, default_value = "https://vela-hub.fly.dev")]
+        from: String,
+        #[arg(long)]
+        json: bool,
+    },
     /// Pull and verify a frontier from a registry by `vfr_id`
     Pull {
         /// Frontier address (`vfr_…`)
@@ -1245,7 +1260,7 @@ pub async fn run_command() {
         Commands::Conformance { dir } => {
             let _ = conformance::run(&dir);
         }
-        Commands::Version => println!("vela 0.14.0"),
+        Commands::Version => println!("vela 0.15.0"),
         Commands::Sign { action } => cmd_sign(action),
         Commands::Actor { action } => cmd_actor(action),
         Commands::Frontier { action } => cmd_frontier(action),
@@ -1612,7 +1627,7 @@ pub async fn cmd_compile(
         match corpus::compile_local_corpus(local_source, output, backend).await {
             Ok(report) => {
                 println!();
-                println!("  {}", "VELA · COMPILE · V0.14.0".dimmed());
+                println!("  {}", "VELA · COMPILE · V0.15.0".dimmed());
                 println!("  {}", style::tick_row(60));
                 println!("source: {}", local_source.display());
                 println!("mode: local corpus");
@@ -1647,7 +1662,7 @@ pub async fn cmd_compile(
     let client = Client::new();
 
     println!();
-    println!("  {}", "VELA · COMPILE · V0.14.0".dimmed());
+    println!("  {}", "VELA · COMPILE · V0.15.0".dimmed());
     println!("  {}", style::tick_row(60));
     println!("topic: {topic}");
     println!("papers: {max_papers}");
@@ -2705,7 +2720,7 @@ fn cmd_stats(path: &Path) {
     let frontier = repo::load_from_path(path).expect("Failed to load frontier");
     let s = &frontier.stats;
     println!();
-    println!("  {}", "FRONTIER · V0.14.0".dimmed());
+    println!("  {}", "FRONTIER · V0.15.0".dimmed());
     println!("  {}", frontier.project.name.bold());
     println!("  {}", style::tick_row(60));
     println!("  id:             {}", frontier.frontier_id());
@@ -3942,6 +3957,55 @@ fn cmd_registry(action: RegistryAction) {
             .join("entries.json")
     };
     match action {
+        RegistryAction::DependsOn { vfr_id, from, json } => {
+            let base = from.trim_end_matches('/');
+            let url = format!("{base}/entries/{vfr_id}/depends-on");
+            let client = reqwest::blocking::Client::builder()
+                .timeout(std::time::Duration::from_secs(30))
+                .build()
+                .unwrap_or_else(|e| fail_return(&format!("http client init: {e}")));
+            let resp = client
+                .get(&url)
+                .send()
+                .unwrap_or_else(|e| fail_return(&format!("GET {url}: {e}")));
+            if !resp.status().is_success() {
+                fail(&format!("GET {url}: HTTP {}", resp.status()));
+            }
+            let body: serde_json::Value = resp
+                .json()
+                .unwrap_or_else(|e| fail_return(&format!("parse response: {e}")));
+            if json {
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&body).expect("serialize")
+                );
+            } else {
+                let dependents = body
+                    .get("dependents")
+                    .and_then(|v| v.as_array())
+                    .cloned()
+                    .unwrap_or_default();
+                let count = dependents.len();
+                println!(
+                    "{} {count} {} on {vfr_id}",
+                    style::ok("registry"),
+                    if count == 1 {
+                        "frontier depends"
+                    } else {
+                        "frontiers depend"
+                    },
+                );
+                for e in &dependents {
+                    let v = e.get("vfr_id").and_then(|v| v.as_str()).unwrap_or("?");
+                    let n = e.get("name").and_then(|v| v.as_str()).unwrap_or("?");
+                    let o = e
+                        .get("owner_actor_id")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("?");
+                    println!("  {v}  {n}  ({o})");
+                }
+            }
+        }
         RegistryAction::List { from, json } => {
             // Phase γ-hub (v0.7): `--from <https://...>` fetches the
             // registry over HTTPS; bare paths and file:// resolve locally.
@@ -4474,7 +4538,7 @@ async fn cmd_bridge(inputs: &[PathBuf], check_novelty: bool, top_n: usize) {
         fail("need at least 2 frontier files for bridge detection.");
     }
     println!();
-    println!("  {}", "VELA · BRIDGE · V0.14.0".dimmed());
+    println!("  {}", "VELA · BRIDGE · V0.15.0".dimmed());
     println!("  {}", style::tick_row(60));
     println!("  loading {} frontiers...", inputs.len());
     let mut named_projects = Vec::<(String, project::Project)>::new();
@@ -4769,7 +4833,7 @@ async fn cmd_jats(source: &str, output: &Path, backend: Option<&str>) {
     let config = llm::LlmConfig::from_env(backend).unwrap_or_else(|e| fail_return(&e));
     let client = Client::new();
     println!();
-    println!("  {}", "VELA · JATS · V0.14.0".dimmed());
+    println!("  {}", "VELA · JATS · V0.15.0".dimmed());
     println!("  {}", style::tick_row(60));
     println!("source: {source}");
     println!("backend: {}", config.backend.label());
@@ -5349,7 +5413,7 @@ pub fn is_science_subcommand(name: &str) -> bool {
 
 fn print_strict_help() {
     println!(
-        r#"Vela 0.14.0
+        r#"Vela 0.15.0
 Portable frontier state for science.
 
 Usage:
@@ -5421,7 +5485,7 @@ pub fn run_from_args() {
             return;
         }
         Some("-V" | "--version" | "version") => {
-            println!("vela 0.14.0");
+            println!("vela 0.15.0");
             return;
         }
         Some(cmd) if !is_science_subcommand(cmd) => {
