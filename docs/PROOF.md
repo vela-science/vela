@@ -108,3 +108,53 @@ Vela does not claim to prove:
 If a reviewer can inspect a bounded frontier, accept a correction, replay the
 state, observe inherited state change, and see an old proof marked stale while
 uncertainty remains explicit, the proof target is being met.
+
+## Worked example: validated end-to-end (v0.14)
+
+The proof contract is no longer hypothetical. The `Alzheimer's drug-target
+landscape` frontier (`vfr_773f6e60b19b438f`) on the public hub is a
+non-trivial real-curator artifact that exercises every protocol-§6 proposal
+kind shipped through v0.14. Its proof packet round-trips clean:
+
+```bash
+vela registry pull vfr_773f6e60b19b438f \
+  --from https://vela-hub.fly.dev/entries \
+  --out ./will.json
+vela proof ./will.json --out ./proof-will
+vela packet validate ./proof-will
+python3 scripts/cross_impl_conformance.py ./will.json
+```
+
+What's verified:
+
+- **34 packet files generated**, including `manifest.json`, `events/events.json`,
+  `events/replay-report.json`, `sources/source-registry.json`,
+  `evidence/evidence-atoms.json`, `conditions/condition-records.json`,
+  `proposals/proposals.json`, `proof-trace.json`, and the materialized
+  finding/signals/quality projections.
+- **`vela packet validate` → status: ok, checked_files: 34.**
+- **Replay report:** `ok = true`, `status = ok`, 0 conflicts. The full
+  16-event log replays into a frontier whose `snapshot_hash` matches the
+  exported manifest.
+- **Cross-impl conformance (`scripts/cross_impl_conformance.py`):** the
+  Python implementation re-derives every `vf_…` (12), every `vev_…` (16),
+  and every `vpr_…` (16) bit-identically from canonical JSON alone — strong
+  evidence that the substrate's content-addressing rules are
+  implementation-portable.
+- **Event-kind coverage in this single packet:** `finding.asserted` (×11),
+  `finding.caveated` (×2), `finding.noted` (×2), `finding.superseded` (×1).
+  The v0.14 supersede event (`vev_c407a6443198bcf1` → new finding
+  `vf_9b9311fd80f87572`) chains correctly through replay; the superseded
+  finding carries `flags.superseded = true`; the new finding carries an
+  auto-injected `supersedes` link back.
+- **Source registry materialized inline (v0.13):** 11 `SourceRecord` entries
+  populated by `proposals::create_or_apply` at apply-time, each carrying
+  the structured provenance from the v0.11 `vela finding add --doi/--year/
+  --journal/--source-authors` flags. 12 evidence atoms and 12 condition
+  records derived from the same projection.
+
+This is the substrate doctrine landing. A third party can pull, verify
+hashes, replay events, validate the packet, and re-derive every
+content-addressed id without trusting the publisher beyond the Ed25519
+signature on the registry manifest. Two implementations agree
+byte-for-byte on what the bytes mean.
