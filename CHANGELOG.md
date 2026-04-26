@@ -1,5 +1,54 @@
 # Changelog
 
+## 0.29.1 - 2026-04-26
+
+**Pass #2 of the simulated external-user flow + two cheapest
+fixes.** Pass #2 actually closed the loop the v0.29 local-mode
+loader was supposed to enable: trimmed workspace, ran 4
+ingestion agents (27 proposals), opened the Workbench in a real
+browser via `?api=`, accepted/rejected, signed with the CLI,
+benched against BBB. Surfaced 5 new frictions (1 P0, 2 P1, 2
+P2); the two cheapest ship in this point release. Full pass-#2
+write-up appended to [`docs/SIM_USER_BBB.md`](docs/SIM_USER_BBB.md).
+
+### Fixes
+
+- **`vela queue sign --all` now works** as an alias for
+  `--yes-to-all`. Both sim-user passes hit the same muscle-
+  memory wall (the v0.28 friction report referenced `--all` by
+  mistake; pass #2 author's hand reached for it again). One
+  `alias = "all"` line on the clap arg.
+  (`crates/vela-protocol/src/cli.rs`)
+
+- **`bun run deploy` rebuilds before shipping.** The site
+  Dockerfile is `FROM nginx:alpine; COPY dist /…` — no build
+  step in the container. So `flyctl deploy` after a code change
+  with no prior `bun run build` ships the *previous* compiled
+  JS. Pass #2 hit this immediately. New `package.json` script
+  `deploy: "astro build && flyctl deploy"` is the only correct
+  path going forward.
+  (`site/package.json`)
+
+### Frictions deferred to v0.30
+
+- **Mixed-content blocking** — deployed HTTPS site + local HTTP
+  API hangs the fetch silently. Needs a clear in-page error
+  message + a doc page on how to either run the Astro site
+  locally or expose the local API via a TLS tunnel.
+- **Inbox UI re-render desync** — `renderInbox()` rebuilds all
+  cards after each accept/reject, breaking rapid sequential
+  clicks (or scripted bulk action). Patch-in-place would fix.
+- **Bench composite floor** — agent-built frontiers can't share
+  enough 4-grams with a curated gold to score >0 on
+  claim_match_rate at jaccard ≥ 0.4. Composite collapses to
+  ~0.31 regardless of finding count. Real bench-design work.
+
+### Verified
+
+- 384 tests pass; clippy clean; BBB strict-check clean.
+- `vela queue sign --all --actor … --key …` now works (was
+  `error: unexpected argument '--all' found` in v0.29.0).
+
 ## 0.29.0 - 2026-04-26
 
 **The deployed Workbench is now the local Workbench too.** Closes

@@ -316,3 +316,130 @@ A real biomedical PI handed this in its current form would
 power through to value because the proposals are good, but
 they would not love the experience until v0.29 ships the local
 app. That gap is now well-understood.
+
+---
+
+# Pass #2 (after v0.29 shipped) — 2026-04-26
+
+The point of pass #2 was to actually complete the loop the
+v0.29 local-mode loader was supposed to enable: open the
+Workbench in a real browser against a local `vela serve`,
+accept/reject through the actual Inbox UI, sign with the CLI,
+bench. Trimmed workspace (1 paper, 2 notes, 1 .py, 1 .csv) so
+the click-through could finish in a single sitting.
+
+## What worked
+
+- All 4 ingestion agents ran clean. 27 pending proposals, mix
+  of types: 2 from scout, 15 from notes (with the new
+  `--max-items-per-category 3` cap holding), 5 from code, 5
+  from data.
+- The v0.28.1 reviewer streaming progress *was* the right
+  call. Notes Compiler is fast enough to not need it; the
+  reviewer/experiment-planner pace is what made progress
+  visible.
+- The v0.29 local-mode loader worked first try against
+  `http://localhost:4321/frontiers/view?api=http://localhost:3860`.
+  The page loaded the frontier from the local API, synthesized
+  the HubEntry, rendered all 27 cards in the Inbox. No hub
+  touched.
+- `vela queue sign` produced 21 signed accepts → events + 6
+  signed rejects. The substrate held; events appended cleanly;
+  the diff tab showed everything.
+
+## New friction surfaced
+
+### #9 (P1, fixable) — Deployed Astro site can't reach localhost over HTTPS→HTTP
+
+Browsers block mixed-content. Opening
+`https://vela-site.fly.dev/frontiers/view?api=http://localhost:3860`
+hangs the fetch silently — no error, just a stalled page with
+"…" placeholders. The `?api=` parameter is parsed correctly
+(title becomes "local frontier · Vela") but the request never
+completes.
+
+**Fix:** detect mixed-content scheme mismatch in the loader and
+show an explicit message: *"This deployed site is HTTPS but the
+local API is HTTP. Run the Astro site locally
+(`cd site && bun run dev` → http://localhost:4321) or expose
+your serve via a TLS tunnel."* Half-day to add a clear error +
+a doc page explaining the workaround.
+
+### #10 (P0, fixable in 1 line) — `flyctl deploy` ships stale `dist/` if you forget `bun run build`
+
+The Dockerfile is `FROM nginx:alpine; COPY dist /…`. There's no
+build step in the container. So `flyctl deploy` after a code
+change with no `bun run build` ships the *previous* compiled
+JS. Hit this immediately in pass #2: my v0.29 deploy "succeeded"
+but served the v0.28 Astro behavior.
+
+**Fix:** wrap `flyctl deploy` in a `Makefile`/`bun run` script
+that invokes `bun run build` first, then `flyctl deploy`. One
+file, no excuses.
+
+### #11 (P1, UX bug) — Inbox UI re-renders invalidate click handlers mid-batch
+
+Clicking accept/reject on the first card triggers
+`postQueueAction` → after the POST resolves, `renderInbox()`
+re-runs and rebuilds every card from scratch. If the user (or a
+script) clicks a *second* card too quickly, the click hits a
+phantom DOM node and is silently lost. Hit this when scripting
+27 sequential clicks: only the first 9 made it before the
+re-render desync killed the rest. Bulk-POSTing directly to
+`/api/queue` for the remaining 18 was the unblock.
+
+**Fix:** `renderInbox()` should patch in place (remove processed
+cards, leave the rest) instead of nuking innerHTML. Or expose a
+`window.__vela.bulkAction(ids, kind)` helper. Either is right;
+patch-in-place is cleaner.
+
+### #12 (P2, doc bug) — `vela queue sign --all` is documented but doesn't exist
+
+The flag is `--yes-to-all`. The first sim-user pass's friction
+report referenced `--all`; my pass-#2 muscle memory hit the
+same wall. Trivial: either accept `--all` as an alias, or grep
+the docs for `--all` and replace.
+
+### #13 (P2, bench-design issue) — Composite is the same 0.312 whether you sign 4 or 27 findings
+
+The bench's claim_match_rate uses jaccard ≥ 0.4 on raw text. A
+candidate frontier built from 1 paper + a few notes will *never*
+share enough 4-grams with a curated 48-finding gold to score >0
+on matches, no matter how good its proposals. So composite
+collapses to 0.25 + a sliver from contradiction_recall (defaults
+to 1.0 when there are 0 gold contradictions to recall) and
+1-duplicate_rate. 0.312 is a floor, not a measure.
+
+**Fix:** lower the jaccard threshold (0.2?), or add an embedding-
+similarity backstop, or give the composite a "no overlap →
+explicit zero" mode so 0.312 doesn't masquerade as a passing
+grade. This is real bench-design work — defer to a follow-up
+v0.30 *if* we want bench to become a real CI gate.
+
+## What I'm fixing tonight
+
+The two with the highest leverage and lowest risk:
+
+1. Friction #10 — `bun run` script that does
+   `bun run build && flyctl deploy`. Stops me from ever
+   shipping a stale dist/ again. 5 minutes.
+2. Friction #12 — make `--all` an alias for `--yes-to-all` on
+   `vela queue sign`. 10 minutes, no behavior change.
+
+The rest become v0.30+ work:
+- #9 mixed-content message (needs a doc page)
+- #11 patch-in-place renderInbox (needs UI rework)
+- #13 bench composite floor (needs design discussion)
+
+## Updated ledger
+
+Pass #2 closed the loop. v0.29 delivered the local Workbench
+flow it promised — *when run against the local Astro dev
+server*. The deployed site is blocked by browser mixed-content
+policy, which is honest browser behavior, not a Vela bug. Pass
+#2 surfaced 5 new frictions (1 P0, 2 P1, 2 P2); the two cheapest
+ship in v0.29.x.
+
+The substrate doctrine still holds: 21 accepts + 6 rejects
+signed cleanly, every event content-addressed, no panics, BBB
+strict-check unchanged.
