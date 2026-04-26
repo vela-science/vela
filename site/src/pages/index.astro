@@ -5,7 +5,7 @@ import TerminalPaper from "../components/TerminalPaper.astro";
 import LiveHub from "../components/LiveHub.astro";
 import HubBrowse from "../components/HubBrowse.astro";
 import Chip from "../components/Chip.astro";
-import { HUB_URL, REPO_URL, BBB, VERSION, BORROWED_LIGHT_URL } from "../config";
+import { HUB_URL, REPO_URL, BBB, VERSION } from "../config";
 
 const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
 ---
@@ -35,14 +35,8 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
 
   <aside class="why-card">
     <div class="why-card__eyebrow">Why this exists</div>
-    <blockquote class="why-card__quote">
-      <p>Whoever owns the substrate decides what the next generation of agents inherits as fact. That choice is being made now, mostly without anyone noticing. If the substrate defaults to closed, proprietary document silos with AI wrappers on top, that is what science inherits. What calcifies first becomes hardest to replace.</p>
-      <footer>
-        <a href={`${BORROWED_LIGHT_URL}/`} rel="noopener">— <em>Constellations of Borrowed Light</em></a>
-      </footer>
-    </blockquote>
-    <p class="why-card__bridge">
-      The long-form argument lives at <a class="inline-link" href={BORROWED_LIGHT_URL} rel="noopener">borrowedlight.org</a>. This page is the working substrate that argument calls for: open Rust, open hub, open keys, open protocol. Read the essay if you're deciding whether the problem is real; read on if you've already decided and want to publish.
+    <p class="why-card__body">
+      Science publishes claims; it has no shared object for state. Two papers contradict each other and the disagreement lives in someone's head. A retraction reaches one lab and not the three depending on it. An agent recompiles the same field every Monday because nothing it learned on Friday persisted. Vela is the smallest substrate that holds: a finding has a content-addressed id, a frontier has a content-addressed id, two implementations agree byte-for-byte, the signature is the bind.
     </p>
   </aside>
 
@@ -177,38 +171,13 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
     color: var(--ink-3);
     margin-bottom: 10px;
   }
-  .why-card__quote {
-    margin: 0 0 14px;
-    padding: 0;
-    border: 0;
-  }
-  .why-card__quote p {
+  .why-card__body {
     font-family: var(--font-serif);
     font-size: 17px;
     line-height: 1.55;
     color: var(--ink-1);
-    margin: 0 0 8px;
+    margin: 0;
     max-width: 64ch;
-  }
-  .why-card__quote footer {
-    font-family: var(--font-mono);
-    font-size: 11px;
-    color: var(--ink-3);
-  }
-  .why-card__quote footer a {
-    color: var(--ink-3);
-    text-decoration: none;
-  }
-  .why-card__quote footer a:hover { color: var(--signal); }
-  .why-card__bridge {
-    font-family: var(--font-serif);
-    font-size: 15px;
-    color: var(--ink-2);
-    line-height: 1.55;
-    max-width: 64ch;
-    margin: 12px 0 0;
-    padding-top: 12px;
-    border-top: 1px solid var(--rule-1);
   }
 
   .essay-card {

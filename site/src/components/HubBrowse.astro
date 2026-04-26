@@ -1,8 +1,10 @@
 ---
 // Browse-the-hub widget. Server-renders a placeholder; on viewport-visible
 // the inline script fetches `/entries` from the configured hub URL and
-// renders one row per entry with a click-through to the multi-frontier
-// Workbench. Fail-silent: if the hub is unreachable the placeholder stays.
+// renders one row per *frontier name* (collapsing repeated snapshots of the
+// same name into a disclosure row), with a search filter at the top and a
+// click-through to the multi-frontier Workbench. Fail-silent: if the hub is
+// unreachable the placeholder stays.
 import { HUB_URL } from "../config";
 const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
 ---
@@ -12,6 +14,15 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
     <span class="hub-browse__meta" data-meta>connecting…</span>
     <a class="hub-browse__source" href={`${HUB_URL}/entries`}>raw json →</a>
   </header>
+  <div class="hub-browse__filter">
+    <input
+      type="search"
+      placeholder="Filter by name or actor…"
+      data-filter
+      autocomplete="off"
+      spellcheck="false"
+    />
+  </div>
   <div class="hub-browse__list" data-list>
     <div class="hub-browse__placeholder">loading entries…</div>
   </div>
@@ -28,6 +39,7 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
   .hub-browse__head {
     display: flex;
     align-items: baseline;
+    flex-wrap: wrap;
     gap: 12px;
     padding: 10px 14px;
     border-bottom: 1px solid var(--rule-2);
@@ -53,6 +65,28 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
     color: var(--ink-3);
   }
   .hub-browse__source:hover { color: var(--signal); }
+
+  .hub-browse__filter {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--rule-1);
+    background: var(--paper-0);
+  }
+  .hub-browse__filter input {
+    width: 100%;
+    box-sizing: border-box;
+    border: 1px solid var(--rule-2);
+    background: var(--paper-0);
+    padding: 8px 12px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--ink-1);
+    border-radius: 4px;
+    outline: none;
+    transition: border-color var(--dur-1) var(--ease);
+  }
+  .hub-browse__filter input::placeholder { color: var(--ink-3); }
+  .hub-browse__filter input:focus { border-color: var(--rule-ink); }
+
   .hub-browse__list {
     display: flex;
     flex-direction: column;
@@ -64,45 +98,97 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
     color: var(--ink-3);
     text-align: center;
   }
-  .hub-browse__row {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: baseline;
-    gap: 16px;
-    padding: 12px 14px;
+
+  .fr {
     border-bottom: 1px solid var(--rule-1);
+  }
+  .fr:last-child { border-bottom: 0; }
+
+  .fr__head {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    padding: 14px 14px;
     color: var(--ink-1);
     text-decoration: none;
     transition: background var(--dur-1) var(--ease);
   }
-  .hub-browse__row:last-child { border-bottom: 0; }
-  .hub-browse__row:hover { background: var(--paper-1); }
-  .hub-browse__row:hover .hub-browse__name { color: var(--signal); }
-  .hub-browse__name {
+  .fr__head:hover { background: var(--paper-1); }
+  .fr__head:hover .fr__name { color: var(--signal); }
+
+  .fr__main { min-width: 0; flex: 1; }
+  .fr__name {
     font-family: var(--font-serif);
-    font-size: 16px;
-    line-height: 1.35;
+    font-size: 17px;
+    line-height: 1.3;
     color: var(--ink-0);
     transition: color var(--dur-1) var(--ease);
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
-  .hub-browse__sub {
-    font-family: var(--font-mono);
-    font-size: 11px;
-    color: var(--ink-3);
+  .fr__sub {
     margin-top: 4px;
-    overflow-wrap: anywhere;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--ink-3);
+    letter-spacing: 0.04em;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 10px;
   }
-  .hub-browse__sub strong {
-    color: var(--ink-2);
-    font-weight: 500;
-  }
-  .hub-browse__when {
+  .fr__sub .vfr { color: var(--ink-2); }
+  .fr__sub .actor { color: var(--ink-2); }
+
+  .fr__meta {
+    flex: 0 0 auto;
+    text-align: right;
     font-family: var(--font-mono);
     font-size: 10px;
     color: var(--ink-3);
     white-space: nowrap;
-    align-self: start;
-    padding-top: 3px;
+    line-height: 1.5;
+  }
+  .fr__meta .when { color: var(--ink-2); display: block; }
+  .fr__meta .versions {
+    display: inline-block;
+    margin-top: 4px;
+    padding: 2px 7px;
+    border: 1px solid var(--rule-2);
+    border-radius: 3px;
+    color: var(--ink-3);
+    cursor: pointer;
+    user-select: none;
+    background: var(--paper-0);
+    transition: color var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease);
+  }
+  .fr__meta .versions:hover { color: var(--ink-0); border-color: var(--rule-ink); }
+  .fr.is-open .fr__meta .versions { color: var(--ink-0); border-color: var(--rule-ink); }
+
+  .fr__history {
+    display: none;
+    background: var(--paper-1);
+    border-top: 1px solid var(--rule-1);
+  }
+  .fr.is-open .fr__history { display: block; }
+  .fr__history-row {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    padding: 8px 14px 8px 28px;
+    border-top: 1px dashed var(--rule-1);
+    color: var(--ink-2);
+    text-decoration: none;
+    font-family: var(--font-mono);
+    font-size: 11px;
+  }
+  .fr__history-row:first-child { border-top: 0; }
+  .fr__history-row:hover { background: var(--paper-2, var(--paper-0)); color: var(--ink-0); }
+  .fr__history-row .h-vfr { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .fr__history-row .h-when { color: var(--ink-3); white-space: nowrap; }
+
+  @media (max-width: 540px) {
+    .fr__head { flex-direction: column; align-items: stretch; gap: 6px; }
+    .fr__meta { text-align: left; }
   }
 </style>
 
@@ -115,6 +201,14 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
     network_locator: string;
     latest_snapshot_hash: string;
     signed_publish_at: string;
+  };
+
+  type Group = {
+    key: string;
+    name: string;
+    owner: string;
+    latest: HubEntry;
+    versions: HubEntry[];
   };
 
   function escapeHtml(s: string): string {
@@ -136,6 +230,11 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
     return d.toISOString().slice(0, 10);
   }
 
+  function shortVfr(v: string): string {
+    if (v.length <= 14) return v;
+    return `${v.slice(0, 11)}…`;
+  }
+
   (async function () {
     const root = document.querySelector("[data-hub-browse]");
     if (!root) return;
@@ -143,7 +242,77 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
       (root as HTMLElement).dataset.hubUrl ?? "https://vela-hub.fly.dev";
     const meta = root.querySelector("[data-meta]");
     const list = root.querySelector("[data-list]");
+    const filter = root.querySelector("[data-filter]") as HTMLInputElement | null;
     if (!meta || !list) return;
+
+    let groups: Group[] = [];
+
+    function renderGroups(filterText: string) {
+      const q = filterText.trim().toLowerCase();
+      const visible = q
+        ? groups.filter(
+            (g) =>
+              g.name.toLowerCase().includes(q) ||
+              g.owner.toLowerCase().includes(q) ||
+              g.latest.vfr_id.toLowerCase().includes(q),
+          )
+        : groups;
+      if (visible.length === 0) {
+        list!.innerHTML = `<div class="hub-browse__placeholder">no matches</div>`;
+        return;
+      }
+      list!.innerHTML = visible
+        .map((g) => {
+          const href = `/workbench?vfr=${encodeURIComponent(g.latest.vfr_id)}`;
+          const name = escapeHtml(g.name);
+          const owner = escapeHtml(g.owner);
+          const vfr = escapeHtml(shortVfr(g.latest.vfr_id));
+          const fullVfr = escapeHtml(g.latest.vfr_id);
+          const when = shortDate(g.latest.signed_publish_at);
+          const versionCount = g.versions.length;
+          const versionPill =
+            versionCount > 1
+              ? `<span class="versions" data-toggle title="show all snapshots">${versionCount} snapshots</span>`
+              : "";
+          const history = g.versions
+            .map((e) => {
+              const href2 = `/workbench?vfr=${encodeURIComponent(e.vfr_id)}`;
+              return `<a class="fr__history-row" href="${href2}" title="${escapeHtml(e.vfr_id)}">
+  <span class="h-vfr">${escapeHtml(e.vfr_id)}</span>
+  <span class="h-when">${shortDate(e.signed_publish_at)}</span>
+</a>`;
+            })
+            .join("");
+          return `<div class="fr">
+  <a class="fr__head" href="${href}" title="open latest in Workbench">
+    <span class="fr__main">
+      <div class="fr__name">${name}</div>
+      <div class="fr__sub">
+        <span class="actor">${owner}</span>
+        <span class="vfr" title="${fullVfr}">${vfr}</span>
+      </div>
+    </span>
+    <span class="fr__meta">
+      <span class="when">${when}</span>
+      ${versionPill}
+    </span>
+  </a>
+  ${versionCount > 1 ? `<div class="fr__history">${history}</div>` : ""}
+</div>`;
+        })
+        .join("");
+
+      // Wire up toggles
+      list!.querySelectorAll("[data-toggle]").forEach((el) => {
+        el.addEventListener("click", (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+          const fr = (el as HTMLElement).closest(".fr");
+          fr?.classList.toggle("is-open");
+        });
+      });
+    }
+
     try {
       const resp = await fetch(`${hubUrl}/entries`, {
         headers: { accept: "application/json" },
@@ -155,29 +324,42 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
         .sort((a, b) =>
           a.signed_publish_at < b.signed_publish_at ? 1 : -1,
         );
+
+      const byKey = new Map<string, Group>();
+      for (const e of entries) {
+        const key = `${e.name}\u0000${e.owner_actor_id}`;
+        const existing = byKey.get(key);
+        if (existing) {
+          existing.versions.push(e);
+        } else {
+          byKey.set(key, {
+            key,
+            name: e.name,
+            owner: e.owner_actor_id,
+            latest: e,
+            versions: [e],
+          });
+        }
+      }
+      groups = Array.from(byKey.values()).sort((a, b) =>
+        a.latest.signed_publish_at < b.latest.signed_publish_at ? 1 : -1,
+      );
+
       const count = entries.length;
       const owners = new Set(entries.map((e) => e.owner_actor_id)).size;
-      meta.textContent = `${count} ${count === 1 ? "entry" : "entries"} · ${owners} ${owners === 1 ? "actor" : "actors"}`;
+      const projects = groups.length;
+      meta.textContent = `${projects} ${projects === 1 ? "frontier" : "frontiers"} · ${count} ${count === 1 ? "snapshot" : "snapshots"} · ${owners} ${owners === 1 ? "actor" : "actors"}`;
+
       if (count === 0) {
         list.innerHTML = `<div class="hub-browse__placeholder">no entries yet</div>`;
         return;
       }
-      list.innerHTML = entries
-        .map((e) => {
-          const href = `/workbench?vfr=${encodeURIComponent(e.vfr_id)}`;
-          const name = escapeHtml(e.name);
-          const owner = escapeHtml(e.owner_actor_id);
-          const vfr = escapeHtml(e.vfr_id);
-          const when = shortDate(e.signed_publish_at);
-          return `<a class="hub-browse__row" href="${href}" title="open in Workbench">
-  <span>
-    <div class="hub-browse__name">${name}</div>
-    <div class="hub-browse__sub"><strong>${vfr}</strong> · ${owner}</div>
-  </span>
-  <span class="hub-browse__when">${when}</span>
-</a>`;
-        })
-        .join("");
+
+      renderGroups("");
+
+      filter?.addEventListener("input", () => {
+        renderGroups(filter.value);
+      });
     } catch (err) {
       meta.textContent = "(hub unreachable)";
       list.innerHTML = `<div class="hub-browse__placeholder">${escapeHtml(

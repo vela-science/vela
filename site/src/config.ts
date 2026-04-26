@@ -3,7 +3,10 @@
 // these values. Changing the hub URL, the repo URL, or the BBB
 // frontier identity touches one file.
 
-export const SITE_URL = "https://vela.science";
+// vela.science is registered to a third party (since 2014); the live
+// site is at vela-site.fly.dev until/unless we acquire a real domain.
+// Update both this and astro.config.mjs `site:` together if that lands.
+export const SITE_URL = "https://vela-site.fly.dev";
 export const HUB_URL = "https://vela-hub.fly.dev";
 export const WORKBENCH_URL = "https://vela-workbench.fly.dev";
 export const REPO_URL = "https://github.com/vela-science/vela";

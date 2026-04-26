@@ -49,7 +49,7 @@ const REGISTRY_SCHEMA: &str = "vela.registry.v0.1";
 
 const DEFAULT_PUBLIC_URL: &str = "https://vela-hub.fly.dev";
 const DEFAULT_REPO_URL: &str = "https://github.com/vela-science/vela";
-const DEFAULT_SITE_URL: &str = "https://vela.science";
+const DEFAULT_SITE_URL: &str = "https://vela-site.fly.dev";
 
 /// Cache key: (vfr_id, signed_publish_at). A fresh publish gets a new
 /// timestamp, so the key changes and the next read re-fetches.

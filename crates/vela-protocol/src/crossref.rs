@@ -17,7 +17,7 @@ pub async fn enrich(client: &Client, doi: &str) -> Result<CrossrefMeta, String> 
     let url = format!("https://api.crossref.org/works/{}", doi);
     let resp = client
         .get(&url)
-        .header("User-Agent", "Vela/0.1.0 (mailto:will@vela.science)")
+        .header("User-Agent", "Vela/0.1.0 (mailto:william.blair0708@gmail.com)")
         .send()
         .await
         .map_err(|e| format!("Crossref request failed: {e}"))?;
