@@ -94,14 +94,35 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
           <div class="ib-banner" id="ib-banner" hidden></div>
           <div class="ib-summary" id="ib-summary"></div>
           <div class="ib-runs" id="ib-runs">
-            <div class="fr-empty">No agent proposals yet. Run <code>vela scout &lt;folder&gt; --frontier &lt;path&gt;</code> to populate the Inbox.</div>
+            <div class="fr-empty fr-empty--guided">
+              <div class="fr-empty__title">The Inbox is where agents propose.</div>
+              <p class="fr-empty__body">
+                Run an ingestion agent against your local research folder
+                and pending proposals appear here, grouped by run.
+                Hover any card to see the agent's reasoning;
+                accept or reject through the UI; sign with the CLI.
+              </p>
+              <pre class="fr-empty__cmd"><span class="fr-empty__ps">$</span> vela scout ./papers --frontier ./frontier.json
+<span class="fr-empty__ps">$</span> vela compile-notes ./notes --frontier ./frontier.json
+<span class="fr-empty__ps">$</span> vela compile-code  ./code  --frontier ./frontier.json
+<span class="fr-empty__ps">$</span> vela compile-data  ./data  --frontier ./frontier.json</pre>
+              <p class="fr-empty__doctrine">Agents propose. Humans review. The CLI signs.</p>
+            </div>
           </div>
         </section>
 
         <section class="fr-pane" data-pane="diff" hidden>
           <div class="df-summary" id="df-summary"></div>
           <div class="df-events" id="df-events">
-            <div class="fr-empty">No state events yet. After accepting proposals from the Inbox and running <code>vela queue sign --all</code>, signed events appear here.</div>
+            <div class="fr-empty fr-empty--guided">
+              <div class="fr-empty__title">The Diff is the canonical event log.</div>
+              <p class="fr-empty__body">
+                Every accepted proposal becomes a signed event here. The log
+                replays byte-identically — pull this frontier on another
+                machine and you reconstruct the same state.
+              </p>
+              <pre class="fr-empty__cmd"><span class="fr-empty__ps">$</span> vela queue sign --actor reviewer:you --key ./keys/private.key --yes-to-all</pre>
+            </div>
           </div>
         </section>
 
@@ -164,6 +185,35 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
         </div>
       </aside>
     </div>
+
+    {/*
+      Cross-reference back to Borrowed Light. The frontier the
+      reader is poking at exists because the essay there argues
+      it should. Reinforces the architecture: this substrate ←
+      that essay. Same shape as the colophon on the Vela index.
+    */}
+    <aside class="fr-coda" aria-label="Borrowed Light essay">
+      <a class="fr-coda__link" href="https://borrowedlight.org" rel="noopener">
+        <svg class="fr-coda__lantern" viewBox="0 0 64 96" aria-hidden="true" focusable="false">
+          <circle cx="32" cy="6" r="1.6" fill="currentColor" opacity="0.85" />
+          <path d="M14 18 L32 9 L50 18 L46 21 L18 21 Z" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round" />
+          <line x1="14" y1="21" x2="50" y2="21" stroke="currentColor" stroke-width="0.7" opacity="0.55" />
+          <rect x="20" y="22" width="24" height="22" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round" />
+          <line x1="28" y1="22" x2="28" y2="44" stroke="currentColor" stroke-width="0.55" opacity="0.5" />
+          <line x1="36" y1="22" x2="36" y2="44" stroke="currentColor" stroke-width="0.55" opacity="0.5" />
+          <circle cx="32" cy="33" r="3.2" fill="var(--vela-lantern-gold)" opacity="0.9" />
+          <circle cx="32" cy="33" r="6" fill="var(--vela-lantern-gold)" opacity="0.16" />
+          <path d="M16 44 L48 44 L46 48 L18 48 Z" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round" />
+          <line x1="28" y1="48" x2="28" y2="78" stroke="currentColor" stroke-width="1.1" />
+          <line x1="36" y1="48" x2="36" y2="78" stroke="currentColor" stroke-width="1.1" />
+          <path d="M14 78 L50 78 L52 84 L12 84 Z" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round" />
+        </svg>
+        <span class="fr-coda__pair">
+          <span class="fr-coda__sub">the essay this substrate was built for</span>
+          <span class="fr-coda__title">← Borrowed Light</span>
+        </span>
+      </a>
+    </aside>
   </article>
 </Page>
 
@@ -934,6 +984,120 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
     font-family: var(--font-mono);
     font-size: 12px;
     color: var(--ink-3);
+  }
+
+  /* Guided empty state — for first-time visitors. Tells them
+     what this surface is FOR, not just that it's empty. The
+     terminal block is the actual command they run; the doctrine
+     line is the thing that distinguishes Vela from "an AI tool". */
+  :global(.fr-empty--guided) {
+    text-align: left;
+    padding: 28px 24px 24px;
+    border: 1px solid var(--rule-2);
+    background: var(--paper-1);
+    border-radius: var(--radius-1);
+    max-width: 56rem;
+    margin: 8px auto;
+  }
+
+  :global(.fr-empty__title) {
+    font-family: var(--font-serif);
+    font-size: 18px;
+    font-style: italic;
+    color: var(--ink-1);
+    margin-bottom: 10px;
+  }
+
+  :global(.fr-empty__body) {
+    font-family: var(--font-serif);
+    font-size: 15px;
+    line-height: 1.55;
+    color: var(--ink-2);
+    margin: 0 0 14px;
+    max-width: 60ch;
+  }
+
+  :global(.fr-empty__cmd) {
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    line-height: 1.65;
+    color: var(--ink-1);
+    background: var(--paper-0);
+    border: 1px solid var(--rule-2);
+    border-radius: 4px;
+    padding: 12px 14px;
+    margin: 0 0 14px;
+    overflow-x: auto;
+    white-space: pre;
+  }
+
+  :global(.fr-empty__ps) {
+    color: var(--vela-lantern-gold, #F2C670);
+    user-select: none;
+    margin-right: 0.6em;
+  }
+
+  :global(.fr-empty__doctrine) {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+
+  /* Cross-reference colophon back to Borrowed Light. */
+  .fr-coda {
+    margin: 36px 0 8px;
+    padding-top: 22px;
+    border-top: 1px solid var(--rule-2);
+  }
+  .fr-coda__link {
+    display: inline-flex;
+    align-items: center;
+    gap: 14px;
+    text-decoration: none;
+    color: var(--ink-2);
+    transition: color 200ms ease;
+  }
+  .fr-coda__link:hover,
+  .fr-coda__link:focus-visible {
+    color: var(--ink-0);
+  }
+  .fr-coda__lantern {
+    width: 28px;
+    height: 42px;
+    flex: 0 0 auto;
+    color: var(--ink-2);
+    transition: color 200ms ease;
+  }
+  .fr-coda__link:hover .fr-coda__lantern,
+  .fr-coda__link:focus-visible .fr-coda__lantern {
+    color: var(--ink-0);
+  }
+  .fr-coda__pair {
+    display: inline-flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .fr-coda__sub {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  .fr-coda__title {
+    font-family: var(--font-serif);
+    font-style: italic;
+    font-size: 17px;
+    color: var(--ink-1);
+  }
+  @media (max-width: 720px) {
+    .fr-coda { margin: 28px 0 8px; padding-top: 18px; }
+    .fr-coda__lantern { width: 24px; height: 36px; }
+    .fr-coda__title { font-size: 15px; }
+    .fr-coda__sub { font-size: 9px; letter-spacing: 0.14em; }
   }
 
   /* === Sidebar === */
