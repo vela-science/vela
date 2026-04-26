@@ -36,6 +36,11 @@ reqwest = { workspace = true }
 parquet = { workspace = true }
 arrow-array = { workspace = true }
 arrow-schema = { workspace = true }
+# v0.27 substrate cleanup: pulled in with the legacy_* modules
+colored = { workspace = true }
+indicatif = { workspace = true }
+urlencoding = { workspace = true }
+regex = { workspace = true }
 
 [lib]
 path = "src/lib.rs"

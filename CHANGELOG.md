@@ -1,5 +1,113 @@
 # Changelog
 
+## 0.27.0 - 2026-04-26
+
+**The Substrate Cleanup release.** The doctrinal claim every prior
+version made — *"the substrate stays dumb; agents propose, humans
+review, CLI signs"* — is now enforceable in code. Zero LLM imports
+remain in `vela-protocol`. Removing `vela-scientist` from the
+workspace would leave every accepted finding intact and every
+substrate test passing.
+
+### What moved
+
+Six modules and two helper paths migrated from `vela-protocol` to
+`vela-scientist` (renamed with a `legacy_` prefix to mark them as
+the v0.22 pre-agent-pattern surfaces):
+
+- `vela-protocol::llm` → `vela-scientist::legacy_llm`
+  Raw-API LLM client (Anthropic / OpenRouter / Groq / Gemini env
+  var auth). Used by every legacy LLM path.
+- `vela-protocol::extract::extract_paper` → `vela-scientist::legacy_extract`
+  LLM-driven paper extractor. The substrate keeps the DTOs
+  (`ExtractedFindingDto` etc) + `parse_extraction_items` +
+  `extract_paper_offline` (deterministic heuristic). `text()` and
+  `into_value()` on `ExtractedEvidenceSpanDto` made `pub`.
+- `vela-protocol::ingest::run_file_ingest` + `ingest_text_via_llm`
+  + `ingest_doi` → `vela-scientist::legacy_ingest`
+  File-ingest dispatcher (PDF / text / DOI). Substrate keeps
+  `extract_pdf_text` (no LLM, used by Literature Scout) +
+  `ingest_csv` + `parse_csv_line` + `recompute_stats` +
+  `link_new_finding` + `pub fn run` (manual `--assertion`
+  ingest, no LLM). `link_new_finding`, `ingest_csv`,
+  `recompute_stats` made `pub` so the moved code can call them.
+- `vela-protocol::link::infer_links` → `vela-scientist::legacy_link`
+  LLM-driven typed-link inference. Substrate keeps
+  `deterministic_links` (entity-overlap, no LLM).
+- `vela-protocol::corpus` → `vela-scientist::legacy_corpus`
+  Local-corpus compiler (orchestrates extract + link across a
+  paper folder). 1,253 lines.
+- `vela-protocol::cli::cmd_compile` and `cmd_jats` bodies →
+  `vela-scientist::legacy_compile`. 350 lines.
+- Four helper fns dropped from `vela-protocol::cli` that only
+  served the moved `cmd_compile` (`stage_header`, `stage_elapsed`,
+  `safe_trunc`, `dedupe_findings`).
+
+### Three new substrate handler hooks
+
+The CLI surfaces (`vela ingest --pdf/--csv/--text/--doi`,
+`vela compile`, `vela jats`) keep their flag parsing in
+`vela-protocol::cli` but their bodies are thin dispatchers that
+look up an `OnceLock`-installed handler. The `vela` CLI binary in
+`crates/vela-cli` registers each handler at startup. Same pattern
+as `register_scout_handler` from v0.22.
+
+- `register_ingest_handler(IngestHandler)`
+- `register_compile_handler(CompileHandler)`
+- `register_jats_handler(JatsHandler)`
+
+Library callers without a registered handler get a clear error:
+*"`vela <cmd>` requires the vela CLI binary; the library is
+unwired without a registered <agent> handler."*
+
+### Substrate's `lib.rs` after cleanup
+
+Modules removed: `corpus`, `llm`. Every other public module stays.
+Tests stay in their original modules; nothing was deleted.
+
+### Verification
+
+- `cargo build --workspace`: clean (4 crates @ 0.27.0).
+- `cargo clippy --workspace --all-targets -- -D warnings`: clean.
+- `cargo test --workspace`: 380 tests pass — same count as v0.26
+  (no test deletions, no new tests). Test breakdown unchanged:
+  359 protocol + 6 hub + 14 scientist + 1 cli.
+- `vela check frontiers/bbb-alzheimer.json --strict`: passes
+  unchanged. Normalize dry-run: zero deltas.
+- **Substrate cleanliness audit:**
+  ```
+  $ grep -rE "use crate::llm|crate::llm::|LlmConfig|extract::extract_paper|link::infer_links|corpus::|claude::|Anthropic" crates/vela-protocol/src/
+  (no matches)
+  ```
+- **Cargo dep audit:** `vela-protocol/Cargo.toml` has zero LLM-
+  related dependencies. The agent crate gained `colored`,
+  `indicatif`, `urlencoding`, `regex` workspace deps that the
+  moved code needs (substrate already had them; they stay
+  workspace-deduped).
+
+### CLI surface
+
+Unchanged. Every existing command (`vela compile`, `vela jats`,
+`vela ingest --pdf/--csv/--text/--doi/--dir/--assertion`) keeps
+its flags + behaviour. Pre-cleanup users see no difference.
+Library callers who relied on `vela_protocol::corpus` or
+`vela_protocol::llm` directly need to migrate to
+`vela_scientist::legacy_corpus` / `legacy_llm`.
+
+### Why this matters
+
+This release closes the door v0.22 opened. The doctrine *"substrate
+stays dumb"* was a discipline; now it's a build-time guarantee. A
+future contributor who tries to add an `import openai` to
+`vela-protocol` will hit a Cargo cycle the moment they reach for
+anything in `vela-scientist`. The split is no longer a convention —
+it's compiler-enforced.
+
+The next four tracks (more agents, simulated external user, local
+Workbench Next.js app) build on top of this cleanly. A reviewer who
+wants to argue *"is the substrate actually portable / forkable /
+auditable?"* can now grep one directory.
+
 ## 0.26.0 - 2026-04-26
 
 **The VelaBench release.** Reproducible scoring harness for AI-

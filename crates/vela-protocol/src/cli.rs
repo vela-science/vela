@@ -1,28 +1,25 @@
 use crate::{
-    benchmark, bridge, bundle, confidence, conformance, corpus, diff, events, export, extract,
-    fetch, ingest, jats, link, lint, llm, normalize, packet, project, propagate, proposals, repo,
-    review, search, serve, sign, signals, sources, state, tensions, validate,
+    benchmark, bridge, bundle, conformance, diff, events, export, ingest, lint, normalize,
+    packet, project, propagate, proposals, repo, review, search, serve, sign, signals, sources,
+    state, tensions, validate,
 };
 
 use std::future::Future;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
-use std::sync::{Arc, OnceLock};
-use std::time::Instant;
+use std::sync::OnceLock;
 
 use clap::{Parser, Subcommand};
 use colored::Colorize;
-use indicatif::ProgressBar;
 
 use crate::cli_style as style;
 use reqwest::Client;
 use serde::Serialize;
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
-use tokio::sync::Semaphore;
 
 #[derive(Parser)]
-#[command(name = "vela", version = "0.26.0")]
+#[command(name = "vela", version = "0.27.0")]
 #[command(about = "Portable frontier state for science")]
 struct Cli {
     #[command(subcommand)]
@@ -1529,7 +1526,7 @@ pub async fn run_command() {
         Commands::Conformance { dir } => {
             let _ = conformance::run(&dir);
         }
-        Commands::Version => println!("vela 0.26.0"),
+        Commands::Version => println!("vela 0.27.0"),
         Commands::Sign { action } => cmd_sign(action),
         Commands::Actor { action } => cmd_actor(action),
         Commands::Frontier { action } => cmd_frontier(action),
@@ -1883,309 +1880,37 @@ pub async fn run_command() {
     }
 }
 
+/// v0.27 Substrate cleanup: thin dispatcher for `vela compile`.
+/// The pipeline body (LLM extraction + link inference + corpus
+/// orchestration) lives in `vela-scientist::legacy_compile`. The
+/// `vela` CLI binary registers a handler at startup that calls
+/// into the scientist crate.
 pub async fn cmd_compile(
     topic: &str,
     max_papers: usize,
-    output: &PathBuf,
+    output: &Path,
     backend: Option<&str>,
     fulltext: bool,
 ) {
-    let compile_start = Instant::now();
-
-    let local_source = Path::new(topic);
-    if local_source.exists() {
-        match corpus::compile_local_corpus(local_source, output, backend).await {
-            Ok(report) => {
-                println!();
-                println!("  {}", "VELA · COMPILE · V0.26.0".dimmed());
-                println!("  {}", style::tick_row(60));
-                println!("source: {}", local_source.display());
-                println!("mode: local corpus");
-                println!("findings: {}", report.summary.findings);
-                println!("accepted sources: {}", report.summary.accepted);
-                println!("skipped sources: {}", report.summary.skipped);
-                println!("errors: {}", report.summary.errors);
-                println!("output: {}", output.display());
-                println!("report: {}", report.artifacts.compile_report);
-                println!("quality table: {}", report.artifacts.quality_table);
-                println!("frontier quality: {}", report.artifacts.frontier_quality);
-                if !report.warnings.is_empty() {
-                    println!();
-                    println!("warnings:");
-                    for warning in &report.warnings {
-                        println!("  - {warning}");
-                    }
-                }
-                println!();
-                println!("next: vela check {} --strict --json", output.display());
-            }
-            Err(e) => fail(&e),
+    match COMPILE_HANDLER.get() {
+        Some(handler) => {
+            handler(
+                topic.to_string(),
+                max_papers,
+                output.to_path_buf(),
+                backend.map(String::from),
+                fulltext,
+            )
+            .await;
         }
-        return;
-    }
-
-    let config = match llm::LlmConfig::from_env(backend) {
-        Ok(c) => Some(c),
-        Err(e) if backend.is_some() => fail(&e),
-        Err(_) => None,
-    };
-    let client = Client::new();
-
-    println!();
-    println!("  {}", "VELA · COMPILE · V0.26.0".dimmed());
-    println!("  {}", style::tick_row(60));
-    println!("topic: {topic}");
-    println!("papers: {max_papers}");
-    println!(
-        "backend: {}",
-        config
-            .as_ref()
-            .map_or("deterministic abstract fallback", |c| c.backend.label())
-    );
-    if config.is_none() {
-        println!(
-            "{}",
-            "note: set GOOGLE_API_KEY, OPENROUTER_API_KEY, GROQ_API_KEY, or ANTHROPIC_API_KEY for richer extraction"
-                .dimmed()
-        );
-    }
-    println!();
-
-    let t = Instant::now();
-    println!("{}", stage_header(1, 9, "fetching papers..."));
-    let mut papers = fetch::fetch_papers(&client, topic, max_papers)
-        .await
-        .unwrap_or_else(|e| {
-            eprintln!("  {} {e}", style::err_prefix());
+        None => {
+            eprintln!(
+                "{} `vela compile` requires the vela CLI binary; the library is unwired without a registered compile handler.",
+                style::err_prefix()
+            );
             std::process::exit(1);
-        });
-    println!(
-        "  {} {} papers with abstracts {}",
-        "·".dimmed(),
-        papers.len(),
-        stage_elapsed(t)
-    );
-    println!();
-
-    if papers.is_empty() {
-        println!("no papers found.");
-        return;
-    }
-
-    let t = Instant::now();
-    if fulltext {
-        println!("{}", stage_header(2, 9, "fetching PMC full text..."));
-        let enriched = fetch::fetch_fulltext(&client, &mut papers).await;
-        println!(
-            "  {} {} papers ({} full text, {} abstract-only) {}",
-            "·".dimmed(),
-            papers.len(),
-            enriched,
-            papers.len().saturating_sub(enriched),
-            stage_elapsed(t)
-        );
-    } else {
-        println!(
-            "{}",
-            stage_header(2, 9, "skipping PMC full text (--fulltext=false)")
-        );
-    }
-    println!();
-
-    let t = Instant::now();
-    println!("{}", stage_header(3, 9, "extracting findings..."));
-    let pb = ProgressBar::new(papers.len() as u64);
-    pb.set_style(style::progress_style("papers"));
-    pb.set_message("0 findings, 0 errors");
-
-    let semaphore = Arc::new(Semaphore::new(8));
-    let findings_count = Arc::new(std::sync::atomic::AtomicUsize::new(0));
-    let errors_count = Arc::new(std::sync::atomic::AtomicUsize::new(0));
-    let mut handles = Vec::new();
-
-    for paper in papers.iter().cloned() {
-        let permit = semaphore
-            .clone()
-            .acquire_owned()
-            .await
-            .expect("semaphore closed unexpectedly");
-        let client = client.clone();
-        let config = config.clone();
-        let fc = findings_count.clone();
-        let ec = errors_count.clone();
-        let pb = pb.clone();
-        handles.push(tokio::spawn(async move {
-            let result = if let Some(config) = &config {
-                extract::extract_paper(&client, config, &paper).await
-            } else {
-                Ok(extract::extract_paper_offline(&paper))
-            };
-            drop(permit);
-            match &result {
-                Ok(bundles) => {
-                    fc.fetch_add(bundles.len(), std::sync::atomic::Ordering::Relaxed);
-                }
-                Err(_) => {
-                    ec.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-                }
-            }
-            let f = fc.load(std::sync::atomic::Ordering::Relaxed);
-            let e = ec.load(std::sync::atomic::Ordering::Relaxed);
-            pb.set_message(format!("{f} findings, {e} errors"));
-            pb.inc(1);
-            (paper, result)
-        }));
-    }
-
-    let total_papers = papers.len();
-    let mut all_bundles = Vec::new();
-    let mut errors = 0usize;
-    for (idx, handle) in handles.into_iter().enumerate() {
-        let (paper, result) = handle.await.expect("extraction task panicked");
-        match result {
-            Ok(bundles) => {
-                let count = bundles.len();
-                all_bundles.extend(bundles);
-                let authors = paper
-                    .authors
-                    .iter()
-                    .take(2)
-                    .map(|a| a.name.as_str())
-                    .collect::<Vec<_>>();
-                pb.println(format!(
-                    "  {} {} findings · {} ({})",
-                    format!("[{}/{}]", idx + 1, total_papers).dimmed(),
-                    count,
-                    authors.join(", "),
-                    paper.year.map(|y| y.to_string()).unwrap_or_default()
-                ));
-            }
-            Err(e) => {
-                errors += 1;
-                pb.println(format!(
-                    "  {} {} {}",
-                    format!("[{}/{}]", idx + 1, total_papers).dimmed(),
-                    style::err_prefix(),
-                    safe_trunc(&e, 60)
-                ));
-            }
         }
     }
-    pb.finish_and_clear();
-    println!(
-        "  {} {} findings from {} papers ({} errors) {}",
-        "·".dimmed(),
-        all_bundles.len(),
-        papers.len(),
-        errors,
-        stage_elapsed(t)
-    );
-    println!();
-
-    if all_bundles.is_empty() {
-        println!("no findings extracted.");
-        return;
-    }
-
-    dedupe_findings(&mut all_bundles);
-
-    let t = Instant::now();
-    println!("{}", stage_header(4, 9, "normalizing entities..."));
-    let (type_fixes, name_fixes) = normalize::normalize_findings(&mut all_bundles);
-    if type_fixes > 0 || name_fixes > 0 {
-        println!("  normalized {type_fixes} entity types, {name_fixes} entity names");
-    }
-    println!("  {}", stage_elapsed(t));
-    println!();
-
-    let t = Instant::now();
-    println!("{}", stage_header(5, 9, "grounding confidence scores..."));
-    let confidence_updates = confidence::ground_confidence(&mut all_bundles);
-    println!(
-        "  {} findings adjusted {}",
-        confidence_updates.len(),
-        stage_elapsed(t)
-    );
-    println!();
-
-    let t = Instant::now();
-    println!("{}", stage_header(6, 9, "resolving entity identifiers..."));
-    let (resolved, skipped) = crate::resolve::resolve_entities(&client, &mut all_bundles).await;
-    println!(
-        "  {} {} resolved, {} unresolved {}",
-        "·".dimmed(),
-        resolved,
-        skipped,
-        stage_elapsed(t)
-    );
-    println!();
-
-    let t = Instant::now();
-    println!("{}", stage_header(7, 9, "entity-overlap linking..."));
-    let det_links = link::deterministic_links(&mut all_bundles);
-    println!(
-        "  {} {} deterministic links {}",
-        "·".dimmed(),
-        det_links,
-        stage_elapsed(t)
-    );
-    println!();
-
-    let t = Instant::now();
-    println!("{}", stage_header(8, 9, "LLM link inference..."));
-    let llm_links = if let Some(config) = &config {
-        link::infer_links(&client, config, &mut all_bundles)
-            .await
-            .unwrap_or(0)
-    } else {
-        println!(
-            "  {}",
-            "skipping LLM link inference; no LLM API key configured.".dimmed()
-        );
-        0
-    };
-    println!(
-        "  {} {} LLM links inferred {}",
-        "·".dimmed(),
-        llm_links,
-        stage_elapsed(t)
-    );
-    println!();
-
-    let t = Instant::now();
-    println!("{}", stage_header(9, 9, "assembling frontier..."));
-    let frontier = project::assemble(
-        topic,
-        all_bundles,
-        papers.len(),
-        errors,
-        &format!(
-            "Compiled from {} papers on '{}'. Source: OpenAlex.",
-            papers.len(),
-            topic
-        ),
-    );
-    repo::save_to_path(output, &frontier).unwrap_or_else(|e| {
-        let json =
-            serde_json::to_string_pretty(&frontier).expect("failed to serialize frontier to JSON");
-        std::fs::write(output, json).unwrap_or_else(|_| panic!("Failed to write output: {e}"));
-    });
-    println!("  {} ", stage_elapsed(t));
-    println!();
-    println!("  {}", "SUMMARY".dimmed());
-    println!("  {}", style::tick_row(60));
-    println!("  findings:       {}", frontier.stats.findings);
-    println!("  links:          {}", frontier.stats.links);
-    println!("  replicated:     {}", frontier.stats.replicated);
-    println!("  avg confidence: {}", frontier.stats.avg_confidence);
-    println!("  gaps:           {}", frontier.stats.gaps);
-    println!("  contested:      {}", frontier.stats.contested);
-    println!("  output:         {}", output.display());
-    println!(
-        "  total time:     {:.1}s",
-        compile_start.elapsed().as_secs_f64()
-    );
-    println!();
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -2355,44 +2080,35 @@ async fn cmd_ingest(
             let path = entry.path();
             match path.extension().and_then(|e| e.to_str()).unwrap_or("") {
                 "pdf" => {
-                    ingest::run_file_ingest(
+                    dispatch_legacy_ingest(
                         frontier,
                         Some(&path),
                         None,
                         None,
                         None,
                         backend,
-                        None,
-                        None,
-                        None,
                     )
                     .await;
                 }
                 "csv" | "tsv" => {
-                    ingest::run_file_ingest(
+                    dispatch_legacy_ingest(
                         frontier,
                         None,
                         Some(&path),
                         None,
                         None,
                         backend,
-                        None,
-                        None,
-                        None,
                     )
                     .await;
                 }
                 "txt" | "md" => {
-                    ingest::run_file_ingest(
+                    dispatch_legacy_ingest(
                         frontier,
                         None,
                         None,
                         Some(&path),
                         None,
                         backend,
-                        None,
-                        None,
-                        None,
                     )
                     .await;
                 }
@@ -2404,16 +2120,13 @@ async fn cmd_ingest(
     }
 
     if pdf.is_some() || csv.is_some() || text.is_some() || doi.is_some() {
-        ingest::run_file_ingest(
+        dispatch_legacy_ingest(
             frontier,
             pdf.as_deref(),
             csv.as_deref(),
             text.as_deref(),
             doi.as_deref(),
             backend,
-            None,
-            None,
-            None,
         )
         .await;
         return;
@@ -2440,6 +2153,66 @@ async fn cmd_ingest(
             source,
         },
     );
+}
+
+/// v0.27 Substrate cleanup: thin helper for `vela ingest --pdf /
+/// --csv / --text / --doi`. Forwards to the registered legacy
+/// ingest handler in `vela-scientist::legacy_ingest`. The
+/// substrate keeps the manual `--assertion` path; this helper is
+/// only invoked when a file source is provided.
+async fn dispatch_legacy_ingest(
+    frontier: &Path,
+    pdf: Option<&Path>,
+    csv: Option<&Path>,
+    text: Option<&Path>,
+    doi: Option<&str>,
+    backend: Option<&str>,
+) {
+    match INGEST_HANDLER.get() {
+        Some(handler) => {
+            handler(
+                frontier.to_path_buf(),
+                pdf.map(Path::to_path_buf),
+                csv.map(Path::to_path_buf),
+                text.map(Path::to_path_buf),
+                doi.map(String::from),
+                backend.map(String::from),
+                None,
+                None,
+                None,
+            )
+            .await;
+        }
+        None => {
+            eprintln!(
+                "{} `vela ingest --pdf/--csv/--text/--doi` requires the vela CLI binary; the library is unwired without a registered ingest handler.",
+                style::err_prefix()
+            );
+            std::process::exit(1);
+        }
+    }
+}
+
+/// v0.27 Substrate cleanup: thin dispatcher for `vela jats`.
+/// Body lives in `vela-scientist::legacy_compile::cmd_jats`.
+async fn cmd_jats(source: &str, output: &Path, backend: Option<&str>) {
+    match JATS_HANDLER.get() {
+        Some(handler) => {
+            handler(
+                source.to_string(),
+                output.to_path_buf(),
+                backend.map(String::from),
+            )
+            .await;
+        }
+        None => {
+            eprintln!(
+                "{} `vela jats` requires the vela CLI binary; the library is unwired without a registered jats handler.",
+                style::err_prefix()
+            );
+            std::process::exit(1);
+        }
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -3122,7 +2895,7 @@ fn cmd_stats(path: &Path) {
     let frontier = repo::load_from_path(path).expect("Failed to load frontier");
     let s = &frontier.stats;
     println!();
-    println!("  {}", "FRONTIER · V0.26.0".dimmed());
+    println!("  {}", "FRONTIER · V0.27.0".dimmed());
     println!("  {}", frontier.project.name.bold());
     println!("  {}", style::tick_row(60));
     println!("  id:             {}", frontier.frontier_id());
@@ -5159,7 +4932,7 @@ async fn cmd_bridge(inputs: &[PathBuf], check_novelty: bool, top_n: usize) {
         fail("need at least 2 frontier files for bridge detection.");
     }
     println!();
-    println!("  {}", "VELA · BRIDGE · V0.26.0".dimmed());
+    println!("  {}", "VELA · BRIDGE · V0.27.0".dimmed());
     println!("  {}", style::tick_row(60));
     println!("  loading {} frontiers...", inputs.len());
     let mut named_projects = Vec::<(String, project::Project)>::new();
@@ -5501,57 +5274,6 @@ fn cmd_propagate(
     println!("  output: {}", out.display());
 }
 
-async fn cmd_jats(source: &str, output: &Path, backend: Option<&str>) {
-    let start = Instant::now();
-    let config = llm::LlmConfig::from_env(backend).unwrap_or_else(|e| fail_return(&e));
-    let client = Client::new();
-    println!();
-    println!("  {}", "VELA · JATS · V0.26.0".dimmed());
-    println!("  {}", style::tick_row(60));
-    println!("source: {source}");
-    println!("backend: {}", config.backend.label());
-    println!();
-
-    println!("{}", stage_header(1, 6, "loading JATS XML..."));
-    let xml = if source.to_lowercase().starts_with("pmc") {
-        jats::fetch_pmc_jats(&client, source)
-            .await
-            .unwrap_or_else(|e| fail_return(&e))
-    } else {
-        std::fs::read_to_string(source)
-            .unwrap_or_else(|e| fail_return(&format!("Failed to read {source}: {e}")))
-    };
-    let parsed = jats::parse_jats(&xml).unwrap_or_else(|e| fail_return(&e));
-    let paper = jats::jats_to_paper(&parsed);
-    let mut bundles = extract::extract_paper(&client, &config, &paper)
-        .await
-        .unwrap_or_else(|e| fail_return(&e));
-    if bundles.is_empty() {
-        println!("no findings extracted.");
-        return;
-    }
-    let base_prov = jats::jats_to_provenance(&parsed);
-    for bundle in &mut bundles {
-        bundle.provenance.doi = base_prov.doi.clone();
-        bundle.provenance.pmid = base_prov.pmid.clone();
-        bundle.provenance.pmc = base_prov.pmc.clone();
-        bundle.provenance.title = base_prov.title.clone();
-        bundle.provenance.journal = base_prov.journal.clone();
-        bundle.provenance.year = base_prov.year;
-        if !base_prov.authors.is_empty() {
-            bundle.provenance.authors = base_prov.authors.clone();
-        }
-    }
-    normalize::normalize_findings(&mut bundles);
-    link::deterministic_links(&mut bundles);
-    let description = format!("Compiled from JATS: {}", parsed.title);
-    let frontier = project::assemble(&parsed.title, bundles, 1, 0, &description);
-    repo::save_to_path(output, &frontier).unwrap_or_else(|e| fail(&e));
-    println!("  findings: {}", frontier.stats.findings);
-    println!("  links:    {}", frontier.stats.links);
-    println!("  output:   {}", output.display());
-    println!("  time:     {:.1}s", start.elapsed().as_secs_f64());
-}
 
 fn cmd_mcp_setup(source: Option<&Path>, frontiers: Option<&Path>) {
     let source_desc = source
@@ -5579,58 +5301,6 @@ fn cmd_mcp_setup(source: Option<&Path>, frontiers: Option<&Path>) {
 
 Source: {source_desc}"#
     );
-}
-
-fn stage_header(stage: u32, total: u32, label: &str) -> String {
-    format!("{} {}", format!("[{stage}/{total}]").dimmed(), label)
-}
-
-fn stage_elapsed(start: Instant) -> String {
-    format!("({:.1}s)", start.elapsed().as_secs_f64())
-        .dimmed()
-        .to_string()
-}
-
-fn safe_trunc(s: &str, max: usize) -> &str {
-    if s.len() <= max {
-        return s;
-    }
-    let mut end = max;
-    while end > 0 && !s.is_char_boundary(end) {
-        end -= 1;
-    }
-    &s[..end]
-}
-
-fn dedupe_findings(all_bundles: &mut Vec<bundle::FindingBundle>) {
-    let pre_dedup = all_bundles.len();
-    let mut best_by_id = std::collections::HashMap::<String, usize>::new();
-    for (idx, bundle) in all_bundles.iter().enumerate() {
-        best_by_id
-            .entry(bundle.id.clone())
-            .and_modify(|existing_idx| {
-                if all_bundles[idx].confidence.score > all_bundles[*existing_idx].confidence.score {
-                    *existing_idx = idx;
-                }
-            })
-            .or_insert(idx);
-    }
-    if best_by_id.len() < pre_dedup {
-        let mut keep_indices = best_by_id.into_values().collect::<Vec<_>>();
-        keep_indices.sort_unstable();
-        let deduped = keep_indices
-            .into_iter()
-            .map(|i| all_bundles[i].clone())
-            .collect::<Vec<_>>();
-        let removed = pre_dedup - deduped.len();
-        *all_bundles = deduped;
-        println!(
-            "  {} {} duplicate findings removed (kept higher confidence)",
-            "->".dimmed(),
-            removed
-        );
-        println!();
-    }
 }
 
 fn parse_entities(input: &str) -> Vec<(String, String)> {
@@ -6091,7 +5761,7 @@ pub fn is_science_subcommand(name: &str) -> bool {
 
 fn print_strict_help() {
     println!(
-        r#"Vela 0.26.0
+        r#"Vela 0.27.0
 Portable frontier state for science.
 
 Usage:
@@ -6237,6 +5907,68 @@ pub fn register_datasets_handler(handler: DatasetsHandler) {
     let _ = DATASETS_HANDLER.set(handler);
 }
 
+/// v0.27 Substrate cleanup: handler for legacy `vela ingest --pdf
+/// / --csv / --text / --doi`. The substrate retains the manual
+/// `vela ingest --assertion` path (no LLM); this handler covers
+/// the file-driven extraction paths that moved to
+/// `vela-scientist::legacy_ingest`.
+#[allow(clippy::type_complexity)]
+pub type IngestHandler = fn(
+    frontier: PathBuf,
+    pdf: Option<PathBuf>,
+    csv: Option<PathBuf>,
+    text: Option<PathBuf>,
+    doi: Option<String>,
+    backend: Option<String>,
+    assertion_type_override: Option<String>,
+    assertion_col: Option<String>,
+    confidence_col: Option<String>,
+) -> Pin<Box<dyn Future<Output = ()> + Send>>;
+
+static INGEST_HANDLER: OnceLock<IngestHandler> = OnceLock::new();
+
+/// Install the legacy file-ingest handler. Idempotent.
+pub fn register_ingest_handler(handler: IngestHandler) {
+    let _ = INGEST_HANDLER.set(handler);
+}
+
+/// v0.27 Substrate cleanup: handler for legacy `vela compile`.
+/// The substrate's `vela compile` command's local-corpus path
+/// moved to `vela-scientist::legacy_corpus` (which calls into
+/// `legacy_extract` and `legacy_link`). The fetch-from-PubMed
+/// path stays in the binary as well; both go through this hook.
+pub type CompileHandler = fn(
+    topic: String,
+    max_papers: usize,
+    output: PathBuf,
+    backend: Option<String>,
+    fulltext: bool,
+) -> Pin<Box<dyn Future<Output = ()> + Send>>;
+
+static COMPILE_HANDLER: OnceLock<CompileHandler> = OnceLock::new();
+
+/// Install the legacy compile handler. Idempotent.
+pub fn register_compile_handler(handler: CompileHandler) {
+    let _ = COMPILE_HANDLER.set(handler);
+}
+
+/// v0.27 Substrate cleanup: handler for legacy `vela jats`
+/// (JATS XML / PMC fetch + LLM extraction). Whole pipeline runs
+/// in `vela-scientist::legacy_jats`; substrate keeps the CLI flag
+/// surface only.
+pub type JatsHandler = fn(
+    source: String,
+    output: PathBuf,
+    backend: Option<String>,
+) -> Pin<Box<dyn Future<Output = ()> + Send>>;
+
+static JATS_HANDLER: OnceLock<JatsHandler> = OnceLock::new();
+
+/// Install the legacy JATS handler. Idempotent.
+pub fn register_jats_handler(handler: JatsHandler) {
+    let _ = JATS_HANDLER.set(handler);
+}
+
 pub fn run_from_args() {
     style::init();
     let args = std::env::args().collect::<Vec<_>>();
@@ -6246,7 +5978,7 @@ pub fn run_from_args() {
             return;
         }
         Some("-V" | "--version" | "version") => {
-            println!("vela 0.26.0");
+            println!("vela 0.27.0");
             return;
         }
         Some(cmd) if !is_science_subcommand(cmd) => {

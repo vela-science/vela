@@ -116,7 +116,7 @@ pub async fn call_text(
     user_msg: &str,
 ) -> Result<String, String> {
     let label = format!("LLM text request ({})", config.backend.label());
-    crate::retry::retry_with_backoff(&label, 3, || {
+    vela_protocol::retry::retry_with_backoff(&label, 3, || {
         let client = client.clone();
         let api_key = config.api_key.clone();
         let model = config.model.clone();
@@ -168,7 +168,7 @@ pub async fn call(
     user_msg: &str,
 ) -> Result<String, String> {
     let label = format!("LLM request ({})", config.backend.label());
-    crate::retry::retry_with_backoff(&label, 3, || {
+    vela_protocol::retry::retry_with_backoff(&label, 3, || {
         let client = client.clone();
         let api_key = config.api_key.clone();
         let model = config.model.clone();

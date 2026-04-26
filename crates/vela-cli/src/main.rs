@@ -14,11 +14,81 @@ use std::pin::Pin;
 use colored::Colorize;
 
 fn main() {
+    // v0.22+ agent handlers
     vela_protocol::cli::register_scout_handler(scout_handler);
     vela_protocol::cli::register_notes_handler(notes_handler);
     vela_protocol::cli::register_code_handler(code_handler);
     vela_protocol::cli::register_datasets_handler(datasets_handler);
+    // v0.27 substrate-cleanup handlers (legacy CLI surfaces that
+    // moved their LLM bodies into vela-scientist)
+    vela_protocol::cli::register_ingest_handler(ingest_handler);
+    vela_protocol::cli::register_compile_handler(compile_handler);
+    vela_protocol::cli::register_jats_handler(jats_handler);
     vela_protocol::cli::run_from_args();
+}
+
+/// Adapter for the legacy file-ingest path
+/// (`vela ingest --pdf / --csv / --text / --doi`). Body lives in
+/// `vela_scientist::legacy_ingest::run_file_ingest`.
+#[allow(clippy::too_many_arguments)]
+fn ingest_handler(
+    frontier: PathBuf,
+    pdf: Option<PathBuf>,
+    csv: Option<PathBuf>,
+    text: Option<PathBuf>,
+    doi: Option<String>,
+    backend: Option<String>,
+    assertion_type_override: Option<String>,
+    assertion_col: Option<String>,
+    confidence_col: Option<String>,
+) -> Pin<Box<dyn Future<Output = ()> + Send>> {
+    Box::pin(async move {
+        vela_scientist::legacy_ingest::run_file_ingest(
+            &frontier,
+            pdf.as_deref(),
+            csv.as_deref(),
+            text.as_deref(),
+            doi.as_deref(),
+            backend.as_deref(),
+            assertion_type_override.as_deref(),
+            assertion_col.as_deref(),
+            confidence_col.as_deref(),
+        )
+        .await;
+    })
+}
+
+/// Adapter for `vela compile`. Body lives in
+/// `vela_scientist::legacy_compile::cmd_compile`.
+fn compile_handler(
+    topic: String,
+    max_papers: usize,
+    output: PathBuf,
+    backend: Option<String>,
+    fulltext: bool,
+) -> Pin<Box<dyn Future<Output = ()> + Send>> {
+    Box::pin(async move {
+        vela_scientist::legacy_compile::cmd_compile(
+            &topic,
+            max_papers,
+            &output,
+            backend.as_deref(),
+            fulltext,
+        )
+        .await;
+    })
+}
+
+/// Adapter for `vela jats`. Body lives in
+/// `vela_scientist::legacy_compile::cmd_jats`.
+fn jats_handler(
+    source: String,
+    output: PathBuf,
+    backend: Option<String>,
+) -> Pin<Box<dyn Future<Output = ()> + Send>> {
+    Box::pin(async move {
+        vela_scientist::legacy_compile::cmd_jats(&source, &output, backend.as_deref()).await;
+    })
 }
 
 /// Adapter from the substrate's `ScoutHandler` signature to

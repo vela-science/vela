@@ -15,9 +15,6 @@ use crate::bundle::{
     Provenance,
 };
 use crate::cli_style as style;
-use crate::extract;
-use crate::fetch::{Paper, PaperAuthor};
-use crate::llm::LlmConfig;
 use crate::project::Project;
 use crate::repo;
 
@@ -186,7 +183,7 @@ pub fn run(frontier_path: &Path, args: IngestArgs) {
 
     // Report.
     println!();
-    println!("  {}", "VELA · INGEST · V0.26.0".dimmed());
+    println!("  {}", "VELA · INGEST · V0.27.0".dimmed());
     println!("  {}", style::tick_row(60));
     println!("  ingested into: {}", frontier.project.name);
     println!("  existing findings: {existing_count}");
@@ -228,7 +225,7 @@ pub fn run(frontier_path: &Path, args: IngestArgs) {
 /// Link a single new finding (at `new_idx`) against all earlier findings.
 /// Returns the number of links created. This avoids re-running the full O(n^2)
 /// pass and duplicating existing links between old findings.
-fn link_new_finding(findings: &mut [FindingBundle], new_idx: usize) -> usize {
+pub fn link_new_finding(findings: &mut [FindingBundle], new_idx: usize) -> usize {
     use std::collections::HashSet;
 
     let n = findings.len();
@@ -356,74 +353,6 @@ fn is_opposite(a: Option<&str>, b: Option<&str>) -> bool {
 
 /// Run file-based ingest: PDF, CSV, text, or DOI.
 #[allow(dead_code, clippy::too_many_arguments)]
-pub async fn run_file_ingest(
-    frontier_path: &Path,
-    pdf: Option<&Path>,
-    csv: Option<&Path>,
-    text: Option<&Path>,
-    doi: Option<&str>,
-    backend: Option<&str>,
-    assertion_type_override: Option<&str>,
-    assertion_col: Option<&str>,
-    confidence_col: Option<&str>,
-) {
-    let mut frontier: Project =
-        repo::load_from_path(frontier_path).expect("Failed to load frontier");
-    let existing_count = frontier.findings.len();
-
-    let new_findings = if let Some(csv_path) = csv {
-        ingest_csv(
-            csv_path,
-            assertion_type_override.unwrap_or("mechanism"),
-            assertion_col,
-            confidence_col,
-        )
-        .expect("CSV ingest failed")
-    } else if let Some(pdf_path) = pdf {
-        let text_content = extract_pdf_text(pdf_path).expect("PDF text extraction failed");
-        ingest_text_via_llm(&text_content, backend, pdf_path.to_string_lossy().as_ref())
-            .await
-            .expect("PDF extraction failed")
-    } else if let Some(text_path) = text {
-        let text_content = std::fs::read_to_string(text_path)
-            .unwrap_or_else(|e| panic!("Failed to read {}: {e}", text_path.display()));
-        ingest_text_via_llm(&text_content, backend, text_path.to_string_lossy().as_ref())
-            .await
-            .expect("Text extraction failed")
-    } else if let Some(doi_str) = doi {
-        ingest_doi(doi_str, backend)
-            .await
-            .expect("DOI ingest failed")
-    } else {
-        eprintln!("{} no file source specified", style::err_prefix());
-        std::process::exit(1);
-    };
-
-    let new_count = new_findings.len();
-    for finding in new_findings {
-        frontier.findings.push(finding);
-        let new_idx = frontier.findings.len() - 1;
-        link_new_finding(&mut frontier.findings, new_idx);
-    }
-
-    recompute_stats(&mut frontier);
-    repo::save_to_path(frontier_path, &frontier).expect("Failed to save frontier");
-
-    println!();
-    println!("  {}", "VELA · INGEST · V0.2.0 · FILE".dimmed());
-    println!("  {}", style::tick_row(60));
-    println!("  ingested into: {}", frontier.project.name);
-    println!("  existing findings: {existing_count}");
-    println!("  new findings added: {new_count}");
-    println!("  total findings: {}", frontier.findings.len());
-    println!("  project saved: {}", frontier_path.display());
-    println!();
-}
-
-/// Extract text from a PDF. Tries `pdftotext` first, falls back to reading raw text.
-///
-/// Public so `vela-scientist`'s Literature Scout can reuse the same
-/// extraction path the legacy `vela ingest --pdf` flow uses.
 pub fn extract_pdf_text(path: &Path) -> Result<String, String> {
     // Try pdftotext (poppler-utils).
     if let Ok(output) = std::process::Command::new("pdftotext")
@@ -476,116 +405,7 @@ pub fn extract_pdf_text(path: &Path) -> Result<String, String> {
 /// then get wrapped as `finding.add` `StateProposal`s with agent
 /// provenance. The lib stays model-agnostic at the schema layer;
 /// this is a utility surface, not a substrate primitive.
-pub async fn ingest_text_via_llm(
-    text: &str,
-    backend: Option<&str>,
-    source_label: &str,
-) -> Result<Vec<FindingBundle>, String> {
-    let config = LlmConfig::from_env(backend)?;
-    let client = reqwest::Client::new();
-
-    // Truncate to reasonable size for LLM.
-    let truncated: String = text.chars().take(8000).collect();
-
-    let paper = Paper {
-        title: source_label.to_string(),
-        abstract_text: truncated,
-        doi: None,
-        authors: vec![],
-        year: Some(chrono::Utc::now().naive_utc().year()),
-        citations: 0,
-        openalex_id: None,
-        full_text: None,
-    };
-
-    extract::extract_paper(&client, &config, &paper).await
-}
-
-/// Ingest a DOI by fetching from OpenAlex and extracting via LLM.
-#[allow(dead_code)]
-async fn ingest_doi(doi: &str, backend: Option<&str>) -> Result<Vec<FindingBundle>, String> {
-    let config = LlmConfig::from_env(backend)?;
-    let client = reqwest::Client::new();
-
-    // Fetch paper metadata from OpenAlex.
-    let clean_doi = doi.trim_start_matches("https://doi.org/");
-    let url = format!(
-        "https://api.openalex.org/works/https://doi.org/{}?mailto=vela@example.com",
-        urlencoding::encode(clean_doi)
-    );
-
-    let resp: serde_json::Value = client
-        .get(&url)
-        .send()
-        .await
-        .map_err(|e| format!("OpenAlex request failed: {e}"))?
-        .json()
-        .await
-        .map_err(|e| format!("OpenAlex parse failed: {e}"))?;
-
-    let title = resp["title"].as_str().unwrap_or("Unknown").to_string();
-
-    // Reconstruct abstract from inverted index.
-    let abstract_text = if let Some(inv) = resp["abstract_inverted_index"].as_object() {
-        let mut words: Vec<(usize, String)> = Vec::new();
-        for (word, positions) in inv {
-            if let Some(arr) = positions.as_array() {
-                for pos in arr {
-                    if let Some(p) = pos.as_u64() {
-                        words.push((p as usize, word.clone()));
-                    }
-                }
-            }
-        }
-        words.sort_by_key(|(p, _)| *p);
-        words
-            .iter()
-            .map(|(_, w)| w.as_str())
-            .collect::<Vec<_>>()
-            .join(" ")
-    } else {
-        String::new()
-    };
-
-    if abstract_text.is_empty() {
-        return Err("No abstract available for this DOI".into());
-    }
-
-    let year = resp["publication_year"].as_i64().map(|y| y as i32);
-
-    let authors: Vec<PaperAuthor> = resp["authorships"]
-        .as_array()
-        .map(|arr| {
-            arr.iter()
-                .filter_map(|a| {
-                    a["author"]["display_name"]
-                        .as_str()
-                        .map(|name| PaperAuthor {
-                            name: name.to_string(),
-                            orcid: a["author"]["orcid"].as_str().map(String::from),
-                        })
-                })
-                .collect()
-        })
-        .unwrap_or_default();
-
-    let paper = Paper {
-        title,
-        abstract_text,
-        doi: Some(clean_doi.to_string()),
-        authors,
-        year,
-        citations: resp["cited_by_count"].as_u64().unwrap_or(0),
-        openalex_id: resp["id"].as_str().map(String::from),
-        full_text: None,
-    };
-
-    extract::extract_paper(&client, &config, &paper).await
-}
-
-/// Ingest from a CSV file. Each row becomes one finding.
-#[allow(dead_code)]
-fn ingest_csv(
+pub fn ingest_csv(
     path: &Path,
     default_type: &str,
     assertion_col: Option<&str>,
@@ -759,7 +579,7 @@ fn parse_csv_line(line: &str) -> Vec<&str> {
 }
 
 /// Recompute frontier stats from findings.
-fn recompute_stats(frontier: &mut Project) {
+pub fn recompute_stats(frontier: &mut Project) {
     use std::collections::HashMap;
 
     let findings = &frontier.findings;

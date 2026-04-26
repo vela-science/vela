@@ -1,4 +1,10 @@
 //! Local corpus compiler for the paper-folder adoption path.
+//!
+//! Moved from `vela-protocol::corpus` to
+//! `vela-scientist::legacy_corpus` in v0.27 (substrate cleanup).
+//! The substrate stays dumb — every LLM call lives here. Powers
+//! the legacy `vela compile` CLI surface via a registered
+//! `CompileHandler` in `vela-cli`.
 
 use std::collections::{BTreeMap, HashMap};
 use std::path::{Path, PathBuf};
@@ -9,12 +15,15 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use sha2::{Digest, Sha256};
 
-use crate::bundle::{
+use vela_protocol::bundle::{
     Assertion, Conditions, Entity, Evidence, Extraction, FindingBundle, Flags, Provenance,
     compute_confidence,
 };
-use crate::fetch::{Paper, PaperAuthor};
-use crate::{extract, jats, link, llm, normalize, project, repo};
+use vela_protocol::fetch::{Paper, PaperAuthor};
+use vela_protocol::{extract, jats, link, normalize, project, repo};
+
+use crate::legacy_extract;
+use crate::legacy_llm as llm;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CompileReport {
@@ -238,7 +247,7 @@ pub async fn compile_local_corpus(
         error_count(&reports),
         &description,
     );
-    crate::sources::attach_local_source_details(
+    vela_protocol::sources::attach_local_source_details(
         &mut frontier,
         &finding_source_hashes,
         &finding_source_types,
@@ -401,7 +410,7 @@ async fn extract_from_paper(
     warnings: &mut Vec<String>,
 ) -> Result<Vec<FindingBundle>, String> {
     if let Some(config) = config {
-        match extract::extract_paper(client, config, paper).await {
+        match legacy_extract::extract_paper(client, config, paper).await {
             Ok(findings) => Ok(findings),
             Err(e) => {
                 warnings.push(format!(
@@ -674,7 +683,7 @@ fn parse_entities(raw: &str) -> Vec<Entity> {
                 aliases: Vec::new(),
                 resolution_provenance: Some("local corpus CSV".to_string()),
                 resolution_confidence: 1.0,
-                resolution_method: Some(crate::bundle::ResolutionMethod::Manual),
+                resolution_method: Some(vela_protocol::bundle::ResolutionMethod::Manual),
                 species_context: None,
                 needs_review: false,
             })
