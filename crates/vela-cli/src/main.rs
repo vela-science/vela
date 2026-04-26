@@ -1,0 +1,109 @@
+//! `vela` — the command-line binary.
+//!
+//! Wires the agent handlers from `vela-scientist` into the
+//! substrate's CLI dispatch table, then hands off to
+//! `vela_protocol::cli::run_from_args`.
+//!
+//! Doctrine: the substrate library doesn't know about agents. This
+//! binary does the marriage.
+
+use std::future::Future;
+use std::path::PathBuf;
+use std::pin::Pin;
+
+use colored::Colorize;
+
+fn main() {
+    vela_protocol::cli::register_scout_handler(scout_handler);
+    vela_protocol::cli::run_from_args();
+}
+
+/// Adapter from the substrate's `ScoutHandler` signature to
+/// `vela_scientist::scout::run`. Owns the user-facing rendering of
+/// the report so the agent crate can stay UI-free.
+fn scout_handler(
+    folder: PathBuf,
+    frontier: PathBuf,
+    backend: Option<String>,
+    dry_run: bool,
+    json_out: bool,
+) -> Pin<Box<dyn Future<Output = ()> + Send>> {
+    Box::pin(async move {
+        use vela_scientist::scout::{ScoutInput, run};
+        let input = ScoutInput {
+            folder: folder.clone(),
+            frontier_path: frontier.clone(),
+            backend,
+            apply: !dry_run,
+        };
+        match run(input).await {
+            Ok(report) => {
+                if json_out {
+                    println!(
+                        "{}",
+                        serde_json::to_string_pretty(&report).unwrap_or_default()
+                    );
+                    return;
+                }
+                println!();
+                println!("  {}", "VELA · SCOUT · LITERATURE".dimmed());
+                println!("  {}", tick_row(60));
+                println!("  agent:           {}", report.run.agent);
+                println!("  run id:          {}", report.run.run_id);
+                println!(
+                    "  model:           {}",
+                    if report.run.model.is_empty() {
+                        "(env default)"
+                    } else {
+                        &report.run.model
+                    }
+                );
+                println!("  folder:          {}", folder.display());
+                println!("  frontier:        {}", frontier.display());
+                println!("  pdfs seen:       {}", report.pdfs_seen);
+                println!("  pdfs processed:  {}", report.pdfs_processed);
+                println!("  candidates:      {}", report.candidates_emitted);
+                println!(
+                    "  proposals:       {} {}",
+                    report.proposals_written,
+                    if dry_run {
+                        "(dry-run, not written)"
+                    } else {
+                        "(appended to frontier)"
+                    }
+                );
+                if !report.skipped.is_empty() {
+                    println!("  skipped:         {} files", report.skipped.len());
+                    for s in report.skipped.iter().take(5) {
+                        println!("    - {}: {}", s.path, s.reason);
+                    }
+                    if report.skipped.len() > 5 {
+                        println!("    … {} more", report.skipped.len() - 5);
+                    }
+                }
+                println!();
+                if !dry_run && report.proposals_written > 0 {
+                    println!(
+                        "  next: review in the Workbench Inbox, then `vela queue sign --all`."
+                    );
+                }
+            }
+            Err(e) => {
+                eprintln!("  scout failed: {e}");
+                std::process::exit(1);
+            }
+        }
+    })
+}
+
+/// Tiny copy of `vela_protocol::cli_style::tick_row` to keep the
+/// binary independent of crate-private chrome helpers. If the
+/// instrument styling diverges, that's fine — this binary's output
+/// is local-only.
+fn tick_row(width: usize) -> String {
+    let mut out = String::with_capacity(width);
+    for i in 0..width {
+        out.push(if i % 4 == 0 { '·' } else { ' ' });
+    }
+    out
+}

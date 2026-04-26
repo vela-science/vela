@@ -4,8 +4,10 @@ use crate::{
     review, search, serve, sign, signals, sources, state, tensions, validate,
 };
 
+use std::future::Future;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::pin::Pin;
+use std::sync::{Arc, OnceLock};
 use std::time::Instant;
 
 use clap::{Parser, Subcommand};
@@ -48,6 +50,28 @@ enum Commands {
         /// Use OpenRouter free-tier backend
         #[arg(long)]
         free: bool,
+    },
+    /// v0.22 Agent Inbox: run Literature Scout against a folder of
+    /// PDFs. Each candidate finding becomes a `finding.add`
+    /// `StateProposal` tagged with the scout's `AgentRun`, written
+    /// to the frontier's `proposals` array. Reviewers accept or
+    /// reject in the Workbench Inbox; nothing becomes a canonical
+    /// finding without a signed accept.
+    Scout {
+        /// Folder of PDFs to read.
+        folder: PathBuf,
+        /// Frontier file the proposals are appended to.
+        #[arg(long)]
+        frontier: PathBuf,
+        /// LLM backend override (matches `vela ingest --backend`).
+        #[arg(short, long)]
+        backend: Option<String>,
+        /// Preview without writing to the frontier file.
+        #[arg(long)]
+        dry_run: bool,
+        /// Output stable JSON for programmatic callers.
+        #[arg(long)]
+        json: bool,
     },
     /// Ingest manual or file-derived findings into a frontier
     Ingest {
@@ -1104,6 +1128,15 @@ pub async fn run_command() {
             };
             cmd_compile(&topic, papers, &output, backend.as_deref(), fulltext).await;
         }
+        Commands::Scout {
+            folder,
+            frontier,
+            backend,
+            dry_run,
+            json,
+        } => {
+            cmd_scout(&folder, &frontier, backend.as_deref(), dry_run, json).await;
+        }
         Commands::Ingest {
             frontier,
             assertion,
@@ -1977,6 +2010,41 @@ pub async fn cmd_compile(
         compile_start.elapsed().as_secs_f64()
     );
     println!();
+}
+
+#[allow(clippy::too_many_arguments)]
+/// v0.22 Agent Inbox: dispatches the registered scout handler. The
+/// substrate library does not import `vela-scientist` (it would induce
+/// a Cargo cycle); the `vela` CLI binary in `crates/vela-cli`
+/// registers a handler at startup that calls into the scientist
+/// crate. Running the lib directly without that registration prints
+/// a clear error.
+async fn cmd_scout(
+    folder: &Path,
+    frontier: &Path,
+    backend: Option<&str>,
+    dry_run: bool,
+    json_out: bool,
+) {
+    match SCOUT_HANDLER.get() {
+        Some(handler) => {
+            handler(
+                folder.to_path_buf(),
+                frontier.to_path_buf(),
+                backend.map(String::from),
+                dry_run,
+                json_out,
+            )
+            .await;
+        }
+        None => {
+            eprintln!(
+                "{} `vela scout` requires the vela CLI binary; the library is unwired without a registered scout handler.",
+                style::err_prefix()
+            );
+            std::process::exit(1);
+        }
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -5649,6 +5717,7 @@ pub struct ProofTrace {
 
 const SCIENCE_SUBCOMMANDS: &[&str] = &[
     "compile",
+    "scout",
     "ingest",
     "jats",
     "check",
@@ -5711,6 +5780,7 @@ Core commands:
   tensions      List candidate contradictions and tensions
   gaps          Inspect and rank candidate gap review leads
   bridge        Find candidate cross-domain connections
+  scout         Run Literature Scout against a folder of PDFs (writes proposals)
   ingest        Add manual or file-derived findings
   jats          Compile findings from JATS XML or PMC input
   export        Export frontier artifacts
@@ -5756,6 +5826,31 @@ Publish your own frontier (see docs/PUBLISHING.md):
       --locator <https-url> --to https://vela-hub.fly.dev
 "#
     );
+}
+
+/// v0.22 Agent Inbox: pluggable handler for `vela scout`.
+///
+/// The substrate library can't import `vela-scientist` (cyclic
+/// dependency), so the scout dispatch in this module looks up a
+/// handler installed by the binary at startup. The `vela` CLI in
+/// `crates/vela-cli` registers a real handler via
+/// `register_scout_handler`. Library callers that want scout
+/// behaviour install their own.
+pub type ScoutHandler = fn(
+    folder: PathBuf,
+    frontier: PathBuf,
+    backend: Option<String>,
+    dry_run: bool,
+    json: bool,
+) -> Pin<Box<dyn Future<Output = ()> + Send>>;
+
+static SCOUT_HANDLER: OnceLock<ScoutHandler> = OnceLock::new();
+
+/// Install the agent handler. Idempotent — second registrations are
+/// silently ignored so a misbehaving consumer can't unseat the
+/// binary's wiring mid-run.
+pub fn register_scout_handler(handler: ScoutHandler) {
+    let _ = SCOUT_HANDLER.set(handler);
 }
 
 pub fn run_from_args() {

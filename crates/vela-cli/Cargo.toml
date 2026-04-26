@@ -1,0 +1,25 @@
+[package]
+name = "vela-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+# The `vela` command-line binary. Lives in its own crate (instead of
+# alongside the substrate lib) so it can depend on both the substrate
+# crate (`vela-protocol`) and the agent crate (`vela-scientist`)
+# without inducing a cyclic Cargo dependency.
+#
+# The lib stays a pure substrate library; agent behaviour is wired
+# in here at startup via `register_scout_handler`.
+
+[[bin]]
+name = "vela"
+path = "src/main.rs"
+
+[dependencies]
+vela-protocol = { workspace = true }
+vela-scientist = { workspace = true }
+tokio = { workspace = true }
+serde_json = { workspace = true }
+colored = { workspace = true }

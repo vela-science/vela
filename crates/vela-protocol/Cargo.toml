@@ -9,9 +9,10 @@ description = "Core library for Vela scientific knowledge protocol"
 name = "vela_protocol"
 path = "src/lib.rs"
 
-[[bin]]
-name = "vela"
-path = "src/main.rs"
+# v0.22 (Agent Inbox): the `vela` CLI lives in `crates/vela-cli` so
+# it can depend on both vela-protocol (substrate) and vela-scientist
+# (agents) without inducing a cyclic Cargo dependency. The library
+# in this crate stays a pure substrate library.
 
 [dependencies]
 dotenvy.workspace = true

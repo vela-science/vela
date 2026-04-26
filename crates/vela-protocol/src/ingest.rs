@@ -421,8 +421,10 @@ pub async fn run_file_ingest(
 }
 
 /// Extract text from a PDF. Tries `pdftotext` first, falls back to reading raw text.
-#[allow(dead_code)]
-fn extract_pdf_text(path: &Path) -> Result<String, String> {
+///
+/// Public so `vela-scientist`'s Literature Scout can reuse the same
+/// extraction path the legacy `vela ingest --pdf` flow uses.
+pub fn extract_pdf_text(path: &Path) -> Result<String, String> {
     // Try pdftotext (poppler-utils).
     if let Ok(output) = std::process::Command::new("pdftotext")
         .arg(path)
@@ -467,7 +469,14 @@ fn extract_pdf_text(path: &Path) -> Result<String, String> {
 
 /// Feed text through LLM extraction pipeline to produce findings.
 #[allow(dead_code)]
-async fn ingest_text_via_llm(
+/// Run the LLM extractor on a chunk of paper text and return
+/// candidate `FindingBundle`s.
+///
+/// Public so `vela-scientist::scout` can produce candidates that
+/// then get wrapped as `finding.add` `StateProposal`s with agent
+/// provenance. The lib stays model-agnostic at the schema layer;
+/// this is a utility surface, not a substrate primitive.
+pub async fn ingest_text_via_llm(
     text: &str,
     backend: Option<&str>,
     source_label: &str,

@@ -1,61 +1,71 @@
 //! # Literature Scout
 //!
-//! v0.22 entry point: walks a folder of PDFs, extracts candidate
-//! findings, and writes them as `finding.add` `StateProposal`s into
-//! the target frontier. Each proposal carries an `AgentRun` with the
-//! scout's run id so the Workbench Inbox can group them and the
-//! reviewer can see what model produced what claim.
+//! Walks a folder of PDFs, extracts candidate findings via the
+//! shared LLM extractor in `vela-protocol::ingest`, and writes them
+//! into the target frontier as `finding.add` `StateProposal`s tagged
+//! with an `AgentRun`. Reviewers see them in the Workbench Inbox.
 //!
-//! The extraction logic itself isn't here yet — that's Day 2.
-//! This module defines the public boundary so the protocol crate,
-//! the CLI, and the Workbench can all depend on a stable shape
-//! while the inside fills in.
+//! Scope discipline (v0.22):
+//! * **PDFs only.** Markdown / Obsidian is Notes Compiler in v0.23.
+//! * **One model call per PDF.** No multi-pass refinement, no chunking
+//!   beyond what the underlying extractor already does.
+//! * **Always proposes, never applies.** Even with `apply: true`, the
+//!   only state the scout writes is `frontier.proposals` — never
+//!   `frontier.findings`. Acceptance happens in the Workbench.
+//! * **Substrate stays dumb.** The proposal payload uses the standard
+//!   `finding.add` shape; reading it requires no knowledge of the
+//!   scout, the model, or the prompt. Removing this crate would
+//!   leave every accepted finding intact.
 
 use std::path::{Path, PathBuf};
 
+use chrono::Utc;
 use serde::{Deserialize, Serialize};
-use vela_protocol::proposals::AgentRun;
+use serde_json::json;
+use vela_protocol::bundle::FindingBundle;
+use vela_protocol::events::{StateActor, StateTarget};
+use vela_protocol::ingest::{extract_pdf_text, ingest_text_via_llm};
+use vela_protocol::project::Project;
+use vela_protocol::proposals::{AgentRun, StateProposal, new_proposal};
+use vela_protocol::repo;
+
+use crate::{AGENT_ACTOR_ID_LITERATURE_SCOUT, AGENT_LITERATURE_SCOUT, new_run_id};
 
 /// Inputs to a single Literature Scout run.
 #[derive(Debug, Clone)]
 pub struct ScoutInput {
-    /// Folder to walk. PDFs are picked up; other file types are
-    /// ignored in v0.22 (Notes Compiler v0.23 covers Markdown).
+    /// Folder to walk. Only `*.pdf` files at the top level are
+    /// considered in v0.22; recursion lands later if the dogfood run
+    /// shows it's needed.
     pub folder: PathBuf,
-    /// Path to the frontier file the proposals will be written into.
-    /// The scout never modifies findings — only the `proposals` array.
+    /// Frontier file the proposals will be appended to.
     pub frontier_path: PathBuf,
-    /// Optional model identifier override. When `None`, the runtime
-    /// reads from environment (`VELA_SCIENTIST_MODEL` etc.).
-    pub model: Option<String>,
-    /// When `true`, the scout writes proposals to disk. When `false`,
-    /// it returns the report without persisting — useful for dry-run
-    /// previews in the CLI.
+    /// LLM backend override (matches the existing `--backend` flag
+    /// on `vela ingest`). `None` reads from environment.
+    pub backend: Option<String>,
+    /// When `false`, the scout reports what it would do but never
+    /// writes proposals to disk. Useful for previewing on a folder
+    /// before paying for the model calls in production.
     pub apply: bool,
 }
 
 /// One proposed finding-add, ready to be wrapped in a
-/// `StateProposal` and appended to the frontier.
+/// `StateProposal`. Currently produced by the underlying extractor;
+/// kept as an explicit type so the public boundary stays stable
+/// even when we swap the extractor.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ScoutCandidate {
-    /// The PDF this candidate was extracted from, relative to the
-    /// scout's input folder.
     pub source_file: String,
-    /// Human-readable claim text the reviewer will see first.
-    pub claim: String,
-    /// One or more source spans pinning the claim to the PDF.
-    pub spans: Vec<SourceSpan>,
-    /// Why the scout thinks this is a finding. Reviewer-facing.
+    pub finding: FindingBundle,
+    /// Why the scout produced this candidate. Reviewer-facing.
     pub rationale: String,
-    /// Coarse confidence flags surfaced as Inbox chips, not as a
-    /// numeric score. Possible values: "complete", "needs_scope",
-    /// "needs_evidence", "possible_duplicate", "low_confidence".
+    /// Coarse status flags: "complete", "needs_scope", "needs_evidence",
+    /// "possible_duplicate", "low_confidence". Surfaced as Inbox chips.
     pub flags: Vec<String>,
 }
 
-/// A pointer back into the source PDF. Page + paragraph + verbatim
-/// snippet is enough for v0.22; richer span types (figure, table,
-/// supplement) land later.
+/// A pointer back into the source PDF. Reserved for v0.23; the v0.22
+/// extractor only attaches `Evidence::evidence_spans` strings.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SourceSpan {
     pub page: u32,
@@ -63,7 +73,7 @@ pub struct SourceSpan {
     pub snippet: String,
 }
 
-/// Summary returned to the CLI / Workbench.
+/// Summary returned to the CLI / Workbench after a run.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ScoutReport {
     pub run: AgentRun,
@@ -72,6 +82,8 @@ pub struct ScoutReport {
     pub candidates_emitted: usize,
     pub proposals_written: usize,
     pub skipped: Vec<SkippedFile>,
+    pub frontier_path: String,
+    pub apply: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -80,13 +92,176 @@ pub struct SkippedFile {
     pub reason: String,
 }
 
-/// Public entry point. Day 2 fills this in.
-pub async fn run(_input: ScoutInput) -> Result<ScoutReport, String> {
-    Err("Literature Scout extraction lands in v0.22 Day 2.".to_string())
+/// Top-level entry point. Returns a `ScoutReport`; on `apply: true`
+/// the frontier file is rewritten with the new proposals appended.
+pub async fn run(input: ScoutInput) -> Result<ScoutReport, String> {
+    let started_at = Utc::now().to_rfc3339();
+    let run_id = new_run_id(AGENT_LITERATURE_SCOUT);
+
+    let pdfs = discover_pdfs(&input.folder)?;
+    let pdfs_seen = pdfs.len();
+
+    let mut frontier: Project = repo::load_from_path(&input.frontier_path)
+        .map_err(|e| format!("load frontier {}: {e}", input.frontier_path.display()))?;
+
+    let mut report = ScoutReport {
+        run: AgentRun {
+            agent: AGENT_LITERATURE_SCOUT.to_string(),
+            model: input.backend.clone().unwrap_or_default(),
+            run_id: run_id.clone(),
+            started_at: started_at.clone(),
+            finished_at: None,
+            context: std::collections::BTreeMap::from([
+                (
+                    "input_folder".to_string(),
+                    input.folder.display().to_string(),
+                ),
+                ("pdf_count".to_string(), pdfs_seen.to_string()),
+            ]),
+        },
+        pdfs_seen,
+        pdfs_processed: 0,
+        candidates_emitted: 0,
+        proposals_written: 0,
+        skipped: Vec::new(),
+        frontier_path: input.frontier_path.display().to_string(),
+        apply: input.apply,
+    };
+
+    let existing_finding_ids: std::collections::HashSet<String> = frontier
+        .findings
+        .iter()
+        .map(|f| f.id.clone())
+        .collect();
+    let existing_proposal_ids: std::collections::HashSet<String> = frontier
+        .proposals
+        .iter()
+        .map(|p| p.id.clone())
+        .collect();
+
+    let mut new_proposals: Vec<StateProposal> = Vec::new();
+
+    for pdf in &pdfs {
+        let label = pdf.display().to_string();
+        let text = match extract_pdf_text(pdf) {
+            Ok(t) if !t.trim().is_empty() => t,
+            Ok(_) => {
+                report.skipped.push(SkippedFile {
+                    path: label,
+                    reason: "empty PDF text after extraction".to_string(),
+                });
+                continue;
+            }
+            Err(e) => {
+                report.skipped.push(SkippedFile {
+                    path: label,
+                    reason: format!("extract failed: {e}"),
+                });
+                continue;
+            }
+        };
+
+        let bundles = match ingest_text_via_llm(&text, input.backend.as_deref(), &label).await {
+            Ok(b) => b,
+            Err(e) => {
+                report.skipped.push(SkippedFile {
+                    path: label,
+                    reason: format!("LLM extract failed: {e}"),
+                });
+                continue;
+            }
+        };
+
+        report.pdfs_processed += 1;
+        for finding in bundles {
+            report.candidates_emitted += 1;
+
+            // Skip duplicates the substrate would reject anyway —
+            // the Workbench can fold these into a "possible
+            // duplicate" surface later.
+            let mut flags: Vec<String> = Vec::new();
+            if existing_finding_ids.contains(&finding.id) {
+                flags.push("duplicate_finding".to_string());
+                report.skipped.push(SkippedFile {
+                    path: format!("{}#{}", pdf.display(), finding.id),
+                    reason: "finding id already in frontier".to_string(),
+                });
+                continue;
+            }
+
+            let proposal = build_proposal(
+                &finding,
+                pdf,
+                &report.run,
+                &flags,
+            );
+            if existing_proposal_ids.contains(&proposal.id) {
+                report.skipped.push(SkippedFile {
+                    path: format!("{}#{}", pdf.display(), proposal.id),
+                    reason: "proposal id already in frontier".to_string(),
+                });
+                continue;
+            }
+            new_proposals.push(proposal);
+        }
+    }
+
+    if input.apply && !new_proposals.is_empty() {
+        for p in new_proposals.drain(..) {
+            report.proposals_written += 1;
+            frontier.proposals.push(p);
+        }
+        repo::save_to_path(&input.frontier_path, &frontier)
+            .map_err(|e| format!("save frontier: {e}"))?;
+    } else {
+        report.proposals_written = new_proposals.len();
+    }
+
+    report.run.finished_at = Some(Utc::now().to_rfc3339());
+    Ok(report)
 }
 
-/// Helper: discover PDF files in a folder, ignoring hidden and
-/// non-PDF entries. Pulled out so the CLI can preview discovery
+fn build_proposal(
+    finding: &FindingBundle,
+    pdf: &Path,
+    run: &AgentRun,
+    flags: &[String],
+) -> StateProposal {
+    let payload = json!({ "finding": finding });
+    let source_label = pdf.display().to_string();
+    let reason = if flags.is_empty() {
+        format!("Literature Scout extracted from {source_label}")
+    } else {
+        format!(
+            "Literature Scout extracted from {source_label} [flags: {}]",
+            flags.join(", ")
+        )
+    };
+    let _ = StateActor {
+        // Construction below uses new_proposal, which builds the actor
+        // from id/type strings. Documenting the binding for readers.
+        id: AGENT_ACTOR_ID_LITERATURE_SCOUT.to_string(),
+        r#type: "agent".to_string(),
+    };
+    let mut proposal = new_proposal(
+        "finding.add",
+        StateTarget {
+            r#type: "finding".to_string(),
+            id: finding.id.clone(),
+        },
+        AGENT_ACTOR_ID_LITERATURE_SCOUT,
+        "agent",
+        reason,
+        payload,
+        vec![source_label],
+        flags.to_vec(),
+    );
+    proposal.agent_run = Some(run.clone());
+    proposal
+}
+
+/// Helper: discover PDF files in a folder, skipping hidden entries
+/// and non-PDF files. Pulled out so the CLI can preview discovery
 /// without invoking the model.
 pub fn discover_pdfs(folder: &Path) -> Result<Vec<PathBuf>, String> {
     let entries = std::fs::read_dir(folder)
@@ -107,4 +282,28 @@ pub fn discover_pdfs(folder: &Path) -> Result<Vec<PathBuf>, String> {
     }
     out.sort();
     Ok(out)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn discover_pdfs_filters_correctly() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("a.pdf"), b"%PDF-1.4").unwrap();
+        std::fs::write(dir.path().join("b.txt"), b"not a pdf").unwrap();
+        std::fs::write(dir.path().join(".hidden.pdf"), b"%PDF-1.4").unwrap();
+        std::fs::write(dir.path().join("c.pdf"), b"%PDF-1.4").unwrap();
+
+        let pdfs = discover_pdfs(dir.path()).unwrap();
+        assert_eq!(pdfs.len(), 2);
+        let names: Vec<String> = pdfs
+            .iter()
+            .map(|p| p.file_name().unwrap().to_string_lossy().into_owned())
+            .collect();
+        assert!(names.contains(&"a.pdf".to_string()));
+        assert!(names.contains(&"c.pdf".to_string()));
+        assert!(!names.contains(&".hidden.pdf".to_string()));
+    }
 }

@@ -1,5 +1,10 @@
 [workspace]
-members = ["crates/vela-protocol", "crates/vela-hub", "crates/vela-scientist"]
+members = [
+    "crates/vela-protocol",
+    "crates/vela-scientist",
+    "crates/vela-cli",
+    "crates/vela-hub",
+]
 resolver = "3"
 
 [workspace.package]
@@ -39,6 +44,7 @@ tempfile = "3"
 
 # Internal crates
 vela-protocol = { path = "crates/vela-protocol" }
+vela-scientist = { path = "crates/vela-scientist" }
 
 [workspace.lints.rust]
 unsafe_code = "deny"
