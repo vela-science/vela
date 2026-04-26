@@ -59,6 +59,9 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
       <button class="fr-tab" data-tab="inbox" role="tab">
         Inbox <span class="fr-tab__count" id="fr-tab-inbox">—</span>
       </button>
+      <button class="fr-tab" data-tab="diff" role="tab">
+        Diff <span class="fr-tab__count" id="fr-tab-diff">—</span>
+      </button>
       <button class="fr-tab" data-tab="snapshots" role="tab">
         Snapshots <span class="fr-tab__count" id="fr-tab-snapshots">—</span>
       </button>
@@ -92,6 +95,13 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
           <div class="ib-summary" id="ib-summary"></div>
           <div class="ib-runs" id="ib-runs">
             <div class="fr-empty">No agent proposals yet. Run <code>vela scout &lt;folder&gt; --frontier &lt;path&gt;</code> to populate the Inbox.</div>
+          </div>
+        </section>
+
+        <section class="fr-pane" data-pane="diff" hidden>
+          <div class="df-summary" id="df-summary"></div>
+          <div class="df-events" id="df-events">
+            <div class="fr-empty">No state events yet. After accepting proposals from the Inbox and running <code>vela queue sign --all</code>, signed events appear here.</div>
           </div>
         </section>
 
@@ -776,6 +786,114 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
     font-style: italic;
   }
 
+  /* === Diff (event log) === */
+  .df-summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 8px 0 14px;
+    border-bottom: 1px solid var(--rule-1);
+    margin-bottom: 12px;
+  }
+  .df-summary__chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border: 1px solid var(--rule-2);
+    border-radius: 3px;
+    background: var(--paper-0);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.04em;
+    color: var(--ink-2);
+  }
+  .df-summary__chip strong {
+    color: var(--ink-0);
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Event rows are runtime-injected; need :global. */
+  :global(.df-event) {
+    display: grid;
+    grid-template-columns: 110px minmax(0, 1fr) auto;
+    gap: 14px;
+    padding: 12px 4px;
+    border-bottom: 1px solid var(--rule-1);
+    align-items: baseline;
+  }
+  :global(.df-event:last-child) { border-bottom: 0; }
+  :global(.df-event__kind) {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border: 1px solid var(--rule-2);
+    border-radius: 3px;
+    text-align: center;
+    color: var(--ink-2);
+    background: var(--paper-0);
+  }
+  :global(.df-event__kind--add)      { color: var(--state-ok); border-color: rgba(63, 107, 78, 0.32); }
+  :global(.df-event__kind--review)   { color: var(--signal); border-color: var(--signal-edge); }
+  :global(.df-event__kind--retract)  { color: var(--state-lost); border-color: rgba(138, 58, 58, 0.32); }
+  :global(.df-event__kind--note)     { color: var(--state-stale); border-color: var(--rule-2); }
+  :global(.df-event__kind--caveat)   { color: var(--state-warn); border-color: rgba(138, 106, 31, 0.32); }
+  :global(.df-event__kind--revise)   { color: var(--state-warn); border-color: rgba(138, 106, 31, 0.32); }
+  :global(.df-event__kind--unknown)  { color: var(--ink-3); }
+
+  :global(.df-event__main) { min-width: 0; }
+  :global(.df-event__target) {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--ink-1);
+    margin-bottom: 4px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  :global(.df-event__reason) {
+    font-family: var(--font-serif);
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--ink-2);
+    margin: 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  :global(.df-event__sub) {
+    margin-top: 6px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--ink-3);
+    letter-spacing: 0.04em;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 12px;
+  }
+  :global(.df-event__sub strong) { color: var(--ink-2); font-weight: 500; }
+  :global(.df-event__when) {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--ink-3);
+    text-align: right;
+    white-space: nowrap;
+    align-self: start;
+    padding-top: 3px;
+  }
+
+  @media (max-width: 720px) {
+    :global(.df-event) {
+      grid-template-columns: 1fr;
+      gap: 6px;
+    }
+    :global(.df-event__when) { text-align: left; }
+  }
+
   /* About content is innerHTML-injected; needs :global. */
   :global(.fr-about p) { margin: 0 0 1em; }
   :global(.fr-about pre) {
@@ -915,7 +1033,7 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
       }>;
     };
     findings?: Finding[];
-    events?: unknown[];
+    events?: StateEvent[];
     proposals?: StateProposal[];
     actors?: Array<{ id: string; pubkey?: string; tier?: string }>;
     stats?: Record<string, unknown>;
@@ -951,6 +1069,22 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
     started_at?: string;
     finished_at?: string;
     context?: Record<string, string>;
+  };
+
+  /** Mirror of vela_protocol::events::StateEvent. */
+  type StateEvent = {
+    schema?: string;
+    id: string;
+    kind: string;
+    target: { type: string; id: string };
+    actor: { id: string; type: string };
+    timestamp: string;
+    reason: string;
+    before_hash?: string;
+    after_hash?: string;
+    payload?: unknown;
+    caveats?: string[];
+    signature?: string;
   };
 
   function escapeHtml(s: string): string {
@@ -1309,12 +1443,96 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
     return s.length > 36 ? s.slice(0, 35) + "…" : s;
   }
 
-  // Dev-only hook: lets browser-side smoke tests exercise renderInbox
-  // without a real backend. Safe in production — no behavior change
-  // unless something deliberately calls window.__vela.renderInbox(...).
+  /** Map `events[i].kind` to a CSS variant for color-coding. The
+   *  protocol's event kinds use dotted names like "finding.add" or
+   *  "finding.review"; we read the second segment and group
+   *  "review", "accept_review" → "review". Anything we don't
+   *  recognize falls through to "unknown" (neutral grey). */
+  function eventKindVariant(kind: string): string {
+    const segs = kind.split(".");
+    const tail = (segs[1] ?? segs[0] ?? "").toLowerCase();
+    if (tail.startsWith("add")) return "add";
+    if (tail.startsWith("review")) return "review";
+    if (tail.startsWith("retract")) return "retract";
+    if (tail.startsWith("note")) return "note";
+    if (tail.startsWith("caveat")) return "caveat";
+    if (tail.startsWith("revise") || tail.startsWith("revision")) return "revise";
+    return "unknown";
+  }
+
+  /** Render the Diff tab — recent state events newest-first. The
+   *  v0.22 view is intentionally lightweight: list-based, color-
+   *  chip per kind, no ascii diff yet. The Inbox + sign loop is
+   *  the primary action; this tab is the "what landed" record. */
+  function renderDiff(events: StateEvent[]): void {
+    const summaryHost = document.getElementById("df-summary");
+    const eventsHost = document.getElementById("df-events");
+    if (!summaryHost || !eventsHost) return;
+
+    if (events.length === 0) {
+      summaryHost.innerHTML = "";
+      eventsHost.innerHTML = `<div class="fr-empty">No state events yet. After accepting proposals from the Inbox and running <code>vela queue sign --all</code>, signed events appear here.</div>`;
+      return;
+    }
+
+    const sorted = events.slice().sort((a, b) => (a.timestamp < b.timestamp ? 1 : -1));
+
+    // Summary chips by kind variant.
+    const counts = new Map<string, number>();
+    for (const e of sorted) {
+      const v = eventKindVariant(e.kind);
+      counts.set(v, (counts.get(v) ?? 0) + 1);
+    }
+    const order = ["add", "review", "revise", "retract", "note", "caveat", "unknown"];
+    summaryHost.innerHTML = order
+      .filter((v) => (counts.get(v) ?? 0) > 0)
+      .map((v) => {
+        const label = v === "add"
+          ? "added"
+          : v === "review"
+          ? "reviewed"
+          : v === "revise"
+          ? "revised"
+          : v === "retract"
+          ? "retracted"
+          : v === "note"
+          ? "annotated"
+          : v === "caveat"
+          ? "caveats"
+          : "other";
+        return `<span class="df-summary__chip"><strong>${counts.get(v)}</strong> ${label}</span>`;
+      })
+      .join("");
+
+    eventsHost.innerHTML = sorted.map((e) => {
+      const variant = eventKindVariant(e.kind);
+      const target = e.target?.id ?? "—";
+      const actor = e.actor?.id ?? "—";
+      const when = relativeTime(e.timestamp);
+      const reason = e.reason ?? "";
+      const sigBadge = e.signature ? "signed" : "unsigned";
+      return `<div class="df-event">
+  <span class="df-event__kind df-event__kind--${variant}">${escapeHtml(e.kind)}</span>
+  <div class="df-event__main">
+    <div class="df-event__target" title="${escapeHtml(target)}">${escapeHtml(target)}</div>
+    ${reason ? `<p class="df-event__reason">${escapeHtml(reason)}</p>` : ""}
+    <div class="df-event__sub">
+      <span><strong>${escapeHtml(actor)}</strong></span>
+      <span>${escapeHtml(sigBadge)}</span>
+    </div>
+  </div>
+  <div class="df-event__when" title="${escapeHtml(e.timestamp)}">${escapeHtml(when)}</div>
+</div>`;
+    }).join("");
+  }
+
+  // Dev-only hook: lets browser-side smoke tests exercise the
+  // renderers without a real backend. Safe in production — no
+  // behavior change unless something deliberately calls into it.
   (window as unknown as { __vela?: Record<string, unknown> }).__vela = {
     ...((window as unknown as { __vela?: Record<string, unknown> }).__vela ?? {}),
     renderInbox,
+    renderDiff,
     groupProposalsByRun,
   };
 
@@ -1490,6 +1708,7 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
 
     setText("fr-tab-findings", String(findings.length));
     setText("fr-tab-inbox", String(proposals.filter((p) => p.status === "pending_review").length));
+    setText("fr-tab-diff", String(events.length));
     setText("fr-tab-deps", String(deps.length));
     setText("fr-tab-actors", String(actors.length));
     setText("fr-side-fc", String(findings.length));
@@ -1497,6 +1716,7 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
     setText("fr-side-pc", String(proposals.length));
 
     renderInbox(proposals);
+    renderDiff(events as StateEvent[]);
 
     // === Findings ===
     const findingsHost = document.getElementById("fr-findings");
