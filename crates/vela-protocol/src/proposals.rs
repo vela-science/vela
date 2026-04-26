@@ -658,6 +658,37 @@ fn validate_proposal_shape(frontier: &Project, proposal: &StateProposal) -> Resu
                 ));
             }
         }
+        "finding.supersede" => {
+            let idx = require_existing_finding(frontier, &proposal.target.id)?;
+            if frontier.findings[idx].flags.superseded {
+                return Err(format!(
+                    "Finding {} is already superseded",
+                    proposal.target.id
+                ));
+            }
+            let new_finding_value = proposal
+                .payload
+                .get("new_finding")
+                .ok_or("finding.supersede proposal missing payload.new_finding")?
+                .clone();
+            let new_finding: FindingBundle = serde_json::from_value(new_finding_value)
+                .map_err(|e| format!("Invalid finding.supersede payload.new_finding: {e}"))?;
+            if new_finding.id == proposal.target.id {
+                return Err(
+                    "finding.supersede new_finding has same content address as the superseded target — change assertion text, type, or provenance to derive a distinct vf_…".to_string(),
+                );
+            }
+            if frontier
+                .findings
+                .iter()
+                .any(|existing| existing.id == new_finding.id)
+            {
+                return Err(format!(
+                    "Refusing to add superseding finding with existing finding ID {}",
+                    new_finding.id
+                ));
+            }
+        }
         other => {
             return Err(format!("Unsupported proposal kind '{other}'"));
         }
@@ -768,6 +799,21 @@ fn validate_standalone_proposal(
             }
         }
         "finding.reject" | "finding.retract" => {}
+        "finding.supersede" => {
+            let new_finding_value = proposal
+                .payload
+                .get("new_finding")
+                .ok_or("finding.supersede proposal missing payload.new_finding")?
+                .clone();
+            let new_finding: FindingBundle = serde_json::from_value(new_finding_value)
+                .map_err(|e| format!("Invalid finding.supersede payload.new_finding: {e}"))?;
+            if new_finding.id == proposal.target.id {
+                return Err(
+                    "finding.supersede new_finding has same content address as the superseded target"
+                        .to_string(),
+                );
+            }
+        }
         other => return Err(format!("Unsupported proposal kind '{other}'")),
     }
     validate_decision_state(proposal)
@@ -886,6 +932,7 @@ fn apply_proposal(
             apply_confidence_revise(frontier, proposal, reviewer, decision_reason)?
         }
         "finding.reject" => apply_reject(frontier, proposal, reviewer, decision_reason)?,
+        "finding.supersede" => apply_supersede(frontier, proposal, reviewer, decision_reason)?,
         other => return Err(format!("Unsupported proposal kind '{other}'")),
     };
     let event_id = event.id.clone();
@@ -895,6 +942,105 @@ fn apply_proposal(
         format!("Applied proposal {} after latest proof export", proposal.id),
     );
     Ok(event_id)
+}
+
+/// v0.14: `finding.supersede` — first-class flow for *changing a claim's text*.
+///
+/// Until v0.14 the only way to update a finding was to stack caveats/notes
+/// on top, because the assertion text is part of the content address. The
+/// substrate-correct path for a real correction is a *new* content-addressed
+/// finding that explicitly supersedes the old one. This proposal kind:
+///
+/// 1. Validates the old finding exists and is not already superseded.
+/// 2. Adds the new finding bundle (a fresh `vf_…` content address) to
+///    `frontier.findings`.
+/// 3. Auto-injects a `supersedes` link from the new finding's `links` to the
+///    old finding's id (if not already present in the payload).
+/// 4. Sets `flags.superseded = true` on the old finding.
+/// 5. Emits a `finding.superseded` canonical event targeting the *old*
+///    finding (since that's the state change). The new finding's existence
+///    is recorded in the event payload as `new_finding_id`.
+///
+/// Both findings remain queryable; readers walk the supersedes chain via
+/// the link or via the `flags.superseded` marker.
+fn apply_supersede(
+    frontier: &mut Project,
+    proposal: &StateProposal,
+    reviewer: &str,
+    _decision_reason: &str,
+) -> Result<StateEvent, String> {
+    use crate::bundle::Link;
+
+    let old_id = proposal.target.id.clone();
+    let new_finding_value = proposal
+        .payload
+        .get("new_finding")
+        .ok_or("finding.supersede proposal missing payload.new_finding")?
+        .clone();
+    let mut new_finding: FindingBundle = serde_json::from_value(new_finding_value)
+        .map_err(|e| format!("Invalid finding.supersede payload.new_finding: {e}"))?;
+
+    // Locate the old finding before mutating; capture before_hash for the event.
+    let old_idx = find_finding_index(frontier, &old_id)?;
+    if frontier.findings[old_idx].flags.superseded {
+        return Err(format!(
+            "Refusing to supersede already-superseded finding {old_id}"
+        ));
+    }
+    if new_finding.id == old_id {
+        return Err(
+            "Refusing to supersede with a finding that has the same content address as the old finding (assertion / type / provenance_id are unchanged)".to_string(),
+        );
+    }
+    if frontier
+        .findings
+        .iter()
+        .any(|existing| existing.id == new_finding.id)
+    {
+        return Err(format!(
+            "Refusing to add superseding finding with existing finding ID {}",
+            new_finding.id
+        ));
+    }
+    let before_hash = events::finding_hash(&frontier.findings[old_idx]);
+
+    // Auto-inject the supersedes link if the caller didn't already include it.
+    let already_links_old = new_finding
+        .links
+        .iter()
+        .any(|l| l.target == old_id && l.link_type == "supersedes");
+    if !already_links_old {
+        new_finding.links.push(Link {
+            target: old_id.clone(),
+            link_type: "supersedes".to_string(),
+            note: format!(
+                "Supersedes {old_id} via finding.supersede proposal {}.",
+                proposal.id
+            ),
+            inferred_by: "reviewer".to_string(),
+            created_at: Utc::now().to_rfc3339(),
+        });
+    }
+
+    let new_finding_id = new_finding.id.clone();
+    frontier.findings.push(new_finding);
+    frontier.findings[old_idx].flags.superseded = true;
+    let after_hash = events::finding_hash(&frontier.findings[old_idx]);
+
+    Ok(events::new_finding_event(events::FindingEventInput {
+        kind: "finding.superseded",
+        finding_id: &old_id,
+        actor_id: reviewer,
+        actor_type: "human",
+        reason: &proposal.reason,
+        before_hash: &before_hash,
+        after_hash: &after_hash,
+        payload: json!({
+            "proposal_id": proposal.id,
+            "new_finding_id": new_finding_id,
+        }),
+        caveats: proposal.caveats.clone(),
+    }))
 }
 
 fn apply_add(
@@ -1346,6 +1492,7 @@ mod tests {
                 declining: false,
                 gravity_well: false,
                 review_state: None,
+                superseded: false,
             },
             links: Vec::new(),
             annotations: Vec::new(),
@@ -1717,5 +1864,136 @@ mod tests {
         assert_eq!(loaded.stats.source_count, loaded.sources.len());
         // Suppress unused-mut warning when frontier isn't reused below.
         let _ = &mut frontier;
+    }
+
+    fn make_supersede_payload(old_id: &str, new_text: &str) -> (FindingBundle, Value) {
+        let mut new_finding = finding("vf_supersede_new");
+        new_finding.assertion.text = new_text.to_string();
+        // Re-derive id from the new assertion text + provenance. For the
+        // test we just hand-pick a distinct id; the real CLI uses
+        // `build_finding_bundle` which content-addresses correctly.
+        new_finding.id = format!(
+            "vf_{:0>16}",
+            old_id
+                .bytes()
+                .fold(0u64, |acc, b| acc.wrapping_add(b as u64))
+        );
+        let payload = json!({"new_finding": new_finding.clone()});
+        (new_finding, payload)
+    }
+
+    #[test]
+    fn v0_14_supersede_creates_new_finding_and_marks_old() {
+        let tmp = TempDir::new().unwrap();
+        let path = tmp.path().join("frontier.json");
+        let mut frontier = project::assemble("test", vec![finding("vf_old")], 0, 0, "test");
+        repo::save_to_path(&path, &frontier).unwrap();
+        let (new_finding, payload) = make_supersede_payload("vf_old", "Newer claim");
+        let proposal = new_proposal(
+            "finding.supersede",
+            StateTarget {
+                r#type: "finding".to_string(),
+                id: "vf_old".to_string(),
+            },
+            "reviewer:test",
+            "human",
+            "Newer evidence updates the wording",
+            payload,
+            Vec::new(),
+            Vec::new(),
+        );
+        let result = create_or_apply(&path, proposal, true).unwrap();
+        assert!(result.applied_event_id.is_some());
+        let loaded = repo::load_from_path(&path).unwrap();
+        // Old finding now flagged superseded.
+        let old = loaded.findings.iter().find(|f| f.id == "vf_old").unwrap();
+        assert!(
+            old.flags.superseded,
+            "old finding should be flagged superseded"
+        );
+        // New finding present, with auto-injected supersedes link back to old.
+        let new_f = loaded
+            .findings
+            .iter()
+            .find(|f| f.id == new_finding.id)
+            .expect("new finding should be in frontier");
+        assert!(
+            new_f
+                .links
+                .iter()
+                .any(|l| l.target == "vf_old" && l.link_type == "supersedes"),
+            "new finding should have an auto-injected supersedes link to old finding"
+        );
+        // Event with kind finding.superseded targeting old, payload carries new_finding_id.
+        let supersede_event = loaded
+            .events
+            .iter()
+            .find(|e| e.kind == "finding.superseded")
+            .expect("a finding.superseded event should be emitted");
+        assert_eq!(supersede_event.target.id, "vf_old");
+        assert_eq!(
+            supersede_event.payload["new_finding_id"].as_str(),
+            Some(new_finding.id.as_str())
+        );
+        // suppress unused warning
+        let _ = &mut frontier;
+    }
+
+    #[test]
+    fn v0_14_supersede_refuses_already_superseded() {
+        let tmp = TempDir::new().unwrap();
+        let path = tmp.path().join("frontier.json");
+        let mut old = finding("vf_already_done");
+        old.flags.superseded = true;
+        let frontier = project::assemble("test", vec![old], 0, 0, "test");
+        repo::save_to_path(&path, &frontier).unwrap();
+        let (_, payload) = make_supersede_payload("vf_already_done", "Newer wording");
+        let proposal = new_proposal(
+            "finding.supersede",
+            StateTarget {
+                r#type: "finding".to_string(),
+                id: "vf_already_done".to_string(),
+            },
+            "reviewer:test",
+            "human",
+            "Attempt to double-supersede",
+            payload,
+            Vec::new(),
+            Vec::new(),
+        );
+        let result = create_or_apply(&path, proposal, true);
+        assert!(
+            result.is_err(),
+            "double-supersede should be refused; got {result:?}"
+        );
+    }
+
+    #[test]
+    fn v0_14_supersede_refuses_same_content_address() {
+        let tmp = TempDir::new().unwrap();
+        let path = tmp.path().join("frontier.json");
+        let frontier = project::assemble("test", vec![finding("vf_same")], 0, 0, "test");
+        repo::save_to_path(&path, &frontier).unwrap();
+        // new_finding.id == target.id should be refused at validate-time.
+        let mut new_finding = finding("vf_same");
+        new_finding.assertion.text = "Different text but reused id".to_string();
+        let proposal = new_proposal(
+            "finding.supersede",
+            StateTarget {
+                r#type: "finding".to_string(),
+                id: "vf_same".to_string(),
+            },
+            "reviewer:test",
+            "human",
+            "Same id, should fail",
+            json!({"new_finding": new_finding}),
+            Vec::new(),
+            Vec::new(),
+        );
+        let result = create_or_apply(&path, proposal, true);
+        assert!(
+            result.is_err(),
+            "supersede with same content address should be refused; got {result:?}"
+        );
     }
 }

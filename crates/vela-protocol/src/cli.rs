@@ -20,7 +20,7 @@ use sha2::{Digest, Sha256};
 use tokio::sync::Semaphore;
 
 #[derive(Parser)]
-#[command(name = "vela", version = "0.13.0")]
+#[command(name = "vela", version = "0.14.0")]
 #[command(about = "Portable frontier state for science")]
 struct Cli {
     #[command(subcommand)]
@@ -869,6 +869,82 @@ enum FindingCommands {
         #[arg(long)]
         apply: bool,
     },
+    /// v0.14: Supersede an existing finding with a new content-addressed
+    /// claim. The new finding gets its own `vf_…` id; an auto-injected
+    /// `supersedes` link points back at the old id; the old finding is
+    /// flagged `superseded`. Both remain queryable. Real corrections
+    /// (Phase 4 follow-up data, retraction, refined wording) belong here
+    /// rather than as caveats stacked on top of an immutable claim.
+    Supersede {
+        /// Frontier JSON file or Vela repo
+        frontier: PathBuf,
+        /// `vf_…` id of the finding to supersede
+        old_id: String,
+        /// New assertion text (drives the new finding's content address)
+        #[arg(long)]
+        assertion: String,
+        /// New assertion type
+        #[arg(long, default_value = "mechanism")]
+        r#type: String,
+        /// Source label
+        #[arg(long, default_value = "manual finding")]
+        source: String,
+        /// Source type
+        #[arg(long, default_value = "expert_assertion")]
+        source_type: String,
+        /// Curating Vela actor id
+        #[arg(long)]
+        author: String,
+        /// Reason for the supersede (becomes the proposal/event reason)
+        #[arg(long)]
+        reason: String,
+        /// New confidence score 0.0..=1.0
+        #[arg(long, default_value = "0.5")]
+        confidence: f64,
+        /// New evidence type
+        #[arg(long, default_value = "experimental")]
+        evidence_type: String,
+        /// New entities (`name:type` pairs, comma-separated)
+        #[arg(long, default_value = "")]
+        entities: String,
+        /// DOI of the source artifact
+        #[arg(long)]
+        doi: Option<String>,
+        /// PubMed ID
+        #[arg(long)]
+        pmid: Option<String>,
+        /// Publication year
+        #[arg(long)]
+        year: Option<i32>,
+        /// Journal name
+        #[arg(long)]
+        journal: Option<String>,
+        /// Generic source URL
+        #[arg(long)]
+        url: Option<String>,
+        /// Source-paper authors (semicolon-separated)
+        #[arg(long)]
+        source_authors: Option<String>,
+        /// Conditions/scope text
+        #[arg(long)]
+        conditions_text: Option<String>,
+        /// Verified species (semicolon-separated)
+        #[arg(long)]
+        species: Option<String>,
+        #[arg(long)]
+        in_vivo: bool,
+        #[arg(long)]
+        in_vitro: bool,
+        #[arg(long)]
+        human_data: bool,
+        #[arg(long)]
+        clinical_trial: bool,
+        #[arg(long)]
+        json: bool,
+        /// Immediately accept and apply the proposal locally
+        #[arg(long)]
+        apply: bool,
+    },
 }
 
 #[derive(Subcommand)]
@@ -1169,7 +1245,7 @@ pub async fn run_command() {
         Commands::Conformance { dir } => {
             let _ = conformance::run(&dir);
         }
-        Commands::Version => println!("vela 0.13.0"),
+        Commands::Version => println!("vela 0.14.0"),
         Commands::Sign { action } => cmd_sign(action),
         Commands::Actor { action } => cmd_actor(action),
         Commands::Frontier { action } => cmd_frontier(action),
@@ -1251,6 +1327,102 @@ pub async fn run_command() {
                     .unwrap_or_default();
                 let report = state::add_finding(
                     &frontier,
+                    state::FindingDraftOptions {
+                        text: assertion,
+                        assertion_type: r#type,
+                        source,
+                        source_type,
+                        author,
+                        confidence,
+                        evidence_type,
+                        entities: parsed_entities,
+                        doi,
+                        pmid,
+                        year,
+                        journal,
+                        url,
+                        source_authors: parsed_source_authors,
+                        conditions_text,
+                        species: parsed_species,
+                        in_vivo,
+                        in_vitro,
+                        human_data,
+                        clinical_trial,
+                    },
+                    apply,
+                )
+                .unwrap_or_else(|e| fail_return(&e));
+                print_state_report(&report, json);
+            }
+            FindingCommands::Supersede {
+                frontier,
+                old_id,
+                assertion,
+                r#type,
+                source,
+                source_type,
+                author,
+                reason,
+                confidence,
+                evidence_type,
+                entities,
+                doi,
+                pmid,
+                year,
+                journal,
+                url,
+                source_authors,
+                conditions_text,
+                species,
+                in_vivo,
+                in_vitro,
+                human_data,
+                clinical_trial,
+                json,
+                apply,
+            } => {
+                validate_enum_arg("--type", &r#type, bundle::VALID_ASSERTION_TYPES);
+                validate_enum_arg(
+                    "--evidence-type",
+                    &evidence_type,
+                    bundle::VALID_EVIDENCE_TYPES,
+                );
+                validate_enum_arg(
+                    "--source-type",
+                    &source_type,
+                    bundle::VALID_PROVENANCE_SOURCE_TYPES,
+                );
+                let parsed_entities = parse_entities(&entities);
+                for (name, etype) in &parsed_entities {
+                    if !bundle::VALID_ENTITY_TYPES.contains(&etype.as_str()) {
+                        fail(&format!(
+                            "invalid entity type '{}' for '{}'. Valid: {}",
+                            etype,
+                            name,
+                            bundle::VALID_ENTITY_TYPES.join(", "),
+                        ));
+                    }
+                }
+                let parsed_source_authors = source_authors
+                    .map(|s| {
+                        s.split(';')
+                            .map(|a| a.trim().to_string())
+                            .filter(|a| !a.is_empty())
+                            .collect()
+                    })
+                    .unwrap_or_default();
+                let parsed_species = species
+                    .map(|s| {
+                        s.split(';')
+                            .map(|a| a.trim().to_string())
+                            .filter(|a| !a.is_empty())
+                            .collect()
+                    })
+                    .unwrap_or_default();
+                let report = state::supersede_finding(
+                    &frontier,
+                    &old_id,
+                    &reason,
                     state::FindingDraftOptions {
                         text: assertion,
                         assertion_type: r#type,
@@ -1440,7 +1612,7 @@ pub async fn cmd_compile(
         match corpus::compile_local_corpus(local_source, output, backend).await {
             Ok(report) => {
                 println!();
-                println!("  {}", "VELA · COMPILE · V0.13.0".dimmed());
+                println!("  {}", "VELA · COMPILE · V0.14.0".dimmed());
                 println!("  {}", style::tick_row(60));
                 println!("source: {}", local_source.display());
                 println!("mode: local corpus");
@@ -1475,7 +1647,7 @@ pub async fn cmd_compile(
     let client = Client::new();
 
     println!();
-    println!("  {}", "VELA · COMPILE · V0.13.0".dimmed());
+    println!("  {}", "VELA · COMPILE · V0.14.0".dimmed());
     println!("  {}", style::tick_row(60));
     println!("topic: {topic}");
     println!("papers: {max_papers}");
@@ -2533,7 +2705,7 @@ fn cmd_stats(path: &Path) {
     let frontier = repo::load_from_path(path).expect("Failed to load frontier");
     let s = &frontier.stats;
     println!();
-    println!("  {}", "FRONTIER · V0.13.0".dimmed());
+    println!("  {}", "FRONTIER · V0.14.0".dimmed());
     println!("  {}", frontier.project.name.bold());
     println!("  {}", style::tick_row(60));
     println!("  id:             {}", frontier.frontier_id());
@@ -4302,7 +4474,7 @@ async fn cmd_bridge(inputs: &[PathBuf], check_novelty: bool, top_n: usize) {
         fail("need at least 2 frontier files for bridge detection.");
     }
     println!();
-    println!("  {}", "VELA · BRIDGE · V0.13.0".dimmed());
+    println!("  {}", "VELA · BRIDGE · V0.14.0".dimmed());
     println!("  {}", style::tick_row(60));
     println!("  loading {} frontiers...", inputs.len());
     let mut named_projects = Vec::<(String, project::Project)>::new();
@@ -4597,7 +4769,7 @@ async fn cmd_jats(source: &str, output: &Path, backend: Option<&str>) {
     let config = llm::LlmConfig::from_env(backend).unwrap_or_else(|e| fail_return(&e));
     let client = Client::new();
     println!();
-    println!("  {}", "VELA · JATS · V0.13.0".dimmed());
+    println!("  {}", "VELA · JATS · V0.14.0".dimmed());
     println!("  {}", style::tick_row(60));
     println!("source: {source}");
     println!("backend: {}", config.backend.label());
@@ -5177,7 +5349,7 @@ pub fn is_science_subcommand(name: &str) -> bool {
 
 fn print_strict_help() {
     println!(
-        r#"Vela 0.13.0
+        r#"Vela 0.14.0
 Portable frontier state for science.
 
 Usage:
@@ -5249,7 +5421,7 @@ pub fn run_from_args() {
             return;
         }
         Some("-V" | "--version" | "version") => {
-            println!("vela 0.13.0");
+            println!("vela 0.14.0");
             return;
         }
         Some(cmd) if !is_science_subcommand(cmd) => {

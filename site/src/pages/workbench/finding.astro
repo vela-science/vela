@@ -18,6 +18,10 @@ import Page from "../../layouts/Page.astro";
       <p class="empty">Loading…</p>
     </article>
     <aside class="fd-margin">
+      <div class="fd-dial fd-timeline" id="fd-timeline-card" hidden>
+        <div class="fd-dial__k">history</div>
+        <ol class="fd-timeline__list" id="fd-timeline"></ol>
+      </div>
       <div class="fd-dial" id="fd-dial">
         <div class="fd-dial__k">state</div>
         <div class="fd-dial__v" id="fd-state">—</div>
@@ -99,6 +103,16 @@ import Page from "../../layouts/Page.astro";
     created?: string;
   };
 
+  type FrontierEvent = {
+    id: string;
+    kind: string;
+    target?: { id?: string };
+    actor?: { id?: string };
+    timestamp: string;
+    reason: string;
+    payload?: Record<string, unknown>;
+  };
+
   type Frontier = {
     actors?: Array<{ id: string }>;
     proposals?: Array<{
@@ -110,6 +124,7 @@ import Page from "../../layouts/Page.astro";
       reason: string;
       payload?: { text?: string; status?: string };
     }>;
+    events?: FrontierEvent[];
   };
 
   function escapeHtml(s: string | undefined | null): string {
@@ -361,6 +376,64 @@ import Page from "../../layouts/Page.astro";
     `;
   }
 
+  // v0.14: render the event timeline for the active finding. Walks the
+  // canonical event log filtered by target.id; renders kind + when + actor
+  // + a short reason. Hidden when the finding has zero events (legacy
+  // frontiers without an event log).
+  function renderTimeline(frontier: Frontier, findingId: string): void {
+    const card = document.getElementById("fd-timeline-card");
+    const list = document.getElementById("fd-timeline");
+    if (!card || !list) return;
+    const events = (frontier.events || [])
+      .filter((e) => e.target?.id === findingId)
+      .slice()
+      .sort((a, b) => (a.timestamp < b.timestamp ? -1 : 1));
+    if (events.length === 0) {
+      card.setAttribute("hidden", "");
+      return;
+    }
+    card.removeAttribute("hidden");
+    const friendlyKind: Record<string, string> = {
+      "finding.asserted": "asserted",
+      "finding.reviewed": "reviewed",
+      "finding.caveated": "caveat added",
+      "finding.noted": "note added",
+      "finding.confidence_revised": "confidence revised",
+      "finding.rejected": "rejected",
+      "finding.retracted": "retracted",
+      "finding.superseded": "superseded",
+      "finding.dependency_invalidated": "dependency invalidated",
+    };
+    list.innerHTML = events
+      .map((e) => {
+        const kindLabel = escapeHtml(friendlyKind[e.kind] || e.kind);
+        const actor = escapeHtml(e.actor?.id || "—");
+        const when = escapeHtml(e.timestamp.slice(0, 10));
+        const reason = escapeHtml(e.reason || "");
+        let extra = "";
+        if (e.kind === "finding.superseded") {
+          const newId = (e.payload as { new_finding_id?: string } | undefined)
+            ?.new_finding_id;
+          if (newId) {
+            const params = new URLSearchParams(window.location.search);
+            const vfr = params.get("vfr");
+            const suffix = vfr ? `&vfr=${encodeURIComponent(vfr)}` : "";
+            extra = ` <a class="timeline-link" href="/workbench/finding?id=${encodeURIComponent(newId)}${suffix}">→ ${escapeHtml(newId)}</a>`;
+          }
+        }
+        return `<li class="timeline-item">
+  <div class="timeline-row">
+    <span class="timeline-kind">${kindLabel}</span>
+    <span class="timeline-when">${when}</span>
+  </div>
+  <div class="timeline-actor">${actor}</div>
+  ${reason ? `<div class="timeline-reason">${reason}</div>` : ""}
+  ${extra}
+</li>`;
+      })
+      .join("");
+  }
+
   async function bootstrap(): Promise<void> {
     const params = new URLSearchParams(window.location.search);
     const id = params.get("id");
@@ -412,6 +485,7 @@ import Page from "../../layouts/Page.astro";
         (p) => p.status === "pending_review" && p.target?.id === id,
       );
       renderQueue(queued, reviewer);
+      renderTimeline(frontier, id);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       document.getElementById("fd-main")!.innerHTML =
@@ -558,6 +632,57 @@ import Page from "../../layouts/Page.astro";
     font-family: var(--font-serif); font-style: italic;
     color: var(--ink-3); font-size: 14px;
   }
+
+  /* v0.14: event timeline on the per-finding detail page */
+  .fd-timeline__list {
+    list-style: none; padding: 0; margin: 8px 0 0;
+  }
+  .timeline-item {
+    padding: 10px 0;
+    border-bottom: 1px solid var(--rule-1);
+  }
+  .timeline-item:last-child { border-bottom: 0; }
+  .timeline-row {
+    display: flex; justify-content: space-between; align-items: baseline;
+    gap: 8px;
+  }
+  .timeline-kind {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--ink-1);
+    text-transform: lowercase;
+    letter-spacing: 0.04em;
+  }
+  .timeline-when {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--ink-3);
+    font-variant-numeric: tabular-nums;
+  }
+  .timeline-actor {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--ink-3);
+    margin-top: 2px;
+  }
+  .timeline-reason {
+    font-family: var(--font-serif);
+    font-size: 13px;
+    color: var(--ink-2);
+    line-height: 1.4;
+    margin-top: 4px;
+    max-width: 28ch;
+  }
+  .timeline-link {
+    display: inline-block;
+    margin-top: 4px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--signal);
+    text-decoration: none;
+    border-bottom: 1px solid var(--rule-2);
+  }
+  .timeline-link:hover { border-bottom-color: var(--signal); }
 
   .fd-toast {
     position: fixed; bottom: 24px; right: 24px;

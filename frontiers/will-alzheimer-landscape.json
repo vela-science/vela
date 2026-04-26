@@ -21,36 +21,37 @@
     ]
   },
   "stats": {
-    "findings": 11,
-    "links": 8,
+    "findings": 12,
+    "links": 9,
     "replicated": 0,
-    "unreplicated": 11,
-    "avg_confidence": 0.759,
+    "unreplicated": 12,
+    "avg_confidence": 0.767,
     "gaps": 0,
     "negative_space": 0,
     "contested": 0,
     "categories": {
-      "epidemiological": 2,
-      "mechanism": 3,
+      "therapeutic": 3,
       "observational": 3,
-      "review": 1,
-      "therapeutic": 2
+      "mechanism": 3,
+      "epidemiological": 2,
+      "review": 1
     },
     "link_types": {
-      "extends": 2,
       "contradicts": 1,
-      "supports": 5
+      "extends": 2,
+      "supports": 5,
+      "supersedes": 1
     },
     "human_reviewed": 4,
     "review_event_count": 15,
     "confidence_update_count": 0,
-    "event_count": 15,
-    "source_count": 10,
-    "evidence_atom_count": 11,
-    "condition_record_count": 11,
-    "proposal_count": 15,
+    "event_count": 16,
+    "source_count": 11,
+    "evidence_atom_count": 12,
+    "condition_record_count": 12,
+    "proposal_count": 16,
     "confidence_distribution": {
-      "high_gt_80": 2,
+      "high_gt_80": 3,
       "medium_60_80": 9,
       "low_lt_60": 0
     }
@@ -370,7 +371,8 @@
         "contested": false,
         "retracted": false,
         "declining": false,
-        "gravity_well": false
+        "gravity_well": false,
+        "superseded": true
       },
       "links": [
         {
@@ -1706,6 +1708,214 @@
       ],
       "created": "2026-04-26T01:04:13.854377+00:00",
       "updated": null
+    },
+    {
+      "id": "vf_9b9311fd80f87572",
+      "version": 1,
+      "previous_version": null,
+      "assertion": {
+        "text": "Lecanemab showed modest cognitive benefit in Clarity AD; durability beyond 18 months and ARIA-E risk in ApoE4 homozygotes shape the real-world decision",
+        "type": "therapeutic",
+        "entities": [
+          {
+            "name": "Lecanemab",
+            "type": "compound",
+            "identifiers": {},
+            "candidates": [],
+            "aliases": [],
+            "resolution_provenance": "manual_state_transition",
+            "resolution_confidence": 0.6,
+            "needs_review": true
+          },
+          {
+            "name": "amyloid-beta",
+            "type": "protein",
+            "identifiers": {},
+            "candidates": [],
+            "aliases": [],
+            "resolution_provenance": "manual_state_transition",
+            "resolution_confidence": 0.6,
+            "needs_review": true
+          },
+          {
+            "name": "Alzheimers disease",
+            "type": "disease",
+            "identifiers": {},
+            "candidates": [],
+            "aliases": [],
+            "resolution_provenance": "manual_state_transition",
+            "resolution_confidence": 0.6,
+            "needs_review": true
+          },
+          {
+            "name": "ApoE",
+            "type": "protein",
+            "identifiers": {},
+            "candidates": [],
+            "aliases": [],
+            "resolution_provenance": "manual_state_transition",
+            "resolution_confidence": 0.6,
+            "needs_review": true
+          }
+        ],
+        "relation": null,
+        "direction": null
+      },
+      "evidence": {
+        "type": "experimental",
+        "model_system": "",
+        "species": null,
+        "method": "manual state transition",
+        "sample_size": null,
+        "effect_size": null,
+        "p_value": null,
+        "replicated": false,
+        "replication_count": null,
+        "evidence_spans": []
+      },
+      "conditions": {
+        "text": "Patients with mild cognitive impairment or mild AD dementia, ages 50-90, with confirmed amyloid PET positivity. Phase 3 RCT, 1795 patients, 18 months, biweekly IV infusion at 10 mg/kg. CDR-SB primary endpoint (mean difference -0.45 vs placebo, p<0.001). ARIA-E rate 12.6% overall, 32.6% in ApoE4 homozygotes; durability of cognitive benefit beyond 18 months not established by Clarity AD itself.",
+        "species_verified": [
+          "Homo sapiens"
+        ],
+        "species_unverified": [],
+        "in_vitro": false,
+        "in_vivo": false,
+        "human_data": true,
+        "clinical_trial": true,
+        "concentration_range": null,
+        "duration": null,
+        "age_group": null,
+        "cell_type": null
+      },
+      "confidence": {
+        "kind": "frontier_epistemic",
+        "score": 0.85,
+        "basis": "operator-supplied frontier prior; review required",
+        "method": "expert_judgment",
+        "extraction_confidence": 1.0
+      },
+      "provenance": {
+        "source_type": "clinical_trial",
+        "doi": "10.1056/NEJMoa2212948",
+        "pmid": "36449413",
+        "pmc": null,
+        "openalex_id": null,
+        "title": "van Dyck et al., 2023, NEJM 388:9-21 (Clarity AD); subsequent open-label extension and post-marketing data",
+        "authors": [
+          {
+            "name": "van Dyck CH",
+            "orcid": null
+          },
+          {
+            "name": "Swanson CJ",
+            "orcid": null
+          },
+          {
+            "name": "Aisen P",
+            "orcid": null
+          },
+          {
+            "name": "Bateman RJ",
+            "orcid": null
+          },
+          {
+            "name": "Chen C",
+            "orcid": null
+          },
+          {
+            "name": "Gee M",
+            "orcid": null
+          },
+          {
+            "name": "Kanekiyo M",
+            "orcid": null
+          },
+          {
+            "name": "Li D",
+            "orcid": null
+          },
+          {
+            "name": "Reyderman L",
+            "orcid": null
+          },
+          {
+            "name": "Cohen S",
+            "orcid": null
+          },
+          {
+            "name": "Froelich L",
+            "orcid": null
+          },
+          {
+            "name": "Katayama S",
+            "orcid": null
+          },
+          {
+            "name": "Sabbagh M",
+            "orcid": null
+          },
+          {
+            "name": "Vellas B",
+            "orcid": null
+          },
+          {
+            "name": "Watson D",
+            "orcid": null
+          },
+          {
+            "name": "Dhadda S",
+            "orcid": null
+          },
+          {
+            "name": "Irizarry M",
+            "orcid": null
+          },
+          {
+            "name": "Kramer LD",
+            "orcid": null
+          },
+          {
+            "name": "Iwatsubo T",
+            "orcid": null
+          }
+        ],
+        "year": 2023,
+        "journal": "New England Journal of Medicine",
+        "extraction": {
+          "method": "manual_curation",
+          "model": null,
+          "model_version": null,
+          "extracted_at": "2026-04-26T01:49:48.369275+00:00",
+          "extractor_version": "vela/0.14.0"
+        },
+        "review": {
+          "reviewed": false,
+          "reviewer": null,
+          "reviewed_at": null,
+          "corrections": []
+        },
+        "citation_count": null
+      },
+      "flags": {
+        "gap": false,
+        "negative_space": false,
+        "contested": false,
+        "retracted": false,
+        "declining": false,
+        "gravity_well": false
+      },
+      "links": [
+        {
+          "target": "vf_b1f04d00abcd7476",
+          "type": "supersedes",
+          "note": "Supersedes vf_b1f04d00abcd7476 via finding.supersede proposal vpr_f988b1a6f4151cb0.",
+          "inferred_by": "reviewer",
+          "created_at": "2026-04-26T01:49:48.370838+00:00"
+        }
+      ],
+      "created": "2026-04-26T01:49:48.369351+00:00",
+      "updated": null
     }
   ],
   "sources": [
@@ -1969,6 +2179,43 @@
       "finding_ids": [
         "vf_9ba01201290c351a"
       ]
+    },
+    {
+      "id": "vs_d34453ce4b894d9c",
+      "source_type": "paper",
+      "locator": "doi:10.1056/NEJMoa2212948",
+      "title": "van Dyck et al., 2023, NEJM 388:9-21 (Clarity AD); subsequent open-label extension and post-marketing data",
+      "authors": [
+        "van Dyck CH",
+        "Swanson CJ",
+        "Aisen P",
+        "Bateman RJ",
+        "Chen C",
+        "Gee M",
+        "Kanekiyo M",
+        "Li D",
+        "Reyderman L",
+        "Cohen S",
+        "Froelich L",
+        "Katayama S",
+        "Sabbagh M",
+        "Vellas B",
+        "Watson D",
+        "Dhadda S",
+        "Irizarry M",
+        "Kramer LD",
+        "Iwatsubo T"
+      ],
+      "year": 2023,
+      "doi": "10.1056/NEJMoa2212948",
+      "pmid": "36449413",
+      "imported_at": "2026-04-26T01:49:48.369275+00:00",
+      "extraction_mode": "manual_curation",
+      "source_quality": "declared",
+      "caveats": [],
+      "finding_ids": [
+        "vf_9b9311fd80f87572"
+      ]
     }
   ],
   "evidence_atoms": [
@@ -2013,6 +2260,22 @@
       "supports_or_challenges": "unknown",
       "condition_refs": [
         "vcnd_dd17d6b2077d2e0d"
+      ],
+      "extraction_method": "manual_curation",
+      "human_verified": false,
+      "caveats": [
+        "missing evidence locator"
+      ]
+    },
+    {
+      "id": "vea_3bc78afc706b9331",
+      "source_id": "vs_d34453ce4b894d9c",
+      "finding_id": "vf_9b9311fd80f87572",
+      "evidence_type": "experimental",
+      "measurement_or_claim": "Lecanemab showed modest cognitive benefit in Clarity AD; durability beyond 18 months and ARIA-E risk in ApoE4 homozygotes shape the real-world decision",
+      "supports_or_challenges": "unknown",
+      "condition_refs": [
+        "vcnd_01e0fe098d0dbcee"
       ],
       "extraction_method": "manual_curation",
       "human_verified": false,
@@ -2150,6 +2413,22 @@
     }
   ],
   "condition_records": [
+    {
+      "id": "vcnd_01e0fe098d0dbcee",
+      "finding_id": "vf_9b9311fd80f87572",
+      "text": "Patients with mild cognitive impairment or mild AD dementia, ages 50-90, with confirmed amyloid PET positivity. Phase 3 RCT, 1795 patients, 18 months, biweekly IV infusion at 10 mg/kg. CDR-SB primary endpoint (mean difference -0.45 vs placebo, p<0.001). ARIA-E rate 12.6% overall, 32.6% in ApoE4 homozygotes; durability of cognitive benefit beyond 18 months not established by Clarity AD itself.",
+      "species": "Homo sapiens",
+      "model_system": "",
+      "method": "manual state transition",
+      "in_vitro": false,
+      "in_vivo": false,
+      "human_data": true,
+      "clinical_trial": true,
+      "exposure_or_efficacy": "unknown",
+      "comparator_status": "declared",
+      "translation_scope": "human",
+      "caveats": []
+    },
     {
       "id": "vcnd_2709760eb71caa5f",
       "finding_id": "vf_e6b5a4bdefa6285e",
@@ -2688,6 +2967,28 @@
         "annotation_id": "ann_f281e52d8304e7ad",
         "proposal_id": "vpr_ffe6b42371b67b45",
         "text": "Curator open question: is the right therapeutic strategy to target one pathway, or to combine across amyloid + tau + microglial? The 'gravity well' nature of cascade-thinking biases toward single-pathway intervention design even when the evidence supports multifactorial models."
+      },
+      "caveats": []
+    },
+    {
+      "schema": "vela.event.v0.1",
+      "id": "vev_c407a6443198bcf1",
+      "kind": "finding.superseded",
+      "target": {
+        "type": "finding",
+        "id": "vf_b1f04d00abcd7476"
+      },
+      "actor": {
+        "id": "reviewer:will-blair",
+        "type": "human"
+      },
+      "timestamp": "2026-04-26T01:49:48.370873+00:00",
+      "reason": "v0.14 dogfood: refined wording reflects ApoE4-stratified ARIA-E risk and the 18-month durability ceiling in the trial — both materially shape clinical decision-making and were absent from the original assertion.",
+      "before_hash": "sha256:26aea91be7da11597a16cfd7f2c002d1bb56b81a15454364839be2e7521adb7e",
+      "after_hash": "sha256:09031fd6df54f0bb3545615e6f7d674bd5ed2be6c6690d32a3039a1692dfa94f",
+      "payload": {
+        "new_finding_id": "vf_9b9311fd80f87572",
+        "proposal_id": "vpr_f988b1a6f4151cb0"
       },
       "caveats": []
     }
@@ -4633,6 +4934,230 @@
       "reviewed_at": "2026-04-26T01:04:13.946673+00:00",
       "decision_reason": "Applied locally from proposal creation",
       "applied_event_id": "vev_825633b4324b05e0",
+      "caveats": []
+    },
+    {
+      "schema": "vela.proposal.v0.1",
+      "id": "vpr_f988b1a6f4151cb0",
+      "kind": "finding.supersede",
+      "target": {
+        "type": "finding",
+        "id": "vf_b1f04d00abcd7476"
+      },
+      "actor": {
+        "id": "reviewer:will-blair",
+        "type": "human"
+      },
+      "created_at": "2026-04-26T01:49:48.369629+00:00",
+      "reason": "v0.14 dogfood: refined wording reflects ApoE4-stratified ARIA-E risk and the 18-month durability ceiling in the trial — both materially shape clinical decision-making and were absent from the original assertion.",
+      "payload": {
+        "new_finding": {
+          "assertion": {
+            "direction": null,
+            "entities": [
+              {
+                "aliases": [],
+                "candidates": [],
+                "identifiers": {},
+                "name": "Lecanemab",
+                "needs_review": true,
+                "resolution_confidence": 0.6,
+                "resolution_provenance": "manual_state_transition",
+                "type": "compound"
+              },
+              {
+                "aliases": [],
+                "candidates": [],
+                "identifiers": {},
+                "name": "amyloid-beta",
+                "needs_review": true,
+                "resolution_confidence": 0.6,
+                "resolution_provenance": "manual_state_transition",
+                "type": "protein"
+              },
+              {
+                "aliases": [],
+                "candidates": [],
+                "identifiers": {},
+                "name": "Alzheimers disease",
+                "needs_review": true,
+                "resolution_confidence": 0.6,
+                "resolution_provenance": "manual_state_transition",
+                "type": "disease"
+              },
+              {
+                "aliases": [],
+                "candidates": [],
+                "identifiers": {},
+                "name": "ApoE",
+                "needs_review": true,
+                "resolution_confidence": 0.6,
+                "resolution_provenance": "manual_state_transition",
+                "type": "protein"
+              }
+            ],
+            "relation": null,
+            "text": "Lecanemab showed modest cognitive benefit in Clarity AD; durability beyond 18 months and ARIA-E risk in ApoE4 homozygotes shape the real-world decision",
+            "type": "therapeutic"
+          },
+          "conditions": {
+            "age_group": null,
+            "cell_type": null,
+            "clinical_trial": true,
+            "concentration_range": null,
+            "duration": null,
+            "human_data": true,
+            "in_vitro": false,
+            "in_vivo": false,
+            "species_unverified": [],
+            "species_verified": [
+              "Homo sapiens"
+            ],
+            "text": "Patients with mild cognitive impairment or mild AD dementia, ages 50-90, with confirmed amyloid PET positivity. Phase 3 RCT, 1795 patients, 18 months, biweekly IV infusion at 10 mg/kg. CDR-SB primary endpoint (mean difference -0.45 vs placebo, p<0.001). ARIA-E rate 12.6% overall, 32.6% in ApoE4 homozygotes; durability of cognitive benefit beyond 18 months not established by Clarity AD itself."
+          },
+          "confidence": {
+            "basis": "operator-supplied frontier prior; review required",
+            "extraction_confidence": 1.0,
+            "kind": "frontier_epistemic",
+            "method": "expert_judgment",
+            "score": 0.85
+          },
+          "created": "2026-04-26T01:49:48.369351+00:00",
+          "evidence": {
+            "effect_size": null,
+            "evidence_spans": [],
+            "method": "manual state transition",
+            "model_system": "",
+            "p_value": null,
+            "replicated": false,
+            "replication_count": null,
+            "sample_size": null,
+            "species": null,
+            "type": "experimental"
+          },
+          "flags": {
+            "contested": false,
+            "declining": false,
+            "gap": false,
+            "gravity_well": false,
+            "negative_space": false,
+            "retracted": false
+          },
+          "id": "vf_9b9311fd80f87572",
+          "links": [],
+          "previous_version": null,
+          "provenance": {
+            "authors": [
+              {
+                "name": "van Dyck CH",
+                "orcid": null
+              },
+              {
+                "name": "Swanson CJ",
+                "orcid": null
+              },
+              {
+                "name": "Aisen P",
+                "orcid": null
+              },
+              {
+                "name": "Bateman RJ",
+                "orcid": null
+              },
+              {
+                "name": "Chen C",
+                "orcid": null
+              },
+              {
+                "name": "Gee M",
+                "orcid": null
+              },
+              {
+                "name": "Kanekiyo M",
+                "orcid": null
+              },
+              {
+                "name": "Li D",
+                "orcid": null
+              },
+              {
+                "name": "Reyderman L",
+                "orcid": null
+              },
+              {
+                "name": "Cohen S",
+                "orcid": null
+              },
+              {
+                "name": "Froelich L",
+                "orcid": null
+              },
+              {
+                "name": "Katayama S",
+                "orcid": null
+              },
+              {
+                "name": "Sabbagh M",
+                "orcid": null
+              },
+              {
+                "name": "Vellas B",
+                "orcid": null
+              },
+              {
+                "name": "Watson D",
+                "orcid": null
+              },
+              {
+                "name": "Dhadda S",
+                "orcid": null
+              },
+              {
+                "name": "Irizarry M",
+                "orcid": null
+              },
+              {
+                "name": "Kramer LD",
+                "orcid": null
+              },
+              {
+                "name": "Iwatsubo T",
+                "orcid": null
+              }
+            ],
+            "citation_count": null,
+            "doi": "10.1056/NEJMoa2212948",
+            "extraction": {
+              "extracted_at": "2026-04-26T01:49:48.369275+00:00",
+              "extractor_version": "vela/0.14.0",
+              "method": "manual_curation",
+              "model": null,
+              "model_version": null
+            },
+            "journal": "New England Journal of Medicine",
+            "openalex_id": null,
+            "pmc": null,
+            "pmid": "36449413",
+            "review": {
+              "corrections": [],
+              "reviewed": false,
+              "reviewed_at": null,
+              "reviewer": null
+            },
+            "source_type": "clinical_trial",
+            "title": "van Dyck et al., 2023, NEJM 388:9-21 (Clarity AD); subsequent open-label extension and post-marketing data",
+            "year": 2023
+          },
+          "updated": null,
+          "version": 1
+        }
+      },
+      "source_refs": [],
+      "status": "applied",
+      "reviewed_by": "reviewer:will-blair",
+      "reviewed_at": "2026-04-26T01:49:48.370739+00:00",
+      "decision_reason": "Applied locally from proposal creation",
+      "applied_event_id": "vev_c407a6443198bcf1",
       "caveats": []
     }
   ],

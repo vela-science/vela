@@ -1,5 +1,77 @@
 # Changelog
 
+## 0.14.0 - 2026-04-26
+
+The supersede release. Until v0.14 every other proposal kind existed
+(`add`, `review`, `note`, `caveat`, `confidence_revise`, `reject`,
+`retract`) but you couldn't *change a claim's text*. The assertion text
+is part of the content address; mutating it would re-derive the `vf_…`
+id and orphan all events targeting the old finding. Real corrections
+(Phase 4 follow-up data, refined wording, scope change) had to be stacked
+as caveats — which let the original prose travel unchanged. v0.14 adds
+the substrate-correct path: a *new* content-addressed finding that
+explicitly supersedes the old one. Both stay queryable.
+
+### Substrate
+
+- **`Flags.superseded: bool`** added to `bundle.rs` (additive,
+  serde-skipped when false; pre-v0.14 frontiers byte-identical).
+- **`finding.supersede` proposal kind** + **`finding.superseded` event
+  kind**. `apply_supersede` validates the old finding exists and is not
+  already superseded, validates the new finding has a distinct content
+  address, pushes the new finding, auto-injects a `supersedes` link from
+  new → old, sets `flags.superseded = true` on the old finding, and emits
+  a `finding.superseded` canonical event targeting the *old* finding
+  (with `new_finding_id` in the event payload). Event-payload validator
+  in `events.rs` extended to require `proposal_id` + `new_finding_id`
+  on the new event kind.
+- **`build_finding_bundle` extracted** from `build_add_finding_proposal`
+  so `add_finding` and `supersede_finding` share content-addressing
+  logic.
+
+### CLI
+
+- **`vela finding supersede <old-id>`** with `--assertion`, `--reason`,
+  and the full v0.11 enrichment flag set (DOI, PMID, year, journal,
+  source-authors, conditions-text, species, study-type flags). The
+  command builds the new finding bundle and wraps it in a
+  `finding.supersede` proposal targeting `old-id`. `--apply` accepts and
+  applies in one step; without it the proposal is recorded for review.
+
+### Workbench
+
+- **Source registry panel on `/workbench`** — surfaces the materialized
+  projection v0.13 introduced. Renders one row per `SourceRecord` with
+  source-type, journal, year, and clickable DOI/PMID badges. Hidden when
+  the loaded frontier has no sources (legacy frontiers, or any frontier
+  before its first finding).
+- **Event timeline on `/workbench/finding`** — shows the chronological
+  history for the active finding: asserted, reviewed, caveated, noted,
+  superseded, etc. For `finding.superseded` events, the new finding's
+  vf_id renders as a click-through link that walks you to the next
+  version (preserving `?vfr=…` for multi-frontier mode).
+
+### Tests
+
+- `proposals::tests::v0_14_supersede_creates_new_finding_and_marks_old`
+- `proposals::tests::v0_14_supersede_refuses_already_superseded`
+- `proposals::tests::v0_14_supersede_refuses_same_content_address`
+
+  347 tests passing.
+
+### Versioning
+
+- Workspace `0.13.0 → 0.14.0`.
+- `vela --version → 0.14.0`; banner stamps bump in lockstep.
+- Schema version stays at `v0.10.0` — `Flags.superseded` is additive and
+  serde-skipped. Pre-v0.14 frontiers replay byte-identically.
+
+### Known gaps surfaced but deferred
+
+- `vela ingest --paper <pdf>` — a single-paper draft path remains
+  deferred. Most useful when there's a real PDF in front of a real
+  publisher.
+
 ## 0.13.0 - 2026-04-26
 
 The source-record materialization fix. v0.12 unblocked event-replay for

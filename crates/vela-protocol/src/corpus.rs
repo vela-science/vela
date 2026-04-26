@@ -643,6 +643,7 @@ fn parse_curated_csv(path: &Path) -> Result<Vec<FindingBundle>, String> {
                 declining: false,
                 gravity_well: false,
                 review_state: None,
+                superseded: false,
             },
         ));
     }

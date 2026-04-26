@@ -560,6 +560,7 @@ mod tests {
                 declining: false,
                 gravity_well: false,
                 review_state: None,
+                superseded: false,
             },
         )
     }

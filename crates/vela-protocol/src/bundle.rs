@@ -547,6 +547,12 @@ pub struct Flags {
     /// been recorded.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub review_state: Option<ReviewState>,
+    /// v0.14: true once a newer content-addressed finding supersedes
+    /// this one via the `finding.supersede` proposal kind. The newer
+    /// finding carries a `supersedes` link back to this finding's id.
+    /// Skipped when false so pre-v0.14 frontiers serialize byte-identically.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub superseded: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1113,6 +1119,7 @@ mod tests {
             declining: false,
             gravity_well: false,
             review_state: None,
+            superseded: false,
         }
     }
 

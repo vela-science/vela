@@ -970,6 +970,7 @@ mod tests {
                 declining: false,
                 gravity_well: false,
                 review_state: None,
+                superseded: false,
             },
         );
         finding.id = FindingBundle::content_address(&finding.assertion, &finding.provenance);

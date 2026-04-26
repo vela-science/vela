@@ -395,6 +395,10 @@ pub fn validate_event_payload(kind: &str, payload: &Value) -> Result<(), String>
         "finding.rejected" => {
             require_str("proposal_id")?;
         }
+        "finding.superseded" => {
+            require_str("proposal_id")?;
+            require_str("new_finding_id")?;
+        }
         "finding.retracted" => {
             require_str("proposal_id")?;
             // affected and cascade are summary fields; optional but if
@@ -527,6 +531,7 @@ mod tests {
                 declining: false,
                 gravity_well: false,
                 review_state: None,
+                superseded: false,
             },
         )
     }

@@ -467,6 +467,7 @@ pub async fn extract_paper(
             declining: false,
             gravity_well: false,
             review_state: None,
+            superseded: false,
         };
 
         bundles.push(FindingBundle::new(
@@ -584,6 +585,7 @@ pub fn extract_paper_offline(paper: &Paper) -> Vec<FindingBundle> {
             declining: false,
             gravity_well: false,
             review_state: None,
+            superseded: false,
         };
 
         bundles.push(FindingBundle::new(

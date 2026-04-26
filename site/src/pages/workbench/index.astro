@@ -91,6 +91,14 @@ const API_PATH = "/api/frontier";
     </tbody>
   </table>
 
+  <section class="lf-sources" id="lf-sources" hidden>
+    <header class="lf-sources-head">
+      <span class="lf-sources-eyebrow">Source registry</span>
+      <span class="lf-sources-meta" id="lf-sources-meta">—</span>
+    </header>
+    <ul class="lf-sources-list" id="lf-sources-list"></ul>
+  </section>
+
   <p class="lf-tip">
     The Workbench fetches from <code>/api/frontier</code>, served by <a href={WORKBENCH_URL} class="ext">vela-workbench</a> behind a same-origin proxy. Click any finding to read its evidence, conditions, links, and history.
   </p>
@@ -122,6 +130,17 @@ const API_PATH = "/api/frontier";
     events?: unknown[];
     proposals?: Array<{ status?: string; target?: { id?: string } }>;
     snapshot_hash?: string;
+    sources?: Array<{
+      id: string;
+      source_type: string;
+      title?: string;
+      doi?: string | null;
+      pmid?: string | null;
+      year?: number | null;
+      journal?: string | null;
+    }>;
+    evidence_atoms?: unknown[];
+    condition_records?: unknown[];
   };
 
   const STATE_TO_CLASS: Record<string, string> = {
@@ -693,6 +712,50 @@ const API_PATH = "/api/frontier";
     }
   }
 
+  // v0.14: render the materialized source registry below the table.
+  // The v0.13 substrate change made `sources[]` populate inline at
+  // proposal-apply time, so any v0.13+ frontier from the CLI has it.
+  // Pre-v0.13 frontiers (BBB) may still be empty — we hide the panel.
+  function renderSources(data: Frontier): void {
+    const section = document.getElementById("lf-sources");
+    const meta = document.getElementById("lf-sources-meta");
+    const list = document.getElementById("lf-sources-list");
+    if (!section || !meta || !list) return;
+    const sources = data.sources || [];
+    const evCount = (data.evidence_atoms || []).length;
+    const condCount = (data.condition_records || []).length;
+    if (sources.length === 0) {
+      section.setAttribute("hidden", "");
+      return;
+    }
+    section.removeAttribute("hidden");
+    meta.textContent = `${sources.length} source${sources.length === 1 ? "" : "s"} · ${evCount} evidence atom${evCount === 1 ? "" : "s"} · ${condCount} condition record${condCount === 1 ? "" : "s"}`;
+    list.innerHTML = sources
+      .map((s) => {
+        const title = escapeHtml(s.title || s.id);
+        const id = escapeHtml(s.id);
+        const stype = escapeHtml(s.source_type || "—");
+        const doi = s.doi
+          ? `<a class="src-doi" href="https://doi.org/${encodeURIComponent(s.doi)}" rel="noopener" target="_blank">doi:${escapeHtml(s.doi)}</a>`
+          : "";
+        const pmid = s.pmid
+          ? `<a class="src-doi" href="https://pubmed.ncbi.nlm.nih.gov/${encodeURIComponent(s.pmid)}/" rel="noopener" target="_blank">pmid:${escapeHtml(s.pmid)}</a>`
+          : "";
+        const journal = s.journal ? escapeHtml(s.journal) : "";
+        const year = s.year ? String(s.year) : "";
+        const meta_bits = [stype, journal, year].filter(Boolean).join(" · ");
+        return `<li class="src-item">
+  <div class="src-title">${title}</div>
+  <div class="src-meta">
+    <span class="src-id">${id}</span>
+    <span class="src-meta-bits">${escapeHtml(meta_bits)}</span>
+    ${doi}${pmid}
+  </div>
+</li>`;
+      })
+      .join("");
+  }
+
   async function bootstrap(): Promise<void> {
     buildPicker(); // fire-and-forget; doesn't block frontier load
     try {
@@ -749,6 +812,11 @@ const API_PATH = "/api/frontier";
       // Run the rete after the table — the simulation can hang the
       // main thread for ~50–150ms; defer so the table paints first.
       requestAnimationFrame(() => renderRete(state.findings));
+
+      // v0.14: render the materialized source registry (v0.13 made these
+      // populate inline at proposal-apply time). Fail-quiet if `sources`
+      // is empty for legacy frontiers.
+      renderSources(data);
     } catch (err) {
       const live = document.getElementById("lf-live");
       if (live) {
@@ -1073,6 +1141,57 @@ const API_PATH = "/api/frontier";
   @media (prefers-reduced-motion: reduce) {
     #lf-rete .node { transition: none; }
   }
+
+  /* v0.14: Source registry panel — surfaces the materialized projection
+     v0.13 introduced. Hidden when the loaded frontier has no sources. */
+  .lf-sources {
+    margin: 32px 0 0;
+    padding-top: 18px;
+    border-top: 1px solid var(--rule-1);
+  }
+  .lf-sources-head {
+    display: flex; align-items: baseline; gap: 12px;
+    margin-bottom: 10px;
+  }
+  .lf-sources-eyebrow {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  .lf-sources-meta {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--ink-2);
+  }
+  .lf-sources-list { list-style: none; padding: 0; margin: 0; }
+  .src-item {
+    padding: 10px 0;
+    border-bottom: 1px solid var(--rule-1);
+  }
+  .src-item:last-child { border-bottom: 0; }
+  .src-title {
+    font-family: var(--font-serif);
+    font-size: 15px;
+    color: var(--ink-0);
+    line-height: 1.4;
+  }
+  .src-meta {
+    display: flex; flex-wrap: wrap; gap: 12px;
+    margin-top: 4px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--ink-3);
+  }
+  .src-id { color: var(--ink-2); }
+  .src-meta-bits { color: var(--ink-3); }
+  .src-doi {
+    color: var(--signal);
+    text-decoration: none;
+    border-bottom: 1px solid var(--rule-2);
+  }
+  .src-doi:hover { border-bottom-color: var(--signal); }
 
   .lf-tip {
     font-family: var(--font-sans); font-size: 13px;

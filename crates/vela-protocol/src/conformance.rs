@@ -740,6 +740,7 @@ fn make_observer_finding(v: &serde_json::Value) -> FindingBundle {
             declining: false,
             gravity_well: false,
             review_state: None,
+            superseded: false,
         },
         links: vec![],
         annotations: vec![],
@@ -904,6 +905,7 @@ fn default_flags() -> Flags {
         declining: false,
         gravity_well: false,
         review_state: None,
+        superseded: false,
     }
 }
 

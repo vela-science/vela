@@ -138,6 +138,7 @@ pub fn run(frontier_path: &Path, args: IngestArgs) {
         declining: false,
         gravity_well: false,
         review_state: None,
+        superseded: false,
     };
 
     let finding = FindingBundle::new(
@@ -185,7 +186,7 @@ pub fn run(frontier_path: &Path, args: IngestArgs) {
 
     // Report.
     println!();
-    println!("  {}", "VELA · INGEST · V0.13.0".dimmed());
+    println!("  {}", "VELA · INGEST · V0.14.0".dimmed());
     println!("  {}", style::tick_row(60));
     println!("  ingested into: {}", frontier.project.name);
     println!("  existing findings: {existing_count}");
@@ -710,6 +711,7 @@ fn ingest_csv(
             declining: false,
             gravity_well: false,
             review_state: None,
+            superseded: false,
         };
 
         findings.push(FindingBundle::new(
