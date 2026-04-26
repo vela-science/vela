@@ -1,5 +1,56 @@
 # Changelog
 
+## 0.29.0 - 2026-04-26
+
+**The deployed Workbench is now the local Workbench too.** Closes
+the v0.28 sim-user friction-pass P1: a researcher with a local
+frontier (no hub publish) can now review proposals in a browser
+by appending `?api=http://localhost:3848` to the deployed Astro
+URL — same UI, local data, no parallel app needed. Also addresses
+the P3 "no obvious deep link from `vela serve --workbench`" by
+printing the URL in the startup banner.
+
+This is the smaller of the two v0.29 paths the friction report
+described. The "ship a parallel Next.js Workbench" path was
+considered and rejected as duplicative: the existing Astro
+Workbench already has the data shape, the Inbox/Diff/Findings
+tabs, and the `apiBase()` POST routing. It was missing one
+thing — using `?api=` for the *load* in addition to the POSTs —
+and that's what this release fixes.
+
+### Substrate
+
+- `vela serve --workbench` now prints the full deep link, both
+  for the deployed site and a local `npm run dev` (Astro) site.
+  No more guessing the `?api=` parameter format.
+  (`crates/vela-protocol/src/serve.rs`)
+
+### Workbench
+
+- `frontiers/view.astro` accepts `?api=…` for the *load*, not
+  just for POSTing actions. When set, the page bypasses
+  `vela-hub.fly.dev/entries` entirely, fetches the frontier from
+  `${api}/api/frontier`, synthesizes a HubEntry-equivalent from
+  the project metadata, and renders normally. The
+  cryptographic-publish fields show as `local`/`—` placeholders
+  since no signed manifest exists in local mode; they're not
+  needed until `vela registry publish` runs.
+  (`site/src/pages/frontiers/view.astro`)
+- The page title becomes `<project name> (local) · Vela` so
+  laptop windows are distinguishable from hub-loaded views.
+
+### Verified
+
+- `cargo build --workspace` clean.
+- `cargo test --workspace --release` — 384 tests pass.
+- `cargo clippy --workspace --all-targets -- -D warnings` clean.
+- `vela check frontiers/bbb-alzheimer.json --strict` clean.
+- Browser smoke test: `vela serve frontiers/bbb-alzheimer.json
+  --workbench --http 3858`, then open
+  `http://localhost:4321/frontiers/view?api=http://localhost:3858`
+  → page renders "BBB Flagship · 48 findings · 0 inbox · 1 actor"
+  loaded entirely from the local API, no hub touched.
+
 ## 0.28.1 - 2026-04-26
 
 **External-user verification pass + three fixes.** Acted as a

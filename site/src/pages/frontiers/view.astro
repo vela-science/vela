@@ -1562,15 +1562,29 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
 
     const url = new URL(window.location.href);
     const vfr = url.searchParams.get("vfr");
-    if (!vfr) {
+    // v0.29 local-mode: when the URL carries ?api=…, the page treats
+    // the deployed Astro shell as a local Workbench client. The hub
+    // is bypassed entirely; the frontier is fetched from the local
+    // `vela serve --workbench` API and a HubEntry-equivalent is
+    // synthesized from the Project metadata. This is what closes
+    // Friction #1 from the v0.28 sim-user pass: a researcher with a
+    // local frontier doesn't need to publish to the hub before they
+    // can review proposals in a browser.
+    const apiBaseStr = (url.searchParams.get("api") ?? "").replace(/\/$/, "");
+    const localMode = !!apiBaseStr;
+
+    if (!vfr && !localMode) {
       setText("fr-name", "No frontier specified");
-      setText("fr-desc", "Add ?vfr=vfr_… to the URL, or pick one from the directory.");
+      setText("fr-desc", "Add ?vfr=vfr_… to the URL, or pick one from the directory. Local mode: append ?api=http://localhost:3848 to point at a `vela serve --workbench` instance.");
       return;
     }
 
-    // Page meta
-    document.title = `${vfr} · Vela`;
-    setHref("fr-rawmanifest", `${hubUrl}/entries/${encodeURIComponent(vfr)}`);
+    // Page meta — title gets a better name once the project loads in
+    // local mode (set below after the synthesis step).
+    document.title = `${vfr ?? "local frontier"} · Vela`;
+    if (!localMode && vfr) {
+      setHref("fr-rawmanifest", `${hubUrl}/entries/${encodeURIComponent(vfr)}`);
+    }
 
     // Tabs
     const tabs = Array.from(root.querySelectorAll<HTMLButtonElement>(".fr-tab"));
@@ -1585,20 +1599,57 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
       });
     });
 
-    // Fetch the entry from the hub.
+    // Fetch the entry. Two paths:
+    //   • hub mode: GET ${hubUrl}/entries → pick by vfr_id
+    //   • local mode (?api=): GET ${api}/api/frontier → synthesize
     let entry: HubEntry | null = null;
     let allEntries: HubEntry[] = [];
-    try {
-      const r = await fetch(`${hubUrl}/entries`, { headers: { accept: "application/json" } });
-      if (!r.ok) throw new Error(`hub ${r.status}`);
-      const data = (await r.json()) as { entries: HubEntry[] };
-      allEntries = data.entries ?? [];
-      // The hub returns latest-publish-wins per vfr_id; we still pick by vfr_id.
-      entry = allEntries.find((e) => e.vfr_id === vfr) ?? null;
-    } catch (err) {
-      setText("fr-name", "Hub unreachable");
-      setText("fr-desc", String(err));
-      return;
+    let localFrontier: FrontierFile | null = null;
+    if (localMode) {
+      try {
+        const r = await fetch(`${apiBaseStr}/api/frontier`, { headers: { accept: "application/json" } });
+        if (!r.ok) throw new Error(`local api ${r.status}`);
+        localFrontier = (await r.json()) as FrontierFile;
+      } catch (err) {
+        setText("fr-name", "Local API unreachable");
+        setText("fr-desc", `${apiBaseStr}/api/frontier: ${String(err)}`);
+        return;
+      }
+      // Synthesize a HubEntry-equivalent from the Project. We don't
+      // have a real signed publish manifest in local mode, so we use
+      // placeholder strings the rest of the renderer treats as
+      // metadata-only — none of the cryptographic fields are needed
+      // until the user publishes via `vela registry publish`.
+      const projectName = localFrontier.frontier?.name ?? "Local frontier";
+      const ownerActor = (localFrontier.actors ?? [])[0]?.id ?? "local:reviewer";
+      const synthVfr = vfr ?? localFrontier.frontier_id ?? "local";
+      entry = {
+        vfr_id: synthVfr,
+        name: projectName,
+        owner_actor_id: ownerActor,
+        owner_pubkey: "—",
+        network_locator: `${apiBaseStr}/api/frontier`,
+        latest_snapshot_hash: "local",
+        latest_event_log_hash: "local",
+        signed_publish_at: localFrontier.frontier?.compiled_at ?? new Date().toISOString(),
+        signature: "—",
+        schema: localFrontier.schema ?? "vela/local",
+      };
+      allEntries = [entry];
+      document.title = `${projectName} (local) · Vela`;
+    } else {
+      try {
+        const r = await fetch(`${hubUrl}/entries`, { headers: { accept: "application/json" } });
+        if (!r.ok) throw new Error(`hub ${r.status}`);
+        const data = (await r.json()) as { entries: HubEntry[] };
+        allEntries = data.entries ?? [];
+        // The hub returns latest-publish-wins per vfr_id; we still pick by vfr_id.
+        entry = allEntries.find((e) => e.vfr_id === vfr) ?? null;
+      } catch (err) {
+        setText("fr-name", "Hub unreachable");
+        setText("fr-desc", String(err));
+        return;
+      }
     }
 
     if (!entry) {
@@ -1676,13 +1727,17 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
       }).join("");
     }
 
-    // Now fetch the actual frontier file from the locator (best-effort).
-    let frontier: FrontierFile | null = null;
-    try {
-      const r = await fetch(entry.network_locator);
-      if (r.ok) frontier = (await r.json()) as FrontierFile;
-    } catch {
-      // ignore — frontier may be unreachable; the hub-side metadata is enough.
+    // Now fetch the actual frontier file. In local mode we already
+    // have it from the synthesis step above; in hub mode we go to
+    // entry.network_locator (a GitHub raw URL or similar).
+    let frontier: FrontierFile | null = localFrontier;
+    if (!frontier) {
+      try {
+        const r = await fetch(entry.network_locator);
+        if (r.ok) frontier = (await r.json()) as FrontierFile;
+      } catch {
+        // ignore — frontier may be unreachable; the hub-side metadata is enough.
+      }
     }
 
     if (!frontier) {

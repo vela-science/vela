@@ -388,8 +388,18 @@ pub async fn run_http(source: ProjectSource, backend: Option<&str>, port: u16, w
     eprintln!("  {}", crate::cli_style::tick_row(60));
     eprintln!("  listening on http://{addr}");
     if workbench {
+        // v0.29: print the deep link the researcher actually opens.
+        // The deployed Astro page accepts ?api=… and bypasses the hub
+        // — same UI, local data. This was the v0.28 friction-pass
+        // forcing function (Friction #1: "researcher with a local
+        // frontier should not need to publish before reviewing in a
+        // browser"). Same banner works against `npm run dev` at
+        // localhost:4321 too.
         eprintln!(
-            "  workbench UI: https://vela-site.fly.dev/workbench (or `cd site && npm run dev`)"
+            "  workbench UI: https://vela-site.fly.dev/frontiers/view?api=http://{addr}"
+        );
+        eprintln!(
+            "                (or  http://localhost:4321/frontiers/view?api=http://{addr}  for a local site)"
         );
     }
     eprintln!("  endpoints: /api/frontier, /api/findings, /api/events, /api/queue, /api/tool");
