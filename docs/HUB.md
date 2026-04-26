@@ -111,7 +111,34 @@ is a worked example.
 
 ## Self-hosting
 
-The hub is one Rust binary plus Postgres. Schema:
+The hub is one Rust binary plus a SQL backend — Postgres for production
+or SQLite for low-volume self-hosted use (v0.21).
+
+### SQLite (self-hosted, zero infrastructure)
+
+```bash
+cargo build --release -p vela-hub
+VELA_HUB_DATABASE_URL="sqlite:///path/to/your-hub.db" \
+  ./target/release/vela-hub
+```
+
+That's the whole setup. The hub auto-creates the schema on first
+startup (`CREATE TABLE IF NOT EXISTS …`); subsequent runs reuse the
+file. Ideal for a laptop hub mirroring the public one for offline use,
+a small institution publishing one corpus, or anyone running the
+federation pattern from §Federation without a Postgres dependency.
+
+The SQLite backend serves every endpoint the Postgres one does:
+`GET /entries`, `GET /entries/{vfr_id}`, `GET /entries/{vfr_id}/depends-on`,
+`POST /entries`, `vela registry pull --from`, `vela registry mirror --to`.
+Verified end-to-end against the public hub: pulling a BBB-mirrored
+frontier from a SQLite hub returns byte-identical bytes with
+`verified=true`, same as pulling from `vela-hub.fly.dev`.
+
+### Postgres (production)
+
+For higher concurrency / larger data, point at a Postgres URL instead
+and apply this schema once:
 
 ```sql
 CREATE TABLE registry_entries (

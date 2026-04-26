@@ -1,5 +1,62 @@
 # Changelog
 
+## 0.21.0 - 2026-04-26
+
+The self-hostable release. Two pieces:
+
+1. **SQLite backend for the hub** — `vela-hub` now picks its DB engine
+   from `VELA_HUB_DATABASE_URL`. `postgres://…` runs the production
+   path (vela-hub.fly.dev, vela-hub-2.fly.dev). `sqlite://…` auto-
+   creates the schema on first run and serves every endpoint the
+   Postgres path serves: list/get/depends-on/publish. Anyone with
+   `cargo install` can run a self-hosted hub without external
+   infrastructure.
+2. **Living-repo CI workflow for Will's frontier** —
+   `.github/workflows/will-alzheimer-living-repo.yml` republishes
+   weekly Mondays 14:30 UTC under a fresh `reviewer:will-blair-bot`
+   identity (separate from the curator's personal key, which stays on
+   his laptop). Mirrors the BBB pattern. Includes a federation drill
+   step that mirrors the published manifest to vela-hub-2 so both hubs
+   stay in sync automatically.
+
+### Hub substrate
+
+- New `crates/vela-hub/src/db.rs` introduces a `HubDb` enum wrapping
+  `PgPool` or `SqlitePool`. Five methods (`health`, `schema_present`,
+  `list_latest_entries`, `get_entry`, `insert_entry`) cover everything
+  the route handlers need. Each variant uses its own placeholder
+  syntax (`$1` vs `?`) and `raw_json` storage (JSONB vs TEXT-as-JSON
+  round-tripped via `serde_json`).
+- `AppState.pool: Pool<Postgres>` → `AppState.db: HubDb`. Five route
+  handlers updated. Production Postgres path unchanged in behavior.
+- `sqlx` workspace dep gains the `sqlite` and `any` features.
+
+### CI / infrastructure
+
+- `.github/workflows/will-alzheimer-living-repo.yml` (new). Weekly
+  cron + workflow_dispatch. Builds the CLI, signs under
+  `reviewer:will-blair-bot` (key in `VELA_WILL_BOT_KEY` GitHub
+  secret), publishes to `vela-hub.fly.dev`, then mirrors to
+  `vela-hub-2.fly.dev` as a federation drill.
+- `reviewer:will-blair-bot` actor registered on
+  `frontiers/will-alzheimer-landscape.json` with tier=auto-notes.
+
+### Validation
+
+- Local SQLite hub spun up on `sqlite:///tmp/vela-local-hub.db`,
+  mirrored BBB Flagship + Will's frontier from the public hub:
+  fresh-insert both, byte-identical pull-and-verify confirms
+  `verified=true` and matching snapshot hashes, `depends-on` reverse
+  lookup correctly identifies Will's frontier as depending on BBB.
+  Same Rust binary, two backends, same observable behavior.
+
+### Versioning
+
+- Workspace `0.20.0 → 0.21.0`.
+- `vela --version → 0.21.0`; banner stamps bump in lockstep.
+- Schema version stays at `v0.10.0` — no substrate change. The hub
+  backend abstraction is internal; the wire shape is unchanged.
+
 ## 0.20.0 - 2026-04-26
 
 The federation release. Hub-to-hub mirroring has been on the deferred

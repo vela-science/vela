@@ -3,7 +3,7 @@ members = ["crates/vela-protocol", "crates/vela-hub"]
 resolver = "3"
 
 [workspace.package]
-version = "0.20.0"
+version = "0.21.0"
 edition = "2024"
 license = "Apache-2.0"
 publish = false
@@ -28,7 +28,7 @@ colored = "3"
 axum = "0.8"
 async-stream = "0.3"
 tower-http = { version = "0.6", features = ["cors", "fs"] }
-sqlx = { version = "0.8", features = ["runtime-tokio", "tls-rustls", "postgres"] }
+sqlx = { version = "0.8", features = ["runtime-tokio", "tls-rustls", "postgres", "sqlite", "any"] }
 ed25519-dalek = { version = "2", features = ["rand_core"] }
 rand = "0.8"
 toml = "0.8"

@@ -32,11 +32,14 @@ use axum::{
     response::{Html, IntoResponse, Response},
     routing::get,
 };
-use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use sqlx::postgres::PgPoolOptions;
-use sqlx::{Pool, Postgres};
+use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
+use std::str::FromStr;
 use tokio::sync::RwLock;
+
+mod db;
+use db::{HubDb, ensure_sqlite_schema};
 use tower_http::cors::CorsLayer;
 use vela_protocol::project::Project;
 use vela_protocol::registry::{RegistryEntry as ProtocolEntry, verify_entry};
@@ -83,7 +86,10 @@ impl PublicUrls {
 
 #[derive(Clone)]
 struct AppState {
-    pool: Pool<Postgres>,
+    /// v0.21: backend-agnostic DB handle. Postgres for production
+    /// (vela-hub.fly.dev / vela-hub-2.fly.dev), SQLite for self-hosted
+    /// laptop runs. Variant chosen at startup from URL prefix.
+    db: HubDb,
     /// Frontier cache for the entry detail page. Keyed by
     /// `(vfr_id, signed_publish_at)` so a fresh publish forces a
     /// re-fetch automatically. Bounded loosely; in v0.7 we expect
@@ -97,19 +103,9 @@ struct AppState {
     urls: PublicUrls,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-struct RegistryEntry {
-    schema: String,
-    vfr_id: String,
-    name: String,
-    owner_actor_id: String,
-    owner_pubkey: String,
-    latest_snapshot_hash: String,
-    latest_event_log_hash: String,
-    network_locator: String,
-    signed_publish_at: String,
-    signature: String,
-}
+// Local RegistryEntry struct removed in v0.21 — db.rs now uses
+// vela_protocol::registry::RegistryEntry directly so the publish handler
+// and the DB layer agree on the type.
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -133,23 +129,41 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .or_else(|_| env::var("DATABASE_URL"))
         .map_err(|_| "set VELA_HUB_DATABASE_URL (e.g. via ~/.vela/hub.env)")?;
 
-    let pool = PgPoolOptions::new()
-        .max_connections(8)
-        .connect(&database_url)
-        .await?;
-
-    // Sanity-check schema presence so we fail fast on a misconfigured DB.
-    let table_exists: bool = sqlx::query_scalar(
-        "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'registry_entries')",
-    )
-    .fetch_one(&pool)
-    .await?;
-    if !table_exists {
-        return Err(
-            "registry_entries table not found; run the schema migration before starting the hub"
-                .into(),
-        );
-    }
+    // v0.21: pick backend by URL prefix.
+    //   postgres://… or postgresql://… → production Postgres path
+    //   sqlite://…  or sqlite:./…      → self-hosted SQLite path
+    //                                     (auto-creates schema if missing)
+    let db = if database_url.starts_with("sqlite:") {
+        let opts = SqliteConnectOptions::from_str(&database_url)?.create_if_missing(true);
+        let pool = SqlitePoolOptions::new()
+            .max_connections(8)
+            .connect_with(opts)
+            .await?;
+        ensure_sqlite_schema(&pool)
+            .await
+            .map_err(|e| -> Box<dyn std::error::Error> { e.into() })?;
+        tracing::info!(url = %database_url, "vela-hub using SQLite backend (self-hosted)");
+        HubDb::Sqlite(pool)
+    } else {
+        let pool = PgPoolOptions::new()
+            .max_connections(8)
+            .connect(&database_url)
+            .await?;
+        let h = HubDb::Postgres(pool);
+        // Sanity-check schema presence so we fail fast on a misconfigured DB.
+        let table_exists = h
+            .schema_present()
+            .await
+            .map_err(|e| -> Box<dyn std::error::Error> { e.into() })?;
+        if !table_exists {
+            return Err(
+                "registry_entries table not found; run the schema migration before starting the hub"
+                    .into(),
+            );
+        }
+        tracing::info!("vela-hub using Postgres backend");
+        h
+    };
 
     let http = reqwest::Client::builder()
         .user_agent(concat!("vela-hub/", env!("CARGO_PKG_VERSION")))
@@ -157,7 +171,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .build()?;
     let urls = PublicUrls::from_env();
     let state = AppState {
-        pool,
+        db,
         frontier_cache: Arc::new(RwLock::new(HashMap::new())),
         http,
         urls,
@@ -229,33 +243,17 @@ async fn root(State(state): State<AppState>, headers: HeaderMap) -> Response {
 }
 
 async fn healthz(State(state): State<AppState>) -> (StatusCode, Json<Value>) {
-    match sqlx::query_scalar::<_, i32>("SELECT 1")
-        .fetch_one(&state.pool)
-        .await
-    {
-        Ok(_) => (StatusCode::OK, Json(json!({"ok": true, "db": "reachable"}))),
+    match state.db.health().await {
+        Ok(()) => (StatusCode::OK, Json(json!({"ok": true, "db": "reachable"}))),
         Err(e) => (
             StatusCode::SERVICE_UNAVAILABLE,
-            Json(json!({"ok": false, "db": "unreachable", "error": e.to_string()})),
+            Json(json!({"ok": false, "db": "unreachable", "error": e})),
         ),
     }
 }
 
-/// Latest-publish-wins per vfr_id, newest first.
-const LATEST_PER_VFR_SQL: &str = r#"
-SELECT raw_json FROM registry_entries r
-WHERE r.signed_publish_at = (
-    SELECT MAX(signed_publish_at) FROM registry_entries
-    WHERE vfr_id = r.vfr_id
-)
-ORDER BY r.signed_publish_at DESC
-"#;
-
 async fn list_entries(State(state): State<AppState>, headers: HeaderMap) -> Response {
-    let rows = sqlx::query_scalar::<_, serde_json::Value>(LATEST_PER_VFR_SQL)
-        .fetch_all(&state.pool)
-        .await;
-    match rows {
+    match state.db.list_latest_entries().await {
         Ok(values) => {
             if wants_html(&headers) {
                 Html(render_entries_html(&state.urls, &values)).into_response()
@@ -327,17 +325,7 @@ async fn get_entry(
     Path(vfr_id): Path<String>,
     headers: HeaderMap,
 ) -> Response {
-    let row = sqlx::query_scalar::<_, serde_json::Value>(
-        r#"
-        SELECT raw_json FROM registry_entries
-        WHERE vfr_id = $1
-        ORDER BY signed_publish_at DESC
-        LIMIT 1
-        "#,
-    )
-    .bind(&vfr_id)
-    .fetch_optional(&state.pool)
-    .await;
+    let row = state.db.get_entry(&vfr_id).await;
     match row {
         Ok(Some(value)) => {
             if wants_html(&headers) {
@@ -408,10 +396,7 @@ async fn get_depends_on(
     headers: HeaderMap,
 ) -> Response {
     let _ = &headers; // reserved for future HTML rendering
-    let rows = match sqlx::query_scalar::<_, serde_json::Value>(LATEST_PER_VFR_SQL)
-        .fetch_all(&state.pool)
-        .await
-    {
+    let rows = match state.db.list_latest_entries().await {
         Ok(v) => v,
         Err(e) => {
             return (
@@ -475,17 +460,7 @@ async fn get_finding(
     headers: HeaderMap,
 ) -> Response {
     // Find the entry to get the locator.
-    let entry = sqlx::query_scalar::<_, serde_json::Value>(
-        r#"
-        SELECT raw_json FROM registry_entries
-        WHERE vfr_id = $1
-        ORDER BY signed_publish_at DESC
-        LIMIT 1
-        "#,
-    )
-    .bind(&vfr_id)
-    .fetch_optional(&state.pool)
-    .await;
+    let entry = state.db.get_entry(&vfr_id).await;
     let entry = match entry {
         Ok(Some(v)) => v,
         Ok(None) => {
@@ -611,36 +586,8 @@ async fn publish_entry(
 
     // Idempotent insert. The UNIQUE (vfr_id, signature) index ensures
     // re-posting an identical signed manifest is a no-op.
-    let inserted = sqlx::query_scalar::<_, String>(
-        r#"
-        INSERT INTO registry_entries (
-          vfr_id, schema, name, owner_actor_id, owner_pubkey,
-          latest_snapshot_hash, latest_event_log_hash, network_locator,
-          signed_publish_at, signature, raw_json
-        )
-        VALUES (
-          $1, $2, $3, $4, $5, $6, $7, $8, $9::timestamptz, $10, $11
-        )
-        ON CONFLICT (vfr_id, signature) DO NOTHING
-        RETURNING vfr_id
-        "#,
-    )
-    .bind(&entry.vfr_id)
-    .bind(&entry.schema)
-    .bind(&entry.name)
-    .bind(&entry.owner_actor_id)
-    .bind(&entry.owner_pubkey)
-    .bind(&entry.latest_snapshot_hash)
-    .bind(&entry.latest_event_log_hash)
-    .bind(&entry.network_locator)
-    .bind(&entry.signed_publish_at)
-    .bind(&entry.signature)
-    .bind(&body)
-    .fetch_optional(&state.pool)
-    .await;
-
-    match inserted {
-        Ok(Some(_)) => (
+    match state.db.insert_entry(&entry, &body).await {
+        Ok(true) => (
             StatusCode::CREATED,
             Json(json!({
                 "ok": true,
@@ -649,7 +596,7 @@ async fn publish_entry(
                 "signed_publish_at": entry.signed_publish_at,
             })),
         ),
-        Ok(None) => (
+        Ok(false) => (
             StatusCode::OK,
             Json(json!({
                 "ok": true,

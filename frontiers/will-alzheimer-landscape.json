@@ -30,17 +30,17 @@
     "negative_space": 0,
     "contested": 0,
     "categories": {
-      "epidemiological": 2,
-      "therapeutic": 3,
-      "review": 1,
       "mechanism": 3,
+      "epidemiological": 2,
+      "review": 1,
+      "therapeutic": 3,
       "observational": 3
     },
     "link_types": {
-      "extends": 2,
-      "supersedes": 1,
       "supports": 5,
-      "contradicts": 1
+      "supersedes": 1,
+      "contradicts": 1,
+      "extends": 2
     },
     "human_reviewed": 4,
     "review_event_count": 15,
@@ -5369,6 +5369,12 @@
       "public_key": "4892f93877e637b5f59af31d9ec6704814842fb278cacb0eb94704baef99455e",
       "algorithm": "ed25519",
       "created_at": "2026-04-26T01:04:13.956604+00:00"
+    },
+    {
+      "id": "reviewer:will-blair-bot",
+      "public_key": "31e5e7caf7d463ec98ed69a20e189b38d308490cded047930568fab034a4add7",
+      "algorithm": "ed25519",
+      "created_at": "2026-04-26T04:17:52.440154+00:00"
     }
   ]
 }
