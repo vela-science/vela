@@ -472,6 +472,7 @@ fn reviewer_handler(
     frontier: PathBuf,
     backend: Option<String>,
     max_proposals: Option<usize>,
+    batch_size: usize,
     dry_run: bool,
     json_out: bool,
 ) -> Pin<Box<dyn Future<Output = ()> + Send>> {
@@ -491,6 +492,7 @@ fn reviewer_handler(
             cli_command: std::env::var("VELA_SCIENTIST_CLI").unwrap_or_else(|_| "claude".to_string()),
             apply: !dry_run,
             max_proposals: max_proposals.or(Some(30)),
+            batch_size,
         };
         match run(input).await {
             Ok(report) => {

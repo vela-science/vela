@@ -1,5 +1,57 @@
 # Changelog
 
+## 0.29.3 - 2026-04-26
+
+**Reviewer Agent batching + onboarding pass.** Two improvements
+that compound at scale: the Reviewer can now batch N proposals
+per `claude -p` call, and the README onboarding has been fixed
+end-to-end after a cold-checkout audit.
+
+### Reviewer batching
+
+`vela review-pending --batch-size N` (default 1, capped at 12)
+groups N pending proposals into one `claude -p` call instead of
+firing one call per proposal. Each proposal still gets its own
+`finding.note` proposal — only the LLM hop is batched. ~5×
+wall-clock speedup at 5–10 batch size; tradeoff is per-proposal
+transcript granularity. Default of 1 preserves v0.28 behavior
+exactly; users opt in via the flag.
+
+Implementation: new `call_reviewer_batched()` path in
+`crates/vela-scientist/src/reviewer.rs` with a separate batched
+prompt + JSON-array schema. The model echoes each `proposal_id`
+back so we match assessments to proposals defensively (handles
+out-of-order or short responses).
+
+### Onboarding (README)
+
+Cold-checkout pass through the README from a fresh `git clone`
+surfaced four issues, all fixed:
+
+- **Marquee block was broken.** `vela compile ./papers --output
+  frontier.json` failed because `./papers` doesn't exist by
+  default. Replaced with `examples/paper-folder/papers` (the
+  in-repo fixture) plus the modern `--workbench` serve flag.
+- **No prerequisites section.** Added a one-liner that names
+  Rust + the optional `claude` CLI for the agent path.
+- **Agent inbox was invisible.** Added a top-level *Agent
+  Inbox* section showing the full scout / compile-notes /
+  compile-code / compile-data / review-pending /
+  find-tensions / plan-experiments loop with the `vela serve
+  --workbench` + `vela queue sign` close.
+- **Borrowed Light wasn't linked.** Added a *Borrowed Light*
+  section linking the philosophical layer (the essay site this
+  substrate was built for).
+- **`vela.science` reference fixed** — that domain is not ours;
+  link goes directly to `vela-site.fly.dev`.
+
+### Verified
+
+- 384 tests pass; clippy clean with `-D warnings`.
+- BBB strict-check clean.
+- `vela review-pending --batch-size 8` advertises in `--help`.
+- Cold marquee block runs end-to-end on a fresh clone.
+
 ## 0.29.2 - 2026-04-26
 
 **Closes the rest of the v0.28 friction list.** v0.28.1 +

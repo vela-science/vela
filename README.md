@@ -18,16 +18,33 @@ question. Corrections enter as *proposals*, become canonical events on review,
 and replay deterministically into the frontier. A *proof packet* seals the
 current state so another party can re-verify it offline.
 
+**Prerequisites:** Rust toolchain. The agent-inbox path (`vela scout`,
+`compile-notes`, etc.) additionally uses the [`claude`](https://docs.anthropic.com/claude/docs/claude-code)
+CLI to drive `claude -p` subprocesses against your local OAuth session — no
+`ANTHROPIC_API_KEY` required for that path. The legacy `vela compile` runs in
+deterministic-fallback mode when no model key is configured.
+
 ```bash
-vela compile ./papers --output frontier.json
-vela check frontier.json --strict --json
-vela normalize frontier.json --out frontier.normalized.json
-FINDING_ID=$(jq -r '.findings[0].id' frontier.json)
-vela review frontier.normalized.json "$FINDING_ID" --status contested --reason "Mouse-only evidence" --reviewer reviewer:demo --apply
-vela history frontier.normalized.json "$FINDING_ID"
-vela proof frontier.normalized.json --out proof-packet
-vela serve frontier.normalized.json
+# Build and run against the in-repo paper fixture
+cargo build --release
+PATH="$PWD/target/release:$PATH"
+
+vela compile examples/paper-folder/papers --output /tmp/frontier.json
+vela check /tmp/frontier.json --strict --json
+vela normalize /tmp/frontier.json --out /tmp/frontier.normalized.json
+
+FINDING_ID=$(jq -r '.findings[0].id' /tmp/frontier.json)
+vela review /tmp/frontier.normalized.json "$FINDING_ID" \
+  --status contested --reason "Mouse-only evidence" \
+  --reviewer reviewer:demo --apply
+vela history /tmp/frontier.normalized.json "$FINDING_ID"
+vela proof   /tmp/frontier.normalized.json --out /tmp/proof-packet
+vela serve   /tmp/frontier.normalized.json --workbench --http 3848
 ```
+
+For the agent-inbox loop — Literature Scout, Notes Compiler, Code Analyst,
+Datasets, Reviewer, Contradiction Finder, Experiment Planner — see [Agent
+Inbox](#agent-inbox) below.
 
 Vela does not claim to be a lab runtime, federation network, autonomous agent
 loop, desktop app, or full science operating system. Those remain roadmap
@@ -77,6 +94,38 @@ vela registry publish ./frontier.json \
 The hub doctrine is dumb signed transport: anyone with a key can publish their
 own `vfr_id`; no allowlist, no rate limit in v0.9. A compromised hub can
 withhold but cannot fabricate — clients verify locally on read.
+
+## Agent inbox
+
+The agent layer lives in `vela-scientist`. Each agent reads the researcher's
+local material, calls `claude -p` with a strict JSON schema, and emits
+`StateProposal`s into the frontier — never canonical findings. Humans review;
+the CLI signs. Doctrine: **agents propose, humans review, the CLI signs.**
+
+```bash
+# Ingestion — point each agent at the corresponding artifact
+vela scout         workspace/papers --frontier ./frontier.json
+vela compile-notes workspace/notes  --frontier ./frontier.json
+vela compile-code  workspace/code   --frontier ./frontier.json
+vela compile-data  workspace/data   --frontier ./frontier.json
+
+# Review layer — runs after pending proposals exist
+vela review-pending  --frontier ./frontier.json   # scores each proposal
+vela find-tensions   --frontier ./frontier.json   # cross-finding pairs
+vela plan-experiments --frontier ./frontier.json  # for open questions
+
+# Open the local Workbench to accept/reject through the UI
+vela serve ./frontier.json --workbench --http 3848
+open "http://localhost:4321/frontiers/view?api=http://localhost:3848"
+
+# Sign the staged accepts/rejects
+vela queue sign --actor reviewer:you --key ./keys/private.key --yes-to-all
+```
+
+Each agent run is tagged with an `AgentRun` (model, run id, started_at) so
+proposals are auditable by source. Cap per-call cost with `--max-budget-usd`
+(default 0.20). See [docs/AGENT_INBOX.md](docs/AGENT_INBOX.md) for the full
+loop.
 
 ## What it does
 
@@ -208,4 +257,15 @@ Voice, color, and asset canon live in [docs/BRAND.md](docs/BRAND.md).
 Design tokens are in `web/styles/{tokens,workbench}.css` — used by every
 Vela surface (the marketing site, the hub, the Workbench). The Astro
 project under `site/` is the live source for everything served from
-[vela.science](https://vela.science) (currently <https://vela-site.fly.dev>).
+<https://vela-site.fly.dev>. (`vela.science` belongs to a third party
+since 2014; we don't own that domain.)
+
+## Borrowed Light
+
+[**Borrowed Light**](https://borrowedlight.org) is the long-form essay
+this substrate was built for — *Constellations of Borrowed Light*, an
+argument that science is missing the continuity layer that lets
+knowledge, correction, and experimental state survive long enough to
+compound. Borrowed Light is the philosophical layer; Vela is the
+working substrate. They cross-link because they're the same project
+served to different audiences.
