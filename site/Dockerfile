@@ -5,7 +5,7 @@
 # at container-build time.
 #
 # Build sequence:
-#   cd site && npm ci && npm run build
+#   cd site && bun install && bun run build
 #   flyctl deploy --config site/fly.toml --dockerfile site/Dockerfile site
 
 FROM nginx:alpine
