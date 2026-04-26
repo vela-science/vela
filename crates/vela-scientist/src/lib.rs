@@ -12,6 +12,7 @@
 pub mod agent;
 pub mod code_analyst;
 pub mod datasets;
+pub mod experiments;
 pub mod extract;
 pub mod legacy_compile;
 pub mod legacy_corpus;
@@ -22,7 +23,9 @@ pub mod legacy_llm;
 pub mod llm_cli;
 pub mod notebook;
 pub mod notes;
+pub mod reviewer;
 pub mod scout;
+pub mod tensions;
 
 /// Stable agent name + actor id for Literature Scout. Pairs with
 /// `StateProposal::actor.id == AGENT_ACTOR_ID_LITERATURE_SCOUT` so

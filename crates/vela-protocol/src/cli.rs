@@ -19,7 +19,7 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 
 #[derive(Parser)]
-#[command(name = "vela", version = "0.27.0")]
+#[command(name = "vela", version = "0.28.0")]
 #[command(about = "Portable frontier state for science")]
 struct Cli {
     #[command(subcommand)]
@@ -116,6 +116,53 @@ enum Commands {
         #[arg(long)]
         dry_run: bool,
         /// Output stable JSON for programmatic callers.
+        #[arg(long)]
+        json: bool,
+    },
+    /// v0.28 Agent Inbox: run Reviewer Agent against a frontier's
+    /// pending proposals. Each scored proposal gets a
+    /// `finding.note` proposal attached with plausibility +
+    /// evidence + scope + duplicate-risk scores so reviewers can
+    /// triage faster.
+    ReviewPending {
+        #[arg(long)]
+        frontier: PathBuf,
+        #[arg(short, long)]
+        backend: Option<String>,
+        #[arg(long)]
+        max_proposals: Option<usize>,
+        #[arg(long)]
+        dry_run: bool,
+        #[arg(long)]
+        json: bool,
+    },
+    /// v0.28 Agent Inbox: run Contradiction Finder against a
+    /// frontier's findings. Pairs that contradict get emitted as
+    /// `tension`-typed `finding.add` proposals.
+    FindTensions {
+        #[arg(long)]
+        frontier: PathBuf,
+        #[arg(short, long)]
+        backend: Option<String>,
+        #[arg(long)]
+        max_findings: Option<usize>,
+        #[arg(long)]
+        dry_run: bool,
+        #[arg(long)]
+        json: bool,
+    },
+    /// v0.28 Agent Inbox: run Experiment Planner against a
+    /// frontier's open questions and hypotheses. Each gets 1–3
+    /// `experiment_intent`-typed `finding.add` proposals.
+    PlanExperiments {
+        #[arg(long)]
+        frontier: PathBuf,
+        #[arg(short, long)]
+        backend: Option<String>,
+        #[arg(long)]
+        max_findings: Option<usize>,
+        #[arg(long)]
+        dry_run: bool,
         #[arg(long)]
         json: bool,
     },
@@ -1289,6 +1336,54 @@ pub async fn run_command() {
             )
             .await;
         }
+        Commands::ReviewPending {
+            frontier,
+            backend,
+            max_proposals,
+            dry_run,
+            json,
+        } => {
+            cmd_review_pending(
+                &frontier,
+                backend.as_deref(),
+                max_proposals,
+                dry_run,
+                json,
+            )
+            .await;
+        }
+        Commands::FindTensions {
+            frontier,
+            backend,
+            max_findings,
+            dry_run,
+            json,
+        } => {
+            cmd_find_tensions(
+                &frontier,
+                backend.as_deref(),
+                max_findings,
+                dry_run,
+                json,
+            )
+            .await;
+        }
+        Commands::PlanExperiments {
+            frontier,
+            backend,
+            max_findings,
+            dry_run,
+            json,
+        } => {
+            cmd_plan_experiments(
+                &frontier,
+                backend.as_deref(),
+                max_findings,
+                dry_run,
+                json,
+            )
+            .await;
+        }
         Commands::Ingest {
             frontier,
             assertion,
@@ -1526,7 +1621,7 @@ pub async fn run_command() {
         Commands::Conformance { dir } => {
             let _ = conformance::run(&dir);
         }
-        Commands::Version => println!("vela 0.27.0"),
+        Commands::Version => println!("vela 0.28.0"),
         Commands::Sign { action } => cmd_sign(action),
         Commands::Actor { action } => cmd_actor(action),
         Commands::Frontier { action } => cmd_frontier(action),
@@ -1938,6 +2033,96 @@ async fn cmd_compile_data(
         None => {
             eprintln!(
                 "{} `vela compile-data` requires the vela CLI binary; the library is unwired without a registered datasets handler.",
+                style::err_prefix()
+            );
+            std::process::exit(1);
+        }
+    }
+}
+
+/// v0.28 Agent Inbox: dispatches the registered reviewer-agent
+/// handler.
+async fn cmd_review_pending(
+    frontier: &Path,
+    backend: Option<&str>,
+    max_proposals: Option<usize>,
+    dry_run: bool,
+    json_out: bool,
+) {
+    match REVIEWER_HANDLER.get() {
+        Some(handler) => {
+            handler(
+                frontier.to_path_buf(),
+                backend.map(String::from),
+                max_proposals,
+                dry_run,
+                json_out,
+            )
+            .await;
+        }
+        None => {
+            eprintln!(
+                "{} `vela review-pending` requires the vela CLI binary; the library is unwired without a registered reviewer handler.",
+                style::err_prefix()
+            );
+            std::process::exit(1);
+        }
+    }
+}
+
+/// v0.28 Agent Inbox: dispatches the registered contradiction-finder
+/// handler.
+async fn cmd_find_tensions(
+    frontier: &Path,
+    backend: Option<&str>,
+    max_findings: Option<usize>,
+    dry_run: bool,
+    json_out: bool,
+) {
+    match TENSIONS_HANDLER.get() {
+        Some(handler) => {
+            handler(
+                frontier.to_path_buf(),
+                backend.map(String::from),
+                max_findings,
+                dry_run,
+                json_out,
+            )
+            .await;
+        }
+        None => {
+            eprintln!(
+                "{} `vela find-tensions` requires the vela CLI binary; the library is unwired without a registered tensions handler.",
+                style::err_prefix()
+            );
+            std::process::exit(1);
+        }
+    }
+}
+
+/// v0.28 Agent Inbox: dispatches the registered experiment-planner
+/// handler.
+async fn cmd_plan_experiments(
+    frontier: &Path,
+    backend: Option<&str>,
+    max_findings: Option<usize>,
+    dry_run: bool,
+    json_out: bool,
+) {
+    match EXPERIMENTS_HANDLER.get() {
+        Some(handler) => {
+            handler(
+                frontier.to_path_buf(),
+                backend.map(String::from),
+                max_findings,
+                dry_run,
+                json_out,
+            )
+            .await;
+        }
+        None => {
+            eprintln!(
+                "{} `vela plan-experiments` requires the vela CLI binary; the library is unwired without a registered experiments handler.",
                 style::err_prefix()
             );
             std::process::exit(1);
@@ -2895,7 +3080,7 @@ fn cmd_stats(path: &Path) {
     let frontier = repo::load_from_path(path).expect("Failed to load frontier");
     let s = &frontier.stats;
     println!();
-    println!("  {}", "FRONTIER · V0.27.0".dimmed());
+    println!("  {}", "FRONTIER · V0.28.0".dimmed());
     println!("  {}", frontier.project.name.bold());
     println!("  {}", style::tick_row(60));
     println!("  id:             {}", frontier.frontier_id());
@@ -4932,7 +5117,7 @@ async fn cmd_bridge(inputs: &[PathBuf], check_novelty: bool, top_n: usize) {
         fail("need at least 2 frontier files for bridge detection.");
     }
     println!();
-    println!("  {}", "VELA · BRIDGE · V0.27.0".dimmed());
+    println!("  {}", "VELA · BRIDGE · V0.28.0".dimmed());
     println!("  {}", style::tick_row(60));
     println!("  loading {} frontiers...", inputs.len());
     let mut named_projects = Vec::<(String, project::Project)>::new();
@@ -5715,6 +5900,9 @@ const SCIENCE_SUBCOMMANDS: &[&str] = &[
     "compile-notes",
     "compile-code",
     "compile-data",
+    "review-pending",
+    "find-tensions",
+    "plan-experiments",
     "scout",
     "ingest",
     "jats",
@@ -5761,7 +5949,7 @@ pub fn is_science_subcommand(name: &str) -> bool {
 
 fn print_strict_help() {
     println!(
-        r#"Vela 0.27.0
+        r#"Vela 0.28.0
 Portable frontier state for science.
 
 Usage:
@@ -5778,11 +5966,14 @@ Core commands:
   tensions      List candidate contradictions and tensions
   gaps          Inspect and rank candidate gap review leads
   bridge        Find candidate cross-domain connections
-  scout         Run Literature Scout against a folder of PDFs (writes proposals)
-  compile-notes Run Notes Compiler against a Markdown vault (writes proposals)
-  compile-code  Run Code & Notebook Analyst against a research repo (writes proposals)
-  compile-data  Run Datasets agent against a folder of CSV/TSV/Parquet (writes proposals)
-  ingest        Add manual or file-derived findings
+  scout              Run Literature Scout against a folder of PDFs (writes proposals)
+  compile-notes      Run Notes Compiler against a Markdown vault (writes proposals)
+  compile-code       Run Code & Notebook Analyst against a research repo (writes proposals)
+  compile-data       Run Datasets agent against a folder of CSV/TSV/Parquet (writes proposals)
+  review-pending     Run Reviewer Agent: score every pending proposal (writes notes)
+  find-tensions      Run Contradiction Finder: surface real contradictions among findings
+  plan-experiments   Run Experiment Planner: propose experiments for open questions / hypotheses
+  ingest             Add manual or file-derived findings
   jats          Compile findings from JATS XML or PMC input
   export        Export frontier artifacts
   packet        Inspect or validate proof packets
@@ -5969,6 +6160,54 @@ pub fn register_jats_handler(handler: JatsHandler) {
     let _ = JATS_HANDLER.set(handler);
 }
 
+/// v0.28 Agent Inbox: handler for `vela review-pending`.
+pub type ReviewerHandler = fn(
+    frontier: PathBuf,
+    backend: Option<String>,
+    max_proposals: Option<usize>,
+    dry_run: bool,
+    json: bool,
+) -> Pin<Box<dyn Future<Output = ()> + Send>>;
+
+static REVIEWER_HANDLER: OnceLock<ReviewerHandler> = OnceLock::new();
+
+/// Install the reviewer-agent handler. Idempotent.
+pub fn register_reviewer_handler(handler: ReviewerHandler) {
+    let _ = REVIEWER_HANDLER.set(handler);
+}
+
+/// v0.28 Agent Inbox: handler for `vela find-tensions`.
+pub type TensionsHandler = fn(
+    frontier: PathBuf,
+    backend: Option<String>,
+    max_findings: Option<usize>,
+    dry_run: bool,
+    json: bool,
+) -> Pin<Box<dyn Future<Output = ()> + Send>>;
+
+static TENSIONS_HANDLER: OnceLock<TensionsHandler> = OnceLock::new();
+
+/// Install the contradiction-finder handler. Idempotent.
+pub fn register_tensions_handler(handler: TensionsHandler) {
+    let _ = TENSIONS_HANDLER.set(handler);
+}
+
+/// v0.28 Agent Inbox: handler for `vela plan-experiments`.
+pub type ExperimentsHandler = fn(
+    frontier: PathBuf,
+    backend: Option<String>,
+    max_findings: Option<usize>,
+    dry_run: bool,
+    json: bool,
+) -> Pin<Box<dyn Future<Output = ()> + Send>>;
+
+static EXPERIMENTS_HANDLER: OnceLock<ExperimentsHandler> = OnceLock::new();
+
+/// Install the experiment-planner handler. Idempotent.
+pub fn register_experiments_handler(handler: ExperimentsHandler) {
+    let _ = EXPERIMENTS_HANDLER.set(handler);
+}
+
 pub fn run_from_args() {
     style::init();
     let args = std::env::args().collect::<Vec<_>>();
@@ -5978,7 +6217,7 @@ pub fn run_from_args() {
             return;
         }
         Some("-V" | "--version" | "version") => {
-            println!("vela 0.27.0");
+            println!("vela 0.28.0");
             return;
         }
         Some(cmd) if !is_science_subcommand(cmd) => {

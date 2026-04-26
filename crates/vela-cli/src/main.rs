@@ -24,6 +24,10 @@ fn main() {
     vela_protocol::cli::register_ingest_handler(ingest_handler);
     vela_protocol::cli::register_compile_handler(compile_handler);
     vela_protocol::cli::register_jats_handler(jats_handler);
+    // v0.28 agent handlers
+    vela_protocol::cli::register_reviewer_handler(reviewer_handler);
+    vela_protocol::cli::register_tensions_handler(tensions_handler);
+    vela_protocol::cli::register_experiments_handler(experiments_handler);
     vela_protocol::cli::run_from_args();
 }
 
@@ -455,6 +459,188 @@ fn datasets_handler(
             }
             Err(e) => {
                 eprintln!("  datasets agent failed: {e}");
+                std::process::exit(1);
+            }
+        }
+    })
+}
+
+/// Adapter for `vela review-pending` (v0.28).
+fn reviewer_handler(
+    frontier: PathBuf,
+    backend: Option<String>,
+    max_proposals: Option<usize>,
+    dry_run: bool,
+    json_out: bool,
+) -> Pin<Box<dyn Future<Output = ()> + Send>> {
+    Box::pin(async move {
+        use vela_scientist::reviewer::{ReviewerInput, run};
+        let model = backend.and_then(|b| {
+            let t = b.trim().to_string();
+            if t.is_empty() || t == "claude-cli" || t == "default" {
+                None
+            } else {
+                Some(t)
+            }
+        });
+        let input = ReviewerInput {
+            frontier_path: frontier.clone(),
+            model,
+            cli_command: std::env::var("VELA_SCIENTIST_CLI").unwrap_or_else(|_| "claude".to_string()),
+            apply: !dry_run,
+            max_proposals: max_proposals.or(Some(30)),
+        };
+        match run(input).await {
+            Ok(report) => {
+                if json_out {
+                    println!("{}", serde_json::to_string_pretty(&report).unwrap_or_default());
+                    return;
+                }
+                println!();
+                println!("  {}", "VELA · REVIEW-PENDING · REVIEWER-AGENT".dimmed());
+                println!("  {}", tick_row(60));
+                println!("  agent:           {}", report.run.agent);
+                println!("  run id:          {}", report.run.run_id);
+                println!("  frontier:        {}", frontier.display());
+                println!("  pending seen:    {}", report.pending_seen);
+                println!("  scored:          {}", report.scored);
+                println!(
+                    "  notes:           {} {}",
+                    report.notes_written,
+                    if dry_run { "(dry-run, not written)" } else { "(appended to frontier)" }
+                );
+                if !report.skipped.is_empty() {
+                    println!("  skipped:         {}", report.skipped.len());
+                    for s in report.skipped.iter().take(5) {
+                        println!("    - {}: {}", s.proposal_id, s.reason);
+                    }
+                }
+                println!();
+            }
+            Err(e) => {
+                eprintln!("  reviewer agent failed: {e}");
+                std::process::exit(1);
+            }
+        }
+    })
+}
+
+/// Adapter for `vela find-tensions` (v0.28).
+fn tensions_handler(
+    frontier: PathBuf,
+    backend: Option<String>,
+    max_findings: Option<usize>,
+    dry_run: bool,
+    json_out: bool,
+) -> Pin<Box<dyn Future<Output = ()> + Send>> {
+    Box::pin(async move {
+        use vela_scientist::tensions::{TensionsInput, run};
+        let model = backend.and_then(|b| {
+            let t = b.trim().to_string();
+            if t.is_empty() || t == "claude-cli" || t == "default" {
+                None
+            } else {
+                Some(t)
+            }
+        });
+        let input = TensionsInput {
+            frontier_path: frontier.clone(),
+            model,
+            cli_command: std::env::var("VELA_SCIENTIST_CLI").unwrap_or_else(|_| "claude".to_string()),
+            apply: !dry_run,
+            max_findings: max_findings.or(Some(60)),
+        };
+        match run(input).await {
+            Ok(report) => {
+                if json_out {
+                    println!("{}", serde_json::to_string_pretty(&report).unwrap_or_default());
+                    return;
+                }
+                println!();
+                println!("  {}", "VELA · FIND-TENSIONS · CONTRADICTION-FINDER".dimmed());
+                println!("  {}", tick_row(60));
+                println!("  agent:               {}", report.run.agent);
+                println!("  run id:              {}", report.run.run_id);
+                println!("  frontier:            {}", frontier.display());
+                println!("  findings seen:       {}", report.findings_seen);
+                println!("  batches processed:   {}", report.batches_processed);
+                println!("  tensions emitted:    {}", report.tensions_emitted);
+                println!(
+                    "  proposals:           {} {}",
+                    report.proposals_written,
+                    if dry_run { "(dry-run, not written)" } else { "(appended to frontier)" }
+                );
+                if !report.skipped.is_empty() {
+                    println!("  skipped batches:     {}", report.skipped.len());
+                    for s in report.skipped.iter().take(5) {
+                        println!("    - batch {}: {}", s.batch, s.reason);
+                    }
+                }
+                println!();
+            }
+            Err(e) => {
+                eprintln!("  contradiction finder failed: {e}");
+                std::process::exit(1);
+            }
+        }
+    })
+}
+
+/// Adapter for `vela plan-experiments` (v0.28).
+fn experiments_handler(
+    frontier: PathBuf,
+    backend: Option<String>,
+    max_findings: Option<usize>,
+    dry_run: bool,
+    json_out: bool,
+) -> Pin<Box<dyn Future<Output = ()> + Send>> {
+    Box::pin(async move {
+        use vela_scientist::experiments::{ExperimentsInput, run};
+        let model = backend.and_then(|b| {
+            let t = b.trim().to_string();
+            if t.is_empty() || t == "claude-cli" || t == "default" {
+                None
+            } else {
+                Some(t)
+            }
+        });
+        let input = ExperimentsInput {
+            frontier_path: frontier.clone(),
+            model,
+            cli_command: std::env::var("VELA_SCIENTIST_CLI").unwrap_or_else(|_| "claude".to_string()),
+            apply: !dry_run,
+            max_findings: max_findings.or(Some(20)),
+        };
+        match run(input).await {
+            Ok(report) => {
+                if json_out {
+                    println!("{}", serde_json::to_string_pretty(&report).unwrap_or_default());
+                    return;
+                }
+                println!();
+                println!("  {}", "VELA · PLAN-EXPERIMENTS · EXPERIMENT-PLANNER".dimmed());
+                println!("  {}", tick_row(60));
+                println!("  agent:               {}", report.run.agent);
+                println!("  run id:              {}", report.run.run_id);
+                println!("  frontier:            {}", frontier.display());
+                println!("  questions seen:      {}", report.questions_seen);
+                println!("  hypotheses seen:     {}", report.hypotheses_seen);
+                println!("  experiments emitted: {}", report.experiments_emitted);
+                println!(
+                    "  proposals:           {} {}",
+                    report.proposals_written,
+                    if dry_run { "(dry-run, not written)" } else { "(appended to frontier)" }
+                );
+                if !report.skipped.is_empty() {
+                    println!("  skipped:             {}", report.skipped.len());
+                    for s in report.skipped.iter().take(5) {
+                        println!("    - {}: {}", s.finding_id, s.reason);
+                    }
+                }
+                println!();
+            }
+            Err(e) => {
+                eprintln!("  experiment planner failed: {e}");
                 std::process::exit(1);
             }
         }

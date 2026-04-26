@@ -1,5 +1,113 @@
 # Changelog
 
+## 0.28.0 - 2026-04-26
+
+**Three more agents on the Inbox loop.** First release built on
+the v0.27 doctrinal-clean substrate. All three follow the v0.22
+pattern (new module in `vela-scientist` + `OnceLock` handler hook
+in `vela-protocol::cli` + adapter in `vela-cli`); none touches
+the substrate's data shape. Reuses existing `assertion.type`
+values where possible — only one new proposal kind path
+(`finding.note` from the Reviewer Agent) and it's already a
+substrate-validated kind.
+
+### Agents
+
+**Reviewer Agent** (`vela review-pending --frontier <path>`).
+Reads `frontier.proposals` filtered to `pending_review`, scores
+each on plausibility / evidence quality / scope tightness /
+duplicate risk via `claude -p`, and emits a `finding.note`
+proposal per scored proposal. Notes carry the four scores + a
+one-sentence summary + concerns list, plus auto-derived flags
+(`low_plausibility`, `weak_evidence`, `loose_scope`,
+`possible_duplicate`) that the Workbench Inbox can chip-render.
+Idempotent re-runs (skips proposals whose target id already has
+a `reviewer-agent` note attached).
+
+**Contradiction Finder** (`vela find-tensions --frontier <path>`).
+Reads `frontier.findings`, batches into chunks of 12 for pairwise
+analysis, asks `claude -p` to identify *real* contradictions
+(same domain, mutually exclusive claims, not just terminology
+drift). Emits one `finding.add` proposal per pair with
+`assertion.type = "tension"` (the v0.23 type) — no new substrate
+type. Idempotent: skips claim text that matches an existing
+tension.
+
+**Experiment Planner** (`vela plan-experiments --frontier <path>`).
+Reads findings + finding-add proposals filtered to
+`assertion.type ∈ {open_question, hypothesis}`. For each, asks
+`claude -p` to propose 1–3 specific experiments with method,
+expected_change, and confounders. Emits `experiment_intent`
+(the v0.24 type) `finding.add` proposals. Each carries a
+`hypothesis_link` evidence span back to the source finding id.
+Idempotent on hypothesis_link.
+
+### Substrate
+
+Zero data-shape changes. Three new `OnceLock` handler hooks
+mirror the v0.22 ScoutHandler pattern:
+
+- `register_reviewer_handler(ReviewerHandler)`
+- `register_tensions_handler(TensionsHandler)`
+- `register_experiments_handler(ExperimentsHandler)`
+
+Three new `Subcommand` variants + dispatch arms in `cli.rs`.
+Three names added to `SCIENCE_SUBCOMMANDS` whitelist + help text.
+Library callers without registered handlers get the standard
+*"`vela <cmd>` requires the vela CLI binary"* error.
+
+### Workbench
+
+No new chips needed. The Reviewer Agent's notes are
+`finding.note` proposals (existing kind); the Inbox renders them
+under their own `agent: "reviewer-agent"` run group. Contradiction
+Finder's `tension`-typed proposals reuse the v0.23 madder chip.
+Experiment Planner's `experiment_intent`-typed proposals reuse
+the v0.24 brass chip.
+
+### Dogfood
+
+Single-frontier dogfood: 1 PDF → Literature Scout → 2 proposals;
+3-note vault → Notes Compiler → 5 proposals (2 questions, 2
+hypotheses, 1 candidate finding); 2 accepts signed → 2 findings,
+5 still pending. Then:
+
+- `vela review-pending` scored all 5 pending → 5 reviewer notes
+  with calibrated scores. Correctly identified that Notes
+  Compiler proposals' evidence spans are paraphrased
+  (plausibility 0.72, evidence 0.22 — accurate calibration).
+- `vela find-tensions` examined 2 unrelated findings → 0
+  tensions emitted (correct — no real contradiction in the
+  set).
+- `vela plan-experiments` saw 2 questions + 2 hypotheses → 12
+  experiment_intent proposals with concrete methods (mechanical-
+  index thresholds, statistical predictions, falsifiability
+  conditions). End-to-end ~3 minutes for all three agents.
+
+Final frontier: 24 proposals across 4 distinct `agent_run.run_id`
+groups. The Workbench Inbox renders them grouped by run.
+
+### Verification
+
+- `cargo build --workspace`: clean (4 crates @ 0.28.0).
+- `cargo clippy --workspace --all-targets -- -D warnings`: clean.
+- `cargo test --workspace`: 385 tests pass (was 380; +5 from
+  reviewer + tensions + experiments unit tests).
+- `vela check frontiers/bbb-alzheimer.json --strict`: passes
+  unchanged. Normalize dry-run: zero deltas.
+- Real model runs against the dogfood frontier produced sensible
+  output across all three agents.
+- `vela --version` → 0.28.0; site VERSION → "0.28".
+
+### What's not in v0.28
+
+- A native batched mode for the Reviewer Agent (one call per
+  proposal today).
+- Cross-frontier tension detection (v0.30+).
+- Cluster-by-topic mode for the Experiment Planner.
+- Workbench reviewer-score sub-line on Inbox cards (would
+  surface the score next to the original claim — v0.29+ polish).
+
 ## 0.27.0 - 2026-04-26
 
 **The Substrate Cleanup release.** The doctrinal claim every prior
