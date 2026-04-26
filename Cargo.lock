@@ -2825,6 +2825,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "vela-scientist"
+version = "0.21.0"
+dependencies = [
+ "chrono",
+ "hex",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tokio",
+ "vela-protocol",
+]
+
+[[package]]
 name = "version_check"
 version = "0.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"

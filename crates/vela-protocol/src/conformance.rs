@@ -952,6 +952,7 @@ fn run_proposal_idempotency(
                     .collect()
             })
             .unwrap_or_default(),
+        agent_run: None,
     };
     let id_a = proposal_id(&proposal_a);
 

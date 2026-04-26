@@ -42,6 +42,54 @@ pub struct StateProposal {
     pub applied_event_id: Option<String>,
     #[serde(default)]
     pub caveats: Vec<String>,
+    /// v0.22 (Agent Inbox): when a proposal originates from a scoped
+    /// agent run (e.g. Literature Scout reading a PDF folder), this
+    /// captures the model, the run id, and the wall-clock window.
+    /// The substrate stays dumb — it does not know whether the
+    /// proposer was a human, a Claude run, a GPT run, or a lab
+    /// pipeline; this is informational provenance only, surfaced in
+    /// the Workbench Inbox so reviewers can judge what they're
+    /// looking at. Optional + skip-if-none so existing frontiers
+    /// without proposals serialize byte-identically.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub agent_run: Option<AgentRun>,
+}
+
+/// Agent provenance attached to a `StateProposal`.
+///
+/// Doctrine: the substrate stays model-agnostic. Agents — Literature
+/// Scout, Notes Compiler, Code Analyst, etc. — sit in the
+/// `vela-scientist` crate (or external code) and write proposals into
+/// a frontier through the existing protocol. This struct is the
+/// reviewer-facing record of *who proposed what, with what model,
+/// during which run* — never used as access control or trust
+/// assignment.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+pub struct AgentRun {
+    /// Stable agent name (e.g. "literature-scout"). Pairs with the
+    /// proposal's `actor.id == "agent:literature-scout"`.
+    pub agent: String,
+    /// Model identifier (e.g. "claude-sonnet-4-6"). Free-form so the
+    /// substrate never has to enumerate model names.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub model: String,
+    /// Run identifier — typically a UUID or short hash. Lets the
+    /// reviewer group multiple proposals that came out of the same
+    /// agent invocation.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub run_id: String,
+    /// ISO-8601 wall-clock start of the run.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub started_at: String,
+    /// ISO-8601 wall-clock end. Optional because some agents stream.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub finished_at: Option<String>,
+    /// Free-form context the reviewer should see — e.g. the input
+    /// folder path, the count of papers processed, the prompt
+    /// version. Kept as a flat string map so it round-trips cleanly
+    /// through canonical JSON without imposing a schema.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub context: BTreeMap<String, String>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
@@ -162,6 +210,7 @@ pub fn new_proposal(
         decision_reason: None,
         applied_event_id: None,
         caveats,
+        agent_run: None,
     };
     proposal.id = proposal_id(&proposal);
     proposal
@@ -1995,5 +2044,70 @@ mod tests {
             result.is_err(),
             "supersede with same content address should be refused; got {result:?}"
         );
+    }
+
+    /// v0.22 byte-stability: a proposal with `agent_run = None`
+    /// must serialize without an `agent_run` field, so existing
+    /// frontiers (none of which have agent_run today) round-trip
+    /// byte-identically. The whole substrate guarantee depends on
+    /// canonical-JSON not silently gaining new keys.
+    #[test]
+    fn agent_run_none_skips_serialization() {
+        let p = new_proposal(
+            "finding.add",
+            StateTarget {
+                r#type: "finding".to_string(),
+                id: "vf_test0000000000".to_string(),
+            },
+            "reviewer:will-blair",
+            "human",
+            "test",
+            json!({}),
+            Vec::new(),
+            Vec::new(),
+        );
+        let bytes = canonical::to_canonical_bytes(&p).unwrap();
+        let s = std::str::from_utf8(&bytes).unwrap();
+        assert!(
+            !s.contains("agent_run"),
+            "proposal without agent_run leaked the field into canonical JSON: {s}"
+        );
+    }
+
+    /// And when `agent_run` *is* set, the same proposal id is
+    /// produced regardless — `proposal_id`'s preimage explicitly
+    /// excludes agent_run, so attaching provenance never changes
+    /// the content address.
+    #[test]
+    fn agent_run_does_not_change_proposal_id() {
+        let bare = new_proposal(
+            "finding.add",
+            StateTarget {
+                r#type: "finding".to_string(),
+                id: "vf_test0000000000".to_string(),
+            },
+            "agent:literature-scout",
+            "agent",
+            "scout extracted this from paper_014",
+            json!({}),
+            vec!["src_paper_014".to_string()],
+            Vec::new(),
+        );
+        let id_bare = bare.id.clone();
+
+        let mut with_run = bare.clone();
+        with_run.agent_run = Some(AgentRun {
+            agent: "literature-scout".to_string(),
+            model: "claude-opus-4-7".to_string(),
+            run_id: "vrun_abc1234567890def".to_string(),
+            started_at: "2026-04-26T01:23:45Z".to_string(),
+            finished_at: Some("2026-04-26T01:24:10Z".to_string()),
+            context: BTreeMap::from([
+                ("input_folder".to_string(), "./papers".to_string()),
+                ("pdf_count".to_string(), "12".to_string()),
+            ]),
+        });
+        let id_with_run = proposal_id(&with_run);
+        assert_eq!(id_bare, id_with_run, "agent_run leaked into proposal_id preimage");
     }
 }
