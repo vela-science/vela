@@ -10,12 +10,12 @@ import { HUB_URL, REPO_URL, BBB, VERSION } from "../config";
 const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
 ---
 <Page
-  title="Vela · scientific frontier state, signed and replayable"
-  description="A git-native protocol for replayable scientific frontier state. Findings with conditions, signed by their reviewers, distributed by signed manifest."
+  title="Vela · scientific memory for humans and AI"
+  description="Scientific memory for humans and AI. A protocol for living frontier state — findings with evidence, conditions, confidence, and provenance — that humans and agents can correct, replay, and sign."
   active="home"
   eyebrow="00 · Vela"
   pageTitle="Vela"
-  subtitle="A git-native protocol for replayable scientific frontier state."
+  subtitle="Scientific memory for humans and AI."
 >
   <div slot="aside">
     <a href={REPO_URL} class="aside-link">github</a>
@@ -26,11 +26,11 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
   </div>
 
   <p class="t-lead">
-    Vela turns a folder of papers into a bounded, reviewable state — claims with their evidence, conditions, confidence, and provenance — that a scientist or an agent can correct, replay, and sign.
+    Vela turns research into living frontier state — evidence, findings, reviews, corrections, and next actions — that humans and agents can read from, write back to, and verify.
   </p>
 
   <p class="t-lead" style="font-size: 17px; color: var(--ink-2);">
-    A finding has a content-addressed id. A frontier has a content-addressed id. Two implementations agree byte-for-byte. The hub is dumb transport; clients verify locally. The signature is the bind.
+    Agents propose. Humans review. State updates. A finding has a content-addressed id; a frontier has a content-addressed id; two implementations agree byte-for-byte; the signature is the bind.
   </p>
 
   <aside class="why-card">
@@ -142,6 +142,35 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
       </a>
     </div>
   </Section>
+
+  {/*
+    Closing colophon — the cross-reference back to Borrowed
+    Light. The essay there is what this substrate was built for;
+    this site is the substrate that essay argues for. Two marks,
+    one rule, opposite-direction arrow.
+  */}
+  <aside class="vela-colophon" aria-label="Borrowed Light essay">
+    <a class="vela-colophon__link" href="https://borrowedlight.org" rel="noopener">
+      <svg class="vela-colophon__lantern" viewBox="0 0 64 96" aria-hidden="true" focusable="false">
+        <circle cx="32" cy="6" r="1.6" fill="currentColor" opacity="0.85" />
+        <path d="M14 18 L32 9 L50 18 L46 21 L18 21 Z" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round" />
+        <line x1="14" y1="21" x2="50" y2="21" stroke="currentColor" stroke-width="0.7" opacity="0.55" />
+        <rect x="20" y="22" width="24" height="22" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round" />
+        <line x1="28" y1="22" x2="28" y2="44" stroke="currentColor" stroke-width="0.55" opacity="0.5" />
+        <line x1="36" y1="22" x2="36" y2="44" stroke="currentColor" stroke-width="0.55" opacity="0.5" />
+        <circle cx="32" cy="33" r="3.2" fill="var(--vela-lantern-gold)" opacity="0.9" />
+        <circle cx="32" cy="33" r="6" fill="var(--vela-lantern-gold)" opacity="0.16" />
+        <path d="M16 44 L48 44 L46 48 L18 48 Z" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round" />
+        <line x1="28" y1="48" x2="28" y2="78" stroke="currentColor" stroke-width="1.1" />
+        <line x1="36" y1="48" x2="36" y2="78" stroke="currentColor" stroke-width="1.1" />
+        <path d="M14 78 L50 78 L52 84 L12 84 Z" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round" />
+      </svg>
+      <span class="vela-colophon__pair">
+        <span class="vela-colophon__sub">the essay this substrate was built for</span>
+        <span class="vela-colophon__title">← Borrowed Light</span>
+      </span>
+    </a>
+  </aside>
 </Page>
 
 <style>
@@ -257,5 +286,63 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
   }
   @media (max-width: 720px) {
     .nouns li { grid-template-columns: 1fr; gap: 4px; }
+  }
+
+  /* Closing colophon — cross-reference back to Borrowed Light.
+     The lantern is the BL imprint mark (publisher); this site is
+     Vela (substrate). The arrow points back to the essay so the
+     architecture reads correctly: this substrate ← that essay. */
+  .vela-colophon {
+    margin: 64px 0 24px;
+    padding-top: 28px;
+    border-top: 1px solid var(--rule-2);
+    display: flex;
+    justify-content: flex-start;
+  }
+
+  .vela-colophon__link {
+    display: inline-flex;
+    align-items: center;
+    gap: 14px;
+    text-decoration: none;
+    color: var(--ink-2);
+    transition: color var(--dur-1, 200ms) ease;
+  }
+  .vela-colophon__link:hover,
+  .vela-colophon__link:focus-visible {
+    color: var(--ink-0);
+  }
+
+  .vela-colophon__lantern {
+    width: 30px;
+    height: 45px;
+    flex: 0 0 auto;
+    color: var(--ink-2);
+    transition: color var(--dur-1, 200ms) ease;
+  }
+  .vela-colophon__link:hover .vela-colophon__lantern,
+  .vela-colophon__link:focus-visible .vela-colophon__lantern {
+    color: var(--ink-0);
+  }
+
+  .vela-colophon__pair {
+    display: inline-flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .vela-colophon__sub {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+
+  .vela-colophon__title {
+    font-family: var(--font-serif);
+    font-style: italic;
+    font-size: 18px;
+    color: var(--ink-1);
   }
 </style>

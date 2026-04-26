@@ -31,6 +31,22 @@
   --signal-soft:  rgba(59, 91, 219, 0.10);
   --signal-edge:  rgba(59, 91, 219, 0.32);
 
+  /* ---------- Vela brand palette (canonical) ----------
+     The seven tokens from the Vela brand spec. The site's primary
+     surfaces stay paper-cream + ink + signal-blue (editorial /
+     instrument register); these brand tokens surface where the
+     site bridges to the institutional Vela identity — masthead
+     mark, hero accent, closing colophon, app-icon contexts.
+     Treat them as the publisher's library, not the site's daily
+     working palette. */
+  --vela-night-indigo:  #081328;   /* primary dark surface, app icon */
+  --vela-deep-navy:     #101F3A;   /* dark panels, sidebar */
+  --vela-lantern-gold:  #F2C670;   /* the carried light, accepted state */
+  --vela-warm-brass:    #B08B4A;   /* borders, instrument lines */
+  --vela-paper-ivory:   #F7F3E9;   /* editorial pages, docs */
+  --vela-frost-blue:    #A8C3D9;   /* uncertainty, review-pending */
+  --vela-ember-red:     #E06A5A;   /* contradiction, challenge */
+
   /* State — all derived from ink + signal, never from a fresh palette.
      Muted so they feel engraved, not traffic-light. */
   --state-live:   #3B5BDB;   /* live = signal */
