@@ -307,7 +307,20 @@ pub fn create_or_apply(
         existing_idx.and_then(|idx| frontier.proposals[idx].applied_event_id.clone())
     };
 
-    project::recompute_stats(&mut frontier);
+    // v0.13: materialize source/evidence/condition projections after every
+    // applied proposal so the lint surface stops emitting `missing_source_record`
+    // for findings whose provenance derives a SourceRecord that wasn't yet in
+    // `frontier.sources`. Pre-v0.13, `vela normalize --write` was the only path
+    // to populate these — but normalize refuses on event-ful frontiers, so any
+    // frontier built via CLI proposals could never reach proof-ready state.
+    // Materializing inline at apply time keeps source_records in lockstep with
+    // findings; when no finding state changed (caveat/note/review on existing
+    // findings) the projection is idempotent and bytes don't churn.
+    if applied_event_id.is_some() {
+        crate::sources::materialize_project(&mut frontier);
+    } else {
+        project::recompute_stats(&mut frontier);
+    }
     repo::save_to_path(path, &frontier)?;
     Ok(CreateProposalResult {
         proposal_id,
@@ -1656,5 +1669,53 @@ mod tests {
         let second_event =
             accept_at_path(&path, &created.proposal_id, "reviewer:test", "same").unwrap();
         assert_eq!(first_event, second_event);
+    }
+
+    #[test]
+    fn v0_13_apply_materializes_source_records_inline() {
+        // Pre-v0.13: vela check --strict on a CLI-built frontier flagged
+        // `missing_source_record` because source_records weren't populated
+        // until vela normalize --write — and normalize refuses on event-ful
+        // frontiers. v0.13 materializes inline at apply time so source_records
+        // grow in lockstep with findings.
+        let tmp = TempDir::new().unwrap();
+        let path = tmp.path().join("frontier.json");
+        let mut frontier = project::assemble("test", vec![], 0, 0, "test");
+        repo::save_to_path(&path, &frontier).unwrap();
+        // Add a finding via the standard finding.add proposal flow.
+        let f = finding("vf_v013_inline_src");
+        let proposal = new_proposal(
+            "finding.add",
+            StateTarget {
+                r#type: "finding".to_string(),
+                id: f.id.clone(),
+            },
+            "reviewer:test",
+            "human",
+            "Manual finding for v0.13 source-record materialization test",
+            json!({"finding": f}),
+            Vec::new(),
+            Vec::new(),
+        );
+        create_or_apply(&path, proposal, true).unwrap();
+        let loaded = repo::load_from_path(&path).unwrap();
+        // Source records, evidence atoms, and condition records should all
+        // be materialized — without any explicit normalize call.
+        assert!(
+            !loaded.sources.is_empty(),
+            "v0.13: source_records should materialize inline at apply time"
+        );
+        assert!(
+            !loaded.evidence_atoms.is_empty(),
+            "v0.13: evidence_atoms should materialize inline at apply time"
+        );
+        assert!(
+            !loaded.condition_records.is_empty(),
+            "v0.13: condition_records should materialize inline at apply time"
+        );
+        // Sanity: stats reflect the new source registry.
+        assert_eq!(loaded.stats.source_count, loaded.sources.len());
+        // Suppress unused-mut warning when frontier isn't reused below.
+        let _ = &mut frontier;
     }
 }

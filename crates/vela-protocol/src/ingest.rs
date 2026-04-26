@@ -185,7 +185,7 @@ pub fn run(frontier_path: &Path, args: IngestArgs) {
 
     // Report.
     println!();
-    println!("  {}", "VELA · INGEST · V0.12.0".dimmed());
+    println!("  {}", "VELA · INGEST · V0.13.0".dimmed());
     println!("  {}", style::tick_row(60));
     println!("  ingested into: {}", frontier.project.name);
     println!("  existing findings: {existing_count}");

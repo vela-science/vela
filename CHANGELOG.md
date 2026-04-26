@@ -1,5 +1,57 @@
 # Changelog
 
+## 0.13.0 - 2026-04-26
+
+The source-record materialization fix. v0.12 unblocked event-replay for
+CLI-built frontiers; the next dogfood iteration immediately surfaced the
+last lint blocker: `missing_source_record` on every finding whose
+provenance derives a SourceRecord that wasn't yet in `frontier.sources`.
+Pre-v0.13, the only way to populate the projections was `vela normalize
+--write` — but normalize refuses on event-ful frontiers ("normalize
+before proposal-backed writes"), so any frontier built via the
+proposal/event flow could never reach proof-ready state.
+
+### Substrate
+
+- **`proposals::create_or_apply` materializes source / evidence /
+  condition projections inline at apply time.** Whenever a proposal is
+  applied (any of finding.add, finding.review, finding.note, …),
+  `sources::materialize_project` runs and refreshes
+  `frontier.sources[]`, `frontier.evidence_atoms[]`, and
+  `frontier.condition_records[]` from the current finding set. Idempotent:
+  when no finding state changed (caveat/note on existing findings) the
+  projection re-derives the same bytes, so canonical hashes are stable.
+  When a proposal isn't applied (pending review), only stats recompute —
+  unchanged from pre-v0.13 behavior.
+
+### What this unblocks
+
+- Strict-check on CLI-built frontiers no longer flags `missing_source_record`.
+  Will's Alzheimer's frontier rebuild now materializes 10 sources, 11
+  evidence atoms, and 11 condition records inline as the 11 findings
+  land. Proof-readiness signals shift from "missing source registry" to
+  the genuine review-needed signals (entity-resolution-confidence,
+  experimental-finding-without-species), which are correct things for a
+  fresh manual frontier to flag.
+
+### Tests
+
+- `proposals::tests::v0_13_apply_materializes_source_records_inline`
+  exercises the new flow: a single `finding.add` proposal applied via
+  `create_or_apply(apply: true)` produces a non-empty `sources[]`,
+  `evidence_atoms[]`, and `condition_records[]` in the persisted
+  frontier. 344 tests passing.
+
+### Versioning
+
+- Workspace `0.12.0 → 0.13.0`.
+- `vela --version → 0.13.0`; banner stamps bump in lockstep.
+- Schema version stays at `v0.10.0` — no schema change. Pre-v0.13
+  frontiers built via the CLI grow source/evidence/condition projections
+  the next time any proposal applies; pre-v0.13 frontiers built without
+  the CLI (BBB, the conformance vectors) keep whatever projection state
+  they already had.
+
 ## 0.12.0 - 2026-04-25
 
 The link-hash fix. Surfaced by attempting to dogfood the v0.11 enrichment
