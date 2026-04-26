@@ -1,5 +1,47 @@
 # Changelog
 
+## 0.17.0 - 2026-04-26
+
+The agent-surface release. Forced by probing `vela serve` against Will's
+v0.14 frontier — the HTTP/MCP surface hadn't been exercised since the
+v0.11→v0.16 substrate work shipped, and two real gaps surfaced: (1)
+`/api/events` accepted `?kind=` and `?target=` query params silently
+without filtering, and (2) the MCP tool registry had no way to fetch the
+event history of a single finding (the natural agent question after seeing
+a `flags.superseded = true` finding: "what changed and when?").
+
+### HTTP
+
+- **`/api/events?kind=<kind>&target=<vf_id>`** — server-side filters now
+  applied. Before v0.17 the params were silently ignored and the full
+  event log was returned. Filters apply BEFORE pagination so cursor-based
+  pagination (`?since=<vev_id>&limit=N`) works on the filtered view.
+  Response body grows a `filtered_total` field alongside the existing
+  `count` (returned slice) and `log_total` (full log size).
+
+### MCP
+
+- **`get_finding_history` tool** — returns the chronological event log
+  for one finding (asserted, reviewed, caveated, noted, confidence-revised,
+  superseded, retracted), sorted ascending by timestamp. The natural
+  agent path: see a finding flagged `superseded`, call this tool, walk
+  the supersedes chain via `payload.new_finding_id` on the
+  `finding.superseded` event. Brings the MCP tool count to 10. Validated
+  by `vela serve --check-tools`.
+
+### Validation
+
+- `vela serve --check-tools` now exercises `get_finding_history` against
+  the first finding in the loaded frontier; passes 10/10 against Will's
+  v0.14 frontier.
+
+### Versioning
+
+- Workspace `0.16.0 → 0.17.0`.
+- `vela --version → 0.17.0`; banner stamps bump in lockstep.
+- Schema version stays at `v0.10.0` — no schema change. The MCP tool
+  registry is a runtime contract, not a schema.
+
 ## 0.16.0 - 2026-04-26
 
 The supersede-aware composition release. Closes the two frictions surfaced

@@ -445,6 +445,11 @@ pub fn check_tools(source: ProjectSource) -> Result<Value, String> {
             started,
         ));
         checks.push(check_tool_result(
+            "get_finding_history",
+            tool_get_finding_history(&json!({"id": id}), &frontier),
+            started,
+        ));
+        checks.push(check_tool_result(
             "trace_evidence_chain",
             tool_trace_evidence_chain(&json!({"finding_id": id}), &frontier),
             started,
@@ -625,6 +630,13 @@ async fn execute_tool(
             let project = frontier.lock().await;
             (
                 tool_get_finding(args, &project),
+                Some(clone_project(&project)),
+            )
+        }
+        "get_finding_history" => {
+            let project = frontier.lock().await;
+            (
+                tool_get_finding_history(args, &project),
                 Some(clone_project(&project)),
             )
         }
@@ -1134,9 +1146,24 @@ async fn http_events(
             }
         },
     };
-    let end_idx = (start_idx + limit).min(project.events.len());
-    let slice = &project.events[start_idx..end_idx];
-    let next_cursor = if end_idx < project.events.len() {
+    // v0.17: server-side `?kind=` and `?target=` filters. Agents watching
+    // for specific event kinds (e.g. polling for new finding.superseded
+    // events) shouldn't need to fetch the whole log to locate one match.
+    // Filters apply BEFORE the limit/cursor so pagination works on the
+    // filtered view.
+    let kind_filter = params.get("kind").map(String::as_str);
+    let target_filter = params.get("target").map(String::as_str);
+    let filtered: Vec<&crate::events::StateEvent> = project
+        .events
+        .iter()
+        .skip(start_idx)
+        .filter(|e| kind_filter.is_none_or(|k| e.kind == k))
+        .filter(|e| target_filter.is_none_or(|t| e.target.id == t))
+        .collect();
+    let total_filtered = filtered.len();
+    let take_n = limit.min(total_filtered);
+    let slice: Vec<&crate::events::StateEvent> = filtered.into_iter().take(take_n).collect();
+    let next_cursor = if take_n < total_filtered {
         slice.last().map(|event| event.id.clone())
     } else {
         None
@@ -1148,6 +1175,7 @@ async fn http_events(
             "count": slice.len(),
             "next_cursor": next_cursor,
             "log_total": project.events.len(),
+            "filtered_total": total_filtered,
         })),
     )
 }
@@ -1532,6 +1560,32 @@ fn tool_get_finding(args: &Value, frontier: &Project) -> Result<String, String> 
         );
     }
     serde_json::to_string_pretty(&context).map_err(|e| format!("Serialization error: {e}"))
+}
+
+/// v0.17: chronological event log for one finding. The full canonical event
+/// log filtered to events whose `target.id` matches the requested finding,
+/// sorted ascending by timestamp. Useful for agents walking the supersedes
+/// chain or auditing corrections.
+fn tool_get_finding_history(args: &Value, frontier: &Project) -> Result<String, String> {
+    let id = args["id"].as_str().ok_or("Missing 'id' argument")?;
+    let mut events: Vec<&crate::events::StateEvent> = frontier
+        .events
+        .iter()
+        .filter(|e| {
+            e.target.r#type == "finding" && (e.target.id == id || e.target.id.starts_with(id))
+        })
+        .collect();
+    events.sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
+    let payload = json!({
+        "finding_id": id,
+        "event_count": events.len(),
+        "events": events,
+        "caveats": [
+            "Events are the canonical state-transition log; events without a 'finding' target are excluded.",
+            "Use payload.new_finding_id on finding.superseded events to walk forward in the supersedes chain."
+        ],
+    });
+    serde_json::to_string_pretty(&payload).map_err(|e| format!("Serialization error: {e}"))
 }
 
 fn tool_list_gaps(frontier: &Project) -> Result<String, String> {

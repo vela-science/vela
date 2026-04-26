@@ -47,6 +47,16 @@ pub fn all_tools() -> Vec<ToolDefinition> {
             vec![],
         ),
         tool(
+            "get_finding_history",
+            "v0.17: Return the chronological event log for one finding (asserted, reviewed, caveated, noted, confidence-revised, superseded, retracted). Use this to walk the supersedes chain, audit corrections, or detect that a target has been refined since you last linked to it.",
+            json!({"type": "object", "properties": {"id": {"type": "string"}}, "required": ["id"]}),
+            PermissionLevel::ReadOnly,
+            false,
+            vec![
+                "Event order reflects timestamps as recorded; sort client-side if you need a different ordering.",
+            ],
+        ),
+        tool(
             "list_gaps",
             "List findings flagged as candidate gap review leads.",
             json!({"type": "object", "properties": {}}),

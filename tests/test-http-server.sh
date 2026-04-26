@@ -147,11 +147,11 @@ else
 fi
 
 # 3. GET /api/tools
-TEST="GET /api/tools returns strict 18-tool registry"
+TEST="GET /api/tools returns strict 19-tool registry"
 http_get "${BASE}/api/tools"
 if [[ "$HTTP_CODE" != "200" ]]; then
     log_fail "$TEST" "HTTP $HTTP_CODE"
-elif json_has "isinstance(d, list) and len(d) == 18"; then
+elif json_has "isinstance(d, list) and len(d) == 19"; then
     log_pass "$TEST"
 else
     count=$(json_extract "len(d) if isinstance(d, list) else 'not a list'")
