@@ -88,6 +88,7 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
         </section>
 
         <section class="fr-pane" data-pane="inbox" hidden>
+          <div class="ib-banner" id="ib-banner" hidden></div>
           <div class="ib-summary" id="ib-summary"></div>
           <div class="ib-runs" id="ib-runs">
             <div class="fr-empty">No agent proposals yet. Run <code>vela scout &lt;folder&gt; --frontier &lt;path&gt;</code> to populate the Inbox.</div>
@@ -520,6 +521,47 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
     padding: 8px 0;
   }
   /* === Inbox === */
+  .ib-banner {
+    margin: 0 0 14px;
+    padding: 12px 14px;
+    background: var(--paper-1);
+    border: 1px solid var(--rule-2);
+    border-left: 3px solid var(--signal);
+    border-radius: var(--radius-1);
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+  .ib-banner__text {
+    font-family: var(--font-serif);
+    font-size: 14px;
+    color: var(--ink-1);
+    flex: 1;
+    min-width: 220px;
+  }
+  .ib-banner__cmd {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: #E6E1D4;
+    background: var(--ink-0);
+    padding: 6px 10px;
+    border-radius: 3px;
+  }
+  .ib-banner__copy {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    color: var(--ink-2);
+    background: var(--paper-0);
+    border: 1px solid var(--rule-2);
+    padding: 5px 10px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: color var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease);
+  }
+  .ib-banner__copy:hover { color: var(--ink-0); border-color: var(--rule-ink); }
+
   .ib-summary {
     font-family: var(--font-mono);
     font-size: 11px;
@@ -661,6 +703,77 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
     border-radius: 3px;
     color: var(--ink-2);
     margin-bottom: 4px;
+  }
+
+  /* Staged state: card visually fades + tints depending on action. */
+  :global(.ib-card.is-staged-accept) { background: rgba(63, 107, 78, 0.06); }
+  :global(.ib-card.is-staged-reject) { background: rgba(138, 58, 58, 0.06); }
+  :global(.ib-card.is-disabled-actions) { opacity: 0.85; }
+
+  :global(.ib-card__actions) {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+    justify-content: flex-end;
+  }
+  :global(.ib-card__btn) {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 5px 11px;
+    border-radius: 3px;
+    cursor: pointer;
+    background: var(--paper-0);
+    border: 1px solid var(--rule-2);
+    color: var(--ink-2);
+    transition: color var(--dur-1) var(--ease),
+                background var(--dur-1) var(--ease),
+                border-color var(--dur-1) var(--ease);
+  }
+  :global(.ib-card__btn:hover:not(:disabled)) {
+    color: var(--ink-0);
+    border-color: var(--rule-ink);
+  }
+  :global(.ib-card__btn:disabled) { cursor: default; opacity: 0.6; }
+  :global(.ib-card__btn--accept:hover:not(:disabled)) {
+    color: var(--state-ok);
+    border-color: rgba(63, 107, 78, 0.4);
+    background: rgba(63, 107, 78, 0.08);
+  }
+  :global(.ib-card__btn--reject:hover:not(:disabled)) {
+    color: var(--state-lost);
+    border-color: rgba(138, 58, 58, 0.4);
+    background: rgba(138, 58, 58, 0.08);
+  }
+
+  :global(.ib-card__staged-pill) {
+    display: inline-block;
+    padding: 2px 7px;
+    border: 1px solid;
+    border-radius: 3px;
+    margin-bottom: 4px;
+    font-family: var(--font-mono);
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  :global(.ib-card__staged-pill--accept) {
+    color: var(--state-ok);
+    border-color: rgba(63, 107, 78, 0.4);
+  }
+  :global(.ib-card__staged-pill--reject) {
+    color: var(--state-lost);
+    border-color: rgba(138, 58, 58, 0.4);
+  }
+
+  :global(.ib-card__hint) {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--ink-3);
+    margin-top: 6px;
+    text-align: right;
+    font-style: italic;
   }
 
   /* About content is innerHTML-injected; needs :global. */
@@ -935,6 +1048,99 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
     return out;
   }
 
+  /** Tracks browser-side staged decisions during a session. The
+   *  source of truth is the queue file on the user's machine
+   *  (vela serve appends; vela queue sign drains). This map only
+   *  drives optimistic UI — proposal id → staged action kind. */
+  const stagedState = new Map<string, "accept" | "reject">();
+
+  /** Resolve where to POST `/api/queue` calls. Default: same-origin
+   *  /api (works when the page is served by `vela serve --workbench`
+   *  or behind an nginx that proxies /api/* to a local vela serve).
+   *  Override via `?api=https://localhost:3848` so the deployed
+   *  Astro site can also drive a local backend. */
+  function apiBase(): string {
+    const url = new URL(window.location.href);
+    const explicit = url.searchParams.get("api");
+    if (explicit) return explicit.replace(/\/+$/, "");
+    return "";
+  }
+
+  /** Whether action buttons are wired. We *always* render them, but
+   *  on the public deployed site they degrade to a single hint
+   *  pointing the user at `?api=…` so the buttons aren't fake. */
+  function actionsAreWired(): boolean {
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("api")) return true;
+    // Also wire on localhost — the page is presumably running off
+    // the same vela serve as the API.
+    return /^localhost(:|$)/.test(window.location.host);
+  }
+
+  async function postQueueAction(
+    kind: "accept_proposal" | "reject_proposal",
+    proposalId: string,
+    reason: string,
+  ): Promise<{ ok: boolean; error?: string; queueFile?: string }> {
+    const base = apiBase();
+    try {
+      const r = await fetch(`${base}/api/queue`, {
+        method: "POST",
+        headers: { "content-type": "application/json", accept: "application/json" },
+        body: JSON.stringify({
+          kind,
+          args: { proposal_id: proposalId, reason },
+        }),
+      });
+      if (!r.ok) {
+        const text = await r.text().catch(() => `${r.status}`);
+        return { ok: false, error: `HTTP ${r.status}: ${text}` };
+      }
+      const body = (await r.json()) as { queue_file?: string };
+      return { ok: true, queueFile: body.queue_file };
+    } catch (err) {
+      return {
+        ok: false,
+        error: err instanceof Error ? err.message : String(err),
+      };
+    }
+  }
+
+  function renderBanner(): void {
+    const banner = document.getElementById("ib-banner");
+    if (!banner) return;
+    const acceptCount = Array.from(stagedState.values()).filter((v) => v === "accept").length;
+    const rejectCount = Array.from(stagedState.values()).filter((v) => v === "reject").length;
+    const total = acceptCount + rejectCount;
+    if (total === 0) {
+      banner.hidden = true;
+      banner.innerHTML = "";
+      return;
+    }
+    banner.hidden = false;
+    const cmd = "vela queue sign --all";
+    banner.innerHTML = `
+      <span class="ib-banner__text">
+        <strong>${total}</strong> action${total === 1 ? "" : "s"} staged in your local queue
+        (${acceptCount} accept, ${rejectCount} reject). Sign and apply with the CLI:
+      </span>
+      <span class="ib-banner__cmd">${cmd}</span>
+      <button class="ib-banner__copy" data-copy-cmd="${cmd}">Copy</button>
+    `;
+    banner.querySelector<HTMLButtonElement>("[data-copy-cmd]")?.addEventListener("click", async (e) => {
+      const btn = e.currentTarget as HTMLButtonElement;
+      const text = btn.dataset.copyCmd ?? "";
+      try {
+        await navigator.clipboard.writeText(text);
+        const original = btn.textContent;
+        btn.textContent = "Copied ✓";
+        setTimeout(() => { btn.textContent = original; }, 1400);
+      } catch {
+        // ignore
+      }
+    });
+  }
+
   /** Render the Inbox tab from a frontier's `proposals` array. */
   function renderInbox(proposals: StateProposal[]): void {
     const summaryHost = document.getElementById("ib-summary");
@@ -960,6 +1166,7 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
       · <strong>${proposals.length}</strong> total
     `;
 
+    const wired = actionsAreWired();
     const groups = groupProposalsByRun(proposals);
     runsHost.innerHTML = groups.map((g) => {
       const runIdShort = g.runId
@@ -967,7 +1174,7 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
         : "(human)";
       const modelLabel = g.model ? escapeHtml(g.model) : "(env model)";
       const when = relativeTime(g.startedAt);
-      const cards = g.proposals.map(renderProposalCard).join("");
+      const cards = g.proposals.map((p) => renderProposalCard(p, wired)).join("");
       return `<div class="ib-run">
   <header class="ib-run__head">
     <span class="ib-run__agent">${escapeHtml(g.agent)}</span>
@@ -979,15 +1186,82 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
   ${cards}
 </div>`;
     }).join("");
+
+    // Wire action buttons. Each card has accept / reject buttons
+    // tagged with the proposal id; on click we POST to /api/queue
+    // and switch the card to its staged visual state.
+    runsHost.querySelectorAll<HTMLButtonElement>("[data-stage]").forEach((btn) => {
+      btn.addEventListener("click", async (ev) => {
+        ev.preventDefault();
+        const action = btn.dataset.stage as "accept" | "reject";
+        const proposalId = btn.dataset.proposalId ?? "";
+        if (!proposalId) return;
+        const card = btn.closest<HTMLElement>(".ib-card");
+        if (!card) return;
+        // Disable both buttons inside the card while in flight.
+        card.querySelectorAll<HTMLButtonElement>(".ib-card__btn").forEach((b) => {
+          b.disabled = true;
+        });
+        const reason = action === "accept"
+          ? "Accepted from Inbox"
+          : "Rejected from Inbox";
+        const kind = action === "accept" ? "accept_proposal" : "reject_proposal";
+        const result = await postQueueAction(kind, proposalId, reason);
+        if (result.ok) {
+          stagedState.set(proposalId, action);
+          markCardStaged(card, action);
+          renderBanner();
+        } else {
+          // Re-enable on failure and show the error inline.
+          card.querySelectorAll<HTMLButtonElement>(".ib-card__btn").forEach((b) => {
+            b.disabled = false;
+          });
+          const hint = card.querySelector<HTMLElement>(".ib-card__hint");
+          if (hint) {
+            hint.textContent = `staging failed: ${result.error ?? "unknown error"}`;
+            hint.style.color = "var(--state-lost)";
+            hint.style.fontStyle = "normal";
+          }
+        }
+      });
+    });
+
+    renderBanner();
   }
 
-  function renderProposalCard(p: StateProposal): string {
+  function markCardStaged(card: HTMLElement, action: "accept" | "reject"): void {
+    card.classList.add(`is-staged-${action}`);
+    card.classList.add("is-disabled-actions");
+    const meta = card.querySelector<HTMLElement>(".ib-card__meta");
+    if (meta) {
+      const pillClass = action === "accept" ? "ib-card__staged-pill--accept" : "ib-card__staged-pill--reject";
+      const word = action === "accept" ? "staged · accept" : "staged · reject";
+      const pendingPill = meta.querySelector<HTMLElement>(".ib-card__pending");
+      if (pendingPill) {
+        pendingPill.className = `ib-card__staged-pill ${pillClass}`;
+        pendingPill.textContent = word;
+      }
+    }
+    // Buttons stay disabled (they are already from the click handler).
+    // Hint line clarifies what happened.
+    const hint = card.querySelector<HTMLElement>(".ib-card__hint");
+    if (hint) {
+      hint.textContent = action === "accept"
+        ? "staged for accept · in queue"
+        : "staged for reject · in queue";
+      hint.style.color = "";
+      hint.style.fontStyle = "italic";
+    }
+  }
+
+  function renderProposalCard(p: StateProposal, wired: boolean): string {
     const finding = p.payload?.finding;
     const claim = finding ? findingClaim(finding) : `(no payload finding) ${p.id}`;
     const rationale = p.reason || "";
     const flags = p.caveats ?? [];
     const sources = p.source_refs ?? [];
     const status = p.status;
+    const isPending = status === "pending_review";
 
     const sourceChips = sources
       .map((s) => `<span class="ib-card__chip ib-card__chip--source" title="${escapeHtml(s)}">${escapeHtml(shortenSource(s))}</span>`)
@@ -998,6 +1272,17 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
         return `<span class="ib-card__chip ib-card__chip--flag ${variant}">${escapeHtml(f)}</span>`;
       })
       .join("");
+
+    // Action buttons: only render for pending proposals. When the
+    // page isn't wired to a local backend (`?api=` missing on the
+    // public site), buttons are disabled with an inline hint so
+    // the surface stays honest.
+    const actionsHtml = isPending ? `
+    <div class="ib-card__actions">
+      <button class="ib-card__btn ib-card__btn--reject" data-stage="reject" data-proposal-id="${escapeHtml(p.id)}" ${wired ? "" : "disabled"}>Reject</button>
+      <button class="ib-card__btn ib-card__btn--accept" data-stage="accept" data-proposal-id="${escapeHtml(p.id)}" ${wired ? "" : "disabled"}>Accept</button>
+    </div>
+    <div class="ib-card__hint">${wired ? "" : "wire <code>?api=http://localhost:3848</code> to enable actions"}</div>` : "";
 
     return `<div class="ib-card">
   <div class="ib-card__main">
@@ -1012,6 +1297,7 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
   <div class="ib-card__meta">
     <span class="ib-card__pending">${escapeHtml(status)}</span>
     <div>${escapeHtml(relativeTime(p.created_at))}</div>
+    ${actionsHtml}
   </div>
 </div>`;
   }
