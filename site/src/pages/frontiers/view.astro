@@ -1463,7 +1463,7 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
   function eventKindVariant(kind: string): string {
     const segs = kind.split(".");
     const tail = (segs[1] ?? segs[0] ?? "").toLowerCase();
-    if (tail.startsWith("add")) return "add";
+    if (tail.startsWith("add") || tail.startsWith("assert")) return "add";
     if (tail.startsWith("review")) return "review";
     if (tail.startsWith("retract")) return "retract";
     if (tail.startsWith("note")) return "note";
