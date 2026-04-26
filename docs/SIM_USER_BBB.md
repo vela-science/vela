@@ -377,21 +377,24 @@ but served the v0.28 Astro behavior.
 that invokes `bun run build` first, then `flyctl deploy`. One
 file, no excuses.
 
-### #11 (P1, UX bug) — Inbox UI re-renders invalidate click handlers mid-batch
+### #11 — false alarm (closed)
 
-Clicking accept/reject on the first card triggers
-`postQueueAction` → after the POST resolves, `renderInbox()`
-re-runs and rebuilds every card from scratch. If the user (or a
-script) clicks a *second* card too quickly, the click hits a
-phantom DOM node and is silently lost. Hit this when scripting
-27 sequential clicks: only the first 9 made it before the
-re-render desync killed the rest. Bulk-POSTing directly to
-`/api/queue` for the remaining 18 was the unblock.
+Initial pass-#2 diagnosis: clicking accept/reject re-renders
+the Inbox and breaks subsequent clicks. **Wrong.** Re-reading
+the loader code: `renderInbox()` is only called once on initial
+load; the click handler patches the card in place (disables
+buttons, swaps the pending pill for a "staged · accept" pill).
+What actually killed my batch was the **45-second CDP eval
+timeout** — the Chrome MCP connection dropped while my JS loop
+was still running, so I lost visibility into the remaining
+clicks (and possibly Chrome killed the eval context). Honest
+mistake from misreading the queue.json count under time
+pressure.
 
-**Fix:** `renderInbox()` should patch in place (remove processed
-cards, leave the rest) instead of nuking innerHTML. Or expose a
-`window.__vela.bulkAction(ids, kind)` helper. Either is right;
-patch-in-place is cleaner.
+No code change required. Lesson: when scripting batch UI
+operations through CDP, run them as a fire-and-forget Promise
+and immediately return a marker ID, then poll the resulting
+state from a fresh eval rather than awaiting in-place.
 
 ### #12 (P2, doc bug) — `vela queue sign --all` is documented but doesn't exist
 
@@ -426,10 +429,29 @@ The two with the highest leverage and lowest risk:
 2. Friction #12 — make `--all` an alias for `--yes-to-all` on
    `vela queue sign`. 10 minutes, no behavior change.
 
-The rest become v0.30+ work:
-- #9 mixed-content message (needs a doc page)
-- #11 patch-in-place renderInbox (needs UI rework)
-- #13 bench composite floor (needs design discussion)
+## v0.29.2 follow-up — finishing the rest
+
+After v0.29.1 shipped, picked up the deferred items:
+
+- **Friction #9** — mixed-content guard now fires before any
+  fetch attempt. The page detects `https://` document +
+  `http://` API and shows a clear "Mixed-content blocked"
+  banner with two specific workarounds (run Astro locally;
+  expose serve via cloudflared/ngrok/tailscale-funnel). Verified
+  in browser against the deployed site.
+- **Friction #11** — closed as false alarm; see updated entry
+  above.
+- **Friction #13** — bench learned the difference between a
+  metric that scored 1.0 and one that's vacuous. New
+  `MetricResult.vacuous` field marks "no contradictions in
+  gold" / "no novel candidates" cases; `compute_composite`
+  excludes them from both numerator and denominator. Pretty
+  output tags vacuous metrics as `n/a`. A "no overlap detected"
+  banner now appears when `matched_pairs == 0` against
+  non-empty inputs. BBB-vs-BBB still scores 1.000; the pass-#2
+  candidate, which used to score a misleading 0.312, now scores
+  honestly closer to 0 because the vacuous 1.0s are no longer
+  inflating it.
 
 ## Updated ledger
 

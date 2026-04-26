@@ -1,5 +1,59 @@
 # Changelog
 
+## 0.29.2 - 2026-04-26
+
+**Closes the rest of the v0.28 friction list.** v0.28.1 +
+v0.29.1 already fixed the cheap items; this release picks up
+the two deferred ones plus a misdiagnosis. Full updated write-
+up in [`docs/SIM_USER_BBB.md`](docs/SIM_USER_BBB.md).
+
+### Fixes
+
+- **Mixed-content guard (Friction #9).** The deployed HTTPS
+  Astro site silently failed when pointed at an HTTP localhost
+  via `?api=…` — browsers block that combination, the fetch
+  hung, and the user saw a stalled page with no error. The
+  loader now detects the scheme mismatch up-front and renders
+  a clear "Mixed-content blocked" banner with two specific
+  workarounds: run the Astro site locally
+  (`cd site && bun run dev`), or expose `vela serve` via TLS
+  (cloudflared, ngrok, tailscale-funnel). Verified in browser
+  against `https://vela-site.fly.dev/frontiers/view?api=http://localhost:9999`.
+  (`site/src/pages/frontiers/view.astro`)
+
+- **Bench composite no longer inflated by vacuous 1.0s
+  (Friction #13).** `MetricResult` gained a `vacuous: bool`
+  field. Metrics that have no data to measure (e.g.
+  `contradiction_recall` when gold has 0 contradictions to
+  recall, `downstream_link_rate` when there are no novel
+  candidates) are now flagged vacuous and excluded from the
+  composite's weighted average — both numerator and
+  denominator. The pretty render tags vacuous metrics as `n/a`
+  rather than `ok`. A "no overlap detected" banner appears
+  when `matched_pairs == 0` against non-empty inputs.
+  Pre-fix: an unrelated candidate could score a misleading
+  ~0.31 from vacuous metric inflation. Post-fix: BBB-vs-BBB
+  still scores 1.000; the pass-#2 candidate scores honestly
+  closer to 0.
+  (`crates/vela-protocol/src/agent_bench.rs`)
+
+### Closed without code change
+
+- **Friction #11 was a misdiagnosis.** `renderInbox()` is only
+  called once on initial load; the click handler patches each
+  card in place. The 9-of-27 click discrepancy was the 45-second
+  CDP eval timeout disconnecting the test harness, not a UI
+  bug. Updated friction report to reflect the closed entry.
+
+### Verified
+
+- 384 tests pass; clippy clean; BBB strict-check clean.
+- BBB-vs-BBB bench still scores composite 1.000 (now with
+  `n/a` tags on vacuous metrics).
+- HTTP→HTTP `?api=` flow still loads the local frontier
+  (guard skipped); HTTPS→HTTP shows the new banner with all
+  four explanation pieces present.
+
 ## 0.29.1 - 2026-04-26
 
 **Pass #2 of the simulated external-user flow + two cheapest

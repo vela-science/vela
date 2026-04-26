@@ -51,12 +51,28 @@ pub struct BenchInput {
 /// One metric's worth of result. `pass` is purely informational
 /// (target met) — the binary's exit code is driven by the
 /// composite, not by individual metrics.
+///
+/// `vacuous` (v0.29.2): true when the metric had no data to
+/// measure (e.g. no gold contradictions to recall, no novel
+/// candidate findings to ground). Such metrics still report a
+/// formal score of 1.0 ("vacuously satisfied"), but they are
+/// excluded from the composite weighting. Friction #13 from sim-
+/// user pass #2: vacuous 1.0s were inflating the composite to
+/// ~0.31 even when claim_match_rate was 0, which made the score
+/// look like a passing grade when it really meant "no overlap
+/// detected".
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct MetricResult {
     pub score: f64,
     pub target: f64,
     pub pass: bool,
     pub note: String,
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub vacuous: bool,
+}
+
+fn is_false(b: &bool) -> bool {
+    !*b
 }
 
 /// Full bench report. Serializable to JSON for `--json` mode and
@@ -280,6 +296,7 @@ fn score_claim_match(
         note: format!(
             "F1 over claim-text match: 2·|M|/(|G|+|C|) = 2·{m}/({g}+{c})"
         ),
+        vacuous: false,
     }
 }
 
@@ -294,6 +311,7 @@ fn score_scope(
             target: 0.80,
             pass: false,
             note: "no matched pairs to evaluate scope on".to_string(),
+            vacuous: false,
         };
     }
     let mut sum = 0.0_f64;
@@ -311,6 +329,7 @@ fn score_scope(
         pass: score >= 0.80,
         note: "mean of (0.5·organism_eq + 0.5·intervention_overlap) over matched pairs"
             .to_string(),
+        vacuous: false,
     }
 }
 
@@ -368,6 +387,7 @@ fn score_evidence_fidelity(candidate: &[FindingBundle], sources: &Path) -> Metri
                 "no readable source files under {} — cannot score fidelity",
                 sources.display()
             ),
+            vacuous: false,
         };
     }
 
@@ -404,6 +424,7 @@ fn score_evidence_fidelity(candidate: &[FindingBundle], sources: &Path) -> Metri
         note: format!(
             "{hit}/{checked} candidate evidence spans substring-match a source file"
         ),
+        vacuous: false,
     }
 }
 
@@ -487,7 +508,8 @@ fn score_contradiction_recall(
             score: 1.0,
             target: 0.60,
             pass: true,
-            note: "no contradictions in gold — vacuously satisfied".to_string(),
+            note: "no contradictions in gold — excluded from composite".to_string(),
+            vacuous: true,
         };
     }
     let candidate_contradictions = collect_contradiction_set(candidate);
@@ -504,6 +526,7 @@ fn score_contradiction_recall(
             "{detected}/{} gold contradictions detected by candidate",
             gold_contradictions.len()
         ),
+        vacuous: false,
     }
 }
 
@@ -542,7 +565,8 @@ fn score_downstream_link(
             score: 1.0,
             target: 0.75,
             pass: true,
-            note: "no novel candidate findings — vacuously satisfied".to_string(),
+            note: "no novel candidate findings — excluded from composite".to_string(),
+            vacuous: true,
         };
     }
     let gold_ids: HashSet<&str> = gold.iter().map(|f| f.id.as_str()).collect();
@@ -559,6 +583,7 @@ fn score_downstream_link(
             "{linked}/{} novel candidate findings link to a gold finding",
             novel.len()
         ),
+        vacuous: false,
     }
 }
 
@@ -570,29 +595,36 @@ fn compute_composite(
     contradiction_recall: &MetricResult,
     downstream_link: &MetricResult,
 ) -> f64 {
-    // When --sources isn't supplied, drop evidence_fidelity from
-    // the composite and rebalance proportionally so the headline
-    // number stays meaningful.
-    if let Some(ef) = evidence_fidelity {
-        W_CLAIM_MATCH * claim_match.score
-            + W_SCOPE * scope.score
-            + W_EVIDENCE_FIDELITY * ef.score
-            + W_CONTRADICTION_RECALL * contradiction_recall.score
-            + W_DOWNSTREAM_LINK * downstream_link.score
-            + W_DUPLICATE_INV * duplicate_inv
-    } else {
-        let total_w = W_CLAIM_MATCH
-            + W_SCOPE
-            + W_CONTRADICTION_RECALL
-            + W_DOWNSTREAM_LINK
-            + W_DUPLICATE_INV;
-        (W_CLAIM_MATCH * claim_match.score
-            + W_SCOPE * scope.score
-            + W_CONTRADICTION_RECALL * contradiction_recall.score
-            + W_DOWNSTREAM_LINK * downstream_link.score
-            + W_DUPLICATE_INV * duplicate_inv)
-            / total_w
+    // v0.29.2: weighted average over only the metrics that have
+    // real data. A vacuous metric (e.g. contradiction_recall=1.0
+    // because gold has 0 contradictions to recall) is dropped from
+    // both the numerator AND the denominator so it can't inflate
+    // the composite. Friction #13: pre-fix, an unrelated candidate
+    // frontier could score 0.31 just from vacuous 1.0s, masking
+    // the fact that claim_match_rate was 0. Post-fix, it scores 0.
+    let mut num = W_CLAIM_MATCH * claim_match.score + W_SCOPE * scope.score;
+    let mut denom = W_CLAIM_MATCH + W_SCOPE;
+
+    if let Some(ef) = evidence_fidelity
+        && !ef.vacuous
+    {
+        num += W_EVIDENCE_FIDELITY * ef.score;
+        denom += W_EVIDENCE_FIDELITY;
     }
+    if !contradiction_recall.vacuous {
+        num += W_CONTRADICTION_RECALL * contradiction_recall.score;
+        denom += W_CONTRADICTION_RECALL;
+    }
+    if !downstream_link.vacuous {
+        num += W_DOWNSTREAM_LINK * downstream_link.score;
+        denom += W_DOWNSTREAM_LINK;
+    }
+    // duplicate_inv is never vacuous: even with 0 candidate
+    // findings it has the trivial meaning "no duplicates among 0".
+    num += W_DUPLICATE_INV * duplicate_inv;
+    denom += W_DUPLICATE_INV;
+
+    if denom == 0.0 { 0.0 } else { num / denom }
 }
 
 /// Render a human-readable report. JSON callers serialize
@@ -631,6 +663,20 @@ pub fn render_pretty(report: &BenchReport) -> String {
     );
     pretty_metric(&mut out, "downstream_link_rate", &report.downstream_link_rate);
     out.push_str("  ----\n");
+    // v0.29.2: surface a clear "no-overlap detected" banner when
+    // claim_match_rate is 0 against a non-empty gold + candidate.
+    // Without this, a candidate covering tangential subject matter
+    // can collapse the composite to whatever the duplicate_inv +
+    // duplicate_rate floor allows, and the user reads the score as
+    // "passing". Friction #13.
+    let no_overlap = report.matched_pairs == 0
+        && report.gold_findings > 0
+        && report.candidate_findings > 0;
+    if no_overlap {
+        out.push_str(
+            "  ⚠ no overlap detected: 0 matched pairs against a non-empty gold;\n    composite reflects only the metrics with real data\n",
+        );
+    }
     out.push_str(&format!(
         "  COMPOSITE             {:.3}  (threshold {:.2}, {})\n",
         report.composite,
@@ -641,11 +687,16 @@ pub fn render_pretty(report: &BenchReport) -> String {
 }
 
 fn pretty_metric(out: &mut String, label: &str, m: &MetricResult) {
+    let tag = if m.vacuous {
+        "n/a"
+    } else if m.pass {
+        "ok"
+    } else {
+        "low"
+    };
     out.push_str(&format!(
-        "  {label}  {:.3}  (target {:.2}, {})\n",
-        m.score,
-        m.target,
-        if m.pass { "ok" } else { "low" }
+        "  {label}  {:.3}  (target {:.2}, {tag})\n",
+        m.score, m.target,
     ));
 }
 

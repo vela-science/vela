@@ -1579,6 +1579,20 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
       return;
     }
 
+    // v0.29.2: mixed-content guard. Browsers silently block HTTPS →
+    // HTTP fetches; the page would just hang on a stalled request
+    // with "…" placeholders and no console error. Detect the scheme
+    // mismatch up-front and tell the user exactly what to do
+    // instead. Closes Friction #9 from sim-user pass #2.
+    if (localMode && window.location.protocol === "https:" && apiBaseStr.startsWith("http://")) {
+      setText("fr-name", "Mixed-content blocked");
+      const descEl = document.getElementById("fr-desc");
+      if (descEl) {
+        descEl.innerHTML = `This page is served over <code>https</code>, but <code>${escapeHtml(apiBaseStr)}</code> is <code>http</code>. Browsers silently block this combination — your local API is reachable, the page just can't fetch it from here.<br><br>Two ways out:<br>&nbsp;1. Run the Astro site locally and use that origin instead:&nbsp; <code>cd site &amp;&amp; bun run dev</code>, then open<br>&nbsp;&nbsp;&nbsp;&nbsp;<code>http://localhost:4321/frontiers/view?api=${escapeHtml(apiBaseStr)}</code><br>&nbsp;2. Expose your <code>vela serve</code> via TLS (cloudflared, ngrok, tailscale-funnel) and pass that <code>https://</code> URL as <code>?api=</code>.`;
+      }
+      return;
+    }
+
     // Page meta — title gets a better name once the project loads in
     // local mode (set below after the synthesis step).
     document.title = `${vfr ?? "local frontier"} · Vela`;
