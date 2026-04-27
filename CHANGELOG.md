@@ -1,5 +1,50 @@
 # Changelog
 
+## 0.29.4 - 2026-04-26
+
+**GitHub-moment site pass + interactive correction demo + measured
+batching numbers.** A reader who finds the essay should be able to
+land on Vela and understand it end-to-end, without installing
+anything.
+
+### Site
+
+- **`/`: animated CLI replay** as the new §1 hero. A four-command
+  canonical session — `compile → review → sign → publish` — types
+  itself out, no external player. Hand-rolled cadence so the pacing
+  reads like a real terminal but is faster than reality.
+- **`/frontiers/view`: interactive `Challenge` flow on every
+  finding.** Hover any finding → click *Challenge* → a modal opens
+  with the finding's claim. Type a counter-claim; the real CLI
+  command (`vela queue propose --against vf_… --claim "…"`) updates
+  live with your text. Hit *Preview in workbench* and the proposal
+  + would-be signed event land in Inbox + Diff as `[preview]`-tagged
+  chips. The substrate stays honest — the preview is local-only and
+  clearly marked; nothing is sent.
+- Continues the v0.29.3 work: BBB Flagship default-loads, welcome
+  banner offers a 3-step guided tour (Findings → Inbox → Diff), and
+  the bottom colophon links back to Borrowed Light.
+
+### Measured batching numbers
+
+Replaced the `~5×` estimate in v0.29.3 with the actual benchmark.
+`./scripts/bench-reviewer-batching.sh 8` synthesizes 8 pending
+proposals against the BBB fixture and runs the reviewer twice:
+
+| mode                       | wall-clock | per-proposal |
+|----------------------------|-----------:|-------------:|
+| per-proposal (batch_size=1) |     105 s |       13.1 s |
+| batched      (batch_size=8) |      19 s |        2.4 s |
+|                            | **5.5×** speedup |          |
+
+Re-run after any reviewer-prompt change so the table stays honest.
+
+### Why this version exists
+
+A finished substrate that nobody can use end-to-end is not finished.
+This release closes the loop between *reading the essay* and
+*touching the protocol* without an install step.
+
 ## 0.29.3 - 2026-04-26
 
 **Reviewer Agent batching + onboarding pass.** Two improvements
@@ -12,10 +57,20 @@ end-to-end after a cold-checkout audit.
 `vela review-pending --batch-size N` (default 1, capped at 12)
 groups N pending proposals into one `claude -p` call instead of
 firing one call per proposal. Each proposal still gets its own
-`finding.note` proposal — only the LLM hop is batched. ~5×
-wall-clock speedup at 5–10 batch size; tradeoff is per-proposal
-transcript granularity. Default of 1 preserves v0.28 behavior
-exactly; users opt in via the flag.
+`finding.note` proposal — only the LLM hop is batched.
+
+Measured (8 pending proposals, BBB fixture, claude-sonnet-4-6 via
+`claude -p`):
+
+| mode                       | wall-clock | per-proposal |
+|----------------------------|-----------:|-------------:|
+| per-proposal (batch_size=1) |     105 s |       13.1 s |
+| batched      (batch_size=8) |      19 s |        2.4 s |
+|                            | **5.5×** speedup |          |
+
+Reproduce: `./scripts/bench-reviewer-batching.sh 8`. Tradeoff is
+per-proposal transcript granularity; default of 1 preserves v0.28
+behavior exactly; users opt in via the flag.
 
 Implementation: new `call_reviewer_batched()` path in
 `crates/vela-scientist/src/reviewer.rs` with a separate batched

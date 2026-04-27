@@ -75,6 +75,58 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
       </div>
     </div>
 
+    {/*
+      Challenge modal — opens when a visitor clicks "Challenge" on a
+      finding. Shows the real CLI flow they would run, and offers to
+      inject a "[preview]" proposal + diff entry so they can see what
+      it would look like in the workbench. The preview is clearly
+      tagged so it's never confused with signed state.
+    */}
+    <div class="fr-challenge" id="fr-challenge" hidden aria-modal="true" role="dialog" aria-labelledby="fr-challenge-title">
+      <div class="fr-challenge__backdrop" id="fr-challenge-backdrop"></div>
+      <div class="fr-challenge__panel">
+        <div class="fr-challenge__head">
+          <div class="fr-challenge__eyebrow">Challenge a finding</div>
+          <h3 class="fr-challenge__title" id="fr-challenge-title">—</h3>
+          <p class="fr-challenge__source">
+            against <span id="fr-challenge-fid" class="fr-challenge__fid">—</span>
+          </p>
+        </div>
+
+        <label class="fr-challenge__field">
+          <span class="fr-challenge__label">Your counter-claim</span>
+          <textarea id="fr-challenge-claim" rows="3" placeholder="State the corrected claim. One typed sentence."></textarea>
+        </label>
+
+        <label class="fr-challenge__field">
+          <span class="fr-challenge__label">Brief rationale (optional)</span>
+          <textarea id="fr-challenge-why" rows="2" placeholder="Cite an experiment, a paper, a contradiction…"></textarea>
+        </label>
+
+        <div class="fr-challenge__cli">
+          <div class="fr-challenge__cli-label">What you would actually run</div>
+          <pre class="fr-challenge__pre" id="fr-challenge-cli">$ vela queue propose \
+    --against vf_…  \
+    --claim "…"
+$ vela queue review        # an agent assesses your proposal
+$ vela queue sign          # signing makes it canonical</pre>
+          <button type="button" class="fr-challenge__copy" id="fr-challenge-copy">Copy commands</button>
+        </div>
+
+        <div class="fr-challenge__nav">
+          <button type="button" class="wb-btn wb-btn--ink" id="fr-challenge-preview">
+            Preview in workbench →
+          </button>
+          <button type="button" class="fr-challenge__close" id="fr-challenge-close">Close</button>
+        </div>
+
+        <p class="fr-challenge__note">
+          The preview is local-only and clearly marked. Nothing is sent.
+          To make a real proposal, run the commands in your terminal.
+        </p>
+      </div>
+    </div>
+
     <!-- Header card -->
     <header class="fr-hdr">
       <div class="fr-hdr__row">
@@ -1287,6 +1339,254 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
     .fr-tour__body { font-size: 14px; }
   }
 
+  /* Finding row wrapper — keeps the existing card link clickable while
+     adding a sibling "Challenge" button that opens the modal in place. */
+  :global(.ff-row) {
+    position: relative;
+  }
+  :global(.ff-row .ff__challenge) {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: transparent;
+    border: 1px solid var(--rule-2);
+    color: var(--ink-3);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    padding: 5px 9px;
+    border-radius: var(--radius-1);
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 180ms ease, color 180ms ease, border-color 180ms ease;
+  }
+  :global(.ff-row:hover .ff__challenge),
+  :global(.ff-row .ff__challenge:focus-visible) {
+    opacity: 1;
+  }
+  :global(.ff-row .ff__challenge:hover) {
+    color: var(--vela-lantern-gold, #F2C670);
+    border-color: color-mix(in oklab, var(--vela-lantern-gold, #F2C670) 55%, var(--rule-2));
+  }
+  /* Hide the existing kind/time meta column when hovering, since the
+     Challenge button overlaps it visually. Subtle, no jump. */
+  :global(.ff-row:hover .ff__meta) {
+    opacity: 0.35;
+    transition: opacity 180ms ease;
+  }
+
+  /* Challenge modal — shown when "Challenge" is clicked on a finding.
+     Same visual language as the tour callout (gold accents, paper
+     panel) but positioned mid-screen as a real dialog. */
+  .fr-challenge {
+    position: fixed;
+    inset: 0;
+    z-index: 220;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+  }
+  .fr-challenge__backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 18, 24, 0.32);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+  }
+  .fr-challenge__panel {
+    position: relative;
+    width: min(36rem, 100%);
+    max-height: calc(100vh - 48px);
+    overflow-y: auto;
+    background: var(--paper-0);
+    border: 1px solid color-mix(in oklab, var(--vela-lantern-gold, #F2C670) 35%, var(--rule-3));
+    border-radius: var(--radius-1);
+    padding: 26px 28px 22px;
+    box-shadow:
+      0 16px 48px rgba(15, 18, 24, 0.22),
+      0 0 0 1px var(--paper-0) inset;
+  }
+  .fr-challenge__head {
+    margin-bottom: 18px;
+  }
+  .fr-challenge__eyebrow {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: color-mix(in oklab, var(--vela-lantern-gold, #F2C670) 55%, var(--ink-3));
+    margin-bottom: 8px;
+  }
+  .fr-challenge__title {
+    font-family: var(--font-serif);
+    font-style: italic;
+    font-size: 18px;
+    line-height: 1.4;
+    color: var(--ink-1);
+    margin: 0 0 6px;
+  }
+  .fr-challenge__source {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--ink-3);
+    margin: 0;
+  }
+  .fr-challenge__fid {
+    color: color-mix(in oklab, var(--vela-lantern-gold, #F2C670) 55%, var(--ink-2));
+  }
+  .fr-challenge__field {
+    display: block;
+    margin-bottom: 14px;
+  }
+  .fr-challenge__label {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin-bottom: 6px;
+  }
+  .fr-challenge__field textarea {
+    width: 100%;
+    background: var(--paper-1);
+    border: 1px solid var(--rule-2);
+    border-radius: var(--radius-1);
+    padding: 10px 12px;
+    font-family: var(--font-serif);
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--ink-1);
+    resize: vertical;
+  }
+  .fr-challenge__field textarea:focus {
+    outline: none;
+    border-color: color-mix(in oklab, var(--vela-lantern-gold, #F2C670) 55%, var(--rule-2));
+  }
+  .fr-challenge__cli {
+    position: relative;
+    margin: 18px 0 16px;
+    background: #0F1722;
+    border: 1px solid color-mix(in oklab, var(--vela-lantern-gold, #F2C670) 25%, transparent);
+    border-radius: var(--radius-1);
+    padding: 14px 16px 12px;
+  }
+  .fr-challenge__cli-label {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: color-mix(in oklab, var(--vela-lantern-gold, #F2C670) 60%, #B8C2D1);
+    margin-bottom: 8px;
+  }
+  .fr-challenge__pre {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.55;
+    color: #E6EAF1;
+    margin: 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .fr-challenge__copy {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: transparent;
+    border: 1px solid color-mix(in oklab, var(--vela-lantern-gold, #F2C670) 35%, transparent);
+    color: color-mix(in oklab, var(--vela-lantern-gold, #F2C670) 70%, #B8C2D1);
+    font-family: var(--font-mono);
+    font-size: 9px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    padding: 4px 8px;
+    border-radius: var(--radius-1);
+    cursor: pointer;
+  }
+  .fr-challenge__copy:hover {
+    color: var(--vela-lantern-gold, #F2C670);
+    border-color: color-mix(in oklab, var(--vela-lantern-gold, #F2C670) 60%, transparent);
+  }
+  .fr-challenge__nav {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 4px;
+  }
+  .fr-challenge__close {
+    margin-left: auto;
+    background: none;
+    border: 0;
+    color: var(--ink-3);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    cursor: pointer;
+    padding: 4px 6px;
+    transition: color 200ms ease;
+  }
+  .fr-challenge__close:hover { color: var(--ink-1); }
+  .fr-challenge__note {
+    font-family: var(--font-serif);
+    font-style: italic;
+    font-size: 12px;
+    color: var(--ink-3);
+    margin: 14px 0 0;
+    line-height: 1.5;
+  }
+
+  /* Preview chip injected into Inbox / Diff so the visitor can see
+     what the proposal would look like in flight. */
+  :global(.fr-preview) {
+    position: relative;
+    border: 1px dashed color-mix(in oklab, var(--vela-lantern-gold, #F2C670) 55%, var(--rule-2));
+    background: color-mix(in oklab, var(--vela-lantern-gold, #F2C670) 4%, var(--paper-0));
+    padding: 14px 16px;
+    border-radius: var(--radius-1);
+    margin-bottom: 10px;
+  }
+  :global(.fr-preview__tag) {
+    position: absolute;
+    top: -9px;
+    left: 14px;
+    background: var(--paper-0);
+    color: color-mix(in oklab, var(--vela-lantern-gold, #F2C670) 55%, var(--ink-2));
+    font-family: var(--font-mono);
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    padding: 0 8px;
+  }
+  :global(.fr-preview__claim) {
+    font-family: var(--font-serif);
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--ink-1);
+    margin: 0 0 6px;
+  }
+  :global(.fr-preview__meta) {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--ink-3);
+  }
+
+  body.fr-challenge-open {
+    overflow: hidden;
+  }
+
+  @media (max-width: 720px) {
+    .fr-challenge { padding: 12px; }
+    .fr-challenge__panel { padding: 20px 18px 16px; }
+    .fr-challenge__title { font-size: 16px; }
+    :global(.ff-row .ff__challenge) {
+      opacity: 1;  /* always visible on touch */
+      top: 8px;
+      right: 8px;
+    }
+  }
+
   /* Cross-reference colophon back to Borrowed Light. */
   .fr-coda {
     margin: 36px 0 8px;
@@ -2307,22 +2607,27 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
         const author = f.provenance?.authors?.[0]?.id ?? "—";
         const when = relativeTime(f.updated ?? f.created);
         const href = `/workbench/finding?id=${encodeURIComponent(f.id ?? "")}&vfr=${encodeURIComponent(entry!.vfr_id)}`;
-        return `<a class="ff" href="${href}">
-  <div class="ff__main">
-    <div class="ff__claim">${claim}</div>
-    <div class="ff__sub">
-      <span><strong>${id}</strong></span>
-      <span>${ev} evidence</span>
-      <span>${links} links</span>
-      <span>${conds} conditions</span>
-      <span>${escapeHtml(author)}</span>
+        return `<div class="ff-row">
+  <a class="ff" href="${href}">
+    <div class="ff__main">
+      <div class="ff__claim">${claim}</div>
+      <div class="ff__sub">
+        <span><strong>${id}</strong></span>
+        <span>${ev} evidence</span>
+        <span>${links} links</span>
+        <span>${conds} conditions</span>
+        <span>${escapeHtml(author)}</span>
+      </div>
     </div>
-  </div>
-  <div class="ff__meta">
-    <span class="ff__kind ${kindClass}">${escapeHtml(kind)}</span>
-    <div style="margin-top: 6px;">${escapeHtml(when)}</div>
-  </div>
-</a>`;
+    <div class="ff__meta">
+      <span class="ff__kind ${kindClass}">${escapeHtml(kind)}</span>
+      <div style="margin-top: 6px;">${escapeHtml(when)}</div>
+    </div>
+  </a>
+  <button type="button" class="ff__challenge" data-fid="${id}" data-claim="${claim}" aria-label="Challenge this finding">
+    Challenge
+  </button>
+</div>`;
       }).join("");
     }
     renderFindings("");
@@ -2518,4 +2823,153 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
       else showStep(tourIdx + 1);
     } else if (e.key === "ArrowLeft") showStep(tourIdx - 1);
   });
+
+  // ===========================================================
+  // Challenge modal — interactive correction demo. A visitor clicks
+  // "Challenge" on a finding, types a counter-claim, and either copies
+  // the real CLI commands (the canonical path) or previews the
+  // proposal in the workbench (local-only, clearly marked).
+  // ===========================================================
+  const ch = {
+    root: $("fr-challenge"),
+    backdrop: $("fr-challenge-backdrop"),
+    title: $("fr-challenge-title"),
+    fid: $("fr-challenge-fid"),
+    claimIn: $("fr-challenge-claim") as HTMLTextAreaElement | null,
+    whyIn: $("fr-challenge-why") as HTMLTextAreaElement | null,
+    cliPre: $("fr-challenge-cli"),
+    copy: $("fr-challenge-copy"),
+    preview: $("fr-challenge-preview"),
+    close: $("fr-challenge-close"),
+  };
+  let chCurrent: { fid: string; claim: string } | null = null;
+
+  function buildCli(fid: string, counter: string): string {
+    const claim = counter.trim() || "your counter-claim here";
+    const safe = claim.replace(/"/g, '\\"');
+    return `$ vela queue propose \\
+    --against ${fid} \\
+    --claim "${safe}"
+$ vela queue review        # an agent assesses your proposal
+$ vela queue sign          # signing makes it canonical`;
+  }
+
+  function refreshChallengeCli() {
+    if (!chCurrent || !ch.cliPre || !ch.claimIn) return;
+    ch.cliPre.textContent = buildCli(chCurrent.fid, ch.claimIn.value);
+  }
+
+  function openChallenge(fid: string, claim: string) {
+    chCurrent = { fid, claim };
+    if (ch.title) ch.title.textContent = claim;
+    if (ch.fid) ch.fid.textContent = fid || "(unidentified)";
+    if (ch.claimIn) ch.claimIn.value = "";
+    if (ch.whyIn) ch.whyIn.value = "";
+    refreshChallengeCli();
+    if (ch.root) ch.root.hidden = false;
+    document.body.classList.add("fr-challenge-open");
+    setTimeout(() => ch.claimIn?.focus(), 50);
+  }
+
+  function closeChallenge() {
+    if (ch.root) ch.root.hidden = true;
+    document.body.classList.remove("fr-challenge-open");
+    chCurrent = null;
+  }
+
+  // Delegated click handler for "Challenge" buttons in findings list
+  document.getElementById("fr-findings")?.addEventListener("click", (e) => {
+    const t = e.target as HTMLElement;
+    const btn = t.closest(".ff__challenge") as HTMLButtonElement | null;
+    if (!btn) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const fid = btn.dataset.fid ?? "";
+    const claim = btn.dataset.claim ?? "";
+    openChallenge(fid, claim);
+  });
+
+  ch.claimIn?.addEventListener("input", refreshChallengeCli);
+  ch.copy?.addEventListener("click", async () => {
+    if (!chCurrent || !ch.claimIn || !ch.copy) return;
+    const text = buildCli(chCurrent.fid, ch.claimIn.value);
+    try {
+      await navigator.clipboard.writeText(text);
+      const orig = ch.copy.textContent;
+      ch.copy.textContent = "Copied";
+      setTimeout(() => { if (ch.copy) ch.copy.textContent = orig; }, 1400);
+    } catch {
+      // ignore
+    }
+  });
+  ch.close?.addEventListener("click", closeChallenge);
+  ch.backdrop?.addEventListener("click", closeChallenge);
+  document.addEventListener("keydown", (e) => {
+    if (ch.root?.hidden) return;
+    if (e.key === "Escape") closeChallenge();
+  });
+
+  ch.preview?.addEventListener("click", () => {
+    if (!chCurrent || !ch.claimIn) return;
+    const counter = ch.claimIn.value.trim();
+    if (!counter) {
+      ch.claimIn.focus();
+      ch.claimIn.style.borderColor = "var(--vela-ember-red, #E06A5A)";
+      setTimeout(() => { if (ch.claimIn) ch.claimIn.style.borderColor = ""; }, 1200);
+      return;
+    }
+    const why = ch.whyIn?.value.trim() ?? "";
+    const fid = chCurrent.fid;
+    const previewId = "vp_" + Math.random().toString(36).slice(2, 10);
+    const ts = new Date().toISOString().replace("T", " ").slice(0, 19) + "Z";
+
+    // Inject preview into Inbox pane
+    const inboxHost =
+      document.querySelector<HTMLElement>("[data-pane='inbox'] .fr-inbox") ||
+      document.querySelector<HTMLElement>("[data-pane='inbox']");
+    if (inboxHost) {
+      const node = document.createElement("div");
+      node.className = "fr-preview";
+      node.innerHTML = `
+        <span class="fr-preview__tag">[preview · proposal]</span>
+        <p class="fr-preview__claim">${escapePreview(counter)}</p>
+        <div class="fr-preview__meta">
+          ${previewId} &nbsp;·&nbsp; against <strong>${escapePreview(fid)}</strong>
+          ${why ? "&nbsp;·&nbsp; rationale: " + escapePreview(why) : ""}
+        </div>`;
+      // Insert at top
+      inboxHost.insertBefore(node, inboxHost.firstChild);
+    }
+
+    // Inject preview into Diff pane (signed-canonical mock)
+    const diffHost =
+      document.querySelector<HTMLElement>("[data-pane='diff'] .fr-diff") ||
+      document.querySelector<HTMLElement>("[data-pane='diff']");
+    if (diffHost) {
+      const node = document.createElement("div");
+      node.className = "fr-preview";
+      node.innerHTML = `
+        <span class="fr-preview__tag">[preview · would-be signed event]</span>
+        <p class="fr-preview__claim">propose &nbsp;${escapePreview(fid)} → ${previewId}</p>
+        <div class="fr-preview__meta">
+          ${ts} &nbsp;·&nbsp; sig: (unsigned, local preview)
+        </div>`;
+      diffHost.insertBefore(node, diffHost.firstChild);
+    }
+
+    closeChallenge();
+    activateTab("inbox");
+    // Smooth scroll to where the preview landed
+    const newPreview = document.querySelector(".fr-preview");
+    newPreview?.scrollIntoView({ behavior: "smooth", block: "center" });
+  });
+
+  function escapePreview(s: string): string {
+    return s
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
 </script>

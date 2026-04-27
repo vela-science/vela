@@ -1,0 +1,326 @@
+---
+/*
+  Animated terminal replay — types out a vela CLI session character
+  by character, with realistic cadence and pauses for command output.
+  No external player; pure CSS+JS. The script is authored in the
+  page that uses this component (passed via slot=script as a JSON
+  string in a <script type="application/json"> block) so editors can
+  read the scenario without parsing animation primitives.
+
+  Why hand-rolled instead of asciinema-player: this is a hero
+  surface. We need the pacing to feel deliberate, not real-time
+  (real `vela compile` takes 8 seconds; nobody wants to watch eight
+  blank seconds). We control timing precisely here.
+*/
+interface Props {
+  title?: string;
+  height?: string;
+}
+const { title = "vela · canonical session", height = "440px" } = Astro.props;
+---
+<figure class="tr" style={`--tr-height: ${height}`} data-replay>
+  <div class="tr__bar">
+    <div class="tr__dots">
+      <span class="tr__dot tr__dot--r"></span>
+      <span class="tr__dot tr__dot--y"></span>
+      <span class="tr__dot tr__dot--g"></span>
+    </div>
+    <span class="tr__title">{title}</span>
+    <button type="button" class="tr__replay" aria-label="Replay session">
+      <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true">
+        <path d="M3 4 L3 8 L7 8" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M3 8 A 5 5 0 1 0 5 4" stroke-linecap="round"/>
+      </svg>
+      replay
+    </button>
+  </div>
+  <div class="tr__body" aria-live="polite" aria-atomic="false"></div>
+  <noscript>
+    <pre class="tr__noscript">
+$ vela compile ./papers --output frontier.json
+  scout: 4 papers · 11 findings extracted
+$ vela queue review
+  reviewer agent: scoring 11 proposals (batch_size=8)…
+  scored 11/11 · plausibility 0.78 avg · evidence 0.72 avg
+$ vela queue sign --proposal vp_0a14...
+  signed: appended event ev_d1f… · frontier hash vfr_…
+$ vela registry publish ./frontier.json --to https://hub.vela.science
+  published: vfr_… → https://hub.vela.science
+    </pre>
+  </noscript>
+</figure>
+
+<script>
+  // The replay script. Each step is one of:
+  //   { kind: "prompt", cmd: string, ms?: number }   user types
+  //   { kind: "out",    text: string, ms?: number }  command output
+  //   { kind: "pause",  ms: number }                 deliberate pause
+  type Step =
+    | { kind: "prompt"; cmd: string; ms?: number }
+    | { kind: "out"; text: string; ms?: number }
+    | { kind: "pause"; ms: number };
+
+  const SCRIPT: Step[] = [
+    { kind: "prompt", cmd: "vela compile ./papers --output frontier.json" },
+    { kind: "out",    text: "  scout: scanning 4 papers…", ms: 380 },
+    { kind: "out",    text: "  scout: 11 findings extracted (3 mechanism · 5 observation · 3 gap)", ms: 520 },
+    { kind: "out",    text: "  frontier: vfr_a3f… · 11 findings · ready", ms: 320 },
+    { kind: "pause",  ms: 700 },
+    { kind: "prompt", cmd: "vela queue review --batch-size 8" },
+    { kind: "out",    text: "  reviewer agent: scoring 8 proposals…", ms: 450 },
+    { kind: "out",    text: "  scored 8/8 · plausibility 0.78 avg · evidence 0.72 avg", ms: 380 },
+    { kind: "pause",  ms: 600 },
+    { kind: "prompt", cmd: "vela queue sign --proposal vp_0a14b29c" },
+    { kind: "out",    text: "  signed: ev_d1f… · finding vf_c4bf737… is now canonical", ms: 380 },
+    { kind: "pause",  ms: 800 },
+    { kind: "prompt", cmd: "vela registry publish ./frontier.json --to hub.vela.science" },
+    { kind: "out",    text: "  published: vfr_a3f… → https://hub.vela.science/entries", ms: 460 },
+    { kind: "out",    text: "  manifest signed by reviewer:you · client-verifiable on read", ms: 360 },
+    { kind: "pause",  ms: 2200 },
+  ];
+
+  // Cadence — characters per second when typing, with a small jitter
+  // so it feels human rather than metronomic.
+  const TYPE_CPS_BASE = 28;
+  const TYPE_JITTER_MS = 35;
+
+  function sleep(ms: number) {
+    return new Promise<void>((r) => setTimeout(r, ms));
+  }
+
+  function escapeCmd(s: string): string {
+    // Highlight flags and the leading binary token
+    const tokens = s.split(/(\s+)/);
+    return tokens
+      .map((t, i) => {
+        if (/^\s+$/.test(t)) return t;
+        if (i === 0) return `<span class="tr__bin">${escapeHtml(t)}</span>`;
+        if (t.startsWith("--")) return `<span class="tr__flag">${escapeHtml(t)}</span>`;
+        if (t.startsWith("./") || t.startsWith("/")) return `<span class="tr__path">${escapeHtml(t)}</span>`;
+        if (i === 2 || (i === 4 && tokens[2] === " "))
+          return `<span class="tr__sub">${escapeHtml(t)}</span>`;
+        return escapeHtml(t);
+      })
+      .join("");
+  }
+
+  function escapeHtml(s: string): string {
+    return s
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  async function typeInto(
+    el: HTMLElement,
+    text: string,
+    onChunk: (typed: string) => void,
+  ) {
+    const baseDelay = 1000 / TYPE_CPS_BASE;
+    let typed = "";
+    for (const ch of text) {
+      typed += ch;
+      onChunk(typed);
+      const jitter = Math.random() * TYPE_JITTER_MS - TYPE_JITTER_MS / 2;
+      await sleep(baseDelay + jitter);
+    }
+  }
+
+  async function play(body: HTMLElement) {
+    body.innerHTML = "";
+    for (const step of SCRIPT) {
+      if (step.kind === "prompt") {
+        const line = document.createElement("div");
+        line.className = "tr__line tr__line--prompt";
+        line.innerHTML = `<span class="tr__ps">$</span> <span class="tr__cmd"></span><span class="tr__caret">▌</span>`;
+        body.appendChild(line);
+        const cmdSpan = line.querySelector(".tr__cmd") as HTMLElement;
+        await typeInto(line, step.cmd, (typed) => {
+          cmdSpan.innerHTML = escapeCmd(typed);
+          body.scrollTop = body.scrollHeight;
+        });
+        // Drop the caret once the line is committed
+        line.querySelector(".tr__caret")?.remove();
+        await sleep(180);
+      } else if (step.kind === "out") {
+        const line = document.createElement("div");
+        line.className = "tr__line tr__line--out";
+        line.textContent = step.text;
+        body.appendChild(line);
+        body.scrollTop = body.scrollHeight;
+        await sleep(step.ms ?? 280);
+      } else if (step.kind === "pause") {
+        await sleep(step.ms);
+      }
+    }
+  }
+
+  // Start when visible, with a small initial delay so the hero isn't
+  // already moving as the page settles. Replay button restarts.
+  function init() {
+    const figs = document.querySelectorAll<HTMLElement>("[data-replay]");
+    figs.forEach((fig) => {
+      const body = fig.querySelector(".tr__body") as HTMLElement;
+      const btn = fig.querySelector(".tr__replay") as HTMLButtonElement;
+      let started = false;
+      let running = false;
+      const tryStart = async () => {
+        if (running) return;
+        running = true;
+        started = true;
+        try { await play(body); } finally { running = false; }
+      };
+      // Kick off on visibility — IntersectionObserver covers below-the-
+      // fold mounts; for above-the-fold we still get a fire on mount.
+      if ("IntersectionObserver" in window) {
+        const obs = new IntersectionObserver((entries) => {
+          for (const e of entries) {
+            if (e.isIntersecting && !started) {
+              setTimeout(tryStart, 600);
+              obs.disconnect();
+              return;
+            }
+          }
+        }, { threshold: 0.2 });
+        obs.observe(fig);
+      } else {
+        setTimeout(tryStart, 600);
+      }
+      // Safety net — if the observer never fires (some edge cases),
+      // start anyway after a short window.
+      setTimeout(() => {
+        if (!started) tryStart();
+      }, 2000);
+      btn?.addEventListener("click", async () => {
+        if (running) return;
+        started = false;
+        await tryStart();
+      });
+    });
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
+</script>
+
+<style>
+  .tr {
+    margin: 24px 0 28px;
+    background: #0F1722;
+    border: 1px solid color-mix(in oklab, var(--vela-lantern-gold, #F2C670) 22%, var(--rule-3));
+    border-radius: var(--radius-1);
+    overflow: hidden;
+    box-shadow: 0 12px 36px rgba(15, 18, 24, 0.18);
+  }
+  .tr__bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 9px 14px 9px 12px;
+    border-bottom: 1px solid color-mix(in oklab, var(--vela-lantern-gold, #F2C670) 12%, #1A2433);
+    background: #0B1220;
+  }
+  .tr__dots { display: flex; gap: 6px; }
+  .tr__dot {
+    width: 9px; height: 9px;
+    border-radius: 50%;
+    background: #354255;
+  }
+  .tr__dot--r { background: #cf6a5a; opacity: 0.62; }
+  .tr__dot--y { background: #d6a956; opacity: 0.62; }
+  .tr__dot--g { background: #6f9c70; opacity: 0.62; }
+  .tr__title {
+    flex: 1;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #8995A8;
+  }
+  .tr__replay {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: transparent;
+    border: 1px solid color-mix(in oklab, var(--vela-lantern-gold, #F2C670) 28%, transparent);
+    color: color-mix(in oklab, var(--vela-lantern-gold, #F2C670) 65%, #B8C2D1);
+    font-family: var(--font-mono);
+    font-size: 9px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    padding: 4px 8px;
+    border-radius: var(--radius-1);
+    cursor: pointer;
+    transition: color 180ms ease, border-color 180ms ease;
+  }
+  .tr__replay:hover {
+    color: var(--vela-lantern-gold, #F2C670);
+    border-color: color-mix(in oklab, var(--vela-lantern-gold, #F2C670) 55%, transparent);
+  }
+  .tr__body {
+    padding: 14px 18px 18px;
+    height: var(--tr-height);
+    max-height: var(--tr-height);
+    overflow-y: auto;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    line-height: 1.65;
+    color: #D6DEEA;
+    scrollbar-color: #1F2A3D #0F1722;
+  }
+  .tr__line {
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .tr__line--prompt {
+    color: #E6EAF1;
+    margin-top: 6px;
+  }
+  .tr__line--prompt:first-child { margin-top: 0; }
+  .tr__line--out {
+    color: #93A0B6;
+  }
+  .tr__ps {
+    color: color-mix(in oklab, var(--vela-lantern-gold, #F2C670) 60%, #B8C2D1);
+    margin-right: 8px;
+  }
+  .tr__bin    { color: #E6EAF1; }
+  .tr__sub    { color: color-mix(in oklab, var(--vela-lantern-gold, #F2C670) 50%, #C8D2E1); }
+  .tr__flag   { color: #8995A8; }
+  .tr__path   { color: #C8D2E1; }
+  .tr__cmd    { display: inline; }
+  .tr__caret {
+    display: inline-block;
+    color: var(--vela-lantern-gold, #F2C670);
+    animation: tr-blink 900ms steps(2, end) infinite;
+    margin-left: 1px;
+  }
+  @keyframes tr-blink {
+    0%, 50%   { opacity: 1; }
+    50.01%, 100% { opacity: 0.18; }
+  }
+
+  .tr__noscript pre {
+    margin: 0;
+    padding: 16px 20px;
+    color: #B8C2D1;
+    background: transparent;
+  }
+
+  @media (max-width: 720px) {
+    .tr__body {
+      font-size: 12px;
+      padding: 12px 14px 14px;
+      height: 360px;
+    }
+    .tr__title { display: none; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .tr__caret { animation: none; opacity: 0.6; }
+  }
+</style>

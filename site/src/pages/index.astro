@@ -2,6 +2,7 @@
 import Page from "../layouts/Page.astro";
 import Section from "../components/Section.astro";
 import TerminalPaper from "../components/TerminalPaper.astro";
+import TerminalReplay from "../components/TerminalReplay.astro";
 import LiveHub from "../components/LiveHub.astro";
 import HubBrowse from "../components/HubBrowse.astro";
 import Chip from "../components/Chip.astro";
@@ -40,7 +41,14 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
     </p>
   </aside>
 
-  <Section num="§1" title="Browse the live hub" aside={`public hub · ${HUB_HOST}`}>
+  <Section num="§1" title="Watch one canonical session" aside="compile · review · sign · publish">
+    <p style="font-family: var(--font-serif); font-size: 17px; color: var(--ink-2); max-width: 64ch; margin: 0 0 4px;">
+      A folder of papers becomes a signed, content-addressed frontier in four commands. The reviewer batches its scoring; the signature is the bind.
+    </p>
+    <TerminalReplay title="vela · canonical session" />
+  </Section>
+
+  <Section num="§2" title="Browse the live hub" aside={`public hub · ${HUB_HOST}`}>
     <p style="font-family: var(--font-serif); font-size: 17px; color: var(--ink-2); max-width: 64ch; margin: 0 0 12px;">
       Every entry below is a signed manifest pointing at a frontier file the publisher hosts elsewhere. Click any row to open it in the Workbench. {BBB.name} republishes weekly from CI; the others are one-shot publications.
     </p>
@@ -53,7 +61,7 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
     </TerminalPaper>
   </Section>
 
-  <Section num="§2" title="Read the essay" aside="why state · what state · what composes">
+  <Section num="§3" title="Read the essay" aside="why state · what state · what composes">
     <a class="essay-card" href="/essays/science-needs-state">
       <span class="eyebrow">Essay · 2026-04-25</span>
       <h3 class="title">Science Needs State</h3>
@@ -64,7 +72,7 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
     </a>
   </Section>
 
-  <Section num="§3" title="Install and publish" aside="one binary · five commands">
+  <Section num="§4" title="Install and publish" aside="one binary · five commands">
     <div class="quickstart">
       <TerminalPaper title="install">
         <span class="tm-ps">$</span> <span class="tm-cmd">git clone</span> {REPO_URL}
@@ -84,7 +92,7 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
     </p>
   </Section>
 
-  <Section num="§4" title="Six nouns" aside="content-addressed · canonical-JSON · Ed25519">
+  <Section num="§5" title="Six nouns" aside="content-addressed · canonical-JSON · Ed25519">
     <ul class="nouns">
       <li>
         <span class="k">finding</span>
@@ -113,7 +121,7 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
     </ul>
   </Section>
 
-  <Section num="§5" title="Read the docs" aside="five-doc tour">
+  <Section num="§6" title="Read the docs" aside="five-doc tour">
     <div class="card-grid">
       <a class="card" href="/docs/protocol">
         <span class="eyebrow">01 · protocol</span>
