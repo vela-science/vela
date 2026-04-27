@@ -192,7 +192,7 @@ pub struct ConfidenceDistribution {
 /// Schema and compiler defaults for the current Vela protocol release.
 pub const VELA_SCHEMA_URL: &str = "https://vela.science/schema/finding-bundle/v0.10.0";
 pub const VELA_SCHEMA_VERSION: &str = "0.10.0";
-pub const VELA_COMPILER_VERSION: &str = "vela/0.38.0";
+pub const VELA_COMPILER_VERSION: &str = "vela/0.38.1";
 
 /// Derive a `vfr_<hash>` frontier ID from frontier metadata. Used as a
 /// fallback for legacy frontiers without a `frontier.created` genesis
@@ -386,6 +386,8 @@ impl Project {
             n_repl,
             n_failed,
             n_partial,
+            bundle.assertion.causal_claim,
+            bundle.assertion.causal_evidence_grade,
         )
     }
 

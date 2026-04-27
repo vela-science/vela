@@ -811,14 +811,26 @@ pub struct ConfidenceComponents {
     /// Additive calibration signal layered on top of the deterministic support score.
     #[serde(default)]
     pub calibration_adjustment: f64,
+    /// v0.38.1: causal-claim × evidence-grade compatibility multiplier.
+    /// Defaults to 1.0 — neutral — when either field is `None` (the
+    /// pre-v0.38 case). RCT bumps any claim slightly; an observational-
+    /// grade *intervention* claim gets a meaningful penalty (the
+    /// design doesn't actually support the claim being made).
+    #[serde(default = "default_causal_consistency")]
+    pub causal_consistency: f64,
     /// Confidence formula version stamp. v0.3 introduced this; v0.4
     /// bumps it to "v0.4" for the same scoring formula recomputed
     /// against substrate-level changes (genesis events, signed actors,
     /// canonical/derived split — none of which alter scoring math).
+    /// v0.38.1 bumps to "v0.7" for the addition of `causal_consistency`.
     /// A second implementation may refuse to interpret components
     /// computed with an unknown formula version.
     #[serde(default = "default_formula_version")]
     pub formula_version: String,
+}
+
+fn default_causal_consistency() -> f64 {
+    1.0
 }
 
 fn default_formula_version() -> String {
@@ -924,12 +936,56 @@ pub fn compute_confidence(
     } else {
         0
     };
-    compute_confidence_from_components(evidence, conditions, contested, n_replicated, 0, 0)
+    compute_confidence_from_components(
+        evidence,
+        conditions,
+        contested,
+        n_replicated,
+        0,
+        0,
+        None,
+        None,
+    )
+}
+
+/// v0.38.1: causal-claim × evidence-grade compatibility multiplier.
+/// An RCT supports any claim slightly better than baseline; an
+/// observational study weakly supports correlation; an *intervention*
+/// claim from observational data gets a meaningful penalty (the
+/// design doesn't actually identify the causal effect being claimed).
+/// Returns `1.0` when either field is `None` — the pre-v0.38 case is
+/// neutral.
+#[must_use]
+pub fn causal_consistency_multiplier(
+    claim: Option<CausalClaim>,
+    grade: Option<CausalEvidenceGrade>,
+) -> f64 {
+    use CausalClaim::*;
+    use CausalEvidenceGrade::*;
+    let (Some(c), Some(g)) = (claim, grade) else {
+        return 1.0;
+    };
+    match (c, g) {
+        // RCT: gold standard. Slight bump for any claim it supports.
+        (_, Rct) => 1.10,
+        // Correlation: any reasonable design supports it.
+        (Correlation, _) => 1.0,
+        // Mediation: needs design that handles confounders.
+        (Mediation, QuasiExperimental) => 1.05,
+        (Mediation, Observational) => 0.85,
+        (Mediation, Theoretical) => 0.90,
+        // Intervention: the strongest claim. Without RCT or strong
+        // QE, the design under-supports the assertion.
+        (Intervention, QuasiExperimental) => 0.90,
+        (Intervention, Observational) => 0.65,
+        (Intervention, Theoretical) => 0.75,
+    }
 }
 
 /// Pure-math kernel for the frontier-epistemic confidence formula. Takes
-/// replication counts as inputs so the same math drives both the legacy
-/// scalar path (`compute_confidence`) and the v0.32 Project-aware path
+/// replication counts and (v0.38.1) the optional causal typing as inputs
+/// so the same math drives both the legacy scalar path
+/// (`compute_confidence`) and the v0.32+ Project-aware path
 /// (`Project::compute_confidence_for`).
 ///
 /// Replication strength schedule:
@@ -939,6 +995,10 @@ pub fn compute_confidence(
 /// computation; ceiling at 1.0 caps the bonus from accumulated successes.
 /// `inconclusive` outcomes do not move the score (deliberate — they
 /// represent methodological ambiguity, not evidence).
+///
+/// v0.38.1: a `causal_consistency` factor multiplies the support
+/// product. `None` for either field is neutral (pre-v0.38 frontiers
+/// behave identically). See `causal_consistency_multiplier`.
 #[must_use]
 pub fn compute_confidence_from_components(
     evidence: &Evidence,
@@ -947,6 +1007,8 @@ pub fn compute_confidence_from_components(
     n_replicated: u32,
     n_failed: u32,
     n_partial: u32,
+    causal_claim: Option<CausalClaim>,
+    causal_evidence_grade: Option<CausalEvidenceGrade>,
 ) -> Confidence {
     let evidence_strength = match evidence.evidence_type.as_str() {
         "meta_analysis" => 0.95,
@@ -986,8 +1048,13 @@ pub fn compute_confidence_from_components(
 
     let review_penalty = if contested { 0.15 } else { 0.0 };
     let calibration_adjustment = 0.0;
+    let causal_consistency = causal_consistency_multiplier(causal_claim, causal_evidence_grade);
 
-    let raw = evidence_strength * replication_strength * model_relevance * sample_strength
+    let raw = evidence_strength
+        * replication_strength
+        * model_relevance
+        * sample_strength
+        * causal_consistency
         - review_penalty
         + calibration_adjustment;
     let score = raw.clamp(0.0, 1.0);
@@ -1000,15 +1067,17 @@ pub fn compute_confidence_from_components(
         model_relevance,
         review_penalty,
         calibration_adjustment,
-        formula_version: "v0.6".to_string(),
+        causal_consistency,
+        formula_version: "v0.7".to_string(),
     };
 
     let basis = format!(
-        "frontier_epistemic: evidence={:.2} * replication={:.2} * model={:.2} * sample={:.2} - review_penalty={:.2} + calibration={:.2} = {:.3}",
+        "frontier_epistemic: evidence={:.2} * replication={:.2} * model={:.2} * sample={:.2} * causal={:.2} - review_penalty={:.2} + calibration={:.2} = {:.3}",
         evidence_strength,
         replication_strength,
         model_relevance,
         sample_strength,
+        causal_consistency,
         review_penalty,
         calibration_adjustment,
         score,
@@ -1088,6 +1157,8 @@ pub fn recompute_all_confidence(
             n_repl,
             n_failed,
             n_partial,
+            bundle.assertion.causal_claim,
+            bundle.assertion.causal_evidence_grade,
         );
         // Preserve the extraction confidence from the original extraction.
         new_conf.extraction_confidence = extraction_conf;
@@ -2616,6 +2687,108 @@ mod tests {
         // 0.80 * 1.0 * 0.6 * 0.7 = 0.336
         assert!((b.confidence.score - 0.336).abs() < 0.001);
         assert_eq!(changed, 1);
+    }
+
+    // ── v0.38.1 causal-consistency tests ─────────────────────────────
+
+    #[test]
+    fn causal_multiplier_neutral_when_either_field_none() {
+        assert!((causal_consistency_multiplier(None, None) - 1.0).abs() < 1e-12);
+        assert!(
+            (causal_consistency_multiplier(Some(CausalClaim::Intervention), None) - 1.0)
+                .abs()
+                < 1e-12
+        );
+        assert!(
+            (causal_consistency_multiplier(None, Some(CausalEvidenceGrade::Rct)) - 1.0).abs()
+                < 1e-12
+        );
+    }
+
+    #[test]
+    fn rct_grade_bumps_any_claim() {
+        for c in [
+            CausalClaim::Correlation,
+            CausalClaim::Mediation,
+            CausalClaim::Intervention,
+        ] {
+            assert!(
+                (causal_consistency_multiplier(Some(c), Some(CausalEvidenceGrade::Rct)) - 1.10)
+                    .abs()
+                    < 1e-12,
+                "RCT should bump claim {c:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn observational_intervention_gets_strong_penalty() {
+        let m = causal_consistency_multiplier(
+            Some(CausalClaim::Intervention),
+            Some(CausalEvidenceGrade::Observational),
+        );
+        assert!(
+            (m - 0.65).abs() < 1e-12,
+            "intervention from observational should be 0.65, got {m}"
+        );
+    }
+
+    #[test]
+    fn correlation_neutral_under_any_grade() {
+        for g in [
+            CausalEvidenceGrade::QuasiExperimental,
+            CausalEvidenceGrade::Observational,
+            CausalEvidenceGrade::Theoretical,
+        ] {
+            let m = causal_consistency_multiplier(Some(CausalClaim::Correlation), Some(g));
+            assert!(
+                (m - 1.0).abs() < 1e-12,
+                "correlation should be neutral for grade {g:?}, got {m}"
+            );
+        }
+    }
+
+    #[test]
+    fn confidence_score_unchanged_for_pre_v0_38_findings() {
+        // Backward compat: a finding with no causal fields produces
+        // exactly the same score as before v0.38.1 (when n_replicated=0
+        // legacy ⇔ replicated=false scalar).
+        let mut e = sample_evidence();
+        e.replicated = false;
+        e.replication_count = None;
+        let c = sample_conditions();
+        let score_legacy_path = compute_confidence(&e, &c, false).score;
+        let score_kernel_path =
+            compute_confidence_from_components(&e, &c, false, 0, 0, 0, None, None).score;
+        assert!((score_legacy_path - score_kernel_path).abs() < 1e-12);
+        // And the components carry the neutral 1.0 multiplier.
+        let conf = compute_confidence_from_components(&e, &c, false, 0, 0, 0, None, None);
+        let cc = conf.components.unwrap().causal_consistency;
+        assert!((cc - 1.0).abs() < 1e-12);
+    }
+
+    #[test]
+    fn intervention_from_observational_drops_score_meaningfully() {
+        // Same evidence + conditions, two readings: neutral vs
+        // intervention-from-observational. The latter should drop.
+        let e = sample_evidence();
+        let c = sample_conditions();
+        let neutral = compute_confidence_from_components(&e, &c, false, 0, 0, 0, None, None);
+        let observational_intervention = compute_confidence_from_components(
+            &e,
+            &c,
+            false,
+            0,
+            0,
+            0,
+            Some(CausalClaim::Intervention),
+            Some(CausalEvidenceGrade::Observational),
+        );
+        let drop = neutral.score - observational_intervention.score;
+        assert!(
+            drop > 0.05,
+            "observational-intervention should drop score noticeably; got {drop}"
+        );
     }
 
     #[test]

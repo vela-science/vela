@@ -19,7 +19,7 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 
 #[derive(Parser)]
-#[command(name = "vela", version = "0.38.0")]
+#[command(name = "vela", version = "0.38.1")]
 #[command(about = "Portable frontier state for science")]
 struct Cli {
     #[command(subcommand)]

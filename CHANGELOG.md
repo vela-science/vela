@@ -1,5 +1,91 @@
 # Changelog
 
+## 0.38.1 - 2026-04-27
+
+**Causal typing reaches the math.** v0.38.0 made `causal_claim` and
+`causal_evidence_grade` first-class fields on `Assertion`. v0.38.1
+closes the loop the same way v0.36.1 closed it for replication: the
+schema now drives the confidence formula. An RCT-grade intervention
+gets a small bump; an observational-grade intervention claim gets a
+meaningful penalty (the design doesn't actually identify the causal
+effect being claimed).
+
+### The multiplier matrix
+
+```
+                 RCT    QuasiExp.   Observational   Theoretical
+Correlation     1.10    1.00        1.00            1.00
+Mediation       1.10    1.05        0.85            0.90
+Intervention    1.10    0.90        0.65            0.75
+```
+
+Doctrine encoded:
+- **RCT supports any claim.** Gold standard; modest bump regardless.
+- **Correlation is neutral under any reasonable design.** No claim, no
+  penalty.
+- **Mediation needs design that handles confounders.** Quasi-experimental
+  is fine; observational and theoretical drop confidence.
+- **Intervention is the strongest claim.** Without RCT or strong QE,
+  the design under-supports the assertion. Observational-intervention
+  gets a 0.65 multiplier — the substrate's clearest signal that the
+  claim outruns the evidence.
+
+### API
+
+- `bundle::causal_consistency_multiplier(claim, grade) -> f64` — the
+  pure-function matrix, useful for any second implementation that
+  wants to reproduce the formula or build alternative reasoning.
+- `compute_confidence_from_components` gains two trailing args:
+  `causal_claim: Option<CausalClaim>` and
+  `causal_evidence_grade: Option<CausalEvidenceGrade>`. `None` for
+  either is neutral (multiplier 1.0).
+- `Project::compute_confidence_for(&FindingBundle)` and
+  `recompute_all_confidence(&mut findings, &replications)` now thread
+  the assertion's causal fields through automatically.
+- `ConfidenceComponents` gains a `causal_consistency: f64` field.
+  Defaults to 1.0 when deserialized from pre-v0.38.1 frontiers.
+- `formula_version` bumped from `"v0.6"` → `"v0.7"`.
+- `Confidence.basis` string now includes `causal=<n.nn>` between
+  `sample` and `review_penalty`.
+
+### Backward compatibility
+
+A finding with `causal_claim = None` and `causal_evidence_grade = None`
+(every pre-v0.38.0 finding, including all 86 BBB findings today)
+gets multiplier 1.0 — the score is unchanged. Verified by
+`confidence_score_unchanged_for_pre_v0_38_findings` test.
+
+### Verification
+
+- `cargo build --workspace`: clean.
+- `cargo test --workspace`: **384/384 pass** (was 378; +6 causal-math
+  tests in `bundle.rs`):
+  - `causal_multiplier_neutral_when_either_field_none`
+  - `rct_grade_bumps_any_claim`
+  - `observational_intervention_gets_strong_penalty`
+  - `correlation_neutral_under_any_grade`
+  - `confidence_score_unchanged_for_pre_v0_38_findings`
+  - `intervention_from_observational_drops_score_meaningfully`
+- `vela conformance`: 61/61 pass.
+- `vela check projects/bbb-flagship`: 86/86 valid; scores unchanged
+  (all findings carry `causal_claim = None`, multiplier = 1.0).
+
+### What's next
+
+The reasoning surface now has *one* causal-aware mechanism: the
+confidence formula. Two more reasoning moves remain in the v0.38.x
+arc:
+- v0.38.2: aggregate queries gain a `causal_claim_filter` parameter
+  so consensus can be computed over interventions only or
+  correlations only — distinct credible intervals for distinct kinds
+  of claim.
+- v0.38.3: lint check for `supports` links across causal-claim
+  mismatch (a finding that claims correlation supporting a finding
+  that claims intervention is a category error worth surfacing).
+
+Both are extensions of the schema landed in v0.38.0 — the math layer
+in v0.38.1 is the foundation they build on.
+
 ## 0.38.0 - 2026-04-27
 
 **Causal typing as a kernel-level primitive (schema layer).** Pre-v0.38
