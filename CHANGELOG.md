@@ -1,5 +1,83 @@
 # Changelog
 
+## 0.39.1 - 2026-04-27
+
+**Federation sync runtime.** v0.39.0 landed the schema (peer registry,
+two new event kinds, validated payloads). v0.39.1 lands the runtime:
+`vela federation sync` now actually fetches a peer's published view,
+diffs it against our local frontier, and records the disagreements as
+canonical events.
+
+### Pinned conflict taxonomy
+
+v0.39.0 left the conflict `kind` field as an open string. v0.39.1
+pins it to a closed enum derived from auditing every substantive
+field-level disagreement two hubs can have over the same `vfr_id`:
+
+```rust
+pub enum ConflictKind {
+    MissingInPeer,            // present locally, absent in peer
+    MissingLocally,           // present in peer, absent locally
+    ConfidenceDiverged,       // |our_score − peer_score| > 0.05
+    RetractedDiverged,        // different retracted state
+    ReviewStateDiverged,      // different flags.review_state
+    SupersededDiverged,       // different superseded flag
+    AssertionTextDiverged,    // matching id, different text — content-address collision
+}
+```
+
+Confidence threshold 0.05 deliberately filters recompute drift (the
+v0.36.1 formula change moved scores by < 0.001 on real data).
+
+### API
+
+- `federation::diff_frontiers(ours, theirs) -> Vec<Conflict>` — pure
+  function, no I/O. Returns conflicts sorted by `(finding_id, kind)`
+  for deterministic output.
+- `federation::sync_with_peer(&mut project, peer_id, &peer)` — runs
+  the diff, appends one `frontier.synced_with_peer` event recording
+  the pass + one `frontier.conflict_detected` event per disagreement,
+  returns a `SyncReport`.
+- `federation::fetch_peer_frontier(url) -> Result<Project, String>` —
+  blocking HTTP GET, parses the body as a `Project`. Splitting fetch
+  from sync makes the sync logic fully unit-testable without HTTP.
+
+### CLI
+
+```
+vela federation sync <peer_id> --frontier <path> \
+    [--url <override>]   # default: <peer.url>/manifest/<vfr_id>.json
+    [--dry-run]          # diff but don't append events
+```
+
+Read-only with respect to findings — no peer state is merged in.
+Conflict resolution (deciding which side to accept) ships in v0.39.2+
+via proposals; the substrate-discipline move is to record divergence
+canonically before adding any merge logic on top.
+
+### Trust boundary (deferred to v0.39.2)
+
+v0.39.1 trusts the HTTP transport. Verifying that the peer's
+manifest is actually signed by the pubkey we have in our peer
+registry — and that the registry entry we'd fetch first is signed by
+their owner pubkey — is a separate concern. The sync diff/event
+machinery validates first against real peer state; the verification
+layer wraps it next.
+
+### Verification
+
+- `cargo build --workspace`: clean.
+- `cargo test --workspace`: **412/412 pass** (was 403; +9 sync-runtime
+  tests in `federation::tests`):
+  - identical frontiers → 0 conflicts
+  - missing-in-peer / missing-locally
+  - confidence divergence above and below threshold (0.05)
+  - retracted, review-state, assertion-text divergence
+  - sync appends 1 sync event + N conflict events
+  - clean diff still emits the sync record (divergence_count=0)
+- `vela conformance`: 61/61 pass.
+- `vela check projects/bbb-flagship`: 86/86 valid.
+
 ## 0.39.0 - 2026-04-27
 
 **Hub federation — schema layer.** Pre-v0.39 every Vela frontier had

@@ -19,7 +19,7 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 
 #[derive(Parser)]
-#[command(name = "vela", version = "0.39.0")]
+#[command(name = "vela", version = "0.39.1")]
 #[command(about = "Portable frontier state for science")]
 struct Cli {
     #[command(subcommand)]
@@ -1028,6 +1028,29 @@ enum FederationAction {
     PeerRemove {
         frontier: PathBuf,
         id: String,
+        #[arg(long)]
+        json: bool,
+    },
+    /// v0.39.1: Sync our frontier against a peer's published view.
+    /// Fetches the peer's frontier JSON over HTTP, diffs it against
+    /// ours, appends one `frontier.synced_with_peer` event recording
+    /// the pass + one `frontier.conflict_detected` event per
+    /// disagreement. Read-only with respect to findings — no
+    /// peer-state is merged in. Conflict resolution ships in
+    /// v0.39.2+ via proposals.
+    Sync {
+        frontier: PathBuf,
+        /// Peer id (must already be in the registry).
+        peer_id: String,
+        /// Override the peer's manifest URL. Default: `<peer.url>/manifest/<vfr_id>.json`.
+        /// Useful for testing or when the peer publishes at a non-standard path.
+        #[arg(long)]
+        url: Option<String>,
+        /// Run the diff but don't append events. Reports what *would*
+        /// have been recorded. Useful for surfacing conflicts before
+        /// committing them to the canonical event log.
+        #[arg(long)]
+        dry_run: bool,
         #[arg(long)]
         json: bool,
     },
@@ -5043,6 +5066,99 @@ fn cmd_federation(action: FederationAction) {
                             &p.public_key[..16]
                         );
                     }
+                }
+            }
+        }
+        FederationAction::Sync {
+            frontier,
+            peer_id,
+            url,
+            dry_run,
+            json,
+        } => {
+            use crate::federation;
+
+            let mut project = repo::load_from_path(&frontier).unwrap_or_else(|e| fail_return(&e));
+            let Some(peer) = project.peers.iter().find(|p| p.id == peer_id).cloned() else {
+                fail(&format!(
+                    "peer '{peer_id}' not in registry; run `vela federation peer add` first"
+                ));
+            };
+            let frontier_id = project.frontier_id();
+            let resolved_url = url.unwrap_or_else(|| {
+                let base = peer.url.trim_end_matches('/');
+                format!("{base}/manifest/{frontier_id}.json")
+            });
+
+            let peer_state = federation::fetch_peer_frontier(&resolved_url)
+                .unwrap_or_else(|e| fail_return(&e));
+
+            if dry_run {
+                let conflicts = federation::diff_frontiers(&project, &peer_state);
+                if json {
+                    println!(
+                        "{}",
+                        serde_json::to_string_pretty(&json!({
+                            "ok": true,
+                            "command": "federation.sync",
+                            "dry_run": true,
+                            "peer_id": peer_id,
+                            "peer_url": resolved_url,
+                            "conflicts": conflicts,
+                        }))
+                        .expect("serialize federation.sync (dry-run)")
+                    );
+                } else {
+                    println!(
+                        "{} dry-run vs {peer_id} ({}): {} conflict(s)",
+                        style::ok("ok"),
+                        resolved_url,
+                        conflicts.len()
+                    );
+                    for c in &conflicts {
+                        println!("  · {} {} {}", c.kind.as_str(), c.finding_id, c.detail);
+                    }
+                }
+                return;
+            }
+
+            let report = federation::sync_with_peer(&mut project, &peer_id, &peer_state);
+            repo::save_to_path(&frontier, &project).unwrap_or_else(|e| fail_return(&e));
+
+            if json {
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&json!({
+                        "ok": true,
+                        "command": "federation.sync",
+                        "peer_id": peer_id,
+                        "peer_url": resolved_url,
+                        "report": report,
+                    }))
+                    .expect("serialize federation.sync")
+                );
+            } else {
+                println!(
+                    "{} synced with {} ({})",
+                    style::ok("ok"),
+                    peer_id,
+                    resolved_url
+                );
+                println!(
+                    "  our:    {}",
+                    &report.our_snapshot_hash[..16.min(report.our_snapshot_hash.len())]
+                );
+                println!(
+                    "  peer:   {}",
+                    &report.peer_snapshot_hash[..16.min(report.peer_snapshot_hash.len())]
+                );
+                println!(
+                    "  conflicts: {}  events appended: {}",
+                    report.conflicts.len(),
+                    report.events_appended
+                );
+                for c in &report.conflicts {
+                    println!("  · {} {} {}", c.kind.as_str(), c.finding_id, c.detail);
                 }
             }
         }
