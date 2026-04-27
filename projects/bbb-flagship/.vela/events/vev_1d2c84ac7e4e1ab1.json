@@ -1,0 +1,29 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_1d2c84ac7e4e1ab1",
+  "kind": "assertion.reinterpreted_causal",
+  "target": {
+    "type": "finding",
+    "id": "vf_c34143b20ee92b45"
+  },
+  "actor": {
+    "id": "reviewer:will-blair",
+    "type": "human"
+  },
+  "timestamp": "2026-04-27T23:26:50.716995+00:00",
+  "reason": "v0.40 initial classification (heuristic over assertion text + evidence type + conditions)",
+  "before_hash": "sha256:e0c0e5a5785e6f5435340f812b1f9367b24712baebcf7aa2fd17ae694ba0a91d",
+  "after_hash": "sha256:048a5ae58ebf627bdb14495513cefdc12dddf597beafd1c0a7f7312390c512fc",
+  "payload": {
+    "after": {
+      "claim": "correlation",
+      "grade": "observational"
+    },
+    "before": {
+      "claim": null,
+      "grade": null
+    },
+    "proposal_id": "vpr_7bfccd8943ef5ab6"
+  },
+  "caveats": []
+}

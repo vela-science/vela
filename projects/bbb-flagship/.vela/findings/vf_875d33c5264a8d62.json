@@ -7,7 +7,9 @@
     "type": "candidate_finding",
     "entities": [],
     "relation": null,
-    "direction": null
+    "direction": null,
+    "causal_claim": "correlation",
+    "causal_evidence_grade": "theoretical"
   },
   "evidence": {
     "type": "extracted_from_notes",

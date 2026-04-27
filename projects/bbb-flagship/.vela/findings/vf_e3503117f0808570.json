@@ -47,7 +47,9 @@
       }
     ],
     "relation": "opens",
-    "direction": "positive"
+    "direction": "positive",
+    "causal_claim": "correlation",
+    "causal_evidence_grade": "rct"
   },
   "evidence": {
     "type": "experimental",
@@ -91,6 +93,7 @@
       "model_relevance": 1.0,
       "review_penalty": 0.0,
       "calibration_adjustment": 0.0,
+      "causal_consistency": 1.0,
       "formula_version": "v0.8"
     },
     "extraction_confidence": 0.85
