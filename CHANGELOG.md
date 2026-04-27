@@ -1,5 +1,149 @@
 # Changelog
 
+## 0.35.0 - 2026-04-27
+
+**The inference layer** — consensus aggregation over claim-similar
+findings. The fourth and final move in the v0.32–v0.35
+kernel-completeness arc. Now that the substrate has replications,
+computational provenance, predictions, and findings as first-class
+objects, this version makes the kernel a *reasoning surface* over
+all of them — not just storage.
+
+A claim no longer answers only "what does this single finding
+assert?" — it can also answer **"what does the field collectively
+hold about this?"** That answer is computed deterministically from
+canonical state, never stored, byte-identically reproducible.
+
+### Substrate
+
+- New module **`crates/vela-protocol/src/aggregate.rs`**:
+  - `WeightingScheme` enum — `Unweighted` / `ReplicationWeighted` /
+    `CitationWeighted` / `Composite` (default).
+  - `ConsensusConstituent` — one finding's contribution: `raw_score`,
+    `adjusted_score` (raw + 0.05 × successful replications − 0.10 ×
+    failed replications, ×0.85 if contested, clamped to [0,1]),
+    `weight` (per scheme), and replication tallies.
+  - `ConsensusResult` — `target`, `n_findings`, `consensus_confidence`
+    (weighted mean), `credible_interval_lo`/`hi` (95% from weighted SD),
+    `constituents`, `weighting`.
+  - `consensus_for(project, target_id, weighting)` — finds findings
+    similar to the target via shared entities + text-token overlap +
+    type-match (loose-OR), weights each, returns the structured result.
+- Doctrine: aggregation is a **derived view, never written to disk**.
+  Same input frontier produces byte-identical output every time.
+
+### CLI
+
+- `vela consensus <FRONTIER> <vf_id> [--weighting unweighted|replication|citation|composite] [--json]` —
+  prints consensus headline, 95% credible interval, and constituents
+  ranked by weight. Added to `SCIENCE_SUBCOMMANDS` allowlist.
+
+### Site
+
+- `site/src/lib/frontier.ts` — TS implementation of consensus
+  (`consensusFor`, `WeightingScheme`, `ConsensusConstituent`,
+  `ConsensusResult`). Mirrors the Rust module byte-for-byte so site
+  rendering and `vela consensus` always agree on the same frontier.
+- New route **`/consensus/[slug]`** — generated for every finding
+  (86 pages). Shows the target claim, four-cell readout (consensus /
+  95% credible / findings / weighting), and a constituents list
+  sorted by weight with raw + adjusted scores and replication tallies.
+- `/claims/[slug]` gains a "Field consensus →" link in the sidebar
+  so readers can pivot from "this single claim" to "what the field
+  holds."
+
+### Worked examples
+
+Two real consensus computations on the canonical Alzheimer's
+Therapeutics frontier:
+
+```
+$ vela consensus projects/bbb-flagship vf_48c67a2c3ed1a369 --weighting composite
+  target:           Amyloid-beta plaque burden correlates poorly
+                    with cognitive decline in Alzheimer's patients.
+  similar findings: 4
+  consensus:        0.515  (0.470 – 0.559 95% credible)
+```
+
+The amyloid paradox: the target claim plus three similar findings
+(two paraphrases of the decoupling, plus the tau-vs-amyloid
+comparison). Replication credit on the target lifts its weight to
+1.25; the credible interval narrows the disagreement to 0.470–0.559.
+
+```
+$ vela consensus projects/bbb-flagship vf_8389130295d81413 --weighting replication
+  target:           ATV:TREM2 induces proliferation in human iPSC-derived microglia.
+  similar findings: 4
+  consensus:        0.300  (0.138 – 0.463 95% credible)
+```
+
+Four ATV:TREM2 findings (proliferation, glucose metabolism,
+mitochondrial metabolism, signaling). Under replication weighting
+the target with one successful replication carries weight 1.50 vs
+1.00 for siblings; consensus 0.30 reflects the agent-extracted
+findings' uniformly low confidence with a wide credible interval
+(0.14–0.46) reflecting the low evidence density.
+
+### Verification
+
+- `cargo test --workspace --release`: 384/384 pass (no regressions).
+- `vela check projects/bbb-flagship`: 86/86 valid.
+- Site build clean (206 pages — 86 new `/consensus/[slug]` routes
+  plus the existing 120).
+- Site numbers match `vela consensus` exactly: same target, same
+  weighting → identical consensus, credible interval, constituent
+  weights.
+
+### What this version does NOT yet ship (deferred to v0.35.x)
+
+- `vela query "free-text question"` — natural-language consensus
+  over the frontier. Requires a query→findings ranker that this
+  release doesn't include; deferred to v0.35.x.
+- `propagate.rs` positive cascade — failed-replication negative
+  cascade and successful-replication positive cascade through the
+  link graph. The aggregate module already weights individual
+  findings by replications; the structural cascade through
+  `supports`/`depends` links is pending.
+- `bridge.rs` derived bridges — cross-frontier compositional
+  hypotheses ("if A causes X in frontier1 and X causes B in
+  frontier2, the chain A→B is a derived bridge"). The current
+  bridge.rs surfaces entity-level bridges but not chain-derived
+  ones. Deferred.
+- `/api/aggregate` HTTP endpoint on `vela-hub`. The consensus
+  computation lives in the protocol library; exposing it on the
+  hub server is mechanical follow-up, not in this release.
+
+### Where the kernel-completeness arc ends
+
+This version closes the v0.32–v0.35 substrate frame. Vela now has
+**eight first-class kernel objects**:
+
+| Object | Introduced | Live count on canonical frontier |
+|---|---|---|
+| `vf_<hash>` finding | pre-v0.32 | 86 |
+| `vfr_<hash>` frontier | pre-v0.32 | 1 |
+| `vev_<hash>` event | pre-v0.32 | (canonical state log) |
+| `vpr_<hash>` proposal | pre-v0.32 | 130 |
+| `vrun_<hash>` agent run | pre-v0.32 | (provenance for proposals) |
+| `vrep_<hash>` replication | v0.32 | 3 |
+| `vd_<hash>` dataset | v0.33 | 3 |
+| `vc_<hash>` code artifact | v0.33 | 3 |
+| `vpred_<hash>` prediction | v0.34 | 5 |
+| `vres_<hash>` resolution | v0.34 | 0 |
+
+…plus single-actor Ed25519 signatures, registered actors, and the
+inference layer (consensus aggregation + per-actor calibration)
+shipped this release.
+
+What remains for the longer-horizon arc:
+- v0.36 — causal vs correlational typing on assertions
+- v0.37 — multi-actor joint signatures
+- v0.38 — hub federation
+
+The substrate after v0.35 is *complete in scope* for "kernel for
+science" purposes; v0.36+ rounds out structure and topology, not
+core primitives.
+
 ## 0.34.1 - 2026-04-27
 
 **Repo migration**: substrate source moved private; published artifacts

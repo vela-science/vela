@@ -19,7 +19,7 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 
 #[derive(Parser)]
-#[command(name = "vela", version = "0.34.1")]
+#[command(name = "vela", version = "0.35.0")]
 #[command(about = "Portable frontier state for science")]
 struct Cli {
     #[command(subcommand)]
@@ -938,6 +938,27 @@ enum Commands {
         /// Optional actor filter (e.g. `reviewer:will-blair`).
         #[arg(long)]
         actor: Option<String>,
+        /// Emit JSON to stdout.
+        #[arg(long)]
+        json: bool,
+    },
+    /// v0.35: Compute consensus over claim-similar findings, weighted
+    /// by evidence quality. Takes a target `vf_<id>` and finds other
+    /// findings making a similar assertion (shared entities + text
+    /// overlap), weighs them by replication count + citation count
+    /// + review state, and returns a consensus confidence with a
+    /// credible interval. The substrate move that turns "what does
+    /// the field hold about X?" from a manual graph walk into a
+    /// queryable result.
+    Consensus {
+        /// Path to the frontier (project dir, `.vela/` repo, or `.json`).
+        frontier: PathBuf,
+        /// Target finding id (`vf_<hash>`).
+        target: String,
+        /// Weighting scheme: `unweighted` | `replication` | `citation` |
+        /// `composite`. Default is `composite`.
+        #[arg(long, default_value = "composite")]
+        weighting: String,
         /// Emit JSON to stdout.
         #[arg(long)]
         json: bool,
@@ -1907,7 +1928,7 @@ pub async fn run_command() {
         Commands::Conformance { dir } => {
             let _ = conformance::run(&dir);
         }
-        Commands::Version => println!("vela 0.34.1"),
+        Commands::Version => println!("vela 0.35.0"),
         Commands::Sign { action } => cmd_sign(action),
         Commands::Actor { action } => cmd_actor(action),
         Commands::Frontier { action } => cmd_frontier(action),
@@ -2393,6 +2414,72 @@ pub async fn run_command() {
             actor,
             json,
         } => cmd_calibration(&frontier, actor.as_deref(), json),
+        Commands::Consensus {
+            frontier,
+            target,
+            weighting,
+            json,
+        } => cmd_consensus(&frontier, &target, &weighting, json),
+    }
+}
+
+/// v0.35: print consensus over claim-similar findings.
+fn cmd_consensus(frontier: &Path, target: &str, weighting_str: &str, json: bool) {
+    if !target.starts_with("vf_") {
+        fail(&format!("target `{target}` is not a vf_ finding id"));
+    }
+    let scheme = crate::aggregate::WeightingScheme::parse(weighting_str)
+        .unwrap_or_else(|e| fail_return(&e));
+    let project = repo::load_from_path(frontier).unwrap_or_else(|e| fail_return(&e));
+
+    let result = crate::aggregate::consensus_for(&project, target, scheme)
+        .unwrap_or_else(|| fail_return(&format!("target `{target}` not in frontier")));
+
+    if json {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&result).expect("serialize consensus")
+        );
+        return;
+    }
+
+    println!();
+    println!(
+        "  {}",
+        format!("VELA · CONSENSUS · {} ({})", result.target, result.weighting)
+            .to_uppercase()
+            .dimmed()
+    );
+    println!("  {}", style::tick_row(60));
+    println!("  target:           {}", truncate(&result.target_assertion, 80));
+    println!("  similar findings: {}", result.n_findings);
+    println!(
+        "  consensus:        {:.3}  ({:.3} – {:.3} 95% credible)",
+        result.consensus_confidence,
+        result.credible_interval_lo,
+        result.credible_interval_hi
+    );
+    println!();
+    println!("  constituents (sorted by weight):");
+    let mut sorted = result.constituents.clone();
+    sorted.sort_by(|a, b| b.weight.partial_cmp(&a.weight).unwrap_or(std::cmp::Ordering::Equal));
+    for c in sorted.iter().take(10) {
+        let repls = if c.n_replications > 0 {
+            format!(
+                "  ({}r {}f)",
+                c.n_replicated, c.n_failed_replications
+            )
+        } else {
+            String::new()
+        };
+        println!(
+            "    · w={:.2}  raw={:.2}  adj={:.2}{}",
+            c.weight, c.raw_score, c.adjusted_score, repls
+        );
+        println!("        {}", truncate(&c.assertion_text, 88));
+    }
+    if result.constituents.len() > 10 {
+        println!("    ... ({} more)", result.constituents.len() - 10);
     }
 }
 
@@ -4497,7 +4584,7 @@ fn cmd_stats(path: &Path) {
     let frontier = repo::load_from_path(path).expect("Failed to load frontier");
     let s = &frontier.stats;
     println!();
-    println!("  {}", "FRONTIER · V0.34.0".dimmed());
+    println!("  {}", "FRONTIER · V0.35.0".dimmed());
     println!("  {}", frontier.project.name.bold());
     println!("  {}", style::tick_row(60));
     println!("  id:             {}", frontier.frontier_id());
@@ -6758,7 +6845,7 @@ async fn cmd_bridge(inputs: &[PathBuf], check_novelty: bool, top_n: usize) {
         fail("need at least 2 frontier files for bridge detection.");
     }
     println!();
-    println!("  {}", "VELA · BRIDGE · V0.34.0".dimmed());
+    println!("  {}", "VELA · BRIDGE · V0.35.0".dimmed());
     println!("  {}", style::tick_row(60));
     println!("  loading {} frontiers...", inputs.len());
     let mut named_projects = Vec::<(String, project::Project)>::new();
@@ -7597,6 +7684,9 @@ const SCIENCE_SUBCOMMANDS: &[&str] = &[
     "resolve",
     "predictions",
     "calibration",
+    // v0.35: inference layer — consensus aggregation over claim-similar
+    // findings.
+    "consensus",
 ];
 
 pub fn is_science_subcommand(name: &str) -> bool {
@@ -7605,7 +7695,7 @@ pub fn is_science_subcommand(name: &str) -> bool {
 
 fn print_strict_help() {
     println!(
-        r#"Vela 0.34.0
+        r#"Vela 0.35.0
 Portable frontier state for science.
 
 Usage:
@@ -7875,7 +7965,7 @@ pub fn run_from_args() {
             return;
         }
         Some("-V" | "--version" | "version") => {
-            println!("vela 0.34.1");
+            println!("vela 0.35.0");
             return;
         }
         Some(cmd) if !is_science_subcommand(cmd) => {

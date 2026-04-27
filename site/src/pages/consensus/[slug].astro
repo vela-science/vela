@@ -1,0 +1,314 @@
+---
+/*
+  v0.35: Consensus view of a claim.
+
+  Given a target finding, compute consensus over claim-similar
+  findings (shared entities + text overlap), weighted by replication
+  count + citation count + review state. Returns a consensus
+  confidence with a 95% credible interval.
+
+  This is what turns Vela from "a database of claims" into "a
+  reasoning surface over claims." The math here mirrors
+  `crates/vela-protocol/src/aggregate.rs` byte-for-byte so the site
+  always agrees with `vela consensus`.
+*/
+
+import Page from "../../layouts/Page.astro";
+import {
+  loadFrontier,
+  consensusFor,
+  type ClaimView,
+} from "../../lib/frontier";
+import { FRONTIER, VERSION } from "../../config";
+
+export function getStaticPaths() {
+  return loadFrontier().map((c) => ({
+    params: { slug: c.slug },
+    props: { claim: c },
+  }));
+}
+
+interface Props {
+  claim: ClaimView;
+}
+const { claim } = Astro.props as Props;
+const f = claim.finding;
+const result = consensusFor(f.id, "composite");
+
+const sortedConstituents = result
+  ? [...result.constituents].sort((a, b) => b.weight - a.weight)
+  : [];
+---
+
+<Page
+  title={`Consensus · ${f.assertion?.text?.slice(0, 60) ?? "claim"}`}
+  description="Field consensus over claim-similar findings, weighted by evidence quality."
+  active="home"
+  eyebrow="Consensus"
+  pageTitle="Field consensus"
+  subtitle={result
+    ? `${result.n_findings} similar finding${result.n_findings === 1 ? "" : "s"} · weighted by ${result.weighting.replace(/_/g, " ")}`
+    : "Target claim not found."}
+>
+  <div slot="aside">
+    <a href={`/claims/${claim.slug}`} class="aside-link">← claim</a>
+    <span class="aside-version">v{VERSION}</span>
+  </div>
+
+  <p class="cons-intro">
+    Other parts of the substrate describe what <em>is</em> believed; consensus describes
+    what the <em>field collectively holds</em>. We pull every finding making a claim
+    similar to the target (shared named entities + substantial text overlap),
+    weight each by replication count and citation count and review state, and report
+    the weighted-mean confidence with a 95% credible interval. Same math as
+    <code>vela consensus &lt;vf_id&gt;</code>.
+  </p>
+
+  <article class="cons-target">
+    <span class="cons-target__eyebrow">Target claim</span>
+    <p class="cons-target__text">{f.assertion?.text}</p>
+    <p class="cons-target__id">{f.id}</p>
+  </article>
+
+  {result && (
+    <div class="cons-readout">
+      <div class="cons-readout__cell">
+        <span class="cons-readout__label">Consensus</span>
+        <span class="cons-readout__num">{result.consensus_confidence.toFixed(3)}</span>
+      </div>
+      <div class="cons-readout__cell">
+        <span class="cons-readout__label">95% credible</span>
+        <span class="cons-readout__num cons-readout__num--small">
+          {result.credible_interval_lo.toFixed(3)} – {result.credible_interval_hi.toFixed(3)}
+        </span>
+      </div>
+      <div class="cons-readout__cell">
+        <span class="cons-readout__label">Findings</span>
+        <span class="cons-readout__num">{result.n_findings}</span>
+      </div>
+      <div class="cons-readout__cell">
+        <span class="cons-readout__label">Weighting</span>
+        <span class="cons-readout__num cons-readout__num--small">{result.weighting.replace(/_/g, " ")}</span>
+      </div>
+    </div>
+  )}
+
+  {sortedConstituents.length > 0 && (
+    <section class="cons-section">
+      <h2 class="cons-section__title">Constituents · sorted by weight</h2>
+      <p class="cons-section__sub">
+        Adjusted score = raw confidence with replication credit (+0.05 per successful,
+        -0.10 per failed) and a 0.85 multiplier for contested findings.
+      </p>
+      <ol class="cons-list">
+        {sortedConstituents.map((c) => (
+          <li class={`cons-row${c.finding_id === f.id ? " cons-row--target" : ""}`}>
+            <div class="cons-row__head">
+              <span class="cons-row__weight">w {c.weight.toFixed(2)}</span>
+              <span class="cons-row__scores">
+                raw {c.raw_score.toFixed(2)}
+                {c.adjusted_score !== c.raw_score && (
+                  <span class="cons-row__adj"> → adj {c.adjusted_score.toFixed(2)}</span>
+                )}
+              </span>
+              {c.n_replications > 0 && (
+                <span class="cons-row__repls">
+                  {c.n_replicated} replicated · {c.n_failed_replications} failed
+                </span>
+              )}
+              <span class="cons-row__id">{c.finding_id}</span>
+            </div>
+            <p class="cons-row__claim">{c.assertion_text}</p>
+          </li>
+        ))}
+      </ol>
+    </section>
+  )}
+
+  <p class="cons-back">
+    <a class="inline-link" href={`/claims/${claim.slug}`}>← Back to the claim</a>
+    <span class="cons-back__sep">·</span>
+    <a class="inline-link" href="/">Frontier home →</a>
+  </p>
+</Page>
+
+<style>
+  .aside-link {
+    font-family: var(--font-mono);
+    font-size: var(--size-xs);
+    letter-spacing: 0.06em;
+    color: var(--ink-3);
+  }
+  .aside-link:hover { color: var(--ink-0); }
+  .aside-version {
+    font-family: var(--font-mono);
+    font-size: var(--size-xs);
+    color: var(--ink-4);
+    margin-left: 6px;
+  }
+  div[slot="aside"] { display: flex; align-items: center; gap: 12px; }
+  .inline-link {
+    color: var(--signal);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    text-decoration-thickness: 1px;
+  }
+
+  .cons-intro {
+    font-family: var(--font-serif);
+    font-size: 16px;
+    line-height: 1.65;
+    color: var(--ink-2);
+    margin: 0 0 var(--space-5);
+    max-width: 64ch;
+  }
+  .cons-intro code {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    background: var(--paper-1);
+    padding: 1px 4px;
+    border: 1px solid var(--rule-1);
+  }
+
+  .cons-target {
+    border-left: 2px solid var(--vela-warm-brass);
+    padding: var(--space-3) var(--space-4);
+    background: var(--paper-1);
+    margin: 0 0 var(--space-5);
+  }
+  .cons-target__eyebrow {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: var(--track-label);
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin-bottom: var(--space-2);
+  }
+  .cons-target__text {
+    font-family: var(--font-serif);
+    font-size: 18px;
+    line-height: 1.5;
+    color: var(--ink-0);
+    margin: 0 0 var(--space-2);
+    max-width: 72ch;
+  }
+  .cons-target__id {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--ink-3);
+    margin: 0;
+  }
+
+  .cons-readout {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    border-top: 1px solid var(--rule-2);
+    border-bottom: 1px solid var(--rule-2);
+    margin: 0 0 var(--space-7);
+  }
+  .cons-readout__cell {
+    padding: var(--space-4) var(--space-4);
+    border-right: 1px solid var(--rule-1);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .cons-readout__cell:last-child { border-right: none; }
+  .cons-readout__label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: var(--track-label);
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  .cons-readout__num {
+    font-family: var(--font-serif);
+    font-size: 32px;
+    line-height: 1;
+    color: var(--ink-0);
+    font-variant-numeric: tabular-nums;
+  }
+  .cons-readout__num--small { font-size: 18px; }
+  @media (max-width: 720px) {
+    .cons-readout { grid-template-columns: repeat(2, 1fr); }
+    .cons-readout__cell:nth-child(2n) { border-right: none; }
+    .cons-readout__cell:nth-child(-n + 2) {
+      border-bottom: 1px solid var(--rule-1);
+    }
+  }
+
+  .cons-section { margin: 0 0 var(--space-7); }
+  .cons-section__title {
+    font-family: var(--font-sans);
+    font-size: var(--size-lg);
+    font-weight: 500;
+    color: var(--ink-0);
+    margin: 0 0 4px;
+    letter-spacing: var(--track-tight);
+  }
+  .cons-section__sub {
+    font-family: var(--font-serif);
+    font-size: 14px;
+    color: var(--ink-3);
+    margin: 0 0 var(--space-3);
+    max-width: 64ch;
+  }
+
+  .cons-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    border-top: 1px solid var(--rule-2);
+  }
+  .cons-row {
+    padding: var(--space-3) 0;
+    border-bottom: 1px solid var(--rule-1);
+  }
+  .cons-row--target {
+    background: color-mix(in oklab, var(--vela-lantern-gold) 6%, transparent);
+    padding-left: var(--space-3);
+  }
+  .cons-row__head {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-3);
+    margin-bottom: 6px;
+    flex-wrap: wrap;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--ink-3);
+  }
+  .cons-row__weight {
+    font-weight: 500;
+    color: var(--ink-0);
+    font-variant-numeric: tabular-nums;
+  }
+  .cons-row__scores { font-variant-numeric: tabular-nums; }
+  .cons-row__adj { color: var(--state-ok); }
+  .cons-row__repls {
+    color: var(--state-ok);
+  }
+  .cons-row__id {
+    margin-left: auto;
+    color: var(--ink-4);
+  }
+  .cons-row__claim {
+    font-family: var(--font-serif);
+    font-size: 15px;
+    line-height: 1.45;
+    color: var(--ink-1);
+    margin: 0;
+    max-width: 72ch;
+  }
+
+  .cons-back {
+    margin: var(--space-7) 0 var(--space-5);
+    padding-top: var(--space-4);
+    border-top: 1px solid var(--rule-2);
+    font-family: var(--font-mono);
+    font-size: var(--size-xs);
+    color: var(--ink-3);
+  }
+  .cons-back__sep { margin: 0 8px; color: var(--ink-4); }
+</style>

@@ -1,4 +1,5 @@
 pub mod agent_bench;
+pub mod aggregate;
 pub mod benchmark;
 pub mod bridge;
 pub mod bundle;

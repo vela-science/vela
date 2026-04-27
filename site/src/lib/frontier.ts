@@ -860,6 +860,202 @@ export function calibrationFor(actor: string): CalibrationRecord | undefined {
   return calibrationRecords().find((r) => r.actor === actor);
 }
 
+// ── Consensus aggregation (v0.35) ───────────────────────────────────
+//
+// Mirrors `crates/vela-protocol/src/aggregate.rs` byte-for-byte so the
+// site renders the same numbers `vela consensus` returns. Doctrine:
+// consensus is a derived view, never stored — same input frontier
+// produces the same output, every time.
+
+export type WeightingScheme =
+  | "unweighted"
+  | "replication_weighted"
+  | "citation_weighted"
+  | "composite";
+
+export interface ConsensusConstituent {
+  finding_id: string;
+  assertion_text: string;
+  raw_score: number;
+  adjusted_score: number;
+  weight: number;
+  n_replications: number;
+  n_replicated: number;
+  n_failed_replications: number;
+}
+
+export interface ConsensusResult {
+  target: string;
+  target_assertion: string;
+  n_findings: number;
+  consensus_confidence: number;
+  credible_interval_lo: number;
+  credible_interval_hi: number;
+  constituents: ConsensusConstituent[];
+  weighting: WeightingScheme;
+}
+
+function tokenSet(text: string, minLen = 5): Set<string> {
+  const out = new Set<string>();
+  for (const raw of text.toLowerCase().split(/\s+/)) {
+    if (raw.length <= minLen - 1) continue;
+    const cleaned = raw.replace(/[^a-z0-9]+/g, "").trim();
+    if (cleaned.length > 0) out.add(cleaned);
+  }
+  return out;
+}
+
+function entitySet(f: Finding): Set<string> {
+  return new Set(
+    (f.assertion?.entities ?? []).map((e) => (e?.name ?? "").toLowerCase()).filter(Boolean),
+  );
+}
+
+function isSimilar(
+  candidate: Finding,
+  targetEntities: Set<string>,
+  targetWords: Set<string>,
+  targetType: string,
+): boolean {
+  const candEntities = entitySet(candidate);
+  const sharedEntities = [...candEntities].filter((e) => targetEntities.has(e));
+  const entityOverlap = sharedEntities.length >= 1;
+
+  const candWords = tokenSet(candidate.assertion?.text ?? "");
+  const sharedWords = [...candWords].filter((w) => targetWords.has(w));
+  const textOverlap = sharedWords.length >= 3;
+
+  const typeMatch = candidate.assertion?.type === targetType;
+
+  const signals = [entityOverlap, textOverlap, typeMatch].filter(Boolean).length;
+  return signals >= 2 || (entityOverlap && sharedEntities.length >= 2);
+}
+
+function replicationTallies(targetId: string): {
+  total: number;
+  replicated: number;
+  failed: number;
+} {
+  let total = 0;
+  let replicated = 0;
+  let failed = 0;
+  for (const r of loadReplications()) {
+    if (r.target_finding === targetId) {
+      total++;
+      if (r.outcome === "replicated") replicated++;
+      else if (r.outcome === "failed") failed++;
+    }
+  }
+  return { total, replicated, failed };
+}
+
+function adjustScore(
+  raw: number,
+  nReplicated: number,
+  nFailed: number,
+  contested: boolean,
+): number {
+  let adj = raw + 0.05 * nReplicated - 0.1 * nFailed;
+  if (contested) adj *= 0.85;
+  return Math.min(1, Math.max(0, adj));
+}
+
+function computeWeight(
+  scheme: WeightingScheme,
+  f: Finding,
+  nReplicated: number,
+  nFailed: number,
+): number {
+  const base = 1.0;
+  const replicationFactor = 1.0 + 0.5 * nReplicated - 0.5 * nFailed;
+  const citation = f.provenance?.citation_count ?? 0;
+  const citationFactor = 1.0 + Math.log1p(citation) * 0.10;
+  switch (scheme) {
+    case "unweighted":
+      return base;
+    case "replication_weighted":
+      return Math.max(0, replicationFactor);
+    case "citation_weighted":
+      return Math.max(0, citationFactor);
+    case "composite":
+      return Math.max(
+        0,
+        0.2 * base + 0.5 * Math.max(0, replicationFactor) + 0.3 * Math.max(0, citationFactor),
+      );
+  }
+}
+
+export function consensusFor(
+  targetId: string,
+  scheme: WeightingScheme = "composite",
+): ConsensusResult | null {
+  const all = loadFrontier();
+  const target = all.find((c) => c.finding.id === targetId)?.finding;
+  if (!target) return null;
+  const targetEntities = entitySet(target);
+  const targetWords = tokenSet(target.assertion?.text ?? "");
+  const targetType = target.assertion?.type ?? "";
+
+  const candidates: Finding[] = [];
+  for (const c of all) {
+    const f = c.finding;
+    if (f.id === targetId) {
+      candidates.push(f);
+      continue;
+    }
+    if (isSimilar(f, targetEntities, targetWords, targetType)) {
+      candidates.push(f);
+    }
+  }
+
+  const constituents: ConsensusConstituent[] = candidates.map((f) => {
+    const t = replicationTallies(f.id);
+    const raw_score = f.confidence?.score ?? 0;
+    const adjusted_score = adjustScore(raw_score, t.replicated, t.failed, !!f.flags?.contested);
+    const weight = computeWeight(scheme, f, t.replicated, t.failed);
+    return {
+      finding_id: f.id,
+      assertion_text: f.assertion?.text ?? "",
+      raw_score,
+      adjusted_score,
+      weight,
+      n_replications: t.total,
+      n_replicated: t.replicated,
+      n_failed_replications: t.failed,
+    };
+  });
+
+  const totalWeight = constituents.reduce((s, c) => s + c.weight, 0);
+  const consensus =
+    totalWeight > 0
+      ? constituents.reduce((s, c) => s + c.adjusted_score * c.weight, 0) / totalWeight
+      : constituents.length > 0
+        ? constituents.reduce((s, c) => s + c.adjusted_score, 0) / constituents.length
+        : 0;
+
+  let lo = consensus;
+  let hi = consensus;
+  if (constituents.length > 0 && totalWeight > 0) {
+    const variance =
+      constituents.reduce((s, c) => s + c.weight * Math.pow(c.adjusted_score - consensus, 2), 0) /
+      totalWeight;
+    const sd = Math.sqrt(variance);
+    lo = Math.max(0, consensus - 1.96 * sd);
+    hi = Math.min(1, consensus + 1.96 * sd);
+  }
+
+  return {
+    target: target.id,
+    target_assertion: target.assertion?.text ?? "",
+    n_findings: constituents.length,
+    consensus_confidence: Math.round(consensus * 1000) / 1000,
+    credible_interval_lo: Math.round(lo * 1000) / 1000,
+    credible_interval_hi: Math.round(hi * 1000) / 1000,
+    constituents,
+    weighting: scheme,
+  };
+}
+
 // ── Aggregations used by pages ──────────────────────────────────────
 
 export function findBySlug(slug: string): ClaimView | undefined {
