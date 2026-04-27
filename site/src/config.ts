@@ -9,7 +9,13 @@
 export const SITE_URL = "https://vela-site.fly.dev";
 export const HUB_URL = "https://vela-hub.fly.dev";
 export const WORKBENCH_URL = "https://vela-workbench.fly.dev";
-export const REPO_URL = "https://github.com/vela-science/vela";
+// v0.34.1: substrate source moved private. The public mirror at
+// `vela-science/vela-frontiers` carries the locator-bound published
+// artifacts (frontier JSONs, VelaBench gold + scored results) so
+// `vela registry pull` continues to verify against a public URL.
+// `REPO_URL` points at the public artifact mirror; the substrate
+// source is private until it reaches a public-ready state.
+export const REPO_URL = "https://github.com/vela-science/vela-frontiers";
 export const ARCHIVE_URL = "https://github.com/willblair0708/vela-archive";
 
 // Borrowed Light is the long-form essay this substrate exists to make
@@ -19,7 +25,8 @@ export const ARCHIVE_URL = "https://github.com/willblair0708/vela-archive";
 export const BORROWED_LIGHT_URL = "https://borrowedlight.org";
 
 // Raw-content base used by `network_locator` fields and CI workflows.
-export const REPO_RAW_BASE = "https://raw.githubusercontent.com/vela-science/vela/main";
+// v0.34.1: pinned to the public mirror.
+export const REPO_RAW_BASE = "https://raw.githubusercontent.com/vela-science/vela-frontiers/main";
 
 // Public BBB frontier metadata. The `vfr_id` is intentionally absent
 // here — it is content-addressed and changes with content, so we
@@ -49,4 +56,4 @@ export const FRONTIER = {
   manifestFile: "alzheimers-therapeutics.json",
 };
 
-export const VERSION = "0.34.0";
+export const VERSION = "0.34.1";

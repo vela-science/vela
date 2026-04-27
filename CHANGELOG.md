@@ -1,5 +1,92 @@
 # Changelog
 
+## 0.34.1 - 2026-04-27
+
+**Repo migration**: substrate source moved private; published artifacts
+mirror to a separate public repo so `vela registry pull` continues to
+verify against a public URL.
+
+### Why
+
+The Vela substrate is in active kernel-completeness development
+(v0.32–v0.35 arc). It is not yet ready for the implicit social
+contract that comes with a public source repo — stable APIs,
+issue triage, presentable READMEs, named-and-documented behavior.
+At the same time, the v0.30 hub publish set a `network_locator`
+pointing at `raw.githubusercontent.com/vela-science/vela/...` —
+making the source repo private without changing the locator would
+break `vela registry pull` for anyone (including Will's own
+scripts) holding a saved hub entry.
+
+The migration resolves the tension cleanly: substrate source
+goes private; only the locator-bound published artifacts mirror
+to `vela-science/vela-frontiers`.
+
+### What moved
+
+New public repo: **`vela-science/vela-frontiers`**. Contains:
+- `frontiers/alzheimers-therapeutics.json` (vfr_bd912b3e29e334ab,
+  86 signed claims) — the canonical frontier the v0.30 hub publish
+  pointed at.
+- `frontiers/bbb-alzheimer.json`, `bbb-extension.json`,
+  `will-alzheimer-landscape.json` — historical published frontiers.
+- `benchmarks/leaderboard.json`, `benchmarks/gold-alzheimers.json`,
+  `benchmarks/results/*.json` — VelaBench manifest + canonical gold
+  + scored baselines, kept reachable for anyone reproducing the
+  bench.
+- `README.md` declaring scope: public mirror exists for
+  locator-pull-integrity; substrate source lives privately.
+
+What stays private (in `vela-science/vela`):
+- `crates/*` (substrate source: protocol, cli, scientist, hub).
+- `site/src/*` (the deployed `vela-site.fly.dev` source).
+- `projects/bbb-flagship/.vela/*` (active development state for the
+  canonical frontier — findings, replications, datasets, code
+  artifacts, predictions, resolutions, proposals, events).
+- `scripts/*`, `docs/*`, `Cargo.*`, `CHANGELOG.md`.
+
+### Hub re-publish
+
+Re-published `vfr_bd912b3e29e334ab` to `vela-hub.fly.dev` with
+`network_locator =
+https://raw.githubusercontent.com/vela-science/vela-frontiers/main/frontiers/alzheimers-therapeutics.json`.
+
+The frontier file content is byte-identical (same snapshot hash
+`1c5e2d43c5cfe68d39…`); only the locator URL differs.
+End-to-end verification:
+```
+$ vela registry pull vfr_bd912b3e29e334ab --from https://vela-hub.fly.dev/entries
+· registry pulled vfr_bd912b3e29e334ab → /tmp/pulled-via-mirror.json
+  verified snapshot+event_log hashes match registry; signature ok
+```
+
+### Site config
+
+- `REPO_URL` now points at `vela-science/vela-frontiers` (the
+  public mirror).
+- `REPO_RAW_BASE` updated to match.
+- The site's "github" link in the masthead aside now resolves to
+  the artifact mirror — the right thing to show a public visitor
+  while the substrate source is private.
+
+### Code artifact records (`vc_*`) note
+
+The three `vc_*` records seeded in v0.33 still carry
+`repo_url: https://github.com/vela-science/vela` + `git_commit:
+ea0a1a4`. Those URLs return 404 to public visitors after the
+visibility flip; the content_hash on each record remains the
+integrity anchor. When the substrate source goes public again,
+the URLs resolve. The records aren't rewritten because doing so
+would change their content-addressed `vc_<id>` and break the
+event chain.
+
+### Hand-off
+
+The technical migration is done in this commit: site config
+updated, hub re-published, public mirror in place, end-to-end
+pull verified. The visibility flip on `vela-science/vela`
+happens in GitHub's repo settings — that's the user's last step.
+
 ## 0.34.0 - 2026-04-27
 
 **Predictions and resolutions** — the kernel's epistemic accountability
