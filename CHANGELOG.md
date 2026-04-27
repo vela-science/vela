@@ -1,5 +1,112 @@
 # Changelog
 
+## 0.32.0 - 2026-04-27
+
+**Replication as a first-class kernel object** (`vrep_<hash>`). The
+first move in the v0.32–0.35 kernel-completeness arc: science is made
+of replications, not flags-on-findings.
+
+Before today, replication was encoded on every finding as
+`Evidence.replicated: bool` + `Evidence.replication_count: u32`. The
+substrate could not represent "lab A replicated this in human iPSC;
+lab B failed to replicate in mouse OPCs" — those are distinct
+epistemic facts that flatten into a count. This release makes
+each replication a content-addressed kernel object with its own
+attempting actor, conditions, evidence, provenance, outcome, and
+chain-of-prior-attempts.
+
+### Substrate
+
+- New `bundle::Replication` struct (`crates/vela-protocol/src/bundle.rs`):
+  `id` (`vrep_<16hex>`), `target_finding` (`vf_<id>`), `attempted_by`,
+  `outcome`, `evidence`, `conditions`, `provenance`, `notes`,
+  `previous_attempt`. Content-address formula:
+  `SHA256(target | attempted_by | normalize(conditions.text) | outcome)`.
+- New `VALID_REPLICATION_OUTCOMES` allow-list:
+  `replicated · failed · partial · inconclusive`.
+- `FindingBundle::normalize_text` is now `pub` so `Replication`
+  reuses the same canonical preimage rule as `vf_*` ids.
+- `Project.replications: Vec<Replication>` (`project.rs`). All call
+  sites that build a `Project` from scratch (`reducer.rs`, `serve.rs`,
+  `lint.rs`, `cli.rs`, `sign.rs`) initialize the new field. Old
+  frontier files load unchanged — the field is `#[serde(default)]`
+  with `skip_serializing_if = "Vec::is_empty"`.
+- `repo.rs` reads + writes `.vela/replications/<vrep_id>.json` next to
+  `.vela/findings/`. Same one-file-per-record pattern as findings.
+
+### CLI
+
+- `vela replicate <FRONTIER> <vf_id> --outcome ... --by ... --conditions ...`
+  appends a replication attempt and persists it. Validates the outcome
+  against the allow-list, refuses to write if the target finding isn't
+  in the frontier, idempotent on duplicate vrep ids.
+- `vela replications <FRONTIER> [--target vf_id]` lists replications,
+  with outcome-color chips in human output and structured JSON via
+  `--json`.
+- Both added to `SCIENCE_SUBCOMMANDS` so they pass the strict v0
+  release-command gate.
+
+### Site
+
+- `site/src/lib/frontier.ts`: new `loadReplications`,
+  `replicationsForFinding`, `replicationStats` helpers. Build-time
+  read of `projects/bbb-flagship/.vela/replications/*.json`.
+- `site/src/pages/claims/[slug].astro`: new "Replications" panel
+  rendering each `vrep_*` record with an outcome chip
+  (replicated=ok, failed=ember, partial=warn, inconclusive=stale),
+  attempting actor, conditions text, reviewer note, and source
+  citation (DOI / PubMed linkified).
+- `site/src/pages/index.astro`: instrument bar grew from four cells
+  to five — `claims · papers · contradictions · replications · last
+  signed`. The number is the kernel-level count, not a flag derived
+  from findings.
+
+### Seeded data
+
+Three real replication records on the canonical Alzheimer's
+Therapeutics frontier:
+- `vrep_83d7efaaf0b977d5` — ATV:TREM2 proliferation, replicated in
+  independent human iPSC cohort.
+- `vrep_930b01fd790c2fca` — amyloid-cognition decoupling, replicated
+  in n=412 cross-sectional imaging cohort.
+- `vrep_0b60abed760c048a` — lecanemab Clarity AD efficacy, partial
+  outcome (primary CDR-SB endpoint replicates; one prespecified
+  secondary did not reach significance).
+
+These exercise all three non-trivial outcome kinds (replicated,
+partial) and seed the visible chain on three drug-target areas
+(TREM2, Aβ paradox, lecanemab).
+
+### Verification
+
+- `vela check projects/bbb-flagship` — 86/86 valid, exit 0.
+- `cargo test --workspace --release` — 384 / 384 pass (no regressions).
+- `vela replications projects/bbb-flagship` lists the three seeded
+  records, outcomes color-coded.
+- Site build clean (116 pages); homepage renders the 5-cell
+  instrument bar; `/claims/<slug>` for the seeded targets renders
+  the new Replications panel with proper outcome chip color.
+
+### Deferred to v0.32.1+
+
+The kernel object lands here. Layered on top in subsequent v0.32.x
+releases:
+- `replication.claimed` / `replication.validated` / `replication.failed`
+  event kinds (today the persistence is direct).
+- `replication.add` proposal kind so agents can propose replications
+  through the standard review queue.
+- `propagate.rs` extension: failed replication drops downstream
+  confidence; successful replication in different conditions raises it.
+- `benchmark.rs` extension: VelaBench composite gains a
+  `replication_evidence_score` weighted at 0.10.
+- A "replication scout" extension to the Literature Scout agent that
+  recognizes replication papers and emits `replication.add` proposals.
+
+These are the propagation + agent + bench cascades that v0.32 unlocks
+but doesn't ship in the same release. The roadmap document at
+`~/.claude/plans/noble-floating-willow.md` describes the full
+v0.32–v0.35 arc.
+
 ## 0.31.0 - 2026-04-27
 
 **VelaBench v0.31 — public agent leaderboard at `/bench`.**

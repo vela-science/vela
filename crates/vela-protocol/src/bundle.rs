@@ -206,6 +206,127 @@ pub struct Evidence {
     pub evidence_spans: Vec<serde_json::Value>,
 }
 
+/// Valid replication outcomes per v0.32 schema.
+///
+/// `replicated`: an independent attempt reproduced the finding within the
+/// stated conditions. `failed`: the attempt did not reproduce. `partial`:
+/// some conditions matched, others didn't (e.g., effect size present but
+/// smaller). `inconclusive`: methodology ambiguity prevents a clean
+/// outcome judgment.
+pub const VALID_REPLICATION_OUTCOMES: &[&str] = &[
+    "replicated",
+    "failed",
+    "partial",
+    "inconclusive",
+];
+
+/// v0.32: Replication as a first-class kernel object.
+///
+/// Before v0.32, replication was encoded as `Evidence.replicated: bool`
+/// + `Evidence.replication_count: u32` — a scalar property on the
+/// finding. The kernel could not represent "lab A replicated this in
+/// human iPSC; lab B failed to replicate in mouse OPCs" — those are
+/// distinct epistemic facts, not a single count.
+///
+/// Each `Replication` is content-addressed (`vrep_<16hex>`) over its
+/// target finding, the actor that attempted it, the canonical
+/// conditions, and the outcome. This mirrors the `vf_<id>` pattern and
+/// makes replication chains queryable, citeable, and propagable through
+/// the link graph.
+///
+/// The legacy `Evidence.replicated` and `Evidence.replication_count`
+/// fields are preserved for backward compatibility; v0.32+ frontiers
+/// derive them from the structured collection on load.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Replication {
+    /// `vrep_<16hex>`, content-addressed; see `Replication::content_address`.
+    pub id: String,
+    /// `vf_<id>` of the finding being replicated.
+    pub target_finding: String,
+    /// Stable actor id of the lab / curator / agent that attempted the
+    /// replication. Same shape as `FindingBundle.actor` references.
+    pub attempted_by: String,
+    /// One of `replicated`, `failed`, `partial`, `inconclusive`.
+    /// Stored as a string for forward-compat with future outcome
+    /// taxonomies; validated against `VALID_REPLICATION_OUTCOMES`.
+    pub outcome: String,
+    /// Evidence collected from the replication attempt. Reuses the
+    /// existing `Evidence` shape so confidence math stays consistent.
+    pub evidence: Evidence,
+    /// Conditions under which the replication was attempted (model
+    /// system, species, in_vivo/vitro, etc.). The conditions field is
+    /// what makes "replicated in mouse but failed in human" a
+    /// representable fact.
+    pub conditions: Conditions,
+    /// Provenance of the replicating paper / preprint / lab notebook.
+    pub provenance: Provenance,
+    /// Free-text reviewer note. Often the most important field for
+    /// partial / inconclusive outcomes.
+    #[serde(default)]
+    pub notes: String,
+    /// Original creation timestamp (RFC 3339).
+    pub created: String,
+    /// If this attempt extends or refines a previous one, the
+    /// `vrep_<id>` of that earlier attempt. Allows replication chains
+    /// (lab A → lab B refines → lab C generalizes).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub previous_attempt: Option<String>,
+}
+
+impl Replication {
+    /// Compute the content-addressed ID per v0.32 spec:
+    /// `SHA-256(target_finding | attempted_by | normalize(conditions.text) | outcome)`.
+    /// Returns first 16 hex chars prefixed with "vrep_".
+    ///
+    /// `conditions.text` is normalized by the same lower/whitespace/punct
+    /// rules as `FindingBundle::normalize_text` so two replications with
+    /// trivially-different condition prose produce the same id only when
+    /// the substantive conditions match.
+    pub fn content_address(
+        target_finding: &str,
+        attempted_by: &str,
+        conditions: &Conditions,
+        outcome: &str,
+    ) -> String {
+        let norm_conditions = FindingBundle::normalize_text(&conditions.text);
+        let preimage = format!(
+            "{}|{}|{}|{}",
+            target_finding, attempted_by, norm_conditions, outcome
+        );
+        let hash = Sha256::digest(preimage.as_bytes());
+        format!("vrep_{}", &hex::encode(hash)[..16])
+    }
+
+    /// Construct a new Replication with a freshly-derived id and
+    /// `created` timestamp set to now.
+    pub fn new(
+        target_finding: impl Into<String>,
+        attempted_by: impl Into<String>,
+        outcome: impl Into<String>,
+        evidence: Evidence,
+        conditions: Conditions,
+        provenance: Provenance,
+        notes: impl Into<String>,
+    ) -> Self {
+        let target = target_finding.into();
+        let actor = attempted_by.into();
+        let oc = outcome.into();
+        let id = Self::content_address(&target, &actor, &conditions, &oc);
+        Self {
+            id,
+            target_finding: target,
+            attempted_by: actor,
+            outcome: oc,
+            evidence,
+            conditions,
+            provenance,
+            notes: notes.into(),
+            created: Utc::now().to_rfc3339(),
+            previous_attempt: None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Conditions {
     #[serde(default)]
@@ -959,7 +1080,9 @@ impl FindingBundle {
     /// Create a new finding bundle with a content-addressed ID.
     /// Normalize text for content-addressing: lowercase, collapse whitespace,
     /// strip trailing punctuation. Matches the v0.2.0 schema specification.
-    fn normalize_text(s: &str) -> String {
+    /// Public since v0.32 so `Replication::content_address` can reuse the
+    /// same canonicalization rule for its conditions preimage.
+    pub fn normalize_text(s: &str) -> String {
         let lower = s.to_lowercase();
         // Collapse all runs of whitespace into a single space
         let collapsed: String = lower.split_whitespace().collect::<Vec<_>>().join(" ");

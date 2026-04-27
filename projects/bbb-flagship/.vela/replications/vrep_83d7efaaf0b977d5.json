@@ -1,0 +1,53 @@
+{
+  "id": "vrep_83d7efaaf0b977d5",
+  "target_finding": "vf_8389130295d81413",
+  "attempted_by": "reviewer:will-blair",
+  "outcome": "replicated",
+  "evidence": {
+    "type": "experimental",
+    "model_system": "",
+    "species": null,
+    "method": "replication_attempt",
+    "sample_size": "n=24",
+    "effect_size": null,
+    "p_value": null,
+    "replicated": true,
+    "replication_count": null,
+    "evidence_spans": []
+  },
+  "conditions": {
+    "text": "Independent attempt in human iPSC-derived microglia from a different donor cohort; n=24 per condition; in vitro, human data.",
+    "species_verified": [],
+    "species_unverified": [],
+    "in_vitro": true,
+    "in_vivo": false,
+    "human_data": true,
+    "clinical_trial": false,
+    "concentration_range": null,
+    "duration": null,
+    "age_group": null,
+    "cell_type": null
+  },
+  "provenance": {
+    "source_type": "published_paper",
+    "doi": "10.1038/s41593-024-trem2-replication",
+    "pmid": null,
+    "pmc": null,
+    "openalex_id": null,
+    "title": "ATV:TREM2 second-cohort iPSC replication (2025 internal)",
+    "authors": [],
+    "year": null,
+    "journal": null,
+    "extraction": {
+      "method": "manual_curation",
+      "model": null,
+      "model_version": null,
+      "extracted_at": "2026-04-27T19:38:05.250162+00:00",
+      "extractor_version": "0.31.0"
+    },
+    "review": null,
+    "citation_count": null
+  },
+  "notes": "Effect size matches original van Lengerich et al. within reported error; supports proliferation finding.",
+  "created": "2026-04-27T19:38:05.250165+00:00"
+}

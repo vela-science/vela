@@ -20,6 +20,7 @@ import {
   frontierStats,
   contradictions,
   activeWeeks,
+  replicationStats,
   TARGETS,
   type ClaimView,
 } from "../lib/frontier";
@@ -28,6 +29,7 @@ import { FRONTIER, REPO_URL, HUB_URL, VERSION } from "../config";
 const claims = loadFrontier();
 const stats = frontierStats();
 const tensionList = contradictions();
+const repStats = replicationStats();
 
 /* Above-the-fold: featured claims, sorted by confidence so the
    strongest signals lead. Cap at 12 so the page stays scannable. */
@@ -85,6 +87,10 @@ const lastUpdated = stats.lastUpdated
     <div class="frontier-readout__stat">
       <span class="frontier-readout__num">{stats.contradictions}</span>
       <span class="frontier-readout__label">contradictions</span>
+    </div>
+    <div class="frontier-readout__stat">
+      <span class="frontier-readout__num">{repStats.total}</span>
+      <span class="frontier-readout__label">replications</span>
     </div>
     <div class="frontier-readout__stat">
       <span class="frontier-readout__num frontier-readout__num--small">{lastUpdated}</span>
@@ -238,10 +244,12 @@ const lastUpdated = stats.lastUpdated
   }
   .inline-link:hover { color: var(--ink-0); }
 
-  /* ── Frontier readout — the four numbers under the masthead ── */
+  /* ── Frontier readout — instrument bar under the masthead ──
+     v0.32 added the replications cell so the bar shows five numbers
+     on desktop. On narrow viewports the grid wraps to 2x3 + tail. */
   .frontier-readout {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(5, 1fr);
     gap: 0;
     border-top: 1px solid var(--rule-2);
     border-bottom: 1px solid var(--rule-2);

@@ -812,6 +812,7 @@ mod tests {
             proof_state: Default::default(),
             signatures: vec![],
             actors: Vec::new(),
+            replications: Vec::new(),
         }
     }
 

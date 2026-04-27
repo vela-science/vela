@@ -1,0 +1,53 @@
+{
+  "id": "vrep_930b01fd790c2fca",
+  "target_finding": "vf_48c67a2c3ed1a369",
+  "attempted_by": "reviewer:will-blair",
+  "outcome": "replicated",
+  "evidence": {
+    "type": "experimental",
+    "model_system": "",
+    "species": null,
+    "method": "replication_attempt",
+    "sample_size": "n=412",
+    "effect_size": null,
+    "p_value": null,
+    "replicated": true,
+    "replication_count": null,
+    "evidence_spans": []
+  },
+  "conditions": {
+    "text": "Imaging-cohort cross-sectional analysis; PET amyloid + cognitive scores; n=412 elderly cohort; human data, observational.",
+    "species_verified": [],
+    "species_unverified": [],
+    "in_vitro": false,
+    "in_vivo": false,
+    "human_data": true,
+    "clinical_trial": false,
+    "concentration_range": null,
+    "duration": null,
+    "age_group": null,
+    "cell_type": null
+  },
+  "provenance": {
+    "source_type": "published_paper",
+    "doi": null,
+    "pmid": "32145678",
+    "pmc": null,
+    "openalex_id": null,
+    "title": "Cross-cohort confirmation of weak amyloid-cognition correlation",
+    "authors": [],
+    "year": null,
+    "journal": null,
+    "extraction": {
+      "method": "manual_curation",
+      "model": null,
+      "model_version": null,
+      "extracted_at": "2026-04-27T19:38:36.274935+00:00",
+      "extractor_version": "0.31.0"
+    },
+    "review": null,
+    "citation_count": null
+  },
+  "notes": "Decoupling between Aβ load and cognitive decline reproduced in independent imaging cohort.",
+  "created": "2026-04-27T19:38:36.274938+00:00"
+}

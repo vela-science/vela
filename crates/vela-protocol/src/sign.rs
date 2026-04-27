@@ -739,6 +739,7 @@ mod tests {
             proof_state: Default::default(),
             signatures: vec![env1],
             actors: vec![],
+            replications: vec![],
         };
 
         let report = verify_frontier_data(&frontier, None).unwrap();

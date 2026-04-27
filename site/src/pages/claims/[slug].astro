@@ -15,6 +15,7 @@ import {
   loadFrontier,
   shortCitation,
   doiUrl,
+  replicationsForFinding,
   TARGETS,
   TRIALS,
   type ClaimView,
@@ -39,6 +40,7 @@ const targetDefs = TARGETS.filter((t) => claim.targets.includes(t.slug));
 const trialDefs = TRIALS.filter((t) => claim.trials.includes(t.slug));
 
 const evidenceSpan = f.evidence.evidence_spans?.[0]?.text || null;
+const replications = replicationsForFinding(f.id);
 const isContradiction =
   f.flags.contested || f.assertion.type === "tension";
 
@@ -141,6 +143,54 @@ const created = new Date(f.created).toISOString().slice(0, 10);
         <section class="claim-section">
           <h2 class="claim-section__title">Confidence basis</h2>
           <p class="claim-mono">{f.confidence.basis}</p>
+        </section>
+      )}
+
+      {replications.length > 0 && (
+        <section class="claim-section">
+          <h2 class="claim-section__title">Replications · {replications.length}</h2>
+          <p class="claim-replications__intro">
+            Independent attempts to reproduce this claim. Each is a content-addressed
+            <code>vrep_</code> record signed into the frontier; outcomes are not summary
+            statistics but distinct epistemic facts about who tried, in what conditions,
+            with what result.
+          </p>
+          <ul class="claim-replications">
+            {replications.map((r) => (
+              <li class={`claim-replication claim-replication--${r.outcome}`}>
+                <div class="claim-replication__head">
+                  <span class={`claim-replication__chip claim-replication__chip--${r.outcome}`}>
+                    {r.outcome}
+                  </span>
+                  <span class="claim-replication__by">{r.attempted_by}</span>
+                  <span class="claim-replication__id">{r.id}</span>
+                </div>
+                {r.conditions?.text && (
+                  <p class="claim-replication__conditions">{r.conditions.text}</p>
+                )}
+                {r.notes && (
+                  <p class="claim-replication__notes">{r.notes}</p>
+                )}
+                {r.provenance?.title && (
+                  <p class="claim-replication__source">
+                    {(r.provenance.doi || r.provenance.pmid) ? (
+                      <a
+                        class="inline-link"
+                        href={r.provenance.doi
+                          ? `https://doi.org/${r.provenance.doi}`
+                          : `https://pubmed.ncbi.nlm.nih.gov/${r.provenance.pmid}/`}
+                        rel="noopener"
+                      >
+                        {r.provenance.title}
+                      </a>
+                    ) : (
+                      <span>{r.provenance.title}</span>
+                    )}
+                  </p>
+                )}
+              </li>
+            ))}
+          </ul>
         </section>
       )}
 
@@ -388,6 +438,106 @@ const created = new Date(f.created).toISOString().slice(0, 10);
     margin: 0;
     padding: 0;
   }
+  /* ── Replications panel (v0.32) ──
+     Each replication is a kernel-level vrep_<hash> record, not a flag
+     on the parent claim. Outcomes get distinct color treatment so the
+     reader sees the epistemic shape of the chain (succeeded /
+     contested / partial) at a glance. */
+  .claim-replications__intro {
+    font-family: var(--font-serif);
+    font-size: 14px;
+    line-height: 1.55;
+    color: var(--ink-3);
+    margin: 0 0 var(--space-3);
+    max-width: 64ch;
+  }
+  .claim-replications__intro code {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    background: var(--paper-1);
+    padding: 0 4px;
+    border: 1px solid var(--rule-1);
+  }
+  .claim-replications {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border-top: 1px solid var(--rule-2);
+  }
+  .claim-replication {
+    padding: var(--space-3) 0;
+    border-bottom: 1px solid var(--rule-1);
+  }
+  .claim-replication__head {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-3);
+    margin-bottom: 6px;
+    flex-wrap: wrap;
+  }
+  .claim-replication__chip {
+    display: inline-block;
+    padding: 2px 8px;
+    border: 1px solid var(--rule-2);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: var(--track-label);
+    text-transform: uppercase;
+    color: var(--ink-2);
+    background: var(--paper-1);
+  }
+  .claim-replication__chip--replicated {
+    color: var(--state-ok);
+    border-color: color-mix(in oklab, var(--state-ok) 40%, transparent);
+  }
+  .claim-replication__chip--failed {
+    color: var(--vela-ember-red);
+    border-color: color-mix(in oklab, var(--vela-ember-red) 40%, transparent);
+  }
+  .claim-replication__chip--partial {
+    color: var(--state-warn);
+    border-color: color-mix(in oklab, var(--state-warn) 40%, transparent);
+  }
+  .claim-replication__chip--inconclusive {
+    color: var(--state-stale);
+    border-color: color-mix(in oklab, var(--state-stale) 40%, transparent);
+  }
+  .claim-replication__by {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--ink-3);
+  }
+  .claim-replication__id {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--ink-4);
+    margin-left: auto;
+  }
+  .claim-replication__conditions {
+    font-family: var(--font-serif);
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--ink-1);
+    margin: 0 0 4px;
+    max-width: 64ch;
+  }
+  .claim-replication__notes {
+    font-family: var(--font-serif);
+    font-style: italic;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--ink-2);
+    margin: 0 0 4px;
+    max-width: 64ch;
+  }
+  .claim-replication__source {
+    font-family: var(--font-serif);
+    font-style: italic;
+    font-size: 13px;
+    color: var(--ink-3);
+    margin: 0;
+  }
+
   .claim-annotation {
     border-top: 1px solid var(--rule-2);
     padding: var(--space-3) 0;

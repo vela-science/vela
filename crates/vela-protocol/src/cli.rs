@@ -19,7 +19,7 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 
 #[derive(Parser)]
-#[command(name = "vela", version = "0.31.0")]
+#[command(name = "vela", version = "0.32.0")]
 #[command(about = "Portable frontier state for science")]
 struct Cli {
     #[command(subcommand)]
@@ -700,6 +700,65 @@ enum Commands {
         to: Option<f64>,
         #[arg(short, long)]
         output: Option<PathBuf>,
+    },
+    /// v0.32: Record an independent replication attempt against a
+    /// canonical finding. Each attempt becomes a `vrep_<hash>` object
+    /// in `.vela/replications/`, content-addressed by target +
+    /// attempting actor + canonical conditions + outcome. Replication
+    /// is the empirical bedrock of science; making it kernel-level
+    /// means downstream tools (site, bench, agents) can reason about
+    /// "this lab tried in human iPSC, that lab failed in mouse OPCs"
+    /// as distinct epistemic facts.
+    Replicate {
+        /// Path to the frontier (project dir, `.vela/` repo, or `.json`).
+        frontier: PathBuf,
+        /// Target finding id (`vf_<hash>`) being replicated.
+        target: String,
+        /// Outcome label: `replicated` | `failed` | `partial` | `inconclusive`.
+        #[arg(long)]
+        outcome: String,
+        /// Stable actor id of the lab/curator/agent attempting.
+        #[arg(long)]
+        by: String,
+        /// One-paragraph description of conditions (model system,
+        /// species, sample size, in_vivo / in_vitro / human_data).
+        /// Goes into the content-address preimage.
+        #[arg(long)]
+        conditions: String,
+        /// Source paper title for the replicating work.
+        #[arg(long)]
+        source_title: String,
+        /// Optional DOI for the replicating paper.
+        #[arg(long)]
+        doi: Option<String>,
+        /// Optional PMID for the replicating paper.
+        #[arg(long)]
+        pmid: Option<String>,
+        /// Sample size description (e.g. "n=42").
+        #[arg(long)]
+        sample_size: Option<String>,
+        /// Free-text reviewer note. Especially important for
+        /// `partial` and `inconclusive` outcomes.
+        #[arg(long, default_value = "")]
+        note: String,
+        /// `vrep_<id>` of a previous attempt this one extends/refines.
+        #[arg(long)]
+        previous_attempt: Option<String>,
+        /// Emit JSON to stdout.
+        #[arg(long)]
+        json: bool,
+    },
+    /// v0.32: List replication attempts in a frontier, optionally
+    /// filtered by target finding id.
+    Replications {
+        /// Path to the frontier (project dir, `.vela/` repo, or `.json`).
+        frontier: PathBuf,
+        /// Optional target finding id to filter by.
+        #[arg(long)]
+        target: Option<String>,
+        /// Emit JSON to stdout.
+        #[arg(long)]
+        json: bool,
     },
 }
 
@@ -1666,7 +1725,7 @@ pub async fn run_command() {
         Commands::Conformance { dir } => {
             let _ = conformance::run(&dir);
         }
-        Commands::Version => println!("vela 0.31.0"),
+        Commands::Version => println!("vela 0.32.0"),
         Commands::Sign { action } => cmd_sign(action),
         Commands::Actor { action } => cmd_actor(action),
         Commands::Frontier { action } => cmd_frontier(action),
@@ -2017,6 +2076,276 @@ pub async fn run_command() {
             to,
             output,
         } => cmd_propagate(&frontier, retract, reduce_confidence, to, output.as_deref()),
+        Commands::Replicate {
+            frontier,
+            target,
+            outcome,
+            by,
+            conditions,
+            source_title,
+            doi,
+            pmid,
+            sample_size,
+            note,
+            previous_attempt,
+            json,
+        } => cmd_replicate(
+            &frontier,
+            &target,
+            &outcome,
+            &by,
+            &conditions,
+            &source_title,
+            doi.as_deref(),
+            pmid.as_deref(),
+            sample_size.as_deref(),
+            &note,
+            previous_attempt.as_deref(),
+            json,
+        ),
+        Commands::Replications {
+            frontier,
+            target,
+            json,
+        } => cmd_replications(&frontier, target.as_deref(), json),
+    }
+}
+
+/// v0.32: append a Replication attempt to a frontier.
+///
+/// Validates the outcome label, builds a `Replication` with a fresh
+/// content-addressed id, persists it, and prints either a structured
+/// JSON receipt or a human summary. Refuses to write if the target
+/// finding is not present in the frontier.
+fn cmd_replicate(
+    frontier: &Path,
+    target: &str,
+    outcome: &str,
+    attempted_by: &str,
+    conditions_text: &str,
+    source_title: &str,
+    doi: Option<&str>,
+    pmid: Option<&str>,
+    sample_size: Option<&str>,
+    note: &str,
+    previous_attempt: Option<&str>,
+    json: bool,
+) {
+    if !crate::bundle::VALID_REPLICATION_OUTCOMES.contains(&outcome) {
+        fail(&format!(
+            "invalid outcome '{outcome}'; valid: {:?}",
+            crate::bundle::VALID_REPLICATION_OUTCOMES
+        ));
+    }
+    if !target.starts_with("vf_") {
+        fail(&format!("target '{target}' is not a vf_ finding id"));
+    }
+
+    let mut project = repo::load_from_path(frontier).unwrap_or_else(|e| fail_return(&e));
+
+    if !project.findings.iter().any(|f| f.id == target) {
+        fail(&format!(
+            "target finding '{target}' not present in frontier '{}'",
+            frontier.display()
+        ));
+    }
+
+    // Build the conditions, evidence, provenance for the replication.
+    // Conditions text is what enters the content-address preimage; we
+    // also lift in_vivo/in_vitro/human_data flags from common keywords
+    // so confidence math behaves sensibly downstream.
+    let lower = conditions_text.to_lowercase();
+    let conditions = crate::bundle::Conditions {
+        text: conditions_text.to_string(),
+        species_verified: Vec::new(),
+        species_unverified: Vec::new(),
+        in_vitro: lower.contains("in vitro") || lower.contains("ipsc"),
+        in_vivo: lower.contains("in vivo") || lower.contains("mouse") || lower.contains("rat"),
+        human_data: lower.contains("human")
+            || lower.contains("clinical")
+            || lower.contains("patient"),
+        clinical_trial: lower.contains("clinical trial") || lower.contains("phase "),
+        concentration_range: None,
+        duration: None,
+        age_group: None,
+        cell_type: None,
+    };
+
+    let evidence = crate::bundle::Evidence {
+        evidence_type: "experimental".to_string(),
+        model_system: String::new(),
+        species: None,
+        method: "replication_attempt".to_string(),
+        sample_size: sample_size.map(|s| s.to_string()),
+        effect_size: None,
+        p_value: None,
+        replicated: outcome == "replicated",
+        replication_count: None,
+        evidence_spans: Vec::new(),
+    };
+
+    let provenance = crate::bundle::Provenance {
+        source_type: "published_paper".to_string(),
+        doi: doi.map(|s| s.to_string()),
+        pmid: pmid.map(|s| s.to_string()),
+        pmc: None,
+        openalex_id: None,
+        url: None,
+        title: source_title.to_string(),
+        authors: Vec::new(),
+        year: None,
+        journal: None,
+        license: None,
+        publisher: None,
+        funders: Vec::new(),
+        extraction: crate::bundle::Extraction {
+            method: "manual_curation".to_string(),
+            model: None,
+            model_version: None,
+            extracted_at: chrono::Utc::now().to_rfc3339(),
+            extractor_version: env!("CARGO_PKG_VERSION").to_string(),
+        },
+        review: None,
+        citation_count: None,
+    };
+
+    let mut rep = crate::bundle::Replication::new(
+        target.to_string(),
+        attempted_by.to_string(),
+        outcome.to_string(),
+        evidence,
+        conditions,
+        provenance,
+        note.to_string(),
+    );
+    rep.previous_attempt = previous_attempt.map(|s| s.to_string());
+
+    // Refuse to write if the same vrep_id already exists (idempotent
+    // re-runs are safe; conflicts surface here).
+    if project.replications.iter().any(|r| r.id == rep.id) {
+        if json {
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&json!({
+                    "ok": false,
+                    "command": "replicate",
+                    "reason": "replication_already_exists",
+                    "id": rep.id,
+                }))
+                .expect("serialize")
+            );
+        } else {
+            println!(
+                "{} replication {} already exists in {}; skipping.",
+                style::warn("replicate"),
+                rep.id,
+                frontier.display()
+            );
+        }
+        return;
+    }
+
+    let new_id = rep.id.clone();
+    project.replications.push(rep);
+    repo::save_to_path(frontier, &project).unwrap_or_else(|e| fail_return(&e));
+
+    if json {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&json!({
+                "ok": true,
+                "command": "replicate",
+                "id": new_id,
+                "target": target,
+                "outcome": outcome,
+                "attempted_by": attempted_by,
+                "frontier": frontier.display().to_string(),
+            }))
+            .expect("failed to serialize replicate result")
+        );
+    } else {
+        println!();
+        println!(
+            "  {}",
+            format!("VELA · REPLICATE · {}", new_id)
+                .to_uppercase()
+                .dimmed()
+        );
+        println!("  {}", style::tick_row(60));
+        println!("  target:        {target}");
+        println!("  outcome:       {outcome}");
+        println!("  attempted by:  {attempted_by}");
+        println!("  conditions:    {conditions_text}");
+        println!("  source:        {source_title}");
+        if let Some(d) = doi {
+            println!("  doi:           {d}");
+        }
+        println!();
+        println!(
+            "  {} replication recorded in {}",
+            style::ok("ok"),
+            frontier.display()
+        );
+    }
+}
+
+/// v0.32: list replications in a frontier, optionally filtered by target.
+fn cmd_replications(frontier: &Path, target: Option<&str>, json: bool) {
+    let project = repo::load_from_path(frontier).unwrap_or_else(|e| fail_return(&e));
+    let filtered: Vec<&crate::bundle::Replication> = project
+        .replications
+        .iter()
+        .filter(|r| target.is_none_or(|t| r.target_finding == t))
+        .collect();
+
+    if json {
+        let payload = json!({
+            "ok": true,
+            "command": "replications",
+            "frontier": frontier.display().to_string(),
+            "filter_target": target,
+            "count": filtered.len(),
+            "replications": filtered,
+        });
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&payload)
+                .expect("failed to serialize replications list")
+        );
+        return;
+    }
+
+    println!();
+    let header = match target {
+        Some(t) => format!("VELA · REPLICATIONS · {t}"),
+        None => format!("VELA · REPLICATIONS · {}", frontier.display()),
+    };
+    println!("  {}", header.to_uppercase().dimmed());
+    println!("  {}", style::tick_row(60));
+    if filtered.is_empty() {
+        println!("  (no replications recorded)");
+        return;
+    }
+    for rep in &filtered {
+        let outcome_chip = match rep.outcome.as_str() {
+            "replicated" => style::ok(&rep.outcome),
+            "failed" => style::lost(&rep.outcome),
+            "partial" => style::warn(&rep.outcome),
+            _ => rep.outcome.clone().normal().to_string(),
+        };
+        println!(
+            "  · {}  {}  by {}",
+            rep.id.dimmed(),
+            outcome_chip,
+            rep.attempted_by
+        );
+        println!("      target:     {}", rep.target_finding);
+        if !rep.conditions.text.is_empty() {
+            println!("      conditions: {}", truncate(&rep.conditions.text, 80));
+        }
+        if !rep.provenance.title.is_empty() {
+            println!("      source:     {}", truncate(&rep.provenance.title, 80));
+        }
     }
 }
 
@@ -3129,7 +3458,7 @@ fn cmd_stats(path: &Path) {
     let frontier = repo::load_from_path(path).expect("Failed to load frontier");
     let s = &frontier.stats;
     println!();
-    println!("  {}", "FRONTIER · V0.31.0".dimmed());
+    println!("  {}", "FRONTIER · V0.32.0".dimmed());
     println!("  {}", frontier.project.name.bold());
     println!("  {}", style::tick_row(60));
     println!("  id:             {}", frontier.frontier_id());
@@ -4135,6 +4464,7 @@ fn cmd_frontier(action: FrontierAction) {
                 proof_state: proposals::ProofState::default(),
                 signatures: Vec::new(),
                 actors: Vec::new(),
+                replications: Vec::new(),
             };
             repo::save_to_path(&path, &project).unwrap_or_else(|e| fail_return(&e));
             let payload = json!({
@@ -5385,7 +5715,7 @@ async fn cmd_bridge(inputs: &[PathBuf], check_novelty: bool, top_n: usize) {
         fail("need at least 2 frontier files for bridge detection.");
     }
     println!();
-    println!("  {}", "VELA · BRIDGE · V0.31.0".dimmed());
+    println!("  {}", "VELA · BRIDGE · V0.32.0".dimmed());
     println!("  {}", style::tick_row(60));
     println!("  loading {} frontiers...", inputs.len());
     let mut named_projects = Vec::<(String, project::Project)>::new();
@@ -6209,6 +6539,9 @@ const SCIENCE_SUBCOMMANDS: &[&str] = &[
     "import-events",
     "retract",
     "propagate",
+    // v0.32: replication as a first-class kernel object.
+    "replicate",
+    "replications",
 ];
 
 pub fn is_science_subcommand(name: &str) -> bool {
@@ -6217,7 +6550,7 @@ pub fn is_science_subcommand(name: &str) -> bool {
 
 fn print_strict_help() {
     println!(
-        r#"Vela 0.31.0
+        r#"Vela 0.32.0
 Portable frontier state for science.
 
 Usage:
@@ -6487,7 +6820,7 @@ pub fn run_from_args() {
             return;
         }
         Some("-V" | "--version" | "version") => {
-            println!("vela 0.31.0");
+            println!("vela 0.32.0");
             return;
         }
         Some(cmd) if !is_science_subcommand(cmd) => {

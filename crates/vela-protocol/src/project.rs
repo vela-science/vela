@@ -93,6 +93,17 @@ pub struct Project {
     /// `--strict` must carry a verifiable Ed25519 signature.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub actors: Vec<ActorRecord>,
+    /// v0.32: Replication attempts as first-class kernel objects. Each
+    /// `Replication` is content-addressed (`vrep_<hash>`) over its
+    /// target finding, attempting actor, conditions, and outcome. Replaces
+    /// the prior scalar pattern (`Evidence.replicated: bool` +
+    /// `Evidence.replication_count: u32`) which couldn't represent
+    /// independent attempts under different conditions. The legacy
+    /// scalar fields are preserved on `Evidence` for backward
+    /// compatibility; v0.32+ frontiers can derive them from this
+    /// collection.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub replications: Vec<crate::bundle::Replication>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -154,7 +165,7 @@ pub struct ConfidenceDistribution {
 /// Schema and compiler defaults for the current Vela protocol release.
 pub const VELA_SCHEMA_URL: &str = "https://vela.science/schema/finding-bundle/v0.10.0";
 pub const VELA_SCHEMA_VERSION: &str = "0.10.0";
-pub const VELA_COMPILER_VERSION: &str = "vela/0.31.0";
+pub const VELA_COMPILER_VERSION: &str = "vela/0.32.0";
 
 /// Derive a `vfr_<hash>` frontier ID from frontier metadata. Used as a
 /// fallback for legacy frontiers without a `frontier.created` genesis
@@ -282,6 +293,7 @@ pub fn assemble(
         proof_state: ProofState::default(),
         signatures: Vec::new(),
         actors: Vec::new(),
+        replications: Vec::new(),
     };
     crate::sources::materialize_project(&mut project);
     project

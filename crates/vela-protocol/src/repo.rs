@@ -487,6 +487,29 @@ fn load_vela_repo(dir: &Path) -> Result<Project, String> {
         ProofState::default()
     };
 
+    // v0.32: Read replications from `.vela/replications/`. Each file
+    // is a single Replication serialized as JSON, content-addressed
+    // by `vrep_<id>.json`. Same pattern as findings.
+    let replications_dir = dir.join(".vela/replications");
+    let mut replications: Vec<crate::bundle::Replication> = Vec::new();
+    if replications_dir.is_dir() {
+        let mut entries: Vec<PathBuf> = std::fs::read_dir(&replications_dir)
+            .map_err(|e| format!("Failed to read replications/: {e}"))?
+            .filter_map(|e| e.ok())
+            .map(|e| e.path())
+            .filter(|p| p.extension().is_some_and(|ext| ext == "json"))
+            .collect();
+        entries.sort();
+
+        for path in entries {
+            let data = std::fs::read_to_string(&path)
+                .map_err(|e| format!("Failed to read {}: {e}", path.display()))?;
+            let replication: crate::bundle::Replication = serde_json::from_str(&data)
+                .map_err(|e| format!("Failed to parse {}: {e}", path.display()))?;
+            replications.push(replication);
+        }
+    }
+
     // Assemble into Project using the project::assemble function for stats,
     // then patch metadata from config.
     let mut c = project::assemble(
@@ -502,6 +525,7 @@ fn load_vela_repo(dir: &Path) -> Result<Project, String> {
     c.events = events;
     c.proposals = proposals;
     c.proof_state = proof_state;
+    c.replications = replications;
     project::recompute_stats(&mut c);
 
     Ok(c)
@@ -533,9 +557,12 @@ fn save_vela_repo(dir: &Path, project: &Project) -> Result<(), String> {
     let findings_dir = vela_dir.join("findings");
     let events_dir = vela_dir.join("events");
     let proposals_dir = vela_dir.join("proposals");
+    // v0.32: structured replications live in their own directory;
+    // each `vrep_<id>.json` is a single Replication record.
+    let replications_dir = vela_dir.join("replications");
 
     // Create directories
-    for d in [&vela_dir, &findings_dir, &events_dir, &proposals_dir] {
+    for d in [&vela_dir, &findings_dir, &events_dir, &proposals_dir, &replications_dir] {
         std::fs::create_dir_all(d)
             .map_err(|e| format!("Failed to create directory {}: {e}", d.display()))?;
     }
@@ -584,6 +611,19 @@ fn save_vela_repo(dir: &Path, project: &Project) -> Result<(), String> {
         .map_err(|e| format!("Failed to serialize proof state: {e}"))?;
     std::fs::write(vela_dir.join("proof-state.json"), proof_state_json)
         .map_err(|e| format!("Failed to write proof-state.json: {e}"))?;
+
+    // v0.32: write replications as one file per `vrep_<id>.json`.
+    for replication in &project.replications {
+        let json = serde_json::to_string_pretty(replication).map_err(|e| {
+            format!(
+                "Failed to serialize replication {}: {e}",
+                replication.id
+            )
+        })?;
+        let filename = format!("{}.json", replication.id);
+        std::fs::write(replications_dir.join(&filename), json)
+            .map_err(|e| format!("Failed to write replication {}: {e}", filename))?;
+    }
 
     Ok(())
 }

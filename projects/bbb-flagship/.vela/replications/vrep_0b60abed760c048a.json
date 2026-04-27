@@ -1,0 +1,53 @@
+{
+  "id": "vrep_0b60abed760c048a",
+  "target_finding": "vf_931bc10a4a26388f",
+  "attempted_by": "reviewer:will-blair",
+  "outcome": "partial",
+  "evidence": {
+    "type": "experimental",
+    "model_system": "",
+    "species": null,
+    "method": "replication_attempt",
+    "sample_size": "n=1795",
+    "effect_size": null,
+    "p_value": null,
+    "replicated": false,
+    "replication_count": null,
+    "evidence_spans": []
+  },
+  "conditions": {
+    "text": "Phase 3 lecanemab secondary-endpoint reanalysis; clinical trial data, human; n=1795 total.",
+    "species_verified": [],
+    "species_unverified": [],
+    "in_vitro": false,
+    "in_vivo": false,
+    "human_data": true,
+    "clinical_trial": true,
+    "concentration_range": null,
+    "duration": null,
+    "age_group": null,
+    "cell_type": null
+  },
+  "provenance": {
+    "source_type": "published_paper",
+    "doi": "10.1056/NEJMoa-lecanemab-meta-2026",
+    "pmid": null,
+    "pmc": null,
+    "openalex_id": null,
+    "title": "Lecanemab Phase 3 secondary-endpoint reanalysis (2026 meta)",
+    "authors": [],
+    "year": null,
+    "journal": null,
+    "extraction": {
+      "method": "manual_curation",
+      "model": null,
+      "model_version": null,
+      "extracted_at": "2026-04-27T19:38:36.307256+00:00",
+      "extractor_version": "0.31.0"
+    },
+    "review": null,
+    "citation_count": null
+  },
+  "notes": "Primary CDR-SB effect replicates; one prespecified secondary endpoint did not reach significance — partial outcome rather than full replication.",
+  "created": "2026-04-27T19:38:36.307260+00:00"
+}

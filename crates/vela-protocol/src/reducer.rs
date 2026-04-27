@@ -94,6 +94,7 @@ pub fn replay_from_genesis(
         proof_state: crate::proposals::ProofState::default(),
         signatures: Vec::new(),
         actors: Vec::new(),
+        replications: Vec::new(),
     };
     crate::sources::materialize_project(&mut state);
     for event in events {

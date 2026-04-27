@@ -504,6 +504,76 @@ function deriveConfidenceBucket(score: number): "low" | "mid" | "high" {
   return "low";
 }
 
+// ── Replications (v0.32) ────────────────────────────────────────────
+//
+// Replications live next to findings under `.vela/replications/`. Each
+// `vrep_<hash>.json` is a single Replication record content-addressed
+// over its target finding, attempting actor, canonical conditions, and
+// outcome. The site loads them at build time and indexes by target.
+
+export interface Replication {
+  id: string;
+  target_finding: string;
+  attempted_by: string;
+  outcome: "replicated" | "failed" | "partial" | "inconclusive";
+  evidence: Evidence;
+  conditions: Conditions;
+  provenance: Provenance;
+  notes: string;
+  created: string;
+  previous_attempt?: string | null;
+}
+
+let _repCache: Replication[] | null = null;
+
+function replicationsDir(): string {
+  return join(repoRoot(), FRONTIER.repoPath, ".vela", "replications");
+}
+
+export function loadReplications(): Replication[] {
+  if (_repCache) return _repCache;
+  const dir = replicationsDir();
+  if (!existsSync(dir)) {
+    _repCache = [];
+    return _repCache;
+  }
+  const reps: Replication[] = [];
+  for (const file of readdirSync(dir).filter((f) => f.endsWith(".json"))) {
+    try {
+      const raw = readFileSync(join(dir, file), "utf8");
+      reps.push(JSON.parse(raw) as Replication);
+    } catch (err) {
+      console.warn(`[frontier] failed to parse replication ${file}:`, err);
+    }
+  }
+  reps.sort((a, b) => b.created.localeCompare(a.created));
+  _repCache = reps;
+  return _repCache;
+}
+
+export function replicationsForFinding(vfId: string): Replication[] {
+  return loadReplications().filter((r) => r.target_finding === vfId);
+}
+
+export interface ReplicationStats {
+  total: number;
+  replicated: number;
+  failed: number;
+  partial: number;
+  inconclusive: number;
+}
+
+export function replicationStats(): ReplicationStats {
+  const reps = loadReplications();
+  return {
+    total: reps.length,
+    replicated: reps.filter((r) => r.outcome === "replicated").length,
+    failed: reps.filter((r) => r.outcome === "failed").length,
+    partial: reps.filter((r) => r.outcome === "partial").length,
+    inconclusive: reps.filter((r) => r.outcome === "inconclusive").length,
+  };
+}
+
 // ── Aggregations used by pages ──────────────────────────────────────
 
 export function findBySlug(slug: string): ClaimView | undefined {
