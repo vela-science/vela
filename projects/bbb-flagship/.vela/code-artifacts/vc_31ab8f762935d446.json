@@ -1,0 +1,11 @@
+{
+  "id": "vc_31ab8f762935d446",
+  "language": "bash",
+  "repo_url": "https://github.com/vela-science/vela",
+  "git_commit": "ea0a1a4d9429cfff9c89bcebc4496659e8af2ad4",
+  "path": "scripts/weekly-diff.sh",
+  "line_range": null,
+  "content_hash": "6efc8c0b51f05748a0a49c4f92df213da76cd1f6a635db506c93cb591b075a65",
+  "entry_point": "main",
+  "created": "2026-04-27T19:53:22.300764+00:00"
+}

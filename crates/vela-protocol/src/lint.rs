@@ -813,6 +813,8 @@ mod tests {
             signatures: vec![],
             actors: Vec::new(),
             replications: Vec::new(),
+            datasets: Vec::new(),
+            code_artifacts: Vec::new(),
         }
     }
 

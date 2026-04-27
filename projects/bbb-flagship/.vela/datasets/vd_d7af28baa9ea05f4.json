@@ -1,0 +1,33 @@
+{
+  "id": "vd_d7af28baa9ea05f4",
+  "name": "ADNI",
+  "version": "ADNI-3",
+  "schema": [],
+  "row_count": 2300,
+  "content_hash": "adni3-loni-snapshot-2025-q4",
+  "url": "https://adni.loni.usc.edu/data-samples/access-data/",
+  "license": "ADNI Data Use Agreement",
+  "provenance": {
+    "source_type": "data_release",
+    "doi": "10.1016/j.jalz.2010.03.012",
+    "pmid": null,
+    "pmc": null,
+    "openalex_id": null,
+    "url": "https://adni.loni.usc.edu/data-samples/access-data/",
+    "title": "Alzheimer's Disease Neuroimaging Initiative (ADNI)",
+    "authors": [],
+    "year": null,
+    "journal": null,
+    "license": "ADNI Data Use Agreement",
+    "extraction": {
+      "method": "manual_curation",
+      "model": null,
+      "model_version": null,
+      "extracted_at": "2026-04-27T19:53:13.495655+00:00",
+      "extractor_version": "0.32.0"
+    },
+    "review": null,
+    "citation_count": null
+  },
+  "created": "2026-04-27T19:53:13.495657+00:00"
+}

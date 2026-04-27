@@ -104,6 +104,21 @@ pub struct Project {
     /// collection.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub replications: Vec<crate::bundle::Replication>,
+    /// v0.33: Datasets as first-class kernel objects. A `vd_<hash>`
+    /// captures a versioned, content-addressed reference to data that
+    /// anchors empirical claims. Distinct from `Provenance` (which
+    /// describes the paper) — a single paper may publish multiple
+    /// datasets, and a single dataset may be reused across many papers.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub datasets: Vec<crate::bundle::Dataset>,
+    /// v0.33: Code artifacts as first-class kernel objects. A `vc_<hash>`
+    /// is a content-addressed pointer at a specific region of source
+    /// code at a specific git commit. The substrate move that turns
+    /// "Git for science" into something operational rather than
+    /// aspirational — claims literally reference the code that
+    /// produced them.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub code_artifacts: Vec<crate::bundle::CodeArtifact>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -165,7 +180,7 @@ pub struct ConfidenceDistribution {
 /// Schema and compiler defaults for the current Vela protocol release.
 pub const VELA_SCHEMA_URL: &str = "https://vela.science/schema/finding-bundle/v0.10.0";
 pub const VELA_SCHEMA_VERSION: &str = "0.10.0";
-pub const VELA_COMPILER_VERSION: &str = "vela/0.32.0";
+pub const VELA_COMPILER_VERSION: &str = "vela/0.33.0";
 
 /// Derive a `vfr_<hash>` frontier ID from frontier metadata. Used as a
 /// fallback for legacy frontiers without a `frontier.created` genesis
@@ -294,6 +309,8 @@ pub fn assemble(
         signatures: Vec::new(),
         actors: Vec::new(),
         replications: Vec::new(),
+        datasets: Vec::new(),
+        code_artifacts: Vec::new(),
     };
     crate::sources::materialize_project(&mut project);
     project

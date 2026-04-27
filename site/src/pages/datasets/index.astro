@@ -1,0 +1,221 @@
+---
+/*
+  Datasets registry — every `vd_<hash>` in the canonical frontier.
+
+  Each row is a versioned, content-addressed reference to data that
+  anchors empirical claims. v0.33: substrate landed; agent-generated
+  dataset linking arrives in v0.33.x as the Datasets agent emits
+  `vd_*` records alongside finding proposals.
+*/
+
+import Page from "../../layouts/Page.astro";
+import { loadDatasets } from "../../lib/frontier";
+import { FRONTIER, VERSION } from "../../config";
+
+const datasets = loadDatasets();
+---
+
+<Page
+  title={`Datasets · ${FRONTIER.name}`}
+  description="Versioned datasets that anchor claims in the canonical Alzheimer's Therapeutics frontier. Each is content-addressed; same name + different version = different kernel object."
+  active="home"
+  eyebrow="Datasets"
+  pageTitle="Datasets"
+  subtitle={`${datasets.length} versioned, content-addressed dataset reference${datasets.length === 1 ? "" : "s"}.`}
+>
+  <div slot="aside">
+    <a href="/" class="aside-link">← frontier</a>
+    <span class="aside-version">v{VERSION}</span>
+  </div>
+
+  <p class="dataset-intro">
+    A claim that says "we used ADNI" doesn't anchor which release of
+    ADNI; re-running the same code on a refreshed cohort silently
+    produces a "different" claim. Each row below is a
+    content-addressed <code>vd_</code> record that pins down the data
+    a finding rests on. Same dataset, different version = different
+    kernel object.
+  </p>
+
+  {datasets.length === 0 ? (
+    <p class="dataset-empty">
+      No datasets registered yet. Add one with
+      &nbsp;<code>vela dataset-add &lt;FRONTIER&gt; --name "..." --version "..." --content-hash "..."</code>.
+    </p>
+  ) : (
+    <ol class="dataset-list">
+      {datasets.map((d) => (
+        <li class="dataset-row">
+          <div class="dataset-row__head">
+            <span class="dataset-row__name">{d.name}</span>
+            {d.version && (
+              <span class="dataset-row__version">@{d.version}</span>
+            )}
+            <span class="dataset-row__id">{d.id}</span>
+          </div>
+          <dl class="dataset-row__meta">
+            <dt>content hash</dt>
+            <dd class="dataset-row__hash">{d.content_hash}</dd>
+            {d.url && (
+              <>
+                <dt>url</dt>
+                <dd>
+                  <a class="inline-link" href={d.url} rel="noopener">{d.url}</a>
+                </dd>
+              </>
+            )}
+            {d.license && (
+              <>
+                <dt>license</dt>
+                <dd>{d.license}</dd>
+              </>
+            )}
+            {typeof d.row_count === "number" && (
+              <>
+                <dt>rows</dt>
+                <dd>{d.row_count}</dd>
+              </>
+            )}
+            {d.provenance?.title && (
+              <>
+                <dt>source</dt>
+                <dd>{d.provenance.title}</dd>
+              </>
+            )}
+          </dl>
+        </li>
+      ))}
+    </ol>
+  )}
+
+  <p class="dataset-back">
+    <a class="inline-link" href="/">← Back to the frontier</a>
+    <span class="dataset-back__sep">·</span>
+    <a class="inline-link" href="/code">Browse code artifacts →</a>
+  </p>
+</Page>
+
+<style>
+  .aside-link {
+    font-family: var(--font-mono);
+    font-size: var(--size-xs);
+    letter-spacing: 0.06em;
+    color: var(--ink-3);
+  }
+  .aside-link:hover { color: var(--ink-0); }
+  .aside-version {
+    font-family: var(--font-mono);
+    font-size: var(--size-xs);
+    color: var(--ink-4);
+    margin-left: 6px;
+  }
+  div[slot="aside"] {
+    display: flex; align-items: center; gap: 12px;
+  }
+  .inline-link {
+    color: var(--signal);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    text-decoration-thickness: 1px;
+  }
+
+  .dataset-intro {
+    font-family: var(--font-serif);
+    font-size: 16px;
+    line-height: 1.6;
+    color: var(--ink-2);
+    margin: 0 0 var(--space-5);
+    max-width: 64ch;
+  }
+  .dataset-intro code {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    background: var(--paper-1);
+    padding: 1px 4px;
+    border: 1px solid var(--rule-1);
+  }
+
+  .dataset-empty {
+    font-family: var(--font-serif);
+    font-size: 15px;
+    color: var(--ink-3);
+    margin: var(--space-4) 0;
+    line-height: 1.6;
+  }
+  .dataset-empty code {
+    font-family: var(--font-mono);
+    font-size: 12px;
+  }
+
+  .dataset-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    border-top: 1px solid var(--rule-2);
+  }
+  .dataset-row {
+    padding: var(--space-4) 0;
+    border-bottom: 1px solid var(--rule-1);
+  }
+  .dataset-row__head {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+    margin-bottom: var(--space-3);
+    flex-wrap: wrap;
+  }
+  .dataset-row__name {
+    font-family: var(--font-serif);
+    font-size: 20px;
+    color: var(--ink-0);
+    letter-spacing: -0.005em;
+  }
+  .dataset-row__version {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--ink-3);
+  }
+  .dataset-row__id {
+    margin-left: auto;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--ink-4);
+  }
+  .dataset-row__meta {
+    display: grid;
+    grid-template-columns: 120px 1fr;
+    gap: 4px var(--space-4);
+    margin: 0;
+    font-family: var(--font-serif);
+    font-size: 14px;
+  }
+  .dataset-row__meta dt {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: var(--track-label);
+    text-transform: uppercase;
+    color: var(--ink-3);
+    align-self: baseline;
+  }
+  .dataset-row__meta dd {
+    margin: 0;
+    color: var(--ink-1);
+    line-height: 1.5;
+  }
+  .dataset-row__hash {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--ink-2);
+    word-break: break-all;
+  }
+
+  .dataset-back {
+    margin: var(--space-7) 0 var(--space-5);
+    padding-top: var(--space-4);
+    border-top: 1px solid var(--rule-2);
+    font-family: var(--font-mono);
+    font-size: var(--size-xs);
+    color: var(--ink-3);
+  }
+  .dataset-back__sep { margin: 0 8px; color: var(--ink-4); }
+</style>

@@ -1,5 +1,126 @@
 # Changelog
 
+## 0.33.0 - 2026-04-27
+
+**Computational provenance** — datasets (`vd_<hash>`) and code
+artifacts (`vc_<hash>`) as first-class kernel objects. The substrate
+move that turns "Git for science" from aspirational into operational:
+claims literally reference the data and the code that produced them,
+each pinned to a content hash and (for code) a specific git commit.
+
+Before today, datasets were strings in `Provenance.title` and code
+was a string in `Evidence.method`. A claim could say "we used ADNI"
+without anchoring which release of ADNI; re-running the same code
+on a refreshed cohort silently produced a "different" claim. Code
+provenance was even thinner — there was no way to verify which
+function in which commit produced a given finding's evidence.
+
+### Substrate
+
+- `bundle::Dataset`: `id` (`vd_<16hex>`), `name`, `version`, `schema`,
+  `row_count`, `content_hash`, `url`, `license`, `provenance`,
+  `created`. Content-address: `SHA256(name | version | content_hash | url)`.
+  Two records with the same name + different version = distinct kernel
+  objects.
+- `bundle::CodeArtifact`: `id` (`vc_<16hex>`), `language`, `repo_url`,
+  `git_commit`, `path`, `line_range`, `content_hash`, `entry_point`,
+  `created`. Content-address: `SHA256(repo_url | git_commit | path |
+  line_range | content_hash)`. Same code at two commits = two records.
+- `Project.datasets: Vec<Dataset>` and
+  `Project.code_artifacts: Vec<CodeArtifact>`, both `serde(default)`
+  + `skip_serializing_if = "Vec::is_empty"`. Pre-v0.33 frontier files
+  load unchanged. All 5 `Project`-literal call sites
+  (`reducer.rs`, `serve.rs`, `lint.rs`, `cli.rs`, `sign.rs`)
+  initialize the new fields.
+- `repo.rs` reads + writes `.vela/datasets/<vd_id>.json` and
+  `.vela/code-artifacts/<vc_id>.json` next to `.vela/findings/`. Same
+  one-file-per-record persistence as findings and replications.
+
+### CLI
+
+- `vela dataset-add <FRONTIER> --name ... --version ... --content-hash ...
+   --source-title ...` registers a Dataset.
+- `vela datasets <FRONTIER>` lists registered datasets (human-readable
+  or `--json`).
+- `vela code-add <FRONTIER> --language ... --path ... --content-hash ...
+   [--repo-url ... --commit ... --line-start N --line-end N --entry-point ...]`
+  registers a CodeArtifact.
+- `vela code-artifacts <FRONTIER>` lists registered code artifacts.
+- All four commands added to `SCIENCE_SUBCOMMANDS` allowlist.
+
+### Site
+
+- `site/src/lib/frontier.ts`: new `loadDatasets`, `loadCodeArtifacts`,
+  `findDataset`, `findCodeArtifact` helpers. Build-time read of
+  `.vela/datasets/` and `.vela/code-artifacts/`.
+- New `/datasets` route — registry of every `vd_*` record with name,
+  version, content hash, URL, license, row count, source.
+- New `/code` route — registry of every `vc_*` record with language
+  chip, path, repo, commit, content hash, entry point. Each path
+  links to the GitHub blob URL `repo/blob/<commit>/<path>#L<a>-L<b>`
+  when `repo_url + git_commit` are set.
+- Homepage instrument bar grew from five cells to **seven**:
+  `claims · papers · contradictions · replications · datasets · code · last signed`.
+  The two new cells are clickable, linking to the registries.
+- Responsive: 7-cell readout wraps to 4-up at 1100px and 2-up at 720px.
+
+### Seeded data
+
+Three real datasets:
+- `vd_d7af28baa9ea05f4` — **ADNI** @ ADNI-3, n=2300, the canonical
+  longitudinal Alzheimer's neuroimaging cohort (DOI 10.1016/j.jalz.2010.03.012).
+- `vd_5ad73dd5c181e10d` — **TRAILBLAZER-ALZ** @ TRAILBLAZER-ALZ 2
+  (NCT04437511), n=1736, the donanemab Phase 3 trial (DOI 10.1001/jama.2023.13239).
+- `vd_aa2be6fce05e944c` — **the canonical Alzheimer's Therapeutics
+  frontier itself** (vfr_bd912b3e29e334ab, snapshot
+  1c5e2d43c5cfe68d39…) treated as a dataset that downstream frontiers
+  may pin to.
+
+Three real code artifacts (all from this repository at commit
+`ea0a1a4d9429cfff…`):
+- `vc_56edd0bdbe5b1ee3` — Notes Compiler agent (rust,
+  `crates/vela-scientist/src/notes.rs`).
+- `vc_53bb21047e7f3e44` — Gold-from-frontier converter (python,
+  `scripts/gold-from-frontier.py`) used by VelaBench.
+- `vc_31ab8f762935d446` — Weekly diff script (bash,
+  `scripts/weekly-diff.sh`).
+
+These exercise three languages and pin against the most recent
+public commit so the site links resolve to live GitHub blob URLs.
+
+### Verification
+
+- `vela check projects/bbb-flagship`: 86/86 valid, exit 0.
+- `cargo test --workspace --release`: 384/384 pass (no regressions).
+- `vela datasets projects/bbb-flagship` and
+  `vela code-artifacts projects/bbb-flagship` round-trip the seeded
+  records.
+- Site build clean (118 pages); homepage shows 86/24/9/3/3/3/2026 in
+  the new seven-cell readout; `/datasets` lists three rows;
+  `/code` lists three rows with GitHub blob links.
+
+### Deferred to v0.33.x
+
+- `Provenance.dataset_refs: Vec<String>` and
+  `Provenance.code_refs: Vec<String>` — explicit per-finding linking
+  (vs frontier-level registry).
+- `Evidence.computational_chain: Option<ComputationalChain>` — the
+  chain that records "this code, applied to this dataset, produced
+  this evidence."
+- Datasets agent emitting `vd_*` objects alongside finding proposals.
+- Code Analyst agent emitting `vc_*` objects with git-commit / line-
+  range metadata.
+- Per-claim "Computational chain" panel on `/claims/[slug]`.
+- `dataset.added` / `dataset.updated` / `dataset.deprecated` /
+  `code_artifact.linked` / `code_artifact.validated` event kinds
+  (today, persistence is direct).
+
+These are the cascades v0.33 unlocks but doesn't ship in the same
+release. The kernel objects exist; per-finding linking and event-log
+integration come next. See the roadmap at
+`~/.claude/plans/noble-floating-willow.md` for the full v0.32–v0.35
+arc.
+
 ## 0.32.0 - 2026-04-27
 
 **Replication as a first-class kernel object** (`vrep_<hash>`). The

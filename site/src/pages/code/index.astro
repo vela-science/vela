@@ -1,0 +1,249 @@
+---
+/*
+  Code artifacts registry — every `vc_<hash>` in the canonical frontier.
+
+  Each row is a content-addressed pointer at a specific region of
+  source code at a specific git commit. v0.33: substrate landed; the
+  Code Analyst agent will emit `vc_*` records alongside finding
+  proposals in v0.33.x.
+*/
+
+import Page from "../../layouts/Page.astro";
+import { loadCodeArtifacts } from "../../lib/frontier";
+import { FRONTIER, VERSION } from "../../config";
+
+const artifacts = loadCodeArtifacts();
+---
+
+<Page
+  title={`Code artifacts · ${FRONTIER.name}`}
+  description="Content-addressed pointers at the source code that produced canonical claims. Pinned to specific git commits and paths."
+  active="home"
+  eyebrow="Code artifacts"
+  pageTitle="Code"
+  subtitle={`${artifacts.length} content-addressed code artifact${artifacts.length === 1 ? "" : "s"}.`}
+>
+  <div slot="aside">
+    <a href="/" class="aside-link">← frontier</a>
+    <span class="aside-version">v{VERSION}</span>
+  </div>
+
+  <p class="code-intro">
+    "Git for science" only means something if claims literally point
+    at the code that produced them. Each row below is a
+    content-addressed <code>vc_</code> record pinned to a specific
+    git commit, a specific path, and an SHA-256 of the snippet body.
+    Re-running the same code against a different commit gives you a
+    different artifact.
+  </p>
+
+  {artifacts.length === 0 ? (
+    <p class="code-empty">
+      No code artifacts registered yet. Add one with
+      &nbsp;<code>vela code-add &lt;FRONTIER&gt; --language ... --path ... --commit ... --content-hash ...</code>.
+    </p>
+  ) : (
+    <ol class="code-list">
+      {artifacts.map((c) => {
+        const ghLink =
+          c.repo_url && c.git_commit
+            ? `${c.repo_url.replace(/\.git$/, "")}/blob/${c.git_commit}/${c.path}` +
+              (c.line_range ? `#L${c.line_range[0]}-L${c.line_range[1]}` : "")
+            : null;
+        return (
+          <li class="code-row">
+            <div class="code-row__head">
+              <span class="code-row__lang">{c.language}</span>
+              <span class="code-row__path">
+                {ghLink ? (
+                  <a class="inline-link" href={ghLink} rel="noopener">
+                    {c.path}
+                    {c.line_range && (
+                      <span class="code-row__lines">
+                        :{c.line_range[0]}-{c.line_range[1]}
+                      </span>
+                    )}
+                  </a>
+                ) : (
+                  <span>
+                    {c.path}
+                    {c.line_range && (
+                      <span class="code-row__lines">
+                        :{c.line_range[0]}-{c.line_range[1]}
+                      </span>
+                    )}
+                  </span>
+                )}
+              </span>
+              <span class="code-row__id">{c.id}</span>
+            </div>
+            <dl class="code-row__meta">
+              {c.repo_url && (
+                <>
+                  <dt>repo</dt>
+                  <dd>
+                    <a class="inline-link" href={c.repo_url} rel="noopener">{c.repo_url}</a>
+                  </dd>
+                </>
+              )}
+              {c.git_commit && (
+                <>
+                  <dt>commit</dt>
+                  <dd class="code-row__hash">{c.git_commit}</dd>
+                </>
+              )}
+              <dt>content hash</dt>
+              <dd class="code-row__hash">{c.content_hash}</dd>
+              {c.entry_point && (
+                <>
+                  <dt>entry point</dt>
+                  <dd class="code-row__entry">{c.entry_point}</dd>
+                </>
+              )}
+            </dl>
+          </li>
+        );
+      })}
+    </ol>
+  )}
+
+  <p class="code-back">
+    <a class="inline-link" href="/">← Back to the frontier</a>
+    <span class="code-back__sep">·</span>
+    <a class="inline-link" href="/datasets">Browse datasets →</a>
+  </p>
+</Page>
+
+<style>
+  .aside-link {
+    font-family: var(--font-mono);
+    font-size: var(--size-xs);
+    letter-spacing: 0.06em;
+    color: var(--ink-3);
+  }
+  .aside-link:hover { color: var(--ink-0); }
+  .aside-version {
+    font-family: var(--font-mono);
+    font-size: var(--size-xs);
+    color: var(--ink-4);
+    margin-left: 6px;
+  }
+  div[slot="aside"] {
+    display: flex; align-items: center; gap: 12px;
+  }
+  .inline-link {
+    color: var(--signal);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    text-decoration-thickness: 1px;
+  }
+
+  .code-intro {
+    font-family: var(--font-serif);
+    font-size: 16px;
+    line-height: 1.6;
+    color: var(--ink-2);
+    margin: 0 0 var(--space-5);
+    max-width: 64ch;
+  }
+  .code-intro code {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    background: var(--paper-1);
+    padding: 1px 4px;
+    border: 1px solid var(--rule-1);
+  }
+
+  .code-empty {
+    font-family: var(--font-serif);
+    font-size: 15px;
+    color: var(--ink-3);
+    margin: var(--space-4) 0;
+    line-height: 1.6;
+  }
+  .code-empty code { font-family: var(--font-mono); font-size: 12px; }
+
+  .code-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    border-top: 1px solid var(--rule-2);
+  }
+  .code-row {
+    padding: var(--space-4) 0;
+    border-bottom: 1px solid var(--rule-1);
+  }
+  .code-row__head {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-3);
+    margin-bottom: var(--space-3);
+    flex-wrap: wrap;
+  }
+  .code-row__lang {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: var(--track-label);
+    text-transform: uppercase;
+    color: var(--ink-2);
+    padding: 2px 8px;
+    border: 1px solid var(--rule-2);
+    background: var(--paper-1);
+  }
+  .code-row__path {
+    font-family: var(--font-mono);
+    font-size: 14px;
+    color: var(--ink-0);
+  }
+  .code-row__lines {
+    color: var(--ink-3);
+    font-size: 12px;
+  }
+  .code-row__id {
+    margin-left: auto;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--ink-4);
+  }
+  .code-row__meta {
+    display: grid;
+    grid-template-columns: 120px 1fr;
+    gap: 4px var(--space-4);
+    margin: 0;
+    font-family: var(--font-serif);
+    font-size: 14px;
+  }
+  .code-row__meta dt {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: var(--track-label);
+    text-transform: uppercase;
+    color: var(--ink-3);
+    align-self: baseline;
+  }
+  .code-row__meta dd {
+    margin: 0;
+    color: var(--ink-1);
+    line-height: 1.5;
+  }
+  .code-row__hash {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--ink-2);
+    word-break: break-all;
+  }
+  .code-row__entry {
+    font-family: var(--font-mono);
+    font-size: 12px;
+  }
+
+  .code-back {
+    margin: var(--space-7) 0 var(--space-5);
+    padding-top: var(--space-4);
+    border-top: 1px solid var(--rule-2);
+    font-family: var(--font-mono);
+    font-size: var(--size-xs);
+    color: var(--ink-3);
+  }
+  .code-back__sep { margin: 0 8px; color: var(--ink-4); }
+</style>

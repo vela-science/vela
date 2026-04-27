@@ -510,6 +510,48 @@ fn load_vela_repo(dir: &Path) -> Result<Project, String> {
         }
     }
 
+    // v0.33: Read datasets from `.vela/datasets/` and code artifacts
+    // from `.vela/code-artifacts/`. Same one-file-per-record pattern
+    // as findings and replications. Both directories are optional —
+    // pre-v0.33 frontiers without them load unchanged.
+    let datasets_dir = dir.join(".vela/datasets");
+    let mut datasets: Vec<crate::bundle::Dataset> = Vec::new();
+    if datasets_dir.is_dir() {
+        let mut entries: Vec<PathBuf> = std::fs::read_dir(&datasets_dir)
+            .map_err(|e| format!("Failed to read datasets/: {e}"))?
+            .filter_map(|e| e.ok())
+            .map(|e| e.path())
+            .filter(|p| p.extension().is_some_and(|ext| ext == "json"))
+            .collect();
+        entries.sort();
+        for path in entries {
+            let data = std::fs::read_to_string(&path)
+                .map_err(|e| format!("Failed to read {}: {e}", path.display()))?;
+            let dataset: crate::bundle::Dataset = serde_json::from_str(&data)
+                .map_err(|e| format!("Failed to parse {}: {e}", path.display()))?;
+            datasets.push(dataset);
+        }
+    }
+
+    let code_artifacts_dir = dir.join(".vela/code-artifacts");
+    let mut code_artifacts: Vec<crate::bundle::CodeArtifact> = Vec::new();
+    if code_artifacts_dir.is_dir() {
+        let mut entries: Vec<PathBuf> = std::fs::read_dir(&code_artifacts_dir)
+            .map_err(|e| format!("Failed to read code-artifacts/: {e}"))?
+            .filter_map(|e| e.ok())
+            .map(|e| e.path())
+            .filter(|p| p.extension().is_some_and(|ext| ext == "json"))
+            .collect();
+        entries.sort();
+        for path in entries {
+            let data = std::fs::read_to_string(&path)
+                .map_err(|e| format!("Failed to read {}: {e}", path.display()))?;
+            let artifact: crate::bundle::CodeArtifact = serde_json::from_str(&data)
+                .map_err(|e| format!("Failed to parse {}: {e}", path.display()))?;
+            code_artifacts.push(artifact);
+        }
+    }
+
     // Assemble into Project using the project::assemble function for stats,
     // then patch metadata from config.
     let mut c = project::assemble(
@@ -526,6 +568,8 @@ fn load_vela_repo(dir: &Path) -> Result<Project, String> {
     c.proposals = proposals;
     c.proof_state = proof_state;
     c.replications = replications;
+    c.datasets = datasets;
+    c.code_artifacts = code_artifacts;
     project::recompute_stats(&mut c);
 
     Ok(c)
@@ -560,9 +604,20 @@ fn save_vela_repo(dir: &Path, project: &Project) -> Result<(), String> {
     // v0.32: structured replications live in their own directory;
     // each `vrep_<id>.json` is a single Replication record.
     let replications_dir = vela_dir.join("replications");
+    // v0.33: datasets and code artifacts each get their own directory.
+    let datasets_dir = vela_dir.join("datasets");
+    let code_artifacts_dir = vela_dir.join("code-artifacts");
 
     // Create directories
-    for d in [&vela_dir, &findings_dir, &events_dir, &proposals_dir, &replications_dir] {
+    for d in [
+        &vela_dir,
+        &findings_dir,
+        &events_dir,
+        &proposals_dir,
+        &replications_dir,
+        &datasets_dir,
+        &code_artifacts_dir,
+    ] {
         std::fs::create_dir_all(d)
             .map_err(|e| format!("Failed to create directory {}: {e}", d.display()))?;
     }
@@ -623,6 +678,23 @@ fn save_vela_repo(dir: &Path, project: &Project) -> Result<(), String> {
         let filename = format!("{}.json", replication.id);
         std::fs::write(replications_dir.join(&filename), json)
             .map_err(|e| format!("Failed to write replication {}: {e}", filename))?;
+    }
+
+    // v0.33: datasets and code artifacts as individual `vd_<id>.json`
+    // and `vc_<id>.json` files. Same persistence shape as findings.
+    for dataset in &project.datasets {
+        let json = serde_json::to_string_pretty(dataset)
+            .map_err(|e| format!("Failed to serialize dataset {}: {e}", dataset.id))?;
+        let filename = format!("{}.json", dataset.id);
+        std::fs::write(datasets_dir.join(&filename), json)
+            .map_err(|e| format!("Failed to write dataset {}: {e}", filename))?;
+    }
+    for artifact in &project.code_artifacts {
+        let json = serde_json::to_string_pretty(artifact)
+            .map_err(|e| format!("Failed to serialize code artifact {}: {e}", artifact.id))?;
+        let filename = format!("{}.json", artifact.id);
+        std::fs::write(code_artifacts_dir.join(&filename), json)
+            .map_err(|e| format!("Failed to write code artifact {}: {e}", filename))?;
     }
 
     Ok(())

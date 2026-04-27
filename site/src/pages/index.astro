@@ -21,6 +21,8 @@ import {
   contradictions,
   activeWeeks,
   replicationStats,
+  loadDatasets,
+  loadCodeArtifacts,
   TARGETS,
   type ClaimView,
 } from "../lib/frontier";
@@ -30,6 +32,8 @@ const claims = loadFrontier();
 const stats = frontierStats();
 const tensionList = contradictions();
 const repStats = replicationStats();
+const datasets = loadDatasets();
+const codeArtifacts = loadCodeArtifacts();
 
 /* Above-the-fold: featured claims, sorted by confidence so the
    strongest signals lead. Cap at 12 so the page stays scannable. */
@@ -91,6 +95,18 @@ const lastUpdated = stats.lastUpdated
     <div class="frontier-readout__stat">
       <span class="frontier-readout__num">{repStats.total}</span>
       <span class="frontier-readout__label">replications</span>
+    </div>
+    <div class="frontier-readout__stat">
+      <a class="frontier-readout__link" href="/datasets">
+        <span class="frontier-readout__num">{datasets.length}</span>
+        <span class="frontier-readout__label">datasets</span>
+      </a>
+    </div>
+    <div class="frontier-readout__stat">
+      <a class="frontier-readout__link" href="/code">
+        <span class="frontier-readout__num">{codeArtifacts.length}</span>
+        <span class="frontier-readout__label">code</span>
+      </a>
     </div>
     <div class="frontier-readout__stat">
       <span class="frontier-readout__num frontier-readout__num--small">{lastUpdated}</span>
@@ -245,16 +261,26 @@ const lastUpdated = stats.lastUpdated
   .inline-link:hover { color: var(--ink-0); }
 
   /* ── Frontier readout — instrument bar under the masthead ──
-     v0.32 added the replications cell so the bar shows five numbers
-     on desktop. On narrow viewports the grid wraps to 2x3 + tail. */
+     v0.32 added the replications cell. v0.33 added datasets + code
+     cells so the bar shows seven numbers on desktop. On narrow
+     viewports the grid wraps to 2-up rows. */
   .frontier-readout {
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(7, 1fr);
     gap: 0;
     border-top: 1px solid var(--rule-2);
     border-bottom: 1px solid var(--rule-2);
     margin: 0 0 var(--space-6);
   }
+  .frontier-readout__link {
+    text-decoration: none;
+    color: inherit;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    transition: color var(--dur-1) var(--ease);
+  }
+  .frontier-readout__link:hover { color: var(--signal); }
   .frontier-readout__stat {
     padding: var(--space-4) var(--space-5);
     display: flex;
@@ -522,13 +548,25 @@ const lastUpdated = stats.lastUpdated
     color: var(--ink-1);
   }
 
+  /* Tablet breakpoint: 7 cells wrap to 4-3 layout. */
+  @media (max-width: 1100px) {
+    .frontier-readout {
+      grid-template-columns: repeat(4, 1fr);
+    }
+    .frontier-readout__stat:nth-child(4n) { border-right: none; }
+    .frontier-readout__stat:nth-child(-n + 4) {
+      border-bottom: 1px solid var(--rule-1);
+    }
+  }
+
+  /* Mobile breakpoint: 7 cells wrap to 2-up grid. */
   @media (max-width: 720px) {
     .frontier-readout {
       grid-template-columns: repeat(2, 1fr);
     }
-    .frontier-readout__stat:nth-child(2) { border-right: none; }
-    .frontier-readout__stat:nth-child(1),
-    .frontier-readout__stat:nth-child(2) {
+    .frontier-readout__stat:nth-child(2n) { border-right: none; }
+    .frontier-readout__stat:nth-child(2n + 1) { border-right: 1px solid var(--rule-1); }
+    .frontier-readout__stat:not(:nth-last-child(-n + 2)) {
       border-bottom: 1px solid var(--rule-1);
     }
     .vela-colophon { margin: 48px 0 16px; padding-top: 22px; }

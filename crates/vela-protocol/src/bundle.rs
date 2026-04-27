@@ -327,6 +327,206 @@ impl Replication {
     }
 }
 
+/// v0.33: Dataset as a first-class kernel object.
+///
+/// A `Dataset` is a versioned, content-addressed reference to data
+/// that anchors empirical claims. Before v0.33, datasets were strings
+/// in `Provenance.title` or entity-typed mentions in assertions —
+/// a claim could say "we used ADNI" without anchoring which release
+/// of ADNI the analysis ran against, and re-running the same code on
+/// a refreshed cohort silently produced a "different" claim.
+///
+/// `vd_<id>` is content-addressed over `name + version + content_hash
+/// + url`. Two dataset records with the same name but different
+/// versions get distinct ids; two records pointing at the same
+/// snapshot collapse to the same id. This is the substrate piece
+/// that makes "Git for science" mean something operational rather
+/// than aspirational — claims literally reference the bytes they
+/// rest on.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Dataset {
+    /// `vd_<16hex>`, content-addressed; see `Dataset::content_address`.
+    pub id: String,
+    /// Human-readable name (e.g. "ADNI", "TRAILBLAZER-ALZ", "MIMIC-IV").
+    pub name: String,
+    /// Semantic version or release tag (e.g. "ADNI-3", "v2.2", "SR0").
+    /// Two entries differing only in version are distinct kernel objects.
+    pub version: Option<String>,
+    /// Optional column-level schema as `(name, type)` pairs. For
+    /// non-tabular datasets, leave empty.
+    #[serde(default)]
+    pub schema: Vec<(String, String)>,
+    /// Number of rows / observations / records, when known.
+    pub row_count: Option<u64>,
+    /// SHA-256 of the canonical contents, when computable. For
+    /// large datasets stored remotely, this is the publisher's
+    /// declared content hash; integrity verification is the puller's
+    /// job (same pattern as `vfr_*` snapshots).
+    pub content_hash: String,
+    /// Where the dataset is reachable (https URL, file://, s3://, etc.).
+    pub url: Option<String>,
+    /// License identifier or URL (e.g. "CC-BY-4.0", a Crossref license).
+    pub license: Option<String>,
+    /// Provenance of the dataset itself — typically the paper or release
+    /// that publishes it. Reuses `Provenance` for shape parity with
+    /// findings.
+    pub provenance: Provenance,
+    /// RFC 3339 creation timestamp.
+    pub created: String,
+}
+
+impl Dataset {
+    /// Compute the content-addressed ID per v0.33 spec:
+    /// `SHA-256(name | version | content_hash | url)`.
+    /// Returns first 16 hex chars prefixed with "vd_".
+    pub fn content_address(
+        name: &str,
+        version: Option<&str>,
+        content_hash: &str,
+        url: Option<&str>,
+    ) -> String {
+        let preimage = format!(
+            "{}|{}|{}|{}",
+            name,
+            version.unwrap_or(""),
+            content_hash,
+            url.unwrap_or("")
+        );
+        let hash = Sha256::digest(preimage.as_bytes());
+        format!("vd_{}", &hex::encode(hash)[..16])
+    }
+
+    /// Construct a new Dataset with a freshly-derived id and `created`
+    /// timestamp set to now.
+    pub fn new(
+        name: impl Into<String>,
+        version: Option<String>,
+        content_hash: impl Into<String>,
+        url: Option<String>,
+        license: Option<String>,
+        provenance: Provenance,
+    ) -> Self {
+        let n = name.into();
+        let h = content_hash.into();
+        let id = Self::content_address(&n, version.as_deref(), &h, url.as_deref());
+        Self {
+            id,
+            name: n,
+            version,
+            schema: Vec::new(),
+            row_count: None,
+            content_hash: h,
+            url,
+            license,
+            provenance,
+            created: Utc::now().to_rfc3339(),
+        }
+    }
+}
+
+/// v0.33: CodeArtifact as a first-class kernel object.
+///
+/// A `CodeArtifact` is a content-addressed pointer at a specific
+/// region of source code (a function, a notebook cell, a script, a
+/// pipeline step) at a specific git commit. Before v0.33, code was
+/// captured as a string in `Evidence.method` — "we ran a logistic
+/// regression" — with no way for a reader to verify which code
+/// produced the result, or to re-run it.
+///
+/// `vc_<id>` is content-addressed over `repo_url + git_commit + path
+/// + line_range + content_hash`. The same code at two commits gets
+/// two records (the relevant historical fact); the same code in two
+/// paths in the same repo also gets two records (location matters
+/// for re-execution).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CodeArtifact {
+    /// `vc_<16hex>`, content-addressed; see `CodeArtifact::content_address`.
+    pub id: String,
+    /// Source language: `python` / `r` / `julia` / `rust` / `bash`,
+    /// etc. Not validated against a closed allow-list — code provenance
+    /// should accept whatever language the analysis was actually in.
+    pub language: String,
+    /// Repository URL (e.g. `https://github.com/vela-science/vela`).
+    pub repo_url: Option<String>,
+    /// Specific git commit (40-char SHA preferred). Required for
+    /// reproducibility; `None` means "unpinned" and weakens the
+    /// substrate claim.
+    pub git_commit: Option<String>,
+    /// Path within the repository (e.g. `crates/vela-scientist/src/notes.rs`).
+    pub path: String,
+    /// Optional line range as `(start, end)`, both inclusive.
+    pub line_range: Option<(u32, u32)>,
+    /// SHA-256 of the snippet body. Decouples the artifact from the
+    /// repository's external state — even if a repo is deleted, the
+    /// content_hash remains anchored.
+    pub content_hash: String,
+    /// Optional entry point: function name, notebook cell id, or
+    /// `__main__`. Used by re-execution tooling.
+    pub entry_point: Option<String>,
+    /// RFC 3339 creation timestamp.
+    pub created: String,
+}
+
+impl CodeArtifact {
+    /// Compute the content-addressed ID per v0.33 spec:
+    /// `SHA-256(repo_url | git_commit | path | line_range | content_hash)`.
+    /// Returns first 16 hex chars prefixed with "vc_".
+    pub fn content_address(
+        repo_url: Option<&str>,
+        git_commit: Option<&str>,
+        path: &str,
+        line_range: Option<(u32, u32)>,
+        content_hash: &str,
+    ) -> String {
+        let lr = line_range
+            .map(|(a, b)| format!("{a}-{b}"))
+            .unwrap_or_default();
+        let preimage = format!(
+            "{}|{}|{}|{}|{}",
+            repo_url.unwrap_or(""),
+            git_commit.unwrap_or(""),
+            path,
+            lr,
+            content_hash
+        );
+        let hash = Sha256::digest(preimage.as_bytes());
+        format!("vc_{}", &hex::encode(hash)[..16])
+    }
+
+    /// Construct a new CodeArtifact with a freshly-derived id and
+    /// `created` timestamp.
+    pub fn new(
+        language: impl Into<String>,
+        repo_url: Option<String>,
+        git_commit: Option<String>,
+        path: impl Into<String>,
+        line_range: Option<(u32, u32)>,
+        content_hash: impl Into<String>,
+        entry_point: Option<String>,
+    ) -> Self {
+        let p = path.into();
+        let h = content_hash.into();
+        let id = Self::content_address(
+            repo_url.as_deref(),
+            git_commit.as_deref(),
+            &p,
+            line_range,
+            &h,
+        );
+        Self {
+            id,
+            language: language.into(),
+            repo_url,
+            git_commit,
+            path: p,
+            line_range,
+            content_hash: h,
+            entry_point,
+            created: Utc::now().to_rfc3339(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Conditions {
     #[serde(default)]

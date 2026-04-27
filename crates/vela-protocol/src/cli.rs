@@ -19,7 +19,7 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 
 #[derive(Parser)]
-#[command(name = "vela", version = "0.32.0")]
+#[command(name = "vela", version = "0.33.0")]
 #[command(about = "Portable frontier state for science")]
 struct Cli {
     #[command(subcommand)]
@@ -757,6 +757,94 @@ enum Commands {
         #[arg(long)]
         target: Option<String>,
         /// Emit JSON to stdout.
+        #[arg(long)]
+        json: bool,
+    },
+    /// v0.33: Register a Dataset as a first-class kernel object
+    /// (`vd_<hash>`). Datasets anchor empirical claims that rest on
+    /// data — the canonical Alzheimer's frontier should know that
+    /// "ATV:TREM2 reduces plaque density" rests on a specific cohort
+    /// of n=24 iPSC-derived microglia, not on "the iPSC dataset" in
+    /// the abstract.
+    DatasetAdd {
+        /// Path to the frontier (project dir, `.vela/` repo, or `.json`).
+        frontier: PathBuf,
+        /// Human-readable dataset name (e.g. `ADNI`, `TRAILBLAZER-ALZ`).
+        #[arg(long)]
+        name: String,
+        /// Semantic version or release tag (e.g. `ADNI-3`, `v2.2`).
+        #[arg(long)]
+        version: Option<String>,
+        /// SHA-256 of canonical contents. For remote datasets, the
+        /// publisher's declared content hash; integrity verification
+        /// is the puller's responsibility.
+        #[arg(long)]
+        content_hash: String,
+        /// Where the dataset is reachable (https / file / s3 URL).
+        #[arg(long)]
+        url: Option<String>,
+        /// License identifier or URL.
+        #[arg(long)]
+        license: Option<String>,
+        /// Source paper title or release name (for provenance).
+        #[arg(long)]
+        source_title: String,
+        /// Optional DOI for the source publication.
+        #[arg(long)]
+        doi: Option<String>,
+        /// Optional row count.
+        #[arg(long)]
+        row_count: Option<u64>,
+        /// Emit JSON to stdout.
+        #[arg(long)]
+        json: bool,
+    },
+    /// v0.33: List datasets in a frontier.
+    Datasets {
+        frontier: PathBuf,
+        #[arg(long)]
+        json: bool,
+    },
+    /// v0.33: Register a CodeArtifact as a first-class kernel object
+    /// (`vc_<hash>`). Code artifacts make "Git for science" mean
+    /// something operational — claims literally reference the code
+    /// that produced them, pinned to a specific git commit and a
+    /// specific path.
+    CodeAdd {
+        /// Path to the frontier.
+        frontier: PathBuf,
+        /// Source language: `python`, `r`, `julia`, `rust`, `bash`, etc.
+        #[arg(long)]
+        language: String,
+        /// Repository URL (e.g. `https://github.com/vela-science/vela`).
+        #[arg(long)]
+        repo_url: Option<String>,
+        /// Specific git commit SHA. Required for reproducibility;
+        /// `None` means "unpinned" and weakens the substrate claim.
+        #[arg(long)]
+        commit: Option<String>,
+        /// Path within the repository.
+        #[arg(long)]
+        path: String,
+        /// SHA-256 of the snippet body.
+        #[arg(long)]
+        content_hash: String,
+        /// Optional starting line.
+        #[arg(long)]
+        line_start: Option<u32>,
+        /// Optional ending line.
+        #[arg(long)]
+        line_end: Option<u32>,
+        /// Optional entry point: function name, notebook cell id.
+        #[arg(long)]
+        entry_point: Option<String>,
+        /// Emit JSON to stdout.
+        #[arg(long)]
+        json: bool,
+    },
+    /// v0.33: List code artifacts in a frontier.
+    CodeArtifacts {
+        frontier: PathBuf,
         #[arg(long)]
         json: bool,
     },
@@ -1725,7 +1813,7 @@ pub async fn run_command() {
         Commands::Conformance { dir } => {
             let _ = conformance::run(&dir);
         }
-        Commands::Version => println!("vela 0.32.0"),
+        Commands::Version => println!("vela 0.33.0"),
         Commands::Sign { action } => cmd_sign(action),
         Commands::Actor { action } => cmd_actor(action),
         Commands::Frontier { action } => cmd_frontier(action),
@@ -2108,6 +2196,363 @@ pub async fn run_command() {
             target,
             json,
         } => cmd_replications(&frontier, target.as_deref(), json),
+        Commands::DatasetAdd {
+            frontier,
+            name,
+            version,
+            content_hash,
+            url,
+            license,
+            source_title,
+            doi,
+            row_count,
+            json,
+        } => cmd_dataset_add(
+            &frontier,
+            &name,
+            version.as_deref(),
+            &content_hash,
+            url.as_deref(),
+            license.as_deref(),
+            &source_title,
+            doi.as_deref(),
+            row_count,
+            json,
+        ),
+        Commands::Datasets { frontier, json } => cmd_datasets(&frontier, json),
+        Commands::CodeAdd {
+            frontier,
+            language,
+            repo_url,
+            commit,
+            path,
+            content_hash,
+            line_start,
+            line_end,
+            entry_point,
+            json,
+        } => cmd_code_add(
+            &frontier,
+            &language,
+            repo_url.as_deref(),
+            commit.as_deref(),
+            &path,
+            &content_hash,
+            line_start,
+            line_end,
+            entry_point.as_deref(),
+            json,
+        ),
+        Commands::CodeArtifacts { frontier, json } => cmd_code_artifacts(&frontier, json),
+    }
+}
+
+/// v0.33: append a Dataset record to a frontier and persist it.
+#[allow(clippy::too_many_arguments)]
+fn cmd_dataset_add(
+    frontier: &Path,
+    name: &str,
+    version: Option<&str>,
+    content_hash: &str,
+    url: Option<&str>,
+    license: Option<&str>,
+    source_title: &str,
+    doi: Option<&str>,
+    row_count: Option<u64>,
+    json: bool,
+) {
+    let mut project = repo::load_from_path(frontier).unwrap_or_else(|e| fail_return(&e));
+
+    let provenance = crate::bundle::Provenance {
+        source_type: "data_release".to_string(),
+        doi: doi.map(|s| s.to_string()),
+        pmid: None,
+        pmc: None,
+        openalex_id: None,
+        url: url.map(|s| s.to_string()),
+        title: source_title.to_string(),
+        authors: Vec::new(),
+        year: None,
+        journal: None,
+        license: license.map(|s| s.to_string()),
+        publisher: None,
+        funders: Vec::new(),
+        extraction: crate::bundle::Extraction {
+            method: "manual_curation".to_string(),
+            model: None,
+            model_version: None,
+            extracted_at: chrono::Utc::now().to_rfc3339(),
+            extractor_version: env!("CARGO_PKG_VERSION").to_string(),
+        },
+        review: None,
+        citation_count: None,
+    };
+
+    let mut dataset = crate::bundle::Dataset::new(
+        name.to_string(),
+        version.map(|s| s.to_string()),
+        content_hash.to_string(),
+        url.map(|s| s.to_string()),
+        license.map(|s| s.to_string()),
+        provenance,
+    );
+    dataset.row_count = row_count;
+
+    if project.datasets.iter().any(|d| d.id == dataset.id) {
+        if json {
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&json!({
+                    "ok": false,
+                    "command": "dataset.add",
+                    "reason": "dataset_already_exists",
+                    "id": dataset.id,
+                }))
+                .expect("serialize")
+            );
+        } else {
+            println!(
+                "{} dataset {} already exists in {}; skipping.",
+                style::warn("dataset"),
+                dataset.id,
+                frontier.display()
+            );
+        }
+        return;
+    }
+
+    let new_id = dataset.id.clone();
+    project.datasets.push(dataset);
+    repo::save_to_path(frontier, &project).unwrap_or_else(|e| fail_return(&e));
+
+    if json {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&json!({
+                "ok": true,
+                "command": "dataset.add",
+                "id": new_id,
+                "name": name,
+                "version": version,
+                "frontier": frontier.display().to_string(),
+            }))
+            .expect("failed to serialize dataset.add result")
+        );
+    } else {
+        println!();
+        println!(
+            "  {}",
+            format!("VELA · DATASET · {}", new_id).to_uppercase().dimmed()
+        );
+        println!("  {}", style::tick_row(60));
+        println!("  name:          {name}");
+        if let Some(v) = version {
+            println!("  version:       {v}");
+        }
+        println!("  content_hash:  {content_hash}");
+        if let Some(u) = url {
+            println!("  url:           {u}");
+        }
+        println!("  source:        {source_title}");
+        println!();
+        println!(
+            "  {} dataset recorded in {}",
+            style::ok("ok"),
+            frontier.display()
+        );
+    }
+}
+
+/// v0.33: list datasets in a frontier.
+fn cmd_datasets(frontier: &Path, json: bool) {
+    let project = repo::load_from_path(frontier).unwrap_or_else(|e| fail_return(&e));
+    if json {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&json!({
+                "ok": true,
+                "command": "datasets",
+                "frontier": frontier.display().to_string(),
+                "count": project.datasets.len(),
+                "datasets": project.datasets,
+            }))
+            .expect("serialize datasets")
+        );
+        return;
+    }
+    println!();
+    println!(
+        "  {}",
+        format!("VELA · DATASETS · {}", frontier.display())
+            .to_uppercase()
+            .dimmed()
+    );
+    println!("  {}", style::tick_row(60));
+    if project.datasets.is_empty() {
+        println!("  (no datasets registered)");
+        return;
+    }
+    for ds in &project.datasets {
+        let v = ds
+            .version
+            .as_deref()
+            .map(|s| format!("@{s}"))
+            .unwrap_or_default();
+        println!("  · {}  {}{}", ds.id.dimmed(), ds.name, v);
+        if let Some(u) = &ds.url {
+            println!("      url:    {}", truncate(u, 80));
+        }
+        println!("      hash:   {}", truncate(&ds.content_hash, 80));
+    }
+}
+
+/// v0.33: append a CodeArtifact record to a frontier and persist it.
+#[allow(clippy::too_many_arguments)]
+fn cmd_code_add(
+    frontier: &Path,
+    language: &str,
+    repo_url: Option<&str>,
+    commit: Option<&str>,
+    path: &str,
+    content_hash: &str,
+    line_start: Option<u32>,
+    line_end: Option<u32>,
+    entry_point: Option<&str>,
+    json: bool,
+) {
+    let mut project = repo::load_from_path(frontier).unwrap_or_else(|e| fail_return(&e));
+
+    let line_range = match (line_start, line_end) {
+        (Some(a), Some(b)) => Some((a, b)),
+        (Some(a), None) => Some((a, a)),
+        _ => None,
+    };
+
+    let artifact = crate::bundle::CodeArtifact::new(
+        language.to_string(),
+        repo_url.map(|s| s.to_string()),
+        commit.map(|s| s.to_string()),
+        path.to_string(),
+        line_range,
+        content_hash.to_string(),
+        entry_point.map(|s| s.to_string()),
+    );
+
+    if project.code_artifacts.iter().any(|c| c.id == artifact.id) {
+        if json {
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&json!({
+                    "ok": false,
+                    "command": "code.add",
+                    "reason": "artifact_already_exists",
+                    "id": artifact.id,
+                }))
+                .expect("serialize")
+            );
+        } else {
+            println!(
+                "{} code artifact {} already exists in {}; skipping.",
+                style::warn("code"),
+                artifact.id,
+                frontier.display()
+            );
+        }
+        return;
+    }
+
+    let new_id = artifact.id.clone();
+    project.code_artifacts.push(artifact);
+    repo::save_to_path(frontier, &project).unwrap_or_else(|e| fail_return(&e));
+
+    if json {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&json!({
+                "ok": true,
+                "command": "code.add",
+                "id": new_id,
+                "language": language,
+                "path": path,
+                "frontier": frontier.display().to_string(),
+            }))
+            .expect("failed to serialize code.add result")
+        );
+    } else {
+        println!();
+        println!(
+            "  {}",
+            format!("VELA · CODE · {}", new_id).to_uppercase().dimmed()
+        );
+        println!("  {}", style::tick_row(60));
+        println!("  language:      {language}");
+        if let Some(r) = repo_url {
+            println!("  repo:          {r}");
+        }
+        if let Some(c) = commit {
+            println!("  commit:        {c}");
+        }
+        println!("  path:          {path}");
+        if let Some((a, b)) = line_range {
+            println!("  lines:         {a}-{b}");
+        }
+        println!("  content_hash:  {content_hash}");
+        println!();
+        println!(
+            "  {} code artifact recorded in {}",
+            style::ok("ok"),
+            frontier.display()
+        );
+    }
+}
+
+/// v0.33: list code artifacts in a frontier.
+fn cmd_code_artifacts(frontier: &Path, json: bool) {
+    let project = repo::load_from_path(frontier).unwrap_or_else(|e| fail_return(&e));
+    if json {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&json!({
+                "ok": true,
+                "command": "code-artifacts",
+                "frontier": frontier.display().to_string(),
+                "count": project.code_artifacts.len(),
+                "code_artifacts": project.code_artifacts,
+            }))
+            .expect("serialize code-artifacts")
+        );
+        return;
+    }
+    println!();
+    println!(
+        "  {}",
+        format!("VELA · CODE · {}", frontier.display())
+            .to_uppercase()
+            .dimmed()
+    );
+    println!("  {}", style::tick_row(60));
+    if project.code_artifacts.is_empty() {
+        println!("  (no code artifacts registered)");
+        return;
+    }
+    for c in &project.code_artifacts {
+        let lr = c
+            .line_range
+            .map(|(a, b)| format!(":{a}-{b}"))
+            .unwrap_or_default();
+        println!(
+            "  · {}  {} {}{}",
+            c.id.dimmed(),
+            c.language,
+            c.path,
+            lr
+        );
+        if let Some(r) = &c.repo_url {
+            println!("      repo:   {}", truncate(r, 80));
+        }
+        if let Some(g) = &c.git_commit {
+            println!("      commit: {g}");
+        }
     }
 }
 
@@ -3458,7 +3903,7 @@ fn cmd_stats(path: &Path) {
     let frontier = repo::load_from_path(path).expect("Failed to load frontier");
     let s = &frontier.stats;
     println!();
-    println!("  {}", "FRONTIER · V0.32.0".dimmed());
+    println!("  {}", "FRONTIER · V0.33.0".dimmed());
     println!("  {}", frontier.project.name.bold());
     println!("  {}", style::tick_row(60));
     println!("  id:             {}", frontier.frontier_id());
@@ -4465,6 +4910,8 @@ fn cmd_frontier(action: FrontierAction) {
                 signatures: Vec::new(),
                 actors: Vec::new(),
                 replications: Vec::new(),
+                datasets: Vec::new(),
+                code_artifacts: Vec::new(),
             };
             repo::save_to_path(&path, &project).unwrap_or_else(|e| fail_return(&e));
             let payload = json!({
@@ -5715,7 +6162,7 @@ async fn cmd_bridge(inputs: &[PathBuf], check_novelty: bool, top_n: usize) {
         fail("need at least 2 frontier files for bridge detection.");
     }
     println!();
-    println!("  {}", "VELA · BRIDGE · V0.32.0".dimmed());
+    println!("  {}", "VELA · BRIDGE · V0.33.0".dimmed());
     println!("  {}", style::tick_row(60));
     println!("  loading {} frontiers...", inputs.len());
     let mut named_projects = Vec::<(String, project::Project)>::new();
@@ -6542,6 +6989,12 @@ const SCIENCE_SUBCOMMANDS: &[&str] = &[
     // v0.32: replication as a first-class kernel object.
     "replicate",
     "replications",
+    // v0.33: computational provenance — datasets and code as
+    // first-class kernel objects.
+    "dataset-add",
+    "datasets",
+    "code-add",
+    "code-artifacts",
 ];
 
 pub fn is_science_subcommand(name: &str) -> bool {
@@ -6550,7 +7003,7 @@ pub fn is_science_subcommand(name: &str) -> bool {
 
 fn print_strict_help() {
     println!(
-        r#"Vela 0.32.0
+        r#"Vela 0.33.0
 Portable frontier state for science.
 
 Usage:
@@ -6820,7 +7273,7 @@ pub fn run_from_args() {
             return;
         }
         Some("-V" | "--version" | "version") => {
-            println!("vela 0.32.0");
+            println!("vela 0.33.0");
             return;
         }
         Some(cmd) if !is_science_subcommand(cmd) => {

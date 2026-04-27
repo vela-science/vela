@@ -1,0 +1,33 @@
+{
+  "id": "vd_aa2be6fce05e944c",
+  "name": "Alzheimer's Therapeutics frontier",
+  "version": "vfr_bd912b3e29e334ab",
+  "schema": [],
+  "row_count": 86,
+  "content_hash": "1c5e2d43c5cfe68d396046a6bbf4b88c25aa298cdd8676d396a5b438ec115f83",
+  "url": "https://raw.githubusercontent.com/vela-science/vela/main/frontiers/alzheimers-therapeutics.json",
+  "license": "CC-BY-4.0",
+  "provenance": {
+    "source_type": "data_release",
+    "doi": null,
+    "pmid": null,
+    "pmc": null,
+    "openalex_id": null,
+    "url": "https://raw.githubusercontent.com/vela-science/vela/main/frontiers/alzheimers-therapeutics.json",
+    "title": "Vela canonical Alzheimer's Therapeutics frontier (snapshot)",
+    "authors": [],
+    "year": null,
+    "journal": null,
+    "license": "CC-BY-4.0",
+    "extraction": {
+      "method": "manual_curation",
+      "model": null,
+      "model_version": null,
+      "extracted_at": "2026-04-27T19:53:13.563939+00:00",
+      "extractor_version": "0.32.0"
+    },
+    "review": null,
+    "citation_count": null
+  },
+  "created": "2026-04-27T19:53:13.563946+00:00"
+}

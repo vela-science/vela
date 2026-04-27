@@ -1,0 +1,33 @@
+{
+  "id": "vd_5ad73dd5c181e10d",
+  "name": "TRAILBLAZER-ALZ",
+  "version": "TRAILBLAZER-ALZ 2 (NCT04437511)",
+  "schema": [],
+  "row_count": 1736,
+  "content_hash": "trailblazer-alz2-published-summary-2023",
+  "url": "https://clinicaltrials.gov/study/NCT04437511",
+  "license": "Restricted (sponsor-controlled)",
+  "provenance": {
+    "source_type": "data_release",
+    "doi": "10.1001/jama.2023.13239",
+    "pmid": null,
+    "pmc": null,
+    "openalex_id": null,
+    "url": "https://clinicaltrials.gov/study/NCT04437511",
+    "title": "Donanemab in Early Symptomatic Alzheimer Disease (TRAILBLAZER-ALZ 2)",
+    "authors": [],
+    "year": null,
+    "journal": null,
+    "license": "Restricted (sponsor-controlled)",
+    "extraction": {
+      "method": "manual_curation",
+      "model": null,
+      "model_version": null,
+      "extracted_at": "2026-04-27T19:53:13.530234+00:00",
+      "extractor_version": "0.32.0"
+    },
+    "review": null,
+    "citation_count": null
+  },
+  "created": "2026-04-27T19:53:13.530238+00:00"
+}

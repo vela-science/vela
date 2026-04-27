@@ -1,0 +1,11 @@
+{
+  "id": "vc_53bb21047e7f3e44",
+  "language": "python",
+  "repo_url": "https://github.com/vela-science/vela",
+  "git_commit": "ea0a1a4d9429cfff9c89bcebc4496659e8af2ad4",
+  "path": "scripts/gold-from-frontier.py",
+  "line_range": null,
+  "content_hash": "57b532da05269f1e37bb53c31d6aa2c158527e099efddb5231972546cbb5bde2",
+  "entry_point": "main",
+  "created": "2026-04-27T19:53:22.270314+00:00"
+}

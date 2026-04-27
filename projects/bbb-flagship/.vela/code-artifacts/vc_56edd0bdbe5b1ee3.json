@@ -1,0 +1,11 @@
+{
+  "id": "vc_56edd0bdbe5b1ee3",
+  "language": "rust",
+  "repo_url": "https://github.com/vela-science/vela",
+  "git_commit": "ea0a1a4d9429cfff9c89bcebc4496659e8af2ad4",
+  "path": "crates/vela-scientist/src/notes.rs",
+  "line_range": null,
+  "content_hash": "1826e577fac6dc08e7de8c714a708303f493f6184e60aa681b8addbc46e4f7a2",
+  "entry_point": "run_notes_compiler",
+  "created": "2026-04-27T19:53:22.239493+00:00"
+}

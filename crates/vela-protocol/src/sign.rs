@@ -740,6 +740,8 @@ mod tests {
             signatures: vec![env1],
             actors: vec![],
             replications: vec![],
+            datasets: vec![],
+            code_artifacts: vec![],
         };
 
         let report = verify_frontier_data(&frontier, None).unwrap();

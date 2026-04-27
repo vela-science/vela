@@ -574,6 +574,97 @@ export function replicationStats(): ReplicationStats {
   };
 }
 
+// ── Datasets and code artifacts (v0.33) ─────────────────────────────
+//
+// Datasets and code artifacts are first-class kernel objects under
+// `.vela/datasets/` and `.vela/code-artifacts/`. Each `vd_<hash>` is a
+// versioned, content-addressed reference to data; each `vc_<hash>` is
+// a content-addressed pointer at a region of source code at a specific
+// git commit. Both extend the "Git for science" claim from
+// aspirational to operational.
+
+export interface Dataset {
+  id: string;
+  name: string;
+  version?: string | null;
+  schema?: Array<[string, string]>;
+  row_count?: number | null;
+  content_hash: string;
+  url?: string | null;
+  license?: string | null;
+  provenance: Provenance;
+  created: string;
+}
+
+export interface CodeArtifact {
+  id: string;
+  language: string;
+  repo_url?: string | null;
+  git_commit?: string | null;
+  path: string;
+  line_range?: [number, number] | null;
+  content_hash: string;
+  entry_point?: string | null;
+  created: string;
+}
+
+let _dsCache: Dataset[] | null = null;
+let _caCache: CodeArtifact[] | null = null;
+
+function datasetsDir(): string {
+  return join(repoRoot(), FRONTIER.repoPath, ".vela", "datasets");
+}
+function codeArtifactsDir(): string {
+  return join(repoRoot(), FRONTIER.repoPath, ".vela", "code-artifacts");
+}
+
+export function loadDatasets(): Dataset[] {
+  if (_dsCache) return _dsCache;
+  const dir = datasetsDir();
+  if (!existsSync(dir)) {
+    _dsCache = [];
+    return _dsCache;
+  }
+  const out: Dataset[] = [];
+  for (const file of readdirSync(dir).filter((f) => f.endsWith(".json"))) {
+    try {
+      out.push(JSON.parse(readFileSync(join(dir, file), "utf8")) as Dataset);
+    } catch (err) {
+      console.warn(`[frontier] failed to parse dataset ${file}:`, err);
+    }
+  }
+  out.sort((a, b) => a.name.localeCompare(b.name));
+  _dsCache = out;
+  return _dsCache;
+}
+
+export function loadCodeArtifacts(): CodeArtifact[] {
+  if (_caCache) return _caCache;
+  const dir = codeArtifactsDir();
+  if (!existsSync(dir)) {
+    _caCache = [];
+    return _caCache;
+  }
+  const out: CodeArtifact[] = [];
+  for (const file of readdirSync(dir).filter((f) => f.endsWith(".json"))) {
+    try {
+      out.push(JSON.parse(readFileSync(join(dir, file), "utf8")) as CodeArtifact);
+    } catch (err) {
+      console.warn(`[frontier] failed to parse code artifact ${file}:`, err);
+    }
+  }
+  out.sort((a, b) => a.path.localeCompare(b.path));
+  _caCache = out;
+  return _caCache;
+}
+
+export function findDataset(id: string): Dataset | undefined {
+  return loadDatasets().find((d) => d.id === id);
+}
+export function findCodeArtifact(id: string): CodeArtifact | undefined {
+  return loadCodeArtifacts().find((c) => c.id === id);
+}
+
 // ── Aggregations used by pages ──────────────────────────────────────
 
 export function findBySlug(slug: string): ClaimView | undefined {
