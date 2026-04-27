@@ -192,7 +192,7 @@ pub struct ConfidenceDistribution {
 /// Schema and compiler defaults for the current Vela protocol release.
 pub const VELA_SCHEMA_URL: &str = "https://vela.science/schema/finding-bundle/v0.10.0";
 pub const VELA_SCHEMA_VERSION: &str = "0.10.0";
-pub const VELA_COMPILER_VERSION: &str = "vela/0.36.0";
+pub const VELA_COMPILER_VERSION: &str = "vela/0.36.1";
 
 /// Derive a `vfr_<hash>` frontier ID from frontier metadata. Used as a
 /// fallback for legacy frontiers without a `frontier.created` genesis
@@ -352,6 +352,41 @@ impl Project {
             self.frontier_id = Some(self.frontier_id());
         }
         self.frontier_id.clone().unwrap()
+    }
+
+    /// v0.36.1: Compute frontier-epistemic confidence for a finding using
+    /// the v0.32 `Replication` collection as the authoritative source. A
+    /// failed replication subtracts from confidence; a successful one
+    /// adds to it; partials half-add. This closes the long-standing
+    /// "two sources of truth" between `Evidence.replicated` (the legacy
+    /// scalar set when a finding was first asserted) and
+    /// `Project.replications` (the kernel objects accumulated over time).
+    ///
+    /// Falls back to the legacy scalar only when no `Replication` record
+    /// targets this finding's id — preserves behavior for unmigrated
+    /// frontiers.
+    #[must_use]
+    pub fn compute_confidence_for(&self, bundle: &FindingBundle) -> crate::bundle::Confidence {
+        let (n_repl, n_failed, n_partial) =
+            crate::bundle::count_replication_outcomes(&self.replications, &bundle.id);
+        let (n_repl, n_failed, n_partial) = if n_repl + n_failed + n_partial == 0 {
+            let legacy = if bundle.evidence.replicated {
+                bundle.evidence.replication_count.unwrap_or(1)
+            } else {
+                0
+            };
+            (legacy, 0, 0)
+        } else {
+            (n_repl, n_failed, n_partial)
+        };
+        crate::bundle::compute_confidence_from_components(
+            &bundle.evidence,
+            &bundle.conditions,
+            bundle.flags.contested,
+            n_repl,
+            n_failed,
+            n_partial,
+        )
     }
 
     /// v0.8: iterate the cross-frontier dependencies (those with

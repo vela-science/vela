@@ -1,5 +1,76 @@
 # Changelog
 
+## 0.36.1 - 2026-04-27
+
+**Replication is now the source of truth for confidence.** Two
+substrate-correctness fixes that close the long-running "two sources of
+truth" wart between the v0.32 `Replication` collection and the legacy
+`Evidence.replicated: bool` / `Evidence.replication_count: u32` scalars.
+
+Before this release, `compute_confidence` read the scalar flag
+regardless of what `Project.replications` actually held — meaning a
+finding's confidence was a function of the prose written when it was
+first asserted, not of the replications subsequently recorded against
+it. A replication added via `vela replicate` would land in the
+collection but never reach the score. That is now fixed.
+
+### A.1 — `Project::compute_confidence_for`
+
+`bundle::compute_confidence` is split into a back-compat scalar wrapper
+and a pure-math kernel `compute_confidence_from_components(evidence,
+conditions, contested, n_replicated, n_failed, n_partial)`. The
+replication-strength schedule becomes:
+
+```
+clamp(0.7 + 0.10 * n_replicated + 0.05 * n_partial - 0.10 * n_failed,
+      0.4, 1.0)
+```
+
+The 0.4 floor keeps a single failed replication from zeroing the
+score. `inconclusive` outcomes do not move the number — they encode
+methodological ambiguity, not evidence.
+
+A new `Project::compute_confidence_for(&FindingBundle)` derives
+`(n_replicated, n_failed, n_partial)` from `self.replications` filtered
+by `target_finding == bundle.id`. This is the authoritative path.
+`bundle::recompute_all_confidence(&mut findings, &replications)` and
+the `cmd_normalize` caller now use it; legacy callers without Project
+context fall through `count_replication_outcomes` returning empty,
+which routes back to the scalar — preserving prior behavior on
+unmigrated frontiers.
+
+### A.2 — Replication-aware propagation cascade
+
+`PropagationAction` gains a `ReplicationOutcome { outcome, vrep_id }`
+variant. When a `vrep_*` lands against a finding:
+
+- the target's confidence is recomputed from the live
+  `Project.replications` collection (closes the loop on A.1);
+- dependents linked via `supports` / `depends` are flagged for review:
+  `upstream_replication_failed`, `upstream_replication_partial`, or
+  `upstream_replication_succeeded`. `inconclusive` does not cascade.
+
+Three new tests: `failed_replication_flags_dependents`,
+`successful_replication_recomputes_target_and_flags_dependents`,
+`inconclusive_replication_does_not_cascade`.
+
+### Why this was wrong before
+
+The v0.32 promise was "replication is a first-class kernel object." The
+implementation got it half-right: the object existed, the CLI verb
+`vela replicate` minted them, the disk layout persisted them, the site
+rendered them. But the confidence math kept reading the scalar that
+v0.32 was supposed to make obsolete. Today's release closes that gap.
+
+### Verification
+
+- `cargo build --workspace`: clean.
+- `cargo test --workspace`: **368/368 pass** (was 365; +3 cascade tests).
+- `vela check projects/bbb-flagship`: 86/86 valid; 56/56 conformance
+  tests pass.
+- Backward compat: any frontier with no `Replication` records and the
+  legacy scalar set produces the same score it did before.
+
 ## 0.36.0 - 2026-04-27
 
 **Legacy ingestion regime removed.** The pre-v0.22 file-driven ingestion

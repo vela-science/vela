@@ -908,10 +908,45 @@ fn parse_sample_size(s: &str) -> Option<u64> {
 /// Compute frontier epistemic confidence from evidence and condition fields.
 /// Returns a fully populated Confidence with components and aggregate score,
 /// using a deterministic, auditable support computation.
+///
+/// Back-compat wrapper: derives `n_replicated` from the legacy
+/// `Evidence.replicated` / `Evidence.replication_count` scalars, with
+/// `n_failed` and `n_partial` defaulting to zero. Use
+/// `Project::compute_confidence_for` when the v0.32 `Replication`
+/// collection is available — that's the authoritative path.
 pub fn compute_confidence(
     evidence: &Evidence,
     conditions: &Conditions,
     contested: bool,
+) -> Confidence {
+    let n_replicated = if evidence.replicated {
+        evidence.replication_count.unwrap_or(1)
+    } else {
+        0
+    };
+    compute_confidence_from_components(evidence, conditions, contested, n_replicated, 0, 0)
+}
+
+/// Pure-math kernel for the frontier-epistemic confidence formula. Takes
+/// replication counts as inputs so the same math drives both the legacy
+/// scalar path (`compute_confidence`) and the v0.32 Project-aware path
+/// (`Project::compute_confidence_for`).
+///
+/// Replication strength schedule:
+/// `clamp(0.7 + 0.1 * n_replicated + 0.05 * n_partial - 0.10 * n_failed, 0.4, 1.0)`
+///
+/// Floor at 0.4 keeps a single failed replication from zeroing out the
+/// computation; ceiling at 1.0 caps the bonus from accumulated successes.
+/// `inconclusive` outcomes do not move the score (deliberate — they
+/// represent methodological ambiguity, not evidence).
+#[must_use]
+pub fn compute_confidence_from_components(
+    evidence: &Evidence,
+    conditions: &Conditions,
+    contested: bool,
+    n_replicated: u32,
+    n_failed: u32,
+    n_partial: u32,
 ) -> Confidence {
     let evidence_strength = match evidence.evidence_type.as_str() {
         "meta_analysis" => 0.95,
@@ -924,12 +959,11 @@ pub fn compute_confidence(
         _ => 0.50,
     };
 
-    let replication_strength = if evidence.replicated {
-        let count = evidence.replication_count.unwrap_or(1) as f64;
-        (0.7 + 0.1 * count).min(1.0)
-    } else {
-        0.7
-    };
+    let replication_strength = (0.7
+        + 0.1 * f64::from(n_replicated)
+        + 0.05 * f64::from(n_partial)
+        - 0.10 * f64::from(n_failed))
+    .clamp(0.4, 1.0);
 
     let sample_strength = match evidence.sample_size.as_deref().and_then(parse_sample_size) {
         Some(n) if n > 1000 => 1.0,
@@ -990,15 +1024,71 @@ pub fn compute_confidence(
     }
 }
 
-/// Recompute confidence scores for all findings in a slice.
-/// Returns the number of findings whose score changed.
-pub fn recompute_all_confidence(findings: &mut [FindingBundle]) -> usize {
+/// Count v0.32 replication outcomes targeting a given finding id.
+/// Returns `(n_replicated, n_failed, n_partial)`. Inconclusive outcomes
+/// are deliberately excluded — they represent methodological ambiguity
+/// and don't move the confidence score.
+#[must_use]
+pub fn count_replication_outcomes(
+    replications: &[Replication],
+    target_finding: &str,
+) -> (u32, u32, u32) {
+    let mut n_replicated = 0u32;
+    let mut n_failed = 0u32;
+    let mut n_partial = 0u32;
+    for r in replications {
+        if r.target_finding != target_finding {
+            continue;
+        }
+        match r.outcome.as_str() {
+            "replicated" => n_replicated += 1,
+            "failed" => n_failed += 1,
+            "partial" => n_partial += 1,
+            _ => {}
+        }
+    }
+    (n_replicated, n_failed, n_partial)
+}
+
+/// Recompute confidence scores for all findings in a slice using the
+/// v0.32 `Replication` collection as the source of truth. Returns the
+/// number of findings whose score changed by more than 0.001.
+///
+/// When `replications` is empty (e.g., legacy frontiers pre-v0.32), the
+/// math falls back through `compute_confidence_from_components` with
+/// counts derived from the scalar `Evidence.replicated` /
+/// `Evidence.replication_count` fields, preserving prior behavior.
+pub fn recompute_all_confidence(
+    findings: &mut [FindingBundle],
+    replications: &[Replication],
+) -> usize {
     let mut changed = 0;
     for bundle in findings.iter_mut() {
         let old_score = bundle.confidence.score;
         let extraction_conf = bundle.confidence.extraction_confidence;
-        let mut new_conf =
-            compute_confidence(&bundle.evidence, &bundle.conditions, bundle.flags.contested);
+        let (n_repl, n_failed, n_partial) =
+            count_replication_outcomes(replications, &bundle.id);
+        // If the v0.32 collection has nothing for this finding, fall back
+        // to the legacy scalar so unmigrated frontiers keep their prior
+        // computed confidence.
+        let (n_repl, n_failed, n_partial) = if n_repl + n_failed + n_partial == 0 {
+            let legacy = if bundle.evidence.replicated {
+                bundle.evidence.replication_count.unwrap_or(1)
+            } else {
+                0
+            };
+            (legacy, 0, 0)
+        } else {
+            (n_repl, n_failed, n_partial)
+        };
+        let mut new_conf = compute_confidence_from_components(
+            &bundle.evidence,
+            &bundle.conditions,
+            bundle.flags.contested,
+            n_repl,
+            n_failed,
+            n_partial,
+        );
         // Preserve the extraction confidence from the original extraction.
         new_conf.extraction_confidence = extraction_conf;
         if (new_conf.score - old_score).abs() > 0.001 {
@@ -2428,7 +2518,7 @@ mod tests {
         // Original score is a seeded prior. The computed frontier support should differ.
         let old_score = b.confidence.score;
         assert!((old_score - 0.85).abs() < 0.001);
-        let changed = recompute_all_confidence(std::slice::from_mut(&mut b));
+        let changed = recompute_all_confidence(std::slice::from_mut(&mut b), &[]);
         assert_eq!(b.confidence.method, ConfidenceMethod::Computed);
         assert!(b.confidence.components.is_some());
         // experimental=0.80, replicated(3)=min(1.0,0.7+0.3)=1.0, in_vitro=0.6, sample=n=30 (not >30)->0.7

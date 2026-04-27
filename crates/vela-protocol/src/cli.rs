@@ -19,7 +19,7 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 
 #[derive(Parser)]
-#[command(name = "vela", version = "0.36.0")]
+#[command(name = "vela", version = "0.36.1")]
 #[command(about = "Portable frontier state for science")]
 struct Cli {
     #[command(subcommand)]
@@ -3997,7 +3997,8 @@ fn cmd_normalize(
     let before_stats = serde_json::to_value(&frontier.stats).unwrap_or(Value::Null);
     let (entity_type_fixes, entity_name_fixes) =
         normalize::normalize_findings(&mut frontier.findings);
-    let confidence_updates = bundle::recompute_all_confidence(&mut frontier.findings);
+    let confidence_updates =
+        bundle::recompute_all_confidence(&mut frontier.findings, &frontier.replications);
     // Phase N: optionally rewrite finding.provenance from the canonical
     // SourceRecord. The source registry is the authority; provenance is
     // the denormalized cache.
