@@ -1,0 +1,115 @@
+{
+  "suite": "replication-cascade",
+  "description": "v0.36.2: Replication-aware propagation cascade. When a vrep_<id> lands against a finding, the target's confidence is recomputed from Project.replications (the source of truth, not Evidence.replicated) and dependents linked via supports/depends are flagged with upstream_replication_failed | _partial | _succeeded. inconclusive does not cascade.",
+  "cases": [
+    {
+      "name": "failed replication flags supports-dependent",
+      "input": {
+        "findings": [
+          {"id": "vf_aaaa", "confidence": 0.8, "links": []},
+          {"id": "vf_bbbb", "confidence": 0.7, "links": [{"target": "vf_aaaa", "type": "supports"}]}
+        ],
+        "replications": [
+          {"target_finding": "vf_aaaa", "outcome": "failed", "attempted_by": "lab:beta"}
+        ],
+        "action": {
+          "type": "replication_outcome",
+          "finding_id": "vf_aaaa",
+          "outcome": "failed",
+          "vrep_id": "vrep_test_aaaa_failed"
+        }
+      },
+      "expected_output": {
+        "affected_count": 1,
+        "flag_types": ["upstream_replication_failed"]
+      }
+    },
+    {
+      "name": "successful replication flags depends-dependent and recomputes target",
+      "input": {
+        "findings": [
+          {"id": "vf_aaaa", "confidence": 0.5, "links": []},
+          {"id": "vf_bbbb", "confidence": 0.5, "links": [{"target": "vf_aaaa", "type": "depends"}]}
+        ],
+        "replications": [
+          {"target_finding": "vf_aaaa", "outcome": "replicated", "attempted_by": "lab:gamma"}
+        ],
+        "action": {
+          "type": "replication_outcome",
+          "finding_id": "vf_aaaa",
+          "outcome": "replicated",
+          "vrep_id": "vrep_test_aaaa_replicated"
+        }
+      },
+      "expected_output": {
+        "affected_count": 1,
+        "flag_types": ["upstream_replication_succeeded"]
+      }
+    },
+    {
+      "name": "partial replication flags partial-cascade",
+      "input": {
+        "findings": [
+          {"id": "vf_aaaa", "confidence": 0.7, "links": []},
+          {"id": "vf_bbbb", "confidence": 0.7, "links": [{"target": "vf_aaaa", "type": "supports"}]}
+        ],
+        "replications": [
+          {"target_finding": "vf_aaaa", "outcome": "partial", "attempted_by": "lab:delta"}
+        ],
+        "action": {
+          "type": "replication_outcome",
+          "finding_id": "vf_aaaa",
+          "outcome": "partial",
+          "vrep_id": "vrep_test_aaaa_partial"
+        }
+      },
+      "expected_output": {
+        "affected_count": 1,
+        "flag_types": ["upstream_replication_partial"]
+      }
+    },
+    {
+      "name": "inconclusive replication does not cascade",
+      "input": {
+        "findings": [
+          {"id": "vf_aaaa", "confidence": 0.7, "links": []},
+          {"id": "vf_bbbb", "confidence": 0.7, "links": [{"target": "vf_aaaa", "type": "supports"}]}
+        ],
+        "replications": [
+          {"target_finding": "vf_aaaa", "outcome": "inconclusive", "attempted_by": "lab:eps"}
+        ],
+        "action": {
+          "type": "replication_outcome",
+          "finding_id": "vf_aaaa",
+          "outcome": "inconclusive",
+          "vrep_id": "vrep_test_aaaa_inconclusive"
+        }
+      },
+      "expected_output": {
+        "affected_count": 0
+      }
+    },
+    {
+      "name": "failed replication does not cascade through extends or contradicts",
+      "input": {
+        "findings": [
+          {"id": "vf_aaaa", "confidence": 0.7, "links": []},
+          {"id": "vf_bbbb", "confidence": 0.7, "links": [{"target": "vf_aaaa", "type": "extends"}]},
+          {"id": "vf_cccc", "confidence": 0.7, "links": [{"target": "vf_aaaa", "type": "contradicts"}]}
+        ],
+        "replications": [
+          {"target_finding": "vf_aaaa", "outcome": "failed", "attempted_by": "lab:zeta"}
+        ],
+        "action": {
+          "type": "replication_outcome",
+          "finding_id": "vf_aaaa",
+          "outcome": "failed",
+          "vrep_id": "vrep_test_aaaa_failed_2"
+        }
+      },
+      "expected_output": {
+        "affected_count": 0
+      }
+    }
+  ]
+}

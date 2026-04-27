@@ -55,4 +55,4 @@ export const FRONTIER = {
   manifestFile: "alzheimers-therapeutics.json",
 };
 
-export const VERSION = "0.36.1";
+export const VERSION = "0.36.2";

@@ -192,7 +192,7 @@ pub struct ConfidenceDistribution {
 /// Schema and compiler defaults for the current Vela protocol release.
 pub const VELA_SCHEMA_URL: &str = "https://vela.science/schema/finding-bundle/v0.10.0";
 pub const VELA_SCHEMA_VERSION: &str = "0.10.0";
-pub const VELA_COMPILER_VERSION: &str = "vela/0.36.1";
+pub const VELA_COMPILER_VERSION: &str = "vela/0.36.2";
 
 /// Derive a `vfr_<hash>` frontier ID from frontier metadata. Used as a
 /// fallback for legacy frontiers without a `frontier.created` genesis
@@ -471,10 +471,31 @@ pub fn recompute_stats(project: &mut Project) {
             .or_default() += 1;
     }
 
+    // v0.36.2: count findings with at least one successful replication
+    // recorded in `project.replications`. The legacy
+    // `evidence.replicated` scalar is a fall-through for findings
+    // pre-v0.32 that have no `Replication` records yet — same shape as
+    // `Project::compute_confidence_for`. A finding is "replicated" if
+    // EITHER the structured collection holds a `replicated` outcome
+    // for it, OR (no records exist at all) the legacy flag is set.
+    let mut targets_with_success: HashSet<&str> = HashSet::new();
+    let mut targets_with_any_record: HashSet<&str> = HashSet::new();
+    for r in &project.replications {
+        targets_with_any_record.insert(r.target_finding.as_str());
+        if r.outcome == "replicated" {
+            targets_with_success.insert(r.target_finding.as_str());
+        }
+    }
     let replicated = project
         .findings
         .iter()
-        .filter(|b| b.evidence.replicated)
+        .filter(|b| {
+            if targets_with_any_record.contains(b.id.as_str()) {
+                targets_with_success.contains(b.id.as_str())
+            } else {
+                b.evidence.replicated
+            }
+        })
         .count();
     let avg_confidence = if project.findings.is_empty() {
         0.0

@@ -19,7 +19,7 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 
 #[derive(Parser)]
-#[command(name = "vela", version = "0.36.1")]
+#[command(name = "vela", version = "0.36.2")]
 #[command(about = "Portable frontier state for science")]
 struct Cli {
     #[command(subcommand)]
@@ -663,6 +663,14 @@ enum Commands {
         /// `vrep_<id>` of a previous attempt this one extends/refines.
         #[arg(long)]
         previous_attempt: Option<String>,
+        /// v0.36.2: skip the propagation cascade. By default,
+        /// recording a replication recomputes the target finding's
+        /// confidence from the live `Project.replications` collection
+        /// and flags downstream dependents linked via `supports` /
+        /// `depends`. Use this flag to stage replications without
+        /// immediate review-queue churn.
+        #[arg(long, default_value_t = false)]
+        no_cascade: bool,
         /// Emit JSON to stdout.
         #[arg(long)]
         json: bool,
@@ -2152,6 +2160,7 @@ pub async fn run_command() {
             sample_size,
             note,
             previous_attempt,
+            no_cascade,
             json,
         } => cmd_replicate(
             &frontier,
@@ -2165,6 +2174,7 @@ pub async fn run_command() {
             sample_size.as_deref(),
             &note,
             previous_attempt.as_deref(),
+            no_cascade,
             json,
         ),
         Commands::Replications {
@@ -3104,6 +3114,7 @@ fn cmd_code_artifacts(frontier: &Path, json: bool) {
 /// content-addressed id, persists it, and prints either a structured
 /// JSON receipt or a human summary. Refuses to write if the target
 /// finding is not present in the frontier.
+#[allow(clippy::too_many_arguments)]
 fn cmd_replicate(
     frontier: &Path,
     target: &str,
@@ -3116,6 +3127,7 @@ fn cmd_replicate(
     sample_size: Option<&str>,
     note: &str,
     previous_attempt: Option<&str>,
+    no_cascade: bool,
     json: bool,
 ) {
     if !crate::bundle::VALID_REPLICATION_OUTCOMES.contains(&outcome) {
@@ -3234,9 +3246,40 @@ fn cmd_replicate(
 
     let new_id = rep.id.clone();
     project.replications.push(rep);
+
+    // v0.36.2: trigger the replication-aware propagation cascade. The
+    // target's confidence is recomputed from the now-updated
+    // `project.replications` collection (closes the A.1 loop) and
+    // dependents are flagged for review with `upstream_replication_*`.
+    // `inconclusive` outcomes do not cascade; we still call propagate
+    // so the source-side recompute always runs.
+    let cascade_result = if no_cascade {
+        None
+    } else {
+        let result = propagate::propagate_correction(
+            &mut project,
+            target,
+            propagate::PropagationAction::ReplicationOutcome {
+                outcome: outcome.to_string(),
+                vrep_id: new_id.clone(),
+            },
+        );
+        // Persist propagation events into the canonical review log.
+        // Without this, the events are emitted to stdout and lost.
+        project.review_events.extend(result.events.clone());
+        project::recompute_stats(&mut project);
+        Some(result)
+    };
+
     repo::save_to_path(frontier, &project).unwrap_or_else(|e| fail_return(&e));
 
     if json {
+        let cascade_json = cascade_result.as_ref().map(|r| {
+            json!({
+                "affected": r.affected,
+                "events": r.events.len(),
+            })
+        });
         println!(
             "{}",
             serde_json::to_string_pretty(&json!({
@@ -3246,6 +3289,7 @@ fn cmd_replicate(
                 "target": target,
                 "outcome": outcome,
                 "attempted_by": attempted_by,
+                "cascade": cascade_json,
                 "frontier": frontier.display().to_string(),
             }))
             .expect("failed to serialize replicate result")
@@ -3273,6 +3317,19 @@ fn cmd_replicate(
             style::ok("ok"),
             frontier.display()
         );
+        if let Some(result) = cascade_result {
+            println!(
+                "  {} cascade: {} dependent(s) flagged, {} review event(s) recorded",
+                style::ok("ok"),
+                result.affected,
+                result.events.len()
+            );
+        } else {
+            println!(
+                "  {} cascade skipped (--no-cascade)",
+                style::warn("info")
+            );
+        }
     }
 }
 
@@ -6840,6 +6897,11 @@ fn cmd_propagate(
         fail(&format!("finding not found: {finding_id}"));
     }
     let result = propagate::propagate_correction(&mut frontier, &finding_id, action);
+    // v0.36.2: persist propagation events into the canonical review
+    // log. Pre-v0.36.2 these were emitted to stdout and lost — the
+    // kernel forgot why a finding was flagged the moment the command
+    // returned.
+    frontier.review_events.extend(result.events.clone());
     project::recompute_stats(&mut frontier);
     propagate::print_result(&result, label, &finding_id);
     let out = output.unwrap_or(path);

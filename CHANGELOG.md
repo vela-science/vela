@@ -1,5 +1,75 @@
 # Changelog
 
+## 0.36.2 - 2026-04-27
+
+**Replication-as-source-of-truth, swept through every reader.**
+v0.36.1 made `Project.replications` authoritative for the confidence
+formula. This release closes the same wart everywhere else it had
+quietly persisted, wires the cascade to its only natural caller, and
+seeds the conformance test bed for the new propagation variant.
+
+### B — `vela replicate` triggers the cascade
+
+Pre-v0.36.2, `vela replicate` minted a `vrep_<id>` and persisted it,
+but never invoked `propagate_correction`. The
+`ReplicationOutcome { ... }` variant added in v0.36.1 was reachable
+only from test code. As of this release:
+
+- After save, `cmd_replicate` calls `propagate_correction` with the
+  new variant. The target finding's confidence recomputes from the
+  live `Project.replications` collection (closing the A.1 loop).
+  Dependents linked via `supports` / `depends` are flagged
+  `upstream_replication_failed | _partial | _succeeded`.
+  `inconclusive` does not cascade.
+- New `--no-cascade` flag stages a replication without immediate
+  review-queue churn.
+- Propagation events from both `cmd_replicate` and `cmd_propagate` now
+  persist into `Project.review_events`. Pre-v0.36.2 these were emitted
+  to stdout and forgotten — the kernel didn't carry the audit trail
+  for why a finding got flagged.
+
+### C — Kernel sweep for dual-source-of-truth warts
+
+Audit found four readers still consulting the legacy
+`Evidence.replicated` scalar instead of `Project.replications`. All
+fixed with the same fall-through pattern as
+`Project::compute_confidence_for`: if the structured collection has
+records for a finding, it wins; otherwise the legacy scalar
+fall-through preserves behavior on unmigrated frontiers.
+
+| File | Reader | Severity |
+|---|---|---|
+| `project.rs::recompute_stats` | `ProjectStats.replicated` counter | high |
+| `serve.rs::merge_projects` | merged-frontier replicated count | high |
+| `observer.rs::score_finding` | replication multiplier in academic / clinical / pharma policies | high |
+| `vela-hub::finding_state` | manifest-view "replicated" / "supported" label | medium |
+
+`merge_projects` also now preserves `replications`, `datasets`,
+`code_artifacts`, `predictions`, and `resolutions` across the merge.
+Pre-v0.36.2 those collections were discarded, leaving merged stats
+reading from a now-empty pool.
+
+`observe()` and `score_finding()` API gain a `replications: &[Replication]`
+parameter. All 22 test call sites and both production callers
+(`serve.rs:1798`, `conformance.rs:767`) updated.
+
+### F — Conformance tests for the new cascade
+
+New gold suite `tests/conformance/replication-cascade.json` (5 cases):
+failed → flag, replicated → flag + recompute, partial → flag,
+inconclusive → no cascade, extends/contradicts links → no cascade.
+The `run_retraction_propagation` harness extended to ingest a
+`replications` array on case input and check `flag_types` on output.
+
+Conformance count: 56 → 61 cases. Workspace tests: 368/368.
+
+### Verification
+
+- `cargo build --workspace`: clean.
+- `cargo test --workspace`: **368/368 pass**.
+- `vela conformance`: 61/61 pass.
+- `vela check projects/bbb-flagship`: 86/86 valid.
+
 ## 0.36.1 - 2026-04-27
 
 **Replication is now the source of truth for confidence.** Two

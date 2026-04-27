@@ -1450,7 +1450,32 @@ fn render_entry_html(
 /// retracted. Order of precedence matches the substrate's own
 /// derivation: explicit retraction > gap > review verdict > replication
 /// status > default supported.
-fn finding_state(b: &vela_protocol::bundle::FindingBundle) -> (&'static str, &'static str) {
+/// v0.36.2: derive whether a finding counts as "replicated" using the
+/// v0.32 `Project.replications` collection as the source of truth.
+/// Falls back to the legacy `evidence.replicated` scalar only when the
+/// finding has no `Replication` records yet — same fall-through shape
+/// as `Project::compute_confidence_for`.
+fn is_replicated(
+    b: &vela_protocol::bundle::FindingBundle,
+    replications: &[vela_protocol::bundle::Replication],
+) -> bool {
+    let mut has_record = false;
+    let mut has_success = false;
+    for r in replications {
+        if r.target_finding == b.id {
+            has_record = true;
+            if r.outcome == "replicated" {
+                has_success = true;
+            }
+        }
+    }
+    if has_record { has_success } else { b.evidence.replicated }
+}
+
+fn finding_state(
+    b: &vela_protocol::bundle::FindingBundle,
+    replications: &[vela_protocol::bundle::Replication],
+) -> (&'static str, &'static str) {
     use vela_protocol::bundle::ReviewState;
     if b.flags.retracted {
         return ("retracted", "lost");
@@ -1464,7 +1489,7 @@ fn finding_state(b: &vela_protocol::bundle::FindingBundle) -> (&'static str, &'s
             ReviewState::NeedsRevision => return ("contested", "warn"),
             ReviewState::Rejected => return ("retracted", "lost"),
             ReviewState::Accepted => {
-                if b.evidence.replicated {
+                if is_replicated(b, replications) {
                     return ("replicated", "ok");
                 }
                 return ("supported", "ok");
@@ -1474,7 +1499,7 @@ fn finding_state(b: &vela_protocol::bundle::FindingBundle) -> (&'static str, &'s
     if b.flags.contested {
         return ("contested", "warn");
     }
-    if b.evidence.replicated {
+    if is_replicated(b, replications) {
         return ("replicated", "ok");
     }
     ("supported", "ok")
@@ -1511,7 +1536,7 @@ fn render_findings_section(vfr_id: &str, frontier: Option<&Project>) -> String {
         p.findings
             .iter()
             .fold(std::collections::BTreeMap::new(), |mut acc, b| {
-                *acc.entry(finding_state(b).0).or_default() += 1;
+                *acc.entry(finding_state(b, &p.replications).0).or_default() += 1;
                 acc
             });
     let counts = by_state
@@ -1522,7 +1547,7 @@ fn render_findings_section(vfr_id: &str, frontier: Option<&Project>) -> String {
 
     let mut rows = String::new();
     for b in &p.findings {
-        let (label, state_class) = finding_state(b);
+        let (label, state_class) = finding_state(b, &p.replications);
         let live_class = if label == "replicated" {
             " wb-chip--live"
         } else {
@@ -1677,7 +1702,7 @@ fn render_finding_html(
     let vf_safe = escape_html(&bundle.id);
     let claim_html = escape_html(&bundle.assertion.text);
     let assertion_type = escape_html(&bundle.assertion.assertion_type);
-    let (state_label, state_class) = finding_state(bundle);
+    let (state_label, state_class) = finding_state(bundle, &project.replications);
 
     // Conditions row — surface only the fields that have content,
     // and present the structured ones as small chips alongside the

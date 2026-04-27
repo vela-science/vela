@@ -12,7 +12,7 @@
 use chrono::Datelike;
 use colored::Colorize;
 
-use crate::bundle::FindingBundle;
+use crate::bundle::{FindingBundle, Replication};
 use crate::cli_style as style;
 
 /// An observer policy — a named lens over the frontier.
@@ -179,7 +179,11 @@ pub fn exploration() -> ObserverPolicy {
 
 /// Score a single finding under the given policy weights.
 /// Returns the raw (unnormalized) score.
-fn score_finding(finding: &FindingBundle, w: &ObserverWeights) -> f64 {
+fn score_finding(
+    finding: &FindingBundle,
+    replications: &[Replication],
+    w: &ObserverWeights,
+) -> f64 {
     let base = finding.confidence.score;
     let mut multiplier = 1.0;
 
@@ -188,8 +192,23 @@ fn score_finding(finding: &FindingBundle, w: &ObserverWeights) -> f64 {
         multiplier *= w.clinical_trial;
     }
 
-    // Replication signal.
-    if finding.evidence.replicated {
+    // v0.36.2: Replication signal sources from `Project.replications`,
+    // with the legacy `evidence.replicated` scalar as fall-through for
+    // findings that have no `Replication` records yet. A finding gets
+    // the multiplier only when at least one `replicated` outcome is
+    // recorded; a `failed` outcome with no successes loses it.
+    let has_record = replications
+        .iter()
+        .any(|r| r.target_finding == finding.id);
+    let has_success = replications
+        .iter()
+        .any(|r| r.target_finding == finding.id && r.outcome == "replicated");
+    let counts_as_replicated = if has_record {
+        has_success
+    } else {
+        finding.evidence.replicated
+    };
+    if counts_as_replicated {
         multiplier *= w.replication;
     }
 
@@ -250,13 +269,23 @@ fn score_finding(finding: &FindingBundle, w: &ObserverWeights) -> f64 {
 
 /// Apply an observer policy to a set of findings, producing a filtered,
 /// reranked view. The findings vector is not mutated.
-pub fn observe(findings: &[FindingBundle], policy: &ObserverPolicy) -> ObserverView {
+///
+/// v0.36.2: takes the live `replications` slice so the replication
+/// multiplier reads from `Project.replications` (the source of truth)
+/// rather than the legacy `evidence.replicated` scalar. Pass `&[]` for
+/// frontiers without v0.32 replication records — the function falls
+/// through to the scalar.
+pub fn observe(
+    findings: &[FindingBundle],
+    replications: &[Replication],
+    policy: &ObserverPolicy,
+) -> ObserverView {
     let total = findings.len();
 
     let mut scored: Vec<ScoredFinding> = findings
         .iter()
         .map(|f| {
-            let s = score_finding(f, &policy.weights);
+            let s = score_finding(f, replications, &policy.weights);
             let label = if f.assertion.text.len() > 72 {
                 let mut end = 72;
                 while end > 0 && !f.assertion.text.is_char_boundary(end) {
@@ -546,7 +575,7 @@ mod tests {
             make_finding("a", 0.8, true, true, false),
             make_finding("b", 0.8, false, false, false),
         ];
-        let view = observe(&findings, &pharma());
+        let view = observe(&findings, &[], &pharma());
         assert!(view.findings[0].finding_id == "a");
         assert!(view.findings[0].observer_score > view.findings[1].observer_score);
     }
@@ -554,7 +583,7 @@ mod tests {
     #[test]
     fn exploration_shows_all() {
         let findings = vec![make_finding("low", 0.3, false, false, false)];
-        let view = observe(&findings, &exploration());
+        let view = observe(&findings, &[], &exploration());
         assert_eq!(view.hidden, 0);
         assert_eq!(view.findings.len(), 1);
     }
@@ -562,7 +591,7 @@ mod tests {
     #[test]
     fn regulatory_hides_low_confidence() {
         let findings = vec![make_finding("low", 0.5, false, false, false)];
-        let view = observe(&findings, &regulatory());
+        let view = observe(&findings, &[], &regulatory());
         assert_eq!(view.hidden, 1);
         assert_eq!(view.findings.len(), 0);
     }
@@ -631,7 +660,7 @@ mod tests {
             make_finding("rep", 0.7, false, false, true),
             make_finding("norep", 0.7, false, false, false),
         ];
-        let view = observe(&findings, &academic());
+        let view = observe(&findings, &[], &academic());
         assert_eq!(view.findings[0].finding_id, "rep");
         assert!(view.findings[0].observer_score > view.findings[1].observer_score);
     }
@@ -642,7 +671,7 @@ mod tests {
             make_finding("human", 0.7, false, true, false),
             make_finding("nohuman", 0.7, false, false, false),
         ];
-        let view = observe(&findings, &clinical());
+        let view = observe(&findings, &[], &clinical());
         assert_eq!(view.findings[0].finding_id, "human");
         assert!(view.findings[0].observer_score > view.findings[1].observer_score);
     }
@@ -653,7 +682,7 @@ mod tests {
             make_finding("both", 0.9, true, true, false),
             make_finding("neither", 0.9, false, false, false),
         ];
-        let view = observe(&findings, &regulatory());
+        let view = observe(&findings, &[], &regulatory());
         // "both" should be ranked first with a much higher score
         assert_eq!(view.findings[0].finding_id, "both");
         // The boost should be substantial (2.0 * 2.0 = 4x multiplier)
@@ -666,7 +695,7 @@ mod tests {
         gap_finding.flags.gap = true;
         let normal_finding = make_finding("normal", 0.5, false, false, false);
         let findings = vec![gap_finding, normal_finding];
-        let view = observe(&findings, &exploration());
+        let view = observe(&findings, &[], &exploration());
         let gap_scored = view
             .findings
             .iter()
@@ -686,7 +715,7 @@ mod tests {
         ns_finding.flags.negative_space = true;
         let normal_finding = make_finding("normal", 0.5, false, false, false);
         let findings = vec![ns_finding, normal_finding];
-        let view = observe(&findings, &exploration());
+        let view = observe(&findings, &[], &exploration());
         let ns_scored = view.findings.iter().find(|f| f.finding_id == "ns").unwrap();
         let normal_scored = view
             .findings
@@ -703,7 +732,7 @@ mod tests {
             make_finding("low", 0.4, false, false, false),
             make_finding("high", 0.9, true, true, false),
         ];
-        let view = observe(&findings, &pharma());
+        let view = observe(&findings, &[], &pharma());
         assert_eq!(view.hidden, 1);
         assert_eq!(view.findings.len(), 1);
         assert_eq!(view.findings[0].finding_id, "high");
@@ -716,7 +745,7 @@ mod tests {
             make_finding("b", 0.5, false, false, false),
             make_finding("c", 0.9, true, true, false),
         ];
-        let view = observe(&findings, &pharma());
+        let view = observe(&findings, &[], &pharma());
         assert_eq!(view.total, 3);
         assert_eq!(view.findings.len() + view.hidden, view.total);
     }
@@ -728,7 +757,7 @@ mod tests {
             make_finding("b", 0.85, true, false, false),
             make_finding("c", 0.8, false, false, false),
         ];
-        let view = observe(&findings, &pharma());
+        let view = observe(&findings, &[], &pharma());
         for (i, sf) in view.findings.iter().enumerate() {
             assert_eq!(sf.rank, i + 1);
         }
@@ -736,7 +765,7 @@ mod tests {
 
     #[test]
     fn observe_empty_findings() {
-        let view = observe(&[], &pharma());
+        let view = observe(&[], &[], &pharma());
         assert_eq!(view.total, 0);
         assert_eq!(view.findings.len(), 0);
         assert_eq!(view.hidden, 0);
@@ -752,7 +781,7 @@ mod tests {
         f.flags.gap = true;
         f.assertion.assertion_type = "therapeutic".into();
         let findings = vec![f];
-        let view = observe(&findings, &pharma());
+        let view = observe(&findings, &[], &pharma());
         assert!(view.findings[0].observer_score <= 1.0);
     }
 
@@ -764,8 +793,8 @@ mod tests {
             make_finding("a", 0.9, true, true, false), // pharma loves this
             make_finding("b", 0.7, false, false, true), // academic prefers replicated
         ];
-        let view_pharma = observe(&findings, &pharma());
-        let view_academic = observe(&findings, &academic());
+        let view_pharma = observe(&findings, &[], &pharma());
+        let view_academic = observe(&findings, &[], &academic());
         let diffs = diff_views(&view_pharma, &view_academic);
         assert!(!diffs.is_empty());
     }
@@ -777,8 +806,8 @@ mod tests {
             make_finding("b", 0.8, false, false, true),
             make_finding("c", 0.7, false, false, false),
         ];
-        let view_pharma = observe(&findings, &pharma());
-        let view_academic = observe(&findings, &academic());
+        let view_pharma = observe(&findings, &[], &pharma());
+        let view_academic = observe(&findings, &[], &academic());
         let diffs = diff_views(&view_pharma, &view_academic);
         for w in diffs.windows(2) {
             assert!(w[0].delta >= w[1].delta);
@@ -789,8 +818,8 @@ mod tests {
     fn diff_views_includes_hidden_findings() {
         // regulatory hides low-confidence, exploration does not
         let findings = vec![make_finding("low", 0.3, false, false, false)];
-        let view_reg = observe(&findings, &regulatory());
-        let view_exp = observe(&findings, &exploration());
+        let view_reg = observe(&findings, &[], &regulatory());
+        let view_exp = observe(&findings, &[], &exploration());
         let diffs = diff_views(&view_reg, &view_exp);
         assert!(!diffs.is_empty());
         let low_diff = diffs.iter().find(|d| d.finding_id == "low").unwrap();
@@ -803,7 +832,7 @@ mod tests {
         let mut f = make_finding("long", 0.8, false, false, false);
         f.assertion.text = "A".repeat(200);
         let findings = vec![f];
-        let view = observe(&findings, &exploration());
+        let view = observe(&findings, &[], &exploration());
         assert!(view.findings[0].label.len() < 200);
         assert!(view.findings[0].label.ends_with("..."));
     }
@@ -816,7 +845,7 @@ mod tests {
         therapeutic.assertion.assertion_type = "therapeutic".into();
         let mechanism = make_finding("mech", 0.8, false, false, false);
         let findings = vec![therapeutic, mechanism];
-        let view = observe(&findings, &pharma());
+        let view = observe(&findings, &[], &pharma());
         let ther_scored = view
             .findings
             .iter()

@@ -135,6 +135,16 @@ fn merge_projects(frontiers: Vec<(String, Project)>) -> Project {
     let mut names = Vec::new();
     let mut papers_processed = 0usize;
     let mut errors = 0usize;
+    // v0.36.2: preserve v0.32+ kernel objects across the merge.
+    // Pre-v0.36.2, `replications`, `datasets`, `code_artifacts`,
+    // `predictions`, and `resolutions` were dropped during merge,
+    // leaving the merged stats reading the legacy `evidence.replicated`
+    // scalar instead of the structured collection.
+    let mut replications = Vec::new();
+    let mut datasets = Vec::new();
+    let mut code_artifacts = Vec::new();
+    let mut predictions = Vec::new();
+    let mut resolutions = Vec::new();
 
     for (name, frontier) in frontiers {
         names.push(name);
@@ -147,6 +157,11 @@ fn merge_projects(frontiers: Vec<(String, Project)>) -> Project {
             *link_types.entry(link_type).or_default() += count;
         }
         findings.extend(frontier.findings);
+        replications.extend(frontier.replications);
+        datasets.extend(frontier.datasets);
+        code_artifacts.extend(frontier.code_artifacts);
+        predictions.extend(frontier.predictions);
+        resolutions.extend(frontier.resolutions);
     }
 
     let mut deduped = Vec::<FindingBundle>::new();
@@ -163,9 +178,26 @@ fn merge_projects(frontiers: Vec<(String, Project)>) -> Project {
     }
 
     let links = deduped.iter().map(|finding| finding.links.len()).sum();
+    // v0.36.2: count from the merged `replications` collection, with
+    // legacy `evidence.replicated` as fall-through for findings without
+    // structured records.
+    let mut targets_with_success: HashSet<&str> = HashSet::new();
+    let mut targets_with_any_record: HashSet<&str> = HashSet::new();
+    for r in &replications {
+        targets_with_any_record.insert(r.target_finding.as_str());
+        if r.outcome == "replicated" {
+            targets_with_success.insert(r.target_finding.as_str());
+        }
+    }
     let replicated = deduped
         .iter()
-        .filter(|finding| finding.evidence.replicated)
+        .filter(|finding| {
+            if targets_with_any_record.contains(finding.id.as_str()) {
+                targets_with_success.contains(finding.id.as_str())
+            } else {
+                finding.evidence.replicated
+            }
+        })
         .count();
     let avg_confidence = if deduped.is_empty() {
         0.0
@@ -254,11 +286,11 @@ fn merge_projects(frontiers: Vec<(String, Project)>) -> Project {
         proof_state: Default::default(),
         signatures: Vec::new(),
         actors: Vec::new(),
-        replications: Vec::new(),
-        datasets: Vec::new(),
-        code_artifacts: Vec::new(),
-        predictions: Vec::new(),
-        resolutions: Vec::new(),
+        replications,
+        datasets,
+        code_artifacts,
+        predictions,
+        resolutions,
     };
     sources::materialize_project(&mut project);
     project
@@ -1763,7 +1795,7 @@ fn tool_apply_observer(args: &Value, frontier: &Project) -> Result<String, Strin
     let policy_name = args["policy"].as_str().ok_or("Missing 'policy' argument")?;
     let limit = args["limit"].as_u64().unwrap_or(15) as usize;
     let policy = observer::policy_by_name(policy_name).unwrap_or_else(observer::academic);
-    let view = observer::observe(&frontier.findings, &policy);
+    let view = observer::observe(&frontier.findings, &frontier.replications, &policy);
     let top = view
         .findings
         .iter()
