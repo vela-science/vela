@@ -1,0 +1,49 @@
+{
+  "schema": "vela.bench.leaderboard.v0.1",
+  "suite": "alzheimers-therapeutics",
+  "gold": {
+    "frontier": "alzheimers-therapeutics",
+    "vfr_id": "vfr_bd912b3e29e334ab",
+    "claims": 86,
+    "description": "Live signed Alzheimer's Therapeutics frontier — drug targets, mechanisms, BBB delivery, clinical readouts."
+  },
+  "submissions": [
+    {
+      "id": "alzheimers-therapeutics-canonical",
+      "name": "Alzheimer's Therapeutics (canonical)",
+      "submitter": "vela-science",
+      "submitted_at": "2026-04-27",
+      "kind": "gold",
+      "result_file": "alzheimers-therapeutics.json",
+      "method": "Canonical signed frontier — Phase A content expansion against the Obsidian campaign + BBB-flagship literature (10 papers).",
+      "is_baseline": true
+    },
+    {
+      "id": "bbb-alzheimer-v0.29",
+      "name": "BBB Flagship (v0.29 snapshot)",
+      "submitter": "vela-science",
+      "submitted_at": "2026-04-22",
+      "kind": "snapshot",
+      "result_file": "bbb-alzheimer.json",
+      "method": "Frozen v0.29 BBB Flagship — 10 BBB-delivery papers extracted via Literature Scout (claude-cli), human-reviewed and signed. Pre-Phase-A; no broader Aβ/tau/TREM2/ApoE coverage."
+    },
+    {
+      "id": "will-alzheimer-landscape",
+      "name": "Manual curation (12 claims)",
+      "submitter": "willblair0708",
+      "submitted_at": "2026-04-26",
+      "kind": "manual",
+      "result_file": "will-alzheimer-landscape.json",
+      "method": "Hand-curated Alzheimer's-targets frontier from the curator's zettelkasten — declarative claims about Aβ, BACE1, tau, TREM2, ApoE without primary literature extraction."
+    },
+    {
+      "id": "bbb-extension",
+      "name": "BBB Extension (probe)",
+      "submitter": "vela-science",
+      "submitted_at": "2026-04-25",
+      "kind": "probe",
+      "result_file": "bbb-extension.json",
+      "method": "Single-claim demo frontier; useful only as a substrate sanity check. Expected to score zero on an Alzheimer's leaderboard."
+    }
+  ]
+}

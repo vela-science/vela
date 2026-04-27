@@ -1,0 +1,413 @@
+---
+/*
+  VelaBench — public leaderboard for agents and curators submitting
+  signed frontiers against the canonical Alzheimer's Therapeutics gold.
+
+  The mechanic is SWE-bench-shaped: the canonical signed frontier is
+  the gold; anyone publishes a frontier; we score precision, recall,
+  F1, entity accuracy, assertion-type accuracy, confidence calibration;
+  composite is the headline number.
+
+  v0.31 ships the leaderboard with four baselines:
+  - canonical (gold itself, sanity reference)
+  - BBB Flagship v0.29 snapshot (the v0.29 frontier before Phase A)
+  - Manual curation (12 hand-written claims from the curator's
+    zettelkasten)
+  - BBB extension probe (single-claim sanity submission)
+
+  External submissions land via PR to vela-science/vela; the
+  scoring is run in CI from the same `vela bench` binary. Spec at
+  /bench/submit.
+*/
+
+import Page from "../../layouts/Page.astro";
+import { loadLeaderboard, pct, fmt3 } from "../../lib/bench";
+import { HUB_URL, REPO_URL, FRONTIER, VERSION } from "../../config";
+
+const leaderboard = loadLeaderboard();
+
+const winner = leaderboard.submissions.find((s) => !s.is_baseline);
+---
+
+<Page
+  title={`VelaBench · the ${FRONTIER.name} leaderboard`}
+  description="Public benchmark for agents and curators producing signed scientific frontiers. Submit your frontier; get scored against the canonical Alzheimer's Therapeutics gold."
+  active="bench"
+  eyebrow="VelaBench"
+  pageTitle="The Alzheimer's leaderboard"
+  subtitle={`Submit a signed frontier; we score it against ${leaderboard.gold.claims} canonical claims.`}
+>
+  <div slot="aside">
+    <a href="/bench/submit" class="aside-link">submit</a>
+    <span>·</span>
+    <a href={REPO_URL} class="aside-link">github</a>
+    <span class="aside-version">v{VERSION}</span>
+  </div>
+
+  <!-- ── How it works (terse) ── -->
+  <aside class="bench-how">
+    <div class="bench-how__eyebrow">How it works</div>
+    <p class="bench-how__body">
+      The {FRONTIER.name} frontier ({leaderboard.gold.claims} signed claims, {leaderboard.gold.vfr_id}) is the gold.
+      You publish a signed frontier — agent-generated or hand-curated — pointing at primary literature.
+      We score yours against ours and rank by composite F1.
+      Every score is reproducible from the same <code>vela bench</code> binary; results live in <code>benchmarks/results/</code>.
+    </p>
+    <p class="bench-how__more">
+      <a class="inline-link" href="/bench/submit">Read the submission spec →</a>
+      <span class="bench-how__sep">·</span>
+      <a class="inline-link" href="/">Browse the gold frontier →</a>
+    </p>
+  </aside>
+
+  <!-- ── Leaderboard ── -->
+  <section class="bench-board">
+    <header class="bench-board__head">
+      <h2 class="bench-board__title">Leaderboard</h2>
+      <p class="bench-board__sub">
+        Composite is a weighted blend (F1 0.5 · entity 0.2 · type 0.2 · calibration 0.1).
+        Higher is better. The gold scores 1.000 on itself by construction.
+      </p>
+    </header>
+
+    <div class="bench-table-scroll">
+      <table class="bench-table">
+        <thead>
+          <tr>
+            <th class="bench-table__col-rank">#</th>
+            <th class="bench-table__col-name">Submission</th>
+            <th class="bench-table__col-submitter">Submitter</th>
+            <th class="bench-table__col-num">Composite</th>
+            <th class="bench-table__col-num">F1</th>
+            <th class="bench-table__col-num">Precision</th>
+            <th class="bench-table__col-num">Recall</th>
+            <th class="bench-table__col-num">Matched</th>
+            <th class="bench-table__col-num">Size</th>
+          </tr>
+        </thead>
+        <tbody>
+          {leaderboard.submissions.map((s, i) => (
+            <tr class={s.is_baseline ? "bench-row bench-row--gold" : "bench-row"}>
+              <td class="bench-table__col-rank">{s.is_baseline ? "—" : i}</td>
+              <td class="bench-table__col-name">
+                <span class="bench-row__name">{s.name}</span>
+                <span class="bench-row__method">{s.method}</span>
+              </td>
+              <td class="bench-table__col-submitter">{s.submitter}</td>
+              <td class="bench-table__col-num bench-row__composite">{fmt3(s.composite)}</td>
+              <td class="bench-table__col-num">{fmt3(s.metrics.f1)}</td>
+              <td class="bench-table__col-num">{pct(s.metrics.precision)}</td>
+              <td class="bench-table__col-num">{pct(s.metrics.recall)}</td>
+              <td class="bench-table__col-num">
+                {s.metrics.matched}/{s.metrics.total_gold_findings}
+              </td>
+              <td class="bench-table__col-num">{s.metrics.total_frontier_findings}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ── Quality signals breakdown for the top non-gold submission ── -->
+  {winner && (
+    <section class="bench-detail">
+      <header class="bench-detail__head">
+        <h2 class="bench-detail__title">Top submission detail · {winner.name}</h2>
+        <p class="bench-detail__sub">{winner.method}</p>
+      </header>
+      <div class="bench-detail__grid">
+        <div class="bench-detail__cell">
+          <span class="bench-detail__label">Composite</span>
+          <span class="bench-detail__value">{fmt3(winner.composite)}</span>
+        </div>
+        <div class="bench-detail__cell">
+          <span class="bench-detail__label">Entity accuracy</span>
+          <span class="bench-detail__value">{pct(winner.metrics.entity_accuracy)}</span>
+        </div>
+        <div class="bench-detail__cell">
+          <span class="bench-detail__label">Assertion-type accuracy</span>
+          <span class="bench-detail__value">{pct(winner.metrics.assertion_type_accuracy)}</span>
+        </div>
+        <div class="bench-detail__cell">
+          <span class="bench-detail__label">Confidence calibration</span>
+          <span class="bench-detail__value">{pct(winner.metrics.confidence_calibration)}</span>
+        </div>
+      </div>
+    </section>
+  )}
+
+  <!-- ── Reproduce / submit ── -->
+  <section class="bench-cta">
+    <h2 class="bench-cta__title">Reproduce + submit</h2>
+    <pre class="bench-cta__cmd">
+<span class="tm-ps">$</span> <span class="tm-cmd">git clone</span> {REPO_URL}
+<span class="tm-ps">$</span> <span class="tm-cmd">cargo build</span> --release -p vela-cli
+<span class="tm-ps">$</span> <span class="tm-cmd">vela registry pull</span> {leaderboard.gold.vfr_id} --from {HUB_URL}/entries --out gold.json
+<span class="tm-ps">$</span> <span class="tm-cmd">vela bench</span> ./your-candidate.json --gold benchmarks/gold-alzheimers.json --json
+    </pre>
+    <p class="bench-cta__note">
+      The full submission spec — file format, scoring weights, edge-case handling — lives at
+      &nbsp;<a class="inline-link" href="/bench/submit">/bench/submit</a>.
+    </p>
+  </section>
+</Page>
+
+<style>
+  .aside-link {
+    font-family: var(--font-mono);
+    font-size: var(--size-xs);
+    letter-spacing: 0.06em;
+    color: var(--ink-3);
+  }
+  .aside-link:hover { color: var(--ink-0); }
+  .aside-version {
+    font-family: var(--font-mono);
+    font-size: var(--size-xs);
+    color: var(--ink-4);
+    margin-left: 6px;
+  }
+  div[slot="aside"] {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .inline-link {
+    color: var(--signal);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    text-decoration-thickness: 1px;
+  }
+
+  /* How it works */
+  .bench-how {
+    border-left: 2px solid var(--vela-warm-brass);
+    padding: var(--space-4) var(--space-5);
+    margin: var(--space-4) 0 var(--space-6);
+    background: var(--paper-1);
+  }
+  .bench-how__eyebrow {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: var(--track-label);
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin-bottom: 10px;
+  }
+  .bench-how__body {
+    font-family: var(--font-serif);
+    font-size: 16px;
+    line-height: 1.6;
+    color: var(--ink-1);
+    margin: 0 0 var(--space-3);
+    max-width: 64ch;
+  }
+  .bench-how__body code {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    background: var(--paper-2);
+    padding: 1px 4px;
+  }
+  .bench-how__more {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: var(--size-xs);
+    color: var(--ink-3);
+  }
+  .bench-how__sep {
+    margin: 0 8px;
+    color: var(--ink-4);
+  }
+
+  /* Leaderboard */
+  .bench-board__head {
+    margin-bottom: var(--space-4);
+  }
+  .bench-board__title {
+    font-family: var(--font-sans);
+    font-size: var(--size-lg);
+    font-weight: 500;
+    color: var(--ink-0);
+    margin: 0 0 4px;
+    letter-spacing: var(--track-tight);
+  }
+  .bench-board__sub {
+    font-family: var(--font-serif);
+    font-size: 14px;
+    color: var(--ink-3);
+    margin: 0;
+    max-width: 64ch;
+  }
+
+  .bench-table-scroll {
+    overflow-x: auto;
+    border-top: 1px solid var(--rule-2);
+    border-bottom: 1px solid var(--rule-2);
+    margin-bottom: var(--space-7);
+  }
+  .bench-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--font-sans);
+    font-size: 14px;
+    font-variant-numeric: tabular-nums;
+  }
+  .bench-table thead th {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: var(--track-label);
+    text-transform: uppercase;
+    color: var(--ink-3);
+    text-align: left;
+    padding: var(--space-3) var(--space-3);
+    border-bottom: 1px solid var(--rule-2);
+    background: var(--paper-1);
+    white-space: nowrap;
+  }
+  .bench-table tbody td {
+    padding: var(--space-3) var(--space-3);
+    border-bottom: 1px solid var(--rule-1);
+    vertical-align: top;
+  }
+  .bench-row__name {
+    display: block;
+    font-family: var(--font-serif);
+    font-size: 16px;
+    color: var(--ink-0);
+    line-height: 1.3;
+  }
+  .bench-row__method {
+    display: block;
+    font-family: var(--font-serif);
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--ink-3);
+    margin-top: 4px;
+    max-width: 64ch;
+  }
+  .bench-row__composite {
+    font-family: var(--font-mono);
+    font-size: 16px;
+    color: var(--ink-0);
+    font-weight: 500;
+  }
+  .bench-table__col-rank {
+    width: 36px;
+    color: var(--ink-3);
+    font-family: var(--font-mono);
+    font-size: 13px;
+  }
+  .bench-table__col-num {
+    text-align: right;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--ink-1);
+    white-space: nowrap;
+  }
+  .bench-table__col-submitter {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--ink-2);
+    white-space: nowrap;
+  }
+  .bench-row--gold {
+    background: color-mix(in oklab, var(--vela-lantern-gold) 6%, transparent);
+  }
+  .bench-row--gold .bench-row__name {
+    color: color-mix(in oklab, var(--vela-warm-brass) 75%, var(--ink-0));
+  }
+
+  /* Top-submission detail */
+  .bench-detail {
+    margin: 0 0 var(--space-7);
+  }
+  .bench-detail__head {
+    margin-bottom: var(--space-3);
+  }
+  .bench-detail__title {
+    font-family: var(--font-sans);
+    font-size: var(--size-lg);
+    font-weight: 500;
+    color: var(--ink-0);
+    margin: 0 0 4px;
+    letter-spacing: var(--track-tight);
+  }
+  .bench-detail__sub {
+    font-family: var(--font-serif);
+    font-size: 14px;
+    color: var(--ink-3);
+    margin: 0;
+    max-width: 64ch;
+  }
+  .bench-detail__grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    border-top: 1px solid var(--rule-2);
+    border-bottom: 1px solid var(--rule-2);
+  }
+  .bench-detail__cell {
+    padding: var(--space-4) var(--space-4);
+    border-right: 1px solid var(--rule-1);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .bench-detail__cell:last-child { border-right: none; }
+  .bench-detail__label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: var(--track-label);
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  .bench-detail__value {
+    font-family: var(--font-serif);
+    font-size: 28px;
+    line-height: 1;
+    color: var(--ink-0);
+    font-variant-numeric: tabular-nums;
+  }
+  @media (max-width: 720px) {
+    .bench-detail__grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+    .bench-detail__cell:nth-child(2) { border-right: none; }
+    .bench-detail__cell:nth-child(1),
+    .bench-detail__cell:nth-child(2) {
+      border-bottom: 1px solid var(--rule-1);
+    }
+  }
+
+  /* CTA */
+  .bench-cta {
+    margin: 0 0 var(--space-7);
+  }
+  .bench-cta__title {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: var(--track-label);
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin: 0 0 var(--space-3);
+    font-weight: 500;
+  }
+  .bench-cta__cmd {
+    background: var(--paper-1);
+    border: 1px solid var(--rule-2);
+    padding: var(--space-4);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--ink-1);
+    overflow-x: auto;
+    margin: 0 0 var(--space-3);
+  }
+  .bench-cta__cmd .tm-ps { color: var(--ink-3); user-select: none; }
+  .bench-cta__cmd .tm-cmd { color: var(--ink-0); font-weight: 500; }
+  .bench-cta__note {
+    font-family: var(--font-serif);
+    font-size: 14px;
+    color: var(--ink-2);
+    margin: 0;
+  }
+</style>

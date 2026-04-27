@@ -1,0 +1,271 @@
+---
+/*
+  VelaBench submission spec — the page external teams read before
+  building a candidate. Kept as a single readable document; the
+  authoritative source of truth is `vela bench --help` and
+  `crates/vela-protocol/src/benchmark.rs`.
+*/
+
+import Page from "../../layouts/Page.astro";
+import { HUB_URL, REPO_URL, FRONTIER, VERSION } from "../../config";
+import { loadLeaderboard } from "../../lib/bench";
+
+const leaderboard = loadLeaderboard();
+---
+
+<Page
+  title={`Submit to VelaBench · ${FRONTIER.name}`}
+  description="The submission spec for the Alzheimer's Therapeutics leaderboard. File format, scoring, edge-case handling."
+  active="bench"
+  eyebrow="VelaBench · submit"
+  pageTitle="Submit to VelaBench"
+  subtitle="Build a signed frontier; we score it; the leaderboard updates."
+>
+  <div slot="aside">
+    <a href="/bench" class="aside-link">← leaderboard</a>
+    <span class="aside-version">v{VERSION}</span>
+  </div>
+
+  <section class="spec-section">
+    <h2 class="spec-section__title">What you submit</h2>
+    <p class="spec-text">
+      A single signed Vela frontier file (<code>.json</code>) covering Alzheimer's drug-target,
+      mechanism, BBB-delivery, or clinical-readout claims. The frontier passes
+      <code>vela check --strict</code> on its own — schema-valid, content-addressed, signed by an
+      Ed25519 actor registered in the manifest.
+    </p>
+    <p class="spec-text">
+      Build the frontier however you like:
+      hand-curate it, run an LLM pipeline, port from an existing knowledge base, glue together
+      paper extractions. The leaderboard doesn't care how the findings were produced — only
+      that they cite primary literature with resolvable DOIs/PMIDs and that the manifest is
+      cryptographically signed.
+    </p>
+  </section>
+
+  <section class="spec-section">
+    <h2 class="spec-section__title">How we score</h2>
+    <p class="spec-text">
+      Your frontier is matched claim-by-claim against the canonical
+      gold ({leaderboard.gold.claims} signed claims, vfr_id <code>{leaderboard.gold.vfr_id}</code>).
+      Matching is text + entity similarity, not exact-string equality. For each gold claim
+      that finds a candidate, we count it as matched. For each candidate claim that finds
+      no gold, we count it as a novel claim.
+    </p>
+
+    <table class="spec-table">
+      <thead>
+        <tr>
+          <th>Metric</th>
+          <th>Definition</th>
+          <th>Weight</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>F1</code></td>
+          <td>Harmonic mean of precision and recall over claim matches.</td>
+          <td>0.50</td>
+        </tr>
+        <tr>
+          <td><code>entity_accuracy</code></td>
+          <td>For each matched claim, fraction of gold's entities your claim also names.</td>
+          <td>0.20</td>
+        </tr>
+        <tr>
+          <td><code>assertion_type_accuracy</code></td>
+          <td>Fraction of matches where the assertion-type label agrees (mechanism vs therapeutic vs diagnostic, etc.).</td>
+          <td>0.20</td>
+        </tr>
+        <tr>
+          <td><code>confidence_calibration</code></td>
+          <td>Fraction of matches where your confidence score lands in gold's expected range (±0.15 around the canonical score).</td>
+          <td>0.10</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p class="spec-text">
+      Composite is the weighted blend; that's the headline number on the leaderboard.
+      Reports also include exact-id matches (a stronger signal than text similarity),
+      unmatched-frontier (your claims that didn't match gold — possibly novel), and
+      unmatched-gold (gold claims you missed).
+    </p>
+  </section>
+
+  <section class="spec-section">
+    <h2 class="spec-section__title">Reproduce the canonical run</h2>
+    <pre class="spec-cmd">
+<span class="tm-ps">$</span> <span class="tm-cmd">git clone</span> {REPO_URL}
+<span class="tm-ps">$</span> <span class="tm-cmd">cargo build</span> --release -p vela-cli
+<span class="tm-ps">$</span> <span class="tm-cmd">vela registry pull</span> {leaderboard.gold.vfr_id} --from {HUB_URL}/entries --out gold-frontier.json
+<span class="tm-ps">$</span> <span class="tm-cmd">vela bench</span> ./your-candidate.json --gold benchmarks/gold-alzheimers.json --json
+</pre>
+    <p class="spec-text">
+      The gold-claims file at <code>benchmarks/gold-alzheimers.json</code> is derived
+      deterministically from the canonical frontier; rebuild it from a freshly-pulled
+      <code>gold-frontier.json</code> using the converter at
+      <code>scripts/gold-from-frontier.py</code>.
+    </p>
+  </section>
+
+  <section class="spec-section">
+    <h2 class="spec-section__title">Submit</h2>
+    <p class="spec-text">
+      v0.31 ships PR-based submissions. Land your candidate at
+      <code>frontiers/&lt;your-id&gt;.json</code> with a one-line entry in
+      <code>benchmarks/leaderboard.json</code>. CI runs <code>vela bench</code> and
+      writes <code>benchmarks/results/&lt;your-id&gt;.json</code> on merge.
+    </p>
+    <p class="spec-text">
+      v0.32 will accept submissions through a hosted endpoint —
+      <code>POST /bench/submit</code> with a signed manifest pointer — so you don't need a
+      PR for an automated agent run. The scoring engine is the same binary either way.
+    </p>
+    <p class="spec-text">
+      Until the hosted endpoint lands, ship a PR and we'll merge promptly.
+    </p>
+  </section>
+
+  <section class="spec-section">
+    <h2 class="spec-section__title">Scope</h2>
+    <p class="spec-text">
+      The Alzheimer's Therapeutics suite covers six drug targets (Aβ, BACE1, tau,
+      TREM2, ApoE, BBB delivery), four named clinical trials (lecanemab, donanemab,
+      verubecestat, atabecestat), and the field-level contradictions surfaced from
+      curator notes.
+    </p>
+    <p class="spec-text">
+      Out of scope (will not match gold): non-AD neurodegeneration unless it's an
+      AD-relevant claim about it; epidemiology unrelated to therapeutic targets;
+      protocol-design or science-infrastructure claims (those belong in a different
+      frontier).
+    </p>
+  </section>
+
+  <p class="spec-back">
+    <a class="inline-link" href="/bench">← Back to the leaderboard</a>
+    <span class="spec-back__sep">·</span>
+    <a class="inline-link" href="/">Browse the gold frontier →</a>
+  </p>
+</Page>
+
+<style>
+  .aside-link {
+    font-family: var(--font-mono);
+    font-size: var(--size-xs);
+    letter-spacing: 0.06em;
+    color: var(--ink-3);
+  }
+  .aside-link:hover { color: var(--ink-0); }
+  .aside-version {
+    font-family: var(--font-mono);
+    font-size: var(--size-xs);
+    color: var(--ink-4);
+    margin-left: 6px;
+  }
+  div[slot="aside"] {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .inline-link {
+    color: var(--signal);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    text-decoration-thickness: 1px;
+  }
+
+  .spec-section {
+    margin-bottom: var(--space-7);
+  }
+  .spec-section__title {
+    font-family: var(--font-sans);
+    font-size: var(--size-lg);
+    font-weight: 500;
+    color: var(--ink-0);
+    margin: 0 0 var(--space-3);
+    letter-spacing: var(--track-tight);
+  }
+  .spec-text {
+    font-family: var(--font-serif);
+    font-size: 16px;
+    line-height: 1.65;
+    color: var(--ink-1);
+    margin: 0 0 var(--space-3);
+    max-width: 64ch;
+  }
+  .spec-text code {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    background: var(--paper-1);
+    padding: 1px 4px;
+    border: 1px solid var(--rule-1);
+  }
+
+  .spec-table {
+    width: 100%;
+    border-collapse: collapse;
+    border-top: 1px solid var(--rule-2);
+    border-bottom: 1px solid var(--rule-2);
+    margin: 0 0 var(--space-3);
+    font-family: var(--font-sans);
+    font-size: 14px;
+  }
+  .spec-table thead th {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: var(--track-label);
+    text-transform: uppercase;
+    color: var(--ink-3);
+    text-align: left;
+    padding: var(--space-3) var(--space-3);
+    background: var(--paper-1);
+    border-bottom: 1px solid var(--rule-2);
+  }
+  .spec-table tbody td {
+    padding: var(--space-3) var(--space-3);
+    border-bottom: 1px solid var(--rule-1);
+    vertical-align: top;
+  }
+  .spec-table td code {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    background: var(--paper-1);
+    padding: 1px 4px;
+  }
+  .spec-table td:last-child {
+    text-align: right;
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    color: var(--ink-1);
+    white-space: nowrap;
+  }
+
+  .spec-cmd {
+    background: var(--paper-1);
+    border: 1px solid var(--rule-2);
+    padding: var(--space-4);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--ink-1);
+    overflow-x: auto;
+    margin: 0 0 var(--space-3);
+  }
+  .spec-cmd .tm-ps { color: var(--ink-3); user-select: none; }
+  .spec-cmd .tm-cmd { color: var(--ink-0); font-weight: 500; }
+
+  .spec-back {
+    margin: var(--space-7) 0 var(--space-5);
+    padding-top: var(--space-4);
+    border-top: 1px solid var(--rule-2);
+    font-family: var(--font-mono);
+    font-size: var(--size-xs);
+    color: var(--ink-3);
+  }
+  .spec-back__sep {
+    margin: 0 8px;
+    color: var(--ink-4);
+  }
+</style>

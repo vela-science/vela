@@ -1,0 +1,148 @@
+{
+  "benchmark_type": "finding",
+  "command": "bench",
+  "failures": [],
+  "frontier": {
+    "hash": "sha256:ccc092f6ec45decf949c42b6bf0c35b339354c4d44ba3d5d5ac9501b45198a2c",
+    "name": "Alzheimer's drug-target landscape",
+    "source": "frontiers/will-alzheimer-landscape.json"
+  },
+  "gold": {
+    "hash": "sha256:a480887155aca590a2e445129f658ab79883e257daeefeafba72562ac7ab7bfc",
+    "items": 86,
+    "path": "benchmarks/gold-alzheimers.json"
+  },
+  "match_details": [
+    {
+      "assertion_type_match": false,
+      "confidence_in_range": false,
+      "entity_overlap": 1.0,
+      "exact_id_match": false,
+      "frontier_id": "vf_b1f04d00abcd7476",
+      "frontier_text": "Lecanemab showed modest but real efficacy in the Clarity AD trial",
+      "gold_id": "vf_931bc10a4a26388f",
+      "gold_text": "Lecanemab demonstrated modest but real clinical efficacy in the Clarity AD trial...",
+      "similarity": 0.769
+    },
+    {
+      "assertion_type_match": false,
+      "confidence_in_range": false,
+      "entity_overlap": 1.0,
+      "exact_id_match": false,
+      "frontier_id": "vf_e6b5a4bdefa6285e",
+      "frontier_text": "ApoE4 increases Alzheimer's risk 3-12x depending on copy number",
+      "gold_id": "vf_46f88eae71491680",
+      "gold_text": "ApoE4 carriers face 3-12x increased Alzheimer's risk depending on allele copy nu...",
+      "similarity": 0.615
+    },
+    {
+      "assertion_type_match": false,
+      "confidence_in_range": false,
+      "entity_overlap": 1.0,
+      "exact_id_match": false,
+      "frontier_id": "vf_21b6089ec7703a99",
+      "frontier_text": "Aβ plaque burden correlates poorly with cognitive decline",
+      "gold_id": "vf_48c67a2c3ed1a369",
+      "gold_text": "Amyloid-beta plaque burden correlates poorly with cognitive decline in Alzheimer...",
+      "similarity": 0.583
+    },
+    {
+      "assertion_type_match": false,
+      "confidence_in_range": false,
+      "entity_overlap": 1.0,
+      "exact_id_match": false,
+      "frontier_id": "vf_0b608a6432ada63c",
+      "frontier_text": "BACE1 inhibitor trials failed due to mechanism-independent side effects",
+      "gold_id": "vf_02284045d8275b33",
+      "gold_text": "BACE1 inhibitor clinical trials failed due to mechanism-independent side effects...",
+      "similarity": 0.563
+    },
+    {
+      "assertion_type_match": false,
+      "confidence_in_range": true,
+      "entity_overlap": 1.0,
+      "exact_id_match": false,
+      "frontier_id": "vf_9ba01201290c351a",
+      "frontier_text": "Amyloid cascade hypothesis remains dominant despite clinical failures",
+      "gold_id": "vf_6cfafd8301fc7c91",
+      "gold_text": "The amyloid cascade hypothesis remains the dominant organizing framework in Alzh...",
+      "similarity": 0.368
+    },
+    {
+      "assertion_type_match": false,
+      "confidence_in_range": false,
+      "entity_overlap": 1.0,
+      "exact_id_match": false,
+      "frontier_id": "vf_53859da6d5fa6673",
+      "frontier_text": "TREM2 variants represent the strongest genetic risk after ApoE4",
+      "gold_id": "vf_e8c7dca7b2b461ce",
+      "gold_text": "TREM2 variants are among the strongest common genetic risk factors for Alzheimer...",
+      "similarity": 0.368
+    },
+    {
+      "assertion_type_match": false,
+      "confidence_in_range": false,
+      "entity_overlap": 1.0,
+      "exact_id_match": false,
+      "frontier_id": "vf_f87aac51ecf9b9b6",
+      "frontier_text": "Tau propagation follows predictable Braak staging patterns",
+      "gold_id": "vf_2bc81e64a24707f3",
+      "gold_text": "Tau pathology propagates in anatomically stereotyped patterns captured by Braak ...",
+      "similarity": 0.286
+    },
+    {
+      "assertion_type_match": false,
+      "confidence_in_range": false,
+      "entity_overlap": 1.0,
+      "exact_id_match": false,
+      "frontier_id": "vf_61a2fe3e034712b0",
+      "frontier_text": "TREM2 loss-of-function increases amyloid plaque density",
+      "gold_id": "vf_8b08c7840d9dc5ad",
+      "gold_text": "TREM2 loss-of-function leads to increased amyloid plaque density and more diffus...",
+      "similarity": 0.263
+    },
+    {
+      "assertion_type_match": false,
+      "confidence_in_range": false,
+      "entity_overlap": 1.0,
+      "exact_id_match": false,
+      "frontier_id": "vf_d0d34582e427ed26",
+      "frontier_text": "Tau pathology tracks cognitive decline more closely than amyloid",
+      "gold_id": "vf_51d1043c21ebc91a",
+      "gold_text": "Tension: \"The amyloid cascade hypothesis remains dominant in the field.\" vs \"Tau...",
+      "similarity": 0.243
+    },
+    {
+      "assertion_type_match": false,
+      "confidence_in_range": false,
+      "entity_overlap": 1.0,
+      "exact_id_match": false,
+      "frontier_id": "vf_9b9311fd80f87572",
+      "frontier_text": "Lecanemab showed modest cognitive benefit in Clarity AD; durability beyond 18 mo...",
+      "gold_id": "vf_ce3759c5e80dfb00",
+      "gold_text": "Lecanemab demonstrated modest but statistically real efficacy in the Clarity AD ...",
+      "similarity": 0.222
+    }
+  ],
+  "metrics": {
+    "assertion_type_accuracy": 0.0,
+    "confidence_calibration": 0.1,
+    "entity_accuracy": 1.0,
+    "exact_id_matches": 0,
+    "f1": 0.204,
+    "matched": 10,
+    "precision": 0.833,
+    "recall": 0.116,
+    "total_frontier_findings": 12,
+    "total_frontier_matched": 10,
+    "total_gold_findings": 86,
+    "unmatched_frontier": 2,
+    "unmatched_gold": 76
+  },
+  "mode": "finding",
+  "ok": true,
+  "schema_version": "0.10.0",
+  "suite_id": null,
+  "task_id": null,
+  "thresholds": {}
+}

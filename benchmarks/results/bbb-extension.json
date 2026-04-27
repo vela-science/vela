@@ -1,0 +1,37 @@
+{
+  "benchmark_type": "finding",
+  "command": "bench",
+  "failures": [],
+  "frontier": {
+    "hash": "sha256:cc2253448997c1b68756950c29ca2e17792dec402e017eb4c4d9612c308a5836",
+    "name": "BBB Flagship · follow-up",
+    "source": "frontiers/bbb-extension.json"
+  },
+  "gold": {
+    "hash": "sha256:a480887155aca590a2e445129f658ab79883e257daeefeafba72562ac7ab7bfc",
+    "items": 86,
+    "path": "benchmarks/gold-alzheimers.json"
+  },
+  "match_details": [],
+  "metrics": {
+    "assertion_type_accuracy": 0.0,
+    "confidence_calibration": 0.0,
+    "entity_accuracy": 0.0,
+    "exact_id_matches": 0,
+    "f1": 0.0,
+    "matched": 0,
+    "precision": 0.0,
+    "recall": 0.0,
+    "total_frontier_findings": 1,
+    "total_frontier_matched": 0,
+    "total_gold_findings": 86,
+    "unmatched_frontier": 1,
+    "unmatched_gold": 86
+  },
+  "mode": "finding",
+  "ok": true,
+  "schema_version": "0.10.0",
+  "suite_id": null,
+  "task_id": null,
+  "thresholds": {}
+}

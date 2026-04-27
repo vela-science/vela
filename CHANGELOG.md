@@ -1,5 +1,74 @@
 # Changelog
 
+## 0.31.0 - 2026-04-27
+
+**VelaBench v0.31 — public agent leaderboard at `/bench`.**
+
+The pull for agent-builders. The mechanic is SWE-bench-shaped:
+the canonical signed Alzheimer's Therapeutics frontier is the gold;
+anyone publishes a frontier (agent-generated or hand-curated); we
+score precision, recall, F1, entity accuracy, assertion-type
+accuracy, confidence calibration; composite is the headline
+number.
+
+The v0.26 candidate-vs-gold scoring engine in
+`crates/vela-protocol/src/benchmark.rs` already existed and was
+shelved before public exposure. v0.31 is what makes it real:
+canonical gold derived from the 86-claim frontier, four scored
+baselines, public leaderboard page, submission spec.
+
+### What shipped
+
+- **`benchmarks/gold-alzheimers.json`** — 86 canonical claims in
+  `[GoldFinding]` shape (assertion text + type, entities, ±0.15
+  confidence range), reproducible from
+  `frontiers/alzheimers-therapeutics.json` via
+  `scripts/gold-from-frontier.py`.
+- **`benchmarks/leaderboard.json`** — manifest of submissions with
+  submitter / kind / method metadata.
+- **`benchmarks/results/*.json`** — four scored baselines:
+  | Submission | Composite | F1 | Precision | Recall |
+  |---|---|---|---|---|
+  | Alzheimer's Therapeutics (canonical) | 1.000 | 1.000 | 100% | 100% |
+  | BBB Flagship (v0.29 snapshot) | 0.858 | 0.716 | 100% | 55.8% |
+  | Manual curation (12 claims) | 0.312 | 0.204 | 83.3% | 11.6% |
+  | BBB Extension (probe) | 0.000 | 0.000 | 0% | 0% |
+- **`/bench`** (new site route): how-it-works callout, leaderboard
+  table with composite + F1 + precision + recall + matched + size,
+  top-submission detail block, reproduce-and-submit terminal
+  example, link to `/bench/submit`.
+- **`/bench/submit`** (new site route): submission spec — file
+  format, scoring weights, edge-case handling, reproduce command,
+  PR-based v0.31 submission flow + planned hosted endpoint for
+  v0.32.
+- **`site/src/lib/bench.ts`** — build-time loader for the manifest
+  + per-submission results, sorts gold first then by composite.
+- **Rim nav**: `02 · Bench` slot.
+
+### Mechanic
+
+Scoring weights (composite blend):
+- F1 (claim-by-claim text + entity match) — 0.50
+- Entity accuracy (gold's named entities present in match) — 0.20
+- Assertion-type accuracy (label agreement) — 0.20
+- Confidence calibration (score within gold ±0.15) — 0.10
+
+Reports include exact-id matches (the strongest signal), unmatched-
+frontier claims (possibly novel contributions), unmatched-gold
+claims (gold the candidate missed). Same JSON shape as
+`vela bench --json` for either ad-hoc or CI-driven scoring.
+
+### The pull
+
+The agent benchmarks the field is full of (BIG-bench, MMLU,
+SWE-bench, etc.) all share one trait: a public leaderboard creates
+gravity. Submitting an agent run is the same shape of action as
+opening a PR. With the canonical Alzheimer's frontier sitting at
+`vfr_bd912b3e29e334ab` on `vela-hub.fly.dev`, every submission is
+scored against real signed claims with real DOIs — not a synthetic
+corpus. The substrate question becomes "how do I get on the
+leaderboard," which carries Vela.
+
 ## 0.30.0 - 2026-04-27
 
 **Topic-first vela.org, Phase A content expansion (48 → 86 signed

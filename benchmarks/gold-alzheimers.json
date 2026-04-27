@@ -1,0 +1,1047 @@
+[
+  {
+    "id": "vf_015c6a2f910f8d7c",
+    "assertion_text": "BACE1 inhibitor trials of verubecestat and atabecestat failed.",
+    "assertion_type": "candidate_finding",
+    "entities": [],
+    "confidence_range": {
+      "low": 0.35,
+      "high": 0.65
+    }
+  },
+  {
+    "id": "vf_02284045d8275b33",
+    "assertion_text": "BACE1 inhibitor clinical trials failed due to mechanism-independent side effects, not solely due to disputes over amyloid biology.",
+    "assertion_type": "candidate_finding",
+    "entities": [],
+    "confidence_range": {
+      "low": 0.35,
+      "high": 0.65
+    }
+  },
+  {
+    "id": "vf_08c81dd507f6a047",
+    "assertion_text": "The Brain Shuttle version of an anti-A\u03b2 antibody, utilizing a monovalent binding mode to the transferrin receptor (TfR), increases \u03b2-Amyloid target engagement in an Alzheimer's disease mouse model by 55-fold compared to the parent antibody.",
+    "assertion_type": "therapeutic",
+    "entities": [
+      "anti-amyloid-beta antibody",
+      "amyloid-beta",
+      "transferrin receptor",
+      "Alzheimer's disease"
+    ],
+    "confidence_range": {
+      "low": 0.119,
+      "high": 0.419
+    }
+  },
+  {
+    "id": "vf_08d8186c7c342b1f",
+    "assertion_text": "Blood-brain barrier opening via focused ultrasound does not cause clinically significant worsening of cognitive scores at three months compared to baseline in Alzheimer's disease patients.",
+    "assertion_type": "therapeutic",
+    "entities": [
+      "Alzheimer's disease"
+    ],
+    "confidence_range": {
+      "low": 0.186,
+      "high": 0.486
+    }
+  },
+  {
+    "id": "vf_0d9407f02d2fc4ef",
+    "assertion_text": "Abeta interaction with RAGE-bearing cells in the vessel wall results in the expression of proinflammatory cytokines.",
+    "assertion_type": "mechanism",
+    "entities": [
+      "amyloid-beta",
+      "RAGE",
+      "proinflammatory cytokines"
+    ],
+    "confidence_range": {
+      "low": 0.119,
+      "high": 0.419
+    }
+  },
+  {
+    "id": "vf_0e9ff2d702088ee9",
+    "assertion_text": "BACE1 inhibition has repeatedly produced unacceptable adverse effects in clinical attempts targeting amyloid.",
+    "assertion_type": "candidate_finding",
+    "entities": [],
+    "confidence_range": {
+      "low": 0.35,
+      "high": 0.65
+    }
+  },
+  {
+    "id": "vf_10a36e3acd3dbe39",
+    "assertion_text": "ATV:TREM2, an antibody engineered with a monovalent transferrin receptor (TfR) binding site, exhibits improved brain biodistribution compared to a standard anti-TREM2 antibody following peripheral delivery in mice.",
+    "assertion_type": "methodological",
+    "entities": [
+      "ATV:TREM2",
+      "TREM2",
+      "transferrin receptor"
+    ],
+    "confidence_range": {
+      "low": 0.119,
+      "high": 0.419
+    }
+  },
+  {
+    "id": "vf_138c6e88e8273ba6",
+    "assertion_text": "Amyloid beta-peptide amyloid-beta 1-40 binds to immobilized LRP clusters II and IV with high affinity, with a dissociation constant (Kd) ranging from 0.6 to 1.2 nM.",
+    "assertion_type": "mechanism",
+    "entities": [
+      "amyloid-beta 1-40",
+      "LRP1"
+    ],
+    "confidence_range": {
+      "low": 0.052,
+      "high": 0.352
+    }
+  },
+  {
+    "id": "vf_171833bd31b24037",
+    "assertion_text": "Brain capillary LRP levels are reduced in patients with Alzheimer's disease and cerebrovascular beta-amyloidosis.",
+    "assertion_type": "observational",
+    "entities": [
+      "LRP1",
+      "Alzheimer's disease",
+      "cerebrovascular beta-amyloidosis"
+    ],
+    "confidence_range": {
+      "low": 0.123,
+      "high": 0.423
+    }
+  },
+  {
+    "id": "vf_22fce8c7f8c04c5c",
+    "assertion_text": "PICALM deficiency accelerates amyloid-\u03b2 (A\u03b2) pathology in mice, which is reversible by endothelial PICALM re-expression.",
+    "assertion_type": "therapeutic",
+    "entities": [
+      "PICALM",
+      "amyloid-beta"
+    ],
+    "confidence_range": {
+      "low": 0.119,
+      "high": 0.419
+    }
+  },
+  {
+    "id": "vf_24ce41808402c54d",
+    "assertion_text": "The Alzheimer's drug target landscape campaign is scoped to five major targets: A\u03b2, BACE1, Tau, TREM2, and ApoE.",
+    "assertion_type": "candidate_finding",
+    "entities": [],
+    "confidence_range": {
+      "low": 0.35,
+      "high": 0.65
+    }
+  },
+  {
+    "id": "vf_24e5534479aabcc2",
+    "assertion_text": "Loss-of-function TREM2 variants, particularly R47H, increase Alzheimer's disease risk by 2-4 fold.",
+    "assertion_type": "candidate_finding",
+    "entities": [],
+    "confidence_range": {
+      "low": 0.35,
+      "high": 0.65
+    }
+  },
+  {
+    "id": "vf_26a520047b5ea505",
+    "assertion_text": "The reduction of brain amyloid-beta by anti-TfR/BACE1 antibodies in human TfR knock-in mice is dependent on the antibody's affinity for the transferrin receptor.",
+    "assertion_type": "mechanism",
+    "entities": [
+      "transferrin receptor",
+      "amyloid-beta"
+    ],
+    "confidence_range": {
+      "low": 0.119,
+      "high": 0.419
+    }
+  },
+  {
+    "id": "vf_2af9bd7543cd9c94",
+    "assertion_text": "ApoE4 is the strongest common genetic risk factor for late-onset Alzheimer's disease.",
+    "assertion_type": "candidate_finding",
+    "entities": [],
+    "confidence_range": {
+      "low": 0.35,
+      "high": 0.65
+    }
+  },
+  {
+    "id": "vf_2bc81e64a24707f3",
+    "assertion_text": "Tau pathology propagates in anatomically stereotyped patterns captured by Braak staging.",
+    "assertion_type": "candidate_finding",
+    "entities": [],
+    "confidence_range": {
+      "low": 0.35,
+      "high": 0.65
+    }
+  },
+  {
+    "id": "vf_360d7404e3581d52",
+    "assertion_text": "PICALM levels and amyloid-\u03b2 (A\u03b2) clearance are reduced in Alzheimer's disease (AD)-derived endothelial monolayers, which is reversible by adenoviral-mediated PICALM transfer.",
+    "assertion_type": "therapeutic",
+    "entities": [
+      "PICALM",
+      "amyloid-beta",
+      "Alzheimer's disease"
+    ],
+    "confidence_range": {
+      "low": 0.186,
+      "high": 0.486
+    }
+  },
+  {
+    "id": "vf_392bbc094dcceb2c",
+    "assertion_text": "BACE1 participates in biological functions beyond APP processing, and aggressive suppression of these functions produces toxicity.",
+    "assertion_type": "candidate_finding",
+    "entities": [],
+    "confidence_range": {
+      "low": 0.35,
+      "high": 0.65
+    }
+  },
+  {
+    "id": "vf_3c2763564f4a235e",
+    "assertion_text": "Accumulation of amyloid beta-peptide in the central nervous system results in neuroinflammation, disconnect between cerebral blood flow and metabolism, altered synaptic transmission, neuronal injury, and amyloid deposition.",
+    "assertion_type": "mechanism",
+    "entities": [
+      "amyloid-beta",
+      "neuroinflammation",
+      "cerebral blood flow",
+      "synaptic transmission"
+    ],
+    "confidence_range": {
+      "low": 0.119,
+      "high": 0.419
+    }
+  },
+  {
+    "id": "vf_3ef907c9d32689b0",
+    "assertion_text": "Clarity AD provides evidence that amyloid-targeting can produce measurable clinical benefit under some conditions.",
+    "assertion_type": "candidate_finding",
+    "entities": [],
+    "confidence_range": {
+      "low": 0.35,
+      "high": 0.65
+    }
+  },
+  {
+    "id": "vf_457ee92500f0f1df",
+    "assertion_text": "ATV:TREM2 enhances TREM2 signaling in the brain compared to a standard anti-TREM2 antibody following peripheral delivery in mice.",
+    "assertion_type": "mechanism",
+    "entities": [
+      "ATV:TREM2",
+      "TREM2"
+    ],
+    "confidence_range": {
+      "low": 0.119,
+      "high": 0.419
+    }
+  },
+  {
+    "id": "vf_46f88eae71491680",
+    "assertion_text": "ApoE4 carriers face 3-12x increased Alzheimer's risk depending on allele copy number.",
+    "assertion_type": "candidate_finding",
+    "entities": [],
+    "confidence_range": {
+      "low": 0.35,
+      "high": 0.65
+    }
+  },
+  {
+    "id": "vf_47ebdf11b9b45680",
+    "assertion_text": "LRP mediates the binding, endocytosis, and transcytosis of Abeta across the mouse blood-brain barrier.",
+    "assertion_type": "mechanism",
+    "entities": [
+      "LRP1",
+      "amyloid-beta",
+      "blood-brain barrier"
+    ],
+    "confidence_range": {
+      "low": 0.119,
+      "high": 0.419
+    }
+  },
+  {
+    "id": "vf_48c67a2c3ed1a369",
+    "assertion_text": "Amyloid-beta plaque burden correlates poorly with cognitive decline in Alzheimer's patients.",
+    "assertion_type": "candidate_finding",
+    "entities": [],
+    "confidence_range": {
+      "low": 0.35,
+      "high": 0.65
+    }
+  },
+  {
+    "id": "vf_5021284e4155f141",
+    "assertion_text": "Altered activities of RAGE and LRP1 at the blood-brain barrier contribute to the accumulation of amyloid beta-peptide in the central nervous system.",
+    "assertion_type": "mechanism",
+    "entities": [
+      "RAGE",
+      "LRP1",
+      "amyloid-beta"
+    ],
+    "confidence_range": {
+      "low": 0.119,
+      "high": 0.419
+    }
+  },
+  {
+    "id": "vf_51d1043c21ebc91a",
+    "assertion_text": "Tension: \"The amyloid cascade hypothesis remains dominant in the field.\" vs \"Tau pathology tracks cognitive decline more closely than amyloid does.\". Why: If tau better predicts symptoms, the primacy of amyloid as the causal driver is in tension with observed clinical correlations.",
+    "assertion_type": "tension",
+    "entities": [],
+    "confidence_range": {
+      "low": 0.0,
+      "high": 0.15
+    }
+  },
+  {
+    "id": "vf_539319043d7f3925",
+    "assertion_text": "Abeta interaction with RAGE-bearing cells in the vessel wall results in the expression of endothelin-1 (ET-1).",
+    "assertion_type": "mechanism",
+    "entities": [
+      "amyloid-beta",
+      "RAGE",
+      "endothelin-1"
+    ],
+    "confidence_range": {
+      "low": 0.119,
+      "high": 0.419
+    }
+  },
+  {
+    "id": "vf_57563064c8e35a5c",
+    "assertion_text": "Anti-amyloid therapies have repeatedly failed in clinical translation.",
+    "assertion_type": "candidate_finding",
+    "entities": [],
+    "confidence_range": {
+      "low": 0.35,
+      "high": 0.65
+    }
+  },
+  {
+    "id": "vf_5a2e4b85809eba65",
+    "assertion_text": "Tau burden correlates more tightly with the clinical course of Alzheimer's disease than amyloid burden does.",
+    "assertion_type": "candidate_finding",
+    "entities": [],
+    "confidence_range": {
+      "low": 0.35,
+      "high": 0.65
+    }
+  },
+  {
+    "id": "vf_601efd54eb136de8",
+    "assertion_text": "The degree of amyloid-beta reduction in the primate brain correlates with the brain concentration of the anti-TfR/BACE1 antibody.",
+    "assertion_type": "mechanism",
+    "entities": [
+      "amyloid-beta",
+      "anti-TfR/BACE1 bispecific antibody"
+    ],
+    "confidence_range": {
+      "low": 0.119,
+      "high": 0.419
+    }
+  },
+  {
+    "id": "vf_68598e0916db4922",
+    "assertion_text": "Tension: \"Amyloid plaque burden is biologically important.\" vs \"Amyloid plaque burden does not map cleanly onto severity of cognitive impairment and is limited as a sole proxy for disease state.\". Why: The note holds biological importance and clinical-correlational weakness in the same breath, leaving unresolved how a biologically important feature can fail as a disease-state proxy.",
+    "assertion_type": "tension",
+    "entities": [],
+    "confidence_range": {
+      "low": 0.0,
+      "high": 0.15
+    }
+  },
+  {
+    "id": "vf_69c735877ec4c00d",
+    "assertion_text": "Intravenous dosing of anti-TfR/BACE1 antibodies reduces amyloid-beta levels in the cerebrospinal fluid and brain tissue of monkeys.",
+    "assertion_type": "therapeutic",
+    "entities": [
+      "amyloid-beta",
+      "cerebrospinal fluid",
+      "brain tissue"
+    ],
+    "confidence_range": {
+      "low": 0.119,
+      "high": 0.419
+    }
+  },
+  {
+    "id": "vf_6c79b48970a76527",
+    "assertion_text": "Rare protective genetic variation can substantially blunt the phenotype of otherwise highly penetrant inherited Alzheimer's mutations.",
+    "assertion_type": "candidate_finding",
+    "entities": [],
+    "confidence_range": {
+      "low": 0.35,
+      "high": 0.65
+    }
+  },
+  {
+    "id": "vf_6cfafd8301fc7c91",
+    "assertion_text": "The amyloid cascade hypothesis remains the dominant organizing framework in Alzheimer's disease research despite repeated clinical translation failures.",
+    "assertion_type": "candidate_finding",
+    "entities": [],
+    "confidence_range": {
+      "low": 0.35,
+      "high": 0.65
+    }
+  },
+  {
+    "id": "vf_746ba25290eb022f",
+    "assertion_text": "ATV:TREM2 boosts brain microglial activity and glucose metabolism in an Alzheimer's disease mouse model.",
+    "assertion_type": "therapeutic",
+    "entities": [
+      "ATV:TREM2",
+      "microglia",
+      "glucose",
+      "Alzheimer's disease"
+    ],
+    "confidence_range": {
+      "low": 0.119,
+      "high": 0.419
+    }
+  },
+  {
+    "id": "vf_7bccfa32f2db47b1",
+    "assertion_text": "The reversibility of amyloid beta-peptide-related pathology and the identity of key therapeutic targets for controlling amyloid levels in the aging brain remain debatable.",
+    "assertion_type": "theoretical",
+    "entities": [
+      "amyloid-beta"
+    ],
+    "confidence_range": {
+      "low": 0.0,
+      "high": 0.15
+    }
+  },
+  {
+    "id": "vf_7e2c0ca95f8e4a4e",
+    "assertion_text": "BACE1 cleaves substrates beyond APP.",
+    "assertion_type": "candidate_finding",
+    "entities": [],
+    "confidence_range": {
+      "low": 0.35,
+      "high": 0.65
+    }
+  },
+  {
+    "id": "vf_7f1af918bb15c7ec",
+    "assertion_text": "Both TREM2-dependent and TREM2-independent pathways contribute to microglial activation in AD.",
+    "assertion_type": "candidate_finding",
+    "entities": [],
+    "confidence_range": {
+      "low": 0.35,
+      "high": 0.65
+    }
+  },
+  {
+    "id": "vf_8389130295d81413",
+    "assertion_text": "ATV:TREM2 induces proliferation in human induced pluripotent stem cell (iPSC)-derived microglia.",
+    "assertion_type": "therapeutic",
+    "entities": [
+      "ATV:TREM2",
+      "microglia"
+    ],
+    "confidence_range": {
+      "low": 0.186,
+      "high": 0.486
+    }
+  },
+  {
+    "id": "vf_873a947816136c37",
+    "assertion_text": "Inhibition of RAGE-ligand interaction suppresses the accumulation of Abeta in the brain parenchyma in a mouse transgenic model.",
+    "assertion_type": "therapeutic",
+    "entities": [
+      "RAGE",
+      "amyloid-beta"
+    ],
+    "confidence_range": {
+      "low": 0.119,
+      "high": 0.419
+    }
+  },
+  {
+    "id": "vf_875d33c5264a8d62",
+    "assertion_text": "TREM2 activation drives a transition from homeostatic microglia to disease-associated microglia (DAM) that compact plaques into less neurotoxic dense-core forms.",
+    "assertion_type": "candidate_finding",
+    "entities": [],
+    "confidence_range": {
+      "low": 0.35,
+      "high": 0.65
+    }
+  },
+  {
+    "id": "vf_8b08c7840d9dc5ad",
+    "assertion_text": "TREM2 loss-of-function leads to increased amyloid plaque density and more diffuse plaque morphology because microglia fail to cluster around plaques.",
+    "assertion_type": "candidate_finding",
+    "entities": [],
+    "confidence_range": {
+      "low": 0.35,
+      "high": 0.65
+    }
+  },
+  {
+    "id": "vf_8dfd242d30a1d4d0",
+    "assertion_text": "The balance between RAGE and LRP1 at the blood-brain barrier regulates the clearance and transport of amyloid beta-peptide across the barrier.",
+    "assertion_type": "mechanism",
+    "entities": [
+      "RAGE",
+      "LRP1",
+      "amyloid-beta",
+      "blood-brain barrier"
+    ],
+    "confidence_range": {
+      "low": 0.119,
+      "high": 0.419
+    }
+  },
+  {
+    "id": "vf_906b6d5a389a36de",
+    "assertion_text": "A\u03b2 plaque burden does not map cleanly onto severity of cognitive impairment in Alzheimer's disease.",
+    "assertion_type": "candidate_finding",
+    "entities": [],
+    "confidence_range": {
+      "low": 0.35,
+      "high": 0.65
+    }
+  },
+  {
+    "id": "vf_931bc10a4a26388f",
+    "assertion_text": "Lecanemab demonstrated modest but real clinical efficacy in the Clarity AD trial.",
+    "assertion_type": "candidate_finding",
+    "entities": [],
+    "confidence_range": {
+      "low": 0.35,
+      "high": 0.65
+    }
+  },
+  {
+    "id": "vf_9384e871aa9b3572",
+    "assertion_text": "ApoE4 increases Alzheimer's risk by a factor of 3 to 12 depending on allele copy number.",
+    "assertion_type": "candidate_finding",
+    "entities": [],
+    "confidence_range": {
+      "low": 0.35,
+      "high": 0.65
+    }
+  },
+  {
+    "id": "vf_956821693aaf4cf7",
+    "assertion_text": "Focused ultrasound-mediated blood-brain barrier opening combined with aducanumab infusions results in a numerically greater reduction of amyloid-beta levels compared to aducanumab treatment alone in homologous brain regions.",
+    "assertion_type": "therapeutic",
+    "entities": [
+      "aducanumab",
+      "amyloid-beta",
+      "focused ultrasound",
+      "blood-brain barrier",
+      "Alzheimer's disease",
+      "[18F]-florbetaben"
+    ],
+    "confidence_range": {
+      "low": 0.186,
+      "high": 0.486
+    }
+  },
+  {
+    "id": "vf_99342d2a82fdc7a9",
+    "assertion_text": "High beta-sheet content in Abeta and deletion of the receptor-associated protein (RAP) gene substantially reduce LRP-mediated Abeta transport across the mouse blood-brain barrier.",
+    "assertion_type": "mechanism",
+    "entities": [
+      "receptor-associated protein",
+      "LRP1",
+      "amyloid-beta"
+    ],
+    "confidence_range": {
+      "low": 0.119,
+      "high": 0.419
+    }
+  },
+  {
+    "id": "vf_9d834626f9965982",
+    "assertion_text": "Opening the blood-brain barrier using focused ultrasound in Alzheimer's disease patients does not result in serious clinical or radiographic adverse events.",
+    "assertion_type": "therapeutic",
+    "entities": [
+      "blood-brain barrier",
+      "Alzheimer's disease"
+    ],
+    "confidence_range": {
+      "low": 0.186,
+      "high": 0.486
+    }
+  },
+  {
+    "id": "vf_9ea905881561c1f7",
+    "assertion_text": "Tension: \"The amyloid cascade hypothesis treats amyloid production/accumulation as the causal driver of Alzheimer's.\" vs \"TREM2 loss-of-function evidence suggests the operative variable is microglial plaque management, not amyloid production.\". Why: The note explicitly frames TREM2 findings as challenging the production-centric cascade view, contrasting 'plaque management rather than plaque production.'",
+    "assertion_type": "tension",
+    "entities": [],
+    "confidence_range": {
+      "low": 0.0,
+      "high": 0.15
+    }
+  },
+  {
+    "id": "vf_a1145511f633c0df",
+    "assertion_text": "Anti-TfR/BACE1 bispecific antibodies cross the blood-brain barrier and reduce brain amyloid-beta levels in human TfR knock-in mice.",
+    "assertion_type": "therapeutic",
+    "entities": [
+      "transferrin receptor",
+      "BACE1",
+      "amyloid-beta"
+    ],
+    "confidence_range": {
+      "low": 0.119,
+      "high": 0.419
+    }
+  },
+  {
+    "id": "vf_a4bc86627072aa61",
+    "assertion_text": "Microglia normally compact amyloid plaques into less toxic dense-core forms via a protective barrier.",
+    "assertion_type": "candidate_finding",
+    "entities": [],
+    "confidence_range": {
+      "low": 0.35,
+      "high": 0.65
+    }
+  },
+  {
+    "id": "vf_ad8c7b95283c16df",
+    "assertion_text": "ATV:TREM2 shifts microglia to metabolically responsive states that are distinct from those induced by amyloid pathology.",
+    "assertion_type": "mechanism",
+    "entities": [
+      "ATV:TREM2",
+      "microglia",
+      "amyloid-beta"
+    ],
+    "confidence_range": {
+      "low": 0.018,
+      "high": 0.318
+    }
+  },
+  {
+    "id": "vf_b4e2d587abb6eff4",
+    "assertion_text": "amyloid-beta 1-42 and mutant Abeta isoforms exhibit lower binding affinity to LRP clusters II and IV compared to amyloid-beta 1-40.",
+    "assertion_type": "mechanism",
+    "entities": [
+      "amyloid-beta 1-42",
+      "amyloid-beta 1-40",
+      "LRP1"
+    ],
+    "confidence_range": {
+      "low": 0.052,
+      "high": 0.352
+    }
+  },
+  {
+    "id": "vf_b6e3f9f1a88df9f1",
+    "assertion_text": "Systemic administration of a bispecific anti-TfR/BACE1 antibody leads to a greater reduction in brain amyloid-beta (Abeta) levels compared to a monospecific anti-BACE1 antibody.",
+    "assertion_type": "therapeutic",
+    "entities": [
+      "amyloid-beta",
+      "amyloid-beta",
+      "BACE1"
+    ],
+    "confidence_range": {
+      "low": 0.119,
+      "high": 0.419
+    }
+  },
+  {
+    "id": "vf_bcc0ab192a3615d6",
+    "assertion_text": "Lecanemab did not produce a dramatic reversal of Alzheimer's disease.",
+    "assertion_type": "candidate_finding",
+    "entities": [],
+    "confidence_range": {
+      "low": 0.35,
+      "high": 0.65
+    }
+  },
+  {
+    "id": "vf_c34143b20ee92b45",
+    "assertion_text": "Reduced expression of PICALM in Alzheimer's disease and murine brain endothelium correlates with amyloid-\u03b2 (A\u03b2) pathology and cognitive impairment.",
+    "assertion_type": "observational",
+    "entities": [
+      "PICALM",
+      "amyloid-beta",
+      "Alzheimer's disease"
+    ],
+    "confidence_range": {
+      "low": 0.123,
+      "high": 0.423
+    }
+  },
+  {
+    "id": "vf_c3d9e665f63f045e",
+    "assertion_text": "Reducing the affinity of an antibody for the transferrin receptor (TfR) enhances its receptor-mediated transcytosis across the blood-brain barrier (BBB) into the mouse brain.",
+    "assertion_type": "mechanism",
+    "entities": [
+      "transferrin receptor",
+      "transferrin receptor",
+      "blood-brain barrier"
+    ],
+    "confidence_range": {
+      "low": 0.119,
+      "high": 0.419
+    }
+  },
+  {
+    "id": "vf_c6e8571128b91f39",
+    "assertion_text": "PICALM regulates clathrin-dependent internalization of amyloid-\u03b2 (A\u03b2) bound to LRP1 in human brain endothelial monolayers.",
+    "assertion_type": "mechanism",
+    "entities": [
+      "PICALM",
+      "amyloid-beta",
+      "LRP1",
+      "clathrin"
+    ],
+    "confidence_range": {
+      "low": 0.186,
+      "high": 0.486
+    }
+  },
+  {
+    "id": "vf_c7f8be49ea6547d8",
+    "assertion_text": "High-affinity anti-TfR antibodies remain associated with the blood-brain barrier vasculature, whereas lower-affinity variants are released into the brain parenchyma.",
+    "assertion_type": "observational",
+    "entities": [
+      "transferrin receptor",
+      "blood-brain barrier"
+    ],
+    "confidence_range": {
+      "low": 0.119,
+      "high": 0.419
+    }
+  },
+  {
+    "id": "vf_c8cc82a27c2f7d39",
+    "assertion_text": "Tension: \"TREM2 agonist antibodies are a promising therapeutic strategy for AD (review's optimistic stance).\" vs \"Activating microglia late in disease could be harmful because activated microglia also produce inflammatory cytokines.\". Why: The note explicitly contrasts the review's therapeutic optimism with the reader's concern that timing of microglial activation determines whether the intervention helps or harms.",
+    "assertion_type": "tension",
+    "entities": [],
+    "confidence_range": {
+      "low": 0.0,
+      "high": 0.15
+    }
+  },
+  {
+    "id": "vf_cbc0e6e81bb945f4",
+    "assertion_text": "Tension: \"TREM2 loss-of-function increases plaque density, suggesting TREM2 activation would be beneficial.\" vs \"TREM2 activation could be harmful depending on disease stage.\". Why: Note lists stage-dependent TREM2 effects under Key Tensions, implying the same intervention may help early and harm later.",
+    "assertion_type": "tension",
+    "entities": [],
+    "confidence_range": {
+      "low": 0.0,
+      "high": 0.15
+    }
+  },
+  {
+    "id": "vf_ce3759c5e80dfb00",
+    "assertion_text": "Lecanemab demonstrated modest but statistically real efficacy in the Clarity AD trial.",
+    "assertion_type": "candidate_finding",
+    "entities": [],
+    "confidence_range": {
+      "low": 0.35,
+      "high": 0.65
+    }
+  },
+  {
+    "id": "vf_cef95b1b18c2f30e",
+    "assertion_text": "Interaction of amyloid-beta peptide (Abeta) with RAGE-bearing cells in the vessel wall results in the transport of Abeta across the blood-brain barrier (BBB).",
+    "assertion_type": "mechanism",
+    "entities": [
+      "amyloid-beta",
+      "RAGE",
+      "blood-brain barrier"
+    ],
+    "confidence_range": {
+      "low": 0.119,
+      "high": 0.419
+    }
+  },
+  {
+    "id": "vf_d3430138cafa4ccf",
+    "assertion_text": "The TfR bispecific antibody platform safely delivers therapeutic antibodies across the blood-brain barrier in the primate brain.",
+    "assertion_type": "therapeutic",
+    "entities": [
+      "blood-brain barrier",
+      "transferrin receptor"
+    ],
+    "confidence_range": {
+      "low": 0.119,
+      "high": 0.419
+    }
+  },
+  {
+    "id": "vf_d4dd6ecde250bd1d",
+    "assertion_text": "PICALM deficiency diminishes amyloid-\u03b2 (A\u03b2) clearance across the murine blood-brain barrier (BBB).",
+    "assertion_type": "mechanism",
+    "entities": [
+      "PICALM",
+      "amyloid-beta",
+      "blood-brain barrier"
+    ],
+    "confidence_range": {
+      "low": 0.119,
+      "high": 0.419
+    }
+  },
+  {
+    "id": "vf_d50c8523101a6bc5",
+    "assertion_text": "Tau progression has stronger progression logic than many amyloid readouts.",
+    "assertion_type": "candidate_finding",
+    "entities": [],
+    "confidence_range": {
+      "low": 0.35,
+      "high": 0.65
+    }
+  },
+  {
+    "id": "vf_d51f3496b4e30c17",
+    "assertion_text": "Monovalent binding to the transferrin receptor (TfR) facilitates transcellular transport across the blood-brain barrier, whereas bivalent binding leads to lysosomal sorting.",
+    "assertion_type": "mechanism",
+    "entities": [
+      "transferrin receptor",
+      "lysosome"
+    ],
+    "confidence_range": {
+      "low": 0.119,
+      "high": 0.419
+    }
+  },
+  {
+    "id": "vf_d6f953d8d9b16759",
+    "assertion_text": "Tension: \"TREM2 is the primary receptor governing microglial response to amyloid plaques.\" vs \"TREM2-independent microglial activation pathways also operate in AD, so a TREM2 agonist would only restore the TREM2-dependent arm.\". Why: Framing TREM2 as the primary governing receptor sits in tension with the existence of parallel TREM2-independent pathways that a TREM2-targeted therapy cannot engage.",
+    "assertion_type": "tension",
+    "entities": [],
+    "confidence_range": {
+      "low": 0.0,
+      "high": 0.15
+    }
+  },
+  {
+    "id": "vf_d71a8dd0f9762d25",
+    "assertion_text": "TREM2's risk contribution implicates microglial state, not solely protein aggregation pathways.",
+    "assertion_type": "candidate_finding",
+    "entities": [],
+    "confidence_range": {
+      "low": 0.35,
+      "high": 0.65
+    }
+  },
+  {
+    "id": "vf_d9a8e80fc5c60f65",
+    "assertion_text": "ATV:TREM2 improves mitochondrial metabolism in human induced pluripotent stem cell (iPSC)-derived microglia.",
+    "assertion_type": "therapeutic",
+    "entities": [
+      "ATV:TREM2",
+      "mitochondria"
+    ],
+    "confidence_range": {
+      "low": 0.186,
+      "high": 0.486
+    }
+  },
+  {
+    "id": "vf_da4f13aeb9bcc242",
+    "assertion_text": "Focused ultrasound-mediated blood-brain barrier opening does not result in group-wise changes in beta-amyloid levels post-sonication in Alzheimer's disease patients.",
+    "assertion_type": "therapeutic",
+    "entities": [
+      "amyloid-beta",
+      "[18F]-florbetaben",
+      "Alzheimer's disease"
+    ],
+    "confidence_range": {
+      "low": 0.186,
+      "high": 0.486
+    }
+  },
+  {
+    "id": "vf_dfffbb5957991226",
+    "assertion_text": "Abeta at concentrations exceeding 1 microM promotes proteasome-dependent degradation of LRP in endothelial cells.",
+    "assertion_type": "mechanism",
+    "entities": [
+      "amyloid-beta",
+      "LRP1",
+      "proteasome"
+    ],
+    "confidence_range": {
+      "low": 0.052,
+      "high": 0.352
+    }
+  },
+  {
+    "id": "vf_e1590f46df6b099c",
+    "assertion_text": "Endothelin-1 (ET-1) mediates Abeta-induced vasoconstriction.",
+    "assertion_type": "mechanism",
+    "entities": [
+      "endothelin-1",
+      "amyloid-beta"
+    ],
+    "confidence_range": {
+      "low": 0.119,
+      "high": 0.419
+    }
+  },
+  {
+    "id": "vf_e3503117f0808570",
+    "assertion_text": "Focused ultrasound can be used to temporarily open the blood-brain barrier in patients with Alzheimer's disease during monthly aducanumab infusions.",
+    "assertion_type": "methodological",
+    "entities": [
+      "focused ultrasound",
+      "blood-brain barrier",
+      "aducanumab",
+      "Alzheimer's disease"
+    ],
+    "confidence_range": {
+      "low": 0.186,
+      "high": 0.486
+    }
+  },
+  {
+    "id": "vf_e75e7aa282dc741e",
+    "assertion_text": "Loss of TREM2 worsens amyloid containment rather than increasing amyloid production.",
+    "assertion_type": "candidate_finding",
+    "entities": [],
+    "confidence_range": {
+      "low": 0.35,
+      "high": 0.65
+    }
+  },
+  {
+    "id": "vf_e8ab6bf113ea6239",
+    "assertion_text": "Amyloid plaque burden is biologically important in Alzheimer's pathology.",
+    "assertion_type": "candidate_finding",
+    "entities": [],
+    "confidence_range": {
+      "low": 0.35,
+      "high": 0.65
+    }
+  },
+  {
+    "id": "vf_e8c7dca7b2b461ce",
+    "assertion_text": "TREM2 variants are among the strongest common genetic risk factors for Alzheimer's disease, second only to ApoE4.",
+    "assertion_type": "candidate_finding",
+    "entities": [],
+    "confidence_range": {
+      "low": 0.35,
+      "high": 0.65
+    }
+  },
+  {
+    "id": "vf_eb96b9d5cc406332",
+    "assertion_text": "Enhanced target engagement achieved via the Brain Shuttle module results in a significant reduction of amyloid in the brain.",
+    "assertion_type": "therapeutic",
+    "entities": [
+      "Brain Shuttle module",
+      "amyloid-beta"
+    ],
+    "confidence_range": {
+      "low": 0.119,
+      "high": 0.419
+    }
+  },
+  {
+    "id": "vf_ecc050af403828f9",
+    "assertion_text": "MR-guided focused ultrasound in combination with intravenously injected microbubbles safely, reversibly, and repeatedly opens the blood-brain barrier in patients with early to moderate Alzheimer's disease.",
+    "assertion_type": "therapeutic",
+    "entities": [
+      "focused ultrasound",
+      "microbubbles",
+      "blood-brain barrier",
+      "Alzheimer's disease"
+    ],
+    "confidence_range": {
+      "low": 0.186,
+      "high": 0.486
+    }
+  },
+  {
+    "id": "vf_ed60a826b4f33724",
+    "assertion_text": "Tension: \"Amyloid clearance produces pathological improvement (e.g., Lecanemab in Clarity AD).\" vs \"A\u03b2 plaque burden correlates poorly with cognitive decline, and amyloid clearance does not yield proportional cognitive benefit.\". Why: The note explicitly asks whether this gap invalidates or merely refines the amyloid cascade hypothesis.",
+    "assertion_type": "tension",
+    "entities": [],
+    "confidence_range": {
+      "low": 0.0,
+      "high": 0.15
+    }
+  },
+  {
+    "id": "vf_f000d6d188a22410",
+    "assertion_text": "PICALM guides amyloid-\u03b2 (A\u03b2) trafficking to Rab5 and Rab11, leading to endothelial transcytosis and clearance.",
+    "assertion_type": "mechanism",
+    "entities": [
+      "PICALM",
+      "amyloid-beta",
+      "Rab5",
+      "Rab11"
+    ],
+    "confidence_range": {
+      "low": 0.186,
+      "high": 0.486
+    }
+  },
+  {
+    "id": "vf_f2b4d3dd88c79433",
+    "assertion_text": "Therapeutic strategies targeting RAGE and LRP1 have the potential to control brain amyloid beta-peptide levels in animal models of Alzheimer's disease.",
+    "assertion_type": "therapeutic",
+    "entities": [
+      "RAGE",
+      "LRP1",
+      "Alzheimer's disease"
+    ],
+    "confidence_range": {
+      "low": 0.119,
+      "high": 0.419
+    }
+  },
+  {
+    "id": "vf_f4445212405c2730",
+    "assertion_text": "Transgenic mice expressing mutant Abeta with low LRP-clearance develop robust cerebral Abeta accumulations earlier than Tg-2576 mice that overproduce Abeta.",
+    "assertion_type": "observational",
+    "entities": [
+      "amyloid-beta",
+      "LRP1",
+      "Tg-2576"
+    ],
+    "confidence_range": {
+      "low": 0.119,
+      "high": 0.419
+    }
+  },
+  {
+    "id": "vf_f4651ca741de35c7",
+    "assertion_text": "iPSC-derived human endothelial cells carrying the rs3851179 protective allele exhibit higher PICALM levels and enhanced amyloid-\u03b2 (A\u03b2) clearance.",
+    "assertion_type": "epidemiological",
+    "entities": [
+      "PICALM",
+      "amyloid-beta",
+      "rs3851179"
+    ],
+    "confidence_range": {
+      "low": 0.186,
+      "high": 0.486
+    }
+  },
+  {
+    "id": "vf_f6a538885acbd791",
+    "assertion_text": "A bispecific antibody targeting TfR with low affinity and BACE1 with high affinity accumulates in the mouse brain more effectively than a monospecific anti-BACE1 antibody.",
+    "assertion_type": "therapeutic",
+    "entities": [
+      "transferrin receptor",
+      "BACE1",
+      "BACE1"
+    ],
+    "confidence_range": {
+      "low": 0.119,
+      "high": 0.419
+    }
+  },
+  {
+    "id": "vf_fd179082e06bcc96",
+    "assertion_text": "Tension: \"The amyloid hypothesis explains much of Alzheimer's disease architecture.\" vs \"Therapies built on the amyloid hypothesis have repeatedly failed in clinical translation.\". Why: The note juxtaposes strong explanatory power against repeated translational failure without resolving why a mechanistically correct frame would not yield effective therapeutics.",
+    "assertion_type": "tension",
+    "entities": [],
+    "confidence_range": {
+      "low": 0.0,
+      "high": 0.15
+    }
+  }
+]
