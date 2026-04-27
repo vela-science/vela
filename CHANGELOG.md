@@ -1,5 +1,80 @@
 # Changelog
 
+## 0.38.2 - 2026-04-27
+
+**Aggregate queries gain a causal filter.** v0.38.0–.1 made causal
+typing first-class and threaded it into the confidence formula. v0.38.2
+extends the inference layer (v0.35) to read it: consensus over a target
+finding can now be restricted to a specific causal claim type, a
+minimum study-design grade, or both.
+
+### Why
+
+Pre-v0.38.2, `vela consensus vf_<id>` blended every claim-similar
+finding regardless of what kind of claim each one made. Fine when the
+question is "what does the field hold about TREM2?" — wrong when the
+question is specifically "what does the field hold *as causation*?"
+The math is fine; the question was undertyped. v0.38.2 lets you ask
+the sharper question.
+
+### Schema
+
+```rust
+pub struct AggregateFilter {
+    pub causal_claim: Option<CausalClaim>,
+    pub causal_grade_min: Option<CausalEvidenceGrade>,
+}
+```
+
+Total order on `CausalEvidenceGrade` (used by `causal_grade_min`):
+`Theoretical < Observational < QuasiExperimental < Rct`.
+
+### API
+
+- `aggregate::consensus_for_with_filter(project, target_id, weighting,
+  &filter)` — new entry point.
+- `aggregate::consensus_for(...)` preserved for back-compat; equivalent
+  to `consensus_for_with_filter` with the default (no-op) filter.
+- `ConsensusResult.filter: Option<AggregateFilter>` records the filter
+  on the result so downstream views can label which question was asked.
+
+### Filter doctrine
+
+- The **target finding is always the anchor.** Filters apply to *neighbors*,
+  not the target. The consensus is *about* this claim, not selecting *for*
+  it. Asking "what does the field's RCT-grade evidence say about *this*
+  observational finding?" must continue to anchor on the original.
+- An **ungraded neighbor is excluded when `causal_grade_min` is set.**
+  Without a grade we can't decide if it satisfies the minimum; the safer
+  default is to omit rather than treat as bottom-tier.
+- Both filters compose with **AND**: a finding must match the claim type
+  *and* meet the grade minimum.
+
+### CLI
+
+```
+vela consensus <vf_id> --frontier <path> \
+    --causal-claim correlation|mediation|intervention \
+    --causal-grade-min theoretical|observational|quasi_experimental|rct \
+    --weighting composite
+```
+
+Either flag is optional; without them the v0.35 behavior is preserved.
+
+### Verification
+
+- `cargo build --workspace`: clean.
+- `cargo test --workspace`: **390/390 pass** (was 384; +6 filter tests
+  in `aggregate.rs::v0_38_2_filter_tests`):
+  - unfiltered blends all similar findings
+  - claim filter keeps matching neighbors, anchor included
+  - claim filter excludes non-matching neighbors
+  - grade-min excludes lower grades
+  - ungraded findings excluded when grade-min set
+  - grade-rank total order
+- `vela conformance`: 61/61 pass.
+- `vela check projects/bbb-flagship`: 86/86 valid.
+
 ## 0.38.1 - 2026-04-27
 
 **Causal typing reaches the math.** v0.38.0 made `causal_claim` and

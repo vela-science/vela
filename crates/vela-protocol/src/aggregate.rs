@@ -19,8 +19,57 @@ use std::collections::HashSet;
 
 use serde::{Deserialize, Serialize};
 
-use crate::bundle::FindingBundle;
+use crate::bundle::{CausalClaim, CausalEvidenceGrade, FindingBundle};
 use crate::project::Project;
+
+/// v0.38.2: filter constraints for consensus aggregation. Consensus
+/// computed without a filter blends all claim-similar findings —
+/// fine when "what does the field hold?" is the question, but wrong
+/// when the question is specifically "what does the field hold *as
+/// causation*?" or "what's the consensus among RCT-grade evidence?"
+///
+/// `None` for any field means no constraint; the default value of
+/// `Filter::default()` is the pre-v0.38.2 behavior.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct AggregateFilter {
+    /// Only include findings whose `causal_claim` matches. `None`
+    /// includes all (including unset claims).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub causal_claim: Option<CausalClaim>,
+    /// Minimum study-design grade. Findings with `causal_evidence_grade`
+    /// strictly weaker than this are excluded. `None` includes all
+    /// (including unset grades). Ordering: Theoretical < Observational
+    /// < QuasiExperimental < Rct.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub causal_grade_min: Option<CausalEvidenceGrade>,
+}
+
+/// Total order on `CausalEvidenceGrade` for the `causal_grade_min`
+/// filter. Higher value means stronger study design.
+fn grade_rank(g: CausalEvidenceGrade) -> u32 {
+    match g {
+        CausalEvidenceGrade::Theoretical => 1,
+        CausalEvidenceGrade::Observational => 2,
+        CausalEvidenceGrade::QuasiExperimental => 3,
+        CausalEvidenceGrade::Rct => 4,
+    }
+}
+
+fn passes_filter(f: &FindingBundle, filter: &AggregateFilter) -> bool {
+    if let Some(want) = filter.causal_claim
+        && f.assertion.causal_claim != Some(want)
+    {
+        return false;
+    }
+    if let Some(min) = filter.causal_grade_min {
+        match f.assertion.causal_evidence_grade {
+            None => return false, // ungraded findings can't satisfy a min
+            Some(g) if grade_rank(g) < grade_rank(min) => return false,
+            _ => {}
+        }
+    }
+    true
+}
 
 /// How candidate findings are weighted when computing consensus.
 ///
@@ -108,6 +157,11 @@ pub struct ConsensusResult {
     pub constituents: Vec<ConsensusConstituent>,
     /// Name of the weighting scheme used.
     pub weighting: String,
+    /// v0.38.2: filter applied to neighbor findings before similarity
+    /// computation. `None` (the v0.35–v0.38.1 default) means no
+    /// filter; everything similar contributes.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub filter: Option<AggregateFilter>,
 }
 
 /// Compute consensus over findings similar to `target_id`.
@@ -119,10 +173,30 @@ pub struct ConsensusResult {
 /// should both contribute.
 ///
 /// Returns `None` if `target_id` isn't in the project.
+///
+/// Equivalent to `consensus_for_with_filter` with the default
+/// (no-op) filter; preserved for backward compatibility.
 pub fn consensus_for(
     project: &Project,
     target_id: &str,
     weighting: WeightingScheme,
+) -> Option<ConsensusResult> {
+    consensus_for_with_filter(project, target_id, weighting, &AggregateFilter::default())
+}
+
+/// v0.38.2: same as `consensus_for`, with a structured `AggregateFilter`
+/// applied to candidate findings before similarity is checked. Lets
+/// callers ask sharper questions: "what's the consensus *as
+/// intervention*?" or "consensus among RCT-grade evidence only?"
+///
+/// The target finding is always included as the anchor, even if it
+/// would not pass the filter — the consensus is *about* this claim.
+/// Only the *neighbors* are filtered.
+pub fn consensus_for_with_filter(
+    project: &Project,
+    target_id: &str,
+    weighting: WeightingScheme,
+    filter: &AggregateFilter,
 ) -> Option<ConsensusResult> {
     let target = project.findings.iter().find(|f| f.id == target_id)?;
     let target_entities: HashSet<String> = target
@@ -143,6 +217,11 @@ pub fn consensus_for(
 
     // Find candidate findings — including the target itself, which
     // anchors the consensus on its own evidence.
+    //
+    // v0.38.2: neighbor findings must pass the optional `filter`
+    // (causal_claim match + causal_grade_min). The target is always
+    // included regardless of filter — the consensus is *about* this
+    // claim, not selecting *for* it.
     let mut candidates: Vec<&FindingBundle> = Vec::new();
     for f in &project.findings {
         if f.id == target_id {
@@ -150,6 +229,9 @@ pub fn consensus_for(
             continue;
         }
         if !is_similar(f, &target_entities, &target_text_words, &target.assertion.assertion_type) {
+            continue;
+        }
+        if !passes_filter(f, filter) {
             continue;
         }
         candidates.push(f);
@@ -202,6 +284,12 @@ pub fn consensus_for(
     let (credible_interval_lo, credible_interval_hi) =
         weighted_credible_interval(&constituents, consensus_confidence, total_weight);
 
+    let filter_serialized = if filter.causal_claim.is_some() || filter.causal_grade_min.is_some() {
+        Some(filter.clone())
+    } else {
+        None
+    };
+
     Some(ConsensusResult {
         target: target.id.clone(),
         target_assertion: target.assertion.text.clone(),
@@ -211,6 +299,7 @@ pub fn consensus_for(
         credible_interval_hi: round3(credible_interval_hi),
         constituents,
         weighting: weighting.name().to_string(),
+        filter: filter_serialized,
     })
 }
 
@@ -328,4 +417,195 @@ fn weighted_credible_interval(
 
 fn round3(x: f64) -> f64 {
     (x * 1000.0).round() / 1000.0
+}
+
+#[cfg(test)]
+mod v0_38_2_filter_tests {
+    use super::*;
+    use crate::bundle::*;
+    use crate::project;
+
+    fn finding(id: &str, claim: Option<CausalClaim>, grade: Option<CausalEvidenceGrade>) -> FindingBundle {
+        FindingBundle::new(
+            Assertion {
+                text: format!("X covaries with Y in {id}"),
+                assertion_type: "mechanism".into(),
+                entities: vec![
+                    Entity {
+                        name: "X".into(),
+                        entity_type: "protein".into(),
+                        identifiers: serde_json::Map::new(),
+                        canonical_id: None,
+                        candidates: vec![],
+                        aliases: vec![],
+                        resolution_provenance: None,
+                        resolution_confidence: 1.0,
+                        resolution_method: None,
+                        species_context: None,
+                        needs_review: false,
+                    },
+                    Entity {
+                        name: "Y".into(),
+                        entity_type: "protein".into(),
+                        identifiers: serde_json::Map::new(),
+                        canonical_id: None,
+                        candidates: vec![],
+                        aliases: vec![],
+                        resolution_provenance: None,
+                        resolution_confidence: 1.0,
+                        resolution_method: None,
+                        species_context: None,
+                        needs_review: false,
+                    },
+                ],
+                relation: Some("covaries_with".into()),
+                direction: Some("positive".into()),
+                causal_claim: claim,
+                causal_evidence_grade: grade,
+            },
+            Evidence {
+                evidence_type: "experimental".into(),
+                model_system: String::new(),
+                species: None,
+                method: String::new(),
+                sample_size: Some("n=100".into()),
+                effect_size: None,
+                p_value: None,
+                replicated: false,
+                replication_count: None,
+                evidence_spans: vec![],
+            },
+            Conditions {
+                text: String::new(),
+                species_verified: vec![],
+                species_unverified: vec![],
+                in_vitro: false,
+                in_vivo: false,
+                human_data: false,
+                clinical_trial: false,
+                concentration_range: None,
+                duration: None,
+                age_group: None,
+                cell_type: None,
+            },
+            Confidence::raw(0.7, "test", 0.85),
+            Provenance {
+                source_type: "published_paper".into(),
+                doi: None,
+                pmid: None,
+                pmc: None,
+                openalex_id: None,
+                url: None,
+                title: "Test".into(),
+                authors: vec![],
+                year: Some(2025),
+                journal: None,
+                license: None,
+                publisher: None,
+                funders: vec![],
+                extraction: Extraction::default(),
+                review: None,
+                citation_count: None,
+            },
+            Flags::default(),
+        )
+    }
+
+    fn make_project(findings: Vec<FindingBundle>) -> Project {
+        project::assemble("test", findings, 1, 0, "test")
+    }
+
+    #[test]
+    fn unfiltered_blends_all_similar_findings() {
+        let target = finding("a", Some(CausalClaim::Correlation), Some(CausalEvidenceGrade::Observational));
+        let interv = finding("b", Some(CausalClaim::Intervention), Some(CausalEvidenceGrade::Rct));
+        let target_id = target.id.clone();
+        let project = make_project(vec![target, interv]);
+        let result = consensus_for(&project, &target_id, WeightingScheme::Unweighted).unwrap();
+        // No filter: both findings contribute.
+        assert_eq!(result.n_findings, 2);
+        assert!(result.filter.is_none());
+    }
+
+    #[test]
+    fn causal_claim_filter_keeps_only_matching_neighbors() {
+        let target = finding("a", Some(CausalClaim::Correlation), Some(CausalEvidenceGrade::Observational));
+        let interv = finding("b", Some(CausalClaim::Intervention), Some(CausalEvidenceGrade::Rct));
+        let target_id = target.id.clone();
+        let project = make_project(vec![target, interv]);
+        let filter = AggregateFilter {
+            causal_claim: Some(CausalClaim::Intervention),
+            causal_grade_min: None,
+        };
+        let result = consensus_for_with_filter(&project, &target_id, WeightingScheme::Unweighted, &filter)
+            .unwrap();
+        // Target (correlation) is the anchor — always included.
+        // Neighbor (intervention) passes the filter.
+        // Result includes both — anchor + 1 matching neighbor.
+        assert_eq!(result.n_findings, 2);
+        // But if the target had a correlation neighbor not matching
+        // intervention, it would be excluded.
+    }
+
+    #[test]
+    fn causal_claim_filter_excludes_non_matching_neighbors() {
+        let target = finding("a", Some(CausalClaim::Intervention), Some(CausalEvidenceGrade::Rct));
+        let neighbor_corr = finding("b", Some(CausalClaim::Correlation), Some(CausalEvidenceGrade::Observational));
+        let target_id = target.id.clone();
+        let project = make_project(vec![target, neighbor_corr]);
+        let filter = AggregateFilter {
+            causal_claim: Some(CausalClaim::Intervention),
+            causal_grade_min: None,
+        };
+        let result = consensus_for_with_filter(&project, &target_id, WeightingScheme::Unweighted, &filter)
+            .unwrap();
+        // Only the target (always included) — neighbor filtered out.
+        assert_eq!(result.n_findings, 1);
+        assert_eq!(result.filter.as_ref().unwrap().causal_claim, Some(CausalClaim::Intervention));
+    }
+
+    #[test]
+    fn grade_min_excludes_lower_grades() {
+        let target = finding("a", Some(CausalClaim::Mediation), Some(CausalEvidenceGrade::Rct));
+        let neighbor_obs = finding("b", Some(CausalClaim::Mediation), Some(CausalEvidenceGrade::Observational));
+        let neighbor_rct = finding("c", Some(CausalClaim::Mediation), Some(CausalEvidenceGrade::Rct));
+        let target_id = target.id.clone();
+        let project = make_project(vec![target, neighbor_obs, neighbor_rct]);
+        let filter = AggregateFilter {
+            causal_claim: None,
+            causal_grade_min: Some(CausalEvidenceGrade::QuasiExperimental),
+        };
+        let result = consensus_for_with_filter(&project, &target_id, WeightingScheme::Unweighted, &filter)
+            .unwrap();
+        // Target (RCT, anchor) + neighbor_rct. Observational excluded.
+        assert_eq!(result.n_findings, 2);
+    }
+
+    #[test]
+    fn ungraded_findings_excluded_when_grade_min_set() {
+        let target = finding("a", Some(CausalClaim::Mediation), Some(CausalEvidenceGrade::Rct));
+        let neighbor_ungraded = finding("b", Some(CausalClaim::Mediation), None);
+        let target_id = target.id.clone();
+        let project = make_project(vec![target, neighbor_ungraded]);
+        let filter = AggregateFilter {
+            causal_claim: None,
+            causal_grade_min: Some(CausalEvidenceGrade::Observational),
+        };
+        let result = consensus_for_with_filter(&project, &target_id, WeightingScheme::Unweighted, &filter)
+            .unwrap();
+        // Ungraded neighbor is excluded; only target remains.
+        assert_eq!(result.n_findings, 1);
+    }
+
+    #[test]
+    fn grade_rank_orders_correctly() {
+        assert!(grade_rank(CausalEvidenceGrade::Theoretical) < grade_rank(CausalEvidenceGrade::Observational));
+        assert!(
+            grade_rank(CausalEvidenceGrade::Observational)
+                < grade_rank(CausalEvidenceGrade::QuasiExperimental)
+        );
+        assert!(
+            grade_rank(CausalEvidenceGrade::QuasiExperimental) < grade_rank(CausalEvidenceGrade::Rct)
+        );
+    }
 }

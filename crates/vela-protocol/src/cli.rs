@@ -19,7 +19,7 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 
 #[derive(Parser)]
-#[command(name = "vela", version = "0.38.1")]
+#[command(name = "vela", version = "0.38.2")]
 #[command(about = "Portable frontier state for science")]
 struct Cli {
     #[command(subcommand)]
@@ -886,6 +886,18 @@ enum Commands {
         /// `composite`. Default is `composite`.
         #[arg(long, default_value = "composite")]
         weighting: String,
+        /// v0.38.2: restrict neighbor findings to a specific causal
+        /// claim type: `correlation` | `mediation` | `intervention`.
+        /// Useful for asking "what does the field hold *as
+        /// causation*?" — distinct from the global blend.
+        #[arg(long)]
+        causal_claim: Option<String>,
+        /// v0.38.2: restrict neighbor findings to study designs at or
+        /// above the given grade: `theoretical` | `observational` |
+        /// `quasi_experimental` | `rct`. Findings with no grade are
+        /// excluded when this is set.
+        #[arg(long)]
+        causal_grade_min: Option<String>,
         /// Emit JSON to stdout.
         #[arg(long)]
         json: bool,
@@ -2359,21 +2371,64 @@ pub async fn run_command() {
             frontier,
             target,
             weighting,
+            causal_claim,
+            causal_grade_min,
             json,
-        } => cmd_consensus(&frontier, &target, &weighting, json),
+        } => cmd_consensus(
+            &frontier,
+            &target,
+            &weighting,
+            causal_claim.as_deref(),
+            causal_grade_min.as_deref(),
+            json,
+        ),
     }
 }
 
-/// v0.35: print consensus over claim-similar findings.
-fn cmd_consensus(frontier: &Path, target: &str, weighting_str: &str, json: bool) {
+/// v0.35 / v0.38.2: print consensus over claim-similar findings,
+/// optionally filtered by causal claim type / minimum study grade.
+fn cmd_consensus(
+    frontier: &Path,
+    target: &str,
+    weighting_str: &str,
+    causal_claim: Option<&str>,
+    causal_grade_min: Option<&str>,
+    json: bool,
+) {
+    use crate::bundle::{CausalClaim, CausalEvidenceGrade};
+
     if !target.starts_with("vf_") {
         fail(&format!("target `{target}` is not a vf_ finding id"));
     }
     let scheme = crate::aggregate::WeightingScheme::parse(weighting_str)
         .unwrap_or_else(|e| fail_return(&e));
+
+    let parsed_claim = match causal_claim {
+        None => None,
+        Some("correlation") => Some(CausalClaim::Correlation),
+        Some("mediation") => Some(CausalClaim::Mediation),
+        Some("intervention") => Some(CausalClaim::Intervention),
+        Some(other) => fail_return(&format!(
+            "invalid --causal-claim '{other}'; valid: correlation | mediation | intervention"
+        )),
+    };
+    let parsed_grade = match causal_grade_min {
+        None => None,
+        Some("theoretical") => Some(CausalEvidenceGrade::Theoretical),
+        Some("observational") => Some(CausalEvidenceGrade::Observational),
+        Some("quasi_experimental") => Some(CausalEvidenceGrade::QuasiExperimental),
+        Some("rct") => Some(CausalEvidenceGrade::Rct),
+        Some(other) => fail_return(&format!(
+            "invalid --causal-grade-min '{other}'; valid: theoretical | observational | quasi_experimental | rct"
+        )),
+    };
+    let filter = crate::aggregate::AggregateFilter {
+        causal_claim: parsed_claim,
+        causal_grade_min: parsed_grade,
+    };
     let project = repo::load_from_path(frontier).unwrap_or_else(|e| fail_return(&e));
 
-    let result = crate::aggregate::consensus_for(&project, target, scheme)
+    let result = crate::aggregate::consensus_for_with_filter(&project, target, scheme, &filter)
         .unwrap_or_else(|| fail_return(&format!("target `{target}` not in frontier")));
 
     if json {
