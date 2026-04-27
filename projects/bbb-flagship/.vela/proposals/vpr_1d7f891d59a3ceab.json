@@ -1,0 +1,109 @@
+{
+  "schema": "vela.proposal.v0.1",
+  "id": "vpr_1d7f891d59a3ceab",
+  "kind": "finding.add",
+  "target": {
+    "type": "finding",
+    "id": "vf_41ea0e259005f2c2"
+  },
+  "actor": {
+    "id": "agent:notes-compiler",
+    "type": "agent"
+  },
+  "created_at": "2026-04-27T23:42:39.114113+00:00",
+  "reason": "Sustained clinical failure normally erodes a hypothesis's status as the default frame, yet the note records both as simultaneously true without resolving the conflict.",
+  "payload": {
+    "finding": {
+      "assertion": {
+        "direction": null,
+        "entities": [],
+        "relation": null,
+        "text": "Tension: \"The amyloid hypothesis is the default organizing frame in Alzheimer's research.\" vs \"Anti-amyloid interventions have repeatedly failed in clinical translation.\". Why: Sustained clinical failure normally erodes a hypothesis's status as the default frame, yet the note records both as simultaneously true without resolving the conflict.",
+        "type": "tension"
+      },
+      "conditions": {
+        "age_group": null,
+        "cell_type": null,
+        "clinical_trial": false,
+        "concentration_range": null,
+        "duration": null,
+        "human_data": false,
+        "in_vitro": false,
+        "in_vivo": false,
+        "species_unverified": [],
+        "species_verified": [],
+        "text": ""
+      },
+      "confidence": {
+        "basis": "notes_compiler: tension surfaced for review",
+        "extraction_confidence": 0.7,
+        "kind": "frontier_epistemic",
+        "method": "llm_initial",
+        "score": 0.0
+      },
+      "created": "2026-04-27T23:42:39.114021+00:00",
+      "evidence": {
+        "effect_size": null,
+        "evidence_spans": [],
+        "method": "notes_compiler",
+        "model_system": "",
+        "p_value": null,
+        "replicated": false,
+        "replication_count": null,
+        "sample_size": null,
+        "species": null,
+        "type": "extracted_from_notes"
+      },
+      "flags": {
+        "contested": true,
+        "declining": false,
+        "gap": false,
+        "gravity_well": false,
+        "negative_space": false,
+        "retracted": false
+      },
+      "id": "vf_41ea0e259005f2c2",
+      "links": [],
+      "previous_version": null,
+      "provenance": {
+        "authors": [],
+        "citation_count": null,
+        "doi": null,
+        "extraction": {
+          "extracted_at": "2026-04-27T23:42:39.114020+00:00",
+          "extractor_version": "vela-scientist::notes-compiler/v0.23",
+          "method": "notes_compiler_via_claude_cli",
+          "model": null,
+          "model_version": null
+        },
+        "journal": null,
+        "openalex_id": null,
+        "pmc": null,
+        "pmid": null,
+        "review": null,
+        "source_type": "researcher_notes",
+        "title": "Amyloid cascade hypothesis remains dominant despite clinical failures.md",
+        "year": null
+      },
+      "updated": null,
+      "version": 1
+    }
+  },
+  "source_refs": [
+    "Amyloid cascade hypothesis remains dominant despite clinical failures.md"
+  ],
+  "status": "pending_review",
+  "caveats": [],
+  "agent_run": {
+    "agent": "notes-compiler",
+    "run_id": "vrun_1e7fba011e1c7fa7",
+    "started_at": "2026-04-27T23:42:03.635267+00:00",
+    "context": {
+      "backend": "claude-cli",
+      "cli_command": "claude",
+      "input_root": "/Users/williamblair/Documents/Obsidian Vault/Research/Notes",
+      "notes_capped_to": "11",
+      "notes_seen": "11"
+    }
+  }
+}

@@ -1,0 +1,113 @@
+{
+  "schema": "vela.proposal.v0.1",
+  "id": "vpr_94ae0a0a617f023b",
+  "kind": "finding.add",
+  "target": {
+    "type": "finding",
+    "id": "vf_69d5f4e977cc1acc"
+  },
+  "actor": {
+    "id": "agent:notes-compiler",
+    "type": "agent"
+  },
+  "created_at": "2026-04-27T23:43:40.591112+00:00",
+  "reason": "The note flags plaque burden's limitation as a sole proxy, implying composite measures may be required.",
+  "payload": {
+    "finding": {
+      "assertion": {
+        "direction": null,
+        "entities": [],
+        "relation": null,
+        "text": "What additional biomarkers, when combined with Aβ plaque burden, yield a clinically useful proxy for cognitive impairment severity?",
+        "type": "open_question"
+      },
+      "conditions": {
+        "age_group": null,
+        "cell_type": null,
+        "clinical_trial": false,
+        "concentration_range": null,
+        "duration": null,
+        "human_data": false,
+        "in_vitro": false,
+        "in_vivo": false,
+        "species_unverified": [],
+        "species_verified": [],
+        "text": ""
+      },
+      "confidence": {
+        "basis": "notes_compiler: open question, no evidence yet",
+        "extraction_confidence": 0.7,
+        "kind": "frontier_epistemic",
+        "method": "llm_initial",
+        "score": 0.0
+      },
+      "created": "2026-04-27T23:43:40.591065+00:00",
+      "evidence": {
+        "effect_size": null,
+        "evidence_spans": [
+          {
+            "text": "The note flags plaque burden's limitation as a sole proxy, implying composite measures may be required."
+          }
+        ],
+        "method": "notes_compiler",
+        "model_system": "",
+        "p_value": null,
+        "replicated": false,
+        "replication_count": null,
+        "sample_size": null,
+        "species": null,
+        "type": "extracted_from_notes"
+      },
+      "flags": {
+        "contested": false,
+        "declining": false,
+        "gap": false,
+        "gravity_well": false,
+        "negative_space": false,
+        "retracted": false
+      },
+      "id": "vf_69d5f4e977cc1acc",
+      "links": [],
+      "previous_version": null,
+      "provenance": {
+        "authors": [],
+        "citation_count": null,
+        "doi": null,
+        "extraction": {
+          "extracted_at": "2026-04-27T23:43:40.591064+00:00",
+          "extractor_version": "vela-scientist::notes-compiler/v0.23",
+          "method": "notes_compiler_via_claude_cli",
+          "model": null,
+          "model_version": null
+        },
+        "journal": null,
+        "openalex_id": null,
+        "pmc": null,
+        "pmid": null,
+        "review": null,
+        "source_type": "researcher_notes",
+        "title": "Aβ plaque burden correlates poorly with cognitive decline.md",
+        "year": null
+      },
+      "updated": null,
+      "version": 1
+    }
+  },
+  "source_refs": [
+    "Aβ plaque burden correlates poorly with cognitive decline.md"
+  ],
+  "status": "pending_review",
+  "caveats": [],
+  "agent_run": {
+    "agent": "notes-compiler",
+    "run_id": "vrun_1e7fba011e1c7fa7",
+    "started_at": "2026-04-27T23:42:03.635267+00:00",
+    "context": {
+      "backend": "claude-cli",
+      "cli_command": "claude",
+      "input_root": "/Users/williamblair/Documents/Obsidian Vault/Research/Notes",
+      "notes_capped_to": "11",
+      "notes_seen": "11"
+    }
+  }
+}

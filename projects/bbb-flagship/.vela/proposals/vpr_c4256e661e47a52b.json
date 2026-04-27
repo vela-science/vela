@@ -1,0 +1,113 @@
+{
+  "schema": "vela.proposal.v0.1",
+  "id": "vpr_c4256e661e47a52b",
+  "kind": "finding.add",
+  "target": {
+    "type": "finding",
+    "id": "vf_9b10f926d705c8e3"
+  },
+  "actor": {
+    "id": "agent:notes-compiler",
+    "type": "agent"
+  },
+  "created_at": "2026-04-27T23:44:20.470511+00:00",
+  "reason": "notes-compiler extracted from BACE1 inhibitor trials failed due to mechanism-independent side effects.md",
+  "payload": {
+    "finding": {
+      "assertion": {
+        "direction": null,
+        "entities": [],
+        "relation": null,
+        "text": "BACE1 inhibitor clinical trials failed in part due to toxicity arising from BACE1's role in biology beyond APP processing.",
+        "type": "candidate_finding"
+      },
+      "conditions": {
+        "age_group": null,
+        "cell_type": null,
+        "clinical_trial": false,
+        "concentration_range": null,
+        "duration": null,
+        "human_data": false,
+        "in_vitro": false,
+        "in_vivo": false,
+        "species_unverified": [],
+        "species_verified": [],
+        "text": ""
+      },
+      "confidence": {
+        "basis": "notes_compiler: candidate finding from researcher's notes",
+        "extraction_confidence": 0.7,
+        "kind": "frontier_epistemic",
+        "method": "llm_initial",
+        "score": 0.5
+      },
+      "created": "2026-04-27T23:44:20.470453+00:00",
+      "evidence": {
+        "effect_size": null,
+        "evidence_spans": [
+          {
+            "text": "BACE1 inhibition ran into failure not only because amyloid biology is contested, but because the target itself participates in broader biology that creates toxicity when suppressed too aggressively."
+          }
+        ],
+        "method": "notes_compiler",
+        "model_system": "",
+        "p_value": null,
+        "replicated": false,
+        "replication_count": null,
+        "sample_size": null,
+        "species": null,
+        "type": "extracted_from_notes"
+      },
+      "flags": {
+        "contested": false,
+        "declining": false,
+        "gap": false,
+        "gravity_well": false,
+        "negative_space": false,
+        "retracted": false
+      },
+      "id": "vf_9b10f926d705c8e3",
+      "links": [],
+      "previous_version": null,
+      "provenance": {
+        "authors": [],
+        "citation_count": null,
+        "doi": null,
+        "extraction": {
+          "extracted_at": "2026-04-27T23:44:20.470452+00:00",
+          "extractor_version": "vela-scientist::notes-compiler/v0.23",
+          "method": "notes_compiler_via_claude_cli",
+          "model": null,
+          "model_version": null
+        },
+        "journal": null,
+        "openalex_id": null,
+        "pmc": null,
+        "pmid": null,
+        "review": null,
+        "source_type": "researcher_notes",
+        "title": "BACE1 inhibitor trials failed due to mechanism-independent side effects.md",
+        "year": null
+      },
+      "updated": null,
+      "version": 1
+    }
+  },
+  "source_refs": [
+    "BACE1 inhibitor trials failed due to mechanism-independent side effects.md"
+  ],
+  "status": "pending_review",
+  "caveats": [],
+  "agent_run": {
+    "agent": "notes-compiler",
+    "run_id": "vrun_1e7fba011e1c7fa7",
+    "started_at": "2026-04-27T23:42:03.635267+00:00",
+    "context": {
+      "backend": "claude-cli",
+      "cli_command": "claude",
+      "input_root": "/Users/williamblair/Documents/Obsidian Vault/Research/Notes",
+      "notes_capped_to": "11",
+      "notes_seen": "11"
+    }
+  }
+}
