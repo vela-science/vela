@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_6e4b4646cb28c3a9",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_9ea905881561c1f7"
+  },
+  "actor": {
+    "id": "reviewer:will-blair",
+    "type": "human"
+  },
+  "timestamp": "2026-04-27T18:12:03.072142+00:00",
+  "reason": "The note explicitly frames TREM2 findings as challenging the production-centric cascade view, contrasting 'plaque management rather than plaque production.'",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:7ac86821f06d22d15fe3c4db4d9d505fb6d605bbcca5048e1691f6c44f6b3b13",
+  "payload": {
+    "proposal_id": "vpr_b3b782a58dda8234"
+  },
+  "caveats": []
+}

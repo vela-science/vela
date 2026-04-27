@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_6c26728eb0773284",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_e75e7aa282dc741e"
+  },
+  "actor": {
+    "id": "reviewer:will-blair",
+    "type": "human"
+  },
+  "timestamp": "2026-04-27T18:12:03.129420+00:00",
+  "reason": "notes-compiler extracted from TREM2 loss-of-function increases amyloid plaque density.md",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:f85b218e3e51f6330bc4d12f1407b9372a1c5bbaba6a4077babc47964fd63f99",
+  "payload": {
+    "proposal_id": "vpr_ccd29695062a1549"
+  },
+  "caveats": []
+}

@@ -31,4 +31,22 @@ export const BBB = {
   locator: `${REPO_RAW_BASE}/frontiers/bbb-alzheimer.json`,
 };
 
+// Topic-first display identity. The protocol-side directory stays
+// `bbb-flagship` for stable id; the site renders it under its
+// scientific subject. When the underlying frontier is re-published
+// under a renamed canonical name + new vfr_id, this constant is what
+// readers see, and a single line moves with it.
+export const FRONTIER = {
+  name: "Alzheimer's Therapeutics",
+  slug: "alzheimers-therapeutics",
+  description:
+    "The live state of Alzheimer's therapeutics — drug targets, mechanisms, clinical readouts. Signed, content-addressed, agent-augmented.",
+  // Path on disk (relative to repo root) where the canonical frontier lives.
+  // Used at build time by the site loader; not exposed at runtime.
+  repoPath: "projects/bbb-flagship",
+  // Public manifest filename (under `frontiers/` in the repo).
+  // The hub locator is `${REPO_RAW_BASE}/frontiers/${manifestFile}`.
+  manifestFile: "alzheimers-therapeutics.json",
+};
+
 export const VERSION = "0.29.4";

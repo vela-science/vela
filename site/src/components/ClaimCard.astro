@@ -1,0 +1,200 @@
+---
+/*
+  ClaimCard — the unit of the topic-first homepage.
+
+  Renders a finding as a sentence first (serif, claim-as-prose), then
+  the instrument metadata: target tags, evidence label, confidence dot,
+  short citation, permalink. Clicking the card jumps to the full
+  /claims/<slug> page.
+
+  This is the GitHub-first-visit affordance: a researcher should land
+  on the homepage, see ten of these stacked, and recognize "these are
+  claims about Alzheimer's drug targets" before they read any chrome.
+*/
+
+import type { ClaimView } from "../lib/frontier";
+import { TARGETS, shortCitation, doiUrl } from "../lib/frontier";
+
+interface Props {
+  claim: ClaimView;
+  /* Compact variant: smaller type, used in dense lists like /targets/. */
+  compact?: boolean;
+}
+
+const { claim, compact = false } = Astro.props;
+const f = claim.finding;
+
+const cite = shortCitation(f.provenance);
+const citationHref = doiUrl(f.provenance);
+const targetDefs = TARGETS.filter((t) => claim.targets.includes(t.slug));
+
+const isContradiction =
+  f.flags.contested || f.assertion.type === "tension";
+
+const confidenceDotColor =
+  claim.confidenceBucket === "high"
+    ? "var(--state-ok)"
+    : claim.confidenceBucket === "mid"
+      ? "var(--state-warn)"
+      : "var(--state-stale)";
+---
+
+<article class={`claim-card${compact ? " claim-card--compact" : ""}`}>
+  <a class="claim-card__link" href={`/claims/${claim.slug}`} aria-label={f.assertion.text}>
+    <p class="claim-card__claim">{f.assertion.text}</p>
+
+    <div class="claim-card__meta">
+      <div class="claim-card__chips">
+        {targetDefs.map((t) => (
+          <span class="claim-card__chip">{t.short}</span>
+        ))}
+        <span class="claim-card__evidence">{claim.evidenceLabel}</span>
+        {isContradiction && (
+          <span class="claim-card__chip claim-card__chip--contested">contested</span>
+        )}
+        <span
+          class="claim-card__conf"
+          style={`--dot:${confidenceDotColor}`}
+          title={`Confidence ${f.confidence.score.toFixed(2)}`}
+        >
+          <span class="claim-card__conf-dot"></span>
+          <span class="claim-card__conf-num">{f.confidence.score.toFixed(2)}</span>
+        </span>
+      </div>
+
+      <div class="claim-card__citation">
+        <span class="claim-card__cite">{cite}</span>
+        <span class="claim-card__permalink">{claim.finding.id}</span>
+      </div>
+    </div>
+  </a>
+</article>
+
+<style>
+  .claim-card {
+    background: var(--paper-1);
+    border-top: 1px solid var(--rule-2);
+    border-bottom: 1px solid var(--rule-2);
+    margin-bottom: -1px; /* collapse adjacent borders into one hairline */
+    transition: background var(--dur-2) var(--ease);
+  }
+  .claim-card:hover {
+    background: var(--paper-2);
+  }
+  .claim-card:focus-within {
+    outline: 1px solid var(--signal);
+    outline-offset: -1px;
+  }
+
+  .claim-card__link {
+    display: block;
+    padding: var(--space-5) var(--space-5);
+    text-decoration: none;
+    color: inherit;
+  }
+  .claim-card--compact .claim-card__link {
+    padding: var(--space-4) var(--space-5);
+  }
+
+  .claim-card__claim {
+    font-family: var(--font-serif);
+    font-size: 21px;
+    line-height: 1.45;
+    color: var(--ink-0);
+    margin: 0;
+    letter-spacing: -0.005em;
+    /* Hanging quote feel — give the sentence room to breathe. */
+    max-width: 64ch;
+  }
+  .claim-card--compact .claim-card__claim {
+    font-size: 17px;
+    line-height: 1.4;
+    max-width: 72ch;
+  }
+
+  .claim-card__meta {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-4);
+    margin-top: var(--space-3);
+    flex-wrap: wrap;
+  }
+
+  .claim-card__chips {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    flex-wrap: wrap;
+  }
+
+  .claim-card__chip {
+    font-family: var(--font-mono);
+    font-size: var(--size-xs);
+    letter-spacing: var(--track-label);
+    text-transform: uppercase;
+    color: var(--ink-2);
+    padding: 2px 6px;
+    border: 1px solid var(--rule-2);
+    border-radius: var(--radius-1);
+    background: var(--paper-0);
+  }
+  .claim-card__chip--contested {
+    color: var(--vela-ember-red);
+    border-color: color-mix(in oklab, var(--vela-ember-red) 32%, transparent);
+  }
+
+  .claim-card__evidence {
+    font-family: var(--font-sans);
+    font-size: var(--size-xs);
+    letter-spacing: var(--track-label);
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+
+  .claim-card__conf {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-mono);
+    font-size: var(--size-xs);
+    color: var(--ink-3);
+    font-variant-numeric: tabular-nums;
+  }
+  .claim-card__conf-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--dot);
+    box-shadow: 0 0 0 1px color-mix(in oklab, var(--dot) 30%, transparent);
+  }
+
+  .claim-card__citation {
+    display: inline-flex;
+    align-items: baseline;
+    gap: var(--space-3);
+    font-size: var(--size-sm);
+    color: var(--ink-3);
+  }
+  .claim-card__cite {
+    font-family: var(--font-serif);
+    font-style: italic;
+  }
+  .claim-card__permalink {
+    font-family: var(--font-mono);
+    font-size: var(--size-xs);
+    letter-spacing: 0;
+    color: var(--ink-4);
+  }
+
+  @media (max-width: 720px) {
+    .claim-card__claim {
+      font-size: 18px;
+    }
+    .claim-card__meta {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: var(--space-2);
+    }
+  }
+</style>

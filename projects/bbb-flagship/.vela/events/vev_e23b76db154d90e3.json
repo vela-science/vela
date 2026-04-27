@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_e23b76db154d90e3",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_392bbc094dcceb2c"
+  },
+  "actor": {
+    "id": "reviewer:will-blair",
+    "type": "human"
+  },
+  "timestamp": "2026-04-27T18:12:02.364351+00:00",
+  "reason": "notes-compiler extracted from BACE1 inhibitor trials failed due to mechanism-independent side effects.md",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:c6674531e1f6562e0be606673a20657f20b4a9ac267fc39cf64388daeb08c2eb",
+  "payload": {
+    "proposal_id": "vpr_0e55a08d760692a5"
+  },
+  "caveats": []
+}

@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_063a627ab02324a2",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_bcc0ab192a3615d6"
+  },
+  "actor": {
+    "id": "reviewer:will-blair",
+    "type": "human"
+  },
+  "timestamp": "2026-04-27T18:12:03.100803+00:00",
+  "reason": "notes-compiler extracted from Lecanemab showed modest but real efficacy in Clarity AD trial.md",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:38763be57e7a42595f25ae025621148789bd5e548e5663560470adf92dddaddc",
+  "payload": {
+    "proposal_id": "vpr_b83372c17e635fba"
+  },
+  "caveats": []
+}

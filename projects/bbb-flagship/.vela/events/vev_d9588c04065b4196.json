@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_d9588c04065b4196",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_cbc0e6e81bb945f4"
+  },
+  "actor": {
+    "id": "reviewer:will-blair",
+    "type": "human"
+  },
+  "timestamp": "2026-04-27T18:12:02.635278+00:00",
+  "reason": "Note lists stage-dependent TREM2 effects under Key Tensions, implying the same intervention may help early and harm later.",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:04763408b4fc236f916a7dec8e8d5a6f3b6a84c679606a3cc7681776035d9fb6",
+  "payload": {
+    "proposal_id": "vpr_674a1adbeec7cd03"
+  },
+  "caveats": []
+}

@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_5a6a54a6267e417a",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_2af9bd7543cd9c94"
+  },
+  "actor": {
+    "id": "reviewer:will-blair",
+    "type": "human"
+  },
+  "timestamp": "2026-04-27T18:12:02.881097+00:00",
+  "reason": "notes-compiler extracted from ApoE4 increases Alzheimer's risk 3-12x depending on copy number.md",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:3b069b1c91e629e9d84a70bbf8c1227e03050b6dd358eaffcc98125335a87cd1",
+  "payload": {
+    "proposal_id": "vpr_90ea3df9a0e0cce4"
+  },
+  "caveats": []
+}

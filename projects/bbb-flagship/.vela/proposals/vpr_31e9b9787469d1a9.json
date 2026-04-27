@@ -1,0 +1,37 @@
+{
+  "schema": "vela.proposal.v0.1",
+  "id": "vpr_31e9b9787469d1a9",
+  "kind": "finding.note",
+  "target": {
+    "type": "finding",
+    "id": "vf_fc3d3437c3af297c"
+  },
+  "actor": {
+    "id": "agent:reviewer-agent",
+    "type": "agent"
+  },
+  "created_at": "2026-04-27T18:10:03.555933+00:00",
+  "reason": "Reviewer Agent score for vpr_512fe053ff5ef32a",
+  "payload": {
+    "text": "Reviewer Agent score: plausibility 0.85 · evidence 0.40 · scope 0.70 · duplicate-risk 0.75. Canonical and well-posed open question about amyloid-clearance vs cognition decoupling; likely already in frontier. Concerns: Highly canonical question — strong duplicate risk; Evidence span describes rather than quotes the note; No specific drug/trial cited to scope the question."
+  },
+  "source_refs": [
+    "vpr_512fe053ff5ef32a"
+  ],
+  "status": "pending_review",
+  "caveats": [
+    "possible_duplicate"
+  ],
+  "agent_run": {
+    "agent": "reviewer-agent",
+    "run_id": "vrun_35f45efae0f85ac7",
+    "started_at": "2026-04-27T18:08:24.780930+00:00",
+    "context": {
+      "backend": "claude-cli",
+      "cli_command": "claude",
+      "input_root": "projects/bbb-flagship",
+      "pending_seen": "108",
+      "to_review": "30"
+    }
+  }
+}

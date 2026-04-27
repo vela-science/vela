@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_146ab7e6b967dea1",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_c8cc82a27c2f7d39"
+  },
+  "actor": {
+    "id": "reviewer:will-blair",
+    "type": "human"
+  },
+  "timestamp": "2026-04-27T18:12:03.313237+00:00",
+  "reason": "The note explicitly contrasts the review's therapeutic optimism with the reader's concern that timing of microglial activation determines whether the intervention helps or harms.",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:a0c49cab1c7d180da655f3145afb2220c8fd5f88ff253f1f83286b5d35eb12c9",
+  "payload": {
+    "proposal_id": "vpr_fa625183d586a7ff"
+  },
+  "caveats": []
+}

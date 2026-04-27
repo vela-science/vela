@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_1efdaeaa8c6188cb",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_6c79b48970a76527"
+  },
+  "actor": {
+    "id": "reviewer:will-blair",
+    "type": "human"
+  },
+  "timestamp": "2026-04-27T18:12:02.991840+00:00",
+  "reason": "notes-compiler extracted from ApoE Christchurch variant may be protective even with PSEN1 mutations.md",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:dfb65c172b40ccd0a04aa29945ff774769d6f2453de614d25ca7ded35f6b818f",
+  "payload": {
+    "proposal_id": "vpr_a6ca4d03252ed2e2"
+  },
+  "caveats": []
+}

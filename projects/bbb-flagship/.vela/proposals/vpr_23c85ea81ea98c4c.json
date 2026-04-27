@@ -1,0 +1,117 @@
+{
+  "schema": "vela.proposal.v0.1",
+  "id": "vpr_23c85ea81ea98c4c",
+  "kind": "finding.add",
+  "target": {
+    "type": "finding",
+    "id": "vf_8b08c7840d9dc5ad"
+  },
+  "actor": {
+    "id": "agent:notes-compiler",
+    "type": "agent"
+  },
+  "created_at": "2026-04-27T17:48:45.714253+00:00",
+  "reason": "notes-compiler extracted from TREM2 loss-of-function increases amyloid plaque density.md",
+  "payload": {
+    "finding": {
+      "assertion": {
+        "direction": null,
+        "entities": [],
+        "relation": null,
+        "text": "TREM2 loss-of-function leads to increased amyloid plaque density and more diffuse plaque morphology because microglia fail to cluster around plaques.",
+        "type": "candidate_finding"
+      },
+      "conditions": {
+        "age_group": null,
+        "cell_type": null,
+        "clinical_trial": false,
+        "concentration_range": null,
+        "duration": null,
+        "human_data": false,
+        "in_vitro": false,
+        "in_vivo": false,
+        "species_unverified": [],
+        "species_verified": [],
+        "text": ""
+      },
+      "confidence": {
+        "basis": "notes_compiler: candidate finding from researcher's notes",
+        "extraction_confidence": 0.7,
+        "kind": "frontier_epistemic",
+        "method": "llm_initial",
+        "score": 0.5
+      },
+      "created": "2026-04-27T17:48:45.714247+00:00",
+      "evidence": {
+        "effect_size": null,
+        "evidence_spans": [
+          {
+            "text": "When TREM2 function is reduced or lost — as seen in certain rare variants like R47H — microglia fail to cluster around amyloid plaques effectively. This leads to increased plaque density and more diffuse plaque morphology"
+          }
+        ],
+        "method": "notes_compiler",
+        "model_system": "",
+        "p_value": null,
+        "replicated": false,
+        "replication_count": null,
+        "sample_size": null,
+        "species": null,
+        "type": "extracted_from_notes"
+      },
+      "flags": {
+        "contested": false,
+        "declining": false,
+        "gap": false,
+        "gravity_well": false,
+        "negative_space": false,
+        "retracted": false
+      },
+      "id": "vf_8b08c7840d9dc5ad",
+      "links": [],
+      "previous_version": null,
+      "provenance": {
+        "authors": [],
+        "citation_count": null,
+        "doi": null,
+        "extraction": {
+          "extracted_at": "2026-04-27T17:48:45.714247+00:00",
+          "extractor_version": "vela-scientist::notes-compiler/v0.23",
+          "method": "notes_compiler_via_claude_cli",
+          "model": null,
+          "model_version": null
+        },
+        "journal": null,
+        "openalex_id": null,
+        "pmc": null,
+        "pmid": null,
+        "review": null,
+        "source_type": "researcher_notes",
+        "title": "TREM2 loss-of-function increases amyloid plaque density.md",
+        "year": null
+      },
+      "updated": null,
+      "version": 1
+    }
+  },
+  "source_refs": [
+    "TREM2 loss-of-function increases amyloid plaque density.md"
+  ],
+  "status": "applied",
+  "reviewed_by": "reviewer:will-blair",
+  "reviewed_at": "2026-04-27T18:12:02.444375+00:00",
+  "decision_reason": "Alzheimer's-relevant claim from Obsidian campaign; reviewed against on-topic filter and source provenance.",
+  "applied_event_id": "vev_1fca68d5b6efc3e0",
+  "caveats": [],
+  "agent_run": {
+    "agent": "notes-compiler",
+    "run_id": "vrun_c8d2300dea296e45",
+    "started_at": "2026-04-27T17:44:54.596707+00:00",
+    "context": {
+      "backend": "claude-cli",
+      "cli_command": "claude",
+      "input_root": "/Users/williamblair/Documents/Obsidian Vault/Research",
+      "notes_capped_to": "19",
+      "notes_seen": "19"
+    }
+  }
+}

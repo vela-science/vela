@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_ce026a922859a9bc",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_6cfafd8301fc7c91"
+  },
+  "actor": {
+    "id": "reviewer:will-blair",
+    "type": "human"
+  },
+  "timestamp": "2026-04-27T18:12:03.284773+00:00",
+  "reason": "notes-compiler extracted from Amyloid cascade hypothesis remains dominant despite clinical failures.md",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:d69c4f499b027b31f8baf6da4b77fb66495d89d8c30ee2fb34f3d0add07f6f09",
+  "payload": {
+    "proposal_id": "vpr_fa1914b03b877641"
+  },
+  "caveats": []
+}

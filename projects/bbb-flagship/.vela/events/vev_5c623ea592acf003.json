@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_5c623ea592acf003",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_24e5534479aabcc2"
+  },
+  "actor": {
+    "id": "reviewer:will-blair",
+    "type": "human"
+  },
+  "timestamp": "2026-04-27T18:12:02.855842+00:00",
+  "reason": "notes-compiler extracted from Gratuze et al. 2023 — TREM2 review.md",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:067097e0fbc633863b18fd9ea230ead1a58603789b9d63d9e0a22aeb1dc75d11",
+  "payload": {
+    "proposal_id": "vpr_8ad4b8370e8985fa"
+  },
+  "caveats": []
+}

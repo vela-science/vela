@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_cbea1e93255d2855",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_0e9ff2d702088ee9"
+  },
+  "actor": {
+    "id": "reviewer:will-blair",
+    "type": "human"
+  },
+  "timestamp": "2026-04-27T18:12:03.042742+00:00",
+  "reason": "notes-compiler extracted from BACE1 has essential non-amyloid substrates that explain toxicity.md",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:87fe1594251db8334bd80939f095aa797363925d73d77cbe887eba537216da4c",
+  "payload": {
+    "proposal_id": "vpr_aeb12b1b27846e0e"
+  },
+  "caveats": []
+}

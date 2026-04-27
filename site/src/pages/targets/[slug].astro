@@ -1,0 +1,139 @@
+---
+/*
+  Drug-target topic page — aggregates all claims tagged with a given
+  drug target (Aβ, BACE1, tau, TREM2, ApoE, BBB delivery).
+
+  Topic-first navigation: the homepage points here; this page is the
+  reading surface for "what does the frontier say about TREM2?"
+*/
+
+import Page from "../../layouts/Page.astro";
+import ClaimCard from "../../components/ClaimCard.astro";
+import { TARGETS, claimsForTarget, type TargetSlug } from "../../lib/frontier";
+
+export function getStaticPaths() {
+  return TARGETS.map((t) => {
+    const claims = claimsForTarget(t.slug);
+    return {
+      params: { slug: t.slug },
+      props: { target: t, claims },
+    };
+  });
+}
+
+const { target, claims } = Astro.props;
+
+/* Sort by confidence so the strongest claims lead. */
+const sorted = claims
+  .slice()
+  .sort((a, b) => b.finding.confidence.score - a.finding.confidence.score);
+---
+
+<Page
+  title={`${target.name} — Alzheimer's Therapeutics frontier`}
+  description={target.blurb}
+  active="home"
+  eyebrow={`Target · ${target.short}`}
+  pageTitle={target.name}
+  subtitle={target.blurb}
+>
+  <div slot="aside">
+    <a href="/" class="aside-link">← frontier</a>
+    <span>·</span>
+    <span class="aside-mono">{claims.length} claims</span>
+  </div>
+
+  {sorted.length > 0 ? (
+    <section class="target-claims">
+      <header class="target-claims__head">
+        <h2 class="target-claims__title">All {claims.length} claims</h2>
+        <p class="target-claims__sub">Sorted by confidence. Click any to read the evidence.</p>
+      </header>
+      <div class="target-claims__list">
+        {sorted.map((c) => <ClaimCard claim={c} compact />)}
+      </div>
+    </section>
+  ) : (
+    <p class="target-empty">
+      No findings yet for {target.name}. The frontier expands as the agents process new sources.
+      <br />
+      <a class="inline-link" href="/">← Back to the frontier</a>
+    </p>
+  )}
+
+  <p class="target-back">
+    <a class="inline-link" href="/">← Back to all claims</a>
+    <span class="target-back__sep">·</span>
+    <a class="inline-link" href="/protocol">How this stays honest →</a>
+  </p>
+</Page>
+
+<style>
+  .aside-link {
+    font-family: var(--font-mono);
+    font-size: var(--size-xs);
+    letter-spacing: 0.06em;
+    color: var(--ink-3);
+  }
+  .aside-link:hover { color: var(--ink-0); }
+  .aside-mono {
+    font-family: var(--font-mono);
+    font-size: var(--size-xs);
+    color: var(--ink-4);
+  }
+  div[slot="aside"] {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .inline-link {
+    color: var(--signal);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    text-decoration-thickness: 1px;
+  }
+
+  .target-claims__head {
+    margin-bottom: var(--space-4);
+  }
+  .target-claims__title {
+    font-family: var(--font-sans);
+    font-size: var(--size-lg);
+    font-weight: 500;
+    color: var(--ink-0);
+    margin: 0 0 4px;
+    letter-spacing: var(--track-tight);
+  }
+  .target-claims__sub {
+    font-family: var(--font-serif);
+    font-size: 15px;
+    color: var(--ink-3);
+    margin: 0;
+    max-width: 64ch;
+  }
+  .target-claims__list {
+    border-top: 1px solid var(--rule-2);
+  }
+
+  .target-empty {
+    font-family: var(--font-serif);
+    font-size: 16px;
+    color: var(--ink-2);
+    margin: var(--space-5) 0;
+    line-height: 1.6;
+  }
+
+  .target-back {
+    margin: var(--space-7) 0 var(--space-5);
+    padding-top: var(--space-4);
+    border-top: 1px solid var(--rule-2);
+    font-family: var(--font-mono);
+    font-size: var(--size-xs);
+    color: var(--ink-3);
+  }
+  .target-back__sep {
+    margin: 0 8px;
+    color: var(--ink-4);
+  }
+</style>

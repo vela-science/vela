@@ -1,0 +1,118 @@
+---
+/*
+  Frontier index — landing for /frontier/. Lists the available
+  weekly diffs, with the most recent week highlighted as the
+  "current" diff. The detail pages live at /frontier/[week].
+*/
+
+import Page from "../../layouts/Page.astro";
+import { activeWeeks, currentWeek } from "../../lib/frontier";
+import { FRONTIER } from "../../config";
+
+const weeks = activeWeeks();
+const cur = currentWeek();
+const latest = weeks[0];
+---
+
+<Page
+  title={`Weekly diffs · ${FRONTIER.name}`}
+  description="Weekly signed diffs of the Alzheimer's Therapeutics frontier."
+  active="home"
+  eyebrow="Weekly diffs"
+  pageTitle="Weekly diffs"
+  subtitle="What changed in the frontier, week by week."
+>
+  <div slot="aside">
+    <a href="/" class="aside-link">← frontier</a>
+  </div>
+
+  {latest && (
+    <p class="diff-index__lead">
+      Latest diff:&nbsp;
+      <a class="inline-link" href={`/frontier/${latest.key}`}>
+        {latest.key}
+      </a>
+      &nbsp;<span class="diff-index__range">({latest.start} → {latest.end})</span>
+    </p>
+  )}
+
+  <p class="diff-index__note">
+    Each diff lists what was added, what was updated, what was contradicted,
+    and the cumulative claim count at end-of-week. The current ISO week is {cur.key}.
+    Weekly diffs become signed events in v0.32; for now they derive deterministically
+    from frontier timestamps.
+  </p>
+
+  <ol class="diff-index__list">
+    {weeks.map((wk) => (
+      <li>
+        <a class="diff-index__link" href={`/frontier/${wk.key}`}>
+          <span class="diff-index__week">{wk.key}</span>
+          <span class="diff-index__range">{wk.start} → {wk.end}</span>
+        </a>
+      </li>
+    ))}
+  </ol>
+
+  <p class="diff-index__back">
+    <a class="inline-link" href="/">← Back to the frontier</a>
+  </p>
+</Page>
+
+<style>
+  .aside-link {
+    font-family: var(--font-mono);
+    font-size: var(--size-xs);
+    letter-spacing: 0.06em;
+    color: var(--ink-3);
+  }
+  .inline-link {
+    color: var(--signal);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    text-decoration-thickness: 1px;
+  }
+
+  .diff-index__lead {
+    font-family: var(--font-serif);
+    font-size: 18px;
+    color: var(--ink-1);
+    margin: var(--space-4) 0 var(--space-3);
+  }
+  .diff-index__note {
+    font-family: var(--font-serif);
+    font-size: 15px;
+    color: var(--ink-2);
+    line-height: 1.6;
+    margin: 0 0 var(--space-5);
+    max-width: 64ch;
+  }
+  .diff-index__list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    border-top: 1px solid var(--rule-2);
+  }
+  .diff-index__link {
+    display: flex;
+    justify-content: space-between;
+    padding: var(--space-3) 0;
+    border-bottom: 1px solid var(--rule-1);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--ink-1);
+    text-decoration: none;
+    transition: color var(--dur-1) var(--ease);
+  }
+  .diff-index__link:hover { color: var(--signal); }
+  .diff-index__week { font-weight: 500; }
+  .diff-index__range { color: var(--ink-3); }
+
+  .diff-index__back {
+    margin: var(--space-7) 0 0;
+    padding-top: var(--space-4);
+    border-top: 1px solid var(--rule-2);
+    font-family: var(--font-mono);
+    font-size: var(--size-xs);
+  }
+</style>

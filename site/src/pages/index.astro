@@ -1,162 +1,190 @@
 ---
-import Page from "../layouts/Page.astro";
-import Section from "../components/Section.astro";
-import TerminalPaper from "../components/TerminalPaper.astro";
-import TerminalReplay from "../components/TerminalReplay.astro";
-import LiveHub from "../components/LiveHub.astro";
-import HubBrowse from "../components/HubBrowse.astro";
-import Chip from "../components/Chip.astro";
-import { HUB_URL, REPO_URL, BBB, VERSION } from "../config";
+/*
+  Topic-first homepage — the live state of the Alzheimer's
+  Therapeutics frontier.
 
-const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
+  Doctrine: a researcher who has never heard of Vela should land here
+  and within 5 seconds say "this is the live state of Alzheimer's
+  research, signed and updated weekly." The protocol underneath is a
+  second-class citizen; the body of knowledge is the front.
+
+  This page renders against the canonical frontier read from disk at
+  build time (see lib/frontier.ts). When the frontier grows, this
+  page grows with it; no template changes needed.
+*/
+
+import Page from "../layouts/Page.astro";
+import ClaimCard from "../components/ClaimCard.astro";
+import {
+  loadFrontier,
+  frontierStats,
+  contradictions,
+  activeWeeks,
+  TARGETS,
+  type ClaimView,
+} from "../lib/frontier";
+import { FRONTIER, REPO_URL, HUB_URL, VERSION } from "../config";
+
+const claims = loadFrontier();
+const stats = frontierStats();
+const tensionList = contradictions();
+
+/* Above-the-fold: featured claims, sorted by confidence so the
+   strongest signals lead. Cap at 12 so the page stays scannable. */
+const featured: ClaimView[] = claims
+  .slice() // don't mutate cache
+  .sort((a, b) => b.finding.confidence.score - a.finding.confidence.score)
+  .slice(0, 12);
+
+/* Recent activity — the most recently created findings. Will become
+   "this week" once weekly diff machinery lands in v0.32. */
+const recent: ClaimView[] = claims.slice(0, 5);
+
+/* Latest weekly diff (link target for the recent panel). */
+const weeks = activeWeeks();
+const latestWeek = weeks[0];
+
+/* Target → count map for the filter rail and topic links. */
+const targetsWithCounts = TARGETS.map((t) => ({
+  ...t,
+  count: claims.filter((c) => c.targets.includes(t.slug)).length,
+})).filter((t) => t.count > 0);
+
+const lastUpdated = stats.lastUpdated
+  ? new Date(stats.lastUpdated).toISOString().slice(0, 10)
+  : "—";
 ---
+
 <Page
-  title="Vela · scientific memory for humans and AI"
-  description="Scientific memory for humans and AI. A protocol for living frontier state — findings with evidence, conditions, confidence, and provenance — that humans and agents can correct, replay, and sign."
+  title={`${FRONTIER.name} · live frontier`}
+  description={FRONTIER.description}
   active="home"
-  eyebrow="00 · Vela"
-  pageTitle="Vela"
-  subtitle="Scientific memory for humans and AI."
+  eyebrow="Live frontier · Alzheimer's"
+  pageTitle={FRONTIER.name}
+  subtitle={FRONTIER.description}
 >
   <div slot="aside">
+    <a href="/protocol" class="aside-link">protocol</a>
+    <span>·</span>
     <a href={REPO_URL} class="aside-link">github</a>
     <span>·</span>
     <a href={HUB_URL} class="aside-link">hub</a>
-    <span>·</span>
-    <Chip variant="live" label={`v${VERSION}`} />
+    <span class="aside-version" title={`Vela ${VERSION}`}>v{VERSION}</span>
   </div>
 
-  <p class="t-lead">
-    Vela turns research into living frontier state — evidence, findings, reviews, corrections, and next actions — that humans and agents can read from, write back to, and verify.
-  </p>
+  <!-- ── Frontier readout — the masthead's instrument bar ── -->
+  <div class="frontier-readout" aria-label="Frontier statistics">
+    <div class="frontier-readout__stat">
+      <span class="frontier-readout__num">{stats.claims}</span>
+      <span class="frontier-readout__label">claims</span>
+    </div>
+    <div class="frontier-readout__stat">
+      <span class="frontier-readout__num">{stats.papers}</span>
+      <span class="frontier-readout__label">papers</span>
+    </div>
+    <div class="frontier-readout__stat">
+      <span class="frontier-readout__num">{stats.contradictions}</span>
+      <span class="frontier-readout__label">contradictions</span>
+    </div>
+    <div class="frontier-readout__stat">
+      <span class="frontier-readout__num frontier-readout__num--small">{lastUpdated}</span>
+      <span class="frontier-readout__label">last signed</span>
+    </div>
+  </div>
 
-  <p class="t-lead" style="font-size: 17px; color: var(--ink-2);">
-    Agents propose. Humans review. State updates. A finding has a content-addressed id; a frontier has a content-addressed id; two implementations agree byte-for-byte; the signature is the bind.
-  </p>
+  <!-- ── Filter rail — drug targets, with counts ── -->
+  <nav class="target-rail" aria-label="Browse by target">
+    <span class="target-rail__label">Targets</span>
+    {targetsWithCounts.map((t) => (
+      <a class="target-rail__chip" href={`/targets/${t.slug}`}>
+        {t.short}
+        <span class="target-rail__count">{t.count}</span>
+      </a>
+    ))}
+  </nav>
 
-  <aside class="why-card">
-    <div class="why-card__eyebrow">Why this exists</div>
-    <p class="why-card__body">
-      Science publishes claims; it has no shared object for state. Two papers contradict each other and the disagreement lives in someone's head. A retraction reaches one lab and not the three depending on it. An agent recompiles the same field every Monday because nothing it learned on Friday persisted. Vela is the smallest substrate that holds: a finding has a content-addressed id, a frontier has a content-addressed id, two implementations agree byte-for-byte, the signature is the bind.
+  <!-- ── Above the fold: the claims themselves ── -->
+  <section class="frontier-claims" aria-label="Featured claims">
+    <header class="frontier-claims__head">
+      <h2 class="frontier-claims__title">Strongest claims, by confidence</h2>
+      <p class="frontier-claims__sub">
+        Each card is a content-addressed finding signed into the frontier. Click any to read the evidence.
+      </p>
+    </header>
+    <div class="frontier-claims__list">
+      {featured.map((c) => <ClaimCard claim={c} />)}
+    </div>
+    {claims.length > featured.length && (
+      <p class="frontier-claims__more">
+        <a class="inline-link" href="/protocol#full">{claims.length - featured.length} more — see the workbench</a>
+      </p>
+    )}
+  </section>
+
+  <!-- ── Sidebar pieces — recent + contradictions + how-it-stays-honest ── -->
+  <div class="frontier-secondary">
+    <aside class="frontier-recent">
+      <h2 class="frontier-recent__title">Most recently added</h2>
+      <ol class="frontier-recent__list">
+        {recent.map((c) => (
+          <li class="frontier-recent__item">
+            <a class="frontier-recent__link" href={`/claims/${c.slug}`}>
+              <span class="frontier-recent__claim">{c.finding.assertion.text}</span>
+              <span class="frontier-recent__meta">
+                {new Date(c.finding.created).toISOString().slice(0, 10)} · {c.evidenceLabel}
+              </span>
+            </a>
+          </li>
+        ))}
+      </ol>
+      <p class="frontier-recent__note">
+        {latestWeek ? (
+          <>
+            <a class="inline-link" href={`/frontier/${latestWeek.key}`}>
+              See the {latestWeek.key} diff →
+            </a>
+          </>
+        ) : (
+          <>Weekly diffs ship soon. <a class="inline-link" href="/protocol">How the frontier stays honest →</a></>
+        )}
+      </p>
+    </aside>
+
+    {tensionList.length > 0 && (
+      <aside class="frontier-tensions">
+        <h2 class="frontier-tensions__title">Open contradictions</h2>
+        <ol class="frontier-tensions__list">
+          {tensionList.slice(0, 5).map((c) => (
+            <li class="frontier-tensions__item">
+              <a class="frontier-tensions__link" href={`/claims/${c.slug}`}>
+                {c.finding.assertion.text}
+              </a>
+            </li>
+          ))}
+        </ol>
+      </aside>
+    )}
+  </div>
+
+  <!-- ── How this stays honest — the protocol entry, second-class ── -->
+  <aside class="frontier-honest">
+    <div class="frontier-honest__eyebrow">How this stays honest</div>
+    <p class="frontier-honest__body">
+      Every claim above is content-addressed, agent-proposed, human-reviewed, and Ed25519-signed.
+      The same frontier on two machines reduces to the same hash. Retractions land as new events,
+      not deletions. Contradictions are first-class objects, not lost arguments. Vela is the
+      substrate; this page is what the substrate holds.
+    </p>
+    <p class="frontier-honest__more">
+      <a class="inline-link" href="/protocol">Read the protocol →</a>
+      <span class="frontier-honest__sep">·</span>
+      <a class="inline-link" href="/workbench">Open the workbench →</a>
+      <span class="frontier-honest__sep">·</span>
+      <a class="inline-link" href="/essays/science-needs-state">Read the essay →</a>
     </p>
   </aside>
 
-  <Section num="§1" title="Watch one canonical session" aside="compile · review · sign · publish">
-    <p style="font-family: var(--font-serif); font-size: 17px; color: var(--ink-2); max-width: 64ch; margin: 0 0 4px;">
-      A folder of papers becomes a signed, content-addressed frontier in four commands. The reviewer batches its scoring; the signature is the bind.
-    </p>
-    <TerminalReplay title="vela · canonical session" />
-  </Section>
-
-  <Section num="§2" title="Browse the live hub" aside={`public hub · ${HUB_HOST}`}>
-    <p style="font-family: var(--font-serif); font-size: 17px; color: var(--ink-2); max-width: 64ch; margin: 0 0 12px;">
-      Every entry below is a signed manifest pointing at a frontier file the publisher hosts elsewhere. Click any row to open it in the Workbench. {BBB.name} republishes weekly from CI; the others are one-shot publications.
-    </p>
-    <LiveHub />
-    <HubBrowse />
-    <TerminalPaper title="list and pull from the command line">
-      <span class="tm-ps">$</span> <span class="tm-cmd">vela registry list</span> <span class="tm-flag">--from</span> {HUB_URL}/entries
-<span class="tm-ps">$</span> <span class="tm-cmd">vela registry pull</span> &lt;vfr_id&gt; <span class="tm-flag">--from</span> {HUB_URL}/entries <span class="tm-flag">--out</span> ./pulled.json
-<span class="tm-ps">$</span> <span class="tm-cmd">vela registry pull</span> &lt;vfr_id&gt; <span class="tm-flag">--from</span> {HUB_URL}/entries <span class="tm-flag">--transitive</span> <span class="tm-flag">--out</span> ./out  <span class="tm-ps"># walks cross-frontier deps</span>
-    </TerminalPaper>
-  </Section>
-
-  <Section num="§3" title="Read the essay" aside="why state · what state · what composes">
-    <a class="essay-card" href="/essays/science-needs-state">
-      <span class="eyebrow">Essay · 2026-04-25</span>
-      <h3 class="title">Science Needs State</h3>
-      <p class="blurb">
-        Two papers contradict each other. A foundation officer makes a decision in the shower the next morning, and the reasoning evaporates. The thing science is missing is state. Here is the smallest substrate that holds.
-      </p>
-      <span class="readmore">Read →</span>
-    </a>
-  </Section>
-
-  <Section num="§4" title="Install and publish" aside="one binary · five commands">
-    <div class="quickstart">
-      <TerminalPaper title="install">
-        <span class="tm-ps">$</span> <span class="tm-cmd">git clone</span> {REPO_URL}
-<span class="tm-ps">$</span> <span class="tm-cmd">cd</span> vela <span class="tm-ps">&&</span> <span class="tm-cmd">cargo build</span> <span class="tm-flag">--release</span>
-<span class="tm-ps">$</span> <span class="tm-cmd">./target/release/vela</span> <span class="tm-flag">--version</span>
-      </TerminalPaper>
-      <TerminalPaper title="publish your own frontier">
-        <span class="tm-ps">$</span> <span class="tm-cmd">vela frontier new</span> ./frontier.json <span class="tm-flag">--name</span> "Your bounded question"
-<span class="tm-ps">$</span> <span class="tm-cmd">vela finding add</span> ./frontier.json <span class="tm-flag">--assertion</span> "..." <span class="tm-flag">--author</span> reviewer:you <span class="tm-flag">--apply</span>
-<span class="tm-ps">$</span> <span class="tm-cmd">vela sign generate-keypair</span> <span class="tm-flag">--out</span> keys
-<span class="tm-ps">$</span> <span class="tm-cmd">vela actor add</span> ./frontier.json reviewer:you <span class="tm-flag">--pubkey</span> "$(cat keys/public.key)"
-<span class="tm-ps">$</span> <span class="tm-cmd">vela registry publish</span> ./frontier.json <span class="tm-flag">--owner</span> reviewer:you <span class="tm-flag">--key</span> keys/private.key <span class="tm-flag">--locator</span> &lt;url&gt; <span class="tm-flag">--to</span> {HUB_URL}
-      </TerminalPaper>
-    </div>
-    <p style="font-family: var(--font-serif); font-size: 15px; color: var(--ink-2); margin: 12px 0 0;">
-      Walk-through with cross-frontier composition and the BBB-style CI pattern at <a class="inline-link" href="/publish">/publish</a>.
-    </p>
-  </Section>
-
-  <Section num="§5" title="Six nouns" aside="content-addressed · canonical-JSON · Ed25519">
-    <ul class="nouns">
-      <li>
-        <span class="k">finding</span>
-        <span class="d">A typed assertion: what was observed, in what conditions, with what evidence, by whom, citing what. Has a content-addressed <code>vf_…</code> id.</span>
-      </li>
-      <li>
-        <span class="k">frontier</span>
-        <span class="d">A bounded scope holding findings, links, actors, and the event log that records every change. Has a content-addressed <code>vfr_…</code> id.</span>
-      </li>
-      <li>
-        <span class="k">proposal</span>
-        <span class="d">A signed change-request: revise, retract, contest, annotate. Becomes a canonical event when reviewed and accepted.</span>
-      </li>
-      <li>
-        <span class="k">event</span>
-        <span class="d">An immutable record in the log. Replay events on a fresh frontier and you reconstruct state byte-identically.</span>
-      </li>
-      <li>
-        <span class="k">registry</span>
-        <span class="d">A directory of signed manifests pointing at frontier publications. Anyone can publish; clients verify on read.</span>
-      </li>
-      <li>
-        <span class="k">proof packet</span>
-        <span class="d">A sealed snapshot another party can re-verify offline. The snapshot hash, the event-log hash, and the signatures are the audit.</span>
-      </li>
-    </ul>
-  </Section>
-
-  <Section num="§6" title="Read the docs" aside="five-doc tour">
-    <div class="card-grid">
-      <a class="card" href="/docs/protocol">
-        <span class="eyebrow">01 · protocol</span>
-        <h3 class="title">Protocol</h3>
-        <p class="blurb">The on-disk shape: findings, frontiers, events, signatures.</p>
-      </a>
-      <a class="card" href="/docs/first-frontier">
-        <span class="eyebrow">02 · first frontier</span>
-        <h3 class="title">Your first frontier</h3>
-        <p class="blurb">Compile a folder of papers into reviewable state in 10 minutes.</p>
-      </a>
-      <a class="card" href="/docs/registry">
-        <span class="eyebrow">03 · registry</span>
-        <h3 class="title">Registry</h3>
-        <p class="blurb">Verifiable distribution. Sign a manifest; anyone can pull and verify.</p>
-      </a>
-      <a class="card" href="/docs/hub">
-        <span class="eyebrow">04 · hub</span>
-        <h3 class="title">Hub</h3>
-        <p class="blurb">HTTP transport over the registry. The public hub at <code>{HUB_HOST}</code>.</p>
-      </a>
-      <a class="card" href="/docs/python">
-        <span class="eyebrow">05 · python</span>
-        <h3 class="title">Python SDK</h3>
-        <p class="blurb">Programmatic access to a Vela frontier from Python.</p>
-      </a>
-    </div>
-  </Section>
-
-  {/*
-    Closing colophon — the cross-reference back to Borrowed
-    Light. The essay there is what this substrate was built for;
-    this site is the substrate that essay argues for. Two marks,
-    one rule, opposite-direction arrow.
-  */}
+  <!-- ── Borrowed Light colophon — preserved from prior homepage ── -->
   <aside class="vela-colophon" aria-label="Borrowed Light essay">
     <a class="vela-colophon__link" href="https://borrowedlight.org" rel="noopener">
       <svg class="vela-colophon__lantern" viewBox="0 0 64 96" aria-hidden="true" focusable="false">
@@ -189,74 +217,18 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
     color: var(--ink-3);
   }
   .aside-link:hover { color: var(--ink-0); }
+  .aside-version {
+    font-family: var(--font-mono);
+    font-size: var(--size-xs);
+    letter-spacing: 0.06em;
+    color: var(--ink-4);
+    margin-left: 6px;
+  }
   div[slot="aside"] {
     display: flex;
     align-items: center;
     gap: 12px;
   }
-  .why-card {
-    border-left: 2px solid var(--signal);
-    padding: 18px 24px 20px;
-    margin: 8px 0 32px;
-    background: var(--paper-1);
-  }
-  .why-card__eyebrow {
-    font-family: var(--font-mono);
-    font-size: 10px;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    color: var(--ink-3);
-    margin-bottom: 10px;
-  }
-  .why-card__body {
-    font-family: var(--font-serif);
-    font-size: 17px;
-    line-height: 1.55;
-    color: var(--ink-1);
-    margin: 0;
-    max-width: 64ch;
-  }
-
-  .essay-card {
-    display: block;
-    border: 1px solid var(--rule-2);
-    padding: 22px 26px;
-    background: var(--paper-0);
-    transition: border-color var(--dur-1) var(--ease), background var(--dur-1) var(--ease);
-  }
-  .essay-card:hover { border-color: var(--rule-ink); background: var(--paper-1); }
-  .essay-card .eyebrow {
-    font-family: var(--font-mono);
-    font-size: var(--size-xs);
-    letter-spacing: var(--track-tick);
-    text-transform: uppercase;
-    color: var(--ink-3);
-    margin-bottom: 8px;
-    display: block;
-  }
-  .essay-card .title {
-    font-family: var(--font-serif);
-    font-size: 26px;
-    color: var(--ink-0);
-    margin: 0 0 8px;
-    letter-spacing: -0.01em;
-  }
-  .essay-card .blurb {
-    font-family: var(--font-serif);
-    font-size: 16px;
-    line-height: 1.55;
-    color: var(--ink-2);
-    margin: 0 0 12px;
-    max-width: 64ch;
-  }
-  .essay-card .readmore {
-    font-family: var(--font-mono);
-    font-size: 11px;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: var(--ink-2);
-  }
-  .essay-card:hover .readmore { color: var(--signal); }
 
   .inline-link {
     color: var(--signal);
@@ -264,42 +236,235 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
     text-underline-offset: 2px;
     text-decoration-thickness: 1px;
   }
+  .inline-link:hover { color: var(--ink-0); }
 
-  .nouns {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    border-top: 1px solid var(--rule-2);
-  }
-  .nouns li {
+  /* ── Frontier readout — the four numbers under the masthead ── */
+  .frontier-readout {
     display: grid;
-    grid-template-columns: 140px 1fr;
-    gap: 24px;
-    padding: 14px 0;
-    border-bottom: 1px solid var(--rule-1);
-    align-items: baseline;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0;
+    border-top: 1px solid var(--rule-2);
+    border-bottom: 1px solid var(--rule-2);
+    margin: 0 0 var(--space-6);
   }
-  .nouns li .k {
+  .frontier-readout__stat {
+    padding: var(--space-4) var(--space-5);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    border-right: 1px solid var(--rule-1);
+  }
+  .frontier-readout__stat:last-child { border-right: none; }
+  .frontier-readout__num {
+    font-family: var(--font-serif);
+    font-size: 32px;
+    line-height: 1;
+    color: var(--ink-0);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+  }
+  .frontier-readout__num--small { font-size: 18px; }
+  .frontier-readout__label {
     font-family: var(--font-mono);
-    font-size: 11px;
-    letter-spacing: 0.14em;
+    font-size: 10px;
+    letter-spacing: var(--track-label);
     text-transform: uppercase;
     color: var(--ink-3);
   }
-  .nouns li .d {
+
+  /* ── Target rail — chips of drug targets, with counts ── */
+  .target-rail {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    margin: 0 0 var(--space-5);
+    padding: var(--space-3) 0;
+  }
+  .target-rail__label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: var(--track-label);
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin-right: var(--space-2);
+  }
+  .target-rail__chip {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 6px;
+    padding: 6px 12px;
+    border: 1px solid var(--rule-2);
+    border-radius: var(--radius-1);
+    font-family: var(--font-sans);
+    font-size: var(--size-sm);
+    color: var(--ink-1);
+    text-decoration: none;
+    background: var(--paper-1);
+    transition: border-color var(--dur-1) var(--ease), background var(--dur-1) var(--ease);
+  }
+  .target-rail__chip:hover {
+    border-color: var(--rule-ink);
+    background: var(--paper-2);
+    color: var(--ink-0);
+  }
+  .target-rail__count {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--ink-3);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ── Frontier claims — above the fold ── */
+  .frontier-claims {
+    margin: 0 0 var(--space-7);
+  }
+  .frontier-claims__head {
+    margin-bottom: var(--space-4);
+  }
+  .frontier-claims__title {
+    font-family: var(--font-sans);
+    font-size: var(--size-lg);
+    font-weight: 500;
+    color: var(--ink-0);
+    margin: 0 0 4px;
+    letter-spacing: var(--track-tight);
+  }
+  .frontier-claims__sub {
+    font-family: var(--font-serif);
+    font-size: 15px;
+    color: var(--ink-3);
+    margin: 0;
+    max-width: 64ch;
+  }
+  .frontier-claims__list {
+    border-top: 1px solid var(--rule-2);
+  }
+  .frontier-claims__more {
+    margin: var(--space-4) 0 0;
+    font-family: var(--font-mono);
+    font-size: var(--size-xs);
+    letter-spacing: 0.04em;
+    color: var(--ink-3);
+  }
+
+  /* ── Secondary block — recent + contradictions side-by-side ── */
+  .frontier-secondary {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-6);
+    margin: 0 0 var(--space-7);
+  }
+  @media (max-width: 880px) {
+    .frontier-secondary {
+      grid-template-columns: 1fr;
+      gap: var(--space-5);
+    }
+  }
+
+  .frontier-recent,
+  .frontier-tensions {
+    border-top: 1px solid var(--rule-2);
+    padding-top: var(--space-4);
+  }
+  .frontier-recent__title,
+  .frontier-tensions__title {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: var(--track-label);
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin: 0 0 var(--space-3);
+  }
+
+  .frontier-recent__list,
+  .frontier-tensions__list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+
+  .frontier-recent__link,
+  .frontier-tensions__link {
+    display: block;
+    text-decoration: none;
+    color: var(--ink-1);
+    padding: var(--space-2) 0;
+    border-bottom: 1px solid var(--rule-1);
+    transition: color var(--dur-1) var(--ease);
+  }
+  .frontier-recent__link:hover,
+  .frontier-tensions__link:hover {
+    color: var(--ink-0);
+  }
+  .frontier-recent__claim {
+    display: block;
+    font-family: var(--font-serif);
+    font-size: 15px;
+    line-height: 1.4;
+    color: inherit;
+  }
+  .frontier-recent__meta {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    color: var(--ink-3);
+    margin-top: 4px;
+  }
+  .frontier-recent__note {
+    margin: var(--space-4) 0 0;
+    font-family: var(--font-serif);
+    font-style: italic;
+    font-size: 13px;
+    color: var(--ink-3);
+  }
+
+  .frontier-tensions__link {
+    font-family: var(--font-serif);
+    font-size: 15px;
+    line-height: 1.4;
+  }
+
+  /* ── How this stays honest — the protocol pointer ── */
+  .frontier-honest {
+    border-left: 2px solid var(--vela-warm-brass);
+    padding: var(--space-4) var(--space-5);
+    margin: 0 0 var(--space-7);
+    background: var(--paper-1);
+  }
+  .frontier-honest__eyebrow {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: var(--track-label);
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin-bottom: 10px;
+  }
+  .frontier-honest__body {
     font-family: var(--font-serif);
     font-size: 16px;
     line-height: 1.55;
     color: var(--ink-1);
+    margin: 0 0 var(--space-3);
+    max-width: 64ch;
   }
-  @media (max-width: 720px) {
-    .nouns li { grid-template-columns: 1fr; gap: 4px; }
+  .frontier-honest__more {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: var(--size-xs);
+    letter-spacing: 0.04em;
+    color: var(--ink-3);
+  }
+  .frontier-honest__sep {
+    margin: 0 8px;
+    color: var(--ink-4);
   }
 
-  /* Closing colophon — cross-reference back to Borrowed Light.
-     The lantern is the BL imprint mark (publisher); this site is
-     Vela (substrate). The arrow points back to the essay so the
-     architecture reads correctly: this substrate ← that essay. */
+  /* ── Closing colophon — preserved from prior homepage ── */
   .vela-colophon {
     margin: 64px 0 24px;
     padding-top: 28px;
@@ -307,7 +472,6 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
     display: flex;
     justify-content: flex-start;
   }
-
   .vela-colophon__link {
     display: inline-flex;
     align-items: center;
@@ -320,7 +484,6 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
   .vela-colophon__link:focus-visible {
     color: var(--ink-0);
   }
-
   .vela-colophon__lantern {
     width: 30px;
     height: 45px;
@@ -332,13 +495,11 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
   .vela-colophon__link:focus-visible .vela-colophon__lantern {
     color: var(--ink-0);
   }
-
   .vela-colophon__pair {
     display: inline-flex;
     flex-direction: column;
     gap: 2px;
   }
-
   .vela-colophon__sub {
     font-family: var(--font-mono);
     font-size: 10px;
@@ -346,7 +507,6 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
     text-transform: uppercase;
     color: var(--ink-3);
   }
-
   .vela-colophon__title {
     font-family: var(--font-serif);
     font-style: italic;
@@ -355,20 +515,17 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
   }
 
   @media (max-width: 720px) {
-    .vela-colophon {
-      margin: 48px 0 16px;
-      padding-top: 22px;
+    .frontier-readout {
+      grid-template-columns: repeat(2, 1fr);
     }
-    .vela-colophon__lantern {
-      width: 26px;
-      height: 39px;
+    .frontier-readout__stat:nth-child(2) { border-right: none; }
+    .frontier-readout__stat:nth-child(1),
+    .frontier-readout__stat:nth-child(2) {
+      border-bottom: 1px solid var(--rule-1);
     }
-    .vela-colophon__title {
-      font-size: 16px;
-    }
-    .vela-colophon__sub {
-      font-size: 9px;
-      letter-spacing: 0.14em;
-    }
+    .vela-colophon { margin: 48px 0 16px; padding-top: 22px; }
+    .vela-colophon__lantern { width: 26px; height: 39px; }
+    .vela-colophon__title { font-size: 16px; }
+    .vela-colophon__sub { font-size: 9px; letter-spacing: 0.14em; }
   }
 </style>

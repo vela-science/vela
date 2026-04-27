@@ -1,0 +1,35 @@
+{
+  "schema": "vela.proposal.v0.1",
+  "id": "vpr_f57a215bba3a2f47",
+  "kind": "finding.note",
+  "target": {
+    "type": "finding",
+    "id": "vf_90f5774db16ec8b1"
+  },
+  "actor": {
+    "id": "agent:reviewer-agent",
+    "type": "agent"
+  },
+  "created_at": "2026-04-27T18:09:11.824492+00:00",
+  "reason": "Reviewer Agent score for vpr_37d2726e8ff6566b",
+  "payload": {
+    "text": "Reviewer Agent score: plausibility 0.70 · evidence 0.50 · scope 0.45 · duplicate-risk 0.20. Reasonable open question about minimal coordination layer for persistent scientific references; broad by nature of being an open question. Concerns: Underspecified — no operational definition of 'minimum'; Better suited as a research agenda item than a finding."
+  },
+  "source_refs": [
+    "vpr_37d2726e8ff6566b"
+  ],
+  "status": "pending_review",
+  "caveats": [],
+  "agent_run": {
+    "agent": "reviewer-agent",
+    "run_id": "vrun_35f45efae0f85ac7",
+    "started_at": "2026-04-27T18:08:24.780930+00:00",
+    "context": {
+      "backend": "claude-cli",
+      "cli_command": "claude",
+      "input_root": "projects/bbb-flagship",
+      "pending_seen": "108",
+      "to_review": "30"
+    }
+  }
+}

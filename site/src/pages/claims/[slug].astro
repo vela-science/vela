@@ -1,0 +1,509 @@
+---
+/*
+  Per-claim detail page — the human-readable surface for any single
+  finding in the frontier. URL is `/claims/<assertion-slug>-vf_<short>`.
+  The vf-short tail keeps the URL stable and unique without a global
+  slug-collision tracker.
+
+  This page replaces the workbench's hash-only finding view as the
+  default public claim URL. Workbench stays available at /workbench
+  as the back-office.
+*/
+
+import Page from "../../layouts/Page.astro";
+import {
+  loadFrontier,
+  shortCitation,
+  doiUrl,
+  TARGETS,
+  TRIALS,
+  type ClaimView,
+} from "../../lib/frontier";
+
+export function getStaticPaths() {
+  return loadFrontier().map((c) => ({
+    params: { slug: c.slug },
+    props: { claim: c },
+  }));
+}
+
+interface Props {
+  claim: ClaimView;
+}
+
+const { claim } = Astro.props as Props;
+const f = claim.finding;
+const cite = shortCitation(f.provenance);
+const sourceHref = doiUrl(f.provenance);
+const targetDefs = TARGETS.filter((t) => claim.targets.includes(t.slug));
+const trialDefs = TRIALS.filter((t) => claim.trials.includes(t.slug));
+
+const evidenceSpan = f.evidence.evidence_spans?.[0]?.text || null;
+const isContradiction =
+  f.flags.contested || f.assertion.type === "tension";
+
+const confidenceLabel =
+  claim.confidenceBucket === "high"
+    ? "high"
+    : claim.confidenceBucket === "mid"
+      ? "moderate"
+      : "low";
+
+const confidenceColor =
+  claim.confidenceBucket === "high"
+    ? "var(--state-ok)"
+    : claim.confidenceBucket === "mid"
+      ? "var(--state-warn)"
+      : "var(--state-stale)";
+
+const created = new Date(f.created).toISOString().slice(0, 10);
+---
+
+<Page
+  title={`${f.assertion.text.slice(0, 80)} — Alzheimer's Therapeutics frontier`}
+  description={f.assertion.text}
+  active="home"
+  eyebrow="Claim"
+  pageTitle={f.assertion.text}
+  subtitle={cite}
+>
+  <div slot="aside">
+    <a href="/" class="aside-link">← frontier</a>
+    <span>·</span>
+    <span class="aside-mono">{f.id}</span>
+  </div>
+
+  <!-- ── Instrument bar — confidence, evidence, state ── -->
+  <div class="claim-bar">
+    <div class="claim-bar__cell">
+      <span class="claim-bar__label">Confidence</span>
+      <span class="claim-bar__value">
+        <span class="claim-bar__dot" style={`background:${confidenceColor}`}></span>
+        {confidenceLabel} · {f.confidence.score.toFixed(2)}
+      </span>
+    </div>
+    <div class="claim-bar__cell">
+      <span class="claim-bar__label">Evidence</span>
+      <span class="claim-bar__value">{claim.evidenceLabel}</span>
+    </div>
+    <div class="claim-bar__cell">
+      <span class="claim-bar__label">Conditions</span>
+      <span class="claim-bar__value">
+        {f.conditions.human_data ? "human" : f.conditions.in_vivo ? "in vivo" : f.conditions.in_vitro ? "in vitro" : "—"}
+        {f.conditions.clinical_trial ? " · clinical" : ""}
+      </span>
+    </div>
+    <div class="claim-bar__cell">
+      <span class="claim-bar__label">Created</span>
+      <span class="claim-bar__value">{created}</span>
+    </div>
+    {isContradiction && (
+      <div class="claim-bar__cell claim-bar__cell--contested">
+        <span class="claim-bar__label">Status</span>
+        <span class="claim-bar__value">contested</span>
+      </div>
+    )}
+  </div>
+
+  <div class="claim-grid">
+    <!-- ── Body — evidence narrative ── -->
+    <div class="claim-body">
+      {evidenceSpan && (
+        <section class="claim-section">
+          <h2 class="claim-section__title">Evidence span</h2>
+          <blockquote class="claim-blockquote">
+            {evidenceSpan}
+          </blockquote>
+          {sourceHref && (
+            <p class="claim-blockquote__attr">
+              From <a class="inline-link" href={sourceHref} rel="noopener">{cite}</a>
+            </p>
+          )}
+        </section>
+      )}
+
+      <section class="claim-section">
+        <h2 class="claim-section__title">Method &amp; conditions</h2>
+        <dl class="claim-dl">
+          {f.evidence.type && <><dt>Evidence type</dt><dd>{f.evidence.type}</dd></>}
+          {f.evidence.method && <><dt>Method</dt><dd>{f.evidence.method}</dd></>}
+          {f.evidence.model_system && <><dt>Model system</dt><dd>{f.evidence.model_system}</dd></>}
+          {f.evidence.species && <><dt>Species</dt><dd>{f.evidence.species}</dd></>}
+          {f.conditions.text && <><dt>Conditions</dt><dd>{f.conditions.text}</dd></>}
+          {typeof f.evidence.sample_size === "number" && <><dt>Sample size</dt><dd>{f.evidence.sample_size}</dd></>}
+          {typeof f.evidence.p_value === "number" && <><dt>p-value</dt><dd>{f.evidence.p_value}</dd></>}
+          <dt>Replicated</dt>
+          <dd>{f.evidence.replicated ? `yes${f.evidence.replication_count ? ` (×${f.evidence.replication_count})` : ""}` : "not yet"}</dd>
+        </dl>
+      </section>
+
+      {f.confidence.basis && (
+        <section class="claim-section">
+          <h2 class="claim-section__title">Confidence basis</h2>
+          <p class="claim-mono">{f.confidence.basis}</p>
+        </section>
+      )}
+
+      {f.annotations.length > 0 && (
+        <section class="claim-section">
+          <h2 class="claim-section__title">Annotations</h2>
+          <ul class="claim-annotations">
+            {f.annotations.map((a) => (
+              <li class="claim-annotation">
+                <p class="claim-annotation__text">{a.text}</p>
+                <p class="claim-annotation__meta">
+                  {a.author || "unknown"}
+                  {a.timestamp ? ` · ${new Date(a.timestamp).toISOString().slice(0, 10)}` : ""}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+    </div>
+
+    <!-- ── Sidebar — provenance, identity, taxonomy ── -->
+    <aside class="claim-side">
+      <section class="claim-side__block">
+        <h3 class="claim-side__title">Source</h3>
+        {f.provenance.title && (
+          <p class="claim-side__source-title">{f.provenance.title}</p>
+        )}
+        <p class="claim-side__source-meta">
+          {cite}
+        </p>
+        {sourceHref && (
+          <p class="claim-side__source-link">
+            <a class="inline-link" href={sourceHref} rel="noopener">
+              {f.provenance.doi ? `doi.org/${f.provenance.doi}` : `pubmed:${f.provenance.pmid}`}
+            </a>
+          </p>
+        )}
+      </section>
+
+      {targetDefs.length > 0 && (
+        <section class="claim-side__block">
+          <h3 class="claim-side__title">Targets</h3>
+          <ul class="claim-side__list">
+            {targetDefs.map((t) => (
+              <li>
+                <a class="claim-side__chip" href={`/targets/${t.slug}`}>
+                  {t.name}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {trialDefs.length > 0 && (
+        <section class="claim-side__block">
+          <h3 class="claim-side__title">Trials</h3>
+          <ul class="claim-side__list">
+            {trialDefs.map((t) => (
+              <li>
+                <span class="claim-side__chip claim-side__chip--static">{t.name}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <section class="claim-side__block">
+        <h3 class="claim-side__title">Identity</h3>
+        <dl class="claim-side__dl">
+          <dt>finding</dt>
+          <dd class="claim-side__mono">{f.id}</dd>
+          <dt>version</dt>
+          <dd class="claim-side__mono">v{f.version}</dd>
+          {f.provenance.extraction?.method && (
+            <>
+              <dt>extracted by</dt>
+              <dd class="claim-side__mono">{f.provenance.extraction.method}</dd>
+            </>
+          )}
+        </dl>
+      </section>
+
+      <p class="claim-side__back">
+        <a class="inline-link" href="/">← Back to the frontier</a>
+      </p>
+    </aside>
+  </div>
+</Page>
+
+<style>
+  .aside-link {
+    font-family: var(--font-mono);
+    font-size: var(--size-xs);
+    letter-spacing: 0.06em;
+    color: var(--ink-3);
+  }
+  .aside-link:hover { color: var(--ink-0); }
+  .aside-mono {
+    font-family: var(--font-mono);
+    font-size: var(--size-xs);
+    color: var(--ink-4);
+    letter-spacing: 0;
+  }
+  div[slot="aside"] {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .inline-link {
+    color: var(--signal);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    text-decoration-thickness: 1px;
+  }
+
+  /* ── Instrument bar — confidence + evidence + conditions ── */
+  .claim-bar {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 0;
+    border-top: 1px solid var(--rule-2);
+    border-bottom: 1px solid var(--rule-2);
+    margin: 0 0 var(--space-6);
+  }
+  .claim-bar__cell {
+    padding: var(--space-3) var(--space-4);
+    border-right: 1px solid var(--rule-1);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .claim-bar__cell:last-child { border-right: none; }
+  .claim-bar__cell--contested .claim-bar__value {
+    color: var(--vela-ember-red);
+  }
+  .claim-bar__label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: var(--track-label);
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  .claim-bar__value {
+    font-family: var(--font-sans);
+    font-size: var(--size-sm);
+    color: var(--ink-1);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .claim-bar__dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+  }
+
+  /* ── Two-column layout ── */
+  .claim-grid {
+    display: grid;
+    grid-template-columns: 1fr 280px;
+    gap: var(--space-6);
+  }
+  @media (max-width: 880px) {
+    .claim-grid {
+      grid-template-columns: 1fr;
+      gap: var(--space-5);
+    }
+  }
+
+  /* ── Body sections ── */
+  .claim-section {
+    margin-bottom: var(--space-6);
+  }
+  .claim-section__title {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: var(--track-label);
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin: 0 0 var(--space-3);
+    font-weight: 500;
+  }
+
+  .claim-blockquote {
+    font-family: var(--font-serif);
+    font-size: 18px;
+    line-height: 1.6;
+    color: var(--ink-0);
+    border-left: 2px solid var(--vela-warm-brass);
+    padding: 0 0 0 var(--space-4);
+    margin: 0;
+    max-width: 64ch;
+  }
+  .claim-blockquote__attr {
+    font-family: var(--font-serif);
+    font-style: italic;
+    font-size: 14px;
+    color: var(--ink-3);
+    margin: var(--space-3) 0 0 var(--space-4);
+  }
+
+  .claim-dl {
+    display: grid;
+    grid-template-columns: 140px 1fr;
+    gap: var(--space-3) var(--space-4);
+    margin: 0;
+    font-family: var(--font-serif);
+    font-size: 15px;
+    line-height: 1.5;
+  }
+  .claim-dl dt {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: var(--track-label);
+    text-transform: uppercase;
+    color: var(--ink-3);
+    align-self: baseline;
+  }
+  .claim-dl dd {
+    margin: 0;
+    color: var(--ink-1);
+  }
+  @media (max-width: 720px) {
+    .claim-dl { grid-template-columns: 1fr; gap: 4px var(--space-4); }
+    .claim-dl dt { margin-top: var(--space-2); }
+  }
+
+  .claim-mono {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--ink-2);
+    margin: 0;
+    padding: var(--space-3) var(--space-4);
+    background: var(--paper-1);
+    border: 1px solid var(--rule-2);
+    overflow-wrap: anywhere;
+  }
+
+  .claim-annotations {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .claim-annotation {
+    border-top: 1px solid var(--rule-2);
+    padding: var(--space-3) 0;
+  }
+  .claim-annotation__text {
+    font-family: var(--font-serif);
+    font-size: 15px;
+    line-height: 1.55;
+    color: var(--ink-1);
+    margin: 0 0 6px;
+    max-width: 64ch;
+  }
+  .claim-annotation__meta {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    color: var(--ink-3);
+    margin: 0;
+  }
+
+  /* ── Sidebar ── */
+  .claim-side {
+    border-left: 1px solid var(--rule-2);
+    padding-left: var(--space-5);
+  }
+  @media (max-width: 880px) {
+    .claim-side {
+      border-left: none;
+      border-top: 1px solid var(--rule-2);
+      padding-left: 0;
+      padding-top: var(--space-5);
+    }
+  }
+  .claim-side__block {
+    margin-bottom: var(--space-5);
+  }
+  .claim-side__title {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: var(--track-label);
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin: 0 0 var(--space-2);
+    font-weight: 500;
+  }
+  .claim-side__source-title {
+    font-family: var(--font-serif);
+    font-size: 14px;
+    line-height: 1.4;
+    color: var(--ink-1);
+    margin: 0 0 4px;
+  }
+  .claim-side__source-meta {
+    font-family: var(--font-serif);
+    font-style: italic;
+    font-size: 13px;
+    color: var(--ink-3);
+    margin: 0 0 4px;
+  }
+  .claim-side__source-link {
+    margin: 6px 0 0;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    word-break: break-all;
+  }
+
+  .claim-side__list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .claim-side__chip {
+    display: inline-block;
+    padding: 4px 10px;
+    border: 1px solid var(--rule-2);
+    background: var(--paper-1);
+    font-family: var(--font-sans);
+    font-size: 12px;
+    color: var(--ink-1);
+    text-decoration: none;
+    transition: border-color var(--dur-1) var(--ease);
+  }
+  .claim-side__chip:hover {
+    border-color: var(--rule-ink);
+  }
+  .claim-side__chip--static {
+    color: var(--ink-2);
+    cursor: default;
+  }
+
+  .claim-side__dl {
+    display: grid;
+    grid-template-columns: 88px 1fr;
+    gap: 4px var(--space-3);
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: 11px;
+  }
+  .claim-side__dl dt {
+    color: var(--ink-3);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .claim-side__dl dd {
+    margin: 0;
+    color: var(--ink-1);
+    word-break: break-all;
+  }
+  .claim-side__mono { font-family: var(--font-mono); }
+
+  .claim-side__back {
+    margin: var(--space-5) 0 0;
+    font-family: var(--font-mono);
+    font-size: var(--size-xs);
+  }
+</style>

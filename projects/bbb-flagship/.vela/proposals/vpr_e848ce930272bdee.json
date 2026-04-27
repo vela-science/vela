@@ -1,0 +1,37 @@
+{
+  "schema": "vela.proposal.v0.1",
+  "id": "vpr_e848ce930272bdee",
+  "kind": "finding.note",
+  "target": {
+    "type": "finding",
+    "id": "vf_c2a04f658bbac4b3"
+  },
+  "actor": {
+    "id": "agent:reviewer-agent",
+    "type": "agent"
+  },
+  "created_at": "2026-04-27T18:09:11.824460+00:00",
+  "reason": "Reviewer Agent score for vpr_2c40bd7f2845aa31",
+  "payload": {
+    "text": "Reviewer Agent score: plausibility 0.60 · evidence 0.20 · scope 0.50 · duplicate-risk 0.15. Hypothesis about incremental adoptability of Xanadu primitives; predictions exist but evidence span is a single interpretive sentence. Concerns: Evidence is a paraphrase of the note's own thesis, not external support; 'Defined window' and 'scientific subdomain' under-specified; Outside typical scientific finding scope (protocol design)."
+  },
+  "source_refs": [
+    "vpr_2c40bd7f2845aa31"
+  ],
+  "status": "pending_review",
+  "caveats": [
+    "weak_evidence"
+  ],
+  "agent_run": {
+    "agent": "reviewer-agent",
+    "run_id": "vrun_35f45efae0f85ac7",
+    "started_at": "2026-04-27T18:08:24.780930+00:00",
+    "context": {
+      "backend": "claude-cli",
+      "cli_command": "claude",
+      "input_root": "projects/bbb-flagship",
+      "pending_seen": "108",
+      "to_review": "30"
+    }
+  }
+}

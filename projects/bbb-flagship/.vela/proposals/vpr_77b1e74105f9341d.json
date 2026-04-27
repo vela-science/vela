@@ -1,0 +1,37 @@
+{
+  "schema": "vela.proposal.v0.1",
+  "id": "vpr_77b1e74105f9341d",
+  "kind": "finding.note",
+  "target": {
+    "type": "finding",
+    "id": "vf_ed60a826b4f33724"
+  },
+  "actor": {
+    "id": "agent:reviewer-agent",
+    "type": "agent"
+  },
+  "created_at": "2026-04-27T18:09:38.836700+00:00",
+  "reason": "Reviewer Agent score for vpr_463d3fcf57a84056",
+  "payload": {
+    "text": "Reviewer Agent score: plausibility 0.85 · evidence 0.20 · scope 0.70 · duplicate-risk 0.60. Real and well-known tension between lecanemab clearance benefit and weak plaque-cognition correlation, but proposal supplies no evidence spans. Concerns: evidence_spans is empty; High duplicate risk — this is a canonical AD field tension likely already captured; Both poles need citations to specific trials/cohorts."
+  },
+  "source_refs": [
+    "vpr_463d3fcf57a84056"
+  ],
+  "status": "pending_review",
+  "caveats": [
+    "weak_evidence"
+  ],
+  "agent_run": {
+    "agent": "reviewer-agent",
+    "run_id": "vrun_35f45efae0f85ac7",
+    "started_at": "2026-04-27T18:08:24.780930+00:00",
+    "context": {
+      "backend": "claude-cli",
+      "cli_command": "claude",
+      "input_root": "projects/bbb-flagship",
+      "pending_seen": "108",
+      "to_review": "30"
+    }
+  }
+}

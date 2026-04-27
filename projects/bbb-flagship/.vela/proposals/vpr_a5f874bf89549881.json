@@ -1,0 +1,113 @@
+{
+  "schema": "vela.proposal.v0.1",
+  "id": "vpr_a5f874bf89549881",
+  "kind": "finding.add",
+  "target": {
+    "type": "finding",
+    "id": "vf_4019ec45dd450ebc"
+  },
+  "actor": {
+    "id": "agent:notes-compiler",
+    "type": "agent"
+  },
+  "created_at": "2026-04-27T17:49:06.244513+00:00",
+  "reason": "Ranking TREM2 'after ApoE4' raises but does not address whether their effects are additive, epistatic, or independent.",
+  "payload": {
+    "finding": {
+      "assertion": {
+        "direction": null,
+        "entities": [],
+        "relation": null,
+        "text": "Does the risk conferred by TREM2 variants act independently of, or interact with, ApoE4 genotype?",
+        "type": "open_question"
+      },
+      "conditions": {
+        "age_group": null,
+        "cell_type": null,
+        "clinical_trial": false,
+        "concentration_range": null,
+        "duration": null,
+        "human_data": false,
+        "in_vitro": false,
+        "in_vivo": false,
+        "species_unverified": [],
+        "species_verified": [],
+        "text": ""
+      },
+      "confidence": {
+        "basis": "notes_compiler: open question, no evidence yet",
+        "extraction_confidence": 0.7,
+        "kind": "frontier_epistemic",
+        "method": "llm_initial",
+        "score": 0.0
+      },
+      "created": "2026-04-27T17:49:06.244504+00:00",
+      "evidence": {
+        "effect_size": null,
+        "evidence_spans": [
+          {
+            "text": "Ranking TREM2 'after ApoE4' raises but does not address whether their effects are additive, epistatic, or independent."
+          }
+        ],
+        "method": "notes_compiler",
+        "model_system": "",
+        "p_value": null,
+        "replicated": false,
+        "replication_count": null,
+        "sample_size": null,
+        "species": null,
+        "type": "extracted_from_notes"
+      },
+      "flags": {
+        "contested": false,
+        "declining": false,
+        "gap": false,
+        "gravity_well": false,
+        "negative_space": false,
+        "retracted": false
+      },
+      "id": "vf_4019ec45dd450ebc",
+      "links": [],
+      "previous_version": null,
+      "provenance": {
+        "authors": [],
+        "citation_count": null,
+        "doi": null,
+        "extraction": {
+          "extracted_at": "2026-04-27T17:49:06.244504+00:00",
+          "extractor_version": "vela-scientist::notes-compiler/v0.23",
+          "method": "notes_compiler_via_claude_cli",
+          "model": null,
+          "model_version": null
+        },
+        "journal": null,
+        "openalex_id": null,
+        "pmc": null,
+        "pmid": null,
+        "review": null,
+        "source_type": "researcher_notes",
+        "title": "TREM2 variants represent the strongest genetic risk after ApoE4.md",
+        "year": null
+      },
+      "updated": null,
+      "version": 1
+    }
+  },
+  "source_refs": [
+    "TREM2 variants represent the strongest genetic risk after ApoE4.md"
+  ],
+  "status": "pending_review",
+  "caveats": [],
+  "agent_run": {
+    "agent": "notes-compiler",
+    "run_id": "vrun_c8d2300dea296e45",
+    "started_at": "2026-04-27T17:44:54.596707+00:00",
+    "context": {
+      "backend": "claude-cli",
+      "cli_command": "claude",
+      "input_root": "/Users/williamblair/Documents/Obsidian Vault/Research",
+      "notes_capped_to": "19",
+      "notes_seen": "19"
+    }
+  }
+}

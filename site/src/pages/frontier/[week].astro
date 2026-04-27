@@ -1,0 +1,301 @@
+---
+/*
+  Weekly frontier diff — what changed in the live frontier this week.
+
+  This is the rhythm page. A reader who bookmarks /frontier sees a
+  signed weekly diff every Monday: claims added, claims updated,
+  contradictions opened, the cumulative count.
+
+  v0.31: the diff is computed at build time from `created` and
+  `updated` timestamps in the frontier. The weekly cadence is real
+  but the diff is unsigned — it derives entirely from the canonical
+  state on disk.
+
+  v0.32 will replace this with a signed `weekly_diff` event read
+  from `.vela/events/`, produced by `scripts/weekly-diff.sh` and
+  signed by Will. The page contract stays the same; only the
+  data source changes.
+*/
+
+import Page from "../../layouts/Page.astro";
+import ClaimCard from "../../components/ClaimCard.astro";
+import {
+  activeWeeks,
+  diffForWeek,
+  type WeeklyDiff,
+} from "../../lib/frontier";
+import { FRONTIER } from "../../config";
+
+export function getStaticPaths() {
+  return activeWeeks().map((wk) => ({
+    params: { week: wk.key },
+    props: { weekKey: wk.key },
+  }));
+}
+
+const { weekKey } = Astro.props;
+const diff = diffForWeek(weekKey) as WeeklyDiff;
+const weeks = activeWeeks();
+
+const subtitle =
+  diff.added.length > 0 || diff.updated.length > 0
+    ? `${diff.added.length} added · ${diff.updated.length} updated · ${diff.newContradictions.length} contradicted`
+    : "Quiet week.";
+---
+
+<Page
+  title={`${diff.week.key} · ${FRONTIER.name} weekly diff`}
+  description={`Frontier diff for ${diff.week.key} — ${subtitle}`}
+  active="home"
+  eyebrow={`Weekly diff · ${diff.week.key}`}
+  pageTitle={diff.week.key}
+  subtitle={subtitle}
+>
+  <div slot="aside">
+    <a href="/" class="aside-link">← frontier</a>
+    <span>·</span>
+    <span class="aside-mono">{diff.week.start} → {diff.week.end}</span>
+  </div>
+
+  <div class="diff-readout">
+    <div class="diff-readout__cell">
+      <span class="diff-readout__num">{diff.added.length}</span>
+      <span class="diff-readout__label">added</span>
+    </div>
+    <div class="diff-readout__cell">
+      <span class="diff-readout__num">{diff.updated.length}</span>
+      <span class="diff-readout__label">updated</span>
+    </div>
+    <div class="diff-readout__cell">
+      <span class="diff-readout__num">{diff.newContradictions.length}</span>
+      <span class="diff-readout__label">contradicted</span>
+    </div>
+    <div class="diff-readout__cell">
+      <span class="diff-readout__num">{diff.cumulativeClaims}</span>
+      <span class="diff-readout__label">cumulative</span>
+    </div>
+  </div>
+
+  {diff.added.length > 0 && (
+    <section class="diff-section">
+      <h2 class="diff-section__title">Added this week</h2>
+      <p class="diff-section__sub">
+        New claims signed into the frontier. Sorted by confidence.
+      </p>
+      <div class="diff-section__list">
+        {[...diff.added]
+          .sort((a, b) => b.finding.confidence.score - a.finding.confidence.score)
+          .map((c) => <ClaimCard claim={c} compact />)}
+      </div>
+    </section>
+  )}
+
+  {diff.updated.length > 0 && (
+    <section class="diff-section">
+      <h2 class="diff-section__title">Updated this week</h2>
+      <div class="diff-section__list">
+        {diff.updated.map((c) => <ClaimCard claim={c} compact />)}
+      </div>
+    </section>
+  )}
+
+  {diff.newContradictions.length > 0 && (
+    <section class="diff-section">
+      <h2 class="diff-section__title">Contradictions opened</h2>
+      <div class="diff-section__list">
+        {diff.newContradictions.map((c) => <ClaimCard claim={c} compact />)}
+      </div>
+    </section>
+  )}
+
+  {diff.added.length === 0 && diff.updated.length === 0 && (
+    <p class="diff-empty">
+      No changes signed into the frontier in {diff.week.key}.
+      The agents may have proposed new findings still pending review.
+      <br />
+      <a class="inline-link" href="/">← Back to the frontier</a>
+    </p>
+  )}
+
+  {weeks.length > 1 && (
+    <aside class="diff-archive">
+      <h3 class="diff-archive__title">All weeks</h3>
+      <ol class="diff-archive__list">
+        {weeks.map((wk) => (
+          <li>
+            <a
+              href={`/frontier/${wk.key}`}
+              class={`diff-archive__link${wk.key === diff.week.key ? " diff-archive__link--current" : ""}`}
+            >
+              <span class="diff-archive__week">{wk.key}</span>
+              <span class="diff-archive__range">{wk.start} → {wk.end}</span>
+            </a>
+          </li>
+        ))}
+      </ol>
+    </aside>
+  )}
+
+  <p class="diff-back">
+    <a class="inline-link" href="/">← Back to the frontier</a>
+    <span class="diff-back__sep">·</span>
+    <a class="inline-link" href="/protocol">How this stays honest →</a>
+  </p>
+</Page>
+
+<style>
+  .aside-link {
+    font-family: var(--font-mono);
+    font-size: var(--size-xs);
+    letter-spacing: 0.06em;
+    color: var(--ink-3);
+  }
+  .aside-link:hover { color: var(--ink-0); }
+  .aside-mono {
+    font-family: var(--font-mono);
+    font-size: var(--size-xs);
+    color: var(--ink-4);
+  }
+  div[slot="aside"] {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .inline-link {
+    color: var(--signal);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    text-decoration-thickness: 1px;
+  }
+
+  /* Diff readout — four numbers */
+  .diff-readout {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    border-top: 1px solid var(--rule-2);
+    border-bottom: 1px solid var(--rule-2);
+    margin: 0 0 var(--space-6);
+  }
+  .diff-readout__cell {
+    padding: var(--space-4) var(--space-5);
+    border-right: 1px solid var(--rule-1);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .diff-readout__cell:last-child { border-right: none; }
+  .diff-readout__num {
+    font-family: var(--font-serif);
+    font-size: 32px;
+    line-height: 1;
+    color: var(--ink-0);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+  }
+  .diff-readout__label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: var(--track-label);
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  @media (max-width: 720px) {
+    .diff-readout {
+      grid-template-columns: repeat(2, 1fr);
+    }
+    .diff-readout__cell:nth-child(2) { border-right: none; }
+    .diff-readout__cell:nth-child(1),
+    .diff-readout__cell:nth-child(2) {
+      border-bottom: 1px solid var(--rule-1);
+    }
+  }
+
+  /* Diff sections */
+  .diff-section {
+    margin: 0 0 var(--space-7);
+  }
+  .diff-section__title {
+    font-family: var(--font-sans);
+    font-size: var(--size-lg);
+    font-weight: 500;
+    color: var(--ink-0);
+    margin: 0 0 4px;
+    letter-spacing: var(--track-tight);
+  }
+  .diff-section__sub {
+    font-family: var(--font-serif);
+    font-size: 14px;
+    color: var(--ink-3);
+    margin: 0 0 var(--space-3);
+  }
+  .diff-section__list {
+    border-top: 1px solid var(--rule-2);
+  }
+
+  .diff-empty {
+    font-family: var(--font-serif);
+    font-size: 16px;
+    color: var(--ink-2);
+    margin: var(--space-5) 0;
+    line-height: 1.6;
+  }
+
+  /* Diff archive — list of all weeks */
+  .diff-archive {
+    margin: var(--space-7) 0 0;
+    padding-top: var(--space-5);
+    border-top: 1px solid var(--rule-2);
+  }
+  .diff-archive__title {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: var(--track-label);
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin: 0 0 var(--space-3);
+    font-weight: 500;
+  }
+  .diff-archive__list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+  .diff-archive__link {
+    display: flex;
+    justify-content: space-between;
+    padding: var(--space-2) 0;
+    border-bottom: 1px solid var(--rule-1);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--ink-2);
+    text-decoration: none;
+    transition: color var(--dur-1) var(--ease);
+  }
+  .diff-archive__link:hover { color: var(--ink-0); }
+  .diff-archive__link--current {
+    color: var(--signal);
+  }
+  .diff-archive__week {
+    font-weight: 500;
+  }
+  .diff-archive__range {
+    color: var(--ink-3);
+  }
+
+  .diff-back {
+    margin: var(--space-7) 0 var(--space-5);
+    padding-top: var(--space-4);
+    border-top: 1px solid var(--rule-2);
+    font-family: var(--font-mono);
+    font-size: var(--size-xs);
+    color: var(--ink-3);
+  }
+  .diff-back__sep {
+    margin: 0 8px;
+    color: var(--ink-4);
+  }
+</style>

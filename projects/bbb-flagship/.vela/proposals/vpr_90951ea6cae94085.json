@@ -1,0 +1,113 @@
+{
+  "schema": "vela.proposal.v0.1",
+  "id": "vpr_90951ea6cae94085",
+  "kind": "finding.add",
+  "target": {
+    "type": "finding",
+    "id": "vf_4e78d0cb2c5f80f8"
+  },
+  "actor": {
+    "id": "agent:notes-compiler",
+    "type": "agent"
+  },
+  "created_at": "2026-04-27T17:45:14.430826+00:00",
+  "reason": "The note flags this as an open modeling question, implying the author suspects TREM2's pleiotropic microglial role exceeds what a single node property can encode.",
+  "payload": {
+    "finding": {
+      "assertion": {
+        "direction": null,
+        "entities": [],
+        "relation": null,
+        "text": "TREM2 is better represented as a separate subgraph than as a node property within a target-centric Alzheimer's knowledge graph. Predictions: If modeled as a node property, downstream queries about microglial state transitions will lose resolution compared to a subgraph representation.; A subgraph representation will yield more distinct evidence clusters (variants, ligands, downstream pathways) than the other four targets.",
+        "type": "hypothesis"
+      },
+      "conditions": {
+        "age_group": null,
+        "cell_type": null,
+        "clinical_trial": false,
+        "concentration_range": null,
+        "duration": null,
+        "human_data": false,
+        "in_vitro": false,
+        "in_vivo": false,
+        "species_unverified": [],
+        "species_verified": [],
+        "text": ""
+      },
+      "confidence": {
+        "basis": "notes_compiler: provisional hypothesis with predictions",
+        "extraction_confidence": 0.7,
+        "kind": "frontier_epistemic",
+        "method": "llm_initial",
+        "score": 0.4
+      },
+      "created": "2026-04-27T17:45:14.430817+00:00",
+      "evidence": {
+        "effect_size": null,
+        "evidence_spans": [
+          {
+            "text": "The note flags this as an open modeling question, implying the author suspects TREM2's pleiotropic microglial role exceeds what a single node property can encode."
+          }
+        ],
+        "method": "notes_compiler",
+        "model_system": "",
+        "p_value": null,
+        "replicated": false,
+        "replication_count": null,
+        "sample_size": null,
+        "species": null,
+        "type": "extracted_from_notes"
+      },
+      "flags": {
+        "contested": false,
+        "declining": false,
+        "gap": false,
+        "gravity_well": false,
+        "negative_space": false,
+        "retracted": false
+      },
+      "id": "vf_4e78d0cb2c5f80f8",
+      "links": [],
+      "previous_version": null,
+      "provenance": {
+        "authors": [],
+        "citation_count": null,
+        "doi": null,
+        "extraction": {
+          "extracted_at": "2026-04-27T17:45:14.430817+00:00",
+          "extractor_version": "vela-scientist::notes-compiler/v0.23",
+          "method": "notes_compiler_via_claude_cli",
+          "model": null,
+          "model_version": null
+        },
+        "journal": null,
+        "openalex_id": null,
+        "pmc": null,
+        "pmid": null,
+        "review": null,
+        "source_type": "researcher_notes",
+        "title": "Alzheimer's Drug Target Landscape.md",
+        "year": null
+      },
+      "updated": null,
+      "version": 1
+    }
+  },
+  "source_refs": [
+    "Alzheimer's Drug Target Landscape.md"
+  ],
+  "status": "pending_review",
+  "caveats": [],
+  "agent_run": {
+    "agent": "notes-compiler",
+    "run_id": "vrun_c8d2300dea296e45",
+    "started_at": "2026-04-27T17:44:54.596707+00:00",
+    "context": {
+      "backend": "claude-cli",
+      "cli_command": "claude",
+      "input_root": "/Users/williamblair/Documents/Obsidian Vault/Research",
+      "notes_capped_to": "19",
+      "notes_seen": "19"
+    }
+  }
+}

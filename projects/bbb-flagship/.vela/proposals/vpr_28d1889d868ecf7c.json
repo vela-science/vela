@@ -1,0 +1,37 @@
+{
+  "schema": "vela.proposal.v0.1",
+  "id": "vpr_28d1889d868ecf7c",
+  "kind": "finding.note",
+  "target": {
+    "type": "finding",
+    "id": "vf_68598e0916db4922"
+  },
+  "actor": {
+    "id": "agent:reviewer-agent",
+    "type": "agent"
+  },
+  "created_at": "2026-04-27T18:10:03.555920+00:00",
+  "reason": "Reviewer Agent score for vpr_50b785214c029c8a",
+  "payload": {
+    "text": "Reviewer Agent score: plausibility 0.70 · evidence 0.10 · scope 0.55 · duplicate-risk 0.60. Well-known amyloid tension, but proposal supplies zero evidence spans to anchor either side. Concerns: evidence_spans is empty; Tension is widely discussed — high duplicate risk in frontier; Both poles asserted without quoted source text."
+  },
+  "source_refs": [
+    "vpr_50b785214c029c8a"
+  ],
+  "status": "pending_review",
+  "caveats": [
+    "weak_evidence"
+  ],
+  "agent_run": {
+    "agent": "reviewer-agent",
+    "run_id": "vrun_35f45efae0f85ac7",
+    "started_at": "2026-04-27T18:08:24.780930+00:00",
+    "context": {
+      "backend": "claude-cli",
+      "cli_command": "claude",
+      "input_root": "projects/bbb-flagship",
+      "pending_seen": "108",
+      "to_review": "30"
+    }
+  }
+}

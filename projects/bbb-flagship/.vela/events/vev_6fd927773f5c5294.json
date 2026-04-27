@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_6fd927773f5c5294",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_51d1043c21ebc91a"
+  },
+  "actor": {
+    "id": "reviewer:will-blair",
+    "type": "human"
+  },
+  "timestamp": "2026-04-27T18:12:02.964324+00:00",
+  "reason": "If tau better predicts symptoms, the primacy of amyloid as the causal driver is in tension with observed clinical correlations.",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:be9e096ce71e105ef29fd3980fc1c39bb1dc20509d3fd3ac54dadb0ad71428f1",
+  "payload": {
+    "proposal_id": "vpr_a512fc338722e2fb"
+  },
+  "caveats": []
+}

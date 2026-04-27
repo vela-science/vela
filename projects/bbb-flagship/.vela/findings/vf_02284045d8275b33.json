@@ -1,0 +1,79 @@
+{
+  "id": "vf_02284045d8275b33",
+  "version": 1,
+  "previous_version": null,
+  "assertion": {
+    "text": "BACE1 inhibitor clinical trials failed due to mechanism-independent side effects, not solely due to disputes over amyloid biology.",
+    "type": "candidate_finding",
+    "entities": [],
+    "relation": null,
+    "direction": null
+  },
+  "evidence": {
+    "type": "extracted_from_notes",
+    "model_system": "",
+    "species": null,
+    "method": "notes_compiler",
+    "sample_size": null,
+    "effect_size": null,
+    "p_value": null,
+    "replicated": false,
+    "replication_count": null,
+    "evidence_spans": [
+      {
+        "text": "BACE1 inhibition ran into failure not only because amyloid biology is contested, but because the target itself participates in broader biology that creates toxicity when suppressed too aggressively."
+      }
+    ]
+  },
+  "conditions": {
+    "text": "",
+    "species_verified": [],
+    "species_unverified": [],
+    "in_vitro": false,
+    "in_vivo": false,
+    "human_data": false,
+    "clinical_trial": false,
+    "concentration_range": null,
+    "duration": null,
+    "age_group": null,
+    "cell_type": null
+  },
+  "confidence": {
+    "kind": "frontier_epistemic",
+    "score": 0.5,
+    "basis": "notes_compiler: candidate finding from researcher's notes",
+    "method": "llm_initial",
+    "extraction_confidence": 0.7
+  },
+  "provenance": {
+    "source_type": "researcher_notes",
+    "doi": null,
+    "pmid": null,
+    "pmc": null,
+    "openalex_id": null,
+    "title": "BACE1 inhibitor trials failed due to mechanism-independent side effects.md",
+    "authors": [],
+    "year": null,
+    "journal": null,
+    "extraction": {
+      "method": "notes_compiler_via_claude_cli",
+      "model": null,
+      "model_version": null,
+      "extracted_at": "2026-04-27T17:48:06.594414+00:00",
+      "extractor_version": "vela-scientist::notes-compiler/v0.23"
+    },
+    "review": null,
+    "citation_count": null
+  },
+  "flags": {
+    "gap": false,
+    "negative_space": false,
+    "contested": false,
+    "retracted": false,
+    "declining": false,
+    "gravity_well": false
+  },
+  "links": [],
+  "created": "2026-04-27T17:48:06.594414+00:00",
+  "updated": null
+}

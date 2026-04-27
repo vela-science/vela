@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_ba333ed8b8495554",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_68598e0916db4922"
+  },
+  "actor": {
+    "id": "reviewer:will-blair",
+    "type": "human"
+  },
+  "timestamp": "2026-04-27T18:12:02.557704+00:00",
+  "reason": "The note holds biological importance and clinical-correlational weakness in the same breath, leaving unresolved how a biologically important feature can fail as a disease-state proxy.",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:9c3f3960d88c71a3f12140f2f6c63caaae13d6284782f338343764cf055b3d5b",
+  "payload": {
+    "proposal_id": "vpr_50b785214c029c8a"
+  },
+  "caveats": []
+}

@@ -1,0 +1,35 @@
+{
+  "schema": "vela.proposal.v0.1",
+  "id": "vpr_531200ada6d6aa73",
+  "kind": "finding.note",
+  "target": {
+    "type": "finding",
+    "id": "vf_68cf6654cad2ebdc"
+  },
+  "actor": {
+    "id": "agent:reviewer-agent",
+    "type": "agent"
+  },
+  "created_at": "2026-04-27T18:10:03.555940+00:00",
+  "reason": "Reviewer Agent score for vpr_58d6d84c87f68903",
+  "payload": {
+    "text": "Reviewer Agent score: plausibility 0.72 · evidence 0.45 · scope 0.85 · duplicate-risk 0.25. Tightly scoped, mechanistically specific question on R47H reversibility via TREM2 agonism; evidence span is descriptive not verbatim. Concerns: Evidence span is paraphrase, not quotation; Note acknowledged as not addressing reversibility — weak textual anchor."
+  },
+  "source_refs": [
+    "vpr_58d6d84c87f68903"
+  ],
+  "status": "pending_review",
+  "caveats": [],
+  "agent_run": {
+    "agent": "reviewer-agent",
+    "run_id": "vrun_35f45efae0f85ac7",
+    "started_at": "2026-04-27T18:08:24.780930+00:00",
+    "context": {
+      "backend": "claude-cli",
+      "cli_command": "claude",
+      "input_root": "projects/bbb-flagship",
+      "pending_seen": "108",
+      "to_review": "30"
+    }
+  }
+}

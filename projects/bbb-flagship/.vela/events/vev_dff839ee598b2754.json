@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_dff839ee598b2754",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_2bc81e64a24707f3"
+  },
+  "actor": {
+    "id": "reviewer:will-blair",
+    "type": "human"
+  },
+  "timestamp": "2026-04-27T18:12:03.206309+00:00",
+  "reason": "notes-compiler extracted from Tau propagation follows predictable Braak staging patterns.md",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:43a16592caba82de0f43be0d5cdcd3cba764fed4d733041fd940e40bb642b40a",
+  "payload": {
+    "proposal_id": "vpr_de289989a3377172"
+  },
+  "caveats": []
+}

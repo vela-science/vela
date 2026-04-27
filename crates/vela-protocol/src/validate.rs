@@ -23,6 +23,12 @@ const VALID_EXTRACT_METHODS: &[&str] = &[
     "manual_curation",
     "database_import",
     "hybrid",
+    // v0.30: agent-specific extraction tags. Distinguished from generic
+    // `llm_extraction` because they carry the agent's identity
+    // (notes-compiler vs scout vs reviewer) — useful for downstream
+    // provenance audits that want "all proposals from compile-notes."
+    "notes_compiler_via_claude_cli",
+    "scout_via_claude_cli",
 ];
 
 const VALID_LINK_INFERRED_BY: &[&str] = &["compiler", "reviewer", "author"];

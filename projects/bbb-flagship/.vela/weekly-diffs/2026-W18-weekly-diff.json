@@ -1,0 +1,390 @@
+{
+  "added": [
+    {
+      "assertion": "BACE1 inhibitor trials of verubecestat and atabecestat failed.",
+      "confidence": 0.5,
+      "doi": null,
+      "evidence_type": "extracted_from_notes",
+      "id": "vf_015c6a2f910f8d7c",
+      "pmid": null
+    },
+    {
+      "assertion": "BACE1 inhibitor clinical trials failed due to mechanism-independent side effects, not solely due to disputes over amyloid biology.",
+      "confidence": 0.5,
+      "doi": null,
+      "evidence_type": "extracted_from_notes",
+      "id": "vf_02284045d8275b33",
+      "pmid": null
+    },
+    {
+      "assertion": "BACE1 inhibition has repeatedly produced unacceptable adverse effects in clinical attempts targeting amyloid.",
+      "confidence": 0.5,
+      "doi": null,
+      "evidence_type": "extracted_from_notes",
+      "id": "vf_0e9ff2d702088ee9",
+      "pmid": null
+    },
+    {
+      "assertion": "The Alzheimer's drug target landscape campaign is scoped to five major targets: Aβ, BACE1, Tau, TREM2, and ApoE.",
+      "confidence": 0.5,
+      "doi": null,
+      "evidence_type": "extracted_from_notes",
+      "id": "vf_24ce41808402c54d",
+      "pmid": null
+    },
+    {
+      "assertion": "Loss-of-function TREM2 variants, particularly R47H, increase Alzheimer's disease risk by 2-4 fold.",
+      "confidence": 0.5,
+      "doi": null,
+      "evidence_type": "extracted_from_notes",
+      "id": "vf_24e5534479aabcc2",
+      "pmid": null
+    },
+    {
+      "assertion": "ApoE4 is the strongest common genetic risk factor for late-onset Alzheimer's disease.",
+      "confidence": 0.5,
+      "doi": null,
+      "evidence_type": "extracted_from_notes",
+      "id": "vf_2af9bd7543cd9c94",
+      "pmid": null
+    },
+    {
+      "assertion": "Tau pathology propagates in anatomically stereotyped patterns captured by Braak staging.",
+      "confidence": 0.5,
+      "doi": null,
+      "evidence_type": "extracted_from_notes",
+      "id": "vf_2bc81e64a24707f3",
+      "pmid": null
+    },
+    {
+      "assertion": "BACE1 participates in biological functions beyond APP processing, and aggressive suppression of these functions produces toxicity.",
+      "confidence": 0.5,
+      "doi": null,
+      "evidence_type": "extracted_from_notes",
+      "id": "vf_392bbc094dcceb2c",
+      "pmid": null
+    },
+    {
+      "assertion": "Clarity AD provides evidence that amyloid-targeting can produce measurable clinical benefit under some conditions.",
+      "confidence": 0.5,
+      "doi": null,
+      "evidence_type": "extracted_from_notes",
+      "id": "vf_3ef907c9d32689b0",
+      "pmid": null
+    },
+    {
+      "assertion": "ApoE4 carriers face 3-12x increased Alzheimer's risk depending on allele copy number.",
+      "confidence": 0.5,
+      "doi": null,
+      "evidence_type": "extracted_from_notes",
+      "id": "vf_46f88eae71491680",
+      "pmid": null
+    },
+    {
+      "assertion": "Amyloid-beta plaque burden correlates poorly with cognitive decline in Alzheimer's patients.",
+      "confidence": 0.5,
+      "doi": null,
+      "evidence_type": "extracted_from_notes",
+      "id": "vf_48c67a2c3ed1a369",
+      "pmid": null
+    },
+    {
+      "assertion": "Tension: \"The amyloid cascade hypothesis remains dominant in the field.\" vs \"Tau pathology tracks cognitive decline more closely than amyloid does.\". Why: If tau better predicts symptoms, the primacy of amyloid as the causal driver is in tension with observed clinical correlations.",
+      "confidence": 0.0,
+      "doi": null,
+      "evidence_type": "extracted_from_notes",
+      "id": "vf_51d1043c21ebc91a",
+      "pmid": null
+    },
+    {
+      "assertion": "Anti-amyloid therapies have repeatedly failed in clinical translation.",
+      "confidence": 0.5,
+      "doi": null,
+      "evidence_type": "extracted_from_notes",
+      "id": "vf_57563064c8e35a5c",
+      "pmid": null
+    },
+    {
+      "assertion": "Tau burden correlates more tightly with the clinical course of Alzheimer's disease than amyloid burden does.",
+      "confidence": 0.5,
+      "doi": null,
+      "evidence_type": "extracted_from_notes",
+      "id": "vf_5a2e4b85809eba65",
+      "pmid": null
+    },
+    {
+      "assertion": "Tension: \"Amyloid plaque burden is biologically important.\" vs \"Amyloid plaque burden does not map cleanly onto severity of cognitive impairment and is limited as a sole proxy for disease state.\". Why: The note holds biological importance and clinical-correlational weakness in the same breath, leaving unresolved how a biologically important feature can fail as a disease-state proxy.",
+      "confidence": 0.0,
+      "doi": null,
+      "evidence_type": "extracted_from_notes",
+      "id": "vf_68598e0916db4922",
+      "pmid": null
+    },
+    {
+      "assertion": "Rare protective genetic variation can substantially blunt the phenotype of otherwise highly penetrant inherited Alzheimer's mutations.",
+      "confidence": 0.5,
+      "doi": null,
+      "evidence_type": "extracted_from_notes",
+      "id": "vf_6c79b48970a76527",
+      "pmid": null
+    },
+    {
+      "assertion": "The amyloid cascade hypothesis remains the dominant organizing framework in Alzheimer's disease research despite repeated clinical translation failures.",
+      "confidence": 0.5,
+      "doi": null,
+      "evidence_type": "extracted_from_notes",
+      "id": "vf_6cfafd8301fc7c91",
+      "pmid": null
+    },
+    {
+      "assertion": "BACE1 cleaves substrates beyond APP.",
+      "confidence": 0.5,
+      "doi": null,
+      "evidence_type": "extracted_from_notes",
+      "id": "vf_7e2c0ca95f8e4a4e",
+      "pmid": null
+    },
+    {
+      "assertion": "Both TREM2-dependent and TREM2-independent pathways contribute to microglial activation in AD.",
+      "confidence": 0.5,
+      "doi": null,
+      "evidence_type": "extracted_from_notes",
+      "id": "vf_7f1af918bb15c7ec",
+      "pmid": null
+    },
+    {
+      "assertion": "TREM2 activation drives a transition from homeostatic microglia to disease-associated microglia (DAM) that compact plaques into less neurotoxic dense-core forms.",
+      "confidence": 0.5,
+      "doi": null,
+      "evidence_type": "extracted_from_notes",
+      "id": "vf_875d33c5264a8d62",
+      "pmid": null
+    },
+    {
+      "assertion": "TREM2 loss-of-function leads to increased amyloid plaque density and more diffuse plaque morphology because microglia fail to cluster around plaques.",
+      "confidence": 0.5,
+      "doi": null,
+      "evidence_type": "extracted_from_notes",
+      "id": "vf_8b08c7840d9dc5ad",
+      "pmid": null
+    },
+    {
+      "assertion": "Aβ plaque burden does not map cleanly onto severity of cognitive impairment in Alzheimer's disease.",
+      "confidence": 0.5,
+      "doi": null,
+      "evidence_type": "extracted_from_notes",
+      "id": "vf_906b6d5a389a36de",
+      "pmid": null
+    },
+    {
+      "assertion": "Lecanemab demonstrated modest but real clinical efficacy in the Clarity AD trial.",
+      "confidence": 0.5,
+      "doi": null,
+      "evidence_type": "extracted_from_notes",
+      "id": "vf_931bc10a4a26388f",
+      "pmid": null
+    },
+    {
+      "assertion": "ApoE4 increases Alzheimer's risk by a factor of 3 to 12 depending on allele copy number.",
+      "confidence": 0.5,
+      "doi": null,
+      "evidence_type": "extracted_from_notes",
+      "id": "vf_9384e871aa9b3572",
+      "pmid": null
+    },
+    {
+      "assertion": "Tension: \"The amyloid cascade hypothesis treats amyloid production/accumulation as the causal driver of Alzheimer's.\" vs \"TREM2 loss-of-function evidence suggests the operative variable is microglial plaque management, not amyloid production.\". Why: The note explicitly frames TREM2 findings as challenging the production-centric cascade view, contrasting 'plaque management rather than plaque production.'",
+      "confidence": 0.0,
+      "doi": null,
+      "evidence_type": "extracted_from_notes",
+      "id": "vf_9ea905881561c1f7",
+      "pmid": null
+    },
+    {
+      "assertion": "Microglia normally compact amyloid plaques into less toxic dense-core forms via a protective barrier.",
+      "confidence": 0.5,
+      "doi": null,
+      "evidence_type": "extracted_from_notes",
+      "id": "vf_a4bc86627072aa61",
+      "pmid": null
+    },
+    {
+      "assertion": "Lecanemab did not produce a dramatic reversal of Alzheimer's disease.",
+      "confidence": 0.5,
+      "doi": null,
+      "evidence_type": "extracted_from_notes",
+      "id": "vf_bcc0ab192a3615d6",
+      "pmid": null
+    },
+    {
+      "assertion": "Tension: \"TREM2 agonist antibodies are a promising therapeutic strategy for AD (review's optimistic stance).\" vs \"Activating microglia late in disease could be harmful because activated microglia also produce inflammatory cytokines.\". Why: The note explicitly contrasts the review's therapeutic optimism with the reader's concern that timing of microglial activation determines whether the intervention helps or harms.",
+      "confidence": 0.0,
+      "doi": null,
+      "evidence_type": "extracted_from_notes",
+      "id": "vf_c8cc82a27c2f7d39",
+      "pmid": null
+    },
+    {
+      "assertion": "Tension: \"TREM2 loss-of-function increases plaque density, suggesting TREM2 activation would be beneficial.\" vs \"TREM2 activation could be harmful depending on disease stage.\". Why: Note lists stage-dependent TREM2 effects under Key Tensions, implying the same intervention may help early and harm later.",
+      "confidence": 0.0,
+      "doi": null,
+      "evidence_type": "extracted_from_notes",
+      "id": "vf_cbc0e6e81bb945f4",
+      "pmid": null
+    },
+    {
+      "assertion": "Lecanemab demonstrated modest but statistically real efficacy in the Clarity AD trial.",
+      "confidence": 0.5,
+      "doi": null,
+      "evidence_type": "extracted_from_notes",
+      "id": "vf_ce3759c5e80dfb00",
+      "pmid": null
+    },
+    {
+      "assertion": "Tau progression has stronger progression logic than many amyloid readouts.",
+      "confidence": 0.5,
+      "doi": null,
+      "evidence_type": "extracted_from_notes",
+      "id": "vf_d50c8523101a6bc5",
+      "pmid": null
+    },
+    {
+      "assertion": "Tension: \"TREM2 is the primary receptor governing microglial response to amyloid plaques.\" vs \"TREM2-independent microglial activation pathways also operate in AD, so a TREM2 agonist would only restore the TREM2-dependent arm.\". Why: Framing TREM2 as the primary governing receptor sits in tension with the existence of parallel TREM2-independent pathways that a TREM2-targeted therapy cannot engage.",
+      "confidence": 0.0,
+      "doi": null,
+      "evidence_type": "extracted_from_notes",
+      "id": "vf_d6f953d8d9b16759",
+      "pmid": null
+    },
+    {
+      "assertion": "TREM2's risk contribution implicates microglial state, not solely protein aggregation pathways.",
+      "confidence": 0.5,
+      "doi": null,
+      "evidence_type": "extracted_from_notes",
+      "id": "vf_d71a8dd0f9762d25",
+      "pmid": null
+    },
+    {
+      "assertion": "Loss of TREM2 worsens amyloid containment rather than increasing amyloid production.",
+      "confidence": 0.5,
+      "doi": null,
+      "evidence_type": "extracted_from_notes",
+      "id": "vf_e75e7aa282dc741e",
+      "pmid": null
+    },
+    {
+      "assertion": "Amyloid plaque burden is biologically important in Alzheimer's pathology.",
+      "confidence": 0.5,
+      "doi": null,
+      "evidence_type": "extracted_from_notes",
+      "id": "vf_e8ab6bf113ea6239",
+      "pmid": null
+    },
+    {
+      "assertion": "TREM2 variants are among the strongest common genetic risk factors for Alzheimer's disease, second only to ApoE4.",
+      "confidence": 0.5,
+      "doi": null,
+      "evidence_type": "extracted_from_notes",
+      "id": "vf_e8c7dca7b2b461ce",
+      "pmid": null
+    },
+    {
+      "assertion": "Tension: \"Amyloid clearance produces pathological improvement (e.g., Lecanemab in Clarity AD).\" vs \"Aβ plaque burden correlates poorly with cognitive decline, and amyloid clearance does not yield proportional cognitive benefit.\". Why: The note explicitly asks whether this gap invalidates or merely refines the amyloid cascade hypothesis.",
+      "confidence": 0.0,
+      "doi": null,
+      "evidence_type": "extracted_from_notes",
+      "id": "vf_ed60a826b4f33724",
+      "pmid": null
+    },
+    {
+      "assertion": "Tension: \"The amyloid hypothesis explains much of Alzheimer's disease architecture.\" vs \"Therapies built on the amyloid hypothesis have repeatedly failed in clinical translation.\". Why: The note juxtaposes strong explanatory power against repeated translational failure without resolving why a mechanistically correct frame would not yield effective therapeutics.",
+      "confidence": 0.0,
+      "doi": null,
+      "evidence_type": "extracted_from_notes",
+      "id": "vf_fd179082e06bcc96",
+      "pmid": null
+    }
+  ],
+  "command": "frontier.diff",
+  "frontier": "/Users/williamblair/personal/vela/projects/bbb-flagship",
+  "frontier_id": "vfr_df8bba1588d73356",
+  "new_contradictions": [
+    {
+      "assertion": "Tension: \"The amyloid cascade hypothesis remains dominant in the field.\" vs \"Tau pathology tracks cognitive decline more closely than amyloid does.\". Why: If tau better predicts symptoms, the primacy of amyloid as the causal driver is in tension with observed clinical correlations.",
+      "confidence": 0.0,
+      "doi": null,
+      "evidence_type": "extracted_from_notes",
+      "id": "vf_51d1043c21ebc91a",
+      "pmid": null
+    },
+    {
+      "assertion": "Tension: \"Amyloid plaque burden is biologically important.\" vs \"Amyloid plaque burden does not map cleanly onto severity of cognitive impairment and is limited as a sole proxy for disease state.\". Why: The note holds biological importance and clinical-correlational weakness in the same breath, leaving unresolved how a biologically important feature can fail as a disease-state proxy.",
+      "confidence": 0.0,
+      "doi": null,
+      "evidence_type": "extracted_from_notes",
+      "id": "vf_68598e0916db4922",
+      "pmid": null
+    },
+    {
+      "assertion": "Tension: \"The amyloid cascade hypothesis treats amyloid production/accumulation as the causal driver of Alzheimer's.\" vs \"TREM2 loss-of-function evidence suggests the operative variable is microglial plaque management, not amyloid production.\". Why: The note explicitly frames TREM2 findings as challenging the production-centric cascade view, contrasting 'plaque management rather than plaque production.'",
+      "confidence": 0.0,
+      "doi": null,
+      "evidence_type": "extracted_from_notes",
+      "id": "vf_9ea905881561c1f7",
+      "pmid": null
+    },
+    {
+      "assertion": "Tension: \"TREM2 agonist antibodies are a promising therapeutic strategy for AD (review's optimistic stance).\" vs \"Activating microglia late in disease could be harmful because activated microglia also produce inflammatory cytokines.\". Why: The note explicitly contrasts the review's therapeutic optimism with the reader's concern that timing of microglial activation determines whether the intervention helps or harms.",
+      "confidence": 0.0,
+      "doi": null,
+      "evidence_type": "extracted_from_notes",
+      "id": "vf_c8cc82a27c2f7d39",
+      "pmid": null
+    },
+    {
+      "assertion": "Tension: \"TREM2 loss-of-function increases plaque density, suggesting TREM2 activation would be beneficial.\" vs \"TREM2 activation could be harmful depending on disease stage.\". Why: Note lists stage-dependent TREM2 effects under Key Tensions, implying the same intervention may help early and harm later.",
+      "confidence": 0.0,
+      "doi": null,
+      "evidence_type": "extracted_from_notes",
+      "id": "vf_cbc0e6e81bb945f4",
+      "pmid": null
+    },
+    {
+      "assertion": "Tension: \"TREM2 is the primary receptor governing microglial response to amyloid plaques.\" vs \"TREM2-independent microglial activation pathways also operate in AD, so a TREM2 agonist would only restore the TREM2-dependent arm.\". Why: Framing TREM2 as the primary governing receptor sits in tension with the existence of parallel TREM2-independent pathways that a TREM2-targeted therapy cannot engage.",
+      "confidence": 0.0,
+      "doi": null,
+      "evidence_type": "extracted_from_notes",
+      "id": "vf_d6f953d8d9b16759",
+      "pmid": null
+    },
+    {
+      "assertion": "Tension: \"Amyloid clearance produces pathological improvement (e.g., Lecanemab in Clarity AD).\" vs \"Aβ plaque burden correlates poorly with cognitive decline, and amyloid clearance does not yield proportional cognitive benefit.\". Why: The note explicitly asks whether this gap invalidates or merely refines the amyloid cascade hypothesis.",
+      "confidence": 0.0,
+      "doi": null,
+      "evidence_type": "extracted_from_notes",
+      "id": "vf_ed60a826b4f33724",
+      "pmid": null
+    },
+    {
+      "assertion": "Tension: \"The amyloid hypothesis explains much of Alzheimer's disease architecture.\" vs \"Therapies built on the amyloid hypothesis have repeatedly failed in clinical translation.\". Why: The note juxtaposes strong explanatory power against repeated translational failure without resolving why a mechanistically correct frame would not yield effective therapeutics.",
+      "confidence": 0.0,
+      "doi": null,
+      "evidence_type": "extracted_from_notes",
+      "id": "vf_fd179082e06bcc96",
+      "pmid": null
+    }
+  ],
+  "ok": true,
+  "totals": {
+    "added": 38,
+    "cumulative_claims": 86,
+    "new_contradictions": 8,
+    "updated": 0
+  },
+  "updated": [],
+  "window": {
+    "end": "2026-05-04T00:00:00Z",
+    "iso_week": "2026-W18",
+    "start": "2026-04-27T00:00:00Z"
+  }
+}

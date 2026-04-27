@@ -1,0 +1,75 @@
+{
+  "id": "vf_fd179082e06bcc96",
+  "version": 1,
+  "previous_version": null,
+  "assertion": {
+    "text": "Tension: \"The amyloid hypothesis explains much of Alzheimer's disease architecture.\" vs \"Therapies built on the amyloid hypothesis have repeatedly failed in clinical translation.\". Why: The note juxtaposes strong explanatory power against repeated translational failure without resolving why a mechanistically correct frame would not yield effective therapeutics.",
+    "type": "tension",
+    "entities": [],
+    "relation": null,
+    "direction": null
+  },
+  "evidence": {
+    "type": "extracted_from_notes",
+    "model_system": "",
+    "species": null,
+    "method": "notes_compiler",
+    "sample_size": null,
+    "effect_size": null,
+    "p_value": null,
+    "replicated": false,
+    "replication_count": null,
+    "evidence_spans": []
+  },
+  "conditions": {
+    "text": "",
+    "species_verified": [],
+    "species_unverified": [],
+    "in_vitro": false,
+    "in_vivo": false,
+    "human_data": false,
+    "clinical_trial": false,
+    "concentration_range": null,
+    "duration": null,
+    "age_group": null,
+    "cell_type": null
+  },
+  "confidence": {
+    "kind": "frontier_epistemic",
+    "score": 0.0,
+    "basis": "notes_compiler: tension surfaced for review",
+    "method": "llm_initial",
+    "extraction_confidence": 0.7
+  },
+  "provenance": {
+    "source_type": "researcher_notes",
+    "doi": null,
+    "pmid": null,
+    "pmc": null,
+    "openalex_id": null,
+    "title": "Amyloid cascade hypothesis remains dominant despite clinical failures.md",
+    "authors": [],
+    "year": null,
+    "journal": null,
+    "extraction": {
+      "method": "notes_compiler_via_claude_cli",
+      "model": null,
+      "model_version": null,
+      "extracted_at": "2026-04-27T17:46:04.652640+00:00",
+      "extractor_version": "vela-scientist::notes-compiler/v0.23"
+    },
+    "review": null,
+    "citation_count": null
+  },
+  "flags": {
+    "gap": false,
+    "negative_space": false,
+    "contested": true,
+    "retracted": false,
+    "declining": false,
+    "gravity_well": false
+  },
+  "links": [],
+  "created": "2026-04-27T17:46:04.652640+00:00",
+  "updated": null
+}

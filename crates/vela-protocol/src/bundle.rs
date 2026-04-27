@@ -50,6 +50,19 @@ pub const VALID_ASSERTION_TYPES: &[&str] = &[
     // v0.10
     "measurement",
     "exclusion",
+    // v0.30: Notes Compiler emits these for proposals derived from
+    // researcher zettelkasten / Obsidian vaults. They become canonical
+    // findings on accept; rejecting them at the validator would force a
+    // post-hoc rewrite that breaks content-addressed ids. The semantic
+    // intent: `tension` = a theoretical claim about a field-level
+    // contradiction (paired claims that don't reconcile); `open_question`
+    // = an unresolved framing the agent surfaced; `hypothesis` = a
+    // provisional candidate claim awaiting evidence. The notes-compiler
+    // proposals doc covers how these are produced.
+    "tension",
+    "open_question",
+    "hypothesis",
+    "candidate_finding",
 ];
 
 /// Valid evidence types per schema.
@@ -61,6 +74,10 @@ pub const VALID_EVIDENCE_TYPES: &[&str] = &[
     "meta_analysis",
     "systematic_review",
     "case_report",
+    // v0.30: Notes Compiler — the evidence span lives in the researcher's
+    // zettelkasten note rather than a primary literature passage.
+    // Treated as an `expert_assertion`-shaped evidence kind.
+    "extracted_from_notes",
 ];
 
 /// Valid provenance source types per schema.
@@ -79,6 +96,11 @@ pub const VALID_PROVENANCE_SOURCE_TYPES: &[&str] = &[
     "database_record",
     // v0.10
     "data_release",
+    // v0.30: notes-compiler proposals cite the source markdown note
+    // by filename. Distinct from `lab_notebook` (which implies a
+    // dated lab workbook entry with primary observations) and
+    // `expert_assertion` (which implies a named expert's claim).
+    "researcher_notes",
 ];
 
 /// Valid link types per protocol §5.

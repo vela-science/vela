@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_be8d35aa5b8ea706",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_48c67a2c3ed1a369"
+  },
+  "actor": {
+    "id": "reviewer:will-blair",
+    "type": "human"
+  },
+  "timestamp": "2026-04-27T18:12:02.392761+00:00",
+  "reason": "notes-compiler extracted from Alzheimer's Drug Targets.md",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:43861609c22dea23dc8be9132fa3b495d1d654968da3d2603852c77031120660",
+  "payload": {
+    "proposal_id": "vpr_10d1b5d7103fa5f5"
+  },
+  "caveats": []
+}

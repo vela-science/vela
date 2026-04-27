@@ -1,0 +1,112 @@
+{
+  "schema": "vela.proposal.v0.1",
+  "id": "vpr_4e629a5d518300a9",
+  "kind": "finding.add",
+  "target": {
+    "type": "finding",
+    "id": "vf_1d4d0a290cb2cbcc"
+  },
+  "actor": {
+    "id": "agent:notes-compiler",
+    "type": "agent"
+  },
+  "created_at": "2026-04-27T17:53:21.022335+00:00",
+  "reason": "The note explicitly frames this as the central design tension and calls for a 'middle path' without resolving how to achieve persistence without coordination.",
+  "payload": {
+    "finding": {
+      "assertion": {
+        "direction": null,
+        "entities": [],
+        "relation": null,
+        "text": "Tension: \"A scientific knowledge protocol should provide universal, persistent, content-addressed references (Xanadu-style).\" vs \"The Web won precisely because it required no coordination and tolerated broken links, so a successful protocol must be permissionless and incrementally adoptable.\". Why: The note explicitly frames this as the central design tension and calls for a 'middle path' without resolving how to achieve persistence without coordination.",
+        "type": "tension"
+      },
+      "conditions": {
+        "age_group": null,
+        "cell_type": null,
+        "clinical_trial": false,
+        "concentration_range": null,
+        "duration": null,
+        "human_data": false,
+        "in_vitro": false,
+        "in_vivo": false,
+        "species_unverified": [],
+        "species_verified": [],
+        "text": ""
+      },
+      "confidence": {
+        "basis": "notes_compiler: tension surfaced for review",
+        "extraction_confidence": 0.7,
+        "kind": "frontier_epistemic",
+        "method": "llm_initial",
+        "score": 0.0
+      },
+      "created": "2026-04-27T17:53:21.022319+00:00",
+      "evidence": {
+        "effect_size": null,
+        "evidence_spans": [],
+        "method": "notes_compiler",
+        "model_system": "",
+        "p_value": null,
+        "replicated": false,
+        "replication_count": null,
+        "sample_size": null,
+        "species": null,
+        "type": "extracted_from_notes"
+      },
+      "flags": {
+        "contested": true,
+        "declining": false,
+        "gap": false,
+        "gravity_well": false,
+        "negative_space": false,
+        "retracted": false
+      },
+      "id": "vf_1d4d0a290cb2cbcc",
+      "links": [],
+      "previous_version": null,
+      "provenance": {
+        "authors": [],
+        "citation_count": null,
+        "doi": null,
+        "extraction": {
+          "extracted_at": "2026-04-27T17:53:21.022319+00:00",
+          "extractor_version": "vela-scientist::notes-compiler/v0.23",
+          "method": "notes_compiler_via_claude_cli",
+          "model": null,
+          "model_version": null
+        },
+        "journal": null,
+        "openalex_id": null,
+        "pmc": null,
+        "pmid": null,
+        "review": null,
+        "source_type": "researcher_notes",
+        "title": "Nelson 1981 — Literary Machines and Xanadu.md",
+        "year": null
+      },
+      "updated": null,
+      "version": 1
+    }
+  },
+  "source_refs": [
+    "Nelson 1981 — Literary Machines and Xanadu.md"
+  ],
+  "status": "rejected",
+  "reviewed_by": "reviewer:will-blair",
+  "reviewed_at": "2026-04-27T18:12:03.468350+00:00",
+  "decision_reason": "Off-topic for Alzheimer's Therapeutics frontier (Xanadu/Web/protocol-design content from infrastructure-epistemology source notes).",
+  "caveats": [],
+  "agent_run": {
+    "agent": "notes-compiler",
+    "run_id": "vrun_c8d2300dea296e45",
+    "started_at": "2026-04-27T17:44:54.596707+00:00",
+    "context": {
+      "backend": "claude-cli",
+      "cli_command": "claude",
+      "input_root": "/Users/williamblair/Documents/Obsidian Vault/Research",
+      "notes_capped_to": "19",
+      "notes_seen": "19"
+    }
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_060ed3b165344b05",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_ed60a826b4f33724"
+  },
+  "actor": {
+    "id": "reviewer:will-blair",
+    "type": "human"
+  },
+  "timestamp": "2026-04-27T18:12:02.496154+00:00",
+  "reason": "The note explicitly asks whether this gap invalidates or merely refines the amyloid cascade hypothesis.",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:24374b2b46b920023ce7998de36954e5f92111b573537b1c75119b61c0552b5f",
+  "payload": {
+    "proposal_id": "vpr_463d3fcf57a84056"
+  },
+  "caveats": []
+}

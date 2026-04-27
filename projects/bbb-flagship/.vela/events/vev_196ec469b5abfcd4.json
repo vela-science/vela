@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_196ec469b5abfcd4",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_d6f953d8d9b16759"
+  },
+  "actor": {
+    "id": "reviewer:will-blair",
+    "type": "human"
+  },
+  "timestamp": "2026-04-27T18:12:02.661438+00:00",
+  "reason": "Framing TREM2 as the primary governing receptor sits in tension with the existence of parallel TREM2-independent pathways that a TREM2-targeted therapy cannot engage.",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:c614b608b3e19353f0b32d1e5e442f6f70caabf675f18a229d3786d8a536a008",
+  "payload": {
+    "proposal_id": "vpr_6a66faf2accd9861"
+  },
+  "caveats": []
+}

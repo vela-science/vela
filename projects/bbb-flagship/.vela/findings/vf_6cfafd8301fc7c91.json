@@ -1,0 +1,79 @@
+{
+  "id": "vf_6cfafd8301fc7c91",
+  "version": 1,
+  "previous_version": null,
+  "assertion": {
+    "text": "The amyloid cascade hypothesis remains the dominant organizing framework in Alzheimer's disease research despite repeated clinical translation failures.",
+    "type": "candidate_finding",
+    "entities": [],
+    "relation": null,
+    "direction": null
+  },
+  "evidence": {
+    "type": "extracted_from_notes",
+    "model_system": "",
+    "species": null,
+    "method": "notes_compiler",
+    "sample_size": null,
+    "effect_size": null,
+    "p_value": null,
+    "replicated": false,
+    "replication_count": null,
+    "evidence_spans": [
+      {
+        "text": "The amyloid hypothesis remains the default organizing frame in Alzheimer's despite repeated disappointments in clinical translation because it still explains too much of the disease architecture to fully discard."
+      }
+    ]
+  },
+  "conditions": {
+    "text": "",
+    "species_verified": [],
+    "species_unverified": [],
+    "in_vitro": false,
+    "in_vivo": false,
+    "human_data": false,
+    "clinical_trial": false,
+    "concentration_range": null,
+    "duration": null,
+    "age_group": null,
+    "cell_type": null
+  },
+  "confidence": {
+    "kind": "frontier_epistemic",
+    "score": 0.5,
+    "basis": "notes_compiler: candidate finding from researcher's notes",
+    "method": "llm_initial",
+    "extraction_confidence": 0.7
+  },
+  "provenance": {
+    "source_type": "researcher_notes",
+    "doi": null,
+    "pmid": null,
+    "pmc": null,
+    "openalex_id": null,
+    "title": "Amyloid cascade hypothesis remains dominant despite clinical failures.md",
+    "authors": [],
+    "year": null,
+    "journal": null,
+    "extraction": {
+      "method": "notes_compiler_via_claude_cli",
+      "model": null,
+      "model_version": null,
+      "extracted_at": "2026-04-27T17:46:04.652578+00:00",
+      "extractor_version": "vela-scientist::notes-compiler/v0.23"
+    },
+    "review": null,
+    "citation_count": null
+  },
+  "flags": {
+    "gap": false,
+    "negative_space": false,
+    "contested": false,
+    "retracted": false,
+    "declining": false,
+    "gravity_well": false
+  },
+  "links": [],
+  "created": "2026-04-27T17:46:04.652578+00:00",
+  "updated": null
+}

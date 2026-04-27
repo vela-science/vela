@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_f02f8abb7710da12",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_e8c7dca7b2b461ce"
+  },
+  "actor": {
+    "id": "reviewer:will-blair",
+    "type": "human"
+  },
+  "timestamp": "2026-04-27T18:12:02.909643+00:00",
+  "reason": "notes-compiler extracted from TREM2 variants represent the strongest genetic risk after ApoE4.md",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:9826408f068e6759c3473ed2b9c00d67fb45c534410c87c412cb32cd1c860875",
+  "payload": {
+    "proposal_id": "vpr_9789d86ed93970a1"
+  },
+  "caveats": []
+}

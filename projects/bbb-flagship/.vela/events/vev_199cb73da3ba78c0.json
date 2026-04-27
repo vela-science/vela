@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_199cb73da3ba78c0",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_fd179082e06bcc96"
+  },
+  "actor": {
+    "id": "reviewer:will-blair",
+    "type": "human"
+  },
+  "timestamp": "2026-04-27T18:12:02.773467+00:00",
+  "reason": "The note juxtaposes strong explanatory power against repeated translational failure without resolving why a mechanistically correct frame would not yield effective therapeutics.",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:cd5b06970dd70fe0fafab56bdafcf85889a1768bf57ccd4b1e70a795aa6ac1ce",
+  "payload": {
+    "proposal_id": "vpr_8784012130bfabdf"
+  },
+  "caveats": []
+}

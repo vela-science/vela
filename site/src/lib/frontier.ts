@@ -1,0 +1,699 @@
+// Frontier data loader.
+//
+// At build time, the site reads the canonical frontier on disk and
+// exposes typed records to pages and components. This is the single
+// place that knows where findings live; everywhere else just calls
+// `loadFrontier()`.
+//
+// Doctrine: the protocol-side directory stays `bbb-flagship` (stable
+// id). The site renders it under the scientific subject defined in
+// `config.ts -> FRONTIER`. If the canonical frontier is later
+// re-published under a renamed name + new vfr_id, only this file and
+// `FRONTIER` need to follow.
+
+import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
+import { join, resolve } from "node:path";
+
+import { FRONTIER } from "../config";
+
+// ── Schema ──────────────────────────────────────────────────────────
+//
+// Mirrors `crates/vela-protocol/src/bundle.rs::FindingBundle` — only
+// the fields the site renders. New protocol fields are tolerated
+// (we never `deny_unknown_fields` in TS); missing optional fields are
+// allowed.
+
+export interface Author {
+  name: string;
+  orcid?: string | null;
+}
+
+export interface EvidenceSpan {
+  section: string;
+  text: string;
+}
+
+export interface Assertion {
+  text: string;
+  type: string;
+  entities: Array<{
+    name: string;
+    type: string;
+    aliases?: string[];
+  }>;
+  relation?: string;
+  direction?: string;
+}
+
+export interface Evidence {
+  type: string;
+  model_system?: string | null;
+  species?: string | null;
+  method?: string | null;
+  sample_size?: number | null;
+  effect_size?: number | null;
+  p_value?: number | null;
+  replicated: boolean;
+  replication_count?: number | null;
+  evidence_spans?: EvidenceSpan[];
+}
+
+export interface Conditions {
+  text?: string | null;
+  in_vitro?: boolean;
+  in_vivo?: boolean;
+  human_data?: boolean;
+  clinical_trial?: boolean;
+  concentration_range?: string | null;
+  duration?: string | null;
+  age_group?: string | null;
+  cell_type?: string | null;
+}
+
+export interface ConfidenceComponents {
+  evidence_strength?: number;
+  replication_strength?: number;
+  sample_strength?: number;
+  model_relevance?: number;
+  review_penalty?: number;
+  calibration_adjustment?: number;
+}
+
+export interface Confidence {
+  kind: string;
+  score: number;
+  basis?: string;
+  method?: string;
+  components?: ConfidenceComponents;
+  extraction_confidence?: number;
+}
+
+export interface ExtractionMeta {
+  method?: string;
+  model?: string | null;
+  model_version?: string | null;
+  extracted_at?: string;
+  extractor_version?: string | null;
+}
+
+export interface Provenance {
+  source_type?: string;
+  doi?: string | null;
+  pmid?: string | null;
+  pmc?: string | null;
+  openalex_id?: string | null;
+  title?: string | null;
+  authors?: Author[];
+  year?: number | null;
+  journal?: string | null;
+  citation_count?: number;
+  extraction?: ExtractionMeta;
+  review?: unknown;
+}
+
+export interface Flags {
+  gap?: boolean;
+  negative_space?: boolean;
+  contested?: boolean;
+  retracted?: boolean;
+  declining?: boolean;
+  gravity_well?: boolean;
+}
+
+export interface Link {
+  target: string;
+  type: string;
+  note?: string;
+  inferred_by?: string;
+  created_at?: string;
+}
+
+export interface Annotation {
+  id?: string;
+  text: string;
+  author?: string;
+  timestamp?: string;
+}
+
+export interface Finding {
+  id: string;
+  version: number;
+  previous_version?: string | null;
+  assertion: Assertion;
+  evidence: Evidence;
+  conditions: Conditions;
+  confidence: Confidence;
+  provenance: Provenance;
+  flags: Flags;
+  links: Link[];
+  annotations: Annotation[];
+  created: string;
+  updated?: string | null;
+}
+
+// ── Render-side derived view ────────────────────────────────────────
+//
+// The site doesn't render raw `Finding` everywhere; it renders a
+// `ClaimView` that flattens the most-asked-for fields and computes
+// site-only properties (slug, target tags, evidence label). Pages
+// hold the raw `Finding` for detail views.
+
+export interface ClaimView {
+  finding: Finding;
+  // Stable site-side slug. Format: `<assertion-slug>-<vf-short>`.
+  // Example: `tau-tracks-cognition-vf_3fa8`. Hash is the unique tail.
+  slug: string;
+  // Short id for compact rendering.
+  shortId: string;
+  // Drug-target tags inferred from assertion + entities.
+  // Drives /targets/[slug] aggregation and homepage filter chips.
+  targets: TargetSlug[];
+  // Trial tags inferred from text. Drives /trials/[slug] aggregation.
+  trials: TrialSlug[];
+  // One-word label of evidence strength: experimental / clinical / review / etc.
+  evidenceLabel: string;
+  // Confidence bucket for the dot indicator: low | mid | high.
+  confidenceBucket: "low" | "mid" | "high";
+}
+
+// ── Targets and trials ──────────────────────────────────────────────
+//
+// Hand-curated taxonomy. The protocol doesn't carry domain tags yet;
+// the site infers them from assertion text + entity names with a
+// simple keyword set. Adding a target is one entry here.
+
+export type TargetSlug =
+  | "amyloid-beta"
+  | "bace1"
+  | "tau"
+  | "trem2"
+  | "apoe"
+  | "bbb-delivery";
+
+export type TrialSlug = "lecanemab" | "donanemab" | "verubecestat" | "atabecestat";
+
+interface TargetDef {
+  slug: TargetSlug;
+  name: string;
+  short: string;
+  // Lowercase keyword fragments matched against the assertion + entities.
+  keywords: string[];
+  blurb: string;
+}
+
+interface TrialDef {
+  slug: TrialSlug;
+  name: string;
+  keywords: string[];
+  blurb: string;
+}
+
+export const TARGETS: TargetDef[] = [
+  {
+    slug: "amyloid-beta",
+    name: "Amyloid-β",
+    short: "Aβ",
+    keywords: [
+      "amyloid",
+      "abeta",
+      "aβ",
+      "ab plaque",
+      "amyloid-beta",
+      "amyloid beta",
+      "rage",
+      "app cleavage",
+    ],
+    blurb:
+      "The amyloid cascade hypothesis remains the dominant therapeutic frame, despite repeated clinical failures and a poor correlation between plaque burden and cognitive decline.",
+  },
+  {
+    slug: "bace1",
+    name: "BACE1",
+    short: "BACE1",
+    keywords: ["bace1", "bace-1", "β-secretase", "beta-secretase"],
+    blurb:
+      "BACE1 inhibition produces robust amyloid-pathology readouts but has failed in trials, with toxicity attributed to non-APP substrates.",
+  },
+  {
+    slug: "tau",
+    name: "Tau",
+    short: "Tau",
+    keywords: ["tau ", "tauopathy", "neurofibrillary", "p-tau", "ptau", "braak"],
+    blurb:
+      "Tau pathology tracks cognitive decline more closely than amyloid; spread follows predictable Braak staging patterns.",
+  },
+  {
+    slug: "trem2",
+    name: "TREM2",
+    short: "TREM2",
+    keywords: ["trem2", "trem-2"],
+    blurb:
+      "Microglial receptor whose loss-of-function increases plaque density; activating antibodies are in early clinical evaluation, with timing-dependent benefit/harm an open question.",
+  },
+  {
+    slug: "apoe",
+    name: "ApoE",
+    short: "ApoE",
+    keywords: ["apoe", "apo-e", "apolipoprotein e"],
+    blurb:
+      "Strongest common genetic risk factor; ApoE4 increases risk 3–12× depending on copy number, while the Christchurch variant may be protective.",
+  },
+  {
+    slug: "bbb-delivery",
+    name: "BBB delivery",
+    short: "BBB",
+    keywords: [
+      "blood-brain barrier",
+      "blood brain barrier",
+      "bbb",
+      "transferrin receptor",
+      "tfr",
+      "antibody transport vehicle",
+      "atv",
+      "brain shuttle",
+    ],
+    blurb:
+      "The blood-brain barrier rejects most therapeutic biologics; engineered delivery vehicles (transferrin-receptor binders, antibody transport vehicles) reach measurable brain exposure.",
+  },
+];
+
+export const TRIALS: TrialDef[] = [
+  {
+    slug: "lecanemab",
+    name: "Lecanemab (Clarity AD)",
+    keywords: ["lecanemab", "ban2401", "clarity ad", "clarity-ad"],
+    blurb:
+      "Anti-Aβ protofibril antibody; Clarity AD showed modest but real cognitive benefit, anchoring the modern amyloid-clearance frame.",
+  },
+  {
+    slug: "donanemab",
+    name: "Donanemab (TRAILBLAZER-ALZ)",
+    keywords: ["donanemab", "trailblazer", "trailblazer-alz"],
+    blurb:
+      "Anti-N3pE-Aβ antibody targeting plaque-resident amyloid; demonstrated cognitive benefit in early symptomatic disease.",
+  },
+  {
+    slug: "verubecestat",
+    name: "Verubecestat",
+    keywords: ["verubecestat"],
+    blurb:
+      "BACE1 inhibitor; Phase 3 trials terminated for futility despite robust target engagement, raising questions about timing and substrate-mediated toxicity.",
+  },
+  {
+    slug: "atabecestat",
+    name: "Atabecestat",
+    keywords: ["atabecestat"],
+    blurb:
+      "BACE1 inhibitor; trials halted for liver toxicity, contributing to the broader failure of the BACE1 mechanism in late-stage disease.",
+  },
+];
+
+const TARGET_BY_SLUG: Map<TargetSlug, TargetDef> = new Map(
+  TARGETS.map((t) => [t.slug, t]),
+);
+const TRIAL_BY_SLUG: Map<TrialSlug, TrialDef> = new Map(
+  TRIALS.map((t) => [t.slug, t]),
+);
+
+export function targetDef(slug: TargetSlug): TargetDef | undefined {
+  return TARGET_BY_SLUG.get(slug);
+}
+
+export function trialDef(slug: TrialSlug): TrialDef | undefined {
+  return TRIAL_BY_SLUG.get(slug);
+}
+
+// ── Loader ──────────────────────────────────────────────────────────
+//
+// Resolves the canonical frontier path from `FRONTIER.repoPath` and
+// reads every `*.json` under `.vela/findings/`. Memoized per build.
+
+let _cache: ClaimView[] | null = null;
+
+// Resolve the repo root by walking up from cwd looking for the
+// canonical `Cargo.toml` (the workspace marker) or the
+// `projects/bbb-flagship` directory itself. Robust against being
+// invoked from `site/`, the repo root, or a worktree.
+function repoRoot(): string {
+  let cur = resolve(process.cwd());
+  for (let i = 0; i < 6; i++) {
+    if (existsSync(join(cur, "Cargo.toml")) && existsSync(join(cur, "projects"))) {
+      return cur;
+    }
+    const parent = resolve(cur, "..");
+    if (parent === cur) break;
+    cur = parent;
+  }
+  // Fallback — assume cwd is `site/` (the typical case for `astro build`).
+  return resolve(process.cwd(), "..");
+}
+
+function frontierFindingsDir(): string {
+  const candidate = join(repoRoot(), FRONTIER.repoPath, ".vela", "findings");
+  if (existsSync(candidate)) return candidate;
+  // Secondary: try cwd-relative (covers the case where cwd is the repo root).
+  const alt = join(process.cwd(), FRONTIER.repoPath, ".vela", "findings");
+  if (existsSync(alt)) return alt;
+  return candidate; // returned even if missing; caller logs a warning
+}
+
+// Sanity check used by tests / debug logging.
+export function _debugFrontierPaths() {
+  return {
+    cwd: process.cwd(),
+    repoRoot: repoRoot(),
+    findingsDir: frontierFindingsDir(),
+    findingsExists: existsSync(frontierFindingsDir()),
+  };
+}
+
+// statSync is only imported for completeness; not currently used.
+void statSync;
+
+export function loadFrontier(): ClaimView[] {
+  if (_cache) return _cache;
+  const dir = frontierFindingsDir();
+  if (!existsSync(dir)) {
+    console.warn(`[frontier] findings dir missing: ${dir}`);
+    _cache = [];
+    return _cache;
+  }
+  const entries = readdirSync(dir).filter((f) => f.endsWith(".json"));
+  const claims: ClaimView[] = [];
+  for (const file of entries) {
+    try {
+      const raw = readFileSync(join(dir, file), "utf8");
+      const f = JSON.parse(raw) as Finding;
+      claims.push(toClaimView(f));
+    } catch (err) {
+      console.warn(`[frontier] failed to parse ${file}:`, err);
+    }
+  }
+  // Default ordering: newest first.
+  claims.sort((a, b) => b.finding.created.localeCompare(a.finding.created));
+  _cache = claims;
+  return _cache;
+}
+
+// ── Derivation ──────────────────────────────────────────────────────
+
+function toClaimView(finding: Finding): ClaimView {
+  // Defensively normalize the optional collections. The Notes Compiler
+  // and other agents emit findings with `annotations: null` rather than
+  // `annotations: []`; older BBB findings always have arrays. The site
+  // is the union of both shapes — coerce to arrays once at the entry
+  // point so every downstream consumer can safely call `.length` /
+  // `.map` without type-narrow guards.
+  const f: Finding = {
+    ...finding,
+    annotations: Array.isArray(finding.annotations) ? finding.annotations : [],
+    links: Array.isArray(finding.links) ? finding.links : [],
+    flags: finding.flags ?? {},
+    provenance: {
+      ...(finding.provenance ?? {}),
+      authors: Array.isArray(finding.provenance?.authors)
+        ? finding.provenance.authors
+        : [],
+    },
+    evidence: {
+      ...finding.evidence,
+      evidence_spans: Array.isArray(finding.evidence?.evidence_spans)
+        ? finding.evidence.evidence_spans
+        : [],
+    },
+    conditions: finding.conditions ?? {},
+  };
+  return {
+    finding: f,
+    slug: deriveSlug(f),
+    shortId: f.id.replace(/^vf_/, "").slice(0, 4),
+    targets: deriveTargets(f),
+    trials: deriveTrials(f),
+    evidenceLabel: deriveEvidenceLabel(f),
+    confidenceBucket: deriveConfidenceBucket(f.confidence?.score ?? 0),
+  };
+}
+
+// Slug = first ~6 words of the assertion text, kebab-cased, plus
+// `vf_<short>` suffix. The hash makes the URL unique without needing
+// global slug-collision tracking; the prose makes it readable.
+export function deriveSlug(finding: Finding): string {
+  const text = finding.assertion.text || "claim";
+  const prose = text
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+    .split("-")
+    .slice(0, 8)
+    .join("-");
+  const short = finding.id.replace(/^vf_/, "").slice(0, 4);
+  return `${prose}-vf_${short}`;
+}
+
+function searchHaystack(finding: Finding): string {
+  const parts: string[] = [
+    finding.assertion.text || "",
+    finding.conditions.text || "",
+    finding.evidence.method || "",
+    finding.evidence.model_system || "",
+    finding.provenance.title || "",
+  ];
+  for (const ent of finding.assertion.entities ?? []) {
+    parts.push(ent.name);
+    if (ent.aliases) parts.push(...ent.aliases);
+  }
+  for (const span of finding.evidence.evidence_spans ?? []) {
+    parts.push(span.text);
+  }
+  return parts.join(" ").toLowerCase();
+}
+
+function deriveTargets(finding: Finding): TargetSlug[] {
+  const hay = searchHaystack(finding);
+  const matched: TargetSlug[] = [];
+  for (const t of TARGETS) {
+    if (t.keywords.some((kw) => hay.includes(kw))) matched.push(t.slug);
+  }
+  return matched;
+}
+
+function deriveTrials(finding: Finding): TrialSlug[] {
+  const hay = searchHaystack(finding);
+  const matched: TrialSlug[] = [];
+  for (const t of TRIALS) {
+    if (t.keywords.some((kw) => hay.includes(kw))) matched.push(t.slug);
+  }
+  return matched;
+}
+
+function deriveEvidenceLabel(finding: Finding): string {
+  const t = (finding.evidence.type || "").toLowerCase();
+  if (t === "experimental") return "experimental";
+  if (t === "clinical_trial" || finding.conditions.clinical_trial) return "clinical";
+  if (t === "review" || t === "meta-analysis") return "review";
+  if (t === "computational") return "computational";
+  if (t === "observational") return "observational";
+  return t || "evidence";
+}
+
+function deriveConfidenceBucket(score: number): "low" | "mid" | "high" {
+  if (score >= 0.6) return "high";
+  if (score >= 0.35) return "mid";
+  return "low";
+}
+
+// ── Aggregations used by pages ──────────────────────────────────────
+
+export function findBySlug(slug: string): ClaimView | undefined {
+  return loadFrontier().find((c) => c.slug === slug);
+}
+
+export function findById(vfId: string): ClaimView | undefined {
+  return loadFrontier().find((c) => c.finding.id === vfId);
+}
+
+export function claimsForTarget(slug: TargetSlug): ClaimView[] {
+  return loadFrontier().filter((c) => c.targets.includes(slug));
+}
+
+export function claimsForTrial(slug: TrialSlug): ClaimView[] {
+  return loadFrontier().filter((c) => c.trials.includes(slug));
+}
+
+export function contradictions(): ClaimView[] {
+  return loadFrontier().filter(
+    (c) => c.finding.flags.contested || c.finding.assertion.type === "tension",
+  );
+}
+
+export interface FrontierStats {
+  claims: number;
+  contradictions: number;
+  papers: number;
+  lastUpdated: string | null;
+}
+
+export function frontierStats(): FrontierStats {
+  const claims = loadFrontier();
+  const dois = new Set<string>();
+  let last = "";
+  for (const c of claims) {
+    if (c.finding.provenance.doi) dois.add(c.finding.provenance.doi);
+    else if (c.finding.provenance.pmid) dois.add(`pmid:${c.finding.provenance.pmid}`);
+    else if (c.finding.provenance.title) dois.add(c.finding.provenance.title);
+    if (c.finding.created > last) last = c.finding.created;
+    if (c.finding.updated && c.finding.updated > last) last = c.finding.updated;
+  }
+  return {
+    claims: claims.length,
+    contradictions: contradictions().length,
+    papers: dois.size,
+    lastUpdated: last || null,
+  };
+}
+
+// ── Citation rendering ──────────────────────────────────────────────
+
+// ── Weekly diffs ────────────────────────────────────────────────────
+//
+// "What changed in the frontier this week?" The diff is a derived
+// view over `created` and `updated` timestamps, plus a summary of
+// contradictions resolved. v0.32 will replace this with a signed
+// `weekly_diff` event read from `.vela/events/`; for now the site
+// computes the diff at build time so the rhythm starts immediately.
+
+export interface WeekKey {
+  // ISO 8601 year + week, e.g. "2026-W18".
+  key: string;
+  // Inclusive start (Monday 00:00 UTC), exclusive end.
+  start: string; // ISO date "YYYY-MM-DD"
+  end: string;   // ISO date "YYYY-MM-DD" (next Monday)
+  year: number;
+  week: number;
+}
+
+export interface WeeklyDiff {
+  week: WeekKey;
+  added: ClaimView[];
+  updated: ClaimView[];
+  // Contradictions whose `created` lies in this week.
+  newContradictions: ClaimView[];
+  // Total claims as of end-of-week (computed against `created`).
+  cumulativeClaims: number;
+}
+
+/* ISO week date math. Returns the Monday-based week index for a date. */
+function isoWeek(date: Date): { year: number; week: number } {
+  // Source: ISO 8601 — week starts Monday, week 1 contains the year's
+  // first Thursday.
+  const d = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  const day = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - day);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  const week = Math.ceil(((d.getTime() - yearStart.getTime()) / 86_400_000 + 1) / 7);
+  return { year: d.getUTCFullYear(), week };
+}
+
+function isoWeekStart(year: number, week: number): Date {
+  // The Monday of ISO week `week` of `year`.
+  const jan4 = new Date(Date.UTC(year, 0, 4));
+  const jan4Day = jan4.getUTCDay() || 7;
+  const week1Mon = new Date(jan4);
+  week1Mon.setUTCDate(jan4.getUTCDate() - (jan4Day - 1));
+  const target = new Date(week1Mon);
+  target.setUTCDate(week1Mon.getUTCDate() + (week - 1) * 7);
+  return target;
+}
+
+function pad(n: number): string {
+  return n < 10 ? `0${n}` : String(n);
+}
+
+function weekKey(year: number, week: number): WeekKey {
+  const start = isoWeekStart(year, week);
+  const end = new Date(start);
+  end.setUTCDate(end.getUTCDate() + 7);
+  return {
+    key: `${year}-W${pad(week)}`,
+    start: start.toISOString().slice(0, 10),
+    end: end.toISOString().slice(0, 10),
+    year,
+    week,
+  };
+}
+
+/* All ISO weeks that contain at least one finding event. Sorted
+   newest-first for surfacing in nav. */
+export function activeWeeks(): WeekKey[] {
+  const seen = new Map<string, WeekKey>();
+  for (const c of loadFrontier()) {
+    const ts = c.finding.updated || c.finding.created;
+    const { year, week } = isoWeek(new Date(ts));
+    const k = weekKey(year, week);
+    if (!seen.has(k.key)) seen.set(k.key, k);
+  }
+  return [...seen.values()].sort((a, b) => b.key.localeCompare(a.key));
+}
+
+export function diffForWeek(weekKeyStr: string): WeeklyDiff | null {
+  const m = weekKeyStr.match(/^(\d{4})-W(\d{2})$/);
+  if (!m) return null;
+  const year = Number(m[1]);
+  const week = Number(m[2]);
+  const wk = weekKey(year, week);
+  const startMs = Date.parse(wk.start + "T00:00:00Z");
+  const endMs = Date.parse(wk.end + "T00:00:00Z");
+
+  const added: ClaimView[] = [];
+  const updated: ClaimView[] = [];
+  let cumulative = 0;
+
+  for (const c of loadFrontier()) {
+    const createdMs = Date.parse(c.finding.created);
+    if (createdMs < endMs) cumulative++;
+    if (createdMs >= startMs && createdMs < endMs) {
+      added.push(c);
+      continue;
+    }
+    if (c.finding.updated) {
+      const upd = Date.parse(c.finding.updated);
+      if (upd >= startMs && upd < endMs) updated.push(c);
+    }
+  }
+
+  const newContradictions = added.filter(
+    (c) => c.finding.flags.contested || c.finding.assertion.type === "tension",
+  );
+
+  return {
+    week: wk,
+    added,
+    updated,
+    newContradictions,
+    cumulativeClaims: cumulative,
+  };
+}
+
+export function currentWeek(): WeekKey {
+  const { year, week } = isoWeek(new Date());
+  return weekKey(year, week);
+}
+
+// ── Citation rendering ──────────────────────────────────────────────
+
+export function shortCitation(p: Provenance): string {
+  if (!p.authors?.length) return p.title || "Untitled source";
+  const first = p.authors[0]?.name || "Unknown";
+  const etAl = p.authors.length > 1 ? " et al." : "";
+  const year = p.year ? ` ${p.year}` : "";
+  const journal = p.journal ? `, ${p.journal}` : "";
+  return `${first}${etAl}${year}${journal}`;
+}
+
+export function doiUrl(p: Provenance): string | null {
+  if (p.doi) return `https://doi.org/${p.doi}`;
+  if (p.pmid) return `https://pubmed.ncbi.nlm.nih.gov/${p.pmid}/`;
+  return null;
+}

@@ -1,0 +1,414 @@
+{
+  "added": [
+    {
+      "assertion": "The Brain Shuttle version of an anti-Aβ antibody, utilizing a monovalent binding mode to the transferrin receptor (TfR), increases β-Amyloid target engagement in an Alzheimer's disease mouse model by 55-fold compared to the parent antibody.",
+      "confidence": 0.269,
+      "doi": "10.1016/j.neuron.2013.10.061",
+      "evidence_type": "experimental",
+      "id": "vf_08c81dd507f6a047",
+      "pmid": "24411731"
+    },
+    {
+      "assertion": "Blood-brain barrier opening via focused ultrasound does not cause clinically significant worsening of cognitive scores at three months compared to baseline in Alzheimer's disease patients.",
+      "confidence": 0.336,
+      "doi": "10.1038/s41467-018-04529-6",
+      "evidence_type": "experimental",
+      "id": "vf_08d8186c7c342b1f",
+      "pmid": "30046032"
+    },
+    {
+      "assertion": "Abeta interaction with RAGE-bearing cells in the vessel wall results in the expression of proinflammatory cytokines.",
+      "confidence": 0.269,
+      "doi": "10.1038/nm890",
+      "evidence_type": "experimental",
+      "id": "vf_0d9407f02d2fc4ef",
+      "pmid": "12808450"
+    },
+    {
+      "assertion": "ATV:TREM2, an antibody engineered with a monovalent transferrin receptor (TfR) binding site, exhibits improved brain biodistribution compared to a standard anti-TREM2 antibody following peripheral delivery in mice.",
+      "confidence": 0.269,
+      "doi": "10.1038/s41593-022-01240-0",
+      "evidence_type": "experimental",
+      "id": "vf_10a36e3acd3dbe39",
+      "pmid": "36635496"
+    },
+    {
+      "assertion": "Amyloid beta-peptide amyloid-beta 1-40 binds to immobilized LRP clusters II and IV with high affinity, with a dissociation constant (Kd) ranging from 0.6 to 1.2 nM.",
+      "confidence": 0.202,
+      "doi": "10.1016/j.neuron.2004.07.017",
+      "evidence_type": "experimental",
+      "id": "vf_138c6e88e8273ba6",
+      "pmid": "15294142"
+    },
+    {
+      "assertion": "Brain capillary LRP levels are reduced in patients with Alzheimer's disease and cerebrovascular beta-amyloidosis.",
+      "confidence": 0.273,
+      "doi": "10.1016/j.neuron.2004.07.017",
+      "evidence_type": "observational",
+      "id": "vf_171833bd31b24037",
+      "pmid": "15294142"
+    },
+    {
+      "assertion": "PICALM deficiency accelerates amyloid-β (Aβ) pathology in mice, which is reversible by endothelial PICALM re-expression.",
+      "confidence": 0.269,
+      "doi": "10.1038/nn.4025",
+      "evidence_type": "experimental",
+      "id": "vf_22fce8c7f8c04c5c",
+      "pmid": "26005850"
+    },
+    {
+      "assertion": "The reduction of brain amyloid-beta by anti-TfR/BACE1 antibodies in human TfR knock-in mice is dependent on the antibody's affinity for the transferrin receptor.",
+      "confidence": 0.269,
+      "doi": "10.1126/scitranslmed.3009835",
+      "evidence_type": "experimental",
+      "id": "vf_26a520047b5ea505",
+      "pmid": "25378646"
+    },
+    {
+      "assertion": "PICALM levels and amyloid-β (Aβ) clearance are reduced in Alzheimer's disease (AD)-derived endothelial monolayers, which is reversible by adenoviral-mediated PICALM transfer.",
+      "confidence": 0.336,
+      "doi": "10.1038/nn.4025",
+      "evidence_type": "experimental",
+      "id": "vf_360d7404e3581d52",
+      "pmid": "26005850"
+    },
+    {
+      "assertion": "Accumulation of amyloid beta-peptide in the central nervous system results in neuroinflammation, disconnect between cerebral blood flow and metabolism, altered synaptic transmission, neuronal injury, and amyloid deposition.",
+      "confidence": 0.269,
+      "doi": "10.1161/01.str.0000143452.85382.d1",
+      "evidence_type": "experimental",
+      "id": "vf_3c2763564f4a235e",
+      "pmid": "15459432"
+    },
+    {
+      "assertion": "ATV:TREM2 enhances TREM2 signaling in the brain compared to a standard anti-TREM2 antibody following peripheral delivery in mice.",
+      "confidence": 0.269,
+      "doi": "10.1038/s41593-022-01240-0",
+      "evidence_type": "experimental",
+      "id": "vf_457ee92500f0f1df",
+      "pmid": "36635496"
+    },
+    {
+      "assertion": "LRP mediates the binding, endocytosis, and transcytosis of Abeta across the mouse blood-brain barrier.",
+      "confidence": 0.269,
+      "doi": "10.1016/j.neuron.2004.07.017",
+      "evidence_type": "experimental",
+      "id": "vf_47ebdf11b9b45680",
+      "pmid": "15294142"
+    },
+    {
+      "assertion": "Altered activities of RAGE and LRP1 at the blood-brain barrier contribute to the accumulation of amyloid beta-peptide in the central nervous system.",
+      "confidence": 0.269,
+      "doi": "10.1161/01.str.0000143452.85382.d1",
+      "evidence_type": "experimental",
+      "id": "vf_5021284e4155f141",
+      "pmid": "15459432"
+    },
+    {
+      "assertion": "Abeta interaction with RAGE-bearing cells in the vessel wall results in the expression of endothelin-1 (ET-1).",
+      "confidence": 0.269,
+      "doi": "10.1038/nm890",
+      "evidence_type": "experimental",
+      "id": "vf_539319043d7f3925",
+      "pmid": "12808450"
+    },
+    {
+      "assertion": "The degree of amyloid-beta reduction in the primate brain correlates with the brain concentration of the anti-TfR/BACE1 antibody.",
+      "confidence": 0.269,
+      "doi": "10.1126/scitranslmed.3009835",
+      "evidence_type": "experimental",
+      "id": "vf_601efd54eb136de8",
+      "pmid": "25378646"
+    },
+    {
+      "assertion": "Intravenous dosing of anti-TfR/BACE1 antibodies reduces amyloid-beta levels in the cerebrospinal fluid and brain tissue of monkeys.",
+      "confidence": 0.269,
+      "doi": "10.1126/scitranslmed.3009835",
+      "evidence_type": "experimental",
+      "id": "vf_69c735877ec4c00d",
+      "pmid": "25378646"
+    },
+    {
+      "assertion": "ATV:TREM2 boosts brain microglial activity and glucose metabolism in an Alzheimer's disease mouse model.",
+      "confidence": 0.269,
+      "doi": "10.1038/s41593-022-01240-0",
+      "evidence_type": "experimental",
+      "id": "vf_746ba25290eb022f",
+      "pmid": "36635496"
+    },
+    {
+      "assertion": "The reversibility of amyloid beta-peptide-related pathology and the identity of key therapeutic targets for controlling amyloid levels in the aging brain remain debatable.",
+      "confidence": 0.0,
+      "doi": "10.1161/01.str.0000143452.85382.d1",
+      "evidence_type": "theoretical",
+      "id": "vf_7bccfa32f2db47b1",
+      "pmid": "15459432"
+    },
+    {
+      "assertion": "ATV:TREM2 induces proliferation in human induced pluripotent stem cell (iPSC)-derived microglia.",
+      "confidence": 0.336,
+      "doi": "10.1038/s41593-022-01240-0",
+      "evidence_type": "experimental",
+      "id": "vf_8389130295d81413",
+      "pmid": "36635496"
+    },
+    {
+      "assertion": "Inhibition of RAGE-ligand interaction suppresses the accumulation of Abeta in the brain parenchyma in a mouse transgenic model.",
+      "confidence": 0.269,
+      "doi": "10.1038/nm890",
+      "evidence_type": "experimental",
+      "id": "vf_873a947816136c37",
+      "pmid": "12808450"
+    },
+    {
+      "assertion": "The balance between RAGE and LRP1 at the blood-brain barrier regulates the clearance and transport of amyloid beta-peptide across the barrier.",
+      "confidence": 0.269,
+      "doi": "10.1161/01.str.0000143452.85382.d1",
+      "evidence_type": "experimental",
+      "id": "vf_8dfd242d30a1d4d0",
+      "pmid": "15459432"
+    },
+    {
+      "assertion": "Focused ultrasound-mediated blood-brain barrier opening combined with aducanumab infusions results in a numerically greater reduction of amyloid-beta levels compared to aducanumab treatment alone in homologous brain regions.",
+      "confidence": 0.336,
+      "doi": "10.1056/nejmoa2308719",
+      "evidence_type": "experimental",
+      "id": "vf_956821693aaf4cf7",
+      "pmid": "38169490"
+    },
+    {
+      "assertion": "High beta-sheet content in Abeta and deletion of the receptor-associated protein (RAP) gene substantially reduce LRP-mediated Abeta transport across the mouse blood-brain barrier.",
+      "confidence": 0.269,
+      "doi": "10.1016/j.neuron.2004.07.017",
+      "evidence_type": "experimental",
+      "id": "vf_99342d2a82fdc7a9",
+      "pmid": "15294142"
+    },
+    {
+      "assertion": "Opening the blood-brain barrier using focused ultrasound in Alzheimer's disease patients does not result in serious clinical or radiographic adverse events.",
+      "confidence": 0.336,
+      "doi": "10.1038/s41467-018-04529-6",
+      "evidence_type": "experimental",
+      "id": "vf_9d834626f9965982",
+      "pmid": "30046032"
+    },
+    {
+      "assertion": "Anti-TfR/BACE1 bispecific antibodies cross the blood-brain barrier and reduce brain amyloid-beta levels in human TfR knock-in mice.",
+      "confidence": 0.269,
+      "doi": "10.1126/scitranslmed.3009835",
+      "evidence_type": "experimental",
+      "id": "vf_a1145511f633c0df",
+      "pmid": "25378646"
+    },
+    {
+      "assertion": "ATV:TREM2 shifts microglia to metabolically responsive states that are distinct from those induced by amyloid pathology.",
+      "confidence": 0.168,
+      "doi": "10.1038/s41593-022-01240-0",
+      "evidence_type": "experimental",
+      "id": "vf_ad8c7b95283c16df",
+      "pmid": "36635496"
+    },
+    {
+      "assertion": "amyloid-beta 1-42 and mutant Abeta isoforms exhibit lower binding affinity to LRP clusters II and IV compared to amyloid-beta 1-40.",
+      "confidence": 0.202,
+      "doi": "10.1016/j.neuron.2004.07.017",
+      "evidence_type": "experimental",
+      "id": "vf_b4e2d587abb6eff4",
+      "pmid": "15294142"
+    },
+    {
+      "assertion": "Systemic administration of a bispecific anti-TfR/BACE1 antibody leads to a greater reduction in brain amyloid-beta (Abeta) levels compared to a monospecific anti-BACE1 antibody.",
+      "confidence": 0.269,
+      "doi": "10.1126/scitranslmed.3002230",
+      "evidence_type": "experimental",
+      "id": "vf_b6e3f9f1a88df9f1",
+      "pmid": "21613623"
+    },
+    {
+      "assertion": "Reduced expression of PICALM in Alzheimer's disease and murine brain endothelium correlates with amyloid-β (Aβ) pathology and cognitive impairment.",
+      "confidence": 0.273,
+      "doi": "10.1038/nn.4025",
+      "evidence_type": "observational",
+      "id": "vf_c34143b20ee92b45",
+      "pmid": "26005850"
+    },
+    {
+      "assertion": "Reducing the affinity of an antibody for the transferrin receptor (TfR) enhances its receptor-mediated transcytosis across the blood-brain barrier (BBB) into the mouse brain.",
+      "confidence": 0.269,
+      "doi": "10.1126/scitranslmed.3002230",
+      "evidence_type": "experimental",
+      "id": "vf_c3d9e665f63f045e",
+      "pmid": "21613623"
+    },
+    {
+      "assertion": "PICALM regulates clathrin-dependent internalization of amyloid-β (Aβ) bound to LRP1 in human brain endothelial monolayers.",
+      "confidence": 0.336,
+      "doi": "10.1038/nn.4025",
+      "evidence_type": "experimental",
+      "id": "vf_c6e8571128b91f39",
+      "pmid": "26005850"
+    },
+    {
+      "assertion": "High-affinity anti-TfR antibodies remain associated with the blood-brain barrier vasculature, whereas lower-affinity variants are released into the brain parenchyma.",
+      "confidence": 0.269,
+      "doi": "10.1126/scitranslmed.3002230",
+      "evidence_type": "experimental",
+      "id": "vf_c7f8be49ea6547d8",
+      "pmid": "21613623"
+    },
+    {
+      "assertion": "Interaction of amyloid-beta peptide (Abeta) with RAGE-bearing cells in the vessel wall results in the transport of Abeta across the blood-brain barrier (BBB).",
+      "confidence": 0.269,
+      "doi": "10.1038/nm890",
+      "evidence_type": "experimental",
+      "id": "vf_cef95b1b18c2f30e",
+      "pmid": "12808450"
+    },
+    {
+      "assertion": "The TfR bispecific antibody platform safely delivers therapeutic antibodies across the blood-brain barrier in the primate brain.",
+      "confidence": 0.269,
+      "doi": "10.1126/scitranslmed.3009835",
+      "evidence_type": "experimental",
+      "id": "vf_d3430138cafa4ccf",
+      "pmid": "25378646"
+    },
+    {
+      "assertion": "PICALM deficiency diminishes amyloid-β (Aβ) clearance across the murine blood-brain barrier (BBB).",
+      "confidence": 0.269,
+      "doi": "10.1038/nn.4025",
+      "evidence_type": "experimental",
+      "id": "vf_d4dd6ecde250bd1d",
+      "pmid": "26005850"
+    },
+    {
+      "assertion": "Monovalent binding to the transferrin receptor (TfR) facilitates transcellular transport across the blood-brain barrier, whereas bivalent binding leads to lysosomal sorting.",
+      "confidence": 0.269,
+      "doi": "10.1016/j.neuron.2013.10.061",
+      "evidence_type": "experimental",
+      "id": "vf_d51f3496b4e30c17",
+      "pmid": "24411731"
+    },
+    {
+      "assertion": "ATV:TREM2 improves mitochondrial metabolism in human induced pluripotent stem cell (iPSC)-derived microglia.",
+      "confidence": 0.336,
+      "doi": "10.1038/s41593-022-01240-0",
+      "evidence_type": "experimental",
+      "id": "vf_d9a8e80fc5c60f65",
+      "pmid": "36635496"
+    },
+    {
+      "assertion": "Focused ultrasound-mediated blood-brain barrier opening does not result in group-wise changes in beta-amyloid levels post-sonication in Alzheimer's disease patients.",
+      "confidence": 0.336,
+      "doi": "10.1038/s41467-018-04529-6",
+      "evidence_type": "experimental",
+      "id": "vf_da4f13aeb9bcc242",
+      "pmid": "30046032"
+    },
+    {
+      "assertion": "Abeta at concentrations exceeding 1 microM promotes proteasome-dependent degradation of LRP in endothelial cells.",
+      "confidence": 0.202,
+      "doi": "10.1016/j.neuron.2004.07.017",
+      "evidence_type": "experimental",
+      "id": "vf_dfffbb5957991226",
+      "pmid": "15294142"
+    },
+    {
+      "assertion": "Endothelin-1 (ET-1) mediates Abeta-induced vasoconstriction.",
+      "confidence": 0.269,
+      "doi": "10.1038/nm890",
+      "evidence_type": "experimental",
+      "id": "vf_e1590f46df6b099c",
+      "pmid": "12808450"
+    },
+    {
+      "assertion": "Focused ultrasound can be used to temporarily open the blood-brain barrier in patients with Alzheimer's disease during monthly aducanumab infusions.",
+      "confidence": 0.336,
+      "doi": "10.1056/nejmoa2308719",
+      "evidence_type": "experimental",
+      "id": "vf_e3503117f0808570",
+      "pmid": "38169490"
+    },
+    {
+      "assertion": "Enhanced target engagement achieved via the Brain Shuttle module results in a significant reduction of amyloid in the brain.",
+      "confidence": 0.269,
+      "doi": "10.1016/j.neuron.2013.10.061",
+      "evidence_type": "experimental",
+      "id": "vf_eb96b9d5cc406332",
+      "pmid": "24411731"
+    },
+    {
+      "assertion": "MR-guided focused ultrasound in combination with intravenously injected microbubbles safely, reversibly, and repeatedly opens the blood-brain barrier in patients with early to moderate Alzheimer's disease.",
+      "confidence": 0.336,
+      "doi": "10.1038/s41467-018-04529-6",
+      "evidence_type": "experimental",
+      "id": "vf_ecc050af403828f9",
+      "pmid": "30046032"
+    },
+    {
+      "assertion": "PICALM guides amyloid-β (Aβ) trafficking to Rab5 and Rab11, leading to endothelial transcytosis and clearance.",
+      "confidence": 0.336,
+      "doi": "10.1038/nn.4025",
+      "evidence_type": "experimental",
+      "id": "vf_f000d6d188a22410",
+      "pmid": "26005850"
+    },
+    {
+      "assertion": "Therapeutic strategies targeting RAGE and LRP1 have the potential to control brain amyloid beta-peptide levels in animal models of Alzheimer's disease.",
+      "confidence": 0.269,
+      "doi": "10.1161/01.str.0000143452.85382.d1",
+      "evidence_type": "experimental",
+      "id": "vf_f2b4d3dd88c79433",
+      "pmid": "15459432"
+    },
+    {
+      "assertion": "Transgenic mice expressing mutant Abeta with low LRP-clearance develop robust cerebral Abeta accumulations earlier than Tg-2576 mice that overproduce Abeta.",
+      "confidence": 0.269,
+      "doi": "10.1016/j.neuron.2004.07.017",
+      "evidence_type": "experimental",
+      "id": "vf_f4445212405c2730",
+      "pmid": "15294142"
+    },
+    {
+      "assertion": "iPSC-derived human endothelial cells carrying the rs3851179 protective allele exhibit higher PICALM levels and enhanced amyloid-β (Aβ) clearance.",
+      "confidence": 0.336,
+      "doi": "10.1038/nn.4025",
+      "evidence_type": "experimental",
+      "id": "vf_f4651ca741de35c7",
+      "pmid": "26005850"
+    },
+    {
+      "assertion": "A bispecific antibody targeting TfR with low affinity and BACE1 with high affinity accumulates in the mouse brain more effectively than a monospecific anti-BACE1 antibody.",
+      "confidence": 0.269,
+      "doi": "10.1126/scitranslmed.3002230",
+      "evidence_type": "experimental",
+      "id": "vf_f6a538885acbd791",
+      "pmid": "21613623"
+    }
+  ],
+  "command": "frontier.diff",
+  "frontier": "/Users/williamblair/personal/vela/projects/bbb-flagship",
+  "frontier_id": "vfr_f22cbb441b63425e",
+  "new_contradictions": [
+    {
+      "assertion": "The reversibility of amyloid beta-peptide-related pathology and the identity of key therapeutic targets for controlling amyloid levels in the aging brain remain debatable.",
+      "confidence": 0.0,
+      "doi": "10.1161/01.str.0000143452.85382.d1",
+      "evidence_type": "theoretical",
+      "id": "vf_7bccfa32f2db47b1",
+      "pmid": "15459432"
+    }
+  ],
+  "ok": true,
+  "totals": {
+    "added": 48,
+    "cumulative_claims": 48,
+    "new_contradictions": 1,
+    "updated": 0
+  },
+  "updated": [],
+  "window": {
+    "end": "2026-04-13T00:00:00Z",
+    "iso_week": "2026-W15",
+    "start": "2026-04-06T00:00:00Z"
+  }
+}

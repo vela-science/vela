@@ -14,12 +14,17 @@ interface Props {
 }
 
 const defaultLinks: NavLink[] = [
-  { id: "home", href: "/", label: "01 · Vela" },
-  { id: "essays", href: "/essays/science-needs-state", label: "02 · Essays" },
-  { id: "docs", href: "/docs/protocol", label: "03 · Docs" },
-  { id: "publish", href: "/publish", label: "04 · Publish" },
-  { id: "hub", href: HUB_URL, label: "05 · Hub" },
-  { id: "workbench", href: "/workbench", label: "06 · Workbench" },
+  /* The home route IS the live frontier (Alzheimer's Therapeutics)
+     after the v0.31 topic-first redesign. The protocol substrate
+     gets its own second-class entry. The lantern mark above this
+     nav carries the Vela brand identity. */
+  { id: "home", href: "/", label: "01 · Frontier" },
+  { id: "protocol", href: "/protocol", label: "02 · Protocol" },
+  { id: "workbench", href: "/workbench", label: "03 · Workbench" },
+  { id: "docs", href: "/docs/protocol", label: "04 · Docs" },
+  { id: "essays", href: "/essays/science-needs-state", label: "05 · Essays" },
+  { id: "publish", href: "/publish", label: "06 · Publish" },
+  { id: "hub", href: HUB_URL, label: "07 · Hub" },
 ];
 
 const { active = "home", links = defaultLinks, version = `v${VERSION}` } =

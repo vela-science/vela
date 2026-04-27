@@ -1,0 +1,35 @@
+{
+  "schema": "vela.proposal.v0.1",
+  "id": "vpr_04faf4648583a82a",
+  "kind": "finding.note",
+  "target": {
+    "type": "finding",
+    "id": "vf_3412a8b4583e7858"
+  },
+  "actor": {
+    "id": "agent:reviewer-agent",
+    "type": "agent"
+  },
+  "created_at": "2026-04-27T18:09:38.836691+00:00",
+  "reason": "Reviewer Agent score for vpr_430cf6fb936d2a20",
+  "payload": {
+    "text": "Reviewer Agent score: plausibility 0.75 · evidence 0.55 · scope 0.80 · duplicate-risk 0.40. Plausible TREM2/plaque-morphology hypothesis with two concrete, falsifiable predictions in defined model systems. Concerns: Evidence span is a paraphrase, not a verbatim quote; Causal direction (compaction protective vs correlate) not fully disentangled; Cognitive decline endpoint in mice is hard to operationalize."
+  },
+  "source_refs": [
+    "vpr_430cf6fb936d2a20"
+  ],
+  "status": "pending_review",
+  "caveats": [],
+  "agent_run": {
+    "agent": "reviewer-agent",
+    "run_id": "vrun_35f45efae0f85ac7",
+    "started_at": "2026-04-27T18:08:24.780930+00:00",
+    "context": {
+      "backend": "claude-cli",
+      "cli_command": "claude",
+      "input_root": "projects/bbb-flagship",
+      "pending_seen": "108",
+      "to_review": "30"
+    }
+  }
+}

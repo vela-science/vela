@@ -317,3 +317,53 @@ body {
 .wb-chip--live .wb-chip__dot {
   box-shadow: 0 0 0 2px var(--signal-soft);
 }
+
+/* ============================================================
+   Mobile polish — narrow-viewport overrides for chrome.
+   The reading column is the only thing that should dominate
+   on small screens. Aside links stack rather than nowrap; the
+   masthead title shrinks one tier; ticks remain decorative.
+   ============================================================ */
+@media (max-width: 720px) {
+  .wb-head {
+    padding: 20px 20px 0;
+  }
+  .wb-head__row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
+    padding-bottom: 16px;
+  }
+  .wb-head__title {
+    font-size: 28px;
+    line-height: 1.12;
+  }
+  .wb-head__sub {
+    font-size: 16px;
+    margin-top: 8px;
+  }
+  .wb-head__aside {
+    flex-wrap: wrap;
+    white-space: normal;
+    gap: 10px 14px;
+    font-size: 11px;
+  }
+  /* Per-page slot=aside containers used the same flex pattern;
+     unify their wrap behaviour. */
+  .wb-head__aside > div {
+    flex-wrap: wrap;
+    gap: 8px 12px !important;
+  }
+  .wb-head__ticks {
+    margin-top: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .wb-head__title {
+    font-size: 24px;
+  }
+  .wb-head__sub {
+    font-size: 15px;
+  }
+}

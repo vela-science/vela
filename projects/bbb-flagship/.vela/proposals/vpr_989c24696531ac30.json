@@ -1,0 +1,37 @@
+{
+  "schema": "vela.proposal.v0.1",
+  "id": "vpr_989c24696531ac30",
+  "kind": "finding.note",
+  "target": {
+    "type": "finding",
+    "id": "vf_9d2d8b42147829c4"
+  },
+  "actor": {
+    "id": "agent:reviewer-agent",
+    "type": "agent"
+  },
+  "created_at": "2026-04-27T18:09:11.824467+00:00",
+  "reason": "Reviewer Agent score for vpr_2f336a59e8626434",
+  "payload": {
+    "text": "Reviewer Agent score: plausibility 0.50 · evidence 0.40 · scope 0.30 · duplicate-risk 0.25. Strong opinion claim about unidirectional links being the Web's worst design flaw; evidence is a verbatim assertion from the note itself. Concerns: Claim is a value judgment, not empirically testable; Evidence span quotes the note asserting the claim — circular; 'Single most consequential' is unfalsifiable without comparator metric."
+  },
+  "source_refs": [
+    "vpr_2f336a59e8626434"
+  ],
+  "status": "pending_review",
+  "caveats": [
+    "loose_scope"
+  ],
+  "agent_run": {
+    "agent": "reviewer-agent",
+    "run_id": "vrun_35f45efae0f85ac7",
+    "started_at": "2026-04-27T18:08:24.780930+00:00",
+    "context": {
+      "backend": "claude-cli",
+      "cli_command": "claude",
+      "input_root": "projects/bbb-flagship",
+      "pending_seen": "108",
+      "to_review": "30"
+    }
+  }
+}

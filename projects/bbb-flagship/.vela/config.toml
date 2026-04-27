@@ -1,5 +1,5 @@
 [project]
-name = "BBB Flagship"
-description = "Bounded flagship frontier for BBB delivery strategies for Alzheimer's-relevant therapeutics"
+name = "Alzheimer's Therapeutics"
+description = "Live frontier covering Alzheimer's drug targets, mechanisms, BBB delivery, and clinical readouts. Originated as the BBB Flagship (signed snapshot vfr_3d76ca32f64aded8); broadened in v0.30 to include Aβ, BACE1, tau, TREM2, and ApoE assertions extracted from the Obsidian campaign."
 compiler = "vela/0.2.0"
 papers_processed = 10

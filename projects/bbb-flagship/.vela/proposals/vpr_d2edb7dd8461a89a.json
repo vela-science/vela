@@ -1,0 +1,37 @@
+{
+  "schema": "vela.proposal.v0.1",
+  "id": "vpr_d2edb7dd8461a89a",
+  "kind": "finding.note",
+  "target": {
+    "type": "finding",
+    "id": "vf_1d4d0a290cb2cbcc"
+  },
+  "actor": {
+    "id": "agent:reviewer-agent",
+    "type": "agent"
+  },
+  "created_at": "2026-04-27T18:09:38.836730+00:00",
+  "reason": "Reviewer Agent score for vpr_4e629a5d518300a9",
+  "payload": {
+    "text": "Reviewer Agent score: plausibility 0.90 · evidence 0.20 · scope 0.75 · duplicate-risk 0.40. Sharp Xanadu-vs-Web design tension relevant to Lux/Vela protocol design, but lacks evidence spans. Concerns: evidence_spans is empty; No verbatim quote from Nelson 1981 source; Tension is well-formed but unresolved 'middle path' is not articulated."
+  },
+  "source_refs": [
+    "vpr_4e629a5d518300a9"
+  ],
+  "status": "pending_review",
+  "caveats": [
+    "weak_evidence"
+  ],
+  "agent_run": {
+    "agent": "reviewer-agent",
+    "run_id": "vrun_35f45efae0f85ac7",
+    "started_at": "2026-04-27T18:08:24.780930+00:00",
+    "context": {
+      "backend": "claude-cli",
+      "cli_command": "claude",
+      "input_root": "projects/bbb-flagship",
+      "pending_seen": "108",
+      "to_review": "30"
+    }
+  }
+}

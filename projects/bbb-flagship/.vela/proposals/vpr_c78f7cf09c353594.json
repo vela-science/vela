@@ -1,0 +1,35 @@
+{
+  "schema": "vela.proposal.v0.1",
+  "id": "vpr_c78f7cf09c353594",
+  "kind": "finding.note",
+  "target": {
+    "type": "finding",
+    "id": "vf_d733036152ed1e86"
+  },
+  "actor": {
+    "id": "agent:reviewer-agent",
+    "type": "agent"
+  },
+  "created_at": "2026-04-27T18:09:38.836682+00:00",
+  "reason": "Reviewer Agent score for vpr_42a4776770a63765",
+  "payload": {
+    "text": "Reviewer Agent score: plausibility 0.80 · evidence 0.45 · scope 0.75 · duplicate-risk 0.35. Reasonable open question asking for a quantitative benchmark of tau vs amyloid as predictors of cognitive decline. Concerns: Evidence span paraphrases rather than quotes the note; Could specify metric type (AUC, hazard ratio, R²) and patient population."
+  },
+  "source_refs": [
+    "vpr_42a4776770a63765"
+  ],
+  "status": "pending_review",
+  "caveats": [],
+  "agent_run": {
+    "agent": "reviewer-agent",
+    "run_id": "vrun_35f45efae0f85ac7",
+    "started_at": "2026-04-27T18:08:24.780930+00:00",
+    "context": {
+      "backend": "claude-cli",
+      "cli_command": "claude",
+      "input_root": "projects/bbb-flagship",
+      "pending_seen": "108",
+      "to_review": "30"
+    }
+  }
+}
