@@ -432,6 +432,35 @@ pub fn validate_event_payload(kind: &str, payload: &Value) -> Result<(), String>
             require_str("name")?;
             require_str("creator")?;
         }
+        // v0.37: multi-sig kernel events. `threshold_set` records the
+        // policy attached to a finding (k unique valid signatures
+        // required); `threshold_met` records the moment the k-th
+        // signature lands. Both are content-addressed under the same
+        // canonical-JSON discipline as every other event kind.
+        "finding.threshold_set" => {
+            let threshold = object
+                .get("threshold")
+                .and_then(Value::as_u64)
+                .ok_or("missing required positive integer 'threshold'")?;
+            if threshold == 0 {
+                return Err("threshold must be >= 1".to_string());
+            }
+        }
+        "finding.threshold_met" => {
+            let count = object
+                .get("signature_count")
+                .and_then(Value::as_u64)
+                .ok_or("missing required positive integer 'signature_count'")?;
+            let threshold = object
+                .get("threshold")
+                .and_then(Value::as_u64)
+                .ok_or("missing required positive integer 'threshold'")?;
+            if count < threshold {
+                return Err(format!(
+                    "signature_count {count} below threshold {threshold}"
+                ));
+            }
+        }
         other => return Err(format!("unknown event kind '{other}'")),
     }
     Ok(())
@@ -532,7 +561,9 @@ mod tests {
                 gravity_well: false,
                 review_state: None,
                 superseded: false,
-            },
+            signature_threshold: None,
+            jointly_accepted: false,
+        },
         )
     }
 

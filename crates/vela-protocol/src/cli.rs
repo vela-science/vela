@@ -19,7 +19,7 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 
 #[derive(Parser)]
-#[command(name = "vela", version = "0.36.2")]
+#[command(name = "vela", version = "0.37.0")]
 #[command(about = "Portable frontier state for science")]
 struct Cli {
     #[command(subcommand)]
@@ -930,6 +930,20 @@ enum SignAction {
         frontier: PathBuf,
         #[arg(long)]
         public_key: Option<PathBuf>,
+        #[arg(long)]
+        json: bool,
+    },
+    /// v0.37: Attach a multi-signature threshold to a finding. Once
+    /// `k` distinct registered actors have each signed the finding, it
+    /// is marked `jointly_accepted`. Setting `--to 1` is equivalent to
+    /// the default single-sig regime.
+    ThresholdSet {
+        frontier: PathBuf,
+        /// Target finding id (`vf_<hash>`).
+        finding_id: String,
+        /// Number of unique valid signatures required (>= 1).
+        #[arg(long)]
+        to: u32,
         #[arg(long)]
         json: bool,
     },
@@ -4628,11 +4642,62 @@ fn cmd_sign(action: SignAction) {
                         .dimmed()
                 );
                 println!("  {}", style::tick_row(60));
-                println!("  total findings: {}", report.total_findings);
-                println!("  signed:         {}", report.signed);
-                println!("  unsigned:       {}", report.unsigned);
-                println!("  valid:          {}", report.valid);
-                println!("  invalid:        {}", report.invalid);
+                println!("  total findings:   {}", report.total_findings);
+                println!("  signed:           {}", report.signed);
+                println!("  unsigned:         {}", report.unsigned);
+                println!("  valid:            {}", report.valid);
+                println!("  invalid:          {}", report.invalid);
+                if report.findings_with_threshold > 0 {
+                    println!("  with threshold:   {}", report.findings_with_threshold);
+                    println!("  jointly accepted: {}", report.jointly_accepted);
+                }
+            }
+        }
+        SignAction::ThresholdSet {
+            frontier,
+            finding_id,
+            to,
+            json,
+        } => {
+            if to == 0 {
+                fail("--to must be >= 1");
+            }
+            let mut project =
+                repo::load_from_path(&frontier).unwrap_or_else(|e| fail_return(&e));
+            let Some(idx) = project.findings.iter().position(|f| f.id == finding_id) else {
+                fail(&format!("finding '{finding_id}' not present in frontier"));
+            };
+            project.findings[idx].flags.signature_threshold = Some(to);
+            // Re-derive the joint-accept flag immediately; if the
+            // existing signature pool already meets the threshold, the
+            // finding becomes jointly_accepted on the same write.
+            sign::refresh_jointly_accepted(&mut project);
+            let met = project.findings[idx].flags.jointly_accepted;
+            repo::save_to_path(&frontier, &project).unwrap_or_else(|e| fail_return(&e));
+
+            if json {
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&json!({
+                        "ok": true,
+                        "command": "sign.threshold-set",
+                        "finding_id": finding_id,
+                        "threshold": to,
+                        "jointly_accepted": met,
+                        "frontier": frontier.display().to_string(),
+                    }))
+                    .expect("failed to serialize sign.threshold-set")
+                );
+            } else {
+                println!(
+                    "{} signature_threshold={to} on {finding_id} ({})",
+                    style::ok("set"),
+                    if met {
+                        "jointly accepted"
+                    } else {
+                        "awaiting signatures"
+                    }
+                );
             }
         }
     }

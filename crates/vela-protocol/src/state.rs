@@ -598,16 +598,7 @@ fn build_finding_bundle(options: &FindingDraftOptions) -> FindingBundle {
         }),
         citation_count: None,
     };
-    let flags = Flags {
-        gap: false,
-        negative_space: false,
-        contested: false,
-        retracted: false,
-        declining: false,
-        gravity_well: false,
-        review_state: None,
-        superseded: false,
-    };
+    let flags = Flags::default();
     FindingBundle::new(
         assertion, evidence, conditions, confidence, provenance, flags,
     )
@@ -776,16 +767,7 @@ fn build_add_finding_proposal(options: FindingDraftOptions) -> Result<StatePropo
         }),
         citation_count: None,
     };
-    let flags = Flags {
-        gap: false,
-        negative_space: false,
-        contested: false,
-        retracted: false,
-        declining: false,
-        gravity_well: false,
-        review_state: None,
-        superseded: false,
-    };
+    let flags = Flags::default();
     let finding = FindingBundle::new(
         assertion, evidence, conditions, confidence, provenance, flags,
     );

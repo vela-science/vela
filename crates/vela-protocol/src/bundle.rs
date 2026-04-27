@@ -1204,7 +1204,7 @@ impl ReviewState {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Flags {
     #[serde(default)]
     pub gap: bool,
@@ -1232,6 +1232,22 @@ pub struct Flags {
     /// Skipped when false so pre-v0.14 frontiers serialize byte-identically.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub superseded: bool,
+    /// v0.37: minimum number of unique valid signatures required for
+    /// this finding to qualify as `jointly_accepted`. `None` (the
+    /// default) preserves single-sig semantics — any one valid
+    /// signature is accepted. When `Some(k)`, the finding only counts
+    /// as joint-accepted once `k` distinct registered actors have
+    /// each contributed a valid Ed25519 signature over the canonical
+    /// finding bytes. Pre-v0.37 frontiers omit the field; loading is
+    /// backward-compatible.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub signature_threshold: Option<u32>,
+    /// v0.37: true once at least `signature_threshold` unique actors
+    /// have signed this finding. Set by the verify pass; not written
+    /// directly by any other code path. Skipped when false so pre-v0.37
+    /// frontiers serialize byte-identically.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub jointly_accepted: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1801,6 +1817,8 @@ mod tests {
             gravity_well: false,
             review_state: None,
             superseded: false,
+            signature_threshold: None,
+            jointly_accepted: false,
         }
     }
 

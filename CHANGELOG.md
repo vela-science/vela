@@ -1,5 +1,86 @@
 # Changelog
 
+## 0.37.0 - 2026-04-27
+
+**Multi-actor joint signatures.** A finding can now require `k`
+distinct registered actors to each contribute a valid Ed25519
+signature before counting as `jointly_accepted`. This unblocks the
+multi-lab review workflow that signed-but-single-actor v0.4 couldn't
+represent: "the BBB result is accepted only when both lab A and lab B
+have signed the canonical bytes."
+
+### Schema
+
+`Flags` gains two optional fields. Pre-v0.37 frontiers serialize and
+load byte-identically.
+
+```rust
+pub signature_threshold: Option<u32>,  // None = single-sig regime
+pub jointly_accepted: bool,            // derived; never written directly
+```
+
+### Multi-sig kernel
+
+`Project.signatures` was already `Vec<SignedEnvelope>`; v0.37 codifies
+the multi-sig semantics:
+
+- `sign_frontier` dedupes by `(finding_id, public_key)`, not just
+  `finding_id`. A second actor's `vela sign apply --private-key …`
+  appends rather than skipping. Re-running with the same key stays
+  idempotent.
+- New helpers in `crate::sign`:
+  - `signers_for(project, finding_id) -> Vec<String>` — unique pubkeys
+    whose signatures over the canonical finding bytes verify.
+  - `valid_signature_count(project, finding_id) -> usize`.
+  - `threshold_met(project, finding_id) -> bool`.
+  - `refresh_jointly_accepted(&mut project)` — idempotent; called from
+    `sign_frontier` and `cmd_threshold_set` so the flag never drifts.
+- `VerifyReport` gains `findings_with_threshold` and
+  `jointly_accepted` counts.
+
+### Events
+
+Two new validated event kinds:
+
+- `finding.threshold_set` — payload requires `threshold: u64 >= 1`.
+- `finding.threshold_met` — payload requires `signature_count >= threshold`.
+
+### CLI
+
+```
+vela sign threshold-set <vf_id> --frontier <path> --to <k>
+```
+
+Sets the policy on a finding, then re-derives `jointly_accepted` over
+the existing signature pool. JSON emit reports whether the finding is
+already accepted (signatures already present) or awaiting more.
+`vela sign verify` now prints `findings_with_threshold` and
+`jointly_accepted` counts when at least one finding has a policy.
+
+### Verification
+
+- `cargo build --workspace`: clean.
+- `cargo test --workspace`: **374/374 pass** (was 368; +6 multi-sig
+  tests in `sign.rs`: dedupe-by-pubkey, k-of-n threshold met,
+  None-policy never met, refresh idempotency, invalid-signature does
+  not count, VerifyReport surfaces threshold counts).
+- `vela conformance`: 61/61 pass.
+- `vela check projects/bbb-flagship`: 86/86 valid.
+- `Flags` gains a `Default` impl; 27 ctor sites across the workspace
+  collapsed onto `Flags::default()` or `..Flags::default()` syntax.
+
+### Why now
+
+The previous milestones (replication, datasets, code, predictions,
+inference, replication-as-source-of-truth) made the kernel's
+*structural* claims first-class. Multi-sig is what lets the kernel's
+*social* claims — "this is what the field collectively believes" —
+get encoded with the same rigor. A single-actor signature says "I
+stand behind this." A k-of-n threshold says "k of us, on the record."
+
+Schnorr aggregation can wait; this is concatenated multi-sig, the
+simpler primitive that ships first per the v0.37 plan.
+
 ## 0.36.2 - 2026-04-27
 
 **Replication-as-source-of-truth, swept through every reader.**

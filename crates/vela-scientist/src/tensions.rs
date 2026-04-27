@@ -374,14 +374,8 @@ fn lift_tension(a: &FindingBundle, b: &FindingBundle, why: &str) -> FindingBundl
         citation_count: None,
     };
     let mut flags = Flags {
-        gap: false,
-        negative_space: false,
         contested: true,
-        retracted: false,
-        declining: false,
-        gravity_well: false,
-        review_state: None,
-        superseded: false,
+        ..Flags::default()
     };
     let _ = &mut flags;
     FindingBundle::new(assertion, evidence, conditions, confidence, provenance, flags)
@@ -457,16 +451,7 @@ mod tests {
                 review: None,
                 citation_count: None,
             },
-            flags: F {
-                gap: false,
-                negative_space: false,
-                contested: false,
-                retracted: false,
-                declining: false,
-                gravity_well: false,
-                review_state: None,
-                superseded: false,
-            },
+            flags: F::default(),
             links: Vec::new(),
             annotations: Vec::new(),
             attachments: Vec::new(),

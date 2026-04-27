@@ -677,16 +677,7 @@ fn base_provenance(label: &str) -> Provenance {
 }
 
 fn base_flags() -> Flags {
-    Flags {
-        gap: false,
-        negative_space: false,
-        contested: false,
-        retracted: false,
-        declining: false,
-        gravity_well: false,
-        review_state: None,
-        superseded: false,
-    }
+    Flags::default()
 }
 
 fn base_conditions() -> Conditions {

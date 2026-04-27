@@ -254,15 +254,6 @@ fn lift_to_bundle(c: &ModelCandidate, label: &str) -> FindingBundle {
         review: None,
         citation_count: None,
     };
-    let flags = Flags {
-        gap: false,
-        negative_space: false,
-        contested: false,
-        retracted: false,
-        declining: false,
-        gravity_well: false,
-        review_state: None,
-        superseded: false,
-    };
+    let flags = Flags::default();
     FindingBundle::new(assertion, evidence, conditions, confidence, provenance, flags)
 }

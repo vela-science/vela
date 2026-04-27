@@ -834,12 +834,7 @@ fn make_observer_finding(v: &serde_json::Value) -> FindingBundle {
         flags: Flags {
             gap,
             negative_space,
-            contested: false,
-            retracted: false,
-            declining: false,
-            gravity_well: false,
-            review_state: None,
-            superseded: false,
+            ..Flags::default()
         },
         links: vec![],
         annotations: vec![],
@@ -996,16 +991,7 @@ fn run_directory_layout(
 // ── Helpers ─────────────────────────────────────────────────────────────
 
 fn default_flags() -> Flags {
-    Flags {
-        gap: false,
-        negative_space: false,
-        contested: false,
-        retracted: false,
-        declining: false,
-        gravity_well: false,
-        review_state: None,
-        superseded: false,
-    }
+    Flags::default()
 }
 
 // ── Phase U (v0.5): proposal-idempotency suite ─────────────────────────

@@ -89,6 +89,13 @@ pub struct VerifyReport {
     pub valid: usize,
     pub invalid: usize,
     pub signers: Vec<String>,
+    /// v0.37: number of findings carrying `flags.signature_threshold = Some(k)`.
+    #[serde(default)]
+    pub findings_with_threshold: usize,
+    /// v0.37: number of findings whose threshold is currently met (k
+    /// distinct unique-key valid signatures present).
+    #[serde(default)]
+    pub jointly_accepted: usize,
 }
 
 // ── Key generation ───────────────────────────────────────────────────
@@ -367,23 +374,34 @@ pub fn verify_action_signature(
 
 // ── Project-level operations ────────────────────────────────────────
 
-/// Sign all unsigned findings in a frontier. Returns the number of newly signed findings.
+/// Sign all findings in a frontier that are not yet signed BY THIS KEY.
+/// Returns the number of newly signed findings.
+///
+/// v0.37: dedupe is now `(finding_id, public_key)`, not `finding_id`
+/// alone. Prior versions stopped at the first signature on a finding;
+/// that prevented multi-actor co-signing. Different actors with
+/// different keys can now each contribute a `SignedEnvelope` to the
+/// same finding. Re-running `vela sign apply` with the same key is
+/// still idempotent.
 pub fn sign_frontier(frontier_path: &Path, private_key_path: &Path) -> Result<usize, String> {
     let mut frontier: Project = repo::load_from_path(frontier_path)?;
 
     let signing_key = load_signing_key(private_key_path)?;
+    let our_pubkey_hex = hex::encode(signing_key.verifying_key().to_bytes());
 
     let mut signed_count = 0usize;
 
-    // Build a set of already-signed finding IDs
-    let already_signed: std::collections::HashSet<String> = frontier
+    // Already signed by THIS key (idempotent re-runs are safe; other
+    // actors' signatures stay).
+    let already_signed_by_us: std::collections::HashSet<String> = frontier
         .signatures
         .iter()
+        .filter(|s| s.public_key == our_pubkey_hex)
         .map(|s| s.finding_id.clone())
         .collect();
 
     for finding in &frontier.findings {
-        if already_signed.contains(&finding.id) {
+        if already_signed_by_us.contains(&finding.id) {
             continue;
         }
         let envelope = sign_finding(finding, &signing_key)?;
@@ -391,9 +409,74 @@ pub fn sign_frontier(frontier_path: &Path, private_key_path: &Path) -> Result<us
         signed_count += 1;
     }
 
+    // v0.37: refresh `jointly_accepted` flags after multi-sig writes.
+    refresh_jointly_accepted(&mut frontier);
+
     repo::save_to_path(frontier_path, &frontier)?;
 
     Ok(signed_count)
+}
+
+// ── Multi-sig helpers (v0.37) ────────────────────────────────────────
+
+/// Hex-encoded public keys of every actor whose `SignedEnvelope`
+/// targeting `finding_id` cryptographically verifies against the
+/// finding's canonical bytes. Duplicate signatures from the same key
+/// are counted once. Returns an empty Vec if the finding doesn't exist.
+#[must_use]
+pub fn signers_for(project: &Project, finding_id: &str) -> Vec<String> {
+    let Some(finding) = project.findings.iter().find(|f| f.id == finding_id) else {
+        return Vec::new();
+    };
+    let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+    for env in &project.signatures {
+        if env.finding_id != finding_id {
+            continue;
+        }
+        if seen.contains(&env.public_key) {
+            continue;
+        }
+        if let Ok(true) = verify_finding(finding, env) {
+            seen.insert(env.public_key.clone());
+        }
+    }
+    seen.into_iter().collect()
+}
+
+/// Number of unique valid signers on `finding_id`.
+#[must_use]
+pub fn valid_signature_count(project: &Project, finding_id: &str) -> usize {
+    signers_for(project, finding_id).len()
+}
+
+/// True iff `flags.signature_threshold` is `Some(k)` and `k` distinct
+/// valid signatures are present. `None` threshold means single-sig
+/// semantics — never reports threshold-met.
+#[must_use]
+pub fn threshold_met(project: &Project, finding_id: &str) -> bool {
+    let Some(finding) = project.findings.iter().find(|f| f.id == finding_id) else {
+        return false;
+    };
+    let Some(threshold) = finding.flags.signature_threshold else {
+        return false;
+    };
+    valid_signature_count(project, finding_id) >= threshold as usize
+}
+
+/// Walk every finding and (re)set `flags.jointly_accepted` to match
+/// the current state of `signature_threshold` and the multi-sig
+/// envelope set. Idempotent. Called from `sign_frontier` and the
+/// verify path so the flag never drifts from the underlying truth.
+pub fn refresh_jointly_accepted(project: &mut Project) {
+    // First snapshot the truth without holding a mutable borrow on findings.
+    let truth: std::collections::HashMap<String, bool> = project
+        .findings
+        .iter()
+        .map(|f| (f.id.clone(), threshold_met(project, &f.id)))
+        .collect();
+    for f in &mut project.findings {
+        f.flags.jointly_accepted = truth.get(&f.id).copied().unwrap_or(false);
+    }
 }
 
 /// Verify all signatures in a frontier. Optionally filter by a specific public key.
@@ -467,6 +550,18 @@ pub fn verify_frontier_data(
 
     let _ = finding_map; // used for indexing above
 
+    // v0.37: count threshold flags + verified joint-accept state.
+    let mut findings_with_threshold = 0usize;
+    let mut jointly_accepted = 0usize;
+    for f in &frontier.findings {
+        if f.flags.signature_threshold.is_some() {
+            findings_with_threshold += 1;
+            if threshold_met(frontier, &f.id) {
+                jointly_accepted += 1;
+            }
+        }
+    }
+
     Ok(VerifyReport {
         total_findings: frontier.findings.len(),
         signed: valid + invalid,
@@ -474,6 +569,8 @@ pub fn verify_frontier_data(
         valid,
         invalid,
         signers: signers.into_iter().collect(),
+        findings_with_threshold,
+        jointly_accepted,
     })
 }
 
@@ -561,7 +658,9 @@ mod tests {
                 gravity_well: false,
                 review_state: None,
                 superseded: false,
-            },
+            signature_threshold: None,
+            jointly_accepted: false,
+        },
         )
     }
 
@@ -753,5 +852,121 @@ mod tests {
         assert_eq!(report.valid, 1);
         assert_eq!(report.invalid, 0);
         assert_eq!(report.signers.len(), 1);
+    }
+
+    // ── v0.37 Multi-sig tests ────────────────────────────────────────
+
+    fn empty_project(findings: Vec<FindingBundle>, signatures: Vec<SignedEnvelope>) -> Project {
+        Project {
+            vela_version: "0.37.0".into(),
+            schema: "test".into(),
+            frontier_id: None,
+            project: crate::project::ProjectMeta {
+                name: "test".into(),
+                description: "test".into(),
+                compiled_at: "2026-04-27T00:00:00Z".into(),
+                compiler: "vela/0.37.0".into(),
+                papers_processed: 0,
+                errors: 0,
+                dependencies: Vec::new(),
+            },
+            stats: crate::project::ProjectStats::default(),
+            findings,
+            sources: vec![],
+            evidence_atoms: vec![],
+            condition_records: vec![],
+            review_events: vec![],
+            confidence_updates: vec![],
+            events: vec![],
+            proposals: vec![],
+            proof_state: Default::default(),
+            signatures,
+            actors: vec![],
+            replications: vec![],
+            datasets: vec![],
+            code_artifacts: vec![],
+            predictions: vec![],
+            resolutions: vec![],
+        }
+    }
+
+    #[test]
+    fn signers_for_dedupes_by_pubkey() {
+        let mut f = sample_finding();
+        f.flags.signature_threshold = Some(2);
+        let key1 = test_keypair();
+        let key2 = test_keypair();
+        let env1 = sign_finding(&f, &key1).unwrap();
+        let env1_dup = sign_finding(&f, &key1).unwrap();
+        let env2 = sign_finding(&f, &key2).unwrap();
+        let project = empty_project(vec![f.clone()], vec![env1, env1_dup, env2]);
+        let signers = signers_for(&project, &f.id);
+        assert_eq!(signers.len(), 2, "duplicate pubkey must be counted once");
+    }
+
+    #[test]
+    fn threshold_met_requires_k_unique_signers() {
+        let mut f = sample_finding();
+        f.flags.signature_threshold = Some(2);
+        let key1 = test_keypair();
+        let env1 = sign_finding(&f, &key1).unwrap();
+        let project_one = empty_project(vec![f.clone()], vec![env1.clone()]);
+        assert!(!threshold_met(&project_one, &f.id), "1 of 2 not met");
+
+        let key2 = test_keypair();
+        let env2 = sign_finding(&f, &key2).unwrap();
+        let project_two = empty_project(vec![f.clone()], vec![env1, env2]);
+        assert!(threshold_met(&project_two, &f.id), "2 of 2 met");
+    }
+
+    #[test]
+    fn threshold_none_reports_not_met() {
+        let f = sample_finding();
+        // signature_threshold defaults to None.
+        let key = test_keypair();
+        let env = sign_finding(&f, &key).unwrap();
+        let project = empty_project(vec![f.clone()], vec![env]);
+        assert!(
+            !threshold_met(&project, &f.id),
+            "no policy → never met (single-sig regime)"
+        );
+    }
+
+    #[test]
+    fn refresh_jointly_accepted_sets_flag() {
+        let mut f = sample_finding();
+        f.flags.signature_threshold = Some(1);
+        let key = test_keypair();
+        let env = sign_finding(&f, &key).unwrap();
+        let mut project = empty_project(vec![f.clone()], vec![env]);
+        refresh_jointly_accepted(&mut project);
+        assert!(project.findings[0].flags.jointly_accepted);
+    }
+
+    #[test]
+    fn invalid_signature_does_not_count_toward_threshold() {
+        let mut f = sample_finding();
+        f.flags.signature_threshold = Some(2);
+        let key1 = test_keypair();
+        let key2 = test_keypair();
+        let env1 = sign_finding(&f, &key1).unwrap();
+        let mut env2_tampered = sign_finding(&f, &key2).unwrap();
+        // Replace signature bytes with garbage; key still claims to be key2.
+        env2_tampered.signature = "00".repeat(64);
+        let project = empty_project(vec![f.clone()], vec![env1, env2_tampered]);
+        assert_eq!(valid_signature_count(&project, &f.id), 1);
+        assert!(!threshold_met(&project, &f.id));
+    }
+
+    #[test]
+    fn verify_report_surfaces_threshold_counts() {
+        let mut f = sample_finding();
+        f.flags.signature_threshold = Some(1);
+        let key = test_keypair();
+        let env = sign_finding(&f, &key).unwrap();
+        let project = empty_project(vec![f.clone()], vec![env]);
+        let report = verify_frontier_data(&project, None).unwrap();
+        assert_eq!(report.findings_with_threshold, 1);
+        assert_eq!(report.jointly_accepted, 1);
     }
 }
