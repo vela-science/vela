@@ -723,7 +723,7 @@ mod tests {
                 age_group: None,
                 cell_type: None,
             },
-            confidence: Confidence::legacy(0.75, "experimental evidence", 0.9),
+            confidence: Confidence::raw(0.75, "experimental evidence", 0.9),
             provenance: Provenance {
                 source_type: "published_paper".into(),
                 doi: Some("10.1234/test".into()),

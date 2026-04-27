@@ -387,7 +387,7 @@ mod tests {
                 age_group: None,
                 cell_type: None,
             },
-            confidence: Confidence::legacy(score, "test", 0.85),
+            confidence: Confidence::raw(score, "test", 0.85),
             provenance: Provenance {
                 source_type: "published_paper".into(),
                 doi: None,

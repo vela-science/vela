@@ -668,7 +668,7 @@ fn lift_open_question(q: &MOpenQuestion, label: &str) -> FindingBundle {
         relation: None,
         direction: None,
     };
-    let confidence = Confidence::legacy(
+    let confidence = Confidence::raw(
         0.0,
         "notes_compiler: open question, no evidence yet",
         0.7,
@@ -700,7 +700,7 @@ fn lift_hypothesis(h: &MHypothesis, label: &str) -> FindingBundle {
         relation: None,
         direction: None,
     };
-    let confidence = Confidence::legacy(
+    let confidence = Confidence::raw(
         0.4,
         "notes_compiler: provisional hypothesis with predictions",
         0.7,
@@ -727,7 +727,7 @@ fn lift_candidate_finding(c: &MCandidateFinding, label: &str) -> FindingBundle {
         relation: None,
         direction: None,
     };
-    let confidence = Confidence::legacy(
+    let confidence = Confidence::raw(
         0.5,
         "notes_compiler: candidate finding from researcher's notes",
         0.7,
@@ -761,7 +761,7 @@ fn lift_tension(t: &MTension, label: &str) -> FindingBundle {
         relation: None,
         direction: None,
     };
-    let confidence = Confidence::legacy(
+    let confidence = Confidence::raw(
         0.0,
         "notes_compiler: tension surfaced for review",
         0.7,

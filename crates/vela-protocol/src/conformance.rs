@@ -250,7 +250,7 @@ fn make_test_finding(v: &serde_json::Value) -> FindingBundle {
             age_group: None,
             cell_type: None,
         },
-        confidence: Confidence::legacy(conf, "test", 0.85),
+        confidence: Confidence::raw(conf, "test", 0.85),
         provenance: Provenance {
             source_type: "published_paper".into(),
             doi,
@@ -390,7 +390,7 @@ fn make_confidence_bundle(v: &serde_json::Value) -> FindingBundle {
             age_group: None,
             cell_type: None,
         },
-        confidence: Confidence::legacy(score, "seeded prior", 0.85),
+        confidence: Confidence::raw(score, "seeded prior", 0.85),
         provenance: Provenance {
             source_type: "published_paper".into(),
             doi: None,
@@ -551,7 +551,7 @@ fn run_retraction_propagation(
                     age_group: None,
                     cell_type: None,
                 },
-                confidence: Confidence::legacy(conf, "test", 0.85),
+                confidence: Confidence::raw(conf, "test", 0.85),
                 provenance: Provenance {
                     source_type: "published_paper".into(),
                     doi: None,
@@ -713,7 +713,7 @@ fn make_observer_finding(v: &serde_json::Value) -> FindingBundle {
             age_group: None,
             cell_type: None,
         },
-        confidence: Confidence::legacy(conf, "test", 0.85),
+        confidence: Confidence::raw(conf, "test", 0.85),
         provenance: Provenance {
             source_type: "published_paper".into(),
             doi: None,

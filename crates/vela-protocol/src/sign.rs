@@ -530,7 +530,7 @@ mod tests {
                 age_group: None,
                 cell_type: Some("microglia".into()),
             },
-            Confidence::legacy(0.85, "Experimental with replication", 0.9),
+            Confidence::raw(0.85, "Experimental with replication", 0.9),
             Provenance {
                 source_type: "published_paper".into(),
                 doi: Some("10.1234/test".into()),

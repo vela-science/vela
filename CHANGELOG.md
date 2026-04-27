@@ -1,5 +1,102 @@
 # Changelog
 
+## 0.36.0 - 2026-04-27
+
+**Legacy ingestion regime removed.** The pre-v0.22 file-driven ingestion
+path (`vela compile`, `vela jats`, `vela ingest`) is deleted. The agent
+inbox (`vela scout`, `vela compile-notes`, `vela compile-code`,
+`vela compile-data`) has fully replaced it for two minor versions; this
+release stops carrying the dead code.
+
+This is a *breaking CLI change* for any caller still relying on the
+legacy commands. None exist in this repo or in any signed frontier on
+the hub. The substrate semantics, on-disk shape, and signed manifests
+are unchanged.
+
+### CLI surfaces removed
+
+| Removed | Replacement |
+|---|---|
+| `vela compile <topic-or-folder>` | `vela scout <pdf-folder> --frontier <path>` for paper extraction |
+| `vela ingest --pdf/--csv/--text/--doi` | `vela scout` for PDFs, `vela compile-data` for CSV/Parquet, `vela compile-notes` for Markdown, manual `vela finding add` for direct claims |
+| `vela jats <jats-or-pmcid>` | `vela scout` against locally-saved papers; PMC fetch is no longer in scope |
+
+`SCIENCE_SUBCOMMANDS` allowlist trimmed to drop `compile`, `ingest`,
+`jats`. The strict v0 release-command gate now refuses these as
+unknown commands.
+
+### Modules removed
+
+vela-scientist (six legacy_* files):
+- `legacy_compile.rs` (legacy compile pipeline body)
+- `legacy_corpus.rs` (local-folder corpus orchestration)
+- `legacy_extract.rs` (paper-text extraction)
+- `legacy_ingest.rs` (file-ingest dispatch)
+- `legacy_link.rs` (link inference for legacy compile)
+- `legacy_llm.rs` (shared LLM config struct used only by the above)
+
+vela-protocol:
+- `fetch.rs` (Crossref/PubMed fetch utilities; only the legacy paths used these)
+- `extract.rs` (paper-text → finding extraction; superseded by Scout)
+- `jats.rs` (JATS XML parser; only `cmd_jats` used it)
+
+vela-cli/main.rs: handler types `IngestHandler` / `CompileHandler` /
+`JatsHandler`, the matching `register_*_handler` calls, and the three
+adapter functions (`ingest_handler`, `compile_handler`, `jats_handler`)
+that bridged into the now-deleted scientist modules.
+
+vela-protocol/src/ingest.rs: collapsed from a 700-line legacy ingestion
+driver to a 70-line `extract_pdf_text` utility. The function remains at
+its old import path (`vela_protocol::ingest::extract_pdf_text`) so
+Scout's import is unchanged.
+
+### Confidence::raw() (renamed from Confidence::legacy)
+
+The `Confidence::legacy()` constructor was named legacy by mistake when
+the structured `components` breakdown shipped alongside it; the two
+were always intended as parallel constructors, not as a deprecation
+path. Renamed to `Confidence::raw()` across all 37 call sites in
+vela-protocol and vela-scientist. Behavior unchanged.
+
+### Site
+
+`TerminalReplay.astro`: the v0.31 hero replay was demoing
+`vela compile ./papers --output frontier.json`. Updated to show the
+agent-inbox flow:
+
+```
+$ vela scout ./papers --frontier ./frontier.json
+$ vela review-pending --frontier ./frontier.json --batch-size 8
+$ vela queue sign --proposal vp_0a14b29c
+$ vela registry publish ./frontier.json --to vela-hub.fly.dev
+```
+
+The hub URL also corrected from the placeholder `hub.vela.science` to
+the actual `vela-hub.fly.dev`.
+
+### Verification
+
+- `cargo build --release --bin vela`: clean, no warnings.
+- `cargo test --workspace --release`: **365/365 pass** (was 382; 17
+  tests lived inside the deleted legacy_* modules and moved with them).
+- `vela check projects/bbb-flagship`: 86/86 valid.
+- `vela --version`: `vela 0.36.0`.
+- Site build: 205 pages, clean.
+- 9 source files removed from the substrate; ~3,000 lines of
+  pre-arc plumbing gone.
+
+### What's left of the codebase
+
+Substrate after this pass — 41 modules in `vela-protocol/src/` (down
+from 46), 11 in `vela-scientist/src/` (down from 17). Every module
+serves the v0.32–v0.35 kernel primitives or one of the seven shipped
+agents. No orphaned code.
+
+The kernel-completeness frame closed at v0.35; the cleanup arc at
+v0.35.1 + v0.36.0 removed the substrate's pre-arc skin. From this
+point forward, every line in the protocol crate either holds a
+kernel object or computes a derived view over them.
+
 ## 0.35.1 - 2026-04-27
 
 **Cleanup pass — removing dead code and stale documentation.**

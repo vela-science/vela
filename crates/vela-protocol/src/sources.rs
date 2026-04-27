@@ -1066,7 +1066,7 @@ mod tests {
                 age_group: None,
                 cell_type: None,
             },
-            confidence: Confidence::legacy(0.6, "test", 0.8),
+            confidence: Confidence::raw(0.6, "test", 0.8),
             provenance: Provenance {
                 source_type: "published_paper".to_string(),
                 doi: Some("10.0000/test".to_string()),

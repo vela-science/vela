@@ -344,7 +344,7 @@ fn lift_tension(a: &FindingBundle, b: &FindingBundle, why: &str) -> FindingBundl
         age_group: None,
         cell_type: None,
     };
-    let confidence = Confidence::legacy(
+    let confidence = Confidence::raw(
         0.0,
         "contradiction_finder: pair surfaced for review",
         0.7,
@@ -432,7 +432,7 @@ mod tests {
                 age_group: None,
                 cell_type: None,
             },
-            confidence: Cf::legacy(0.5, "t", 0.7),
+            confidence: Cf::raw(0.5, "t", 0.7),
             provenance: P {
                 source_type: "t".to_string(),
                 doi: None,

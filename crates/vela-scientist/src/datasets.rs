@@ -756,7 +756,7 @@ fn lift_summary(s: &MDatasetSummary, schema: &DatasetSchema, label: &str) -> Fin
         relation: None,
         direction: None,
     };
-    let confidence = Confidence::legacy(
+    let confidence = Confidence::raw(
         0.6,
         "datasets_agent: schema-derived summary; not yet reviewed",
         0.7,
@@ -808,7 +808,7 @@ fn lift_supported_claim(
         relation: None,
         direction: None,
     };
-    let confidence = Confidence::legacy(
+    let confidence = Confidence::raw(
         0.4,
         "datasets_agent: claim plausibly supported by schema",
         0.7,

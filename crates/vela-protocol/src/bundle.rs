@@ -871,9 +871,17 @@ fn default_extraction_conf() -> f64 {
 }
 
 impl Confidence {
-    /// Create an uncomputed confidence. Use in tests and code that
-    /// constructs findings without computed confidence components.
-    pub fn legacy(score: f64, basis: impl Into<String>, extraction_confidence: f64) -> Self {
+    /// Construct a `Confidence` with a raw score and basis string but
+    /// without the structured `components` breakdown. The agent layer
+    /// uses this when an LLM produces a single confidence value; the
+    /// computed deterministic components arrive later via
+    /// `compute_confidence`.
+    ///
+    /// Renamed from `legacy()` in v0.36; the previous name was a
+    /// historical accident (the constructor was never actually
+    /// deprecated, just misnamed when the structured components shipped
+    /// alongside it).
+    pub fn raw(score: f64, basis: impl Into<String>, extraction_confidence: f64) -> Self {
         Self {
             kind: ConfidenceKind::FrontierEpistemic,
             score,

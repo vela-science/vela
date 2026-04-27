@@ -966,7 +966,7 @@ mod tests {
                 age_group: None,
                 cell_type: None,
             },
-            Confidence::legacy(0.85, "test", 0.9),
+            Confidence::raw(0.85, "test", 0.9),
             provenance,
             Flags {
                 gap: false,

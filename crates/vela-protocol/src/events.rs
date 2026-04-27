@@ -504,7 +504,7 @@ mod tests {
                 age_group: None,
                 cell_type: None,
             },
-            Confidence::legacy(0.6, "test", 0.8),
+            Confidence::raw(0.6, "test", 0.8),
             Provenance {
                 source_type: "published_paper".to_string(),
                 doi: None,

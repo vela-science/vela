@@ -560,7 +560,7 @@ fn lift_analysis(a: &MAnalysis, label: &str, ext: &str) -> FindingBundle {
         relation: None,
         direction: None,
     };
-    let confidence = Confidence::legacy(
+    let confidence = Confidence::raw(
         0.4,
         "code_analyst: analysis described from source code",
         0.7,
@@ -609,7 +609,7 @@ fn lift_code_finding(c: &MCodeFinding, label: &str, ext: &str) -> FindingBundle 
         relation: None,
         direction: None,
     };
-    let confidence = Confidence::legacy(
+    let confidence = Confidence::raw(
         0.5,
         "code_analyst: claim with code+output evidence",
         0.7,
@@ -648,7 +648,7 @@ fn lift_experiment_intent(e: &MExperimentIntent, label: &str, ext: &str) -> Find
         relation: None,
         direction: None,
     };
-    let confidence = Confidence::legacy(
+    let confidence = Confidence::raw(
         0.0,
         "code_analyst: proposed experiment, not yet run",
         0.7,

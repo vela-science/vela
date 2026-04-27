@@ -1710,7 +1710,7 @@ mod tests {
                 age_group: None,
                 cell_type: None,
             },
-            confidence: Confidence::legacy(0.85, "test", 0.9),
+            confidence: Confidence::raw(0.85, "test", 0.9),
             provenance: Provenance {
                 source_type: "published_paper".into(),
                 doi: None,
@@ -1805,7 +1805,7 @@ mod tests {
                 age_group: None,
                 cell_type: None,
             },
-            confidence: Confidence::legacy(0.9, "test", 0.9),
+            confidence: Confidence::raw(0.9, "test", 0.9),
             provenance: Provenance {
                 source_type: "published_paper".into(),
                 doi: None,

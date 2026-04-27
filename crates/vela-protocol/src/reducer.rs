@@ -378,7 +378,7 @@ mod tests {
                 age_group: None,
                 cell_type: None,
             },
-            Confidence::legacy(0.5, "test", 0.8),
+            Confidence::raw(0.5, "test", 0.8),
             Provenance {
                 source_type: "published_paper".to_string(),
                 doi: Some(format!("10.1/test-{id}")),

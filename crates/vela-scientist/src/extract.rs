@@ -225,7 +225,7 @@ fn lift_to_bundle(c: &ModelCandidate, label: &str) -> FindingBundle {
         age_group: None,
         cell_type: None,
     };
-    let confidence = Confidence::legacy(
+    let confidence = Confidence::raw(
         0.5,
         "literature_scout: extracted candidate; not yet reviewed",
         0.7,

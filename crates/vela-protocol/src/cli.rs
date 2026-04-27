@@ -1,5 +1,5 @@
 use crate::{
-    benchmark, bridge, bundle, conformance, diff, events, export, ingest, lint, normalize,
+    benchmark, bridge, bundle, conformance, diff, events, export, lint, normalize,
     packet, project, propagate, proposals, repo, review, search, serve, sign, signals, sources,
     state, tensions, validate,
 };
@@ -19,7 +19,7 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 
 #[derive(Parser)]
-#[command(name = "vela", version = "0.35.1")]
+#[command(name = "vela", version = "0.36.0")]
 #[command(about = "Portable frontier state for science")]
 struct Cli {
     #[command(subcommand)]
@@ -28,26 +28,6 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Compile a frontier from a topic or local paper folder
-    Compile {
-        /// Research topic, file, or local paper folder to compile
-        topic: String,
-        /// Max papers to process for topic compile
-        #[arg(short = 'n', long, default_value = "50")]
-        papers: usize,
-        /// Output frontier file
-        #[arg(short, long, default_value = "frontier.json")]
-        output: PathBuf,
-        /// LLM backend: gemini, openrouter, groq, anthropic
-        #[arg(short, long)]
-        backend: Option<String>,
-        /// Fetch PMC full text for topic compile
-        #[arg(long, default_value = "true", action = clap::ArgAction::Set)]
-        fulltext: bool,
-        /// Use OpenRouter free-tier backend
-        #[arg(long)]
-        free: bool,
-    },
     /// v0.22 Agent Inbox: run Literature Scout against a folder of
     /// PDFs. Each candidate finding becomes a `finding.add`
     /// `StateProposal` tagged with the scout's `AgentRun`, written
@@ -200,67 +180,6 @@ enum Commands {
         /// Output stable JSON for programmatic callers.
         #[arg(long)]
         json: bool,
-    },
-    /// Ingest manual or file-derived findings into a frontier
-    Ingest {
-        /// Frontier JSON file or Vela repo
-        frontier: PathBuf,
-        /// Assertion text for manual ingest
-        #[arg(long)]
-        assertion: Option<String>,
-        /// Ingest PDF file
-        #[arg(long)]
-        pdf: Option<PathBuf>,
-        /// Ingest CSV file
-        #[arg(long)]
-        csv: Option<PathBuf>,
-        /// Ingest text or Markdown file
-        #[arg(long)]
-        text: Option<PathBuf>,
-        /// Ingest by DOI
-        #[arg(long)]
-        doi: Option<String>,
-        /// Ingest every supported file from a directory
-        #[arg(long)]
-        dir: Option<PathBuf>,
-        /// LLM backend for file ingestion
-        #[arg(short, long)]
-        backend: Option<String>,
-        /// Assertion type
-        #[arg(long, default_value = "mechanism")]
-        r#type: String,
-        /// Evidence type
-        #[arg(long, default_value = "experimental")]
-        evidence: String,
-        /// Species
-        #[arg(long)]
-        species: Option<String>,
-        /// Method used
-        #[arg(long, default_value = "")]
-        method: String,
-        /// Confidence score from 0.0 to 1.0
-        #[arg(long, default_value = "0.7")]
-        confidence: f64,
-        /// Entities as comma-separated name:type pairs
-        #[arg(long, default_value = "")]
-        entities: String,
-        /// Direction: positive, negative, bidirectional, or null
-        #[arg(long)]
-        direction: Option<String>,
-        /// Source description
-        #[arg(long, default_value = "manual ingest")]
-        source: String,
-    },
-    /// Compile findings from JATS XML or a PMC ID
-    Jats {
-        /// JATS XML file path or PMC ID
-        source: String,
-        /// Output frontier file or Vela repo
-        #[arg(short, long, default_value = "frontier.json")]
-        output: PathBuf,
-        /// LLM backend for extraction
-        #[arg(short, long)]
-        backend: Option<String>,
     },
     /// Check frontier quality and proof readiness
     Check {
@@ -1561,21 +1480,6 @@ pub async fn run_command() {
     dotenvy::dotenv().ok();
 
     match Cli::parse().command {
-        Commands::Compile {
-            topic,
-            papers,
-            output,
-            backend,
-            fulltext,
-            free,
-        } => {
-            let backend = if free {
-                Some("openrouter".to_string())
-            } else {
-                backend
-            };
-            cmd_compile(&topic, papers, &output, backend.as_deref(), fulltext).await;
-        }
         Commands::Scout {
             folder,
             frontier,
@@ -1691,49 +1595,6 @@ pub async fn run_command() {
             )
             .await;
         }
-        Commands::Ingest {
-            frontier,
-            assertion,
-            pdf,
-            csv,
-            text,
-            doi,
-            dir,
-            backend,
-            r#type,
-            evidence,
-            species,
-            method,
-            confidence,
-            entities,
-            direction,
-            source,
-        } => {
-            cmd_ingest(
-                &frontier,
-                assertion,
-                pdf,
-                csv,
-                text,
-                doi,
-                dir,
-                backend.as_deref(),
-                r#type,
-                evidence,
-                species,
-                method,
-                confidence,
-                entities,
-                direction,
-                source,
-            )
-            .await;
-        }
-        Commands::Jats {
-            source,
-            output,
-            backend,
-        } => cmd_jats(&source, &output, backend.as_deref()).await,
         Commands::Check {
             source,
             schema,
@@ -1928,7 +1789,7 @@ pub async fn run_command() {
         Commands::Conformance { dir } => {
             let _ = conformance::run(&dir);
         }
-        Commands::Version => println!("vela 0.35.1"),
+        Commands::Version => println!("vela 0.36.0"),
         Commands::Sign { action } => cmd_sign(action),
         Commands::Actor { action } => cmd_actor(action),
         Commands::Frontier { action } => cmd_frontier(action),
@@ -3475,39 +3336,6 @@ fn cmd_replications(frontier: &Path, target: Option<&str>, json: bool) {
     }
 }
 
-/// v0.27 Substrate cleanup: thin dispatcher for `vela compile`.
-/// The pipeline body (LLM extraction + link inference + corpus
-/// orchestration) lives in `vela-scientist::legacy_compile`. The
-/// `vela` CLI binary registers a handler at startup that calls
-/// into the scientist crate.
-pub async fn cmd_compile(
-    topic: &str,
-    max_papers: usize,
-    output: &Path,
-    backend: Option<&str>,
-    fulltext: bool,
-) {
-    match COMPILE_HANDLER.get() {
-        Some(handler) => {
-            handler(
-                topic.to_string(),
-                max_papers,
-                output.to_path_buf(),
-                backend.map(String::from),
-                fulltext,
-            )
-            .await;
-        }
-        None => {
-            eprintln!(
-                "{} `vela compile` requires the vela CLI binary; the library is unwired without a registered compile handler.",
-                style::err_prefix()
-            );
-            std::process::exit(1);
-        }
-    }
-}
-
 #[allow(clippy::too_many_arguments)]
 /// v0.25 Agent Inbox: dispatches the registered datasets handler.
 async fn cmd_compile_data(
@@ -3734,175 +3562,6 @@ async fn cmd_scout(
     }
 }
 
-#[allow(clippy::too_many_arguments)]
-async fn cmd_ingest(
-    frontier: &Path,
-    assertion: Option<String>,
-    pdf: Option<PathBuf>,
-    csv: Option<PathBuf>,
-    text: Option<PathBuf>,
-    doi: Option<String>,
-    dir: Option<PathBuf>,
-    backend: Option<&str>,
-    assertion_type: String,
-    evidence_type: String,
-    species: Option<String>,
-    method: String,
-    confidence_score: f64,
-    entities: String,
-    direction: Option<String>,
-    source: String,
-) {
-    if let Some(dir_path) = dir {
-        let entries = std::fs::read_dir(&dir_path)
-            .unwrap_or_else(|e| {
-                eprintln!(
-                    "{} error reading {}: {e}",
-                    style::err_prefix(),
-                    dir_path.display()
-                );
-                std::process::exit(1);
-            })
-            .filter_map(Result::ok)
-            .collect::<Vec<_>>();
-        for entry in &entries {
-            let path = entry.path();
-            match path.extension().and_then(|e| e.to_str()).unwrap_or("") {
-                "pdf" => {
-                    dispatch_legacy_ingest(
-                        frontier,
-                        Some(&path),
-                        None,
-                        None,
-                        None,
-                        backend,
-                    )
-                    .await;
-                }
-                "csv" | "tsv" => {
-                    dispatch_legacy_ingest(
-                        frontier,
-                        None,
-                        Some(&path),
-                        None,
-                        None,
-                        backend,
-                    )
-                    .await;
-                }
-                "txt" | "md" => {
-                    dispatch_legacy_ingest(
-                        frontier,
-                        None,
-                        None,
-                        Some(&path),
-                        None,
-                        backend,
-                    )
-                    .await;
-                }
-                _ => {}
-            }
-        }
-        println!("{} checked {} files.", style::ok("ok"), entries.len());
-        return;
-    }
-
-    if pdf.is_some() || csv.is_some() || text.is_some() || doi.is_some() {
-        dispatch_legacy_ingest(
-            frontier,
-            pdf.as_deref(),
-            csv.as_deref(),
-            text.as_deref(),
-            doi.as_deref(),
-            backend,
-        )
-        .await;
-        return;
-    }
-
-    let Some(assertion_text) = assertion else {
-        fail("Provide --assertion, --pdf, --csv, --text, --doi, or --dir.");
-    };
-    if !(0.0..=1.0).contains(&confidence_score) {
-        fail("--confidence must be between 0.0 and 1.0");
-    }
-    let parsed_entities = parse_entities(&entities);
-    ingest::run(
-        frontier,
-        ingest::IngestArgs {
-            assertion_text,
-            assertion_type,
-            evidence_type,
-            species,
-            method,
-            confidence_score,
-            entities: parsed_entities,
-            direction,
-            source,
-        },
-    );
-}
-
-/// v0.27 Substrate cleanup: thin helper for `vela ingest --pdf /
-/// --csv / --text / --doi`. Forwards to the registered legacy
-/// ingest handler in `vela-scientist::legacy_ingest`. The
-/// substrate keeps the manual `--assertion` path; this helper is
-/// only invoked when a file source is provided.
-async fn dispatch_legacy_ingest(
-    frontier: &Path,
-    pdf: Option<&Path>,
-    csv: Option<&Path>,
-    text: Option<&Path>,
-    doi: Option<&str>,
-    backend: Option<&str>,
-) {
-    match INGEST_HANDLER.get() {
-        Some(handler) => {
-            handler(
-                frontier.to_path_buf(),
-                pdf.map(Path::to_path_buf),
-                csv.map(Path::to_path_buf),
-                text.map(Path::to_path_buf),
-                doi.map(String::from),
-                backend.map(String::from),
-                None,
-                None,
-                None,
-            )
-            .await;
-        }
-        None => {
-            eprintln!(
-                "{} `vela ingest --pdf/--csv/--text/--doi` requires the vela CLI binary; the library is unwired without a registered ingest handler.",
-                style::err_prefix()
-            );
-            std::process::exit(1);
-        }
-    }
-}
-
-/// v0.27 Substrate cleanup: thin dispatcher for `vela jats`.
-/// Body lives in `vela-scientist::legacy_compile::cmd_jats`.
-async fn cmd_jats(source: &str, output: &Path, backend: Option<&str>) {
-    match JATS_HANDLER.get() {
-        Some(handler) => {
-            handler(
-                source.to_string(),
-                output.to_path_buf(),
-                backend.map(String::from),
-            )
-            .await;
-        }
-        None => {
-            eprintln!(
-                "{} `vela jats` requires the vela CLI binary; the library is unwired without a registered jats handler.",
-                style::err_prefix()
-            );
-            std::process::exit(1);
-        }
-    }
-}
 
 #[allow(clippy::too_many_arguments)]
 fn cmd_check(
@@ -4584,7 +4243,7 @@ fn cmd_stats(path: &Path) {
     let frontier = repo::load_from_path(path).expect("Failed to load frontier");
     let s = &frontier.stats;
     println!();
-    println!("  {}", "FRONTIER · V0.35.0".dimmed());
+    println!("  {}", "FRONTIER · V0.36.0".dimmed());
     println!("  {}", frontier.project.name.bold());
     println!("  {}", style::tick_row(60));
     println!("  id:             {}", frontier.frontier_id());
@@ -6845,7 +6504,7 @@ async fn cmd_bridge(inputs: &[PathBuf], check_novelty: bool, top_n: usize) {
         fail("need at least 2 frontier files for bridge detection.");
     }
     println!();
-    println!("  {}", "VELA · BRIDGE · V0.35.0".dimmed());
+    println!("  {}", "VELA · BRIDGE · V0.36.0".dimmed());
     println!("  {}", style::tick_row(60));
     println!("  loading {} frontiers...", inputs.len());
     let mut named_projects = Vec::<(String, project::Project)>::new();
@@ -7624,7 +7283,6 @@ pub struct ProofTrace {
 }
 
 const SCIENCE_SUBCOMMANDS: &[&str] = &[
-    "compile",
     "compile-notes",
     "compile-code",
     "compile-data",
@@ -7632,8 +7290,6 @@ const SCIENCE_SUBCOMMANDS: &[&str] = &[
     "find-tensions",
     "plan-experiments",
     "scout",
-    "ingest",
-    "jats",
     "check",
     "normalize",
     "proof",
@@ -7695,7 +7351,7 @@ pub fn is_science_subcommand(name: &str) -> bool {
 
 fn print_strict_help() {
     println!(
-        r#"Vela 0.35.0
+        r#"Vela 0.36.0
 Portable frontier state for science.
 
 Usage:
@@ -7845,67 +7501,6 @@ pub fn register_datasets_handler(handler: DatasetsHandler) {
     let _ = DATASETS_HANDLER.set(handler);
 }
 
-/// v0.27 Substrate cleanup: handler for legacy `vela ingest --pdf
-/// / --csv / --text / --doi`. The substrate retains the manual
-/// `vela ingest --assertion` path (no LLM); this handler covers
-/// the file-driven extraction paths that moved to
-/// `vela-scientist::legacy_ingest`.
-#[allow(clippy::type_complexity)]
-pub type IngestHandler = fn(
-    frontier: PathBuf,
-    pdf: Option<PathBuf>,
-    csv: Option<PathBuf>,
-    text: Option<PathBuf>,
-    doi: Option<String>,
-    backend: Option<String>,
-    assertion_type_override: Option<String>,
-    assertion_col: Option<String>,
-    confidence_col: Option<String>,
-) -> Pin<Box<dyn Future<Output = ()> + Send>>;
-
-static INGEST_HANDLER: OnceLock<IngestHandler> = OnceLock::new();
-
-/// Install the legacy file-ingest handler. Idempotent.
-pub fn register_ingest_handler(handler: IngestHandler) {
-    let _ = INGEST_HANDLER.set(handler);
-}
-
-/// v0.27 Substrate cleanup: handler for legacy `vela compile`.
-/// The substrate's `vela compile` command's local-corpus path
-/// moved to `vela-scientist::legacy_corpus` (which calls into
-/// `legacy_extract` and `legacy_link`). The fetch-from-PubMed
-/// path stays in the binary as well; both go through this hook.
-pub type CompileHandler = fn(
-    topic: String,
-    max_papers: usize,
-    output: PathBuf,
-    backend: Option<String>,
-    fulltext: bool,
-) -> Pin<Box<dyn Future<Output = ()> + Send>>;
-
-static COMPILE_HANDLER: OnceLock<CompileHandler> = OnceLock::new();
-
-/// Install the legacy compile handler. Idempotent.
-pub fn register_compile_handler(handler: CompileHandler) {
-    let _ = COMPILE_HANDLER.set(handler);
-}
-
-/// v0.27 Substrate cleanup: handler for legacy `vela jats`
-/// (JATS XML / PMC fetch + LLM extraction). Whole pipeline runs
-/// in `vela-scientist::legacy_jats`; substrate keeps the CLI flag
-/// surface only.
-pub type JatsHandler = fn(
-    source: String,
-    output: PathBuf,
-    backend: Option<String>,
-) -> Pin<Box<dyn Future<Output = ()> + Send>>;
-
-static JATS_HANDLER: OnceLock<JatsHandler> = OnceLock::new();
-
-/// Install the legacy JATS handler. Idempotent.
-pub fn register_jats_handler(handler: JatsHandler) {
-    let _ = JATS_HANDLER.set(handler);
-}
 
 /// v0.28 Agent Inbox: handler for `vela review-pending`.
 pub type ReviewerHandler = fn(
@@ -7965,7 +7560,7 @@ pub fn run_from_args() {
             return;
         }
         Some("-V" | "--version" | "version") => {
-            println!("vela 0.35.1");
+            println!("vela 0.36.0");
             return;
         }
         Some(cmd) if !is_science_subcommand(cmd) => {

@@ -37,15 +37,15 @@ const { title = "vela · canonical session", height = "440px" } = Astro.props;
   <div class="tr__body" aria-live="polite" aria-atomic="false"></div>
   <noscript>
     <pre class="tr__noscript">
-$ vela compile ./papers --output frontier.json
+$ vela scout ./papers --frontier ./frontier.json
   scout: 4 papers · 11 findings extracted
-$ vela queue review
+$ vela review-pending --frontier ./frontier.json --batch-size 8
   reviewer agent: scoring 11 proposals (batch_size=8)…
   scored 11/11 · plausibility 0.78 avg · evidence 0.72 avg
 $ vela queue sign --proposal vp_0a14...
   signed: appended event ev_d1f… · frontier hash vfr_…
-$ vela registry publish ./frontier.json --to https://hub.vela.science
-  published: vfr_… → https://hub.vela.science
+$ vela registry publish ./frontier.json --to https://vela-hub.fly.dev
+  published: vfr_… → https://vela-hub.fly.dev
     </pre>
   </noscript>
 </figure>
@@ -61,20 +61,20 @@ $ vela registry publish ./frontier.json --to https://hub.vela.science
     | { kind: "pause"; ms: number };
 
   const SCRIPT: Step[] = [
-    { kind: "prompt", cmd: "vela compile ./papers --output frontier.json" },
+    { kind: "prompt", cmd: "vela scout ./papers --frontier ./frontier.json" },
     { kind: "out",    text: "  scout: scanning 4 papers…", ms: 380 },
     { kind: "out",    text: "  scout: 11 findings extracted (3 mechanism · 5 observation · 3 gap)", ms: 520 },
-    { kind: "out",    text: "  frontier: vfr_a3f… · 11 findings · ready", ms: 320 },
+    { kind: "out",    text: "  proposals: 11 (appended to frontier)", ms: 320 },
     { kind: "pause",  ms: 700 },
-    { kind: "prompt", cmd: "vela queue review --batch-size 8" },
+    { kind: "prompt", cmd: "vela review-pending --frontier ./frontier.json --batch-size 8" },
     { kind: "out",    text: "  reviewer agent: scoring 8 proposals…", ms: 450 },
     { kind: "out",    text: "  scored 8/8 · plausibility 0.78 avg · evidence 0.72 avg", ms: 380 },
     { kind: "pause",  ms: 600 },
     { kind: "prompt", cmd: "vela queue sign --proposal vp_0a14b29c" },
     { kind: "out",    text: "  signed: ev_d1f… · finding vf_c4bf737… is now canonical", ms: 380 },
     { kind: "pause",  ms: 800 },
-    { kind: "prompt", cmd: "vela registry publish ./frontier.json --to hub.vela.science" },
-    { kind: "out",    text: "  published: vfr_a3f… → https://hub.vela.science/entries", ms: 460 },
+    { kind: "prompt", cmd: "vela registry publish ./frontier.json --to vela-hub.fly.dev" },
+    { kind: "out",    text: "  published: vfr_a3f… → https://vela-hub.fly.dev/entries", ms: 460 },
     { kind: "out",    text: "  manifest signed by reviewer:you · client-verifiable on read", ms: 360 },
     { kind: "pause",  ms: 2200 },
   ];

@@ -744,7 +744,7 @@ mod tests {
                 age_group: None,
                 cell_type: None,
             },
-            confidence: Confidence::legacy(0.5, "test", 0.7),
+            confidence: Confidence::raw(0.5, "test", 0.7),
             provenance: Provenance {
                 source_type: "test".to_string(),
                 doi: None,

@@ -1191,7 +1191,7 @@ mod tests {
                 age_group: None,
                 cell_type: None,
             },
-            confidence: Confidence::legacy(0.9, "test".to_string(), 0.9),
+            confidence: Confidence::raw(0.9, "test".to_string(), 0.9),
             provenance,
             flags: Flags {
                 gap: false,
