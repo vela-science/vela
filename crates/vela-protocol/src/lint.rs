@@ -128,6 +128,14 @@ pub fn all_rules() -> Vec<LintRule> {
             severity: Severity::Warning,
             description: "T-test used when multiple groups are mentioned".into(),
         },
+        LintRule {
+            id: "L011".into(),
+            name: "causal_mismatch_supports".into(),
+            severity: Severity::Warning,
+            description:
+                "A `supports` link from a weaker causal claim (correlation) to a stronger one (intervention) is a category error: correlation alone cannot support a causal claim."
+                    .into(),
+        },
     ]
 }
 
@@ -382,6 +390,79 @@ pub fn check_wrong_test(finding: &FindingBundle) -> Vec<Diagnostic> {
     diags
 }
 
+/// v0.38.3: A `supports` link from finding A to finding B asserts
+/// that A's evidence reinforces B's claim. When both findings carry
+/// causal typing, the link is only epistemically valid if A's claim
+/// is at least as strong as B's. A correlation claim cannot support
+/// an intervention claim — that's a textbook category error.
+///
+/// Strength order: Correlation < Mediation < Intervention.
+/// Findings with `causal_claim = None` are skipped (the link may be
+/// fine; the kernel doesn't yet know).
+pub fn check_causal_mismatch_on_supports(frontier: &Project) -> Vec<Diagnostic> {
+    use crate::bundle::CausalClaim;
+    use std::collections::HashMap;
+
+    let claim_rank = |c: CausalClaim| -> u32 {
+        match c {
+            CausalClaim::Correlation => 1,
+            CausalClaim::Mediation => 2,
+            CausalClaim::Intervention => 3,
+        }
+    };
+    let claim_name = |c: CausalClaim| -> &'static str {
+        match c {
+            CausalClaim::Correlation => "correlation",
+            CausalClaim::Mediation => "mediation",
+            CausalClaim::Intervention => "intervention",
+        }
+    };
+
+    let by_id: HashMap<&str, &FindingBundle> = frontier
+        .findings
+        .iter()
+        .map(|f| (f.id.as_str(), f))
+        .collect();
+
+    let mut diags = Vec::new();
+    for source in &frontier.findings {
+        let Some(source_claim) = source.assertion.causal_claim else {
+            continue;
+        };
+        for link in &source.links {
+            if link.link_type != "supports" {
+                continue;
+            }
+            let Some(target) = by_id.get(link.target.as_str()) else {
+                continue; // cross-frontier link or unresolved; not our concern here
+            };
+            let Some(target_claim) = target.assertion.causal_claim else {
+                continue;
+            };
+            if claim_rank(source_claim) < claim_rank(target_claim) {
+                diags.push(Diagnostic {
+                    rule_id: "L011".into(),
+                    finding_id: source.id.clone(),
+                    message: format!(
+                        "{src} (claim: {sc}) supports→ {tgt} (claim: {tc}); the source's design cannot bear the target's causal weight",
+                        src = source.id,
+                        sc = claim_name(source_claim),
+                        tgt = target.id,
+                        tc = claim_name(target_claim),
+                    ),
+                    suggestion: format!(
+                        "Either re-grade {src} to {tc} (with appropriate evidence) or re-type the link from `supports` to `correlates_with` / `extends` / a weaker relationship.",
+                        src = source.id,
+                        tc = claim_name(target_claim),
+                    ),
+                    severity: Severity::Warning,
+                });
+            }
+        }
+    }
+    diags
+}
+
 /// Structural graph linter — finds orphans, unresolved contradictions, fragile anchors,
 /// critical gaps, missing cross-references, and stale superseded findings.
 pub fn lint_frontier(frontier: &Project) -> LintReport {
@@ -614,6 +695,7 @@ pub fn lint(
 
     // Project-level checks
     diagnostics.extend(check_cherry_picking(frontier));
+    diagnostics.extend(check_causal_mismatch_on_supports(frontier));
 
     // Apply filters
     if let Some(rule_id) = rule_filter {
@@ -826,7 +908,7 @@ mod tests {
 
     #[test]
     fn all_rules_count() {
-        assert_eq!(all_rules().len(), 10);
+        assert_eq!(all_rules().len(), 11);
     }
 
     #[test]
@@ -1215,5 +1297,101 @@ mod tests {
         assert!(report.diagnostics.iter().all(|d| d.rule_id == "orphan"));
         assert_eq!(report.errors, 0);
         assert_eq!(report.warnings, 0);
+    }
+
+    // ── v0.38.3 causal-mismatch lint tests ────────────────────────────
+
+    fn link_supports(target: &str) -> Link {
+        Link {
+            target: target.into(),
+            link_type: "supports".into(),
+            note: String::new(),
+            inferred_by: "test".into(),
+            created_at: String::new(),
+        }
+    }
+
+    #[test]
+    fn correlation_supports_intervention_flagged() {
+        let mut weak = make_finding("vf_weak");
+        weak.assertion.causal_claim = Some(CausalClaim::Correlation);
+        let mut strong = make_finding("vf_strong");
+        strong.assertion.causal_claim = Some(CausalClaim::Intervention);
+        weak.links.push(link_supports("vf_strong"));
+        let frontier = make_frontier(vec![weak, strong]);
+        let diags = check_causal_mismatch_on_supports(&frontier);
+        assert_eq!(diags.len(), 1);
+        assert_eq!(diags[0].rule_id, "L011");
+        assert_eq!(diags[0].finding_id, "vf_weak");
+    }
+
+    #[test]
+    fn correlation_supports_correlation_clean() {
+        let mut a = make_finding("vf_a");
+        a.assertion.causal_claim = Some(CausalClaim::Correlation);
+        let mut b = make_finding("vf_b");
+        b.assertion.causal_claim = Some(CausalClaim::Correlation);
+        a.links.push(link_supports("vf_b"));
+        let frontier = make_frontier(vec![a, b]);
+        let diags = check_causal_mismatch_on_supports(&frontier);
+        assert_eq!(diags.len(), 0);
+    }
+
+    #[test]
+    fn intervention_supports_correlation_clean() {
+        // Stronger evidence supports a weaker claim — fine.
+        let mut a = make_finding("vf_a");
+        a.assertion.causal_claim = Some(CausalClaim::Intervention);
+        let mut b = make_finding("vf_b");
+        b.assertion.causal_claim = Some(CausalClaim::Correlation);
+        a.links.push(link_supports("vf_b"));
+        let frontier = make_frontier(vec![a, b]);
+        let diags = check_causal_mismatch_on_supports(&frontier);
+        assert_eq!(diags.len(), 0);
+    }
+
+    #[test]
+    fn ungraded_findings_skipped() {
+        // No causal_claim on either side → can't decide; skip silently.
+        let mut a = make_finding("vf_a");
+        a.assertion.causal_claim = None;
+        let mut b = make_finding("vf_b");
+        b.assertion.causal_claim = Some(CausalClaim::Intervention);
+        a.links.push(link_supports("vf_b"));
+        let frontier = make_frontier(vec![a, b]);
+        let diags = check_causal_mismatch_on_supports(&frontier);
+        assert_eq!(diags.len(), 0);
+    }
+
+    #[test]
+    fn non_supports_link_types_ignored() {
+        // contradicts / extends / depends links are not the lint target.
+        let mut a = make_finding("vf_a");
+        a.assertion.causal_claim = Some(CausalClaim::Correlation);
+        let mut b = make_finding("vf_b");
+        b.assertion.causal_claim = Some(CausalClaim::Intervention);
+        a.links.push(Link {
+            target: "vf_b".into(),
+            link_type: "contradicts".into(),
+            note: String::new(),
+            inferred_by: "test".into(),
+            created_at: String::new(),
+        });
+        let frontier = make_frontier(vec![a, b]);
+        let diags = check_causal_mismatch_on_supports(&frontier);
+        assert_eq!(diags.len(), 0);
+    }
+
+    #[test]
+    fn mediation_supports_intervention_flagged() {
+        let mut med = make_finding("vf_med");
+        med.assertion.causal_claim = Some(CausalClaim::Mediation);
+        let mut iv = make_finding("vf_iv");
+        iv.assertion.causal_claim = Some(CausalClaim::Intervention);
+        med.links.push(link_supports("vf_iv"));
+        let frontier = make_frontier(vec![med, iv]);
+        let diags = check_causal_mismatch_on_supports(&frontier);
+        assert_eq!(diags.len(), 1);
+        assert_eq!(diags[0].rule_id, "L011");
     }
 }

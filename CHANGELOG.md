@@ -1,5 +1,88 @@
 # Changelog
 
+## 0.38.3 - 2026-04-27
+
+**Causal-claim category errors get linted.** Closes the v0.38.x arc:
+the schema (v0.38.0), the math (v0.38.1), the inference filter
+(v0.38.2), and now the structural lint that catches the most common
+abuse — a `supports` link from a weaker causal claim to a stronger
+one.
+
+### The category error
+
+A finding that claims correlation has, by design, no business
+"supporting" a finding that claims intervention. Correlation alone
+cannot identify a causal effect; reading the link as if it does is
+the textbook category error in causal inference. v0.38.3 makes the
+kernel surface that mismatch on `vela lint`.
+
+### New rule
+
+```
+L011  causal_mismatch_supports  warning
+```
+
+Strength order: `Correlation < Mediation < Intervention`. A `supports`
+link is flagged when the source's claim rank is strictly lower than
+the target's. Findings with `causal_claim = None` on either side are
+skipped — the kernel doesn't yet know enough to judge.
+
+### Examples
+
+| Source claim → target claim (`supports`) | Verdict |
+|---|---|
+| Correlation → Correlation | clean |
+| Correlation → Mediation | flagged (L011) |
+| Correlation → Intervention | flagged (L011) |
+| Mediation → Intervention | flagged (L011) |
+| Intervention → Correlation | clean (stronger supports weaker) |
+| Mediation → Correlation | clean |
+| (any) ↔ ungraded | skipped |
+
+### Doctrine
+
+- The lint **only fires on `supports`.** Other link types
+  (`contradicts`, `extends`, `depends`) carry different epistemic
+  loads and aren't subject to the strength-monotonicity rule. A
+  correlation finding can perfectly well *contradict* an
+  intervention claim.
+- The remediation suggestion gives reviewers two paths: re-grade the
+  source (with appropriate evidence), or re-type the link to
+  something weaker than `supports`.
+- Cross-frontier link targets that aren't yet pulled stay silent.
+  The kernel can't grade what it can't read.
+
+### Verification
+
+- `cargo build --workspace`: clean.
+- `cargo test --workspace`: **396/396 pass** (was 390; +6 lint tests
+  in `lint::tests`):
+  - correlation→intervention flagged
+  - correlation→correlation clean
+  - intervention→correlation clean (stronger supports weaker)
+  - ungraded findings skipped
+  - non-`supports` link types ignored
+  - mediation→intervention flagged
+- `vela conformance`: 61/61 pass.
+- `vela check projects/bbb-flagship`: 86/86 valid; no L011 fires
+  (causal fields not yet populated on BBB findings).
+
+### What this closes
+
+The v0.38.x arc was four substrate moves on causal typing:
+
+| Version | Layer | Move |
+|---|---|---|
+| v0.38.0 | Schema | `causal_claim` + `causal_evidence_grade` first-class on `Assertion` |
+| v0.38.1 | Math | `causal_consistency_multiplier` folded into the confidence formula |
+| v0.38.2 | Inference | `AggregateFilter` lets consensus restrict to causal claim type / minimum grade |
+| v0.38.3 | Structure | `L011` lint catches `supports` across claim-strength mismatch |
+
+After this release, the kernel treats causal claims as first-class
+in storage, reasoning, aggregation, and structural validation.
+Future causal work (do-calculus, identifiability, full Pearlian
+operators) builds on this foundation.
+
 ## 0.38.2 - 2026-04-27
 
 **Aggregate queries gain a causal filter.** v0.38.0–.1 made causal
