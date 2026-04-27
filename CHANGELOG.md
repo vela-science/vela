@@ -1,5 +1,111 @@
 # Changelog
 
+## 0.40.1 - 2026-04-27
+
+**Live calibration runtime.** The kernel has had `Prediction` and
+`Resolution` as first-class objects since v0.34. v0.40.1 adds the
+runtime piece that closes the gap between *making* a prediction and
+the kernel knowing whether it was kept: an idempotent expiration
+pass that walks every prediction whose deadline has passed, marks it
+expired, and emits a canonical event recording the lapse.
+
+### Why this matters
+
+Before v0.40.1, a prediction with `resolves_by: 2025-01-01` whose
+deadline passed without an explicit Resolution stayed silently in
+the "open" bucket forever. The predictor was never held to account
+for a missing commitment. The substrate could record what an actor
+predicted but had no machinery to register what they *failed* to
+record.
+
+A predictor who consistently makes predictions, never resolves them,
+and is never expired-out is gaming the calibration record. v0.40.1
+closes that hole.
+
+### Schema
+
+`Prediction` gains one optional flag:
+
+```rust
+pub expired_unresolved: bool,
+```
+
+`#[serde(default, skip_serializing_if = "std::ops::Not::not")]` —
+pre-v0.40.1 predictions serialize and load byte-identically.
+
+### New event kind
+
+`prediction.expired_unresolved` — payload validated to require
+`prediction_id`, `resolves_by`, `expired_at`. Append-only record
+of the lapse; the predictor's calibration record carries it as an
+`n_expired` count.
+
+### `CalibrationRecord.n_expired`
+
+`#[serde(default)]`, so older records load with `n_expired = 0`.
+
+Calibration doctrine on expired predictions:
+- They do **not** generate a synthesized Resolution. The predictor
+  failed to commit either way; we don't pretend they did.
+- They do **not** move Brier or log score. Calibration scores are
+  computed only over genuinely resolved predictions.
+- They **do** show in the actor's track record as `n_expired`. A
+  predictor with high `n_predictions`, low `n_resolved`, and high
+  `n_expired` is visibly evading calibration even if their Brier
+  on the resolved subset looks fine.
+
+### API
+
+```rust
+calibration::expire_overdue_predictions(
+    &mut Project,
+    now: DateTime<Utc>,
+) -> ExpirationReport
+```
+
+Idempotent: re-running on the same project at the same `now` produces
+zero `newly_expired` and reports the prior expirations under
+`already_expired`. `now` is a parameter (not `Utc::now()`) so unit
+tests can pin time deterministically.
+
+### CLI
+
+```
+vela predictions-expire --frontier <path> [--now <rfc3339>] [--dry-run]
+```
+
+`--dry-run` reports what *would* expire without writing. `--now`
+overrides the system clock for tests / reproducibility.
+
+### Verification
+
+- `cargo build --workspace`: clean.
+- `cargo test --workspace`: **426/426 pass** (was 420; +6 expiration
+  tests in `calibration::v0_40_1_expiration_tests`):
+  - overdue unresolved → expired + event
+  - future deadline → still open
+  - unset deadline → still open
+  - already-resolved prediction → not expired
+  - idempotent re-run lists `already_expired`, no second event
+  - `CalibrationRecord.n_expired` reflects the flag
+- `vela conformance`: 61/61 pass.
+- `vela check projects/bbb-flagship`: 86/86 valid.
+
+### What this completes in Track A
+
+Track A was three runtime closures over schemas the kernel already had:
+
+| Version | Schema (when) | Runtime (v0.39.1 / v0.40.0 / v0.40.1) |
+|---|---|---|
+| v0.39.1 | Federation peer registry (v0.39.0) | `vela federation sync` — fetch + diff + conflict events |
+| v0.40.0 | Causal typing (v0.38.x) | `vela causal audit` — identifiability verdict + remediation |
+| v0.40.1 | Predictions + resolutions (v0.34) | `vela predictions-expire` — overdue closure + n_expired tracking |
+
+After this release, every kernel primitive landed in v0.32–v0.39 has
+at least one runtime command that exercises it on real frontier
+state. The substrate isn't only correct on paper; the running
+binary actually does the thing the schema described.
+
 ## 0.40.0 - 2026-04-27
 
 **Causal reasoning over the schema landed in v0.38.** v0.38 made

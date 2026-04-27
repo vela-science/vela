@@ -423,6 +423,17 @@ pub struct Prediction {
     /// `Conditions` shape so model relevance, scope, etc., flow
     /// through.
     pub conditions: Conditions,
+    /// v0.40.1: True once the calibration runtime has marked this
+    /// prediction as expired without an explicit `Resolution`. Set by
+    /// `calibration::expire_overdue_predictions` when `resolves_by`
+    /// is in the past. Pre-v0.40.1 frontiers omit the field; loading
+    /// is backward-compatible. An expired prediction does not become
+    /// a resolved prediction — it is closed without contributing to
+    /// Brier or log scoring (calibration tracks it as a separate
+    /// `n_expired` count so the predictor still answers for the
+    /// missing commitment).
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub expired_unresolved: bool,
 }
 
 impl Prediction {
@@ -478,6 +489,7 @@ impl Prediction {
             made_by: actor,
             confidence,
             conditions,
+            expired_unresolved: false,
         }
     }
 }

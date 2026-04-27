@@ -432,6 +432,17 @@ pub fn validate_event_payload(kind: &str, payload: &Value) -> Result<(), String>
             require_str("name")?;
             require_str("creator")?;
         }
+        // v0.40.1: prediction expired without resolution. Emitted by
+        // `calibration::expire_overdue_predictions` when a prediction's
+        // `resolves_by` is in the past and no Resolution targets it.
+        // Closing the prediction this way does not generate a
+        // synthesized Resolution — the predictor failed to commit
+        // either way, and calibration tracks it as a separate count.
+        "prediction.expired_unresolved" => {
+            require_str("prediction_id")?;
+            require_str("resolves_by")?;
+            require_str("expired_at")?;
+        }
         // v0.39: federation events. Both record interactions with a
         // peer hub registered in `Project.peers`. The actual sync
         // runtime (HTTP fetch + manifest verification) ships in

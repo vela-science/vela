@@ -19,7 +19,7 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 
 #[derive(Parser)]
-#[command(name = "vela", version = "0.40.0")]
+#[command(name = "vela", version = "0.40.1")]
 #[command(about = "Portable frontier state for science")]
 struct Cli {
     #[command(subcommand)]
@@ -884,6 +884,26 @@ enum Commands {
         #[arg(long)]
         actor: Option<String>,
         /// Emit JSON to stdout.
+        #[arg(long)]
+        json: bool,
+    },
+    /// v0.40.1: Walk every prediction and mark as `expired_unresolved`
+    /// any whose deadline has passed without an explicit Resolution.
+    /// Emits one `prediction.expired_unresolved` event per newly-
+    /// expired prediction. Idempotent. Calibration counts expired
+    /// predictions separately from resolved ones — the predictor is
+    /// answering for the missing commitment without their Brier or
+    /// log score being moved by it.
+    PredictionsExpire {
+        frontier: PathBuf,
+        /// Override the system clock (RFC 3339). Useful for tests
+        /// and reproducibility; defaults to `now`.
+        #[arg(long)]
+        now: Option<String>,
+        /// Run the check but don't write any events or flag any
+        /// predictions. Reports what *would* expire.
+        #[arg(long)]
+        dry_run: bool,
         #[arg(long)]
         json: bool,
     },
@@ -2464,6 +2484,12 @@ pub async fn run_command() {
             actor,
             json,
         } => cmd_calibration(&frontier, actor.as_deref(), json),
+        Commands::PredictionsExpire {
+            frontier,
+            now,
+            dry_run,
+            json,
+        } => cmd_predictions_expire(&frontier, now.as_deref(), dry_run, json),
         Commands::Consensus {
             frontier,
             target,
@@ -2957,6 +2983,86 @@ fn cmd_predictions(frontier: &Path, by: Option<&str>, open: bool, json: bool) {
 }
 
 /// v0.34: print calibration scores per actor.
+/// v0.40.1: Walk every prediction whose deadline has passed and mark
+/// them as `expired_unresolved`. Emits one
+/// `prediction.expired_unresolved` event per newly-expired prediction.
+fn cmd_predictions_expire(
+    frontier: &Path,
+    now_override: Option<&str>,
+    dry_run: bool,
+    json: bool,
+) {
+    use chrono::DateTime;
+
+    let now_dt = match now_override {
+        Some(s) => DateTime::parse_from_rfc3339(s)
+            .map(|dt| dt.with_timezone(&chrono::Utc))
+            .unwrap_or_else(|e| fail_return(&format!("invalid --now '{s}': {e}"))),
+        None => chrono::Utc::now(),
+    };
+
+    let mut project = repo::load_from_path(frontier).unwrap_or_else(|e| fail_return(&e));
+    if dry_run {
+        // Run on a clone so we don't actually mutate.
+        let mut probe = repo::load_from_path(frontier).unwrap_or_else(|e| fail_return(&e));
+        let report = crate::calibration::expire_overdue_predictions(&mut probe, now_dt);
+        if json {
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&json!({
+                    "ok": true,
+                    "command": "predictions.expire",
+                    "dry_run": true,
+                    "report": report,
+                }))
+                .expect("serialize predictions.expire (dry-run)")
+            );
+        } else {
+            println!(
+                "{} dry-run @ {}: {} would expire, {} already expired, {} resolved, {} still open",
+                style::ok("ok"),
+                report.now,
+                report.newly_expired.len(),
+                report.already_expired.len(),
+                report.already_resolved.len(),
+                report.still_open.len(),
+            );
+            for id in &report.newly_expired {
+                println!("  · {id}");
+            }
+        }
+        return;
+    }
+
+    let report = crate::calibration::expire_overdue_predictions(&mut project, now_dt);
+    repo::save_to_path(frontier, &project).unwrap_or_else(|e| fail_return(&e));
+
+    if json {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&json!({
+                "ok": true,
+                "command": "predictions.expire",
+                "report": report,
+            }))
+            .expect("serialize predictions.expire")
+        );
+    } else {
+        println!(
+            "{} @ {}: {} newly expired, {} already expired, {} resolved, {} still open",
+            style::ok("expired"),
+            report.now,
+            report.newly_expired.len(),
+            report.already_expired.len(),
+            report.already_resolved.len(),
+            report.still_open.len(),
+        );
+        for id in &report.newly_expired {
+            println!("  · {id}");
+        }
+    }
+}
+
 fn cmd_calibration(frontier: &Path, actor: Option<&str>, json: bool) {
     let project = repo::load_from_path(frontier).unwrap_or_else(|e| fail_return(&e));
     let records = match actor {
@@ -7981,6 +8087,7 @@ const SCIENCE_SUBCOMMANDS: &[&str] = &[
     "predict",
     "resolve",
     "predictions",
+    "predictions-expire",
     "calibration",
     // v0.35: inference layer — consensus aggregation over claim-similar
     // findings.
