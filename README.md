@@ -124,8 +124,7 @@ vela queue sign --actor reviewer:you --key ./keys/private.key --yes-to-all
 
 Each agent run is tagged with an `AgentRun` (model, run id, started_at) so
 proposals are auditable by source. Cap per-call cost with `--max-budget-usd`
-(default 0.20). See [docs/AGENT_INBOX.md](docs/AGENT_INBOX.md) for the full
-loop.
+(default 0.20).
 
 ## What it does
 
@@ -226,21 +225,21 @@ state, changes what a human or agent inherits, and marks prior proof stale. See
 ## Documentation
 
 - [Core Doctrine](docs/CORE_DOCTRINE.md) - canonical v0 claim boundary
+- [Protocol](docs/PROTOCOL.md) - normative state and event semantics
 - [Publishing](docs/PUBLISHING.md) - end-to-end first-publish to the public hub
-- [First Frontier](docs/FIRST_FRONTIER.md) - first-user paper-folder workflow
-- [Frontier Review](docs/FRONTIER_REVIEW.md) - correction and proposal workflow
-- [Protocol](docs/PROTOCOL.md) - normative v0 state and event semantics
 - [CLI JSON](docs/CLI_JSON.md) - machine-readable command envelopes
-- [Proof](docs/PROOF.md) - proof packet contract and BBB proof target
+- [Proof](docs/PROOF.md) - proof packet contract
 - [Trace Format](docs/TRACE_FORMAT.md) - `proof-trace.json`
-- [v0.2.0 Release Notes](docs/V0_RELEASE_NOTES.md) - evaluator-facing release summary
-- [v0 Dogfood Report](docs/V0_DOGFOOD_REPORT.md) - internal first-frontier dogfood notes
-- [MCP Setup](docs/MCP_SETUP.md) - MCP/HTTP serving
-- [Benchmarks](docs/BENCHMARKS.md) - benchmark fixtures and drift checks
-- [Eval Card](docs/EVAL_CARD.md) - evaluation posture
-- [Theory](docs/THEORY.md) - non-normative theory appendix
-- [Math](docs/MATH.md) - non-normative math and principles appendix
+- [Benchmarks](docs/BENCHMARKS.md) and [VelaBench](docs/VELABENCH.md) - benchmark fixtures and the public agent leaderboard
+- [Hub](docs/HUB.md) and [Registry](docs/REGISTRY.md) - signed manifest distribution
+- [Workbench](docs/WORKBENCH.md) - read-only frontier viewer
+- [MCP](docs/MCP.md) and [MCP Setup](docs/MCP_SETUP.md) - serving over Model Context Protocol
+- [Python](docs/PYTHON.md) - Python bindings
+- [Theory](docs/THEORY.md) and [Math](docs/MATH.md) - non-normative appendices
 - [State Transition Spec](docs/STATE_TRANSITION_SPEC.md) - non-normative typed transition design bridge
+- [Tiers](docs/TIERS.md) - actor trust tiers
+- [Phase A Content Expansion](docs/PHASE_A_CONTENT_EXPANSION.md) - content runbook
+- [Schema Mismatch Note](docs/SCHEMA_MISMATCH_AGENT_OUTPUTS.md) - validator allow-list rationale
 
 ## Status
 

@@ -1,5 +1,114 @@
 # Changelog
 
+## 0.35.1 - 2026-04-27
+
+**Cleanup pass — removing dead code and stale documentation.**
+
+Linus-rigor audit of the full codebase. The kernel-completeness arc
+(v0.32–v0.35) closed cleanly; this release removes pre-arc artifacts
+that no longer pay rent. No new features, no schema changes, no
+behavioral diff. Just code that stopped serving the substrate going
+away.
+
+### Rust modules removed
+
+- `crates/vela-protocol/src/resolve.rs` — Stage 3b entity resolution
+  against external public APIs (MeSH, UniProt, PubChem). Zero
+  external references; never integrated into any v0.32+ flow.
+  `entity_resolve.rs` (which resolves against bundled tables) is
+  the live primitive and stays.
+- `crates/vela-protocol/src/crossref.rs` — Crossref metadata
+  enrichment (journal, publisher, license, funder, citation data).
+  Zero references. The provenance fields it would have populated
+  (`license`, `publisher`, `funders`, `citation_count`) exist in
+  `bundle::Provenance` but are populated by other paths today.
+
+Both modules removed from `lib.rs`. Workspace tests drop from 384
+to 382 (resolve.rs had 2 internal unit tests that move with the
+file).
+
+### Site cleanup
+
+- `site/src/components/FrontierDirectory.astro` — zero imports;
+  stale UI experiment from the protocol-page redesign.
+- `site/src/config.ts: ARCHIVE_URL` — defined but never imported
+  anywhere. Removed.
+- `site/src/pages/docs/[slug].astro` — `first-frontier` slug entry
+  removed (its `docs/FIRST_FRONTIER.md` is gone — see below).
+- `site/src/pages/docs/index.astro` and `site/src/pages/protocol/index.astro`
+  — pruned the matching nav cards / list entries pointing at
+  removed docs.
+
+### Historical docs removed
+
+Eight markdown files removed from `docs/` (29 → 21). All described
+pre-v0.32 substrate behavior; keeping them would mislead any reader
+encountering them as current spec.
+
+| Removed | Reason |
+|---|---|
+| `AGENT_INBOX.md` | v0.22 spec; superseded by Scout / Notes / Code / Data CLI in v0.28+ |
+| `V0_DOGFOOD_REPORT.md` | v0.0 dogfood notes; historical only |
+| `V0_RELEASE_NOTES.md` | v0.0 release notes; superseded by `CHANGELOG.md` |
+| `FIRST_FRONTIER.md` | v0.29 first-user onboarding; pre-arc |
+| `FRONTIER_REVIEW.md` | v0.31 correction/proposal workflow; superseded by v0.32+ kernel |
+| `SIM_USER_BBB.md` | v0.29 simulated-user trace |
+| `EVAL_CARD.md` | v0.0 evaluation posture; not maintained |
+| `PRIVATE_EVALUATOR_NOTE.md` | "internal pre-public" note marked confidential; should never have been in repo |
+
+`README.md` updated to remove broken links to all of the above; the
+documentation section now lists only specs that reflect current
+substrate behavior.
+
+### Live spec docs that stay
+
+| Kept | Purpose |
+|---|---|
+| `PROTOCOL.md`, `MATH.md`, `THEORY.md`, `CORE_DOCTRINE.md`, `STATE_TRANSITION_SPEC.md` | normative + appendix |
+| `CLI_JSON.md`, `BENCHMARKS.md`, `VELABENCH.md` | active CLI + bench surfaces |
+| `REGISTRY.md`, `HUB.md`, `PUBLISHING.md`, `WORKBENCH.md` | distribution + tooling surfaces |
+| `MCP.md`, `MCP_SETUP.md`, `PYTHON.md` | binding + tool-surface specs |
+| `BRAND.md`, `TIERS.md`, `TRACE_FORMAT.md` | infrastructure |
+| `PHASE_A_CONTENT_EXPANSION.md`, `SCHEMA_MISMATCH_AGENT_OUTPUTS.md` | active operational notes |
+| `PROOF.md` | proof-packet contract |
+
+### What this release does NOT remove
+
+Several modules looked dead at first glance but turned out to be
+load-bearing through indirect paths:
+
+- `bridge.rs` — used by `cmd_bridge` for the `vela bridge` CLI.
+- `entity_resolve.rs` — used by `cmd_entity_resolve` for `vela resolve`.
+- `agent_bench.rs` — used by `cmd_agent_bench` for the v0.26 bench harness.
+- `tool_registry.rs` — used heavily by `serve.rs` for the MCP tool surface.
+- `permission.rs` — transitively used through `tool_registry`.
+- `fetch.rs`, `extract.rs`, `jats.rs` — coupled to the legacy `vela compile`
+  / `vela jats` ingestion paths. Reachable from the strict release
+  CLI (`SCIENCE_SUBCOMMANDS`); deprecating them is a feature decision,
+  not a cruft removal. Deferred to v0.36+ if/when the agent inbox
+  fully replaces them.
+- `Confidence::legacy()` constructor — wrongly named, but actively
+  used by 37+ call sites. Renaming it is a larger refactor; deferred.
+- `Evidence.replicated: bool` and `Evidence.replication_count: u32`
+  fields — superseded conceptually by the v0.32 `Replication`
+  collection but still consumed by `compute_confidence`. Migrating
+  the confidence formula to derive these from `Project.replications`
+  is real work; deferred.
+
+These items are catalogued for future passes. The substrate stays
+correct; the cruft that was pure cruft is now gone.
+
+### Verification
+
+- `cargo build --release --bin vela`: clean.
+- `cargo test --workspace --release`: 382/382 pass (was 384; the 2
+  missing tests lived inside `resolve.rs`).
+- `vela check projects/bbb-flagship`: 86/86 valid.
+- `vela --version`: `vela 0.35.1`.
+- Site build: 205 pages, 1.32s (was 206 — `/docs/first-frontier`
+  removed).
+- Repo file count: 576 → ~565 (12 files removed in this release).
+
 ## 0.35.0 - 2026-04-27
 
 **The inference layer** — consensus aggregation over claim-similar

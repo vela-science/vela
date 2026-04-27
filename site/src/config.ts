@@ -16,7 +16,6 @@ export const WORKBENCH_URL = "https://vela-workbench.fly.dev";
 // `REPO_URL` points at the public artifact mirror; the substrate
 // source is private until it reaches a public-ready state.
 export const REPO_URL = "https://github.com/vela-science/vela-frontiers";
-export const ARCHIVE_URL = "https://github.com/willblair0708/vela-archive";
 
 // Borrowed Light is the long-form essay this substrate exists to make
 // concrete. It's the recruiting layer; Vela is the working substrate
@@ -56,4 +55,4 @@ export const FRONTIER = {
   manifestFile: "alzheimers-therapeutics.json",
 };
 
-export const VERSION = "0.35.0";
+export const VERSION = "0.35.1";
