@@ -1367,6 +1367,8 @@ mod tests {
                 ],
                 relation: Some("activates".into()),
                 direction: Some("positive".into()),
+                causal_claim: None,
+                causal_evidence_grade: None,
             },
             evidence: Evidence {
                 evidence_type: "experimental".into(),

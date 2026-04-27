@@ -371,6 +371,8 @@ mod tests {
                     .collect(),
                 relation: None,
                 direction: direction.map(|s| s.to_string()),
+                causal_claim: None,
+                causal_evidence_grade: None,
             },
             evidence: Evidence {
                 evidence_type: "experimental".into(),

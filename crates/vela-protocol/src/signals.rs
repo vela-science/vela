@@ -1142,6 +1142,8 @@ mod tests {
             entities: vec![],
             relation: None,
             direction: None,
+            causal_claim: None,
+            causal_evidence_grade: None,
         };
         let provenance = Provenance {
             source_type: "published_paper".to_string(),

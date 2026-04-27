@@ -697,7 +697,9 @@ mod tests {
                 entities: vec![],
                 relation: None,
                 direction: Some("positive".into()),
-            },
+            causal_claim: None,
+            causal_evidence_grade: None,
+        },
             evidence: Evidence {
                 evidence_type: "experimental".into(),
                 model_system: "cell_culture".into(),

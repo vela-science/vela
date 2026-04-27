@@ -550,7 +550,9 @@ fn lift_analysis(a: &MAnalysis, label: &str, ext: &str) -> FindingBundle {
         entities: Vec::new(),
         relation: None,
         direction: None,
-    };
+            causal_claim: None,
+            causal_evidence_grade: None,
+        };
     let confidence = Confidence::raw(
         0.4,
         "code_analyst: analysis described from source code",
@@ -599,7 +601,9 @@ fn lift_code_finding(c: &MCodeFinding, label: &str, ext: &str) -> FindingBundle 
         entities: Vec::new(),
         relation: None,
         direction: None,
-    };
+            causal_claim: None,
+            causal_evidence_grade: None,
+        };
     let confidence = Confidence::raw(
         0.5,
         "code_analyst: claim with code+output evidence",
@@ -638,7 +642,9 @@ fn lift_experiment_intent(e: &MExperimentIntent, label: &str, ext: &str) -> Find
         entities: Vec::new(),
         relation: None,
         direction: None,
-    };
+            causal_claim: None,
+            causal_evidence_grade: None,
+        };
     let confidence = Confidence::raw(
         0.0,
         "code_analyst: proposed experiment, not yet run",

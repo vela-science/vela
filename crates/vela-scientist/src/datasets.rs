@@ -746,6 +746,8 @@ fn lift_summary(s: &MDatasetSummary, schema: &DatasetSchema, label: &str) -> Fin
         entities: Vec::new(),
         relation: None,
         direction: None,
+        causal_claim: None,
+        causal_evidence_grade: None,
     };
     let confidence = Confidence::raw(
         0.6,
@@ -798,7 +800,9 @@ fn lift_supported_claim(
         entities: Vec::new(),
         relation: None,
         direction: None,
-    };
+            causal_claim: None,
+            causal_evidence_grade: None,
+        };
     let confidence = Confidence::raw(
         0.4,
         "datasets_agent: claim plausibly supported by schema",

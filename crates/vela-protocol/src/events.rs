@@ -432,6 +432,42 @@ pub fn validate_event_payload(kind: &str, payload: &Value) -> Result<(), String>
             require_str("name")?;
             require_str("creator")?;
         }
+        // v0.38: causal-typing reinterpretation. The substrate doesn't
+        // erase the prior reading; it appends a new event recording who
+        // re-graded the claim and why. `before` and `after` payloads
+        // each carry `claim` (correlation|mediation|intervention) and
+        // optionally `grade` (rct|quasi_experimental|observational|
+        // theoretical). Pre-v0.38 findings carried neither, so a
+        // reinterpretation may originate from a block with both fields
+        // absent or null.
+        "assertion.reinterpreted_causal" => {
+            require_str("proposal_id")?;
+            let check_block = |block_name: &str| -> Result<(), String> {
+                let block = object
+                    .get(block_name)
+                    .and_then(Value::as_object)
+                    .ok_or_else(|| format!("payload.{block_name} must be an object"))?;
+                if let Some(claim) = block.get("claim").and_then(Value::as_str)
+                    && !crate::bundle::VALID_CAUSAL_CLAIMS.contains(&claim)
+                {
+                    return Err(format!(
+                        "{block_name}.claim '{claim}' not in {:?}",
+                        crate::bundle::VALID_CAUSAL_CLAIMS
+                    ));
+                }
+                if let Some(grade) = block.get("grade").and_then(Value::as_str)
+                    && !crate::bundle::VALID_CAUSAL_EVIDENCE_GRADES.contains(&grade)
+                {
+                    return Err(format!(
+                        "{block_name}.grade '{grade}' not in {:?}",
+                        crate::bundle::VALID_CAUSAL_EVIDENCE_GRADES
+                    ));
+                }
+                Ok(())
+            };
+            check_block("before")?;
+            check_block("after")?;
+        }
         // v0.37: multi-sig kernel events. `threshold_set` records the
         // policy attached to a finding (k unique valid signatures
         // required); `threshold_met` records the moment the k-th
@@ -507,7 +543,9 @@ mod tests {
                 entities: Vec::new(),
                 relation: None,
                 direction: None,
-            },
+            causal_claim: None,
+            causal_evidence_grade: None,
+        },
             Evidence {
                 evidence_type: "experimental".to_string(),
                 model_system: "mouse".to_string(),
@@ -664,5 +702,59 @@ mod tests {
         let report = replay_report(&frontier);
         assert!(report.ok, "{:?}", report.conflicts);
         assert_eq!(report.status, "ok");
+    }
+
+    // v0.38 — causal-typing event validation
+    #[test]
+    fn validates_reinterpreted_causal_payload() {
+        // OK: missing claim/grade is fine (None means no prior reading).
+        assert!(validate_event_payload(
+            "assertion.reinterpreted_causal",
+            &json!({
+                "proposal_id": "vpr_test",
+                "before": {},
+                "after": { "claim": "intervention", "grade": "rct" },
+            }),
+        )
+        .is_ok());
+        // OK: pure claim revision, no grade.
+        assert!(validate_event_payload(
+            "assertion.reinterpreted_causal",
+            &json!({
+                "proposal_id": "vpr_test",
+                "before": { "claim": "correlation" },
+                "after": { "claim": "mediation" },
+            }),
+        )
+        .is_ok());
+        // FAIL: invalid claim.
+        assert!(validate_event_payload(
+            "assertion.reinterpreted_causal",
+            &json!({
+                "proposal_id": "vpr_test",
+                "before": {},
+                "after": { "claim": "magic" },
+            }),
+        )
+        .is_err());
+        // FAIL: invalid grade.
+        assert!(validate_event_payload(
+            "assertion.reinterpreted_causal",
+            &json!({
+                "proposal_id": "vpr_test",
+                "before": {},
+                "after": { "claim": "intervention", "grade": "vibes" },
+            }),
+        )
+        .is_err());
+        // FAIL: missing proposal_id.
+        assert!(validate_event_payload(
+            "assertion.reinterpreted_causal",
+            &json!({
+                "before": {},
+                "after": { "claim": "intervention" },
+            }),
+        )
+        .is_err());
     }
 }

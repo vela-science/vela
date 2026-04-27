@@ -191,7 +191,9 @@ fn lift_to_bundle(c: &ModelCandidate, label: &str) -> FindingBundle {
         entities: Vec::new(),
         relation: None,
         direction: None,
-    };
+            causal_claim: None,
+            causal_evidence_grade: None,
+        };
     let evidence = Evidence {
         evidence_type: "extracted_from_paper".to_string(),
         model_system: c.scope.intervention.clone(),

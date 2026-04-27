@@ -1040,7 +1040,9 @@ mod tests {
                 entities: Vec::new(),
                 relation: None,
                 direction: None,
-            },
+            causal_claim: None,
+            causal_evidence_grade: None,
+        },
             evidence: Evidence {
                 evidence_type: "experimental".to_string(),
                 model_system: "mouse".to_string(),

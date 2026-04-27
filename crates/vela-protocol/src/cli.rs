@@ -19,7 +19,7 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 
 #[derive(Parser)]
-#[command(name = "vela", version = "0.37.0")]
+#[command(name = "vela", version = "0.38.0")]
 #[command(about = "Portable frontier state for science")]
 struct Cli {
     #[command(subcommand)]
@@ -1433,6 +1433,34 @@ enum FindingCommands {
         #[arg(long)]
         apply: bool,
     },
+    /// v0.38: Set or revise the Pearlian causal type and study-design
+    /// grade for a finding. Appends an `assertion.reinterpreted_causal`
+    /// event capturing the prior reading, the new reading, and the
+    /// reviewer who re-graded. Pre-v0.38 findings carry no causal
+    /// metadata; the first call materializes both fields.
+    CausalSet {
+        /// Frontier JSON file or Vela repo
+        frontier: PathBuf,
+        /// `vf_<id>` of the finding to re-grade.
+        finding_id: String,
+        /// Causal claim kind: correlation | mediation | intervention.
+        #[arg(long)]
+        claim: String,
+        /// Optional study-design grade: rct | quasi_experimental |
+        /// observational | theoretical.
+        #[arg(long)]
+        grade: Option<String>,
+        /// Reviewer/curator id (must match a registered actor under
+        /// `--strict`). Recorded on the appended event.
+        #[arg(long)]
+        actor: String,
+        /// One-paragraph reason. Becomes the event's `reason` field
+        /// and ships with the proposal.
+        #[arg(long)]
+        reason: String,
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 #[derive(Subcommand)]
@@ -2015,6 +2043,34 @@ pub async fn run_command() {
                     apply,
                 )
                 .unwrap_or_else(|e| fail_return(&e));
+                print_state_report(&report, json);
+            }
+            FindingCommands::CausalSet {
+                frontier,
+                finding_id,
+                claim,
+                grade,
+                actor,
+                reason,
+                json,
+            } => {
+                if !bundle::VALID_CAUSAL_CLAIMS.contains(&claim.as_str()) {
+                    fail(&format!(
+                        "invalid --claim '{claim}'; valid: {:?}",
+                        bundle::VALID_CAUSAL_CLAIMS
+                    ));
+                }
+                if let Some(g) = grade.as_deref()
+                    && !bundle::VALID_CAUSAL_EVIDENCE_GRADES.contains(&g)
+                {
+                    fail(&format!(
+                        "invalid --grade '{g}'; valid: {:?}",
+                        bundle::VALID_CAUSAL_EVIDENCE_GRADES
+                    ));
+                }
+                let report =
+                    state::set_causal(&frontier, &finding_id, &claim, grade.as_deref(), &actor, &reason)
+                        .unwrap_or_else(|e| fail_return(&e));
                 print_state_report(&report, json);
             }
         },

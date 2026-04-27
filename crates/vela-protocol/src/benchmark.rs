@@ -1684,6 +1684,8 @@ mod tests {
                 ],
                 relation: None,
                 direction: None,
+                causal_claim: None,
+                causal_evidence_grade: None,
             },
             evidence: Evidence {
                 evidence_type: "experimental".into(),
@@ -1781,7 +1783,9 @@ mod tests {
                 entities,
                 relation: None,
                 direction: None,
-            },
+            causal_claim: None,
+            causal_evidence_grade: None,
+        },
             evidence: Evidence {
                 evidence_type: "experimental".into(),
                 model_system: String::new(),

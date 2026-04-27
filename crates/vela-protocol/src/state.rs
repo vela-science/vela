@@ -352,6 +352,108 @@ pub fn retract_finding(
     })
 }
 
+/// v0.38: Set or revise a finding's `causal_claim` and (optionally)
+/// `causal_evidence_grade`. Appends an `assertion.reinterpreted_causal`
+/// event capturing the prior reading, the new reading, and the actor.
+/// Bypasses the proposal flow because (a) the mutation is local and
+/// reversible by another call, and (b) the schema layer ships ahead of
+/// the reasoning surface — the next milestone will route this through
+/// proposals once the do-calculus layer needs it.
+pub fn set_causal(
+    path: &Path,
+    finding_id: &str,
+    new_claim: &str,
+    new_grade: Option<&str>,
+    actor: &str,
+    reason: &str,
+) -> Result<StateCommandReport, String> {
+    use crate::bundle::{CausalClaim, CausalEvidenceGrade};
+
+    let mut frontier: Project = repo::load_from_path(path)?;
+    let idx = frontier
+        .findings
+        .iter()
+        .position(|f| f.id == finding_id)
+        .ok_or_else(|| format!("Finding not found: {finding_id}"))?;
+
+    // Capture the prior reading for the event payload.
+    let before = json!({
+        "claim": frontier.findings[idx].assertion.causal_claim,
+        "grade": frontier.findings[idx].assertion.causal_evidence_grade,
+    });
+
+    let parsed_claim = match new_claim {
+        "correlation" => CausalClaim::Correlation,
+        "mediation" => CausalClaim::Mediation,
+        "intervention" => CausalClaim::Intervention,
+        other => return Err(format!("invalid causal claim '{other}'")),
+    };
+    let parsed_grade = match new_grade {
+        None => None,
+        Some("rct") => Some(CausalEvidenceGrade::Rct),
+        Some("quasi_experimental") => Some(CausalEvidenceGrade::QuasiExperimental),
+        Some("observational") => Some(CausalEvidenceGrade::Observational),
+        Some("theoretical") => Some(CausalEvidenceGrade::Theoretical),
+        Some(other) => return Err(format!("invalid causal evidence grade '{other}'")),
+    };
+
+    let before_hash = events::finding_hash(&frontier.findings[idx]);
+    frontier.findings[idx].assertion.causal_claim = Some(parsed_claim);
+    if let Some(g) = parsed_grade {
+        frontier.findings[idx].assertion.causal_evidence_grade = Some(g);
+    }
+    let after_hash = events::finding_hash(&frontier.findings[idx]);
+
+    let after = json!({
+        "claim": new_claim,
+        "grade": new_grade,
+    });
+
+    // Synthesize a deterministic proposal_id over the mutation.
+    let proposal_id = format!(
+        "vpr_{}",
+        &hex::encode(Sha256::digest(
+            format!(
+                "{finding_id}|{actor}|{before_hash}|{after_hash}|{}",
+                Utc::now().to_rfc3339()
+            )
+            .as_bytes()
+        ))[..16]
+    );
+
+    let event = events::new_finding_event(events::FindingEventInput {
+        kind: "assertion.reinterpreted_causal",
+        finding_id,
+        actor_id: actor,
+        actor_type: "human",
+        reason,
+        before_hash: &before_hash,
+        after_hash: &after_hash,
+        payload: json!({
+            "proposal_id": proposal_id,
+            "before": before,
+            "after": after,
+        }),
+        caveats: Vec::new(),
+    });
+    let event_id = event.id.clone();
+    frontier.events.push(event);
+
+    repo::save_to_path(path, &frontier)?;
+
+    Ok(StateCommandReport {
+        ok: true,
+        command: "causal_set".to_string(),
+        frontier: frontier.project.name,
+        finding_id: finding_id.to_string(),
+        proposal_id,
+        proposal_status: "applied".to_string(),
+        applied_event_id: Some(event_id),
+        wrote_to: path.display().to_string(),
+        message: format!("Causal claim set to {new_claim}"),
+    })
+}
+
 pub fn history(path: &Path, finding_id: &str) -> Result<Value, String> {
     let frontier = repo::load_from_path(path)?;
     let context = finding_context(&frontier, finding_id)?;
@@ -518,6 +620,8 @@ fn build_finding_bundle(options: &FindingDraftOptions) -> FindingBundle {
             .collect(),
         relation: None,
         direction: None,
+        causal_claim: None,
+        causal_evidence_grade: None,
     };
     let evidence = Evidence {
         evidence_type: options.evidence_type.clone(),
@@ -679,6 +783,8 @@ fn build_add_finding_proposal(options: FindingDraftOptions) -> Result<StatePropo
             .collect(),
         relation: None,
         direction: None,
+        causal_claim: None,
+        causal_evidence_grade: None,
     };
     let evidence = Evidence {
         evidence_type: options.evidence_type.clone(),
@@ -922,5 +1028,144 @@ mod v0_11_finding_tests {
         assert!(finding.provenance.doi.is_none());
         assert!(finding.provenance.year.is_none());
         assert!(finding.provenance.url.is_none());
+    }
+}
+
+#[cfg(test)]
+mod v0_38_causal_tests {
+    use super::*;
+    use crate::bundle::{CausalClaim, CausalEvidenceGrade};
+    use tempfile::tempdir;
+
+    fn seed_frontier(dir: &Path) -> std::path::PathBuf {
+        let path = dir.join("frontier.json");
+        let opts = FindingDraftOptions {
+            text: "X causes Y".to_string(),
+            assertion_type: "mechanism".to_string(),
+            source: "test".to_string(),
+            source_type: "published_paper".to_string(),
+            author: "reviewer:test".to_string(),
+            confidence: 0.5,
+            evidence_type: "experimental".to_string(),
+            entities: Vec::new(),
+            doi: None,
+            pmid: None,
+            year: Some(2025),
+            journal: None,
+            url: None,
+            source_authors: Vec::new(),
+            conditions_text: None,
+            species: Vec::new(),
+            in_vivo: false,
+            in_vitro: false,
+            human_data: false,
+            clinical_trial: false,
+        };
+        let proposal = build_add_finding_proposal(opts).unwrap();
+        let finding: FindingBundle =
+            serde_json::from_value(proposal.payload["finding"].clone()).unwrap();
+        let project = project::assemble(
+            "Test",
+            vec![finding],
+            1,
+            0,
+            "test causal frontier",
+        );
+        repo::save_to_path(&path, &project).unwrap();
+        path
+    }
+
+    #[test]
+    fn set_causal_writes_fields_and_appends_event() {
+        let dir = tempdir().unwrap();
+        let path = seed_frontier(dir.path());
+        let project = repo::load_from_path(&path).unwrap();
+        let finding_id = project.findings[0].id.clone();
+
+        let report = set_causal(
+            &path,
+            &finding_id,
+            "intervention",
+            Some("rct"),
+            "reviewer:test",
+            "phase 3 RCT supports do(X=x) reading",
+        )
+        .unwrap();
+        assert!(report.applied_event_id.is_some());
+
+        let after = repo::load_from_path(&path).unwrap();
+        let f = &after.findings[0];
+        assert_eq!(f.assertion.causal_claim, Some(CausalClaim::Intervention));
+        assert_eq!(
+            f.assertion.causal_evidence_grade,
+            Some(CausalEvidenceGrade::Rct)
+        );
+
+        let last_event = after.events.last().expect("an event was appended");
+        assert_eq!(last_event.kind, "assertion.reinterpreted_causal");
+        assert_eq!(last_event.target.id, finding_id);
+        assert_eq!(last_event.payload["after"]["claim"], "intervention");
+        assert_eq!(last_event.payload["after"]["grade"], "rct");
+    }
+
+    #[test]
+    fn set_causal_rejects_invalid_claim() {
+        let dir = tempdir().unwrap();
+        let path = seed_frontier(dir.path());
+        let project = repo::load_from_path(&path).unwrap();
+        let finding_id = project.findings[0].id.clone();
+        let err = set_causal(
+            &path,
+            &finding_id,
+            "magic",
+            None,
+            "reviewer:test",
+            "test",
+        )
+        .unwrap_err();
+        assert!(err.contains("invalid causal claim"));
+    }
+
+    #[test]
+    fn set_causal_preserves_grade_when_only_claim_changes() {
+        let dir = tempdir().unwrap();
+        let path = seed_frontier(dir.path());
+        let project = repo::load_from_path(&path).unwrap();
+        let finding_id = project.findings[0].id.clone();
+
+        // First set both.
+        set_causal(
+            &path,
+            &finding_id,
+            "correlation",
+            Some("observational"),
+            "reviewer:test",
+            "initial reading",
+        )
+        .unwrap();
+        // Then revise just the claim. Grade should persist.
+        set_causal(
+            &path,
+            &finding_id,
+            "mediation",
+            None,
+            "reviewer:test",
+            "refined reading",
+        )
+        .unwrap();
+        let after = repo::load_from_path(&path).unwrap();
+        let f = &after.findings[0];
+        assert_eq!(f.assertion.causal_claim, Some(CausalClaim::Mediation));
+        assert_eq!(
+            f.assertion.causal_evidence_grade,
+            Some(CausalEvidenceGrade::Observational)
+        );
+        // Two events appended (one per call).
+        let causal_events: usize = after
+            .events
+            .iter()
+            .filter(|e| e.kind == "assertion.reinterpreted_causal")
+            .count();
+        assert_eq!(causal_events, 2);
     }
 }

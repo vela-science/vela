@@ -331,7 +331,9 @@ fn lift_experiment(exp: &ExperimentSpec, source: &FindingBundle) -> FindingBundl
         entities: Vec::new(),
         relation: None,
         direction: None,
-    };
+            causal_claim: None,
+            causal_evidence_grade: None,
+        };
     let mut spans: Vec<serde_json::Value> = Vec::new();
     spans.push(serde_json::json!({
         "section": "method",
@@ -434,6 +436,8 @@ mod tests {
                 entities: Vec::new(),
                 relation: None,
                 direction: None,
+                causal_claim: None,
+                causal_evidence_grade: None,
             },
             evidence: E {
                 evidence_type: "test".to_string(),

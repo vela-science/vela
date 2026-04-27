@@ -225,6 +225,8 @@ fn make_test_finding(v: &serde_json::Value) -> FindingBundle {
             entities,
             relation: None,
             direction,
+        causal_claim: None,
+            causal_evidence_grade: None,
         },
         evidence: Evidence {
             evidence_type: "experimental".into(),
@@ -361,6 +363,8 @@ fn make_confidence_bundle(v: &serde_json::Value) -> FindingBundle {
             entities: vec![],
             relation: None,
             direction: None,
+            causal_claim: None,
+            causal_evidence_grade: None,
         },
         evidence: Evidence {
             evidence_type: etype.into(),
@@ -526,7 +530,9 @@ fn run_retraction_propagation(
                     entities: vec![],
                     relation: None,
                     direction: None,
-                },
+            causal_claim: None,
+            causal_evidence_grade: None,
+        },
                 evidence: Evidence {
                     evidence_type: "experimental".into(),
                     model_system: String::new(),
@@ -782,6 +788,8 @@ fn make_observer_finding(v: &serde_json::Value) -> FindingBundle {
             entities: vec![],
             relation: None,
             direction: None,
+            causal_claim: None,
+            causal_evidence_grade: None,
         },
         evidence: Evidence {
             evidence_type: "experimental".into(),

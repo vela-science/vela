@@ -658,7 +658,9 @@ fn lift_open_question(q: &MOpenQuestion, label: &str) -> FindingBundle {
         entities: Vec::new(),
         relation: None,
         direction: None,
-    };
+            causal_claim: None,
+            causal_evidence_grade: None,
+        };
     let confidence = Confidence::raw(
         0.0,
         "notes_compiler: open question, no evidence yet",
@@ -690,6 +692,8 @@ fn lift_hypothesis(h: &MHypothesis, label: &str) -> FindingBundle {
         entities: Vec::new(),
         relation: None,
         direction: None,
+        causal_claim: None,
+        causal_evidence_grade: None,
     };
     let confidence = Confidence::raw(
         0.4,
@@ -717,7 +721,9 @@ fn lift_candidate_finding(c: &MCandidateFinding, label: &str) -> FindingBundle {
         entities: Vec::new(),
         relation: None,
         direction: None,
-    };
+            causal_claim: None,
+            causal_evidence_grade: None,
+        };
     let confidence = Confidence::raw(
         0.5,
         "notes_compiler: candidate finding from researcher's notes",
@@ -751,6 +757,8 @@ fn lift_tension(t: &MTension, label: &str) -> FindingBundle {
         entities: Vec::new(),
         relation: None,
         direction: None,
+        causal_claim: None,
+        causal_evidence_grade: None,
     };
     let confidence = Confidence::raw(
         0.0,

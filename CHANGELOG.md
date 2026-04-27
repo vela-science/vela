@@ -1,5 +1,96 @@
 # Changelog
 
+## 0.38.0 - 2026-04-27
+
+**Causal typing as a kernel-level primitive (schema layer).** Pre-v0.38
+the substrate carried `Assertion.direction = Some("positive" |
+"negative")` — enough to record covariance but not the difference
+between "X correlates with Y," "X mediates Y → Z," and "setting X=x
+changes Y." Real review work treats those as different epistemic
+claims with different evidence requirements; conflating them produced
+silent over-claiming.
+
+This release lands the schema layer. The reasoning surface
+(do-calculus, identifiability, derived bridges that propagate causal
+vs correlational claims separately) ships in a follow-up — same
+staging used for v0.32 (Replication as object) → v0.36.1
+(`Project.replications` becomes the source of truth for confidence).
+
+### Schema
+
+`Assertion` gains two optional fields. Pre-v0.38 frontiers serialize
+and load byte-identically (both fields are
+`#[serde(default, skip_serializing_if = "Option::is_none")]`).
+
+```rust
+pub causal_claim: Option<CausalClaim>,            // Correlation | Mediation | Intervention
+pub causal_evidence_grade: Option<CausalEvidenceGrade>, // Rct | QuasiExperimental | Observational | Theoretical
+```
+
+The grade is what makes the difference between "the data is
+consistent with X causing Y" (Observational) and "X causes Y" (Rct).
+The kernel carries the design label so reviewers can re-grade without
+re-extracting.
+
+### New event kind
+
+`assertion.reinterpreted_causal` — append-only record of who re-graded
+a finding and why. Payload validated against the canonical-JSON
+discipline used by every other kernel event:
+
+```json
+{
+  "proposal_id": "vpr_<id>",
+  "before": { "claim": "correlation",  "grade": "observational" },
+  "after":  { "claim": "intervention", "grade": "rct" }
+}
+```
+
+`before` / `after` blocks are required objects; their `claim` /
+`grade` fields are optional but, when present, must come from the
+canonical enums (`VALID_CAUSAL_CLAIMS` /
+`VALID_CAUSAL_EVIDENCE_GRADES`). Pre-v0.38 findings carry no causal
+metadata, so the first reinterpretation may originate from an empty
+`before` block.
+
+### CLI
+
+```
+vela finding causal-set <vf_id> --frontier <path> \
+    --claim correlation|mediation|intervention \
+    --grade rct|quasi_experimental|observational|theoretical \
+    --actor reviewer:<id> \
+    --reason "<one paragraph>"
+```
+
+Mutates the target finding's causal fields and appends an
+`assertion.reinterpreted_causal` event capturing the prior reading.
+Bypasses the proposal flow — the schema layer ships ahead of the
+reasoning surface; v0.38.1+ will route through proposals once the
+do-calculus layer needs it.
+
+### Verification
+
+- `cargo build --workspace`: clean.
+- `cargo test --workspace`: **378/378 pass** (was 374; +4 v0.38 tests).
+  - 3 in `state.rs::v0_38_causal_tests`: writes-fields-and-event,
+    rejects-invalid-claim, preserves-grade-when-only-claim-changes.
+  - 1 in `events.rs`: validates_reinterpreted_causal_payload (5 cases:
+    OK with full payload, OK with claim-only revision, rejects
+    invalid claim, rejects invalid grade, rejects missing
+    proposal_id).
+- `vela conformance`: 61/61 pass.
+- `vela check projects/bbb-flagship`: 86/86 valid.
+
+### Why this is the largest substrate addition of the v0.36+ arc
+
+Every other v0.36+ kernel object (replication, dataset, code, prediction,
+multi-sig) describes a *thing* — an artifact, an actor, an event. Causal
+typing describes how the kernel *interprets* a finding, which means it
+touches the reasoning layer next, not just the storage layer. v0.38.0
+ships only the storage; the reasoning move is deliberately staged to a
+later release so the schema can settle through real use first.
+
 ## 0.37.0 - 2026-04-27
 
 **Multi-actor joint signatures.** A finding can now require `k`

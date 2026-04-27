@@ -352,6 +352,8 @@ mod tests {
                 entities: Vec::new(),
                 relation: None,
                 direction: None,
+                causal_claim: None,
+                causal_evidence_grade: None,
             },
             Evidence {
                 evidence_type: "experimental".to_string(),

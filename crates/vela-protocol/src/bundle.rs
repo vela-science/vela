@@ -1250,6 +1250,58 @@ pub struct Flags {
     pub jointly_accepted: bool,
 }
 
+/// v0.38: Pearlian causal typing for an assertion. The kernel's
+/// pre-v0.38 record carried only `direction: Some("positive" |
+/// "negative")` — enough to know that "X covaries with Y" but not
+/// whether the speaker meant correlation, mediation, or intervention.
+/// In real review work those are different epistemic claims with
+/// different evidence requirements; conflating them produced silent
+/// over-claiming.
+///
+/// This release lands the schema layer. The reasoning surface
+/// (do-calculus, identifiability, derived bridges that propagate
+/// causal vs correlational claims separately) ships in a follow-up.
+/// The same staging used v0.32 (Replication as object) → v0.36.1
+/// (Project.replications becomes the source of truth for confidence).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CausalClaim {
+    /// "X covaries with Y" — no claim about generative direction.
+    Correlation,
+    /// "X mediates Y → Z" — pathway claim, weaker than intervention.
+    Mediation,
+    /// "Setting X=x changes Y" — Pearl's `do(X=x)`.
+    Intervention,
+}
+
+/// v0.38: study-design grade backing a causal claim.
+/// The grade is what makes the difference between "the data is
+/// consistent with X causing Y" (Observational) and "X causes Y"
+/// (Rct). The kernel carries the design label so reviewers can
+/// re-grade without re-extracting.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CausalEvidenceGrade {
+    /// Randomized controlled trial. Strongest grade for intervention claims.
+    Rct,
+    /// Mendelian randomization, instrumental variables, regression
+    /// discontinuity, natural experiments, etc.
+    QuasiExperimental,
+    /// Cohort, case-control, cross-sectional. Identifies association
+    /// only without further design assumptions.
+    Observational,
+    /// Computational simulation, theoretical model, mathematical proof.
+    Theoretical,
+}
+
+/// Valid string forms for serialized `CausalClaim`. The kernel
+/// validates against this on load.
+pub const VALID_CAUSAL_CLAIMS: &[&str] = &["correlation", "mediation", "intervention"];
+
+/// Valid string forms for serialized `CausalEvidenceGrade`.
+pub const VALID_CAUSAL_EVIDENCE_GRADES: &[&str] =
+    &["rct", "quasi_experimental", "observational", "theoretical"];
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Assertion {
     pub text: String,
@@ -1259,6 +1311,17 @@ pub struct Assertion {
     pub entities: Vec<Entity>,
     pub relation: Option<String>,
     pub direction: Option<String>,
+    /// v0.38: the kind of causal claim this assertion makes. `None`
+    /// means the kernel hasn't been told yet — the legacy default for
+    /// pre-v0.38 findings. `Some(Correlation)` is the safe minimum
+    /// claim; `Some(Intervention)` is the strongest.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub causal_claim: Option<CausalClaim>,
+    /// v0.38: study-design grade backing the causal claim. Drives the
+    /// reasoning layer's identifiability checks (deferred). Pre-v0.38
+    /// findings omit the field; loading is backward-compatible.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub causal_evidence_grade: Option<CausalEvidenceGrade>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1738,6 +1801,8 @@ mod tests {
             }],
             relation: Some("activates".into()),
             direction: Some("positive".into()),
+            causal_claim: None,
+            causal_evidence_grade: None,
         }
     }
 
@@ -2204,6 +2269,8 @@ mod tests {
             entities: vec![],
             relation: None,
             direction: None,
+            causal_claim: None,
+            causal_evidence_grade: None,
         };
         let prov1 = Provenance {
             source_type: "published_paper".into(),
@@ -2243,6 +2310,8 @@ mod tests {
             }],
             relation: Some("precedes".into()),
             direction: Some("positive".into()),
+            causal_claim: None,
+            causal_evidence_grade: None,
         };
         let prov2 = Provenance {
             source_type: "published_paper".into(),
@@ -2282,6 +2351,8 @@ mod tests {
             entities: vec![],
             relation: None,
             direction: None,
+            causal_claim: None,
+            causal_evidence_grade: None,
         };
         let assertion2 = Assertion {
             text: "NLRP3 activates IL-1B".into(),
@@ -2289,6 +2360,8 @@ mod tests {
             entities: vec![],
             relation: None,
             direction: None,
+            causal_claim: None,
+            causal_evidence_grade: None,
         };
         let prov = sample_provenance();
         let id1 = FindingBundle::content_address(&assertion1, &prov);

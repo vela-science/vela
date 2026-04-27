@@ -315,7 +315,9 @@ fn lift_tension(a: &FindingBundle, b: &FindingBundle, why: &str) -> FindingBundl
         entities: Vec::new(),
         relation: None,
         direction: None,
-    };
+            causal_claim: None,
+            causal_evidence_grade: None,
+        };
     let evidence = Evidence {
         evidence_type: "tension_pair".to_string(),
         model_system: String::new(),
@@ -400,6 +402,8 @@ mod tests {
                 entities: Vec::new(),
                 relation: None,
                 direction: None,
+                causal_claim: None,
+                causal_evidence_grade: None,
             },
             evidence: E {
                 evidence_type: "test".to_string(),
