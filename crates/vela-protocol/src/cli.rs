@@ -19,7 +19,7 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 
 #[derive(Parser)]
-#[command(name = "vela", version = "0.39.1")]
+#[command(name = "vela", version = "0.40.0")]
 #[command(about = "Portable frontier state for science")]
 struct Cli {
     #[command(subcommand)]
@@ -441,6 +441,16 @@ enum Commands {
     Federation {
         #[command(subcommand)]
         action: FederationAction,
+    },
+    /// v0.40: Causal reasoning over the schema landed in v0.38. Audits
+    /// every finding for identifiability: does the declared
+    /// study-design grade actually support the causal claim being
+    /// made? Surfaces underidentified findings (intervention from
+    /// observational) and conditional ones (intervention from
+    /// quasi-experimental designs that need explicit assumptions).
+    Causal {
+        #[command(subcommand)]
+        action: CausalAction,
     },
     /// Manage frontier-level metadata: cross-frontier dependencies (v0.8).
     /// Use `vela frontier add-dep` to declare a remote frontier this
@@ -990,6 +1000,22 @@ enum ActorAction {
     /// List registered actors in a frontier
     List {
         frontier: PathBuf,
+        #[arg(long)]
+        json: bool,
+    },
+}
+
+#[derive(Subcommand)]
+enum CausalAction {
+    /// v0.40: Audit every finding's (causal_claim, causal_evidence_grade)
+    /// for identifiability. Reports underidentified, conditional,
+    /// and underdetermined findings with rationale + remediation.
+    Audit {
+        frontier: PathBuf,
+        /// Restrict the report to entries needing reviewer attention
+        /// (Underidentified or Conditional). Useful for triage.
+        #[arg(long)]
+        problems_only: bool,
         #[arg(long)]
         json: bool,
     },
@@ -1924,6 +1950,7 @@ pub async fn run_command() {
         Commands::Sign { action } => cmd_sign(action),
         Commands::Actor { action } => cmd_actor(action),
         Commands::Federation { action } => cmd_federation(action),
+        Commands::Causal { action } => cmd_causal(action),
         Commands::Frontier { action } => cmd_frontier(action),
         Commands::Queue { action } => cmd_queue(action),
         Commands::Registry { action } => cmd_registry(action),
@@ -4977,6 +5004,93 @@ fn cmd_actor(action: ActorAction) {
     }
 }
 
+/// v0.40: Causal-typing audit over a frontier.
+fn cmd_causal(action: CausalAction) {
+    use crate::causal_reasoning;
+
+    match action {
+        CausalAction::Audit {
+            frontier,
+            problems_only,
+            json,
+        } => {
+            let project = repo::load_from_path(&frontier).unwrap_or_else(|e| fail_return(&e));
+            let mut entries = causal_reasoning::audit_frontier(&project);
+            if problems_only {
+                entries.retain(|e| e.verdict.needs_reviewer_attention());
+            }
+            let summary = causal_reasoning::summarize_audit(&entries);
+
+            if json {
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&json!({
+                        "ok": true,
+                        "command": "causal.audit",
+                        "frontier": frontier.display().to_string(),
+                        "summary": summary,
+                        "entries": entries,
+                    }))
+                    .expect("serialize causal.audit")
+                );
+                return;
+            }
+
+            println!();
+            println!(
+                "  {}",
+                format!("VELA · CAUSAL · AUDIT · {}", frontier.display())
+                    .to_uppercase()
+                    .dimmed()
+            );
+            println!("  {}", style::tick_row(60));
+            println!(
+                "  total: {}  identified: {}  conditional: {}  underidentified: {}  underdetermined: {}",
+                summary.total,
+                summary.identified,
+                summary.conditional,
+                summary.underidentified,
+                summary.underdetermined,
+            );
+            if entries.is_empty() {
+                println!("  (no entries to report)");
+                return;
+            }
+            for e in &entries {
+                let chip = match e.verdict {
+                    crate::causal_reasoning::Identifiability::Identified => style::ok("identified"),
+                    crate::causal_reasoning::Identifiability::Conditional => style::warn("conditional"),
+                    crate::causal_reasoning::Identifiability::Underidentified => {
+                        style::lost("underidentified")
+                    }
+                    crate::causal_reasoning::Identifiability::Underdetermined => {
+                        style::warn("underdetermined")
+                    }
+                };
+                let claim = e.causal_claim.map_or("none".to_string(), |c| {
+                    format!("{c:?}").to_lowercase()
+                });
+                let grade = e.causal_evidence_grade.map_or("none".to_string(), |g| {
+                    format!("{g:?}").to_lowercase()
+                });
+                println!();
+                println!("  {chip}  {}  ({}/{})", e.finding_id, claim, grade);
+                let assertion_short: String = e.assertion_text.chars().take(78).collect();
+                println!("    {assertion_short}");
+                println!("    {} {}", style::ok("why:"), e.rationale);
+                if e.verdict.needs_reviewer_attention()
+                    || matches!(
+                        e.verdict,
+                        crate::causal_reasoning::Identifiability::Underdetermined
+                    )
+                {
+                    println!("    {} {}", style::ok("fix:"), e.remediation);
+                }
+            }
+        }
+    }
+}
+
 /// v0.39: Manage the federation peer registry.
 fn cmd_federation(action: FederationAction) {
     use crate::federation::PeerHub;
@@ -7871,6 +7985,10 @@ const SCIENCE_SUBCOMMANDS: &[&str] = &[
     // v0.35: inference layer — consensus aggregation over claim-similar
     // findings.
     "consensus",
+    // v0.39: federation — peer registry + sync runtime.
+    "federation",
+    // v0.40: causal reasoning — identifiability audit.
+    "causal",
 ];
 
 pub fn is_science_subcommand(name: &str) -> bool {

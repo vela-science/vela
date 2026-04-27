@@ -1,5 +1,127 @@
 # Changelog
 
+## 0.40.0 - 2026-04-27
+
+**Causal reasoning over the schema landed in v0.38.** v0.38 made
+causal claims first-class in storage, math, inference, and structural
+lints. v0.40.0 lands the *reasoning* move: a hard identifiability
+verdict over (claim, grade) — does the design, *as declared*, support
+the claim being made?
+
+### The substrate question
+
+Pearl's identifiability question at level 1: given a finding's claim
+type and its evidence grade, is the claim derivable from the data the
+study actually produces? "X causes Y" cannot be derived from
+observational data alone — that's the textbook objection. The
+substrate now records the verdict canonically.
+
+### `Identifiability` enum
+
+```rust
+pub enum Identifiability {
+    Identified,         // design admits the claim
+    Conditional,        // admits under additional reviewer-attested assumptions
+    Underidentified,    // design cannot identify the claim
+    Underdetermined,    // claim or grade unset; kernel doesn't know yet
+}
+```
+
+### Decision matrix (encoded in `is_identifiable`)
+
+|              | RCT         | QuasiExp.        | Observational      | Theoretical        |
+|--------------|-------------|------------------|--------------------|--------------------|
+| Correlation  | identified  | identified       | identified         | identified         |
+| Mediation    | identified  | conditional      | underidentified    | underidentified    |
+| Intervention | identified  | conditional      | **underidentified**| underidentified    |
+
+`Conditional` flags claims the design admits *only under additional
+assumptions the kernel cannot verify* — instrument validity for QE-grade
+intervention, ignorability of confounders for QE-grade mediation. The
+substrate move is to require the reviewer document the assumption
+rather than swallow it silently. v0.40.1+ will surface the attestation
+through proposals.
+
+### API
+
+- `causal_reasoning::is_identifiable(claim, grade) -> Identifiability` —
+  pure function, the matrix above encoded directly.
+- `causal_reasoning::audit_finding(&FindingBundle) -> AuditEntry` —
+  per-finding verdict + rationale + remediation.
+- `causal_reasoning::audit_frontier(&Project) -> Vec<AuditEntry>` —
+  walks all findings, sorted so reviewer-attention items
+  (Underidentified, then Conditional, then Underdetermined) surface
+  first.
+- `causal_reasoning::summarize_audit(&[AuditEntry]) -> AuditSummary` —
+  counts per verdict.
+
+### CLI
+
+```
+vela causal audit --frontier <path> [--problems-only] [--json]
+```
+
+`--problems-only` filters to entries needing reviewer attention
+(`Underidentified` or `Conditional`); useful for triage.
+
+### What this surfaces on the BBB frontier
+
+Running the audit against `projects/bbb-flagship` today reports:
+
+```
+total: 86  identified: 0  conditional: 0  underidentified: 0  underdetermined: 86
+```
+
+All 86 findings are `Underdetermined` because none have been graded.
+This is correct — the substrate is announcing what it doesn't yet
+know. Each entry's remediation is `Set causal_claim and
+causal_evidence_grade via vela finding causal-set`. Once those
+settings land (real reviewer work, not a code change), the audit
+will surface real underidentified claims as concrete review items.
+
+### Doctrine
+
+- Identifiability is a function of (claim, grade), not of the
+  confidence score, citation count, or any soft signal. Either the
+  design admits the claim or it doesn't.
+- The kernel records the verdict; it does not auto-correct.
+  v0.40.1+ surfaces remediation through proposals.
+- Findings without typed claims are `Underdetermined` — the kernel
+  knows it doesn't know.
+
+### Verification
+
+- `cargo build --workspace`: clean.
+- `cargo test --workspace`: **420/420 pass** (was 412; +8 causal
+  reasoning tests):
+  - `underdetermined_when_missing_either_field`
+  - `correlation_identified_under_any_grade`
+  - `rct_identifies_any_claim`
+  - `intervention_observational_underidentified`
+  - `intervention_quasi_experimental_conditional`
+  - `mediation_observational_underidentified`
+  - `needs_reviewer_attention_only_for_problem_verdicts`
+  - `audit_remediation_intervention_observational_suggests_downgrade`
+- `vela conformance`: 61/61 pass.
+- `vela check projects/bbb-flagship`: 86/86 valid.
+- `vela causal audit projects/bbb-flagship`: 86 underdetermined
+  (expected; frontier hasn't been graded yet).
+
+### What this completes in the v0.38–v0.40 causal arc
+
+| Version | Layer | Move |
+|---|---|---|
+| v0.38.0 | Schema | `causal_claim` + `causal_evidence_grade` |
+| v0.38.1 | Math | soft compatibility multiplier in confidence formula |
+| v0.38.2 | Inference | aggregate filter by claim type / minimum grade |
+| v0.38.3 | Structure | `L011` lint on `supports`-link strength mismatch |
+| v0.40.0 | Reasoning | hard identifiability verdict + audit |
+
+The arc started in v0.38.0 closes here. Everything that comes next
+in causal work — proposal-emitting auto-remediation, do-calculus
+operators, cross-frontier identifiability checks across bridges —
+builds on this foundation, not extends it.
+
 ## 0.39.1 - 2026-04-27
 
 **Federation sync runtime.** v0.39.0 landed the schema (peer registry,

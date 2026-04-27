@@ -5,6 +5,7 @@ pub mod bridge;
 pub mod bundle;
 pub mod calibration;
 pub mod canonical;
+pub mod causal_reasoning;
 pub mod confidence;
 pub mod conformance;
 pub mod diff;
