@@ -1,5 +1,111 @@
 # Changelog
 
+## 0.30.0 - 2026-04-27
+
+**Topic-first vela.org, Phase A content expansion (48 → 86 signed
+findings), `vela frontier diff` CLI, validator allow-list extension.**
+
+The frontier moved from BBB Flagship (a bounded methods frontier) to
+**Alzheimer's Therapeutics** — the live state of the Alzheimer's
+research field, agent-augmented and signed. The substrate stays at
+`/protocol`; the topic is the front door.
+
+A clean visitor lands on `vela.org` and within five seconds reads
+"this is the live Alzheimer's research frontier, signed and updated
+weekly" — the GitHub-first-visit gate. The protocol becomes the
+answer to "wait, how does this stay honest?" rather than the pitch.
+
+### Site (Astro topic-first redesign)
+
+- **New homepage (`/`)**: instrument bar (claims · papers ·
+  contradictions · last signed), drug-target chips with counts,
+  claim cards rendering each assertion as a serif sentence with
+  citation + permalink. Strongest claims by confidence above the
+  fold. "How this stays honest" panel as the only protocol surface.
+- **New routes**: `/claims/[slug]` (per-finding detail with
+  provenance sidebar), `/targets/[slug]` for Aβ, BACE1, tau, TREM2,
+  ApoE, BBB delivery, `/frontier/[week]` and `/frontier` for the
+  weekly diff archive.
+- **`/protocol`**: the previous protocol-pitch homepage moved here
+  verbatim — TerminalReplay, six nouns, all preserved as
+  second-class chrome.
+- **Mobile polish**: `WbHead` aside cluster wraps cleanly on narrow
+  viewports; pageTitle scales by viewport; stats grid collapses 2x2.
+- **`site/src/lib/frontier.ts`** is the new build-time loader. It
+  reads `projects/bbb-flagship/.vela/findings/*.json`, derives
+  human-readable slugs, infers drug-target tags by keyword, buckets
+  confidence, and exposes `loadFrontier`, `claimsForTarget`,
+  `frontierStats`, `contradictions`, `diffForWeek`, `activeWeeks`.
+
+### Phase A content expansion
+
+- `vela compile-notes` against `~/Documents/Obsidian Vault/Research`
+  yielded 108 proposals (41 open questions, 24 hypotheses, 33
+  candidate findings, 10 tensions). Reviewer agent scored 22.
+- Triaged: **38 accepted** (Alzheimer's-relevant tensions + candidate
+  findings), **11 rejected** (off-topic Xanadu/Web infrastructure
+  from non-domain notes), **59 left pending** (open questions and
+  hypotheses — research log, not signature-worthy as canonical
+  state per Vela doctrine).
+- **Renamed canonical frontier** in `projects/bbb-flagship/.vela/
+  config.toml`: "BBB Flagship" → "Alzheimer's Therapeutics" with a
+  description that names the BBB lineage. Directory name stays
+  `bbb-flagship` for stable identity.
+- Result: Tau (4), ApoE (7), BACE1 (12), TREM2 (19) drug-target
+  pages now have content. Tau page surfaces the amyloid-vs-tau
+  tension as `contested` in cinnabar.
+- New manifest at `frontiers/alzheimers-therapeutics.json`
+  (vfr_id `vfr_bd912b3e29e334ab`, 86 findings) signed by
+  `reviewer:will-blair` and **published to vela-hub.fly.dev**.
+  End-to-end pull verified: `vela registry pull` resolves through
+  the GitHub raw URL and verifies snapshot + event-log + signature.
+
+### `vela frontier diff` (CLI subcommand)
+
+- New `FrontierAction::Diff` and `cmd_frontier_diff` in `cli.rs`.
+- Window resolution priority: `--since RFC3339` > `--week YYYY-Www`
+  > current ISO week (default).
+- Read-only over canonical state; no signing key required. Emits
+  human output with the existing tick-row style or `--json` for
+  programmatic callers.
+- ISO-week math via `chrono::NaiveDate::from_isoywd_opt`.
+- `scripts/weekly-diff.sh` rewritten to prefer the canonical CLI
+  when the binary exists, falling back to its Python implementation
+  otherwise. Both produce compatible JSON.
+
+### Validator allow-list extension
+
+The Notes Compiler emits non-canonical enum values for proposals
+derived from researcher zettelkastens. Vela's content-addressing
+makes `assertion.type` part of the SHA-256 preimage — rewriting
+the value would change every `vf_<id>` and break references in
+the event log. The validator was extended instead:
+
+- `bundle.rs::VALID_ASSERTION_TYPES` += `tension`, `open_question`,
+  `hypothesis`, `candidate_finding`
+- `bundle.rs::VALID_EVIDENCE_TYPES` += `extracted_from_notes`
+- `bundle.rs::VALID_PROVENANCE_SOURCE_TYPES` += `researcher_notes`
+- `validate.rs::VALID_EXTRACT_METHODS` += `notes_compiler_via_claude_cli`,
+  `scout_via_claude_cli`
+
+`vela check projects/bbb-flagship`: 86/86 valid. 384/384 cargo
+tests pass. Rationale archived at
+`docs/SCHEMA_MISMATCH_AGENT_OUTPUTS.md`.
+
+### Documentation
+
+- `docs/PHASE_A_CONTENT_EXPANSION.md` — the runbook this release
+  operationalizes; kept for future content-expansion runs.
+- `docs/SCHEMA_MISMATCH_AGENT_OUTPUTS.md` — the design rationale
+  for the validator allow-list extension.
+
+### Build state
+
+- `cargo test --workspace --release`: **384/384 pass**.
+- `cargo build --release -p vela-cli`: clean.
+- `bun run build` (site): **114 static pages, 1.20s**.
+- `flyctl deploy`: live at `https://vela-site.fly.dev/`.
+
 ## 0.29.4 - 2026-04-26
 
 **GitHub-moment site pass + interactive correction demo + measured

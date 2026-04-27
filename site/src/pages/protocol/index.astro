@@ -19,7 +19,7 @@ import TerminalReplay from "../../components/TerminalReplay.astro";
 import LiveHub from "../../components/LiveHub.astro";
 import HubBrowse from "../../components/HubBrowse.astro";
 import Chip from "../../components/Chip.astro";
-import { HUB_URL, REPO_URL, BBB, VERSION } from "../../config";
+import { HUB_URL, REPO_URL, FRONTIER, VERSION } from "../../config";
 
 const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
 ---
@@ -63,7 +63,7 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
 
   <Section num="§2" title="Browse the live hub" aside={`public hub · ${HUB_HOST}`}>
     <p style="font-family: var(--font-serif); font-size: 17px; color: var(--ink-2); max-width: 64ch; margin: 0 0 12px;">
-      Every entry below is a signed manifest pointing at a frontier file the publisher hosts elsewhere. Click any row to open it in the Workbench. {BBB.name} republishes weekly from CI; the others are one-shot publications.
+      Every entry below is a signed manifest pointing at a frontier file the publisher hosts elsewhere. Click any row to open it in the Workbench. {FRONTIER.name} is the live frontier the homepage reads from; the others are bounded publications and historical snapshots.
     </p>
     <LiveHub />
     <HubBrowse />
