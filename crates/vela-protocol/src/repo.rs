@@ -594,6 +594,20 @@ fn load_vela_repo(dir: &Path) -> Result<Project, String> {
         }
     }
 
+    // v0.39: federation peer registry. Stored as a single JSON file
+    // (peers are a small flat list, not content-addressed) at
+    // `.vela/peers.json`. Pre-v0.39 frontiers without the file load
+    // unchanged with an empty peer registry.
+    let peers_path = dir.join(".vela/peers.json");
+    let peers: Vec<crate::federation::PeerHub> = if peers_path.is_file() {
+        let data = std::fs::read_to_string(&peers_path)
+            .map_err(|e| format!("Failed to read {}: {e}", peers_path.display()))?;
+        serde_json::from_str(&data)
+            .map_err(|e| format!("Failed to parse {}: {e}", peers_path.display()))?
+    } else {
+        Vec::new()
+    };
+
     // Assemble into Project using the project::assemble function for stats,
     // then patch metadata from config.
     let mut c = project::assemble(
@@ -614,6 +628,7 @@ fn load_vela_repo(dir: &Path) -> Result<Project, String> {
     c.code_artifacts = code_artifacts;
     c.predictions = predictions;
     c.resolutions = resolutions;
+    c.peers = peers;
     project::recompute_stats(&mut c);
 
     Ok(c)
@@ -760,6 +775,24 @@ fn save_vela_repo(dir: &Path, project: &Project) -> Result<(), String> {
         let filename = format!("{}.json", resolution.id);
         std::fs::write(resolutions_dir.join(&filename), json)
             .map_err(|e| format!("Failed to write resolution {}: {e}", filename))?;
+    }
+
+    // v0.39: federation peer registry. One JSON file holding the full
+    // list (peers are flat, not content-addressed). Skip writing the
+    // file when the registry is empty so pre-v0.39 frontiers stay
+    // byte-identical on disk.
+    let peers_path = vela_dir.join("peers.json");
+    if project.peers.is_empty() {
+        // Tidy up a stale file if the last peer was removed.
+        if peers_path.is_file() {
+            std::fs::remove_file(&peers_path)
+                .map_err(|e| format!("Failed to remove stale peers.json: {e}"))?;
+        }
+    } else {
+        let json = serde_json::to_string_pretty(&project.peers)
+            .map_err(|e| format!("Failed to serialize peers: {e}"))?;
+        std::fs::write(&peers_path, json)
+            .map_err(|e| format!("Failed to write peers.json: {e}"))?;
     }
 
     Ok(())

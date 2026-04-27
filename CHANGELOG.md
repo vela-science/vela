@@ -1,5 +1,87 @@
 # Changelog
 
+## 0.40.2 - 2026-04-27
+
+**Two real bugs surfaced by exercising v0.39.1 against a live peer.**
+First time `vela federation sync` ran against an actual second source
+of truth. The substrate didn't fall over, but two structural defects
+came out that no test would have caught — they're the kind of thing
+only real divergence reveals.
+
+### Bug 1: Peer registry didn't persist
+
+`vela federation peer-add` returned success and updated the in-memory
+`Project.peers` field, but `repo::save_vela_repo` never wrote it to
+disk. The next `vela federation peer-list` reported zero peers.
+
+**Fix.** `Project.peers` now persists at `.vela/peers.json` (single
+file, since peers are a small flat list — not content-addressed).
+Empty registries skip the file so pre-v0.39 frontiers stay
+byte-identical on disk. Stale `peers.json` is removed when the last
+peer is unregistered.
+
+### Bug 2: Federation events broke the per-finding event chain
+
+v0.39.1 emitted `frontier.synced_with_peer` and
+`frontier.conflict_detected` events with `target.type = "finding"`
+and `before_hash = after_hash = NULL_HASH`. Replay validation walks
+each finding's event chain checking `event[i+1].before_hash ==
+event[i].after_hash`, and `NULL_HASH` doesn't match the prior event's
+real hash. Result: `vela check` reported `event replay: conflict`
+on every finding the sync touched.
+
+**Fix.** Federation events are *frontier-level observations*, not
+finding-level state changes. They now target the frontier (`vfr_id`)
+with `target.type = "frontier_observation"` so:
+
+- Replay's per-finding chain validator skips them — chain only runs
+  on `target.type == "finding"`.
+- Orphan check skips them — orphan check only flags finding-targeted
+  events whose finding_id isn't in the project.
+
+The conflict's `finding_id` still lives in the event payload for
+downstream queries; only the canonical event *target* changed.
+
+### Verification on real divergence
+
+After both fixes, ran sync against the GitHub mirror at
+`https://raw.githubusercontent.com/vela-science/vela-frontiers/main/frontiers/bbb-alzheimer.json`
+(which has 48 findings, 0 events) from our local BBB (86 findings,
+86+ causal events). Result:
+
+```
+· ok synced with hub:vela-frontiers-mirror
+  our:    05649e5831a415d8
+  peer:   2161416a9d258201
+  conflicts: 38  events appended: 39
+```
+
+38 `missing_in_peer` conflicts — the 38 findings that exist locally
+but were never republished to the public mirror. `vela check` reports
+`event replay: ok` after the sync.
+
+### What this exercise produced for the substrate
+
+Today's BBB frontier event log holds:
+
+- 38 × `finding.asserted` (genesis assertions for the 38 findings
+  added since the public mirror)
+- 86 × `assertion.reinterpreted_causal` (the v0.40 causal grading
+  pass)
+- 1 × `frontier.synced_with_peer` (sync interaction record)
+- 38 × `frontier.conflict_detected` (per-finding divergence
+  observations)
+
+Every kernel object that was scaffolded in v0.32-v0.39 is now
+producing real events on real data.
+
+### Verification
+
+- `cargo build --workspace`: clean.
+- `cargo test --workspace`: **426/426 pass**.
+- `vela check projects/bbb-flagship`: 86/86 valid, event replay ok.
+- `vela conformance`: 61/61 pass.
+
 ## 0.40.1 - 2026-04-27
 
 **Live calibration runtime.** The kernel has had `Prediction` and

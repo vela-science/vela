@@ -1,0 +1,9 @@
+[
+  {
+    "id": "hub:vela-frontiers-mirror",
+    "url": "https://raw.githubusercontent.com/vela-science/vela-frontiers/main",
+    "public_key": "0000000000000000000000000000000000000000000000000000000000000000",
+    "added_at": "2026-04-27T23:30:53.618577+00:00",
+    "note": "GitHub raw mirror"
+  }
+]

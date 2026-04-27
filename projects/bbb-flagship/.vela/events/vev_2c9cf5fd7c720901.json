@@ -1,0 +1,24 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_2c9cf5fd7c720901",
+  "kind": "frontier.conflict_detected",
+  "target": {
+    "type": "frontier_observation",
+    "id": "vfr_42550548416873fb"
+  },
+  "actor": {
+    "id": "federation",
+    "type": "system"
+  },
+  "timestamp": "2026-04-27T23:33:42.825055+00:00",
+  "reason": "peer=hub:vela-frontiers-mirror kind=missing_in_peer present locally, absent in peer",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:null",
+  "payload": {
+    "detail": "present locally, absent in peer",
+    "finding_id": "vf_6c79b48970a76527",
+    "kind": "missing_in_peer",
+    "peer_id": "hub:vela-frontiers-mirror"
+  },
+  "caveats": []
+}

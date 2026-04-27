@@ -40,7 +40,9 @@ use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-use crate::events::{self, FindingEventInput, NULL_HASH, StateEvent, snapshot_hash};
+use crate::events::{
+    EVENT_SCHEMA, NULL_HASH, StateActor, StateEvent, StateTarget, compute_event_id, snapshot_hash,
+};
 use crate::project::Project;
 
 /// v0.39: A registered peer hub the local frontier knows about.
@@ -277,15 +279,33 @@ pub fn sync_with_peer(
     let now = Utc::now().to_rfc3339();
     let frontier_id = project.frontier_id().clone();
 
+    // v0.39.1 fix: federation events are frontier-level *observations*,
+    // not finding-level state changes. Target the frontier (vfr_id)
+    // with `target.type = "frontier_observation"` so:
+    //   - replay's per-finding chain validator skips them (chain
+    //     only runs on `target.type == "finding"`);
+    //   - the orphan check skips them (orphan check only flags
+    //     finding-targeted events whose finding_id is unknown).
+    // The `finding_id` of each conflict still lives in the payload
+    // for downstream queries; only the canonical event target is the
+    // frontier.
     let synced_reason = format!("synced with peer {peer_id}");
-    let synced_event = events::new_finding_event(FindingEventInput {
-        kind: "frontier.synced_with_peer",
-        finding_id: &frontier_id,
-        actor_id: "federation",
-        actor_type: "system",
-        reason: &synced_reason,
-        before_hash: NULL_HASH,
-        after_hash: NULL_HASH,
+    let mut synced_event = StateEvent {
+        schema: EVENT_SCHEMA.to_string(),
+        id: String::new(),
+        kind: "frontier.synced_with_peer".to_string(),
+        target: StateTarget {
+            r#type: "frontier_observation".to_string(),
+            id: frontier_id.clone(),
+        },
+        actor: StateActor {
+            id: "federation".to_string(),
+            r#type: "system".to_string(),
+        },
+        timestamp: now.clone(),
+        reason: synced_reason,
+        before_hash: NULL_HASH.to_string(),
+        after_hash: NULL_HASH.to_string(),
         payload: json!({
             "peer_id": peer_id,
             "peer_snapshot_hash": peer_hash,
@@ -293,8 +313,9 @@ pub fn sync_with_peer(
             "divergence_count": conflicts.len(),
         }),
         caveats: Vec::new(),
-    });
-    let _ = now; // event timestamp comes from new_finding_event
+        signature: None,
+    };
+    synced_event.id = compute_event_id(&synced_event);
 
     let mut conflict_events: Vec<StateEvent> = Vec::with_capacity(conflicts.len());
     for c in &conflicts {
@@ -303,14 +324,22 @@ pub fn sync_with_peer(
             c.kind.as_str(),
             c.detail
         );
-        let ev = events::new_finding_event(FindingEventInput {
-            kind: "frontier.conflict_detected",
-            finding_id: &c.finding_id,
-            actor_id: "federation",
-            actor_type: "system",
-            reason: &reason,
-            before_hash: NULL_HASH,
-            after_hash: NULL_HASH,
+        let mut ev = StateEvent {
+            schema: EVENT_SCHEMA.to_string(),
+            id: String::new(),
+            kind: "frontier.conflict_detected".to_string(),
+            target: StateTarget {
+                r#type: "frontier_observation".to_string(),
+                id: frontier_id.clone(),
+            },
+            actor: StateActor {
+                id: "federation".to_string(),
+                r#type: "system".to_string(),
+            },
+            timestamp: now.clone(),
+            reason,
+            before_hash: NULL_HASH.to_string(),
+            after_hash: NULL_HASH.to_string(),
             payload: json!({
                 "peer_id": peer_id,
                 "finding_id": c.finding_id,
@@ -318,7 +347,9 @@ pub fn sync_with_peer(
                 "detail": c.detail,
             }),
             caveats: Vec::new(),
-        });
+            signature: None,
+        };
+        ev.id = compute_event_id(&ev);
         conflict_events.push(ev);
     }
 
@@ -339,21 +370,34 @@ pub fn sync_with_peer(
 /// expected to serve a JSON-serialized `Project`. Blocking call —
 /// `vela federation sync` is a one-shot CLI verb, not a service.
 ///
+/// Implementation note: the CLI top-level dispatcher runs inside a
+/// tokio runtime, but `reqwest::blocking` panics if dropped inside
+/// an async context. We escape into a dedicated OS thread that owns
+/// its own runtime, making the call safe to issue from sync code
+/// regardless of who's calling it.
+///
 /// Verification of peer signatures (and registry entries) is a
 /// separate concern, addressed in v0.39.2+. v0.39.1 trusts the
 /// transport so the sync diff/event-emission machinery can be
 /// validated against real peer state first.
 pub fn fetch_peer_frontier(url: &str) -> Result<Project, String> {
-    let resp = reqwest::blocking::get(url)
-        .map_err(|e| format!("HTTP GET {url} failed: {e}"))?;
-    let status = resp.status();
-    if !status.is_success() {
-        return Err(format!("peer returned HTTP {status}"));
-    }
-    let body = resp
-        .text()
-        .map_err(|e| format!("read body from {url}: {e}"))?;
-    serde_json::from_str(&body).map_err(|e| format!("parse peer frontier from {url}: {e}"))
+    let url_owned = url.to_string();
+    let handle = std::thread::spawn(move || -> Result<Project, String> {
+        let resp = reqwest::blocking::get(&url_owned)
+            .map_err(|e| format!("HTTP GET {url_owned} failed: {e}"))?;
+        let status = resp.status();
+        if !status.is_success() {
+            return Err(format!("peer returned HTTP {status}"));
+        }
+        let body = resp
+            .text()
+            .map_err(|e| format!("read body from {url_owned}: {e}"))?;
+        serde_json::from_str(&body)
+            .map_err(|e| format!("parse peer frontier from {url_owned}: {e}"))
+    });
+    handle
+        .join()
+        .map_err(|_| "fetch thread panicked".to_string())?
 }
 
 #[cfg(test)]
