@@ -257,6 +257,8 @@ fn merge_projects(frontiers: Vec<(String, Project)>) -> Project {
         replications: Vec::new(),
         datasets: Vec::new(),
         code_artifacts: Vec::new(),
+        predictions: Vec::new(),
+        resolutions: Vec::new(),
     };
     sources::materialize_project(&mut project);
     project

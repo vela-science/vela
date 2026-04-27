@@ -742,6 +742,8 @@ mod tests {
             replications: vec![],
             datasets: vec![],
             code_artifacts: vec![],
+            predictions: vec![],
+            resolutions: vec![],
         };
 
         let report = verify_frontier_data(&frontier, None).unwrap();

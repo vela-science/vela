@@ -1,0 +1,31 @@
+{
+  "id": "vpred_ce468cb7171efa89",
+  "claim_text": "Lecanemab Phase 4 long-term follow-up will show > 0.4 SD CDR-SB benefit at 36 months.",
+  "target_findings": [
+    "vf_931bc10a4a26388f"
+  ],
+  "predicted_at": "2026-04-27T20:19:55.552957+00:00",
+  "resolves_by": "2028-12-31T23:59:59Z",
+  "resolution_criterion": "Published Phase 4 readout reports CDR-SB effect size; resolved true if effect ≥ 0.4 SD, false otherwise.",
+  "expected_outcome": {
+    "kind": "quantitative",
+    "value": 0.4,
+    "tolerance": 0.1,
+    "units": "SD"
+  },
+  "made_by": "reviewer:will-blair",
+  "confidence": 0.55,
+  "conditions": {
+    "text": "Early symptomatic AD, human, clinical trial extension.",
+    "species_verified": [],
+    "species_unverified": [],
+    "in_vitro": false,
+    "in_vivo": false,
+    "human_data": true,
+    "clinical_trial": true,
+    "concentration_range": null,
+    "duration": null,
+    "age_group": null,
+    "cell_type": null
+  }
+}

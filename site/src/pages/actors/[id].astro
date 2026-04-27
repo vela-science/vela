@@ -1,0 +1,365 @@
+---
+/*
+  Per-actor calibration scoreboard.
+
+  For each registered actor with at least one prediction, display:
+  hit rate, Brier score, log score, and a reliability diagram broken
+  down into 5 confidence bands. The mechanic mirrors
+  `crates/vela-protocol/src/calibration.rs` byte-for-byte so the site
+  renders the same scores `vela calibration` returns.
+
+  v0.34: scoreboard surface is functional but most predictions are
+  open (deadlines in 2027–2028). The scoreboard becomes load-bearing
+  as resolutions accumulate.
+*/
+
+import Page from "../../layouts/Page.astro";
+import {
+  calibrationRecords,
+  loadPredictions,
+  loadResolutions,
+  resolutionFor,
+  type ExpectedOutcome,
+} from "../../lib/frontier";
+import { FRONTIER, VERSION } from "../../config";
+
+export function getStaticPaths() {
+  return calibrationRecords().map((r) => ({
+    params: { id: r.actor },
+    props: { actor: r.actor },
+  }));
+}
+
+interface Props {
+  actor: string;
+}
+const { actor } = Astro.props as Props;
+const records = calibrationRecords();
+const record = records.find((r) => r.actor === actor)!;
+const predictions = loadPredictions().filter((p) => p.made_by === actor);
+const resolutions = loadResolutions();
+
+function fmtDate(s: string | null | undefined): string {
+  if (!s) return "—";
+  return s.slice(0, 10);
+}
+
+function outcomeLabel(o: ExpectedOutcome): string {
+  switch (o.kind) {
+    case "affirmed":
+      return "affirmed";
+    case "falsified":
+      return "falsified";
+    case "quantitative":
+      return `${o.value}±${o.tolerance}${o.units ? ` ${o.units}` : ""}`;
+    case "categorical":
+      return o.value;
+  }
+}
+---
+
+<Page
+  title={`${actor} · calibration · ${FRONTIER.name}`}
+  description={`Calibration scoreboard for ${actor}: ${record.n_predictions} predictions, ${record.n_resolved} resolved.`}
+  active="home"
+  eyebrow="Actor · calibration"
+  pageTitle={actor}
+  subtitle={`${record.n_predictions} prediction${record.n_predictions === 1 ? "" : "s"} · ${record.n_resolved} resolved · ${record.n_hit} hit`}
+>
+  <div slot="aside">
+    <a href="/predictions" class="aside-link">← predictions</a>
+    <span class="aside-version">v{VERSION}</span>
+  </div>
+
+  <p class="cal-intro">
+    Calibration is the substrate move that turns claims into accountable
+    bets. Each row in <a class="inline-link" href="/predictions">/predictions</a>
+    contributes to this actor's track record once a Resolution lands.
+    Brier score (lower is better, 0 = perfect) and log score
+    (higher is better, 0 = perfect) are computed deterministically from
+    the resolved subset. Same math as <code>vela calibration</code>.
+  </p>
+
+  <div class="cal-grid">
+    <div class="cal-cell">
+      <span class="cal-cell__label">Predictions made</span>
+      <span class="cal-cell__num">{record.n_predictions}</span>
+    </div>
+    <div class="cal-cell">
+      <span class="cal-cell__label">Resolved</span>
+      <span class="cal-cell__num">{record.n_resolved}</span>
+    </div>
+    <div class="cal-cell">
+      <span class="cal-cell__label">Hit rate</span>
+      <span class="cal-cell__num">
+        {record.hit_rate !== null ? `${(record.hit_rate * 100).toFixed(1)}%` : "—"}
+      </span>
+    </div>
+    <div class="cal-cell">
+      <span class="cal-cell__label">Brier score</span>
+      <span class="cal-cell__num cal-cell__num--small">
+        {record.brier_score !== null ? record.brier_score.toFixed(4) : "—"}
+      </span>
+    </div>
+    <div class="cal-cell">
+      <span class="cal-cell__label">Log score</span>
+      <span class="cal-cell__num cal-cell__num--small">
+        {record.log_score !== null ? record.log_score.toFixed(4) : "—"}
+      </span>
+    </div>
+  </div>
+
+  {record.reliability_buckets.length > 0 && (
+    <section class="cal-section">
+      <h2 class="cal-section__title">Reliability diagram</h2>
+      <p class="cal-section__sub">
+        Predicted confidence band → observed hit rate. A perfectly
+        calibrated actor has observed ≈ predicted for each band.
+      </p>
+      <table class="cal-table">
+        <thead>
+          <tr>
+            <th>predicted band</th>
+            <th>observed hit rate</th>
+            <th>n in band</th>
+          </tr>
+        </thead>
+        <tbody>
+          {record.reliability_buckets.map(([lo, hit, n]) => (
+            <tr>
+              <td>{(lo * 100).toFixed(0)}%–{((lo + 0.2) * 100).toFixed(0)}%</td>
+              <td>{(hit * 100).toFixed(1)}%</td>
+              <td>{n}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </section>
+  )}
+
+  <section class="cal-section">
+    <h2 class="cal-section__title">All predictions by {actor}</h2>
+    <ol class="cal-pred-list">
+      {predictions.map((p) => {
+        const r = resolutionFor(p.id);
+        const status = r ? (r.matched_expected ? "hit" : "miss") : "open";
+        return (
+          <li class={`cal-pred cal-pred--${status}`}>
+            <div class="cal-pred__head">
+              <span class={`cal-pred__chip cal-pred__chip--${status}`}>{status}</span>
+              <span class="cal-pred__deadline">
+                {r ? `resolved ${fmtDate(r.resolved_at)}` : `resolves by ${fmtDate(p.resolves_by)}`}
+              </span>
+              <span class="cal-pred__conf">{(p.confidence * 100).toFixed(0)}%</span>
+            </div>
+            <p class="cal-pred__claim">{p.claim_text}</p>
+            <p class="cal-pred__expected">expected: {outcomeLabel(p.expected_outcome)}</p>
+            {r && <p class="cal-pred__actual">actual: {r.actual_outcome}</p>}
+          </li>
+        );
+      })}
+    </ol>
+  </section>
+
+  <p class="cal-back">
+    <a class="inline-link" href="/predictions">← All predictions</a>
+    <span class="cal-back__sep">·</span>
+    <a class="inline-link" href="/">Back to the frontier →</a>
+  </p>
+</Page>
+
+<style>
+  .aside-link {
+    font-family: var(--font-mono);
+    font-size: var(--size-xs);
+    letter-spacing: 0.06em;
+    color: var(--ink-3);
+  }
+  .aside-link:hover { color: var(--ink-0); }
+  .aside-version {
+    font-family: var(--font-mono);
+    font-size: var(--size-xs);
+    color: var(--ink-4);
+    margin-left: 6px;
+  }
+  div[slot="aside"] { display: flex; align-items: center; gap: 12px; }
+  .inline-link {
+    color: var(--signal);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    text-decoration-thickness: 1px;
+  }
+
+  .cal-intro {
+    font-family: var(--font-serif);
+    font-size: 16px;
+    line-height: 1.65;
+    color: var(--ink-2);
+    margin: 0 0 var(--space-5);
+    max-width: 64ch;
+  }
+  .cal-intro code {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    background: var(--paper-1);
+    padding: 1px 4px;
+    border: 1px solid var(--rule-1);
+  }
+
+  .cal-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    border-top: 1px solid var(--rule-2);
+    border-bottom: 1px solid var(--rule-2);
+    margin: 0 0 var(--space-7);
+  }
+  .cal-cell {
+    padding: var(--space-4) var(--space-4);
+    border-right: 1px solid var(--rule-1);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .cal-cell:last-child { border-right: none; }
+  .cal-cell__label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: var(--track-label);
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  .cal-cell__num {
+    font-family: var(--font-serif);
+    font-size: 32px;
+    line-height: 1;
+    color: var(--ink-0);
+    font-variant-numeric: tabular-nums;
+  }
+  .cal-cell__num--small { font-size: 22px; }
+  @media (max-width: 880px) {
+    .cal-grid { grid-template-columns: repeat(2, 1fr); }
+    .cal-cell:nth-child(2n) { border-right: none; }
+    .cal-cell:not(:nth-last-child(-n + 2)) {
+      border-bottom: 1px solid var(--rule-1);
+    }
+  }
+
+  .cal-section { margin: 0 0 var(--space-7); }
+  .cal-section__title {
+    font-family: var(--font-sans);
+    font-size: var(--size-lg);
+    font-weight: 500;
+    color: var(--ink-0);
+    margin: 0 0 var(--space-2);
+    letter-spacing: var(--track-tight);
+  }
+  .cal-section__sub {
+    font-family: var(--font-serif);
+    font-size: 14px;
+    color: var(--ink-3);
+    margin: 0 0 var(--space-3);
+    max-width: 64ch;
+  }
+
+  .cal-table {
+    width: 100%;
+    max-width: 480px;
+    border-collapse: collapse;
+    font-family: var(--font-sans);
+    font-size: 14px;
+    border-top: 1px solid var(--rule-2);
+    border-bottom: 1px solid var(--rule-2);
+  }
+  .cal-table thead th {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: var(--track-label);
+    text-transform: uppercase;
+    color: var(--ink-3);
+    text-align: left;
+    padding: var(--space-3) var(--space-3);
+    border-bottom: 1px solid var(--rule-2);
+    background: var(--paper-1);
+  }
+  .cal-table tbody td {
+    padding: var(--space-3) var(--space-3);
+    border-bottom: 1px solid var(--rule-1);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .cal-pred-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    border-top: 1px solid var(--rule-2);
+  }
+  .cal-pred {
+    padding: var(--space-3) 0;
+    border-bottom: 1px solid var(--rule-1);
+  }
+  .cal-pred__head {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-3);
+    margin-bottom: 6px;
+    flex-wrap: wrap;
+  }
+  .cal-pred__chip {
+    display: inline-block;
+    padding: 2px 8px;
+    border: 1px solid var(--rule-2);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: var(--track-label);
+    text-transform: uppercase;
+    color: var(--ink-2);
+    background: var(--paper-1);
+  }
+  .cal-pred__chip--open {
+    color: var(--state-warn);
+    border-color: color-mix(in oklab, var(--state-warn) 40%, transparent);
+  }
+  .cal-pred__chip--hit {
+    color: var(--state-ok);
+    border-color: color-mix(in oklab, var(--state-ok) 40%, transparent);
+  }
+  .cal-pred__chip--miss {
+    color: var(--vela-ember-red);
+    border-color: color-mix(in oklab, var(--vela-ember-red) 40%, transparent);
+  }
+  .cal-pred__deadline {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--ink-3);
+  }
+  .cal-pred__conf {
+    margin-left: auto;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--ink-3);
+  }
+  .cal-pred__claim {
+    font-family: var(--font-serif);
+    font-size: 15px;
+    line-height: 1.5;
+    color: var(--ink-1);
+    margin: 0 0 4px;
+    max-width: 72ch;
+  }
+  .cal-pred__expected, .cal-pred__actual {
+    font-family: var(--font-serif);
+    font-size: 13px;
+    color: var(--ink-3);
+    margin: 0;
+  }
+
+  .cal-back {
+    margin: var(--space-7) 0 var(--space-5);
+    padding-top: var(--space-4);
+    border-top: 1px solid var(--rule-2);
+    font-family: var(--font-mono);
+    font-size: var(--size-xs);
+    color: var(--ink-3);
+  }
+  .cal-back__sep { margin: 0 8px; color: var(--ink-4); }
+</style>

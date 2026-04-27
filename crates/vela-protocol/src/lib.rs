@@ -2,6 +2,7 @@ pub mod agent_bench;
 pub mod benchmark;
 pub mod bridge;
 pub mod bundle;
+pub mod calibration;
 pub mod canonical;
 pub mod confidence;
 pub mod conformance;

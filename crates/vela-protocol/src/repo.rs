@@ -552,6 +552,48 @@ fn load_vela_repo(dir: &Path) -> Result<Project, String> {
         }
     }
 
+    // v0.34: predictions and resolutions. One file per record at
+    // `.vela/predictions/<vpred_id>.json` and
+    // `.vela/resolutions/<vres_id>.json`. Same pattern as findings,
+    // replications, datasets, code-artifacts.
+    let predictions_dir = dir.join(".vela/predictions");
+    let mut predictions: Vec<crate::bundle::Prediction> = Vec::new();
+    if predictions_dir.is_dir() {
+        let mut entries: Vec<PathBuf> = std::fs::read_dir(&predictions_dir)
+            .map_err(|e| format!("Failed to read predictions/: {e}"))?
+            .filter_map(|e| e.ok())
+            .map(|e| e.path())
+            .filter(|p| p.extension().is_some_and(|ext| ext == "json"))
+            .collect();
+        entries.sort();
+        for path in entries {
+            let data = std::fs::read_to_string(&path)
+                .map_err(|e| format!("Failed to read {}: {e}", path.display()))?;
+            let prediction: crate::bundle::Prediction = serde_json::from_str(&data)
+                .map_err(|e| format!("Failed to parse {}: {e}", path.display()))?;
+            predictions.push(prediction);
+        }
+    }
+
+    let resolutions_dir = dir.join(".vela/resolutions");
+    let mut resolutions: Vec<crate::bundle::Resolution> = Vec::new();
+    if resolutions_dir.is_dir() {
+        let mut entries: Vec<PathBuf> = std::fs::read_dir(&resolutions_dir)
+            .map_err(|e| format!("Failed to read resolutions/: {e}"))?
+            .filter_map(|e| e.ok())
+            .map(|e| e.path())
+            .filter(|p| p.extension().is_some_and(|ext| ext == "json"))
+            .collect();
+        entries.sort();
+        for path in entries {
+            let data = std::fs::read_to_string(&path)
+                .map_err(|e| format!("Failed to read {}: {e}", path.display()))?;
+            let resolution: crate::bundle::Resolution = serde_json::from_str(&data)
+                .map_err(|e| format!("Failed to parse {}: {e}", path.display()))?;
+            resolutions.push(resolution);
+        }
+    }
+
     // Assemble into Project using the project::assemble function for stats,
     // then patch metadata from config.
     let mut c = project::assemble(
@@ -570,6 +612,8 @@ fn load_vela_repo(dir: &Path) -> Result<Project, String> {
     c.replications = replications;
     c.datasets = datasets;
     c.code_artifacts = code_artifacts;
+    c.predictions = predictions;
+    c.resolutions = resolutions;
     project::recompute_stats(&mut c);
 
     Ok(c)
@@ -607,6 +651,9 @@ fn save_vela_repo(dir: &Path, project: &Project) -> Result<(), String> {
     // v0.33: datasets and code artifacts each get their own directory.
     let datasets_dir = vela_dir.join("datasets");
     let code_artifacts_dir = vela_dir.join("code-artifacts");
+    // v0.34: predictions + resolutions form the epistemic ledger.
+    let predictions_dir = vela_dir.join("predictions");
+    let resolutions_dir = vela_dir.join("resolutions");
 
     // Create directories
     for d in [
@@ -617,6 +664,8 @@ fn save_vela_repo(dir: &Path, project: &Project) -> Result<(), String> {
         &replications_dir,
         &datasets_dir,
         &code_artifacts_dir,
+        &predictions_dir,
+        &resolutions_dir,
     ] {
         std::fs::create_dir_all(d)
             .map_err(|e| format!("Failed to create directory {}: {e}", d.display()))?;
@@ -695,6 +744,22 @@ fn save_vela_repo(dir: &Path, project: &Project) -> Result<(), String> {
         let filename = format!("{}.json", artifact.id);
         std::fs::write(code_artifacts_dir.join(&filename), json)
             .map_err(|e| format!("Failed to write code artifact {}: {e}", filename))?;
+    }
+
+    // v0.34: predictions and resolutions, one file per record.
+    for prediction in &project.predictions {
+        let json = serde_json::to_string_pretty(prediction)
+            .map_err(|e| format!("Failed to serialize prediction {}: {e}", prediction.id))?;
+        let filename = format!("{}.json", prediction.id);
+        std::fs::write(predictions_dir.join(&filename), json)
+            .map_err(|e| format!("Failed to write prediction {}: {e}", filename))?;
+    }
+    for resolution in &project.resolutions {
+        let json = serde_json::to_string_pretty(resolution)
+            .map_err(|e| format!("Failed to serialize resolution {}: {e}", resolution.id))?;
+        let filename = format!("{}.json", resolution.id);
+        std::fs::write(resolutions_dir.join(&filename), json)
+            .map_err(|e| format!("Failed to write resolution {}: {e}", filename))?;
     }
 
     Ok(())

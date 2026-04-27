@@ -1,0 +1,324 @@
+---
+/*
+  Predictions registry — every `vpred_<hash>` in the canonical frontier.
+
+  Each row is a falsifiable claim about a future observation, scoped
+  to existing findings and tied to a registered actor with an explicit
+  resolution criterion. Open predictions display their deadline; resolved
+  predictions display the outcome and match status.
+
+  This is the kernel's epistemic accountability layer — over time, every
+  actor's calibration record (Brier, log score, hit rate) is computed
+  from the resolved subset and visible at /actors/[id].
+*/
+
+import Page from "../../layouts/Page.astro";
+import {
+  loadPredictions,
+  loadResolutions,
+  resolutionFor,
+  type ExpectedOutcome,
+} from "../../lib/frontier";
+import { FRONTIER, VERSION } from "../../config";
+
+const predictions = loadPredictions();
+const resolutions = loadResolutions();
+
+const open = predictions.filter((p) => !resolutions.some((r) => r.prediction_id === p.id));
+const resolved = predictions.filter((p) => resolutions.some((r) => r.prediction_id === p.id));
+
+function outcomeLabel(o: ExpectedOutcome): string {
+  switch (o.kind) {
+    case "affirmed":
+      return "affirmed";
+    case "falsified":
+      return "falsified";
+    case "quantitative":
+      return `${o.value}±${o.tolerance}${o.units ? ` ${o.units}` : ""}`;
+    case "categorical":
+      return o.value;
+  }
+}
+
+function fmtDate(s: string | null | undefined): string {
+  if (!s) return "—";
+  return s.slice(0, 10);
+}
+---
+
+<Page
+  title={`Predictions · ${FRONTIER.name}`}
+  description="The kernel's epistemic accountability ledger. Falsifiable claims about future observations, with explicit deadlines and resolution criteria."
+  active="home"
+  eyebrow="Predictions"
+  pageTitle="Predictions"
+  subtitle={`${open.length} open · ${resolved.length} resolved. Each prediction is content-addressed; resolutions feed per-actor calibration scores.`}
+>
+  <div slot="aside">
+    <a href="/" class="aside-link">← frontier</a>
+    <span class="aside-version">v{VERSION}</span>
+  </div>
+
+  <p class="pred-intro">
+    Other parts of the substrate describe what <em>is</em> believed today;
+    predictions describe what is <em>expected</em>. Each open prediction
+    is a falsifiable claim with a deadline; each resolution is a signed
+    record of what actually happened. Over time, every actor accumulates
+    a public calibration record (Brier score, log score, hit rate) at
+    <a class="inline-link" href="/actors/reviewer:will-blair">/actors/&lt;id&gt;</a>.
+  </p>
+
+  {open.length > 0 && (
+    <section class="pred-section">
+      <h2 class="pred-section__title">Open · {open.length}</h2>
+      <ol class="pred-list">
+        {open.map((p) => (
+          <li class="pred-row pred-row--open">
+            <div class="pred-row__head">
+              <span class="pred-row__chip pred-row__chip--open">open</span>
+              <span class="pred-row__deadline">resolves by {fmtDate(p.resolves_by)}</span>
+              <span class="pred-row__id">{p.id}</span>
+            </div>
+            <p class="pred-row__claim">{p.claim_text}</p>
+            <dl class="pred-row__meta">
+              <dt>by</dt>
+              <dd class="pred-row__actor">
+                <a class="inline-link" href={`/actors/${p.made_by}`}>{p.made_by}</a>
+              </dd>
+              <dt>confidence</dt>
+              <dd class="pred-row__conf">{(p.confidence * 100).toFixed(0)}%</dd>
+              <dt>expected</dt>
+              <dd>{outcomeLabel(p.expected_outcome)}</dd>
+              <dt>criterion</dt>
+              <dd class="pred-row__criterion">{p.resolution_criterion}</dd>
+              {p.target_findings.length > 0 && (
+                <>
+                  <dt>targets</dt>
+                  <dd class="pred-row__targets">
+                    {p.target_findings.map((t, i) => (
+                      <>
+                        {i > 0 && <span>, </span>}
+                        <span class="pred-row__target-id">{t}</span>
+                      </>
+                    ))}
+                  </dd>
+                </>
+              )}
+            </dl>
+          </li>
+        ))}
+      </ol>
+    </section>
+  )}
+
+  {resolved.length > 0 && (
+    <section class="pred-section">
+      <h2 class="pred-section__title">Resolved · {resolved.length}</h2>
+      <ol class="pred-list">
+        {resolved.map((p) => {
+          const r = resolutionFor(p.id);
+          if (!r) return null;
+          return (
+            <li class={`pred-row pred-row--resolved pred-row--${r.matched_expected ? "hit" : "miss"}`}>
+              <div class="pred-row__head">
+                <span class={`pred-row__chip pred-row__chip--${r.matched_expected ? "hit" : "miss"}`}>
+                  {r.matched_expected ? "hit" : "miss"}
+                </span>
+                <span class="pred-row__deadline">resolved {fmtDate(r.resolved_at)}</span>
+                <span class="pred-row__id">{p.id}</span>
+              </div>
+              <p class="pred-row__claim">{p.claim_text}</p>
+              <dl class="pred-row__meta">
+                <dt>by</dt>
+                <dd>
+                  <a class="inline-link" href={`/actors/${p.made_by}`}>{p.made_by}</a>
+                </dd>
+                <dt>confidence</dt>
+                <dd class="pred-row__conf">{(p.confidence * 100).toFixed(0)}%</dd>
+                <dt>expected</dt>
+                <dd>{outcomeLabel(p.expected_outcome)}</dd>
+                <dt>actual</dt>
+                <dd>{r.actual_outcome}</dd>
+                <dt>resolved by</dt>
+                <dd>{r.resolved_by}</dd>
+              </dl>
+            </li>
+          );
+        })}
+      </ol>
+    </section>
+  )}
+
+  {open.length === 0 && resolved.length === 0 && (
+    <p class="pred-empty">
+      No predictions registered yet. Make one with
+      &nbsp;<code>vela predict &lt;FRONTIER&gt; --by ... --claim "..." --criterion "..." --confidence 0.X --resolves-by YYYY-MM-DD</code>.
+    </p>
+  )}
+
+  <p class="pred-back">
+    <a class="inline-link" href="/">← Back to the frontier</a>
+    <span class="pred-back__sep">·</span>
+    <a class="inline-link" href="/actors/reviewer:will-blair">Calibration scoreboard →</a>
+  </p>
+</Page>
+
+<style>
+  .aside-link {
+    font-family: var(--font-mono);
+    font-size: var(--size-xs);
+    letter-spacing: 0.06em;
+    color: var(--ink-3);
+  }
+  .aside-link:hover { color: var(--ink-0); }
+  .aside-version {
+    font-family: var(--font-mono);
+    font-size: var(--size-xs);
+    color: var(--ink-4);
+    margin-left: 6px;
+  }
+  div[slot="aside"] { display: flex; align-items: center; gap: 12px; }
+  .inline-link {
+    color: var(--signal);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    text-decoration-thickness: 1px;
+  }
+
+  .pred-intro {
+    font-family: var(--font-serif);
+    font-size: 16px;
+    line-height: 1.65;
+    color: var(--ink-2);
+    margin: 0 0 var(--space-5);
+    max-width: 64ch;
+  }
+
+  .pred-section { margin: 0 0 var(--space-7); }
+  .pred-section__title {
+    font-family: var(--font-sans);
+    font-size: var(--size-lg);
+    font-weight: 500;
+    color: var(--ink-0);
+    margin: 0 0 var(--space-3);
+    letter-spacing: var(--track-tight);
+  }
+
+  .pred-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    border-top: 1px solid var(--rule-2);
+  }
+  .pred-row {
+    padding: var(--space-4) 0;
+    border-bottom: 1px solid var(--rule-1);
+  }
+  .pred-row__head {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-3);
+    margin-bottom: var(--space-2);
+    flex-wrap: wrap;
+  }
+  .pred-row__chip {
+    display: inline-block;
+    padding: 2px 8px;
+    border: 1px solid var(--rule-2);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: var(--track-label);
+    text-transform: uppercase;
+    color: var(--ink-2);
+    background: var(--paper-1);
+  }
+  .pred-row__chip--open {
+    color: var(--state-warn);
+    border-color: color-mix(in oklab, var(--state-warn) 40%, transparent);
+  }
+  .pred-row__chip--hit {
+    color: var(--state-ok);
+    border-color: color-mix(in oklab, var(--state-ok) 40%, transparent);
+  }
+  .pred-row__chip--miss {
+    color: var(--vela-ember-red);
+    border-color: color-mix(in oklab, var(--vela-ember-red) 40%, transparent);
+  }
+  .pred-row__deadline {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--ink-3);
+  }
+  .pred-row__id {
+    margin-left: auto;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--ink-4);
+  }
+  .pred-row__claim {
+    font-family: var(--font-serif);
+    font-size: 18px;
+    line-height: 1.45;
+    color: var(--ink-0);
+    margin: 0 0 var(--space-3);
+    max-width: 72ch;
+  }
+  .pred-row__meta {
+    display: grid;
+    grid-template-columns: 110px 1fr;
+    gap: 4px var(--space-4);
+    margin: 0;
+    font-family: var(--font-serif);
+    font-size: 14px;
+  }
+  .pred-row__meta dt {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: var(--track-label);
+    text-transform: uppercase;
+    color: var(--ink-3);
+    align-self: baseline;
+  }
+  .pred-row__meta dd {
+    margin: 0;
+    color: var(--ink-1);
+    line-height: 1.5;
+  }
+  .pred-row__conf {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+  .pred-row__criterion {
+    color: var(--ink-2);
+  }
+  .pred-row__target-id {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--ink-3);
+  }
+
+  .pred-empty {
+    font-family: var(--font-serif);
+    font-size: 15px;
+    color: var(--ink-3);
+    margin: var(--space-4) 0;
+    line-height: 1.6;
+  }
+  .pred-empty code {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    background: var(--paper-1);
+    padding: 1px 4px;
+    border: 1px solid var(--rule-1);
+  }
+
+  .pred-back {
+    margin: var(--space-7) 0 var(--space-5);
+    padding-top: var(--space-4);
+    border-top: 1px solid var(--rule-2);
+    font-family: var(--font-mono);
+    font-size: var(--size-xs);
+    color: var(--ink-3);
+  }
+  .pred-back__sep { margin: 0 8px; color: var(--ink-4); }
+</style>

@@ -1,0 +1,28 @@
+{
+  "id": "vpred_a5726af942eb0c55",
+  "claim_text": "ATV:TREM2 (DNL919) will advance to Phase 3 by mid-2028.",
+  "target_findings": [
+    "vf_8389130295d81413"
+  ],
+  "predicted_at": "2026-04-27T20:19:55.623886+00:00",
+  "resolves_by": "2028-06-30T23:59:59Z",
+  "resolution_criterion": "Public announcement or registry record of Phase 3 trial registration for the ATV:TREM2 program.",
+  "expected_outcome": {
+    "kind": "affirmed"
+  },
+  "made_by": "reviewer:will-blair",
+  "confidence": 0.45,
+  "conditions": {
+    "text": "Mid-stage clinical readout cycle.",
+    "species_verified": [],
+    "species_unverified": [],
+    "in_vitro": false,
+    "in_vivo": false,
+    "human_data": true,
+    "clinical_trial": false,
+    "concentration_range": null,
+    "duration": null,
+    "age_group": null,
+    "cell_type": null
+  }
+}

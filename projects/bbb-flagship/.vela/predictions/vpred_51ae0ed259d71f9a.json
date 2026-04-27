@@ -1,0 +1,26 @@
+{
+  "id": "vpred_51ae0ed259d71f9a",
+  "claim_text": "An ApoE-targeting therapy will produce a positive Phase 2 cognitive readout by 2027.",
+  "target_findings": [],
+  "predicted_at": "2026-04-27T20:19:55.700818+00:00",
+  "resolves_by": "2027-12-31T23:59:59Z",
+  "resolution_criterion": "Public Phase 2 readout for an ApoE-modulating therapeutic showing primary cognitive endpoint p<0.05.",
+  "expected_outcome": {
+    "kind": "affirmed"
+  },
+  "made_by": "reviewer:will-blair",
+  "confidence": 0.3,
+  "conditions": {
+    "text": "Early symptomatic AD or at-risk ApoE4 carriers, human, clinical trial.",
+    "species_verified": [],
+    "species_unverified": [],
+    "in_vitro": false,
+    "in_vivo": false,
+    "human_data": true,
+    "clinical_trial": true,
+    "concentration_range": null,
+    "duration": null,
+    "age_group": null,
+    "cell_type": null
+  }
+}

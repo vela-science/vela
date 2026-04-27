@@ -1,0 +1,27 @@
+{
+  "id": "vpred_8d60594592016b23",
+  "claim_text": "Donanemab will receive full FDA approval (not just accelerated) by mid-2027.",
+  "target_findings": [],
+  "predicted_at": "2026-04-27T20:19:55.591621+00:00",
+  "resolves_by": "2027-06-30T23:59:59Z",
+  "resolution_criterion": "FDA decision letter declares full approval; resolved true if full approval, false if accelerated-only or declined.",
+  "expected_outcome": {
+    "kind": "categorical",
+    "value": "full_approval"
+  },
+  "made_by": "reviewer:will-blair",
+  "confidence": 0.7,
+  "conditions": {
+    "text": "Early symptomatic AD population, US regulatory context.",
+    "species_verified": [],
+    "species_unverified": [],
+    "in_vitro": false,
+    "in_vivo": false,
+    "human_data": false,
+    "clinical_trial": false,
+    "concentration_range": null,
+    "duration": null,
+    "age_group": null,
+    "cell_type": null
+  }
+}

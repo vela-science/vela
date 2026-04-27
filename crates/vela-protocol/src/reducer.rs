@@ -97,6 +97,8 @@ pub fn replay_from_genesis(
         replications: Vec::new(),
         datasets: Vec::new(),
         code_artifacts: Vec::new(),
+        predictions: Vec::new(),
+        resolutions: Vec::new(),
     };
     crate::sources::materialize_project(&mut state);
     for event in events {

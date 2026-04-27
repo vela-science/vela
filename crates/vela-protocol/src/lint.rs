@@ -815,6 +815,8 @@ mod tests {
             replications: Vec::new(),
             datasets: Vec::new(),
             code_artifacts: Vec::new(),
+            predictions: Vec::new(),
+            resolutions: Vec::new(),
         }
     }
 

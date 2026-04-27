@@ -119,6 +119,18 @@ pub struct Project {
     /// produced them.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub code_artifacts: Vec<crate::bundle::CodeArtifact>,
+    /// v0.34: Predictions as first-class kernel objects. A `vpred_<hash>`
+    /// is a falsifiable claim about a future observation, scoped to
+    /// existing findings and tied to a registered actor. Calibration
+    /// scoring runs over the resolved subset.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub predictions: Vec<crate::bundle::Prediction>,
+    /// v0.34: Resolutions as first-class kernel objects. A `vres_<hash>`
+    /// closes out a Prediction by recording what actually happened.
+    /// Together with `Project.predictions`, this is the kernel's
+    /// epistemic accountability ledger.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub resolutions: Vec<crate::bundle::Resolution>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -180,7 +192,7 @@ pub struct ConfidenceDistribution {
 /// Schema and compiler defaults for the current Vela protocol release.
 pub const VELA_SCHEMA_URL: &str = "https://vela.science/schema/finding-bundle/v0.10.0";
 pub const VELA_SCHEMA_VERSION: &str = "0.10.0";
-pub const VELA_COMPILER_VERSION: &str = "vela/0.33.0";
+pub const VELA_COMPILER_VERSION: &str = "vela/0.34.0";
 
 /// Derive a `vfr_<hash>` frontier ID from frontier metadata. Used as a
 /// fallback for legacy frontiers without a `frontier.created` genesis
@@ -311,6 +323,8 @@ pub fn assemble(
         replications: Vec::new(),
         datasets: Vec::new(),
         code_artifacts: Vec::new(),
+        predictions: Vec::new(),
+        resolutions: Vec::new(),
     };
     crate::sources::materialize_project(&mut project);
     project

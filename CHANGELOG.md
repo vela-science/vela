@@ -1,5 +1,140 @@
 # Changelog
 
+## 0.34.0 - 2026-04-27
+
+**Predictions and resolutions** — the kernel's epistemic accountability
+ledger. The third move in the v0.32–v0.35 arc and the one with the
+highest novelty premium: no other scientific knowledge graph I can
+find tracks "claim X predicted Y; resolution was Z; actor calibration
+shifts accordingly."
+
+A `Prediction` carries a falsifiable claim about a future observation
+plus an explicit resolution criterion plus a deadline plus the
+predictor's confidence. A `Resolution` closes it out by recording
+what actually happened. Calibration scores (Brier, log score, hit rate,
+reliability diagram) flow deterministically from the resolved subset.
+Every actor accumulates a public, reproducible track record of how
+well their stated beliefs track reality.
+
+### Substrate
+
+- `bundle::ExpectedOutcome` — `Affirmed` / `Falsified` /
+  `Quantitative { value, tolerance, units }` /
+  `Categorical { value }`.
+- `bundle::Prediction` — `id` (`vpred_<16hex>`), `claim_text`,
+  `target_findings`, `predicted_at`, `resolves_by`,
+  `resolution_criterion`, `expected_outcome`, `made_by`, `confidence`,
+  `conditions`. Content-address: `SHA256(normalize(claim_text) |
+  made_by | predicted_at | normalize(resolution_criterion) |
+  expected_outcome.canonical())`.
+- `bundle::Resolution` — `id` (`vres_<16hex>`), `prediction_id`,
+  `actual_outcome`, `matched_expected`, `resolved_at`, `resolved_by`,
+  `evidence`, `confidence`. Content-address: `SHA256(prediction_id |
+  normalize(actual_outcome) | resolved_by | resolved_at | matched)`.
+- `Project.predictions: Vec<Prediction>` and
+  `Project.resolutions: Vec<Resolution>`. Both `serde(default)` +
+  `skip_serializing_if = "Vec::is_empty"`. Pre-v0.34 frontier files
+  load unchanged.
+- All 5 `Project`-literal sites updated.
+- `repo.rs` reads + writes `.vela/predictions/<vpred_id>.json` and
+  `.vela/resolutions/<vres_id>.json`. Same one-file-per-record
+  pattern as findings, replications, datasets, code-artifacts.
+- New module `crates/vela-protocol/src/calibration.rs` —
+  `CalibrationRecord` per actor with `n_predictions`, `n_resolved`,
+  `n_hit`, `hit_rate`, `brier_score`, `log_score`, and a 5-band
+  reliability diagram. Brier and log scores are computed
+  deterministically from the resolved subset; never stored, always
+  recomputed from canonical state.
+
+### CLI
+
+- `vela predict <FRONTIER> --by ... --claim "..." --criterion "..."
+   --resolves-by RFC3339 --confidence 0..1 [--target vf_id1,vf_id2 ...
+   --outcome (affirmed|falsified|quant:V±T units|cat:label)]` —
+  registers a Prediction. Validates target findings exist; refuses
+  to write duplicates.
+- `vela resolve <FRONTIER> <vpred_id> --outcome "..." --matched true|false
+   --by ... [--confidence ... --source-title ... --doi ...]` —
+  closes out a prediction.
+- `vela predictions <FRONTIER> [--by actor --open --json]` — lists
+  predictions sorted by deadline; chips `open`/`hit`/`miss`.
+- `vela calibration <FRONTIER> [--actor ... --json]` — prints
+  calibration records per actor (Brier, log score, hit rate).
+- All four added to `SCIENCE_SUBCOMMANDS` allowlist.
+
+### Site
+
+- `site/src/lib/frontier.ts` — `loadPredictions`, `loadResolutions`,
+  `isResolved`, `resolutionFor`, `predictionsForFinding`,
+  `calibrationRecords`, `calibrationFor`. The TS calibration math
+  mirrors the Rust calibration module byte-for-byte so site rendering
+  agrees with `vela calibration`.
+- New `/predictions` route — open + resolved sections, each row with
+  outcome chip (`open`/`hit`/`miss`), claim text, predictor,
+  confidence, expected outcome, resolution criterion, target findings.
+- New `/actors/[id]` route — per-actor calibration scoreboard with
+  five-cell readout (predictions / resolved / hit rate / Brier / log
+  score), reliability diagram for resolved predictions, and the full
+  prediction list.
+- Homepage instrument bar grew from 7 cells to **8**:
+  `claims · papers · contradictions · replications · datasets · code · predictions · last signed`.
+  Clickable predictions cell links to the registry.
+
+### Seeded data
+
+Five real Alzheimer's predictions made by `reviewer:will-blair`:
+- `vpred_ce468cb7171efa89` — Lecanemab Phase 4 will show > 0.4 SD
+  CDR-SB benefit at 36 months (resolves 2028-12-31, conf 0.55,
+  quant outcome).
+- `vpred_8d60594592016b23` — Donanemab full FDA approval by mid-2027
+  (resolves 2027-06-30, conf 0.70, categorical outcome).
+- `vpred_a5726af942eb0c55` — ATV:TREM2 (DNL919) advances to Phase 3
+  by mid-2028 (resolves 2028-06-30, conf 0.45).
+- `vpred_e94d6b71d4c6f562` — Next BACE1 inhibitor pivotal trial fails
+  before 2028 (resolves 2027-12-31, conf 0.65, falsified outcome).
+- `vpred_51ae0ed259d71f9a` — ApoE-targeting therapy positive Phase 2
+  cognitive readout by 2027 (resolves 2027-12-31, conf 0.30).
+
+All five are open. The calibration scoreboard at
+`/actors/reviewer:will-blair` shows `5 predictions · 0 resolved` — as
+real-world events unfold (Donanemab approval announcement,
+Phase 4 readouts, etc.), `vela resolve` lands the resolutions and
+the Brier / log score / hit rate populate.
+
+### Verification
+
+- `vela check projects/bbb-flagship`: 86/86 valid.
+- `cargo test --workspace --release`: 384/384 pass.
+- `vela predictions / vela calibration` round-trip the seeded records.
+- Site build clean (120 pages); homepage shows 86/24/9/3/3/3/5/2026
+  in the eight-cell readout; `/predictions` lists five open rows;
+  `/actors/reviewer:will-blair` renders the calibration scoreboard.
+
+### Why this is uniquely high-value
+
+Every other v0.32–v0.35 substrate addition has analogues elsewhere
+(replications in domain databases, datasets in DataLad, code in
+Git+Zenodo, aggregation in any graph DB). Predictions + calibration
+do not. A scientist who looks at Vela and sees "you can submit a
+prediction here that automatically resolves and contributes to your
+calibration record over time" has nothing else they can compare it to.
+
+### Deferred to v0.34.x
+
+- A "calibration leaderboard" sibling to VelaBench ranking actors by
+  Brier score among resolved predictions.
+- `prediction.made` / `prediction.resolved` event kinds with reducer
+  wiring (today, persistence is direct).
+- `prediction.add` / `resolution.record` proposal kinds for
+  agent-proposed predictions.
+- Per-claim "Predictions" panel on `/claims/[slug]` linking to
+  predictions whose `target_findings` includes that finding.
+- Experiment Planner agent emitting `prediction.add` proposals for
+  hypotheses surfaced from notes.
+
+The full v0.32–v0.35 roadmap continues at
+`~/.claude/plans/noble-floating-willow.md`.
+
 ## 0.33.0 - 2026-04-27
 
 **Computational provenance** — datasets (`vd_<hash>`) and code

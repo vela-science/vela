@@ -327,6 +327,244 @@ impl Replication {
     }
 }
 
+/// v0.34: ExpectedOutcome — the structured shape of a Prediction's
+/// expected resolution.
+///
+/// `Affirmed` / `Falsified` are the binary cases ("this claim will
+/// hold" / "this claim will fail"). `Quantitative` carries a numeric
+/// expectation with tolerance + units ("CDR-SB effect ≥ 0.4 SD ± 0.1").
+/// `Categorical` carries an arbitrary label for outcomes that aren't
+/// numeric ("FDA decision is one of: full approval, accelerated,
+/// declined").
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum ExpectedOutcome {
+    Affirmed,
+    Falsified,
+    Quantitative {
+        value: f64,
+        tolerance: f64,
+        units: String,
+    },
+    Categorical {
+        value: String,
+    },
+}
+
+impl ExpectedOutcome {
+    /// Compact string representation used in the content-address
+    /// preimage and CLI rendering.
+    pub fn canonical(&self) -> String {
+        match self {
+            ExpectedOutcome::Affirmed => "affirmed".to_string(),
+            ExpectedOutcome::Falsified => "falsified".to_string(),
+            ExpectedOutcome::Quantitative {
+                value,
+                tolerance,
+                units,
+            } => format!("quant:{value}±{tolerance}{units}"),
+            ExpectedOutcome::Categorical { value } => format!("cat:{value}"),
+        }
+    }
+}
+
+/// v0.34: Prediction as a first-class kernel object.
+///
+/// A `Prediction` is a falsifiable claim about a future observation,
+/// scoped to one or more existing findings, made by a registered
+/// actor at a known timestamp, with an explicit resolution
+/// criterion and (typically) a deadline. Resolutions arrive later as
+/// `Resolution` records that close out the prediction by recording
+/// what actually happened.
+///
+/// Predictions are the kernel's epistemic accountability layer.
+/// Other parts of the substrate describe what *is* believed today;
+/// predictions describe what is *expected* and let the substrate
+/// score, over time, how well each actor's beliefs track reality.
+/// Calibration records (Brier, log score, hit rate) are derived
+/// from the resolved subset.
+///
+/// `vpred_<id>` is content-addressed over `claim_text + made_by +
+/// predicted_at + resolution_criterion`. Two predictions with the
+/// same prose but different actors or different criteria are
+/// distinct kernel objects.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Prediction {
+    /// `vpred_<16hex>`, content-addressed.
+    pub id: String,
+    /// The falsifiable prediction itself, in plain prose.
+    pub claim_text: String,
+    /// Existing `vf_*` findings whose truth this prediction depends
+    /// on. May be empty for predictions that don't tie back to a
+    /// specific frontier claim.
+    #[serde(default)]
+    pub target_findings: Vec<String>,
+    /// RFC 3339 timestamp of when the prediction was made. Goes into
+    /// the content-address preimage so re-asserting the same prose
+    /// at a later date produces a distinct record.
+    pub predicted_at: String,
+    /// RFC 3339 deadline for resolution. `None` means open-ended; a
+    /// concrete date is strongly preferred for calibration scoring.
+    pub resolves_by: Option<String>,
+    /// Unambiguous prose that says "we'll know this resolved when X."
+    /// Goes into the content-address preimage so the same prose with
+    /// a different criterion is a distinct record.
+    pub resolution_criterion: String,
+    /// Structured expectation: affirmed / falsified / quantitative /
+    /// categorical. The resolver checks this against the observed
+    /// outcome at resolution time.
+    pub expected_outcome: ExpectedOutcome,
+    /// Stable actor id of the predictor.
+    pub made_by: String,
+    /// Predictor's prior belief in the expected outcome, on [0, 1].
+    /// Drives Brier scoring at resolution time.
+    pub confidence: f64,
+    /// Conditions under which the prediction applies. Reuses the
+    /// `Conditions` shape so model relevance, scope, etc., flow
+    /// through.
+    pub conditions: Conditions,
+}
+
+impl Prediction {
+    /// Compute the content-addressed ID per v0.34 spec:
+    /// `SHA-256(normalize(claim_text) | made_by | predicted_at | normalize(resolution_criterion) | expected_outcome.canonical())`.
+    /// Returns first 16 hex chars prefixed with "vpred_".
+    pub fn content_address(
+        claim_text: &str,
+        made_by: &str,
+        predicted_at: &str,
+        resolution_criterion: &str,
+        expected_outcome: &ExpectedOutcome,
+    ) -> String {
+        let preimage = format!(
+            "{}|{}|{}|{}|{}",
+            FindingBundle::normalize_text(claim_text),
+            made_by,
+            predicted_at,
+            FindingBundle::normalize_text(resolution_criterion),
+            expected_outcome.canonical(),
+        );
+        let hash = Sha256::digest(preimage.as_bytes());
+        format!("vpred_{}", &hex::encode(hash)[..16])
+    }
+
+    /// Construct a new Prediction. `predicted_at` defaults to "now"
+    /// in RFC 3339 if not supplied.
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        claim_text: impl Into<String>,
+        target_findings: Vec<String>,
+        predicted_at: Option<String>,
+        resolves_by: Option<String>,
+        resolution_criterion: impl Into<String>,
+        expected_outcome: ExpectedOutcome,
+        made_by: impl Into<String>,
+        confidence: f64,
+        conditions: Conditions,
+    ) -> Self {
+        let now = predicted_at.unwrap_or_else(|| Utc::now().to_rfc3339());
+        let claim = claim_text.into();
+        let crit = resolution_criterion.into();
+        let actor = made_by.into();
+        let id = Self::content_address(&claim, &actor, &now, &crit, &expected_outcome);
+        Self {
+            id,
+            claim_text: claim,
+            target_findings,
+            predicted_at: now,
+            resolves_by,
+            resolution_criterion: crit,
+            expected_outcome,
+            made_by: actor,
+            confidence,
+            conditions,
+        }
+    }
+}
+
+/// v0.34: Resolution closes out a Prediction.
+///
+/// A `Resolution` records what actually happened, who observed it,
+/// when, with what evidence, and whether the actual outcome matched
+/// the predicted one. Calibration scoring (Brier, log score, hit rate)
+/// runs over the resolved subset of predictions per actor.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Resolution {
+    /// `vres_<16hex>`, content-addressed.
+    pub id: String,
+    /// `vpred_<id>` of the prediction this resolves.
+    pub prediction_id: String,
+    /// Free-text description of what actually happened. The
+    /// `matched_expected` flag is the structured judgment.
+    pub actual_outcome: String,
+    /// True if the observed outcome matched the prediction's
+    /// `expected_outcome`. Drives hit-rate and Brier scoring.
+    pub matched_expected: bool,
+    /// RFC 3339 timestamp of resolution.
+    pub resolved_at: String,
+    /// Stable actor id of the resolver. May or may not be the same
+    /// actor that made the prediction (independent resolution is
+    /// stronger).
+    pub resolved_by: String,
+    /// Evidence supporting the resolution — typically the paper /
+    /// trial readout / observation that closes out the bet.
+    pub evidence: Evidence,
+    /// Resolver's confidence in the match judgment, on [0, 1].
+    /// Useful when the actual outcome is partial or ambiguous.
+    pub confidence: f64,
+}
+
+impl Resolution {
+    /// Compute the content-addressed ID per v0.34 spec:
+    /// `SHA-256(prediction_id | normalize(actual_outcome) | resolved_by | resolved_at | matched)`.
+    /// Returns first 16 hex chars prefixed with "vres_".
+    pub fn content_address(
+        prediction_id: &str,
+        actual_outcome: &str,
+        resolved_by: &str,
+        resolved_at: &str,
+        matched_expected: bool,
+    ) -> String {
+        let preimage = format!(
+            "{}|{}|{}|{}|{}",
+            prediction_id,
+            FindingBundle::normalize_text(actual_outcome),
+            resolved_by,
+            resolved_at,
+            matched_expected,
+        );
+        let hash = Sha256::digest(preimage.as_bytes());
+        format!("vres_{}", &hex::encode(hash)[..16])
+    }
+
+    /// Construct a Resolution with a freshly-derived id and `resolved_at`
+    /// timestamp.
+    pub fn new(
+        prediction_id: impl Into<String>,
+        actual_outcome: impl Into<String>,
+        matched_expected: bool,
+        resolved_by: impl Into<String>,
+        evidence: Evidence,
+        confidence: f64,
+    ) -> Self {
+        let now = Utc::now().to_rfc3339();
+        let pid = prediction_id.into();
+        let outcome = actual_outcome.into();
+        let resolver = resolved_by.into();
+        let id = Self::content_address(&pid, &outcome, &resolver, &now, matched_expected);
+        Self {
+            id,
+            prediction_id: pid,
+            actual_outcome: outcome,
+            matched_expected,
+            resolved_at: now,
+            resolved_by: resolver,
+            evidence,
+            confidence,
+        }
+    }
+}
+
 /// v0.33: Dataset as a first-class kernel object.
 ///
 /// A `Dataset` is a versioned, content-addressed reference to data

@@ -1,0 +1,26 @@
+{
+  "id": "vpred_e94d6b71d4c6f562",
+  "claim_text": "The next BACE1 inhibitor pivotal trial will fail (efficacy or toxicity) before 2028.",
+  "target_findings": [],
+  "predicted_at": "2026-04-27T20:19:55.662772+00:00",
+  "resolves_by": "2027-12-31T23:59:59Z",
+  "resolution_criterion": "If a Phase 3 BACE1-inhibitor trial reports between now and 2027-12-31, resolved true if it fails efficacy or terminates for safety, false otherwise. Resolved false by default if no such trial reports.",
+  "expected_outcome": {
+    "kind": "falsified"
+  },
+  "made_by": "reviewer:will-blair",
+  "confidence": 0.65,
+  "conditions": {
+    "text": "Late-stage symptomatic AD, BACE1 mechanism-of-action.",
+    "species_verified": [],
+    "species_unverified": [],
+    "in_vitro": false,
+    "in_vivo": false,
+    "human_data": false,
+    "clinical_trial": false,
+    "concentration_range": null,
+    "duration": null,
+    "age_group": null,
+    "cell_type": null
+  }
+}

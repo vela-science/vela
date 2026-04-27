@@ -665,6 +665,201 @@ export function findCodeArtifact(id: string): CodeArtifact | undefined {
   return loadCodeArtifacts().find((c) => c.id === id);
 }
 
+// ── Predictions + resolutions (v0.34) ───────────────────────────────
+//
+// The kernel's epistemic accountability layer. Predictions live under
+// `.vela/predictions/<vpred_id>.json`; resolutions under
+// `.vela/resolutions/<vres_id>.json`. The site computes per-actor
+// calibration (Brier, log score, hit rate) at build time from the
+// resolved subset.
+
+export type ExpectedOutcome =
+  | { kind: "affirmed" }
+  | { kind: "falsified" }
+  | { kind: "quantitative"; value: number; tolerance: number; units: string }
+  | { kind: "categorical"; value: string };
+
+export interface Prediction {
+  id: string;
+  claim_text: string;
+  target_findings: string[];
+  predicted_at: string;
+  resolves_by?: string | null;
+  resolution_criterion: string;
+  expected_outcome: ExpectedOutcome;
+  made_by: string;
+  confidence: number;
+  conditions: Conditions;
+}
+
+export interface Resolution {
+  id: string;
+  prediction_id: string;
+  actual_outcome: string;
+  matched_expected: boolean;
+  resolved_at: string;
+  resolved_by: string;
+  evidence: Evidence;
+  confidence: number;
+}
+
+export interface CalibrationRecord {
+  actor: string;
+  n_predictions: number;
+  n_resolved: number;
+  n_hit: number;
+  hit_rate: number | null;
+  brier_score: number | null;
+  log_score: number | null;
+  reliability_buckets: Array<[number, number, number]>;
+}
+
+let _predCache: Prediction[] | null = null;
+let _resCache: Resolution[] | null = null;
+
+function predictionsDir(): string {
+  return join(repoRoot(), FRONTIER.repoPath, ".vela", "predictions");
+}
+function resolutionsDir(): string {
+  return join(repoRoot(), FRONTIER.repoPath, ".vela", "resolutions");
+}
+
+export function loadPredictions(): Prediction[] {
+  if (_predCache) return _predCache;
+  const dir = predictionsDir();
+  if (!existsSync(dir)) {
+    _predCache = [];
+    return _predCache;
+  }
+  const out: Prediction[] = [];
+  for (const file of readdirSync(dir).filter((f) => f.endsWith(".json"))) {
+    try {
+      out.push(JSON.parse(readFileSync(join(dir, file), "utf8")) as Prediction);
+    } catch (err) {
+      console.warn(`[frontier] failed to parse prediction ${file}:`, err);
+    }
+  }
+  // Stable order: by deadline ascending; predictions without deadlines last.
+  out.sort((a, b) => {
+    const ad = a.resolves_by ?? "9999";
+    const bd = b.resolves_by ?? "9999";
+    return ad.localeCompare(bd);
+  });
+  _predCache = out;
+  return _predCache;
+}
+
+export function loadResolutions(): Resolution[] {
+  if (_resCache) return _resCache;
+  const dir = resolutionsDir();
+  if (!existsSync(dir)) {
+    _resCache = [];
+    return _resCache;
+  }
+  const out: Resolution[] = [];
+  for (const file of readdirSync(dir).filter((f) => f.endsWith(".json"))) {
+    try {
+      out.push(JSON.parse(readFileSync(join(dir, file), "utf8")) as Resolution);
+    } catch (err) {
+      console.warn(`[frontier] failed to parse resolution ${file}:`, err);
+    }
+  }
+  out.sort((a, b) => b.resolved_at.localeCompare(a.resolved_at));
+  _resCache = out;
+  return _resCache;
+}
+
+export function isResolved(predictionId: string): boolean {
+  return loadResolutions().some((r) => r.prediction_id === predictionId);
+}
+
+export function resolutionFor(predictionId: string): Resolution | undefined {
+  return loadResolutions().find((r) => r.prediction_id === predictionId);
+}
+
+export function predictionsForFinding(vfId: string): Prediction[] {
+  return loadPredictions().filter((p) => p.target_findings.includes(vfId));
+}
+
+/* Compute per-actor calibration records. Mirrors the Rust
+   `crates/vela-protocol/src/calibration.rs` logic so site rendering and
+   `vela calibration` agree byte-for-byte on the same frontier. */
+export function calibrationRecords(): CalibrationRecord[] {
+  const preds = loadPredictions();
+  const resolutions = loadResolutions();
+  const resolutionByPred = new Map<string, Resolution>();
+  for (const r of resolutions) resolutionByPred.set(r.prediction_id, r);
+
+  const byActor = new Map<string, Prediction[]>();
+  for (const p of preds) {
+    if (!byActor.has(p.made_by)) byActor.set(p.made_by, []);
+    byActor.get(p.made_by)!.push(p);
+  }
+
+  const records: CalibrationRecord[] = [];
+  for (const [actor, ps] of byActor) {
+    const resolvedPairs = ps
+      .map((p) => {
+        const r = resolutionByPred.get(p.id);
+        return r ? ({ p, r } as { p: Prediction; r: Resolution }) : null;
+      })
+      .filter((x): x is { p: Prediction; r: Resolution } => x !== null);
+    const n_predictions = ps.length;
+    const n_resolved = resolvedPairs.length;
+    const n_hit = resolvedPairs.filter((x) => x.r.matched_expected).length;
+    const hit_rate = n_resolved > 0 ? n_hit / n_resolved : null;
+    const brier_score =
+      n_resolved > 0
+        ? resolvedPairs
+            .map(({ p, r }) => Math.pow(p.confidence - (r.matched_expected ? 1 : 0), 2))
+            .reduce((a, b) => a + b, 0) / n_resolved
+        : null;
+    const log_score =
+      n_resolved > 0
+        ? resolvedPairs
+            .map(({ p, r }) => {
+              const pa = r.matched_expected ? p.confidence : 1 - p.confidence;
+              return Math.log(Math.min(Math.max(pa, 1e-9), 1 - 1e-9));
+            })
+            .reduce((a, b) => a + b, 0) / n_resolved
+        : null;
+
+    const bands: Array<[number, number]> = [
+      [0.0, 0.2],
+      [0.2, 0.4],
+      [0.4, 0.6],
+      [0.6, 0.8],
+      [0.8, 1.001],
+    ];
+    const reliability_buckets: Array<[number, number, number]> = [];
+    for (const [lo, hi] of bands) {
+      const inBand = resolvedPairs.filter(
+        ({ p }) => p.confidence >= lo && p.confidence < hi,
+      );
+      if (inBand.length === 0) continue;
+      const hits = inBand.filter((x) => x.r.matched_expected).length;
+      reliability_buckets.push([lo, hits / inBand.length, inBand.length]);
+    }
+
+    records.push({
+      actor,
+      n_predictions,
+      n_resolved,
+      n_hit,
+      hit_rate,
+      brier_score,
+      log_score,
+      reliability_buckets,
+    });
+  }
+  records.sort((a, b) => a.actor.localeCompare(b.actor));
+  return records;
+}
+
+export function calibrationFor(actor: string): CalibrationRecord | undefined {
+  return calibrationRecords().find((r) => r.actor === actor);
+}
+
 // ── Aggregations used by pages ──────────────────────────────────────
 
 export function findBySlug(slug: string): ClaimView | undefined {

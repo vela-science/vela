@@ -19,7 +19,7 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 
 #[derive(Parser)]
-#[command(name = "vela", version = "0.33.0")]
+#[command(name = "vela", version = "0.34.0")]
 #[command(about = "Portable frontier state for science")]
 struct Cli {
     #[command(subcommand)]
@@ -845,6 +845,100 @@ enum Commands {
     /// v0.33: List code artifacts in a frontier.
     CodeArtifacts {
         frontier: PathBuf,
+        #[arg(long)]
+        json: bool,
+    },
+    /// v0.34: Make a falsifiable Prediction (`vpred_<hash>`) about a
+    /// future observation. Predictions are scoped to one or more
+    /// existing findings, carry an explicit resolution criterion,
+    /// and live in the kernel's epistemic accountability ledger.
+    /// When a Resolution arrives later, the prediction's confidence
+    /// flows into the predictor's Brier score and log score.
+    Predict {
+        /// Path to the frontier (project dir, `.vela/` repo, or `.json`).
+        frontier: PathBuf,
+        /// Stable actor id of the predictor.
+        #[arg(long)]
+        by: String,
+        /// Plain-prose prediction (e.g. "lecanemab Phase 4 will show
+        /// >0.4 SD CDR-SB effect").
+        #[arg(long)]
+        claim: String,
+        /// Unambiguous criterion describing how to recognize resolution.
+        #[arg(long)]
+        criterion: String,
+        /// RFC 3339 deadline for resolution.
+        #[arg(long)]
+        resolves_by: Option<String>,
+        /// Confidence on [0, 1] in the expected outcome.
+        #[arg(long)]
+        confidence: f64,
+        /// Comma-separated `vf_*` finding ids this prediction depends on.
+        #[arg(long, default_value = "")]
+        target: String,
+        /// Outcome shape: `affirmed` | `falsified` | `quant:V±T units` | `cat:value`.
+        #[arg(long, default_value = "affirmed")]
+        outcome: String,
+        /// Free-text scope/conditions of the prediction.
+        #[arg(long, default_value = "")]
+        conditions: String,
+        /// Emit JSON to stdout.
+        #[arg(long)]
+        json: bool,
+    },
+    /// v0.34: Resolve an open Prediction. Records what actually
+    /// happened, who observed it, and whether it matched the
+    /// prediction. Drives Brier / log-score / hit-rate calibration
+    /// over the resolved subset.
+    Resolve {
+        /// Path to the frontier.
+        frontier: PathBuf,
+        /// `vpred_<id>` of the prediction being resolved.
+        prediction: String,
+        /// Free-text description of what actually happened.
+        #[arg(long)]
+        outcome: String,
+        /// Whether the actual outcome matched the predicted one.
+        #[arg(long)]
+        matched: bool,
+        /// Stable actor id of the resolver. Independent resolvers
+        /// (different from the predictor) produce stronger signal.
+        #[arg(long)]
+        by: String,
+        /// Resolver's confidence in the match judgment, on [0, 1].
+        #[arg(long, default_value = "1.0")]
+        confidence: f64,
+        /// Source paper / trial readout title for the resolution.
+        #[arg(long, default_value = "")]
+        source_title: String,
+        /// Optional DOI for the resolving source.
+        #[arg(long)]
+        doi: Option<String>,
+        /// Emit JSON to stdout.
+        #[arg(long)]
+        json: bool,
+    },
+    /// v0.34: List predictions in a frontier with their resolution state.
+    Predictions {
+        frontier: PathBuf,
+        /// Optional actor filter.
+        #[arg(long)]
+        by: Option<String>,
+        /// Show only unresolved predictions.
+        #[arg(long)]
+        open: bool,
+        /// Emit JSON to stdout.
+        #[arg(long)]
+        json: bool,
+    },
+    /// v0.34: Compute calibration scores (Brier, log score, hit rate)
+    /// for one or all actors with predictions in the frontier.
+    Calibration {
+        frontier: PathBuf,
+        /// Optional actor filter (e.g. `reviewer:will-blair`).
+        #[arg(long)]
+        actor: Option<String>,
+        /// Emit JSON to stdout.
         #[arg(long)]
         json: bool,
     },
@@ -1813,7 +1907,7 @@ pub async fn run_command() {
         Commands::Conformance { dir } => {
             let _ = conformance::run(&dir);
         }
-        Commands::Version => println!("vela 0.33.0"),
+        Commands::Version => println!("vela 0.34.0"),
         Commands::Sign { action } => cmd_sign(action),
         Commands::Actor { action } => cmd_actor(action),
         Commands::Frontier { action } => cmd_frontier(action),
@@ -2244,6 +2338,506 @@ pub async fn run_command() {
             json,
         ),
         Commands::CodeArtifacts { frontier, json } => cmd_code_artifacts(&frontier, json),
+        Commands::Predict {
+            frontier,
+            by,
+            claim,
+            criterion,
+            resolves_by,
+            confidence,
+            target,
+            outcome,
+            conditions,
+            json,
+        } => cmd_predict(
+            &frontier,
+            &by,
+            &claim,
+            &criterion,
+            resolves_by.as_deref(),
+            confidence,
+            &target,
+            &outcome,
+            &conditions,
+            json,
+        ),
+        Commands::Resolve {
+            frontier,
+            prediction,
+            outcome,
+            matched,
+            by,
+            confidence,
+            source_title,
+            doi,
+            json,
+        } => cmd_resolve(
+            &frontier,
+            &prediction,
+            &outcome,
+            matched,
+            &by,
+            confidence,
+            &source_title,
+            doi.as_deref(),
+            json,
+        ),
+        Commands::Predictions {
+            frontier,
+            by,
+            open,
+            json,
+        } => cmd_predictions(&frontier, by.as_deref(), open, json),
+        Commands::Calibration {
+            frontier,
+            actor,
+            json,
+        } => cmd_calibration(&frontier, actor.as_deref(), json),
+    }
+}
+
+/// v0.34: parse the `--outcome` CLI string into a structured
+/// `ExpectedOutcome`. Accepted forms:
+///   - `affirmed` / `falsified`
+///   - `quant:VALUE±TOL UNITS`  (e.g. `quant:0.4±0.1 SD`)
+///   - `cat:LABEL`              (e.g. `cat:full_approval`)
+fn parse_expected_outcome(s: &str) -> Result<crate::bundle::ExpectedOutcome, String> {
+    let trimmed = s.trim();
+    if trimmed.eq_ignore_ascii_case("affirmed") {
+        return Ok(crate::bundle::ExpectedOutcome::Affirmed);
+    }
+    if trimmed.eq_ignore_ascii_case("falsified") {
+        return Ok(crate::bundle::ExpectedOutcome::Falsified);
+    }
+    if let Some(rest) = trimmed.strip_prefix("cat:") {
+        return Ok(crate::bundle::ExpectedOutcome::Categorical {
+            value: rest.to_string(),
+        });
+    }
+    if let Some(rest) = trimmed.strip_prefix("quant:") {
+        let (vt, units) = rest.split_once(' ').unwrap_or((rest, ""));
+        let (val_s, tol_s) = vt
+            .split_once('±')
+            .or_else(|| vt.split_once("+/-"))
+            .ok_or_else(|| {
+                format!("expected `quant:VALUE±TOL UNITS`, got `quant:{rest}`")
+            })?;
+        let value: f64 = val_s
+            .parse()
+            .map_err(|e| format!("bad quant value `{val_s}`: {e}"))?;
+        let tolerance: f64 = tol_s
+            .parse()
+            .map_err(|e| format!("bad quant tolerance `{tol_s}`: {e}"))?;
+        return Ok(crate::bundle::ExpectedOutcome::Quantitative {
+            value,
+            tolerance,
+            units: units.to_string(),
+        });
+    }
+    Err(format!(
+        "unknown outcome `{s}`; expected one of: affirmed | falsified | quant:V±T units | cat:label"
+    ))
+}
+
+/// v0.34: append a Prediction to a frontier and persist it.
+#[allow(clippy::too_many_arguments)]
+fn cmd_predict(
+    frontier: &Path,
+    by: &str,
+    claim: &str,
+    criterion: &str,
+    resolves_by: Option<&str>,
+    confidence: f64,
+    target_csv: &str,
+    outcome: &str,
+    conditions_text: &str,
+    json: bool,
+) {
+    if !(0.0..=1.0).contains(&confidence) {
+        fail(&format!(
+            "confidence must be in [0, 1]; got {confidence}"
+        ));
+    }
+    let expected =
+        parse_expected_outcome(outcome).unwrap_or_else(|e| fail_return(&e));
+
+    let mut project = repo::load_from_path(frontier).unwrap_or_else(|e| fail_return(&e));
+
+    let targets: Vec<String> = target_csv
+        .split(',')
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .collect();
+    for t in &targets {
+        if !t.starts_with("vf_") {
+            fail(&format!("target `{t}` is not a vf_ id"));
+        }
+        if !project.findings.iter().any(|f| f.id == *t) {
+            fail(&format!("target `{t}` not present in frontier"));
+        }
+    }
+
+    let lower = conditions_text.to_lowercase();
+    let conditions = crate::bundle::Conditions {
+        text: conditions_text.to_string(),
+        species_verified: Vec::new(),
+        species_unverified: Vec::new(),
+        in_vitro: lower.contains("in vitro"),
+        in_vivo: lower.contains("in vivo"),
+        human_data: lower.contains("human") || lower.contains("clinical"),
+        clinical_trial: lower.contains("clinical trial") || lower.contains("phase "),
+        concentration_range: None,
+        duration: None,
+        age_group: None,
+        cell_type: None,
+    };
+
+    let prediction = crate::bundle::Prediction::new(
+        claim.to_string(),
+        targets,
+        None,
+        resolves_by.map(|s| s.to_string()),
+        criterion.to_string(),
+        expected,
+        by.to_string(),
+        confidence,
+        conditions,
+    );
+
+    if project.predictions.iter().any(|p| p.id == prediction.id) {
+        if json {
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&json!({
+                    "ok": false,
+                    "command": "predict",
+                    "reason": "prediction_already_exists",
+                    "id": prediction.id,
+                }))
+                .expect("serialize")
+            );
+        } else {
+            println!(
+                "{} prediction {} already exists in {}; skipping.",
+                style::warn("predict"),
+                prediction.id,
+                frontier.display()
+            );
+        }
+        return;
+    }
+
+    let new_id = prediction.id.clone();
+    project.predictions.push(prediction);
+    repo::save_to_path(frontier, &project).unwrap_or_else(|e| fail_return(&e));
+
+    if json {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&json!({
+                "ok": true,
+                "command": "predict",
+                "id": new_id,
+                "made_by": by,
+                "confidence": confidence,
+                "frontier": frontier.display().to_string(),
+            }))
+            .expect("serialize predict result")
+        );
+    } else {
+        println!();
+        println!(
+            "  {}",
+            format!("VELA · PREDICT · {}", new_id).to_uppercase().dimmed()
+        );
+        println!("  {}", style::tick_row(60));
+        println!("  by:           {by}");
+        println!("  confidence:   {confidence:.3}");
+        if let Some(d) = resolves_by {
+            println!("  resolves by:  {d}");
+        }
+        println!("  outcome:      {outcome}");
+        println!("  claim:        {}", truncate(claim, 88));
+        println!();
+        println!(
+            "  {} prediction recorded in {}",
+            style::ok("ok"),
+            frontier.display()
+        );
+    }
+}
+
+/// v0.34: append a Resolution that closes out a Prediction.
+#[allow(clippy::too_many_arguments)]
+fn cmd_resolve(
+    frontier: &Path,
+    prediction_id: &str,
+    actual_outcome: &str,
+    matched: bool,
+    by: &str,
+    confidence: f64,
+    source_title: &str,
+    doi: Option<&str>,
+    json: bool,
+) {
+    if !prediction_id.starts_with("vpred_") {
+        fail(&format!("prediction `{prediction_id}` is not a vpred_ id"));
+    }
+    if !(0.0..=1.0).contains(&confidence) {
+        fail(&format!("confidence must be in [0, 1]; got {confidence}"));
+    }
+    let mut project = repo::load_from_path(frontier).unwrap_or_else(|e| fail_return(&e));
+    if !project.predictions.iter().any(|p| p.id == prediction_id) {
+        fail(&format!(
+            "prediction `{prediction_id}` not present in frontier"
+        ));
+    }
+
+    let evidence = crate::bundle::Evidence {
+        evidence_type: "experimental".to_string(),
+        model_system: String::new(),
+        species: None,
+        method: "prediction_resolution".to_string(),
+        sample_size: None,
+        effect_size: None,
+        p_value: None,
+        replicated: false,
+        replication_count: None,
+        evidence_spans: if source_title.is_empty() {
+            Vec::new()
+        } else {
+            vec![serde_json::json!({"text": source_title})]
+        },
+    };
+
+    // If the resolver provided source provenance, embed it via the
+    // evidence span (the Resolution carries Evidence; for v0.34 we
+    // keep the structure minimal). DOI flows through evidence_spans
+    // commentary; richer linking lands in v0.34.x.
+    let _ = doi; // currently unused — placeholder for v0.34.x.
+
+    let resolution = crate::bundle::Resolution::new(
+        prediction_id.to_string(),
+        actual_outcome.to_string(),
+        matched,
+        by.to_string(),
+        evidence,
+        confidence,
+    );
+
+    if project.resolutions.iter().any(|r| r.id == resolution.id) {
+        if json {
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&json!({
+                    "ok": false,
+                    "command": "resolve",
+                    "reason": "resolution_already_exists",
+                    "id": resolution.id,
+                }))
+                .expect("serialize")
+            );
+        } else {
+            println!(
+                "{} resolution {} already exists in {}; skipping.",
+                style::warn("resolve"),
+                resolution.id,
+                frontier.display()
+            );
+        }
+        return;
+    }
+
+    let new_id = resolution.id.clone();
+    project.resolutions.push(resolution);
+    repo::save_to_path(frontier, &project).unwrap_or_else(|e| fail_return(&e));
+
+    if json {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&json!({
+                "ok": true,
+                "command": "resolve",
+                "id": new_id,
+                "prediction": prediction_id,
+                "matched": matched,
+                "frontier": frontier.display().to_string(),
+            }))
+            .expect("serialize resolve result")
+        );
+    } else {
+        println!();
+        println!(
+            "  {}",
+            format!("VELA · RESOLVE · {}", new_id).to_uppercase().dimmed()
+        );
+        println!("  {}", style::tick_row(60));
+        println!("  prediction:   {prediction_id}");
+        println!(
+            "  matched:      {}",
+            if matched { style::ok("yes") } else { style::lost("no") }
+        );
+        println!("  by:           {by}");
+        println!("  outcome:      {}", truncate(actual_outcome, 80));
+        println!();
+        println!(
+            "  {} resolution recorded in {}",
+            style::ok("ok"),
+            frontier.display()
+        );
+    }
+}
+
+/// v0.34: list predictions, with resolution state.
+fn cmd_predictions(frontier: &Path, by: Option<&str>, open: bool, json: bool) {
+    let project = repo::load_from_path(frontier).unwrap_or_else(|e| fail_return(&e));
+
+    let resolved_ids: std::collections::HashSet<&str> = project
+        .resolutions
+        .iter()
+        .map(|r| r.prediction_id.as_str())
+        .collect();
+
+    let mut filtered: Vec<&crate::bundle::Prediction> = project
+        .predictions
+        .iter()
+        .filter(|p| by.is_none_or(|b| p.made_by == b))
+        .filter(|p| !open || !resolved_ids.contains(p.id.as_str()))
+        .collect();
+    filtered.sort_by(|a, b| {
+        a.resolves_by
+            .as_deref()
+            .unwrap_or("9999")
+            .cmp(b.resolves_by.as_deref().unwrap_or("9999"))
+    });
+
+    if json {
+        let payload: Vec<serde_json::Value> = filtered
+            .iter()
+            .map(|p| {
+                json!({
+                    "id": p.id,
+                    "claim_text": p.claim_text,
+                    "made_by": p.made_by,
+                    "confidence": p.confidence,
+                    "predicted_at": p.predicted_at,
+                    "resolves_by": p.resolves_by,
+                    "expected_outcome": p.expected_outcome,
+                    "resolved": resolved_ids.contains(p.id.as_str()),
+                })
+            })
+            .collect();
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&json!({
+                "ok": true,
+                "command": "predictions",
+                "frontier": frontier.display().to_string(),
+                "count": payload.len(),
+                "predictions": payload,
+            }))
+            .expect("serialize predictions")
+        );
+        return;
+    }
+
+    println!();
+    println!(
+        "  {}",
+        format!("VELA · PREDICTIONS · {}", frontier.display())
+            .to_uppercase()
+            .dimmed()
+    );
+    println!("  {}", style::tick_row(60));
+    if filtered.is_empty() {
+        println!("  (no predictions matching filters)");
+        return;
+    }
+    for p in &filtered {
+        let resolved = resolved_ids.contains(p.id.as_str());
+        let chip = if resolved {
+            style::ok("resolved")
+        } else {
+            style::warn("open")
+        };
+        let deadline = p
+            .resolves_by
+            .as_deref()
+            .unwrap_or("(no deadline)");
+        println!(
+            "  · {}  {}  by {}  → {}",
+            p.id.dimmed(),
+            chip,
+            p.made_by,
+            deadline,
+        );
+        println!("      claim:      {}", truncate(&p.claim_text, 90));
+        println!("      confidence: {:.2}", p.confidence);
+    }
+}
+
+/// v0.34: print calibration scores per actor.
+fn cmd_calibration(frontier: &Path, actor: Option<&str>, json: bool) {
+    let project = repo::load_from_path(frontier).unwrap_or_else(|e| fail_return(&e));
+    let records = match actor {
+        Some(a) => crate::calibration::calibration_for_actor(
+            a,
+            &project.predictions,
+            &project.resolutions,
+        )
+        .map(|r| vec![r])
+        .unwrap_or_default(),
+        None => crate::calibration::calibration_records(
+            &project.predictions,
+            &project.resolutions,
+        ),
+    };
+
+    if json {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&json!({
+                "ok": true,
+                "command": "calibration",
+                "frontier": frontier.display().to_string(),
+                "filter_actor": actor,
+                "records": records,
+            }))
+            .expect("serialize calibration")
+        );
+        return;
+    }
+
+    println!();
+    println!(
+        "  {}",
+        format!("VELA · CALIBRATION · {}", frontier.display())
+            .to_uppercase()
+            .dimmed()
+    );
+    println!("  {}", style::tick_row(60));
+    if records.is_empty() {
+        println!("  (no calibration records)");
+        return;
+    }
+    for r in &records {
+        println!("  · {}", r.actor);
+        println!(
+            "      predictions: {}  resolved: {}  hits: {}",
+            r.n_predictions, r.n_resolved, r.n_hit
+        );
+        match r.hit_rate {
+            Some(h) => println!("      hit rate:    {:.1}%", h * 100.0),
+            None => println!("      hit rate:    n/a"),
+        }
+        match r.brier_score {
+            Some(b) => println!("      brier:       {:.4}  (lower is better; 0.25 = chance)", b),
+            None => println!("      brier:       n/a"),
+        }
+        match r.log_score {
+            Some(l) => println!("      log score:   {:.4}  (higher is better; 0 = perfect)", l),
+            None => println!("      log score:   n/a"),
+        }
     }
 }
 
@@ -3903,7 +4497,7 @@ fn cmd_stats(path: &Path) {
     let frontier = repo::load_from_path(path).expect("Failed to load frontier");
     let s = &frontier.stats;
     println!();
-    println!("  {}", "FRONTIER · V0.33.0".dimmed());
+    println!("  {}", "FRONTIER · V0.34.0".dimmed());
     println!("  {}", frontier.project.name.bold());
     println!("  {}", style::tick_row(60));
     println!("  id:             {}", frontier.frontier_id());
@@ -4912,6 +5506,8 @@ fn cmd_frontier(action: FrontierAction) {
                 replications: Vec::new(),
                 datasets: Vec::new(),
                 code_artifacts: Vec::new(),
+                predictions: Vec::new(),
+                resolutions: Vec::new(),
             };
             repo::save_to_path(&path, &project).unwrap_or_else(|e| fail_return(&e));
             let payload = json!({
@@ -6162,7 +6758,7 @@ async fn cmd_bridge(inputs: &[PathBuf], check_novelty: bool, top_n: usize) {
         fail("need at least 2 frontier files for bridge detection.");
     }
     println!();
-    println!("  {}", "VELA · BRIDGE · V0.33.0".dimmed());
+    println!("  {}", "VELA · BRIDGE · V0.34.0".dimmed());
     println!("  {}", style::tick_row(60));
     println!("  loading {} frontiers...", inputs.len());
     let mut named_projects = Vec::<(String, project::Project)>::new();
@@ -6995,6 +7591,12 @@ const SCIENCE_SUBCOMMANDS: &[&str] = &[
     "datasets",
     "code-add",
     "code-artifacts",
+    // v0.34: predictions and resolutions — the epistemic accountability
+    // ledger.
+    "predict",
+    "resolve",
+    "predictions",
+    "calibration",
 ];
 
 pub fn is_science_subcommand(name: &str) -> bool {
@@ -7003,7 +7605,7 @@ pub fn is_science_subcommand(name: &str) -> bool {
 
 fn print_strict_help() {
     println!(
-        r#"Vela 0.33.0
+        r#"Vela 0.34.0
 Portable frontier state for science.
 
 Usage:
@@ -7273,7 +7875,7 @@ pub fn run_from_args() {
             return;
         }
         Some("-V" | "--version" | "version") => {
-            println!("vela 0.33.0");
+            println!("vela 0.34.0");
             return;
         }
         Some(cmd) if !is_science_subcommand(cmd) => {

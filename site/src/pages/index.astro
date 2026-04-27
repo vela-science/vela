@@ -23,6 +23,8 @@ import {
   replicationStats,
   loadDatasets,
   loadCodeArtifacts,
+  loadPredictions,
+  loadResolutions,
   TARGETS,
   type ClaimView,
 } from "../lib/frontier";
@@ -34,6 +36,8 @@ const tensionList = contradictions();
 const repStats = replicationStats();
 const datasets = loadDatasets();
 const codeArtifacts = loadCodeArtifacts();
+const predictions = loadPredictions();
+const resolutions = loadResolutions();
 
 /* Above-the-fold: featured claims, sorted by confidence so the
    strongest signals lead. Cap at 12 so the page stays scannable. */
@@ -106,6 +110,12 @@ const lastUpdated = stats.lastUpdated
       <a class="frontier-readout__link" href="/code">
         <span class="frontier-readout__num">{codeArtifacts.length}</span>
         <span class="frontier-readout__label">code</span>
+      </a>
+    </div>
+    <div class="frontier-readout__stat">
+      <a class="frontier-readout__link" href="/predictions">
+        <span class="frontier-readout__num">{predictions.length}</span>
+        <span class="frontier-readout__label">predictions</span>
       </a>
     </div>
     <div class="frontier-readout__stat">
@@ -261,12 +271,12 @@ const lastUpdated = stats.lastUpdated
   .inline-link:hover { color: var(--ink-0); }
 
   /* ── Frontier readout — instrument bar under the masthead ──
-     v0.32 added the replications cell. v0.33 added datasets + code
-     cells so the bar shows seven numbers on desktop. On narrow
-     viewports the grid wraps to 2-up rows. */
+     v0.32 added replications. v0.33 added datasets + code. v0.34
+     added predictions. The bar shows eight numbers on desktop and
+     wraps responsively. */
   .frontier-readout {
     display: grid;
-    grid-template-columns: repeat(7, 1fr);
+    grid-template-columns: repeat(8, 1fr);
     gap: 0;
     border-top: 1px solid var(--rule-2);
     border-bottom: 1px solid var(--rule-2);
@@ -548,7 +558,7 @@ const lastUpdated = stats.lastUpdated
     color: var(--ink-1);
   }
 
-  /* Tablet breakpoint: 7 cells wrap to 4-3 layout. */
+  /* Tablet breakpoint: 8 cells wrap to 4-up x 2 rows. */
   @media (max-width: 1100px) {
     .frontier-readout {
       grid-template-columns: repeat(4, 1fr);
@@ -559,7 +569,7 @@ const lastUpdated = stats.lastUpdated
     }
   }
 
-  /* Mobile breakpoint: 7 cells wrap to 2-up grid. */
+  /* Mobile breakpoint: 8 cells wrap to 2-up x 4 rows. */
   @media (max-width: 720px) {
     .frontier-readout {
       grid-template-columns: repeat(2, 1fr);
