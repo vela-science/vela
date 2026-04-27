@@ -432,6 +432,32 @@ pub fn validate_event_payload(kind: &str, payload: &Value) -> Result<(), String>
             require_str("name")?;
             require_str("creator")?;
         }
+        // v0.39: federation events. Both record interactions with a
+        // peer hub registered in `Project.peers`. The actual sync
+        // runtime (HTTP fetch + manifest verification) ships in
+        // v0.39.1+; v0.39.0 only validates the event schema so a
+        // hand-emitted sync record can already be replay-checked.
+        "frontier.synced_with_peer" => {
+            require_str("peer_id")?;
+            require_str("peer_snapshot_hash")?;
+            require_str("our_snapshot_hash")?;
+            let _ = object
+                .get("divergence_count")
+                .and_then(Value::as_u64)
+                .ok_or("missing required non-negative integer 'divergence_count'")?;
+        }
+        "frontier.conflict_detected" => {
+            require_str("peer_id")?;
+            require_str("finding_id")?;
+            let kind = require_str("kind")?;
+            // The conflict kind is open-ended for now; v0.39.1+ will
+            // tighten this enum once the sync runtime lands. For
+            // v0.39.0 we only require it to be non-empty so a replay
+            // can group conflicts by category.
+            if kind.trim().is_empty() {
+                return Err("payload.kind must be a non-empty string".to_string());
+            }
+        }
         // v0.38: causal-typing reinterpretation. The substrate doesn't
         // erase the prior reading; it appends a new event recording who
         // re-graded the claim and why. `before` and `after` payloads
@@ -702,6 +728,75 @@ mod tests {
         let report = replay_report(&frontier);
         assert!(report.ok, "{:?}", report.conflicts);
         assert_eq!(report.status, "ok");
+    }
+
+    // v0.39 — federation event validation
+    #[test]
+    fn validates_synced_with_peer_payload() {
+        // OK: full payload.
+        assert!(validate_event_payload(
+            "frontier.synced_with_peer",
+            &json!({
+                "peer_id": "hub:peer",
+                "peer_snapshot_hash": "abc",
+                "our_snapshot_hash": "def",
+                "divergence_count": 3,
+            }),
+        )
+        .is_ok());
+        // FAIL: missing divergence_count.
+        assert!(validate_event_payload(
+            "frontier.synced_with_peer",
+            &json!({
+                "peer_id": "hub:peer",
+                "peer_snapshot_hash": "abc",
+                "our_snapshot_hash": "def",
+            }),
+        )
+        .is_err());
+        // FAIL: missing peer_id.
+        assert!(validate_event_payload(
+            "frontier.synced_with_peer",
+            &json!({
+                "peer_snapshot_hash": "abc",
+                "our_snapshot_hash": "def",
+                "divergence_count": 0,
+            }),
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn validates_conflict_detected_payload() {
+        // OK: full payload.
+        assert!(validate_event_payload(
+            "frontier.conflict_detected",
+            &json!({
+                "peer_id": "hub:peer",
+                "finding_id": "vf_xyz",
+                "kind": "different_review_verdict",
+            }),
+        )
+        .is_ok());
+        // FAIL: empty kind.
+        assert!(validate_event_payload(
+            "frontier.conflict_detected",
+            &json!({
+                "peer_id": "hub:peer",
+                "finding_id": "vf_xyz",
+                "kind": "  ",
+            }),
+        )
+        .is_err());
+        // FAIL: missing finding_id.
+        assert!(validate_event_payload(
+            "frontier.conflict_detected",
+            &json!({
+                "peer_id": "hub:peer",
+                "kind": "missing_in_peer",
+            }),
+        )
+        .is_err());
     }
 
     // v0.38 — causal-typing event validation

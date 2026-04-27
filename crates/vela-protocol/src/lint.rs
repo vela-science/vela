@@ -903,6 +903,7 @@ mod tests {
             code_artifacts: Vec::new(),
             predictions: Vec::new(),
             resolutions: Vec::new(),
+            peers: vec![],
         }
     }
 

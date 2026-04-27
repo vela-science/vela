@@ -19,7 +19,7 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 
 #[derive(Parser)]
-#[command(name = "vela", version = "0.38.3")]
+#[command(name = "vela", version = "0.39.0")]
 #[command(about = "Portable frontier state for science")]
 struct Cli {
     #[command(subcommand)]
@@ -433,6 +433,14 @@ enum Commands {
     Actor {
         #[command(subcommand)]
         action: ActorAction,
+    },
+    /// v0.39: Manage the frontier's federation peer registry. A peer
+    /// is another hub this frontier knows about — id, HTTPS URL, and
+    /// the Ed25519 pubkey they sign manifests with. Adding a peer
+    /// declares awareness; the actual sync runtime ships in v0.39.1+.
+    Federation {
+        #[command(subcommand)]
+        action: FederationAction,
     },
     /// Manage frontier-level metadata: cross-frontier dependencies (v0.8).
     /// Use `vela frontier add-dep` to declare a remote frontier this
@@ -982,6 +990,44 @@ enum ActorAction {
     /// List registered actors in a frontier
     List {
         frontier: PathBuf,
+        #[arg(long)]
+        json: bool,
+    },
+}
+
+#[derive(Subcommand)]
+enum FederationAction {
+    /// v0.39: Register a peer hub in this frontier. Adding a peer
+    /// declares awareness — it does not trust their state. Sync /
+    /// merge runtime ships in v0.39.1+.
+    PeerAdd {
+        frontier: PathBuf,
+        /// Stable peer id (e.g. `hub:vela-mirror-eu`).
+        id: String,
+        /// HTTPS URL where the peer publishes signed manifests.
+        #[arg(long)]
+        url: String,
+        /// Hex-encoded Ed25519 public key (64 hex chars).
+        #[arg(long)]
+        pubkey: String,
+        /// Optional human-readable note (e.g. "EU mirror, run by lab Z").
+        #[arg(long, default_value = "")]
+        note: String,
+        #[arg(long)]
+        json: bool,
+    },
+    /// List federation peers registered in a frontier.
+    PeerList {
+        frontier: PathBuf,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Remove a peer from the registry. Does not retroactively
+    /// invalidate events that referenced the peer; just stops further
+    /// sync attempts.
+    PeerRemove {
+        frontier: PathBuf,
+        id: String,
         #[arg(long)]
         json: bool,
     },
@@ -1854,6 +1900,7 @@ pub async fn run_command() {
         Commands::Version => println!("vela 0.36.0"),
         Commands::Sign { action } => cmd_sign(action),
         Commands::Actor { action } => cmd_actor(action),
+        Commands::Federation { action } => cmd_federation(action),
         Commands::Frontier { action } => cmd_frontier(action),
         Commands::Queue { action } => cmd_queue(action),
         Commands::Registry { action } => cmd_registry(action),
@@ -4907,6 +4954,131 @@ fn cmd_actor(action: ActorAction) {
     }
 }
 
+/// v0.39: Manage the federation peer registry.
+fn cmd_federation(action: FederationAction) {
+    use crate::federation::PeerHub;
+
+    match action {
+        FederationAction::PeerAdd {
+            frontier,
+            id,
+            url,
+            pubkey,
+            note,
+            json,
+        } => {
+            let peer = PeerHub {
+                id: id.clone(),
+                url: url.clone(),
+                public_key: pubkey.trim().to_string(),
+                added_at: chrono::Utc::now().to_rfc3339(),
+                note: note.clone(),
+            };
+            peer.validate().unwrap_or_else(|e| fail_return(&e));
+
+            let mut project = repo::load_from_path(&frontier).unwrap_or_else(|e| fail_return(&e));
+            if project.peers.iter().any(|p| p.id == id) {
+                fail(&format!("peer '{id}' already in registry"));
+            }
+            project.peers.push(peer.clone());
+            repo::save_to_path(&frontier, &project).unwrap_or_else(|e| fail_return(&e));
+
+            if json {
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&json!({
+                        "ok": true,
+                        "command": "federation.peer-add",
+                        "frontier": frontier.display().to_string(),
+                        "peer": peer,
+                        "registered_count": project.peers.len(),
+                    }))
+                    .expect("serialize federation.peer-add")
+                );
+            } else {
+                println!(
+                    "{} peer {} (pubkey {}…) at {}",
+                    style::ok("registered"),
+                    id,
+                    &peer.public_key[..16],
+                    peer.url
+                );
+            }
+        }
+        FederationAction::PeerList { frontier, json } => {
+            let project = repo::load_from_path(&frontier).unwrap_or_else(|e| fail_return(&e));
+            if json {
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&json!({
+                        "ok": true,
+                        "command": "federation.peer-list",
+                        "frontier": frontier.display().to_string(),
+                        "peers": project.peers,
+                    }))
+                    .expect("serialize federation.peer-list")
+                );
+            } else {
+                println!();
+                println!(
+                    "  {}",
+                    format!("VELA · FEDERATION · PEERS · {}", frontier.display())
+                        .to_uppercase()
+                        .dimmed()
+                );
+                println!("  {}", style::tick_row(60));
+                if project.peers.is_empty() {
+                    println!("  (no peers registered)");
+                } else {
+                    for p in &project.peers {
+                        let note_suffix = if p.note.is_empty() {
+                            String::new()
+                        } else {
+                            format!("  · {}", p.note)
+                        };
+                        println!(
+                            "  {:<24}  {}  {}…{note_suffix}",
+                            p.id,
+                            p.url,
+                            &p.public_key[..16]
+                        );
+                    }
+                }
+            }
+        }
+        FederationAction::PeerRemove { frontier, id, json } => {
+            let mut project = repo::load_from_path(&frontier).unwrap_or_else(|e| fail_return(&e));
+            let before = project.peers.len();
+            project.peers.retain(|p| p.id != id);
+            if project.peers.len() == before {
+                fail(&format!("peer '{id}' not found in registry"));
+            }
+            repo::save_to_path(&frontier, &project).unwrap_or_else(|e| fail_return(&e));
+
+            if json {
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&json!({
+                        "ok": true,
+                        "command": "federation.peer-remove",
+                        "frontier": frontier.display().to_string(),
+                        "removed": id,
+                        "remaining": project.peers.len(),
+                    }))
+                    .expect("serialize federation.peer-remove")
+                );
+            } else {
+                println!(
+                    "{} peer {} ({} remaining)",
+                    style::ok("removed"),
+                    id,
+                    project.peers.len()
+                );
+            }
+        }
+    }
+}
+
 /// Phase R (v0.5): walk the local Workbench draft queue. The Workbench
 /// browser writes unsigned drafts to a queue file; this CLI is the only
 /// place where the actor's private key reads its drafts and signs them.
@@ -5488,6 +5660,7 @@ fn cmd_frontier(action: FrontierAction) {
                 code_artifacts: Vec::new(),
                 predictions: Vec::new(),
                 resolutions: Vec::new(),
+            peers: Vec::new(),
             };
             repo::save_to_path(&path, &project).unwrap_or_else(|e| fail_return(&e));
             let payload = json!({

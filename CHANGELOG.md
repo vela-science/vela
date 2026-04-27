@@ -1,5 +1,118 @@
 # Changelog
 
+## 0.39.0 - 2026-04-27
+
+**Hub federation — schema layer.** Pre-v0.39 every Vela frontier had
+exactly one source of truth: the single hub it was published to. The
+substrate claimed the kernel was content-addressed and signed, but
+the distribution layer was centralized — there was no way for a
+second hub to mirror a frontier and detect when its view diverged.
+
+v0.39.0 lands the *schema layer* of federation. A frontier can now
+register peer hubs and the kernel knows two new event kinds for
+recording sync interactions and conflicts. The actual sync runtime
+(HTTP fetch, manifest verification, conflict-resolution proposals)
+ships in v0.39.1+. Same staging discipline as v0.32 → v0.36.1 and
+v0.38.0 → v0.38.1.
+
+### New module: `crate::federation`
+
+```rust
+pub struct PeerHub {
+    pub id: String,            // hub:<short-name>
+    pub url: String,           // https://...
+    pub public_key: String,    // 64 hex chars
+    pub added_at: String,      // RFC 3339
+    pub note: String,          // optional, doesn't enter content address
+}
+```
+
+Validation rules: id non-empty, url must start with `https://`,
+public_key must be 64 hex chars and decodable.
+
+### `Project.peers`
+
+```rust
+pub peers: Vec<crate::federation::PeerHub>,
+```
+
+`#[serde(default, skip_serializing_if = "Vec::is_empty")]` — pre-v0.39
+frontiers serialize and load byte-identically.
+
+### New event kinds
+
+Both validated in `events::validate_event_payload`:
+
+- `frontier.synced_with_peer` — required: `peer_id`,
+  `peer_snapshot_hash`, `our_snapshot_hash`,
+  `divergence_count: u64`. Append-only record of one sync pass.
+- `frontier.conflict_detected` — required: `peer_id`, `finding_id`,
+  `kind` (non-empty string). Emitted per finding when our view and
+  the peer's view disagree on a substantive field.
+
+The `kind` field is open-ended for v0.39.0; v0.39.1+ tightens it to
+an enum once the sync runtime exists and we know the conflict
+taxonomy from real use.
+
+### CLI
+
+```
+vela federation peer add <id> --frontier <path> \
+    --url https://peer.example/ --pubkey <64-hex> \
+    [--note "EU mirror"]
+vela federation peer list --frontier <path>
+vela federation peer remove <id> --frontier <path>
+```
+
+`peer add` validates URL and pubkey shape before mutating the
+frontier; rejects duplicate ids. `peer remove` is non-retroactive —
+it stops further sync attempts but doesn't invalidate prior events
+that referenced the peer.
+
+### Doctrine for v0.39.0
+
+- The peer registry is **a frontier-local declaration of awareness**,
+  not trust. Adding a peer just establishes who we know about.
+- Peer signatures verify under the same Ed25519 discipline as
+  `actors`. A peer's `frontier.merged` event signed by their key can
+  be replayed locally only when their pubkey is in our `peers`
+  registry.
+- **Conflicts are recorded, not auto-resolved.** v0.39.1+ will
+  surface them through proposals so a human reviewer chooses which
+  side to accept.
+
+### Verification
+
+- `cargo build --workspace`: clean.
+- `cargo test --workspace`: **403/403 pass** (was 396; +7 v0.39 tests):
+  - 5 `federation::tests` cases for `PeerHub::validate`:
+    correct shape, empty id, http url, short pubkey, non-hex pubkey.
+  - 2 `events::tests` cases for the new payloads:
+    `frontier.synced_with_peer` valid + missing-field rejection,
+    `frontier.conflict_detected` valid + empty-kind / missing-id
+    rejection.
+- `vela conformance`: 61/61 pass.
+- `vela check projects/bbb-flagship`: 86/86 valid.
+
+### What this closes
+
+The kernel-completeness arc that started with v0.32 (Replication as
+object) reaches its natural endpoint:
+
+| v0.32 | Replication | first-class kernel object |
+| v0.33 | Datasets, code | first-class kernel objects |
+| v0.34 | Predictions, resolutions | epistemic accountability ledger |
+| v0.35 | Aggregation | inference layer over the kernel |
+| v0.36.x | Substrate correctness | replication-as-source-of-truth + sweep |
+| v0.37 | Multi-actor signatures | social-claim primitives |
+| v0.38.x | Causal typing | schema, math, inference, lint |
+| v0.39 | Federation | peers, sync events, conflict events |
+
+After v0.39.0, every primitive a scientific knowledge substrate
+needs is first-class. The remaining work is runtime — making the
+sync, gossip, and conflict resolution actually run end-to-end —
+which builds on this schema, not extends it.
+
 ## 0.38.3 - 2026-04-27
 
 **Causal-claim category errors get linted.** Closes the v0.38.x arc:

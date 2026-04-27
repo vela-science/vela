@@ -131,6 +131,13 @@ pub struct Project {
     /// epistemic accountability ledger.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub resolutions: Vec<crate::bundle::Resolution>,
+    /// v0.39: Federation peer registry. Each `PeerHub` declares
+    /// another hub this frontier knows about — id, HTTPS URL, and the
+    /// Ed25519 pubkey that peer signs their manifests with. Adding a
+    /// peer doesn't yet trust their state; it just establishes who we
+    /// know about. The actual sync runtime ships in v0.39.1+.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub peers: Vec<crate::federation::PeerHub>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -192,7 +199,7 @@ pub struct ConfidenceDistribution {
 /// Schema and compiler defaults for the current Vela protocol release.
 pub const VELA_SCHEMA_URL: &str = "https://vela.science/schema/finding-bundle/v0.10.0";
 pub const VELA_SCHEMA_VERSION: &str = "0.10.0";
-pub const VELA_COMPILER_VERSION: &str = "vela/0.38.3";
+pub const VELA_COMPILER_VERSION: &str = "vela/0.39.0";
 
 /// Derive a `vfr_<hash>` frontier ID from frontier metadata. Used as a
 /// fallback for legacy frontiers without a `frontier.created` genesis
@@ -325,6 +332,7 @@ pub fn assemble(
         code_artifacts: Vec::new(),
         predictions: Vec::new(),
         resolutions: Vec::new(),
+            peers: Vec::new(),
     };
     crate::sources::materialize_project(&mut project);
     project

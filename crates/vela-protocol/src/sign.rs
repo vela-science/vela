@@ -845,6 +845,7 @@ mod tests {
             code_artifacts: vec![],
             predictions: vec![],
             resolutions: vec![],
+            peers: vec![],
         };
 
         let report = verify_frontier_data(&frontier, None).unwrap();
@@ -889,6 +890,7 @@ mod tests {
             code_artifacts: vec![],
             predictions: vec![],
             resolutions: vec![],
+            peers: vec![],
         }
     }
 

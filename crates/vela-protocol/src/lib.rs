@@ -11,6 +11,7 @@ pub mod diff;
 pub mod entity_resolve;
 pub mod events;
 pub mod export;
+pub mod federation;
 pub mod ingest;
 pub mod link;
 pub mod lint;
