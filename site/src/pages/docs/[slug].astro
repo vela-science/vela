@@ -10,6 +10,12 @@ export async function getStaticPaths() {
   // bundler-detached function.)
   const HUB_HOST = "vela-hub.fly.dev";
   const PUBLIC: Record<string, { id: string; title: string; description: string }> = {
+    architecture: {
+      id: "architecture",
+      title: "Architecture",
+      description:
+        "The mental model. Where Vela sits in the science stack, why the position is structurally available, and what becomes possible above it.",
+    },
     protocol: {
       id: "protocol",
       title: "Protocol",
