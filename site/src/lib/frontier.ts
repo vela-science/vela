@@ -138,6 +138,44 @@ export interface Link {
   note?: string;
   inferred_by?: string;
   created_at?: string;
+  /* v0.45: optional structural causal mechanism on a `depends` /
+     `supports` edge. Edges with a mechanism participate in
+     counterfactual (Pearl level 3) twin-network propagation. */
+  mechanism?: Mechanism;
+}
+
+export type MechanismSign = "positive" | "negative";
+
+export type Mechanism =
+  | { kind: "linear"; sign: MechanismSign; slope: number }
+  | { kind: "monotonic"; sign: MechanismSign }
+  | { kind: "threshold"; sign: MechanismSign; threshold: number }
+  | { kind: "saturating"; sign: MechanismSign; half_max: number }
+  | { kind: "unknown" };
+
+/* Apply a mechanism to a parent perturbation `delta_x` and return the
+   implied child perturbation. Mirrors `crate::bundle::Mechanism::apply`. */
+export function applyMechanism(m: Mechanism, deltaX: number): number | null {
+  const signOf = (s: MechanismSign) => (s === "positive" ? 1 : -1);
+  switch (m.kind) {
+    case "linear":
+      return signOf(m.sign) * m.slope * deltaX;
+    case "monotonic": {
+      const ax = Math.min(Math.abs(deltaX), 1);
+      return signOf(m.sign) * Math.sign(deltaX) * ax;
+    }
+    case "threshold":
+      if (Math.abs(deltaX) >= m.threshold) {
+        return signOf(m.sign) * Math.sign(deltaX);
+      }
+      return 0;
+    case "saturating": {
+      const denom = Math.abs(deltaX) + Math.max(m.half_max, 1e-9);
+      return (signOf(m.sign) * deltaX) / denom;
+    }
+    case "unknown":
+      return null;
+  }
 }
 
 export interface Annotation {
@@ -1216,6 +1254,186 @@ function findFrontDoorMediator(
     return m;
   }
   return null;
+}
+
+// ── Counterfactual queries (v0.45 — Pearl level 3) ───────────────────
+//
+// Twin-network propagation over the claim graph using the optional
+// `Mechanism` annotation on each `depends`/`supports` link. Mirrors
+// `crates/vela-protocol/src/counterfactual.rs`; the Rust kernel is
+// canonical, the site renders the same answer.
+
+export interface CounterfactualQuery {
+  intervene_on: string;
+  set_to: number;
+  target: string;
+}
+
+export type CounterfactualVerdict =
+  | {
+      kind: "resolved";
+      factual: number;
+      counterfactual: number;
+      delta: number;
+      paths_used: string[][];
+    }
+  | { kind: "mechanism_unspecified"; unspecified_edges: [string, string][] }
+  | { kind: "no_causal_path"; factual: number }
+  | { kind: "unknown_node"; which: string }
+  | { kind: "invalid_intervention"; reason: string };
+
+/* BFS-enumerate directed parent → child paths from cause to effect. */
+function directedPathsFromTo(
+  cause: string,
+  effect: string,
+  g: CausalGraphData,
+  maxDepth = 8,
+  maxPaths = 32,
+): string[][] {
+  const out: string[][] = [];
+  const queue: string[][] = [[cause]];
+  while (queue.length) {
+    if (out.length >= maxPaths) break;
+    const path = queue.shift()!;
+    if (path.length > maxDepth) continue;
+    const last = path[path.length - 1];
+    if (last === effect && path.length > 1) {
+      out.push(path);
+      continue;
+    }
+    for (const child of g.children.get(last) ?? []) {
+      if (path.includes(child)) continue;
+      queue.push([...path, child]);
+    }
+  }
+  return out;
+}
+
+/* Build a (parent, child) → Mechanism index from the loaded findings.
+   Convention: a `depends`/`supports` link from finding A to target B
+   means A is the dependent (child) and B is the parent. */
+function loadMechanismIndex(): Map<string, Mechanism> {
+  const claims = loadFrontier();
+  const idx = new Map<string, Mechanism>();
+  for (const c of claims) {
+    for (const link of c.finding.links ?? []) {
+      if (link.type !== "depends" && link.type !== "supports") continue;
+      if (!link.mechanism) continue;
+      const target = link.target.includes("@")
+        ? link.target.split("@")[0]
+        : link.target;
+      idx.set(`${target}|${c.finding.id}`, link.mechanism);
+    }
+  }
+  return idx;
+}
+
+function loadConfidenceIndex(): Map<string, number> {
+  const claims = loadFrontier();
+  const idx = new Map<string, number>();
+  for (const c of claims) {
+    idx.set(c.finding.id, c.finding.confidence?.score ?? 0);
+  }
+  return idx;
+}
+
+export function answerCounterfactual(q: CounterfactualQuery): CounterfactualVerdict {
+  if (!(q.set_to >= 0 && q.set_to <= 1)) {
+    return {
+      kind: "invalid_intervention",
+      reason: `intervention must be on the confidence axis [0,1], got ${q.set_to}`,
+    };
+  }
+
+  const g = loadCausalGraph();
+  if (!g.nodes.has(q.intervene_on)) return { kind: "unknown_node", which: q.intervene_on };
+  if (!g.nodes.has(q.target)) return { kind: "unknown_node", which: q.target };
+
+  const conf = loadConfidenceIndex();
+  const factualSrc = conf.get(q.intervene_on) ?? 0;
+  const factualTgt = conf.get(q.target) ?? 0;
+
+  const paths = directedPathsFromTo(q.intervene_on, q.target, g);
+  if (paths.length === 0) {
+    return { kind: "no_causal_path", factual: factualTgt };
+  }
+
+  const mechIdx = loadMechanismIndex();
+  const deltaX = q.set_to - factualSrc;
+
+  const unspecified = new Set<string>();
+  const pathDeltas: number[] = [];
+  const pathsUsed: string[][] = [];
+
+  for (const path of paths) {
+    let delta = deltaX;
+    let ok = true;
+    for (let i = 0; i < path.length - 1; i++) {
+      const parent = path[i];
+      const child = path[i + 1];
+      const m = mechIdx.get(`${parent}|${child}`);
+      if (!m) {
+        unspecified.add(`${parent}|${child}`);
+        ok = false;
+        break;
+      }
+      const next = applyMechanism(m, delta);
+      if (next == null) {
+        unspecified.add(`${parent}|${child}`);
+        ok = false;
+        break;
+      }
+      delta = next;
+    }
+    if (ok) {
+      pathDeltas.push(delta);
+      pathsUsed.push(path);
+    }
+  }
+
+  if (pathDeltas.length === 0) {
+    const edges: [string, string][] = Array.from(unspecified).map((s) => {
+      const [a, b] = s.split("|");
+      return [a, b];
+    });
+    edges.sort();
+    return { kind: "mechanism_unspecified", unspecified_edges: edges };
+  }
+
+  // Max-magnitude aggregation, matching the Rust kernel.
+  let agg = 0;
+  for (const d of pathDeltas) {
+    if (Math.abs(d) > Math.abs(agg)) agg = d;
+  }
+  const counterfactual = Math.max(0, Math.min(1, factualTgt + agg));
+  return {
+    kind: "resolved",
+    factual: factualTgt,
+    counterfactual,
+    delta: counterfactual - factualTgt,
+    paths_used: pathsUsed,
+  };
+}
+
+/* Find pairs (cause, effect) in the loaded graph for which at least
+   one directed path is fully mechanism-annotated. Used by the site to
+   surface the set of "live" counterfactual queries. */
+export function liveCounterfactualPairs(): { from: string; to: string }[] {
+  const g = loadCausalGraph();
+  const mechIdx = loadMechanismIndex();
+  const pairs: { from: string; to: string }[] = [];
+  for (const cause of g.nodes.keys()) {
+    for (const effect of g.nodes.keys()) {
+      if (cause === effect) continue;
+      const paths = directedPathsFromTo(cause, effect, g, 6, 16);
+      if (paths.length === 0) continue;
+      const livePath = paths.some((p) =>
+        p.slice(0, -1).every((_, i) => mechIdx.has(`${p[i]}|${p[i + 1]}`)),
+      );
+      if (livePath) pairs.push({ from: cause, to: effect });
+    }
+  }
+  return pairs;
 }
 
 // ── Consensus aggregation (v0.35) ───────────────────────────────────

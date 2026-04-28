@@ -34,7 +34,7 @@
         "candidates": [],
         "aliases": [
           "amyloid",
-          "Aβ",
+          "A\u03b2",
           "Abeta",
           "amyloid beta-peptide",
           "amyloid-beta peptide",
@@ -202,7 +202,7 @@
         "orcid": null
       },
       {
-        "name": "Gnörich J",
+        "name": "Gn\u00f6rich J",
         "orcid": null
       },
       {
@@ -262,7 +262,7 @@
         "orcid": null
       },
       {
-        "name": "Pesämaa I",
+        "name": "Pes\u00e4maa I",
         "orcid": null
       },
       {
@@ -384,7 +384,12 @@
       "type": "depends",
       "note": "ATV:TREM2 mechanism finding depends on the iPSC microglia proliferation result.",
       "inferred_by": "reviewer",
-      "created_at": "2026-04-28T01:24:45Z"
+      "created_at": "2026-04-28T01:24:45Z",
+      "mechanism": {
+        "kind": "saturating",
+        "sign": "positive",
+        "half_max": 0.3
+      }
     }
   ],
   "annotations": [

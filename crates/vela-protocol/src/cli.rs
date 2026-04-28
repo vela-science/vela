@@ -19,7 +19,7 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 
 #[derive(Parser)]
-#[command(name = "vela", version = "0.44.1")]
+#[command(name = "vela", version = "0.45.0")]
 #[command(about = "Portable frontier state for science")]
 struct Cli {
     #[command(subcommand)]
@@ -1124,6 +1124,25 @@ enum CausalAction {
         /// Limit output to a single node's neighborhood.
         #[arg(long)]
         node: Option<String>,
+        #[arg(long)]
+        json: bool,
+    },
+    /// v0.45 (Pearl level 3): answer a counterfactual query of the form
+    /// "if we had observed `intervene_on` at `value`, what would
+    /// `target`'s confidence have been?" Twin-network propagation
+    /// requires every edge on the source→target paths to declare a
+    /// `mechanism`; edges without one block propagation honestly with
+    /// a `mechanism_unspecified` verdict.
+    Counterfactual {
+        frontier: PathBuf,
+        /// The finding to intervene on (`vf_<hash>`).
+        intervene_on: String,
+        /// The confidence value to set on the intervened finding (in [0,1]).
+        #[arg(long)]
+        set_to: f64,
+        /// The target finding whose counterfactual confidence we want (`vf_<hash>`).
+        #[arg(long)]
+        target: String,
         #[arg(long)]
         json: bool,
     },
@@ -6210,6 +6229,101 @@ fn cmd_causal(action: CausalAction) {
                 }
             }
         }
+        CausalAction::Counterfactual {
+            frontier,
+            intervene_on,
+            set_to,
+            target,
+            json,
+        } => {
+            use crate::counterfactual::{
+                answer_counterfactual, CounterfactualQuery, CounterfactualVerdict,
+            };
+
+            let project = repo::load_from_path(&frontier).unwrap_or_else(|e| fail_return(&e));
+            let query = CounterfactualQuery {
+                intervene_on: intervene_on.clone(),
+                set_to,
+                target: target.clone(),
+            };
+            let verdict = answer_counterfactual(&project, &query);
+
+            if json {
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&json!({
+                        "ok": true,
+                        "command": "causal.counterfactual",
+                        "frontier": frontier.display().to_string(),
+                        "query": query,
+                        "verdict": verdict,
+                    }))
+                    .expect("serialize causal.counterfactual")
+                );
+                return;
+            }
+
+            println!();
+            println!(
+                "  {}",
+                format!(
+                    "VELA · CAUSAL · COUNTERFACTUAL · do({intervene_on} := {set_to:.3}) → {target}"
+                )
+                .to_uppercase()
+                .dimmed()
+            );
+            println!("  {}", style::tick_row(72));
+            match verdict {
+                CounterfactualVerdict::Resolved {
+                    factual,
+                    counterfactual,
+                    delta,
+                    paths_used,
+                } => {
+                    println!(
+                        "  {}  factual: {factual:.3}  counterfactual: {counterfactual:.3}  delta: {delta:+.3}",
+                        style::ok("resolved")
+                    );
+                    println!(
+                        "  twin-network propagation through {} causal path(s):",
+                        paths_used.len()
+                    );
+                    for p in paths_used.iter().take(5) {
+                        println!("    · {}", p.join(" → "));
+                    }
+                    println!(
+                        "  reading: \"if {intervene_on}'s confidence had been {set_to:.3} \
+                        instead of factual, {target}'s confidence would shift by {delta:+.3}.\""
+                    );
+                }
+                CounterfactualVerdict::MechanismUnspecified { unspecified_edges } => {
+                    println!(
+                        "  {}  causal path exists but {} edge(s) lack a mechanism annotation",
+                        style::warn("mechanism_unspecified"),
+                        unspecified_edges.len()
+                    );
+                    for (parent, child) in unspecified_edges.iter().take(8) {
+                        println!("    · {parent} → {child}");
+                    }
+                    println!(
+                        "  remediation: annotate one of the link mechanisms (linear / monotonic / threshold / saturating)."
+                    );
+                }
+                CounterfactualVerdict::NoCausalPath { factual } => {
+                    println!(
+                        "  {}  no directed path from {intervene_on} to {target}; counterfactual = factual = {factual:.3}",
+                        style::warn("no_path")
+                    );
+                }
+                CounterfactualVerdict::UnknownNode { which } => {
+                    fail(&format!("node not in frontier: {which}"));
+                }
+                CounterfactualVerdict::InvalidIntervention { reason } => {
+                    fail(&reason);
+                }
+            }
+            println!();
+        }
     }
 }
 
@@ -7100,6 +7214,7 @@ The target may have been removed or never existed in the pinned snapshot."
                 note: note.clone(),
                 inferred_by: inferred_by.clone(),
                 created_at: now,
+                mechanism: None,
             };
             p.findings[source_idx].links.push(link);
             project::recompute_stats(&mut p);

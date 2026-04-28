@@ -750,6 +750,7 @@ mod tests {
             note: String::new(),
             inferred_by: "test".into(),
             created_at: String::new(),
+            mechanism: None,
         }
     }
 

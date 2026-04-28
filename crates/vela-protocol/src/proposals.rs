@@ -1068,6 +1068,7 @@ fn apply_supersede(
             ),
             inferred_by: "reviewer".to_string(),
             created_at: Utc::now().to_rfc3339(),
+            mechanism: None,
         });
     }
 

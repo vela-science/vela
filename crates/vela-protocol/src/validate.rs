@@ -1110,6 +1110,7 @@ mod tests {
             note: String::new(),
             inferred_by: "compiler".into(),
             created_at: Utc::now().to_rfc3339(),
+            mechanism: None,
         });
         let path = write_frontier(tmp.path(), vec![f]);
         let report = validate(&path);
@@ -1192,6 +1193,7 @@ mod tests {
             note: String::new(),
             inferred_by: "compiler".into(),
             created_at: Utc::now().to_rfc3339(),
+            mechanism: None,
         });
         let path = write_frontier(tmp.path(), vec![f]);
         let report = validate(&path);
@@ -1287,6 +1289,7 @@ mod tests {
             note: String::new(),
             inferred_by: "compiler".to_string(),
             created_at: "2024-01-01T00:00:00Z".to_string(),
+            mechanism: None,
         }];
         f
     }

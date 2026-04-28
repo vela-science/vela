@@ -1,0 +1,170 @@
+---
+/*
+  Counterfactual index (v0.45 — Pearl level 3).
+
+  Lists the (cause, effect) pairs in the loaded frontier whose
+  source→target paths are fully mechanism-annotated and therefore
+  admit a twin-network counterfactual answer. This is the entry
+  surface for the level-3 reasoning layer; per-pair pages live at
+  /counterfactual/[from]/[to].
+*/
+
+import Page from "../../layouts/Page.astro";
+import {
+  loadFrontier,
+  liveCounterfactualPairs,
+  loadCausalGraph,
+} from "../../lib/frontier";
+import { FRONTIER, VERSION } from "../../config";
+
+const pairs = liveCounterfactualPairs();
+const claims = loadFrontier();
+const claimById = new Map(claims.map((c) => [c.finding.id, c]));
+const graph = loadCausalGraph();
+
+function trunc(s: string, n: number): string {
+  return s.length > n ? `${s.slice(0, n - 1)}…` : s;
+}
+---
+
+<Page
+  title={`Counterfactuals · ${FRONTIER.name}`}
+  description="Pearl level 3 — twin-network counterfactual queries over the claim graph. Lists the (cause, effect) pairs whose source-to-target path is fully mechanism-annotated."
+  active=""
+  eyebrow="Counterfactuals"
+  pageTitle="What if we had observed differently?"
+  subtitle="Pearl level 3: twin-network counterfactuals along mechanism-annotated edges."
+>
+  <div slot="aside">
+    <a href="/" class="aside-link">frontier</a>
+    <span>·</span>
+    <a href="/causal/audit" class="aside-link">audit (level 1)</a>
+    <span>·</span>
+    <a href="/docs/learn" class="aside-link">docs</a>
+  </div>
+
+  <section class="cf-doctrine">
+    <p class="cf-doctrine__eyebrow">Doctrine</p>
+    <p class="cf-doctrine__body">
+      A counterfactual asks: <em>given that we observed Y, what would Y have been if we had
+      seen X take a different value?</em> Vela answers via twin-network propagation along the
+      directed claim graph, using the optional <code>mechanism</code> annotation on each
+      <code>depends</code> / <code>supports</code> link. Edges without a mechanism block
+      propagation honestly and surface as <code>mechanism_unspecified</code>.
+    </p>
+    <p class="cf-doctrine__body">
+      Mechanisms are deliberately coarse — five shapes (linear, monotonic, threshold,
+      saturating, unknown) cover the empirical distribution of biology and clinical claims
+      while keeping us out of the business of inventing functional forms.
+    </p>
+    <p class="cf-doctrine__body">
+      The Rust kernel <code>crate::counterfactual</code> is canonical; this page mirrors the
+      same algorithm at build time so the same query returns the same answer here and on the
+      command line.
+    </p>
+  </section>
+
+  <section class="cf-summary">
+    <h2 class="cf-summary__title">Frontier counterfactual surface</h2>
+    <dl class="cf-summary__dl">
+      <dt>Findings in graph</dt>
+      <dd>{graph.nodes.size}</dd>
+      <dt>Directed edges</dt>
+      <dd>{graph.edges.length}</dd>
+      <dt>Live counterfactual pairs</dt>
+      <dd>{pairs.length}</dd>
+    </dl>
+  </section>
+
+  <ol class="cf-list">
+    {pairs.map(({ from, to }) => {
+      const fromClaim = claimById.get(from);
+      const toClaim = claimById.get(to);
+      if (!fromClaim || !toClaim) return null;
+      return (
+        <li class="cf-item">
+          <p class="cf-item__head">
+            <a href={`/counterfactual/${fromClaim.slug}/${toClaim.slug}`} class="cf-item__link">
+              do({fromClaim.shortId}) → {toClaim.shortId}
+            </a>
+          </p>
+          <p class="cf-item__body">
+            <strong>cause:</strong> {trunc(fromClaim.finding.assertion.text, 110)}
+          </p>
+          <p class="cf-item__body">
+            <strong>effect:</strong> {trunc(toClaim.finding.assertion.text, 110)}
+          </p>
+        </li>
+      );
+    })}
+  </ol>
+
+  <p class="cf-version">vela {VERSION} · level 3</p>
+</Page>
+
+<style>
+  .cf-doctrine {
+    border: 1px solid var(--rule-2, #d8d4cc);
+    background: var(--bg-2, #f5f2ec);
+    padding: 1rem 1.25rem;
+    margin: 0 0 1.5rem 0;
+    font-size: 0.92rem;
+    line-height: 1.55;
+  }
+  .cf-doctrine__eyebrow {
+    font-size: 0.74rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ink-2, #6b665d);
+    margin-bottom: 0.4rem;
+  }
+  .cf-doctrine__body { margin: 0 0 0.6rem 0; }
+  .cf-doctrine code {
+    background: var(--bg-3, #ebe6dd);
+    padding: 0.05em 0.3em;
+    border-radius: 2px;
+    font-size: 0.88em;
+  }
+
+  .cf-summary {
+    border: 1px solid var(--rule-2, #d8d4cc);
+    background: var(--bg-1, #fafaf6);
+    padding: 0.8rem 1.25rem;
+    margin: 0 0 1.5rem 0;
+  }
+  .cf-summary__title { font-size: 1rem; margin: 0 0 0.4rem 0; }
+  .cf-summary__dl {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 0.2rem 0.75rem;
+    margin: 0;
+    font-size: 0.92rem;
+  }
+  .cf-summary__dl dt {
+    color: var(--ink-2, #6b665d);
+    font-weight: 500;
+  }
+  .cf-summary__dl dd { margin: 0; }
+
+  .cf-list { list-style: none; padding: 0; margin: 0; }
+  .cf-item {
+    border-top: 1px solid var(--rule-2, #d8d4cc);
+    padding: 0.85rem 0;
+  }
+  .cf-item:last-child { border-bottom: 1px solid var(--rule-2, #d8d4cc); }
+  .cf-item__head {
+    margin: 0 0 0.4rem 0;
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 0.9rem;
+  }
+  .cf-item__link { text-decoration: underline; text-decoration-thickness: 1px; }
+  .cf-item__body { margin: 0.15rem 0; font-size: 0.9rem; line-height: 1.45; }
+
+  .cf-version {
+    margin-top: 2rem;
+    color: var(--ink-2, #6b665d);
+    font-size: 0.78rem;
+    text-align: right;
+    font-family: ui-monospace, Menlo, monospace;
+  }
+</style>

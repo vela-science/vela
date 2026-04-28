@@ -388,6 +388,7 @@ fn load_vela_repo(dir: &Path) -> Result<Project, String> {
                     note: ml.note,
                     inferred_by: ml.inferred_by,
                     created_at: ml.created_at,
+                    mechanism: None,
                 });
         }
 

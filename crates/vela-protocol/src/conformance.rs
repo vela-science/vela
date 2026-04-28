@@ -515,6 +515,7 @@ fn run_retraction_propagation(
                             note: String::new(),
                             inferred_by: "test".into(),
                             created_at: String::new(),
+                            mechanism: None,
                         })
                         .collect()
                 })

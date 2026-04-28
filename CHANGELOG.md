@@ -1,5 +1,140 @@
 # Changelog
 
+## 0.45.0 - 2026-04-27
+
+**Pearl level 3 — counterfactual queries over the claim graph.** v0.40
+answered identifiability per finding (level 1). v0.44 answered the
+back-door / front-door criterion for pairwise effects (level 2). v0.45
+completes the Pearl tower: given that we observed a finding under one
+parent value, what would we have believed under a different parent
+value? Twin-network propagation along mechanism-annotated edges.
+
+The kernel finally distinguishes "X depends on Y" from "X depends on Y
+in this *particular* way" — without inventing functional forms we
+don't have evidence for.
+
+### Schema add: optional `Mechanism` on every `Link`
+
+```rust
+pub struct Link {
+    pub target: String,
+    pub link_type: String,
+    pub note: String,
+    pub inferred_by: String,
+    pub created_at: String,
+    pub mechanism: Option<Mechanism>,  // new
+}
+
+pub enum Mechanism {
+    Linear { sign: MechanismSign, slope: f64 },
+    Monotonic { sign: MechanismSign },
+    Threshold { sign: MechanismSign, threshold: f64 },
+    Saturating { sign: MechanismSign, half_max: f64 },
+    Unknown,
+}
+
+pub enum MechanismSign { Positive, Negative }
+```
+
+Five shapes cover the empirical distribution of biology and clinical
+claims. `Unknown` is explicitly annotated as causally connected but
+mechanism unspecified — twin-network treats it as opaque and reports
+`MechanismUnspecified`.
+
+The field is optional and defaults to `None`. Findings without
+mechanism annotations continue to participate in level 1 + level 2
+reasoning unchanged. Content addressing is unaffected (the
+content-address preimage is `(assertion, provenance)` only), so adding
+mechanisms to existing findings is a non-breaking metadata add.
+
+### New module: `crate::counterfactual`
+
+```rust
+pub struct CounterfactualQuery {
+    pub intervene_on: String,
+    pub set_to: f64,
+    pub target: String,
+}
+
+pub enum CounterfactualVerdict {
+    Resolved { factual, counterfactual, delta, paths_used },
+    MechanismUnspecified { unspecified_edges },
+    NoCausalPath { factual },
+    UnknownNode { which },
+    InvalidIntervention { reason },
+}
+
+pub fn answer_counterfactual(&Project, &CounterfactualQuery) -> CounterfactualVerdict;
+```
+
+Algorithm:
+
+1. Validate inputs (nodes exist; intervention in [0,1]).
+2. BFS-enumerate directed paths from `intervene_on` to `target` (cap
+   depth 8, cap 32 paths).
+3. For each path, compose mechanisms left-to-right starting from
+   `delta_x = set_to − factual`. Any unmechanism'd edge breaks the
+   path; if every path breaks, return `MechanismUnspecified` with the
+   unspecified edges named.
+4. Aggregate path deltas via max-magnitude (intentionally conservative
+   — additive aggregation would double-count on diamond graphs).
+5. Bound the result to [0,1] and return.
+
+### CLI: `vela causal counterfactual`
+
+```
+vela causal counterfactual projects/bbb-flagship vf_8389130295d81413 \
+    --target vf_457ee92500f0f1df \
+    --set-to 0.5
+```
+
+Reports factual / counterfactual / delta with the propagating paths,
+or surfaces the unmechanism'd edges with remediation.
+
+### Real-world demonstration
+
+Three BBB Alzheimer's findings annotated with mechanisms:
+
+- `vf_457ee92500f0f1df` (ATV:TREM2 enhances brain TREM2 signaling)
+  depends on `vf_8389130295d81413` (ATV:TREM2 induces iPSC microglia
+  proliferation) via `Linear { sign: positive, slope: 0.6 }`.
+- `vf_d9a8e80fc5c60f65` (ATV:TREM2 improves mitochondrial metabolism)
+  depends on the same focal via `Linear { sign: positive, slope: 0.5 }`.
+- `vf_ad8c7b95283c16df` (ATV:TREM2 shifts microglia metabolic states)
+  depends on the same focal via `Saturating { sign: positive,
+  half_max: 0.3 }`.
+
+Real query result:
+
+```
+$ vela causal counterfactual projects/bbb-flagship vf_8389130295d81413 \
+    --target vf_457ee92500f0f1df --set-to 0.5
+  · resolved  factual: 0.269  counterfactual: 0.388  delta: +0.119
+```
+
+The remaining children remain `MechanismUnspecified` until annotated —
+and this is the right answer. Vela refuses to invent a counterfactual
+when the structural causal model isn't there.
+
+### Site at `/counterfactual` and `/counterfactual/[from]/[to]`
+
+Index lists the live (cause, effect) pairs whose source→target paths
+are fully mechanism-annotated. Per-pair pages render three
+illustrative interventions (set_to = 0.25 / 0.5 / 0.75) with twin-
+network results, propagating paths, and the equivalent CLI command.
+The audit page (`/causal/audit`) gains a "counterfactuals (level 3) →"
+header link.
+
+### Verification
+
+- `cargo test --workspace`: 448 tests pass (up from 442 in v0.44.1).
+  Six new tests cover linear chains, missing mechanisms, unknown
+  mechanisms, out-of-range interventions, no-path fallback, and
+  negative-sign propagation.
+- `vela check projects/bbb-flagship`: 188 valid, event replay ok
+  after mechanism annotations land.
+- Site build: 606 pages (up from 602; +1 index, +3 pair pages).
+
 ## 0.44.1 - 2026-04-27
 
 **Front-door criterion + SVG visualization.** Two additions that make

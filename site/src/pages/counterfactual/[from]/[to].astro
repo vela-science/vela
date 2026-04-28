@@ -1,0 +1,250 @@
+---
+/*
+  Per-pair counterfactual page (v0.45).
+
+  Renders three illustrative counterfactual queries — set the cause's
+  confidence to 0.25, 0.50, 0.75 — and shows the twin-network result
+  for each. Mirrors `vela causal counterfactual` byte-for-byte; the
+  Rust kernel is canonical.
+*/
+
+import Page from "../../../layouts/Page.astro";
+import {
+  loadFrontier,
+  liveCounterfactualPairs,
+  answerCounterfactual,
+  type CounterfactualVerdict,
+} from "../../../lib/frontier";
+import { FRONTIER, VERSION } from "../../../config";
+
+export function getStaticPaths() {
+  const pairs = liveCounterfactualPairs();
+  const claims = loadFrontier();
+  const claimById = new Map(claims.map((c) => [c.finding.id, c]));
+  return pairs
+    .map(({ from, to }) => {
+      const fc = claimById.get(from);
+      const tc = claimById.get(to);
+      if (!fc || !tc) return null;
+      return {
+        params: { from: fc.slug, to: tc.slug },
+        props: { fromId: from, toId: to },
+      };
+    })
+    .filter((p): p is NonNullable<typeof p> => p != null);
+}
+
+const { fromId, toId } = Astro.props as { fromId: string; toId: string };
+
+const claims = loadFrontier();
+const fromClaim = claims.find((c) => c.finding.id === fromId)!;
+const toClaim = claims.find((c) => c.finding.id === toId)!;
+
+const factualSrc = fromClaim.finding.confidence?.score ?? 0;
+
+const interventions = [0.25, 0.5, 0.75];
+const results = interventions.map((value) => {
+  const verdict = answerCounterfactual({
+    intervene_on: fromId,
+    set_to: value,
+    target: toId,
+  });
+  return { value, verdict };
+});
+
+function fmt(n: number): string {
+  return n.toFixed(3);
+}
+function fmtSigned(n: number): string {
+  return (n >= 0 ? "+" : "") + n.toFixed(3);
+}
+function verdictChip(v: CounterfactualVerdict): string {
+  switch (v.kind) {
+    case "resolved":
+      return "ok";
+    case "mechanism_unspecified":
+      return "warn";
+    case "no_causal_path":
+      return "warn";
+    case "unknown_node":
+      return "lost";
+    case "invalid_intervention":
+      return "lost";
+  }
+}
+---
+
+<Page
+  title={`do(${fromClaim.shortId}) → ${toClaim.shortId} · counterfactual`}
+  description="Pearl level 3 — twin-network counterfactual. What would the target's confidence have been under the intervention?"
+  active=""
+  eyebrow="Counterfactual"
+  pageTitle={`do(${fromClaim.shortId}) → ${toClaim.shortId}`}
+  subtitle="Twin-network propagation along mechanism-annotated edges."
+>
+  <div slot="aside">
+    <a href="/counterfactual" class="aside-link">all pairs</a>
+    <span>·</span>
+    <a href={`/claims/${fromClaim.slug}`} class="aside-link">cause</a>
+    <span>·</span>
+    <a href={`/claims/${toClaim.slug}`} class="aside-link">effect</a>
+    <span>·</span>
+    <a href={`/causal/graph/${fromClaim.slug}`} class="aside-link">graph</a>
+  </div>
+
+  <section class="cf-pair">
+    <p class="cf-pair__line">
+      <span class="cf-pair__eyebrow">cause</span>
+      <a href={`/claims/${fromClaim.slug}`}>{fromClaim.finding.id}</a> · {fromClaim.finding.assertion.text}
+    </p>
+    <p class="cf-pair__line">
+      <span class="cf-pair__eyebrow">effect</span>
+      <a href={`/claims/${toClaim.slug}`}>{toClaim.finding.id}</a> · {toClaim.finding.assertion.text}
+    </p>
+    <p class="cf-pair__line">
+      <span class="cf-pair__eyebrow">factual cause</span>
+      {fmt(factualSrc)}
+    </p>
+    <p class="cf-pair__line">
+      <span class="cf-pair__eyebrow">factual effect</span>
+      {fmt(toClaim.finding.confidence?.score ?? 0)}
+    </p>
+  </section>
+
+  <h2 class="cf-h2">Three illustrative interventions</h2>
+  <ol class="cf-results">
+    {results.map(({ value, verdict }) => (
+      <li class="cf-result">
+        <p class="cf-result__head">
+          <span class={`cf-chip cf-chip--${verdictChip(verdict)}`}>{verdict.kind}</span>
+          do({fromClaim.shortId} := {fmt(value)})
+        </p>
+        {verdict.kind === "resolved" && (
+          <>
+            <p class="cf-result__body">
+              factual: {fmt(verdict.factual)} · counterfactual: {fmt(verdict.counterfactual)} · delta: <strong>{fmtSigned(verdict.delta)}</strong>
+            </p>
+            <p class="cf-result__body cf-result__paths">
+              propagated through {verdict.paths_used.length} causal path(s):
+            </p>
+            <ul class="cf-result__paths-list">
+              {verdict.paths_used.slice(0, 3).map((p) => (
+                <li><code>{p.join(" → ")}</code></li>
+              ))}
+            </ul>
+          </>
+        )}
+        {verdict.kind === "mechanism_unspecified" && (
+          <>
+            <p class="cf-result__body">
+              causal path exists, but {verdict.unspecified_edges.length} edge(s) lack a mechanism:
+            </p>
+            <ul class="cf-result__paths-list">
+              {verdict.unspecified_edges.slice(0, 5).map(([a, b]) => (
+                <li><code>{a} → {b}</code></li>
+              ))}
+            </ul>
+            <p class="cf-result__body">
+              remediation: annotate one of the link mechanisms (linear, monotonic, threshold, saturating).
+            </p>
+          </>
+        )}
+        {verdict.kind === "no_causal_path" && (
+          <p class="cf-result__body">no directed path from cause to effect; counterfactual = factual = {fmt(verdict.factual)}.</p>
+        )}
+        {verdict.kind === "invalid_intervention" && (
+          <p class="cf-result__body">{verdict.reason}</p>
+        )}
+        {verdict.kind === "unknown_node" && (
+          <p class="cf-result__body">node not in frontier: {verdict.which}</p>
+        )}
+      </li>
+    ))}
+  </ol>
+
+  <section class="cf-cli">
+    <p class="cf-cli__head">command-line equivalent</p>
+    <pre class="cf-cli__pre"><code>vela causal counterfactual {FRONTIER.repoPath} {fromId} \
+  --target {toId} \
+  --set-to 0.5</code></pre>
+  </section>
+
+  <p class="cf-version">vela {VERSION} · level 3</p>
+</Page>
+
+<style>
+  .cf-pair {
+    border: 1px solid var(--rule-2, #d8d4cc);
+    background: var(--bg-2, #f5f2ec);
+    padding: 0.85rem 1.25rem;
+    margin: 0 0 1.5rem 0;
+    font-size: 0.92rem;
+    line-height: 1.55;
+  }
+  .cf-pair__line { margin: 0.2rem 0; }
+  .cf-pair__eyebrow {
+    display: inline-block;
+    width: 7.5em;
+    color: var(--ink-2, #6b665d);
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .cf-h2 { font-size: 1.05rem; margin: 1.25rem 0 0.5rem 0; }
+  .cf-results { list-style: none; padding: 0; margin: 0; }
+  .cf-result {
+    border-top: 1px solid var(--rule-2, #d8d4cc);
+    padding: 0.85rem 0;
+  }
+  .cf-result:last-child { border-bottom: 1px solid var(--rule-2, #d8d4cc); }
+  .cf-result__head { margin: 0 0 0.4rem 0; font-family: ui-monospace, Menlo, monospace; }
+  .cf-result__body { margin: 0.2rem 0; font-size: 0.92rem; }
+  .cf-result__paths { color: var(--ink-2, #6b665d); }
+  .cf-result__paths-list { margin: 0.2rem 0 0.4rem 1.25rem; padding: 0; font-size: 0.86rem; }
+  .cf-result__paths-list code {
+    background: var(--bg-3, #ebe6dd);
+    padding: 0.05em 0.3em;
+    border-radius: 2px;
+  }
+
+  .cf-chip {
+    display: inline-block;
+    margin-right: 0.5em;
+    padding: 0.05em 0.45em;
+    border-radius: 2px;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .cf-chip--ok { background: #d6e4d3; color: #2f5d3a; }
+  .cf-chip--warn { background: #efe2c0; color: #8a6d1f; }
+  .cf-chip--lost { background: #efd1cf; color: #872c2c; }
+
+  .cf-cli {
+    margin: 1.5rem 0 0 0;
+    border: 1px solid var(--rule-2, #d8d4cc);
+    background: var(--bg-1, #fafaf6);
+    padding: 0.65rem 1rem;
+  }
+  .cf-cli__head {
+    margin: 0 0 0.3rem 0;
+    color: var(--ink-2, #6b665d);
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .cf-cli__pre {
+    margin: 0;
+    font-size: 0.86rem;
+    overflow-x: auto;
+  }
+
+  .cf-version {
+    margin-top: 2rem;
+    color: var(--ink-2, #6b665d);
+    font-size: 0.78rem;
+    text-align: right;
+    font-family: ui-monospace, Menlo, monospace;
+  }
+</style>

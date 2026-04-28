@@ -7,6 +7,7 @@ pub mod calibration;
 pub mod canonical;
 pub mod causal_graph;
 pub mod causal_reasoning;
+pub mod counterfactual;
 pub mod confidence;
 pub mod conformance;
 pub mod diff;

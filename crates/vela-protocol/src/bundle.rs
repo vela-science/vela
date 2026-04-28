@@ -1419,10 +1419,112 @@ pub struct Link {
     /// When this link was created (immutable timestamp). Uses serde default for backward compat.
     #[serde(default)]
     pub created_at: String,
+    /// v0.45: optional structural causal mechanism on a `depends` /
+    /// `supports` edge. When present, the edge participates in
+    /// counterfactual (Pearl level 3) queries via twin-network
+    /// construction. Edges without a mechanism still participate in
+    /// level 2 (back-door / front-door identification); they simply
+    /// can't answer twin-network counterfactuals.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mechanism: Option<Mechanism>,
 }
 
 fn default_compiler() -> String {
     "compiler".into()
+}
+
+/// v0.45: structural causal mechanism on a directed edge.
+///
+/// A `Mechanism` captures *how* a parent finding determines a child's
+/// value, not just that a dependency exists. With mechanisms in place,
+/// the kernel can answer counterfactual (Pearl level 3) queries: "given
+/// that we observed X under parent=p, what would X have been under
+/// parent=p'?" via twin-network construction.
+///
+/// Doctrine: mechanisms are deliberately coarse. Science rarely warrants
+/// precise functional forms; what we need is enough algebraic structure
+/// to propagate counterfactual perturbations sign-and-magnitude. Five
+/// shapes cover the empirical distribution of biology / clinical claims:
+///
+/// - `Linear { sign, slope }`: dY = slope * dX (with sign packing the
+///   direction; slope is a unitless effect-size on the [0,1] confidence
+///   scale).
+/// - `Monotonic { sign }`: dY agrees with sign(dX) but magnitude is
+///   ungraded (used when direction is known but effect-size isn't).
+/// - `Threshold { sign, threshold }`: parent must cross `threshold` for
+///   any child response (binary above/below).
+/// - `Saturating { sign, half_max }`: hyperbolic / Hill-style; large dX
+///   above `half_max` produces vanishing dY.
+/// - `Unknown`: explicitly annotated as causally connected but
+///   mechanism unspecified. Twin-network treats this as opaque (the
+///   counterfactual is reported as `MechanismUnspecified`).
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum Mechanism {
+    Linear {
+        sign: MechanismSign,
+        /// Effect-size on [0, 1] confidence scale.
+        slope: f64,
+    },
+    Monotonic {
+        sign: MechanismSign,
+    },
+    Threshold {
+        sign: MechanismSign,
+        threshold: f64,
+    },
+    Saturating {
+        sign: MechanismSign,
+        half_max: f64,
+    },
+    Unknown,
+}
+
+/// v0.45: causal direction on a `Mechanism`.
+///
+/// `Positive`: parent confidence ↑ ⇒ child confidence ↑.
+/// `Negative`: parent confidence ↑ ⇒ child confidence ↓.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum MechanismSign {
+    Positive,
+    Negative,
+}
+
+impl MechanismSign {
+    #[must_use]
+    pub fn as_f64(self) -> f64 {
+        match self {
+            Self::Positive => 1.0,
+            Self::Negative => -1.0,
+        }
+    }
+}
+
+impl Mechanism {
+    /// Apply this mechanism to a parent perturbation `delta_x`,
+    /// returning the implied child perturbation `delta_y` on the
+    /// confidence scale. Returns `None` for `Unknown`.
+    #[must_use]
+    pub fn apply(&self, delta_x: f64) -> Option<f64> {
+        match *self {
+            Self::Linear { sign, slope } => Some(sign.as_f64() * slope * delta_x),
+            Self::Monotonic { sign } => Some(sign.as_f64() * delta_x.signum() * delta_x.abs().min(1.0)),
+            Self::Threshold { sign, threshold } => {
+                if delta_x.abs() >= threshold {
+                    Some(sign.as_f64() * delta_x.signum())
+                } else {
+                    Some(0.0)
+                }
+            }
+            Self::Saturating { sign, half_max } => {
+                // Hill-style: delta_y = sign * dx / (|dx| + half_max), bounded to [-1,1]
+                let denom = delta_x.abs() + half_max.max(1e-9);
+                Some(sign.as_f64() * delta_x / denom)
+            }
+            Self::Unknown => None,
+        }
+    }
 }
 
 /// v0.8: typed reference resolved from `Link.target`.
@@ -1841,6 +1943,7 @@ impl FindingBundle {
             note: note.to_string(),
             inferred_by: "compiler".to_string(),
             created_at: Utc::now().to_rfc3339(),
+            mechanism: None,
         });
     }
 
@@ -1857,6 +1960,7 @@ impl FindingBundle {
             note: note.to_string(),
             inferred_by: inferred_by.to_string(),
             created_at: Utc::now().to_rfc3339(),
+            mechanism: None,
         });
     }
 }

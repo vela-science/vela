@@ -1119,6 +1119,7 @@ mod tests {
             note: "".into(),
             inferred_by: "compiler".into(),
             created_at: "".into(),
+            mechanism: None,
         });
         let frontier = make_frontier(vec![f1, f2]);
         let report = lint_frontier(&frontier);
@@ -1143,6 +1144,7 @@ mod tests {
             note: "".into(),
             inferred_by: "compiler".into(),
             created_at: "".into(),
+            mechanism: None,
         });
         let frontier = make_frontier(vec![f1, f2]);
         let report = lint_frontier(&frontier);
@@ -1166,6 +1168,7 @@ mod tests {
             note: "".into(),
             inferred_by: "compiler".into(),
             created_at: "".into(),
+            mechanism: None,
         });
         f2.flags.retracted = true;
         let frontier = make_frontier(vec![f1, f2]);
@@ -1189,6 +1192,7 @@ mod tests {
             note: "".into(),
             inferred_by: "compiler".into(),
             created_at: "".into(),
+            mechanism: None,
         });
         let frontier = make_frontier(vec![gap, f1]);
         let report = lint_frontier(&frontier);
@@ -1215,6 +1219,7 @@ mod tests {
                 note: "".into(),
                 inferred_by: "compiler".into(),
                 created_at: "".into(),
+                mechanism: None,
             });
             findings.push(f);
         }
@@ -1275,6 +1280,7 @@ mod tests {
             note: "".into(),
             inferred_by: "compiler".into(),
             created_at: "".into(),
+            mechanism: None,
         });
         // f2 is not retracted and confidence >= 0.6 -> stale
         let frontier = make_frontier(vec![f1, f2]);
@@ -1309,6 +1315,7 @@ mod tests {
             note: String::new(),
             inferred_by: "test".into(),
             created_at: String::new(),
+            mechanism: None,
         }
     }
 
@@ -1377,6 +1384,7 @@ mod tests {
             note: String::new(),
             inferred_by: "test".into(),
             created_at: String::new(),
+            mechanism: None,
         });
         let frontier = make_frontier(vec![a, b]);
         let diags = check_causal_mismatch_on_supports(&frontier);
