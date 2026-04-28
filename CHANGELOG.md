@@ -1,5 +1,51 @@
 # Changelog
 
+## 0.45.1 - 2026-04-28
+
+**Counterfactual coverage + hub API.** v0.45.0 shipped the level-3
+algorithm with three annotated BBB links. v0.45.1 broadens the
+mechanism coverage and exposes the kernel over the network.
+
+### More mechanism annotations on BBB
+
+Two more children of `vf_8389130295d81413` (the ATV:TREM2 iPSC
+proliferation focal) annotated:
+
+- `vf_10a36e3acd3dbe39` (brain biodistribution) → `Monotonic { sign: positive }`.
+- `vf_746ba25290eb022f` (microglial activity / glucose metabolism) →
+  `Threshold { sign: positive, threshold: 0.2 }`.
+
+The BBB frontier now has all five children of the ATV:TREM2 focal
+mechanism-annotated, exercising four of the five `Mechanism` shapes
+(Linear × 2, Saturating, Monotonic, Threshold) on real claims.
+
+### Hub `POST /api/counterfactual/{vfr_id}`
+
+The hub now answers level-3 queries over the network. Body shape:
+
+```json
+{
+  "intervene_on": "vf_<id>",
+  "set_to": 0.5,
+  "target": "vf_<id>"
+}
+```
+
+The hub looks up the `{vfr_id}` registry entry, fetches the frontier
+through the existing LRU cache, runs `answer_counterfactual` against
+the in-memory `Project`, and returns the verdict JSON. Same algorithm
+the local CLI runs; same output, regardless of whether the query
+originates from a local repo or a network client.
+
+The hub does not invent answers. It runs the kernel against the
+frontier the registry declares.
+
+### Verification
+
+- `cargo test --workspace`: 448 tests pass (no regression).
+- `vela check projects/bbb-flagship`: 188 valid, replay ok.
+- Site rebuild: 5 live counterfactual pairs (up from 3).
+
 ## 0.45.0 - 2026-04-27
 
 **Pearl level 3 — counterfactual queries over the claim graph.** v0.40

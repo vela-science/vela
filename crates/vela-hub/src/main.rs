@@ -41,6 +41,9 @@ use tokio::sync::RwLock;
 mod db;
 use db::{HubDb, ensure_sqlite_schema};
 use tower_http::cors::CorsLayer;
+use vela_protocol::counterfactual::{
+    CounterfactualQuery, answer_counterfactual,
+};
 use vela_protocol::project::Project;
 use vela_protocol::registry::{RegistryEntry as ProtocolEntry, verify_entry};
 
@@ -190,6 +193,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/entries/{vfr_id}", get(get_entry))
         .route("/entries/{vfr_id}/depends-on", get(get_depends_on))
         .route("/entries/{vfr_id}/findings/{vf_id}", get(get_finding))
+        .route("/api/counterfactual/{vfr_id}", axum::routing::post(api_counterfactual))
         .route("/static/tokens.css", get(static_tokens_css))
         .route("/static/workbench.css", get(static_workbench_css))
         .route("/static/site.css", get(static_site_css))
@@ -229,7 +233,8 @@ fn root_json() -> Value {
             "GET  /healthz       — liveness",
             "GET  /entries       — full registry (latest-publish-wins per vfr_id)",
             "GET  /entries/{vfr_id} — single entry",
-            "POST /entries       — publish a signed manifest (open, signature-gated)"
+            "POST /entries       — publish a signed manifest (open, signature-gated)",
+            "POST /api/counterfactual/{vfr_id} — Pearl level 3 counterfactual over a registered frontier",
         ],
     })
 }
@@ -543,6 +548,86 @@ async fn get_finding(
                 .into_response(),
         }
     }
+}
+
+/// v0.45.1: hub-level counterfactual endpoint. Pearl level 3 over a
+/// network frontier. Body is the same `CounterfactualQuery` shape the
+/// CLI produces; the hub fetches the frontier (cached), runs
+/// `answer_counterfactual` byte-for-byte against the in-memory
+/// `Project`, and returns the verdict as JSON.
+///
+/// Doctrine: the hub does not invent answers. It runs the same kernel
+/// algorithm a local CLI would run, against the frontier the registry
+/// declares. Same input → same output, regardless of whether the query
+/// originates from a local repo or a network client.
+async fn api_counterfactual(
+    State(state): State<AppState>,
+    Path(vfr_id): Path<String>,
+    Json(query): Json<CounterfactualQuery>,
+) -> Response {
+    let row = match state.db.get_entry(&vfr_id).await {
+        Ok(Some(v)) => v,
+        Ok(None) => {
+            return (
+                StatusCode::NOT_FOUND,
+                Json(json!({"error": format!("{vfr_id} not found")})),
+            )
+                .into_response();
+        }
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({"error": format!("query: {e}")})),
+            )
+                .into_response();
+        }
+    };
+
+    let signed_at = row
+        .get("signed_publish_at")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+    let locator = row
+        .get("network_locator")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+    if signed_at.is_empty() || locator.is_empty() {
+        return (
+            StatusCode::FAILED_DEPENDENCY,
+            Json(json!({
+                "error": "registry entry missing signed_publish_at or network_locator",
+                "vfr_id": vfr_id,
+            })),
+        )
+            .into_response();
+    }
+
+    let project = match fetch_frontier_cached(&state, &vfr_id, signed_at, locator).await {
+        Some(p) => p,
+        None => {
+            return (
+                StatusCode::BAD_GATEWAY,
+                Json(json!({
+                    "error": "could not fetch frontier from network_locator",
+                    "vfr_id": vfr_id,
+                    "network_locator": locator,
+                })),
+            )
+                .into_response();
+        }
+    };
+
+    let verdict = answer_counterfactual(project.as_ref(), &query);
+    (
+        StatusCode::OK,
+        Json(json!({
+            "ok": true,
+            "vfr_id": vfr_id,
+            "query": query,
+            "verdict": verdict,
+        })),
+    )
+        .into_response()
 }
 
 /// Publish a signed manifest. The doctrine here is the entire shape of
