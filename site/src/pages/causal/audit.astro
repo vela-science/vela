@@ -130,6 +130,7 @@ function fmtGrade(g?: string): string {
             <p class="ca-card__assertion">{e.assertion_text}</p>
             <p class="ca-card__why"><span class="ca-card__lbl">why:</span> {e.rationale}</p>
             <p class="ca-card__fix"><span class="ca-card__lbl">fix:</span> {e.remediation}</p>
+            <p class="ca-card__graph"><a href={`/causal/graph/${e.slug}`} class="inline-link">show in causal graph →</a></p>
           </article>
         ))}
       </div>

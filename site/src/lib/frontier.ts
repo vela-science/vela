@@ -872,6 +872,352 @@ export function calibrationFor(actor: string): CalibrationRecord | undefined {
   return calibrationRecords().find((r) => r.actor === actor);
 }
 
+// ── v0.44.1 causal graph (site mirror of crate::causal_graph) ────────
+
+export interface CausalNode {
+  vf_id: string;
+  slug: string;
+  short_id: string;
+  assertion_text: string;
+  verdict: Identifiability;
+  causal_claim?: CausalClaim;
+  causal_evidence_grade?: CausalEvidenceGrade;
+}
+
+export interface CausalEdge {
+  from: string;  // vf_id of the dependent (child)
+  to: string;    // vf_id of the parent (cause)
+}
+
+export interface CausalGraphData {
+  nodes: Map<string, CausalNode>;
+  edges: CausalEdge[];
+  parents: Map<string, string[]>;
+  children: Map<string, string[]>;
+}
+
+let _graphCache: CausalGraphData | null = null;
+
+/* Build the substrate's causal-link graph from the loaded findings.
+   Mirrors the Rust crate::causal_graph::CausalGraph::from_project
+   shape: nodes = findings, directed edges = depends/supports links
+   (edge points from dependent → cause). */
+export function loadCausalGraph(): CausalGraphData {
+  if (_graphCache) return _graphCache;
+  const claims = loadFrontier();
+  const audit = auditFrontier();
+  const auditByFinding = new Map(audit.map((e) => [e.finding_id, e]));
+
+  const nodes = new Map<string, CausalNode>();
+  for (const c of claims) {
+    const a = auditByFinding.get(c.finding.id);
+    nodes.set(c.finding.id, {
+      vf_id: c.finding.id,
+      slug: c.slug,
+      short_id: c.shortId,
+      assertion_text: c.finding.assertion.text,
+      verdict: a?.verdict ?? "underdetermined",
+      causal_claim: c.finding.assertion.causal_claim,
+      causal_evidence_grade: c.finding.assertion.causal_evidence_grade,
+    });
+  }
+
+  const edges: CausalEdge[] = [];
+  const parents = new Map<string, string[]>();
+  const children = new Map<string, string[]>();
+  for (const id of nodes.keys()) {
+    parents.set(id, []);
+    children.set(id, []);
+  }
+  for (const c of claims) {
+    for (const link of c.finding.links ?? []) {
+      if (link.type !== "depends" && link.type !== "supports") continue;
+      if (link.target.includes("@")) continue; // cross-frontier, defer
+      if (!nodes.has(link.target)) continue;
+      edges.push({ from: c.finding.id, to: link.target });
+      parents.get(c.finding.id)!.push(link.target);
+      children.get(link.target)!.push(c.finding.id);
+    }
+  }
+  _graphCache = { nodes, edges, parents, children };
+  return _graphCache;
+}
+
+/* Local neighborhood: focal + its parents (1 hop up) + its children
+   (1 hop down) + grandparents and grandchildren (2 hops). Limits the
+   render to something legible; full graph would be 188 nodes for
+   the BBB. */
+export function causalNeighborhood(
+  vf_id: string,
+): { focal: CausalNode; parents: CausalNode[]; grandparents: CausalNode[]; children: CausalNode[]; grandchildren: CausalNode[]; edges: CausalEdge[] } | null {
+  const g = loadCausalGraph();
+  const focal = g.nodes.get(vf_id);
+  if (!focal) return null;
+
+  const parents = (g.parents.get(vf_id) ?? [])
+    .map((id) => g.nodes.get(id))
+    .filter((n): n is CausalNode => n != null);
+  const children = (g.children.get(vf_id) ?? [])
+    .map((id) => g.nodes.get(id))
+    .filter((n): n is CausalNode => n != null);
+
+  const parentIds = new Set(parents.map((n) => n.vf_id));
+  const childIds = new Set(children.map((n) => n.vf_id));
+
+  const grandparents = Array.from(
+    new Set(parents.flatMap((p) => g.parents.get(p.vf_id) ?? [])),
+  )
+    .filter((id) => id !== vf_id && !parentIds.has(id) && !childIds.has(id))
+    .map((id) => g.nodes.get(id))
+    .filter((n): n is CausalNode => n != null);
+
+  const grandchildren = Array.from(
+    new Set(children.flatMap((c) => g.children.get(c.vf_id) ?? [])),
+  )
+    .filter(
+      (id) =>
+        id !== vf_id &&
+        !parentIds.has(id) &&
+        !childIds.has(id) &&
+        !grandparents.some((g) => g.vf_id === id),
+    )
+    .map((id) => g.nodes.get(id))
+    .filter((n): n is CausalNode => n != null);
+
+  // Collect edges that connect any visible node to any other.
+  const visible = new Set<string>([
+    focal.vf_id,
+    ...parents.map((n) => n.vf_id),
+    ...children.map((n) => n.vf_id),
+    ...grandparents.map((n) => n.vf_id),
+    ...grandchildren.map((n) => n.vf_id),
+  ]);
+  const edges = g.edges.filter((e) => visible.has(e.from) && visible.has(e.to));
+
+  return { focal, parents, grandparents, children, grandchildren, edges };
+}
+
+/* Effect identifiability for one (source, target) pair, mirroring
+   the Rust crate::causal_graph::identify_effect. Conservative: tries
+   the empty adjustment set, then singletons, then bounded pairs.
+   The kernel has the canonical implementation; this is a render-side
+   helper for site visualizations. */
+export type EffectVerdict =
+  | { kind: "identified"; adjustment_set: string[] }
+  | { kind: "identified_by_front_door"; mediator_set: string[] }
+  | { kind: "no_causal_path"; reason: string }
+  | { kind: "underidentified"; unblocked: string[][] }
+  | { kind: "unknown_node"; which: string };
+
+function pathBlocked(path: string[], z: Set<string>, g: CausalGraphData): boolean {
+  if (path.length < 3) return false;
+  for (let i = 1; i < path.length - 1; i++) {
+    const prev = path[i - 1];
+    const node = path[i];
+    const next = path[i + 1];
+    const prevIsParentOfNode = (g.parents.get(node) ?? []).includes(prev);
+    const nextIsParentOfNode = (g.parents.get(node) ?? []).includes(next);
+    const prevIsChildOfNode = (g.children.get(node) ?? []).includes(prev);
+    const nextIsChildOfNode = (g.children.get(node) ?? []).includes(next);
+    const isCollider = prevIsParentOfNode && nextIsParentOfNode;
+    const isFork = prevIsChildOfNode && nextIsChildOfNode;
+    if (isCollider) {
+      // Blocked iff node and all descendants not in Z.
+      if (!z.has(node)) {
+        const descs = descendantsOf(node, g);
+        const anyDescInZ = Array.from(descs).some((d) => z.has(d));
+        if (!anyDescInZ) return true;
+      }
+    } else if (isFork) {
+      if (z.has(node)) return true;
+    } else {
+      // chain
+      if (z.has(node)) return true;
+    }
+  }
+  return false;
+}
+
+function descendantsOf(node: string, g: CausalGraphData): Set<string> {
+  const seen = new Set<string>();
+  const queue: string[] = [...(g.children.get(node) ?? [])];
+  while (queue.length) {
+    const n = queue.shift()!;
+    if (seen.has(n)) continue;
+    seen.add(n);
+    for (const c of g.children.get(n) ?? []) {
+      if (!seen.has(c)) queue.push(c);
+    }
+  }
+  return seen;
+}
+
+function isBackDoorPath(path: string[], x: string, g: CausalGraphData): boolean {
+  if (path.length < 2 || path[0] !== x) return false;
+  const second = path[1];
+  return (g.parents.get(x) ?? []).includes(second);
+}
+
+function pathsBetween(
+  start: string,
+  end: string,
+  g: CausalGraphData,
+  maxPaths = 100,
+  maxLen = 6,
+): string[][] {
+  if (start === end || !g.nodes.has(start) || !g.nodes.has(end)) return [];
+  const all: string[][] = [];
+  const dfs = (cur: string[], visited: Set<string>) => {
+    if (all.length >= maxPaths) return;
+    if (cur.length > maxLen) return;
+    const node = cur[cur.length - 1];
+    const neighbors = new Set<string>();
+    for (const p of g.parents.get(node) ?? []) neighbors.add(p);
+    for (const c of g.children.get(node) ?? []) neighbors.add(c);
+    for (const next of neighbors) {
+      if (visited.has(next)) continue;
+      cur.push(next);
+      visited.add(next);
+      if (next === end) {
+        all.push([...cur]);
+      } else {
+        dfs(cur, visited);
+      }
+      visited.delete(next);
+      cur.pop();
+      if (all.length >= maxPaths) return;
+    }
+  };
+  const visited = new Set<string>([start]);
+  dfs([start], visited);
+  return all;
+}
+
+export function identifyEffect(source: string, target: string): EffectVerdict {
+  const g = loadCausalGraph();
+  if (!g.nodes.has(source)) return { kind: "unknown_node", which: source };
+  if (!g.nodes.has(target)) return { kind: "unknown_node", which: target };
+  if (source === target) return { kind: "no_causal_path", reason: "same node" };
+
+  const paths = pathsBetween(source, target, g);
+  if (paths.length === 0) return { kind: "no_causal_path", reason: "no path" };
+
+  const backDoor = paths.filter((p) => isBackDoorPath(p, source, g));
+  const descSrc = descendantsOf(source, g);
+  const candidates = Array.from(g.nodes.keys()).filter(
+    (n) => n !== source && n !== target && !descSrc.has(n),
+  );
+
+  const blocksAll = (z: Set<string>) =>
+    backDoor.every((p) => pathBlocked(p, z, g));
+
+  if (blocksAll(new Set())) {
+    return { kind: "identified", adjustment_set: [] };
+  }
+  for (const c of candidates) {
+    const z = new Set([c]);
+    if (blocksAll(z)) {
+      return { kind: "identified", adjustment_set: [c] };
+    }
+  }
+  // Pair search bounded
+  let tried = 0;
+  for (let i = 0; i < candidates.length; i++) {
+    for (let j = i + 1; j < candidates.length; j++) {
+      const z = new Set([candidates[i], candidates[j]]);
+      tried++;
+      if (blocksAll(z)) {
+        return { kind: "identified", adjustment_set: [candidates[i], candidates[j]] };
+      }
+      if (tried > 1500) break;
+    }
+    if (tried > 1500) break;
+  }
+
+  // v0.44.2: back-door failed. Try front-door (Pearl 1995 §3.3).
+  const frontDoorM = findFrontDoorMediator(source, target, paths, g);
+  if (frontDoorM != null) {
+    return { kind: "identified_by_front_door", mediator_set: [frontDoorM] };
+  }
+
+  const unblocked = backDoor.filter((p) => !pathBlocked(p, new Set(), g)).slice(0, 5);
+  return { kind: "underidentified", unblocked };
+}
+
+/* v0.44.2: site-side front-door criterion. Search for a singleton
+   mediator M satisfying Pearl's three conditions:
+     1. Every directed path source → target passes through M.
+     2. No back-door path source → m is open under the empty set.
+     3. Every back-door path m → target is blocked by {source}.
+   The Rust kernel has the canonical implementation. */
+function isDirectedPath(path: string[], g: CausalGraphData): boolean {
+  if (path.length < 2) return false;
+  for (let i = 0; i < path.length - 1; i++) {
+    const a = path[i];
+    const b = path[i + 1];
+    const aIsParentOfB = (g.parents.get(b) ?? []).includes(a);
+    if (!aIsParentOfB) return false;
+  }
+  return true;
+}
+
+function ancestorsOf(node: string, g: CausalGraphData): Set<string> {
+  const seen = new Set<string>();
+  const queue: string[] = [...(g.parents.get(node) ?? [])];
+  while (queue.length) {
+    const n = queue.shift()!;
+    if (seen.has(n)) continue;
+    seen.add(n);
+    for (const p of g.parents.get(n) ?? []) {
+      if (!seen.has(p)) queue.push(p);
+    }
+  }
+  return seen;
+}
+
+function findFrontDoorMediator(
+  source: string,
+  target: string,
+  allPathsST: string[][],
+  g: CausalGraphData,
+): string | null {
+  const directedST = allPathsST.filter((p) => isDirectedPath(p, g));
+  if (directedST.length === 0) return null;
+
+  const descSrc = descendantsOf(source, g);
+  const ancTgt = ancestorsOf(target, g);
+  const candidates = Array.from(g.nodes.keys()).filter(
+    (n) =>
+      n !== source &&
+      n !== target &&
+      descSrc.has(n) &&
+      ancTgt.has(n),
+  );
+
+  const sourceSet = new Set([source]);
+
+  for (const m of candidates) {
+    // Condition 1: M intercepts every directed source → target path.
+    const interceptsAll = directedST.every((p) => p.includes(m));
+    if (!interceptsAll) continue;
+
+    // Condition 2: no open back-door path source → m.
+    const pathsSM = pathsBetween(source, m, g);
+    const backDoorSM = pathsSM.filter((p) => isBackDoorPath(p, source, g));
+    const anyOpen = backDoorSM.some((p) => !pathBlocked(p, new Set(), g));
+    if (anyOpen) continue;
+
+    // Condition 3: every back-door m → target blocked by {source}.
+    const pathsMT = pathsBetween(m, target, g);
+    const backDoorMT = pathsMT.filter((p) => isBackDoorPath(p, m, g));
+    const allBlocked = backDoorMT.every((p) => pathBlocked(p, sourceSet, g));
+    if (!allBlocked) continue;
+
+    return m;
+  }
+  return null;
+}
+
 // ── Consensus aggregation (v0.35) ───────────────────────────────────
 //
 // Mirrors `crates/vela-protocol/src/aggregate.rs` byte-for-byte so the

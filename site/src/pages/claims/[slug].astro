@@ -99,7 +99,7 @@ const created = new Date(f.created).toISOString().slice(0, 10);
       <div class="claim-bar__cell">
         <span class="claim-bar__label">Causal</span>
         <span class="claim-bar__value">
-          <a href="/causal/audit" class="claim-bar__link">
+          <a href={`/causal/graph/${claim.slug}`} class="claim-bar__link" title="Show in causal graph">
             {f.assertion.causal_claim ?? "—"}
             <span class="claim-bar__sep"> / </span>
             {f.assertion.causal_evidence_grade?.replace(/_/g, " ") ?? "—"}

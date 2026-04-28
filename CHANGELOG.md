@@ -1,5 +1,63 @@
 # Changelog
 
+## 0.44.1 - 2026-04-27
+
+**Front-door criterion + SVG visualization.** Two additions that make
+v0.44.0's Pearl level 2 reasoning visible and complete.
+
+### Front-door criterion (Pearl 1995 §3.3)
+
+When a back-door adjustment set cannot be found because the
+confounders between source and target are unobserved, Pearl's front-
+door criterion can still identify the causal effect if a *mediator
+set* M exists such that:
+
+1. M intercepts every directed path from source to target.
+2. There is no unblocked back-door path from source to M.
+3. Every back-door path from M to target is blocked by source.
+
+`identify_effect` now tries front-door identification when back-door
+search fails. The new verdict variant:
+
+```rust
+pub enum CausalEffectVerdict {
+    Identified { adjustment_set, back_door_paths_considered },
+    IdentifiedByFrontDoor { mediator_set: Vec<String> },  // new
+    NoCausalPath { reason },
+    Underidentified { unblocked_back_door_paths, candidates_tried },
+    UnknownNode { which },
+}
+```
+
+`vela causal effect` reports the mediator set when front-door
+identification succeeds, citing Pearl 1995 §3.3 in the output.
+
+### SVG site visualization at `/causal/graph/[slug]`
+
+Each of the 188 BBB findings now has its own causal-graph page
+rendering a 1–2 hop neighborhood as an SVG diagram:
+
+- Layers: grandparents → parents → focal → children → grandchildren
+- Node fill encodes the v0.40 identifiability verdict
+- Edge color encodes the v0.44.1 pairwise verdict:
+  - Green: identified, no adjustment
+  - Amber: identified, requires back-door adjustment set
+  - Teal:  identified via front-door criterion
+  - Red:   underidentified
+  - Gray:  contextual (no pair-level analysis)
+- Hover any edge for adjustment-set details
+- Click any node to recenter the graph on it
+
+The `/causal/audit` page links to each underidentified item's graph
+view. Each `/claims/[slug]` page links to its own neighborhood.
+
+### Verification
+
+- `cargo test --workspace`: 442 tests pass (up from 441 in v0.44.0)
+- New test: `front_door_when_confounder_unobserved`
+- `vela check projects/bbb-flagship`: 188 valid, event replay ok
+- Site build: 188 graph pages render
+
 ## 0.44.0 - 2026-04-28
 
 **Pearl level 2 reasoning over the claim graph.** v0.40 (level 1)

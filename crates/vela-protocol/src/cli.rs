@@ -19,7 +19,7 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 
 #[derive(Parser)]
-#[command(name = "vela", version = "0.44.0")]
+#[command(name = "vela", version = "0.44.1")]
 #[command(about = "Portable frontier state for science")]
 struct Cli {
     #[command(subcommand)]
@@ -6090,6 +6090,19 @@ fn cmd_causal(action: CausalAction) {
                     println!(
                         "  back-door paths considered: {}",
                         back_door_paths_considered
+                    );
+                }
+                CausalEffectVerdict::IdentifiedByFrontDoor { mediator_set } => {
+                    println!(
+                        "  {}  identified via front-door criterion (Pearl 1995 §3.3)",
+                        style::ok("identified")
+                    );
+                    println!("  mediators that intercept all directed paths:");
+                    for m in &mediator_set {
+                        println!("    · {m}");
+                    }
+                    println!(
+                        "  applies when source-target confounders are unobserved but the mediator chain is."
                     );
                 }
                 CausalEffectVerdict::NoCausalPath { reason } => {
