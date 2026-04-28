@@ -19,7 +19,7 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 
 #[derive(Parser)]
-#[command(name = "vela", version = "0.47.0")]
+#[command(name = "vela", version = "0.48.0")]
 #[command(about = "Portable frontier state for science")]
 struct Cli {
     #[command(subcommand)]
@@ -560,6 +560,21 @@ enum Commands {
     Link {
         #[command(subcommand)]
         action: LinkAction,
+    },
+    /// v0.48: launch the local workbench web app — a localhost UI
+    /// rendering the substrate against the cwd's `.vela/` repo.
+    /// Read+write: confirm/refute bridges, browse findings, audit.
+    /// Pure Rust, no node/bun dependency, single binary.
+    Workbench {
+        /// Path to a Vela repo. Defaults to cwd.
+        #[arg(default_value = ".")]
+        path: PathBuf,
+        /// Port to bind on localhost. Default 3850.
+        #[arg(long, default_value_t = 3850)]
+        port: u16,
+        /// Skip auto-opening the default browser.
+        #[arg(long)]
+        no_open: bool,
     },
     /// v0.46: derive, list, and review cross-frontier bridges.
     /// A bridge is a content-addressed `vbr_<id>` record asserting
@@ -2187,6 +2202,15 @@ pub async fn run_command() {
         } => diff::run(&frontier_a, &frontier_b, json, quiet),
         Commands::Proposals { action } => cmd_proposals(action),
         Commands::Link { action } => cmd_link(action),
+        Commands::Workbench {
+            path,
+            port,
+            no_open,
+        } => {
+            if let Err(e) = crate::workbench::run(path, port, !no_open).await {
+                fail(&e);
+            }
+        }
         Commands::Bridges { action } => cmd_bridges(action),
         Commands::Entity { action } => cmd_entity(action),
         Commands::Finding { command } => match command {
@@ -9765,6 +9789,8 @@ const SCIENCE_SUBCOMMANDS: &[&str] = &[
     "ask",
     // v0.46: cross-frontier bridge runtime.
     "bridges",
+    // v0.48: local workbench web app.
+    "workbench",
 ];
 
 pub fn is_science_subcommand(name: &str) -> bool {
@@ -10002,7 +10028,7 @@ fn find_vela_repo() -> Option<PathBuf> {
 
 fn print_session_help() {
     println!();
-    println!("  Vela 0.47.0 — Portable frontier state for science.");
+    println!("  Vela 0.48.0 — Portable frontier state for science.");
     println!();
     println!("  USAGE");
     println!("    vela              Open a session against the nearest .vela/ repo");
@@ -10093,7 +10119,7 @@ fn print_session_dashboard(project: &crate::project::Project, repo_path: &Path) 
     println!();
     println!(
         "  {}",
-        format!("VELA · 0.47.0 · {label}").to_uppercase().dimmed()
+        format!("VELA · 0.48.0 · {label}").to_uppercase().dimmed()
     );
     println!("  {}", style::tick_row(60));
     println!(
@@ -10343,7 +10369,7 @@ pub fn run_from_args() {
             return;
         }
         Some("-V" | "--version" | "version") => {
-            println!("vela 0.47.0");
+            println!("vela 0.48.0");
             return;
         }
         Some(cmd) if !is_science_subcommand(cmd) => {

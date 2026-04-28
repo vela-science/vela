@@ -1,5 +1,76 @@
 # Changelog
 
+## 0.48.0 - 2026-04-28
+
+**The local workbench — read+write UI against the user's own frontier.**
+
+v0.47 fixed the CLI surface. v0.48 closes the L3 gap entirely:
+`vela workbench` opens a localhost web app rendering the substrate
+against the cwd's `.vela/` repo. Read+write — confirm/refute bridges
+from the UI rewrites the same `.vela/bridges/<vbr_id>.json` files
+`vela bridges confirm` would have written.
+
+Pure Rust, no node, no bun, no static-build step. Single binary,
+single user, single localhost session.
+
+### Usage
+
+```
+$ cd projects/bbb-flagship
+$ vela workbench
+vela workbench listening on http://127.0.0.1:3850/
+Ctrl-C to stop.
+[browser auto-opens]
+```
+
+Flags: `--port <N>` (default 3850), `--no-open` (skip browser
+auto-open), positional `<path>` (default cwd).
+
+### Pages
+
+- `GET /` — Dashboard. Mirrors `vela` session: findings/events/pending
+  counts, audit summary chips, bridge counts, replication health.
+- `GET /findings` — Sortable table of every finding with conf %, claim
+  type, assertion preview. Each row links to the detail page.
+- `GET /findings/{vf_id}` — Full finding view: confidence, assertion
+  text, version, full link table including v0.45 mechanism
+  annotations.
+- `GET /audit` — Pearl level 1 identifiability audit. Reviewer-
+  attention items only (underidentified + conditional). Same data the
+  CLI's `vela causal audit --problems-only` returns.
+- `GET /bridges` — All persisted bridges with status chips, frontier
+  pairs, finding refs (top 6 with truncated assertions), tension
+  flag.
+
+### Write actions
+
+- `POST /bridges/{vbr_id}/confirm` — Promote derived/refuted bridge
+  to confirmed. Rewrites the JSON file.
+- `POST /bridges/{vbr_id}/refute` — Mark derived/confirmed bridge
+  refuted.
+
+Both render as plain `<form method=post>` buttons on the bridges
+page; no JS needed. Each post returns 303 redirect back to the list.
+
+### Design
+
+- Shared CSS with the hub: `web/styles/tokens.css` and
+  `web/styles/workbench.css` via `include_str!`. Same design tokens,
+  fonts, colors. Rendered HTML is hand-written `format!` strings
+  matching the hub's pattern; no template engine.
+- Each request reads from disk. The `.vela/` directory is the source
+  of truth. No in-memory cache — keeps the read path simple and
+  obvious; the workbench is a single-user app where staleness is
+  impossible.
+
+### Verification
+
+- `cargo build --workspace`: clean at 0.48.0.
+- Manual: bare `vela workbench` in BBB renders all five pages, POST
+  to `/bridges/.../confirm` rewrites the JSON file with
+  `"status": "confirmed"`, POST to `/refute` rewrites it again.
+- 451 cargo tests pass (no regression).
+
 ## 0.47.0 - 2026-04-28
 
 **The L3 pass — daily-driver session entry + help reorg.**

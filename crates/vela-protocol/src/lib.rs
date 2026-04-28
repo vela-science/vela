@@ -40,6 +40,7 @@ pub mod state;
 pub mod tensions;
 pub mod tool_registry;
 pub mod validate;
+pub mod workbench;
 
 pub mod cli;
 pub mod cli_style;
