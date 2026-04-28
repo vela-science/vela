@@ -1,9 +1,9 @@
 [
   {
-    "id": "hub:vela-frontiers-mirror",
-    "url": "https://raw.githubusercontent.com/vela-science/vela-frontiers/main",
-    "public_key": "0000000000000000000000000000000000000000000000000000000000000000",
-    "added_at": "2026-04-27T23:30:53.618577+00:00",
-    "note": "GitHub raw mirror"
+    "id": "hub:vela-hub-2",
+    "url": "https://vela-hub-2.fly.dev",
+    "public_key": "2e285fd0fca8d21a09a88c303bce00009f37c358e03f0004ce1797003b4be56c",
+    "added_at": "2026-04-28T00:29:17.859378+00:00",
+    "note": "Real second Vela hub instance (Fly app vela-hub-2). Hosts an older snapshot of BBB Flagship signed by reviewer:bbb-bot under a different owner pubkey. Federation against this peer exposes inter-hub drift, not content-address-identity divergence."
   }
 ]

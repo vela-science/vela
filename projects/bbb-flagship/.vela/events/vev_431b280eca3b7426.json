@@ -1,0 +1,24 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_431b280eca3b7426",
+  "kind": "frontier.conflict_detected",
+  "target": {
+    "type": "frontier_observation",
+    "id": "vfr_228826dc9ec1a4fb"
+  },
+  "actor": {
+    "id": "federation",
+    "type": "system"
+  },
+  "timestamp": "2026-04-28T00:34:39.775023+00:00",
+  "reason": "peer=hub:vela-hub-2 kind=broken_locator locator https://raw.githubusercontent.com/vela-science/vela/main/frontiers/bbb-alzheimer.json returned HTTP 404",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:null",
+  "payload": {
+    "detail": "locator https://raw.githubusercontent.com/vela-science/vela/main/frontiers/bbb-alzheimer.json returned HTTP 404",
+    "finding_id": "vfr_093f7f15b6c79386",
+    "kind": "broken_locator",
+    "peer_id": "hub:vela-hub-2"
+  },
+  "caveats": []
+}

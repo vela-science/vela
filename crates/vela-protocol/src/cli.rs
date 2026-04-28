@@ -19,7 +19,7 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 
 #[derive(Parser)]
-#[command(name = "vela", version = "0.40.3")]
+#[command(name = "vela", version = "0.41.0")]
 #[command(about = "Portable frontier state for science")]
 struct Cli {
     #[command(subcommand)]
@@ -1077,24 +1077,39 @@ enum FederationAction {
         #[arg(long)]
         json: bool,
     },
-    /// v0.39.1: Sync our frontier against a peer's published view.
-    /// Fetches the peer's frontier JSON over HTTP, diffs it against
-    /// ours, appends one `frontier.synced_with_peer` event recording
-    /// the pass + one `frontier.conflict_detected` event per
-    /// disagreement. Read-only with respect to findings — no
-    /// peer-state is merged in. Conflict resolution ships in
-    /// v0.39.2+ via proposals.
+    /// v0.39.1 / v0.41.0: Sync our frontier against a peer's
+    /// published view. Three modes:
+    ///   1. `--via-hub --vfr-id <id>`: route through the peer hub's
+    ///      `/entries/<vfr_id>` endpoint, verify the registry entry
+    ///      signature, follow the locator. The "real federation"
+    ///      path. Surfaces broken-locator and unverified-entry
+    ///      conflicts when the peer is reachable but stale.
+    ///   2. `--url <override>`: fetch directly from a manifest URL,
+    ///      bypassing the hub's registry. Useful for static-mirror
+    ///      peers (raw GitHub) or for testing.
+    ///   3. (default): tries `<peer.url>/manifest/<frontier_id>.json`.
+    /// Diffs the resulting Project against ours, appends one
+    /// `frontier.synced_with_peer` event + one
+    /// `frontier.conflict_detected` event per disagreement.
+    /// Read-only with respect to findings; conflict resolution
+    /// happens through subsequent reviewer-signed proposals.
     Sync {
         frontier: PathBuf,
         /// Peer id (must already be in the registry).
         peer_id: String,
-        /// Override the peer's manifest URL. Default: `<peer.url>/manifest/<vfr_id>.json`.
-        /// Useful for testing or when the peer publishes at a non-standard path.
+        /// Direct manifest URL override.
         #[arg(long)]
         url: Option<String>,
-        /// Run the diff but don't append events. Reports what *would*
-        /// have been recorded. Useful for surfacing conflicts before
-        /// committing them to the canonical event log.
+        /// Route through the peer hub's `/entries/<vfr-id>` endpoint
+        /// (verify entry signature, follow locator). Requires
+        /// `--vfr-id`.
+        #[arg(long)]
+        via_hub: bool,
+        /// vfr_id to fetch when using `--via-hub`. Defaults to our
+        /// local frontier_id when omitted.
+        #[arg(long)]
+        vfr_id: Option<String>,
+        /// Run the diff but don't append events.
         #[arg(long)]
         dry_run: bool,
         #[arg(long)]
@@ -5293,10 +5308,12 @@ fn cmd_federation(action: FederationAction) {
             frontier,
             peer_id,
             url,
+            via_hub,
+            vfr_id,
             dry_run,
             json,
         } => {
-            use crate::federation;
+            use crate::federation::{self, DiscoveryResult};
 
             let mut project = repo::load_from_path(&frontier).unwrap_or_else(|e| fail_return(&e));
             let Some(peer) = project.peers.iter().find(|p| p.id == peer_id).cloned() else {
@@ -5304,14 +5321,196 @@ fn cmd_federation(action: FederationAction) {
                     "peer '{peer_id}' not in registry; run `vela federation peer add` first"
                 ));
             };
-            let frontier_id = project.frontier_id();
-            let resolved_url = url.unwrap_or_else(|| {
-                let base = peer.url.trim_end_matches('/');
-                format!("{base}/manifest/{frontier_id}.json")
-            });
+            let local_frontier_id = project.frontier_id();
 
-            let peer_state = federation::fetch_peer_frontier(&resolved_url)
-                .unwrap_or_else(|e| fail_return(&e));
+            // v0.41.0: three sync modes (via-hub / direct-url / default-manifest-path).
+            #[derive(Debug)]
+            enum SyncOutcome {
+                Resolved(crate::project::Project, String),      // (peer state, source description)
+                BrokenLocator(String, String, u16),              // (vfr_id, locator, status)
+                UnverifiedEntry(String, String),                 // (vfr_id, reason)
+                EntryNotFound(String, u16),
+            }
+
+            let outcome = if via_hub {
+                let target_vfr = vfr_id.clone().unwrap_or_else(|| local_frontier_id.clone());
+                match federation::discover_peer_frontier(
+                    &peer.url,
+                    &target_vfr,
+                    Some(&peer.public_key),
+                ) {
+                    DiscoveryResult::Resolved(p) => {
+                        let src = format!("{}/entries/{}", peer.url.trim_end_matches('/'), target_vfr);
+                        SyncOutcome::Resolved(p, src)
+                    }
+                    DiscoveryResult::BrokenLocator { vfr_id, locator, status } => {
+                        SyncOutcome::BrokenLocator(vfr_id, locator, status)
+                    }
+                    DiscoveryResult::UnverifiedEntry { vfr_id, reason } => {
+                        SyncOutcome::UnverifiedEntry(vfr_id, reason)
+                    }
+                    DiscoveryResult::EntryNotFound { vfr_id, status } => {
+                        SyncOutcome::EntryNotFound(vfr_id, status)
+                    }
+                    DiscoveryResult::Unreachable { url, error } => {
+                        fail(&format!("peer hub unreachable ({url}): {error}"));
+                    }
+                }
+            } else {
+                let resolved_url = url.unwrap_or_else(|| {
+                    let base = peer.url.trim_end_matches('/');
+                    format!("{base}/manifest/{local_frontier_id}.json")
+                });
+                match federation::fetch_peer_frontier(&resolved_url) {
+                    Ok(p) => SyncOutcome::Resolved(p, resolved_url),
+                    Err(e) => fail(&format!("direct fetch failed: {e}")),
+                }
+            };
+
+            // Handle the non-resolved cases by emitting a single
+            // synthetic conflict event and a sync record.
+            let peer_source: String;
+            let peer_state = match outcome {
+                SyncOutcome::Resolved(p, src) => {
+                    if !json {
+                        println!("  · resolved via {src}");
+                    }
+                    peer_source = src;
+                    p
+                }
+                SyncOutcome::BrokenLocator(vfr, locator, status) => {
+                    if dry_run {
+                        if json {
+                            println!(
+                                "{}",
+                                serde_json::to_string_pretty(&json!({
+                                    "ok": true,
+                                    "command": "federation.sync",
+                                    "dry_run": true,
+                                    "outcome": "broken_locator",
+                                    "vfr_id": vfr,
+                                    "locator": locator,
+                                    "http_status": status,
+                                }))
+                                .expect("serialize")
+                            );
+                        } else {
+                            println!(
+                                "{} dry-run: peer entry resolved but locator dead",
+                                style::warn("broken_locator")
+                            );
+                            println!("  vfr_id:  {vfr}");
+                            println!("  locator: {locator} (HTTP {status})");
+                        }
+                        return;
+                    }
+                    let report = federation::record_locator_failure(
+                        &mut project,
+                        &peer_id,
+                        &vfr,
+                        &locator,
+                        status,
+                    );
+                    repo::save_to_path(&frontier, &project)
+                        .unwrap_or_else(|e| fail_return(&e));
+                    if json {
+                        println!(
+                            "{}",
+                            serde_json::to_string_pretty(&json!({
+                                "ok": true,
+                                "command": "federation.sync",
+                                "outcome": "broken_locator",
+                                "report": report,
+                            }))
+                            .expect("serialize")
+                        );
+                    } else {
+                        println!(
+                            "{} sync recorded broken-locator conflict against {peer_id}",
+                            style::warn("broken_locator")
+                        );
+                        println!("  vfr_id:  {vfr}");
+                        println!("  locator: {locator} (HTTP {status})");
+                        println!("  events appended: {}", report.events_appended);
+                    }
+                    return;
+                }
+                SyncOutcome::UnverifiedEntry(vfr, reason) => {
+                    if dry_run {
+                        if json {
+                            println!(
+                                "{}",
+                                serde_json::to_string_pretty(&json!({
+                                    "ok": true,
+                                    "command": "federation.sync",
+                                    "dry_run": true,
+                                    "outcome": "unverified_peer_entry",
+                                    "vfr_id": vfr,
+                                    "reason": reason,
+                                }))
+                                .expect("serialize")
+                            );
+                        } else {
+                            println!(
+                                "{} dry-run: peer entry signature did not verify",
+                                style::lost("unverified_peer_entry")
+                            );
+                            println!("  vfr_id: {vfr}");
+                            println!("  reason: {reason}");
+                        }
+                        return;
+                    }
+                    let report = federation::record_unverified_entry(
+                        &mut project,
+                        &peer_id,
+                        &vfr,
+                        &reason,
+                    );
+                    repo::save_to_path(&frontier, &project)
+                        .unwrap_or_else(|e| fail_return(&e));
+                    if json {
+                        println!(
+                            "{}",
+                            serde_json::to_string_pretty(&json!({
+                                "ok": true,
+                                "command": "federation.sync",
+                                "outcome": "unverified_peer_entry",
+                                "report": report,
+                            }))
+                            .expect("serialize")
+                        );
+                    } else {
+                        println!(
+                            "{} sync halted; peer's registry entry signature did not verify",
+                            style::lost("unverified_peer_entry")
+                        );
+                        println!("  vfr_id: {vfr}");
+                        println!("  reason: {reason}");
+                    }
+                    return;
+                }
+                SyncOutcome::EntryNotFound(vfr, status) => {
+                    if json {
+                        println!(
+                            "{}",
+                            serde_json::to_string_pretty(&json!({
+                                "ok": false,
+                                "command": "federation.sync",
+                                "outcome": "entry_not_found",
+                                "vfr_id": vfr,
+                                "http_status": status,
+                            }))
+                            .expect("serialize")
+                        );
+                    } else {
+                        println!(
+                            "{} peer's hub does not publish vfr_id {vfr} (HTTP {status})",
+                            style::warn("entry_not_found")
+                        );
+                    }
+                    return;
+                }
+            };
 
             if dry_run {
                 let conflicts = federation::diff_frontiers(&project, &peer_state);
@@ -5323,7 +5522,7 @@ fn cmd_federation(action: FederationAction) {
                             "command": "federation.sync",
                             "dry_run": true,
                             "peer_id": peer_id,
-                            "peer_url": resolved_url,
+                            "peer_source": peer_source,
                             "conflicts": conflicts,
                         }))
                         .expect("serialize federation.sync (dry-run)")
@@ -5332,7 +5531,7 @@ fn cmd_federation(action: FederationAction) {
                     println!(
                         "{} dry-run vs {peer_id} ({}): {} conflict(s)",
                         style::ok("ok"),
-                        resolved_url,
+                        peer_source,
                         conflicts.len()
                     );
                     for c in &conflicts {
@@ -5352,7 +5551,7 @@ fn cmd_federation(action: FederationAction) {
                         "ok": true,
                         "command": "federation.sync",
                         "peer_id": peer_id,
-                        "peer_url": resolved_url,
+                        "peer_source": peer_source,
                         "report": report,
                     }))
                     .expect("serialize federation.sync")
@@ -5362,7 +5561,7 @@ fn cmd_federation(action: FederationAction) {
                     "{} synced with {} ({})",
                     style::ok("ok"),
                     peer_id,
-                    resolved_url
+                    peer_source
                 );
                 println!(
                     "  our:    {}",

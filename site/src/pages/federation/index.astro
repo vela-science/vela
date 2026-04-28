@@ -43,6 +43,8 @@ const conflictKindLabel: Record<ConflictKind, string> = {
   review_state_diverged: "review state diverged",
   superseded_diverged: "superseded diverged",
   assertion_text_diverged: "assertion text diverged",
+  broken_locator: "broken locator",
+  unverified_peer_entry: "unverified peer entry",
 };
 
 function shortHash(h: string): string {
@@ -446,4 +448,6 @@ function fmtTs(ts: string): string {
   .fed-kind-chip--review_state_diverged { background: #f0e7d0; color: #8a6d1f; }
   .fed-kind-chip--superseded_diverged { background: #f0e7d0; color: #8a6d1f; }
   .fed-kind-chip--assertion_text_diverged { background: #f3dada; color: #872c2c; }
+  .fed-kind-chip--broken_locator { background: #f0e7d0; color: #8a6d1f; }
+  .fed-kind-chip--unverified_peer_entry { background: #f3dada; color: #872c2c; }
 </style>

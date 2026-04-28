@@ -1422,7 +1422,9 @@ export type ConflictKind =
   | "retracted_diverged"
   | "review_state_diverged"
   | "superseded_diverged"
-  | "assertion_text_diverged";
+  | "assertion_text_diverged"
+  | "broken_locator"
+  | "unverified_peer_entry";
 
 export interface SyncRecord {
   timestamp: string;

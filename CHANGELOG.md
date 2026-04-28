@@ -1,5 +1,113 @@
 # Changelog
 
+## 0.41.0 - 2026-04-27
+
+**Hub-aware federation sync.** First time the substrate exchanged
+state with a real second hub instance — `vela-hub-2.fly.dev`,
+running its own Postgres-backed registry, signed by different actors
+(`reviewer:bbb-bot`, `reviewer:bbb-extension-bot`). The exercise
+revealed two real federation failure modes the v0.39.1 runtime
+didn't handle gracefully — both now first-class.
+
+### What v0.40.x federation could not represent
+
+v0.39.1's sync took a direct manifest URL. Against a static GitHub
+mirror that worked. Against an actual hub, the manifest isn't the
+endpoint — the hub serves *signed registry entries* at
+`/entries/<vfr_id>`, and the entry's `network_locator` field points
+at the manifest. Two failure modes show up that direct fetch can't
+distinguish:
+
+1. **Stale locator.** Peer hub is reachable, registry entry signature
+   verifies, but the URL the entry points at returns 4xx/5xx. Common
+   when frontiers move repos (the v0.34.1 split moved
+   `vela-science/vela` → `vela-science/vela-frontiers`; entries
+   published before the split still point at the old path).
+2. **Unverified peer entry.** Peer returns an entry whose signature
+   does not verify against the registered owner pubkey. Either
+   corrupted in transit or the owner pubkey we registered is wrong.
+   Either way: don't trust the content.
+
+### New CLI: `--via-hub` mode
+
+```
+vela federation sync <peer_id> --frontier <path> \
+    --via-hub --vfr-id <vfr_id>   # default: our local frontier_id
+```
+
+Routes through `<peer_url>/entries/<vfr_id>`, verifies the registry
+entry signature against the registered peer pubkey, follows the
+locator, parses the manifest. The "real federation" path. Falls
+back to the v0.39.1 direct-URL mode when `--via-hub` is omitted.
+
+### New conflict taxonomy
+
+`ConflictKind` gains two variants:
+
+- `BrokenLocator` — peer entry verified, locator URL dead
+- `UnverifiedPeerEntry` — peer entry signature did not verify
+
+Both surface as `frontier.conflict_detected` events with
+`finding_id = vfr_id` (the frontier the failure was scoped to) and a
+descriptive `detail` field. Sync halts after recording — the kernel
+won't fetch content it can't authenticate.
+
+### What the substrate's first hub-to-hub exercise produced
+
+Against the local v0.40 BBB synced via-hub against
+`hub:vela-hub-2 / vfr_093f7f15b6c79386` (hub-2's BBB Flagship entry):
+
+- Hub /entries/<vfr_id> returned the signed registry entry. ✓
+- Signature verified against the registered peer pubkey
+  (`2e285fd0fca8d21a09a88c303bce00009f37c358e03f0004ce1797003b4be56c`,
+  the `reviewer:bbb-bot` key). ✓
+- Locator pointed at
+  `https://raw.githubusercontent.com/vela-science/vela/main/frontiers/bbb-alzheimer.json` — pre-v0.34.1 path, returns HTTP 404. ✗
+
+Result: one canonical `frontier.conflict_detected` event of kind
+`broken_locator` recording the failure. The substrate now knows that
+hub-2 publishes a stale locator for vfr_093f7f15b6c79386, and any
+future audit can reason from that fact.
+
+### `/federation` site surface
+
+Updated to render `broken_locator` and `unverified_peer_entry`
+chips. The federation page now shows the two real divergence
+events from this session.
+
+### API additions
+
+```rust
+federation::DiscoveryResult { Resolved | EntryNotFound | UnverifiedEntry | BrokenLocator | Unreachable }
+federation::discover_peer_frontier(hub_url, vfr_id, expected_owner_pubkey) -> DiscoveryResult
+federation::record_locator_failure(&mut Project, peer_id, vfr_id, locator, status) -> SyncReport
+federation::record_unverified_entry(&mut Project, peer_id, vfr_id, reason) -> SyncReport
+```
+
+Each `record_*` helper emits one `frontier.synced_with_peer` event +
+one `frontier.conflict_detected` event of the appropriate kind, both
+targeted at the frontier (not findings) so the per-finding event
+chain stays clean.
+
+### Verification
+
+- `cargo build --workspace`: clean.
+- `cargo test --workspace`: 426/426 pass.
+- `vela check projects/bbb-flagship`: 188/188 valid, event replay ok.
+- `vela federation sync hub:vela-hub-2 --via-hub --vfr-id vfr_093f7f15b6c79386`:
+  reports `broken_locator`, records 2 events, halts content sync.
+
+### What's next on the network axis
+
+- v0.41.1: republish hub-2's registry entries with current locators
+  (or accept that the entries should be marked stale and a fresh
+  publication wins). Requires the `reviewer:bbb-bot` private key,
+  which lives separately.
+- v0.41.2: cross-frontier links — wire `vfr_id`-based dependencies
+  between BBB Flagship, BBB extension, will-alzheimer-landscape, and
+  alzheimers-therapeutics so the bridge runtime (v0.35) computes
+  derived consensus across multiple frontiers.
+
 ## 0.40.3 - 2026-04-27
 
 **Site surfaces v0.38–v0.40 reasoning.** The kernel has been doing

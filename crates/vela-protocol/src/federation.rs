@@ -125,6 +125,21 @@ pub enum ConflictKind {
     /// matching id with diverging text means a content-address
     /// collision or signing-bytes mismatch between implementations.
     AssertionTextDiverged,
+    /// v0.41.0: peer's registry entry resolves but its
+    /// `network_locator` returns 4xx/5xx. The peer hub is healthy and
+    /// signed the entry, but the manifest URL the entry points at is
+    /// dead. Common when frontiers move repos (e.g. v0.34.1 split
+    /// `vela-science/vela` → `vela-science/vela-frontiers`) and the
+    /// peer's published entry was never refreshed. Surfaces the
+    /// stale-locator failure mode that "peer is reachable but
+    /// content isn't" produces — distinct from a missing finding.
+    BrokenLocator,
+    /// v0.41.0: peer's registry entry exists but its signature does
+    /// not verify against the registered owner pubkey. Either the
+    /// signature is corrupt or the owner pubkey we registered for
+    /// this peer is wrong. Halts content sync — the kernel won't
+    /// trust unsigned-or-misverified state.
+    UnverifiedPeerEntry,
 }
 
 impl ConflictKind {
@@ -137,6 +152,8 @@ impl ConflictKind {
             ConflictKind::ReviewStateDiverged => "review_state_diverged",
             ConflictKind::SupersededDiverged => "superseded_diverged",
             ConflictKind::AssertionTextDiverged => "assertion_text_diverged",
+            ConflictKind::BrokenLocator => "broken_locator",
+            ConflictKind::UnverifiedPeerEntry => "unverified_peer_entry",
         }
     }
 }
@@ -258,6 +275,182 @@ pub fn diff_frontiers(ours: &Project, theirs: &Project) -> Vec<Conflict> {
     conflicts
 }
 
+/// v0.41.0: Record a single broken-locator conflict against a peer.
+/// Emits one `frontier.synced_with_peer` event with `divergence_count
+/// = 1` plus one `frontier.conflict_detected` event of kind
+/// `broken_locator`. Used when the peer hub is reachable, its
+/// registry entry signature verifies, but the locator URL the entry
+/// points at returns 4xx/5xx — common for stale published locators
+/// after a repo move.
+pub fn record_locator_failure(
+    project: &mut Project,
+    peer_id: &str,
+    vfr_id: &str,
+    locator: &str,
+    status: u16,
+) -> SyncReport {
+    let now = Utc::now().to_rfc3339();
+    let our_hash = snapshot_hash(project);
+    let frontier_id = project.frontier_id();
+    let detail = format!("locator {locator} returned HTTP {status}");
+
+    let synced_event = StateEvent {
+        schema: EVENT_SCHEMA.to_string(),
+        id: String::new(),
+        kind: "frontier.synced_with_peer".to_string(),
+        target: StateTarget {
+            r#type: "frontier_observation".to_string(),
+            id: frontier_id.clone(),
+        },
+        actor: StateActor {
+            id: "federation".to_string(),
+            r#type: "system".to_string(),
+        },
+        timestamp: now.clone(),
+        reason: format!("synced with peer {peer_id} (broken locator)"),
+        before_hash: NULL_HASH.to_string(),
+        after_hash: NULL_HASH.to_string(),
+        payload: json!({
+            "peer_id": peer_id,
+            "peer_snapshot_hash": "",
+            "our_snapshot_hash": our_hash,
+            "divergence_count": 1,
+        }),
+        caveats: Vec::new(),
+        signature: None,
+    };
+    let mut sync_ev = synced_event;
+    sync_ev.id = compute_event_id(&sync_ev);
+
+    let conflict_ev = StateEvent {
+        schema: EVENT_SCHEMA.to_string(),
+        id: String::new(),
+        kind: "frontier.conflict_detected".to_string(),
+        target: StateTarget {
+            r#type: "frontier_observation".to_string(),
+            id: frontier_id.clone(),
+        },
+        actor: StateActor {
+            id: "federation".to_string(),
+            r#type: "system".to_string(),
+        },
+        timestamp: now.clone(),
+        reason: format!("peer={peer_id} kind=broken_locator {detail}"),
+        before_hash: NULL_HASH.to_string(),
+        after_hash: NULL_HASH.to_string(),
+        payload: json!({
+            "peer_id": peer_id,
+            "finding_id": vfr_id,
+            "kind": "broken_locator",
+            "detail": detail,
+        }),
+        caveats: Vec::new(),
+        signature: None,
+    };
+    let mut conflict_ev = conflict_ev;
+    conflict_ev.id = compute_event_id(&conflict_ev);
+
+    project.events.push(sync_ev);
+    project.events.push(conflict_ev);
+
+    SyncReport {
+        peer_id: peer_id.to_string(),
+        our_snapshot_hash: our_hash,
+        peer_snapshot_hash: String::new(),
+        conflicts: vec![Conflict {
+            finding_id: vfr_id.to_string(),
+            kind: ConflictKind::BrokenLocator,
+            detail,
+        }],
+        events_appended: 2,
+    }
+}
+
+/// v0.41.0: Record an unverified-peer-entry conflict. Same shape as
+/// `record_locator_failure` but for when the peer's registry entry
+/// signature did not verify against the registered owner pubkey.
+/// Sync halts before any content is fetched — the kernel won't trust
+/// unsigned-or-misverified state.
+pub fn record_unverified_entry(
+    project: &mut Project,
+    peer_id: &str,
+    vfr_id: &str,
+    reason: &str,
+) -> SyncReport {
+    let now = Utc::now().to_rfc3339();
+    let our_hash = snapshot_hash(project);
+    let frontier_id = project.frontier_id();
+
+    let mut sync_ev = StateEvent {
+        schema: EVENT_SCHEMA.to_string(),
+        id: String::new(),
+        kind: "frontier.synced_with_peer".to_string(),
+        target: StateTarget {
+            r#type: "frontier_observation".to_string(),
+            id: frontier_id.clone(),
+        },
+        actor: StateActor {
+            id: "federation".to_string(),
+            r#type: "system".to_string(),
+        },
+        timestamp: now.clone(),
+        reason: format!("synced with peer {peer_id} (unverified entry; halted)"),
+        before_hash: NULL_HASH.to_string(),
+        after_hash: NULL_HASH.to_string(),
+        payload: json!({
+            "peer_id": peer_id,
+            "peer_snapshot_hash": "",
+            "our_snapshot_hash": our_hash,
+            "divergence_count": 1,
+        }),
+        caveats: Vec::new(),
+        signature: None,
+    };
+    sync_ev.id = compute_event_id(&sync_ev);
+
+    let mut conflict_ev = StateEvent {
+        schema: EVENT_SCHEMA.to_string(),
+        id: String::new(),
+        kind: "frontier.conflict_detected".to_string(),
+        target: StateTarget {
+            r#type: "frontier_observation".to_string(),
+            id: frontier_id.clone(),
+        },
+        actor: StateActor {
+            id: "federation".to_string(),
+            r#type: "system".to_string(),
+        },
+        timestamp: now.clone(),
+        reason: format!("peer={peer_id} kind=unverified_peer_entry {reason}"),
+        before_hash: NULL_HASH.to_string(),
+        after_hash: NULL_HASH.to_string(),
+        payload: json!({
+            "peer_id": peer_id,
+            "finding_id": vfr_id,
+            "kind": "unverified_peer_entry",
+            "detail": reason,
+        }),
+        caveats: Vec::new(),
+        signature: None,
+    };
+    conflict_ev.id = compute_event_id(&conflict_ev);
+
+    project.events.push(sync_ev);
+    project.events.push(conflict_ev);
+
+    SyncReport {
+        peer_id: peer_id.to_string(),
+        our_snapshot_hash: our_hash,
+        peer_snapshot_hash: String::new(),
+        conflicts: vec![Conflict {
+            finding_id: vfr_id.to_string(),
+            kind: ConflictKind::UnverifiedPeerEntry,
+            detail: reason.to_string(),
+        }],
+        events_appended: 2,
+    }
+}
+
 /// v0.39.1: Run a full sync pass against a peer's already-fetched
 /// frontier state. Diffs, emits one `frontier.synced_with_peer`
 /// event recording the pass, and one `frontier.conflict_detected`
@@ -363,6 +556,168 @@ pub fn sync_with_peer(
         peer_snapshot_hash: peer_hash,
         conflicts,
         events_appended,
+    }
+}
+
+/// v0.41.0: Result of trying to discover a peer's frontier through
+/// the hub's `/entries/<vfr_id>` endpoint. The runtime needs to
+/// distinguish three failure modes — peer unreachable, registry
+/// entry signature invalid, and locator URL dead — because each one
+/// has a different remediation.
+#[derive(Debug)]
+pub enum DiscoveryResult {
+    /// Hub returned a valid entry, signature verified, locator
+    /// fetched, manifest parsed. Includes the project for
+    /// downstream diff.
+    Resolved(Project),
+    /// Hub /entries/<vfr_id> returned 4xx/5xx — peer doesn't claim
+    /// to know this vfr_id.
+    EntryNotFound { vfr_id: String, status: u16 },
+    /// Hub returned an entry but its signature does not verify
+    /// against the registered peer pubkey. Halts content sync.
+    UnverifiedEntry { vfr_id: String, reason: String },
+    /// Hub entry verifies, but its `network_locator` URL returns
+    /// 4xx/5xx. Stale-locator failure mode.
+    BrokenLocator { vfr_id: String, locator: String, status: u16 },
+    /// Network error to the hub itself or to the locator.
+    Unreachable { url: String, error: String },
+}
+
+/// v0.41.0: Discover a peer frontier by routing through the hub's
+/// `/entries/<vfr_id>` endpoint. Verifies the registry entry's
+/// signature against `expected_owner_pubkey`, then follows
+/// `entry.network_locator` to fetch the actual manifest.
+///
+/// This is the "real federation" path: hubs publish signed registry
+/// entries pointing at content URLs; sync fetches both, verifying the
+/// signature chain end-to-end. If any step fails, the failure mode
+/// is captured as a typed result so the calling sync runtime can
+/// emit the appropriate `Conflict` (BrokenLocator, UnverifiedEntry,
+/// etc.) rather than blackhole'ing the error.
+pub fn discover_peer_frontier(
+    hub_url: &str,
+    vfr_id: &str,
+    expected_owner_pubkey: Option<&str>,
+) -> DiscoveryResult {
+    let hub = hub_url.trim_end_matches('/').to_string();
+    let entries_url = format!("{hub}/entries/{vfr_id}");
+    let vfr_owned = vfr_id.to_string();
+    let expected = expected_owner_pubkey.map(|s| s.to_string());
+
+    let outcome = std::thread::spawn(move || -> DiscoveryResult {
+        let resp = match reqwest::blocking::get(&entries_url) {
+            Ok(r) => r,
+            Err(e) => return DiscoveryResult::Unreachable {
+                url: entries_url.clone(),
+                error: e.to_string(),
+            },
+        };
+        let status = resp.status();
+        if status.as_u16() == 404 {
+            return DiscoveryResult::EntryNotFound {
+                vfr_id: vfr_owned,
+                status: status.as_u16(),
+            };
+        }
+        if !status.is_success() {
+            return DiscoveryResult::Unreachable {
+                url: entries_url.clone(),
+                error: format!("hub returned HTTP {status}"),
+            };
+        }
+        let body = match resp.text() {
+            Ok(b) => b,
+            Err(e) => return DiscoveryResult::Unreachable {
+                url: entries_url.clone(),
+                error: format!("read body: {e}"),
+            },
+        };
+        let entry: crate::registry::RegistryEntry = match serde_json::from_str(&body) {
+            Ok(e) => e,
+            Err(e) => return DiscoveryResult::UnverifiedEntry {
+                vfr_id: vfr_owned,
+                reason: format!("parse registry entry: {e}"),
+            },
+        };
+
+        // Verify signature.
+        match crate::registry::verify_entry(&entry) {
+            Ok(true) => {}
+            Ok(false) => {
+                return DiscoveryResult::UnverifiedEntry {
+                    vfr_id: vfr_owned,
+                    reason: "registry entry signature does not verify against entry.owner_pubkey".to_string(),
+                };
+            }
+            Err(e) => {
+                return DiscoveryResult::UnverifiedEntry {
+                    vfr_id: vfr_owned,
+                    reason: format!("signature verification error: {e}"),
+                };
+            }
+        }
+        // Cross-check expected pubkey if the caller supplied one.
+        if let Some(want) = expected.as_deref()
+            && entry.owner_pubkey != want
+        {
+            return DiscoveryResult::UnverifiedEntry {
+                vfr_id: vfr_owned,
+                reason: format!(
+                    "entry owner_pubkey {} != expected peer pubkey {}",
+                    &entry.owner_pubkey[..16],
+                    &want[..16]
+                ),
+            };
+        }
+
+        // Follow locator to fetch the manifest.
+        let locator = entry.network_locator.clone();
+        let mresp = match reqwest::blocking::get(&locator) {
+            Ok(r) => r,
+            Err(e) => return DiscoveryResult::BrokenLocator {
+                vfr_id: vfr_owned,
+                locator,
+                status: 0,
+            }.with_error(e.to_string()),
+        };
+        let mstatus = mresp.status();
+        if !mstatus.is_success() {
+            return DiscoveryResult::BrokenLocator {
+                vfr_id: vfr_owned,
+                locator,
+                status: mstatus.as_u16(),
+            };
+        }
+        let mbody = match mresp.text() {
+            Ok(b) => b,
+            Err(e) => return DiscoveryResult::BrokenLocator {
+                vfr_id: vfr_owned,
+                locator,
+                status: 0,
+            }.with_error(e.to_string()),
+        };
+        match serde_json::from_str::<Project>(&mbody) {
+            Ok(p) => DiscoveryResult::Resolved(p),
+            Err(e) => DiscoveryResult::BrokenLocator {
+                vfr_id: vfr_owned,
+                locator,
+                status: 0,
+            }.with_error(format!("manifest parse: {e}")),
+        }
+    })
+    .join()
+    .unwrap_or(DiscoveryResult::Unreachable {
+        url: hub_url.to_string(),
+        error: "discovery thread panicked".to_string(),
+    });
+    outcome
+}
+
+impl DiscoveryResult {
+    fn with_error(self, _ctx: String) -> Self {
+        // BrokenLocator already carries status; reserved hook for
+        // richer diagnostics later.
+        self
     }
 }
 
