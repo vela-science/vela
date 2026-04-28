@@ -19,7 +19,7 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 
 #[derive(Parser)]
-#[command(name = "vela", version = "0.45.1")]
+#[command(name = "vela", version = "0.46.0")]
 #[command(about = "Portable frontier state for science")]
 struct Cli {
     #[command(subcommand)]
@@ -560,6 +560,15 @@ enum Commands {
     Link {
         #[command(subcommand)]
         action: LinkAction,
+    },
+    /// v0.46: derive, list, and review cross-frontier bridges.
+    /// A bridge is a content-addressed `vbr_<id>` record asserting
+    /// "this entity links findings in two frontiers." Bridges are
+    /// derived deterministically; reviewer judgment promotes them
+    /// from `derived` to `confirmed` or `refuted`.
+    Bridges {
+        #[command(subcommand)]
+        action: BridgesAction,
     },
     /// v0.19: resolve unresolved entities against a bundled common-entity
     /// table (UniProt for proteins, MeSH for diseases, ChEBI/DrugBank for
@@ -1143,6 +1152,60 @@ enum CausalAction {
         /// The target finding whose counterfactual confidence we want (`vf_<hash>`).
         #[arg(long)]
         target: String,
+        #[arg(long)]
+        json: bool,
+    },
+}
+
+#[derive(Subcommand)]
+enum BridgesAction {
+    /// Derive bridges between two frontiers and persist the resulting
+    /// `vbr_<id>` records under the *first* frontier's `.vela/bridges/`
+    /// directory. Idempotent on (entity, sorted-frontier-pair).
+    Derive {
+        /// First frontier (Vela repo or frontier JSON file).
+        /// Bridges are persisted under this frontier.
+        frontier_a: PathBuf,
+        /// Human label for the first frontier in bridge records.
+        #[arg(long, default_value = "a")]
+        label_a: String,
+        /// Second frontier (Vela repo or frontier JSON file).
+        frontier_b: PathBuf,
+        /// Human label for the second frontier in bridge records.
+        #[arg(long, default_value = "b")]
+        label_b: String,
+        #[arg(long)]
+        json: bool,
+    },
+    /// List bridges persisted under a frontier's `.vela/bridges/` dir.
+    List {
+        /// Frontier (must be a Vela repo with a `.vela/` directory).
+        frontier: PathBuf,
+        /// Filter by status: derived, confirmed, refuted.
+        #[arg(long)]
+        status: Option<String>,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Show a single bridge by `vbr_<id>`.
+    Show {
+        frontier: PathBuf,
+        bridge_id: String,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Promote a bridge from `derived` to `confirmed`. Persists in
+    /// place; the content-address `vbr_<id>` is unchanged.
+    Confirm {
+        frontier: PathBuf,
+        bridge_id: String,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Mark a bridge `refuted`. Persists in place.
+    Refute {
+        frontier: PathBuf,
+        bridge_id: String,
         #[arg(long)]
         json: bool,
     },
@@ -2124,6 +2187,7 @@ pub async fn run_command() {
         } => diff::run(&frontier_a, &frontier_b, json, quiet),
         Commands::Proposals { action } => cmd_proposals(action),
         Commands::Link { action } => cmd_link(action),
+        Commands::Bridges { action } => cmd_bridges(action),
         Commands::Entity { action } => cmd_entity(action),
         Commands::Finding { command } => match command {
             FindingCommands::Add {
@@ -6327,6 +6391,287 @@ fn cmd_causal(action: CausalAction) {
     }
 }
 
+/// v0.46: Cross-frontier bridge runtime — derive, list, show,
+/// confirm, and refute first-class `vbr_<id>` records.
+fn cmd_bridges(action: BridgesAction) {
+    use crate::bridge::{Bridge, BridgeStatus, derive_bridges};
+    use std::collections::HashMap;
+
+    fn bridges_dir(frontier: &Path) -> PathBuf {
+        frontier.join(".vela/bridges")
+    }
+
+    fn load_bridge(frontier: &Path, id: &str) -> Result<Bridge, String> {
+        let path = bridges_dir(frontier).join(format!("{id}.json"));
+        if !path.is_file() {
+            return Err(format!("bridge not found: {id}"));
+        }
+        let data = std::fs::read_to_string(&path).map_err(|e| format!("read {id}: {e}"))?;
+        serde_json::from_str(&data).map_err(|e| format!("parse {id}: {e}"))
+    }
+
+    fn save_bridge(frontier: &Path, b: &Bridge) -> Result<(), String> {
+        let dir = bridges_dir(frontier);
+        std::fs::create_dir_all(&dir).map_err(|e| format!("mkdir bridges/: {e}"))?;
+        let path = dir.join(format!("{}.json", b.id));
+        let data =
+            serde_json::to_string_pretty(b).map_err(|e| format!("serialize bridge: {e}"))?;
+        std::fs::write(&path, format!("{data}\n")).map_err(|e| format!("write bridge: {e}"))
+    }
+
+    fn list_bridges(frontier: &Path) -> Result<Vec<Bridge>, String> {
+        let dir = bridges_dir(frontier);
+        if !dir.is_dir() {
+            return Ok(Vec::new());
+        }
+        let mut out = Vec::new();
+        for entry in std::fs::read_dir(&dir).map_err(|e| format!("read bridges/: {e}"))? {
+            let entry = entry.map_err(|e| format!("read entry: {e}"))?;
+            let path = entry.path();
+            if path.extension().and_then(|s| s.to_str()) != Some("json") {
+                continue;
+            }
+            let data =
+                std::fs::read_to_string(&path).map_err(|e| format!("read {path:?}: {e}"))?;
+            let b: Bridge = serde_json::from_str(&data)
+                .map_err(|e| format!("parse {path:?}: {e}"))?;
+            out.push(b);
+        }
+        out.sort_by(|a, b| {
+            b.finding_refs
+                .len()
+                .cmp(&a.finding_refs.len())
+                .then(a.entity_name.cmp(&b.entity_name))
+        });
+        Ok(out)
+    }
+
+    match action {
+        BridgesAction::Derive {
+            frontier_a,
+            label_a,
+            frontier_b,
+            label_b,
+            json,
+        } => {
+            let a = repo::load_from_path(&frontier_a).unwrap_or_else(|e| fail_return(&e));
+            let b = repo::load_from_path(&frontier_b).unwrap_or_else(|e| fail_return(&e));
+            let now = chrono::Utc::now().to_rfc3339();
+            let new_bridges = derive_bridges(&[(label_a.as_str(), &a), (label_b.as_str(), &b)], &now);
+
+            // Merge: preserve status from existing bridges with the
+            // same vbr_<id> (we don't blindly overwrite a Confirmed
+            // bridge with a fresh Derived one).
+            let existing = list_bridges(&frontier_a).unwrap_or_default();
+            let existing_by_id: HashMap<String, Bridge> =
+                existing.iter().map(|b| (b.id.clone(), b.clone())).collect();
+            let mut written = 0;
+            let mut preserved = 0;
+            let mut new_ids = Vec::new();
+            for mut bridge in new_bridges {
+                if let Some(prev) = existing_by_id.get(&bridge.id) {
+                    if prev.status != BridgeStatus::Derived {
+                        // Reviewer judgment is sticky.
+                        bridge.status = prev.status;
+                        bridge.derived_at = prev.derived_at.clone();
+                        preserved += 1;
+                    }
+                }
+                save_bridge(&frontier_a, &bridge).unwrap_or_else(|e| fail_return(&e));
+                new_ids.push(bridge.id.clone());
+                written += 1;
+            }
+
+            if json {
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&json!({
+                        "ok": true,
+                        "command": "bridges.derive",
+                        "frontier_a": frontier_a.display().to_string(),
+                        "frontier_b": frontier_b.display().to_string(),
+                        "bridges_written": written,
+                        "reviewer_judgments_preserved": preserved,
+                        "ids": new_ids,
+                    }))
+                    .expect("serialize bridges.derive")
+                );
+                return;
+            }
+
+            println!();
+            println!(
+                "  {}",
+                format!(
+                    "VELA · BRIDGES · DERIVE · {} ↔ {}",
+                    label_a, label_b
+                )
+                .to_uppercase()
+                .dimmed()
+            );
+            println!("  {}", style::tick_row(60));
+            println!("  {}  {} bridge(s) materialized", style::ok("ok"), written);
+            if preserved > 0 {
+                println!(
+                    "  {}  {} reviewer judgment(s) preserved",
+                    style::ok("kept"),
+                    preserved
+                );
+            }
+            for id in new_ids.iter().take(10) {
+                println!("    · {id}");
+            }
+            if new_ids.len() > 10 {
+                println!("    … and {} more", new_ids.len() - 10);
+            }
+            println!();
+        }
+        BridgesAction::List {
+            frontier,
+            status,
+            json,
+        } => {
+            let mut bridges =
+                list_bridges(&frontier).unwrap_or_else(|e| fail_return(&e));
+            if let Some(s) = status.as_deref() {
+                let want = match s.to_lowercase().as_str() {
+                    "derived" => BridgeStatus::Derived,
+                    "confirmed" => BridgeStatus::Confirmed,
+                    "refuted" => BridgeStatus::Refuted,
+                    other => fail_return(&format!(
+                        "unknown bridge status '{other}' (try derived|confirmed|refuted)"
+                    )),
+                };
+                bridges.retain(|b| b.status == want);
+            }
+            if json {
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&json!({
+                        "ok": true,
+                        "command": "bridges.list",
+                        "frontier": frontier.display().to_string(),
+                        "count": bridges.len(),
+                        "bridges": bridges,
+                    }))
+                    .expect("serialize bridges.list")
+                );
+                return;
+            }
+            println!();
+            println!(
+                "  {}",
+                format!("VELA · BRIDGES · LIST · {}", frontier.display())
+                    .to_uppercase()
+                    .dimmed()
+            );
+            println!("  {}", style::tick_row(60));
+            println!("  {} bridge(s)", bridges.len());
+            for b in &bridges {
+                let chip = match b.status {
+                    BridgeStatus::Derived => style::warn("derived"),
+                    BridgeStatus::Confirmed => style::ok("confirmed"),
+                    BridgeStatus::Refuted => style::lost("refuted"),
+                };
+                println!();
+                println!(
+                    "  {chip}  {}  {} ↔ findings:{}",
+                    b.id,
+                    b.entity_name,
+                    b.finding_refs.len()
+                );
+                println!("    frontiers: {}", b.frontiers.join(", "));
+                if let Some(t) = &b.tension {
+                    println!("    tension:   {t}");
+                }
+            }
+            println!();
+        }
+        BridgesAction::Show {
+            frontier,
+            bridge_id,
+            json,
+        } => {
+            let b = load_bridge(&frontier, &bridge_id).unwrap_or_else(|e| fail_return(&e));
+            if json {
+                println!("{}", serde_json::to_string_pretty(&b).expect("serialize"));
+                return;
+            }
+            println!();
+            println!(
+                "  {}",
+                format!("VELA · BRIDGES · SHOW · {}", b.id)
+                    .to_uppercase()
+                    .dimmed()
+            );
+            println!("  {}", style::tick_row(60));
+            println!("  entity:    {}", b.entity_name);
+            println!("  status:    {:?}", b.status);
+            println!("  frontiers: {}", b.frontiers.join(", "));
+            if !b.frontier_ids.is_empty() {
+                println!("  frontier_ids: {}", b.frontier_ids.join(", "));
+            }
+            if let Some(t) = &b.tension {
+                println!("  tension:   {t}");
+            }
+            println!("  derived_at: {}", b.derived_at);
+            println!("  finding refs ({}):", b.finding_refs.len());
+            for r in &b.finding_refs {
+                let dir = r.direction.as_deref().unwrap_or("—");
+                let truncated: String = r.assertion_text.chars().take(72).collect();
+                println!(
+                    "    · [{}] {} (conf={:.2}, dir={})",
+                    r.frontier, r.finding_id, r.confidence, dir
+                );
+                println!("      {truncated}");
+            }
+            println!();
+        }
+        BridgesAction::Confirm {
+            frontier,
+            bridge_id,
+            json,
+        } => {
+            let mut b = load_bridge(&frontier, &bridge_id).unwrap_or_else(|e| fail_return(&e));
+            b.status = BridgeStatus::Confirmed;
+            save_bridge(&frontier, &b).unwrap_or_else(|e| fail_return(&e));
+            if json {
+                println!("{}", serde_json::to_string_pretty(&b).expect("serialize"));
+                return;
+            }
+            println!();
+            println!(
+                "  {}  {} now {}",
+                style::ok("confirmed"),
+                b.id,
+                "confirmed"
+            );
+            println!();
+        }
+        BridgesAction::Refute {
+            frontier,
+            bridge_id,
+            json,
+        } => {
+            let mut b = load_bridge(&frontier, &bridge_id).unwrap_or_else(|e| fail_return(&e));
+            b.status = BridgeStatus::Refuted;
+            save_bridge(&frontier, &b).unwrap_or_else(|e| fail_return(&e));
+            if json {
+                println!("{}", serde_json::to_string_pretty(&b).expect("serialize"));
+                return;
+            }
+            println!();
+            println!(
+                "  {}  {} now {}",
+                style::lost("refuted"),
+                b.id,
+                "refuted"
+            );
+            println!();
+        }
+    }
+}
+
 /// v0.39: Manage the federation peer registry.
 fn cmd_federation(action: FederationAction) {
     use crate::federation::PeerHub;
@@ -9418,6 +9763,8 @@ const SCIENCE_SUBCOMMANDS: &[&str] = &[
     "log",
     "inbox",
     "ask",
+    // v0.46: cross-frontier bridge runtime.
+    "bridges",
 ];
 
 pub fn is_science_subcommand(name: &str) -> bool {

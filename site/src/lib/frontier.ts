@@ -580,6 +580,61 @@ function replicationsDir(): string {
   return join(repoRoot(), FRONTIER.repoPath, ".vela", "replications");
 }
 
+// ── Bridges (v0.46) ────────────────────────────────────────────────
+
+export type BridgeStatus = "derived" | "confirmed" | "refuted";
+
+export interface BridgeRef {
+  frontier: string;
+  finding_id: string;
+  assertion_text: string;
+  confidence: number;
+  direction?: string | null;
+}
+
+export interface Bridge {
+  id: string;
+  schema?: string;
+  entity_name: string;
+  frontiers: string[];
+  frontier_ids?: string[];
+  finding_refs: BridgeRef[];
+  tension?: string | null;
+  derived_at: string;
+  status: BridgeStatus;
+}
+
+let _bridgeCache: Bridge[] | null = null;
+
+function bridgesDir(): string {
+  return join(repoRoot(), FRONTIER.repoPath, ".vela", "bridges");
+}
+
+export function loadBridges(): Bridge[] {
+  if (_bridgeCache) return _bridgeCache;
+  const dir = bridgesDir();
+  if (!existsSync(dir)) {
+    _bridgeCache = [];
+    return _bridgeCache;
+  }
+  const out: Bridge[] = [];
+  for (const file of readdirSync(dir).filter((f) => f.endsWith(".json"))) {
+    try {
+      const raw = readFileSync(join(dir, file), "utf8");
+      out.push(JSON.parse(raw) as Bridge);
+    } catch (err) {
+      console.warn(`[frontier] failed to parse bridge ${file}:`, err);
+    }
+  }
+  out.sort(
+    (a, b) =>
+      b.finding_refs.length - a.finding_refs.length ||
+      a.entity_name.localeCompare(b.entity_name),
+  );
+  _bridgeCache = out;
+  return _bridgeCache;
+}
+
 export function loadReplications(): Replication[] {
   if (_repCache) return _repCache;
   const dir = replicationsDir();

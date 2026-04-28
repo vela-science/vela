@@ -1,0 +1,52 @@
+{
+  "id": "vbr_b2a1e22508112490",
+  "schema": "https://vela.science/schema/bridge/v0.46.0",
+  "entity_name": "bace1",
+  "frontiers": [
+    "bbb",
+    "landscape"
+  ],
+  "frontier_ids": [
+    "vfr_24f6f6c31f731406"
+  ],
+  "finding_refs": [
+    {
+      "frontier": "bbb",
+      "finding_id": "vf_a1145511f633c0df",
+      "assertion_text": "Anti-TfR/BACE1 bispecific antibodies cross the blood-brain barrier and reduce brain amyloid-beta levels in human TfR knock-in mice.",
+      "confidence": 0.269,
+      "direction": "negative"
+    },
+    {
+      "frontier": "bbb",
+      "finding_id": "vf_b6e3f9f1a88df9f1",
+      "assertion_text": "Systemic administration of a bispecific anti-TfR/BACE1 antibody leads to a greater reduction in brain amyloid-beta (Abeta) levels compared to a monospecific anti-BACE1 antibody.",
+      "confidence": 0.269,
+      "direction": "negative"
+    },
+    {
+      "frontier": "bbb",
+      "finding_id": "vf_f6a538885acbd791",
+      "assertion_text": "A bispecific antibody targeting TfR with low affinity and BACE1 with high affinity accumulates in the mouse brain more effectively than a monospecific anti-BACE1 antibody.",
+      "confidence": 0.269,
+      "direction": "positive"
+    },
+    {
+      "frontier": "landscape",
+      "finding_id": "vf_0b608a6432ada63c",
+      "assertion_text": "BACE1 inhibitor trials failed due to mechanism-independent side effects",
+      "confidence": 0.75,
+      "direction": null
+    },
+    {
+      "frontier": "landscape",
+      "finding_id": "vf_c76233d23e7be164",
+      "assertion_text": "BACE1 has essential non-amyloid substrates that explain inhibitor toxicity",
+      "confidence": 0.7,
+      "direction": null
+    }
+  ],
+  "tension": "positive in [bbb], negative in [bbb]",
+  "derived_at": "2026-04-28T04:15:02.774483+00:00",
+  "status": "derived"
+}

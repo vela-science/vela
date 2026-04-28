@@ -1,5 +1,81 @@
 # Changelog
 
+## 0.46.0 - 2026-04-28
+
+**Cross-frontier bridges as first-class kernel objects.** Earlier
+versions surfaced bridges as a derived report. v0.46 promotes them
+to content-addressed `vbr_<hash>` records that live on disk in
+`.vela/bridges/<vbr_id>.json` next to findings, replications,
+datasets, code artifacts, and predictions.
+
+### Schema
+
+```rust
+pub struct Bridge {
+    pub id: String,                  // vbr_<16hex>, content-addressed
+    pub schema: String,
+    pub entity_name: String,         // canonical (lowercased)
+    pub frontiers: Vec<String>,      // sorted human labels
+    pub frontier_ids: Vec<String>,   // vfr_<id>s when known
+    pub finding_refs: Vec<BridgeRef>,
+    pub tension: Option<String>,     // cross-frontier disagreement marker
+    pub derived_at: String,
+    pub status: BridgeStatus,        // Derived | Confirmed | Refuted
+}
+```
+
+Content-address preimage: `bridge|<sorted_frontiers>|<entity_lowercased>`.
+Same frontiers + same entity ⇒ same `vbr_<id>`. Re-derivation is
+idempotent.
+
+### CLI
+
+```
+vela bridges derive <frontier_a> --label-a bbb \
+                    <frontier_b> --label-b landscape
+vela bridges list <frontier> [--status derived|confirmed|refuted]
+vela bridges show <frontier> <vbr_id>
+vela bridges confirm <frontier> <vbr_id>
+vela bridges refute <frontier> <vbr_id>
+```
+
+`derive` writes `vbr_*` records under the *first* frontier's
+`.vela/bridges/`. Existing reviewer judgment is preserved across
+re-derivation — `Confirmed`/`Refuted` bridges keep their state and
+their original `derived_at`.
+
+### Real-world demonstration
+
+Derived against the BBB-flagship + will-alzheimer-landscape pair:
+
+```
+$ vela bridges derive projects/bbb-flagship --label-a bbb \
+                      frontiers/will-alzheimer-landscape.json \
+                      --label-b landscape
+  · ok  2 bridge(s) materialized
+    · vbr_b2a1e22508112490   (bace1, 5 findings, with tension)
+    · vbr_d7acf52ed0610a07   (trem2, 4 findings)
+```
+
+The TREM2 bridge spans BBB's ATV:TREM2 mechanism findings and the
+landscape's TREM2 genetic-risk findings — a real cross-domain
+composition. The BACE1 bridge is flagged for cross-frontier tension.
+
+### Site at `/bridges`
+
+Lists every persisted bridge in the active frontier with its status,
+finding refs, and tension flag. Reviewer-attention items
+(`derived`, `with tension`) sort to the top. Doctrine sidebar makes
+the "derived deterministically; reviewer promotes" model explicit.
+
+### Verification
+
+- `cargo test --workspace`: 451 tests pass (up from 448 in v0.45.1).
+  Three new bridge tests including a real-frontier-pair stability
+  check (`derive_real_frontier_pair_is_stable`).
+- `vela check projects/bbb-flagship`: 188 valid, replay ok.
+- Site build: 609 pages (added `/bridges`).
+
 ## 0.45.1 - 2026-04-28
 
 **Counterfactual coverage + hub API.** v0.45.0 shipped the level-3

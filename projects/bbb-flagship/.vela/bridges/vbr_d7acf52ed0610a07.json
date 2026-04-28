@@ -1,0 +1,45 @@
+{
+  "id": "vbr_d7acf52ed0610a07",
+  "schema": "https://vela.science/schema/bridge/v0.46.0",
+  "entity_name": "trem2",
+  "frontiers": [
+    "bbb",
+    "landscape"
+  ],
+  "frontier_ids": [
+    "vfr_24f6f6c31f731406"
+  ],
+  "finding_refs": [
+    {
+      "frontier": "bbb",
+      "finding_id": "vf_10a36e3acd3dbe39",
+      "assertion_text": "ATV:TREM2, an antibody engineered with a monovalent transferrin receptor (TfR) binding site, exhibits improved brain biodistribution compared to a standard anti-TREM2 antibody following peripheral delivery in mice.",
+      "confidence": 0.269,
+      "direction": "positive"
+    },
+    {
+      "frontier": "bbb",
+      "finding_id": "vf_457ee92500f0f1df",
+      "assertion_text": "ATV:TREM2 enhances TREM2 signaling in the brain compared to a standard anti-TREM2 antibody following peripheral delivery in mice.",
+      "confidence": 0.269,
+      "direction": "positive"
+    },
+    {
+      "frontier": "landscape",
+      "finding_id": "vf_53859da6d5fa6673",
+      "assertion_text": "TREM2 variants represent the strongest genetic risk after ApoE4",
+      "confidence": 0.75,
+      "direction": null
+    },
+    {
+      "frontier": "landscape",
+      "finding_id": "vf_61a2fe3e034712b0",
+      "assertion_text": "TREM2 loss-of-function increases amyloid plaque density",
+      "confidence": 0.75,
+      "direction": null
+    }
+  ],
+  "tension": null,
+  "derived_at": "2026-04-28T04:14:38.091699+00:00",
+  "status": "confirmed"
+}
