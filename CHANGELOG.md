@@ -1,5 +1,157 @@
 # Changelog
 
+## 0.44.0 - 2026-04-28
+
+**Pearl level 2 reasoning over the claim graph.** v0.40 (level 1)
+answered identifiability per finding by lookup over a 3×4 (claim,
+grade) matrix. v0.44 (level 2) does graph-aware do-calculus: given a
+source finding and a target finding, search for a back-door
+adjustment set in the directed link graph and report whether the
+causal effect is identifiable from observational data alone.
+
+This is the substrate's clearest novelty premium. Phylo cannot do
+this because it does not have the schema. The Stacks cannot do this
+because it is a renderer, not a reasoning layer. Vela uniquely can
+because the claim graph is a first-class kernel object.
+
+### New module: `crate::causal_graph`
+
+```rust
+pub struct CausalGraph { /* nodes, parents, children */ }
+
+impl CausalGraph {
+    pub fn from_project(&Project) -> Self;
+    pub fn parents_of(&self, node) -> impl Iterator;
+    pub fn children_of(&self, node) -> impl Iterator;
+    pub fn ancestors(&self, node) -> HashSet<String>;
+    pub fn descendants(&self, node) -> HashSet<String>;
+    pub fn is_descendant_of(&self, candidate, source) -> bool;
+    pub fn paths_between(&self, start, end, max_paths, max_len) -> Vec<Vec<String>>;
+    pub fn is_path_blocked(&self, path, z: &HashSet<String>) -> bool;  // d-separation
+    pub fn is_back_door_path(&self, path, x) -> bool;
+}
+
+pub enum CausalEffectVerdict {
+    Identified { adjustment_set, back_door_paths_considered },
+    NoCausalPath { reason },
+    Underidentified { unblocked_back_door_paths, candidates_tried },
+    UnknownNode { which },
+}
+
+pub fn identify_effect(project, source, target) -> CausalEffectVerdict;
+pub fn identify_effect_in_graph(graph, source, target) -> CausalEffectVerdict;
+```
+
+### What it does, concretely
+
+The graph is built from `depends` and `supports` links. For a query
+"effect of source on target," the algorithm:
+
+1. Enumerates undirected paths between source and target up to a
+   length cap (8 nodes).
+2. Filters to back-door paths — paths starting with an incoming
+   edge to source.
+3. Builds the candidate set Z: nodes that are not descendants of
+   source and not source/target themselves.
+4. Tries the empty set first. If d-separation blocks every
+   back-door path under Z = ∅, returns `Identified` with empty
+   adjustment.
+5. Tries each singleton in Z, then bounded pairs.
+6. If no Z blocks all back-door paths, returns `Underidentified`
+   with the open paths as concrete remediation hints.
+
+D-separation under Z follows Pearl's standard algebra: a path is
+blocked if any chain or fork node is in Z, or any collider node
+is *not* in Z and has no descendant in Z.
+
+### CLI
+
+```
+vela causal effect <source> --on <target> --frontier <path>
+```
+
+Prints the verdict in human-readable form with the adjustment set
+or the open back-door paths.
+
+```
+vela causal graph --frontier <path> [--node <vf_id>]
+```
+
+Prints the graph topology (each node's parents and children) for
+inspection.
+
+### Real-world result on the BBB
+
+After wiring the five `depends` edges from ATV:TREM2 mechanism
+findings to `vf_8389130295d81413` (the v0.43 cascade demo's
+upstream), the new commands produce real reasoning:
+
+```
+$ vela causal effect projects/bbb-flagship vf_457ee92500f0f1df --on vf_d9a8e80fc5c60f65
+  · identified  identified by adjusting on:
+    · vf_8389130295d81413
+  back-door paths considered: 1
+```
+
+The substrate correctly identifies that two ATV:TREM2 mechanism
+siblings share a confounder — their common parent finding — and
+the effect of one on the other is identifiable only by adjusting
+on that parent. This is genuine causal reasoning over a real
+scientific claim graph.
+
+```
+$ vela causal effect projects/bbb-flagship vf_8389130295d81413 --on vf_457ee92500f0f1df
+  · identified  no back-door adjustment needed
+  back-door paths considered: 0
+```
+
+Parent-to-child queries identify trivially with no adjustment.
+
+### Tests
+
+Seven cases in `causal_graph::tests` covering the textbook DAG
+patterns:
+- Chain `A → B → C`: identifiable, no adjustment
+- Confounder `A ← Z → B`: identifiable, Z in adjustment set
+- Mediator `A → M → B`: identifiable, M *not* in adjustment set
+  (the trap that level-1 reasoning would miss)
+- Collider `A → C ← B`: identifiable, C *not* in adjustment set
+  (Berkson's bias trap)
+- Unknown node: returns `UnknownNode { which }`
+- Graph construction: nodes, edges, parent/child counts
+- Transitive descendants
+
+### Why this matters strategically
+
+The architecture doc names this work as "the substrate's biggest
+novelty premium" because the schema for it landed at v0.38, and
+nothing else in the AI-for-science stack has the corresponding
+reasoning. Phylo's agents extract claims; The Stacks publishes
+them; neither reasons about identifiability. v0.44 makes Vela the
+only substrate where a query like "is the effect of finding X on
+finding Y identifiable from the graph alone?" has a deterministic
+answer.
+
+### Verification
+
+- `cargo build --workspace`: clean.
+- `cargo test --workspace`: **441/441 pass** (was 434; +7
+  causal_graph tests).
+- `vela check projects/bbb-flagship`: 188/188 valid, event replay ok.
+- `vela conformance`: 61/61.
+- New CLI: `causal effect`, `causal graph` both working on real
+  data.
+
+### What's next on the causal axis
+
+- v0.44.1: site visualization. SVG render of any finding's causal
+  neighborhood, colored by identifiability of effects between pairs.
+- v0.44.2: front-door criterion (alternative when confounders are
+  unobserved but a mediator chain is). Pearl 1995 §3.3.
+- v0.45+: Pearl level 3 (counterfactual queries). Would extend to
+  "given the substrate's current state, what would Y look like if
+  we hadn't accepted X?"
+
 ## 0.43.0 - 2026-04-28
 
 **Adoption-shaped release.** The substrate work is essentially done at

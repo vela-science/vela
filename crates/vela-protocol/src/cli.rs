@@ -19,7 +19,7 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 
 #[derive(Parser)]
-#[command(name = "vela", version = "0.43.0")]
+#[command(name = "vela", version = "0.44.0")]
 #[command(about = "Portable frontier state for science")]
 struct Cli {
     #[command(subcommand)]
@@ -1092,6 +1092,38 @@ enum CausalAction {
         /// (Underidentified or Conditional). Useful for triage.
         #[arg(long)]
         problems_only: bool,
+        #[arg(long)]
+        json: bool,
+    },
+    /// v0.44 (Pearl level 2): Identify the causal effect of a source
+    /// finding on a target finding by searching for a back-door
+    /// adjustment set in the frontier's directed link graph. Reports
+    /// either the adjustment set Z that identifies P(target | do(source))
+    /// from observational data alone, or surfaces the open back-door
+    /// paths that prevent identification.
+    ///
+    /// The link graph used: `depends` and `supports` edges. Every
+    /// finding's parents are the findings it relies on as evidence;
+    /// every finding's children are the findings that build on it.
+    /// `contradicts` and other link types are excluded from the
+    /// causal DAG.
+    Effect {
+        frontier: PathBuf,
+        /// Source finding id (`vf_<hash>`).
+        source: String,
+        /// Target finding id, given via `--on`.
+        #[arg(long)]
+        on: String,
+        #[arg(long)]
+        json: bool,
+    },
+    /// v0.44: Print the causal-graph topology over the frontier.
+    /// Lists each node's parents and children for inspection.
+    Graph {
+        frontier: PathBuf,
+        /// Limit output to a single node's neighborhood.
+        #[arg(long)]
+        node: Option<String>,
         #[arg(long)]
         json: bool,
     },
@@ -5998,6 +6030,170 @@ fn cmd_causal(action: CausalAction) {
                     )
                 {
                     println!("    {} {}", style::ok("fix:"), e.remediation);
+                }
+            }
+        }
+        CausalAction::Effect {
+            frontier,
+            source,
+            on: target,
+            json,
+        } => {
+            use crate::causal_graph::{identify_effect, CausalEffectVerdict};
+
+            let project = repo::load_from_path(&frontier).unwrap_or_else(|e| fail_return(&e));
+            let verdict = identify_effect(&project, &source, &target);
+
+            if json {
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&json!({
+                        "ok": true,
+                        "command": "causal.effect",
+                        "frontier": frontier.display().to_string(),
+                        "source": source,
+                        "target": target,
+                        "verdict": verdict,
+                    }))
+                    .expect("serialize causal.effect")
+                );
+                return;
+            }
+
+            println!();
+            println!(
+                "  {}",
+                format!("VELA · CAUSAL · EFFECT · {} → {}", source, target)
+                    .to_uppercase()
+                    .dimmed()
+            );
+            println!("  {}", style::tick_row(60));
+            match verdict {
+                CausalEffectVerdict::Identified {
+                    adjustment_set,
+                    back_door_paths_considered,
+                } => {
+                    if adjustment_set.is_empty() {
+                        println!(
+                            "  {}  no back-door adjustment needed",
+                            style::ok("identified")
+                        );
+                    } else {
+                        println!(
+                            "  {}  identified by adjusting on:",
+                            style::ok("identified")
+                        );
+                        for z in &adjustment_set {
+                            println!("    · {z}");
+                        }
+                    }
+                    println!(
+                        "  back-door paths considered: {}",
+                        back_door_paths_considered
+                    );
+                }
+                CausalEffectVerdict::NoCausalPath { reason } => {
+                    println!(
+                        "  {}  no causal path: {reason}",
+                        style::warn("no_path")
+                    );
+                }
+                CausalEffectVerdict::Underidentified {
+                    unblocked_back_door_paths,
+                    candidates_tried,
+                } => {
+                    println!(
+                        "  {}  no observational adjustment set found ({} candidates tried)",
+                        style::lost("underidentified"),
+                        candidates_tried
+                    );
+                    println!("  open back-door paths:");
+                    for path in unblocked_back_door_paths.iter().take(5) {
+                        println!("    · {}", path.join(" — "));
+                    }
+                    println!(
+                        "  remediation: either intervene experimentally on {source}, or extend the link graph to make a confounder observable."
+                    );
+                }
+                CausalEffectVerdict::UnknownNode { which } => {
+                    fail(&which);
+                }
+            }
+            println!();
+        }
+        CausalAction::Graph {
+            frontier,
+            node,
+            json,
+        } => {
+            use crate::causal_graph::CausalGraph;
+            let project = repo::load_from_path(&frontier).unwrap_or_else(|e| fail_return(&e));
+            let graph = CausalGraph::from_project(&project);
+
+            // Build a serializable view: each node with its parents
+            // and children. Optionally restrict to a single node.
+            let nodes: Vec<&str> = if let Some(n) = node.as_deref() {
+                if !graph.contains(n) {
+                    fail(&format!("node not in frontier: {n}"));
+                }
+                vec![n]
+            } else {
+                project.findings.iter().map(|f| f.id.as_str()).collect()
+            };
+
+            if json {
+                let payload: Vec<_> = nodes
+                    .iter()
+                    .map(|n| {
+                        let parents: Vec<&str> = graph.parents_of(n).collect();
+                        let children: Vec<&str> = graph.children_of(n).collect();
+                        json!({
+                            "node": n,
+                            "parents": parents,
+                            "children": children,
+                        })
+                    })
+                    .collect();
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&json!({
+                        "ok": true,
+                        "command": "causal.graph",
+                        "node_count": graph.node_count(),
+                        "edge_count": graph.edge_count(),
+                        "nodes": payload,
+                    }))
+                    .expect("serialize causal.graph")
+                );
+                return;
+            }
+
+            println!();
+            println!(
+                "  {}",
+                format!("VELA · CAUSAL · GRAPH · {}", frontier.display())
+                    .to_uppercase()
+                    .dimmed()
+            );
+            println!("  {}", style::tick_row(60));
+            println!(
+                "  {} nodes · {} edges",
+                graph.node_count(),
+                graph.edge_count()
+            );
+            println!();
+            for n in &nodes {
+                let parents: Vec<&str> = graph.parents_of(n).collect();
+                let children: Vec<&str> = graph.children_of(n).collect();
+                if parents.is_empty() && children.is_empty() && nodes.len() > 1 {
+                    continue; // hide isolated nodes when listing all
+                }
+                println!("  {n}");
+                if !parents.is_empty() {
+                    println!("    parents:  {}", parents.join(", "));
+                }
+                if !children.is_empty() {
+                    println!("    children: {}", children.join(", "));
                 }
             }
         }
