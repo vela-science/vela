@@ -1,0 +1,79 @@
+{
+  "id": "vf_5f7fb093c9cbc802",
+  "version": 1,
+  "previous_version": null,
+  "assertion": {
+    "text": "What molecular mechanism causes ApoE4 risk to scale non-linearly with copy number (3x for heterozygotes vs up to 12x for homozygotes)?",
+    "type": "open_question",
+    "entities": [],
+    "relation": null,
+    "direction": null
+  },
+  "evidence": {
+    "type": "extracted_from_notes",
+    "model_system": "",
+    "species": null,
+    "method": "notes_compiler",
+    "sample_size": null,
+    "effect_size": null,
+    "p_value": null,
+    "replicated": false,
+    "replication_count": null,
+    "evidence_spans": [
+      {
+        "text": "The note asserts a copy-number-dependent risk range without specifying mechanism."
+      }
+    ]
+  },
+  "conditions": {
+    "text": "",
+    "species_verified": [],
+    "species_unverified": [],
+    "in_vitro": false,
+    "in_vivo": false,
+    "human_data": false,
+    "clinical_trial": false,
+    "concentration_range": null,
+    "duration": null,
+    "age_group": null,
+    "cell_type": null
+  },
+  "confidence": {
+    "kind": "frontier_epistemic",
+    "score": 0.0,
+    "basis": "notes_compiler: open question, no evidence yet",
+    "method": "llm_initial",
+    "extraction_confidence": 0.7
+  },
+  "provenance": {
+    "source_type": "researcher_notes",
+    "doi": null,
+    "pmid": null,
+    "pmc": null,
+    "openalex_id": null,
+    "title": "ApoE4 increases Alzheimer's risk 3-12x depending on copy number.md",
+    "authors": [],
+    "year": null,
+    "journal": null,
+    "extraction": {
+      "method": "notes_compiler_via_claude_cli",
+      "model": null,
+      "model_version": null,
+      "extracted_at": "2026-04-27T23:43:20.556364+00:00",
+      "extractor_version": "vela-scientist::notes-compiler/v0.23"
+    },
+    "review": null,
+    "citation_count": null
+  },
+  "flags": {
+    "gap": false,
+    "negative_space": false,
+    "contested": false,
+    "retracted": false,
+    "declining": false,
+    "gravity_well": false
+  },
+  "links": [],
+  "created": "2026-04-27T23:43:20.556374+00:00",
+  "updated": null
+}

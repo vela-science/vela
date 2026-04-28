@@ -96,7 +96,11 @@
   "source_refs": [
     "ApoE4 increases Alzheimer's risk 3-12x depending on copy number.md"
   ],
-  "status": "pending_review",
+  "status": "applied",
+  "reviewed_by": "reviewer:claude-proxy",
+  "reviewed_at": "2026-04-28T00:16:35.064581+00:00",
+  "decision_reason": "Open question is well-scoped (>=12 words, falsifiable form). Accepting as a campaign target.",
+  "applied_event_id": "vev_ed0e58c7120b45c7",
   "caveats": [],
   "agent_run": {
     "agent": "notes-compiler",

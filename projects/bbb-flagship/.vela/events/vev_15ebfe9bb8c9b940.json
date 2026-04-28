@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_15ebfe9bb8c9b940",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_e8aa821cc3612318"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:29.262477+00:00",
+  "reason": "The note groups TREM2 variants together without distinguishing allelic effects.",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:8f0a474ad6bc2b322383b3bf41f4498a2a3d520328368fd81f8ba39611561288",
+  "payload": {
+    "proposal_id": "vpr_6b2d5fa87231747c"
+  },
+  "caveats": []
+}

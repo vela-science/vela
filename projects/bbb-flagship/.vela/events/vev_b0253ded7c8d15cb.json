@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_b0253ded7c8d15cb",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_0b5c9a6c6cdfb137"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:32.597254+00:00",
+  "reason": "The note attributes trial toxicity to BACE1's non-amyloid substrate repertoire.",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:580fa960a59a012e276d24f003e83b08dcb3ad3e60a50e2f20d2567a668b6318",
+  "payload": {
+    "proposal_id": "vpr_a92247bee056babf"
+  },
+  "caveats": []
+}

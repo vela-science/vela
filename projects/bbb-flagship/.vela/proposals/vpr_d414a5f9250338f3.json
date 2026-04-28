@@ -96,7 +96,11 @@
   "source_refs": [
     "Alzheimer's Drug Targets.md"
   ],
-  "status": "pending_review",
+  "status": "applied",
+  "reviewed_by": "reviewer:claude-proxy",
+  "reviewed_at": "2026-04-28T00:16:35.211555+00:00",
+  "decision_reason": "Open question is well-scoped (>=12 words, falsifiable form). Accepting as a campaign target.",
+  "applied_event_id": "vev_14757bda6f9f7c4d",
   "caveats": [],
   "agent_run": {
     "agent": "notes-compiler",

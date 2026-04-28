@@ -96,7 +96,11 @@
   "source_refs": [
     "ApoE Christchurch variant may be protective even with PSEN1 mutations.md"
   ],
-  "status": "pending_review",
+  "status": "applied",
+  "reviewed_by": "reviewer:claude-proxy",
+  "reviewed_at": "2026-04-28T00:13:52.437955+00:00",
+  "decision_reason": "Reviewer Agent score: plausibility 0.85, evidence 0.7, scope 0.7, dup-risk 0.2. Open question is well-scoped: it cites a specific kindred (PSEN1 E280A) and asks the right reproducibility question. Accepting as canonical open_question for the BBB campaign.",
+  "applied_event_id": "vev_b34c6826ca00f969",
   "caveats": [],
   "agent_run": {
     "agent": "notes-compiler",

@@ -18,7 +18,11 @@
   "source_refs": [
     "vpr_468325f91c3e0260"
   ],
-  "status": "pending_review",
+  "status": "applied",
+  "reviewed_by": "reviewer:claude-proxy",
+  "reviewed_at": "2026-04-28T00:16:27.732991+00:00",
+  "decision_reason": "Reviewer Agent score note. Informational metadata about a sibling proposal; no state risk.",
+  "applied_event_id": "vev_5491ceb37720335f",
   "caveats": [
     "weak_evidence",
     "loose_scope",

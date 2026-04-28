@@ -96,7 +96,11 @@
   "source_refs": [
     "BACE1 has essential non-amyloid substrates that explain toxicity.md"
   ],
-  "status": "pending_review",
+  "status": "applied",
+  "reviewed_by": "reviewer:claude-proxy",
+  "reviewed_at": "2026-04-28T00:16:32.597011+00:00",
+  "decision_reason": "Hypothesis carries explicit predictions: clauses; falsifiable shape OK.",
+  "applied_event_id": "vev_b0253ded7c8d15cb",
   "caveats": [],
   "agent_run": {
     "agent": "notes-compiler",

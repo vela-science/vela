@@ -96,7 +96,11 @@
   "source_refs": [
     "Alzheimer's Drug Target Landscape.md"
   ],
-  "status": "pending_review",
+  "status": "applied",
+  "reviewed_by": "reviewer:claude-proxy",
+  "reviewed_at": "2026-04-28T00:16:26.333235+00:00",
+  "decision_reason": "Hypothesis carries explicit predictions: clauses; falsifiable shape OK.",
+  "applied_event_id": "vev_f0431d7568e3cd8d",
   "caveats": [],
   "agent_run": {
     "agent": "notes-compiler",

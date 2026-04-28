@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_fb6f93c94d2443d1",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_a2243d001526b01d"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:27.009755+00:00",
+  "reason": "notes-compiler extracted from Aβ plaque burden correlates poorly with cognitive decline.md",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:c8b7cc37c9e51714c3cd59e99afaec9dbbf193f4ae3f1a21660d48815902e28f",
+  "payload": {
+    "proposal_id": "vpr_24c2bd9fa860de44"
+  },
+  "caveats": []
+}

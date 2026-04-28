@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_efe2c9f620a6a247",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_02d50b3fa3aa0b3f"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:33.012481+00:00",
+  "reason": "The note asserts anatomically patterned spread but does not specify the mechanism (trans-synaptic transfer, selective vulnerability, network connectivity).",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:9b53510837185fb375f0320820cbd3cc417cf61d4805e1a8cf247d7d62e19600",
+  "payload": {
+    "proposal_id": "vpr_b3c2ab917af9ff3e"
+  },
+  "caveats": []
+}

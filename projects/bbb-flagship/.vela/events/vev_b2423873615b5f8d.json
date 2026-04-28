@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_b2423873615b5f8d",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_5fcc09f6f19ee270"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:36.886140+00:00",
+  "reason": "The note implies coupling between inhibition and toxicity but does not quantify a threshold.",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:91c38947c3266b2f2b9392e5f9c59b82bfdf9dcd5f7670e1bdac7702f54d21ca",
+  "payload": {
+    "proposal_id": "vpr_f12fb8465b04e44b"
+  },
+  "caveats": []
+}

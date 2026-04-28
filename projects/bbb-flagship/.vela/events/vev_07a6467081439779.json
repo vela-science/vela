@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_07a6467081439779",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_eff17b95630a9a08"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:26.411428+00:00",
+  "reason": "Note implies clearance drugs hit the wrong lever, but recent clinical successes complicate that framing.",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:4c3b8fa86b62e005b8801fba6f7237839873126f7948b6cbd2ee10921f35ff17",
+  "payload": {
+    "proposal_id": "vpr_0f3d8a9b092c75bd"
+  },
+  "caveats": []
+}

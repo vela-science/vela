@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_4f1c678180e202ad",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_57111caa4f3a2f8b"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:29.345284+00:00",
+  "reason": "The note asserts BACE1 acts on more than APP and that this explains toxicity, but does not name the substrates or link them to specific adverse effects.",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:93229d5993e23867458851570a0ee181277e1a11441f8ac32624da0f4c6cf949",
+  "payload": {
+    "proposal_id": "vpr_6ce89b54a381a803"
+  },
+  "caveats": []
+}

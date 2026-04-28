@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_b981e09a93d6ea06",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_d0f216c182e8d4f0"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:30.751342+00:00",
+  "reason": "Note distinguishes containment from production but does not specify whether morphology alone predicts downstream neurotoxicity.",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:73dcde191858fedcd859c31777766f42fc24fe8b2f4d74ef48b95c5bd9afa7dd",
+  "payload": {
+    "proposal_id": "vpr_85ba95dca9cca20e"
+  },
+  "caveats": []
+}

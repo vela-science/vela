@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_2073838d9fe268de",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_3bc22123dba3c88e"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:27.830839+00:00",
+  "reason": "Note identifies R47H as a LOF variant impairing microglial clustering but does not address whether the deficit is reversible.",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:e9bf8378c687e466ad50d9c32525c028e6ad1d332d0ed336d5e7d3cfbe5392ad",
+  "payload": {
+    "proposal_id": "vpr_43d9708ea5a93019"
+  },
+  "caveats": []
+}

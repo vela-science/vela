@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_f53764c2e54e62b8",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_3e6bea31a805e949"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:34.431690+00:00",
+  "reason": "Note raises the implication that clearance-focused drugs may be misdirected but does not cite stratified trial data.",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:dcc4e971a88a93e1c56732978ef80bdc3fb3318ec4bbd5a7412e1add86eee3c9",
+  "payload": {
+    "proposal_id": "vpr_c65303680f7307ba"
+  },
+  "caveats": []
+}

@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_448d380d4b39091d",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_9b87c8302d92d086"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:34.663281+00:00",
+  "reason": "The note generalizes from a case report ('may be protective even with PSEN1 mutations') without addressing whether this extends to other PSEN1 or APP variants.",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:1eb65f6cf0e8c18c8e1a3d376260fb7fcc0ebcd83ca33459118ea32b9eb4c2bd",
+  "payload": {
+    "proposal_id": "vpr_c9faa5dec5db98e2"
+  },
+  "caveats": []
+}

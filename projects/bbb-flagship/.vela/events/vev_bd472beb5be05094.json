@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_bd472beb5be05094",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_8059ab1fb59804cb"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:27.289090+00:00",
+  "reason": "The note claims tau tracks the clinical course more tightly than amyloid but does not specify whether the relationship is regional (e.g., entorhinal, temporal) or global.",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:dbc863dcf5ffe307f3679047b31159127afd35bbce93c0d25bd211483cb41f1d",
+  "payload": {
+    "proposal_id": "vpr_2f6eecd1cd81a1bc"
+  },
+  "caveats": []
+}

@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_fdefaa07ee56af3b",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_1afaae9d801953e0"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:32.254737+00:00",
+  "reason": "Note states BACE1 trials failed due to mechanism-independent side effects and that BACE1 has essential non-amyloid substrates.",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:129fbce27d9690987199fbe766644497e5b30fd73d0b706dc55e9ff7024b78b3",
+  "payload": {
+    "proposal_id": "vpr_a2d6ad1cb3e1497a"
+  },
+  "caveats": []
+}

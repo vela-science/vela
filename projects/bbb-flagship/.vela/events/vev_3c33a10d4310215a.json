@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_3c33a10d4310215a",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_5cfb0eddc5c21655"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:36.785399+00:00",
+  "reason": "The note asserts protection occurs but does not specify the mechanism (e.g., reduced ApoE-HSPG binding, altered tau propagation, microglial effects).",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:ac7bfab85e2ca2c0d5491f9c837bfcfbd9387e057facf7ffa0e4ec5bf84db6b8",
+  "payload": {
+    "proposal_id": "vpr_ee746889bae0cf1b"
+  },
+  "caveats": []
+}

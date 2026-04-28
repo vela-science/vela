@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_2dba955446fbcffc",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_82e74e2629be70fc"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:32.784421+00:00",
+  "reason": "The note's hedge that benefit occurs 'under some conditions' suggests stage- or biomarker-dependent efficacy.",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:c149f6d3a62f816aa183948671851de61fee3c26cd02ec041c58a1fc96db591f",
+  "payload": {
+    "proposal_id": "vpr_af1034c8444e063e"
+  },
+  "caveats": []
+}

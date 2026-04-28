@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_2ada6171cb99ce56",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_589de3bd3aa0bcf8"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:34.963325+00:00",
+  "reason": "The note implicates microglial state but does not identify the specific states or causal chain.",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:a54a64b08a1d5eb3129f956d85df1e50beff938137e6ae11ea13c80aae3a7d0a",
+  "payload": {
+    "proposal_id": "vpr_d10d41e3961c7aee"
+  },
+  "caveats": []
+}

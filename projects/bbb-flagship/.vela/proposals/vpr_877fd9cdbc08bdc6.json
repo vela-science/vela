@@ -96,7 +96,11 @@
   "source_refs": [
     "Gratuze et al. 2023 — TREM2 review.md"
   ],
-  "status": "pending_review",
+  "status": "applied",
+  "reviewed_by": "reviewer:claude-proxy",
+  "reviewed_at": "2026-04-28T00:16:30.840110+00:00",
+  "decision_reason": "Hypothesis carries explicit predictions: clauses; falsifiable shape OK.",
+  "applied_event_id": "vev_60045899d2875d51",
   "caveats": [],
   "agent_run": {
     "agent": "notes-compiler",

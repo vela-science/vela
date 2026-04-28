@@ -1,0 +1,79 @@
+{
+  "id": "vf_8059ab1fb59804cb",
+  "version": 1,
+  "previous_version": null,
+  "assertion": {
+    "text": "In which brain regions does tau burden most tightly track cognitive decline trajectories in Alzheimer's, and does that regional specificity outperform whole-brain tau measures?",
+    "type": "open_question",
+    "entities": [],
+    "relation": null,
+    "direction": null
+  },
+  "evidence": {
+    "type": "extracted_from_notes",
+    "model_system": "",
+    "species": null,
+    "method": "notes_compiler",
+    "sample_size": null,
+    "effect_size": null,
+    "p_value": null,
+    "replicated": false,
+    "replication_count": null,
+    "evidence_spans": [
+      {
+        "text": "The note claims tau tracks the clinical course more tightly than amyloid but does not specify whether the relationship is regional (e.g., entorhinal, temporal) or global."
+      }
+    ]
+  },
+  "conditions": {
+    "text": "",
+    "species_verified": [],
+    "species_unverified": [],
+    "in_vitro": false,
+    "in_vivo": false,
+    "human_data": false,
+    "clinical_trial": false,
+    "concentration_range": null,
+    "duration": null,
+    "age_group": null,
+    "cell_type": null
+  },
+  "confidence": {
+    "kind": "frontier_epistemic",
+    "score": 0.0,
+    "basis": "notes_compiler: open question, no evidence yet",
+    "method": "llm_initial",
+    "extraction_confidence": 0.7
+  },
+  "provenance": {
+    "source_type": "researcher_notes",
+    "doi": null,
+    "pmid": null,
+    "pmc": null,
+    "openalex_id": null,
+    "title": "Tau pathology tracks cognitive decline more closely than amyloid.md",
+    "authors": [],
+    "year": null,
+    "journal": null,
+    "extraction": {
+      "method": "notes_compiler_via_claude_cli",
+      "model": null,
+      "model_version": null,
+      "extracted_at": "2026-04-27T23:45:29.700485+00:00",
+      "extractor_version": "vela-scientist::notes-compiler/v0.23"
+    },
+    "review": null,
+    "citation_count": null
+  },
+  "flags": {
+    "gap": false,
+    "negative_space": false,
+    "contested": false,
+    "retracted": false,
+    "declining": false,
+    "gravity_well": false
+  },
+  "links": [],
+  "created": "2026-04-27T23:45:29.700499+00:00",
+  "updated": null
+}

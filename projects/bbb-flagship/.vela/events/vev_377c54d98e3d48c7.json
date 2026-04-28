@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_377c54d98e3d48c7",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_3349be8e5082d207"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:28.926899+00:00",
+  "reason": "Note states a TREM2 agonist only restores the TREM2-dependent arm of microglial activation.",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:f9da851dd3e2bf36f01cee5b6d6846c32525a8d883460cdba8bdca8f72893061",
+  "payload": {
+    "proposal_id": "vpr_5d832903b3bfe9d3"
+  },
+  "caveats": []
+}

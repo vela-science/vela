@@ -1,0 +1,27 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_5491ceb37720335f",
+  "kind": "finding.noted",
+  "target": {
+    "type": "finding",
+    "id": "vf_7e2c0ca95f8e4a4e"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:27.733365+00:00",
+  "reason": "Reviewer Agent score: plausibility 0.95 · evidence 0.30 · scope 0.20 · duplicate-risk 0.70. Trivially true statement that BACE1 has substrates beyond APP — too broad to count as a finding. Concerns: Claim is textbook-level, not a candidate finding; No specific substrates named (e.g., Neuregulin-1, Seizure protein 6); Quote is vague paraphrase; High duplicate risk.",
+  "before_hash": "sha256:5c6b5e210fc452da29ed1979281cc415b504cf3cd27fced14add38cb7f85a1bc",
+  "after_hash": "sha256:ac8a99f8743ed58d09b75ae1a7777755ed63eb8320ac8dbce0749ac054f50348",
+  "payload": {
+    "annotation_id": "ann_a18d52c833ab2405",
+    "proposal_id": "vpr_42eed14e4e9949e5",
+    "text": "Reviewer Agent score: plausibility 0.95 · evidence 0.30 · scope 0.20 · duplicate-risk 0.70. Trivially true statement that BACE1 has substrates beyond APP — too broad to count as a finding. Concerns: Claim is textbook-level, not a candidate finding; No specific substrates named (e.g., Neuregulin-1, Seizure protein 6); Quote is vague paraphrase; High duplicate risk."
+  },
+  "caveats": [
+    "weak_evidence",
+    "loose_scope",
+    "possible_duplicate"
+  ]
+}

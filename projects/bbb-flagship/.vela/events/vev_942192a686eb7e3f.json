@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_942192a686eb7e3f",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_0b640b2329b1d8ce"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:28.754031+00:00",
+  "reason": "The note asserts dominance persists because the hypothesis 'still explains too much of the disease architecture to fully discard,' but does not enumerate which architectural features it explains.",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:f70dbddd61f866467fb92a23cdff8c90fcbb64f297d803f658dd051f34c933c6",
+  "payload": {
+    "proposal_id": "vpr_5c17e552a5d7feac"
+  },
+  "caveats": []
+}

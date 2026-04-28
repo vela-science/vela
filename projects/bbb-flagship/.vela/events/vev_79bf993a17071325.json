@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_79bf993a17071325",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_f1d72fbc05bab932"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:36.140604+00:00",
+  "reason": "The note asserts plaque burden correlates poorly with cognition but does not identify a better-correlated Aβ-related measure.",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:0f09f1e99a53b45c6ccbb8db899830e1908a186e5a79133b60e44bf9be5a7c62",
+  "payload": {
+    "proposal_id": "vpr_e6086a5da930fb04"
+  },
+  "caveats": []
+}

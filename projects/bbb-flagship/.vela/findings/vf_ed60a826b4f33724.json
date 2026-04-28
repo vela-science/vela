@@ -72,6 +72,14 @@
     "gravity_well": false
   },
   "links": [],
+  "annotations": [
+    {
+      "id": "ann_7a71e29014aea55f",
+      "text": "Reviewer Agent score: plausibility 0.85 · evidence 0.20 · scope 0.70 · duplicate-risk 0.60. Real and well-known tension between lecanemab clearance benefit and weak plaque-cognition correlation, but proposal supplies no evidence spans. Concerns: evidence_spans is empty; High duplicate risk — this is a canonical AD field tension likely already captured; Both poles need citations to specific trials/cohorts.",
+      "author": "reviewer:claude-proxy",
+      "timestamp": "2026-04-28T00:16:29.965203+00:00"
+    }
+  ],
   "created": "2026-04-27T17:45:48.920392+00:00",
   "updated": null
 }

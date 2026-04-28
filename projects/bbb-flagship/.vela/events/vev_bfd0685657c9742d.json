@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_bfd0685657c9742d",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_7ed840246652a6a1"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:26.568287+00:00",
+  "reason": "The note claims anatomically patterned spread consistent with Braak's sequence, which begins in transentorhinal regions.",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:c23e536c1a319740a155475a022fe70893f7d5d85704d20e5b80cb4489599ee9",
+  "payload": {
+    "proposal_id": "vpr_18ec54ae3943f913"
+  },
+  "caveats": []
+}

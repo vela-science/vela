@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_6a9ab95786ee1682",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_a50c0f6a42221320"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:37.234727+00:00",
+  "reason": "The note asserts TREM2 is the strongest risk signal after ApoE4 but does not specify the molecular pathway linking TREM2 variants to disease.",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:952f625a8cceebab71430ab6453ed9357578a7285eb3a30cca184a5198536850",
+  "payload": {
+    "proposal_id": "vpr_f83daa2ff0bccd81"
+  },
+  "caveats": []
+}

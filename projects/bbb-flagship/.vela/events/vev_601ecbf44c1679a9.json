@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_601ecbf44c1679a9",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_2f08f3a4d0e726a7"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:35.957065+00:00",
+  "reason": "Follows from the note's claim that plaques are biologically important yet decoupled from cognition, suggesting a non-plaque Aβ pool drives symptoms.",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:dff66573cf04416b871eb86bc0f712f922d6fc9ee320896a2d2ba0788a15a6ef",
+  "payload": {
+    "proposal_id": "vpr_e312fdcf7432edc7"
+  },
+  "caveats": []
+}

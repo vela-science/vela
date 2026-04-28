@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_aa8c36abca45d5cf",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_44d318fd187e7549"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:30.316493+00:00",
+  "reason": "Stated as the campaign's driving question; answering it requires comparing evidence structure across all five targets.",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:de7b64415d58564e1bfcaafa6e9324e9059a5166e13e857e389b214b686d0203",
+  "payload": {
+    "proposal_id": "vpr_7ff7b187a537b2c0"
+  },
+  "caveats": []
+}

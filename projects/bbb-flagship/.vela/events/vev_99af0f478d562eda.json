@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_99af0f478d562eda",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_41127c2f1a8b8c8c"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:32.158608+00:00",
+  "reason": "Predictability is asserted at the population level; per-patient variance is unaddressed.",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:245f26426d6d684c269b1fed6a015fd72a78c1f539b64c30471297a16553fc56",
+  "payload": {
+    "proposal_id": "vpr_a2cd697b8bd39aeb"
+  },
+  "caveats": []
+}

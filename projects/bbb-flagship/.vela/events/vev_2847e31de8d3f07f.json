@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_2847e31de8d3f07f",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_ab4a144daf41fb1f"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:33.104315+00:00",
+  "reason": "The note asserts that non-amyloid substrates explain toxicity but does not enumerate which substrates drive which adverse effects.",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:b73cccbdca01a4f9b60269e945d63483c45a51a5f67988c85d0192021bcd5e19",
+  "payload": {
+    "proposal_id": "vpr_b62f5fceb9860254"
+  },
+  "caveats": []
+}

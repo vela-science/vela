@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_7928df4f62253316",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_5f050cdadd6a2471"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:35.616040+00:00",
+  "reason": "Note asserts microglia compact plaques into dense-core forms but provides no measure of this relationship.",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:5bbbd57953096cb0b6438d7e9032367c95e9f11d3baf9f2fd7a80ceaf602a9ad",
+  "payload": {
+    "proposal_id": "vpr_dd1a72dc442c4587"
+  },
+  "caveats": []
+}

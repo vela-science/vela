@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_89bf4d5c10895404",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_f412cb4beb30bdb6"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:34.862390+00:00",
+  "reason": "The note states the relationship in general terms without distinguishing between early and late disease.",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:7593399df712d3c32daf2babf86c30c157da49c2037676de24be2d3f3b50c061",
+  "payload": {
+    "proposal_id": "vpr_cd48e20f26a2e209"
+  },
+  "caveats": []
+}

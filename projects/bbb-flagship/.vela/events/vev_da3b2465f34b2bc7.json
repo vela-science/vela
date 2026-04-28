@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_da3b2465f34b2bc7",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_d14c21e432a37776"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:26.828204+00:00",
+  "reason": "The note frames non-amyloid substrates as the explanation for toxicity observed in BACE1 inhibitor trials.",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:aa5f678290d57402cf40225e9434730086239db6d01212e19f4c580d1ed6fc28",
+  "payload": {
+    "proposal_id": "vpr_1e141729508f1d52"
+  },
+  "caveats": []
+}

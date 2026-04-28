@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_f0431d7568e3cd8d",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_fca90bf6798c7e7f"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:26.333466+00:00",
+  "reason": "The open question about verubecestat and atabecestat presupposes that trial outcomes feed back into evidence weighting.",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:2369d7916c844b4aa5e1d4aa7c8b48afe4ab990e85db166c64c1dc551f763503",
+  "payload": {
+    "proposal_id": "vpr_0d48ee4b52d09785"
+  },
+  "caveats": []
+}

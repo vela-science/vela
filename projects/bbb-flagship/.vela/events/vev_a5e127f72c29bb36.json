@@ -1,0 +1,23 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_a5e127f72c29bb36",
+  "kind": "finding.noted",
+  "target": {
+    "type": "finding",
+    "id": "vf_55d940ce57248a94"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:26.057920+00:00",
+  "reason": "Reviewer Agent score: plausibility 0.85 · evidence 0.50 · scope 0.80 · duplicate-risk 0.30. Well-posed open question about replication of the ApoE Christchurch protective effect beyond the single PSEN1 E280A case. Concerns: Evidence span is meta-commentary, not a verbatim quote from the source; Could specify dosage (heterozygous vs homozygous) more precisely in the question itself.",
+  "before_hash": "sha256:823dd1ad14b6dcd4f0ec46093c9d2c27c16fd18650c2e43f1df43f3c6389a161",
+  "after_hash": "sha256:4869584e3de39a0e9f3566abaea891fb1aa1dfb27e5d00fcdb0486d63971aae3",
+  "payload": {
+    "annotation_id": "ann_04f48358108fdff2",
+    "proposal_id": "vpr_04b40ff76852ce42",
+    "text": "Reviewer Agent score: plausibility 0.85 · evidence 0.50 · scope 0.80 · duplicate-risk 0.30. Well-posed open question about replication of the ApoE Christchurch protective effect beyond the single PSEN1 E280A case. Concerns: Evidence span is meta-commentary, not a verbatim quote from the source; Could specify dosage (heterozygous vs homozygous) more precisely in the question itself."
+  },
+  "caveats": []
+}

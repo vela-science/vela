@@ -96,7 +96,11 @@
   "source_refs": [
     "ApoE Christchurch variant may be protective even with PSEN1 mutations.md"
   ],
-  "status": "pending_review",
+  "status": "applied",
+  "reviewed_by": "reviewer:claude-proxy",
+  "reviewed_at": "2026-04-28T00:16:36.785194+00:00",
+  "decision_reason": "Open question is well-scoped (>=12 words, falsifiable form). Accepting as a campaign target.",
+  "applied_event_id": "vev_3c33a10d4310215a",
   "caveats": [],
   "agent_run": {
     "agent": "notes-compiler",

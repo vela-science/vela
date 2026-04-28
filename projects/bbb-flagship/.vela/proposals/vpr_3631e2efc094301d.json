@@ -96,7 +96,10 @@
   "source_refs": [
     "Alzheimer's Drug Targets.md"
   ],
-  "status": "pending_review",
+  "status": "rejected",
+  "reviewed_by": "reviewer:claude-proxy",
+  "reviewed_at": "2026-04-28T00:16:27.415983+00:00",
+  "decision_reason": "Reviewer Agent flagged high duplicate-risk (0.70); reject and let reviewer pick which finding to keep.",
   "caveats": [],
   "agent_run": {
     "agent": "notes-compiler",

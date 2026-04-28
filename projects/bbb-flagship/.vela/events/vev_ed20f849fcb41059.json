@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_ed20f849fcb41059",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_3c57318b7b24955a"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:31.531590+00:00",
+  "reason": "The note asserts plaque burden correlates poorly with cognitive decline but does not specify what alternative Aβ-related measure would correlate better.",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:124aab32733249ade619ff9b43ed0110705f6c72f353e499d7f8e04cea3f8480",
+  "payload": {
+    "proposal_id": "vpr_91c17ebcf0acce19"
+  },
+  "caveats": []
+}

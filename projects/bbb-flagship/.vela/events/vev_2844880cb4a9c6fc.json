@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_2844880cb4a9c6fc",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_be783657dc248d33"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:28.587285+00:00",
+  "reason": "The note implies a sociological inertia but does not specify falsification conditions.",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:6aa344edb6bb7c7f0d9e0dcb7f3427a4a78466657c287935c0c245a3138edac9",
+  "payload": {
+    "proposal_id": "vpr_58e73b699ec625dc"
+  },
+  "caveats": []
+}

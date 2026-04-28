@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_7c7e0ab11d882598",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_8380707ce0812f27"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:28.671389+00:00",
+  "reason": "The note implies toxicity arises when BACE1 is 'suppressed too aggressively,' raising the question of whether milder inhibition is viable.",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:305b616751b47eef6f5e16cba0c544f162cd1c1542b4580e5aec62e2f986cdac",
+  "payload": {
+    "proposal_id": "vpr_5b49613cd3b57b23"
+  },
+  "caveats": []
+}

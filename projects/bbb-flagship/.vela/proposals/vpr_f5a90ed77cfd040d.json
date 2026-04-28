@@ -96,7 +96,11 @@
   "source_refs": [
     "Amyloid cascade hypothesis remains dominant despite clinical failures.md"
   ],
-  "status": "pending_review",
+  "status": "applied",
+  "reviewed_by": "reviewer:claude-proxy",
+  "reviewed_at": "2026-04-28T00:16:37.033457+00:00",
+  "decision_reason": "Hypothesis names entities + relationship (carries explicit predictions). Substrate accepts as testable hypothesis.",
+  "applied_event_id": "vev_260cba15b7a21e62",
   "caveats": [],
   "agent_run": {
     "agent": "notes-compiler",

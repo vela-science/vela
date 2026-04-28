@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_accc07acde7fd906",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_4019ec45dd450ebc"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:32.497878+00:00",
+  "reason": "Ranking TREM2 'after ApoE4' raises but does not address whether their effects are additive, epistatic, or independent.",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:515acf196f4635933273b5a1093f007dec8bfb11fb2c31812d908409662169b5",
+  "payload": {
+    "proposal_id": "vpr_a5f874bf89549881"
+  },
+  "caveats": []
+}

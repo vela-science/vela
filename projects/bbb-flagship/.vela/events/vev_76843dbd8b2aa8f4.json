@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_76843dbd8b2aa8f4",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_ef25044db5b6eca1"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:31.357599+00:00",
+  "reason": "The note frames tau as a 'correlate' without addressing mechanism.",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:6c42a0453e06b9c6014aa74194422b2dcb72dccf393998039167c1123cb08547",
+  "payload": {
+    "proposal_id": "vpr_910426f068613175"
+  },
+  "caveats": []
+}

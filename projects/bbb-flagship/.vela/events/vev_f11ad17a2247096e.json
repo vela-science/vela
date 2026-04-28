@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_f11ad17a2247096e",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_586167796a289c78"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:32.062271+00:00",
+  "reason": "The asserted tau-cognition coupling raises a tension with the current therapeutic evidence base.",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:251706b42c7ddaa6e88e86035a7ca44e8a270baa36cb5f7d76d82fa00dc96a3a",
+  "payload": {
+    "proposal_id": "vpr_a14270549f758d7f"
+  },
+  "caveats": []
+}

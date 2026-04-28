@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_459db05f1f1076e9",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_837b989ff531f354"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:33.386109+00:00",
+  "reason": "Note asserts risk scales 3-12x depending on copy number.",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:b939e23d633ed912aff9fbbe46336f78d03dce805b8335a7c65dd410561bb780",
+  "payload": {
+    "proposal_id": "vpr_b85fd161a646b414"
+  },
+  "caveats": []
+}

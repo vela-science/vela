@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_d5285ae17c978e8b",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_06b5c93a98dc44ba"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:37.536127+00:00",
+  "reason": "If toxicity is substrate-mediated, selective inhibition becomes a key open design question.",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:d003ed68e073bb3fc03d5cbad98f0e591d0e448fe55037ae14167a8f8373653e",
+  "payload": {
+    "proposal_id": "vpr_fcc1b981a496952f"
+  },
+  "caveats": []
+}

@@ -96,7 +96,11 @@
   "source_refs": [
     "Gratuze et al. 2023 — TREM2 review.md"
   ],
-  "status": "pending_review",
+  "status": "applied",
+  "reviewed_by": "reviewer:claude-proxy",
+  "reviewed_at": "2026-04-28T00:16:29.788715+00:00",
+  "decision_reason": "Open question is well-scoped (>=12 words, falsifiable form). Accepting as a campaign target.",
+  "applied_event_id": "vev_04be5ea28e56a1a0",
   "caveats": [],
   "agent_run": {
     "agent": "notes-compiler",

@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_062f1acaa72a4267",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_02aa7c966e837bad"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:26.911683+00:00",
+  "reason": "The note claims adverse effects were 'unacceptable' but does not characterize the dose-response relationship.",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:048837a0abdf6ef8a11d01ff9286605f9f19933d8aef9a255d3c9ee9b2cdf6ef",
+  "payload": {
+    "proposal_id": "vpr_229b0135a8923161"
+  },
+  "caveats": []
+}

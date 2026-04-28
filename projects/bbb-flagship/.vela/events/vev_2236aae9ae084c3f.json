@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_2236aae9ae084c3f",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_6ef529ee8b1eddc6"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:27.925947+00:00",
+  "reason": "The 3-12x range in the note implies a roughly 4x multiplier between one and two copies.",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:899363f1bb55d8609fd980d3803fabb09e4f9cc989a8b1d32322c3c6f3ceafe2",
+  "payload": {
+    "proposal_id": "vpr_48d1c743b075d1fd"
+  },
+  "caveats": []
+}

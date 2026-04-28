@@ -1,0 +1,25 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_f2c65da6c44903ce",
+  "kind": "finding.noted",
+  "target": {
+    "type": "finding",
+    "id": "vf_68598e0916db4922"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:27.197253+00:00",
+  "reason": "Reviewer Agent score: plausibility 0.70 · evidence 0.10 · scope 0.55 · duplicate-risk 0.60. Well-known amyloid tension, but proposal supplies zero evidence spans to anchor either side. Concerns: evidence_spans is empty; Tension is widely discussed — high duplicate risk in frontier; Both poles asserted without quoted source text.",
+  "before_hash": "sha256:ac0a934b4a62f40c01eaae911c216d472f1b41370e0eb66ab89ad41d4d6cde94",
+  "after_hash": "sha256:6a8afddfbdb8f29e1e003132cfa0b6035ad74dfeb5d53940bc1e0ed27d513d9d",
+  "payload": {
+    "annotation_id": "ann_309fe3d97b70a927",
+    "proposal_id": "vpr_28d1889d868ecf7c",
+    "text": "Reviewer Agent score: plausibility 0.70 · evidence 0.10 · scope 0.55 · duplicate-risk 0.60. Well-known amyloid tension, but proposal supplies zero evidence spans to anchor either side. Concerns: evidence_spans is empty; Tension is widely discussed — high duplicate risk in frontier; Both poles asserted without quoted source text."
+  },
+  "caveats": [
+    "weak_evidence"
+  ]
+}

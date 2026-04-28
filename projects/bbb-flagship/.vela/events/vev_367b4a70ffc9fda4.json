@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_367b4a70ffc9fda4",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_18961d3c84913b5a"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:34.569995+00:00",
+  "reason": "The note attributes failure to BACE1's role in 'broader biology' beyond amyloid processing but does not specify which substrates or pathways drive toxicity.",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:cd6d3d3c47d992e55a3a7f632c2c66659295f3cebbe7da3615211ed6b057a24b",
+  "payload": {
+    "proposal_id": "vpr_c8b09431938defa7"
+  },
+  "caveats": []
+}

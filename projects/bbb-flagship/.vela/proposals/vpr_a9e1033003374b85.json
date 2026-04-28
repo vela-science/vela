@@ -96,7 +96,10 @@
   "source_refs": [
     "TREM2 variants represent the strongest genetic risk after ApoE4.md"
   ],
-  "status": "pending_review",
+  "status": "rejected",
+  "reviewed_by": "reviewer:claude-proxy",
+  "reviewed_at": "2026-04-28T00:16:32.691880+00:00",
+  "decision_reason": "Substantial overlap with existing finding vf_e8c7dca7b2b461ce (Jaccard > 0.55). Use supersede if refinement is intended.",
   "caveats": [],
   "agent_run": {
     "agent": "notes-compiler",

@@ -96,7 +96,11 @@
   "source_refs": [
     "Aβ plaque burden correlates poorly with cognitive decline.md"
   ],
-  "status": "pending_review",
+  "status": "applied",
+  "reviewed_by": "reviewer:claude-proxy",
+  "reviewed_at": "2026-04-28T00:16:31.531383+00:00",
+  "decision_reason": "Open question is well-scoped (>=12 words, falsifiable form). Accepting as a campaign target.",
+  "applied_event_id": "vev_ed20f849fcb41059",
   "caveats": [],
   "agent_run": {
     "agent": "notes-compiler",

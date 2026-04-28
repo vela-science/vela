@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_2ff70efe3266c0a1",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_43d6c273134416c5"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:33.478989+00:00",
+  "reason": "The note asks how trial failures propagate through a knowledge graph's confidence weighting over time.",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:00a80e57f63e27be9d82199e6b9ff09c58def7779f9e5ea4ce4ffba84052f3a4",
+  "payload": {
+    "proposal_id": "vpr_b8e4d335a4b15b58"
+  },
+  "caveats": []
+}

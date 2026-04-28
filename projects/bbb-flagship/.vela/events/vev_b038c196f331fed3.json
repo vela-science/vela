@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_b038c196f331fed3",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_eb1c59e6e76b4c7c"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:30.573986+00:00",
+  "reason": "Note treats tau burden as undifferentiated.",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:8e99f60999fe44a99d1f95bdd7e797fccdefde2feb5c0fdc7f7ce6ab210804c2",
+  "payload": {
+    "proposal_id": "vpr_830de3b9de064a55"
+  },
+  "caveats": []
+}

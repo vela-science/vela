@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_7dc7bd529b7b046d",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_2f5fd7fd257f4e88"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:32.878108+00:00",
+  "reason": "The note claims tau tracks decline 'more tightly' but gives no effect size or stage-stratification.",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:2b649f9be2b012c32137e1e4124e8bfbfeaedfe073a4bd76b7228d26f3a86d75",
+  "payload": {
+    "proposal_id": "vpr_af1cd699b4a7e8c2"
+  },
+  "caveats": []
+}

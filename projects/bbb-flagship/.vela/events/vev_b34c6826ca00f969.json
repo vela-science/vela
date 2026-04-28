@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_b34c6826ca00f969",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_55d940ce57248a94"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:13:52.438295+00:00",
+  "reason": "The note generalizes from what appears to be a singular clinical observation without addressing replication or dosage (heterozygous vs homozygous).",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:823dd1ad14b6dcd4f0ec46093c9d2c27c16fd18650c2e43f1df43f3c6389a161",
+  "payload": {
+    "proposal_id": "vpr_39fe6401ebf7a918"
+  },
+  "caveats": []
+}

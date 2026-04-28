@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_c54e263bdc688910",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_b48b45bfafea6813"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:31.183783+00:00",
+  "reason": "The note flags plaque burden as insufficient as a sole proxy but does not identify candidate complements (e.g., tau, neuroinflammation, synaptic loss).",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:881061d1a9a7182bee2be2706b24d746beae77e8855bfece982005baa5ff6cf5",
+  "payload": {
+    "proposal_id": "vpr_9013209d6f3194c8"
+  },
+  "caveats": []
+}

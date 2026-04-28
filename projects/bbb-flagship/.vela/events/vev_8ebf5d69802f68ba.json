@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_8ebf5d69802f68ba",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_0aa7da3d77ea1db6"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:35.748662+00:00",
+  "reason": "Note asserts BACE1 participates in broader biology causing toxicity when suppressed, but does not identify the specific substrates or pathways.",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:19e113a0510d383c2e32ed87750dde4e11f66dc682ac7852078356d8ab214883",
+  "payload": {
+    "proposal_id": "vpr_de968e2b8adb7de0"
+  },
+  "caveats": []
+}

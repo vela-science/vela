@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_4d7e06a6e110cfa7",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_8315f82d2189ec85"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:27.548426+00:00",
+  "reason": "notes-compiler extracted from Tau pathology tracks cognitive decline more closely than amyloid.md",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:58aaa679aee1f70b800fcce35150d039d476323298fe0468c0399739ead33235",
+  "payload": {
+    "proposal_id": "vpr_39f584d9690c8819"
+  },
+  "caveats": []
+}

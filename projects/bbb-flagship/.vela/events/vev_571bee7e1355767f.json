@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_571bee7e1355767f",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_68022b91690d3fb9"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:37.134460+00:00",
+  "reason": "The note frames Braak staging as capturing an anatomically patterned spread of tau.",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:4c7933b1d74b624269dde8f8038c4c16006db87a88603bcdb6c8e1408e69a294",
+  "payload": {
+    "proposal_id": "vpr_f7aa8928afaaf3ed"
+  },
+  "caveats": []
+}

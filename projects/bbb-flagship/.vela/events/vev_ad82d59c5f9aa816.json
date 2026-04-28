@@ -1,0 +1,23 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_ad82d59c5f9aa816",
+  "kind": "finding.noted",
+  "target": {
+    "type": "finding",
+    "id": "vf_8b08c7840d9dc5ad"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:25.979613+00:00",
+  "reason": "Reviewer Agent score: plausibility 0.85 · evidence 0.70 · scope 0.70 · duplicate-risk 0.20. Plausible mechanistic claim about TREM2 LOF and microglial plaque clustering, consistent with R47H literature. Concerns: Evidence span is from a note, not primary source; Species/model (mouse vs human) not specified.",
+  "before_hash": "sha256:c468dbc09884043f9b33952ae763b27cac6dfb70632f01beab96a17d05188391",
+  "after_hash": "sha256:d447fa021e8c83ba73acca2104aee422ed71a2622914af0480090f631a9e21cd",
+  "payload": {
+    "annotation_id": "ann_5b466cb87aef4c95",
+    "proposal_id": "vpr_0139850844375d7e",
+    "text": "Reviewer Agent score: plausibility 0.85 · evidence 0.70 · scope 0.70 · duplicate-risk 0.20. Plausible mechanistic claim about TREM2 LOF and microglial plaque clustering, consistent with R47H literature. Concerns: Evidence span is from a note, not primary source; Species/model (mouse vs human) not specified."
+  },
+  "caveats": []
+}

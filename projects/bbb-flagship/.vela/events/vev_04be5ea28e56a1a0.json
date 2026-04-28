@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_04be5ea28e56a1a0",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_defb08ee29343530"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:29.788919+00:00",
+  "reason": "The reader explicitly notes the graph representation needs to capture this branching.",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:ada2f149ccc99d04bfe8563d34ee0edd07454758d8d3cbcdb817f2334b9ef728",
+  "payload": {
+    "proposal_id": "vpr_72fd9c2bbe785936"
+  },
+  "caveats": []
+}

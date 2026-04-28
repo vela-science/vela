@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_4347f0691d1a5e8b",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_3fef3c4b843e9c94"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:31.749433+00:00",
+  "reason": "The note explicitly contrasts the dominant cascade framing with a containment-centric mechanism and questions whether amyloid-clearance drugs target the right lever.",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:07ddb1567de5f4f518812908752fd942803853fa39f16b1ddebed39a4f67263b",
+  "payload": {
+    "proposal_id": "vpr_98f9a36206e136c5"
+  },
+  "caveats": []
+}

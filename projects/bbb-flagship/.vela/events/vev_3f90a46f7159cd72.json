@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_3f90a46f7159cd72",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_c464a477e9cedf48"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:30.487538+00:00",
+  "reason": "The note flags Christchurch as relevant 'for ... intervention' but does not specify a translational path.",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:ef340503fe8845078387c30bf5a1a634470c0b687d4f277a2e7e0eba84fc44fd",
+  "payload": {
+    "proposal_id": "vpr_81bf1a2d45dddc5c"
+  },
+  "caveats": []
+}

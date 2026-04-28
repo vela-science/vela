@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_fa05dd1e6ed429b0",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_a5b062d14ffcc2c6"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:30.225806+00:00",
+  "reason": "The note frames TREM2's risk contribution as acting through microglial state rather than aggregation directly.",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:18dc26023bd16aa4848b6e1cb77b305cb34d9846c8a9f9c3c940a24c83604348",
+  "payload": {
+    "proposal_id": "vpr_7c48fc5ce2023799"
+  },
+  "caveats": []
+}

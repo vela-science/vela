@@ -1,0 +1,23 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_a16390e3ac964ead",
+  "kind": "finding.noted",
+  "target": {
+    "type": "finding",
+    "id": "vf_ce3759c5e80dfb00"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:30.930106+00:00",
+  "reason": "Reviewer Agent score: plausibility 0.90 · evidence 0.55 · scope 0.75 · duplicate-risk 0.10. Accurate, narrow claim about Clarity AD lecanemab efficacy; well-scoped to a specific trial. Concerns: No effect size, endpoint, or p-value given; Evidence is a paraphrase of note rather than the trial publication.",
+  "before_hash": "sha256:67d0d2531b83bdfa5a96527bb062f748c4d92065b822ed8e6e96fe958b99c38f",
+  "after_hash": "sha256:8430d7f15266f36a62b9e6f4f521ac57e4407b3269e13935249c63dcba51eb1e",
+  "payload": {
+    "annotation_id": "ann_dc56577502574d7a",
+    "proposal_id": "vpr_88430216cd558f0b",
+    "text": "Reviewer Agent score: plausibility 0.90 · evidence 0.55 · scope 0.75 · duplicate-risk 0.10. Accurate, narrow claim about Clarity AD lecanemab efficacy; well-scoped to a specific trial. Concerns: No effect size, endpoint, or p-value given; Evidence is a paraphrase of note rather than the trial publication."
+  },
+  "caveats": []
+}

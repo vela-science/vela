@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_7ff75f3d6fa77701",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_d6e0226726111691"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:26.656258+00:00",
+  "reason": "The note attributes dominance to explanatory breadth ('explains too much of the disease architecture') rather than inertia or funding lock-in.",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:a3eebbf62e16e676f87d28e6f1c8d2d4ca4618e4a5c9a0cd1b5e9fb2be95c9c9",
+  "payload": {
+    "proposal_id": "vpr_1b61c96f502f5903"
+  },
+  "caveats": []
+}

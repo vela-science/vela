@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_672530ef711336bf",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_90ef2c6839ab948c"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:33.616900+00:00",
+  "reason": "The note frames the variant as a clue 'for mechanism and intervention' without specifying a therapeutic modality.",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:1c559b84dc8ba9a96668e05c955fe02f1bd85fda68daddd7d169c0f5fec601af",
+  "payload": {
+    "proposal_id": "vpr_b90ffd9c52f2e2ac"
+  },
+  "caveats": []
+}

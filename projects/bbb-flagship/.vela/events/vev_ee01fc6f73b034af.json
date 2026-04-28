@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_ee01fc6f73b034af",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_4e78d0cb2c5f80f8"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:31.270738+00:00",
+  "reason": "The note flags this as an open modeling question, implying the author suspects TREM2's pleiotropic microglial role exceeds what a single node property can encode.",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:5020ae797d57856e18d8165f73204056fcd31b6a636f6b8e8f6d340dfb46a2a6",
+  "payload": {
+    "proposal_id": "vpr_90951ea6cae94085"
+  },
+  "caveats": []
+}

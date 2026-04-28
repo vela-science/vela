@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_3c7fc9ed054b6f0c",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_fa6a0960e21dbeac"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:29.690093+00:00",
+  "reason": "The note contrasts tau's progression logic favorably against amyloid but offers no causal account.",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:1aeeb75de7790a520c15278385fd9dc178134f12c766cb9c91ad9653f95f3ffd",
+  "payload": {
+    "proposal_id": "vpr_7291dec7276ae31e"
+  },
+  "caveats": []
+}

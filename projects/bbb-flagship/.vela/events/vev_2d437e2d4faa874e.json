@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_2d437e2d4faa874e",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_752048e2a25feb2e"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:29.012015+00:00",
+  "reason": "Note flags Christchurch as potentially protective despite PSEN1 mutations.",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:59fc88e73c0edc6a23cb52e6c60782e2f089d3caf666bd2d73e09d1e8cb184dd",
+  "payload": {
+    "proposal_id": "vpr_61c238be1aa69eed"
+  },
+  "caveats": []
+}

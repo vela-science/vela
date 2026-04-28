@@ -1,0 +1,23 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_f1c4576c0e469b8b",
+  "kind": "finding.noted",
+  "target": {
+    "type": "finding",
+    "id": "vf_5a2e4b85809eba65"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:31.970292+00:00",
+  "reason": "Reviewer Agent score: plausibility 0.85 · evidence 0.55 · scope 0.60 · duplicate-risk 0.50. Well-supported claim that tau burden tracks cognitive decline more tightly than amyloid; evidence is a single paraphrased note line. Concerns: Single evidence span paraphrases rather than quotes a primary source; No effect size, cohort, or imaging modality specified; Likely overlaps with proposal vpr_3631e2efc094301d.",
+  "before_hash": "sha256:3298ed73a9d6df30d14e0cc0d7f34302191a90ac76eaa7d6ce1fdb594f30a5da",
+  "after_hash": "sha256:770fe2f4c0e2983e3c946d1b9993c6526df12f6f493cdbf9ea14dd7dcbd79e1e",
+  "payload": {
+    "annotation_id": "ann_10925cddcfe8dfbd",
+    "proposal_id": "vpr_a1367b0da251aaa8",
+    "text": "Reviewer Agent score: plausibility 0.85 · evidence 0.55 · scope 0.60 · duplicate-risk 0.50. Well-supported claim that tau burden tracks cognitive decline more tightly than amyloid; evidence is a single paraphrased note line. Concerns: Single evidence span paraphrases rather than quotes a primary source; No effect size, cohort, or imaging modality specified; Likely overlaps with proposal vpr_3631e2efc094301d."
+  },
+  "caveats": []
+}

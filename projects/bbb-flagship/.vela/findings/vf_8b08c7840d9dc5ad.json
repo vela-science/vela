@@ -76,6 +76,14 @@
     "gravity_well": false
   },
   "links": [],
+  "annotations": [
+    {
+      "id": "ann_5b466cb87aef4c95",
+      "text": "Reviewer Agent score: plausibility 0.85 · evidence 0.70 · scope 0.70 · duplicate-risk 0.20. Plausible mechanistic claim about TREM2 LOF and microglial plaque clustering, consistent with R47H literature. Concerns: Evidence span is from a note, not primary source; Species/model (mouse vs human) not specified.",
+      "author": "reviewer:claude-proxy",
+      "timestamp": "2026-04-28T00:16:25.979370+00:00"
+    }
+  ],
   "created": "2026-04-27T17:48:45.714247+00:00",
   "updated": null
 }

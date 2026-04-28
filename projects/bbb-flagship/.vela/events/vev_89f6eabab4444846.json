@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_89f6eabab4444846",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_9be505b500435613"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:29.179207+00:00",
+  "reason": "The note frames TREM2's importance as implicating 'microglial state rather than only protein aggregation.'",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:702be6b52ed2737d76e0233603bcf4570533e0a5f25d52cde8fae04a5591cecf",
+  "payload": {
+    "proposal_id": "vpr_6aef55c764c002b3"
+  },
+  "caveats": []
+}

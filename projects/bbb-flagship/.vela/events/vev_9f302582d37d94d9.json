@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_9f302582d37d94d9",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_d4d973141df360b7"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:33.861524+00:00",
+  "reason": "The note characterizes efficacy as 'modest but real' without quantifying it.",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:ca4406c81397eb4ba6ac55eabbf089addc3339ad8745ad79ea244fea555ae3c9",
+  "payload": {
+    "proposal_id": "vpr_be6b4a166be3995d"
+  },
+  "caveats": []
+}

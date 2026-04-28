@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_c14a7900d3a41511",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_a6723dc55f7b0086"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:36.483522+00:00",
+  "reason": "The note asserts tau spreads in patterned ways captured by Braak staging but does not specify the underlying propagation mechanism.",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:661931bd7489f48f5b27866665c9e91280581d6c7c5ba38b8600a761e5e5f287",
+  "payload": {
+    "proposal_id": "vpr_e94970101c1f7590"
+  },
+  "caveats": []
+}

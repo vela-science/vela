@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_fead794ab84845d0",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_c166c057e54af0f9"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:36.339226+00:00",
+  "reason": "The note states tau has stronger progression logic than amyloid readouts.",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:5dbfeb9b6c291ffc7c6f1afc4b8520a857643852fd71372d7da440ff266723ee",
+  "payload": {
+    "proposal_id": "vpr_e836e9e5978060fb"
+  },
+  "caveats": []
+}

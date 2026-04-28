@@ -76,6 +76,14 @@
     "gravity_well": false
   },
   "links": [],
+  "annotations": [
+    {
+      "id": "ann_dc56577502574d7a",
+      "text": "Reviewer Agent score: plausibility 0.90 · evidence 0.55 · scope 0.75 · duplicate-risk 0.10. Accurate, narrow claim about Clarity AD lecanemab efficacy; well-scoped to a specific trial. Concerns: No effect size, endpoint, or p-value given; Evidence is a paraphrase of note rather than the trial publication.",
+      "author": "reviewer:claude-proxy",
+      "timestamp": "2026-04-28T00:16:30.929909+00:00"
+    }
+  ],
   "created": "2026-04-27T17:45:48.920262+00:00",
   "updated": null
 }

@@ -76,6 +76,14 @@
     "gravity_well": false
   },
   "links": [],
+  "annotations": [
+    {
+      "id": "ann_a18d52c833ab2405",
+      "text": "Reviewer Agent score: plausibility 0.95 · evidence 0.30 · scope 0.20 · duplicate-risk 0.70. Trivially true statement that BACE1 has substrates beyond APP — too broad to count as a finding. Concerns: Claim is textbook-level, not a candidate finding; No specific substrates named (e.g., Neuregulin-1, Seizure protein 6); Quote is vague paraphrase; High duplicate risk.",
+      "author": "reviewer:claude-proxy",
+      "timestamp": "2026-04-28T00:16:27.733168+00:00"
+    }
+  ],
   "created": "2026-04-27T17:47:38.913858+00:00",
   "updated": null
 }

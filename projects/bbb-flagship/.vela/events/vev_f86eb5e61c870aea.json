@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_f86eb5e61c870aea",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_fcf9eade41122cd2"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:35.512306+00:00",
+  "reason": "Note frames TREM2 LOF as impairing containment without altering production, and questions amyloid clearance as therapeutic lever.",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:29aec3f66b8cbaa01e7cf8fd13ef6f4acb33c499192c07f6478aa96a0a7677f5",
+  "payload": {
+    "proposal_id": "vpr_db54236766f40a4a"
+  },
+  "caveats": []
+}

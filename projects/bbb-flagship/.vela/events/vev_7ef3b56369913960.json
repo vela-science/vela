@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_7ef3b56369913960",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_6c1cd59ddf21eaff"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:36.239823+00:00",
+  "reason": "The note's claim that amyloid 'explains too much' is unquantified; identifying these elements is required to test whether the dominance is epistemically justified.",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:0d13d8349ddda9b5b4a4790e0ad1ed74ff43eaa8d821e6e01abb4088ec6450ca",
+  "payload": {
+    "proposal_id": "vpr_e60b21de6b267636"
+  },
+  "caveats": []
+}

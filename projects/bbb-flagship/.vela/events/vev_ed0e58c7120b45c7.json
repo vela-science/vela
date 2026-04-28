@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_ed0e58c7120b45c7",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_5f7fb093c9cbc802"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:35.064784+00:00",
+  "reason": "The note asserts a copy-number-dependent risk range without specifying mechanism.",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:70d6d57b2bfc65461b390904b902ac9b71e6166a0c4bb06cf4103a73c524d6f8",
+  "payload": {
+    "proposal_id": "vpr_d13abd8feecfa79e"
+  },
+  "caveats": []
+}

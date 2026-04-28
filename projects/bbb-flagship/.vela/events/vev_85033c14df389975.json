@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_85033c14df389975",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_dec3f6c5652298ce"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:26.169061+00:00",
+  "reason": "The note flags that a TREM2 agonist would only restore the TREM2-dependent arm, leaving independent pathways unaddressed.",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:441cf56c4fcb4f63fd075486773def4c28e840d3a8a55413e3acccde45859f70",
+  "payload": {
+    "proposal_id": "vpr_06ca8ade0dc10cd2"
+  },
+  "caveats": []
+}

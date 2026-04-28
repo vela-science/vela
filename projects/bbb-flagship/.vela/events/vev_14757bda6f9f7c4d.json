@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_14757bda6f9f7c4d",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_0c183313b041f44e"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:35.211765+00:00",
+  "reason": "Note poses this directly under Open Questions, reflecting the field's shift away from purely amyloid-centric approaches.",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:384a9ed55a674a1fe38ab126bfe7f08d01e2691bcd9246b42ceaa1ea7d1d43cc",
+  "payload": {
+    "proposal_id": "vpr_d414a5f9250338f3"
+  },
+  "caveats": []
+}

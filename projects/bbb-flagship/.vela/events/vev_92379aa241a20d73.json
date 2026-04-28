@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_92379aa241a20d73",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_8ad8736df8a00409"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:34.336532+00:00",
+  "reason": "The note treats clinical failure and hypothesis validity as separable, implying the failures do not constitute disconfirming evidence of the cascade itself.",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:88ff386c2d30c112afe48f62bd340b3c8659bfd3f9292d90a7fd8241390cdb60",
+  "payload": {
+    "proposal_id": "vpr_c57446a9acfa8c3b"
+  },
+  "caveats": []
+}

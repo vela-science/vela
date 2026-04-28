@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_e071557caa069a74",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_894da1dac1a8219c"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:37.434305+00:00",
+  "reason": "R136S sits in the ApoE HSPG-binding region, and the note frames the variant as a clue for intervention.",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:54d350df8868ca63d15b886b387b7538614158f7687bff4ea189960a2f4bd167",
+  "payload": {
+    "proposal_id": "vpr_fc8b80de97803383"
+  },
+  "caveats": []
+}

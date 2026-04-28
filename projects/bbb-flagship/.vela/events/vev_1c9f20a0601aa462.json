@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_1c9f20a0601aa462",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_4d5b9aca55c663c5"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:35.308072+00:00",
+  "reason": "The note frames the Christchurch case as 'an important clue for mechanism' but does not specify the mechanism.",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:9a0c1081eb1a7a8ae5a479a2831ac08cbf078809f269a2c4abb54db46c592ccb",
+  "payload": {
+    "proposal_id": "vpr_d6b0f83e06babb90"
+  },
+  "caveats": []
+}

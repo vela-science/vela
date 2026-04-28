@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_03ee9ef6558d839f",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_69d5f4e977cc1acc"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:31.619714+00:00",
+  "reason": "The note flags plaque burden's limitation as a sole proxy, implying composite measures may be required.",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:589c25415c24ba81f8dd7df051b8e8d51c0cf0ea0b14688dca841a35de28379e",
+  "payload": {
+    "proposal_id": "vpr_94ae0a0a617f023b"
+  },
+  "caveats": []
+}

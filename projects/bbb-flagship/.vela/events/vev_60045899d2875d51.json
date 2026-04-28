@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_60045899d2875d51",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_c04afe6822a899f3"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:30.840328+00:00",
+  "reason": "Note's concern that activated microglia produce inflammatory cytokines and that timing matters as much as mechanism.",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:fe04c03a045810d19c44845cfc5c99923b23cce52c95a8737efc38fa485836ac",
+  "payload": {
+    "proposal_id": "vpr_877fd9cdbc08bdc6"
+  },
+  "caveats": []
+}

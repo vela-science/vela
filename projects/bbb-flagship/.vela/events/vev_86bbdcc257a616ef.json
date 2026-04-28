@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_86bbdcc257a616ef",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_6cd3682210d02449"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:36.584280+00:00",
+  "reason": "Note argues 'if the real problem is plaque management rather than plaque production, then drugs targeting amyloid clearance may be hitting the wrong lever.'",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:86032f9004d56ad5096c2c6a4af0f5f4fc5b028fc6ae0b22e024c93631c1bf56",
+  "payload": {
+    "proposal_id": "vpr_e9790a76f23d8bbe"
+  },
+  "caveats": []
+}

@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_8a1e0cc12b44d27a",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_cc57f048363ebc66"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:34.761130+00:00",
+  "reason": "The note asserts tau tracks the clinical course more tightly than amyloid.",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:1b85c6903adfaef2c05dcccae3e1ddff62b18a7516d5807c8801631e6bba670b",
+  "payload": {
+    "proposal_id": "vpr_cd481e10660bdf2a"
+  },
+  "caveats": []
+}

@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_38dca07376605ee9",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_b07f66ae3dcfef99"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:34.015720+00:00",
+  "reason": "The note asserts microglial state is the relevant axis but does not specify which state.",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:5bc0d216a2144a9446bfaeae8cdad77f2c6aad7cab865fd7d3ceb61a4240bfa0",
+  "payload": {
+    "proposal_id": "vpr_c1d360af7912359a"
+  },
+  "caveats": []
+}

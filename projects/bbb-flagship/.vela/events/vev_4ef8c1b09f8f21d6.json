@@ -1,0 +1,25 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_4ef8c1b09f8f21d6",
+  "kind": "finding.noted",
+  "target": {
+    "type": "finding",
+    "id": "vf_ed60a826b4f33724"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:29.965414+00:00",
+  "reason": "Reviewer Agent score: plausibility 0.85 · evidence 0.20 · scope 0.70 · duplicate-risk 0.60. Real and well-known tension between lecanemab clearance benefit and weak plaque-cognition correlation, but proposal supplies no evidence spans. Concerns: evidence_spans is empty; High duplicate risk — this is a canonical AD field tension likely already captured; Both poles need citations to specific trials/cohorts.",
+  "before_hash": "sha256:b94ca06aa072b65803baf9a5b9cefc9f7f27caafda2f5f01b0ef61031cbd0fc5",
+  "after_hash": "sha256:8dabfe7f1ffd9d036887987db3a77febcf2e00d6c1380a572dc492d17e15cd49",
+  "payload": {
+    "annotation_id": "ann_7a71e29014aea55f",
+    "proposal_id": "vpr_77b1e74105f9341d",
+    "text": "Reviewer Agent score: plausibility 0.85 · evidence 0.20 · scope 0.70 · duplicate-risk 0.60. Real and well-known tension between lecanemab clearance benefit and weak plaque-cognition correlation, but proposal supplies no evidence spans. Concerns: evidence_spans is empty; High duplicate risk — this is a canonical AD field tension likely already captured; Both poles need citations to specific trials/cohorts."
+  },
+  "caveats": [
+    "weak_evidence"
+  ]
+}

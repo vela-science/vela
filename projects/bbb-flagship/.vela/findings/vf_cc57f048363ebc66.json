@@ -1,0 +1,79 @@
+{
+  "id": "vf_cc57f048363ebc66",
+  "version": 1,
+  "previous_version": null,
+  "assertion": {
+    "text": "Regional tau burden is a stronger predictor of near-term cognitive decline in Alzheimer's patients than regional amyloid burden. Predictions: In a longitudinal cohort with both tau-PET and amyloid-PET at baseline, tau-PET SUVR will explain significantly more variance in 12-month change on cognitive composites (e.g., MMSE, ADAS-Cog) than amyloid-PET SUVR.; Patients amyloid-positive but tau-negative will show slower cognitive decline than tau-positive patients matched on amyloid burden.",
+    "type": "hypothesis",
+    "entities": [],
+    "relation": null,
+    "direction": null
+  },
+  "evidence": {
+    "type": "extracted_from_notes",
+    "model_system": "",
+    "species": null,
+    "method": "notes_compiler",
+    "sample_size": null,
+    "effect_size": null,
+    "p_value": null,
+    "replicated": false,
+    "replication_count": null,
+    "evidence_spans": [
+      {
+        "text": "The note asserts tau tracks the clinical course more tightly than amyloid."
+      }
+    ]
+  },
+  "conditions": {
+    "text": "",
+    "species_verified": [],
+    "species_unverified": [],
+    "in_vitro": false,
+    "in_vivo": false,
+    "human_data": false,
+    "clinical_trial": false,
+    "concentration_range": null,
+    "duration": null,
+    "age_group": null,
+    "cell_type": null
+  },
+  "confidence": {
+    "kind": "frontier_epistemic",
+    "score": 0.4,
+    "basis": "notes_compiler: provisional hypothesis with predictions",
+    "method": "llm_initial",
+    "extraction_confidence": 0.7
+  },
+  "provenance": {
+    "source_type": "researcher_notes",
+    "doi": null,
+    "pmid": null,
+    "pmc": null,
+    "openalex_id": null,
+    "title": "Tau pathology tracks cognitive decline more closely than amyloid.md",
+    "authors": [],
+    "year": null,
+    "journal": null,
+    "extraction": {
+      "method": "notes_compiler_via_claude_cli",
+      "model": null,
+      "model_version": null,
+      "extracted_at": "2026-04-27T23:45:29.702016+00:00",
+      "extractor_version": "vela-scientist::notes-compiler/v0.23"
+    },
+    "review": null,
+    "citation_count": null
+  },
+  "flags": {
+    "gap": false,
+    "negative_space": false,
+    "contested": false,
+    "retracted": false,
+    "declining": false,
+    "gravity_well": false
+  },
+  "links": [],
+  "created": "2026-04-27T23:45:29.702017+00:00",
+  "updated": null
+}

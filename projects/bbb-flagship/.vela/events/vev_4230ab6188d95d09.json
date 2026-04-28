@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_4230ab6188d95d09",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_6bfab2af339c3808"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:27.638297+00:00",
+  "reason": "The note frames the failure as 'too aggressive' suppression, implying a dose-response question that remains unresolved.",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:77b669282076d01a6e2e8e2a70fbc05d49bd970b0a91767dae9090fdc285dcc4",
+  "payload": {
+    "proposal_id": "vpr_429d8d36924df98b"
+  },
+  "caveats": []
+}

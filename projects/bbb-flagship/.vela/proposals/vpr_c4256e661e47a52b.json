@@ -96,7 +96,11 @@
   "source_refs": [
     "BACE1 inhibitor trials failed due to mechanism-independent side effects.md"
   ],
-  "status": "pending_review",
+  "status": "applied",
+  "reviewed_by": "reviewer:claude-proxy",
+  "reviewed_at": "2026-04-28T00:16:34.122847+00:00",
+  "decision_reason": "candidate_finding extracted from a curated note; admitting as canonical finding pending future refinement.",
+  "applied_event_id": "vev_2ec954c688209bd8",
   "caveats": [],
   "agent_run": {
     "agent": "notes-compiler",

@@ -96,7 +96,11 @@
   "source_refs": [
     "Tau pathology tracks cognitive decline more closely than amyloid.md"
   ],
-  "status": "pending_review",
+  "status": "applied",
+  "reviewed_by": "reviewer:claude-proxy",
+  "reviewed_at": "2026-04-28T00:16:27.548221+00:00",
+  "decision_reason": "candidate_finding extracted from a curated note; admitting as canonical finding pending future refinement.",
+  "applied_event_id": "vev_4d7e06a6e110cfa7",
   "caveats": [],
   "agent_run": {
     "agent": "notes-compiler",

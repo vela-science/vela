@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_347bbee8239dac99",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_41ea0e259005f2c2"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:26.741936+00:00",
+  "reason": "Sustained clinical failure normally erodes a hypothesis's status as the default frame, yet the note records both as simultaneously true without resolving the conflict.",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:529cd3bf4455fc9162a78721618d55a26cea78bf87495ec985785322d3488efe",
+  "payload": {
+    "proposal_id": "vpr_1d7f891d59a3ceab"
+  },
+  "caveats": []
+}

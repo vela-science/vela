@@ -72,6 +72,14 @@
     "gravity_well": false
   },
   "links": [],
+  "annotations": [
+    {
+      "id": "ann_309fe3d97b70a927",
+      "text": "Reviewer Agent score: plausibility 0.70 · evidence 0.10 · scope 0.55 · duplicate-risk 0.60. Well-known amyloid tension, but proposal supplies zero evidence spans to anchor either side. Concerns: evidence_spans is empty; Tension is widely discussed — high duplicate risk in frontier; Both poles asserted without quoted source text.",
+      "author": "reviewer:claude-proxy",
+      "timestamp": "2026-04-28T00:16:27.197050+00:00"
+    }
+  ],
   "created": "2026-04-27T17:47:16.813392+00:00",
   "updated": null
 }

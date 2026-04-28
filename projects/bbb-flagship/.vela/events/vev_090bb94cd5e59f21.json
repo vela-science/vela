@@ -1,0 +1,21 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_090bb94cd5e59f21",
+  "kind": "finding.asserted",
+  "target": {
+    "type": "finding",
+    "id": "vf_bbd1cb4b69588b13"
+  },
+  "actor": {
+    "id": "reviewer:claude-proxy",
+    "type": "human"
+  },
+  "timestamp": "2026-04-28T00:16:29.875791+00:00",
+  "reason": "The note asserts benefit occurs 'under some conditions' but does not specify which conditions.",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:6ff21561cb93371bc748809d5edd56929f94d4524768d14581b3f9cba0499cef",
+  "payload": {
+    "proposal_id": "vpr_75081889e49a241d"
+  },
+  "caveats": []
+}
