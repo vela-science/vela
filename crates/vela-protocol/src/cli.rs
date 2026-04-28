@@ -19,7 +19,7 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 
 #[derive(Parser)]
-#[command(name = "vela", version = "0.42.0")]
+#[command(name = "vela", version = "0.43.0")]
 #[command(about = "Portable frontier state for science")]
 struct Cli {
     #[command(subcommand)]
@@ -1065,6 +1065,11 @@ enum ActorAction {
         /// Unknown tier strings load fine but never grant auto-apply.
         #[arg(long)]
         tier: Option<String>,
+        /// v0.43: Optional ORCID identifier for cross-system identity.
+        /// Format `0000-0000-0000-000X`. Accepts bare form, URL form
+        /// (`https://orcid.org/0000-...`), or `orcid:` prefix.
+        #[arg(long)]
+        orcid: Option<String>,
         #[arg(long)]
         json: bool,
     },
@@ -5818,6 +5823,7 @@ fn cmd_actor(action: ActorAction) {
             id,
             pubkey,
             tier,
+            orcid,
             json,
         } => {
             // Validate the pubkey shape before mutating the frontier.
@@ -5825,6 +5831,11 @@ fn cmd_actor(action: ActorAction) {
             if trimmed.len() != 64 || hex::decode(trimmed).is_err() {
                 fail("Public key must be 64 hex characters (32-byte Ed25519 pubkey).");
             }
+            // v0.43: Validate ORCID shape if supplied. Stored in bare form.
+            let orcid_normalized = orcid
+                .as_deref()
+                .map(|s| sign::validate_orcid(s).unwrap_or_else(|e| fail_return(&e)));
+
             let mut project = repo::load_from_path(&frontier).unwrap_or_else(|e| fail_return(&e));
             if project.actors.iter().any(|actor| actor.id == id) {
                 fail(&format!(
@@ -5837,6 +5848,7 @@ fn cmd_actor(action: ActorAction) {
                 algorithm: "ed25519".to_string(),
                 created_at: chrono::Utc::now().to_rfc3339(),
                 tier: tier.clone(),
+                orcid: orcid_normalized.clone(),
             });
             repo::save_to_path(&frontier, &project).unwrap_or_else(|e| fail_return(&e));
             let payload = json!({
@@ -5846,6 +5858,7 @@ fn cmd_actor(action: ActorAction) {
                 "actor_id": id,
                 "public_key": trimmed,
                 "tier": tier,
+                "orcid": orcid_normalized,
                 "registered_count": project.actors.len(),
             });
             if json {

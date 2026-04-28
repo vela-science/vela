@@ -13,7 +13,11 @@ use colored::Colorize;
 
 use crate::bundle::{FindingBundle, ReviewAction, ReviewEvent};
 use crate::cli_style as style;
+use crate::events::{
+    EVENT_SCHEMA, StateActor, StateEvent, StateTarget, compute_event_id, finding_hash,
+};
 use crate::project::Project;
+use serde_json::json;
 
 /// The type of correction being propagated.
 #[derive(Debug, Clone)]
@@ -156,7 +160,50 @@ pub fn propagate_correction(
                 let new_conf = frontier.compute_confidence_for(&target_bundle);
                 let old = frontier.findings[idx].confidence.score;
                 let new_score = new_conf.score;
+                // v0.43.0 fix: capture the finding's hash *before* mutating
+                // it, then emit a canonical `finding.confidence_revised`
+                // state event after mutation so the per-finding event
+                // chain stays continuous. Pre-v0.43.0 the cascade
+                // mutated confidence silently and broke replay.
+                let before_hash = finding_hash(&frontier.findings[idx]);
                 frontier.findings[idx].confidence = new_conf;
+                let after_hash = finding_hash(&frontier.findings[idx]);
+                let revise_reason = format!(
+                    "{outcome} replication {vrep_id} recorded; confidence {:.3} -> {:.3}",
+                    old, new_score
+                );
+                let mut state_event = StateEvent {
+                    schema: EVENT_SCHEMA.to_string(),
+                    id: String::new(),
+                    kind: "finding.confidence_revised".to_string(),
+                    target: StateTarget {
+                        r#type: "finding".to_string(),
+                        id: finding_id.to_string(),
+                    },
+                    actor: StateActor {
+                        id: "propagation_engine".to_string(),
+                        r#type: "system".to_string(),
+                    },
+                    timestamp: now.clone(),
+                    reason: revise_reason.clone(),
+                    before_hash,
+                    after_hash,
+                    payload: json!({
+                        "proposal_id": format!("vpr_synthetic_{}", &vrep_id[..vrep_id.len().min(16)]),
+                        "previous_score": old,
+                        "new_score": new_score,
+                        "trigger": "replication_outcome",
+                        "vrep_id": vrep_id,
+                        "outcome": outcome,
+                    }),
+                    caveats: Vec::new(),
+                    signature: None,
+                };
+                state_event.id = compute_event_id(&state_event);
+                frontier.events.push(state_event);
+
+                // Also emit the human-readable review event for the
+                // review queue (existing v0.36.1 behavior).
                 let event = make_event(
                     finding_id,
                     "propagation_engine",
@@ -164,10 +211,7 @@ pub fn propagate_correction(
                     ReviewAction::Flagged {
                         flag_type: format!("replication_{}", outcome),
                     },
-                    &format!(
-                        "{} replication {} recorded; confidence {:.3} -> {:.3}",
-                        outcome, vrep_id, old, new_score
-                    ),
+                    &revise_reason,
                 );
                 events.push(event);
             }

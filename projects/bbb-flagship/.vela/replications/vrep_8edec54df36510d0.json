@@ -1,0 +1,53 @@
+{
+  "id": "vrep_8edec54df36510d0",
+  "target_finding": "vf_8389130295d81413",
+  "attempted_by": "lab:control-replication-test",
+  "outcome": "failed",
+  "evidence": {
+    "type": "experimental",
+    "model_system": "",
+    "species": null,
+    "method": "replication_attempt",
+    "sample_size": "n=12 per donor, 3 donors",
+    "effect_size": null,
+    "p_value": null,
+    "replicated": false,
+    "replication_count": null,
+    "evidence_spans": []
+  },
+  "conditions": {
+    "text": "Independent attempt: ATV:TREM2 antibody, 3 separate iPSC microglia donor lines, n=12 per condition. Did not reproduce the originally reported proliferation effect at p>0.4 across all three donors.",
+    "species_verified": [],
+    "species_unverified": [],
+    "in_vitro": true,
+    "in_vivo": true,
+    "human_data": false,
+    "clinical_trial": false,
+    "concentration_range": null,
+    "duration": null,
+    "age_group": null,
+    "cell_type": null
+  },
+  "provenance": {
+    "source_type": "published_paper",
+    "doi": null,
+    "pmid": null,
+    "pmc": null,
+    "openalex_id": null,
+    "title": "Demonstration: hypothetical failed replication staged for v0.43 cascade demo",
+    "authors": [],
+    "year": null,
+    "journal": null,
+    "extraction": {
+      "method": "manual_curation",
+      "model": null,
+      "model_version": null,
+      "extracted_at": "2026-04-28T01:31:23.304399+00:00",
+      "extractor_version": "0.42.0"
+    },
+    "review": null,
+    "citation_count": null
+  },
+  "notes": "",
+  "created": "2026-04-28T01:31:23.304505+00:00"
+}

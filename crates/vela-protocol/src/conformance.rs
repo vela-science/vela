@@ -1103,6 +1103,7 @@ fn run_auto_apply_tier(
         algorithm: "ed25519".to_string(),
         created_at: "2026-04-25T00:00:00Z".to_string(),
         tier,
+        orcid: None,
     };
     let actual = actor_can_auto_apply(&actor, kind);
     let want = expected["permits"]

@@ -1,5 +1,142 @@
 # Changelog
 
+## 0.43.0 - 2026-04-28
+
+**Adoption-shaped release.** The substrate work is essentially done at
+v0.42; this release does no new kernel feature work and instead lands
+the four moves the architecture doc names as adoption-leveraged: a
+reference book, an L1 integration adapter, an L4 application surface,
+and a real cascade demo. Plus a chain-correctness fix that the
+cascade demo exposed.
+
+### `docs/LEARN.md` — the Pro Git of Vela
+
+A working scientist's path from zero to a publishable signed frontier
+in under an hour. Ten sections:
+
+1. Setup (clone, build, generate keypair)
+2. Your first frontier (scaffold, init, register actor)
+3. Your first finding (assertion, evidence, conditions)
+4. Adding evidence (replication, dataset, code artifact)
+5. Cross-frontier links (declare a dep, reference BBB findings)
+6. Federation (register a peer, run a sync)
+7. Causal grading (the v0.38 schema, the v0.40 audit)
+8. Predictions and calibration (vpred_, vres_, expire-pass)
+9. Publishing (sign-and-apply, publish a registry entry)
+10. Recipes (status, log, inbox, ask, normalize, diff, replay)
+
+The book takes one running example (a small microglia/TREM2
+campaign) all the way through. Hardlinked to
+`site/src/content/docs/LEARN.md` and rendered at
+`vela-site.fly.dev/docs/learn`.
+
+### ORCID adapter on `ActorRecord`
+
+```rust
+pub orcid: Option<String>
+```
+
+`#[serde(default, skip_serializing_if = "Option::is_none")]` so
+pre-v0.43 actors load byte-identically. New helper:
+
+```rust
+sign::validate_orcid(s: &str) -> Result<String, String>
+```
+
+Accepts bare form (`0000-0001-2345-6789`), the URL form
+(`https://orcid.org/...`), or the `orcid:` prefix. Returns the
+normalized bare form. Validates the 16-digit / 4-group / optional-X
+shape from ISO 7064.
+
+CLI: `vela actor add ... --orcid <id>` accepts the new flag and
+records it on the actor. The substrate stores the pointer; it does
+not verify the ORCID exists online. That is L4 work, not kernel.
+
+This is the first L1 integration. The pattern (optional pointer
+field + validate helper + CLI flag) sets the template for Crossref
+DOI on `Provenance`, GitHub commit on `vc_`, Zenodo deposit on
+`vd_`, and HuggingFace checkpoint on `vc_` artifacts.
+
+### Calibration leaderboard at `/calibration`
+
+The first L4 application surface beyond the audit page. Reads
+`Project.predictions` and `Project.resolutions` through the existing
+loader, ranks every actor with at least one prediction by Brier
+score (ascending; lower is better), renders a sortable table with
+n_predictions, n_resolved, n_expired, hit_rate, Brier, log_score.
+
+A doctrine sidebar explains why expired predictions count toward
+`n_expired` but not toward Brier — the predictor failed to commit
+either way; we don't pretend they did.
+
+The leaderboard is empty on the BBB today (no predictions yet
+recorded); it fills in as actors begin making predictions and
+resolutions land.
+
+### Replication cascade demo on the live BBB
+
+Wired five `depends`-edge links from ATV:TREM2 mechanism findings
+to the upstream `vf_8389130295d81413` (ATV:TREM2 induces
+proliferation in iPSC-derived microglia), then staged a
+hypothetical failed replication under `lab:control-replication-test`.
+
+Result: the propagation runtime fired, recomputed the source's
+confidence (0.346 → 0.302, the multiplicative drop from
+`replication_strength` going from 0.80 → 0.70 with one failed plus
+one successful), flagged five dependents with
+`upstream_replication_failed`, and emitted six review events.
+
+This is the substrate's structural advantage made visible. Phylo
+cannot show this because it does not have replication-as-object.
+The Stacks cannot show this because it does not track downstream
+dependencies. Vela's L2 is the only place where a failed
+replication produces a verifiable confidence cascade through the
+finding graph.
+
+### Chain-correctness fix on `propagate.rs::ReplicationOutcome`
+
+The cascade demo exposed a v0.36.1 oversight: when propagate
+recomputed a target finding's confidence, it mutated the finding
+state but did not emit a `finding.confidence_revised` event, leaving
+the per-finding event chain misaligned. v0.43.0 fixes this.
+
+The handler now captures `before_hash` (finding hash before
+mutation), mutates, captures `after_hash`, and emits a canonical
+`finding.confidence_revised` state event linking the two. The
+existing review-flag event also remains for the human review queue.
+
+Effect: the cascade now produces both the visible artifact (review
+events on dependents) and the chain-correct artifact (a state event
+that closes the per-finding hash chain). `vela check` reports
+`event replay: ok` after a cascade, where pre-v0.43 it would
+report `chain break for finding:vf_X`.
+
+### Verification
+
+- `cargo build --workspace`: clean.
+- `cargo test --workspace`: **434/434 pass** (was 426; +8 ORCID
+  validation tests).
+- `vela check projects/bbb-flagship`: 188/188 valid, event replay
+  ok after the cascade.
+- `vela conformance`: 61/61 pass.
+- Site build: 209 pages including `/docs/learn`, `/docs/architecture`,
+  `/calibration`.
+
+### What's now adoption-ready
+
+The thing every adoption attempt routes through:
+
+```
+$ git clone https://github.com/vela-science/vela.git
+$ cd vela && cargo build --release --bin vela
+# Open docs/LEARN.md in another window.
+# Follow it. One hour later you have a publishable signed frontier.
+```
+
+The architecture doc explains the strategic frame. The book takes
+the reader from frame to running. That is the document the next
+five-to-ten outreach contacts should land in.
+
 ## 0.42.0 - 2026-04-28
 
 **Daily-driver CLI: `vela status` / `vela log` / `vela inbox` / `vela ask`.**

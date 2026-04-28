@@ -67,8 +67,8 @@
   },
   "confidence": {
     "kind": "frontier_epistemic",
-    "score": 0.336,
-    "basis": "frontier_epistemic: evidence=0.80 * replication=0.70 * model=1.00 * sample=0.60 - review_penalty=0.00 + calibration=0.00 = 0.336",
+    "score": 0.302,
+    "basis": "frontier_epistemic: evidence=0.80 * replication=0.70 * model=1.00 * sample=0.60 * causal=0.90 - review_penalty=0.00 + calibration=0.00 = 0.302",
     "method": "computed",
     "components": {
       "evidence_strength": 0.8,
@@ -77,8 +77,8 @@
       "model_relevance": 1.0,
       "review_penalty": 0.0,
       "calibration_adjustment": 0.0,
-      "causal_consistency": 1.0,
-      "formula_version": "v0.8"
+      "causal_consistency": 0.9,
+      "formula_version": "v0.7"
     },
     "extraction_confidence": 0.85
   },

@@ -54,6 +54,64 @@ pub struct ActorRecord {
     /// and behave exactly as before.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tier: Option<String>,
+    /// v0.43: Optional ORCID identifier for cross-system identity.
+    /// Format: `0000-0000-0000-000X` (16 digits in 4 groups, final
+    /// character optionally `X` per ISO 7064). When set, the actor's
+    /// identity can be cross-referenced through the public ORCID
+    /// directory at `https://orcid.org/<orcid>`. The substrate stores
+    /// the pointer; it does not verify the ORCID exists online (that
+    /// is L4 work). Pre-v0.43 actors load with `None` and behave
+    /// exactly as before.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub orcid: Option<String>,
+}
+
+/// v0.43: Validate an ORCID identifier's structural shape. ORCID IDs
+/// are 16 digits in 4 groups of 4 separated by hyphens, with the
+/// final character optionally being `X` (the ISO 7064 check digit).
+/// Accepts bare form `0000-0001-2345-6789`, the URL form
+/// `https://orcid.org/0000-...`, or the prefixed form `orcid:0000-...`
+/// and returns the bare form.
+pub fn validate_orcid(s: &str) -> Result<String, String> {
+    let trimmed = s.trim();
+    let bare = trimmed
+        .strip_prefix("https://orcid.org/")
+        .or_else(|| trimmed.strip_prefix("http://orcid.org/"))
+        .or_else(|| trimmed.strip_prefix("orcid:"))
+        .unwrap_or(trimmed);
+    if bare.len() != 19 {
+        return Err(format!(
+            "ORCID must be 19 chars (0000-0000-0000-000X), got {}",
+            bare.len()
+        ));
+    }
+    let mut groups = bare.split('-');
+    for i in 0..4 {
+        let g = groups
+            .next()
+            .ok_or_else(|| format!("ORCID missing group {} of 4", i + 1))?;
+        if g.len() != 4 {
+            return Err(format!(
+                "ORCID group {} must be 4 chars, got {}",
+                i + 1,
+                g.len()
+            ));
+        }
+        for (j, c) in g.chars().enumerate() {
+            let allow_x = i == 3 && j == 3;
+            if !c.is_ascii_digit() && !(allow_x && c == 'X') {
+                return Err(format!(
+                    "ORCID character '{c}' at group {} pos {} not a digit (or X check digit)",
+                    i + 1,
+                    j + 1
+                ));
+            }
+        }
+    }
+    if groups.next().is_some() {
+        return Err("ORCID has too many hyphenated groups".to_string());
+    }
+    Ok(bare.to_string())
 }
 
 fn default_algorithm() -> String {
@@ -972,5 +1030,59 @@ mod tests {
         let report = verify_frontier_data(&project, None).unwrap();
         assert_eq!(report.findings_with_threshold, 1);
         assert_eq!(report.jointly_accepted, 1);
+    }
+
+    // ── v0.43 ORCID validation ───────────────────────────────────────
+
+    #[test]
+    fn validate_orcid_accepts_canonical_form() {
+        assert_eq!(
+            validate_orcid("0000-0001-2345-6789").unwrap(),
+            "0000-0001-2345-6789"
+        );
+    }
+
+    #[test]
+    fn validate_orcid_accepts_check_digit_x() {
+        assert_eq!(
+            validate_orcid("0000-0001-5109-393X").unwrap(),
+            "0000-0001-5109-393X"
+        );
+    }
+
+    #[test]
+    fn validate_orcid_strips_url_prefix() {
+        assert_eq!(
+            validate_orcid("https://orcid.org/0000-0001-2345-6789").unwrap(),
+            "0000-0001-2345-6789"
+        );
+    }
+
+    #[test]
+    fn validate_orcid_strips_orcid_prefix() {
+        assert_eq!(
+            validate_orcid("orcid:0000-0001-2345-6789").unwrap(),
+            "0000-0001-2345-6789"
+        );
+    }
+
+    #[test]
+    fn validate_orcid_rejects_short() {
+        assert!(validate_orcid("0000-0001").is_err());
+    }
+
+    #[test]
+    fn validate_orcid_rejects_letters_in_non_check_position() {
+        assert!(validate_orcid("0000-A001-2345-6789").is_err());
+    }
+
+    #[test]
+    fn validate_orcid_rejects_x_in_first_three_groups() {
+        assert!(validate_orcid("000X-0001-2345-6789").is_err());
+    }
+
+    #[test]
+    fn validate_orcid_rejects_extra_groups() {
+        assert!(validate_orcid("0000-0001-2345-6789-9999").is_err());
     }
 }

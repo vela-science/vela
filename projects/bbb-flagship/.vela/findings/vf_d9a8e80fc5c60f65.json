@@ -363,7 +363,15 @@
     "declining": false,
     "gravity_well": false
   },
-  "links": [],
+  "links": [
+    {
+      "target": "vf_8389130295d81413",
+      "type": "depends",
+      "note": "ATV:TREM2 mechanism finding depends on the iPSC microglia proliferation result.",
+      "inferred_by": "reviewer",
+      "created_at": "2026-04-28T01:24:42Z"
+    }
+  ],
   "annotations": [
     {
       "id": "ann_2c3fb430d8d3bd7d",

@@ -1,0 +1,26 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_4c0aa3f26b2890a1",
+  "kind": "finding.confidence_revised",
+  "target": {
+    "type": "finding",
+    "id": "vf_8389130295d81413"
+  },
+  "actor": {
+    "id": "propagation_engine",
+    "type": "system"
+  },
+  "timestamp": "2026-04-28T01:31:23.304506+00:00",
+  "reason": "failed replication vrep_8edec54df36510d0 recorded; confidence 0.336 -> 0.302",
+  "before_hash": "sha256:2e6721767227d0c6e3ee3e00a0de4ae08159dabed4d698b100903fee189883e6",
+  "after_hash": "sha256:6815aaae7611f9abd9f5a3ef56a77461fd9f7c731988c66adb6d31ab70f6aef0",
+  "payload": {
+    "new_score": 0.302,
+    "outcome": "failed",
+    "previous_score": 0.336,
+    "proposal_id": "vpr_synthetic_vrep_8edec54df36",
+    "trigger": "replication_outcome",
+    "vrep_id": "vrep_8edec54df36510d0"
+  },
+  "caveats": []
+}
