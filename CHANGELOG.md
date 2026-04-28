@@ -1,5 +1,68 @@
 # Changelog
 
+## 0.47.0 - 2026-04-28
+
+**The L3 pass — daily-driver session entry + help reorg.**
+
+For 7 versions the substrate has been deepening; the surface lagged.
+v0.47 closes the gap: typing `vela` (no args) opens a focused session
+against the nearest `.vela/` repo. OpenCode / Claude Code shape, not
+a kitchen-sink TUI.
+
+### Bare `vela` opens a session
+
+```
+$ cd projects/bbb-flagship
+$ vela
+  VELA · 0.47.0 · ALZHEIMER'S THERAPEUTICS
+  ────────────────────────────────────────
+  vfr_id     vfr_xxxxx…   repo  …/projects/bbb-flagship
+  findings    188     events   315     proposals pending  23
+  · inbox     · 8 finding.add  15 finding.note
+  · audit     · 4 underidentified · 22 conditional
+  · bridges   · 2 total · 1 confirmed · 1 awaiting review
+  · replications · 4 records · 2 findings replicated · 1 failed
+
+  type a verb or ask anything:
+    a  audit problems     i  inbox (pending)     b  bridges
+    g  causal graph       l  log (recent)        c  counterfactuals
+    s  refresh status     h  help (more verbs)   q  quit
+
+  >
+```
+
+Single-letter verbs spawn the canonical kernel command and print
+inline. Free text falls through to the `ask` natural-language router
+shipped in v0.42. `q` / `exit` quits.
+
+If no `.vela/` exists in cwd or any parent, the session prints a
+helpful error pointing at `vela init` rather than the 68-line help
+dump.
+
+### `vela help` reorganization
+
+- `vela help` (default) shows the daily flow in ~30 lines, organized
+  by phase: state ops (init/status/log/inbox/review/ask), reasoning
+  (Pearl 1/2/3), composition (bridges/consensus), publish.
+- `vela help advanced` keeps the full 30+ subcommand list for users
+  who want everything.
+
+### Dispatch
+
+- `vela`        → session
+- `vela help`   → daily-flow help
+- `vela help advanced` → full subcommand list
+- `vela <cmd>`  → existing subcommand (unchanged)
+
+### Verification
+
+- 451 cargo tests pass (no regression).
+- Manual: bare `vela` in `projects/bbb-flagship` renders the
+  dashboard, accepts `b` and routes to `bridges list`, accepts `c`
+  and lists 5 live counterfactual pairs, accepts a free-text question
+  and routes through `answer()`, exits clean on `q`.
+- `vela check projects/bbb-flagship`: 188 valid, replay ok.
+
 ## 0.46.0 - 2026-04-28
 
 **Cross-frontier bridges as first-class kernel objects.** Earlier
