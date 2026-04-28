@@ -19,7 +19,7 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 
 #[derive(Parser)]
-#[command(name = "vela", version = "0.41.0")]
+#[command(name = "vela", version = "0.42.0")]
 #[command(about = "Portable frontier state for science")]
 struct Cli {
     #[command(subcommand)]
@@ -289,6 +289,57 @@ enum Commands {
         /// (default 3848). Phase R, v0.5.
         #[arg(long)]
         workbench: bool,
+    },
+    /// v0.42: Show what's pending right now — the daily-driver
+    /// equivalent of `git status`. One screen: counts, the inbox,
+    /// the audit, the federation health. Read in two seconds.
+    Status {
+        frontier: PathBuf,
+        /// Output stable JSON for programmatic callers.
+        #[arg(long)]
+        json: bool,
+    },
+    /// v0.42: Recent canonical events in human-readable form. The
+    /// `git log` analogue. Default newest-first; cap on count.
+    Log {
+        frontier: PathBuf,
+        /// How many recent events to show.
+        #[arg(long, default_value = "20")]
+        limit: usize,
+        /// Filter to events matching this kind (substring match).
+        #[arg(long)]
+        kind: Option<String>,
+        /// Output stable JSON.
+        #[arg(long)]
+        json: bool,
+    },
+    /// v0.42: Triage list of pending proposals. What you sit down to
+    /// review. Reviewer-agent scores surface where present; flagged
+    /// items rise to the top.
+    Inbox {
+        frontier: PathBuf,
+        /// Show only proposals matching this kind (substring match).
+        #[arg(long)]
+        kind: Option<String>,
+        /// Cap on entries shown.
+        #[arg(long, default_value = "30")]
+        limit: usize,
+        /// Output stable JSON.
+        #[arg(long)]
+        json: bool,
+    },
+    /// v0.42: Conversational substrate access. Type a natural-language
+    /// question; the substrate routes it to a structured query and
+    /// renders the answer. No agent in the loop — kernel queries only.
+    /// Codex-flavored REPL that doesn't pretend to be an agent.
+    Ask {
+        frontier: PathBuf,
+        /// The question. If omitted, drops into a REPL.
+        #[arg(trailing_var_arg = true)]
+        question: Vec<String>,
+        /// Output stable JSON when the answer has structure.
+        #[arg(long)]
+        json: bool,
     },
     /// Show frontier statistics
     Stats {
@@ -1889,6 +1940,24 @@ pub async fn run_command() {
                 }
             }
         }
+        Commands::Status { frontier, json } => cmd_status(&frontier, json),
+        Commands::Log {
+            frontier,
+            limit,
+            kind,
+            json,
+        } => cmd_log(&frontier, limit, kind.as_deref(), json),
+        Commands::Inbox {
+            frontier,
+            kind,
+            limit,
+            json,
+        } => cmd_inbox(&frontier, kind.as_deref(), limit, json),
+        Commands::Ask {
+            frontier,
+            question,
+            json,
+        } => cmd_ask(&frontier, &question.join(" "), json),
         Commands::Stats { frontier, json } => {
             if json {
                 print_stats_json(&frontier);
@@ -4638,6 +4707,716 @@ fn cmd_proof(
         println!();
         println!("{validation_summary}");
     }
+}
+
+// ── v0.42 daily-driver triad ────────────────────────────────────────
+
+/// v0.42: One-screen status. The `git status` analogue.
+fn cmd_status(path: &Path, json: bool) {
+    let project = repo::load_from_path(path).unwrap_or_else(|e| fail_return(&e));
+
+    // Inbox counts.
+    let mut pending_total = 0usize;
+    let mut pending_by_kind: std::collections::BTreeMap<String, usize> =
+        std::collections::BTreeMap::new();
+    for p in &project.proposals {
+        if p.status == "pending_review" {
+            pending_total += 1;
+            *pending_by_kind.entry(p.kind.clone()).or_insert(0) += 1;
+        }
+    }
+
+    // Causal audit summary.
+    let audit = crate::causal_reasoning::audit_frontier(&project);
+    let audit_summary = crate::causal_reasoning::summarize_audit(&audit);
+
+    // Federation health: peers + last sync.
+    let mut last_sync: Option<&crate::events::StateEvent> = None;
+    let mut last_conflict: Option<&crate::events::StateEvent> = None;
+    let mut total_conflicts = 0usize;
+    for e in &project.events {
+        match e.kind.as_str() {
+            "frontier.synced_with_peer" => {
+                if last_sync
+                    .map(|prev| e.timestamp > prev.timestamp)
+                    .unwrap_or(true)
+                {
+                    last_sync = Some(e);
+                }
+            }
+            "frontier.conflict_detected" => {
+                total_conflicts += 1;
+                if last_conflict
+                    .map(|prev| e.timestamp > prev.timestamp)
+                    .unwrap_or(true)
+                {
+                    last_conflict = Some(e);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    // Replication health.
+    let mut targets_with_success = std::collections::HashSet::new();
+    let mut failed_replications = 0usize;
+    for r in &project.replications {
+        if r.outcome == "replicated" {
+            targets_with_success.insert(r.target_finding.clone());
+        } else if r.outcome == "failed" {
+            failed_replications += 1;
+        }
+    }
+
+    if json {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&json!({
+                "ok": true,
+                "command": "status",
+                "frontier": frontier_label(&project),
+                "vfr_id": project.frontier_id(),
+                "findings": project.findings.len(),
+                "events": project.events.len(),
+                "actors": project.actors.len(),
+                "peers": project.peers.len(),
+                "inbox": {
+                    "pending_total": pending_total,
+                    "pending_by_kind": pending_by_kind,
+                },
+                "causal_audit": {
+                    "identified": audit_summary.identified,
+                    "conditional": audit_summary.conditional,
+                    "underidentified": audit_summary.underidentified,
+                    "underdetermined": audit_summary.underdetermined,
+                },
+                "replications": {
+                    "total": project.replications.len(),
+                    "findings_with_success": targets_with_success.len(),
+                    "failed": failed_replications,
+                },
+                "federation": {
+                    "peers": project.peers.len(),
+                    "last_sync": last_sync.map(|e| e.timestamp.clone()),
+                    "last_conflict": last_conflict.map(|e| e.timestamp.clone()),
+                    "total_conflicts": total_conflicts,
+                },
+            }))
+            .expect("serialize status")
+        );
+        return;
+    }
+
+    println!();
+    println!(
+        "  {}",
+        format!("VELA · STATUS · {}", path.display())
+            .to_uppercase()
+            .dimmed()
+    );
+    println!("  {}", style::tick_row(60));
+    println!();
+    println!(
+        "  frontier:    {}",
+        frontier_label(&project)
+    );
+    println!("  vfr_id:      {}", project.frontier_id());
+    println!(
+        "  findings:    {}    events: {}    peers: {}    actors: {}",
+        project.findings.len(),
+        project.events.len(),
+        project.peers.len(),
+        project.actors.len(),
+    );
+    println!();
+    if pending_total > 0 {
+        println!("  {}  {pending_total} pending proposals", style::warn("inbox"));
+        for (k, n) in &pending_by_kind {
+            println!("    · {n:>3}  {k}");
+        }
+    } else {
+        println!("  {}  inbox clean", style::ok("ok"));
+    }
+    println!();
+    if audit_summary.underidentified > 0 || audit_summary.conditional > 0 {
+        let chip = if audit_summary.underidentified > 0 {
+            style::lost("audit")
+        } else {
+            style::warn("audit")
+        };
+        println!(
+            "  {}  identified {} · conditional {} · underidentified {} · underdetermined {}",
+            chip,
+            audit_summary.identified,
+            audit_summary.conditional,
+            audit_summary.underidentified,
+            audit_summary.underdetermined,
+        );
+        if audit_summary.underidentified > 0 {
+            println!("    next: vela causal audit {} --problems-only", path.display());
+        }
+    } else if audit_summary.underdetermined == 0 {
+        println!("  {}  causal audit: all {} identified", style::ok("ok"), audit_summary.identified);
+    } else {
+        println!(
+            "  {}  causal audit: {} identified, {} ungraded",
+            style::warn("audit"),
+            audit_summary.identified,
+            audit_summary.underdetermined,
+        );
+    }
+    println!();
+    if !project.replications.is_empty() {
+        println!(
+            "  {}  {} records · {} findings replicated · {} failed",
+            style::ok("replications"),
+            project.replications.len(),
+            targets_with_success.len(),
+            failed_replications,
+        );
+    }
+    if project.peers.is_empty() {
+        println!("  {}  no federation peers registered", style::warn("federation"));
+    } else {
+        let last = last_sync
+            .map(|e| fmt_timestamp(&e.timestamp))
+            .unwrap_or_else(|| "never".to_string());
+        let chip = if total_conflicts > 0 {
+            style::warn("federation")
+        } else {
+            style::ok("federation")
+        };
+        println!(
+            "  {}  {} peer(s) · last sync {} · {} conflict events",
+            chip,
+            project.peers.len(),
+            last,
+            total_conflicts,
+        );
+    }
+    println!();
+}
+
+/// v0.42: Recent canonical events. The `git log` analogue.
+fn cmd_log(path: &Path, limit: usize, kind_filter: Option<&str>, json: bool) {
+    let project = repo::load_from_path(path).unwrap_or_else(|e| fail_return(&e));
+    let mut events: Vec<&crate::events::StateEvent> = project
+        .events
+        .iter()
+        .filter(|e| match kind_filter {
+            Some(k) => e.kind.contains(k),
+            None => true,
+        })
+        .collect();
+    events.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
+    events.truncate(limit);
+
+    if json {
+        let payload: Vec<_> = events
+            .iter()
+            .map(|e| {
+                json!({
+                    "id": e.id,
+                    "kind": e.kind,
+                    "actor": e.actor.id,
+                    "target": &e.target.id,
+                    "target_type": &e.target.r#type,
+                    "timestamp": e.timestamp,
+                    "reason": e.reason,
+                })
+            })
+            .collect();
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&json!({
+                "ok": true,
+                "command": "log",
+                "events": payload,
+            }))
+            .expect("serialize log")
+        );
+        return;
+    }
+
+    println!();
+    println!(
+        "  {}",
+        format!("VELA · LOG · {}  (latest {})", path.display(), events.len())
+            .to_uppercase()
+            .dimmed()
+    );
+    println!("  {}", style::tick_row(60));
+    if events.is_empty() {
+        println!("  (no events)");
+        return;
+    }
+    for e in &events {
+        let when = fmt_timestamp(&e.timestamp);
+        let target_short = if e.target.id.len() > 22 {
+            format!("{}…", &e.target.id[..21])
+        } else {
+            e.target.id.clone()
+        };
+        let reason: String = e.reason.chars().take(70).collect();
+        println!(
+            "  {:<19}  {:<32}  {:<24}  {}",
+            when,
+            e.kind,
+            target_short,
+            reason
+        );
+    }
+    println!();
+}
+
+/// v0.42: Pending-proposals triage. The thing you sit down to review.
+fn cmd_inbox(path: &Path, kind_filter: Option<&str>, limit: usize, json: bool) {
+    let project = repo::load_from_path(path).unwrap_or_else(|e| fail_return(&e));
+
+    // Collect reviewer-agent score map (composite shown alongside each
+    // proposal where present).
+    let mut score_map: std::collections::HashMap<String, (f64, f64, f64, f64)> =
+        std::collections::HashMap::new();
+    for p in &project.proposals {
+        if p.kind != "finding.note" {
+            continue;
+        }
+        if p.actor.id != "agent:reviewer-agent" {
+            continue;
+        }
+        let reason = &p.reason;
+        let Some(target) = reason.split_whitespace().find(|s| s.starts_with("vpr_")) else {
+            continue;
+        };
+        let text = p
+            .payload
+            .get("text")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        let extract = |k: &str| -> f64 {
+            let pat = format!("{k} ");
+            text.find(&pat)
+                .and_then(|idx| text[idx + pat.len()..].split_whitespace().next())
+                .and_then(|t| t.parse::<f64>().ok())
+                .unwrap_or(0.0)
+        };
+        score_map.insert(
+            target.to_string(),
+            (
+                extract("plausibility"),
+                extract("evidence"),
+                extract("scope"),
+                extract("duplicate-risk"),
+            ),
+        );
+    }
+
+    let mut pending: Vec<&crate::proposals::StateProposal> = project
+        .proposals
+        .iter()
+        .filter(|p| {
+            p.status == "pending_review"
+                && match kind_filter {
+                    Some(k) => p.kind.contains(k),
+                    None => true,
+                }
+        })
+        .collect();
+    // Sort: high reviewer-agent composite first, then untyped.
+    pending.sort_by(|a, b| {
+        let sa = score_map
+            .get(&a.id)
+            .map(|(p, e, s, d)| 0.4 * p + 0.3 * e + 0.2 * s - 0.3 * d);
+        let sb = score_map
+            .get(&b.id)
+            .map(|(p, e, s, d)| 0.4 * p + 0.3 * e + 0.2 * s - 0.3 * d);
+        sb.partial_cmp(&sa).unwrap_or(std::cmp::Ordering::Equal)
+    });
+    pending.truncate(limit);
+
+    if json {
+        let payload: Vec<_> = pending
+            .iter()
+            .map(|p| {
+                let assertion_text = p
+                    .payload
+                    .get("finding")
+                    .and_then(|f| f.get("assertion"))
+                    .and_then(|a| a.get("text"))
+                    .and_then(|t| t.as_str());
+                let assertion_type = p
+                    .payload
+                    .get("finding")
+                    .and_then(|f| f.get("assertion"))
+                    .and_then(|a| a.get("type"))
+                    .and_then(|t| t.as_str());
+                let composite = score_map
+                    .get(&p.id)
+                    .map(|(pl, e, s, d)| 0.4 * pl + 0.3 * e + 0.2 * s - 0.3 * d);
+                json!({
+                    "proposal_id": p.id,
+                    "kind": p.kind,
+                    "actor": p.actor,
+                    "reason": p.reason,
+                    "assertion_text": assertion_text,
+                    "assertion_type": assertion_type,
+                    "reviewer_composite": composite,
+                })
+            })
+            .collect();
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&json!({
+                "ok": true,
+                "command": "inbox",
+                "shown": pending.len(),
+                "proposals": payload,
+            }))
+            .expect("serialize inbox")
+        );
+        return;
+    }
+
+    println!();
+    println!(
+        "  {}",
+        format!(
+            "VELA · INBOX · {}  ({} pending shown)",
+            path.display(),
+            pending.len()
+        )
+        .to_uppercase()
+        .dimmed()
+    );
+    println!("  {}", style::tick_row(60));
+    if pending.is_empty() {
+        println!("  (inbox clean)");
+        return;
+    }
+    for p in &pending {
+        let assertion_text = p
+            .payload
+            .get("finding")
+            .and_then(|f| f.get("assertion"))
+            .and_then(|a| a.get("text"))
+            .and_then(|t| t.as_str())
+            .unwrap_or("");
+        let assertion_type = p
+            .payload
+            .get("finding")
+            .and_then(|f| f.get("assertion"))
+            .and_then(|a| a.get("type"))
+            .and_then(|t| t.as_str())
+            .unwrap_or("");
+        let composite = score_map
+            .get(&p.id)
+            .map(|(pl, e, s, d)| 0.4 * pl + 0.3 * e + 0.2 * s - 0.3 * d);
+        let score_str = composite
+            .map(|c| format!("[{:.2}]", c))
+            .unwrap_or_else(|| "[—]   ".to_string());
+        let kind_short = if p.kind.len() > 12 {
+            format!("{}…", &p.kind[..11])
+        } else {
+            p.kind.clone()
+        };
+        let summary: String = if !assertion_text.is_empty() {
+            assertion_text.chars().take(80).collect()
+        } else {
+            p.reason.chars().take(80).collect()
+        };
+        println!(
+            "  {}  {}  {:<13}  {:<18}  {}",
+            score_str,
+            p.id,
+            kind_short,
+            assertion_type,
+            summary
+        );
+    }
+    println!();
+}
+
+/// v0.42: Conversational substrate access. Thin REPL over kernel
+/// queries. Doesn't pretend to be an agent — every answer comes from
+/// a structured query the kernel can produce deterministically. The
+/// goal is fluency, not magic.
+fn cmd_ask(path: &Path, question: &str, json: bool) {
+    let project = repo::load_from_path(path).unwrap_or_else(|e| fail_return(&e));
+
+    if question.trim().is_empty() {
+        // REPL mode.
+        use std::io::{BufRead, Write};
+        println!();
+        println!(
+            "  {}",
+            format!("VELA · ASK · {}", path.display()).to_uppercase().dimmed()
+        );
+        println!("  {}", style::tick_row(60));
+        println!("  Ask a question. Type `exit` to quit.");
+        println!("  Examples:");
+        println!("    · what's pending?");
+        println!("    · what's underidentified?");
+        println!("    · how many findings?");
+        println!("    · what changed recently?");
+        println!("    · who has what calibration?");
+        println!();
+        let stdin = std::io::stdin();
+        let mut stdout = std::io::stdout();
+        loop {
+            print!("  ask> ");
+            stdout.flush().ok();
+            let mut line = String::new();
+            if stdin.lock().read_line(&mut line).is_err() {
+                break;
+            }
+            let q = line.trim();
+            if q.is_empty() {
+                continue;
+            }
+            if matches!(q, "exit" | "quit" | "q") {
+                break;
+            }
+            answer(&project, q, false);
+        }
+        return;
+    }
+
+    answer(&project, question, json);
+}
+
+fn answer(project: &crate::project::Project, q: &str, json: bool) {
+    let lower = q.to_lowercase();
+
+    // Pattern: pending / inbox.
+    if lower.contains("pending")
+        || lower.contains("inbox")
+        || lower.contains("queue")
+        || lower.contains("to review")
+    {
+        let pending: Vec<&crate::proposals::StateProposal> = project
+            .proposals
+            .iter()
+            .filter(|p| p.status == "pending_review")
+            .collect();
+        let mut by_kind: std::collections::BTreeMap<String, usize> = Default::default();
+        for p in &pending {
+            *by_kind.entry(p.kind.clone()).or_insert(0) += 1;
+        }
+        if json {
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&json!({
+                    "answer": "pending",
+                    "total": pending.len(),
+                    "by_kind": by_kind,
+                }))
+                .unwrap()
+            );
+        } else {
+            println!("  {} pending proposals.", pending.len());
+            for (k, n) in &by_kind {
+                println!("    · {n:>3}  {k}");
+            }
+            if pending.is_empty() {
+                println!("  Inbox is clean.");
+            } else {
+                println!("  Run `vela inbox <frontier>` to triage.");
+            }
+        }
+        return;
+    }
+
+    // Pattern: underidentified / conditional / audit.
+    if lower.contains("underident")
+        || lower.contains("audit")
+        || lower.contains("identif")
+        || lower.contains("causal")
+    {
+        let entries = crate::causal_reasoning::audit_frontier(project);
+        let summary = crate::causal_reasoning::summarize_audit(&entries);
+        if json {
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&json!({
+                    "answer": "audit",
+                    "summary": {
+                        "identified": summary.identified,
+                        "conditional": summary.conditional,
+                        "underidentified": summary.underidentified,
+                        "underdetermined": summary.underdetermined,
+                    },
+                }))
+                .unwrap()
+            );
+        } else {
+            println!(
+                "  Causal audit: {} identified · {} conditional · {} underidentified · {} underdetermined.",
+                summary.identified,
+                summary.conditional,
+                summary.underidentified,
+                summary.underdetermined,
+            );
+            if summary.underidentified > 0 {
+                println!("  The {} underidentified findings are concrete review items:", summary.underidentified);
+                for e in entries.iter().filter(|e| matches!(e.verdict, crate::causal_reasoning::Identifiability::Underidentified)).take(8) {
+                    let txt: String = e.assertion_text.chars().take(70).collect();
+                    println!("    · {}  {}", e.finding_id, txt);
+                }
+            }
+        }
+        return;
+    }
+
+    // Pattern: recent / changed / log.
+    if lower.contains("recent")
+        || lower.contains("changed")
+        || lower.contains("latest")
+        || lower.contains("happen")
+    {
+        let mut events: Vec<&crate::events::StateEvent> = project.events.iter().collect();
+        events.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
+        events.truncate(8);
+        if json {
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&json!({
+                    "answer": "recent_events",
+                    "events": events.iter().map(|e| json!({
+                        "id": e.id, "kind": e.kind, "timestamp": e.timestamp,
+                        "actor": e.actor.id, "target": e.target.id,
+                    })).collect::<Vec<_>>(),
+                }))
+                .unwrap()
+            );
+        } else {
+            println!("  Most recent {} events:", events.len());
+            for e in &events {
+                let when = fmt_timestamp(&e.timestamp);
+                println!("    · {when}  {:<28}  {}", e.kind, e.target.id);
+            }
+        }
+        return;
+    }
+
+    // Pattern: how many / count.
+    if lower.starts_with("how many") || lower.contains("count") || lower.contains("total") {
+        let n = project.findings.len();
+        let evs = project.events.len();
+        let peers = project.peers.len();
+        let actors = project.actors.len();
+        if json {
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&json!({
+                    "answer": "counts",
+                    "findings": n,
+                    "events": evs,
+                    "peers": peers,
+                    "actors": actors,
+                    "replications": project.replications.len(),
+                    "predictions": project.predictions.len(),
+                }))
+                .unwrap()
+            );
+        } else {
+            println!("  {n} findings · {evs} events · {actors} actors · {peers} peers.");
+            println!(
+                "  {} replications · {} predictions · {} datasets · {} code artifacts.",
+                project.replications.len(),
+                project.predictions.len(),
+                project.datasets.len(),
+                project.code_artifacts.len(),
+            );
+        }
+        return;
+    }
+
+    // Pattern: calibration.
+    if lower.contains("calibration") || lower.contains("brier") || lower.contains("predict") {
+        let records = crate::calibration::calibration_records(
+            &project.predictions,
+            &project.resolutions,
+        );
+        if json {
+            println!("{}", serde_json::to_string_pretty(&records).unwrap());
+        } else if records.is_empty() {
+            println!("  No predictions yet. The calibration ledger is empty.");
+        } else {
+            println!("  Calibration over {} actor(s):", records.len());
+            for r in &records {
+                let brier = r.brier_score.map(|b| format!("{:.3}", b)).unwrap_or_else(|| "—".into());
+                println!(
+                    "    · {:<28}  predictions {} · resolved {} · expired {} · Brier {}",
+                    r.actor, r.n_predictions, r.n_resolved, r.n_expired, brier
+                );
+            }
+        }
+        return;
+    }
+
+    // Pattern: federation / peers / sync.
+    if lower.contains("peer")
+        || lower.contains("federat")
+        || lower.contains("sync")
+        || lower.contains("conflict")
+    {
+        let mut total_conflicts = 0usize;
+        for e in &project.events {
+            if e.kind == "frontier.conflict_detected" {
+                total_conflicts += 1;
+            }
+        }
+        if json {
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&json!({
+                    "answer": "federation",
+                    "peers": project.peers.iter().map(|p| &p.id).collect::<Vec<_>>(),
+                    "total_conflicts": total_conflicts,
+                }))
+                .unwrap()
+            );
+        } else {
+            println!("  {} peer(s) registered:", project.peers.len());
+            for p in &project.peers {
+                println!("    · {:<24}  {}", p.id, p.url);
+            }
+            println!("  {total_conflicts} conflict events on the canonical log.");
+        }
+        return;
+    }
+
+    // Fallback.
+    if json {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&json!({
+                "answer": "unknown_question",
+                "question": q,
+                "hint": "Try: pending, audit, recent, how many, calibration, peers."
+            }))
+            .unwrap()
+        );
+    } else {
+        println!("  Don't know how to route that question yet.");
+        println!("  Try: pending · audit · recent · how many · calibration · peers");
+    }
+}
+
+fn frontier_label(p: &crate::project::Project) -> String {
+    if p.project.name.trim().is_empty() {
+        "(unnamed)".to_string()
+    } else {
+        p.project.name.clone()
+    }
+}
+
+fn fmt_timestamp(ts: &str) -> String {
+    // RFC 3339 → "MM-DD HH:MM" for human reading. Falls back to first
+    // 16 chars if parsing fails (which is enough to be readable).
+    chrono::DateTime::parse_from_rfc3339(ts)
+        .map(|dt| dt.format("%m-%d %H:%M").to_string())
+        .unwrap_or_else(|_| ts.chars().take(16).collect())
 }
 
 fn cmd_stats(path: &Path) {
@@ -8295,6 +9074,13 @@ const SCIENCE_SUBCOMMANDS: &[&str] = &[
     "federation",
     // v0.40: causal reasoning — identifiability audit.
     "causal",
+    // v0.42: daily-driver triad + conversational REPL. The
+    // "git status / git log / inbox" of the substrate, plus a
+    // thin natural-language router over the same kernel queries.
+    "status",
+    "log",
+    "inbox",
+    "ask",
 ];
 
 pub fn is_science_subcommand(name: &str) -> bool {

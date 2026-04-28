@@ -1,5 +1,120 @@
 # Changelog
 
+## 0.42.0 - 2026-04-28
+
+**Daily-driver CLI: `vela status` / `vela log` / `vela inbox` / `vela ask`.**
+The kernel was a daily driver only if you knew which of dozens of
+subcommands to run. v0.42 closes that gap. Four new top-level verbs
+that read in two seconds and answer the questions a working scientist
+actually has when they sit down.
+
+The inspirations are explicit: **Git** for `status` and `log`, **Codex
+/ Claude Code** for `ask`'s conversational substrate access. Not
+Phylo's web-IDE bet — Vela's bet is "the protocol Phylo and The Stacks
+should read from and write to," and the protocol's daily driver is
+Git-flavored, not chatbot-flavored.
+
+### `vela status <frontier>`
+
+The `git status` analogue. One screen, two seconds:
+
+```
+  VELA · STATUS · projects/bbb-flagship
+  ────────────────────────────────────────────────
+  frontier:    Alzheimer's Therapeutics
+  vfr_id:      vfr_a1b985823a975887
+  findings:    188    events: 314    peers: 1    actors: 0
+
+  · inbox  23 pending proposals
+    ·   8  finding.add
+    ·  15  finding.note
+  · audit  identified 60 · conditional 22 · underidentified 4 · underdetermined 102
+    next: vela causal audit projects/bbb-flagship --problems-only
+  · replications  3 records · 2 findings replicated · 0 failed
+  · federation  1 peer(s) · last sync 04-28 00:34 · 77 conflict events
+```
+
+Every load-bearing kernel signal in one view: counts, inbox, causal
+audit summary, replications, federation health. When the audit has
+underidentified items, surfaces the exact next command to run.
+
+### `vela log <frontier> [--limit N] [--kind K]`
+
+Recent canonical events, newest first. The `git log` analogue.
+Optional `--kind` filter for substring match. Renders timestamp +
+kind + target + reason in tabular form.
+
+### `vela inbox <frontier> [--kind K] [--limit N]`
+
+Pending-proposal triage list. Sorted by reviewer-agent composite
+score (descending) so problems-first. Shows score + proposal id +
+kind + assertion type + first 80 chars of the assertion. The thing
+you sit down to review.
+
+### `vela ask <frontier> [question…]`
+
+Conversational substrate access. With a question, answers directly.
+Without one, drops into a REPL. Routes natural-language questions to
+structured kernel queries — no agent in the loop, deterministic
+answers from canonical state.
+
+Question patterns recognized:
+
+- "what's pending?" / "inbox" / "to review" → pending counts + breakdown
+- "what's underidentified?" / "audit" / "causal" → audit summary + the underidentified findings
+- "what changed recently?" / "latest" → newest 8 events
+- "how many findings?" / "count" / "total" → object counts
+- "calibration" / "Brier" / "predictions" → per-actor calibration records
+- "peers" / "federation" / "sync" / "conflict" → peer registry + conflict count
+
+Falls back to a hint when the question doesn't match a pattern. The
+goal is *fluency*, not magic — every answer is reproducible from a
+specific kernel query.
+
+### Why the inspirations matter here
+
+Phylo (phylo.bio, $13.5M Menlo seed) is the IDE-for-biology bet.
+Their surface is web-only, agent-led, conversational, and accumulating
+real users (8,400 in 72 days). That's a good bet, well-funded; not
+Vela's bet. Vela is the *protocol underneath* — content-addressed,
+signed, federated, replication-as-object. The daily driver should
+match Git, not Phylo.
+
+Radial / The Stacks (Astera, $500M life-sciences arm) is the
+publishing-layer bet for machine-readable scientific artifacts.
+Their stance is explicitly *combine existing tools* (Zenodo +
+Substack), not propose novel primitives. Vela's primitives are
+exactly what The Stacks's nanopublications would need to be
+cryptographically grounded — and they don't build them.
+
+The CLI triad is the move that makes Vela legibly Git-shaped, not
+trying to compete with Phylo on the conversational-IDE axis.
+
+### Verification
+
+- `cargo build --workspace`: clean.
+- `cargo test --workspace`: 426/426 pass (no new tests; the new
+  commands are composition over existing kernel queries).
+- `vela status projects/bbb-flagship`: renders the BBB pulse points
+  in <1s.
+- `vela log projects/bbb-flagship --limit 12`: renders the most
+  recent 12 events including the v0.41.0 federation pair.
+- `vela inbox projects/bbb-flagship --limit 15`: surfaces the 7
+  reviewer-agent-scored pending finding.adds first, then the score
+  notes, ordered by composite.
+- `vela ask projects/bbb-flagship "what's underidentified"`: returns
+  the 4 underidentified findings with their assertions inline.
+
+### What this completes
+
+The session inspired by Phylo + Radial: the substrate's daily-driver
+surface now matches the Git inspiration explicitly, with `ask`
+covering the Codex inspiration as a thin REPL. The local-workbench
+arc (Tauri / localhost web app reading `.vela/`) is deferred to a
+future release — it's a multi-session piece of work, and the CLI
+triad is the cheapest move that demonstrates substrate fluency in
+the meantime.
+
 ## 0.41.0 - 2026-04-27
 
 **Hub-aware federation sync.** First time the substrate exchanged
