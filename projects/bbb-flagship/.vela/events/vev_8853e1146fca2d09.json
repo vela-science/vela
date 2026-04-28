@@ -1,0 +1,24 @@
+{
+  "schema": "vela.event.v0.1",
+  "id": "vev_8853e1146fca2d09",
+  "kind": "frontier.synced_with_peer",
+  "target": {
+    "type": "frontier_observation",
+    "id": "vfr_c686164a56697706"
+  },
+  "actor": {
+    "id": "federation",
+    "type": "system"
+  },
+  "timestamp": "2026-04-27T23:53:35.150110+00:00",
+  "reason": "synced with peer hub:vela-frontiers-mirror",
+  "before_hash": "sha256:null",
+  "after_hash": "sha256:null",
+  "payload": {
+    "divergence_count": 0,
+    "our_snapshot_hash": "a278632ad21f9cd0326fc88ec2dab2f090b36c41f819e244411959b21428ef8b",
+    "peer_id": "hub:vela-frontiers-mirror",
+    "peer_snapshot_hash": "2aaeedaa3071fe1c49add140402290b6a18c5c0a5c5d34428d93212399343d4e"
+  },
+  "caveats": []
+}

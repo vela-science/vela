@@ -1,0 +1,391 @@
+---
+/*
+  Causal identifiability audit (v0.40).
+
+  Renders the verdict the kernel produces from `vela causal audit`:
+  for each finding, does the declared (causal_claim,
+  causal_evidence_grade) actually identify the claim being made?
+
+  Reviewer-attention items (Underidentified, then Conditional) sort
+  to the top. Identified findings sink to the bottom because the
+  audit's value is the *problem list*, not the success list.
+
+  Doctrine encoded: identifiability is a function of (claim, grade),
+  not of confidence score, citation count, or any soft signal.
+  Either the design admits the claim or it doesn't.
+*/
+
+import Page from "../../layouts/Page.astro";
+import {
+  auditFrontier,
+  summarizeAudit,
+  type Identifiability,
+} from "../../lib/frontier";
+import { FRONTIER, REPO_URL, VERSION } from "../../config";
+
+const entries = auditFrontier();
+const summary = summarizeAudit(entries);
+
+const verdictChip: Record<Identifiability, string> = {
+  identified: "ok",
+  conditional: "warn",
+  underidentified: "lost",
+  underdetermined: "stale",
+};
+const verdictLabel: Record<Identifiability, string> = {
+  identified: "identified",
+  conditional: "conditional",
+  underidentified: "underidentified",
+  underdetermined: "underdetermined",
+};
+
+function fmtClaim(c?: string): string {
+  return c ?? "—";
+}
+function fmtGrade(g?: string): string {
+  return g ? g.replace(/_/g, " ") : "—";
+}
+---
+
+<Page
+  title={`Causal audit · ${FRONTIER.name}`}
+  description="Per-finding identifiability verdict. Does the declared study-design grade actually support the causal claim being made? Underidentified findings get top-of-page treatment as concrete reviewer items."
+  active=""
+  eyebrow="Causal audit"
+  pageTitle="Identifiability audit"
+  subtitle="Pearl level 1: does the design, as declared, identify the claim?"
+>
+  <div slot="aside">
+    <a href="/" class="aside-link">frontier</a>
+    <span>·</span>
+    <a href={REPO_URL} class="aside-link">github</a>
+    <span class="aside-version">v{VERSION}</span>
+  </div>
+
+  <!-- Doctrine sidebar -->
+  <aside class="ca-doctrine">
+    <div class="ca-doctrine__eyebrow">Doctrine</div>
+    <p class="ca-doctrine__body">
+      Identifiability is a function of <code>(causal_claim, causal_evidence_grade)</code>,
+      not of confidence score, citation count, or any soft signal. Correlation
+      claims are admitted by any reasonable design. Mediation needs RCT or
+      a quasi-experimental design with declared assumptions. Intervention
+      requires RCT — observational data does not identify <code>do(X=x)</code>.
+    </p>
+    <p class="ca-doctrine__body">
+      The kernel records the verdict; it does not auto-correct. Each
+      Underidentified finding ships with concrete remediation language —
+      either downgrade the claim, or attach RCT/QE evidence that closes
+      the back-door pathways.
+    </p>
+  </aside>
+
+  <!-- Summary -->
+  <section class="ca-summary">
+    <header class="ca-summary__head">
+      <h2 class="ca-summary__title">Verdict over {summary.total} findings</h2>
+    </header>
+    <div class="ca-summary__row">
+      <div class="ca-stat ca-stat--ok">
+        <div class="ca-stat__num">{summary.identified}</div>
+        <div class="ca-stat__lbl">identified</div>
+      </div>
+      <div class="ca-stat ca-stat--warn">
+        <div class="ca-stat__num">{summary.conditional}</div>
+        <div class="ca-stat__lbl">conditional</div>
+      </div>
+      <div class="ca-stat ca-stat--lost">
+        <div class="ca-stat__num">{summary.underidentified}</div>
+        <div class="ca-stat__lbl">underidentified</div>
+      </div>
+      <div class="ca-stat ca-stat--stale">
+        <div class="ca-stat__num">{summary.underdetermined}</div>
+        <div class="ca-stat__lbl">underdetermined</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Underidentified — the substrate's clearest signal that a claim outruns its evidence -->
+  {summary.underidentified > 0 && (
+    <section class="ca-section">
+      <h2 class="ca-section__title">Underidentified — claim outruns evidence</h2>
+      <p class="ca-section__sub">
+        Design cannot support the causal claim being made. Each entry needs
+        either a claim downgrade or stronger evidence.
+      </p>
+      <div class="ca-list">
+        {entries.filter((e) => e.verdict === "underidentified").map((e) => (
+          <article class={`ca-card ca-card--${verdictChip[e.verdict]}`}>
+            <div class="ca-card__head">
+              <span class={`ca-chip ca-chip--${verdictChip[e.verdict]}`}>
+                {verdictLabel[e.verdict]}
+              </span>
+              <a href={`/claims/${e.slug}`} class="ca-card__id">{e.finding_id}</a>
+              <span class="ca-card__pair">
+                <code>{fmtClaim(e.causal_claim)}</code>
+                <span class="ca-card__sep">/</span>
+                <code>{fmtGrade(e.causal_evidence_grade)}</code>
+              </span>
+            </div>
+            <p class="ca-card__assertion">{e.assertion_text}</p>
+            <p class="ca-card__why"><span class="ca-card__lbl">why:</span> {e.rationale}</p>
+            <p class="ca-card__fix"><span class="ca-card__lbl">fix:</span> {e.remediation}</p>
+          </article>
+        ))}
+      </div>
+    </section>
+  )}
+
+  <!-- Conditional — admit the claim only under reviewer-attested assumptions -->
+  {summary.conditional > 0 && (
+    <section class="ca-section">
+      <h2 class="ca-section__title">Conditional — admits claim under stated assumptions</h2>
+      <p class="ca-section__sub">
+        Quasi-experimental designs identify intervention or mediation only when the
+        instrument is valid and confounders are addressed. Reviewer must document the
+        assumption.
+      </p>
+      <div class="ca-list">
+        {entries.filter((e) => e.verdict === "conditional").map((e) => (
+          <article class={`ca-card ca-card--${verdictChip[e.verdict]}`}>
+            <div class="ca-card__head">
+              <span class={`ca-chip ca-chip--${verdictChip[e.verdict]}`}>
+                {verdictLabel[e.verdict]}
+              </span>
+              <a href={`/claims/${e.slug}`} class="ca-card__id">{e.finding_id}</a>
+              <span class="ca-card__pair">
+                <code>{fmtClaim(e.causal_claim)}</code>
+                <span class="ca-card__sep">/</span>
+                <code>{fmtGrade(e.causal_evidence_grade)}</code>
+              </span>
+            </div>
+            <p class="ca-card__assertion">{e.assertion_text}</p>
+            <p class="ca-card__why"><span class="ca-card__lbl">why:</span> {e.rationale}</p>
+          </article>
+        ))}
+      </div>
+    </section>
+  )}
+
+  <!-- Identified — the substrate vouches for the claim -->
+  {summary.identified > 0 && (
+    <section class="ca-section">
+      <h2 class="ca-section__title">Identified — design supports the claim</h2>
+      <p class="ca-section__sub">
+        Compact list. Click into a finding for evidence, replications, and the full chain.
+      </p>
+      <ul class="ca-compact">
+        {entries.filter((e) => e.verdict === "identified").map((e) => (
+          <li class="ca-compact__row">
+            <a href={`/claims/${e.slug}`} class="ca-compact__id">{e.finding_id}</a>
+            <span class="ca-compact__pair">
+              <code>{fmtClaim(e.causal_claim)}</code>
+              <span class="ca-card__sep">/</span>
+              <code>{fmtGrade(e.causal_evidence_grade)}</code>
+            </span>
+            <span class="ca-compact__text">{e.assertion_text}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )}
+</Page>
+
+<style>
+  .ca-doctrine {
+    border: 1px solid var(--rule-2, #d8d4cc);
+    background: var(--bg-2, #f5f2ec);
+    padding: 1rem 1.25rem;
+    margin: 0 0 1.5rem 0;
+    font-size: 0.92rem;
+    line-height: 1.55;
+  }
+  .ca-doctrine__eyebrow {
+    font-size: 0.74rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ink-2, #6b665d);
+    margin-bottom: 0.4rem;
+  }
+  .ca-doctrine__body {
+    margin: 0 0 0.6rem 0;
+  }
+  .ca-doctrine__body:last-child {
+    margin-bottom: 0;
+  }
+  .ca-doctrine code {
+    background: var(--bg-3, #ebe6dd);
+    padding: 0.05em 0.3em;
+    border-radius: 2px;
+    font-size: 0.88em;
+  }
+
+  .ca-summary {
+    margin: 0 0 2rem 0;
+  }
+  .ca-summary__head {
+    margin-bottom: 0.75rem;
+  }
+  .ca-summary__title {
+    font-size: 1.1rem;
+    font-weight: 500;
+    margin: 0;
+  }
+  .ca-summary__row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.75rem;
+  }
+  .ca-stat {
+    border: 1px solid var(--rule-2, #d8d4cc);
+    padding: 0.85rem 1rem;
+    background: var(--bg-1, #fafaf6);
+  }
+  .ca-stat__num {
+    font-size: 2rem;
+    font-weight: 300;
+    line-height: 1;
+    margin-bottom: 0.3rem;
+  }
+  .ca-stat__lbl {
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ink-2, #6b665d);
+  }
+  .ca-stat--ok .ca-stat__num { color: #2f5d3a; }
+  .ca-stat--warn .ca-stat__num { color: #8a6d1f; }
+  .ca-stat--lost .ca-stat__num { color: #872c2c; }
+  .ca-stat--stale .ca-stat__num { color: #6b665d; }
+
+  .ca-section {
+    margin: 0 0 2.5rem 0;
+  }
+  .ca-section__title {
+    font-size: 1rem;
+    font-weight: 500;
+    margin: 0 0 0.3rem 0;
+  }
+  .ca-section__sub {
+    font-size: 0.88rem;
+    color: var(--ink-2, #6b665d);
+    margin: 0 0 1rem 0;
+  }
+
+  .ca-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  .ca-card {
+    border: 1px solid var(--rule-2, #d8d4cc);
+    padding: 0.9rem 1.1rem;
+    background: var(--bg-1, #fafaf6);
+  }
+  .ca-card--lost { border-left: 3px solid #872c2c; }
+  .ca-card--warn { border-left: 3px solid #8a6d1f; }
+  .ca-card--stale { border-left: 3px solid #6b665d; }
+  .ca-card--ok { border-left: 3px solid #2f5d3a; }
+
+  .ca-card__head {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    flex-wrap: wrap;
+    font-size: 0.84rem;
+    margin-bottom: 0.45rem;
+  }
+  .ca-chip {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 0.15em 0.55em;
+    border-radius: 2px;
+  }
+  .ca-chip--lost { background: #f3dada; color: #872c2c; }
+  .ca-chip--warn { background: #f0e7d0; color: #8a6d1f; }
+  .ca-chip--stale { background: #e0ddd5; color: #6b665d; }
+  .ca-chip--ok { background: #d8e7d8; color: #2f5d3a; }
+  .ca-card__id {
+    font-family: var(--font-mono, monospace);
+    color: var(--ink-1, #2a2a2a);
+    text-decoration: none;
+    border-bottom: 1px solid var(--rule-3, #c8c2b5);
+  }
+  .ca-card__id:hover {
+    border-bottom-color: var(--ink-1, #2a2a2a);
+  }
+  .ca-card__pair {
+    color: var(--ink-2, #6b665d);
+    font-size: 0.82rem;
+  }
+  .ca-card__pair code {
+    background: var(--bg-2, #f5f2ec);
+    padding: 0.05em 0.3em;
+    border-radius: 2px;
+  }
+  .ca-card__sep {
+    margin: 0 0.15em;
+    color: var(--ink-3, #a09a8d);
+  }
+  .ca-card__assertion {
+    margin: 0 0 0.55rem 0;
+    font-family: var(--font-serif, Georgia, serif);
+    line-height: 1.55;
+  }
+  .ca-card__why,
+  .ca-card__fix {
+    margin: 0 0 0.3rem 0;
+    font-size: 0.88rem;
+    color: var(--ink-1, #2a2a2a);
+    line-height: 1.5;
+  }
+  .ca-card__lbl {
+    color: var(--ink-2, #6b665d);
+    font-size: 0.76rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-right: 0.35em;
+  }
+
+  .ca-compact {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    border-top: 1px solid var(--rule-2, #d8d4cc);
+  }
+  .ca-compact__row {
+    display: grid;
+    grid-template-columns: 12rem 11rem 1fr;
+    gap: 0.85rem;
+    padding: 0.45rem 0;
+    border-bottom: 1px solid var(--rule-2, #d8d4cc);
+    font-size: 0.84rem;
+    align-items: baseline;
+  }
+  .ca-compact__id {
+    font-family: var(--font-mono, monospace);
+    color: var(--ink-1, #2a2a2a);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+  }
+  .ca-compact__id:hover {
+    border-bottom-color: var(--rule-3, #c8c2b5);
+  }
+  .ca-compact__pair {
+    color: var(--ink-2, #6b665d);
+    font-size: 0.8rem;
+  }
+  .ca-compact__pair code {
+    background: var(--bg-2, #f5f2ec);
+    padding: 0.05em 0.3em;
+    border-radius: 2px;
+    font-size: 0.86em;
+  }
+  .ca-compact__text {
+    font-family: var(--font-serif, Georgia, serif);
+    line-height: 1.5;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+</style>

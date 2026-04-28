@@ -1,5 +1,99 @@
 # Changelog
 
+## 0.40.3 - 2026-04-27
+
+**Site surfaces v0.38–v0.40 reasoning.** The kernel has been doing
+causal identifiability and federation diff for several releases; the
+site has been rendering pre-v0.38 content the whole time. v0.40.3
+closes the gap.
+
+### Public mirror refresh
+
+The public artifact at
+`https://raw.githubusercontent.com/vela-science/vela-frontiers/main/frontiers/bbb-alzheimer.json`
+was 9 minor versions stale (v0.31, 48 findings, 0 events, 0 graded).
+Refreshed to the live v0.40 substrate: 86 findings, 202 canonical
+events, 86 graded for causal claim + grade. The `divergence_count`
+on the next federation sync against the mirror dropped from 38 → 0.
+
+The pre-existing federation conflict events generated in v0.40.2 are
+preserved as the canonical record of the divergence that existed
+before the refresh — the substrate's first real "we caught this and
+fixed it" trail.
+
+### New site surface: `/causal/audit`
+
+Renders the v0.40 identifiability audit. Per-finding verdict,
+sorted reviewer-attention-first (Underidentified → Conditional →
+Underdetermined → Identified). Each problem entry carries the
+rationale ("Observational data leaves the back-door problem open")
+and the remediation ("Either downgrade to correlation, or attach
+RCT/QE evidence that closes the back-door pathways").
+
+For the BBB frontier today: 60 identified / 22 conditional /
+4 underidentified / 0 underdetermined. The 4 underidentified
+findings are concrete review items front and center on the page.
+
+### New site surface: `/federation`
+
+Renders the peer registry, sync log, conflict log by kind, and the
+50 most recent conflicts. The doctrine sidebar surfaces the
+"adding a peer declares awareness, not trust" rule explicitly.
+
+### Causal chip on every claim card
+
+`/claims/[slug]` instrument bar gains a "Causal" cell when the
+finding has either field set: `<claim> / <grade>`, linked to
+`/causal/audit`. Quietly invisible on pre-v0.38 findings that lack
+the data; load-bearing on the 86 BBB findings that just got graded.
+
+### Nav
+
+`WbRim` gains two entries: `03 · Causal` and `04 · Federation`.
+Numbering shifted; nothing renamed.
+
+### Loader (`site/src/lib/frontier.ts`)
+
+- New types: `CausalClaim`, `CausalEvidenceGrade`, `Identifiability`,
+  `AuditEntry`, `AuditSummary`, `PeerHub`, `ConflictKind`,
+  `SyncRecord`, `ConflictRecord`.
+- `auditFrontier()`, `summarizeAudit()` mirror the Rust
+  `causal_reasoning` matrix in TypeScript. Hand-kept-in-sync; the
+  Rust kernel has unit tests pinning the matrix so any drift
+  surfaces fast.
+- `loadPeers()` reads `.vela/peers.json`; `loadFederationEvents()`
+  walks `.vela/events/` and partitions sync vs conflict events.
+- Assertion type extended with `causal_claim` and
+  `causal_evidence_grade` optional fields.
+
+### Verification
+
+- `cargo build --workspace`: clean.
+- `cargo test --workspace`: 426/426 pass.
+- `bun run build` (site): 207 pages built including `/causal/audit/`
+  and `/federation/`. Causal page renders 4 underidentified + 22
+  conditional + 60 identified rows, federation page renders 1 peer,
+  multiple sync rows, and the conflict-by-kind summary.
+- Federation re-sync against the now-fresh mirror reports 0
+  divergence; BBB substrate replay still ok.
+
+### What's now visible vs. what isn't
+
+Visible to anyone hitting vela-site.fly.dev:
+
+- The full v0.40 causal verdict on every BBB finding
+- Concrete remediation language for the 4 underidentified items
+- Federation peer registry + the canonical history of divergence
+  with the public mirror
+- Causal chip on every claim card linking to the audit
+
+Not yet visible (worth doing next, but separate work):
+
+- The 167 pending proposals on the inbox — still a CLI-only surface
+- Live calibration scoreboard — the substrate has the schema and
+  the runtime; nothing has actually predicted yet
+- Cross-frontier bridges (v0.35) — needs a second domain frontier
+
 ## 0.40.2 - 2026-04-27
 
 **Two real bugs surfaced by exercising v0.39.1 against a live peer.**

@@ -21,12 +21,14 @@ const defaultLinks: NavLink[] = [
      the public agent leaderboard. */
   { id: "home", href: "/", label: "01 · Frontier" },
   { id: "bench", href: "/bench", label: "02 · Bench" },
-  { id: "protocol", href: "/protocol", label: "03 · Protocol" },
-  { id: "workbench", href: "/workbench", label: "04 · Workbench" },
-  { id: "docs", href: "/docs/protocol", label: "05 · Docs" },
-  { id: "essays", href: "/essays/science-needs-state", label: "06 · Essays" },
-  { id: "publish", href: "/publish", label: "07 · Publish" },
-  { id: "hub", href: HUB_URL, label: "08 · Hub" },
+  { id: "causal", href: "/causal/audit", label: "03 · Causal" },
+  { id: "federation", href: "/federation", label: "04 · Federation" },
+  { id: "protocol", href: "/protocol", label: "05 · Protocol" },
+  { id: "workbench", href: "/workbench", label: "06 · Workbench" },
+  { id: "docs", href: "/docs/protocol", label: "07 · Docs" },
+  { id: "essays", href: "/essays/science-needs-state", label: "08 · Essays" },
+  { id: "publish", href: "/publish", label: "09 · Publish" },
+  { id: "hub", href: HUB_URL, label: "10 · Hub" },
 ];
 
 const { active = "home", links = defaultLinks, version = `v${VERSION}` } =

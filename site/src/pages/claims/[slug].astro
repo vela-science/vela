@@ -95,6 +95,18 @@ const created = new Date(f.created).toISOString().slice(0, 10);
         {f.conditions.clinical_trial ? " · clinical" : ""}
       </span>
     </div>
+    {(f.assertion.causal_claim || f.assertion.causal_evidence_grade) && (
+      <div class="claim-bar__cell">
+        <span class="claim-bar__label">Causal</span>
+        <span class="claim-bar__value">
+          <a href="/causal/audit" class="claim-bar__link">
+            {f.assertion.causal_claim ?? "—"}
+            <span class="claim-bar__sep"> / </span>
+            {f.assertion.causal_evidence_grade?.replace(/_/g, " ") ?? "—"}
+          </a>
+        </span>
+      </div>
+    )}
     <div class="claim-bar__cell">
       <span class="claim-bar__label">Created</span>
       <span class="claim-bar__value">{created}</span>
@@ -346,6 +358,19 @@ const created = new Date(f.created).toISOString().slice(0, 10);
     display: inline-flex;
     align-items: center;
     gap: 6px;
+  }
+  .claim-bar__link {
+    color: var(--ink-1);
+    text-decoration: none;
+    border-bottom: 1px dotted var(--ink-3);
+  }
+  .claim-bar__link:hover {
+    border-bottom-style: solid;
+    border-bottom-color: var(--ink-1);
+  }
+  .claim-bar__sep {
+    color: var(--ink-3);
+    margin: 0 1px;
   }
   .claim-bar__dot {
     width: 7px;

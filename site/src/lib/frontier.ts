@@ -33,6 +33,16 @@ export interface EvidenceSpan {
   text: string;
 }
 
+// v0.38: causal-typing fields. Added to Assertion in v0.38.0;
+// drive the v0.40 identifiability audit. Either may be unset on
+// pre-v0.38 findings; renderers must guard for undefined.
+export type CausalClaim = "correlation" | "mediation" | "intervention";
+export type CausalEvidenceGrade =
+  | "rct"
+  | "quasi_experimental"
+  | "observational"
+  | "theoretical";
+
 export interface Assertion {
   text: string;
   type: string;
@@ -43,6 +53,8 @@ export interface Assertion {
   }>;
   relation?: string;
   direction?: string;
+  causal_claim?: CausalClaim;
+  causal_evidence_grade?: CausalEvidenceGrade;
 }
 
 export interface Evidence {
@@ -1248,4 +1260,265 @@ export function doiUrl(p: Provenance): string | null {
   if (p.doi) return `https://doi.org/${p.doi}`;
   if (p.pmid) return `https://pubmed.ncbi.nlm.nih.gov/${p.pmid}/`;
   return null;
+}
+
+// ── v0.40 causal reasoning (site mirror of crate::causal_reasoning) ─
+
+export type Identifiability =
+  | "identified"
+  | "conditional"
+  | "underidentified"
+  | "underdetermined";
+
+export interface AuditEntry {
+  finding_id: string;
+  slug: string;
+  short_id: string;
+  assertion_text: string;
+  causal_claim?: CausalClaim;
+  causal_evidence_grade?: CausalEvidenceGrade;
+  verdict: Identifiability;
+  rationale: string;
+  remediation: string;
+}
+
+export interface AuditSummary {
+  total: number;
+  identified: number;
+  conditional: number;
+  underidentified: number;
+  underdetermined: number;
+}
+
+// Decision matrix from crates/vela-protocol/src/causal_reasoning.rs.
+// Kept in sync by hand — there's no codegen, but the matrix is small,
+// stable, and the Rust kernel has unit tests that pin it.
+function isIdentifiable(
+  claim: CausalClaim | undefined,
+  grade: CausalEvidenceGrade | undefined,
+): Identifiability {
+  if (!claim || !grade) return "underdetermined";
+  if (claim === "correlation") return "identified";
+  if (grade === "rct") return "identified";
+  // Mediation
+  if (claim === "mediation" && grade === "quasi_experimental") return "conditional";
+  if (claim === "mediation") return "underidentified";
+  // Intervention
+  if (claim === "intervention" && grade === "quasi_experimental") return "conditional";
+  return "underidentified";
+}
+
+function rationaleFor(
+  claim: CausalClaim,
+  grade: CausalEvidenceGrade,
+): string {
+  if (claim === "correlation") {
+    return "Correlation claims are admitted by any reasonable design.";
+  }
+  if (grade === "rct") {
+    return claim === "intervention"
+      ? "RCT design identifies intervention effects directly."
+      : "RCT design identifies mediation pathways.";
+  }
+  if (claim === "mediation") {
+    if (grade === "quasi_experimental") {
+      return "Quasi-experimental design identifies mediation only when the instrument is valid and confounders are addressed.";
+    }
+    if (grade === "observational") {
+      return "Observational data leaves the back-door problem open: confounders may explain the apparent mediation.";
+    }
+    return "Theoretical models propose mediation; they do not identify it from data.";
+  }
+  // intervention
+  if (grade === "quasi_experimental") {
+    return "Quasi-experimental design identifies intervention effects only under instrument validity.";
+  }
+  if (grade === "observational") {
+    return "Observational data does not identify intervention effects (Rubin/Pearl: do(X=x) is unobserved).";
+  }
+  return "Theoretical analysis cannot identify intervention effects from real-world data alone.";
+}
+
+function remediationFor(
+  verdict: Identifiability,
+  claim: CausalClaim | undefined,
+): string {
+  if (verdict === "identified") return "No action; design supports the claim.";
+  if (verdict === "conditional") {
+    return "Document the additional assumptions (instrument validity, ignorability of confounders) on the finding as a caveat or evidence_span.";
+  }
+  if (verdict === "underdetermined") {
+    return "Set causal_claim and causal_evidence_grade via `vela finding causal-set`.";
+  }
+  // underidentified
+  if (claim === "intervention") {
+    return "Either downgrade the claim from `intervention` to `correlation`, or attach RCT/QE-grade evidence that identifies the effect.";
+  }
+  if (claim === "mediation") {
+    return "Either downgrade to `correlation`, or attach RCT/QE-grade evidence that closes the back-door pathways.";
+  }
+  return "Downgrade the claim or supply stronger evidence.";
+}
+
+export function auditFrontier(): AuditEntry[] {
+  const claims = loadFrontier();
+  const entries: AuditEntry[] = claims.map((c) => {
+    const claim = c.finding.assertion.causal_claim;
+    const grade = c.finding.assertion.causal_evidence_grade;
+    const verdict = isIdentifiable(claim, grade);
+    const rationale =
+      claim && grade
+        ? rationaleFor(claim, grade)
+        : "Causal type or evidence grade unset.";
+    return {
+      finding_id: c.finding.id,
+      slug: c.slug,
+      short_id: c.shortId,
+      assertion_text: c.finding.assertion.text,
+      causal_claim: claim,
+      causal_evidence_grade: grade,
+      verdict,
+      rationale,
+      remediation: remediationFor(verdict, claim),
+    };
+  });
+  // Reviewer-attention items first.
+  const order: Record<Identifiability, number> = {
+    underidentified: 0,
+    conditional: 1,
+    underdetermined: 2,
+    identified: 3,
+  };
+  entries.sort((a, b) => order[a.verdict] - order[b.verdict]);
+  return entries;
+}
+
+export function summarizeAudit(entries: AuditEntry[]): AuditSummary {
+  const s: AuditSummary = {
+    total: entries.length,
+    identified: 0,
+    conditional: 0,
+    underidentified: 0,
+    underdetermined: 0,
+  };
+  for (const e of entries) s[e.verdict]++;
+  return s;
+}
+
+// ── v0.39 federation (site mirror of crate::federation) ──────────────
+
+export interface PeerHub {
+  id: string;
+  url: string;
+  public_key: string;
+  added_at: string;
+  note?: string;
+}
+
+export type ConflictKind =
+  | "missing_in_peer"
+  | "missing_locally"
+  | "confidence_diverged"
+  | "retracted_diverged"
+  | "review_state_diverged"
+  | "superseded_diverged"
+  | "assertion_text_diverged";
+
+export interface SyncRecord {
+  timestamp: string;
+  peer_id: string;
+  our_snapshot_hash: string;
+  peer_snapshot_hash: string;
+  divergence_count: number;
+}
+
+export interface ConflictRecord {
+  timestamp: string;
+  peer_id: string;
+  finding_id: string;
+  kind: ConflictKind;
+  detail: string;
+}
+
+function frontierEventsDir(): string {
+  return join(repoRoot(), FRONTIER.repoPath, ".vela", "events");
+}
+
+function frontierPeersFile(): string {
+  return join(repoRoot(), FRONTIER.repoPath, ".vela", "peers.json");
+}
+
+let _peersCache: PeerHub[] | null = null;
+export function loadPeers(): PeerHub[] {
+  if (_peersCache) return _peersCache;
+  const path = frontierPeersFile();
+  if (!existsSync(path)) {
+    _peersCache = [];
+    return _peersCache;
+  }
+  try {
+    const raw = readFileSync(path, "utf8");
+    _peersCache = JSON.parse(raw) as PeerHub[];
+  } catch (err) {
+    console.warn(`[frontier] failed to parse peers.json:`, err);
+    _peersCache = [];
+  }
+  return _peersCache;
+}
+
+interface RawEvent {
+  id: string;
+  kind: string;
+  target?: { type?: string; id?: string };
+  timestamp?: string;
+  payload?: Record<string, unknown>;
+}
+
+let _federationCache: { syncs: SyncRecord[]; conflicts: ConflictRecord[] } | null = null;
+
+export function loadFederationEvents(): {
+  syncs: SyncRecord[];
+  conflicts: ConflictRecord[];
+} {
+  if (_federationCache) return _federationCache;
+  const dir = frontierEventsDir();
+  const syncs: SyncRecord[] = [];
+  const conflicts: ConflictRecord[] = [];
+  if (!existsSync(dir)) {
+    _federationCache = { syncs, conflicts };
+    return _federationCache;
+  }
+  for (const file of readdirSync(dir)) {
+    if (!file.endsWith(".json")) continue;
+    let ev: RawEvent;
+    try {
+      ev = JSON.parse(readFileSync(join(dir, file), "utf8")) as RawEvent;
+    } catch {
+      continue;
+    }
+    const ts = ev.timestamp ?? "";
+    const p = ev.payload ?? {};
+    if (ev.kind === "frontier.synced_with_peer") {
+      syncs.push({
+        timestamp: ts,
+        peer_id: String(p.peer_id ?? ""),
+        our_snapshot_hash: String(p.our_snapshot_hash ?? ""),
+        peer_snapshot_hash: String(p.peer_snapshot_hash ?? ""),
+        divergence_count: Number(p.divergence_count ?? 0),
+      });
+    } else if (ev.kind === "frontier.conflict_detected") {
+      conflicts.push({
+        timestamp: ts,
+        peer_id: String(p.peer_id ?? ""),
+        finding_id: String(p.finding_id ?? ""),
+        kind: String(p.kind ?? "missing_in_peer") as ConflictKind,
+        detail: String(p.detail ?? ""),
+      });
+    }
+  }
+  // Newest first for readable defaults.
+  syncs.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+  conflicts.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+  _federationCache = { syncs, conflicts };
+  return _federationCache;
 }
