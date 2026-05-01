@@ -7,10 +7,11 @@
   },
   "scripts": {
     "dev": "astro dev",
+    "prebuild": "bun run scripts/build-fallback-snapshot.ts",
     "build": "astro build",
     "preview": "astro preview",
     "astro": "astro",
-    "deploy": "astro build && flyctl deploy"
+    "deploy": "bun run scripts/build-fallback-snapshot.ts && astro build && flyctl deploy"
   },
   "dependencies": {
     "astro": "^6.1.9"
