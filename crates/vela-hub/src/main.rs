@@ -1136,6 +1136,139 @@ code, .mono-inline {
   letter-spacing: 0.02em;
 }
 
+/* Constellation — findings as a star chart, sits above the table.
+   Deterministic radial layout: each finding is a node colored by state
+   and sized by confidence; links between findings render as faint gold
+   arcs through the centre. Hover reads the claim; click opens the
+   finding detail page. */
+.vc-figure {
+  margin: 0 0 28px;
+  padding: 0;
+  position: relative;
+  background: var(--paper-1);
+  border: 1px solid var(--rule-2);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.vc {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 420px;
+  background:
+    radial-gradient(circle at 50% 50%,
+      var(--star-glow) 0%,
+      transparent 38%),
+    var(--paper-1);
+}
+.vc-ring {
+  fill: none;
+  stroke: color-mix(in oklab, var(--gold) 22%, transparent);
+  stroke-width: 0.6;
+  stroke-dasharray: 1 5;
+}
+.vc-center {
+  fill: var(--gold);
+  filter: drop-shadow(0 0 6px var(--gold-glow));
+}
+.vc-edges {
+  fill: none;
+  stroke: color-mix(in oklab, var(--gold) 28%, transparent);
+  stroke-width: 0.6;
+  pointer-events: none;
+}
+.vc-edge {
+  transition: stroke 200ms var(--ease), stroke-width 200ms var(--ease);
+}
+.vc-node {
+  cursor: pointer;
+  outline: none;
+}
+.vc-glow {
+  fill: var(--gold);
+  opacity: 0;
+  transition: opacity 200ms var(--ease);
+  pointer-events: none;
+}
+.vc-node:hover .vc-glow,
+.vc-node:focus .vc-glow {
+  opacity: 0.32;
+}
+.vc-dot {
+  transition: r 200ms var(--ease);
+  stroke: color-mix(in oklab, var(--ink-1) 18%, transparent);
+  stroke-width: 0.5;
+}
+.vc-node:hover .vc-dot,
+.vc-node:focus .vc-dot {
+  stroke: var(--ink-1);
+  stroke-width: 1;
+}
+.vc-node--live .vc-dot {
+  filter: drop-shadow(0 0 4px var(--gold-glow));
+}
+.vc-node--live .vc-glow {
+  opacity: 0.18;
+}
+.vc-tooltip {
+  margin: 0;
+  padding: 12px 18px 14px;
+  border-top: 1px solid var(--rule-2);
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: 14px;
+  letter-spacing: -0.012em;
+  line-height: 1.4;
+  color: var(--ink-1);
+  text-wrap: pretty;
+  min-height: 1.4em;
+  background: var(--paper-1);
+  opacity: 1;
+  transition: opacity 200ms var(--ease);
+}
+.vc-tooltip:empty::before {
+  content: 'Hover a node to read the claim · click to open.';
+  color: var(--ink-3);
+  font-weight: 400;
+  font-style: italic;
+}
+.vc-legend {
+  margin: 0;
+  padding: 8px 18px 12px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: color-mix(in oklab, var(--ink-3) 92%, transparent);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  align-items: center;
+  border-top: 1px solid var(--rule-1);
+  background: transparent;
+}
+.vc-legend > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.vc-legend__dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  margin-right: 2px;
+}
+.vc-legend .vc-sep {
+  color: var(--ink-4);
+}
+
+@media (max-width: 720px) {
+  .vc { max-height: 280px; }
+  .vc-tooltip { font-size: 13px; padding: 10px 14px 12px; }
+  .vc-legend { padding: 8px 14px 12px; font-size: 9px; gap: 3px 8px; }
+}
+
 /* Mobile fallback for the workbench rim */
 @media (max-width: 720px) {
   .wb { grid-template-columns: 0 1fr 0 !important; }
@@ -1480,6 +1613,7 @@ fn render_entry_html(
         )
     };
 
+    let constellation = render_findings_constellation(vfr_id, frontier);
     let findings_section = render_findings_section(vfr_id, frontier);
 
     let main = format!(
@@ -1488,6 +1622,7 @@ fn render_entry_html(
     <p class="fd-claim">{name}</p>
     <p class="fd-note">{note}</p>
 
+    {constellation}
     {findings_section}
 
     <section class="wb-section">
@@ -1659,6 +1794,128 @@ fn finding_state(
         return ("replicated", "ok");
     }
     ("supported", "ok")
+}
+
+/// Render the findings as a constellation — a deterministic radial layout
+/// where each finding is a star colored by state and sized by confidence,
+/// and the cross-finding `links` become faint gold dependency arcs through
+/// the centre. Sits above the findings table as a navigable visual proof
+/// that the substrate is a graph, not a list.
+///
+/// Layout: stable order = order in p.findings; a single ring at evenly
+/// distributed angles. Hover a node to read the claim; click to navigate
+/// to its detail page.
+fn render_findings_constellation(vfr_id: &str, frontier: Option<&Project>) -> String {
+    let Some(p) = frontier else { return String::new(); };
+    if p.findings.is_empty() { return String::new(); }
+
+    let n = p.findings.len();
+    let view_w: i32 = 720;
+    let view_h: i32 = 380;
+    let cx = view_w as f64 / 2.0;
+    let cy = view_h as f64 / 2.0;
+    let ring_r = (cx.min(cy) - 60.0).max(80.0);
+
+    // Stable position per finding id. Angle starts at top (-π/2) and runs
+    // clockwise so the first finding is "12 o'clock".
+    let pos: std::collections::HashMap<&str, (f64, f64)> = p
+        .findings
+        .iter()
+        .enumerate()
+        .map(|(i, b)| {
+            let angle = (i as f64 / n as f64) * std::f64::consts::TAU - std::f64::consts::FRAC_PI_2;
+            let x = cx + ring_r * angle.cos();
+            let y = cy + ring_r * angle.sin();
+            (b.id.as_str(), (x, y))
+        })
+        .collect();
+
+    // Edges first so nodes render on top. Each link inside the same
+    // frontier becomes a quadratic-Bezier arc curving through (or near)
+    // the centre. Cross-frontier links are skipped here — they'd need
+    // their own visual treatment.
+    let mut edges = String::new();
+    for b in &p.findings {
+        let Some(&(x1, y1)) = pos.get(b.id.as_str()) else { continue };
+        for link in &b.links {
+            let Some(&(x2, y2)) = pos.get(link.target.as_str()) else { continue };
+            // Pull the curve toward the centre for a starfield-with-arcs feel.
+            let mx = (x1 + x2) / 2.0;
+            let my = (y1 + y2) / 2.0;
+            let pull = 0.45;
+            let qx = cx + (mx - cx) * pull;
+            let qy = cy + (my - cy) * pull;
+            edges.push_str(&format!(
+                r##"<path class="vc-edge" d="M {x1:.1} {y1:.1} Q {qx:.1} {qy:.1} {x2:.1} {y2:.1}"/>"##
+            ));
+        }
+    }
+
+    // Nodes.
+    let mut nodes = String::new();
+    for b in &p.findings {
+        let (x, y) = pos[b.id.as_str()];
+        let (label, state_class) = finding_state(b, &p.replications);
+        let r = 4.0 + b.confidence.score.clamp(0.0, 1.0) * 5.0;
+        let live_class = if label == "replicated" { " vc-node--live" } else { "" };
+        let vf = escape_html(&b.id);
+        let claim = escape_html(&b.assertion.text);
+        let href = format!(
+            "/entries/{vfr}/findings/{vf}",
+            vfr = escape_html(vfr_id)
+        );
+        nodes.push_str(&format!(
+            r#"<a class="vc-node{live_class}" href="{href}" data-state="{label}" data-claim="{claim}">
+              <circle class="vc-glow" cx="{x:.1}" cy="{y:.1}" r="{rg:.1}"/>
+              <circle class="vc-dot" cx="{x:.1}" cy="{y:.1}" r="{r:.1}" style="fill:var(--state-{state_class});"/>
+            </a>"#,
+            rg = r * 2.6,
+        ));
+    }
+
+    format!(
+        r#"<figure class="vc-figure">
+          <svg class="vc" viewBox="0 0 {w} {h}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Finding constellation — {n} findings as a star chart">
+            <circle class="vc-ring" cx="{cx}" cy="{cy}" r="{rr}"/>
+            <circle class="vc-center" cx="{cx}" cy="{cy}" r="2.5"/>
+            <g class="vc-edges">{edges}</g>
+            <g class="vc-nodes">{nodes}</g>
+          </svg>
+          <p class="vc-tooltip" data-vc-tooltip aria-hidden="true"></p>
+          <p class="vc-legend">
+            <span><span class="vc-legend__dot" style="background:var(--state-ok);"></span>replicated · supported</span>
+            <span class="vc-sep">·</span>
+            <span><span class="vc-legend__dot" style="background:var(--state-warn);"></span>contested</span>
+            <span class="vc-sep">·</span>
+            <span><span class="vc-legend__dot" style="background:var(--state-stale);"></span>gap · inferred</span>
+            <span class="vc-sep">·</span>
+            <span><span class="vc-legend__dot" style="background:var(--state-lost);"></span>retracted</span>
+            <span class="vc-sep">·</span>
+            <span>radius = confidence · arcs = links</span>
+          </p>
+          <script>
+          (function(){{
+            var nodes = document.querySelectorAll('.vc-node');
+            var tip = document.querySelector('[data-vc-tooltip]');
+            if (!tip) return;
+            function show(n) {{
+              tip.textContent = n.getAttribute('data-claim');
+              tip.classList.add('on');
+            }}
+            function hide() {{ tip.classList.remove('on'); }}
+            nodes.forEach(function(n){{
+              n.addEventListener('mouseenter', function(){{ show(n); }});
+              n.addEventListener('mouseleave', hide);
+              n.addEventListener('focus',     function(){{ show(n); }});
+              n.addEventListener('blur',      hide);
+            }});
+          }})();
+          </script>
+        </figure>"#,
+        w = view_w,
+        h = view_h,
+        rr = ring_r,
+    )
 }
 
 fn render_findings_section(vfr_id: &str, frontier: Option<&Project>) -> String {
