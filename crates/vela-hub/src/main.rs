@@ -722,12 +722,17 @@ const RETE_SVG: &str = include_str!("../../../assets/brand/rete.svg");
 // Hub-specific page styles. The frame and tokens come from the shared
 // stylesheets above; this block adds the entries table, the manifest
 // detail layout, the terminal-paper code block, and the endpoint list.
+//
+// Visual register: Borrowed Light. Inter Tight as the dominant face;
+// EB Garamond reserved for true prose (evidence quotes, annotations);
+// JetBrains Mono for IDs / kickers. Cream paper, gold accent, hairlines.
 const HUB_STYLES: &str = r#"
-/* Entries table — adapted from the workbench frontier pattern */
+/* Entries table — frontier registry */
 .fr-table { width: 100%; border-collapse: collapse; margin-top: 8px; }
 .fr-table thead th {
-  font-family: var(--font-mono); font-size: 10px; font-weight: 400;
-  text-transform: uppercase; letter-spacing: 0.14em; color: var(--ink-3);
+  font-family: var(--font-mono); font-size: 10px; font-weight: 500;
+  text-transform: uppercase; letter-spacing: 0.18em;
+  color: color-mix(in oklab, var(--ink-3) 92%, transparent);
   text-align: left; padding: 14px 12px; border-bottom: 1px solid var(--rule-2);
 }
 .fr-table thead th.num { text-align: right; }
@@ -742,29 +747,38 @@ const HUB_STYLES: &str = r#"
   white-space: nowrap; width: 200px;
 }
 .fr-table td.idx a { color: var(--ink-2); border: 0; }
-.fr-table td.idx a:hover { color: var(--ink-0); }
+.fr-table td.idx a:hover { color: var(--gold); }
 .fr-table td.name {
-  font-family: var(--font-serif); font-size: 17px; color: var(--ink-0);
-  line-height: 1.35; max-width: 320px;
+  font-family: var(--font-sans); font-weight: 500; font-size: 15px;
+  letter-spacing: -0.012em; color: var(--ink-0);
+  line-height: 1.4; max-width: 360px;
 }
 .fr-table td.owner { font-family: var(--font-mono); font-size: 11px; color: var(--ink-2); white-space: nowrap; }
 .fr-table td.state { width: 110px; }
 .fr-table td.upd {
   width: 160px; color: var(--ink-3);
   font-family: var(--font-mono); font-size: 11px; text-align: right;
+  letter-spacing: 0.04em;
 }
 
-/* Single-entry detail — adapted from the workbench finding pattern */
+/* Single-entry detail — finding page two-column layout */
 .fd { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 56px; padding-top: 8px; }
 @media (max-width: 1080px) { .fd { grid-template-columns: 1fr; gap: 32px; } }
 .fd-claim {
-  font-family: var(--font-serif); font-size: 30px; line-height: 1.25;
-  letter-spacing: -0.015em; color: var(--ink-0); margin: 0 0 14px;
+  font-family: var(--font-sans); font-weight: 600;
+  font-size: clamp(1.5rem, 3.2vw, 2rem);
+  line-height: 1.08; letter-spacing: -0.022em;
+  color: var(--ink-0); margin: 0 0 18px;
+  text-wrap: balance;
 }
 .fd-note {
-  font-family: var(--font-serif); font-style: italic; font-size: 17px;
-  color: var(--ink-2); line-height: 1.55; max-width: 56ch;
-  padding-left: 18px; border-left: 1px solid var(--rule-ink); margin: 0 0 32px;
+  font-family: var(--font-body); font-style: italic; font-size: 1.02rem;
+  color: color-mix(in oklab, var(--ink-2) 92%, transparent);
+  line-height: 1.55; max-width: 58ch;
+  padding-left: 1.1rem;
+  border-left: 1px solid color-mix(in oklab, var(--gold) 56%, transparent);
+  margin: 0 0 32px;
+  text-wrap: pretty;
 }
 
 .fd-conditions { border-top: 1px solid var(--rule-2); margin: 0; padding: 0; }
@@ -774,41 +788,56 @@ const HUB_STYLES: &str = r#"
   margin: 0;
 }
 .fd-cond dt {
-  font-family: var(--font-mono); font-size: 11px; color: var(--ink-3);
-  letter-spacing: 0.1em; text-transform: uppercase; margin: 0;
+  font-family: var(--font-mono); font-size: 10px;
+  color: color-mix(in oklab, var(--ink-3) 88%, transparent);
+  letter-spacing: 0.18em; text-transform: uppercase; margin: 0;
+  font-weight: 500;
 }
 .fd-cond dd {
-  font-family: var(--font-mono); font-size: 13px; color: var(--ink-0);
+  font-family: var(--font-mono); font-size: 13px; color: var(--ink-1);
   word-break: break-all; margin: 0;
+  letter-spacing: -0.005em;
 }
-.fd-cond dd.serif { font-family: var(--font-serif); font-size: 15px; word-break: normal; }
-.fd-cond dd a { border-bottom: 1px solid var(--rule-3); }
-.fd-cond dd a:hover { border-bottom-color: var(--rule-ink); }
+.fd-cond dd.serif {
+  font-family: var(--font-sans); font-weight: 400; font-size: 14px;
+  letter-spacing: -0.005em; word-break: normal; color: var(--ink-1);
+}
+.fd-cond dd a {
+  border-bottom: 1px solid color-mix(in oklab, var(--gold) 38%, transparent);
+}
+.fd-cond dd a:hover {
+  color: var(--gold);
+  border-bottom-color: var(--gold);
+}
 
 .fd-margin { padding-top: 4px; }
 .fd-dial {
-  border: 1px solid var(--rule-2); padding: 18px 18px 16px;
-  margin-bottom: 22px; position: relative; background: var(--paper-0);
-}
-.fd-dial::before {
-  content: ""; position: absolute; inset: 0;
-  background-image: linear-gradient(to bottom, var(--rule-1) 0 1px, transparent 1px 100%);
-  background-size: 100% 12px; background-position: left 18px; opacity: 0.5; pointer-events: none;
+  border-top: 1px solid color-mix(in oklab, var(--gold) 32%, transparent);
+  border-bottom: 1px solid var(--rule-2);
+  padding: 14px 0 16px;
+  margin-bottom: 22px;
+  position: relative;
+  background: transparent;
 }
 .fd-dial__k {
   position: relative; font-family: var(--font-mono); font-size: 10px;
-  letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 8px;
+  letter-spacing: 0.18em; text-transform: uppercase;
+  color: color-mix(in oklab, var(--gold) 72%, var(--ink-3));
+  margin-bottom: 8px; font-weight: 500;
 }
 .fd-dial__v {
-  position: relative; font-family: var(--font-serif);
-  font-size: 22px; letter-spacing: -0.01em; color: var(--ink-0);
+  position: relative; font-family: var(--font-sans); font-weight: 500;
+  font-size: 1.15rem; letter-spacing: -0.015em; color: var(--ink-0);
 }
-.fd-dial__v.mono { font-family: var(--font-mono); font-size: 16px; word-break: break-all; }
+.fd-dial__v.mono {
+  font-family: var(--font-mono); font-weight: 400; font-size: 14px;
+  word-break: break-all; letter-spacing: -0.005em;
+}
 
-/* Terminal-paper code block — adapted from the workbench terminal pattern */
+/* Terminal-paper code block */
 .tm-paper {
   background: var(--paper-1); border: 1px solid var(--rule-2);
-  border-radius: var(--radius-1); font-family: var(--font-mono);
+  border-radius: var(--radius-sm); font-family: var(--font-mono);
   font-size: 13px; line-height: 1.65; color: var(--ink-1);
   overflow: hidden; margin: 16px 0 24px;
 }
@@ -816,11 +845,12 @@ const HUB_STYLES: &str = r#"
   display: flex; align-items: center; gap: 12px;
   padding: 8px 14px; border-bottom: 1px solid var(--rule-2);
   font-family: var(--font-mono); font-size: 10px;
-  letter-spacing: 0.14em; text-transform: uppercase;
-  color: var(--ink-3); background: var(--paper-0);
+  letter-spacing: 0.18em; text-transform: uppercase;
+  color: color-mix(in oklab, var(--gold) 60%, var(--ink-3));
+  background: transparent;
 }
 .tm-paper__body { padding: 14px 18px 16px; white-space: pre; overflow-x: auto; }
-.tm-ps { color: var(--ink-3); }
+.tm-ps { color: color-mix(in oklab, var(--gold) 60%, var(--ink-3)); }
 .tm-cmd { color: var(--ink-0); }
 .tm-flag { color: var(--ink-2); }
 
@@ -828,41 +858,54 @@ const HUB_STYLES: &str = r#"
 .hub-endpoints { list-style: none; padding: 0; margin: 0; }
 .hub-endpoints li {
   display: flex; align-items: baseline; gap: 24px;
-  padding: 10px 0; border-bottom: 1px dashed var(--rule-1);
+  padding: 12px 0; border-bottom: 1px solid var(--rule-1);
 }
 .hub-endpoints li:last-child { border-bottom: 0; }
 .hub-endpoints li .verb {
-  font-family: var(--font-mono); font-size: 13px;
+  font-family: var(--font-mono); font-size: 12px;
   color: var(--ink-2); flex: 0 0 auto; white-space: nowrap;
+  letter-spacing: 0.04em;
 }
 .hub-endpoints li .verb .v {
-  color: var(--ink-3); letter-spacing: 0.06em; margin-right: 8px;
+  color: color-mix(in oklab, var(--gold) 64%, var(--ink-3));
+  letter-spacing: 0.06em; margin-right: 8px;
+  text-transform: uppercase;
 }
 .hub-endpoints li .desc {
   color: var(--ink-2); font-family: var(--font-sans); font-size: 14px;
-  min-width: 0;
+  line-height: 1.5; min-width: 0;
+  letter-spacing: -0.005em;
 }
-.hub-endpoints li .desc a { border-bottom: 1px solid var(--rule-3); }
-.hub-endpoints li .desc a:hover { border-bottom-color: var(--rule-ink); }
+.hub-endpoints li .desc a {
+  border-bottom: 1px solid color-mix(in oklab, var(--gold) 38%, transparent);
+}
+.hub-endpoints li .desc a:hover {
+  color: var(--gold);
+  border-bottom-color: var(--gold);
+}
 
 /* Inline code */
 code, .mono-inline {
   font-family: var(--font-mono); font-size: 0.88em;
   color: var(--ink-1); background: var(--paper-1);
-  padding: 1px 5px; border: 1px solid var(--rule-1); border-radius: var(--radius-1);
+  padding: 1px 5px; border: 1px solid var(--rule-2); border-radius: var(--radius-xs);
 }
 
 /* Lead paragraph */
 .t-lead {
-  font-family: var(--font-serif); font-size: 18px;
-  line-height: var(--leading-read); color: var(--ink-1);
-  max-width: 64ch; margin: 0 0 24px;
+  font-family: var(--font-sans); font-weight: 400;
+  font-size: 1.1rem; line-height: 1.5;
+  letter-spacing: -0.012em;
+  color: color-mix(in oklab, var(--ink-1) 92%, var(--ink-2));
+  max-width: 60ch; margin: 0 0 24px;
+  text-wrap: pretty;
 }
 
-/* Empty state */
+/* Empty state — atmospheric, italic Garamond is appropriate here */
 .empty {
-  font-family: var(--font-serif); font-style: italic;
+  font-family: var(--font-body); font-style: italic;
   color: var(--ink-3); padding: 40px 0; text-align: center;
+  font-size: 1.05rem;
 }
 
 /* Raw json block */
@@ -871,7 +914,7 @@ code, .mono-inline {
   background: var(--paper-1); border: 1px solid var(--rule-2);
   padding: 14px 18px; overflow-x: auto;
   white-space: pre; color: var(--ink-1);
-  border-radius: var(--radius-1);
+  border-radius: var(--radius-sm);
   margin: 12px 0 0;
 }
 
@@ -879,21 +922,29 @@ code, .mono-inline {
 .wb-section { margin: 32px 0 16px; }
 .wb-section__head {
   display: flex; align-items: baseline; gap: 14px;
-  padding-bottom: 10px; border-bottom: 1px solid var(--rule-2); margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid color-mix(in oklab, var(--gold) 28%, transparent);
+  margin-bottom: 14px;
 }
-.wb-section__num { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.2em; color: var(--ink-3); }
-.wb-section__t { font-family: var(--font-sans); font-weight: 500; font-size: 18px; color: var(--ink-0); letter-spacing: -0.005em; }
+.wb-section__num {
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.22em;
+  color: color-mix(in oklab, var(--gold) 64%, var(--ink-3));
+  font-weight: 500;
+}
+.wb-section__t {
+  font-family: var(--font-sans); font-weight: 600; font-size: 1rem;
+  color: var(--ink-0); letter-spacing: -0.018em;
+}
 .wb-section__aside {
   margin-left: auto; font-family: var(--font-mono); font-size: 10px;
-  letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-3);
+  letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-3);
 }
 
 /* Finding page — provenance, annotations, links */
 .fd-prov-meta {
   margin-top: 6px;
-  font-family: var(--font-sans);
-  font-size: 13px;
-  color: var(--ink-3);
+  font-family: var(--font-sans); font-weight: 400; font-size: 13px;
+  color: var(--ink-3); letter-spacing: -0.005em;
 }
 .fd-dial__gauge {
   margin-top: 10px;
@@ -903,7 +954,7 @@ code, .mono-inline {
 }
 .fd-dial__gauge i {
   position: absolute; top: 0; left: 0; height: 100%;
-  background: var(--ink-2);
+  background: var(--gold);
 }
 
 .ann-list, .link-list {
@@ -922,44 +973,52 @@ code, .mono-inline {
 }
 .ann-author, .link-rel {
   font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--ink-3);
-  letter-spacing: 0.1em;
+  font-size: 10px;
+  color: color-mix(in oklab, var(--ink-3) 92%, transparent);
+  letter-spacing: 0.18em;
   text-transform: uppercase;
+  font-weight: 500;
 }
+/* Annotation text — keep serif EB Garamond. These are quoted reviewer
+   prose and serif reads as "this is a quote from a person." */
 .ann-text {
-  font-family: var(--font-serif);
-  font-size: 16px;
-  color: var(--ink-1);
+  font-family: var(--font-body);
+  font-size: 1rem;
+  color: color-mix(in oklab, var(--ink-1) 92%, var(--ink-2));
   line-height: 1.55;
+  text-wrap: pretty;
 }
 .link-list li a {
-  font-family: var(--font-serif);
-  font-size: 15px;
+  font-family: var(--font-sans); font-weight: 500;
+  font-size: 14px;
   color: var(--ink-1);
-  border-bottom: 1px solid var(--rule-3);
+  border-bottom: 1px solid color-mix(in oklab, var(--gold) 38%, transparent);
+  letter-spacing: -0.008em;
 }
-.link-list li a:hover { border-bottom-color: var(--rule-ink); }
+.link-list li a:hover {
+  color: var(--gold);
+  border-bottom-color: var(--gold);
+}
 .link-list li code {
   font-family: var(--font-mono);
   font-size: 12px;
   background: var(--paper-1);
   padding: 1px 5px;
-  border: 1px solid var(--rule-1);
-  border-radius: var(--radius-1);
+  border: 1px solid var(--rule-2);
+  border-radius: var(--radius-xs);
 }
 .link-list li .cross-vfr {
-  font-family: var(--font-serif);
-  font-style: italic;
-  font-size: 13px;
+  font-family: var(--font-sans); font-weight: 400;
+  font-size: 12px;
   color: var(--ink-3);
+  letter-spacing: -0.005em;
 }
-.link-list li a:hover .cross-vfr { color: var(--signal); }
+.link-list li a:hover .cross-vfr { color: var(--gold); }
 .link-list li .cross-vfr-bad {
   font-family: var(--font-mono);
   font-size: 10px;
-  color: var(--state-warn);
-  letter-spacing: 0.08em;
+  color: var(--cinnabar);
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   margin-left: 6px;
 }
@@ -978,31 +1037,39 @@ code, .mono-inline {
   padding: 6px 4px;
   border-bottom: 1px solid var(--rule-2);
   color: var(--ink-3);
+  transition: border-bottom-color var(--dur-1) var(--ease);
 }
-.vf-search:focus-within { border-bottom-color: var(--signal); color: var(--ink-2); }
+.vf-search:focus-within { border-bottom-color: var(--gold); color: var(--ink-2); }
 .vf-search input {
   flex: 1; border: 0; outline: 0; background: transparent;
-  font-family: var(--font-sans); font-size: 14px; color: var(--ink-0);
+  font-family: var(--font-sans); font-weight: 400; font-size: 14px;
+  color: var(--ink-0); letter-spacing: -0.005em;
 }
 .vf-search input::placeholder { color: var(--ink-4); }
 .vf-search__count {
   font-family: var(--font-mono); font-size: 11px;
   color: var(--ink-3); font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
 }
 .vf-chips { display: flex; gap: 6px; flex-wrap: wrap; }
 .vf-chip {
   font-family: var(--font-mono); font-size: 10px;
-  letter-spacing: 0.1em; text-transform: uppercase;
+  letter-spacing: 0.14em; text-transform: uppercase;
   color: var(--ink-3);
   border: 1px solid var(--rule-2);
   background: transparent;
-  padding: 4px 9px; border-radius: var(--radius-1);
+  padding: 4px 9px; border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: border-color var(--dur-1) var(--ease), color var(--dur-1) var(--ease), background var(--dur-1) var(--ease);
+  transition: border-color var(--dur-1) var(--ease), color var(--dur-1) var(--ease);
 }
-.vf-chip:hover { color: var(--ink-1); border-color: var(--rule-3); }
+.vf-chip:hover {
+  color: var(--ink-1);
+  border-color: color-mix(in oklab, var(--gold) 56%, transparent);
+}
 .vf-chip--on {
-  color: var(--ink-0); border-color: var(--rule-ink); background: var(--paper-1);
+  color: var(--ink-0);
+  border-color: color-mix(in oklab, var(--gold) 64%, transparent);
+  background: var(--paper-1);
 }
 .vf-chip span {
   margin-left: 6px; color: var(--ink-3);
@@ -1010,15 +1077,16 @@ code, .mono-inline {
 }
 .vf-chip--on span { color: var(--ink-2); }
 .vf-empty {
-  font-family: var(--font-serif); font-style: italic;
+  font-family: var(--font-body); font-style: italic;
   color: var(--ink-3); padding: 28px 0; text-align: center;
 }
 
-/* Findings table — workbench frontier-pattern, embedded in entry detail */
+/* Findings table */
 .vf-table { width: 100%; border-collapse: collapse; margin-top: 8px; }
 .vf-table thead th {
-  font-family: var(--font-mono); font-size: 10px; font-weight: 400;
-  text-transform: uppercase; letter-spacing: 0.14em; color: var(--ink-3);
+  font-family: var(--font-mono); font-size: 10px; font-weight: 500;
+  text-transform: uppercase; letter-spacing: 0.18em;
+  color: color-mix(in oklab, var(--ink-3) 92%, transparent);
   text-align: left; padding: 12px 10px; border-bottom: 1px solid var(--rule-2);
 }
 .vf-table thead th.num { text-align: right; }
@@ -1029,21 +1097,23 @@ code, .mono-inline {
 }
 .vf-table tbody tr:hover { background: var(--paper-1); }
 .vf-table tbody td a { color: inherit; border: 0; }
-.vf-table tbody td a:hover { color: var(--ink-0); }
+.vf-table tbody td a:hover { color: var(--gold); }
 .vf-table tbody td {
   padding: 14px 10px; vertical-align: top; font-size: 14px;
 }
 .vf-table td.vf-id {
   font-family: var(--font-mono); font-size: 11px; color: var(--ink-3);
-  white-space: nowrap; width: 130px;
+  white-space: nowrap; width: 130px; letter-spacing: 0.02em;
 }
 .vf-table td.vf-cls {
-  font-family: var(--font-sans); font-size: 11px;
-  text-transform: uppercase; letter-spacing: 0.1em;
-  color: var(--ink-3); white-space: nowrap; width: 110px;
+  font-family: var(--font-mono); font-size: 10px;
+  text-transform: uppercase; letter-spacing: 0.14em;
+  color: color-mix(in oklab, var(--gold) 60%, var(--ink-3));
+  white-space: nowrap; width: 110px;
 }
 .vf-table td.vf-claim {
-  font-family: var(--font-serif); font-size: 15px; color: var(--ink-0);
+  font-family: var(--font-sans); font-weight: 500; font-size: 14px;
+  letter-spacing: -0.012em; color: var(--ink-0);
   line-height: 1.45;
 }
 .vf-table td.vf-state { width: 130px; white-space: nowrap; }
@@ -1058,11 +1128,12 @@ code, .mono-inline {
 }
 .vf-bar i {
   position: absolute; top: 0; left: 0; height: 100%;
-  background: var(--ink-2);
+  background: color-mix(in oklab, var(--gold) 72%, var(--ink-2));
 }
 .vf-num {
   font-family: var(--font-mono); font-size: 12px;
   color: var(--ink-2); font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
 }
 
 /* Mobile fallback for the workbench rim */
