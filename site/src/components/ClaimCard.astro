@@ -72,84 +72,86 @@ const confidenceDotColor =
 
 <style>
   .claim-card {
-    background: var(--paper-1);
+    background: transparent;
     border-top: 1px solid var(--rule-2);
     border-bottom: 1px solid var(--rule-2);
     margin-bottom: -1px; /* collapse adjacent borders into one hairline */
     transition: background var(--dur-2) var(--ease);
   }
   .claim-card:hover {
-    background: var(--paper-2);
+    background: var(--paper-1);
   }
   .claim-card:focus-within {
-    outline: 1px solid var(--signal);
+    outline: 1px solid color-mix(in oklab, var(--gold) 56%, transparent);
     outline-offset: -1px;
   }
 
   .claim-card__link {
     display: block;
-    padding: var(--space-5) var(--space-5);
+    padding: 1.4rem 1.5rem 1.5rem;
     text-decoration: none;
     color: inherit;
   }
   .claim-card--compact .claim-card__link {
-    padding: var(--space-4) var(--space-5);
+    padding: 1rem 1.25rem 1.1rem;
   }
 
   .claim-card__claim {
-    font-family: var(--font-serif);
-    font-size: 21px;
+    font-family: var(--font-sans);
+    font-weight: 500;
+    font-size: 1.05rem;
     line-height: 1.45;
     color: var(--ink-0);
     margin: 0;
-    letter-spacing: -0.005em;
-    /* Hanging quote feel — give the sentence room to breathe. */
+    letter-spacing: -0.012em;
+    text-wrap: pretty;
     max-width: 64ch;
   }
   .claim-card--compact .claim-card__claim {
-    font-size: 17px;
-    line-height: 1.4;
-    max-width: 72ch;
+    font-size: 0.95rem;
+    line-height: 1.5;
+    max-width: 74ch;
+    font-weight: 500;
   }
 
   .claim-card__meta {
     display: flex;
     align-items: baseline;
     justify-content: space-between;
-    gap: var(--space-4);
-    margin-top: var(--space-3);
+    gap: 1rem;
+    margin-top: 0.85rem;
     flex-wrap: wrap;
   }
 
   .claim-card__chips {
     display: flex;
     align-items: center;
-    gap: var(--space-3);
+    gap: 0.7rem;
     flex-wrap: wrap;
   }
 
   .claim-card__chip {
     font-family: var(--font-mono);
-    font-size: var(--size-xs);
+    font-size: 10px;
     letter-spacing: var(--track-label);
     text-transform: uppercase;
-    color: var(--ink-2);
-    padding: 2px 6px;
+    color: color-mix(in oklab, var(--ink-2) 92%, transparent);
+    padding: 2px 7px;
     border: 1px solid var(--rule-2);
-    border-radius: var(--radius-1);
-    background: var(--paper-0);
+    border-radius: var(--radius-sm);
+    background: transparent;
   }
   .claim-card__chip--contested {
-    color: var(--vela-ember-red);
-    border-color: color-mix(in oklab, var(--vela-ember-red) 32%, transparent);
+    color: var(--cinnabar);
+    border-color: color-mix(in oklab, var(--cinnabar) 38%, transparent);
   }
 
   .claim-card__evidence {
-    font-family: var(--font-sans);
-    font-size: var(--size-xs);
+    font-family: var(--font-mono);
+    font-size: 10px;
     letter-spacing: var(--track-label);
     text-transform: uppercase;
-    color: var(--ink-3);
+    color: color-mix(in oklab, var(--gold) 60%, var(--ink-3));
   }
 
   .claim-card__conf {
@@ -157,13 +159,14 @@ const confidenceDotColor =
     align-items: center;
     gap: 6px;
     font-family: var(--font-mono);
-    font-size: var(--size-xs);
+    font-size: 10px;
     color: var(--ink-3);
     font-variant-numeric: tabular-nums;
+    letter-spacing: 0.06em;
   }
   .claim-card__conf-dot {
-    width: 7px;
-    height: 7px;
+    width: 6px;
+    height: 6px;
     border-radius: 50%;
     background: var(--dot);
     box-shadow: 0 0 0 1px color-mix(in oklab, var(--dot) 30%, transparent);
@@ -172,24 +175,26 @@ const confidenceDotColor =
   .claim-card__citation {
     display: inline-flex;
     align-items: baseline;
-    gap: var(--space-3);
-    font-size: var(--size-sm);
+    gap: 0.75rem;
+    font-size: 0.85rem;
     color: var(--ink-3);
   }
   .claim-card__cite {
-    font-family: var(--font-serif);
-    font-style: italic;
+    font-family: var(--font-sans);
+    font-weight: 400;
+    font-size: 12px;
+    color: color-mix(in oklab, var(--ink-3) 92%, transparent);
   }
   .claim-card__permalink {
     font-family: var(--font-mono);
-    font-size: var(--size-xs);
+    font-size: 10px;
     letter-spacing: 0;
     color: var(--ink-4);
   }
 
   @media (max-width: 720px) {
     .claim-card__claim {
-      font-size: 18px;
+      font-size: 1.05rem;
     }
     .claim-card__meta {
       flex-direction: column;

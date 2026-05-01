@@ -1,80 +1,99 @@
-/* Global styles.
-   The design tokens and workbench chrome live in web/styles/, symlinked
+/* Global styles for the Vela marketing site.
+   Design tokens and workbench chrome live in web/styles/, symlinked
    into ./tokens.css and ./workbench.css. This file adds the patterns
-   the marketing site, essays, and docs share on top of that base. */
+   the marketing site, essays, and docs share on top of that base.
+
+   Visual language: Borrowed Light. Cream paper, italic Cormorant
+   display titles, EB Garamond body, gold accent, hairline rules. */
 
 @import "./tokens.css";
 @import "./workbench.css";
 
-/* Fix workbench.css's hard-coded fallbacks: the dark-theme tokens get
-   shadowed unless the body falls through to var(). */
+/* Body background — re-asserted so the workbench fallback can't shadow it */
 html, body { background: var(--paper-0); color: var(--ink-1); }
 
-a { color: var(--ink-1); text-decoration: none; transition: color var(--dur-1) var(--ease); }
+/* Smooth scroll on anchors */
+html { scroll-behavior: smooth; }
+
+/* Essay/doc layouts render the page title via WbHead — suppress the
+   markdown h1 so the body starts with the first paragraph, not a
+   duplicate. */
+article.reading > h1:first-child { display: none; }
+
+a {
+  color: var(--ink-1);
+  text-decoration: none;
+  transition: color var(--dur-1) var(--ease), border-bottom-color var(--dur-1) var(--ease);
+}
 a:hover { color: var(--ink-0); }
 
-/* ----- Reading layout ----- */
+/* ----- Reading layout — BL prose register ----- */
 
 .reading {
-  max-width: 720px;
+  max-width: var(--measure);
   margin: 0 auto;
-  padding: 0 8px;
+  padding: 0 var(--gutter);
+  color: var(--ink-1);
 }
 .reading h1 {
-  font-family: var(--font-serif);
-  font-weight: 400;
-  font-size: var(--size-xl);
-  line-height: 1.1;
-  letter-spacing: var(--track-tight);
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: clamp(2.1rem, 5vw, 3rem);
+  line-height: 1.06;
+  letter-spacing: -0.022em;
   color: var(--ink-0);
-  margin: 0 0 12px;
+  margin: 0 0 1.2rem;
+  text-wrap: balance;
 }
 .reading h2 {
   font-family: var(--font-sans);
-  font-weight: 500;
-  font-size: var(--size-lg);
-  line-height: var(--leading-snug);
-  letter-spacing: -0.005em;
-  color: var(--ink-0);
-  margin: 40px 0 12px;
+  font-weight: 560;
+  font-size: 0.7rem;
+  line-height: 1.36;
+  letter-spacing: var(--track-eyebrow);
+  text-transform: uppercase;
+  color: color-mix(in oklab, var(--gold) 72%, var(--ink-2));
+  margin: 2.6rem 0 0.8rem;
 }
 .reading h3 {
   font-family: var(--font-sans);
-  font-weight: 500;
-  font-size: 17px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  letter-spacing: -0.005em;
   color: var(--ink-0);
-  margin: 28px 0 8px;
+  margin: 2rem 0 0.6rem;
 }
 .reading p {
-  font-family: var(--font-serif);
-  font-size: var(--size-md);
+  font-family: var(--font-body);
+  font-size: var(--size-prose);
   line-height: var(--leading-read);
-  color: var(--ink-1);
-  margin: 0 0 18px;
+  color: color-mix(in oklab, var(--ink-1) 88%, var(--ink-2));
+  margin: 0 0 1.35rem;
+  text-wrap: pretty;
 }
-.reading p:has(+ p) + p { /* readable paragraph rhythm */ }
 .reading hr {
   border: 0;
   border-top: 1px solid var(--rule-2);
-  margin: 32px 0;
+  margin: 2.4rem 0;
 }
 .reading blockquote {
-  font-family: var(--font-serif);
+  font-family: var(--font-body);
   font-style: italic;
-  font-size: 17px;
+  font-size: var(--size-prose);
+  line-height: var(--leading-read);
   color: var(--ink-2);
-  border-left: 1px solid var(--rule-ink);
-  padding-left: 18px;
-  margin: 18px 0;
+  border-left: 1px solid color-mix(in oklab, var(--gold) 56%, transparent);
+  padding-left: 1.1rem;
+  margin: 1.2rem 0 1.5rem;
 }
 .reading code {
   font-family: var(--font-mono);
-  font-size: 0.88em;
+  font-size: 0.86em;
   color: var(--ink-1);
   background: var(--paper-1);
   padding: 1px 5px;
-  border: 1px solid var(--rule-1);
-  border-radius: var(--radius-1);
+  border: 1px solid var(--rule-2);
+  border-radius: var(--radius-xs);
 }
 .reading pre {
   font-family: var(--font-mono);
@@ -84,8 +103,9 @@ a:hover { color: var(--ink-0); }
   border: 1px solid var(--rule-2);
   padding: 14px 18px;
   overflow-x: auto;
-  border-radius: var(--radius-1);
-  margin: 18px 0;
+  border-radius: var(--radius-sm);
+  margin: 1.4rem 0;
+  color: var(--ink-1);
 }
 .reading pre code {
   background: transparent;
@@ -93,24 +113,27 @@ a:hover { color: var(--ink-0); }
   padding: 0;
 }
 .reading ul, .reading ol {
-  font-family: var(--font-serif);
-  font-size: var(--size-md);
+  font-family: var(--font-body);
+  font-size: var(--size-prose);
   line-height: var(--leading-read);
-  color: var(--ink-1);
-  padding-left: 22px;
-  margin: 0 0 18px;
+  color: color-mix(in oklab, var(--ink-1) 88%, var(--ink-2));
+  padding-left: 1.4rem;
+  margin: 0 0 1.4rem;
 }
-.reading li { margin-bottom: 6px; }
+.reading li { margin-bottom: 0.45rem; }
 .reading a {
   color: var(--ink-1);
-  border-bottom: 1px solid var(--rule-3);
+  border-bottom: 1px solid color-mix(in oklab, var(--gold) 38%, transparent);
 }
-.reading a:hover { border-bottom-color: var(--rule-ink); }
+.reading a:hover {
+  color: var(--gold);
+  border-bottom-color: var(--gold);
+}
 .reading table {
   font-family: var(--font-sans);
   font-size: 14px;
   border-collapse: collapse;
-  margin: 18px 0;
+  margin: 1.4rem 0;
   width: 100%;
 }
 .reading th, .reading td {
@@ -122,21 +145,25 @@ a:hover { color: var(--ink-0); }
   font-family: var(--font-mono);
   font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
+  letter-spacing: var(--track-tick);
   color: var(--ink-3);
   border-bottom-color: var(--rule-2);
+  font-weight: 500;
 }
 .reading em { font-style: italic; }
-.reading strong { font-weight: 500; color: var(--ink-0); }
+.reading strong { font-weight: 600; color: var(--ink-0); }
 
 /* ----- Lead paragraph for marketing-style intros ----- */
 .t-lead {
-  font-family: var(--font-serif);
-  font-size: 20px;
-  line-height: var(--leading-read);
-  color: var(--ink-1);
-  max-width: 64ch;
-  margin: 0 0 24px;
+  font-family: var(--font-sans);
+  font-weight: 400;
+  font-size: 1.15rem;
+  line-height: 1.5;
+  letter-spacing: -0.012em;
+  color: color-mix(in oklab, var(--ink-1) 90%, var(--ink-2));
+  max-width: 60ch;
+  margin: 0 0 1.6rem;
+  text-wrap: pretty;
 }
 
 /* ----- Inline endpoint list (used on landing) ----- */
@@ -145,69 +172,87 @@ a:hover { color: var(--ink-0); }
   display: flex;
   align-items: baseline;
   gap: 24px;
-  padding: 10px 0;
-  border-bottom: 1px dashed var(--rule-1);
+  padding: 12px 0;
+  border-bottom: 1px solid var(--rule-1);
 }
 .endpoint-list li:last-child { border-bottom: 0; }
 .endpoint-list .verb {
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: 12px;
   color: var(--ink-2);
   flex: 0 0 auto;
   white-space: nowrap;
+  letter-spacing: 0.04em;
 }
 .endpoint-list .verb .v {
-  color: var(--ink-3);
+  color: color-mix(in oklab, var(--gold) 64%, var(--ink-3));
   letter-spacing: 0.06em;
   margin-right: 8px;
+  text-transform: uppercase;
 }
 .endpoint-list .desc {
   color: var(--ink-2);
-  font-family: var(--font-sans);
-  font-size: 14px;
+  font-family: var(--font-body);
+  font-size: 1rem;
+  line-height: 1.55;
 }
-.endpoint-list .desc a { border-bottom: 1px solid var(--rule-3); }
-.endpoint-list .desc a:hover { border-bottom-color: var(--rule-ink); }
+.endpoint-list .desc a {
+  border-bottom: 1px solid color-mix(in oklab, var(--gold) 38%, transparent);
+}
+.endpoint-list .desc a:hover {
+  color: var(--gold);
+  border-bottom-color: var(--gold);
+}
 
 /* ----- Card grid ----- */
 .card-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 24px;
-  margin: 32px 0;
+  gap: 1.5rem;
+  margin: 2rem 0;
 }
 .card {
   border: 1px solid var(--rule-2);
-  padding: 22px 24px 24px;
-  background: var(--paper-0);
+  padding: 1.4rem 1.5rem 1.5rem;
+  background: var(--paper-1);
   display: flex;
   flex-direction: column;
   text-decoration: none;
   color: var(--ink-1);
+  border-radius: var(--radius-sm);
   transition: border-color var(--dur-1) var(--ease), background var(--dur-1) var(--ease);
 }
-.card:hover { border-color: var(--rule-ink); background: var(--paper-1); }
+.card:hover {
+  border-color: color-mix(in oklab, var(--gold) 56%, transparent);
+  background: var(--paper-1);
+}
 .card .eyebrow {
   font-family: var(--font-mono);
-  font-size: var(--size-xs);
-  letter-spacing: var(--track-tick);
+  font-size: var(--size-kicker);
+  letter-spacing: var(--track-imprint);
   text-transform: uppercase;
-  color: var(--ink-3);
-  margin-bottom: 8px;
+  color: color-mix(in oklab, var(--gold) 72%, var(--ink-3));
+  margin-bottom: 0.6rem;
 }
 .card .title {
-  font-family: var(--font-serif);
-  font-size: 20px;
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 1.15rem;
   color: var(--ink-0);
-  margin: 0 0 8px;
-  letter-spacing: -0.005em;
+  margin: 0 0 0.5rem;
+  letter-spacing: -0.018em;
+  line-height: 1.18;
+  text-wrap: balance;
 }
 .card .blurb {
-  font-family: var(--font-serif);
-  font-size: 15px;
-  line-height: 1.55;
-  color: var(--ink-2);
+  font-family: var(--font-sans);
+  font-weight: 400;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  letter-spacing: -0.005em;
+  color: color-mix(in oklab, var(--ink-2) 92%, transparent);
   margin: 0;
+  text-wrap: pretty;
 }
 
 /* ----- Quickstart row (paired terminal-papers on landing) ----- */
@@ -220,9 +265,25 @@ a:hover { color: var(--ink-0); }
   .quickstart { grid-template-columns: 1fr; }
 }
 
+/* ----- Quiet inline link helper (for "view appendix" / "see coalition" /
+   "view primitives" links inside prose — soft gold underline). */
+.bl-quiet-link {
+  color: var(--ink-1);
+  text-decoration: none;
+  border-bottom: 1px solid color-mix(in oklab, var(--gold) 38%, transparent);
+  transition: color var(--dur-1) var(--ease), border-bottom-color var(--dur-1) var(--ease);
+}
+.bl-quiet-link:hover {
+  color: var(--gold);
+  border-bottom-color: var(--gold);
+}
+
 /* ----- Mobile rim fallback ----- */
 @media (max-width: 720px) {
   .wb { grid-template-columns: 0 1fr 0 !important; }
   .wb-rim { display: none !important; }
-  .wb-head, .wb-main, .wb-foot { padding-left: 20px !important; padding-right: 20px !important; }
+  .wb-head, .wb-main, .wb-foot {
+    padding-left: clamp(1rem, 4vw, 1.5rem) !important;
+    padding-right: clamp(1rem, 4vw, 1.5rem) !important;
+  }
 }

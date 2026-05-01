@@ -1,0 +1,66 @@
+---
+/*
+  KickerTitle — page header pattern from Borrowed Light's companion
+  pages (coalition, primitives). Mono small-caps eyebrow → italic
+  Cormorant title → optional intro paragraph.
+
+  Use this on companion-style pages: protocol, federation, calibration,
+  publish. Sits inside .wb-main--reading for the right measure.
+*/
+interface Props {
+  kicker?: string;
+  title: string;
+  intro?: string;
+}
+
+const { kicker, title, intro } = Astro.props;
+---
+
+<header class="kicker-title">
+  {kicker && <p class="kicker-title__kicker">{kicker}</p>}
+  <h1 class="kicker-title__title">{title}</h1>
+  {intro && <p class="kicker-title__intro" set:html={intro} />}
+</header>
+
+<style>
+  .kicker-title {
+    margin: 0 0 clamp(2rem, 5vh, 3rem);
+    max-width: var(--measure);
+  }
+
+  .kicker-title__kicker {
+    margin: 0 0 1.05rem;
+    font-family: var(--font-mono);
+    font-size: var(--size-kicker);
+    letter-spacing: var(--track-imprint);
+    text-transform: uppercase;
+    color: color-mix(in oklab, var(--gold) 76%, var(--ink-2));
+  }
+
+  .kicker-title__title {
+    margin: 0 0 1.5rem;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: clamp(2.1rem, 5.4vw, 3.4rem);
+    line-height: 1.04;
+    letter-spacing: -0.022em;
+    color: var(--ink-0);
+    text-wrap: balance;
+  }
+
+  .kicker-title__title:last-child {
+    margin-bottom: 0;
+  }
+
+  .kicker-title__intro {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-weight: 400;
+    font-size: 1.05rem;
+    line-height: 1.55;
+    letter-spacing: -0.005em;
+    color: color-mix(in oklab, var(--ink-2) 92%, transparent);
+    text-wrap: pretty;
+    max-width: var(--measure);
+  }
+</style>

@@ -263,12 +263,17 @@ const lastUpdated = stats.lastUpdated
   }
 
   .inline-link {
-    color: var(--signal);
+    color: var(--ink-1);
     text-decoration: underline;
-    text-underline-offset: 2px;
+    text-decoration-color: color-mix(in oklab, var(--gold) 56%, transparent);
+    text-underline-offset: 3px;
     text-decoration-thickness: 1px;
+    transition: color var(--dur-1) var(--ease), text-decoration-color var(--dur-1) var(--ease);
   }
-  .inline-link:hover { color: var(--ink-0); }
+  .inline-link:hover {
+    color: var(--gold);
+    text-decoration-color: var(--gold);
+  }
 
   /* ── Frontier readout — instrument bar under the masthead ──
      v0.32 added replications. v0.33 added datasets + code. v0.34
@@ -300,22 +305,27 @@ const lastUpdated = stats.lastUpdated
   }
   .frontier-readout__stat:last-child { border-right: none; }
   .frontier-readout__num {
-    font-family: var(--font-serif);
-    font-size: 32px;
+    font-family: var(--font-sans);
+    font-weight: 500;
+    font-size: clamp(1.6rem, 2.8vw, 2rem);
     line-height: 1;
     color: var(--ink-0);
     font-variant-numeric: tabular-nums;
-    letter-spacing: -0.01em;
+    letter-spacing: -0.02em;
   }
-  .frontier-readout__num--small { font-size: 18px; }
+  .frontier-readout__num--small {
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    font-weight: 400;
+    letter-spacing: 0.02em;
+  }
   .frontier-readout__label {
     font-family: var(--font-mono);
     font-size: 10px;
-    letter-spacing: var(--track-label);
+    letter-spacing: 0.18em;
     text-transform: uppercase;
-    color: var(--ink-3);
+    color: color-mix(in oklab, var(--ink-3) 92%, transparent);
   }
-
   /* ── Target rail — chips of drug targets, with counts ── */
   .target-rail {
     display: flex;
@@ -339,17 +349,17 @@ const lastUpdated = stats.lastUpdated
     gap: 6px;
     padding: 6px 12px;
     border: 1px solid var(--rule-2);
-    border-radius: var(--radius-1);
+    border-radius: var(--radius-sm);
     font-family: var(--font-sans);
-    font-size: var(--size-sm);
+    font-size: 12px;
     color: var(--ink-1);
     text-decoration: none;
-    background: var(--paper-1);
-    transition: border-color var(--dur-1) var(--ease), background var(--dur-1) var(--ease);
+    background: transparent;
+    transition: color var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease), background var(--dur-1) var(--ease);
   }
   .target-rail__chip:hover {
-    border-color: var(--rule-ink);
-    background: var(--paper-2);
+    border-color: color-mix(in oklab, var(--gold) 56%, transparent);
+    background: var(--paper-1);
     color: var(--ink-0);
   }
   .target-rail__count {
@@ -368,18 +378,24 @@ const lastUpdated = stats.lastUpdated
   }
   .frontier-claims__title {
     font-family: var(--font-sans);
-    font-size: var(--size-lg);
-    font-weight: 500;
+    font-weight: 600;
+    font-size: clamp(1.15rem, 2.2vw, 1.45rem);
+    line-height: 1.16;
     color: var(--ink-0);
-    margin: 0 0 4px;
-    letter-spacing: var(--track-tight);
+    margin: 0 0 6px;
+    letter-spacing: -0.018em;
+    text-wrap: balance;
   }
   .frontier-claims__sub {
-    font-family: var(--font-serif);
-    font-size: 15px;
-    color: var(--ink-3);
+    font-family: var(--font-sans);
+    font-weight: 400;
+    font-size: 0.95rem;
+    line-height: 1.5;
+    letter-spacing: -0.005em;
+    color: color-mix(in oklab, var(--ink-2) 92%, transparent);
     margin: 0;
-    max-width: 64ch;
+    max-width: 60ch;
+    text-wrap: pretty;
   }
   .frontier-claims__list {
     border-top: 1px solid var(--rule-2);
@@ -446,9 +462,11 @@ const lastUpdated = stats.lastUpdated
   }
   .frontier-recent__claim {
     display: block;
-    font-family: var(--font-serif);
-    font-size: 15px;
-    line-height: 1.4;
+    font-family: var(--font-sans);
+    font-weight: 500;
+    font-size: 14px;
+    line-height: 1.42;
+    letter-spacing: -0.008em;
     color: inherit;
   }
   .frontier-recent__meta {
@@ -461,46 +479,53 @@ const lastUpdated = stats.lastUpdated
   }
   .frontier-recent__note {
     margin: var(--space-4) 0 0;
-    font-family: var(--font-serif);
-    font-style: italic;
-    font-size: 13px;
+    font-family: var(--font-sans);
+    font-size: 12px;
     color: var(--ink-3);
+    letter-spacing: -0.005em;
   }
 
   .frontier-tensions__link {
-    font-family: var(--font-serif);
-    font-size: 15px;
-    line-height: 1.4;
+    font-family: var(--font-sans);
+    font-weight: 500;
+    font-size: 14px;
+    line-height: 1.42;
+    letter-spacing: -0.008em;
   }
 
   /* ── How this stays honest — the protocol pointer ── */
   .frontier-honest {
-    border-left: 2px solid var(--vela-warm-brass);
-    padding: var(--space-4) var(--space-5);
+    border-top: 1px solid color-mix(in oklab, var(--gold) 38%, transparent);
+    border-bottom: 1px solid var(--rule-2);
+    padding: 1.4rem 0;
     margin: 0 0 var(--space-7);
-    background: var(--paper-1);
+    background: transparent;
+    max-width: var(--measure-wide);
   }
   .frontier-honest__eyebrow {
     font-family: var(--font-mono);
-    font-size: 10px;
-    letter-spacing: var(--track-label);
+    font-size: var(--size-kicker);
+    letter-spacing: var(--track-imprint);
     text-transform: uppercase;
-    color: var(--ink-3);
-    margin-bottom: 10px;
+    color: color-mix(in oklab, var(--gold) 76%, var(--ink-2));
+    margin-bottom: 12px;
   }
   .frontier-honest__body {
-    font-family: var(--font-serif);
-    font-size: 16px;
-    line-height: 1.55;
-    color: var(--ink-1);
+    font-family: var(--font-sans);
+    font-weight: 400;
+    font-size: 0.98rem;
+    line-height: 1.6;
+    letter-spacing: -0.005em;
+    color: color-mix(in oklab, var(--ink-1) 90%, var(--ink-2));
     margin: 0 0 var(--space-3);
     max-width: 64ch;
+    text-wrap: pretty;
   }
   .frontier-honest__more {
     margin: 0;
     font-family: var(--font-mono);
-    font-size: var(--size-xs);
-    letter-spacing: 0.04em;
+    font-size: 11px;
+    letter-spacing: 0.06em;
     color: var(--ink-3);
   }
   .frontier-honest__sep {
@@ -552,9 +577,10 @@ const lastUpdated = stats.lastUpdated
     color: var(--ink-3);
   }
   .vela-colophon__title {
-    font-family: var(--font-serif);
-    font-style: italic;
-    font-size: 18px;
+    font-family: var(--font-sans);
+    font-weight: 500;
+    font-size: 14px;
+    letter-spacing: -0.01em;
     color: var(--ink-1);
   }
 

@@ -22,47 +22,59 @@ const HUB_HOST = HUB_URL.replace(/^https?:\/\//, "");
 
 <style>
   .live-hub {
-    border: 1px solid var(--rule-2);
-    padding: 12px 18px;
-    background: var(--paper-1);
-    margin: 0 0 16px;
-    border-radius: var(--radius-1);
+    border-top: 1px solid color-mix(in oklab, var(--gold) 28%, transparent);
+    border-bottom: 1px solid var(--rule-2);
+    padding: 0.85rem 0;
+    background: transparent;
+    margin: 0 0 1.6rem;
   }
   .live-hub__row {
     display: flex;
     flex-wrap: wrap;
     align-items: baseline;
-    gap: 10px;
+    gap: 0.7rem;
     font-family: var(--font-mono);
-    font-size: 12px;
-    color: var(--ink-2);
+    font-size: 11px;
+    color: color-mix(in oklab, var(--ink-2) 92%, transparent);
+    letter-spacing: 0.04em;
   }
   .live-hub__dot {
-    width: 6px;
-    height: 6px;
+    width: 5px;
+    height: 5px;
     border-radius: 50%;
-    background: var(--signal);
-    box-shadow: 0 0 0 2px var(--signal-soft);
+    background: var(--gold);
+    box-shadow: 0 0 0 2px var(--gold-soft);
     align-self: center;
+    animation: live-hub-pulse 3.6s var(--ease) infinite;
+  }
+  @keyframes live-hub-pulse {
+    0%, 100% { box-shadow: 0 0 0 2px var(--gold-soft); }
+    50%      { box-shadow: 0 0 0 3px var(--gold-glow); }
   }
   .live-hub__label {
-    color: var(--ink-3);
+    color: color-mix(in oklab, var(--gold) 72%, var(--ink-3));
     text-transform: uppercase;
-    letter-spacing: 0.14em;
+    letter-spacing: var(--track-imprint);
     font-size: 10px;
+    font-weight: 500;
   }
-  .live-hub__sep { color: var(--ink-3); }
-  .live-hub__count { color: var(--ink-0); font-variant-numeric: tabular-nums; }
+  .live-hub__sep { color: var(--ink-4); }
+  .live-hub__count { color: var(--ink-0); font-variant-numeric: tabular-nums; font-weight: 500; }
   .live-hub__latest {
     color: var(--ink-2);
     font-variant-numeric: tabular-nums;
   }
   .live-hub__link {
     margin-left: auto;
-    color: var(--ink-3);
-    border-bottom: 1px solid var(--rule-2);
+    color: var(--ink-2);
+    border-bottom: 1px solid color-mix(in oklab, var(--gold) 38%, transparent);
+    padding-bottom: 1px;
+    transition: color var(--dur-1) var(--ease), border-bottom-color var(--dur-1) var(--ease);
   }
-  .live-hub__link:hover { color: var(--ink-0); border-bottom-color: var(--rule-ink); }
+  .live-hub__link:hover {
+    color: var(--gold);
+    border-bottom-color: var(--gold);
+  }
 </style>
 
 <script>

@@ -1,0 +1,162 @@
+---
+/*
+  FigurePlate — printed-plate frame around a diagram or image.
+  Adapted from Borrowed Light. Caption sits below the visual,
+  separated by a hairline gold rule.
+
+  Variants:
+    plate   — default editorial frame (top rule + caption)
+    open    — nothing at all; SVG/content stands alone
+    quiet   — softer top rule, smaller eyebrow (for asides)
+*/
+interface Props {
+  id?: string;
+  class?: string;
+  eyebrow?: string;
+  caption?: string;
+  /** Figure number (1-based). Pad to two digits if you have ≥10 figures. */
+  figNum?: number | string;
+  variant?: "plate" | "open" | "quiet";
+  wide?: boolean;
+}
+
+const {
+  id,
+  class: className = "",
+  eyebrow,
+  caption,
+  figNum,
+  variant = "plate",
+  wide = false,
+  ...attrs
+} = Astro.props;
+
+const padded =
+  figNum === undefined
+    ? null
+    : typeof figNum === "number"
+      ? String(figNum).padStart(2, "0")
+      : String(figNum);
+
+const hasStructuredCaption = Boolean(padded || eyebrow);
+const hasCaptionRail = Boolean(caption || hasStructuredCaption);
+const figureId = id ?? (padded ? `fig-${padded}` : undefined);
+---
+
+<figure
+  id={figureId}
+  class:list={["vela-fig", `vela-fig-${variant}`, wide && "vela-fig-wide", className]}
+  data-fig-num={padded ?? undefined}
+  {...attrs}
+>
+  <slot />
+  {
+    hasCaptionRail && (
+      <figcaption
+        class:list={[
+          "vela-fig-caption",
+          hasStructuredCaption ? "vela-fig-caption-structured" : "vela-fig-caption-simple",
+        ]}
+      >
+        <p>
+          {padded && <span class="vela-fig-num">Fig.&nbsp;{padded}.</span>}
+          {eyebrow && <span class="vela-fig-title">{eyebrow}.</span>}
+          {caption && <span class="vela-fig-copy">{caption}</span>}
+        </p>
+      </figcaption>
+    )
+  }
+</figure>
+
+<style>
+  .vela-fig {
+    margin-block: clamp(2.25rem, 5vh, 3.15rem);
+    margin-inline: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    position: relative;
+    scroll-margin-top: 2rem;
+  }
+
+  .vela-fig-plate, .vela-fig-quiet, .vela-fig-open { border: 0; padding: 0; background: transparent; }
+
+  .vela-fig-wide {
+    width: 100%;
+    max-width: var(--measure-wide);
+    margin-inline: auto;
+  }
+
+  .vela-fig-caption {
+    width: min(36rem, calc(100vw - 2rem));
+    max-width: 100%;
+    margin: 0.9rem auto 0;
+    padding-top: 0.58rem;
+    border-top: 1px solid color-mix(in oklab, var(--gold) 18%, transparent);
+    color: color-mix(in oklab, var(--ink-2) 74%, var(--ink-3));
+    text-align: left;
+  }
+
+  .vela-fig-caption-simple {
+    width: min(100%, 30rem);
+    padding-top: 0;
+    border-top: 0;
+    text-align: center;
+  }
+
+  .vela-fig-caption p {
+    margin: 0;
+    font-family: var(--font-body);
+    font-size: 0.86rem;
+    font-style: normal;
+    font-weight: 400;
+    line-height: 1.5;
+    letter-spacing: 0;
+    text-wrap: pretty;
+  }
+
+  .vela-fig-num {
+    margin-right: 0.28rem;
+    color: color-mix(in oklab, var(--gold) 72%, var(--ink-2));
+    font-family: var(--font-display);
+    font-size: 0.98em;
+    font-style: italic;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+  }
+
+  .vela-fig-title {
+    margin-right: 0.22rem;
+    color: color-mix(in oklab, var(--ink-1) 86%, var(--ink-2));
+    font-family: var(--font-display);
+    font-style: italic;
+    font-weight: 600;
+  }
+
+  .vela-fig-copy {
+    color: color-mix(in oklab, var(--ink-2) 76%, var(--ink-3));
+  }
+
+  .vela-fig-caption-simple p {
+    font-style: italic;
+  }
+
+  @media (max-width: 680px) {
+    .vela-fig {
+      margin-block: 2.05rem;
+    }
+    .vela-fig-wide {
+      width: calc(100vw - 2rem);
+      max-width: calc(100vw - 2rem);
+    }
+    .vela-fig-caption {
+      margin-top: 0.8rem;
+      padding-top: 0.48rem;
+    }
+    .vela-fig-caption p {
+      font-size: 0.8rem;
+      line-height: 1.44;
+    }
+  }
+</style>

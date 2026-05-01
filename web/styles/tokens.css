@@ -1,122 +1,156 @@
 /* =========================================================================
    Vela Design System · tokens
-   See docs/PRODUCT.md and docs/DESIGN.md for the canon.
 
-   Two registers, one composition seen at different times of day.
-   Reading register (light) is default. Atlas register (dark) is opt-in
-   via [data-theme="dark"] on <html>; pages that lead with navigation
-   (homepage, graph views, dashboard, desktop app) opt in.
+   Visual language ported from Borrowed Light (~/personal/borrowed-light).
+   Cream paper register, single gold accent, hairlines never borders,
+   editorial state palette (never traffic-light). Light only — the
+   instrument and the essay share one ground.
 
-   Backward-compatible naming: existing --paper-N / --ink-N / --rule-N
-   tokens keep their meaning. DESIGN.md canonical names
+   Backward-compatible naming: all existing --paper-N / --ink-N / --rule-N
+   tokens keep their semantic meaning. DESIGN.md canonical names
    (--background, --surface, --primary, --gold, --seafoam, etc.) are
-   added as aliases so new code can use either.
+   maintained as aliases so existing components keep working.
    ========================================================================= */
 
 :root {
-  /* ── Reading register (light) — default for prose surfaces ────────── */
-
-  /* Surfaces */
-  --paper-0:        #F7F4EC;   /* rice paper page ground */
-  --paper-1:        #FBF9F3;   /* raised: cards, sheets */
-  --paper-2:        #EFE8DA;   /* warm subdued: tag bg, hover wells */
-  --paper-edge:     #D9D4C8;   /* standard border */
+  /* ── Paper ─── reading register, the canonical Vela ground ────────── */
+  --paper-0:        #F8F2E5;   /* aged cream, page ground */
+  --paper-1:        #FCF8EE;   /* raised: cards, sheets */
+  --paper-2:        #ECE0C7;   /* sunken: tag bg, hover wells, diagram fills */
+  --paper-deep:     #ECE0C7;   /* alias for paper-2 (BL canonical name) */
+  --paper-edge:     #D9D2BF;   /* standard border */
 
   --background:     var(--paper-0);
   --surface:        var(--paper-1);
   --sand:           var(--paper-2);
   --border:         var(--paper-edge);
 
-  --mist:           #E8EDF1;   /* atmospheric depth, cool */
-  --stone:          #D8D2C6;   /* heavier divider, inactive control */
+  --mist:           #E5DECC;   /* atmospheric depth, warm */
+  --stone:          #C7BFA8;   /* heavier divider, inactive control */
 
-  /* Ink */
-  --ink-0:          #101820;   /* strongest ink */
-  --ink-1:          #162234;   /* body ink on raised surface */
-  --ink-2:          #3A4151;   /* secondary text */
-  --ink-3:          #6B7386;   /* tertiary, captions, tick labels */
-  --ink-4:          #8A95A1;   /* placeholder */
+  /* ── Ink ─── warm indigo family, never grey ─────────────────────── */
+  --ink-0:          #1A2231;   /* strongest ink, headings */
+  --ink-1:          #232B3A;   /* body ink */
+  --ink-2:          #3A4555;   /* secondary text */
+  --ink-3:          #4A5568;   /* tertiary, captions, tick labels */
+  --ink-4:          #A0AEC0;   /* placeholder, faintest text */
 
   --on-background:  var(--ink-0);
   --on-surface:     var(--ink-1);
   --muted:          var(--ink-4);
 
-  /* Hairlines: ink-with-alpha, never grey */
-  --rule-1:         rgba(16, 24, 32, 0.06);   /* faintest tick */
-  --rule-2:         rgba(16, 24, 32, 0.12);   /* standard hairline */
-  --rule-3:         rgba(16, 24, 32, 0.20);   /* emphasis rule */
-  --rule-ink:       rgba(16, 24, 32, 0.86);   /* engraved line */
+  /* ── Hairlines ─── ink-with-alpha, never grey ─────────────────────── */
+  --rule-1:         rgba(35, 43, 58, 0.06);   /* faintest tick */
+  --rule-2:         rgba(35, 43, 58, 0.13);   /* standard hairline */
+  --rule-3:         rgba(35, 43, 58, 0.22);   /* emphasis rule */
+  --rule-ink:       rgba(35, 43, 58, 0.86);   /* engraved line */
 
-  /* ── The single accent — borrowed gold ───────────────────────────── */
-  --gold:           #C8A45D;
-  --gold-soft:      #E7D4A4;
-  --gold-glow:      rgba(200, 164, 93, 0.16);
+  /* ── The single accent — borrowed gold ────────────────────────────── */
+  --gold:           #C9A227;
+  --gold-soft:      rgba(201, 162, 39, 0.32);
+  --gold-glow:      rgba(201, 162, 39, 0.18);
   --tertiary:       var(--gold);
-  --on-tertiary:    #0B1320;
-  --focus-ring:     #D4B56A;
+  --on-tertiary:    #1A1206;
+  --focus-ring:     #D4B048;
 
-  /* ── Atlas-register surfaces (used inside light pages by atlas-style
-         components: command palette, the constellation hero, etc.) ──── */
-  --primary:        #0B1320;   /* midnight ink */
-  --on-primary:     #F7F4EC;
-  --secondary:      #132334;   /* deep sea */
-  --on-secondary:   #E7ECF1;
+  /* ── Atlas / hero surfaces (used only by deep-night atmospheric blocks) */
+  --primary:        #1A2231;
+  --on-primary:     var(--paper-0);
+  --secondary:      #232B3A;
+  --on-secondary:   var(--paper-1);
 
-  /* ── Live state — signal blue (demoted from primary accent) ──────── */
-  --signal:         #6F92B8;
-  --signal-soft:    rgba(111, 146, 184, 0.14);
-  --signal-edge:    rgba(111, 146, 184, 0.40);
+  /* ── State ─── editorial palette, never traffic-light ────────────── */
+  --cinnabar:       #B5443A;   /* margin-gloss, retraction, contradiction */
+  --moss:           #59634E;   /* replicated, verified, ok */
+  --brass:          #8A6A1F;   /* contested, dissent, warning */
+  --winter:         #8FA7B7;   /* inferred, distant, speculative */
 
-  /* ── State palette — derived from ink and accent, never traffic-light */
-  --seafoam:        #68B7AA;   /* verified, live, positive */
-  --success:        var(--seafoam);
-  --state-ok:       var(--seafoam);
-  --warning:        #D6A84F;
-  --state-warn:     var(--warning);
-  --error:          #B86A61;   /* invalidation, retraction */
-  --contradiction:  var(--error);
-  --state-lost:     var(--error);
+  /* Existing semantic aliases — all repointed to the editorial state palette */
+  --seafoam:        var(--moss);
+  --success:        var(--moss);
+  --state-ok:       var(--moss);
+  --warning:        var(--brass);
+  --state-warn:     var(--brass);
+  --error:          var(--cinnabar);
+  --contradiction:  var(--cinnabar);
+  --state-lost:     var(--cinnabar);
   --state-stale:    var(--stone);
-  --state-live:     var(--signal);
-  --speculative:    #8D82B8;   /* speculative trail, hypothesis */
-  --inferred:       var(--signal);
 
-  /* Deprecated aliases (keep until legacy refs are migrated) */
-  --vela-night-indigo:  #08111C;
-  --vela-deep-navy:     #0D1B2A;
+  /* Live state — gold pulse, not signal blue. The accent IS the live signal. */
+  --signal:         var(--gold);
+  --signal-soft:    var(--gold-soft);
+  --signal-edge:    var(--gold-glow);
+  --state-live:     var(--gold);
+
+  /* Speculative / inferred — quiet cool accent, reserved for the rare case */
+  --speculative:    var(--winter);
+  --inferred:       var(--winter);
+
+  /* ── Star glow / atmosphere ─── lantern halo around focus ────────── */
+  --star-glow:         #F6E8C3;
+  --star-glow-bright:  #FFF3D4;
+
+  /* Deprecated aliases (kept until legacy refs are migrated) */
+  --vela-night-indigo:  #1A2231;
+  --vela-deep-navy:     #232B3A;
   --vela-lantern-gold:  var(--gold);
-  --vela-warm-brass:    #B08B4A;
-  --vela-paper-ivory:   var(--background);
-  --vela-frost-blue:    var(--inferred);
-  --vela-ember-red:     var(--contradiction);
+  --vela-warm-brass:    var(--brass);
+  --vela-paper-ivory:   var(--paper-0);
+  --vela-frost-blue:    var(--winter);
+  --vela-ember-red:     var(--cinnabar);
 
-  /* ── Type ──────────────────────────────────────────────────────────── */
-  --font-display:   "Lyon Display", "Canela", "Source Serif 4", "Source Serif Pro", "Iowan Old Style", Charter, Georgia, serif;
-  --font-serif:     var(--font-display);
-  --font-sans:      "Inter", "Inter Display", "Inter Tight", "Söhne", ui-sans-serif, -apple-system, system-ui, sans-serif;
+  /* ── Type ─── Inter Tight dominant, EB Garamond for prose, Cormorant
+     italic reserved as a rare atmospheric accent (--font-poetic). */
+  --font-sans:      "Inter Tight", "Inter", -apple-system, BlinkMacSystemFont, "Söhne", ui-sans-serif, system-ui, sans-serif;
+  --font-display:   var(--font-sans);                                      /* hero titles, big numbers, page titles */
+  --font-body:      "EB Garamond", "Palatino Linotype", Palatino, Georgia, serif;  /* essay prose only */
+  --font-serif:     var(--font-body);
+  --font-poetic:    "Cormorant Garamond", "EB Garamond", Georgia, serif;   /* italic accent — quotes, dedications, rare atmospheric moments */
   --font-mono:      "JetBrains Mono", "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
   --font-jp:        "Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", serif;
 
-  /* Scale: denser than the previous editorial canon. 14px body. */
+  /* ── Type scale ─── px scale for instrument/UI; clamp scale for prose ─ */
+
+  /* Instrument scale (workbench, dense tables, controls) */
   --size-xs:        11px;   /* labels, captions, tick indices */
   --size-sm:        13px;   /* secondary body */
   --size-base:      14px;   /* primary UI body */
-  --size-md:        17px;   /* h3, prominent inline, reading body when serif */
+  --size-md:        17px;   /* h3, prominent inline */
   --size-lg:        22px;   /* h2, section head */
   --size-xl:        32px;   /* h1, page title */
   --size-2xl:       36px;   /* display-lg */
   --size-3xl:       48px;   /* display-xl */
 
-  --leading-tight:  1.15;
+  /* Reading scale (prose, marketing, essay-shaped pages) — responsive clamps */
+  --size-display:    clamp(2.6rem, 7vw, 4.1rem);    /* italic Cormorant hero */
+  --size-h1:         clamp(1.85rem, 4vw, 2.5rem);
+  --size-h2:         clamp(1.4rem, 2.7vw, 1.85rem);
+  --size-prose:      1.05rem;                       /* body serif */
+  --size-prose-sm:   0.95rem;
+  --size-meta:       0.78rem;
+  --size-kicker:     0.66rem;
+  --size-imprint:    0.68rem;
+
+  /* Leading */
+  --leading-tight:  1.02;
   --leading-snug:   1.30;
   --leading-body:   1.55;
-  --leading-read:   1.68;
+  --leading-read:   1.74;
 
+  /* Tracking */
   --track-tight:    -0.015em;
-  --track-display:  -0.025em;
+  --track-display:  -0.005em;
   --track-none:     0;
   --track-label:    0.08em;
   --track-tick:     0.14em;
+  --track-eyebrow:  0.18em;
+  --track-imprint:  0.32em;
+
+  /* ── Layout ─── BL canonical measure / gutter ─────────────────────── */
+  --measure:        41.5rem;                          /* humane prose width */
+  --measure-wide:   48rem;                            /* figure expansion */
+  --measure-page:   60rem;                            /* page-shell upper bound */
+  --gutter:         clamp(1rem, 3vw, 2.25rem);        /* responsive padding */
 
   /* ── Spacing — 8pt base ──────────────────────────────────────────── */
   --space-1:  4px;
@@ -132,11 +166,11 @@
 
   /* ── Radii — soft scale ──────────────────────────────────────────── */
   --radius-0:    0;
-  --radius-xs:   4px;        /* small inline accents */
-  --radius-sm:   6px;        /* buttons, inputs */
-  --radius-md:   10px;       /* cards (small) */
-  --radius-lg:   14px;       /* cards (default), panels */
-  --radius-xl:   20px;       /* modals, popovers */
+  --radius-xs:   3px;        /* small inline accents */
+  --radius-sm:   4px;        /* buttons, inputs */
+  --radius-md:   6px;        /* cards (small) */
+  --radius-lg:   10px;       /* cards (default), panels */
+  --radius-xl:   14px;       /* modals, popovers */
   --radius-full: 9999px;     /* pills, tags */
 
   /* Deprecated aliases */
@@ -144,81 +178,18 @@
   --radius-2:    var(--radius-md);
   --radius-3:    var(--radius-lg);
 
-  /* ── Elevation — subtle, paper-stack feel in light, tonal in dark ── */
+  /* ── Elevation — quiet, paper-stack feel ─────────────────────────── */
   --lift-1:  0 1px 0 var(--rule-2);
-  --lift-2:  0 2px 8px rgba(16, 24, 32, 0.06), 0 0 0 1px var(--rule-2);
-  --lift-3:  0 8px 24px rgba(16, 24, 32, 0.10), 0 0 0 1px var(--rule-2);
+  --lift-2:  0 2px 8px rgba(35, 43, 58, 0.06), 0 0 0 1px var(--rule-2);
+  --lift-3:  0 8px 24px rgba(35, 43, 58, 0.10), 0 0 0 1px var(--rule-2);
 
   /* ── Motion ──────────────────────────────────────────────────────── */
   --ease:           cubic-bezier(0.2, 0.6, 0.2, 1);
   --ease-spring:    cubic-bezier(0.34, 1.56, 0.64, 1);
-  --dur-1:          120ms;   /* hover, button states */
-  --dur-2:          240ms;   /* panel transitions, focus glow */
-  --dur-3:          360ms;   /* entry, page transitions */
-  --dur-4:          480ms;   /* constellation glow, atmospheric reveals */
-}
-
-/* =========================================================================
-   Atlas register (dark) — default for navigation surfaces
-   Apply with [data-theme="dark"] on <html>.
-   ========================================================================= */
-:root[data-theme="dark"] {
-  --paper-0:        #08111C;   /* deepest dark surface */
-  --paper-1:        #0D1B2A;   /* cards, panels */
-  --paper-2:        #142538;   /* sunken inputs, table rows */
-  --paper-edge:     #243548;   /* borders, dividers */
-
-  --background:     var(--paper-0);
-  --surface:        var(--paper-1);
-  --sand:           var(--paper-2);
-  --border:         var(--paper-edge);
-
-  --surface-dark:       var(--paper-0);
-  --panel-dark:         var(--paper-1);
-  --panel-dark-muted:   var(--paper-2);
-  --border-dark:        var(--paper-edge);
-
-  --ink-0:          #F7F4EC;
-  --ink-1:          #E8EEF4;
-  --ink-2:          #C0C8D3;
-  --ink-3:          #93A1AF;
-  --ink-4:          #5C6878;
-
-  --on-background:      var(--ink-0);
-  --on-surface:         var(--ink-1);
-  --on-surface-dark:    var(--ink-1);
-  --muted:              var(--ink-3);
-  --muted-dark:         var(--ink-3);
-
-  --rule-1:         rgba(247, 244, 236, 0.06);
-  --rule-2:         rgba(247, 244, 236, 0.12);
-  --rule-3:         rgba(247, 244, 236, 0.20);
-  --rule-ink:       rgba(247, 244, 236, 0.80);
-
-  /* Gold reads brighter on dark */
-  --gold-soft:      rgba(232, 212, 164, 0.32);
-  --gold-glow:      rgba(232, 212, 164, 0.20);
-
-  --signal:         #8FACD0;
-  --signal-soft:    rgba(143, 172, 208, 0.18);
-  --signal-edge:    rgba(143, 172, 208, 0.50);
-
-  /* State on dark: brighter, still muted */
-  --seafoam:        #7DCDC0;
-  --success:        var(--seafoam);
-  --state-ok:       var(--seafoam);
-  --warning:        #E0B864;
-  --state-warn:     var(--warning);
-  --error:          #C8826F;
-  --contradiction:  var(--error);
-  --state-lost:     var(--error);
-  --state-live:     var(--signal);
-  --speculative:    #A89DCB;
-  --inferred:       var(--signal);
-
-  --lift-1:  0 1px 0 var(--rule-2);
-  --lift-2:  0 2px 12px rgba(0, 0, 0, 0.50), 0 0 0 1px var(--rule-2);
-  --lift-3:  0 24px 64px rgba(0, 0, 0, 0.60), 0 0 0 1px var(--rule-2);
+  --dur-1:          120ms;
+  --dur-2:          240ms;
+  --dur-3:          360ms;
+  --dur-4:          480ms;
 }
 
 /* =========================================================================
@@ -237,45 +208,59 @@ html, body {
 }
 
 /* =========================================================================
-   Type roles
-   Both DESIGN.md role names and legacy class names supported.
+   Type roles — both DESIGN.md role names and legacy class names supported.
+   Display roles use Cormorant italic (the BL display voice).
    ========================================================================= */
 
-/* Display — used once per page or hero */
+/* Display — used once per page or hero. Modern sans, tight tracking. */
 .t-display, .t-display-xl {
   font-family: var(--font-display);
-  font-weight: 500;
-  font-size: var(--size-3xl);
-  line-height: var(--leading-tight);
-  letter-spacing: var(--track-display);
+  font-weight: 600;
+  font-size: var(--size-display);
+  line-height: 1.03;
+  letter-spacing: -0.02em;
   color: var(--ink-0);
+  text-wrap: balance;
 }
 
 .t-display-lg, .t-hero {
   font-family: var(--font-display);
-  font-weight: 500;
-  font-size: var(--size-2xl);
-  line-height: 1.22;
-  letter-spacing: var(--track-display);
+  font-weight: 600;
+  font-size: var(--size-h1);
+  line-height: 1.06;
+  letter-spacing: -0.018em;
   color: var(--ink-0);
+  text-wrap: balance;
 }
 
 .t-h1 {
   font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--size-h1);
+  line-height: 1.1;
+  letter-spacing: -0.015em;
+  color: var(--ink-0);
+  text-wrap: balance;
+}
+
+/* Poetic — italic Cormorant for the rare atmospheric moment (quotes,
+   dedications, opening invocations). Use sparingly. */
+.t-poetic {
+  font-family: var(--font-poetic);
+  font-style: italic;
   font-weight: 500;
-  font-size: var(--size-xl);
-  line-height: 1.25;
-  letter-spacing: var(--track-tight);
+  letter-spacing: -0.005em;
   color: var(--ink-0);
 }
 
 .t-h2, .t-section {
   font-family: var(--font-sans);
-  font-weight: 600;
-  font-size: var(--size-lg);
+  font-weight: 560;
+  font-size: 0.7rem;
   line-height: 1.36;
-  letter-spacing: var(--track-tight);
-  color: var(--ink-0);
+  letter-spacing: var(--track-eyebrow);
+  text-transform: uppercase;
+  color: color-mix(in oklab, var(--gold) 72%, var(--ink-2));
 }
 
 .t-h3 {
@@ -305,18 +290,19 @@ html, body {
   color: var(--ink-1);
 }
 
-/* Reading body — when it's prose, it's serif */
+/* Reading body — when it's prose, it's serif (EB Garamond) */
 .t-read {
-  font-family: var(--font-display);
+  font-family: var(--font-body);
   font-weight: 400;
-  font-size: var(--size-md);
+  font-size: var(--size-prose);
   line-height: var(--leading-read);
-  color: var(--ink-1);
+  color: color-mix(in oklab, var(--ink-1) 88%, var(--ink-2));
+  text-wrap: pretty;
 }
-.t-read p + p { margin-top: 1.1em; text-indent: 1.3em; }
+.t-read p + p { margin-top: 1.1em; }
 .t-read p:first-of-type { text-indent: 0; }
 
-/* Instrument label — small caps, tracked, ink-3 */
+/* Instrument label — small caps, tracked */
 .t-label {
   font-family: var(--font-sans);
   font-weight: 600;
@@ -358,7 +344,27 @@ html, body {
   color: var(--ink-3);
 }
 
-/* Japanese fallback for the borrowed-light tagline */
+/* Kicker — mono small-caps eyebrow above titles */
+.t-kicker {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: var(--size-kicker);
+  letter-spacing: var(--track-imprint);
+  text-transform: uppercase;
+  color: color-mix(in oklab, var(--gold) 76%, var(--ink-2));
+}
+
+/* Imprint — mono small-caps used in dedication / colophon marks */
+.t-imprint {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: var(--size-imprint);
+  letter-spacing: var(--track-imprint);
+  text-transform: uppercase;
+  color: color-mix(in oklab, var(--gold) 72%, var(--ink-2));
+}
+
+/* Japanese fallback for tagline */
 .t-jp {
   font-family: var(--font-jp);
   font-weight: 400;
@@ -368,9 +374,24 @@ html, body {
    Primitives — hairlines, tick rows, focal glow
    ========================================================================= */
 
-.rule        { background: var(--rule-2); height: 1px; width: 100%; }
-.rule--v     { background: var(--rule-2); width: 1px; height: 100%; }
+.rule        { background: var(--rule-2); height: 1px; width: 100%; border: 0; }
+.rule--v     { background: var(--rule-2); width: 1px; height: 100%; border: 0; }
 .rule--heavy { background: var(--rule-3); }
+
+/* Gold rule — section divider, gradient fade left/right */
+.rule--gold {
+  height: 1px;
+  width: 100%;
+  border: 0;
+  background: linear-gradient(
+    to right,
+    transparent 0%,
+    color-mix(in oklab, var(--gold) 38%, transparent) 18%,
+    color-mix(in oklab, var(--gold) 56%, transparent) 50%,
+    color-mix(in oklab, var(--gold) 38%, transparent) 82%,
+    transparent 100%
+  );
+}
 
 /* Tick row — the engraved edge. The signature of every section head. */
 .ticks {
@@ -386,14 +407,13 @@ html, body {
 .ticks--wide  { background-size: 24px 100%; }
 
 /* Focal glow — soft lantern halo around the focused finding,
-   the active route, the running cursor. */
+   the active route, the running cursor. Gold, not signal-blue. */
 .focal-glow {
   box-shadow: 0 0 24px var(--gold-glow);
   transition: box-shadow var(--dur-2) var(--ease);
 }
 
-/* Legacy alidade — kept as a backward-compat alias for the live cursor.
-   Now uses gold instead of signal-blue, matching the new accent. */
+/* Live alidade — the cursor. Gold thread, not a bright bar. */
 .alidade {
   height: 1px;
   background: var(--gold);

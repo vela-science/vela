@@ -1,0 +1,192 @@
+---
+/*
+  MarginNote — compact reference annotation. Adapted from Borrowed Light.
+
+  Wide screens (≥1180px): the note body floats into the right margin
+  at the line of its reference, visible without interaction.
+
+  Narrow screens (<1180px): the body collapses behind a tap-to-reveal
+  marker. The marker is the inline number; tap to toggle the body
+  inline below the paragraph.
+
+  Counter scope is .wb-main, so every page that uses MarginNote gets
+  auto-numbered notes (01, 02, 03 ...).
+
+  Authoring — pass content via slot for rich content (links, italics):
+
+    <MarginNote>
+      Halliday et al., <a href="https://doi.org/...">JCBFM 2016</a>;
+      pericyte degeneration in early Alzheimer's.
+    </MarginNote>
+
+  Or pass the legacy `note` string for plain prose.
+*/
+interface Props {
+  /** Plain-text fallback. Prefer slot content for links/emphasis. */
+  note?: string;
+}
+const { note } = Astro.props;
+const hasSlot = Astro.slots.has("default");
+---
+
+<span class="mn" data-open="false">
+  <button
+    type="button"
+    class="mn-mark"
+    aria-label="Note"
+    aria-expanded="false"
+  ></button>
+  <span class="mn-body" role="note">
+    {hasSlot ? <slot /> : note}
+  </span>
+</span>
+
+<style is:global>
+  /* Auto-number notes per .wb-main page. */
+  .wb-main { counter-reset: vela-mn; }
+  .mn { counter-increment: vela-mn; }
+
+  .mn {
+    position: relative;
+    display: inline;
+  }
+
+  /* Inline marker — superscript number, no dot */
+  .mn-mark {
+    background: none;
+    border: none;
+    padding: 0 0.15em;
+    margin: 0 0 0 0.05em;
+    cursor: pointer;
+    font-family: var(--font-sans);
+    font-size: 0.6em;
+    line-height: 1;
+    color: color-mix(in oklab, var(--gold) 70%, var(--ink-2));
+    vertical-align: super;
+    user-select: none;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    font-variant-numeric: tabular-nums;
+    transition: color 150ms var(--ease);
+    position: relative;
+    display: inline-block;
+  }
+  .mn-mark::before {
+    content: counter(vela-mn, decimal-leading-zero);
+  }
+
+  .mn:hover .mn-mark,
+  .mn-mark:focus-visible {
+    color: var(--cinnabar);
+  }
+  .mn-mark:focus-visible {
+    outline: 1.5px solid var(--cinnabar);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+  .mn-mark[aria-expanded="true"] {
+    color: var(--cinnabar);
+  }
+
+  /* Wide-screen Tufte mode (≥1181px) — body floats into right margin */
+  .mn-body {
+    float: right;
+    clear: right;
+    width: 12.25rem;
+    margin: 0.15rem -14rem 0.56rem 1.3rem;
+    padding: 0.05rem 0 0.08rem 0.7rem;
+    border-left: 1px solid color-mix(in oklab, var(--rule-3) 48%, transparent);
+    font-family: var(--font-sans);
+    font-size: 0.72rem;
+    font-style: normal;
+    line-height: 1.5;
+    letter-spacing: 0.005em;
+    color: color-mix(in oklab, var(--ink-2) 82%, transparent);
+    text-wrap: pretty;
+    position: relative;
+    transition:
+      color 200ms var(--ease),
+      border-left-color 200ms var(--ease);
+  }
+
+  /* Numbered prefix in mono gold, inline with the first sentence */
+  .mn-body::before {
+    content: counter(vela-mn, decimal-leading-zero);
+    display: inline;
+    margin-right: 0.55em;
+    font-family: var(--font-mono);
+    font-style: normal;
+    font-size: 0.92em;
+    letter-spacing: 0.12em;
+    color: color-mix(in oklab, var(--gold) 72%, var(--ink-2));
+  }
+
+  .mn-body em,
+  .mn-body i {
+    font-style: normal;
+  }
+
+  /* Hover linkage — both ends of the pairing strengthen on hover */
+  .mn:hover .mn-body {
+    color: color-mix(in oklab, var(--ink-1) 92%, var(--ink-2));
+    border-left-color: color-mix(in oklab, var(--gold) 60%, transparent);
+  }
+  .mn:hover .mn-body::before {
+    color: var(--gold);
+  }
+
+  /* Sidenote links — quiet reference affordance */
+  .mn-body a {
+    color: color-mix(in oklab, var(--ink-1) 88%, var(--ink-2));
+    text-decoration: underline;
+    text-decoration-color: color-mix(in oklab, var(--gold) 60%, transparent);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 2.5px;
+    transition: text-decoration-color 150ms var(--ease), color 150ms var(--ease);
+  }
+  .mn-body a:hover,
+  .mn-body a:focus-visible {
+    color: var(--gold);
+    text-decoration-color: var(--gold);
+  }
+
+  /* Narrow-screen mode (<1180px) — collapse to tap-to-reveal */
+  @media (max-width: 1180px) {
+    .mn-body {
+      float: none;
+      clear: none;
+      width: auto;
+      margin: 0.82rem 0 0.52rem;
+      padding: 0.68rem 0 0.68rem 0.9rem;
+      border-left: 1px solid color-mix(in oklab, var(--rule-3) 74%, transparent);
+      font-size: 0.82rem;
+      line-height: 1.55;
+      display: none;
+    }
+    .mn[data-open="true"] .mn-body {
+      display: block;
+    }
+    .mn[data-open="true"] {
+      display: block;
+    }
+  }
+</style>
+
+<script>
+  /*
+    Narrow-screen toggle: clicking the marker toggles the body's
+    visibility inline. On wide screens the body is always visible
+    (CSS handles it), so the click is functionally a no-op.
+  */
+  document.addEventListener("click", (e) => {
+    const target = e.target as HTMLElement | null;
+    const mark = target?.closest?.(".mn-mark") as HTMLButtonElement | null;
+    if (!mark) return;
+    const mn = mark.closest<HTMLElement>(".mn");
+    if (!mn) return;
+    e.preventDefault();
+    const isOpen = mn.getAttribute("data-open") === "true";
+    mn.setAttribute("data-open", isOpen ? "false" : "true");
+    mark.setAttribute("aria-expanded", isOpen ? "false" : "true");
+  });
+</script>

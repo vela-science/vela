@@ -1,0 +1,120 @@
+---
+/*
+  SectionHeading — title on the left, glyph at the right, single
+  hairline gold rule beneath. Adapted from Borrowed Light's essay
+  section heading. Glyphs live at /svgs/glyphs/<name>.svg.
+
+  Available glyphs: constellation, contact, crossing, inheritance,
+  pattern, substrate (ported from BL); plus frontier, finding, proof
+  (Vela-specific).
+*/
+interface Props {
+  title: string;
+  glyph?: string;
+  kicker?: string;
+}
+
+const { title, glyph, kicker } = Astro.props;
+---
+
+<header class="vela-section-header">
+  {kicker && <p class="vela-section-kicker">{kicker}</p>}
+
+  <div class="vela-section-row">
+    <h2 class="vela-section-title">{title}</h2>
+    {glyph && (
+      <span class="vela-section-glyph-wrap" aria-hidden="true">
+        <img
+          src={`/svgs/glyphs/${glyph}.svg`}
+          alt=""
+          loading="lazy"
+          decoding="async"
+          class="vela-section-glyph"
+        />
+      </span>
+    )}
+  </div>
+
+  <span class="vela-section-rule" aria-hidden="true"></span>
+</header>
+
+<style>
+  .vela-section-header {
+    display: block;
+    margin: 0 0 clamp(1.35rem, 3.4vh, 2rem);
+    padding-top: clamp(0.35rem, 1.4vh, 0.8rem);
+    width: 100%;
+  }
+
+  .vela-section-kicker {
+    margin: 0 0 0.65rem;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    letter-spacing: var(--track-imprint);
+    text-transform: uppercase;
+    color: color-mix(in oklab, var(--gold) 80%, var(--ink-2));
+  }
+
+  .vela-section-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.25rem;
+    width: 100%;
+  }
+
+  .vela-section-title {
+    margin: 0;
+    flex: 1;
+    min-width: 0;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: clamp(1.4rem, 2.8vw, 1.95rem);
+    line-height: 1.08;
+    letter-spacing: -0.018em;
+    color: var(--ink-0);
+    text-align: left;
+    text-wrap: balance;
+  }
+
+  .vela-section-glyph-wrap {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    opacity: 0.72;
+  }
+
+  .vela-section-glyph {
+    width: 2.55rem;
+    height: 2.55rem;
+    display: block;
+  }
+
+  .vela-section-rule {
+    display: block;
+    width: 100%;
+    height: 1px;
+    margin-top: 0.72rem;
+    background: linear-gradient(
+      to right,
+      color-mix(in oklab, var(--ink-1) 28%, transparent) 0%,
+      color-mix(in oklab, var(--gold) 26%, transparent) 36%,
+      color-mix(in oklab, var(--gold) 12%, transparent) 72%,
+      transparent 100%
+    );
+  }
+
+  @media (max-width: 680px) {
+    .vela-section-title {
+      font-size: 1.55rem;
+    }
+    .vela-section-glyph {
+      width: 2.1rem;
+      height: 2.1rem;
+    }
+    .vela-section-rule {
+      margin-top: 0.62rem;
+    }
+  }
+</style>

@@ -24,15 +24,27 @@ const fullTitle = `${title} · Vela`;
   </article>
 </Page>
 
+<style is:global>
+  /* WbHead already renders the page title — suppress the markdown h1
+     so the essay body starts with the first paragraph, not a duplicate. */
+  article.reading > h1:first-child { display: none; }
+</style>
 <style>
   article.reading {
     padding: 8px 0 32px;
+    margin: 0 auto;
   }
   .back-link {
     font-family: var(--font-mono);
-    font-size: var(--size-xs);
-    letter-spacing: 0.06em;
+    font-size: var(--size-imprint);
+    letter-spacing: var(--track-imprint);
+    text-transform: uppercase;
     color: var(--ink-3);
+    border-bottom: 1px solid transparent;
+    transition: color var(--dur-1) var(--ease), border-bottom-color var(--dur-1) var(--ease);
   }
-  .back-link:hover { color: var(--ink-0); }
+  .back-link:hover {
+    color: var(--gold);
+    border-bottom-color: color-mix(in oklab, var(--gold) 56%, transparent);
+  }
 </style>
