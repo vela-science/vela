@@ -193,6 +193,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/entries/{vfr_id}", get(get_entry))
         .route("/entries/{vfr_id}/depends-on", get(get_depends_on))
         .route("/entries/{vfr_id}/findings/{vf_id}", get(get_finding))
+        .route("/entries/{vfr_id}/proof", get(get_proof_packet))
+        .route("/entries/{vfr_id}/proof/download", get(get_proof_packet_download))
         .route("/api/counterfactual/{vfr_id}", axum::routing::post(api_counterfactual))
         .route("/static/tokens.css", get(static_tokens_css))
         .route("/static/workbench.css", get(static_workbench_css))
@@ -548,6 +550,124 @@ async fn get_finding(
                 .into_response(),
         }
     }
+}
+
+// ─── Proof packet ─────────────────────────────────────────────────────
+//
+// `vela frontier export --packet` produces a directory of canonical
+// proof artifacts (manifest.json + packet.lock.json + proof-trace.json
+// + findings/full.json + sources/source-registry.json + ...). The hub
+// surfaces that directory inline so a skeptic can see the seam: signer
+// hashes, included-files sha256 table, replay status, schema version.
+//
+// Resolution: env VELA_PROOF_PACKET_DIR points at either
+//   (a) a single packet directory containing manifest.json (single-
+//       packet demo deploy — handler ignores vfr_id and serves it for
+//       every entry), or
+//   (b) a directory of packet directories named by vfr_id (multi-
+//       packet deploy, future).
+// If the env is unset OR the path doesn't resolve, the route renders
+// an honest "no packet has been generated for this entry yet" page
+// with the CLI invocation that would generate one.
+
+fn resolve_packet_dir(vfr_id: &str) -> Option<std::path::PathBuf> {
+    let base = std::env::var("VELA_PROOF_PACKET_DIR").ok()?;
+    let base_path = std::path::PathBuf::from(&base);
+    if !base_path.is_dir() {
+        return None;
+    }
+    // Multi-packet deploy: prefer ${base}/${vfr_id}.
+    let by_id = base_path.join(vfr_id);
+    if by_id.join("manifest.json").is_file() {
+        return Some(by_id);
+    }
+    // Single-packet deploy: serve ${base} itself if it has a manifest.
+    if base_path.join("manifest.json").is_file() {
+        return Some(base_path);
+    }
+    None
+}
+
+fn read_packet_json(dir: &std::path::Path, name: &str) -> Option<Value> {
+    let raw = std::fs::read_to_string(dir.join(name)).ok()?;
+    serde_json::from_str(&raw).ok()
+}
+
+async fn get_proof_packet(
+    State(state): State<AppState>,
+    Path(vfr_id): Path<String>,
+) -> Response {
+    let dir = match resolve_packet_dir(&vfr_id) {
+        Some(d) => d,
+        None => {
+            return Html(render_no_packet_html(&state.urls, &vfr_id)).into_response();
+        }
+    };
+    let manifest = match read_packet_json(&dir, "manifest.json") {
+        Some(v) => v,
+        None => return Html(render_no_packet_html(&state.urls, &vfr_id)).into_response(),
+    };
+    let proof_trace = read_packet_json(&dir, "proof-trace.json");
+    let lock = read_packet_json(&dir, "packet.lock.json");
+    Html(render_proof_packet_html(
+        &state.urls,
+        &vfr_id,
+        &dir,
+        &manifest,
+        proof_trace.as_ref(),
+        lock.as_ref(),
+    ))
+    .into_response()
+}
+
+async fn get_proof_packet_download(
+    State(_state): State<AppState>,
+    Path(vfr_id): Path<String>,
+) -> Response {
+    let dir = match resolve_packet_dir(&vfr_id) {
+        Some(d) => d,
+        None => {
+            return (
+                StatusCode::NOT_FOUND,
+                Json(json!({"error": "no proof packet available for this entry"})),
+            )
+                .into_response();
+        }
+    };
+    // Build the tar.gz in memory. Packets are a few MB; this is fine.
+    let mut buf: Vec<u8> = Vec::new();
+    {
+        let enc = flate2::write::GzEncoder::new(&mut buf, flate2::Compression::default());
+        let mut tar = tar::Builder::new(enc);
+        let label = format!("{vfr_id}-proof-packet");
+        if let Err(e) = tar.append_dir_all(&label, &dir) {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({"error": format!("tar: {e}")})),
+            )
+                .into_response();
+        }
+        if let Err(e) = tar.into_inner().and_then(|enc| enc.finish()) {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({"error": format!("gz: {e}")})),
+            )
+                .into_response();
+        }
+    }
+    let filename = format!("{vfr_id}-proof-packet.tar.gz");
+    (
+        StatusCode::OK,
+        [
+            (axum::http::header::CONTENT_TYPE, "application/gzip".to_string()),
+            (
+                axum::http::header::CONTENT_DISPOSITION,
+                format!("attachment; filename=\"{filename}\""),
+            ),
+        ],
+        buf,
+    )
+        .into_response()
 }
 
 /// v0.45.1: hub-level counterfactual endpoint. Pearl level 3 over a
@@ -1269,12 +1389,121 @@ code, .mono-inline {
   .vc-legend { padding: 8px 14px 12px; font-size: 9px; gap: 3px 8px; }
 }
 
+/* ─── Proof packet page ─── manifest + trace + lock + included-files
+   table. The seam the skeptic wants to see. */
+.pp-subhead {
+  margin: 22px 0 10px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: color-mix(in oklab, var(--gold) 64%, var(--ink-3));
+}
+.pp-checked {
+  list-style: none;
+  margin: 0 0 16px;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 4px 14px;
+}
+.pp-checked li code {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-1);
+  background: transparent;
+  border: 0;
+  padding: 0;
+  letter-spacing: 0.005em;
+}
+.pp-caveats {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.pp-caveats li {
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.5;
+  color: color-mix(in oklab, var(--ink-2) 92%, transparent);
+  text-wrap: pretty;
+}
+.pp-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 4px;
+}
+.pp-table thead th {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: color-mix(in oklab, var(--ink-3) 92%, transparent);
+  text-align: left;
+  padding: 10px 10px;
+  border-bottom: 1px solid var(--rule-2);
+}
+.pp-table thead th.num { text-align: right; }
+.pp-table tbody tr {
+  border-bottom: 1px solid var(--rule-1);
+  transition: background var(--dur-1) var(--ease);
+}
+.pp-table tbody tr:hover { background: var(--paper-1); }
+.pp-table td { padding: 8px 10px; vertical-align: baseline; }
+.pp-path {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink-1);
+  letter-spacing: -0.005em;
+}
+.pp-path code {
+  font-family: inherit; font-size: inherit; color: inherit;
+  background: transparent; border: 0; padding: 0;
+}
+.pp-bytes {
+  width: 90px;
+  text-align: right;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+.pp-sha {
+  width: 180px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: color-mix(in oklab, var(--ink-2) 92%, transparent);
+  letter-spacing: 0.02em;
+  cursor: help;
+}
+.pp-sha code {
+  font-family: inherit; font-size: inherit; color: inherit;
+  background: transparent; border: 0; padding: 0;
+}
+.pp-row--canonical .pp-path,
+.pp-row--canonical .pp-path code {
+  color: color-mix(in oklab, var(--gold) 60%, var(--ink-0));
+  font-weight: 500;
+}
+.pp-row--canonical .pp-sha {
+  color: color-mix(in oklab, var(--gold) 36%, var(--ink-2));
+}
+
 /* Mobile fallback for the workbench rim */
 @media (max-width: 720px) {
   .wb { grid-template-columns: 0 1fr 0 !important; }
   .wb-rim { display: none !important; }
   .wb-head, .wb-main, .wb-foot { padding-left: 20px !important; padding-right: 20px !important; }
   .vf-table td.vf-cls, .vf-table thead th:nth-child(2) { display: none; }
+  .pp-table thead th, .pp-table td { padding: 6px 6px; }
+  .pp-sha { width: 110px; }
+  .pp-bytes { width: 60px; }
 }
 "#;
 
@@ -1729,7 +1958,7 @@ fn render_entry_html(
         &name,
         "One signed manifest, read end-to-end. Pull the frontier from the network locator; verify hashes locally.",
         &format!(
-            r#"<a href="/entries">← Entries</a><span>·</span><a href="/entries/{vfr_safe}">JSON</a>"#
+            r#"<a href="/entries">← Entries</a><span>·</span><a href="/entries/{vfr_safe}">JSON</a><span>·</span><a href="/entries/{vfr_safe}/proof">Proof packet →</a>"#
         ),
         &main,
         &format!("{vfr_safe} · latest"),
@@ -2469,7 +2698,7 @@ fn render_finding_html(
         "Finding",
         &claim_html,
         &format!(
-            r#"<a href="/entries/{vfr_safe}">← {vfr_safe}</a><span>·</span><a href="/entries/{vfr_safe}/findings/{vf_safe}">JSON</a>"#
+            r#"<a href="/entries/{vfr_safe}">← {vfr_safe}</a><span>·</span><a href="/entries/{vfr_safe}/findings/{vf_safe}">JSON</a><span>·</span><a href="/entries/{vfr_safe}/proof">Proof packet →</a>"#
         ),
         &main,
         &format!("{vf_safe} @ {vfr_safe}"),
@@ -2513,6 +2742,362 @@ fn render_finding_not_found_html(urls: &PublicUrls, vfr_id: &str, vf_id: &str) -
         "",
         &main,
         &vfr_safe,
+    )
+}
+
+fn render_no_packet_html(urls: &PublicUrls, vfr_id: &str) -> String {
+    let vfr_safe = escape_html(vfr_id);
+    let main = format!(
+        r#"<p class="t-lead">No proof packet has been generated for <code>{vfr_safe}</code> yet, or this hub instance was not started with <code>VELA_PROOF_PACKET_DIR</code> pointing at a packet directory.</p>
+<p class="t-lead">Generate one locally with the CLI:</p>
+<div class="tm-paper">
+  <div class="tm-paper__bar"><span>vela frontier export · {vfr_safe}</span></div>
+  <div class="tm-paper__body"><span class="tm-ps">$</span> <span class="tm-cmd">vela frontier export</span> <span class="tm-flag">--packet</span> &lt;path/to/frontier.json&gt; <span class="tm-flag">--out</span> ./packet</div>
+</div>
+<p class="t-lead">Then point this hub at the packet directory and reload:</p>
+<div class="tm-paper">
+  <div class="tm-paper__bar"><span>vela-hub serve</span></div>
+  <div class="tm-paper__body"><span class="tm-ps">$</span> <span class="tm-cmd">VELA_PROOF_PACKET_DIR=./packet</span> vela-hub</div>
+</div>
+<p class="t-lead"><a href="/entries/{vfr_safe}" style="border-bottom:1px solid var(--rule-3);">← back to entry</a></p>"#
+    );
+    shell(
+        urls,
+        "Vela Hub · no proof packet",
+        "entries",
+        &format!("04 · Proof · <span style=\"color:var(--ink-2);\">{vfr_safe}</span>"),
+        "No proof packet",
+        "The hub has no packet for this entry. Generate one with the CLI and serve it via VELA_PROOF_PACKET_DIR.",
+        &format!(r#"<a href="/entries/{vfr_safe}">← Entry</a>"#),
+        &main,
+        &vfr_safe,
+    )
+}
+
+/// Render the proof packet inline: manifest summary, proof-trace
+/// summary, lock summary, included-files table with sha256 hashes.
+/// The skeptic-facing seam.
+fn render_proof_packet_html(
+    urls: &PublicUrls,
+    vfr_id: &str,
+    dir: &std::path::Path,
+    manifest: &Value,
+    proof_trace: Option<&Value>,
+    lock: Option<&Value>,
+) -> String {
+    let vfr_safe = escape_html(vfr_id);
+    let dir_safe = escape_html(&dir.display().to_string());
+
+    // ─── Manifest summary ──────────────────────────────────────────
+    let generated_at = manifest
+        .get("generated_at")
+        .and_then(|v| v.as_str())
+        .unwrap_or("—");
+    let packet_format = manifest
+        .get("packet_format")
+        .and_then(|v| v.as_str())
+        .unwrap_or("—");
+    let packet_version = manifest
+        .get("packet_version")
+        .and_then(|v| v.as_str())
+        .unwrap_or("—");
+    let source = manifest.get("source");
+    let vela_version = source
+        .and_then(|s| s.get("vela_version"))
+        .and_then(|v| v.as_str())
+        .unwrap_or("—");
+    let compiler = source
+        .and_then(|s| s.get("compiler"))
+        .and_then(|v| v.as_str())
+        .unwrap_or("—");
+    let project_name = source
+        .and_then(|s| s.get("project_name"))
+        .and_then(|v| v.as_str())
+        .unwrap_or("—");
+    let description = source
+        .and_then(|s| s.get("description"))
+        .and_then(|v| v.as_str())
+        .unwrap_or("—");
+    let schema = source
+        .and_then(|s| s.get("schema"))
+        .and_then(|v| v.as_str())
+        .unwrap_or("—");
+
+    let stats = manifest.get("stats");
+    let stat = |k: &str| -> i64 {
+        stats
+            .and_then(|s| s.get(k))
+            .and_then(|v| v.as_i64())
+            .unwrap_or(0)
+    };
+    let stats_html = format!(
+        r#"<dl class="fd-conditions">
+  <div class="fd-cond"><dt>findings</dt><dd>{}</dd></div>
+  <div class="fd-cond"><dt>contested</dt><dd>{}</dd></div>
+  <div class="fd-cond"><dt>gaps</dt><dd>{}</dd></div>
+  <div class="fd-cond"><dt>contradiction edges</dt><dd>{}</dd></div>
+  <div class="fd-cond"><dt>evidence atoms</dt><dd>{}</dd></div>
+  <div class="fd-cond"><dt>condition records</dt><dd>{}</dd></div>
+  <div class="fd-cond"><dt>sources</dt><dd>{}</dd></div>
+  <div class="fd-cond"><dt>bridge entities</dt><dd>{}</dd></div>
+  <div class="fd-cond"><dt>proposals</dt><dd>{}</dd></div>
+  <div class="fd-cond"><dt>review events</dt><dd>{}</dd></div>
+</dl>"#,
+        stat("findings"),
+        stat("contested"),
+        stat("gaps"),
+        stat("contradiction_edges"),
+        stat("evidence_atoms"),
+        stat("condition_records"),
+        stat("sources"),
+        stat("bridge_entities"),
+        stat("proposals"),
+        stat("review_events"),
+    );
+
+    // ─── Proof-trace summary ───────────────────────────────────────
+    let trace_html = if let Some(t) = proof_trace {
+        let s = |k: &str| -> &str { t.get(k).and_then(|v| v.as_str()).unwrap_or("—") };
+        let checked: Vec<String> = t
+            .get("checked_artifacts")
+            .and_then(|v| v.as_array())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|x| x.as_str().map(|s| escape_html(s)))
+                    .collect()
+            })
+            .unwrap_or_default();
+        let checked_list = if checked.is_empty() {
+            String::from(r#"<p class="empty">no checked_artifacts in trace</p>"#)
+        } else {
+            format!(
+                r#"<ul class="pp-checked">{}</ul>"#,
+                checked
+                    .iter()
+                    .map(|c| format!(r#"<li><code>{c}</code></li>"#))
+                    .collect::<String>()
+            )
+        };
+        let caveats: Vec<String> = t
+            .get("caveats")
+            .and_then(|v| v.as_array())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|x| x.as_str().map(|s| escape_html(s)))
+                    .collect()
+            })
+            .unwrap_or_default();
+        let caveats_html = if caveats.is_empty() {
+            String::new()
+        } else {
+            format!(
+                r#"<dl class="fd-conditions"><div class="fd-cond"><dt>caveats</dt><dd class="serif"><ul class="pp-caveats">{}</ul></dd></div></dl>"#,
+                caveats
+                    .iter()
+                    .map(|c| format!(r#"<li>{c}</li>"#))
+                    .collect::<String>()
+            )
+        };
+        format!(
+            r#"<dl class="fd-conditions">
+  <div class="fd-cond"><dt>trace_version</dt><dd>{tv}</dd></div>
+  <div class="fd-cond"><dt>schema_version</dt><dd>{sv}</dd></div>
+  <div class="fd-cond"><dt>source_hash</dt><dd>{sh}</dd></div>
+  <div class="fd-cond"><dt>snapshot_hash</dt><dd>{snh}</dd></div>
+  <div class="fd-cond"><dt>event_log_hash</dt><dd>{eh}</dd></div>
+  <div class="fd-cond"><dt>proposal_state_hash</dt><dd>{ph}</dd></div>
+  <div class="fd-cond"><dt>replay_status</dt><dd>{rs}</dd></div>
+  <div class="fd-cond"><dt>status</dt><dd>{st}</dd></div>
+</dl>
+<h4 class="pp-subhead">Checked artifacts ({n})</h4>
+{checked_list}
+{caveats_html}"#,
+            tv = escape_html(s("trace_version")),
+            sv = escape_html(s("schema_version")),
+            sh = escape_html(s("source_hash")),
+            snh = escape_html(s("snapshot_hash")),
+            eh = escape_html(s("event_log_hash")),
+            ph = escape_html(s("proposal_state_hash")),
+            rs = escape_html(s("replay_status")),
+            st = escape_html(s("status")),
+            n = checked.len(),
+        )
+    } else {
+        String::from(r#"<p class="empty">No proof-trace.json in this packet.</p>"#)
+    };
+
+    // ─── Lock summary ──────────────────────────────────────────────
+    let lock_html = if let Some(l) = lock {
+        let lock_format = l.get("lock_format").and_then(|v| v.as_str()).unwrap_or("—");
+        let lock_generated = l.get("generated_at").and_then(|v| v.as_str()).unwrap_or("—");
+        let n_files = l
+            .get("files")
+            .and_then(|v| v.as_array())
+            .map(|a| a.len())
+            .unwrap_or(0);
+        format!(
+            r#"<dl class="fd-conditions">
+  <div class="fd-cond"><dt>lock_format</dt><dd>{}</dd></div>
+  <div class="fd-cond"><dt>generated_at</dt><dd>{}</dd></div>
+  <div class="fd-cond"><dt>locked file count</dt><dd>{}</dd></div>
+</dl>"#,
+            escape_html(lock_format),
+            escape_html(lock_generated),
+            n_files,
+        )
+    } else {
+        String::from(r#"<p class="empty">No packet.lock.json in this packet.</p>"#)
+    };
+
+    // ─── Included files table ──────────────────────────────────────
+    // Mark canonical proof-bearing files (the set listed by
+    // proof-trace.json's checked_artifacts) in gold.
+    let canonical: std::collections::HashSet<String> = proof_trace
+        .and_then(|t| t.get("checked_artifacts"))
+        .and_then(|v| v.as_array())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|x| x.as_str().map(String::from))
+                .collect()
+        })
+        .unwrap_or_default();
+
+    let empty: Vec<Value> = Vec::new();
+    let included = manifest
+        .get("included_files")
+        .and_then(|v| v.as_array())
+        .unwrap_or(&empty);
+    let mut total_bytes: u64 = 0;
+    let mut rows = String::new();
+    for f in included {
+        let path = f.get("path").and_then(|v| v.as_str()).unwrap_or("—");
+        let bytes = f.get("bytes").and_then(|v| v.as_u64()).unwrap_or(0);
+        let sha = f.get("sha256").and_then(|v| v.as_str()).unwrap_or("—");
+        total_bytes += bytes;
+        let cls = if canonical.contains(path) {
+            "pp-row pp-row--canonical"
+        } else {
+            "pp-row"
+        };
+        rows.push_str(&format!(
+            r#"<tr class="{cls}"><td class="pp-path"><code>{}</code></td><td class="pp-bytes">{}</td><td class="pp-sha"><code title="{}">{}</code></td></tr>"#,
+            escape_html(path),
+            bytes,
+            escape_html(sha),
+            escape_html(&sha[..sha.len().min(16)]),
+        ));
+    }
+
+    // ─── Page assembly ─────────────────────────────────────────────
+    let main = format!(
+        r#"<div class="fd">
+  <article>
+    <p class="fd-claim">Proof packet for {project}</p>
+    <p class="fd-note">{description}</p>
+
+    <section class="wb-section">
+      <div class="wb-section__head">
+        <span class="wb-section__num">§1</span>
+        <span class="wb-section__t">Manifest</span>
+        <span class="wb-section__aside">{packet_format} · {packet_version}</span>
+      </div>
+      <dl class="fd-conditions">
+        <div class="fd-cond"><dt>generated_at</dt><dd>{generated_at}</dd></div>
+        <div class="fd-cond"><dt>vela_version</dt><dd>{vela_version}</dd></div>
+        <div class="fd-cond"><dt>compiler</dt><dd>{compiler}</dd></div>
+        <div class="fd-cond"><dt>schema</dt><dd>{schema}</dd></div>
+      </dl>
+      <h4 class="pp-subhead">Stats</h4>
+      {stats_html}
+    </section>
+
+    <section class="wb-section">
+      <div class="wb-section__head">
+        <span class="wb-section__num">§2</span>
+        <span class="wb-section__t">Proof trace</span>
+        <span class="wb-section__aside">canonical-JSON SHA-256 chain</span>
+      </div>
+      {trace_html}
+    </section>
+
+    <section class="wb-section">
+      <div class="wb-section__head">
+        <span class="wb-section__num">§3</span>
+        <span class="wb-section__t">Lock</span>
+        <span class="wb-section__aside">packet integrity</span>
+      </div>
+      {lock_html}
+    </section>
+
+    <section class="wb-section">
+      <div class="wb-section__head">
+        <span class="wb-section__num">§4</span>
+        <span class="wb-section__t">Included files · {n_files}</span>
+        <span class="wb-section__aside">canonical files in gold · sha256 truncated to 16</span>
+      </div>
+      <table class="pp-table">
+        <thead><tr><th>path</th><th class="num">bytes</th><th>sha256</th></tr></thead>
+        <tbody>{rows}</tbody>
+      </table>
+    </section>
+  </article>
+
+  <aside class="fd-margin">
+    <div class="fd-dial">
+      <div class="fd-dial__k">findings</div>
+      <div class="fd-dial__v" style="font-family:var(--font-mono);font-variant-numeric:tabular-nums;">{n_findings}</div>
+      <div class="fd-dial__k" style="margin-top:14px;">total bytes</div>
+      <div class="fd-dial__v mono">{total_kb} KB</div>
+      <div class="fd-dial__k" style="margin-top:14px;">files</div>
+      <div class="fd-dial__v mono">{n_files}</div>
+      <div class="fd-dial__k" style="margin-top:14px;">generated</div>
+      <div class="fd-dial__v mono">{generated_at}</div>
+    </div>
+
+    <div class="fd-dial">
+      <div class="fd-dial__k">download</div>
+      <p style="margin:8px 0 0;font-family:var(--font-sans);font-size:13px;line-height:1.5;color:var(--ink-2);">
+        <a href="/entries/{vfr_safe}/proof/download" style="border-bottom:1px solid color-mix(in oklab, var(--gold) 56%, transparent);">↓ {vfr_safe}-proof-packet.tar.gz</a>
+      </p>
+      <p style="margin:10px 0 0;font-family:var(--font-mono);font-size:11px;color:var(--ink-3);">
+        verify locally with <code>shasum -a 256</code>
+      </p>
+    </div>
+
+    <div class="fd-dial">
+      <div class="fd-dial__k">source</div>
+      <p style="margin:6px 0 0;font-family:var(--font-mono);font-size:11px;color:var(--ink-3);word-break:break-all;">{dir_safe}</p>
+      <p style="margin:10px 0 0;font-family:var(--font-mono);font-size:11px;color:var(--ink-3);">
+        <a href="/entries/{vfr_safe}" style="border-bottom:1px solid var(--rule-3);">← /entries/{vfr_safe}</a>
+      </p>
+    </div>
+  </aside>
+</div>"#,
+        n_findings = stat("findings"),
+        n_files = included.len(),
+        total_kb = total_bytes / 1024,
+        project = escape_html(project_name),
+        description = escape_html(description),
+        generated_at = escape_html(generated_at),
+        vela_version = escape_html(vela_version),
+        compiler = escape_html(compiler),
+        schema = escape_html(schema),
+        packet_format = escape_html(packet_format),
+        packet_version = escape_html(packet_version),
+    );
+
+    shell(
+        urls,
+        &format!("Vela Hub · proof · {vfr_id}"),
+        "entries",
+        &format!("04 · Proof · <span style=\"color:var(--ink-2);\">{vfr_safe}</span>"),
+        "Proof packet",
+        "Manifest, signed-trace chain, integrity lock, and the file-by-file SHA-256 table the skeptic actually wants to see.",
+        &format!(
+            r#"<a href="/entries/{vfr_safe}">← Entry</a><span>·</span><a href="/entries/{vfr_safe}/proof/download">Download (.tar.gz)</a>"#
+        ),
+        &main,
+        &format!("{vfr_safe} · proof packet"),
     )
 }
 

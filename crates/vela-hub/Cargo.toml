@@ -21,3 +21,8 @@ reqwest.workspace = true
 vela-protocol.workspace = true
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+# Used by the proof-packet download route to stream a tar.gz of the
+# packet directory. Packets are small (a few MB) so we build the
+# tarball in memory.
+tar = "0.4"
+flate2 = "1.0"
