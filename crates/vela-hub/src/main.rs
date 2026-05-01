@@ -1298,11 +1298,17 @@ code, .mono-inline {
   pointer-events: none;
 }
 .vc-edge {
-  transition: stroke 200ms var(--ease), stroke-width 200ms var(--ease);
+  transition: stroke 200ms var(--ease), stroke-width 200ms var(--ease), opacity 200ms var(--ease);
+}
+.vc-edge--cross {
+  stroke: color-mix(in oklab, var(--winter) 64%, transparent);
+  stroke-width: 0.85;
+  stroke-linecap: round;
 }
 .vc-node {
   cursor: pointer;
   outline: none;
+  transition: opacity 200ms var(--ease);
 }
 .vc-glow {
   fill: var(--gold);
@@ -1315,7 +1321,7 @@ code, .mono-inline {
   opacity: 0.32;
 }
 .vc-dot {
-  transition: r 200ms var(--ease);
+  transition: r 200ms var(--ease), stroke 200ms var(--ease), stroke-width 200ms var(--ease);
   stroke: color-mix(in oklab, var(--ink-1) 18%, transparent);
   stroke-width: 0.5;
 }
@@ -1330,6 +1336,23 @@ code, .mono-inline {
 .vc-node--live .vc-glow {
   opacity: 0.18;
 }
+
+/* ─── Focus mode ─── click a node, fade everything but it and its
+   incident edges + connected nodes. Click again or click background or
+   press Esc to clear. */
+.vc--focused .vc-node           { opacity: 0.22; }
+.vc--focused .vc-node--focus    { opacity: 1; }
+.vc--focused .vc-node--related  { opacity: 1; }
+.vc--focused .vc-edge           { opacity: 0.16; }
+.vc--focused .vc-edge--focus    { opacity: 1; stroke: var(--gold); stroke-width: 1.4; }
+.vc--focused .vc-ring           { opacity: 0.4; }
+.vc--focused .vc-center         { opacity: 0.5; }
+.vc-node--focus .vc-glow        { opacity: 0.42; }
+.vc-node--focus .vc-dot {
+  stroke: var(--ink-0);
+  stroke-width: 1.4;
+}
+
 .vc-tooltip {
   margin: 0;
   padding: 12px 18px 14px;
@@ -1347,10 +1370,29 @@ code, .mono-inline {
   transition: opacity 200ms var(--ease);
 }
 .vc-tooltip:empty::before {
-  content: 'Hover a node to read the claim · click to open.';
+  content: 'Hover a node to read the claim · click to focus · esc to clear.';
   color: var(--ink-3);
   font-weight: 400;
   font-style: italic;
+}
+.vc-tooltip__meta {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  color: color-mix(in oklab, var(--ink-3) 92%, transparent);
+}
+.vc-tooltip__open {
+  margin-left: 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--gold);
+  border-bottom: 1px solid color-mix(in oklab, var(--gold) 56%, transparent);
+}
+.vc-tooltip__open:hover {
+  border-bottom-color: var(--gold);
 }
 .vc-legend {
   margin: 0;
@@ -2059,24 +2101,62 @@ fn render_findings_constellation(vfr_id: &str, frontier: Option<&Project>) -> St
         })
         .collect();
 
-    // Edges first so nodes render on top. Each link inside the same
-    // frontier becomes a quadratic-Bezier arc curving through (or near)
-    // the centre. Cross-frontier links are skipped here — they'd need
-    // their own visual treatment.
+    // Per-finding link counts so the focused tooltip can show
+    // "N dependencies · M dependents". We count edges incident to each
+    // node; cross-frontier links count too.
+    let mut deps_out: std::collections::HashMap<&str, u32> =
+        std::collections::HashMap::new();
+    let mut deps_in: std::collections::HashMap<&str, u32> =
+        std::collections::HashMap::new();
+    for b in &p.findings {
+        let from = b.id.as_str();
+        for link in &b.links {
+            *deps_out.entry(from).or_default() += 1;
+            // Only count inbound for resolvable targets.
+            if pos.contains_key(link.target.as_str()) {
+                *deps_in.entry(link.target.as_str()).or_default() += 1;
+            }
+        }
+    }
+
+    // Edges first so nodes render on top. Same-frontier links render as
+    // quadratic-Bezier arcs through the centre (gold). Cross-frontier
+    // links — those whose target id doesn't resolve to a local
+    // finding — render as short outward strokes from the source node
+    // toward the rim, in --winter (cool, distinct from --gold) so the
+    // viewer sees external dependencies without a fetch chain.
     let mut edges = String::new();
     for b in &p.findings {
         let Some(&(x1, y1)) = pos.get(b.id.as_str()) else { continue };
+        let from = escape_html(&b.id);
         for link in &b.links {
-            let Some(&(x2, y2)) = pos.get(link.target.as_str()) else { continue };
-            // Pull the curve toward the centre for a starfield-with-arcs feel.
-            let mx = (x1 + x2) / 2.0;
-            let my = (y1 + y2) / 2.0;
-            let pull = 0.45;
-            let qx = cx + (mx - cx) * pull;
-            let qy = cy + (my - cy) * pull;
-            edges.push_str(&format!(
-                r##"<path class="vc-edge" d="M {x1:.1} {y1:.1} Q {qx:.1} {qy:.1} {x2:.1} {y2:.1}"/>"##
-            ));
+            if let Some(&(x2, y2)) = pos.get(link.target.as_str()) {
+                let mx = (x1 + x2) / 2.0;
+                let my = (y1 + y2) / 2.0;
+                let pull = 0.45;
+                let qx = cx + (mx - cx) * pull;
+                let qy = cy + (my - cy) * pull;
+                let to = escape_html(&link.target);
+                edges.push_str(&format!(
+                    r##"<path class="vc-edge" data-from="{from}" data-to="{to}" d="M {x1:.1} {y1:.1} Q {qx:.1} {qy:.1} {x2:.1} {y2:.1}"/>"##
+                ));
+            } else {
+                // Cross-frontier link — draw a short outward stroke from
+                // the source node toward the rim. Length tapers with the
+                // source's confidence (so a high-confidence external
+                // dependency reaches further). The length is bounded so
+                // it stays inside the figure.
+                let dx = x1 - cx;
+                let dy = y1 - cy;
+                let mag = (dx * dx + dy * dy).sqrt().max(1e-6);
+                let conf = b.confidence.score.clamp(0.0, 1.0);
+                let outward = 18.0 + conf * 22.0;
+                let xt = x1 + (dx / mag) * outward;
+                let yt = y1 + (dy / mag) * outward;
+                edges.push_str(&format!(
+                    r##"<path class="vc-edge vc-edge--cross" data-from="{from}" data-to="cross" d="M {x1:.1} {y1:.1} L {xt:.1} {yt:.1}"/>"##
+                ));
+            }
         }
     }
 
@@ -2089,12 +2169,14 @@ fn render_findings_constellation(vfr_id: &str, frontier: Option<&Project>) -> St
         let live_class = if label == "replicated" { " vc-node--live" } else { "" };
         let vf = escape_html(&b.id);
         let claim = escape_html(&b.assertion.text);
+        let n_out = deps_out.get(b.id.as_str()).copied().unwrap_or(0);
+        let n_in = deps_in.get(b.id.as_str()).copied().unwrap_or(0);
         let href = format!(
             "/entries/{vfr}/findings/{vf}",
             vfr = escape_html(vfr_id)
         );
         nodes.push_str(&format!(
-            r#"<a class="vc-node{live_class}" href="{href}" data-state="{label}" data-claim="{claim}">
+            r#"<a class="vc-node{live_class}" href="{href}" data-vf="{vf}" data-state="{label}" data-claim="{claim}" data-deps-out="{n_out}" data-deps-in="{n_in}">
               <circle class="vc-glow" cx="{x:.1}" cy="{y:.1}" r="{rg:.1}"/>
               <circle class="vc-dot" cx="{x:.1}" cy="{y:.1}" r="{r:.1}" style="fill:var(--state-{state_class});"/>
             </a>"#,
@@ -2103,7 +2185,7 @@ fn render_findings_constellation(vfr_id: &str, frontier: Option<&Project>) -> St
     }
 
     format!(
-        r#"<figure class="vc-figure">
+        r#"<figure class="vc-figure" data-vc-figure>
           <svg class="vc" viewBox="0 0 {w} {h}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Finding constellation — {n} findings as a star chart">
             <circle class="vc-ring" cx="{cx}" cy="{cy}" r="{rr}"/>
             <circle class="vc-center" cx="{cx}" cy="{cy}" r="2.5"/>
@@ -2120,23 +2202,108 @@ fn render_findings_constellation(vfr_id: &str, frontier: Option<&Project>) -> St
             <span class="vc-sep">·</span>
             <span><span class="vc-legend__dot" style="background:var(--state-lost);"></span>retracted</span>
             <span class="vc-sep">·</span>
-            <span>radius = confidence · arcs = links</span>
+            <span><span class="vc-legend__dot" style="background:var(--winter);"></span>cross-frontier</span>
+            <span class="vc-sep">·</span>
+            <span>radius = confidence · click to focus · esc to clear</span>
           </p>
           <script>
           (function(){{
-            var nodes = document.querySelectorAll('.vc-node');
-            var tip = document.querySelector('[data-vc-tooltip]');
-            if (!tip) return;
-            function show(n) {{
-              tip.textContent = n.getAttribute('data-claim');
-              tip.classList.add('on');
+            var fig    = document.querySelector('[data-vc-figure]');
+            var nodes  = document.querySelectorAll('.vc-node');
+            var edges  = document.querySelectorAll('.vc-edge');
+            var tip    = document.querySelector('[data-vc-tooltip]');
+            if (!fig || !tip) return;
+            var focused = null;
+            var openHref = null;
+
+            function clearTip() {{
+              tip.innerHTML = '';
             }}
-            function hide() {{ tip.classList.remove('on'); }}
+            function showTipFromNode(n) {{
+              var claim = n.getAttribute('data-claim') || '';
+              var nOut = parseInt(n.getAttribute('data-deps-out') || '0', 10);
+              var nIn  = parseInt(n.getAttribute('data-deps-in')  || '0', 10);
+              var href = n.getAttribute('href');
+              var meta = nOut + ' dep' + (nOut === 1 ? '' : 's') + ' · ' + nIn + ' dependent' + (nIn === 1 ? '' : 's');
+              if (focused) {{
+                tip.innerHTML = claim + ' <span class="vc-tooltip__meta">· ' + meta + '</span> <a class="vc-tooltip__open" href="' + href + '">→ open</a>';
+              }} else {{
+                tip.innerHTML = claim + ' <span class="vc-tooltip__meta">· ' + meta + '</span>';
+              }}
+            }}
+
+            function relatedSet(vf) {{
+              var related = {{}};
+              edges.forEach(function(e){{
+                var from = e.getAttribute('data-from');
+                var to   = e.getAttribute('data-to');
+                if (from === vf) {{
+                  related[to] = true;
+                  e.classList.add('vc-edge--focus');
+                }} else if (to === vf) {{
+                  related[from] = true;
+                  e.classList.add('vc-edge--focus');
+                }} else {{
+                  e.classList.remove('vc-edge--focus');
+                }}
+              }});
+              return related;
+            }}
+
+            function applyFocus(node) {{
+              var vf = node.getAttribute('data-vf');
+              focused = vf;
+              openHref = node.getAttribute('href');
+              fig.classList.add('vc--focused');
+              var related = relatedSet(vf);
+              nodes.forEach(function(n){{
+                var nv = n.getAttribute('data-vf');
+                n.classList.remove('vc-node--focus','vc-node--related');
+                if (nv === vf) n.classList.add('vc-node--focus');
+                else if (related[nv]) n.classList.add('vc-node--related');
+              }});
+              showTipFromNode(node);
+            }}
+
+            function clearFocus() {{
+              focused = null;
+              openHref = null;
+              fig.classList.remove('vc--focused');
+              nodes.forEach(function(n){{ n.classList.remove('vc-node--focus','vc-node--related'); }});
+              edges.forEach(function(e){{ e.classList.remove('vc-edge--focus'); }});
+              clearTip();
+            }}
+
             nodes.forEach(function(n){{
-              n.addEventListener('mouseenter', function(){{ show(n); }});
-              n.addEventListener('mouseleave', hide);
-              n.addEventListener('focus',     function(){{ show(n); }});
-              n.addEventListener('blur',      hide);
+              n.addEventListener('mouseenter', function(){{ if (!focused) showTipFromNode(n); }});
+              n.addEventListener('mouseleave', function(){{ if (!focused) clearTip(); }});
+              n.addEventListener('focus',      function(){{ if (!focused) showTipFromNode(n); }});
+              n.addEventListener('blur',       function(){{ if (!focused) clearTip(); }});
+              n.addEventListener('click',      function(e){{
+                var vf = n.getAttribute('data-vf');
+                if (focused === vf) {{
+                  // Second click on same node → navigate.
+                  return;
+                }}
+                e.preventDefault();
+                applyFocus(n);
+              }});
+              n.addEventListener('keydown', function(e){{
+                if (e.key === 'Enter' && focused === n.getAttribute('data-vf')) {{
+                  // Enter on a focused node → navigate.
+                  return;
+                }}
+              }});
+            }});
+
+            // Click anywhere outside the SVG to clear focus.
+            document.addEventListener('click', function(e){{
+              if (!focused) return;
+              if (!fig.contains(e.target)) clearFocus();
+            }});
+            // Escape clears focus.
+            document.addEventListener('keydown', function(e){{
+              if (e.key === 'Escape' && focused) {{ clearFocus(); }}
             }});
           }})();
           </script>
