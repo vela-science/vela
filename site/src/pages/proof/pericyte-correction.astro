@@ -47,7 +47,10 @@ import Imprint from "../../components/Imprint.astro";
       </p>
       <p class="wc__sub">
         Three real papers. One signed event. The scope of a four-year-old finding narrows;
-        three downstream objects in two countries find out the same week. This is the substrate doing the only thing the essay says it must do.
+        three downstream objects on different institutional clocks update within months. This is the substrate doing the only thing the essay says it must do.
+      </p>
+      <p class="wc__caveat">
+        <em>Confidence values shown are illustrative. The substrate models confidence as a structured object that updates with evidence and review — not as a field-defended scalar. The shape of the updates is the load-bearing claim; the specific numbers are scaffolding.</em>
       </p>
     </section>
 
@@ -218,19 +221,6 @@ import Imprint from "../../components/Imprint.astro";
         </li>
         <li class="wc__dep">
           <header class="wc__dep-head">
-            <span class="wc__dep-when">+ 9 days</span>
-            <span class="wc__sep">·</span>
-            <span class="wc__dep-where">trial · Toronto</span>
-          </header>
-          <p class="wc__dep-body">
-            A Phase II inclusion criterion that depended on the broader claim is
-            amended in a CRO change-control event the following sprint. The
-            amendment carries a back-link to <code>vrev_b0144a…</code> so a future
-            auditor can trace the reasoning.
-          </p>
-        </li>
-        <li class="wc__dep">
-          <header class="wc__dep-head">
             <span class="wc__dep-when">+ 39 days</span>
             <span class="wc__sep">·</span>
             <span class="wc__dep-where">review article · Osaka</span>
@@ -242,13 +232,31 @@ import Imprint from "../../components/Imprint.astro";
             both lines on first read.
           </p>
         </li>
+        <li class="wc__dep">
+          <header class="wc__dep-head">
+            <span class="wc__dep-when">+ next protocol-amendment cycle</span>
+            <span class="wc__sep">·</span>
+            <span class="wc__dep-where">trial · Toronto</span>
+          </header>
+          <p class="wc__dep-body">
+            A Phase II inclusion criterion that depended on the broader claim
+            is flagged for review at the sponsor's next protocol-amendment
+            window. The flag carries a back-link to <code>vrev_b0144a…</code> so
+            the data-monitoring committee, the IRB, and any future auditor see
+            the same reasoning when the amendment is drafted. Trials run on
+            their own clocks; the substrate does not pretend otherwise.
+          </p>
+        </li>
       </ul>
 
       <p class="wc__caption">
-        Total time from Montagne 2020 reaching the substrate to all three
-        downstream objects updating: <span class="wc__num">39 days</span>.
-        In the world the essay describes, this loop typically takes
-        <span class="wc__num">five to twelve years</span>.
+        The biotech moves in days, the review article on the next galley cycle, the
+        trial on its own protocol-amendment window. Each downstream object updates
+        on the clock its institution actually runs on — but every one of them
+        starts from the same signed Correction event instead of rumor or a chance
+        encounter at a conference. In the world the essay describes, the same loop
+        typically takes <span class="wc__num">five to twelve years</span>, when it
+        closes at all.
       </p>
     </section>
 
@@ -326,6 +334,18 @@ import Imprint from "../../components/Imprint.astro";
     max-width: 64ch;
     text-wrap: pretty;
   }
+  .wc__caveat {
+    font-family: var(--font-sans);
+    font-size: 0.88rem;
+    line-height: 1.5;
+    color: color-mix(in oklab, var(--ink-3) 88%, transparent);
+    margin: 0.95rem 0 0;
+    padding-top: 0.85rem;
+    max-width: 64ch;
+    border-top: 1px solid color-mix(in oklab, var(--gold) 24%, transparent);
+    text-wrap: pretty;
+  }
+  .wc__caveat em { font-style: italic; }
 
   /* ── Each scroll stop ── */
   .wc__stop {
