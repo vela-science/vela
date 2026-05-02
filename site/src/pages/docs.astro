@@ -1,0 +1,270 @@
+---
+import Reading from "../layouts/Reading.astro";
+import { REPO_URL, HUB_URL, VERSION } from "../config";
+---
+
+<Reading
+  title="Docs · Vela"
+  description="Vela documentation index — concepts, tasks, reference, community."
+  active="docs"
+>
+  <header class="page-head">
+    <p class="eyebrow">vela docs · v{VERSION}</p>
+    <h1 class="page-head__title">Documentation.</h1>
+    <p class="page-head__sub">
+      Concepts, tasks, reference, and community. New here?
+      Run <code>curl -sSL https://vela.science/try | bash</code>, then read
+      <a class="inline-link" href="/quickstart">/quickstart</a>.
+    </p>
+  </header>
+
+  <article class="docs">
+
+    <!-- Concepts -->
+    <section class="docs__sec">
+      <header class="docs__sec-head">
+        <h2 class="docs__sec-title">Concepts</h2>
+        <p class="docs__sec-sub">The primitives the protocol carries. Five objects, one envelope, one signing scheme.</p>
+      </header>
+      <ul class="docs__list">
+        <li>
+          <a class="docs__link" href="/spec#primitives">Finding</a>
+          <p>A scoped scientific claim with content-addressed id, evidence list, and confidence.</p>
+        </li>
+        <li>
+          <a class="docs__link" href="/spec#primitives">EvidenceObject</a>
+          <p>A typed pointer to a paper, dataset, trial, code commit, or null result.</p>
+        </li>
+        <li>
+          <a class="docs__link" href="/spec#primitives">Correction</a>
+          <p>An event that updates a finding's scope, confidence, or retraction status.</p>
+        </li>
+        <li>
+          <a class="docs__link" href="/spec#primitives">Link</a>
+          <p>A typed edge between findings: supports, depends, contradicts, narrows, supersedes.</p>
+        </li>
+        <li>
+          <a class="docs__link" href="/spec#primitives">Frontier</a>
+          <p>A named scope of findings, signed by an owner actor, replayable from its event log.</p>
+        </li>
+        <li>
+          <a class="docs__link" href="/spec#signing">Signing scheme</a>
+          <p>Ed25519 over canonical-JSON of the event with the signature field removed. No pre-hash.</p>
+        </li>
+        <li>
+          <a class="docs__link" href="/spec#canonical">Canonical-JSON</a>
+          <p>Sorted keys, NFC-normalized strings, no whitespace. The byte-stable surface for signing and hashing.</p>
+        </li>
+        <li>
+          <a class="docs__link" href="/spec#reducer">Reducer</a>
+          <p>Pure function from event log to frontier state. Three independent implementations agree byte-for-byte.</p>
+        </li>
+      </ul>
+    </section>
+
+    <!-- Tasks -->
+    <section class="docs__sec">
+      <header class="docs__sec-head">
+        <h2 class="docs__sec-title">Tasks</h2>
+        <p class="docs__sec-sub">Common flows. Real CLI, real output. Start here once you've installed.</p>
+      </header>
+      <ul class="docs__list">
+        <li>
+          <a class="docs__link" href="/quickstart">Five-minute quickstart</a>
+          <p>Empty folder to first signed finding on the public hub. Six commands, real output.</p>
+        </li>
+        <li>
+          <a class="docs__link" href="/examples#new-frontier">Scaffold a new frontier</a>
+          <p><code>vela frontier new</code> for publish-bound work; <code>vela init</code> for solo.</p>
+        </li>
+        <li>
+          <a class="docs__link" href="/examples#manual-finding">Add a finding manually</a>
+          <p>Apply a single claim with assertion, evidence, confidence, and DOI.</p>
+        </li>
+        <li>
+          <a class="docs__link" href="/examples#sign">Generate a key, register an actor, sign</a>
+          <p>Three commands. Ed25519 keypair, registered actor, signed finding.</p>
+        </li>
+        <li>
+          <a class="docs__link" href="/examples#link">Link two findings</a>
+          <p>Typed edges: supports, depends, contradicts, narrows, supersedes.</p>
+        </li>
+        <li>
+          <a class="docs__link" href="/examples#correction">Record a Correction event</a>
+          <p>Supersede a finding with a narrower or revised claim; old + new both queryable.</p>
+        </li>
+        <li>
+          <a class="docs__link" href="/examples#publish">Publish to the hub</a>
+          <p>POST a signed manifest. The hub validates signatures; clients verify on read.</p>
+        </li>
+        <li>
+          <a class="docs__link" href="/examples#verify">Verify from disk</a>
+          <p>Pull a published frontier, recompute the snapshot hash, check against manifest.</p>
+        </li>
+        <li>
+          <a class="docs__link" href="/examples#mirror">Mirror a hub locally</a>
+          <p>Pull from one hub, POST verbatim to another. Mirroring is a no-op for authenticity.</p>
+        </li>
+        <li>
+          <a class="docs__link" href="/examples#scout">Run an AI agent (Literature Scout)</a>
+          <p>Ingest a folder of PDFs as <code>finding.add</code> proposals tagged with an AgentRun.</p>
+        </li>
+      </ul>
+    </section>
+
+    <!-- Reference -->
+    <section class="docs__sec">
+      <header class="docs__sec-head">
+        <h2 class="docs__sec-title">Reference</h2>
+        <p class="docs__sec-sub">The exhaustive technical surface. Read these when you're integrating.</p>
+      </header>
+      <ul class="docs__list">
+        <li>
+          <a class="docs__link" href="/spec">Protocol specification</a>
+          <p>RFC 2119 conformance language. Primitives, canonical-JSON, signing, reducer semantics, hub model, versioning.</p>
+        </li>
+        <li>
+          <a class="docs__link" href="/sdk">SDK reference</a>
+          <p>The vela CLI, Rust crates (vela-protocol / vela-reducer / vela-hub), Python and TypeScript reducer bindings, hub HTTP API.</p>
+        </li>
+        <li>
+          <a class="docs__link" href="/sdk#cli">CLI reference</a>
+          <p>Every subcommand, every flag, every event type the binary produces.</p>
+        </li>
+        <li>
+          <a class="docs__link" href="/sdk#http">Hub HTTP API</a>
+          <p>GET /entries, GET /frontier/&lt;id&gt;/events, POST /publish, GET /.well-known/vela.</p>
+        </li>
+        <li>
+          <a class="docs__link" href="/spec#schema">Event schema</a>
+          <p>The envelope and payload shape for every event kind. Canonical-JSON example.</p>
+        </li>
+        <li>
+          <a class="docs__link" href="/sdk#python">Python reducer source</a>
+          <p>Stdlib-only verifier and reducer at <code>/vela_reducer.py</code>. ~600 lines, auditable in one sitting.</p>
+        </li>
+        <li>
+          <a class="docs__link" href="/sdk#typescript">TypeScript reducer source</a>
+          <p>ESM module at <code>/vela_reducer.mjs</code>. No build step required.</p>
+        </li>
+      </ul>
+    </section>
+
+    <!-- Community -->
+    <section class="docs__sec">
+      <header class="docs__sec-head">
+        <h2 class="docs__sec-title">Community</h2>
+        <p class="docs__sec-sub">How decisions get made, where to file things, and what's not yet true.</p>
+      </header>
+      <ul class="docs__list">
+        <li>
+          <a class="docs__link" href="/governance">Governance</a>
+          <p>Open spec, three reference reducers, RFC process, capture defenses, stewardship plan.</p>
+        </li>
+        <li>
+          <a class="docs__link" href="/faq">FAQ</a>
+          <p>Frequently questioned answers — the BioRxiv / Zenodo / OpenAlex / nf-core / PubPeer comparisons every reader makes in 30 seconds.</p>
+        </li>
+        <li>
+          <a class="docs__link" href={REPO_URL} rel="noopener">Source on GitHub</a>
+          <p>Bug reports, pull requests, RFCs, code of conduct, security policy.</p>
+        </li>
+        <li>
+          <a class="docs__link" href={`${REPO_URL}/issues?q=is%3Aissue+label%3Arfc`} rel="noopener">Open RFCs</a>
+          <p>Protocol-level changes in discussion. Each RFC sits 14 days minimum before merge.</p>
+        </li>
+        <li>
+          <a class="docs__link" href={`${REPO_URL}/security/policy`} rel="noopener">Security policy</a>
+          <p>Private vulnerability reporting. Don't open public issues for security bugs.</p>
+        </li>
+      </ul>
+    </section>
+
+  </article>
+</Reading>
+
+<style>
+  .docs { max-width: 64rem; margin: 0 auto; }
+  .docs__sec {
+    padding-top: 1.6rem;
+    margin-bottom: var(--rhythm-section);
+    border-top: 1px solid var(--rule-2);
+  }
+  .docs__sec-head { margin-bottom: 1.4rem; max-width: 64ch; }
+  .docs__sec-title {
+    margin: 0 0 0.5rem;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: clamp(1.4rem, 2.4vw, 1.8rem);
+    line-height: 1.18;
+    letter-spacing: -0.022em;
+    color: var(--ink-0);
+    text-transform: none;
+  }
+  .docs__sec-sub {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-size: 0.96rem;
+    line-height: 1.55;
+    color: var(--ink-2);
+  }
+  .docs__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.2rem 2rem;
+  }
+  @media (max-width: 720px) {
+    .docs__list { grid-template-columns: 1fr; }
+  }
+  .docs__list li {
+    padding: 1rem 1.2rem;
+    background: var(--paper-1);
+    border: 1px solid var(--rule-2);
+    border-radius: 6px;
+    transition: border-color 160ms var(--ease), transform 160ms var(--ease);
+  }
+  .docs__list li:hover {
+    border-color: color-mix(in oklab, var(--gold) 48%, var(--rule-3));
+    transform: translateY(-1px);
+  }
+  .docs__link {
+    display: block;
+    margin: 0 0 0.4rem;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 1rem;
+    color: var(--ink-0);
+    text-decoration: none;
+    letter-spacing: -0.012em;
+  }
+  .docs__link:hover { color: var(--gold); }
+  .docs__list p {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-size: 0.9rem;
+    line-height: 1.5;
+    color: var(--ink-2);
+    text-wrap: pretty;
+  }
+  .docs__list p code, .docs__sec-sub code, .page-head__sub code {
+    font-family: var(--font-mono);
+    font-size: 0.86em;
+    padding: 1px 5px;
+    background: var(--paper-0);
+    border: 1px solid var(--rule-2);
+    border-radius: 3px;
+    color: var(--ink-0);
+  }
+  .inline-link {
+    color: var(--ink-1);
+    text-decoration: underline;
+    text-decoration-color: color-mix(in oklab, var(--gold) 56%, transparent);
+    text-underline-offset: 3px;
+    text-decoration-thickness: 1px;
+    transition: color 160ms var(--ease), text-decoration-color 160ms var(--ease);
+  }
+  .inline-link:hover { color: var(--gold); text-decoration-color: var(--gold); }
+</style>

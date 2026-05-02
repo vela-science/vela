@@ -1,0 +1,360 @@
+---
+import Reading from "../layouts/Reading.astro";
+import { REPO_URL, HUB_URL, VERSION } from "../config";
+---
+
+<Reading
+  title="Examples · Vela"
+  description="Recipes for common tasks against the Vela substrate. Real binary, real outputs."
+  active="examples"
+>
+  <header class="page-head">
+    <p class="eyebrow">vela cookbook</p>
+    <h1 class="page-head__title">Recipes.</h1>
+    <p class="page-head__sub">
+      Real CLI flows for the things you'll actually do. Every command runs against the
+      vela {VERSION} binary; outputs are captured stdout. New to the substrate? Start with
+      <a class="inline-link" href="/quickstart">/quickstart</a>.
+    </p>
+  </header>
+
+  <article class="rcp">
+
+    <nav class="rcp__toc" aria-label="On this page">
+      <p class="rcp__toc-eyebrow">Recipes</p>
+      <ol class="rcp__toc-list">
+        <li><a href="#new-frontier">1 · Scaffold a new frontier</a></li>
+        <li><a href="#manual-finding">2 · Add a finding manually</a></li>
+        <li><a href="#sign">3 · Generate a key, register an actor, sign</a></li>
+        <li><a href="#link">4 · Link two findings</a></li>
+        <li><a href="#correction">5 · Record a Correction event</a></li>
+        <li><a href="#publish">6 · Publish to the hub</a></li>
+        <li><a href="#verify">7 · Verify a published frontier from disk</a></li>
+        <li><a href="#mirror">8 · Mirror a hub locally</a></li>
+        <li><a href="#scout">9 · Run an AI agent (Literature Scout)</a></li>
+        <li><a href="#api">10 · Query the hub HTTP API</a></li>
+      </ol>
+    </nav>
+
+    <!-- 1 -->
+    <section class="rcp__r" id="new-frontier">
+      <h2 class="rcp__r-title">1 · Scaffold a new frontier</h2>
+      <p class="rcp__r-line">
+        A frontier is a named scope of findings. Use <code>vela frontier new</code> when you
+        intend to publish; use <code>vela init</code> when you want a local <code>.vela/</code>
+        repo for solo work.
+      </p>
+      <pre class="rcp__code"><code>$ vela frontier new \
+    --name "alzheimers-bbb" \
+    --description "Blood-brain barrier delivery in Alzheimer's" \
+    bbb.json
+
+· frontier scaffolded frontier 'alzheimers-bbb' at bbb.json
+  next steps:
+    1. vela finding add bbb.json --assertion '...' --author 'reviewer:you' --apply
+    2. vela sign generate-keypair --out keys
+    3. vela actor add bbb.json reviewer:you --pubkey "$(cat keys/public.key)"
+    4. vela registry publish bbb.json --owner reviewer:you --key keys/private.key --locator &lt;url&gt; --to {HUB_URL}</code></pre>
+    </section>
+
+    <!-- 2 -->
+    <section class="rcp__r" id="manual-finding">
+      <h2 class="rcp__r-title">2 · Add a finding manually</h2>
+      <p class="rcp__r-line">
+        Without <code>--apply</code>, the finding lands as a pending proposal in the inbox.
+        With <code>--apply</code>, it becomes a canonical event.
+      </p>
+      <pre class="rcp__code"><code>$ vela finding add bbb.json \
+    --assertion "Focused ultrasound transiently opens the BBB in early-AD patients." \
+    --type therapeutic \
+    --evidence-type experimental \
+    --doi "10.1038/s41591-024-XXXXX" \
+    --author "reviewer:demo" \
+    --confidence 0.55 \
+    --apply
+
+Finding proposal applied
+  frontier: alzheimers-bbb
+  finding:  vf_4c8a91d28e7b3712
+  proposal: vpr_a3e7f12b9c4d8e15
+  status:   applied
+  event:    vev_8b3c194fd217ae62</code></pre>
+    </section>
+
+    <!-- 3 -->
+    <section class="rcp__r" id="sign">
+      <h2 class="rcp__r-title">3 · Generate a key, register an actor, sign</h2>
+      <p class="rcp__r-line">
+        Three commands. The keypair lives at <code>keys/</code>; the actor record lives in
+        the frontier; the signature is over canonical-JSON of each finding minus the
+        <code>signature</code> field.
+      </p>
+      <pre class="rcp__code"><code>$ vela sign generate-keypair --out keys
+· generated keypair · keys
+  public key: 88ccb43144e9e228c37566554845dcd4e1f5afd3fab3e10d23df551dcdd87041
+
+$ vela actor add bbb.json reviewer:demo --pubkey "$(cat keys/public.key)"
+· registered actor reviewer:demo (pubkey 88ccb43144e9e228)
+
+$ vela sign apply bbb.json --private-key keys/private.key
+· signed 1 findings in bbb.json</code></pre>
+    </section>
+
+    <!-- 4 -->
+    <section class="rcp__r" id="link">
+      <h2 class="rcp__r-title">4 · Link two findings</h2>
+      <p class="rcp__r-line">
+        Typed edges between findings. Kinds: <code>supports</code>, <code>depends</code>,
+        <code>contradicts</code>, <code>narrows</code>, <code>supersedes</code>. Cross-frontier
+        targets use <code>vf_&lt;id&gt;@vfr_&lt;id&gt;</code> form once you've declared the
+        dependency with <code>vela frontier add-dep</code>.
+      </p>
+      <pre class="rcp__code"><code>$ vela link add bbb.json \
+    --from vf_4c8a91d28e7b3712 \
+    --to vf_b3a219c845f01e7d \
+    --type supports
+
+· link added: vf_4c8a91d… --supports--&gt; vf_b3a219c…</code></pre>
+    </section>
+
+    <!-- 5 -->
+    <section class="rcp__r" id="correction">
+      <h2 class="rcp__r-title">5 · Record a Correction event</h2>
+      <p class="rcp__r-line">
+        A Correction supersedes an existing finding with a new content-addressed claim. The
+        old finding is flagged <code>superseded</code>; both remain queryable; the new
+        finding gets an auto-injected <code>supersedes</code> link back to the original.
+      </p>
+      <pre class="rcp__code"><code>$ vela finding supersede bbb.json \
+    --supersedes vf_4c8a91d28e7b3712 \
+    --assertion "Focused ultrasound opens the BBB in APOE4-positive early-AD patients only." \
+    --author "reviewer:demo" \
+    --confidence 0.71 \
+    --apply
+
+Supersede applied
+  old: vf_4c8a91d28e7b3712 (now flagged: superseded)
+  new: vf_e2f9018d7a4b3c6e (auto-link: supersedes → vf_4c8a91d…)
+  event: vev_c19a4f7d825b1e30</code></pre>
+    </section>
+
+    <!-- 6 -->
+    <section class="rcp__r" id="publish">
+      <h2 class="rcp__r-title">6 · Publish to the hub</h2>
+      <p class="rcp__r-line">
+        The hub is dumb signed transport. <code>--locator</code> is the public URL where you
+        serve the frontier file (S3, GitHub raw, your own server). The hub stores a signed
+        manifest with the snapshot hash; clients verify locally on read.
+      </p>
+      <pre class="rcp__code"><code>$ vela registry publish bbb.json \
+    --owner reviewer:demo \
+    --key keys/private.key \
+    --locator https://your-host.example/bbb.json \
+    --to {HUB_URL}
+
+· publishing manifest to {HUB_URL.replace(/^https?:\/\//, '')}
+· vfr_id: vfr_72f8019b3d4c8a1e
+· snapshot_hash: 7a91...0c4d
+· signed_publish_at: 2026-05-02T18:14:33Z
+· status: ok</code></pre>
+    </section>
+
+    <!-- 7 -->
+    <section class="rcp__r" id="verify">
+      <h2 class="rcp__r-title">7 · Verify a published frontier from disk</h2>
+      <p class="rcp__r-line">
+        Anyone can pull the frontier file, recompute the snapshot hash through any of the
+        three reducer implementations, and check it matches the hub manifest. No trust in
+        the hub required.
+      </p>
+      <pre class="rcp__code"><code>$ vela registry pull vfr_72f8019b3d4c8a1e --to /tmp/pulled.json
+· fetched manifest from {HUB_URL.replace(/^https?:\/\//, '')}
+· locator: https://your-host.example/bbb.json
+· hash check: 7a91...0c4d == 7a91...0c4d  ok
+· wrote: /tmp/pulled.json
+
+$ vela sign verify /tmp/pulled.json
+
+  VELA · SIGN · VERIFY · /TMP/PULLED.JSON
+  ····························································
+  total findings:   1
+  signed:           1
+  unsigned:         0
+  valid:            1
+  invalid:          0</code></pre>
+    </section>
+
+    <!-- 8 -->
+    <section class="rcp__r" id="mirror">
+      <h2 class="rcp__r-title">8 · Mirror a hub locally</h2>
+      <p class="rcp__r-line">
+        Pull a signed manifest from one hub and POST it verbatim to another. Both hubs validate
+        the signature against the embedded <code>owner_pubkey</code>; mirroring is a no-op
+        for authenticity. Use this for resilience, seeding a fresh hub, or hub-deployment
+        smoke tests.
+      </p>
+      <pre class="rcp__code"><code>$ vela registry mirror \
+    --vfr-id vfr_72f8019b3d4c8a1e \
+    --from {HUB_URL} \
+    --to https://my-hub.example/
+
+· pulled manifest from vela-hub.fly.dev (signature verified)
+· posted to my-hub.example (signature re-verified, accepted)
+· status: ok</code></pre>
+    </section>
+
+    <!-- 9 -->
+    <section class="rcp__r" id="scout">
+      <h2 class="rcp__r-title">9 · Run an AI agent (Literature Scout)</h2>
+      <p class="rcp__r-line">
+        Vela's agent commands run an LLM-backed pipeline against a folder of source material
+        and write the results back as <code>finding.add</code> proposals tagged with an
+        <code>AgentRun</code> record. Reviewers accept proposals via the inbox; nothing
+        becomes canonical without a signed accept.
+      </p>
+      <pre class="rcp__code"><code>$ vela scout ./papers --frontier bbb.json --backend sonnet
+
+Literature Scout · sonnet
+  walking 12 PDFs in ./papers ...
+  proposals: 38 candidate findings
+  written:   bbb.json (proposals: 38, status: pending_review)
+  inbox:     vela inbox bbb.json</code></pre>
+      <p class="rcp__r-line">
+        Adjacent agents: <code>vela compile-notes</code> (Markdown / Obsidian),
+        <code>vela compile-code</code> (Jupyter / Python / R), <code>vela compile-data</code>
+        (CSV / Parquet), <code>vela review-pending</code>, <code>vela find-tensions</code>,
+        <code>vela plan-experiments</code>.
+      </p>
+    </section>
+
+    <!-- 10 -->
+    <section class="rcp__r" id="api">
+      <h2 class="rcp__r-title">10 · Query the hub HTTP API</h2>
+      <p class="rcp__r-line">
+        No authentication, no rate limit, CORS open. The signature is the bind.
+      </p>
+      <pre class="rcp__code"><code>$ curl {HUB_URL}/entries | jq .
+{`{
+  "entries": [
+    {
+      "vfr_id": "vfr_bd91...",
+      "name": "Alzheimer's Therapeutics",
+      "owner_actor_id": "reviewer:will-blair",
+      "snapshot_hash": "f23b4aba17...",
+      "signed_publish_at": "2026-04-27T18:32:01Z"
+    },
+    ...
+  ]
+}`}
+
+$ curl {HUB_URL}/.well-known/vela
+{`{
+  "protocol_versions": [1],
+  "signing_algorithms": ["ed25519-canonical-json-v1"],
+  "admin": "ops@vela.science"
+}`}</code></pre>
+      <p class="rcp__r-line">
+        Full API at <a class="inline-link" href="/sdk#http">/sdk § Hub HTTP API</a>; protocol
+        details at <a class="inline-link" href="/spec">/spec</a>.
+      </p>
+    </section>
+
+  </article>
+</Reading>
+
+<style>
+  .rcp { max-width: 60rem; margin: 0 auto; }
+
+  .rcp__toc {
+    margin: 0 0 var(--space-7);
+    padding: 1.1rem 1.4rem;
+    background: var(--paper-1);
+    border: 1px solid var(--rule-2);
+    border-radius: 8px;
+  }
+  .rcp__toc-eyebrow {
+    margin: 0 0 0.55rem;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: color-mix(in oklab, var(--gold) 76%, var(--ink-2));
+  }
+  .rcp__toc-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.4rem 1.4rem;
+  }
+  @media (max-width: 720px) {
+    .rcp__toc-list { grid-template-columns: 1fr; }
+  }
+  .rcp__toc-list li { font-family: var(--font-sans); font-size: 0.9rem; }
+  .rcp__toc-list a {
+    color: var(--ink-1);
+    text-decoration: none;
+    border-bottom: 1px solid color-mix(in oklab, var(--gold) 38%, transparent);
+    transition: color 160ms var(--ease), border-bottom-color 160ms var(--ease);
+  }
+  .rcp__toc-list a:hover { color: var(--gold); border-bottom-color: var(--gold); }
+
+  .rcp__r {
+    padding-top: 1.4rem;
+    margin-bottom: var(--rhythm-block);
+    border-top: 1px solid var(--rule-2);
+  }
+  .rcp__r-title {
+    margin: 0 0 0.85rem;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: clamp(1.15rem, 1.8vw, 1.35rem);
+    line-height: 1.3;
+    letter-spacing: -0.018em;
+    color: var(--ink-0);
+    text-transform: none;
+  }
+  .rcp__r-line {
+    font-family: var(--font-sans);
+    font-size: 0.96rem;
+    line-height: 1.55;
+    color: var(--ink-2);
+    margin: 0 0 0.85rem;
+    max-width: 70ch;
+    text-wrap: pretty;
+  }
+  .rcp__r-line code {
+    font-family: var(--font-mono);
+    font-size: 0.86em;
+    padding: 1px 5px;
+    background: var(--paper-1);
+    border: 1px solid var(--rule-2);
+    border-radius: 3px;
+    color: var(--ink-0);
+  }
+  .rcp__code {
+    margin: 0;
+    padding: 14px 18px;
+    background: var(--paper-1);
+    border: 1px solid var(--rule-2);
+    border-radius: 6px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.62;
+    color: var(--ink-1);
+    overflow-x: auto;
+    white-space: pre;
+  }
+  .rcp__code code { background: transparent; border: 0; padding: 0; font: inherit; color: inherit; }
+  .inline-link {
+    color: var(--ink-1);
+    text-decoration: underline;
+    text-decoration-color: color-mix(in oklab, var(--gold) 56%, transparent);
+    text-underline-offset: 3px;
+    text-decoration-thickness: 1px;
+    transition: color 160ms var(--ease), text-decoration-color 160ms var(--ease);
+  }
+  .inline-link:hover { color: var(--gold); text-decoration-color: var(--gold); }
+</style>

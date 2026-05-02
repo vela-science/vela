@@ -30,17 +30,17 @@ const { active = "home" } = Astro.props;
     </a>
 
     <nav class="vl-nav" aria-label="Site navigation">
-      <a href="/spec" class={`vl-nav__link${active === "spec" || active === "docs" ? " vl-nav__link--active" : ""}`}>spec</a>
+      <a href="/docs" class={`vl-nav__link${active === "docs" ? " vl-nav__link--active" : ""}`}>docs</a>
       <span class="vl-nav__sep" aria-hidden="true">·</span>
-      <a href="/sdk" class={`vl-nav__link${active === "sdk" ? " vl-nav__link--active" : ""}`}>sdk</a>
+      <a href="/spec" class={`vl-nav__link${active === "spec" ? " vl-nav__link--active" : ""}`}>spec</a>
       <span class="vl-nav__sep" aria-hidden="true">·</span>
-      <a href="/quickstart" class={`vl-nav__link${active === "quickstart" ? " vl-nav__link--active" : ""}`}>quickstart</a>
+      <a href="/examples" class={`vl-nav__link${active === "examples" ? " vl-nav__link--active" : ""}`}>examples</a>
       <span class="vl-nav__sep" aria-hidden="true">·</span>
       <a href="/workbench" class={`vl-nav__link${active === "workbench" ? " vl-nav__link--active" : ""}`}>workbench</a>
       <span class="vl-nav__sep" aria-hidden="true">·</span>
-      <a href={REPO_URL} class="vl-nav__link" rel="noopener">github</a>
+      <a href="/governance" class={`vl-nav__link${active === "governance" ? " vl-nav__link--active" : ""}`}>governance</a>
       <span class="vl-nav__sep" aria-hidden="true">·</span>
-      <a href={HUB_URL} class="vl-nav__link" rel="noopener">hub</a>
+      <a href={REPO_URL} class="vl-nav__link" rel="noopener">github</a>
     </nav>
   </div>
 

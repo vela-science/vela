@@ -1,0 +1,379 @@
+---
+import Reading from "../../layouts/Reading.astro";
+import ClaimCard from "../../components/ClaimCard.astro";
+import {
+  loadFrontier,
+  frontierStats,
+  contradictions,
+  TARGETS,
+  type ClaimView,
+} from "../../lib/frontier";
+import { FRONTIER, HUB_URL, REPO_URL, VERSION } from "../../config";
+
+const claims = loadFrontier();
+const stats = frontierStats();
+const tensionList = contradictions();
+
+// Filter to BBB-relevant findings (target = bbb-delivery, plus
+// the abeta42 / tau / apoe / trem2 findings that depend on BBB).
+const bbbClaims: ClaimView[] = claims.filter((c) =>
+  c.targets.includes("bbb-delivery") ||
+  c.targets.includes("apoe") ||
+  c.targets.includes("amyloid-beta")
+);
+
+const featured: ClaimView[] = bbbClaims
+  .slice()
+  .sort((a, b) => b.finding.confidence.score - a.finding.confidence.score)
+  .slice(0, 12);
+
+const targetsWithCounts = TARGETS.map((t) => ({
+  ...t,
+  count: claims.filter((c) => c.targets.includes(t.slug)).length,
+})).filter((t) => t.count > 0);
+
+const lastUpdated = stats.lastUpdated
+  ? new Date(stats.lastUpdated).toISOString().slice(0, 10)
+  : "—";
+---
+
+<Reading
+  title="Alzheimer's BBB delivery · Vela"
+  description="Living-proof frontier — blood-brain barrier delivery in Alzheimer's. Real findings, real signed events, real corrections."
+  active="frontiers"
+  wide
+>
+  <header class="page-head">
+    <p class="eyebrow">Frontier · alzheimers-bbb · vfr_bd91… · live</p>
+    <h1 class="page-head__title">Alzheimer's BBB delivery.</h1>
+    <p class="page-head__sub">
+      One corridor of the substrate, lived in. Findings, evidence, contradictions, and
+      Corrections in a single bounded scientific question — drug delivery across the
+      blood-brain barrier in early-symptomatic Alzheimer's. The corridor that should not
+      have to be relearned.
+    </p>
+  </header>
+
+  <article class="cor">
+
+    <!-- Live metadata strip -->
+    <dl class="cor__meta">
+      <div class="cor__meta-cell">
+        <dt>Findings</dt>
+        <dd>{bbbClaims.length}</dd>
+      </div>
+      <div class="cor__meta-cell">
+        <dt>Open contradictions</dt>
+        <dd>{tensionList.length}</dd>
+      </div>
+      <div class="cor__meta-cell">
+        <dt>Last signed</dt>
+        <dd class="cor__meta-mono">{lastUpdated}</dd>
+      </div>
+      <div class="cor__meta-cell">
+        <dt>Hub</dt>
+        <dd><a class="cor__link" href={`${HUB_URL}/entries`} rel="noopener">vela-hub.fly.dev</a></dd>
+      </div>
+      <div class="cor__meta-cell">
+        <dt>Reviewer-in-residence</dt>
+        <dd class="cor__meta-mono">recruiting</dd>
+      </div>
+      <div class="cor__meta-cell">
+        <dt>Replay</dt>
+        <dd><a class="cor__link" href="/replay">14 signed events →</a></dd>
+      </div>
+    </dl>
+
+    <!-- Why this corridor -->
+    <section class="cor__sec">
+      <h2 class="cor__sec-title">Why this corridor.</h2>
+      <p class="cor__line">
+        Alzheimer's BBB delivery is narrow enough to hold in one head, translational enough
+        to matter clinically, and contradicted enough to exercise every primitive in the
+        substrate — Findings, EvidenceObjects, Corrections, typed Links, and confidence
+        drift across replications.
+      </p>
+      <p class="cor__line">
+        The amyloid hypothesis dominated funding for two decades while contradicting trial
+        results piled up in registries no downstream model read. Lecanemab and donanemab
+        eventually arrived with modest benefit in early symptomatic disease — narrower than
+        most actors had prepared for. The substrate exists so the next concentration takes
+        weeks to detect and adjust against, not twenty years.
+      </p>
+    </section>
+
+    <!-- Worked Correction event (link out) -->
+    <section class="cor__sec">
+      <h2 class="cor__sec-title">A worked Correction.</h2>
+      <p class="cor__line">
+        One signed event, end-to-end. Halliday 2016 → Nation 2019 → Montagne 2020 →
+        Correction event narrowing scope from sporadic AD to APOE4-positive sporadic AD.
+        Three downstream objects (target hypothesis, Phase II inclusion criterion, review
+        article headline) get notified by the dependency graph.
+      </p>
+      <p class="cor__line">
+        See it: <a class="cor__link" href="/proof/pericyte-correction">/proof/pericyte-correction</a>.
+        Companion: <a class="cor__link" href="/proof/contradiction">/proof/contradiction</a>
+        (two reviewers signing opposing findings under the same scope, neither overwrites
+        the other).
+      </p>
+    </section>
+
+    <!-- Featured claims -->
+    <section class="cor__sec">
+      <h2 class="cor__sec-title">Strongest claims, by confidence.</h2>
+      <p class="cor__line">
+        {featured.length} findings on this corridor right now. Each card is content-addressed;
+        click to read evidence, supporting trials, and any active Corrections. Full corridor
+        in <a class="cor__link" href="/workbench">/workbench</a>.
+      </p>
+      <div class="cor__grid">
+        {featured.map((c) => <ClaimCard claim={c} />)}
+      </div>
+    </section>
+
+    <!-- Open contradictions -->
+    {tensionList.length > 0 && (
+      <section class="cor__sec">
+        <h2 class="cor__sec-title">Open contradictions.</h2>
+        <p class="cor__line">
+          {tensionList.length} pairs where two reviewers' signed findings disagree under the
+          same scope. The substrate stores both as first-class objects; the dependency graph
+          carries the disagreement until new evidence resolves it.
+        </p>
+        <ol class="cor__tensions">
+          {tensionList.slice(0, 5).map((c) => (
+            <li>
+              <a class="cor__link" href={`/claims/${c.slug}`}>{c.finding.assertion.text}</a>
+            </li>
+          ))}
+        </ol>
+      </section>
+    )}
+
+    <!-- Targets browseable -->
+    <section class="cor__sec">
+      <h2 class="cor__sec-title">Browse by target.</h2>
+      <nav class="cor__targets" aria-label="Targets">
+        {targetsWithCounts.map((t) => (
+          <a class="cor__chip" href={`/targets/${t.slug}`}>
+            {t.short}
+            <span class="cor__chip-count">{t.count}</span>
+          </a>
+        ))}
+      </nav>
+    </section>
+
+    <!-- How to contribute -->
+    <section class="cor__sec">
+      <h2 class="cor__sec-title">Contribute to this corridor.</h2>
+      <p class="cor__line">
+        Three paths, no permission required:
+      </p>
+      <ul class="cor__ways">
+        <li>
+          <strong>Mirror the frontier locally.</strong>
+          <code class="cor__inline">vela registry pull vfr_bd91… --to ./bbb.json</code>
+          — replay the canonical state through any of the three reducers.
+        </li>
+        <li>
+          <strong>Propose a finding.</strong>
+          Sign a <code>finding.add</code> event with your own Ed25519 key and POST to
+          <a class="cor__link" href={`${HUB_URL}/publish`} rel="noopener">{HUB_URL.replace(/^https?:\/\//, '')}/publish</a>.
+          The reviewer-in-residence merges proposals into canonical events.
+        </li>
+        <li>
+          <strong>Become reviewer-in-residence.</strong>
+          Curate the corridor — recruit other signers, accept or reject proposals, sign
+          Corrections. Open a discussion on the
+          <a class="cor__link" href={REPO_URL} rel="noopener">repo</a> with the
+          <code>corridor</code> label.
+        </li>
+      </ul>
+    </section>
+
+    <!-- Honest gap -->
+    <section class="cor__sec cor__sec--honest">
+      <h2 class="cor__sec-title">What isn't true yet.</h2>
+      <p class="cor__line">
+        Every signature on this corridor today is by a key under the founder's control. The
+        technical substrate works — three reducers replay byte-identically, every event is
+        signed, the hub serves the manifest. The social substrate begins when the first
+        credentialed external scientist deposits a signed finding. That's the year-one
+        milestone for this corridor and for the project.
+      </p>
+    </section>
+
+  </article>
+</Reading>
+
+<style>
+  .cor { max-width: 76rem; margin: 0 auto; }
+
+  .cor__meta {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 0.85rem 1.6rem;
+    margin: 0 0 var(--rhythm-section);
+    padding: 1.2rem 1.4rem;
+    background: var(--paper-1);
+    border: 1px solid var(--rule-2);
+    border-radius: 8px;
+  }
+  @media (max-width: 880px) {
+    .cor__meta { grid-template-columns: repeat(3, 1fr); }
+  }
+  @media (max-width: 480px) {
+    .cor__meta { grid-template-columns: repeat(2, 1fr); }
+  }
+  .cor__meta-cell { display: flex; flex-direction: column; gap: 4px; }
+  .cor__meta-cell dt {
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    font-weight: 500;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin: 0;
+  }
+  .cor__meta-cell dd {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 1.15rem;
+    color: var(--ink-0);
+    margin: 0;
+  }
+  .cor__meta-mono { font-family: var(--font-mono) !important; font-size: 0.95rem !important; font-weight: 500 !important; }
+
+  .cor__sec {
+    padding-top: 1.4rem;
+    margin-bottom: var(--rhythm-block);
+    border-top: 1px solid var(--rule-2);
+    max-width: 70ch;
+  }
+  .cor__sec-title {
+    margin: 0 0 0.85rem;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: clamp(1.25rem, 2vw, 1.45rem);
+    line-height: 1.25;
+    letter-spacing: -0.02em;
+    color: var(--ink-0);
+    text-transform: none;
+  }
+  .cor__line {
+    font-family: var(--font-sans);
+    font-size: 0.97rem;
+    line-height: 1.6;
+    color: var(--ink-1);
+    margin: 0 0 0.85rem;
+    text-wrap: pretty;
+  }
+  .cor__sec--honest {
+    border-top-color: color-mix(in oklab, var(--cinnabar) 38%, transparent);
+  }
+  .cor__sec--honest .cor__sec-title {
+    color: color-mix(in oklab, var(--cinnabar) 85%, var(--ink-0));
+  }
+
+  .cor__link {
+    color: var(--ink-1);
+    text-decoration: underline;
+    text-decoration-color: color-mix(in oklab, var(--gold) 56%, transparent);
+    text-underline-offset: 3px;
+    text-decoration-thickness: 1px;
+  }
+  .cor__link:hover { color: var(--gold); text-decoration-color: var(--gold); }
+  .cor__inline {
+    font-family: var(--font-mono);
+    font-size: 0.86em;
+    padding: 1px 5px;
+    margin: 0 4px;
+    background: var(--paper-1);
+    border: 1px solid var(--rule-2);
+    border-radius: 3px;
+    color: var(--ink-0);
+  }
+  .cor__line code, .cor__ways code:not(.cor__inline) {
+    font-family: var(--font-mono);
+    font-size: 0.86em;
+    padding: 1px 5px;
+    background: var(--paper-1);
+    border: 1px solid var(--rule-2);
+    border-radius: 3px;
+    color: var(--ink-0);
+  }
+
+  .cor__grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    max-width: 76rem;
+    margin-top: 1rem;
+  }
+  @media (max-width: 980px) {
+    .cor__grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 640px) {
+    .cor__grid { grid-template-columns: 1fr; }
+  }
+
+  .cor__tensions {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .cor__tensions li {
+    padding: 0.7rem 0;
+    border-bottom: 1px solid var(--rule-1);
+    font-family: var(--font-sans);
+    font-size: 0.95rem;
+    line-height: 1.5;
+    color: var(--ink-1);
+  }
+  .cor__tensions li:last-child { border-bottom: 0; }
+
+  .cor__targets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .cor__chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 11px;
+    background: var(--paper-1);
+    border: 1px solid var(--rule-2);
+    border-radius: 4px;
+    font-family: var(--font-sans);
+    font-weight: 500;
+    font-size: 0.86rem;
+    color: var(--ink-1);
+    text-decoration: none;
+    transition: border-color 160ms var(--ease), color 160ms var(--ease);
+  }
+  .cor__chip:hover { border-color: color-mix(in oklab, var(--gold) 56%, transparent); color: var(--gold); }
+  .cor__chip-count {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--ink-3);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .cor__ways {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .cor__ways li {
+    padding: 0.85rem 0;
+    border-bottom: 1px solid var(--rule-1);
+    font-family: var(--font-sans);
+    font-size: 0.95rem;
+    line-height: 1.55;
+    color: var(--ink-1);
+  }
+  .cor__ways li:last-child { border-bottom: 0; }
+  .cor__ways strong { color: var(--ink-0); margin-right: 0.4rem; }
+</style>

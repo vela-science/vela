@@ -1,0 +1,243 @@
+---
+import Reading from "../layouts/Reading.astro";
+import { REPO_URL, HUB_URL, VERSION } from "../config";
+---
+
+<Reading
+  title="Governance · Vela"
+  description="How the Vela protocol is decided, maintained, and protected from capture. Open spec, open reference, public RFC, no single-vendor lock-in."
+  active="governance"
+>
+  <header class="page-head">
+    <p class="eyebrow">vela governance</p>
+    <h1 class="page-head__title">Governance.</h1>
+    <p class="page-head__sub">
+      How the protocol is decided, maintained, and protected from capture. Open spec,
+      open reference implementation, public RFC process, no single-vendor lock-in. Honest
+      about where governance is today and where it goes.
+    </p>
+  </header>
+
+  <article class="gov">
+
+    <section class="gov__sec">
+      <h2 class="gov__sec-title">The protocol is open.</h2>
+      <p class="gov__line">
+        The wire format, the canonical-JSON serialization, the signing scheme
+        (<code>ed25519-canonical-json-v1</code>), the reducer semantics, and the event schema
+        live in <a class="inline-link" href="/spec">/spec</a>. They are versioned with
+        RFC 2119 conformance language. A new implementation is conformant iff its byte-output
+        matches the reference reducer on the published test corpus.
+      </p>
+    </section>
+
+    <section class="gov__sec">
+      <h2 class="gov__sec-title">Three reference reducers, byte-identical.</h2>
+      <p class="gov__line">
+        Rust (<code>vela-reducer</code>), Python (<a class="inline-link" href="/vela_reducer.py"><code>vela_reducer.py</code></a>),
+        TypeScript (<a class="inline-link" href="/vela_reducer.mjs"><code>vela_reducer.mjs</code></a>).
+        Each can replay the canonical event log to byte-identical state. Anyone worried about
+        implementation lock-in can run a fourth reducer and verify against the test corpus
+        in twenty minutes.
+      </p>
+    </section>
+
+    <section class="gov__sec">
+      <h2 class="gov__sec-title">Local-first by design.</h2>
+      <p class="gov__line">
+        Every signed event carries its actor's public key. Every reducer can replay the
+        canonical state from a folder of events with no network. The hub at
+        <a class="inline-link" href={HUB_URL} rel="noopener">vela-hub.fly.dev</a> is a
+        mirror, not the source of truth. If the canonical hub disappears tomorrow, anyone
+        with the event log can stand up another one with <code>vela registry mirror</code>.
+      </p>
+    </section>
+
+    <section class="gov__sec">
+      <h2 class="gov__sec-title">Licensing.</h2>
+      <p class="gov__line">
+        The reference implementation, spec, and reducer test corpus are dual-licensed
+        Apache-2.0 / MIT — pick whichever fits your downstream license. Documentation
+        (this site) is CC-BY-4.0. Patent grants are explicit in the Apache license.
+      </p>
+      <p class="gov__line">
+        Files: <a class="inline-link" href={`${REPO_URL}/blob/main/LICENSE`} rel="noopener">LICENSE</a>
+        · <a class="inline-link" href={`${REPO_URL}/blob/main/LICENSE-MIT`} rel="noopener">LICENSE-MIT</a>
+        · <a class="inline-link" href={`${REPO_URL}/blob/main/LICENSE-APACHE`} rel="noopener">LICENSE-APACHE</a>.
+      </p>
+    </section>
+
+    <section class="gov__sec">
+      <h2 class="gov__sec-title">Compatibility promises.</h2>
+      <p class="gov__line">
+        Two version axes, kept distinct on every page that exposes them:
+      </p>
+      <dl class="gov__pair">
+        <dt>Protocol version</dt>
+        <dd>Currently <code>v1</code>. Embedded in every signed event as the <code>"v"</code>
+          field. Breaking changes increment the major. Hubs MAY accept multiple versions and
+          MUST advertise supported versions in <code>/.well-known/vela</code>.</dd>
+        <dt>Binary version</dt>
+        <dd>Currently <code>v{VERSION}</code>. Implementation-level semantic versioning of
+          the Rust workspace. Independent of protocol version. A binary at <code>v0.49</code>
+          may still implement protocol <code>v1</code>.</dd>
+      </dl>
+    </section>
+
+    <section class="gov__sec">
+      <h2 class="gov__sec-title">RFC process.</h2>
+      <p class="gov__line">
+        Protocol changes go through a public RFC opened as a GitHub issue with the
+        <code>rfc</code> label. Each RFC has a motivation, a proposed change, a
+        backwards-compatibility analysis, and a kill criterion (when do we revert this if
+        it doesn't land). RFCs sit in <code>discussion</code> for a minimum of 14 days
+        before merge. Implementation must precede or accompany merge — no design-only RFCs.
+      </p>
+      <p class="gov__line">
+        Open RFCs: <a class="inline-link" href={`${REPO_URL}/issues?q=is%3Aissue+label%3Arfc`} rel="noopener">{REPO_URL.replace(/^https?:\/\//, '')}/issues?label=rfc</a>.
+      </p>
+    </section>
+
+    <section class="gov__sec">
+      <h2 class="gov__sec-title">Capture defenses.</h2>
+      <p class="gov__line">
+        Three structural defenses against single-vendor or single-funder capture:
+      </p>
+      <dl class="gov__pair">
+        <dt>Portable signed events</dt>
+        <dd>Ed25519 signatures travel with events. A finding signed for one hub verifies on
+          every conformant hub. There is no central key authority that gates participation.</dd>
+        <dt>Replaceable reducers</dt>
+        <dd>Three independent reducer implementations, byte-identical. A fourth or fifth can
+          be written in any language. The reference reducer is open-source MIT/Apache.</dd>
+        <dt>Mirrorable hubs</dt>
+        <dd>The hub stores signed manifests pointing at content-addressed frontier files.
+          Mirroring is a no-op for authenticity. Anyone can run their own hub against the
+          same protocol.</dd>
+      </dl>
+      <p class="gov__line">
+        The defense isn't "we promise to stay open." It is that closing wouldn't accomplish
+        anything: every event is portable, every reducer is replaceable, every hub is
+        mirrorable. <a class="inline-link" href="/faq">/faq</a> walks the capture-attack
+        scenarios in detail.
+      </p>
+    </section>
+
+    <section class="gov__sec">
+      <h2 class="gov__sec-title">Stewardship — honest where this is today.</h2>
+      <p class="gov__line">
+        Vela is currently maintained by one founder. Every signature on the live hub is
+        signed with a key under that founder's control. This is named openly because a
+        protocol claiming to be open governance shouldn't pretend otherwise.
+      </p>
+      <p class="gov__line">
+        The intended path is transfer to a long-term steward (foundation, consortium, or
+        absorption into an existing open-science institution) once the protocol is in use
+        by independent reviewers and corridors. The structural defenses above mean that
+        transfer can happen at any time without breaking conformant clients.
+      </p>
+    </section>
+
+    <section class="gov__sec">
+      <h2 class="gov__sec-title">Code of conduct + security.</h2>
+      <p class="gov__line">
+        <a class="inline-link" href={`${REPO_URL}/blob/main/CODE_OF_CONDUCT.md`} rel="noopener">Code of Conduct</a>
+        adapted from the Contributor Covenant. Security disclosures via
+        <a class="inline-link" href={`${REPO_URL}/security/policy`} rel="noopener">repo security policy</a>
+        — please don't open public issues for vulnerabilities; use the policy's private
+        reporting channel.
+      </p>
+    </section>
+
+    <section class="gov__sec">
+      <h2 class="gov__sec-title">Contributing.</h2>
+      <p class="gov__line">
+        Pull requests welcome. Bug reports on existing primitives go straight to issues.
+        Protocol-level changes go through the RFC process above. Reviewer-in-residence
+        applications (you want to curate a corridor) — open a GitHub discussion under
+        the <code>corridor</code> category.
+      </p>
+    </section>
+
+  </article>
+</Reading>
+
+<style>
+  .gov { max-width: 56rem; margin: 0 auto; }
+  .gov__sec {
+    padding-top: 1.4rem;
+    margin-bottom: var(--rhythm-block);
+    border-top: 1px solid var(--rule-2);
+  }
+  .gov__sec-title {
+    margin: 0 0 0.85rem;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: clamp(1.1rem, 1.6vw, 1.25rem);
+    line-height: 1.3;
+    letter-spacing: -0.018em;
+    color: var(--ink-0);
+    text-transform: none;
+  }
+  .gov__line {
+    font-family: var(--font-sans);
+    font-size: 0.97rem;
+    line-height: 1.6;
+    color: var(--ink-1);
+    margin: 0 0 0.85rem;
+    max-width: 70ch;
+    text-wrap: pretty;
+  }
+  .gov__line code {
+    font-family: var(--font-mono);
+    font-size: 0.86em;
+    padding: 1px 5px;
+    background: var(--paper-1);
+    border: 1px solid var(--rule-2);
+    border-radius: 3px;
+    color: var(--ink-0);
+  }
+  .gov__pair {
+    display: grid;
+    grid-template-columns: 12rem 1fr;
+    gap: 0.65rem var(--space-4);
+    margin: 0 0 0.85rem;
+  }
+  .gov__pair dt {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 0.92rem;
+    color: var(--ink-0);
+  }
+  .gov__pair dd {
+    font-family: var(--font-sans);
+    font-size: 0.94rem;
+    line-height: 1.55;
+    color: var(--ink-1);
+    margin: 0;
+    text-wrap: pretty;
+  }
+  .gov__pair dd code {
+    font-family: var(--font-mono);
+    font-size: 0.86em;
+    padding: 1px 5px;
+    background: var(--paper-1);
+    border: 1px solid var(--rule-2);
+    border-radius: 3px;
+    color: var(--ink-0);
+  }
+  @media (max-width: 720px) {
+    .gov__pair { grid-template-columns: 1fr; gap: 0.3rem; }
+    .gov__pair dt { margin-top: 0.5rem; }
+    .gov__pair dt:first-of-type { margin-top: 0; }
+  }
+  .inline-link {
+    color: var(--ink-1);
+    text-decoration: underline;
+    text-decoration-color: color-mix(in oklab, var(--gold) 56%, transparent);
+    text-underline-offset: 3px;
+    text-decoration-thickness: 1px;
+    transition: color 160ms var(--ease), text-decoration-color 160ms var(--ease);
+  }
+  .inline-link:hover { color: var(--gold); text-decoration-color: var(--gold); }
+</style>
