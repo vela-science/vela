@@ -25,25 +25,22 @@ const { active = "home" } = Astro.props;
 
 <header class="vl-mast">
   <div class="vl-mast-inner">
-    <a href="/" class="vl-brand" aria-label="Vela · home">
-      <svg class="vl-brand__glyph" viewBox="0 0 18 18" width="16" height="16" aria-hidden="true">
-        <path d="M9 1 L11 9 L9 17 L7 9 Z" fill="currentColor" opacity="0.85" />
-        <circle cx="14.5" cy="3.5" r="1.1" fill="currentColor" opacity="0.7" />
-      </svg>
-      <span class="vl-brand__wordmark">Vela</span>
+    <a href="/" class="vl-brand" aria-label="vela · home">
+      <span class="vl-brand__wordmark">vela</span>
     </a>
 
     <nav class="vl-nav" aria-label="Site navigation">
-      <a href="/protocol" class={`vl-nav__link${active === "docs" ? " vl-nav__link--active" : ""}`}>docs</a>
+      <a href="/spec" class={`vl-nav__link${active === "spec" || active === "docs" ? " vl-nav__link--active" : ""}`}>spec</a>
+      <span class="vl-nav__sep" aria-hidden="true">·</span>
+      <a href="/sdk" class={`vl-nav__link${active === "sdk" ? " vl-nav__link--active" : ""}`}>sdk</a>
+      <span class="vl-nav__sep" aria-hidden="true">·</span>
+      <a href="/quickstart" class={`vl-nav__link${active === "quickstart" ? " vl-nav__link--active" : ""}`}>quickstart</a>
       <span class="vl-nav__sep" aria-hidden="true">·</span>
       <a href="/workbench" class={`vl-nav__link${active === "workbench" ? " vl-nav__link--active" : ""}`}>workbench</a>
-      <span class="vl-nav__sep" aria-hidden="true">·</span>
-      <a href="/honest" class={`vl-nav__link${active === "honest" ? " vl-nav__link--active" : ""}`}>honest</a>
       <span class="vl-nav__sep" aria-hidden="true">·</span>
       <a href={REPO_URL} class="vl-nav__link" rel="noopener">github</a>
       <span class="vl-nav__sep" aria-hidden="true">·</span>
       <a href={HUB_URL} class="vl-nav__link" rel="noopener">hub</a>
-      <span class="vl-nav__version" title={`Vela ${VERSION}`}>v{VERSION}</span>
     </nav>
   </div>
 
@@ -82,13 +79,13 @@ const { active = "home" } = Astro.props;
   .vl-brand__glyph { color: var(--gold); flex-shrink: 0; }
 
   .vl-brand__wordmark {
-    font-family: var(--font-display);
-    font-weight: 400;
-    font-size: 1.32rem;
-    letter-spacing: -0.005em;
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: 0.95rem;
+    letter-spacing: 0.02em;
     color: inherit;
     line-height: 1;
-    font-variation-settings: "opsz" 144, "SOFT" 30;
+    text-transform: lowercase;
   }
 
   /* Nav line — quiet mono, gold on hover and active. */

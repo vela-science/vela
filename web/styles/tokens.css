@@ -13,20 +13,24 @@
    ========================================================================= */
 
 :root {
-  /* ── Paper ─── reading register, the canonical Vela ground ────────── */
-  --paper-0:        #F8F2E5;   /* aged cream, page ground */
-  --paper-1:        #FCF8EE;   /* raised: cards, sheets */
-  --paper-2:        #ECE0C7;   /* sunken: tag bg, hover wells, diagram fills */
-  --paper-deep:     #ECE0C7;   /* alias for paper-2 (BL canonical name) */
-  --paper-edge:     #D9D2BF;   /* standard border */
+  /* ── Surfaces ─── infrastructure register, near-white not cream ────────
+     The cream paper inheritance from Borrowed Light worked for the essay
+     site; Vela docs need to read as serious dev infrastructure, not as
+     editorial. White / near-white grounds, cool neutrals, navy ink, gold
+     stays as the single accent. */
+  --paper-0:        #FCFCFD;   /* page ground — near-white, faintest cool wash */
+  --paper-1:        #F6F8FA;   /* raised: cards, callouts, code blocks */
+  --paper-2:        #EAEDF0;   /* sunken: hover wells, tag bg, table stripes */
+  --paper-deep:     #EAEDF0;   /* alias for paper-2 */
+  --paper-edge:     #D6DAE0;   /* standard border */
 
   --background:     var(--paper-0);
   --surface:        var(--paper-1);
   --sand:           var(--paper-2);
   --border:         var(--paper-edge);
 
-  --mist:           #E5DECC;   /* atmospheric depth, warm */
-  --stone:          #C7BFA8;   /* heavier divider, inactive control */
+  --mist:           #DCE0E6;   /* atmospheric depth, cool */
+  --stone:          #B7BDC6;   /* heavier divider, inactive control */
 
   /* ── Ink ─── Vela Navy family per brand spec, never grey ─────────── */
   --ink-0:          #081320;   /* Midnight Ink — strongest, hero headlines, primary buttons */
@@ -102,12 +106,12 @@
   --vela-frost-blue:    var(--winter);
   --vela-ember-red:     var(--cinnabar);
 
-  /* ── Type ─── Vela brand register per design boards.
-     Display: Fraunces (closest free analogue to Lyon Display / Stael
-     Display). Variable font with OPSZ axis — works at hero scale and
-     at body. Body / UI: Inter. Code / data: JetBrains Mono. */
-  --font-display:   "Fraunces", "Lyon Display", "EB Garamond", "Palatino Linotype", Georgia, serif;
-  --font-sans:      "Inter", -apple-system, BlinkMacSystemFont, "Söhne", "Inter Tight", ui-sans-serif, system-ui, sans-serif;
+  /* ── Type ─── infrastructure register. Inter for everything human,
+     JetBrains Mono for everything mechanical. Serif faces still
+     available for the rare deliberate atmospheric moment but are NOT
+     the default. */
+  --font-sans:      "Inter", -apple-system, BlinkMacSystemFont, "Söhne", ui-sans-serif, system-ui, sans-serif;
+  --font-display:   var(--font-sans);
   --font-body:      var(--font-sans);
   --font-mono:      "JetBrains Mono", "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
   --font-serif:     "Fraunces", "EB Garamond", Georgia, serif;
@@ -239,16 +243,13 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-/* Headings — serif display per Vela brand. Fraunces with tight tracking,
-   regular-to-medium weight (serifs carry presence; bold serif reads heavy). */
+/* Headings — Inter semibold. Direct, dense, dev-tier. */
 h1, h2 {
-  font-family: var(--font-display);
-  font-weight: 450;
-  letter-spacing: -0.018em;
+  font-family: var(--font-sans);
+  font-weight: 600;
+  letter-spacing: -0.02em;
   color: var(--ink-0);
   text-wrap: balance;
-  font-optical-sizing: auto;
-  font-variation-settings: "opsz" 144, "SOFT" 30;
 }
 
 /* Code, kbd, pre — JetBrains Mono. Technical seasoning only. */

@@ -35,38 +35,9 @@ const lastUpdated = stats.lastUpdated
   active="home"
   wide
 >
-  <!-- Hero -->
+  <!-- Hero — proof first, prose second. -->
   <header class="vh-hero">
-    <div class="vh-hero__mark" aria-hidden="true">
-      <svg viewBox="0 0 64 24" width="64" height="24" fill="none" stroke="currentColor" stroke-width="0.7">
-        <circle cx="6" cy="12" r="1.4" fill="currentColor" />
-        <circle cx="20" cy="6" r="1.1" fill="currentColor" />
-        <circle cx="32" cy="14" r="1.6" fill="currentColor" />
-        <circle cx="46" cy="9" r="1.2" fill="currentColor" />
-        <circle cx="58" cy="17" r="1.3" fill="currentColor" />
-        <path d="M6 12 L20 6 L32 14 L46 9 L58 17" opacity="0.5" />
-      </svg>
-      <span class="vh-hero__mark-label">Vela · v{VERSION}</span>
-    </div>
-    <h1 class="vh-hero__title">An open protocol for scientific findings.</h1>
-    <p class="vh-hero__sub">
-      When a finding weakens, the trials and target hypotheses that depended on it know —
-      automatically. Findings, evidence, and corrections as signed, content-addressed events
-      that propagate through a dependency graph.
-    </p>
-    <p class="vh-hero__byline">
-      Built by <a href="/lineage" class="vh-hero__byline-link">Will Blair</a>, in the
-      open at <a href="https://github.com/vela-science/vela" rel="noopener" class="vh-hero__byline-link">github.com/vela-science/vela</a>.
-    </p>
-
-    <div class="vh-hero__ctas">
-      <a class="vh-btn vh-btn--primary" href="/protocol">
-        Read the protocol <span aria-hidden="true">→</span>
-      </a>
-      <a class="vh-btn vh-btn--secondary" href="/workbench">
-        Open the workbench <span aria-hidden="true">→</span>
-      </a>
-    </div>
+    <p class="vh-hero__eyebrow">vela {VERSION} · open protocol for scientific findings</p>
 
     <div class="vh-try">
       <div class="vh-try__head">
@@ -75,8 +46,8 @@ const lastUpdated = stats.lastUpdated
       </div>
       <pre class="vh-code"><code><span class="vh-ps">$</span> <span class="vh-cmd">curl</span> <span class="vh-flag">-sSL</span> https://vela.science/try | <span class="vh-cmd">bash</span></code></pre>
       <p class="vh-try__note">
-        Downloads a real signed proof packet plus a stdlib-only Python verifier and recomputes
-        every file's SHA-256 against the manifest. Runs locally, exits non-zero on any mismatch.
+        Downloads a real signed proof packet, a stdlib-only Python verifier, and recomputes
+        every file's SHA-256 against the manifest. Exits non-zero on any mismatch.
       </p>
     </div>
 
@@ -87,17 +58,36 @@ const lastUpdated = stats.lastUpdated
       </div>
       <div class="vh-stat">
         <dt>3</dt>
-        <dd>reducer implementations</dd>
+        <dd>reducer impls byte-identical</dd>
       </div>
       <div class="vh-stat">
         <dt>35/35</dt>
-        <dd>files verified byte-identical</dd>
+        <dd>files verified</dd>
       </div>
       <div class="vh-stat">
         <dt>{lastUpdated}</dt>
         <dd>last signed</dd>
       </div>
     </dl>
+
+    <h1 class="vh-hero__title">Findings, signed. Corrections, addressable. State, replayable.</h1>
+    <p class="vh-hero__sub">
+      Findings, evidence, and corrections as content-addressed signed events. When a finding
+      weakens, the trials and downstream claims that depended on it know — through the
+      dependency graph, not by rumor.
+    </p>
+
+    <div class="vh-hero__ctas">
+      <a class="vh-btn vh-btn--primary" href="/quickstart">
+        Quickstart <span aria-hidden="true">→</span>
+      </a>
+      <a class="vh-btn vh-btn--secondary" href="/spec">
+        Read the spec <span aria-hidden="true">→</span>
+      </a>
+      <a class="vh-btn vh-btn--secondary" href="/workbench">
+        Open workbench <span aria-hidden="true">→</span>
+      </a>
+    </div>
   </header>
 
   <!-- Live frontier -->
@@ -133,7 +123,6 @@ const lastUpdated = stats.lastUpdated
           {tensionList.length} open contradictions →
         </a>
       )}
-      <a class="vh-link" href="/honest">What isn't true yet →</a>
       <a class="vh-link" href="/quickstart">Deposit your first finding →</a>
     </div>
   </section>
@@ -200,42 +189,38 @@ const lastUpdated = stats.lastUpdated
   <nav class="vh-directory" aria-label="Site directory">
     <div class="vh-directory__col">
       <p class="vh-directory__head">Read</p>
-      <a class="vh-directory__link" href="https://borrowedlight.org" rel="noopener">The essay</a>
-      <a class="vh-directory__link" href="/protocol">The protocol</a>
-      <a class="vh-directory__link" href="/spec">Protocol specification</a>
-      <a class="vh-directory__link" href="/protocol/agents">Agent integration</a>
+      <a class="vh-directory__link" href="/spec">Protocol spec</a>
+      <a class="vh-directory__link" href="/sdk">SDK reference</a>
+      <a class="vh-directory__link" href="/quickstart">Quickstart</a>
+      <a class="vh-directory__link" href="/faq">FAQ</a>
     </div>
     <div class="vh-directory__col">
       <p class="vh-directory__head">Try</p>
-      <a class="vh-directory__link" href="/quickstart">Five-minute quickstart</a>
-      <a class="vh-directory__link" href="/sdk">SDK reference</a>
-      <a class="vh-directory__link" href="/workbench">The workbench</a>
-      <a class="vh-directory__link" href="/try">The 30-second proof</a>
+      <a class="vh-directory__link" href="/workbench">Workbench</a>
+      <a class="vh-directory__link" href="/try">30-second proof</a>
+      <a class="vh-directory__link" href={`${HUB_URL}/entries`} rel="noopener">Hub entries</a>
+      <a class="vh-directory__link" href="/replay">Replay an event log</a>
     </div>
     <div class="vh-directory__col">
       <p class="vh-directory__head">Verify</p>
-      <a class="vh-directory__link" href="/proof/pericyte-correction">A worked Correction</a>
-      <a class="vh-directory__link" href="/proof/contradiction">A worked contradiction</a>
-      <a class="vh-directory__link" href="/proof/packet">The signed proof packet</a>
-      <a class="vh-directory__link" href="/honest">What isn't true yet</a>
+      <a class="vh-directory__link" href="/proof/pericyte-correction">Worked Correction</a>
+      <a class="vh-directory__link" href="/proof/contradiction">Worked contradiction</a>
+      <a class="vh-directory__link" href="/proof/packet">Signed proof packet</a>
+      <a class="vh-directory__link" href="/counterfactual">Counterfactuals</a>
     </div>
     <div class="vh-directory__col">
-      <p class="vh-directory__head">Questions</p>
-      <a class="vh-directory__link" href="/faq">Frequently questioned answers</a>
-      <a class="vh-directory__link" href="/replay">Replay an event log</a>
-      <a class="vh-directory__link" href="/lineage">Why this exists</a>
-      <a class="vh-directory__link" href={REPO_URL} rel="noopener">Source on GitHub</a>
+      <p class="vh-directory__head">Source</p>
+      <a class="vh-directory__link" href={REPO_URL} rel="noopener">github.com/vela-science/vela</a>
+      <a class="vh-directory__link" href={HUB_URL} rel="noopener">vela-hub.fly.dev</a>
+      <a class="vh-directory__link" href="/vela_reducer.py">vela_reducer.py</a>
+      <a class="vh-directory__link" href="/vela_reducer.mjs">vela_reducer.mjs</a>
     </div>
   </nav>
 
-  <!-- Imprint footer -->
   <footer class="vh-imprint" role="contentinfo">
     <p class="vh-imprint__lines">
-      <a href="/lineage" class="vh-link">Why this exists, named once →</a>
-      <span class="vh-imprint__sep" aria-hidden="true">·</span>
-      <a href="https://borrowedlight.org" rel="noopener" class="vh-link">Borrowed Light, the essay →</a>
+      vela {VERSION} · MIT · open protocol
     </p>
-    <p class="vh-imprint__mark">for M.</p>
   </footer>
 </Reading>
 
@@ -244,68 +229,41 @@ const lastUpdated = stats.lastUpdated
   .vh-hero {
     max-width: 64rem;
   }
-  .vh-hero__mark {
-    display: inline-flex;
-    align-items: center;
-    gap: 12px;
-    color: color-mix(in oklab, var(--gold) 78%, var(--ink-2));
+  .vh-hero__eyebrow {
     margin: 0 0 1.6rem;
-  }
-  .vh-hero__mark svg { display: block; }
-  .vh-hero__mark-label {
     font-family: var(--font-mono);
-    font-size: 0.68rem;
+    font-size: 0.78rem;
     font-weight: 500;
-    letter-spacing: 0.22em;
-    text-transform: uppercase;
+    color: var(--ink-3);
+    letter-spacing: 0.02em;
   }
   .vh-hero__title {
-    font-family: var(--font-display);
-    font-weight: 400;
-    font-size: clamp(2.6rem, 6vw, 4.4rem);
-    line-height: 1.02;
-    letter-spacing: -0.02em;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: clamp(2rem, 4.2vw, 2.8rem);
+    line-height: 1.08;
+    letter-spacing: -0.022em;
     color: var(--ink-0);
-    margin: 0 0 1.5rem;
+    margin: 2.6rem 0 1rem;
     text-wrap: balance;
-    max-width: 18ch;
-    font-variation-settings: "opsz" 144, "SOFT" 30;
+    max-width: 36ch;
   }
   .vh-hero__sub {
     font-family: var(--font-sans);
     font-weight: 400;
-    font-size: clamp(1.05rem, 1.5vw, 1.2rem);
+    font-size: clamp(1rem, 1.3vw, 1.1rem);
     line-height: 1.55;
     letter-spacing: -0.005em;
     color: var(--ink-2);
-    margin: 0 0 1rem;
-    max-width: 54ch;
-    text-wrap: pretty;
-  }
-  .vh-hero__byline {
     margin: 0 0 2rem;
-    font-family: var(--font-mono);
-    font-size: 0.7rem;
-    letter-spacing: 0.06em;
-    color: var(--ink-3);
-  }
-  .vh-hero__byline-link {
-    color: var(--ink-2);
-    text-decoration: none;
-    border-bottom: 1px solid color-mix(in oklab, var(--gold) 38%, transparent);
-    padding-bottom: 1px;
-    transition: color 160ms var(--ease), border-bottom-color 160ms var(--ease);
-  }
-  .vh-hero__byline-link:hover {
-    color: var(--gold);
-    border-bottom-color: var(--gold);
+    max-width: 60ch;
+    text-wrap: pretty;
   }
 
   .vh-hero__ctas {
     display: flex;
     flex-wrap: wrap;
-    gap: 12px;
-    margin-bottom: 2.4rem;
+    gap: 10px;
   }
   .vh-btn {
     display: inline-flex;
@@ -462,16 +420,15 @@ const lastUpdated = stats.lastUpdated
     margin: 0 0 0.85rem;
   }
   .vh-section__title {
-    font-family: var(--font-display);
-    font-weight: 450;
-    font-size: clamp(1.9rem, 3.6vw, 2.8rem);
-    line-height: 1.06;
-    letter-spacing: -0.018em;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: clamp(1.5rem, 2.6vw, 2rem);
+    line-height: 1.12;
+    letter-spacing: -0.022em;
     color: var(--ink-0);
-    margin: 0 0 0.9rem;
+    margin: 0 0 0.8rem;
     text-wrap: balance;
-    max-width: 22ch;
-    font-variation-settings: "opsz" 144, "SOFT" 30;
+    max-width: 36ch;
   }
   .vh-section__title--small {
     font-size: clamp(1.4rem, 2.4vw, 1.8rem);
@@ -556,10 +513,11 @@ const lastUpdated = stats.lastUpdated
     min-height: 1.4em;
   }
   .vh-constellation__quote {
-    font-family: var(--font-display);
-    font-size: 1.02rem;
+    font-family: var(--font-sans);
+    font-weight: 500;
+    font-size: 0.92rem;
     color: var(--ink-0);
-    letter-spacing: 0;
+    letter-spacing: -0.005em;
     text-transform: none;
     font-weight: 400;
   }

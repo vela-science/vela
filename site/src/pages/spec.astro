@@ -28,10 +28,10 @@ import { REPO_URL, VERSION } from "../config";
   <article class="spec">
 
     <p class="spec__lede">
-      This is the document a research engineer or security reviewer earns by needing the
-      technical commitments. Prose intuition lives in the <a class="inline-link" href="https://borrowedlight.org">essay</a>;
-      design narrative lives at <a class="inline-link" href="/protocol">/protocol</a>. This
-      page defines what a conformant implementation has to do.
+      Vela protocol v1. Defines the on-disk format, signing scheme, and reducer semantics
+      a conformant implementation must implement. Three reference reducers (Rust, Python,
+      TypeScript) ship with the source; new implementations are conformant iff their
+      byte-output matches the reference reducer on the published test corpus.
     </p>
 
     <!-- ── Conformance ── -->
@@ -330,15 +330,14 @@ import { REPO_URL, VERSION } from "../config";
     flex-shrink: 0;
   }
   .spec__title {
-    font-family: var(--font-display);
-    font-weight: 450;
-    font-size: clamp(1.45rem, 2.6vw, 1.95rem);
-    line-height: 1.1;
-    letter-spacing: -0.018em;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: clamp(1.3rem, 2.2vw, 1.65rem);
+    line-height: 1.15;
+    letter-spacing: -0.02em;
     color: var(--ink-0);
     margin: 0;
     text-wrap: balance;
-    font-variation-settings: "opsz" 96, "SOFT" 30;
   }
   .spec__body p {
     font-family: var(--font-sans);
