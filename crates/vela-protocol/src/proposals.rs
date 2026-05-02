@@ -134,6 +134,14 @@ pub struct ToolCallTrace {
     /// taxonomy it wants without protocol bumps.
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub status: String,
+    /// Optional human-readable error detail when `status` indicates a
+    /// failure. Free-form so tool layers can carry a stack frame, an
+    /// HTTP response body, or a one-line summary — whatever a
+    /// reviewer needs to audit what went wrong without re-running the
+    /// agent. Skipped when empty so successful calls round-trip
+    /// byte-identically.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub error_message: String,
 }
 
 /// Declared permission boundary for an `AgentRun`. Lists what the
@@ -2251,14 +2259,29 @@ mod tests {
             started_at: "2026-04-26T01:00:00Z".to_string(),
             finished_at: None,
             context: BTreeMap::new(),
-            tool_calls: vec![ToolCallTrace {
-                tool: "pubmed_search".to_string(),
-                input_sha256: "a".repeat(64),
-                output_sha256: Some("b".repeat(64)),
-                at: "2026-04-26T01:00:05Z".to_string(),
-                duration_ms: Some(842),
-                status: "ok".to_string(),
-            }],
+            tool_calls: vec![
+                ToolCallTrace {
+                    tool: "pubmed_search".to_string(),
+                    input_sha256: "a".repeat(64),
+                    output_sha256: Some("b".repeat(64)),
+                    at: "2026-04-26T01:00:05Z".to_string(),
+                    duration_ms: Some(842),
+                    status: "ok".to_string(),
+                    error_message: String::new(),
+                },
+                // v0.49: a failed tool call with an explanatory
+                // error_message — the field a reviewer needs to audit
+                // what went wrong without re-running the agent.
+                ToolCallTrace {
+                    tool: "arxiv_fetch".to_string(),
+                    input_sha256: "c".repeat(64),
+                    output_sha256: None,
+                    at: "2026-04-26T01:00:18Z".to_string(),
+                    duration_ms: Some(1200),
+                    status: "error".to_string(),
+                    error_message: "HTTP 503 from arxiv.org; retry budget exhausted".to_string(),
+                },
+            ],
             permissions: Some(PermissionState {
                 data_access: vec!["pubmed:".to_string(), "frontier:vfr_bd91".to_string()],
                 tool_access: vec!["pubmed_search".to_string(), "arxiv_fetch".to_string()],
@@ -2277,6 +2300,28 @@ mod tests {
             json["agent_run"]["permissions"]["data_access"][0],
             "pubmed:",
             "permissions did not survive the round trip: {json}"
+        );
+        // v0.49: a failed tool call with error_message carries the
+        // explanation through canonical JSON. A reviewer can audit
+        // exactly what failed without rerunning the agent.
+        assert_eq!(
+            json["agent_run"]["tool_calls"][1]["status"],
+            "error",
+            "failed tool call status did not survive: {json}"
+        );
+        assert_eq!(
+            json["agent_run"]["tool_calls"][1]["error_message"],
+            "HTTP 503 from arxiv.org; retry budget exhausted",
+            "error_message did not survive the round trip: {json}"
+        );
+        // ...and successful calls still don't leak an empty
+        // error_message into canonical bytes.
+        let raw = std::str::from_utf8(&bytes).unwrap();
+        let okay_call_block_end = raw.find("pubmed_search").unwrap();
+        let until_first_call = &raw[..okay_call_block_end + 200];
+        assert!(
+            !until_first_call.contains("\"error_message\":\"\""),
+            "successful tool call leaked an empty error_message: {until_first_call}"
         );
     }
 }

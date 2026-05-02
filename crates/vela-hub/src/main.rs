@@ -98,12 +98,48 @@ struct AppState {
     /// re-fetch automatically. Bounded loosely; in v0.7 we expect
     /// fewer than a dozen frontiers ever.
     frontier_cache: FrontierCache,
+    /// v0.49: stale-on-read cache for DB reads. When the Postgres
+    /// backend hiccups (Neon cold-start, network blip, restart), the
+    /// hub serves the last-known-good response with an `X-Vela-Stale`
+    /// header instead of 5xx-ing. The TTL is short (60 s) so a
+    /// long-lived outage still surfaces; but a single failed query
+    /// no longer takes down the registry.
+    db_cache: DbCache,
     /// Shared reqwest client. Connection pool reuse matters for
     /// repeat fetches against the same locator host.
     http: reqwest::Client,
     /// Public-facing URLs the rendered HTML quotes back to readers.
     /// Configurable via env so the same binary serves any deployment.
     urls: PublicUrls,
+}
+
+/// v0.49: tiny stale-on-read cache for DB query results. Keyed by a
+/// short string (route + arg). Each entry stores the JSON value, the
+/// time it was fetched, and serves stale on any query failure within
+/// `DB_CACHE_STALE_WINDOW`.
+type DbCache = Arc<RwLock<HashMap<String, DbCacheEntry>>>;
+
+#[derive(Clone)]
+struct DbCacheEntry {
+    value: Value,
+    fetched_at: std::time::Instant,
+}
+
+const DB_CACHE_FRESH_TTL: std::time::Duration = std::time::Duration::from_secs(60);
+const DB_CACHE_STALE_WINDOW: std::time::Duration = std::time::Duration::from_secs(30 * 60);
+
+async fn db_cache_read(cache: &DbCache, key: &str) -> Option<DbCacheEntry> {
+    cache.read().await.get(key).cloned()
+}
+
+async fn db_cache_write(cache: &DbCache, key: &str, value: Value) {
+    cache.write().await.insert(
+        key.to_string(),
+        DbCacheEntry {
+            value,
+            fetched_at: std::time::Instant::now(),
+        },
+    );
 }
 
 // Local RegistryEntry struct removed in v0.21 — db.rs now uses
@@ -176,6 +212,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let state = AppState {
         db,
         frontier_cache: Arc::new(RwLock::new(HashMap::new())),
+        db_cache: Arc::new(RwLock::new(HashMap::new())),
         http,
         urls,
     };
@@ -260,24 +297,72 @@ async fn healthz(State(state): State<AppState>) -> (StatusCode, Json<Value>) {
 }
 
 async fn list_entries(State(state): State<AppState>, headers: HeaderMap) -> Response {
+    let cache_key = "list_entries";
+    let cached = db_cache_read(&state.db_cache, cache_key).await;
+    let now = std::time::Instant::now();
+
+    // Fresh cache window — serve straight from memory, skip DB.
+    if let Some(entry) = cached.as_ref() {
+        if now.duration_since(entry.fetched_at) < DB_CACHE_FRESH_TTL {
+            return cached_list_response(&state.urls, &entry.value, &headers, false);
+        }
+    }
+
     match state.db.list_latest_entries().await {
         Ok(values) => {
+            let payload = json!({"schema": REGISTRY_SCHEMA, "entries": values});
+            db_cache_write(&state.db_cache, cache_key, payload.clone()).await;
             if wants_html(&headers) {
                 Html(render_entries_html(&state.urls, &values)).into_response()
             } else {
-                (
-                    StatusCode::OK,
-                    Json(json!({"schema": REGISTRY_SCHEMA, "entries": values})),
-                )
-                    .into_response()
+                (StatusCode::OK, Json(payload)).into_response()
             }
         }
-        Err(e) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({"error": format!("query: {e}")})),
-        )
-            .into_response(),
+        Err(e) => {
+            // v0.49: stale-on-read fallback. Serve the last good
+            // payload (with X-Vela-Stale) instead of 5xx-ing on a
+            // single DB hiccup. Inside the stale window only.
+            if let Some(entry) = cached {
+                if now.duration_since(entry.fetched_at) < DB_CACHE_STALE_WINDOW {
+                    tracing::warn!(
+                        "list_entries: db error '{e}', serving stale ({}s old)",
+                        now.duration_since(entry.fetched_at).as_secs()
+                    );
+                    return cached_list_response(&state.urls, &entry.value, &headers, true);
+                }
+            }
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({"error": format!("query: {e}")})),
+            )
+                .into_response()
+        }
     }
+}
+
+fn cached_list_response(
+    urls: &PublicUrls,
+    payload: &Value,
+    headers: &HeaderMap,
+    stale: bool,
+) -> Response {
+    let entries = payload
+        .get("entries")
+        .and_then(|v| v.as_array())
+        .cloned()
+        .unwrap_or_default();
+    let mut resp = if wants_html(headers) {
+        Html(render_entries_html(urls, &entries)).into_response()
+    } else {
+        (StatusCode::OK, Json(payload.clone())).into_response()
+    };
+    if stale {
+        resp.headers_mut().insert(
+            axum::http::header::HeaderName::from_static("x-vela-stale"),
+            axum::http::HeaderValue::from_static("1"),
+        );
+    }
+    resp
 }
 
 /// Fetch the frontier referenced by an entry's `network_locator`,

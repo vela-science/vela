@@ -18,6 +18,20 @@ use crate::project::Project;
 pub const EVENT_SCHEMA: &str = "vela.event.v0.1";
 pub const NULL_HASH: &str = "sha256:null";
 
+/// v0.49: explicit event kind for actor-key revocation. Coalition
+/// governance promises that key compromise is handled by a signed
+/// `RevocationEvent` that names the key, the moment of compromise,
+/// and the recommended replacement. This constant pairs with
+/// `RevocationPayload` and `new_revocation_event` below.
+///
+/// Existing signed history stays valid as a record of what was
+/// signed when; clients that re-verify against the post-revocation
+/// actor list flag any signature whose `signed_at` is after the
+/// `revoked_at` moment. The hub is transport, not authority — it
+/// stores the revocation alongside the entries that referenced the
+/// revoked key, lets readers decide.
+pub const EVENT_KIND_KEY_REVOKE: &str = "key.revoke";
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct StateTarget {
     pub r#type: String,
@@ -108,6 +122,74 @@ pub fn new_finding_event(input: FindingEventInput<'_>) -> StateEvent {
         after_hash: input.after_hash.to_string(),
         payload: input.payload,
         caveats: input.caveats,
+        signature: None,
+    };
+    event.id = event_id(&event);
+    event
+}
+
+/// Payload of an `EVENT_KIND_KEY_REVOKE` event. Carries the
+/// revoked Ed25519 pubkey (hex-encoded), the moment compromise was
+/// detected (ISO-8601), an optional replacement pubkey the actor is
+/// migrating to, and a free-form reason string. Stored on the event's
+/// `payload` field; the event's `actor` is the actor whose key is
+/// being revoked, and the event itself must be signed by a key that
+/// was authoritative *before* the revocation (typically a co-signer
+/// or the actor's prior key — never the revoked key itself).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct RevocationPayload {
+    /// The Ed25519 pubkey being revoked, hex-encoded (64 chars).
+    pub revoked_pubkey: String,
+    /// ISO-8601 moment when compromise was detected. Signatures
+    /// whose `signed_at` falls after this should be flagged on
+    /// re-verification.
+    pub revoked_at: String,
+    /// Optional replacement pubkey the actor is now signing with,
+    /// hex-encoded. Reviewers re-verifying signed history use this
+    /// to walk forward to the new key.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub replacement_pubkey: String,
+    /// Free-form reason — "key file leaked", "stolen device",
+    /// "scheduled rotation", etc. Reviewer-facing only; the
+    /// substrate doesn't enumerate.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub reason: String,
+}
+
+/// Construct a signed-shape `key.revoke` event for the given actor.
+/// Mirrors `new_finding_event` in shape but targets an actor and
+/// carries a `RevocationPayload` in `payload`. The returned event is
+/// unsigned (caller signs it); `event.id` is the canonical content
+/// address of the unsigned shape.
+pub fn new_revocation_event(
+    actor_id: &str,
+    actor_type: &str,
+    payload: RevocationPayload,
+    reason: &str,
+    before_hash: &str,
+    after_hash: &str,
+) -> StateEvent {
+    let timestamp = Utc::now().to_rfc3339();
+    let payload_value =
+        serde_json::to_value(&payload).expect("RevocationPayload serializes to a JSON object");
+    let mut event = StateEvent {
+        schema: EVENT_SCHEMA.to_string(),
+        id: String::new(),
+        kind: EVENT_KIND_KEY_REVOKE.to_string(),
+        target: StateTarget {
+            r#type: "actor".to_string(),
+            id: actor_id.to_string(),
+        },
+        actor: StateActor {
+            id: actor_id.to_string(),
+            r#type: actor_type.to_string(),
+        },
+        timestamp,
+        reason: reason.to_string(),
+        before_hash: before_hash.to_string(),
+        after_hash: after_hash.to_string(),
+        payload: payload_value,
+        caveats: Vec::new(),
         signature: None,
     };
     event.id = event_id(&event);
@@ -862,5 +944,73 @@ mod tests {
             }),
         )
         .is_err());
+    }
+
+    /// v0.49: a `key.revoke` event names the revoked pubkey, the
+    /// moment of compromise, and (optionally) the replacement key.
+    /// Empty optional fields skip canonical-JSON serialization so
+    /// existing event logs round-trip byte-identically.
+    #[test]
+    fn revocation_event_canonical_shape() {
+        use crate::canonical;
+        let payload = RevocationPayload {
+            revoked_pubkey: "4892f93877e637b5f59af31d9ec6704814842fb278cacb0eb94704baef99455e"
+                .to_string(),
+            revoked_at: "2026-05-01T17:00:00Z".to_string(),
+            replacement_pubkey: "8891a2ab35ca2ed2182ed4e46b6567ce8dacc9985eb496d895578201272a1cd9"
+                .to_string(),
+            reason: "key file leaked from CI cache".to_string(),
+        };
+        let event = new_revocation_event(
+            "reviewer:will-blair",
+            "human",
+            payload,
+            "rotating compromised key",
+            NULL_HASH,
+            NULL_HASH,
+        );
+        assert_eq!(event.kind, EVENT_KIND_KEY_REVOKE);
+        assert_eq!(event.target.r#type, "actor");
+        assert!(event.id.starts_with("vev_"));
+        let bytes = canonical::to_canonical_bytes(&event).unwrap();
+        let s = std::str::from_utf8(&bytes).unwrap();
+        assert!(
+            s.contains("\"revoked_pubkey\""),
+            "canonical bytes missing revoked_pubkey: {s}"
+        );
+        assert!(
+            s.contains("\"revoked_at\""),
+            "canonical bytes missing revoked_at: {s}"
+        );
+        assert!(
+            s.contains("\"replacement_pubkey\""),
+            "canonical bytes missing replacement_pubkey: {s}"
+        );
+
+        // Empty replacement_pubkey skips serialization.
+        let payload_minimal = RevocationPayload {
+            revoked_pubkey: "a".repeat(64),
+            revoked_at: "2026-05-01T17:00:00Z".to_string(),
+            replacement_pubkey: String::new(),
+            reason: String::new(),
+        };
+        let minimal_event = new_revocation_event(
+            "reviewer:will-blair",
+            "human",
+            payload_minimal,
+            "scheduled rotation",
+            NULL_HASH,
+            NULL_HASH,
+        );
+        let minimal_bytes = canonical::to_canonical_bytes(&minimal_event).unwrap();
+        let minimal_s = std::str::from_utf8(&minimal_bytes).unwrap();
+        assert!(
+            !minimal_s.contains("\"replacement_pubkey\""),
+            "empty replacement_pubkey leaked into canonical JSON: {minimal_s}"
+        );
+        assert!(
+            !minimal_s.contains("\"reason\":\"\""),
+            "empty payload reason leaked into canonical JSON: {minimal_s}"
+        );
     }
 }

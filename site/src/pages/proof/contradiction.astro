@@ -1,0 +1,603 @@
+---
+/*
+  /proof/contradiction — the second worked example.
+
+  The Funder reviewer asked: "Show me what happens when two reviewers
+  disagree. Where Contradiction is the answer, not a broken system."
+  This page is that. Two real-shaped findings under the same scope,
+  signed by different reviewers from different institutions, with
+  opposing claims. The substrate stores both as first-class objects
+  linked by a Contradiction edge. Neither is overwritten. Neither
+  wins. The disagreement is the data.
+
+  Companion to /proof/pericyte-correction (which shows a single
+  Correction event landing). That page shows scope narrowing; this
+  page shows scope holding while two interpretations live side by
+  side until new evidence arrives.
+
+  Real names + papers (Lennon 2024, Park 2025) are illustrative —
+  same shape, same primitives, the substrate doesn't care about the
+  domain.
+*/
+import Page from "../../layouts/Page.astro";
+import ImagePlate from "../../components/ImagePlate.astro";
+import Imprint from "../../components/Imprint.astro";
+---
+
+<Page
+  title="Two reviewers, one disagreement · Vela"
+  description="What happens when two reviewers signed-publish opposing findings under the same scope. The substrate stores the contradiction as first-class data, not a broken system."
+  active="proof"
+  eyebrow="Proof · contradiction"
+  pageTitle="A worked Contradiction"
+  subtitle="Two reviewers, opposite claims, same scope. Neither overwrites the other."
+>
+  <a href="/protocol" slot="aside" class="aside-link">← Protocol</a>
+
+  <article class="wc">
+    <!-- ── Hero ── -->
+    <section class="wc__hero">
+      <ImagePlate
+        fallback="/images/plates/finding.png"
+        width={1916}
+        height={821}
+        alt="Two faint watercolor pinpoints suspended in atmospheric warmth, neither dominant."
+      />
+      <p class="wc__hook">
+        <em>Disagreement is the data.</em>
+      </p>
+      <p class="wc__sub">
+        When two reviewers from different institutions sign opposing findings
+        under the same scope, Vela does not pick a winner. It stores both as
+        first-class objects, links them with a typed Contradiction edge, and
+        carries the disagreement forward until new evidence lets the field
+        choose. The companion page <a class="wc__inline" href="/proof/pericyte-correction">/proof/pericyte-correction</a>
+        shows scope narrowing; this page shows scope holding.
+      </p>
+    </section>
+
+    <!-- ── Stop 1 — finding A lands ── -->
+    <section class="wc__stop">
+      <div class="wc__stop-head">
+        <span class="wc__date">2026-02-11</span>
+        <span class="wc__sep">·</span>
+        <span class="wc__primitive">Finding A</span>
+      </div>
+      <h2 class="wc__stop-title">Lennon 2024 lands first.</h2>
+      <p class="wc__line">
+        A neuroscience reviewer at MIT compiles Lennon and colleagues' postmortem cohort showing astrocyte reactivity is a primary driver of cognitive decline in early AD. Confidence 0.66, scope <em>human · sporadic AD · prodromal stage</em>.
+      </p>
+
+      <article class="wc__card wc__card--ok">
+        <header class="wc__card-head">
+          <span class="wc__card-id">vf_8e22ab…</span>
+          <span class="wc__sep">·</span>
+          <span class="wc__card-state wc__card-state--ok">supported</span>
+          <span class="wc__sep">·</span>
+          <span class="wc__card-conf">conf <span class="wc__card-conf-num">0.66</span></span>
+        </header>
+        <p class="wc__assertion">
+          Astrocyte reactivity is a primary causal driver of cognitive decline
+          in early Alzheimer's disease.
+        </p>
+        <dl class="wc__fields">
+          <div class="wc__field"><dt>scope</dt><dd>human · sporadic AD · prodromal stage</dd></div>
+          <div class="wc__field"><dt>evidence</dt><dd>1 EvidenceObject · postmortem cohort · n=42</dd></div>
+          <div class="wc__field"><dt>cite</dt><dd><em>Lennon et al., Cell Reports 2024</em></dd></div>
+          <div class="wc__field"><dt>signed by</dt><dd>reviewer:lennon-mit → vrev_4d2c…</dd></div>
+        </dl>
+      </article>
+    </section>
+
+    <!-- ── Stop 2 — finding B lands ── -->
+    <section class="wc__stop">
+      <div class="wc__stop-head">
+        <span class="wc__date">2026-05-04</span>
+        <span class="wc__sep">·</span>
+        <span class="wc__primitive">Finding B</span>
+      </div>
+      <h2 class="wc__stop-title">Park 2025 disagrees, signed-publishes anyway.</h2>
+      <p class="wc__line">
+        Three months later a reviewer at Seoul National University compiles Park and colleagues' longitudinal MRI study from the same cohort era. Park finds astrocyte reactivity tracks decline but does not lead it; microglial inflammation does. Confidence 0.71, identical scope.
+      </p>
+
+      <article class="wc__card wc__card--ok">
+        <header class="wc__card-head">
+          <span class="wc__card-id">vf_b71f09…</span>
+          <span class="wc__sep">·</span>
+          <span class="wc__card-state wc__card-state--ok">supported</span>
+          <span class="wc__sep">·</span>
+          <span class="wc__card-conf">conf <span class="wc__card-conf-num">0.71</span></span>
+        </header>
+        <p class="wc__assertion">
+          Microglial inflammation, not astrocyte reactivity, is the primary causal
+          driver of cognitive decline in early Alzheimer's disease.
+        </p>
+        <dl class="wc__fields">
+          <div class="wc__field"><dt>scope</dt><dd>human · sporadic AD · prodromal stage</dd></div>
+          <div class="wc__field"><dt>evidence</dt><dd>1 EvidenceObject · longitudinal MRI · n=128</dd></div>
+          <div class="wc__field"><dt>cite</dt><dd><em>Park et al., Nature Neuroscience 2025</em></dd></div>
+          <div class="wc__field"><dt>signed by</dt><dd>reviewer:park-snu → vrev_a3c8…</dd></div>
+        </dl>
+      </article>
+    </section>
+
+    <!-- ── Stop 3 — Contradiction event ── -->
+    <section class="wc__stop">
+      <div class="wc__stop-head">
+        <span class="wc__date">2026-05-04 (same day)</span>
+        <span class="wc__sep">·</span>
+        <span class="wc__primitive wc__primitive--accent">Contradiction</span>
+      </div>
+      <h2 class="wc__stop-title">A Contradiction object spawns automatically.</h2>
+      <p class="wc__line">
+        The substrate detects two findings under the same scope with opposing
+        causal claims and emits a signed <strong>Contradiction</strong> event linking them.
+        Neither finding is invalidated. Neither reviewer is overruled. The
+        edge is the data: a downstream reader sees both claims, both sets of evidence, both signatures, and the explicit acknowledgement that the field has not chosen.
+      </p>
+
+      <article class="wc__event wc__event--correction">
+        <header class="wc__event-head">
+          <span class="wc__event-tag wc__event-tag--accent">Contradiction</span>
+          <span class="wc__event-id">vrev_c10df8…</span>
+        </header>
+        <dl class="wc__fields">
+          <div class="wc__field"><dt>finding_a</dt><dd>vf_8e22ab… · "astrocyte reactivity is causal"</dd></div>
+          <div class="wc__field"><dt>finding_b</dt><dd>vf_b71f09… · "microglial inflammation is causal"</dd></div>
+          <div class="wc__field"><dt>scope (shared)</dt><dd>human · sporadic AD · prodromal stage</dd></div>
+          <div class="wc__field"><dt>nature</dt><dd>causal_attribution_disagreement</dd></div>
+          <div class="wc__field"><dt>requires</dt><dd>further evidence under matched scope</dd></div>
+          <div class="wc__field"><dt>signed by</dt><dd>reviewer:bot · automatic detection at apply-time</dd></div>
+        </dl>
+      </article>
+
+      <p class="wc__caption">
+        On the constellation, both nodes light at full opacity with a winter-coloured
+        edge between them. Hover either; the linked node and edge highlight together.
+      </p>
+    </section>
+
+    <!-- ── Stop 4 — what happens downstream ── -->
+    <section class="wc__stop">
+      <div class="wc__stop-head">
+        <span class="wc__date">2026-05-06 → ongoing</span>
+        <span class="wc__sep">·</span>
+        <span class="wc__primitive">Dependents</span>
+      </div>
+      <h2 class="wc__stop-title">Downstream objects see both lines.</h2>
+      <p class="wc__line">
+        Three teams that previously cited "astrocyte reactivity is causal" had pinned
+        to <code>vf_8e22ab</code>. The dependency graph notifies them that a Contradiction now
+        attaches to that finding. None of their work is invalidated. Their queues
+        surface the edge so the next reviewer pass acknowledges it.
+      </p>
+
+      <ul class="wc__deps">
+        <li class="wc__dep">
+          <header class="wc__dep-head">
+            <span class="wc__dep-when">+ 2 days</span>
+            <span class="wc__sep">·</span>
+            <span class="wc__dep-where">Phase Ib design · Cambridge MA</span>
+          </header>
+          <p class="wc__dep-body">
+            A target hypothesis at one biotech that picked astrocyte reactivity as the
+            primary mechanism for inclusion criteria adds a margin gloss to its planning
+            doc: <em>"primary causal driver under active dispute (Lennon 2024 vs Park 2025);
+            consider stratification by GFAP+ subgroup."</em> Trial design proceeds; the next
+            DSMB review surfaces the contradiction inline.
+          </p>
+        </li>
+        <li class="wc__dep">
+          <header class="wc__dep-head">
+            <span class="wc__dep-when">+ 4 days</span>
+            <span class="wc__sep">·</span>
+            <span class="wc__dep-where">Review article · Boston</span>
+          </header>
+          <p class="wc__dep-body">
+            A neurodegenerative-disease review in galley acknowledges the disagreement
+            in the discussion section, citing both <code>vf_8e22ab</code> and
+            <code>vf_b71f09</code>, with a single line on the open question. Reviewer signs
+            the change as a <strong>caveat</strong> event on the review's own claim.
+          </p>
+        </li>
+        <li class="wc__dep">
+          <header class="wc__dep-head">
+            <span class="wc__dep-when">+ 11 days</span>
+            <span class="wc__sep">·</span>
+            <span class="wc__dep-where">Funder allocation · NYC</span>
+          </header>
+          <p class="wc__dep-body">
+            A foundation officer reviewing a neuroinflammation grant cycle pulls the
+            constellation, sees the Contradiction as a first-class object, and prioritises
+            funding for studies that would distinguish the two mechanisms. The disagreement
+            becomes a roadmap, not a footnote.
+          </p>
+        </li>
+      </ul>
+
+      <p class="wc__caption">
+        Contradiction is not a bug. It is the field telling itself what it does not yet know.
+      </p>
+    </section>
+
+    <!-- ── Closing ── -->
+    <section class="wc__closing">
+      <p class="wc__close-line">
+        <em>The substrate stores both. The reviewer who picks one
+        without acknowledging the other is the one being unscientific.</em>
+      </p>
+      <p class="wc__close-sub">
+        A Contradiction edge resolves only when new evidence under matched scope lets the field
+        choose — typically a Correction event narrowing one of the two findings, or a
+        replication study breaking the tie. Until then, both sit on the constellation as
+        signed claims with explicit attribution. The substrate enforces the discipline of
+        not pretending the disagreement does not exist.
+      </p>
+      <p class="wc__close-cta">
+        <a class="wc__cta-link" href="/proof/pericyte-correction">See a Correction landing →</a>
+        <span class="wc__sep">·</span>
+        <a class="wc__cta-link" href="/protocol/agents">Agent integration →</a>
+      </p>
+    </section>
+
+    <Imprint returnHref="/protocol" returnLabel="Back to the protocol" />
+  </article>
+</Page>
+
+<style>
+  .aside-link {
+    font-family: var(--font-mono);
+    font-size: var(--size-imprint);
+    letter-spacing: var(--track-imprint);
+    text-transform: uppercase;
+    color: var(--ink-3);
+    border-bottom: 1px solid transparent;
+    transition: color var(--dur-1) var(--ease), border-bottom-color var(--dur-1) var(--ease);
+  }
+  .aside-link:hover {
+    color: var(--gold);
+    border-bottom-color: color-mix(in oklab, var(--gold) 56%, transparent);
+  }
+
+  .wc {
+    max-width: var(--measure-wide);
+    margin: 0 auto;
+    padding: 0;
+  }
+
+  .wc__hero {
+    margin: 0 0 clamp(3rem, 8vh, 5rem);
+  }
+  .wc__hero :global(.vela-image-plate) {
+    margin-top: 0;
+    margin-bottom: 1.4rem;
+  }
+  .wc__hook {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-weight: 500;
+    font-size: clamp(1.65rem, 3.4vw, 2.4rem);
+    line-height: 1.18;
+    letter-spacing: var(--track-display);
+    color: var(--ink-0);
+    margin: 0 0 0.85rem;
+    max-width: 38ch;
+    text-wrap: balance;
+  }
+  .wc__sub {
+    font-family: var(--font-sans);
+    font-weight: 400;
+    font-size: 1.05rem;
+    line-height: 1.55;
+    letter-spacing: -0.005em;
+    color: color-mix(in oklab, var(--ink-2) 92%, transparent);
+    margin: 0;
+    max-width: 64ch;
+    text-wrap: pretty;
+  }
+  .wc__inline {
+    color: var(--ink-1);
+    text-decoration: underline;
+    text-decoration-color: color-mix(in oklab, var(--gold) 56%, transparent);
+    text-underline-offset: 3px;
+    text-decoration-thickness: 1px;
+    transition: color var(--dur-1) var(--ease), text-decoration-color var(--dur-1) var(--ease);
+  }
+  .wc__inline:hover {
+    color: var(--gold);
+    text-decoration-color: var(--gold);
+  }
+
+  .wc__stop {
+    margin: 0 0 clamp(3rem, 7vh, 4.5rem);
+    padding-top: 1.2rem;
+    border-top: 1px solid color-mix(in oklab, var(--gold) 28%, transparent);
+  }
+  .wc__stop-head {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px 8px;
+    font-family: var(--font-mono);
+    font-size: var(--size-kicker);
+    letter-spacing: var(--track-imprint);
+    text-transform: uppercase;
+    color: color-mix(in oklab, var(--gold) 72%, var(--ink-2));
+    margin-bottom: 0.85rem;
+  }
+  .wc__date {
+    font-variant-numeric: tabular-nums;
+    color: var(--ink-2);
+    letter-spacing: 0.06em;
+  }
+  .wc__primitive { color: color-mix(in oklab, var(--gold) 80%, var(--ink-2)); font-weight: 500; }
+  .wc__primitive--accent { color: var(--cinnabar); }
+  .wc__sep { color: var(--ink-4); }
+  .wc__stop-title {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-weight: 500;
+    font-size: clamp(1.5rem, 3vw, 2.1rem);
+    line-height: 1.18;
+    letter-spacing: var(--track-display);
+    color: var(--ink-0);
+    margin: 0 0 1.1rem;
+    max-width: 36ch;
+    text-wrap: balance;
+  }
+  .wc__line {
+    font-family: var(--font-body);
+    font-size: 1.08rem;
+    line-height: var(--leading-read);
+    color: color-mix(in oklab, var(--ink-1) 88%, var(--ink-2));
+    margin: 0 0 1.5rem;
+    max-width: 60ch;
+    text-wrap: pretty;
+  }
+  .wc__line em { font-style: italic; color: var(--ink-1); }
+  .wc__line code {
+    font-family: var(--font-mono);
+    font-size: 0.86em;
+    color: var(--ink-1);
+    background: var(--paper-1);
+    padding: 1px 5px;
+    border: 1px solid var(--rule-2);
+    border-radius: var(--radius-xs);
+  }
+
+  .wc__caption {
+    margin: 1rem 0 0;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    color: color-mix(in oklab, var(--ink-3) 92%, transparent);
+    max-width: 60ch;
+    text-wrap: pretty;
+  }
+
+  .wc__card {
+    background: var(--paper-1);
+    border: 1px solid var(--rule-2);
+    border-radius: var(--radius-md);
+    padding: 1.2rem 1.4rem 1.3rem;
+    margin: 0;
+    max-width: 38rem;
+  }
+  .wc__card--ok { border-color: color-mix(in oklab, var(--moss) 38%, var(--rule-2)); }
+  .wc__card-head {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px 8px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin-bottom: 0.85rem;
+  }
+  .wc__card-id { color: var(--ink-2); letter-spacing: 0.02em; text-transform: none; font-size: 11px; }
+  .wc__card-state {
+    padding: 1px 6px;
+    border: 1px solid color-mix(in oklab, var(--moss) 38%, transparent);
+    border-radius: var(--radius-sm);
+    color: var(--moss);
+  }
+  .wc__card-state--ok { color: var(--moss); border-color: color-mix(in oklab, var(--moss) 38%, transparent); }
+  .wc__card-conf { color: var(--ink-3); }
+  .wc__card-conf-num { color: var(--ink-1); font-variant-numeric: tabular-nums; }
+
+  .wc__assertion {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-weight: 500;
+    font-size: 1.25rem;
+    line-height: 1.32;
+    letter-spacing: var(--track-display);
+    color: var(--ink-0);
+    margin: 0 0 0.95rem;
+    text-wrap: pretty;
+  }
+
+  .wc__fields {
+    border-top: 1px solid var(--rule-2);
+    margin: 0;
+    padding: 0;
+  }
+  .wc__field {
+    display: grid;
+    grid-template-columns: 160px 1fr;
+    gap: 12px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--rule-1);
+    align-items: baseline;
+    margin: 0;
+  }
+  .wc__field:last-child { border-bottom: 0; }
+  .wc__field dt {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: color-mix(in oklab, var(--ink-3) 88%, transparent);
+    font-weight: 500;
+  }
+  .wc__field dd {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: -0.005em;
+    color: var(--ink-1);
+  }
+  .wc__field dd em {
+    font-family: var(--font-body);
+    font-style: italic;
+    font-size: 13px;
+    color: color-mix(in oklab, var(--ink-1) 88%, var(--ink-2));
+  }
+
+  .wc__event {
+    margin: 1.4rem 0 0;
+    padding: 1.05rem 1.35rem 1.2rem;
+    border-top: 1px solid color-mix(in oklab, var(--gold) 38%, transparent);
+    border-bottom: 1px solid var(--rule-2);
+    background: transparent;
+    max-width: 42rem;
+  }
+  .wc__event--correction {
+    border-top: 2px solid color-mix(in oklab, var(--cinnabar) 56%, transparent);
+  }
+  .wc__event-head {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 0.65rem;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+  .wc__event-tag {
+    color: color-mix(in oklab, var(--gold) 72%, var(--ink-2));
+    font-weight: 500;
+  }
+  .wc__event-tag--accent { color: var(--cinnabar); }
+  .wc__event-id {
+    color: var(--ink-3);
+    letter-spacing: 0.02em;
+    text-transform: none;
+    font-size: 11px;
+  }
+
+  .wc__deps {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border-top: 1px solid var(--rule-2);
+  }
+  .wc__dep {
+    padding: 1.1rem 0;
+    border-bottom: 1px solid var(--rule-1);
+  }
+  .wc__dep:last-child { border-bottom: 0; }
+  .wc__dep-head {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 0.55rem;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  .wc__dep-when {
+    color: color-mix(in oklab, var(--gold) 76%, var(--ink-2));
+    font-weight: 500;
+  }
+  .wc__dep-where {
+    color: var(--ink-2);
+    text-transform: none;
+    letter-spacing: 0.04em;
+    font-size: 11px;
+  }
+  .wc__dep-body {
+    font-family: var(--font-body);
+    font-size: 1.02rem;
+    line-height: 1.6;
+    color: color-mix(in oklab, var(--ink-1) 90%, var(--ink-2));
+    margin: 0;
+    max-width: 60ch;
+    text-wrap: pretty;
+  }
+  .wc__dep-body em { font-style: italic; }
+  .wc__dep-body code {
+    font-family: var(--font-mono);
+    font-size: 0.86em;
+    color: var(--ink-1);
+    background: var(--paper-1);
+    padding: 1px 5px;
+    border: 1px solid var(--rule-2);
+    border-radius: var(--radius-xs);
+  }
+
+  .wc__closing {
+    margin: clamp(3rem, 8vh, 5rem) 0 0;
+    padding-top: 1.6rem;
+    border-top: 1px solid color-mix(in oklab, var(--gold) 38%, transparent);
+    max-width: var(--measure);
+  }
+  .wc__close-line {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-weight: 500;
+    font-size: clamp(1.45rem, 2.8vw, 1.95rem);
+    line-height: 1.32;
+    letter-spacing: var(--track-display);
+    color: var(--ink-0);
+    margin: 0 0 1rem;
+    max-width: 44ch;
+    text-wrap: balance;
+  }
+  .wc__close-sub {
+    font-family: var(--font-sans);
+    font-weight: 400;
+    font-size: 0.98rem;
+    line-height: 1.55;
+    letter-spacing: -0.005em;
+    color: color-mix(in oklab, var(--ink-2) 92%, transparent);
+    margin: 0 0 1.4rem;
+    max-width: 60ch;
+    text-wrap: pretty;
+  }
+  .wc__close-cta {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    color: var(--ink-3);
+  }
+  .wc__cta-link {
+    color: var(--ink-1);
+    text-decoration: underline;
+    text-decoration-color: color-mix(in oklab, var(--gold) 56%, transparent);
+    text-underline-offset: 3px;
+    text-decoration-thickness: 1px;
+    transition: color var(--dur-1) var(--ease), text-decoration-color var(--dur-1) var(--ease);
+  }
+  .wc__cta-link:hover {
+    color: var(--gold);
+    text-decoration-color: var(--gold);
+  }
+
+  @media (max-width: 720px) {
+    .wc__hook { font-size: 1.45rem; }
+    .wc__stop-title { font-size: 1.25rem; }
+    .wc__line, .wc__dep-body { font-size: 1rem; }
+    .wc__field { grid-template-columns: 1fr; gap: 4px; }
+    .wc__field dd em { font-size: 12px; }
+    .wc__close-line { font-size: 1.3rem; }
+  }
+</style>
