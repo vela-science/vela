@@ -34,6 +34,38 @@ import { REPO_URL, VERSION } from "../config";
       byte-output matches the reference reducer on the published test corpus.
     </p>
 
+    <!-- ── Front matter — stable URL, editors, change history ── -->
+    <section class="spec__section" id="frontmatter">
+      <header class="spec__head">
+        <span class="spec__num">§0</span>
+        <h2 class="spec__title">Front matter.</h2>
+      </header>
+      <div class="spec__body">
+        <dl class="spec__pair">
+          <dt>Stable URL</dt>
+          <dd><a class="inline-link" href="https://vela.science/spec">https://vela.science/spec</a> (this page)</dd>
+          <dt>Protocol version</dt>
+          <dd><code>v1</code> · embedded in every signed event as the <code>"v"</code> field</dd>
+          <dt>Reference binary</dt>
+          <dd><code>vela v0.48.0</code> · pinned in the masthead and in <code>/.well-known/vela</code></dd>
+          <dt>Test corpus</dt>
+          <dd><a class="inline-link" href="/reducer-fixtures.tar.gz">/reducer-fixtures.tar.gz</a> · the conformance witness for new reducers</dd>
+          <dt>Editor</dt>
+          <dd>Will Blair &lt;will.blair0708@gmail.com&gt;</dd>
+          <dt>Source</dt>
+          <dd><a class="inline-link" href="https://github.com/vela-science/vela" rel="noopener">github.com/vela-science/vela</a></dd>
+          <dt>License</dt>
+          <dd>Spec text CC-BY-4.0 · Reference implementation Apache-2.0 / MIT</dd>
+        </dl>
+        <p>
+          Conformance language is RFC 2119. Each <strong>MUST</strong> / <strong>SHOULD</strong>
+          / <strong>MAY</strong> below has a stable anchor id (e.g.
+          <code>#MUST-canonical-keys</code>) so external conformance reports can cite exact
+          clauses. The full anchor list is at <a class="inline-link" href="#anchors">§10</a>.
+        </p>
+      </div>
+    </section>
+
     <!-- ── Conformance ── -->
     <section class="spec__section" id="conformance">
       <header class="spec__head">
@@ -63,7 +95,7 @@ import { REPO_URL, VERSION } from "../config";
         <h2 class="spec__title">Primitives.</h2>
       </header>
       <div class="spec__body">
-        <p>The protocol defines four primitive object types and one event envelope.</p>
+        <p>The protocol defines five primitive object types and one event envelope.</p>
 
         <dl class="spec__pair">
           <dt><code>Finding</code></dt>
@@ -79,12 +111,18 @@ import { REPO_URL, VERSION } from "../config";
           <dd>An event that updates a Finding. Has a kind (<code>scope-narrow</code>,
             <code>confidence-down</code>, <code>confidence-up</code>, <code>retract</code>),
             a reason (free text), and a list of supporting EvidenceObjects. Corrections
-            propagate through the dependency graph: every claim that depends on the corrected
+            propagate through the link graph: every claim that depends on the corrected
             Finding is notified.</dd>
-          <dt><code>Dependency</code></dt>
+          <dt><code>Link</code></dt>
           <dd>A typed edge between two claim ids. Kind is one of <code>supports</code>,
-            <code>depends-on</code>, or <code>contradicts</code>. The dependency graph is
-            what makes Correction propagation meaningful.</dd>
+            <code>depends</code>, <code>contradicts</code>, <code>narrows</code>, or
+            <code>supersedes</code>. The link graph is what makes Correction propagation
+            meaningful. Cross-frontier targets use the <code>vf_&lt;id&gt;@vfr_&lt;id&gt;</code>
+            form once a frontier dependency has been declared.</dd>
+          <dt><code>Frontier</code></dt>
+          <dd>A named scope of findings owned by a registered actor. Has a content-addressed
+            <code>vfr_&lt;hash&gt;</code> id, a snapshot hash over the canonical state, and an
+            event log that any conformant reducer can replay byte-identically.</dd>
         </dl>
 
         <p>The event envelope wraps every payload:</p>
@@ -118,14 +156,13 @@ import { REPO_URL, VERSION } from "../config";
           (signing, hashing, content-addressing). The rules:
         </p>
         <ol class="spec__list">
-          <li>Object keys MUST be sorted lexicographically by their UTF-8 byte sequence.</li>
-          <li>No whitespace between tokens. No leading or trailing whitespace.</li>
-          <li>Strings MUST use the JSON escape rules in RFC 8259, with no extensions.</li>
-          <li>Numbers MUST be integers or finite IEEE-754 doubles serialized in their shortest
-            round-trip form (ECMA-262 ToString).</li>
-          <li>Arrays preserve element order.</li>
-          <li>Unicode strings are NFC-normalized before serialization.</li>
-          <li>The output is UTF-8 with no BOM.</li>
+          <li id="MUST-canonical-keys"><strong>MUST</strong> sort object keys lexicographically by their UTF-8 byte sequence.</li>
+          <li id="MUST-canonical-whitespace"><strong>MUST</strong> emit no whitespace between tokens; no leading or trailing whitespace.</li>
+          <li id="MUST-canonical-strings"><strong>MUST</strong> use the JSON escape rules in RFC 8259 with no extensions.</li>
+          <li id="MUST-canonical-numbers"><strong>MUST</strong> serialize numbers as integers or finite IEEE-754 doubles in their shortest round-trip form (ECMA-262 ToString).</li>
+          <li id="MUST-canonical-arrays"><strong>MUST</strong> preserve array element order.</li>
+          <li id="MUST-canonical-nfc"><strong>MUST</strong> NFC-normalize Unicode strings before serialization.</li>
+          <li id="MUST-canonical-utf8"><strong>MUST</strong> emit UTF-8 with no byte-order mark.</li>
         </ol>
         <p>
           Two implementations producing different bytes for the same logical document are
@@ -295,6 +332,55 @@ import { REPO_URL, VERSION } from "../config";
       </div>
     </section>
 
+    <!-- ── Anchor index ── -->
+    <section class="spec__section" id="anchors">
+      <header class="spec__head">
+        <span class="spec__num">§10</span>
+        <h2 class="spec__title">Anchor index.</h2>
+      </header>
+      <div class="spec__body">
+        <p>
+          Stable per-clause anchors for external conformance reports. Cite by URL fragment.
+        </p>
+        <ul class="spec__list">
+          <li><a class="inline-link" href="#MUST-canonical-keys"><code>#MUST-canonical-keys</code></a> — sort object keys lexicographically by UTF-8</li>
+          <li><a class="inline-link" href="#MUST-canonical-whitespace"><code>#MUST-canonical-whitespace</code></a> — no whitespace between tokens</li>
+          <li><a class="inline-link" href="#MUST-canonical-strings"><code>#MUST-canonical-strings</code></a> — RFC 8259 escapes, no extensions</li>
+          <li><a class="inline-link" href="#MUST-canonical-numbers"><code>#MUST-canonical-numbers</code></a> — shortest round-trip ECMA-262 ToString</li>
+          <li><a class="inline-link" href="#MUST-canonical-arrays"><code>#MUST-canonical-arrays</code></a> — preserve element order</li>
+          <li><a class="inline-link" href="#MUST-canonical-nfc"><code>#MUST-canonical-nfc</code></a> — NFC-normalize Unicode strings</li>
+          <li><a class="inline-link" href="#MUST-canonical-utf8"><code>#MUST-canonical-utf8</code></a> — UTF-8, no BOM</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ── Change history ── -->
+    <section class="spec__section" id="history">
+      <header class="spec__head">
+        <span class="spec__num">§11</span>
+        <h2 class="spec__title">Change history.</h2>
+      </header>
+      <div class="spec__body">
+        <table class="spec__history">
+          <thead>
+            <tr><th>Date</th><th>Binary</th><th>Change</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>2026-04-27</code></td><td><code>v0.48.0</code></td><td>Workbench launches; HeroConstellation goes live; protocol surface stabilizes for v1 freeze</td></tr>
+            <tr><td><code>2026-04-08</code></td><td><code>v0.46.0</code></td><td>Bridges (cross-frontier <code>vbr_</code> records) introduced</td></tr>
+            <tr><td><code>2026-03-15</code></td><td><code>v0.44.0</code></td><td>Causal graph queries (Pearl L2 effect, L3 counterfactual) shipped</td></tr>
+            <tr><td><code>2026-02-22</code></td><td><code>v0.40.0</code></td><td>Causal claim type + evidence grade added to Finding</td></tr>
+            <tr><td><code>2026-01-30</code></td><td><code>v0.38.0</code></td><td>Threshold signatures (<code>k</code>-of-<code>n</code> joint accept) added</td></tr>
+            <tr><td><code>2025-12-08</code></td><td><code>v0.32.0</code></td><td>Weekly diffs become signed events; <code>frontier diff</code> ships</td></tr>
+            <tr><td><code>2025-11-10</code></td><td><code>v0.28.0</code></td><td>Reviewer / Contradiction-Finder / Experiment-Planner agents shipped</td></tr>
+            <tr><td><code>2025-10-04</code></td><td><code>v0.20.0</code></td><td>Federation primitives (<code>vela registry mirror</code>)</td></tr>
+            <tr><td><code>2025-09-12</code></td><td><code>v0.10.0</code></td><td>Quantitative assertion types (measurement, exclusion)</td></tr>
+            <tr><td><code>2025-08-25</code></td><td><code>v0.5.0</code></td><td>Phase R workbench draft queue + Phase S registry publish loop</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
   </article>
 </Reading>
 
@@ -418,6 +504,38 @@ import { REPO_URL, VERSION } from "../config";
     color: var(--ink-0);
   }
   .spec__pair dt code { background: transparent; padding: 0; }
+  .spec__history {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--font-sans);
+    font-size: 0.92rem;
+    margin: 0.5rem 0;
+  }
+  .spec__history thead th {
+    text-align: left;
+    padding: 0.6rem 0.8rem;
+    border-bottom: 1px solid var(--rule-2);
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    font-weight: 500;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  .spec__history tbody td {
+    padding: 0.55rem 0.8rem;
+    border-bottom: 1px solid var(--rule-1);
+    color: var(--ink-1);
+    vertical-align: top;
+  }
+  .spec__history tbody tr:last-child td { border-bottom: 0; }
+  .spec__history tbody td:first-child { white-space: nowrap; color: var(--ink-2); }
+  .spec__history tbody td:nth-child(2) { white-space: nowrap; color: var(--ink-2); }
+  .spec__history code {
+    font-family: var(--font-mono);
+    font-size: 0.86em;
+    color: var(--ink-0);
+  }
   .inline-link {
     color: var(--ink-1);
     text-decoration: underline;

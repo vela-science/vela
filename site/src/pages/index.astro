@@ -35,30 +35,27 @@ const lastUpdated = stats.lastUpdated
     <p class="vh-hero__eyebrow">vela {VERSION} · open protocol for scientific findings</p>
 
     <div class="vh-try">
-      <div class="vh-try__head">
-        <span class="vh-try__tag">try it · 30s · no install</span>
-        <a class="vh-try__src" href="/try">view source</a>
-      </div>
       <pre class="vh-code"><code><span class="vh-ps">$</span> <span class="vh-cmd">curl</span> <span class="vh-flag">-sSL</span> https://vela.science/try | <span class="vh-cmd">bash</span></code></pre>
       <p class="vh-try__note">
-        Downloads a real signed proof packet, a stdlib-only Python verifier, and recomputes
-        every file's SHA-256 against the manifest. Exits non-zero on any mismatch.
+        Downloads a real signed proof packet and a stdlib-only Python verifier; recomputes
+        every file's SHA-256 against the manifest; exits non-zero on any mismatch.
+        <a class="vh-try__src" href="/try">view source</a>.
       </p>
     </div>
 
     <dl class="vh-stats">
-      <div class="vh-stat">
+      <a class="vh-stat" href={`${HUB_URL}/entries`}>
         <dt>{stats.claims}</dt>
-        <dd>findings on the live frontier</dd>
-      </div>
-      <div class="vh-stat">
+        <dd>findings on the live frontier ↗</dd>
+      </a>
+      <a class="vh-stat" href="/spec#reducer">
         <dt>3</dt>
-        <dd>reducer impls byte-identical</dd>
-      </div>
-      <div class="vh-stat">
+        <dd>reducer impls, byte-identical →</dd>
+      </a>
+      <a class="vh-stat" href="/try">
         <dt>35/35</dt>
-        <dd>files verified</dd>
-      </div>
+        <dd>files verified by the proof script →</dd>
+      </a>
       <div class="vh-stat">
         <dt>{lastUpdated}</dt>
         <dd>last signed</dd>
@@ -451,7 +448,12 @@ const lastUpdated = stats.lastUpdated
     gap: 6px;
     padding: 1.1rem 0 1rem;
     border-right: 1px solid var(--rule-1);
+    text-decoration: none;
+    color: inherit;
+    transition: background 160ms var(--ease);
   }
+  a.vh-stat:hover { background: var(--paper-1); }
+  a.vh-stat:hover dt { color: var(--gold); }
   .vh-stat:first-child { padding-left: 0; }
   .vh-stat:not(:first-child) { padding-left: 1.4rem; }
   .vh-stat:last-child { border-right: 0; }

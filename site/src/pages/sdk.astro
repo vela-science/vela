@@ -147,8 +147,20 @@ vela plan-experiments    --frontier &lt;PATH&gt;   # Experiment Planner</code></
       </div>
 
       <div class="sdk__cmd">
-        <h3 class="sdk__cmd-name">Full subcommand list</h3>
-        <p>The binary ships 30+ subcommands across causal reasoning (<code>vela causal audit|effect|graph|counterfactual</code>), bridges (<code>vela bridges derive</code>), federation (<code>vela federation peer-add</code>), entity resolution, threshold signatures, and more. Run <code>vela help advanced</code> for the full list.</p>
+        <h3 class="sdk__cmd-name">Causal reasoning</h3>
+        <p>Pearl-tier queries against the link graph.</p>
+        <pre class="sdk__code"><code>vela causal audit       &lt;FRONTIER&gt;                     # per-finding identifiability
+vela causal effect      &lt;FRONTIER&gt; &lt;SOURCE&gt; --on &lt;TGT&gt;  # back-door / front-door (Pearl L2)
+vela causal counterfactual &lt;FRONTIER&gt; &lt;SRC&gt; --target &lt;TGT&gt; --set-to &lt;0..1&gt;  # twin-network (L3)
+vela causal graph       &lt;FRONTIER&gt;                     # print the directed link graph</code></pre>
+      </div>
+
+      <div class="sdk__cmd">
+        <h3 class="sdk__cmd-name">Cross-frontier composition</h3>
+        <pre class="sdk__code"><code>vela frontier add-dep    &lt;FRONTIER&gt; --vfr-id &lt;ID&gt; --snapshot &lt;HASH&gt;
+vela frontier refresh-deps &lt;FRONTIER&gt;                  # re-pin to current hub snapshots
+vela bridges derive      &lt;A.json&gt; &lt;B.json&gt;              # cross-frontier hypotheses
+vela bridges confirm     &lt;FRONTIER&gt; &lt;BRIDGE-ID&gt; --reviewer &lt;ID&gt;</code></pre>
       </div>
     </section>
 
