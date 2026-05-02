@@ -102,8 +102,15 @@ const positioned = nodes.map((c, i) => {
   .hc-core {
     fill: var(--gold);
     filter: drop-shadow(0 0 5px var(--gold-glow));
+    transform-origin: 360px 140px;
+    animation: hc-core-pulse 4.2s var(--ease) infinite;
   }
-  .hc-node { cursor: pointer; outline: none; }
+  @keyframes hc-core-pulse {
+    0%, 100% { filter: drop-shadow(0 0 5px var(--gold-glow)); }
+    50%      { filter: drop-shadow(0 0 12px var(--gold-glow)) drop-shadow(0 0 3px var(--gold)); }
+  }
+  .hc-node { cursor: pointer; outline: none; transition: transform 240ms var(--ease); transform-origin: center; transform-box: fill-box; }
+  .hc-node:hover, .hc-node:focus { transform: scale(1.18); }
   .hc-glow {
     fill: var(--gold);
     opacity: 0;
@@ -111,7 +118,7 @@ const positioned = nodes.map((c, i) => {
     pointer-events: none;
   }
   .hc-node:hover .hc-glow,
-  .hc-node:focus .hc-glow { opacity: 0.32; }
+  .hc-node:focus .hc-glow { opacity: 0.42; }
   .hc-dot {
     transition: r 240ms var(--ease), stroke 240ms var(--ease), stroke-width 240ms var(--ease);
     stroke: color-mix(in oklab, var(--ink-1) 18%, transparent);
@@ -119,13 +126,27 @@ const positioned = nodes.map((c, i) => {
   }
   .hc-node:hover .hc-dot,
   .hc-node:focus .hc-dot {
-    stroke: var(--ink-1);
-    stroke-width: 1;
+    stroke: var(--ink-0);
+    stroke-width: 1.2;
   }
   .hc-node--live .hc-dot {
     filter: drop-shadow(0 0 4px var(--gold-glow));
+    animation: hc-twinkle 6s var(--ease) infinite;
   }
   .hc-node--live .hc-glow { opacity: 0.16; }
+  @keyframes hc-twinkle {
+    0%, 90%, 100% { opacity: 1; }
+    93%           { opacity: 0.55; }
+    96%           { opacity: 1; }
+  }
+  /* Stagger the twinkle so nodes don't pulse in lockstep */
+  .hc-node--live:nth-child(3n)   .hc-dot { animation-delay: 0.7s; }
+  .hc-node--live:nth-child(3n+1) .hc-dot { animation-delay: 1.9s; }
+  .hc-node--live:nth-child(3n+2) .hc-dot { animation-delay: 3.4s; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hc-core, .hc-node--live .hc-dot { animation: none; }
+  }
 
   @media (max-width: 720px) {
     .hc { max-height: 200px; }

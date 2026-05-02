@@ -259,4 +259,144 @@ to answer comments.
 
 ---
 
+---
+
+## 4. Astera essay competition submission
+
+Astera Institute has run essay prizes (Roots of Progress, etc.) for
+ambitious open-science visions. When a Vela-shaped competition opens
+(or a related FRO call surfaces from Convergent Research), the
+materials below are the ready-to-paste form fields. Single-author
+submission — no co-authors, no permissions needed.
+
+### Title
+
+```
+Constellations of Borrowed Light:
+An open protocol for scientific findings, evidence, and corrections
+```
+
+(Or the shorter form: "Constellations of Borrowed Light." The
+subtitle gives the operational version that judges scan when
+deciding whether to read.)
+
+### One-sentence summary (for forms with a 200-char field)
+
+```
+A writeable, content-addressed, signed substrate for scientific
+state — findings, evidence, and corrections as first-class events —
+so that AI-generated work compounds rather than scatters.
+```
+
+### Three-paragraph abstract (for forms with a 300-word field)
+
+```
+Science loses an enormous amount of work to its own forgetting.
+Failed Phase II trials get re-enrolled because the failure traveled
+by rumor. Retractions reach one lab and not the three downstream
+programs that depended on the original claim. A graduate student
+joining a project spends six months rebuilding the institutional
+memory because none of it was written down. AI is now producing
+candidate findings, code, protocols, and reviews faster than science's
+current institutions can absorb them — and every output that lands
+in a private log instead of a shared record is a public good lost.
+
+The missing layer is a writeable substrate where findings, failed
+trials, replications, retractions, and confidence updates are
+content-addressed, signed events that propagate through a dependency
+graph. When a 2020 paper narrows the scope of a 2016 finding, three
+downstream objects — a target hypothesis, a Phase II inclusion
+criterion, a review article's headline claim — get notified by the
+substrate rather than waiting five years for a chance encounter at
+a conference. Software has had this layer (Git, GitHub, package
+ecosystems) for two decades. AI has Hugging Face. Structural biology
+has the PDB. Most fields have nothing.
+
+Vela is the implementation direction: a protocol, three independent
+reducer implementations that agree byte-for-byte, a working hub, and
+a worked example (the BBB Flagship corridor in Alzheimer's
+neurovascular dysfunction) that shows the substrate carrying a real
+Correction event end-to-end. The three-year operational scope —
+$10M, 5–12 people, milestone schedule, named failure modes — lives
+at vela.science/scope. The essay (16 min) lives at borrowedlight.org.
+The substrate's source lives in the open. What's missing, named
+honestly at vela.science/honest, is external signers — the next
+year's work.
+```
+
+### Author bio (50 words)
+
+```
+Will Blair is a cognitive science graduate of Johns Hopkins (BS
+Honors, 2023), Z Fellow, Kleiner Perkins Fellow, NSERC CREATE
+recipient, and Sigma Squared Fellow. He is the first technical hire
+at Episteme, a Bell Labs–style R&D organization in San Francisco,
+and is building Vela as the open scientific knowledge protocol.
+```
+
+### Supporting materials (links, in order of importance for the judge)
+
+```
+Essay (16 min):                   borrowedlight.org
+Operational scope (FRO model):    vela.science/scope
+Worked example (autoplay):        vela.science/proof/pericyte-correction
+Workbench (live):                 vela.science/workbench
+30-second proof (curl|bash):      curl -sSL https://vela.science/try | bash
+Protocol specification:           vela.science/spec
+SDK + CLI reference:              vela.science/sdk
+Quickstart (5-min deposit):       vela.science/quickstart
+Frequently questioned answers:    vela.science/faq
+What isn't true yet:              vela.science/honest
+Source:                           github.com/vela-science/vela
+```
+
+### Cover note (for direct outreach to a program officer)
+
+```
+Subject: Vela — open protocol for scientific state · 16-min essay
+
+Dear [name],
+
+I'm sending you "Constellations of Borrowed Light," a 16-minute
+essay about the writeable substrate science doesn't have and what
+gets built in the next two to three years if we don't ship it. It's
+also a working artifact — the protocol, three reducer implementations
+that agree byte-for-byte, a live hub at vela-hub.fly.dev, and a
+worked Correction event you can watch propagate through a dependency
+graph at vela.science/proof/pericyte-correction.
+
+Three minutes from this email to seeing the substrate work:
+1.  Read the first three paragraphs of the essay (the brain-tumor
+    opening + the AI inflection thesis).
+2.  In a terminal: curl -sSL https://vela.science/try | bash.
+    Downloads a real signed packet, verifies it byte-by-byte against
+    a stdlib-only Python verifier, exits non-zero on any mismatch.
+3.  Open vela.science/scope. The three-year FRO scope, $10M envelope,
+    team, milestones, and the kill criteria are all on one page.
+
+What I'd value most from you, in this order:
+- Honest reactions to whether the FRO scope is right-sized.
+- Any pointer to a credentialed Alzheimer's neurovascular reviewer
+  who would consider being the first external signer on the BBB
+  Flagship corridor.
+- Whether there's a meeting at Astera worth me being at.
+
+Happy to answer anything. Thank you for reading this far.
+
+Will
+will.blair0708@gmail.com
+```
+
+### Submission checklist before pushing
+
+- [ ] Re-read the essay one more time fresh
+- [ ] Verify all four code blocks in the abstract are <= the form's character limit
+- [ ] Check that the supporting-materials links all 200 OK
+- [ ] Make sure /scope, /proof/pericyte-correction (autoplay), /workbench, /faq, /quickstart, /sdk, /spec, /honest are all live and on-brand
+- [ ] Have the 60-second screencap ready as supplementary material if the form accepts it
+- [ ] Set a Google Alert on "Astera essay" / "Convergent Research RFP" so you don't miss the next opening
+- [ ] Pick one quiet morning to submit — not while distracted
+
+---
+
 *This file is internal. It does not get shipped to vela.science.*
