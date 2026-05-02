@@ -100,6 +100,8 @@ const featuredClaim = allClaims
         <p class="protocol__demo-caption">
           ↑ Live hub status. Each entry is a signed manifest pointing at a constellation.
           <a class="inline-link" href="/workbench">Open the workbench →</a>
+          <span class="protocol__sep">·</span>
+          <a class="inline-link" href="/replay">Drag through one event log →</a>
         </p>
       </div>
     </section>
@@ -128,6 +130,8 @@ const featuredClaim = allClaims
         <p class="protocol__demo-caption">
           ↑ Excerpt from a real BBB Flagship proof packet.
           Verify locally with <code>shasum -a 256</code>.
+          <span class="protocol__sep">·</span>
+          <a class="inline-link" href="/proof/pericyte-correction">See one Correction event in motion →</a>
         </p>
       </div>
     </section>
@@ -271,6 +275,7 @@ const featuredClaim = allClaims
     border: 1px solid var(--rule-2);
     border-radius: var(--radius-xs);
   }
+  .protocol__sep { color: var(--ink-4); margin: 0 4px; }
 
   /* Proof excerpt — a few rows from a real packet, mono table */
   .proof-excerpt {

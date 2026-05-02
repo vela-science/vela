@@ -17,17 +17,20 @@ const defaultLinks: NavLink[] = [
   /* The home route IS the live frontier (Alzheimer's Therapeutics)
      after the v0.31 topic-first redesign. The protocol substrate
      gets its own second-class entry. The lantern mark above this
-     nav carries the Vela brand identity. v0.31 also adds /bench as
-     the public agent leaderboard. */
+     nav carries the Vela brand identity.
+
+     v0.49 adds /proof, /replay, and /lineage as the three "show by
+     doing" routes — they're the surfaces a skeptic should be one
+     click away from on every page. */
   { id: "home", href: "/", label: "01 · Frontier" },
-  { id: "bench", href: "/bench", label: "02 · Bench" },
-  { id: "causal", href: "/causal/audit", label: "03 · Causal" },
-  { id: "federation", href: "/federation", label: "04 · Federation" },
-  { id: "protocol", href: "/protocol", label: "05 · Protocol" },
-  { id: "workbench", href: "/workbench", label: "06 · Workbench" },
-  { id: "docs", href: "/docs/protocol", label: "07 · Docs" },
-  { id: "essays", href: "/essays/science-needs-state", label: "08 · Essays" },
-  { id: "publish", href: "/publish", label: "09 · Publish" },
+  { id: "protocol", href: "/protocol", label: "02 · Protocol" },
+  { id: "proof", href: "/proof/pericyte-correction", label: "03 · Proof" },
+  { id: "replay", href: "/replay", label: "04 · Replay" },
+  { id: "workbench", href: "/workbench", label: "05 · Workbench" },
+  { id: "docs", href: "/docs/protocol", label: "06 · Docs" },
+  { id: "essays", href: "/essays/science-needs-state", label: "07 · Essay" },
+  { id: "publish", href: "/publish", label: "08 · Publish" },
+  { id: "lineage", href: "/lineage", label: "09 · Lineage" },
   { id: "hub", href: HUB_URL, label: "10 · Hub" },
 ];
 

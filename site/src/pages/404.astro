@@ -1,0 +1,112 @@
+---
+/*
+  404 — quiet, on-register, with a path back into the substrate.
+*/
+import Page from "../layouts/Page.astro";
+import ImagePlate from "../components/ImagePlate.astro";
+---
+
+<Page
+  title="Not found · Vela"
+  description="The page you were looking for is not in this constellation."
+  active="home"
+  eyebrow="404 · Not found"
+  pageTitle="Not found"
+  subtitle="The page you were looking for is not in this constellation."
+>
+  <a href="/" slot="aside" class="aside-link">← Frontier</a>
+
+  <article class="nf">
+    <ImagePlate
+      fallback="/images/plates/finding.png"
+      width={1916}
+      height={821}
+      alt="A quiet watercolor pinpoint suspended in atmospheric warmth."
+    />
+    <p class="nf__hook">
+      <em>A finding moves to a new id when its content changes.</em>
+    </p>
+    <p class="nf__sub">
+      The substrate keeps things content-addressed, so an old link can land here
+      after a republish. Nothing is lost; the canonical version is one step away.
+    </p>
+
+    <ul class="nf__paths">
+      <li><a class="nf__link" href="/">→ The live frontier</a></li>
+      <li><a class="nf__link" href="/protocol">→ The protocol</a></li>
+      <li><a class="nf__link" href="/proof/pericyte-correction">→ A worked Correction</a></li>
+      <li><a class="nf__link" href="/replay">→ Replay an event log</a></li>
+      <li><a class="nf__link" href="/workbench">→ Open the workbench</a></li>
+    </ul>
+  </article>
+</Page>
+
+<style>
+  .aside-link {
+    font-family: var(--font-mono);
+    font-size: var(--size-imprint);
+    letter-spacing: var(--track-imprint);
+    text-transform: uppercase;
+    color: var(--ink-3);
+    border-bottom: 1px solid transparent;
+    transition: color var(--dur-1) var(--ease), border-bottom-color var(--dur-1) var(--ease);
+  }
+  .aside-link:hover {
+    color: var(--gold);
+    border-bottom-color: color-mix(in oklab, var(--gold) 56%, transparent);
+  }
+  .nf {
+    max-width: var(--measure);
+    margin: 0 auto;
+  }
+  .nf :global(.vela-image-plate) {
+    margin-top: 0;
+    margin-bottom: 1.4rem;
+  }
+  .nf__hook {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-weight: 500;
+    font-size: clamp(1.5rem, 3vw, 2.1rem);
+    line-height: 1.2;
+    letter-spacing: var(--track-display);
+    color: var(--ink-0);
+    margin: 0 0 0.85rem;
+    max-width: 38ch;
+    text-wrap: balance;
+  }
+  .nf__sub {
+    font-family: var(--font-sans);
+    font-weight: 400;
+    font-size: 1rem;
+    line-height: 1.55;
+    letter-spacing: -0.005em;
+    color: color-mix(in oklab, var(--ink-2) 92%, transparent);
+    margin: 0 0 2rem;
+    max-width: 60ch;
+    text-wrap: pretty;
+  }
+  .nf__paths {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    border-top: 1px solid color-mix(in oklab, var(--gold) 28%, transparent);
+    border-bottom: 1px solid var(--rule-2);
+  }
+  .nf__paths li {
+    border-bottom: 1px solid var(--rule-1);
+  }
+  .nf__paths li:last-child { border-bottom: 0; }
+  .nf__link {
+    display: block;
+    padding: 0.75rem 0;
+    font-family: var(--font-sans);
+    font-weight: 500;
+    font-size: 1rem;
+    letter-spacing: -0.012em;
+    color: var(--ink-1);
+    text-decoration: none;
+    transition: color var(--dur-1) var(--ease);
+  }
+  .nf__link:hover { color: var(--gold); }
+</style>

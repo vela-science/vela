@@ -16,5 +16,33 @@ const {
     <span><span class="wb-foot__star"></span> live · {SITE_HOST}</span>
     <span set:html={left} />
   </div>
-  <div>{right}</div>
+  <div class="wb-foot__right">
+    <span>{right}</span>
+    <a class="wb-foot__mark" href="/lineage" title="Why this exists, named once">for M.</a>
+  </div>
 </footer>
+<style>
+  .wb-foot__right {
+    display: inline-flex;
+    align-items: center;
+    gap: 18px;
+  }
+  .wb-foot__mark {
+    font-family: var(--font-mono);
+    font-size: var(--size-imprint);
+    letter-spacing: 0.34em;
+    text-transform: uppercase;
+    color: color-mix(in oklab, var(--gold) 64%, var(--ink-3));
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: color var(--dur-1) var(--ease), border-bottom-color var(--dur-1) var(--ease);
+  }
+  .wb-foot__mark:hover,
+  .wb-foot__mark:focus-visible {
+    color: var(--gold);
+    border-bottom-color: color-mix(in oklab, var(--gold) 56%, transparent);
+  }
+  @media (max-width: 720px) {
+    .wb-foot__right { gap: 10px; }
+  }
+</style>
