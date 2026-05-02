@@ -157,13 +157,23 @@ import { REPO_URL, VERSION } from "../config";
         </p>
         <ol class="spec__list">
           <li id="MUST-canonical-keys"><strong>MUST</strong> sort object keys lexicographically by their UTF-8 byte sequence.</li>
+          <li id="MUST-canonical-duplicate-keys"><strong>MUST</strong> reject any input containing duplicate keys at the same nesting depth (RFC 8259 SHOULDs are insufficient — Vela requires hard rejection so reducers cannot diverge on which value wins).</li>
           <li id="MUST-canonical-whitespace"><strong>MUST</strong> emit no whitespace between tokens; no leading or trailing whitespace.</li>
-          <li id="MUST-canonical-strings"><strong>MUST</strong> use the JSON escape rules in RFC 8259 with no extensions.</li>
-          <li id="MUST-canonical-numbers"><strong>MUST</strong> serialize numbers as integers or finite IEEE-754 doubles in their shortest round-trip form (ECMA-262 ToString).</li>
+          <li id="MUST-canonical-strings"><strong>MUST</strong> use the JSON escape rules in RFC 8259 with no extensions; lone surrogates and unpaired surrogates <strong>MUST</strong> be rejected.</li>
+          <li id="MUST-canonical-numbers"><strong>MUST</strong> serialize numbers as integers or finite IEEE-754 doubles in their shortest round-trip form (ECMA-262 ToString). Integers outside the safe range [−(2^53−1), 2^53−1] <strong>MUST</strong> be encoded as strings; <code>NaN</code>, <code>Infinity</code>, and signed-zero edge cases <strong>MUST</strong> be rejected (write <code>0</code>, never <code>-0</code>).</li>
           <li id="MUST-canonical-arrays"><strong>MUST</strong> preserve array element order.</li>
-          <li id="MUST-canonical-nfc"><strong>MUST</strong> NFC-normalize Unicode strings before serialization.</li>
-          <li id="MUST-canonical-utf8"><strong>MUST</strong> emit UTF-8 with no byte-order mark.</li>
+          <li id="MUST-canonical-nfc"><strong>MUST</strong> NFC-normalize Unicode strings <em>before</em> hashing or signing. Content-addressing operates on the NFC-normalized canonical bytes; an event whose <code>id</code> was hashed pre-NFC is non-conformant and reducers <strong>MUST</strong> reject it.</li>
+          <li id="MUST-canonical-utf8"><strong>MUST</strong> emit UTF-8 with no byte-order mark; the BOM character (U+FEFF) anywhere in input <strong>MUST</strong> be rejected.</li>
+          <li id="MUST-canonical-control"><strong>MUST</strong> reject control characters (U+0000–U+001F, U+007F) in object keys; in string values they <strong>MUST</strong> be escaped per RFC 8259.</li>
         </ol>
+        <p>
+          A normative edge-case test vector set ships alongside the reducer fixtures at
+          <a class="inline-link" href="/canonical-json-edge-cases.tar.gz">/canonical-json-edge-cases.tar.gz</a>.
+          Implementations <strong>MUST</strong> pass every vector. Vectors include duplicate
+          keys, integer overflow, NFC vs NFD collisions, lone surrogates, the Right-to-Left
+          Override (U+202E), <code>-0</code>, <code>1e2</code> vs <code>100</code>, control
+          chars in keys, and BOM handling.
+        </p>
         <p>
           Two implementations producing different bytes for the same logical document are
           non-conformant. The byte-equality conformance test (§1) catches this.
@@ -194,7 +204,17 @@ import { REPO_URL, VERSION } from "../config";
           <dt><code>dependency-asserted</code></dt>
           <dd>A typed edge between two claim ids. Payload: from_id, to_id, kind.</dd>
           <dt><code>key-rotation</code></dt>
-          <dd>Rotates an actor's signing key. Payload: old_pubkey, new_pubkey, signature_by_old, signature_by_new.</dd>
+          <dd>Rotates an actor's signing key. Payload: <code>old_pubkey</code>,
+            <code>new_pubkey</code>, <code>seq</code>, <code>signature_by_old</code>,
+            <code>signature_by_new</code>. <span id="MUST-rotation-seq"><strong>MUST</strong>
+            carry a strictly-increasing per-actor <code>seq</code> integer.</span>
+            <span id="MUST-rotation-ts-bound"><strong>MUST</strong> have <code>ts</code>
+            strictly later than the prior rotation's <code>ts</code> for the same actor;
+            reducers <strong>MUST</strong> reject any rotation event whose <code>ts</code>
+            regresses, regardless of clock skew or signature validity.</span> The interval
+            between <code>actor.add</code> and the first rotation is the unrevocable window
+            for an actor — implementations <strong>SHOULD</strong> recommend a first rotation
+            within 30 days of registration to bound the key-compromise blast radius.</dd>
           <dt><code>frontier-snapshot</code></dt>
           <dd>A signed snapshot manifest summarizing the canonical state at a given event sequence. Optional; advisory only.</dd>
         </dl>
@@ -339,6 +359,46 @@ https://vela-hub.fly.dev/v/vf_83185611d673465b   # HTTP resolver (redirects to f
           and journal stylesheets adopting <code>vela:</code> can resolve directly to the
           signed evidence chain.
         </p>
+
+        <h3 class="spec__sub" id="retraction-interop">Retraction and corrigendum interop.</h3>
+        <p>
+          A journal-issued retraction or expression-of-concern <strong>MAY</strong> be
+          recorded as a <code>correction</code> event with kind <code>retract</code> signed
+          by an actor whose registered identity carries the <code>publisher_of_record</code>
+          claim for that finding's source. Reducers <strong>MUST</strong> retain the
+          superseded finding's bytes as a tombstone (id, snapshot hash, last valid
+          signature) so historical citations resolve to a "retracted" page rather than
+          404. Take-downs for legal or ethics reasons (HIPAA, court order, GDPR right-to-be-forgotten)
+          <strong>MAY</strong> redact the finding's payload while preserving the tombstone
+          hash; the redaction event itself <strong>MUST</strong> be signed and carry a
+          structured <code>reason</code> code (<code>legal</code>, <code>ethics</code>,
+          <code>privacy</code>) with no requirement to disclose specifics.
+        </p>
+
+        <h3 class="spec__sub" id="identity-cred">Author identity, COI, contribution.</h3>
+        <p>
+          An actor's registered did:key <strong>MAY</strong> bind to an
+          <a class="inline-link" href="https://orcid.org" rel="noopener">ORCID</a>
+          via the <code>orcid</code> field on <code>actor.add</code>; the binding is
+          a self-attestation, not third-party verification, until the actor publishes the
+          same did:key on their ORCID profile. A finding's <code>contributors</code> array
+          <strong>MAY</strong> carry <a class="inline-link" href="https://credit.niso.org/" rel="noopener">CRediT</a>-aligned
+          contribution roles. A <code>coi</code> field <strong>MAY</strong> carry declared
+          conflicts of interest in the same schema journals use for manuscript submission,
+          so an author's signed finding is auditable for the same disclosures the journal
+          would require on a paper.
+        </p>
+
+        <h3 class="spec__sub" id="archival">Archival commitment.</h3>
+        <p>
+          Findings <strong>SHOULD</strong> be deposited into a long-term archival partner
+          (Software Heritage for the event log, CLOCKSS or Portico for journal-pinned
+          manifests) so that <code>vela:</code> URIs continue to resolve after a hub goes
+          dark. Hubs <strong>MUST</strong> publish their archival arrangements in
+          <code>/.well-known/vela</code>. Citations from journals that require persistence
+          guarantees should target a <code>vela:</code> id whose hub declares a partnership
+          with at least one such archive.
+        </p>
       </div>
     </section>
 
@@ -386,10 +446,90 @@ https://vela-hub.fly.dev/v/vf_83185611d673465b   # HTTP resolver (redirects to f
       </div>
     </section>
 
+    <!-- ── Security Considerations ── -->
+    <section class="spec__section" id="security">
+      <header class="spec__head">
+        <span class="spec__num">§13</span>
+        <h2 class="spec__title">Security considerations.</h2>
+      </header>
+      <div class="spec__body">
+        <p>
+          The protocol is designed against a threat model in which actors may attempt to
+          forge signatures, replay events, equivocate across hubs, exploit encoding
+          ambiguities, or compromise keys. The structural defenses are documented inline
+          (§3 canonical-JSON edges, §4 rotation seq, §5 ed25519-canonical-json-v1, §7 hub
+          model). This section names the residual risks so implementers and auditors share
+          a common picture.
+        </p>
+
+        <h3 class="spec__sub">Hub equivocation.</h3>
+        <p>
+          Two colluding hubs, or a hub and a forked mirror, can serve divergent event logs
+          for the same <code>vfr_id</code> with all signatures still valid — the signature
+          surface omits the hub URL. Protocol v1 <strong>does not</strong> defend against
+          this; clients SHOULD pin a known-good hub or compare snapshot hashes across two
+          independent mirrors before treating a frontier as canonical. Protocol v2 is
+          expected to require a per-frontier append-only Merkle log with signed tree heads
+          (Sigstore / Certificate Transparency pattern).
+        </p>
+
+        <h3 class="spec__sub">Key-compromise window.</h3>
+        <p>
+          An actor whose private key is stolen can sign arbitrary events under that
+          identity until a <code>key-rotation</code> event is published. The
+          per-actor monotonic <code>seq</code> (§4 <a class="inline-link" href="#MUST-rotation-seq"><code>#MUST-rotation-seq</code></a>) and the
+          <code>ts</code>-regression bound (<a class="inline-link" href="#MUST-rotation-ts-bound"><code>#MUST-rotation-ts-bound</code></a>)
+          prevent the attacker from backdating a fraudulent rotation event to take over
+          the identity. The <code>actor.add</code> → first-rotation interval has no
+          revocation semantics; deployments SHOULD recommend a first rotation within
+          30 days.
+        </p>
+
+        <h3 class="spec__sub">Identity dual path.</h3>
+        <p>
+          The protocol expresses actor identity as <code>did:key</code>, but the SDK
+          surface accepts a hex-encoded raw public key (<code>vela actor add … --pubkey
+          &lt;HEX&gt;</code>) as a convenience. Implementations <strong>MUST</strong>
+          validate that any actor identity is parseable as a conformant <code>did:key</code>
+          regardless of which input form was used; the multicodec tag check
+          (§5) is the load-bearing defense against accidentally treating arbitrary 32-byte
+          input as an Ed25519 public key.
+        </p>
+
+        <h3 class="spec__sub">Replay across frontiers.</h3>
+        <p>
+          A signed event includes its target <code>frontier</code> field; reducers
+          <strong>MUST</strong> reject events whose <code>frontier</code> field does not
+          match the frontier they are reducing. Without that check, an event signed for
+          frontier A could be replayed into frontier B with the original signature still
+          valid.
+        </p>
+
+        <h3 class="spec__sub">Hub denial of service.</h3>
+        <p>
+          The hub model forbids authentication on read endpoints (§7) so that any client
+          can verify any frontier without coordination. This makes hubs vulnerable to
+          read-side resource exhaustion. Operators MAY rate-limit reads in operational
+          response to attacks (must be documented in <code>/.well-known/vela</code>) but
+          MUST NOT require auth tokens for the canonical read paths. Write endpoints
+          (<code>POST /publish</code>) MAY apply rate limiting.
+        </p>
+
+        <h3 class="spec__sub">Reporting.</h3>
+        <p>
+          Security disclosures via the
+          <a class="inline-link" href="https://github.com/vela-science/vela/security/policy" rel="noopener">repo security policy</a>
+          — please don't open public issues for vulnerabilities; use the policy's private
+          reporting channel. PGP / age public key for sensitive disclosures is published
+          in <code>/.well-known/security.txt</code>.
+        </p>
+      </div>
+    </section>
+
     <!-- ── Change history ── -->
     <section class="spec__section" id="history">
       <header class="spec__head">
-        <span class="spec__num">§12</span>
+        <span class="spec__num">§14</span>
         <h2 class="spec__title">Change history.</h2>
       </header>
       <div class="spec__body">
@@ -456,6 +596,16 @@ https://vela-hub.fly.dev/v/vf_83185611d673465b   # HTTP resolver (redirects to f
     color: var(--ink-0);
     margin: 0;
     text-wrap: balance;
+  }
+  .spec__sub {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 1.02rem;
+    line-height: 1.3;
+    letter-spacing: -0.012em;
+    color: var(--ink-0);
+    margin: 1.4rem 0 0.5rem;
+    text-transform: none;
   }
   .spec__body p {
     font-family: var(--font-sans);
