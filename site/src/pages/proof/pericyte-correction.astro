@@ -55,8 +55,43 @@ import Imprint from "../../components/Imprint.astro";
       </p>
     </section>
 
+    <!-- ── Autoplay timeline controller ── -->
+    <aside class="wc__player" aria-label="Timeline player" data-player>
+      <div class="wc__player-inner">
+        <button class="wc__player-btn wc__player-btn--primary" data-play type="button" aria-label="Play timeline">
+          <span class="wc__player-icon" data-icon-play aria-hidden="true">▶</span>
+          <span class="wc__player-icon" data-icon-pause aria-hidden="true" hidden>❙❙</span>
+          <span class="wc__player-label" data-label-play>Play timeline</span>
+          <span class="wc__player-label" data-label-pause hidden>Pause</span>
+        </button>
+        <button class="wc__player-btn" data-restart type="button" aria-label="Restart">
+          <span aria-hidden="true">↻</span>
+          <span>Restart</span>
+        </button>
+        <ol class="wc__player-progress" role="list">
+          <li class="wc__player-step" data-step-indicator="1">
+            <span class="wc__player-dot" aria-hidden="true"></span>
+            <span class="wc__player-step-label">Finding</span>
+          </li>
+          <li class="wc__player-step" data-step-indicator="2">
+            <span class="wc__player-dot" aria-hidden="true"></span>
+            <span class="wc__player-step-label">Evidence</span>
+          </li>
+          <li class="wc__player-step" data-step-indicator="3">
+            <span class="wc__player-dot" aria-hidden="true"></span>
+            <span class="wc__player-step-label">Correction</span>
+          </li>
+          <li class="wc__player-step" data-step-indicator="4">
+            <span class="wc__player-dot" aria-hidden="true"></span>
+            <span class="wc__player-step-label">Dependents notified</span>
+          </li>
+        </ol>
+        <span class="wc__player-hint" data-hint>Walk the four events at reading pace.</span>
+      </div>
+    </aside>
+
     <!-- ── Stop 1 — the original finding ── -->
-    <section class="wc__stop" id="stop-1">
+    <section class="wc__stop" id="stop-1" data-step="1">
       <div class="wc__stop-head">
         <span class="wc__date">2026-01-08</span>
         <span class="wc__sep">·</span>
@@ -93,7 +128,7 @@ import Imprint from "../../components/Imprint.astro";
     </section>
 
     <!-- ── Stop 2 — new evidence raises confidence ── -->
-    <section class="wc__stop" id="stop-2">
+    <section class="wc__stop" id="stop-2" data-step="2">
       <div class="wc__stop-head">
         <span class="wc__date">2026-04-14</span>
         <span class="wc__sep">·</span>
@@ -142,7 +177,7 @@ import Imprint from "../../components/Imprint.astro";
     </section>
 
     <!-- ── Stop 3 — the correction lands ── -->
-    <section class="wc__stop" id="stop-3">
+    <section class="wc__stop" id="stop-3" data-step="3">
       <div class="wc__stop-head">
         <span class="wc__date">2026-06-02</span>
         <span class="wc__sep">·</span>
@@ -193,7 +228,7 @@ import Imprint from "../../components/Imprint.astro";
     </section>
 
     <!-- ── Stop 4 — dependents notified ── -->
-    <section class="wc__stop" id="stop-4">
+    <section class="wc__stop" id="stop-4" data-step="4">
       <div class="wc__stop-head">
         <span class="wc__date">2026-06-04 → 2026-07-11</span>
         <span class="wc__sep">·</span>
@@ -281,6 +316,161 @@ import Imprint from "../../components/Imprint.astro";
 
     <Imprint returnHref="/protocol" returnLabel="Back to the protocol" />
   </article>
+
+  <script>
+    /* Pericyte timeline player.
+       Walks the four stops at reading pace (~7s per stop), highlights
+       the active stop, scrolls it to the top of the viewport. Manual
+       scroll past the active stop disengages autoplay so the reader
+       isn't fought. Restart re-engages from stop 1. */
+    (function () {
+      var player = document.querySelector('[data-player]');
+      if (!player) return;
+
+      var btnPlay = player.querySelector('[data-play]');
+      var btnRestart = player.querySelector('[data-restart]');
+      var iconPlay = player.querySelector('[data-icon-play]');
+      var iconPause = player.querySelector('[data-icon-pause]');
+      var labelPlay = player.querySelector('[data-label-play]');
+      var labelPause = player.querySelector('[data-label-pause]');
+      var hint = player.querySelector('[data-hint]');
+      var indicators = Array.prototype.slice.call(
+        player.querySelectorAll('[data-step-indicator]')
+      );
+      var stops = Array.prototype.slice.call(
+        document.querySelectorAll('[data-step]')
+      );
+      if (stops.length === 0) return;
+
+      var STEP_MS = 7000;
+      var current = 0;
+      var playing = false;
+      var timer = null;
+      var userScrolled = false;
+      var lastScrollY = window.scrollY;
+      var prefersReduced = window.matchMedia &&
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+      function setPlayingUI(isPlaying) {
+        playing = isPlaying;
+        iconPlay.hidden = isPlaying;
+        iconPause.hidden = !isPlaying;
+        labelPlay.hidden = isPlaying;
+        labelPause.hidden = !isPlaying;
+        btnPlay.setAttribute(
+          'aria-label',
+          isPlaying ? 'Pause timeline' : 'Play timeline'
+        );
+      }
+
+      function highlight(idx) {
+        indicators.forEach(function (li, i) {
+          li.classList.toggle('wc__player-step--active', i === idx);
+          li.classList.toggle('wc__player-step--done', i < idx);
+        });
+        stops.forEach(function (s, i) {
+          s.classList.toggle('wc__stop--active', i === idx);
+          s.classList.toggle('wc__stop--done', i < idx);
+        });
+      }
+
+      function scrollToStop(idx) {
+        var el = stops[idx];
+        if (!el) return;
+        var y = el.getBoundingClientRect().top + window.scrollY - 96;
+        var html = document.documentElement;
+        var prev = html.style.scrollBehavior;
+        html.style.scrollBehavior = prefersReduced ? 'auto' : 'smooth';
+        window.scrollTo({ top: y, behavior: prefersReduced ? 'auto' : 'smooth' });
+        html.style.scrollBehavior = prev;
+        lastScrollY = y;
+      }
+
+      function clearTimer() {
+        if (timer) { clearTimeout(timer); timer = null; }
+      }
+
+      function advance() {
+        if (!playing) return;
+        if (current >= stops.length - 1) {
+          stop();
+          highlight(stops.length - 1);
+          if (hint) hint.textContent = 'Done. Restart any time.';
+          return;
+        }
+        current += 1;
+        highlight(current);
+        scrollToStop(current);
+        timer = setTimeout(advance, STEP_MS);
+      }
+
+      function play() {
+        clearTimer();
+        userScrolled = false;
+        setPlayingUI(true);
+        if (hint) hint.textContent = 'Playing. Scroll to take control.';
+        highlight(current);
+        scrollToStop(current);
+        timer = setTimeout(advance, STEP_MS);
+      }
+
+      function stop() {
+        clearTimer();
+        setPlayingUI(false);
+      }
+
+      function restart() {
+        clearTimer();
+        current = 0;
+        userScrolled = false;
+        highlight(0);
+        scrollToStop(0);
+        if (hint) hint.textContent = 'Walk the four events at reading pace.';
+        setPlayingUI(false);
+      }
+
+      btnPlay.addEventListener('click', function () {
+        if (playing) {
+          stop();
+          if (hint) hint.textContent = 'Paused. Resume any time.';
+        } else {
+          play();
+        }
+      });
+
+      btnRestart.addEventListener('click', restart);
+
+      /* Manual scroll disengages autoplay if the user moves more than
+         a viewport away from where the player put them. */
+      var scrollTimer = null;
+      window.addEventListener('scroll', function () {
+        if (!playing) return;
+        if (scrollTimer) clearTimeout(scrollTimer);
+        scrollTimer = setTimeout(function () {
+          var delta = Math.abs(window.scrollY - lastScrollY);
+          if (delta > window.innerHeight * 0.6) {
+            userScrolled = true;
+            stop();
+            if (hint) hint.textContent = 'Paused — you took the wheel.';
+          }
+        }, 250);
+      }, { passive: true });
+
+      /* Keyboard: space toggles play/pause when the player is in view. */
+      document.addEventListener('keydown', function (e) {
+        if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
+        if (e.code !== 'Space') return;
+        var rect = player.getBoundingClientRect();
+        var inView = rect.top >= 0 && rect.bottom <= window.innerHeight;
+        if (!inView && !playing) return;
+        e.preventDefault();
+        btnPlay.click();
+      });
+
+      /* Initial state: highlight stop 0 but don't autoplay. */
+      highlight(0);
+    })();
+  </script>
 </Reading>
 
 <style>
@@ -348,6 +538,133 @@ import Imprint from "../../components/Imprint.astro";
     text-wrap: pretty;
   }
   .wc__caveat em { font-style: italic; }
+
+  /* ── Autoplay timeline player ────────────────────────────────────
+     Sticky bar with play/pause, restart, and a four-step indicator.
+     Sits between hero and stops, sticks to the top while reading. */
+  .wc__player {
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    margin: 0 0 clamp(2rem, 5vh, 3rem);
+    background: color-mix(in oklab, var(--paper-0) 92%, transparent);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-top: 1px solid color-mix(in oklab, var(--gold) 24%, transparent);
+    border-bottom: 1px solid color-mix(in oklab, var(--gold) 32%, transparent);
+  }
+  .wc__player-inner {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem 1.4rem;
+    flex-wrap: wrap;
+    padding: 0.85rem 0;
+  }
+  .wc__player-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 8px 14px;
+    background: transparent;
+    border: 1px solid var(--rule-2);
+    border-radius: 6px;
+    font-family: var(--font-sans);
+    font-weight: 500;
+    font-size: 0.88rem;
+    color: var(--ink-1);
+    cursor: pointer;
+    transition: background 160ms var(--ease), border-color 160ms var(--ease), color 160ms var(--ease);
+  }
+  .wc__player-btn:hover {
+    border-color: color-mix(in oklab, var(--gold) 56%, transparent);
+    background: var(--paper-1);
+  }
+  .wc__player-btn--primary {
+    background: var(--ink-0);
+    color: var(--paper-0);
+    border-color: var(--ink-0);
+  }
+  .wc__player-btn--primary:hover {
+    background: var(--ink-1);
+    border-color: var(--ink-1);
+    color: var(--paper-0);
+  }
+  .wc__player-icon { font-family: var(--font-mono); font-size: 0.78em; }
+  .wc__player-progress {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    flex: 1;
+    min-width: 0;
+    flex-wrap: wrap;
+  }
+  .wc__player-step {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    font-weight: 500;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    transition: color 200ms var(--ease);
+  }
+  .wc__player-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: transparent;
+    border: 1px solid var(--ink-4);
+    transition: background 200ms var(--ease), border-color 200ms var(--ease), box-shadow 200ms var(--ease);
+  }
+  .wc__player-step--done {
+    color: color-mix(in oklab, var(--gold) 70%, var(--ink-2));
+  }
+  .wc__player-step--done .wc__player-dot {
+    background: color-mix(in oklab, var(--gold) 60%, transparent);
+    border-color: color-mix(in oklab, var(--gold) 60%, transparent);
+  }
+  .wc__player-step--active {
+    color: var(--ink-0);
+  }
+  .wc__player-step--active .wc__player-dot {
+    background: var(--gold);
+    border-color: var(--gold);
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--gold) 24%, transparent);
+  }
+  .wc__player-hint {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: color-mix(in oklab, var(--ink-3) 80%, transparent);
+    flex-basis: 100%;
+  }
+  @media (max-width: 720px) {
+    .wc__player-inner { gap: 0.6rem 0.85rem; padding: 0.7rem 0; }
+    .wc__player-progress { gap: 0.55rem; }
+    .wc__player-step-label { display: none; }
+    .wc__player-step { gap: 0; }
+  }
+
+  /* Stop highlight states driven by the player */
+  .wc__stop {
+    transition: opacity 320ms var(--ease);
+  }
+  .wc__stop--active {
+    opacity: 1;
+  }
+  .wc__stop--done {
+    opacity: 0.86;
+  }
+  /* When any stop is active, dim the others slightly */
+  .wc:has(.wc__stop--active) .wc__stop:not(.wc__stop--active):not(.wc__stop--done) {
+    opacity: 0.55;
+  }
 
   /* ── Each scroll stop ── */
   .wc__stop {
