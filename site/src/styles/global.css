@@ -15,9 +15,8 @@ html, body { background: var(--paper-0); color: var(--ink-1); }
 /* Smooth scroll on anchors */
 html { scroll-behavior: smooth; }
 
-/* Essay/doc layouts render the page title via WbHead — suppress the
-   markdown h1 so the body starts with the first paragraph, not a
-   duplicate. */
+/* Essay/doc layouts render the page title via page-head — suppress
+   the markdown h1 so the body starts with the first paragraph. */
 article.reading > h1:first-child { display: none; }
 
 a {

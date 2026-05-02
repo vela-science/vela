@@ -1,250 +1,21 @@
-/* Workbench — page chrome layered on tokens.css.
-   One instrument, four screens. Every screen shares the same rim,
-   header, and footer so the metaphor holds across tasks.
+/* Workbench — utility primitives layered on tokens.css.
 
-   Visual register: Borrowed Light. Cream paper, italic Cormorant
-   display, EB Garamond body, gold accent, hairline rules. */
+   The page chrome (rim, head, main, foot grid) was deleted when
+   Workbench.astro took over. What remains here are the small
+   primitives still used inside workbench tool pages:
 
-html, body {
-  margin: 0;
-  padding: 0;
-  background: var(--paper-0);
-  color: var(--ink-1);
-  min-height: 100%;
-}
+     .wb-btn       — hairline buttons + ink + ghost variants
+     .wb-input     — underlined text input
+     .wb-chip      — engraved state pill (live/ok/contested/lost/inferred)
+
+   Anything visual related to the old .wb / .wb-rim / .wb-head /
+   .wb-main / .wb-foot grid is gone. */
+
 * { box-sizing: border-box; }
 
-body {
-  font-family: var(--font-sans);
-  font-size: var(--size-base);
-  line-height: var(--leading-body);
-  -webkit-font-smoothing: antialiased;
-  min-height: 100vh;
-}
-
-.wb {
-  background: var(--paper-0);
-}
-
 /* ============================================================
-   Frame — the instrument body
+   Buttons — hairline-only by default, never solid fills
    ============================================================ */
-.wb {
-  min-height: 100vh;
-  display: grid;
-  grid-template-columns: 56px 1fr 40px;
-  grid-template-rows: auto 1fr auto;
-  grid-template-areas:
-    "rim head head"
-    "rim main main"
-    "rim foot foot";
-}
-
-/* ============================================================
-   Left rim — the tick limb
-   ============================================================ */
-.wb-rim {
-  grid-area: rim;
-  border-right: 1px solid var(--rule-2);
-  position: relative;
-  background: var(--paper-0);
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  padding: 24px 0 32px;
-}
-.wb-rim::before {
-  content: "";
-  position: absolute;
-  inset: 24px 0 32px 0;
-  background-image: linear-gradient(to bottom,
-    var(--rule-2) 0 1px,
-    transparent 1px 100%);
-  background-size: 100% 16px;
-  background-position: right top;
-  background-repeat: repeat-y;
-  opacity: 0.55;
-  pointer-events: none;
-}
-.wb-rim__mark {
-  display: flex;
-  justify-content: center;
-  color: var(--gold);
-  filter: drop-shadow(0 0 12px var(--gold-glow));
-}
-.wb-rim__nav {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  align-items: center;
-  position: relative;
-  z-index: 1;
-}
-.wb-rim__link {
-  writing-mode: vertical-rl;
-  transform: rotate(180deg);
-  font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: var(--track-eyebrow);
-  text-transform: uppercase;
-  color: color-mix(in oklab, var(--ink-3) 88%, transparent);
-  padding: 10px 4px;
-  text-decoration: none;
-  position: relative;
-  transition: color var(--dur-1) var(--ease);
-}
-.wb-rim__link:hover { color: var(--ink-1); }
-.wb-rim__link--on   { color: var(--ink-0); }
-.wb-rim__link--on::before {
-  content: "";
-  position: absolute;
-  left: -5px; top: 50%;
-  transform: translateY(-50%) rotate(180deg);
-  width: 1px; height: 18px;
-  background: var(--gold);
-  box-shadow: 0 0 6px var(--gold-glow);
-}
-.wb-rim__index {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: var(--track-imprint);
-  color: color-mix(in oklab, var(--gold) 60%, var(--ink-3));
-  text-align: center;
-  font-variant-numeric: tabular-nums;
-  text-transform: uppercase;
-}
-
-/* ============================================================
-   Head — the page title zone
-   Italic Cormorant display title with mono kicker eyebrow.
-   ============================================================ */
-.wb-head {
-  grid-area: head;
-  padding: clamp(2rem, 5vh, 3rem) clamp(1.5rem, 4vw, 3rem) 0;
-}
-.wb-head__row {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 32px;
-  padding-bottom: 20px;
-  margin-bottom: 0;
-}
-.wb-head__eyebrow {
-  font-family: var(--font-mono);
-  font-size: var(--size-kicker);
-  letter-spacing: var(--track-imprint);
-  text-transform: uppercase;
-  color: color-mix(in oklab, var(--gold) 76%, var(--ink-2));
-  margin-bottom: 14px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-.wb-head__eyebrow::before {
-  content: "";
-  display: inline-block;
-  width: 24px; height: 1px;
-  background: color-mix(in oklab, var(--gold) 56%, transparent);
-}
-.wb-head__title {
-  font-family: var(--font-sans);
-  font-weight: 600;
-  font-size: clamp(1.85rem, 4.4vw, 2.85rem);
-  line-height: 1.06;
-  letter-spacing: -0.022em;
-  color: var(--ink-0);
-  margin: 0;
-  text-wrap: balance;
-}
-.wb-head__sub {
-  font-family: var(--font-sans);
-  font-weight: 400;
-  font-size: clamp(0.95rem, 1.4vw, 1.05rem);
-  line-height: 1.5;
-  letter-spacing: -0.005em;
-  color: color-mix(in oklab, var(--ink-2) 92%, transparent);
-  margin: 12px 0 0;
-  max-width: 60ch;
-  text-wrap: pretty;
-}
-.wb-head__aside {
-  display: flex;
-  align-items: center;
-  gap: 18px;
-  font-family: var(--font-mono);
-  font-size: var(--size-xs);
-  letter-spacing: 0.06em;
-  color: var(--ink-3);
-  white-space: nowrap;
-}
-.wb-head__ticks {
-  height: 1px;
-  margin-top: 18px;
-  background: linear-gradient(
-    to right,
-    transparent 0%,
-    color-mix(in oklab, var(--gold) 32%, transparent) 12%,
-    color-mix(in oklab, var(--gold) 48%, transparent) 50%,
-    color-mix(in oklab, var(--gold) 32%, transparent) 88%,
-    transparent 100%
-  );
-}
-
-/* ============================================================
-   Main — the work surface
-   ============================================================ */
-.wb-main {
-  grid-area: main;
-  padding: clamp(2rem, 4vh, 2.6rem) clamp(1.5rem, 4vw, 3rem) clamp(3rem, 6vh, 4rem);
-  min-width: 0;
-}
-.wb-main--narrow {
-  max-width: var(--measure-wide);
-  margin: 0 auto;
-  width: 100%;
-}
-.wb-main--reading {
-  max-width: var(--measure);
-  margin: 0 auto;
-  width: 100%;
-}
-
-/* ============================================================
-   Foot — instrument signature, gold pulse for live state
-   ============================================================ */
-.wb-foot {
-  grid-area: foot;
-  padding: 18px clamp(1.5rem, 4vw, 3rem);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border-top: 1px solid var(--rule-2);
-  font-family: var(--font-mono);
-  font-size: var(--size-imprint);
-  letter-spacing: var(--track-imprint);
-  text-transform: uppercase;
-  color: color-mix(in oklab, var(--ink-3) 88%, transparent);
-}
-.wb-foot__left { display: flex; gap: 24px; align-items: center; }
-.wb-foot__star {
-  width: 5px; height: 5px; border-radius: 50%;
-  background: var(--gold);
-  box-shadow: 0 0 0 2px var(--gold-soft);
-  display: inline-block;
-  vertical-align: 1px;
-  animation: wb-foot-pulse 3.6s var(--ease) infinite;
-}
-@keyframes wb-foot-pulse {
-  0%, 100% { box-shadow: 0 0 0 2px var(--gold-soft); }
-  50%      { box-shadow: 0 0 0 3px var(--gold-glow); }
-}
-
-/* ============================================================
-   Common parts
-   ============================================================ */
-
-/* Buttons — hairline-only by default, never solid fills */
 .wb-btn {
   font-family: var(--font-sans);
   font-size: var(--size-sm);
@@ -256,7 +27,10 @@ body {
   background: transparent;
   color: var(--ink-1);
   cursor: pointer;
-  transition: color var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease), background var(--dur-1) var(--ease);
+  transition:
+    color var(--dur-1) var(--ease),
+    border-color var(--dur-1) var(--ease),
+    background var(--dur-1) var(--ease);
   letter-spacing: 0.01em;
 }
 .wb-btn:hover {
@@ -301,7 +75,9 @@ body {
   letter-spacing: 0.08em;
 }
 
-/* Input — underlined field, not a box */
+/* ============================================================
+   Input — underlined field, not a box
+   ============================================================ */
 .wb-input {
   display: flex;
   align-items: center;
@@ -330,7 +106,9 @@ body {
   letter-spacing: 0.08em;
 }
 
-/* State chip — engraved pill, no fills */
+/* ============================================================
+   State chip — engraved pill, no fills
+   ============================================================ */
 .wb-chip {
   display: inline-flex;
   align-items: center;
@@ -365,53 +143,8 @@ body {
   50%      { box-shadow: 0 0 0 3px var(--gold-glow); }
 }
 
-/* Semantic state chips — moss / brass / cinnabar / winter */
-.wb-chip--ok       { --chip: var(--moss); }
+/* Semantic state chips */
+.wb-chip--ok        { --chip: var(--moss); }
 .wb-chip--contested { --chip: var(--brass); }
-.wb-chip--lost     { --chip: var(--cinnabar); }
-.wb-chip--inferred { --chip: var(--winter); }
-
-/* ============================================================
-   Mobile polish
-   ============================================================ */
-@media (max-width: 720px) {
-  .wb-head {
-    padding: 20px 20px 0;
-  }
-  .wb-head__row {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 14px;
-    padding-bottom: 16px;
-  }
-  .wb-head__title {
-    font-size: clamp(1.55rem, 6vw, 2.05rem);
-    line-height: 1.08;
-  }
-  .wb-head__sub {
-    font-size: 0.95rem;
-    margin-top: 8px;
-  }
-  .wb-head__aside {
-    flex-wrap: wrap;
-    white-space: normal;
-    gap: 10px 14px;
-    font-size: 11px;
-  }
-  .wb-head__aside > div {
-    flex-wrap: wrap;
-    gap: 8px 12px !important;
-  }
-  .wb-head__ticks {
-    margin-top: 12px;
-  }
-}
-
-@media (max-width: 480px) {
-  .wb-head__title {
-    font-size: clamp(1.4rem, 7vw, 1.8rem);
-  }
-  .wb-head__sub {
-    font-size: 0.9rem;
-  }
-}
+.wb-chip--lost      { --chip: var(--cinnabar); }
+.wb-chip--inferred  { --chip: var(--winter); }

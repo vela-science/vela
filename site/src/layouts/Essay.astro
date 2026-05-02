@@ -25,8 +25,8 @@ const fullTitle = `${title} · Vela`;
 </Page>
 
 <style is:global>
-  /* WbHead already renders the page title — suppress the markdown h1
-     so the essay body starts with the first paragraph, not a duplicate. */
+  /* page-head renders the title — suppress the markdown h1 so the
+     essay body starts with the first paragraph, not a duplicate. */
   article.reading > h1:first-child { display: none; }
 </style>
 <style>

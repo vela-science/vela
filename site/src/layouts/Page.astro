@@ -1,9 +1,15 @@
 ---
-import "../styles/global.css";
-import WbRim from "../components/WbRim.astro";
-import WbHead from "../components/WbHead.astro";
-import WbFoot from "../components/WbFoot.astro";
-import SignatureLine from "../components/SignatureLine.astro";
+/*
+  Page.astro — backward-compat shim over Reading.astro.
+
+  Old API (eyebrow / pageTitle / subtitle / aside slot) is preserved
+  so the 20-odd pages that import Page get the new brand-aligned
+  Reading layout (SiteNav with serif Vela wordmark + sail glyph,
+  cream paper, Fraunces serif page-head) without per-page edits.
+  New work should import Reading directly and write its own
+  <header class="page-head"> markup.
+*/
+import Reading from "./Reading.astro";
 
 interface Props {
   title: string;
@@ -13,69 +19,47 @@ interface Props {
   pageTitle: string;
   subtitle?: string;
   ogImage?: string;
+  /* Optional: pages that need wide content (claim grids, etc.) */
+  wide?: boolean;
 }
 
 const {
   title,
-  description = "A git-native protocol for replayable scientific frontier state.",
+  description,
   active,
   eyebrow,
   pageTitle,
   subtitle,
-  ogImage = "/brand/og-image.png",
+  ogImage,
+  wide = false,
 } = Astro.props;
-
-const canonical = new URL(Astro.url.pathname, Astro.site);
 ---
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>{title}</title>
-  <meta name="description" content={description} />
-  <link rel="canonical" href={canonical} />
 
-  <meta property="og:title" content={title} />
-  <meta property="og:description" content={description} />
-  <meta property="og:image" content={new URL(ogImage, Astro.site)} />
-  <meta property="og:url" content={canonical} />
-  <meta property="og:type" content="website" />
-  <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:image" content={new URL(ogImage, Astro.site)} />
+<Reading
+  title={title}
+  description={description}
+  active={active}
+  ogImage={ogImage}
+  wide={wide}
+>
+  <header class="page-head">
+    {eyebrow && <p class="eyebrow page-head__eyebrow">{eyebrow}</p>}
+    <h1 class="page-head__title">{pageTitle}</h1>
+    {subtitle && <p class="page-head__sub">{subtitle}</p>}
+    <div class="page-head__aside"><slot name="aside" /></div>
+  </header>
 
-  <link rel="icon" type="image/svg+xml" href="/brand/favicon.svg" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link
-    rel="stylesheet"
-    href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,400;1,500;1,600&family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Inter+Tight:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
-  />
-</head>
-<body>
-  <div class="wb">
-    <WbRim active={active} />
-    <div class="wb-page">
-      <SignatureLine />
-      <WbHead eyebrow={eyebrow} title={pageTitle} subtitle={subtitle}>
-        <slot name="aside" slot="aside" />
-      </WbHead>
-      <main class="wb-main">
-        <slot />
-      </main>
-      <WbFoot />
-    </div>
-  </div>
-  <style is:global>
-    /* Restore the wb grid: rim on the left, everything else flows in
-       a single right-side column so the signature line sits above the
-       eyebrow without breaking the original three-row grid. */
-    .wb { grid-template-columns: 56px 1fr 40px; grid-template-rows: 1fr; }
-    .wb-page { grid-column: 2 / span 2; display: flex; flex-direction: column; min-height: 100vh; min-width: 0; }
-    .wb-page > .wb-main { flex: 1; }
-    @media (max-width: 720px) {
-      .wb-page { grid-column: 1 / -1; }
-    }
-  </style>
-</body>
-</html>
+  <slot />
+</Reading>
+
+<style>
+  .page-head__eyebrow { display: block; margin: 0 0 1rem; }
+  .page-head__aside {
+    margin-top: 1.4rem;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+  .page-head__aside:empty { display: none; }
+</style>
