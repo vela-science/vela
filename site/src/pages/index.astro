@@ -50,8 +50,13 @@ const lastUpdated = stats.lastUpdated
     </div>
     <h1 class="vh-hero__title">An open protocol for scientific findings.</h1>
     <p class="vh-hero__sub">
-      Findings, evidence, and corrections — first-class, signed, content-addressed, replayable.
-      Three independent reducer implementations agree byte-for-byte.
+      When a finding weakens, the trials and target hypotheses that depended on it know —
+      automatically. Findings, evidence, and corrections as signed, content-addressed events
+      that propagate through a dependency graph.
+    </p>
+    <p class="vh-hero__byline">
+      Built by <a href="/lineage" class="vh-hero__byline-link">Will Blair</a>, in the
+      open at <a href="https://github.com/vela-science/vela" rel="noopener" class="vh-hero__byline-link">github.com/vela-science/vela</a>.
     </p>
 
     <div class="vh-hero__ctas">
@@ -198,7 +203,7 @@ const lastUpdated = stats.lastUpdated
       <a class="vh-directory__link" href="https://borrowedlight.org" rel="noopener">The essay</a>
       <a class="vh-directory__link" href="/protocol">The protocol</a>
       <a class="vh-directory__link" href="/spec">Protocol specification</a>
-      <a class="vh-directory__link" href="/scope">Operational scope</a>
+      <a class="vh-directory__link" href="/protocol/agents">Agent integration</a>
     </div>
     <div class="vh-directory__col">
       <p class="vh-directory__head">Try</p>
@@ -273,9 +278,27 @@ const lastUpdated = stats.lastUpdated
     line-height: 1.55;
     letter-spacing: -0.005em;
     color: var(--ink-2);
-    margin: 0 0 2rem;
+    margin: 0 0 1rem;
     max-width: 54ch;
     text-wrap: pretty;
+  }
+  .vh-hero__byline {
+    margin: 0 0 2rem;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.06em;
+    color: var(--ink-3);
+  }
+  .vh-hero__byline-link {
+    color: var(--ink-2);
+    text-decoration: none;
+    border-bottom: 1px solid color-mix(in oklab, var(--gold) 38%, transparent);
+    padding-bottom: 1px;
+    transition: color 160ms var(--ease), border-bottom-color 160ms var(--ease);
+  }
+  .vh-hero__byline-link:hover {
+    color: var(--gold);
+    border-bottom-color: var(--gold);
   }
 
   .vh-hero__ctas {
