@@ -6,20 +6,15 @@
   page is a one-screen mark, not a re-telling. Everything that wants
   to be read in prose lives at borrowedlight.org.
 */
-import Page from "../layouts/Page.astro";
+import Reading from "../layouts/Reading.astro";
 import { BORROWED_LIGHT_URL } from "../config";
 ---
 
-<Page
+<Reading
   title="Lineage · Vela"
   description="Why this exists, named once."
   active="lineage"
-  eyebrow="Lineage"
-  pageTitle="Lineage"
-  subtitle="Why this exists, named once."
 >
-  <a href="/" slot="aside" class="aside-link">← back</a>
-
   <article class="lineage">
     <p class="lineage__hook">
       <em>Everything you learn, you pass on.</em>
@@ -38,7 +33,7 @@ import { BORROWED_LIGHT_URL } from "../config";
       <p class="lineage__mark">for M.</p>
     </div>
   </article>
-</Page>
+</Reading>
 
 <style>
   .aside-link {
@@ -64,27 +59,28 @@ import { BORROWED_LIGHT_URL } from "../config";
 
   .lineage__hook {
     font-family: var(--font-display);
-    font-style: italic;
-    font-weight: 500;
-    font-size: clamp(1.85rem, 4vw, 2.7rem);
-    line-height: 1.18;
-    letter-spacing: var(--track-display);
+    font-weight: 400;
+    font-size: clamp(1.9rem, 4vw, 2.8rem);
+    line-height: 1.08;
+    letter-spacing: -0.02em;
     color: var(--ink-0);
-    margin: 0 0 0.5rem;
+    margin: 0 0 0.7rem;
     text-wrap: balance;
+    font-variation-settings: "opsz" 144, "SOFT" 30;
   }
+  .lineage__hook em { font-style: italic; }
   .lineage__attr {
     margin: 0 0 2.4rem;
     font-family: var(--font-mono);
-    font-size: var(--size-imprint);
-    letter-spacing: var(--track-imprint);
+    font-size: 0.7rem;
+    letter-spacing: 0.18em;
     text-transform: uppercase;
     color: color-mix(in oklab, var(--gold) 76%, var(--ink-2));
   }
   .lineage__line {
-    font-family: var(--font-body);
-    font-size: 1.05rem;
-    line-height: var(--leading-read);
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    line-height: 1.55;
     color: color-mix(in oklab, var(--ink-1) 88%, var(--ink-2));
     margin: 0 auto;
     max-width: 48ch;

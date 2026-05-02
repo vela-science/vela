@@ -8,7 +8,7 @@
   Whitepaper-shaped depth lives in /docs.
 */
 
-import Page from "../../layouts/Page.astro";
+import Reading from "../../layouts/Reading.astro";
 import SectionHeading from "../../components/SectionHeading.astro";
 import ImagePlate from "../../components/ImagePlate.astro";
 import Imprint from "../../components/Imprint.astro";
@@ -25,20 +25,19 @@ const featuredClaim = allClaims
   .sort((a, b) => b.finding.confidence.score - a.finding.confidence.score)[0];
 ---
 
-<Page
+<Reading
   title="Vela protocol · scientific memory for humans and AI"
   description="A short, interactive walkthrough of the Vela protocol: findings, constellations, proof packets, and how to use it."
-  active="protocol"
-  eyebrow="00 · The protocol"
-  pageTitle="The protocol"
-  subtitle="Scientific memory humans and agents can correct, replay, and sign."
+  active="docs"
+  wide
 >
-  <div slot="aside">
-    <a href={REPO_URL} class="aside-link">github</a>
-    <span>·</span>
-    <a href={HUB_URL} class="aside-link">hub</a>
-    <span class="aside-version" title={`Vela ${VERSION}`}>v{VERSION}</span>
-  </div>
+  <header class="page-head">
+    <p class="eyebrow">00 · The protocol</p>
+    <h1 class="page-head__title">The protocol</h1>
+    <p class="page-head__sub">
+      Scientific memory humans and agents can correct, replay, and sign.
+    </p>
+  </header>
 
   <article class="protocol">
     <!-- ── Hero ──
@@ -311,7 +310,7 @@ reducer: ok
 
     <Imprint returnHref="/" returnLabel="Back to the live frontier" />
   </article>
-</Page>
+</Reading>
 
 <style>
   .aside-link {
@@ -350,18 +349,19 @@ reducer: ok
   }
   .protocol__hook {
     font-family: var(--font-display);
-    font-style: italic;
-    font-weight: 500;
-    font-size: clamp(1.45rem, 2.6vw, 1.95rem);
-    line-height: 1.32;
-    letter-spacing: var(--track-display);
+    font-weight: 450;
+    font-size: clamp(1.7rem, 3.2vw, 2.4rem);
+    line-height: 1.08;
+    letter-spacing: -0.018em;
     color: var(--ink-0);
-    margin: 0 0 0.85rem;
-    max-width: 44ch;
+    margin: 0 0 1rem;
+    max-width: 32ch;
     text-wrap: balance;
+    font-variation-settings: "opsz" 144, "SOFT" 30;
   }
+  .protocol__hook em { font-style: normal; }
   .protocol__sub {
-    font-family: var(--font-sans);
+    font-family: var(--font-body);
     font-weight: 400;
     font-size: 1rem;
     line-height: 1.55;
@@ -403,10 +403,10 @@ reducer: ok
     display: inline-flex;
     align-items: baseline;
     gap: 8px;
-    font-family: var(--font-sans);
+    font-family: var(--font-display);
     font-weight: 500;
-    font-size: 0.95rem;
-    letter-spacing: -0.005em;
+    font-size: 1.05rem;
+    letter-spacing: 0.005em;
     color: var(--ink-1);
     text-decoration: none;
     border-bottom: 1px solid transparent;

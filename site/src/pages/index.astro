@@ -1,33 +1,11 @@
 ---
-/*
-  Topic-first homepage — the live state of the Alzheimer's
-  Therapeutics frontier.
-
-  Doctrine: a researcher who has never heard of Vela should land here
-  and within 5 seconds say "this is the live state of Alzheimer's
-  research, signed and updated weekly." The protocol underneath is a
-  second-class citizen; the body of knowledge is the front.
-
-  This page renders against the canonical frontier read from disk at
-  build time (see lib/frontier.ts). When the frontier grows, this
-  page grows with it; no template changes needed.
-*/
-
-import Page from "../layouts/Page.astro";
+import Reading from "../layouts/Reading.astro";
 import ClaimCard from "../components/ClaimCard.astro";
-import ImagePlate from "../components/ImagePlate.astro";
 import HeroConstellation from "../components/HeroConstellation.astro";
 import {
   loadFrontier,
   frontierStats,
   contradictions,
-  activeWeeks,
-  replicationStats,
-  loadDatasets,
-  loadCodeArtifacts,
-  loadPredictions,
-  loadResolutions,
-  TARGETS,
   type ClaimView,
 } from "../lib/frontier";
 import { FRONTIER, REPO_URL, HUB_URL, VERSION } from "../config";
@@ -35,340 +13,164 @@ import { FRONTIER, REPO_URL, HUB_URL, VERSION } from "../config";
 const claims = loadFrontier();
 const stats = frontierStats();
 const tensionList = contradictions();
-const repStats = replicationStats();
-const datasets = loadDatasets();
-const codeArtifacts = loadCodeArtifacts();
-const predictions = loadPredictions();
-const resolutions = loadResolutions();
 
-/* Above-the-fold: featured claims, sorted by confidence so the
-   strongest signals lead. Cap at 12 so the page stays scannable. */
 const featured: ClaimView[] = claims
-  .slice() // don't mutate cache
+  .slice()
   .sort((a, b) => b.finding.confidence.score - a.finding.confidence.score)
-  .slice(0, 12);
+  .slice(0, 9);
 
-/* Recent activity — the most recently created findings. Will become
-   "this week" once weekly diff machinery lands in v0.32. */
-const recent: ClaimView[] = claims.slice(0, 5);
-
-/* Mini-constellation source — the top-confidence claims feed the
-   build-time star chart rendered by <HeroConstellation />. */
 const constellationClaims = claims
   .slice()
   .sort((a, b) => b.finding.confidence.score - a.finding.confidence.score)
-  .slice(0, 28);
-
-/* Latest weekly diff (link target for the recent panel). */
-const weeks = activeWeeks();
-const latestWeek = weeks[0];
-
-/* Target → count map for the filter rail and topic links. */
-const targetsWithCounts = TARGETS.map((t) => ({
-  ...t,
-  count: claims.filter((c) => c.targets.includes(t.slug)).length,
-})).filter((t) => t.count > 0);
+  .slice(0, 24);
 
 const lastUpdated = stats.lastUpdated
   ? new Date(stats.lastUpdated).toISOString().slice(0, 10)
   : "—";
 ---
 
-<Page
+<Reading
   title="Vela · open protocol for scientific findings"
   description="An open protocol where scientific findings, evidence, and corrections are first-class, signed, content-addressed objects."
   active="home"
-  eyebrow="Vela"
-  pageTitle="An open protocol for scientific findings."
-  subtitle="Findings, evidence, and corrections — first-class, signed, content-addressed, replayable. Three independent reducer implementations agree byte-for-byte."
+  wide
 >
-  <div slot="aside">
-    <a href="/protocol" class="aside-link">docs</a>
-    <span>·</span>
-    <a href="/workbench" class="aside-link">workbench</a>
-    <span>·</span>
-    <a href="/honest" class="aside-link">honest</a>
-    <span>·</span>
-    <a href={REPO_URL} class="aside-link">github</a>
-    <span>·</span>
-    <a href={HUB_URL} class="aside-link">hub</a>
-    <span class="aside-version" title={`Vela ${VERSION}`}>v{VERSION}</span>
-  </div>
+  <!-- Hero -->
+  <header class="vh-hero">
+    <div class="vh-hero__mark" aria-hidden="true">
+      <svg viewBox="0 0 64 24" width="64" height="24" fill="none" stroke="currentColor" stroke-width="0.7">
+        <circle cx="6" cy="12" r="1.4" fill="currentColor" />
+        <circle cx="20" cy="6" r="1.1" fill="currentColor" />
+        <circle cx="32" cy="14" r="1.6" fill="currentColor" />
+        <circle cx="46" cy="9" r="1.2" fill="currentColor" />
+        <circle cx="58" cy="17" r="1.3" fill="currentColor" />
+        <path d="M6 12 L20 6 L32 14 L46 9 L58 17" opacity="0.5" />
+      </svg>
+      <span class="vh-hero__mark-label">Vela · v{VERSION}</span>
+    </div>
+    <h1 class="vh-hero__title">An open protocol for scientific findings.</h1>
+    <p class="vh-hero__sub">
+      Findings, evidence, and corrections — first-class, signed, content-addressed, replayable.
+      Three independent reducer implementations agree byte-for-byte.
+    </p>
 
-  <!-- ── Hero: clear developer entry point ──
-       What a first-time visitor needs in the first viewport:
-       (1) what is it, in one sentence (page subtitle does this)
-       (2) two CTAs — install vs see-it-live
-       (3) the curl line they can run in 30 seconds to verify
-       (4) signal that this is real, not vapor (stats line)
-       The watercolor + meditative content live further down as proof. -->
-  <section class="dev-hero" aria-label="Get started">
-    <div class="dev-hero__ctas">
-      <a class="dev-hero__cta dev-hero__cta--primary" href="/protocol">
-        Read the protocol
-        <span class="dev-hero__cta-arrow" aria-hidden="true">→</span>
+    <div class="vh-hero__ctas">
+      <a class="vh-btn vh-btn--primary" href="/protocol">
+        Read the protocol <span aria-hidden="true">→</span>
       </a>
-      <a class="dev-hero__cta dev-hero__cta--secondary" href="/workbench">
-        Open the workbench
-        <span class="dev-hero__cta-arrow" aria-hidden="true">→</span>
+      <a class="vh-btn vh-btn--secondary" href="/workbench">
+        Open the workbench <span aria-hidden="true">→</span>
       </a>
     </div>
 
-    <div class="dev-hero__try">
-      <div class="dev-hero__try-head">
-        <span class="dev-hero__try-tag">try it · 30 seconds · no install</span>
-        <a class="dev-hero__try-link" href="/try">view source</a>
+    <div class="vh-try">
+      <div class="vh-try__head">
+        <span class="vh-try__tag">try it · 30s · no install</span>
+        <a class="vh-try__src" href="/try">view source</a>
       </div>
-      <pre class="dev-hero__code"><code><span class="tm-ps">$</span> <span class="tm-cmd">curl</span> <span class="tm-flag">-sSL</span> https://vela.science/try | <span class="tm-cmd">bash</span></code></pre>
-      <p class="dev-hero__try-caption">
+      <pre class="vh-code"><code><span class="vh-ps">$</span> <span class="vh-cmd">curl</span> <span class="vh-flag">-sSL</span> https://vela.science/try | <span class="vh-cmd">bash</span></code></pre>
+      <p class="vh-try__note">
         Downloads a real signed proof packet plus a stdlib-only Python verifier and recomputes
-        every file's SHA-256 against the manifest. Runs locally, no install, exits non-zero on any mismatch.
+        every file's SHA-256 against the manifest. Runs locally, exits non-zero on any mismatch.
       </p>
     </div>
 
-    <div class="dev-hero__signals">
-      <span class="dev-hero__signal">
-        <span class="dev-hero__signal-num">{stats.claims}</span>
-        <span class="dev-hero__signal-label">findings on the live frontier</span>
-      </span>
-      <span class="dev-hero__signal-sep" aria-hidden="true">·</span>
-      <span class="dev-hero__signal">
-        <span class="dev-hero__signal-num">3</span>
-        <span class="dev-hero__signal-label">independent reducer implementations</span>
-      </span>
-      <span class="dev-hero__signal-sep" aria-hidden="true">·</span>
-      <span class="dev-hero__signal">
-        <span class="dev-hero__signal-num">35/35</span>
-        <span class="dev-hero__signal-label">files verified byte-identical</span>
-      </span>
+    <dl class="vh-stats">
+      <div class="vh-stat">
+        <dt>{stats.claims}</dt>
+        <dd>findings on the live frontier</dd>
+      </div>
+      <div class="vh-stat">
+        <dt>3</dt>
+        <dd>reducer implementations</dd>
+      </div>
+      <div class="vh-stat">
+        <dt>35/35</dt>
+        <dd>files verified byte-identical</dd>
+      </div>
+      <div class="vh-stat">
+        <dt>{lastUpdated}</dt>
+        <dd>last signed</dd>
+      </div>
+    </dl>
+  </header>
+
+  <!-- Live frontier -->
+  <section class="vh-section" aria-label="Live frontier">
+    <div class="vh-section__head">
+      <p class="vh-section__eyebrow">Live frontier · {FRONTIER.name}</p>
+      <h2 class="vh-section__title">{FRONTIER.name}, mapped.</h2>
+      <p class="vh-section__sub">
+        {stats.claims} signed findings, {stats.papers} papers, {stats.contradictions} open contradictions.
+        Hover any star to read its claim.
+      </p>
     </div>
-  </section>
 
-  <!-- ── Live frontier — the proof section ──
-       Below the dev hero. The visitor who scrolled past the curl
-       line wants to see the substrate is real and live, not just a
-       command they could have hallucinated. -->
-  <section class="live-proof" aria-label="See the substrate live">
-    <header class="live-proof__head">
-      <span class="live-proof__kicker">Live frontier · Alzheimer's Therapeutics</span>
-      <h2 class="live-proof__title">{FRONTIER.name}</h2>
-      <p class="live-proof__sub">{FRONTIER.description}</p>
-    </header>
-
-    <figure class="hero__constellation">
+    <figure class="vh-constellation">
       <HeroConstellation claims={constellationClaims} />
-      <p class="hero__constellation-caption" data-hero-tip>
-        {constellationClaims.length} claims, top-confidence first. Hover any node — click to read the evidence.
-        <a class="hero__constellation-link" href="/workbench">Open the workbench →</a>
-      </p>
+      <figcaption class="vh-constellation__cap" data-hero-tip>
+        {constellationClaims.length} top-confidence claims. Click any node to read the evidence.
+      </figcaption>
     </figure>
 
-    <nav class="hero__paths" aria-label="See the substrate work">
-      <a class="hero__path" href="/proof/pericyte-correction">
-        <span class="hero__path-kicker">Watch one</span>
-        <span class="hero__path-label">Correction event land →</span>
-      </a>
-      <a class="hero__path" href="/replay">
-        <span class="hero__path-kicker">Drag through</span>
-        <span class="hero__path-label">14 signed events →</span>
-      </a>
-      <a class="hero__path" href="/protocol">
-        <span class="hero__path-kicker">Read</span>
-        <span class="hero__path-label">the four-noun protocol →</span>
-      </a>
-    </nav>
-  </section>
+    <div class="vh-section__head" style="margin-top: 2.4rem;">
+      <h2 class="vh-section__title vh-section__title--small">Strongest claims, by confidence.</h2>
+    </div>
 
-  <!-- ── From the essay — quiet recognition for visitors arriving
-       from borrowedlight.org. Single italic pull-quote, attributed,
-       no banner heaviness. Reassures the arrival without preamble. ── -->
-  <aside class="from-essay" aria-label="From the essay">
-    <p class="from-essay__quote">
-      <em>The implementation direction I'm working on is Vela — a shared state layer for findings, evidence, corrections, and the events that move them.</em>
-    </p>
-    <p class="from-essay__cite">
-      <a class="from-essay__link" href="https://borrowedlight.org" rel="noopener">Constellations of Borrowed Light</a>
-      <span class="from-essay__sep">·</span>
-      <span>§ The Inheritance</span>
-    </p>
-  </aside>
-
-  <!-- ── Frontier readout — the masthead's instrument bar ── -->
-  <div class="frontier-readout" aria-label="Frontier statistics">
-    <div class="frontier-readout__stat">
-      <span class="frontier-readout__num">{stats.claims}</span>
-      <span class="frontier-readout__label">claims</span>
-    </div>
-    <div class="frontier-readout__stat">
-      <span class="frontier-readout__num">{stats.papers}</span>
-      <span class="frontier-readout__label">papers</span>
-    </div>
-    <div class="frontier-readout__stat">
-      <span class="frontier-readout__num">{stats.contradictions}</span>
-      <span class="frontier-readout__label">contradictions</span>
-    </div>
-    <div class="frontier-readout__stat">
-      <span class="frontier-readout__num">{repStats.total}</span>
-      <span class="frontier-readout__label">replications</span>
-    </div>
-    <div class="frontier-readout__stat">
-      <a class="frontier-readout__link" href="/datasets">
-        <span class="frontier-readout__num">{datasets.length}</span>
-        <span class="frontier-readout__label">datasets</span>
-      </a>
-    </div>
-    <div class="frontier-readout__stat">
-      <a class="frontier-readout__link" href="/code">
-        <span class="frontier-readout__num">{codeArtifacts.length}</span>
-        <span class="frontier-readout__label">code</span>
-      </a>
-    </div>
-    <div class="frontier-readout__stat">
-      <a class="frontier-readout__link" href="/predictions">
-        <span class="frontier-readout__num">{predictions.length}</span>
-        <span class="frontier-readout__label">predictions</span>
-      </a>
-    </div>
-    <div class="frontier-readout__stat">
-      <span class="frontier-readout__num frontier-readout__num--small">{lastUpdated}</span>
-      <span class="frontier-readout__label">last signed</span>
-    </div>
-  </div>
-
-  <!-- ── Filter rail — drug targets, with counts ── -->
-  <nav class="target-rail" aria-label="Browse by target">
-    <span class="target-rail__label">Targets</span>
-    {targetsWithCounts.map((t) => (
-      <a class="target-rail__chip" href={`/targets/${t.slug}`}>
-        {t.short}
-        <span class="target-rail__count">{t.count}</span>
-      </a>
-    ))}
-  </nav>
-
-  <!-- ── Above the fold: the claims themselves ── -->
-  <section class="frontier-claims" aria-label="Featured claims">
-    <header class="frontier-claims__head">
-      <h2 class="frontier-claims__title">Strongest claims, by confidence</h2>
-      <p class="frontier-claims__sub">
-        Each card is a content-addressed finding signed into the frontier. Click any to read the evidence.
-      </p>
-    </header>
-    <div class="frontier-claims__list">
+    <div class="vh-grid">
       {featured.map((c) => <ClaimCard claim={c} />)}
     </div>
-    {claims.length > featured.length && (
-      <p class="frontier-claims__more">
-        <a class="inline-link" href="/protocol#full">{claims.length - featured.length} more — see the workbench</a>
-      </p>
-    )}
+
+    <div class="vh-section__foot">
+      <a class="vh-link" href="/workbench">Open the workbench →</a>
+      {tensionList.length > 0 && (
+        <a class="vh-link" href="/workbench?contested=1">
+          {tensionList.length} open contradictions →
+        </a>
+      )}
+      <a class="vh-link" href="/honest">What isn't true yet →</a>
+    </div>
   </section>
 
-  <!-- ── Sidebar pieces — recent + contradictions + how-it-stays-honest ── -->
-  <div class="frontier-secondary">
-    <aside class="frontier-recent">
-      <h2 class="frontier-recent__title">Most recently added</h2>
-      <ol class="frontier-recent__list">
-        {recent.map((c) => (
-          <li class="frontier-recent__item">
-            <a class="frontier-recent__link" href={`/claims/${c.slug}`}>
-              <span class="frontier-recent__claim">{c.finding.assertion.text}</span>
-              <span class="frontier-recent__meta">
-                {new Date(c.finding.created).toISOString().slice(0, 10)} · {c.evidenceLabel}
-              </span>
-            </a>
-          </li>
-        ))}
-      </ol>
-      <p class="frontier-recent__note">
-        {latestWeek ? (
-          <>
-            <a class="inline-link" href={`/frontier/${latestWeek.key}`}>
-              See the {latestWeek.key} diff →
-            </a>
-          </>
-        ) : (
-          <>Weekly diffs ship soon. <a class="inline-link" href="/protocol">How the frontier stays honest →</a></>
-        )}
+  <!-- Build on this -->
+  <section class="vh-section" aria-label="Build on this">
+    <div class="vh-section__head">
+      <p class="vh-section__eyebrow">Build on this</p>
+      <h2 class="vh-section__title">One binary. One open hub. Query it now.</h2>
+      <p class="vh-section__sub">
+        Compile a frontier from a folder of papers, or pull signed manifests from the live hub.
       </p>
-    </aside>
+    </div>
 
-    {tensionList.length > 0 && (
-      <aside class="frontier-tensions">
-        <h2 class="frontier-tensions__title">Open contradictions</h2>
-        <ol class="frontier-tensions__list">
-          {tensionList.slice(0, 5).map((c) => (
-            <li class="frontier-tensions__item">
-              <a class="frontier-tensions__link" href={`/claims/${c.slug}`}>
-                {c.finding.assertion.text}
-              </a>
-            </li>
-          ))}
-        </ol>
-      </aside>
-    )}
-  </div>
-
-  <!-- ── Build on this — the developer affordance ── -->
-  <section class="build" aria-label="Build on this">
-    <header class="build__head">
-      <span class="build__kicker">Build on this</span>
-      <h2 class="build__title">One binary. One open hub. Query it now.</h2>
-    </header>
-    <div class="build__cols">
-      <div class="build__col">
-        <div class="build__col-head">
-          <span class="build__col-tag">$ run locally</span>
-          <span class="build__col-aside">~60 seconds</span>
+    <div class="vh-build">
+      <div class="vh-build__pane">
+        <div class="vh-build__pane-head">
+          <span class="vh-build__pane-tag">$ run locally</span>
+          <span class="vh-build__pane-aside">~60 seconds</span>
         </div>
-        <pre class="build__code"><code><span class="tm-ps">$</span> <span class="tm-cmd">git clone</span> {REPO_URL}
-<span class="tm-ps">$</span> <span class="tm-cmd">cd</span> vela <span class="tm-ps">&&</span> <span class="tm-cmd">cargo build</span> <span class="tm-flag">--release</span>
-<span class="tm-ps">$</span> ./target/release/vela <span class="tm-cmd">frontier compile</span> ./papers
-<span class="tm-ps">$</span> ./target/release/vela <span class="tm-cmd">serve --workbench</span></code></pre>
-        <p class="build__caption">A signed, content-addressed frontier from a folder of papers in four commands.</p>
+        <pre class="vh-code vh-code--block"><code><span class="vh-ps">$</span> <span class="vh-cmd">git clone</span> {REPO_URL}
+<span class="vh-ps">$</span> <span class="vh-cmd">cd</span> vela <span class="vh-ps">&&</span> <span class="vh-cmd">cargo build</span> <span class="vh-flag">--release</span>
+<span class="vh-ps">$</span> ./target/release/vela <span class="vh-cmd">frontier compile</span> ./papers
+<span class="vh-ps">$</span> ./target/release/vela <span class="vh-cmd">serve --workbench</span></code></pre>
       </div>
-      <div class="build__col">
-        <div class="build__col-head">
-          <span class="build__col-tag">$ query the live hub</span>
-          <span class="build__col-aside">no auth, CORS open</span>
+      <div class="vh-build__pane">
+        <div class="vh-build__pane-head">
+          <span class="vh-build__pane-tag">$ query the live hub</span>
+          <span class="vh-build__pane-aside">no auth · CORS open</span>
         </div>
-        <pre class="build__code"><code><span class="tm-ps">$</span> <span class="tm-cmd">curl</span> {HUB_URL}/entries \
-    <span class="tm-flag">-H</span> <span class="tm-str">"accept: application/json"</span>
+        <pre class="vh-code vh-code--block"><code><span class="vh-ps">$</span> <span class="vh-cmd">curl</span> {HUB_URL}/entries \
+    <span class="vh-flag">-H</span> <span class="vh-str">"accept: application/json"</span>
 {`
 # {"entries":[
-#   {"vfr_id":"vfr_bd91…","name":"Alzheimer's Therapeutics",
+#   {"vfr_id":"vfr_bd91…",
+#    "name":"Alzheimer's Therapeutics",
 #    "owner_actor_id":"reviewer:will-blair",
-#    "signed_publish_at":"2026-04-27T18:32:01Z",
 #    "snapshot_hash":"f23b4aba17…"}, …]}`}</code></pre>
-        <p class="build__caption">
-          Every entry is a signed manifest pointing at a frontier file. Pull, verify, replay.
-          <a class="inline-link" href={`${HUB_URL}/entries`} rel="noopener">Browse the hub →</a>
-        </p>
       </div>
     </div>
   </section>
 
-  <!-- ── How this stays honest — the protocol entry, second-class ── -->
-  <aside class="frontier-honest">
-    <div class="frontier-honest__eyebrow">How this stays honest</div>
-    <p class="frontier-honest__body">
-      Every claim above is content-addressed, agent-proposed, human-reviewed, and Ed25519-signed.
-      The same frontier on two machines reduces to the same hash. Retractions land as new events,
-      not deletions. Contradictions are first-class objects, not lost arguments. Vela is the
-      substrate; this page is what the substrate holds.
-    </p>
-    <p class="frontier-honest__more">
-      <a class="inline-link" href="/protocol">Read the protocol →</a>
-      <span class="frontier-honest__sep">·</span>
-      <a class="inline-link" href="/workbench">Open the workbench →</a>
-      <span class="frontier-honest__sep">·</span>
-      <a class="inline-link" href="/honest">What isn't true yet →</a>
-    </p>
-  </aside>
-
   <script>
-    /* Hero constellation hover wiring. Build-time SVG; this just
-       writes the hovered node's claim into the caption strip. */
     (function () {
       var tip = document.querySelector("[data-hero-tip]");
       var nodes = document.querySelectorAll(".hc-node");
@@ -377,12 +179,9 @@ const lastUpdated = stats.lastUpdated
       nodes.forEach(function (n) {
         var write = function () {
           var claim = n.getAttribute("data-claim") || "";
-          tip.innerHTML =
-            '<span class="hero__constellation-quote">' + claim + "</span>";
+          tip.innerHTML = '<span class="vh-constellation__quote">' + claim + "</span>";
         };
-        var reset = function () {
-          tip.innerHTML = original;
-        };
+        var reset = function () { tip.innerHTML = original; };
         n.addEventListener("mouseenter", write);
         n.addEventListener("mouseleave", reset);
         n.addEventListener("focus", write);
@@ -391,858 +190,412 @@ const lastUpdated = stats.lastUpdated
     })();
   </script>
 
-  <!-- ── Quiet closing imprint ── -->
-  <footer class="home-imprint" role="contentinfo">
-    <span class="home-imprint__rule" aria-hidden="true"></span>
-    <p class="home-imprint__lines">
-      <a href="/lineage" class="home-imprint__link">Why this exists, named once →</a>
-      <span class="home-imprint__sep">·</span>
-      <a href="https://borrowedlight.org" rel="noopener" class="home-imprint__link">Borrowed Light, the essay →</a>
+  <!-- Imprint footer -->
+  <footer class="vh-imprint" role="contentinfo">
+    <p class="vh-imprint__lines">
+      <a href="/lineage" class="vh-link">Why this exists, named once →</a>
+      <span class="vh-imprint__sep" aria-hidden="true">·</span>
+      <a href="https://borrowedlight.org" rel="noopener" class="vh-link">Borrowed Light, the essay →</a>
     </p>
-    <p class="home-imprint__mark">for M.</p>
+    <p class="vh-imprint__mark">for M.</p>
   </footer>
-</Page>
+</Reading>
 
 <style>
-  /* ── Developer hero ─────────────────────────────────────────────
-     Stripe-tier first-viewport doctrine: tell a developer in 5 sec
-     what this is, give them two CTAs (read the docs / see it live),
-     and a code block they can run in 30 seconds. Stats below as the
-     "this is real, not vapor" signal. The watercolor plate that used
-     to live here is gone — pale watercolor on cream paper rendered
-     as a giant void at viewport scale and is wrong for the dev-doc
-     register anyway. The meditative content is below the fold now. */
-  .dev-hero {
-    margin: 0 0 var(--space-7);
-    padding-top: var(--space-3);
+  /* ── Hero ─────────────────────────────────────────────────────── */
+  .vh-hero {
+    max-width: 64rem;
   }
-  .dev-hero__ctas {
+  .vh-hero__mark {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    color: color-mix(in oklab, var(--gold) 78%, var(--ink-2));
+    margin: 0 0 1.6rem;
+  }
+  .vh-hero__mark svg { display: block; }
+  .vh-hero__mark-label {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    font-weight: 500;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+  }
+  .vh-hero__title {
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: clamp(2.6rem, 6vw, 4.4rem);
+    line-height: 1.02;
+    letter-spacing: -0.02em;
+    color: var(--ink-0);
+    margin: 0 0 1.5rem;
+    text-wrap: balance;
+    max-width: 18ch;
+    font-variation-settings: "opsz" 144, "SOFT" 30;
+  }
+  .vh-hero__sub {
+    font-family: var(--font-sans);
+    font-weight: 400;
+    font-size: clamp(1.05rem, 1.5vw, 1.2rem);
+    line-height: 1.55;
+    letter-spacing: -0.005em;
+    color: var(--ink-2);
+    margin: 0 0 2rem;
+    max-width: 54ch;
+    text-wrap: pretty;
+  }
+
+  .vh-hero__ctas {
     display: flex;
     flex-wrap: wrap;
     gap: 12px;
-    margin-bottom: var(--space-5);
+    margin-bottom: 2.4rem;
   }
-  .dev-hero__cta {
+  .vh-btn {
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    padding: 10px 18px;
+    padding: 12px 22px;
     font-family: var(--font-sans);
     font-weight: 500;
-    font-size: 0.96rem;
+    font-size: 0.95rem;
     letter-spacing: -0.005em;
     text-decoration: none;
-    border-radius: var(--radius-sm);
+    border-radius: 8px;
     transition:
-      background var(--dur-1) var(--ease),
-      color var(--dur-1) var(--ease),
-      border-color var(--dur-1) var(--ease),
-      transform var(--dur-1) var(--ease);
+      background 160ms var(--ease),
+      color 160ms var(--ease),
+      border-color 160ms var(--ease),
+      transform 160ms var(--ease);
   }
-  .dev-hero__cta--primary {
+  .vh-btn--primary {
     background: var(--ink-0);
     color: var(--paper-0);
     border: 1px solid var(--ink-0);
   }
-  .dev-hero__cta--primary:hover {
-    background: color-mix(in oklab, var(--ink-0) 88%, var(--gold) 12%);
-    border-color: color-mix(in oklab, var(--ink-0) 88%, var(--gold) 12%);
+  .vh-btn--primary:hover {
+    background: var(--ink-1);
     transform: translateY(-1px);
   }
-  .dev-hero__cta--secondary {
+  .vh-btn--secondary {
     background: transparent;
-    color: var(--ink-0);
-    border: 1px solid var(--rule-2);
+    color: var(--ink-1);
+    border: 1px solid color-mix(in oklab, var(--ink-1) 28%, transparent);
   }
-  .dev-hero__cta--secondary:hover {
-    border-color: color-mix(in oklab, var(--gold) 56%, transparent);
-    color: var(--gold);
+  .vh-btn--secondary:hover {
+    border-color: var(--ink-1);
+    background: var(--paper-1);
     transform: translateY(-1px);
   }
-  .dev-hero__cta-arrow {
-    font-family: var(--font-mono);
-    font-size: 0.92em;
-    transition: transform var(--dur-1) var(--ease);
-  }
-  .dev-hero__cta:hover .dev-hero__cta-arrow { transform: translateX(2px); }
+  .vh-btn span { transition: transform 160ms var(--ease); }
+  .vh-btn:hover span { transform: translateX(2px); }
 
-  /* Try-it block — code first, explanation second.
-     The integrator reviewer landed at 94 the moment this became
-     bootstrappable from a single curl line. */
-  .dev-hero__try {
-    margin: 0 0 var(--space-5);
-    border: 1px solid var(--rule-2);
-    border-radius: var(--radius-md, 6px);
+  /* Try-it block */
+  .vh-try {
     background: var(--paper-1);
+    border: 1px solid var(--rule-2);
+    border-radius: 10px;
+    margin-bottom: 2rem;
     overflow: hidden;
   }
-  .dev-hero__try-head {
+  .vh-try__head {
     display: flex;
     justify-content: space-between;
-    align-items: baseline;
-    padding: 10px 16px;
+    align-items: center;
+    padding: 12px 18px;
     border-bottom: 1px solid var(--rule-1);
-    background: color-mix(in oklab, var(--paper-1) 60%, var(--paper-0));
+    background: color-mix(in oklab, var(--paper-2) 35%, var(--paper-1));
   }
-  .dev-hero__try-tag {
+  .vh-try__tag {
     font-family: var(--font-mono);
     font-size: 10px;
+    font-weight: 500;
     letter-spacing: 0.18em;
     text-transform: uppercase;
     color: color-mix(in oklab, var(--gold) 76%, var(--ink-2));
-    font-weight: 500;
   }
-  .dev-hero__try-link {
+  .vh-try__src {
     font-family: var(--font-mono);
     font-size: 11px;
-    letter-spacing: 0.06em;
     color: var(--ink-3);
     text-decoration: none;
-    transition: color var(--dur-1) var(--ease);
+    transition: color 160ms var(--ease);
   }
-  .dev-hero__try-link:hover { color: var(--gold); }
-  .dev-hero__code {
+  .vh-try__src:hover { color: var(--gold); }
+
+  .vh-code {
     margin: 0;
-    padding: 16px 18px;
+    padding: 14px 18px;
     font-family: var(--font-mono);
-    font-size: 13px;
+    font-size: 0.88rem;
     line-height: 1.6;
     color: var(--ink-1);
     background: transparent;
     overflow-x: auto;
     white-space: pre;
   }
-  .dev-hero__code code { background: transparent; border: 0; padding: 0; font: inherit; color: inherit; }
-  .dev-hero__code .tm-ps { color: color-mix(in oklab, var(--gold) 56%, var(--ink-3)); }
-  .dev-hero__code .tm-cmd { color: var(--ink-0); font-weight: 500; }
-  .dev-hero__code .tm-flag { color: var(--ink-2); }
-  .dev-hero__try-caption {
+  .vh-code code { background: transparent; border: 0; padding: 0; font: inherit; color: inherit; }
+  .vh-ps { color: color-mix(in oklab, var(--gold) 60%, var(--ink-3)); }
+  .vh-cmd { color: var(--ink-0); font-weight: 500; }
+  .vh-flag { color: var(--ink-2); }
+  .vh-str { color: color-mix(in oklab, var(--moss) 70%, var(--ink-1)); }
+
+  .vh-try__note {
     margin: 0;
     padding: 0 18px 14px;
     font-family: var(--font-sans);
     font-size: 0.9rem;
     line-height: 1.5;
-    color: color-mix(in oklab, var(--ink-2) 92%, transparent);
+    color: var(--ink-3);
     text-wrap: pretty;
-    max-width: 64ch;
+    max-width: 72ch;
   }
 
-  /* Stats / signals — three quiet numbers that signal "not vapor".
-     Same row as the dev hero, deliberately understated.  */
-  .dev-hero__signals {
+  /* Stats row */
+  .vh-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0;
+    margin: 0;
+    padding: 0;
+    border-top: 1px solid var(--rule-2);
+    border-bottom: 1px solid var(--rule-2);
+  }
+  .vh-stat {
     display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    gap: 6px 14px;
-    padding-top: var(--space-3);
-    border-top: 1px solid var(--rule-1);
-  }
-  .dev-hero__signal {
-    display: inline-flex;
-    align-items: baseline;
+    flex-direction: column;
     gap: 6px;
+    padding: 1.1rem 0 1rem;
+    border-right: 1px solid var(--rule-1);
   }
-  .dev-hero__signal-num {
+  .vh-stat:first-child { padding-left: 0; }
+  .vh-stat:not(:first-child) { padding-left: 1.4rem; }
+  .vh-stat:last-child { border-right: 0; }
+  .vh-stat dt {
     font-family: var(--font-sans);
     font-weight: 600;
-    font-size: 0.98rem;
+    font-size: 1.5rem;
+    line-height: 1;
     color: var(--ink-0);
+    letter-spacing: -0.02em;
     font-variant-numeric: tabular-nums;
+    margin: 0;
   }
-  .dev-hero__signal-label {
+  .vh-stat dd {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin: 0;
+  }
+
+  /* ── Section frame ───────────────────────────────────────────── */
+  .vh-section {
+    max-width: 76rem;
+  }
+  .vh-section__head { margin-bottom: 2.2rem; max-width: 64rem; }
+  .vh-section__eyebrow {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    font-weight: 500;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: color-mix(in oklab, var(--gold) 78%, var(--ink-2));
+    margin: 0 0 0.85rem;
+  }
+  .vh-section__title {
+    font-family: var(--font-display);
+    font-weight: 450;
+    font-size: clamp(1.9rem, 3.6vw, 2.8rem);
+    line-height: 1.06;
+    letter-spacing: -0.018em;
+    color: var(--ink-0);
+    margin: 0 0 0.9rem;
+    text-wrap: balance;
+    max-width: 22ch;
+    font-variation-settings: "opsz" 144, "SOFT" 30;
+  }
+  .vh-section__title--small {
+    font-size: clamp(1.4rem, 2.4vw, 1.8rem);
+    margin: 0;
+  }
+  .vh-section__sub {
+    font-family: var(--font-sans);
+    font-weight: 400;
+    font-size: 1.02rem;
+    line-height: 1.5;
+    color: var(--ink-2);
+    margin: 0;
+    max-width: 56ch;
+    text-wrap: pretty;
+  }
+  .vh-section__foot {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 1.6rem;
+    margin-top: 1.8rem;
+    padding-top: 1.4rem;
+    border-top: 1px solid var(--rule-1);
+  }
+  .vh-link {
+    font-family: var(--font-sans);
+    font-weight: 500;
+    font-size: 0.92rem;
+    color: var(--ink-1);
+    text-decoration: none;
+    border-bottom: 1px solid color-mix(in oklab, var(--gold) 48%, transparent);
+    padding-bottom: 1px;
+    transition: color 160ms var(--ease), border-bottom-color 160ms var(--ease);
+  }
+  .vh-link:hover {
+    color: var(--gold);
+    border-bottom-color: var(--gold);
+  }
+
+  /* ── Constellation figure — twilight substrate so stars actually
+     read. Per brand boards, constellation viz sits on a deeper warm
+     ground that lets gold + ink dots glow. Light-mode-friendly using
+     a deeper sand + warm navy hint. */
+  .vh-constellation {
+    margin: 0 0 1.6rem;
+    background:
+      radial-gradient(
+        ellipse at 50% 35%,
+        color-mix(in oklab, var(--paper-2) 75%, var(--gold)) 0%,
+        color-mix(in oklab, var(--paper-2) 95%, var(--ink-2)) 60%,
+        color-mix(in oklab, var(--paper-2) 88%, var(--ink-1)) 100%
+      );
+    border: 1px solid color-mix(in oklab, var(--gold) 28%, var(--rule-3));
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: inset 0 1px 0 color-mix(in oklab, var(--gold) 18%, transparent), 0 2px 12px rgba(8, 19, 32, 0.06);
+  }
+  .vh-constellation :global(.hc) {
+    background: transparent !important;
+    max-height: 420px !important;
+  }
+  .vh-constellation :global(.hc-dot) {
+    stroke: color-mix(in oklab, var(--ink-0) 55%, transparent) !important;
+    stroke-width: 0.8 !important;
+    filter: drop-shadow(0 0 2px var(--gold-glow));
+  }
+  .vh-constellation :global(.hc-ring) {
+    stroke: color-mix(in oklab, var(--gold) 38%, transparent) !important;
+  }
+  .vh-constellation :global(.hc-core) {
+    filter: drop-shadow(0 0 8px var(--gold)) !important;
+  }
+  .vh-constellation__cap {
+    margin: 0;
+    padding: 14px 20px;
+    border-top: 1px solid color-mix(in oklab, var(--gold) 22%, transparent);
+    background: color-mix(in oklab, var(--paper-2) 60%, var(--paper-1));
     font-family: var(--font-mono);
     font-size: 11px;
     letter-spacing: 0.06em;
-    color: color-mix(in oklab, var(--ink-3) 92%, transparent);
-  }
-  .dev-hero__signal-sep { color: var(--ink-4); }
-
-  @media (max-width: 720px) {
-    .dev-hero__ctas { flex-direction: column; align-items: stretch; }
-    .dev-hero__cta { justify-content: center; }
-    .dev-hero__try-head { flex-direction: column; gap: 4px; align-items: flex-start; }
-    .dev-hero__signals { gap: 8px 10px; }
-    .dev-hero__signal-sep { display: none; }
-  }
-
-  /* ── Live proof section — header for the constellation block.
-     The visitor scrolled past the curl line; show them the substrate
-     is real, named, signed. ── */
-  .live-proof {
-    margin: 0 0 var(--space-7);
-  }
-  .live-proof__head {
-    margin-bottom: var(--space-4);
-    padding-top: var(--space-4);
-    border-top: 1px solid color-mix(in oklab, var(--gold) 28%, transparent);
-  }
-  .live-proof__kicker {
-    display: block;
-    font-family: var(--font-mono);
-    font-size: var(--size-kicker);
-    letter-spacing: var(--track-imprint);
-    text-transform: uppercase;
-    color: color-mix(in oklab, var(--gold) 76%, var(--ink-2));
-    margin-bottom: 0.45rem;
-  }
-  .live-proof__title {
-    font-family: var(--font-sans);
-    font-weight: 600;
-    font-size: clamp(1.45rem, 2.8vw, 1.85rem);
-    line-height: 1.16;
-    letter-spacing: -0.02em;
-    color: var(--ink-0);
-    margin: 0 0 0.55rem;
-    text-wrap: balance;
-  }
-  .live-proof__sub {
-    font-family: var(--font-sans);
-    font-weight: 400;
-    font-size: 0.98rem;
-    line-height: 1.55;
-    letter-spacing: -0.005em;
-    color: color-mix(in oklab, var(--ink-2) 92%, transparent);
-    margin: 0;
-    max-width: 64ch;
-    text-wrap: pretty;
-  }
-
-  /* ── Original meditative hero ──
-     Single visible element above the data. The plate sets atmosphere,
-     the italic line tells you what you're looking at, the sub line
-     answers "why should I believe it" — all in two sentences. */
-  .hero {
-    margin: 0 0 var(--space-7);
-    text-wrap: pretty;
-  }
-  .hero :global(.vela-image-plate) {
-    margin-top: 0;
-    margin-bottom: 1.4rem;
-  }
-  .hero__hook {
-    font-family: var(--font-display);
-    font-style: italic;
-    font-weight: 500;
-    font-size: clamp(1.45rem, 2.6vw, 1.95rem);
-    line-height: 1.32;
-    letter-spacing: var(--track-display);
-    color: var(--ink-0);
-    margin: 0 0 0.85rem;
-    max-width: 44ch;
-    text-wrap: balance;
-  }
-  .hero__hook em { font-style: italic; }
-  .hero__sub {
-    font-family: var(--font-sans);
-    font-weight: 400;
-    font-size: 1rem;
-    line-height: 1.55;
-    letter-spacing: -0.005em;
-    color: color-mix(in oklab, var(--ink-2) 92%, transparent);
-    margin: 0;
-    max-width: 60ch;
-  }
-  /* ── Hero mini-constellation ──
-     Frame around the <HeroConstellation /> component. The SVG itself
-     and the .hc-* node/dot/glow CSS live in the component. */
-  .hero__constellation {
-    margin: 1.4rem 0 0;
-    padding: 0;
-    background: var(--paper-1);
-    border-top: 1px solid color-mix(in oklab, var(--gold) 28%, transparent);
-    border-bottom: 1px solid var(--rule-2);
-    overflow: hidden;
-  }
-  .hero__constellation-caption {
-    margin: 0;
-    padding: 10px 16px 12px;
-    border-top: 1px solid var(--rule-1);
-    font-family: var(--font-mono);
-    font-size: 11px;
-    letter-spacing: 0.04em;
-    color: color-mix(in oklab, var(--ink-3) 92%, transparent);
-    background: transparent;
+    color: var(--ink-3);
     text-wrap: pretty;
     min-height: 1.4em;
   }
-  .hero__constellation-link {
-    margin-left: 8px;
-    color: var(--ink-1);
-    text-decoration: underline;
-    text-decoration-color: color-mix(in oklab, var(--gold) 56%, transparent);
-    text-underline-offset: 3px;
-    text-decoration-thickness: 1px;
-    transition: color var(--dur-1) var(--ease), text-decoration-color var(--dur-1) var(--ease);
-  }
-  .hero__constellation-link:hover {
-    color: var(--gold);
-    text-decoration-color: var(--gold);
-  }
-  .hero__constellation-quote {
-    font-family: var(--font-body);
-    font-style: italic;
-    font-size: 12px;
-    color: var(--ink-1);
+  .vh-constellation__quote {
+    font-family: var(--font-display);
+    font-size: 1.02rem;
+    color: var(--ink-0);
     letter-spacing: 0;
     text-transform: none;
-  }
-  @media (max-width: 720px) {
-    .hero__svg { max-height: 200px; }
-    .hero__constellation-caption { font-size: 10px; padding: 8px 12px 10px; }
+    font-weight: 400;
   }
 
-  /* ── Hero proof affordances ──
-     Three quiet routes into the substrate, surfaced right under the
-     hook so a skeptic who scrolled the data doesn't have to know
-     the URLs by heart. */
-  .hero__paths {
-    margin: 1.85rem 0 0;
+  /* ── Claims grid ─────────────────────────────────────────────── */
+  .vh-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 0;
-    border-top: 1px solid color-mix(in oklab, var(--gold) 28%, transparent);
-    border-bottom: 1px solid var(--rule-2);
+    gap: 14px;
   }
-  .hero__path {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    padding: 0.95rem 1.2rem 1rem 0;
-    text-decoration: none;
-    color: var(--ink-1);
-    border-right: 1px solid var(--rule-1);
-    transition: color var(--dur-1) var(--ease), background var(--dur-1) var(--ease);
+  @media (max-width: 980px) {
+    .vh-grid { grid-template-columns: repeat(2, 1fr); }
   }
-  .hero__path:last-child { border-right: 0; }
-  .hero__path:hover { color: var(--gold); background: color-mix(in oklab, var(--gold) 5%, transparent); }
-  .hero__path-kicker {
-    font-family: var(--font-mono);
-    font-size: var(--size-kicker);
-    letter-spacing: var(--track-imprint);
-    text-transform: uppercase;
-    color: color-mix(in oklab, var(--gold) 72%, var(--ink-3));
-  }
-  .hero__path-label {
-    font-family: var(--font-sans);
-    font-weight: 500;
-    font-size: 0.98rem;
-    letter-spacing: -0.012em;
-    color: inherit;
+  @media (max-width: 640px) {
+    .vh-grid { grid-template-columns: 1fr; }
   }
 
-  @media (max-width: 720px) {
-    .hero { margin-bottom: var(--space-6); }
-    .hero__hook { font-size: 1.35rem; }
-    .hero__paths { grid-template-columns: 1fr; }
-    .hero__path {
-      border-right: 0;
-      border-bottom: 1px solid var(--rule-1);
-      padding: 0.85rem 0;
-    }
-    .hero__path:last-child { border-bottom: 0; }
-  }
-
-  .aside-link {
-    font-family: var(--font-mono);
-    font-size: var(--size-xs);
-    letter-spacing: 0.06em;
-    color: var(--ink-3);
-  }
-  .aside-link:hover { color: var(--ink-0); }
-  .aside-version {
-    font-family: var(--font-mono);
-    font-size: var(--size-xs);
-    letter-spacing: 0.06em;
-    color: var(--ink-4);
-    margin-left: 6px;
-  }
-  div[slot="aside"] {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-
-  .inline-link {
-    color: var(--ink-1);
-    text-decoration: underline;
-    text-decoration-color: color-mix(in oklab, var(--gold) 56%, transparent);
-    text-underline-offset: 3px;
-    text-decoration-thickness: 1px;
-    transition: color var(--dur-1) var(--ease), text-decoration-color var(--dur-1) var(--ease);
-  }
-  .inline-link:hover {
-    color: var(--gold);
-    text-decoration-color: var(--gold);
-  }
-
-  /* ── From the essay — quiet pull-quote for arrivals from BL ── */
-  .from-essay {
-    margin: 0 0 var(--space-5);
-    padding: 1.1rem 0 1.2rem;
-    border-top: 1px solid color-mix(in oklab, var(--gold) 28%, transparent);
-    border-bottom: 1px solid var(--rule-1);
-    max-width: var(--measure-wide);
-  }
-  .from-essay__quote {
-    margin: 0 0 0.55rem;
-    font-family: var(--font-display);
-    font-style: italic;
-    font-weight: 500;
-    font-size: clamp(1.05rem, 1.8vw, 1.25rem);
-    line-height: 1.42;
-    letter-spacing: -0.005em;
-    color: color-mix(in oklab, var(--ink-1) 92%, var(--ink-2));
-    max-width: 64ch;
-    text-wrap: pretty;
-  }
-  .from-essay__quote em { font-style: italic; }
-  .from-essay__cite {
-    margin: 0;
-    font-family: var(--font-mono);
-    font-size: 11px;
-    letter-spacing: 0.06em;
-    color: var(--ink-3);
-    display: inline-flex;
-    flex-wrap: wrap;
-    gap: 6px 10px;
-    align-items: baseline;
-  }
-  .from-essay__link {
-    color: var(--ink-1);
-    text-decoration: none;
-    border-bottom: 1px solid color-mix(in oklab, var(--gold) 38%, transparent);
-    padding-bottom: 1px;
-    transition: color var(--dur-1) var(--ease), border-bottom-color var(--dur-1) var(--ease);
-  }
-  .from-essay__link:hover {
-    color: var(--gold);
-    border-bottom-color: var(--gold);
-  }
-  .from-essay__sep { color: var(--ink-4); }
-
-  /* ── Frontier readout — instrument bar under the masthead ──
-     v0.32 added replications. v0.33 added datasets + code. v0.34
-     added predictions. The bar shows eight numbers on desktop and
-     wraps responsively. */
-  .frontier-readout {
+  /* ── Build panes ─────────────────────────────────────────────── */
+  .vh-build {
     display: grid;
-    grid-template-columns: repeat(8, 1fr);
-    gap: 0;
-    border-top: 1px solid var(--rule-2);
-    border-bottom: 1px solid var(--rule-2);
-    margin: 0 0 var(--space-6);
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
   }
-  .frontier-readout__link {
-    text-decoration: none;
-    color: inherit;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    transition: color var(--dur-1) var(--ease);
+  @media (max-width: 980px) {
+    .vh-build { grid-template-columns: 1fr; }
   }
-  .frontier-readout__link:hover { color: var(--signal); }
-  .frontier-readout__stat {
-    padding: var(--space-4) var(--space-5);
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    border-right: 1px solid var(--rule-1);
-  }
-  .frontier-readout__stat:last-child { border-right: none; }
-  .frontier-readout__num {
-    font-family: var(--font-sans);
-    font-weight: 500;
-    font-size: clamp(1.6rem, 2.8vw, 2rem);
-    line-height: 1;
-    color: var(--ink-0);
-    font-variant-numeric: tabular-nums;
-    letter-spacing: -0.02em;
-  }
-  .frontier-readout__num--small {
-    font-family: var(--font-mono);
-    font-size: 0.85rem;
-    font-weight: 400;
-    letter-spacing: 0.02em;
-  }
-  .frontier-readout__label {
-    font-family: var(--font-mono);
-    font-size: 10px;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    color: color-mix(in oklab, var(--ink-3) 92%, transparent);
-  }
-  /* ── Target rail — chips of drug targets, with counts ── */
-  .target-rail {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: var(--space-3);
-    margin: 0 0 var(--space-5);
-    padding: var(--space-3) 0;
-  }
-  .target-rail__label {
-    font-family: var(--font-mono);
-    font-size: 10px;
-    letter-spacing: var(--track-label);
-    text-transform: uppercase;
-    color: var(--ink-3);
-    margin-right: var(--space-2);
-  }
-  .target-rail__chip {
-    display: inline-flex;
-    align-items: baseline;
-    gap: 6px;
-    padding: 6px 12px;
-    border: 1px solid var(--rule-2);
-    border-radius: var(--radius-sm);
-    font-family: var(--font-sans);
-    font-size: 12px;
-    color: var(--ink-1);
-    text-decoration: none;
-    background: transparent;
-    transition: color var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease), background var(--dur-1) var(--ease);
-  }
-  .target-rail__chip:hover {
-    border-color: color-mix(in oklab, var(--gold) 56%, transparent);
+  .vh-build__pane {
     background: var(--paper-1);
-    color: var(--ink-0);
+    border: 1px solid var(--rule-2);
+    border-radius: 10px;
+    overflow: hidden;
   }
-  .target-rail__count {
-    font-family: var(--font-mono);
-    font-size: 10px;
-    color: var(--ink-3);
-    font-variant-numeric: tabular-nums;
-  }
-
-  /* ── Frontier claims — above the fold ── */
-  .frontier-claims {
-    margin: 0 0 var(--space-7);
-  }
-  .frontier-claims__head {
-    margin-bottom: var(--space-4);
-  }
-  .frontier-claims__title {
-    font-family: var(--font-sans);
-    font-weight: 600;
-    font-size: clamp(1.15rem, 2.2vw, 1.45rem);
-    line-height: 1.16;
-    color: var(--ink-0);
-    margin: 0 0 6px;
-    letter-spacing: -0.018em;
-    text-wrap: balance;
-  }
-  .frontier-claims__sub {
-    font-family: var(--font-sans);
-    font-weight: 400;
-    font-size: 0.95rem;
-    line-height: 1.5;
-    letter-spacing: -0.005em;
-    color: color-mix(in oklab, var(--ink-2) 92%, transparent);
-    margin: 0;
-    max-width: 60ch;
-    text-wrap: pretty;
-  }
-  .frontier-claims__list {
-    border-top: 1px solid var(--rule-2);
-  }
-  .frontier-claims__more {
-    margin: var(--space-4) 0 0;
-    font-family: var(--font-mono);
-    font-size: var(--size-xs);
-    letter-spacing: 0.04em;
-    color: var(--ink-3);
-  }
-
-  /* ── Secondary block — recent + contradictions side-by-side ── */
-  .frontier-secondary {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: var(--space-6);
-    margin: 0 0 var(--space-7);
-  }
-  @media (max-width: 880px) {
-    .frontier-secondary {
-      grid-template-columns: 1fr;
-      gap: var(--space-5);
-    }
-  }
-
-  .frontier-recent,
-  .frontier-tensions {
-    border-top: 1px solid var(--rule-2);
-    padding-top: var(--space-4);
-  }
-  .frontier-recent__title,
-  .frontier-tensions__title {
-    font-family: var(--font-mono);
-    font-size: 11px;
-    letter-spacing: var(--track-label);
-    text-transform: uppercase;
-    color: var(--ink-3);
-    margin: 0 0 var(--space-3);
-  }
-
-  .frontier-recent__list,
-  .frontier-tensions__list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
+  .vh-build__pane-head {
     display: flex;
-    flex-direction: column;
-    gap: var(--space-3);
-  }
-
-  .frontier-recent__link,
-  .frontier-tensions__link {
-    display: block;
-    text-decoration: none;
-    color: var(--ink-1);
-    padding: var(--space-2) 0;
-    border-bottom: 1px solid var(--rule-1);
-    transition: color var(--dur-1) var(--ease);
-  }
-  .frontier-recent__link:hover,
-  .frontier-tensions__link:hover {
-    color: var(--ink-0);
-  }
-  .frontier-recent__claim {
-    display: block;
-    font-family: var(--font-sans);
-    font-weight: 500;
-    font-size: 14px;
-    line-height: 1.42;
-    letter-spacing: -0.008em;
-    color: inherit;
-  }
-  .frontier-recent__meta {
-    display: block;
-    font-family: var(--font-mono);
-    font-size: 10px;
-    letter-spacing: 0.06em;
-    color: var(--ink-3);
-    margin-top: 4px;
-  }
-  .frontier-recent__note {
-    margin: var(--space-4) 0 0;
-    font-family: var(--font-sans);
-    font-size: 12px;
-    color: var(--ink-3);
-    letter-spacing: -0.005em;
-  }
-
-  .frontier-tensions__link {
-    font-family: var(--font-sans);
-    font-weight: 500;
-    font-size: 14px;
-    line-height: 1.42;
-    letter-spacing: -0.008em;
-  }
-
-  /* ── Build on this — quickstart + curl side-by-side ──
-     The Stripe / Linear / Datasette move: the API on the front door.
-     A scientist or developer who lands here can copy two terminal
-     blocks and have a working frontier or a live hub query in under
-     a minute. Show by doing, for the audience that integrates. */
-  .build {
-    margin: var(--space-7) 0;
-    padding: 1.6rem 0;
-    border-top: 1px solid color-mix(in oklab, var(--gold) 28%, transparent);
-    border-bottom: 1px solid var(--rule-2);
-  }
-  .build__head { margin-bottom: 1.4rem; }
-  .build__kicker {
-    display: block;
-    font-family: var(--font-mono);
-    font-size: var(--size-kicker);
-    letter-spacing: var(--track-imprint);
-    text-transform: uppercase;
-    color: color-mix(in oklab, var(--gold) 76%, var(--ink-2));
-    margin-bottom: 0.45rem;
-  }
-  .build__title {
-    font-family: var(--font-sans);
-    font-weight: 600;
-    font-size: clamp(1.25rem, 2.4vw, 1.6rem);
-    line-height: 1.18;
-    letter-spacing: -0.018em;
-    color: var(--ink-0);
-    margin: 0;
-    text-wrap: balance;
-  }
-  .build__cols {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1.4rem;
-  }
-  @media (max-width: 900px) {
-    .build__cols { grid-template-columns: 1fr; }
-  }
-  .build__col {
-    display: flex;
-    flex-direction: column;
-    gap: 0.65rem;
-  }
-  .build__col-head {
-    display: flex;
-    align-items: baseline;
     justify-content: space-between;
-    gap: 8px;
+    align-items: center;
+    padding: 12px 18px;
+    border-bottom: 1px solid var(--rule-1);
+    background: color-mix(in oklab, var(--paper-2) 35%, var(--paper-1));
     font-family: var(--font-mono);
     font-size: 10px;
-    letter-spacing: 0.18em;
+    letter-spacing: 0.16em;
     text-transform: uppercase;
-    color: color-mix(in oklab, var(--ink-3) 92%, transparent);
   }
-  .build__col-tag {
-    color: color-mix(in oklab, var(--gold) 72%, var(--ink-2));
+  .vh-build__pane-tag {
+    color: color-mix(in oklab, var(--gold) 76%, var(--ink-2));
     font-weight: 500;
   }
-  .build__code {
-    margin: 0;
-    padding: 14px 18px 16px;
-    background: var(--paper-1);
-    border: 1px solid var(--rule-2);
-    border-radius: var(--radius-sm);
-    font-family: var(--font-mono);
-    font-size: 12px;
+  .vh-build__pane-aside { color: var(--ink-3); }
+  .vh-code--block {
+    padding: 16px 18px 18px;
+    font-size: 0.82rem;
     line-height: 1.65;
-    color: var(--ink-1);
-    overflow-x: auto;
-    white-space: pre;
-  }
-  .build__code code { background: transparent; border: 0; padding: 0; font: inherit; color: inherit; }
-  .build__code .tm-ps { color: color-mix(in oklab, var(--gold) 56%, var(--ink-3)); }
-  .build__code .tm-cmd { color: var(--ink-0); font-weight: 500; }
-  .build__code .tm-flag { color: var(--ink-2); }
-  .build__code .tm-str { color: color-mix(in oklab, var(--moss) 72%, var(--ink-1)); }
-  .build__code .tm-comment { color: color-mix(in oklab, var(--ink-3) 72%, transparent); font-style: italic; }
-  .build__caption {
-    margin: 0;
-    font-family: var(--font-sans);
-    font-size: 0.92rem;
-    line-height: 1.5;
-    color: color-mix(in oklab, var(--ink-2) 92%, transparent);
-    letter-spacing: -0.005em;
   }
 
-  /* ── How this stays honest — the protocol pointer ── */
-  .frontier-honest {
-    border-top: 1px solid color-mix(in oklab, var(--gold) 38%, transparent);
-    border-bottom: 1px solid var(--rule-2);
-    padding: 1.4rem 0;
-    margin: 0 0 var(--space-7);
-    background: transparent;
-    max-width: var(--measure-wide);
-  }
-  .frontier-honest__eyebrow {
-    font-family: var(--font-mono);
-    font-size: var(--size-kicker);
-    letter-spacing: var(--track-imprint);
-    text-transform: uppercase;
-    color: color-mix(in oklab, var(--gold) 76%, var(--ink-2));
-    margin-bottom: 12px;
-  }
-  .frontier-honest__body {
-    font-family: var(--font-sans);
-    font-weight: 400;
-    font-size: 0.98rem;
-    line-height: 1.6;
-    letter-spacing: -0.005em;
-    color: color-mix(in oklab, var(--ink-1) 90%, var(--ink-2));
-    margin: 0 0 var(--space-3);
-    max-width: 64ch;
-    text-wrap: pretty;
-  }
-  .frontier-honest__more {
-    margin: 0;
-    font-family: var(--font-mono);
-    font-size: 11px;
-    letter-spacing: 0.06em;
-    color: var(--ink-3);
-  }
-  .frontier-honest__sep {
-    margin: 0 8px;
-    color: var(--ink-4);
-  }
-
-  /* ── Closing imprint ── */
-  .home-imprint {
-    margin: 64px 0 24px;
-    padding-top: 1.6rem;
+  /* ── Imprint footer ──────────────────────────────────────────── */
+  .vh-imprint {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0.85rem;
+    gap: 0.7rem;
+    padding-top: 2.4rem;
+    border-top: 1px solid var(--rule-1);
     text-align: center;
   }
-  .home-imprint__rule {
-    display: block;
-    width: 4rem;
-    height: 1px;
-    background: linear-gradient(
-      to right,
-      transparent 0%,
-      color-mix(in oklab, var(--gold) 48%, transparent) 50%,
-      transparent 100%
-    );
-  }
-  .home-imprint__lines {
+  .vh-imprint__lines {
     margin: 0;
-    font-family: var(--font-mono);
-    font-size: 11px;
-    letter-spacing: 0.06em;
-    color: var(--ink-3);
     display: inline-flex;
     flex-wrap: wrap;
     justify-content: center;
-    gap: 4px 10px;
+    gap: 6px 14px;
+    align-items: baseline;
   }
-  .home-imprint__sep { color: var(--ink-4); }
-  .home-imprint__link {
-    color: var(--ink-1);
-    text-decoration: none;
-    border-bottom: 1px solid color-mix(in oklab, var(--gold) 38%, transparent);
-    padding-bottom: 1px;
-    transition: color var(--dur-1) var(--ease), border-bottom-color var(--dur-1) var(--ease);
-  }
-  .home-imprint__link:hover {
-    color: var(--gold);
-    border-bottom-color: var(--gold);
-  }
-  .home-imprint__mark {
+  .vh-imprint__sep { color: var(--ink-4); }
+  .vh-imprint__mark {
     margin: 0;
     font-family: var(--font-mono);
     font-weight: 500;
-    font-size: var(--size-imprint);
-    letter-spacing: 0.34em;
+    font-size: 0.7rem;
+    letter-spacing: 0.32em;
     text-transform: uppercase;
-    color: color-mix(in oklab, var(--gold) 72%, var(--ink-2));
+    color: color-mix(in oklab, var(--gold) 70%, var(--ink-2));
   }
 
-  /* Tablet breakpoint: 8 cells wrap to 4-up x 2 rows. */
-  @media (max-width: 1100px) {
-    .frontier-readout {
-      grid-template-columns: repeat(4, 1fr);
-    }
-    .frontier-readout__stat:nth-child(4n) { border-right: none; }
-    .frontier-readout__stat:nth-child(-n + 4) {
-      border-bottom: 1px solid var(--rule-1);
-    }
-  }
-
-  /* Mobile breakpoint: 8 cells wrap to 2-up x 4 rows. */
-  @media (max-width: 720px) {
-    .frontier-readout {
-      grid-template-columns: repeat(2, 1fr);
-    }
-    .frontier-readout__stat:nth-child(2n) { border-right: none; }
-    .frontier-readout__stat:nth-child(2n + 1) { border-right: 1px solid var(--rule-1); }
-    .frontier-readout__stat:not(:nth-last-child(-n + 2)) {
-      border-bottom: 1px solid var(--rule-1);
-    }
-    .vela-colophon { margin: 48px 0 16px; padding-top: 22px; }
-    .vela-colophon__lantern { width: 26px; height: 39px; }
-    .vela-colophon__title { font-size: 16px; }
-    .vela-colophon__sub { font-size: 9px; letter-spacing: 0.14em; }
+  /* Mobile */
+  @media (max-width: 640px) {
+    .vh-hero__ctas { flex-direction: column; align-items: stretch; }
+    .vh-btn { justify-content: center; }
+    .vh-stats { grid-template-columns: repeat(2, 1fr); }
+    .vh-stat:nth-child(2) { border-right: 0; }
+    .vh-stat:nth-child(3), .vh-stat:nth-child(4) { padding-top: 1rem; border-top: 1px solid var(--rule-1); }
+    .vh-stat:not(:first-child):not(:nth-child(3)) { padding-left: 1.4rem; }
+    .vh-stat:nth-child(3) { padding-left: 0; }
   }
 </style>

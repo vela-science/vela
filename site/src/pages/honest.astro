@@ -14,25 +14,22 @@
   voice, not promoter voice.
 */
 
-import Page from "../layouts/Page.astro";
+import Reading from "../layouts/Reading.astro";
 import { REPO_URL, HUB_URL } from "../config";
 ---
 
-<Page
+<Reading
   title="What isn't true yet · Vela"
   description="An honest accounting of what Vela has not yet proven, and what would change each one."
   active="honest"
-  eyebrow="Vela · operator notes"
-  pageTitle="What isn't true yet"
-  subtitle="An honest accounting of what Vela has not yet proven, and what would change each one."
 >
-  <div slot="aside">
-    <a href="/" class="aside-link">← home</a>
-    <span>·</span>
-    <a href="/protocol" class="aside-link">protocol</a>
-    <span>·</span>
-    <a href={REPO_URL} class="aside-link">github</a>
-  </div>
+  <header class="page-head">
+    <p class="eyebrow">Vela · operator notes</p>
+    <h1 class="page-head__title">What isn't true yet</h1>
+    <p class="page-head__sub">
+      An honest accounting of what Vela has not yet proven, and what would change each one.
+    </p>
+  </header>
 
   <article class="honest">
     <p class="honest__lede">
@@ -185,7 +182,7 @@ import { REPO_URL, HUB_URL } from "../config";
       </p>
     </section>
   </article>
-</Page>
+</Reading>
 
 <style>
   .aside-link {
@@ -252,14 +249,15 @@ import { REPO_URL, HUB_URL } from "../config";
     flex-shrink: 0;
   }
   .honest__gap-title {
-    font-family: var(--font-sans);
-    font-weight: 600;
-    font-size: clamp(1.2rem, 2.4vw, 1.55rem);
-    line-height: 1.22;
+    font-family: var(--font-display);
+    font-weight: 450;
+    font-size: clamp(1.5rem, 2.8vw, 2rem);
+    line-height: 1.1;
     letter-spacing: -0.018em;
     color: var(--ink-0);
     margin: 0;
     text-wrap: balance;
+    font-variation-settings: "opsz" 96, "SOFT" 30;
   }
   .honest__gap-body p {
     font-family: var(--font-sans);
@@ -319,14 +317,15 @@ import { REPO_URL, HUB_URL } from "../config";
     border-top: 1px solid color-mix(in oklab, var(--gold) 32%, transparent);
   }
   .honest__workflow-title {
-    font-family: var(--font-sans);
-    font-weight: 600;
-    font-size: clamp(1.2rem, 2.4vw, 1.55rem);
-    line-height: 1.22;
+    font-family: var(--font-display);
+    font-weight: 450;
+    font-size: clamp(1.5rem, 2.8vw, 2rem);
+    line-height: 1.1;
     letter-spacing: -0.018em;
     color: var(--ink-0);
     margin: 0 0 var(--space-4);
     text-wrap: balance;
+    font-variation-settings: "opsz" 96, "SOFT" 30;
   }
   .honest__workflow-body {
     font-family: var(--font-sans);

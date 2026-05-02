@@ -28,12 +28,14 @@
   --mist:           #E5DECC;   /* atmospheric depth, warm */
   --stone:          #C7BFA8;   /* heavier divider, inactive control */
 
-  /* ── Ink ─── warm indigo family, never grey ─────────────────────── */
-  --ink-0:          #1A2231;   /* strongest ink, headings */
-  --ink-1:          #232B3A;   /* body ink */
-  --ink-2:          #3A4555;   /* secondary text */
-  --ink-3:          #4A5568;   /* tertiary, captions, tick labels */
-  --ink-4:          #A0AEC0;   /* placeholder, faintest text */
+  /* ── Ink ─── Vela Navy family per brand spec, never grey ─────────── */
+  --ink-0:          #081320;   /* Midnight Ink — strongest, hero headlines, primary buttons */
+  --ink-1:          #0E1C2E;   /* body ink — eased one stop from pure navy */
+  --ink-2:          #1E2F44;   /* Deep Sea — secondary text, subhead */
+  --ink-3:          #4A5A6F;   /* tertiary, captions */
+  --ink-4:          #6E7B8B;   /* Fog — placeholder, faintest text */
+  --navy-1:         #081320;   /* canonical brand navy alias */
+  --navy-2:         #1E2F44;
 
   --on-background:  var(--ink-0);
   --on-surface:     var(--ink-1);
@@ -45,10 +47,11 @@
   --rule-3:         rgba(35, 43, 58, 0.22);   /* emphasis rule */
   --rule-ink:       rgba(35, 43, 58, 0.86);   /* engraved line */
 
-  /* ── The single accent — borrowed gold ────────────────────────────── */
-  --gold:           #C9A227;
-  --gold-soft:      rgba(201, 162, 39, 0.32);
-  --gold-glow:      rgba(201, 162, 39, 0.18);
+  /* ── The single accent — luminous gold per brand spec ─────────────── */
+  --gold:           #D4AF37;   /* Luminous Gold from brand boards */
+  --gold-soft:      rgba(212, 175, 55, 0.32);
+  --gold-glow:      rgba(212, 175, 55, 0.20);
+  --gold-light:     #D1B98C;   /* Gold Light variant for softer accents */
   --tertiary:       var(--gold);
   --on-tertiary:    #1A1206;
   --focus-ring:     #D4B048;
@@ -99,14 +102,16 @@
   --vela-frost-blue:    var(--winter);
   --vela-ember-red:     var(--cinnabar);
 
-  /* ── Type ─── Inter Tight dominant, EB Garamond for prose, Cormorant
-     italic reserved as a rare atmospheric accent (--font-poetic). */
-  --font-sans:      "Inter Tight", "Inter", -apple-system, BlinkMacSystemFont, "Söhne", ui-sans-serif, system-ui, sans-serif;
-  --font-display:   var(--font-sans);                                      /* hero titles, big numbers, page titles */
-  --font-body:      "EB Garamond", "Palatino Linotype", Palatino, Georgia, serif;  /* essay prose only */
-  --font-serif:     var(--font-body);
-  --font-poetic:    "Cormorant Garamond", "EB Garamond", Georgia, serif;   /* italic accent — quotes, dedications, rare atmospheric moments */
+  /* ── Type ─── Vela brand register per design boards.
+     Display: Fraunces (closest free analogue to Lyon Display / Stael
+     Display). Variable font with OPSZ axis — works at hero scale and
+     at body. Body / UI: Inter. Code / data: JetBrains Mono. */
+  --font-display:   "Fraunces", "Lyon Display", "EB Garamond", "Palatino Linotype", Georgia, serif;
+  --font-sans:      "Inter", -apple-system, BlinkMacSystemFont, "Söhne", "Inter Tight", ui-sans-serif, system-ui, sans-serif;
+  --font-body:      var(--font-sans);
   --font-mono:      "JetBrains Mono", "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-serif:     "Fraunces", "EB Garamond", Georgia, serif;
+  --font-poetic:    "Fraunces", "EB Garamond", Georgia, serif;
   --font-jp:        "Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", serif;
 
   /* ── Type scale ─── px scale for instrument/UI; clamp scale for prose ─ */
@@ -146,11 +151,24 @@
   --track-eyebrow:  0.18em;
   --track-imprint:  0.32em;
 
-  /* ── Layout ─── BL canonical measure / gutter ─────────────────────── */
-  --measure:        41.5rem;                          /* humane prose width */
-  --measure-wide:   48rem;                            /* figure expansion */
-  --measure-page:   60rem;                            /* page-shell upper bound */
-  --gutter:         clamp(1rem, 3vw, 2.25rem);        /* responsive padding */
+  /* ── Layout ─── unified container scale ─────────────────────────────
+     The whole site lives inside one of two width contracts:
+       --measure       reading column (prose pages: protocol, honest, lineage)
+       --measure-page  wide page (homepage, workbench, claim grids)
+     SiteNav, content, and footer all share --container-px so the page
+     reads as one column from masthead to imprint. Stripe-tier breathing:
+     1.5rem at narrow widths, 4rem at desktop, 5rem at large. */
+  --measure:        44rem;                                          /* prose width */
+  --measure-wide:   52rem;                                          /* figure expansion */
+  --measure-page:   80rem;                                          /* page-shell upper bound */
+  --container-px:   clamp(1.5rem, 5vw, 5rem);                       /* horizontal padding */
+  --container-py:   clamp(1.75rem, 5vh, 3.25rem);                   /* vertical padding (top of content) */
+  --gutter:         var(--container-px);                            /* legacy alias */
+
+  /* Vertical rhythm — one scale, applied consistently */
+  --rhythm-section: clamp(3rem, 7vh, 5rem);                         /* between major <section> blocks */
+  --rhythm-block:   clamp(1.5rem, 3vh, 2.25rem);                    /* between related blocks within a section */
+  --rhythm-tight:   clamp(0.75rem, 1.5vh, 1.1rem);                  /* between tightly-related elements */
 
   /* ── Spacing — 8pt base ──────────────────────────────────────────── */
   --space-1:  4px;
@@ -193,18 +211,76 @@
 }
 
 /* =========================================================================
-   Base
+   Base — BL reading register
+
+   Default body font is serif (EB Garamond), responsive 18 → 20 px to
+   match BL's reading scale. Workbench.astro overrides body { font-family:
+   var(--font-sans) } locally for tool surfaces.
    ========================================================================= */
-html, body {
+html {
+  font-size: 18px;
+  line-height: var(--leading-read);
+  scroll-behavior: smooth;
+  overscroll-behavior: none;
+  overflow-x: clip;
+}
+
+@media (min-width: 768px) {
+  html { font-size: 20px; }
+}
+
+body {
   background: var(--paper-0);
   color: var(--ink-1);
-  font-family: var(--font-sans);
-  font-size: var(--size-base);
-  line-height: var(--leading-body);
+  font-family: var(--font-body);
   font-feature-settings: "ss01", "cv11", "calt";
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+}
+
+/* Headings — serif display per Vela brand. Fraunces with tight tracking,
+   regular-to-medium weight (serifs carry presence; bold serif reads heavy). */
+h1, h2 {
+  font-family: var(--font-display);
+  font-weight: 450;
+  letter-spacing: -0.018em;
+  color: var(--ink-0);
+  text-wrap: balance;
+  font-optical-sizing: auto;
+  font-variation-settings: "opsz" 144, "SOFT" 30;
+}
+
+/* Code, kbd, pre — JetBrains Mono. Technical seasoning only. */
+code, pre, kbd, samp {
+  font-family: var(--font-mono);
+  font-size: 0.88em;
+}
+
+/* Quiet inline link — gold underline as a thin seam, not a UI affordance.
+   Mirrors BL's .bl-quiet-link pattern. Editorial, not call-to-action. */
+a.quiet-link {
+  color: inherit;
+  text-decoration: none;
+  background-image: linear-gradient(
+    to right,
+    color-mix(in oklab, var(--gold) 38%, transparent),
+    color-mix(in oklab, var(--gold) 38%, transparent)
+  );
+  background-size: 100% 1px;
+  background-repeat: no-repeat;
+  background-position: 0 100%;
+  padding-bottom: 0.06em;
+  transition: color var(--dur-2) var(--ease), background-image var(--dur-2) var(--ease);
+}
+a.quiet-link:hover,
+a.quiet-link:focus-visible {
+  color: var(--gold);
+  background-image: linear-gradient(to right, var(--gold), var(--gold));
+}
+
+::selection {
+  background-color: var(--star-glow);
 }
 
 /* =========================================================================

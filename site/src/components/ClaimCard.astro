@@ -1,23 +1,9 @@
 ---
-/*
-  ClaimCard — the unit of the topic-first homepage.
-
-  Renders a finding as a sentence first (serif, claim-as-prose), then
-  the instrument metadata: target tags, evidence label, confidence dot,
-  short citation, permalink. Clicking the card jumps to the full
-  /claims/<slug> page.
-
-  This is the GitHub-first-visit affordance: a researcher should land
-  on the homepage, see ten of these stacked, and recognize "these are
-  claims about Alzheimer's drug targets" before they read any chrome.
-*/
-
 import type { ClaimView } from "../lib/frontier";
 import { TARGETS, shortCitation, doiUrl } from "../lib/frontier";
 
 interface Props {
   claim: ClaimView;
-  /* Compact variant: smaller type, used in dense lists like /targets/. */
   compact?: boolean;
 }
 
@@ -25,7 +11,6 @@ const { claim, compact = false } = Astro.props;
 const f = claim.finding;
 
 const cite = shortCitation(f.provenance);
-const citationHref = doiUrl(f.provenance);
 const targetDefs = TARGETS.filter((t) => claim.targets.includes(t.slug));
 
 const isContradiction =
@@ -33,173 +18,162 @@ const isContradiction =
 
 const confidenceDotColor =
   claim.confidenceBucket === "high"
-    ? "var(--state-ok)"
+    ? "var(--moss)"
     : claim.confidenceBucket === "mid"
-      ? "var(--state-warn)"
-      : "var(--state-stale)";
+      ? "var(--brass)"
+      : "var(--stone)";
 ---
 
-<article class={`claim-card${compact ? " claim-card--compact" : ""}`}>
-  <a class="claim-card__link" href={`/claims/${claim.slug}`} aria-label={f.assertion.text}>
-    <p class="claim-card__claim">{f.assertion.text}</p>
-
-    <div class="claim-card__meta">
-      <div class="claim-card__chips">
-        {targetDefs.map((t) => (
-          <span class="claim-card__chip">{t.short}</span>
-        ))}
-        <span class="claim-card__evidence">{claim.evidenceLabel}</span>
-        {isContradiction && (
-          <span class="claim-card__chip claim-card__chip--contested">contested</span>
-        )}
-        <span
-          class="claim-card__conf"
-          style={`--dot:${confidenceDotColor}`}
-          title={`Confidence ${f.confidence.score.toFixed(2)}`}
-        >
-          <span class="claim-card__conf-dot"></span>
-          <span class="claim-card__conf-num">{f.confidence.score.toFixed(2)}</span>
-        </span>
-      </div>
-
-      <div class="claim-card__citation">
-        <span class="claim-card__cite">{cite}</span>
-        <span class="claim-card__permalink">{claim.finding.id}</span>
-      </div>
+<a
+  class={`claim-card${compact ? " claim-card--compact" : ""}`}
+  href={`/claims/${claim.slug}`}
+  aria-label={f.assertion.text}
+>
+  <div class="claim-card__top">
+    <div class="claim-card__chips">
+      {targetDefs.map((t) => (
+        <span class="claim-card__chip">{t.short}</span>
+      ))}
+      {isContradiction && (
+        <span class="claim-card__chip claim-card__chip--contested">contested</span>
+      )}
     </div>
-  </a>
-</article>
+    <span
+      class="claim-card__conf"
+      style={`--dot:${confidenceDotColor}`}
+      title={`Confidence ${f.confidence.score.toFixed(2)}`}
+    >
+      <span class="claim-card__conf-dot"></span>
+      <span class="claim-card__conf-num">{f.confidence.score.toFixed(2)}</span>
+    </span>
+  </div>
+
+  <p class="claim-card__claim">{f.assertion.text}</p>
+
+  <div class="claim-card__foot">
+    <span class="claim-card__cite">{cite}</span>
+    <span class="claim-card__evidence">{claim.evidenceLabel}</span>
+  </div>
+</a>
 
 <style>
   .claim-card {
-    background: transparent;
-    border-top: 1px solid var(--rule-2);
-    border-bottom: 1px solid var(--rule-2);
-    margin-bottom: -1px; /* collapse adjacent borders into one hairline */
-    transition: background var(--dur-2) var(--ease);
-  }
-  .claim-card:hover {
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+    padding: 1.25rem 1.35rem 1.2rem;
     background: var(--paper-1);
-  }
-  .claim-card:focus-within {
-    outline: 1px solid color-mix(in oklab, var(--gold) 56%, transparent);
-    outline-offset: -1px;
-  }
-
-  .claim-card__link {
-    display: block;
-    padding: 1.4rem 1.5rem 1.5rem;
+    border: 1px solid var(--rule-2);
+    border-radius: 8px;
     text-decoration: none;
     color: inherit;
+    transition:
+      border-color 180ms var(--ease),
+      transform 180ms var(--ease),
+      box-shadow 180ms var(--ease),
+      background 180ms var(--ease);
   }
-  .claim-card--compact .claim-card__link {
-    padding: 1rem 1.25rem 1.1rem;
+  .claim-card:hover {
+    border-color: color-mix(in oklab, var(--gold) 48%, var(--rule-3));
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(35, 43, 58, 0.06), 0 0 0 1px color-mix(in oklab, var(--gold) 20%, transparent);
   }
-
-  .claim-card__claim {
-    font-family: var(--font-sans);
-    font-weight: 500;
-    font-size: 1.05rem;
-    line-height: 1.45;
-    color: var(--ink-0);
-    margin: 0;
-    letter-spacing: -0.012em;
-    text-wrap: pretty;
-    max-width: 64ch;
-  }
-  .claim-card--compact .claim-card__claim {
-    font-size: 0.95rem;
-    line-height: 1.5;
-    max-width: 74ch;
-    font-weight: 500;
+  .claim-card:focus-visible {
+    outline: 2px solid var(--gold);
+    outline-offset: 2px;
   }
 
-  .claim-card__meta {
+  .claim-card__top {
     display: flex;
-    align-items: baseline;
+    align-items: center;
     justify-content: space-between;
-    gap: 1rem;
-    margin-top: 0.85rem;
-    flex-wrap: wrap;
+    gap: 0.75rem;
   }
-
   .claim-card__chips {
     display: flex;
     align-items: center;
-    gap: 0.7rem;
+    gap: 0.4rem;
     flex-wrap: wrap;
+    min-width: 0;
   }
-
   .claim-card__chip {
     font-family: var(--font-mono);
     font-size: 10px;
-    letter-spacing: var(--track-label);
+    font-weight: 500;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
-    color: color-mix(in oklab, var(--ink-2) 92%, transparent);
-    padding: 2px 7px;
+    color: var(--ink-2);
+    padding: 3px 7px;
     border: 1px solid var(--rule-2);
-    border-radius: var(--radius-sm);
-    background: transparent;
+    border-radius: 4px;
+    background: var(--paper-0);
   }
   .claim-card__chip--contested {
     color: var(--cinnabar);
-    border-color: color-mix(in oklab, var(--cinnabar) 38%, transparent);
+    border-color: color-mix(in oklab, var(--cinnabar) 32%, transparent);
+    background: color-mix(in oklab, var(--cinnabar) 6%, var(--paper-0));
   }
-
-  .claim-card__evidence {
-    font-family: var(--font-mono);
-    font-size: 10px;
-    letter-spacing: var(--track-label);
-    text-transform: uppercase;
-    color: color-mix(in oklab, var(--gold) 60%, var(--ink-3));
-  }
-
   .claim-card__conf {
     display: inline-flex;
     align-items: center;
     gap: 6px;
     font-family: var(--font-mono);
-    font-size: 10px;
+    font-size: 11px;
     color: var(--ink-3);
     font-variant-numeric: tabular-nums;
-    letter-spacing: 0.06em;
+    flex-shrink: 0;
   }
   .claim-card__conf-dot {
-    width: 6px;
-    height: 6px;
+    width: 7px;
+    height: 7px;
     border-radius: 50%;
     background: var(--dot);
-    box-shadow: 0 0 0 1px color-mix(in oklab, var(--dot) 30%, transparent);
   }
 
-  .claim-card__citation {
-    display: inline-flex;
+  .claim-card__claim {
+    font-family: var(--font-sans);
+    font-weight: 500;
+    font-size: 1rem;
+    line-height: 1.45;
+    letter-spacing: -0.01em;
+    color: var(--ink-0);
+    margin: 0;
+    text-wrap: pretty;
+    flex: 1;
+  }
+
+  .claim-card__foot {
+    display: flex;
     align-items: baseline;
+    justify-content: space-between;
     gap: 0.75rem;
-    font-size: 0.85rem;
-    color: var(--ink-3);
+    padding-top: 0.85rem;
+    border-top: 1px solid var(--rule-1);
   }
   .claim-card__cite {
     font-family: var(--font-sans);
-    font-weight: 400;
-    font-size: 12px;
-    color: color-mix(in oklab, var(--ink-3) 92%, transparent);
+    font-size: 0.78rem;
+    color: var(--ink-3);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
   }
-  .claim-card__permalink {
+  .claim-card__evidence {
     font-family: var(--font-mono);
     font-size: 10px;
-    letter-spacing: 0;
-    color: var(--ink-4);
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: color-mix(in oklab, var(--gold) 65%, var(--ink-3));
+    flex-shrink: 0;
   }
 
-  @media (max-width: 720px) {
-    .claim-card__claim {
-      font-size: 1.05rem;
-    }
-    .claim-card__meta {
-      flex-direction: column;
-      align-items: flex-start;
-      gap: var(--space-2);
-    }
+  .claim-card--compact {
+    padding: 1rem 1.1rem;
+    gap: 0.7rem;
+  }
+  .claim-card--compact .claim-card__claim {
+    font-size: 0.95rem;
   }
 </style>

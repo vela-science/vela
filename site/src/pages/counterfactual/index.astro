@@ -9,7 +9,7 @@
   /counterfactual/[from]/[to].
 */
 
-import Page from "../../layouts/Page.astro";
+import Reading from "../../layouts/Reading.astro";
 import {
   loadFrontier,
   liveCounterfactualPairs,
@@ -27,21 +27,16 @@ function trunc(s: string, n: number): string {
 }
 ---
 
-<Page
+<Reading
   title={`Counterfactuals · ${FRONTIER.name}`}
   description="Pearl level 3 — twin-network counterfactual queries over the claim graph. Lists the (cause, effect) pairs whose source-to-target path is fully mechanism-annotated."
-  active=""
-  eyebrow="Counterfactuals"
-  pageTitle="What if we had observed differently?"
-  subtitle="Pearl level 3: twin-network counterfactuals along mechanism-annotated edges."
+  active="docs"
 >
-  <div slot="aside">
-    <a href="/" class="aside-link">frontier</a>
-    <span>·</span>
-    <a href="/causal/audit" class="aside-link">audit (level 1)</a>
-    <span>·</span>
-    <a href="/docs/learn" class="aside-link">docs</a>
-  </div>
+  <header class="page-head">
+    <p class="eyebrow">Counterfactuals</p>
+    <h1 class="page-head__title">What if we had observed differently?</h1>
+    <p class="page-head__sub">Pearl level 3: twin-network counterfactuals along mechanism-annotated edges.</p>
+  </header>
 
   <section class="cf-doctrine">
     <p class="cf-doctrine__eyebrow">Doctrine</p>
@@ -145,7 +140,7 @@ HTTP/1.1 200 OK
   </section>
 
   <p class="cf-version">vela {VERSION} · level 3</p>
-</Page>
+</Reading>
 
 <style>
   .cf-doctrine {

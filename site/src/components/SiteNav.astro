@@ -1,0 +1,157 @@
+---
+/*
+  Vela masthead — adopted from Borrowed Light's SiteNav pattern.
+
+    LEFT:  VELA wordmark in mono small caps, letter-spaced.
+           Links to /. Anchors the publication.
+    RIGHT: small nav line — docs · workbench · honest · github · hub
+           plus the version badge. No dropdowns, no decoration.
+
+  Hairline gold rule beneath separates the masthead from the page
+  body. Vela is multi-page so the nav is real (BL's single-essay
+  context warranted no nav at all). Skipped the BL reading-light
+  toggle — Vela isn't reading-time sensitive and the toggle would
+  read as decoration.
+*/
+
+import { REPO_URL, HUB_URL, VERSION } from "../config";
+
+interface Props {
+  active?: string;  // 'docs' | 'workbench' | 'honest' | 'github' | 'hub' | 'home' (or any custom value)
+}
+
+const { active = "home" } = Astro.props;
+---
+
+<header class="vl-mast">
+  <div class="vl-mast-inner">
+    <a href="/" class="vl-brand" aria-label="Vela · home">
+      <svg class="vl-brand__glyph" viewBox="0 0 18 18" width="16" height="16" aria-hidden="true">
+        <path d="M9 1 L11 9 L9 17 L7 9 Z" fill="currentColor" opacity="0.85" />
+        <circle cx="14.5" cy="3.5" r="1.1" fill="currentColor" opacity="0.7" />
+      </svg>
+      <span class="vl-brand__wordmark">Vela</span>
+    </a>
+
+    <nav class="vl-nav" aria-label="Site navigation">
+      <a href="/protocol" class={`vl-nav__link${active === "docs" ? " vl-nav__link--active" : ""}`}>docs</a>
+      <span class="vl-nav__sep" aria-hidden="true">·</span>
+      <a href="/workbench" class={`vl-nav__link${active === "workbench" ? " vl-nav__link--active" : ""}`}>workbench</a>
+      <span class="vl-nav__sep" aria-hidden="true">·</span>
+      <a href="/honest" class={`vl-nav__link${active === "honest" ? " vl-nav__link--active" : ""}`}>honest</a>
+      <span class="vl-nav__sep" aria-hidden="true">·</span>
+      <a href={REPO_URL} class="vl-nav__link" rel="noopener">github</a>
+      <span class="vl-nav__sep" aria-hidden="true">·</span>
+      <a href={HUB_URL} class="vl-nav__link" rel="noopener">hub</a>
+      <span class="vl-nav__version" title={`Vela ${VERSION}`}>v{VERSION}</span>
+    </nav>
+  </div>
+
+  <span class="vl-mast-rule" aria-hidden="true"></span>
+</header>
+
+<style>
+  .vl-mast {
+    position: relative;
+    z-index: 50;
+    background: transparent;
+  }
+
+  .vl-mast-inner {
+    max-width: calc(var(--measure-page) + (var(--container-px) * 2));
+    margin: 0 auto;
+    padding: 1.4rem var(--container-px) 1.3rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 2rem;
+  }
+
+  /* Wordmark — mono small-caps, letter-spaced. Reads as a publisher's
+     stamp. The strong letter-spacing is what carries the editorial
+     register; the actual letterforms stay quiet. */
+  .vl-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+    color: var(--ink-0);
+    transition: color 200ms var(--ease);
+  }
+  .vl-brand:hover { color: var(--gold); }
+  .vl-brand__glyph { color: var(--gold); flex-shrink: 0; }
+
+  .vl-brand__wordmark {
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: 1.32rem;
+    letter-spacing: -0.005em;
+    color: inherit;
+    line-height: 1;
+    font-variation-settings: "opsz" 144, "SOFT" 30;
+  }
+
+  /* Nav line — quiet mono, gold on hover and active. */
+  .vl-nav {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.6rem;
+    font-family: var(--font-mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.06em;
+    color: var(--ink-3);
+  }
+  .vl-nav__link {
+    color: inherit;
+    text-decoration: none;
+    transition: color 200ms var(--ease);
+    text-transform: lowercase;
+  }
+  .vl-nav__link:hover { color: var(--gold); }
+  .vl-nav__link--active {
+    color: var(--gold);
+    border-bottom: 1px solid color-mix(in oklab, var(--gold) 56%, transparent);
+    padding-bottom: 1px;
+  }
+  .vl-nav__sep { color: var(--ink-4); }
+  .vl-nav__version {
+    margin-left: 0.5rem;
+    color: var(--ink-4);
+    letter-spacing: 0.04em;
+  }
+
+  /* Hairline gold rule beneath — same register as section headings.
+     Width matches the masthead container so the seam aligns with content. */
+  .vl-mast-rule {
+    display: block;
+    height: 1px;
+    margin: 0 auto;
+    max-width: calc(var(--measure-page) + (var(--container-px) * 2));
+    background: linear-gradient(
+      to right,
+      transparent 0%,
+      color-mix(in oklab, var(--gold) 32%, transparent) 18%,
+      color-mix(in oklab, var(--gold) 28%, transparent) 82%,
+      transparent 100%
+    );
+  }
+
+  /* Mobile */
+  @media (max-width: 720px) {
+    .vl-mast-inner {
+      padding: 1rem var(--container-px) 0.9rem;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+    .vl-brand__wordmark {
+      font-size: 0.64rem;
+      letter-spacing: 0.26em;
+    }
+    .vl-nav {
+      font-size: 0.6rem;
+      gap: 0.4rem;
+      flex-wrap: wrap;
+    }
+    .vl-nav__version { display: none; }
+  }
+</style>

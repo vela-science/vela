@@ -18,20 +18,21 @@
   what the substrate generates, but seeded so the page reproduces
   byte-identically across reloads.
 */
-import Page from "../../layouts/Page.astro";
+import Reading from "../../layouts/Reading.astro";
 import ImagePlate from "../../components/ImagePlate.astro";
 import Imprint from "../../components/Imprint.astro";
 ---
 
-<Page
+<Reading
   title="A worked Correction · Vela"
   description="One Correction event, end-to-end: how a 2020 paper narrowed the scope of a 2016 finding and notified its dependents."
-  active="proof"
-  eyebrow="Proof · worked example"
-  pageTitle="A worked Correction"
-  subtitle="One event, end-to-end. The substrate seen working."
+  active="docs"
 >
-  <a href="/protocol" slot="aside" class="aside-link">← Protocol</a>
+  <header class="page-head">
+    <p class="eyebrow">Proof · worked example</p>
+    <h1 class="page-head__title">A worked Correction</h1>
+    <p class="page-head__sub">One event, end-to-end. The substrate seen working.</p>
+  </header>
 
   <article class="wc">
     <!-- ── Hero ── -->
@@ -280,7 +281,7 @@ import Imprint from "../../components/Imprint.astro";
 
     <Imprint returnHref="/protocol" returnLabel="Back to the protocol" />
   </article>
-</Page>
+</Reading>
 
 <style>
   .aside-link {
@@ -313,16 +314,17 @@ import Imprint from "../../components/Imprint.astro";
   }
   .wc__hook {
     font-family: var(--font-display);
-    font-style: italic;
-    font-weight: 500;
-    font-size: clamp(1.65rem, 3.4vw, 2.4rem);
-    line-height: 1.18;
-    letter-spacing: var(--track-display);
+    font-weight: 450;
+    font-size: clamp(1.8rem, 3.4vw, 2.5rem);
+    line-height: 1.08;
+    letter-spacing: -0.018em;
     color: var(--ink-0);
-    margin: 0 0 0.85rem;
-    max-width: 38ch;
+    margin: 0 0 1rem;
+    max-width: 30ch;
     text-wrap: balance;
+    font-variation-settings: "opsz" 144, "SOFT" 30;
   }
+  .wc__hook em { font-style: italic; }
   .wc__sub {
     font-family: var(--font-sans);
     font-weight: 400;

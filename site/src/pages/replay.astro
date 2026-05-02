@@ -13,20 +13,21 @@
   constellation is a pure SVG snapshot at the current cursor; the
   scrubber drives the cursor; CSS animates the transitions.
 */
-import Page from "../layouts/Page.astro";
+import Reading from "../layouts/Reading.astro";
 import ImagePlate from "../components/ImagePlate.astro";
 import Imprint from "../components/Imprint.astro";
 ---
 
-<Page
+<Reading
   title="Replay · Vela"
   description="Scrub through a real-shaped event log and watch the constellation evolve. Same input, same output, every replay."
   active="replay"
-  eyebrow="Replay · the event log"
-  pageTitle="Replay"
-  subtitle="Drag the cursor. Watch the field move. Same hash, every time."
 >
-  <a href="/protocol" slot="aside" class="aside-link">← Protocol</a>
+  <header class="page-head">
+    <p class="eyebrow">Replay · the event log</p>
+    <h1 class="page-head__title">Replay</h1>
+    <p class="page-head__sub">Drag the cursor. Watch the field move. Same hash, every time.</p>
+  </header>
 
   <article class="rp">
     <section class="rp__hero">
@@ -93,7 +94,7 @@ import Imprint from "../components/Imprint.astro";
 
     <Imprint returnHref="/protocol" returnLabel="Back to the protocol" />
   </article>
-</Page>
+</Reading>
 
 <script>
   // Synthetic but real-shaped event log. Each event mutates a local
@@ -404,16 +405,17 @@ import Imprint from "../components/Imprint.astro";
   }
   .rp__hook {
     font-family: var(--font-display);
-    font-style: italic;
-    font-weight: 500;
-    font-size: clamp(1.55rem, 3vw, 2.1rem);
-    line-height: 1.18;
-    letter-spacing: var(--track-display);
+    font-weight: 450;
+    font-size: clamp(1.7rem, 3.2vw, 2.4rem);
+    line-height: 1.08;
+    letter-spacing: -0.018em;
     color: var(--ink-0);
-    margin: 0 0 0.85rem;
-    max-width: 38ch;
+    margin: 0 0 1rem;
+    max-width: 30ch;
     text-wrap: balance;
+    font-variation-settings: "opsz" 144, "SOFT" 30;
   }
+  .rp__hook em { font-style: italic; }
   .rp__sub {
     font-family: var(--font-sans);
     font-weight: 400;

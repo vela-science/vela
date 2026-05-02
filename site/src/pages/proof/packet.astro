@@ -13,7 +13,7 @@
   implementations. This page makes it clickable.
 */
 
-import Page from "../../layouts/Page.astro";
+import Reading from "../../layouts/Reading.astro";
 import { REPO_URL } from "../../config";
 import manifest from "../../data/sample-packet-manifest.json";
 
@@ -68,19 +68,21 @@ function shortHash(h: string): string {
 }
 ---
 
-<Page
+<Reading
   title="Proof packet · BBB Flagship · Vela"
   description="The bytes a skeptic actually wants to see — manifest, included files, sha256 hashes, downloadable."
-  active="proof"
-  eyebrow="Proof · BBB Flagship packet"
-  pageTitle="The bytes the skeptic wants to see"
-  subtitle={`Manifest summary and per-file SHA-256 for the BBB Flagship proof packet — the same packet \`vela verify\` and the Python verifier check byte-for-byte.`}
+  active="docs"
+  wide
 >
-  <div slot="aside">
-    <a href="/protocol" class="aside-link">← protocol</a>
-    <span>·</span>
-    <a href="/sample-packet.tar.gz" class="aside-link" download>download .tar.gz</a>
-  </div>
+  <header class="page-head">
+    <p class="eyebrow">Proof · BBB Flagship packet</p>
+    <h1 class="page-head__title">The bytes the skeptic wants to see</h1>
+    <p class="page-head__sub">
+      Manifest summary and per-file SHA-256 for the BBB Flagship proof packet — the same packet
+      <code>vela verify</code> and the Python verifier check byte-for-byte.
+      <a class="quiet-link" href="/sample-packet.tar.gz" download>Download the .tar.gz →</a>
+    </p>
+  </header>
 
   <article class="pp">
 
@@ -212,7 +214,7 @@ function shortHash(h: string): string {
     </section>
 
   </article>
-</Page>
+</Reading>
 
 <style>
   .aside-link {
@@ -325,13 +327,14 @@ function shortHash(h: string): string {
   }
   .pp__stat:last-child { border-right: 0; }
   .pp__stat-num {
-    font-family: var(--font-sans);
-    font-weight: 500;
-    font-size: clamp(1.4rem, 2.4vw, 1.8rem);
+    font-family: var(--font-display);
+    font-weight: 450;
+    font-size: clamp(1.6rem, 2.6vw, 2rem);
     line-height: 1;
     color: var(--ink-0);
     font-variant-numeric: tabular-nums;
-    letter-spacing: -0.02em;
+    letter-spacing: -0.015em;
+    font-variation-settings: "opsz" 96, "SOFT" 30;
   }
   .pp__stat-label {
     font-family: var(--font-mono);

@@ -1,0 +1,188 @@
+---
+/*
+  Reading.astro — minimal Vela page layout.
+
+  Modeled on Borrowed Light's Base + SiteNav. Every reading-surface
+  page (homepage, /protocol, proofs, /honest, /lineage, etc.) uses
+  this layout. The workbench tool surface uses Workbench.astro
+  instead.
+
+  Doctrine:
+   - No SignatureLine, no WbRim, no WbFoot decoration.
+   - Just SiteNav at top, content slot, optional Imprint footer slot.
+   - Body inherits the BL serif register from tokens.css.
+   - Reading column max-width comes from --measure (41.5rem) by
+     default; pages opt out via .reading-shell--wide on the main
+     element when they need full width (workbench-style tables, hero
+     sections that span beyond prose measure).
+*/
+
+import "../styles/global.css";
+import "../styles/reading.css";
+import SiteNav from "../components/SiteNav.astro";
+import { VERSION } from "../config";
+
+interface Props {
+  title: string;
+  description?: string;
+  active?: string;        // SiteNav active marker
+  ogImage?: string;
+  /** Apply --measure-wide constraint instead of --measure on <main>. */
+  wide?: boolean;
+  /** Skip the SiteNav entirely (e.g. landing splash). */
+  noNav?: boolean;
+}
+
+const {
+  title,
+  description = "An open protocol where scientific findings, evidence, and corrections are first-class, signed, content-addressed objects.",
+  active,
+  ogImage = "/brand/og-image.png",
+  wide = false,
+  noNav = false,
+} = Astro.props;
+
+const canonical = new URL(Astro.url.pathname, Astro.site);
+const fullTitle = title.includes("Vela") ? title : `${title} · Vela`;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>{fullTitle}</title>
+    <meta name="description" content={description} />
+    <meta name="version" content={VERSION} />
+    <link rel="canonical" href={canonical} />
+
+    <!-- Open Graph / Twitter -->
+    <meta property="og:title" content={fullTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:image" content={new URL(ogImage, Astro.site)} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content={new URL(ogImage, Astro.site)} />
+
+    <link rel="icon" type="image/svg+xml" href="/brand/favicon.svg" />
+
+    <!-- Vela brand fonts: Fraunces (display, Lyon analogue), Inter (body/UI), JetBrains Mono (data) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
+    />
+
+    <!-- Hash anchors: re-run after layout settles. -->
+    <script is:inline>
+      (function() {
+        if ('scrollRestoration' in history) {
+          history.scrollRestoration = 'manual';
+        }
+        function scrollToHashTarget() {
+          if (!location.hash) return false;
+          const id = decodeURIComponent(location.hash.slice(1));
+          const target = document.getElementById(id);
+          if (!target) return false;
+          const root = document.documentElement;
+          const previous = root.style.scrollBehavior;
+          root.style.scrollBehavior = 'auto';
+          window.scrollTo({
+            top: target.getBoundingClientRect().top + window.scrollY,
+            left: window.scrollX,
+            behavior: 'auto',
+          });
+          root.style.scrollBehavior = previous;
+          return true;
+        }
+        function settleHashScroll() {
+          if (!location.hash) return;
+          requestAnimationFrame(function() {
+            scrollToHashTarget();
+            setTimeout(scrollToHashTarget, 120);
+            setTimeout(scrollToHashTarget, 520);
+          });
+          if (document.fonts && document.fonts.ready) {
+            document.fonts.ready.then(scrollToHashTarget);
+          }
+        }
+        window.addEventListener('hashchange', settleHashScroll);
+        window.addEventListener('load', function() { if (location.hash) settleHashScroll(); });
+      })();
+    </script>
+  </head>
+  <body class="vl-body">
+    <a href="#main" class="skip-link">Skip to content</a>
+
+    {!noNav && <SiteNav active={active} />}
+
+    <main id="main" class={`reading-shell${wide ? " reading-shell--wide" : ""}`}>
+      <slot />
+    </main>
+
+    <footer class="vl-foot">
+      <slot name="foot">
+        <span class="vl-foot__rule" aria-hidden="true"></span>
+        <p class="vl-foot__mark">Vela · v{VERSION}</p>
+      </slot>
+    </footer>
+
+    <style>
+      /* Skip link — accessible-but-quiet keyboard affordance. */
+      .skip-link {
+        position: absolute;
+        left: 1rem;
+        top: 1rem;
+        z-index: 60;
+        padding: 0.5rem 0.75rem;
+        border-radius: 9999px;
+        background: var(--paper-1);
+        border: 1px solid var(--ink-4);
+        color: var(--ink-1);
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+        transform: translateY(-200%);
+        transition: transform 0.15s ease;
+      }
+      .skip-link:focus {
+        transform: translateY(0);
+        outline: 2px solid var(--gold);
+        outline-offset: 2px;
+      }
+
+      .vl-body { min-height: 100vh; }
+
+      /* Footer imprint — mirrors BL's printer's-stamp pattern.
+         Pages can override the slot for a richer Imprint component. */
+      .vl-foot {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.85rem;
+        margin: clamp(3rem, 6vh, 4.5rem) auto clamp(2rem, 4vh, 3rem);
+        padding: 0 var(--container-px);
+      }
+      .vl-foot__rule {
+        display: block;
+        width: 4rem;
+        height: 1px;
+        background: linear-gradient(
+          to right,
+          transparent 0%,
+          color-mix(in oklab, var(--gold) 48%, transparent) 50%,
+          transparent 100%
+        );
+      }
+      .vl-foot__mark {
+        margin: 0;
+        font-family: var(--font-mono);
+        font-size: 0.68rem;
+        font-weight: 500;
+        letter-spacing: 0.32em;
+        text-transform: uppercase;
+        color: color-mix(in oklab, var(--gold) 72%, var(--ink-2));
+      }
+    </style>
+  </body>
+</html>

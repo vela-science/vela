@@ -11,21 +11,22 @@
   This is the page Reviewer B asked for: the API spec, the call
   sequence, the schema, the signing model.
 */
-import Page from "../../layouts/Page.astro";
+import Reading from "../../layouts/Reading.astro";
 import SectionHeading from "../../components/SectionHeading.astro";
 import Imprint from "../../components/Imprint.astro";
 import { HUB_URL, REPO_URL } from "../../config";
 ---
 
-<Page
+<Reading
   title="Agent integration · Vela protocol"
   description="How an AI agent writes a draft Finding into a Vela frontier — the call sequence, the schema, the signing model."
-  active="protocol"
-  eyebrow="Protocol · agent integration"
-  pageTitle="Agent integration"
-  subtitle="The write surface, documented honestly. Draft, review, sign, publish."
+  active="docs"
 >
-  <a href="/protocol" slot="aside" class="aside-link">← Protocol</a>
+  <header class="page-head">
+    <p class="eyebrow">Protocol · agent integration</p>
+    <h1 class="page-head__title">Agent integration</h1>
+    <p class="page-head__sub">The write surface, documented honestly. Draft, review, sign, publish.</p>
+  </header>
 
   <article class="agents">
     <p class="agents__hook">
@@ -259,7 +260,7 @@ Content-Type: application/json
 
     <Imprint returnHref="/protocol" returnLabel="Back to the protocol" />
   </article>
-</Page>
+</Reading>
 
 <style>
   .aside-link {
@@ -282,15 +283,15 @@ Content-Type: application/json
   }
   .agents__hook {
     font-family: var(--font-display);
-    font-style: italic;
-    font-weight: 500;
-    font-size: clamp(1.55rem, 3.2vw, 2.2rem);
-    line-height: 1.2;
-    letter-spacing: var(--track-display);
+    font-weight: 450;
+    font-size: clamp(1.8rem, 3.4vw, 2.5rem);
+    line-height: 1.08;
+    letter-spacing: -0.018em;
     color: var(--ink-0);
-    margin: 0 0 0.85rem;
-    max-width: 38ch;
+    margin: 0 0 1rem;
+    max-width: 30ch;
     text-wrap: balance;
+    font-variation-settings: "opsz" 144, "SOFT" 30;
   }
   .agents__sub {
     font-family: var(--font-sans);
