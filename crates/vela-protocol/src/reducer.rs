@@ -25,6 +25,29 @@ use crate::bundle::{Annotation, ConfidenceMethod};
 use crate::events::{self, StateEvent};
 use crate::project::{self, Project};
 
+/// Single source of truth for the event kinds whose mutations the
+/// reducer enforces. The no-op anchor `frontier.created` is excluded
+/// because it does not mutate state. Used by:
+///   - the dispatch table in `apply_event` (validated by
+///     `dispatch_handles_every_declared_kind` below)
+///   - the cross-implementation fixture coverage assertion in
+///     `crates/vela-protocol/tests/cross_impl_reducer_fixtures.rs`
+///
+/// If you add a new reducer arm, add it here too. CI will fail if the
+/// dispatch table and this constant disagree, and the cross-impl
+/// fixture coverage test will fail if the new kind isn't exercised by
+/// at least one fixture builder. The hand-maintained mirror is gone.
+pub const REDUCER_MUTATION_KINDS: &[&str] = &[
+    "finding.asserted",
+    "finding.reviewed",
+    "finding.noted",
+    "finding.caveated",
+    "finding.confidence_revised",
+    "finding.rejected",
+    "finding.retracted",
+    "finding.dependency_invalidated",
+];
+
 /// Apply one canonical event to `state`, mutating it in place.
 ///
 /// The function dispatches on `event.kind` and performs the same
@@ -495,5 +518,51 @@ mod tests {
         };
         let r = apply_event(&mut state, &event);
         assert!(r.is_err());
+    }
+
+    /// v0.49.3: the dispatch table in `apply_event` and the
+    /// `REDUCER_MUTATION_KINDS` constant must agree. Adding a new
+    /// match arm without updating the constant (or vice versa) makes
+    /// CI fail loudly here, which then makes the cross-impl fixture
+    /// coverage assertion fail correctly downstream. This is the
+    /// single source of truth that retires the hand-maintained mirror.
+    #[test]
+    fn dispatch_handles_every_declared_kind() {
+        for kind in REDUCER_MUTATION_KINDS {
+            let mut state = project::assemble("test", vec![], 0, 0, "test");
+            // Dummy event with the declared kind. The handler may
+            // reject the payload (it's empty), but it MUST NOT reject
+            // the kind itself with "unsupported event kind" — that
+            // would prove the dispatch table is missing an arm for
+            // a kind the constant declares.
+            let event = StateEvent {
+                schema: events::EVENT_SCHEMA.to_string(),
+                id: "vev_dispatch_check".to_string(),
+                kind: (*kind).to_string(),
+                target: StateTarget {
+                    r#type: "finding".to_string(),
+                    id: "vf_x".to_string(),
+                },
+                actor: StateActor {
+                    id: "x".to_string(),
+                    r#type: "human".to_string(),
+                },
+                timestamp: Utc::now().to_rfc3339(),
+                reason: String::new(),
+                before_hash: NULL_HASH.to_string(),
+                after_hash: NULL_HASH.to_string(),
+                payload: Value::Null,
+                caveats: vec![],
+                signature: None,
+            };
+            let r = apply_event(&mut state, &event);
+            if let Err(e) = r {
+                assert!(
+                    !e.contains("unsupported event kind"),
+                    "kind {kind:?} declared in REDUCER_MUTATION_KINDS \
+                     but rejected by apply_event dispatch: {e}"
+                );
+            }
+        }
     }
 }

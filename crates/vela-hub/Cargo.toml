@@ -26,3 +26,8 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 # tarball in memory.
 tar = "0.4"
 flate2 = "1.0"
+# v0.49.3: needed for the optional Ed25519 signing of the
+# `/.well-known/vela` discovery manifest.
+ed25519-dalek.workspace = true
+chrono.workspace = true
+hex = "0.4"

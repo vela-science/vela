@@ -41,6 +41,8 @@ use tokio::sync::RwLock;
 mod db;
 use db::{HubDb, ensure_sqlite_schema};
 use tower_http::cors::CorsLayer;
+use vela_protocol::canonical;
+use vela_protocol::sign as vsign;
 use vela_protocol::counterfactual::{
     CounterfactualQuery, answer_counterfactual,
 };
@@ -108,6 +110,13 @@ struct AppState {
     /// v0.49.1: hit/miss/stale counters for the DB cache. Surfaced at
     /// `/healthz` so an operator can monitor degradation.
     db_cache_metrics: Arc<DbCacheMetrics>,
+    /// v0.49.3: optional Ed25519 signing key for the
+    /// `/.well-known/vela` discovery manifest. When present, the
+    /// manifest's `manifest_canonical` bytes are signed and a
+    /// `signature` block is attached so a federated client can detect
+    /// MITM at the hub edge. Loaded once at startup from the file at
+    /// `VELA_HUB_SIGNING_KEY_PATH`; absent ⇒ unsigned mode (dev).
+    signing_key: Option<Arc<ed25519_dalek::SigningKey>>,
     /// Shared reqwest client. Connection pool reuse matters for
     /// repeat fetches against the same locator host.
     http: reqwest::Client,
@@ -362,11 +371,45 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .timeout(Duration::from_secs(8))
         .build()?;
     let urls = PublicUrls::from_env();
+
+    // v0.49.3: optional signing key for /.well-known/vela. Loaded
+    // once at startup. Absent ⇒ unsigned mode (dev). Present ⇒ the
+    // discovery manifest's canonical bytes are signed and a
+    // signature block is attached so a federated client can detect
+    // MITM at the hub edge.
+    let signing_key = match env::var("VELA_HUB_SIGNING_KEY_PATH") {
+        Ok(path) if !path.is_empty() => {
+            match vsign::load_signing_key_from_path(std::path::Path::new(&path)) {
+                Ok(k) => {
+                    tracing::info!(
+                        "vela-hub /.well-known/vela signing key loaded ({}…)",
+                        &vsign::pubkey_hex(&k)[..16]
+                    );
+                    Some(Arc::new(k))
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        "VELA_HUB_SIGNING_KEY_PATH set but key failed to load: {e}; \
+                         /.well-known/vela will run in unsigned mode"
+                    );
+                    None
+                }
+            }
+        }
+        _ => {
+            tracing::info!(
+                "VELA_HUB_SIGNING_KEY_PATH not set; /.well-known/vela in unsigned mode"
+            );
+            None
+        }
+    };
+
     let state = AppState {
         db,
         frontier_cache: Arc::new(RwLock::new(HashMap::new())),
         db_cache: Arc::new(RwLock::new(HashMap::new())),
         db_cache_metrics: Arc::new(DbCacheMetrics::default()),
+        signing_key,
         http,
         urls,
     };
@@ -483,11 +526,13 @@ async fn metrics_prometheus(State(state): State<AppState>) -> impl axum::respons
 /// list of versioned protocol schemas this hub knows about. Lets a
 /// federated client bootstrap without scraping HTML or guessing URLs.
 async fn well_known_vela(State(state): State<AppState>) -> Json<Value> {
-    Json(json!({
+    let signed_at = chrono::Utc::now().to_rfc3339();
+    let manifest = json!({
         "name": "vela-hub",
         "version": HUB_VERSION,
         "protocol_version": "0.48",
         "site": state.urls.site.clone(),
+        "signed_at": signed_at,
         "endpoints": {
             "registry": format!("{}/entries", state.urls.hub),
             "publish":  format!("{}/entries", state.urls.hub),
@@ -509,7 +554,37 @@ async fn well_known_vela(State(state): State<AppState>) -> Json<Value> {
             "packet_verifier": "https://vela.science/vela_verify.py",
             "reducer":         "https://vela.science/vela_reducer.py",
         },
-    }))
+    });
+
+    // v0.49.3: detached signature over the manifest's canonical bytes.
+    // Verifier algorithm (matches `vela_protocol::canonical::to_canonical_bytes`):
+    //   1. take envelope.manifest as a JSON object
+    //   2. canonicalize: keys sorted lex, no extra whitespace, UTF-8
+    //   3. SHA-512(canonical_bytes) signed via Ed25519 with envelope.signature.pubkey
+    //   4. signature.value is hex-encoded 64-byte signature
+    // Mode is "unsigned" when VELA_HUB_SIGNING_KEY_PATH is unset.
+    match (&state.signing_key, canonical::to_canonical_bytes(&manifest)) {
+        (Some(key), Ok(bytes)) => {
+            let sig = vsign::sign_bytes(key, &bytes);
+            Json(json!({
+                "manifest": manifest,
+                "signature": {
+                    "alg": "Ed25519",
+                    "pubkey": vsign::pubkey_hex(key),
+                    "value": hex::encode(sig),
+                    "canonical_format": "vela.canonical-json/v1",
+                    "signed_at": signed_at,
+                },
+                "mode": "signed",
+            }))
+        }
+        _ => Json(json!({
+            "manifest": manifest,
+            "signature": null,
+            "mode": "unsigned",
+            "note": "set VELA_HUB_SIGNING_KEY_PATH on the hub to enable detached Ed25519 signatures over this discovery manifest",
+        })),
+    }
 }
 
 async fn healthz(State(state): State<AppState>) -> (StatusCode, Json<Value>) {

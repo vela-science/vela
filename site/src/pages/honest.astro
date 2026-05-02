@@ -148,6 +148,27 @@ import { REPO_URL, HUB_URL } from "../config";
       </div>
     </section>
 
+    <!-- ── Workflow truth — what people would actually use this for ── -->
+    <section class="honest__workflow" aria-labelledby="workflow-truth">
+      <h2 class="honest__workflow-title" id="workflow-truth">What this would actually be used for</h2>
+      <p class="honest__workflow-body">
+        A working PI in the field — neurovascular AD, an actual end user — read the
+        worked Correction example and named the realistic first use case more honestly
+        than the marketing copy ever has. It is not grant writing (study sections
+        want refs they recognize). It is not manuscript review (reviewers need the
+        supplementary data in the manuscript). It is not journal club (people pick
+        papers, not graph nodes).
+      </p>
+      <p class="honest__workflow-body">
+        It is <strong>a trainee's first literature review on a corridor</strong> —
+        contingent on a curator the trainee's advisor trusts. That is the realistic
+        first wedge into actual lab workflows. Everything else is downstream of
+        whether the curator question gets answered. A substrate without a curator
+        the field already trusts is a structurally honest demo, not a citable
+        reference.
+      </p>
+    </section>
+
     <!-- ── Closing — operator note ── -->
     <section class="honest__close">
       <p class="honest__close-line">
@@ -290,6 +311,36 @@ import { REPO_URL, HUB_URL } from "../config";
     border-radius: var(--radius-xs, 3px);
     border: 1px solid var(--rule-1);
     color: var(--ink-0);
+  }
+
+  .honest__workflow {
+    margin-top: var(--space-6);
+    padding-top: var(--space-5);
+    border-top: 1px solid color-mix(in oklab, var(--gold) 32%, transparent);
+  }
+  .honest__workflow-title {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: clamp(1.2rem, 2.4vw, 1.55rem);
+    line-height: 1.22;
+    letter-spacing: -0.018em;
+    color: var(--ink-0);
+    margin: 0 0 var(--space-4);
+    text-wrap: balance;
+  }
+  .honest__workflow-body {
+    font-family: var(--font-sans);
+    font-size: 0.98rem;
+    line-height: 1.62;
+    letter-spacing: -0.005em;
+    color: color-mix(in oklab, var(--ink-1) 90%, var(--ink-2));
+    margin: 0 0 var(--space-3);
+    max-width: 64ch;
+    text-wrap: pretty;
+  }
+  .honest__workflow-body strong {
+    color: var(--ink-0);
+    font-weight: 600;
   }
 
   .honest__close {

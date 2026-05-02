@@ -3231,8 +3231,11 @@ name = "vela-hub"
 version = "0.48.0"
 dependencies = [
  "axum",
+ "chrono",
  "dotenvy",
+ "ed25519-dalek",
  "flate2",
+ "hex",
  "reqwest",
  "serde",
  "serde_json",

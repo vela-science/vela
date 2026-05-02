@@ -415,6 +415,88 @@ impl Project {
         self.cross_frontier_deps()
             .find(|d| d.vfr_id.as_deref() == Some(vfr_id))
     }
+
+    /// v0.49.3: build a reverse-dependency index from the forward
+    /// `links: Vec<Link>` data on each finding. The forward direction
+    /// (which findings does this finding depend on?) is O(1) per
+    /// finding because it's just `f.links`. The reverse direction
+    /// (which findings depend on this finding?) previously required
+    /// scanning every finding for every query — O(N×L). This index
+    /// flips that to O(1) lookup once built.
+    ///
+    /// Cost to build: O(N×L) one-time scan over all findings × links.
+    /// At 188 findings × ~3 links each (the BBB Flagship corridor),
+    /// that's ~600 hash-insert operations and microseconds. At
+    /// 100K findings × 10 links, it's still well under a second.
+    ///
+    /// Used by retraction-impact queries (serve.rs), cascade
+    /// computation, and any consumer that needs to walk the dependent
+    /// graph rather than the dependency graph. The index is not
+    /// serialized — it's a derived structure that callers build when
+    /// they need it and drop when they don't.
+    #[must_use]
+    pub fn build_reverse_dep_index(&self) -> ReverseDepIndex {
+        let mut map: std::collections::HashMap<String, Vec<String>> =
+            std::collections::HashMap::with_capacity(self.findings.len());
+        for f in &self.findings {
+            for link in &f.links {
+                map.entry(link.target.clone()).or_default().push(f.id.clone());
+            }
+        }
+        // Stable sort each dependent list so two implementations of the
+        // index agree on ordering for any downstream serialization.
+        for v in map.values_mut() {
+            v.sort();
+            v.dedup();
+        }
+        ReverseDepIndex { map }
+    }
+}
+
+/// v0.49.3: reverse-dependency index built from a Project's forward
+/// `links` graph. Maps `finding_id → [dependent_finding_id, …]` so a
+/// "what depends on X?" lookup is O(1) instead of O(N×L).
+///
+/// Construct via `Project::build_reverse_dep_index`. The index is a
+/// snapshot — it does not auto-update if the Project mutates after.
+/// For long-lived consumers that mutate state, rebuild after each
+/// reduce step.
+#[derive(Debug, Clone, Default)]
+pub struct ReverseDepIndex {
+    map: std::collections::HashMap<String, Vec<String>>,
+}
+
+impl ReverseDepIndex {
+    /// Findings whose forward `links` list a target with this id.
+    /// Empty slice if nothing depends on this finding (or if the id
+    /// isn't in the index at all).
+    #[must_use]
+    pub fn dependents_of(&self, finding_id: &str) -> &[String] {
+        self.map
+            .get(finding_id)
+            .map(|v| v.as_slice())
+            .unwrap_or(&[])
+    }
+
+    /// Total number of dependent edges in the index. Useful for
+    /// quick sanity checks and metric reporting.
+    #[must_use]
+    pub fn edge_count(&self) -> usize {
+        self.map.values().map(Vec::len).sum()
+    }
+
+    /// Number of distinct findings that have at least one dependent.
+    #[must_use]
+    pub fn target_count(&self) -> usize {
+        self.map.len()
+    }
+
+    /// Iterate `(target_finding_id, dependents)` pairs. Order is
+    /// HashMap-iteration-order, not stable across runs; sort if a
+    /// consumer needs determinism.
+    pub fn iter(&self) -> impl Iterator<Item = (&String, &Vec<String>)> {
+        self.map.iter()
+    }
 }
 
 #[cfg(test)]
@@ -460,6 +542,163 @@ mod cross_frontier_dep_tests {
         assert!(!s.contains("vfr_id"));
         assert!(!s.contains("locator"));
         assert!(!s.contains("pinned_snapshot_hash"));
+    }
+}
+
+#[cfg(test)]
+mod reverse_dep_index_tests {
+    use super::*;
+    use crate::bundle::{
+        Assertion, Author, Confidence, ConfidenceKind, ConfidenceMethod, Conditions, Evidence,
+        Extraction, FindingBundle, Flags, Link, Provenance,
+    };
+
+    fn synth_finding(idx: usize, links: Vec<Link>) -> FindingBundle {
+        let assertion = Assertion {
+            text: format!("Synthetic finding {idx}"),
+            assertion_type: "mechanism".into(),
+            entities: vec![],
+            relation: None,
+            direction: None,
+            causal_claim: None,
+            causal_evidence_grade: None,
+        };
+        let evidence = Evidence {
+            evidence_type: "experimental".into(),
+            model_system: "test".into(),
+            species: None,
+            method: "test".into(),
+            sample_size: None,
+            effect_size: None,
+            p_value: None,
+            replicated: false,
+            replication_count: None,
+            evidence_spans: vec![],
+        };
+        let conditions = Conditions {
+            text: "test".into(),
+            species_verified: vec![],
+            species_unverified: vec![],
+            in_vitro: false,
+            in_vivo: false,
+            human_data: false,
+            clinical_trial: false,
+            concentration_range: None,
+            duration: None,
+            age_group: None,
+            cell_type: None,
+        };
+        let confidence = Confidence {
+            kind: ConfidenceKind::FrontierEpistemic,
+            score: 0.5,
+            basis: "test".into(),
+            method: ConfidenceMethod::LlmInitial,
+            components: None,
+            extraction_confidence: 0.9,
+        };
+        let provenance = Provenance {
+            source_type: "published_paper".into(),
+            doi: Some(format!("10.0000/reverse-dep-index-test.{idx:04}")),
+            pmid: None,
+            pmc: None,
+            openalex_id: None,
+            url: None,
+            title: format!("Synthetic test paper {idx}"),
+            authors: vec![Author { name: "T".into(), orcid: None }],
+            year: None,
+            journal: None,
+            license: None,
+            publisher: None,
+            funders: vec![],
+            extraction: Extraction::default(),
+            review: None,
+            citation_count: None,
+        };
+        let flags = Flags::default();
+        let mut bundle = FindingBundle::new(
+            assertion, evidence, conditions, confidence, provenance, flags,
+        );
+        bundle.links = links;
+        bundle
+    }
+
+    fn link_to(target: &str) -> Link {
+        Link {
+            target: target.into(),
+            link_type: "supports".into(),
+            note: "test".into(),
+            inferred_by: "test".into(),
+            created_at: "2026-05-02T00:00:00Z".into(),
+            mechanism: None,
+        }
+    }
+
+    /// Build a chain: 0 → 1 → 2 → 3 (each finding supports the next).
+    /// Then dependents_of(2) should return [1], dependents_of(1) → [0],
+    /// dependents_of(3) → [2], dependents_of(0) → [] (root, nothing
+    /// depends on it).
+    #[test]
+    fn dependents_of_returns_correct_set_for_simple_chain() {
+        let f3 = synth_finding(3, vec![]);
+        let f2 = synth_finding(2, vec![link_to(&f3.id)]);
+        let f1 = synth_finding(1, vec![link_to(&f2.id)]);
+        let f0 = synth_finding(0, vec![link_to(&f1.id)]);
+
+        let mut project = assemble("chain", vec![], 0, 0, "test");
+        project.findings = vec![f0.clone(), f1.clone(), f2.clone(), f3.clone()];
+
+        let idx = project.build_reverse_dep_index();
+        assert_eq!(idx.dependents_of(&f3.id), &[f2.id.clone()]);
+        assert_eq!(idx.dependents_of(&f2.id), &[f1.id.clone()]);
+        assert_eq!(idx.dependents_of(&f1.id), &[f0.id.clone()]);
+        assert!(idx.dependents_of(&f0.id).is_empty());
+        // Edge count = 3 (one per non-root link).
+        assert_eq!(idx.edge_count(), 3);
+        // Target count = 3 (f1, f2, f3 each have a dependent).
+        assert_eq!(idx.target_count(), 3);
+    }
+
+    /// Multiple findings depending on the same target should produce a
+    /// sorted, deduped dependent list.
+    #[test]
+    fn dependents_of_dedups_and_sorts() {
+        let target = synth_finding(99, vec![]);
+        let target_id = target.id.clone();
+        // f1, f2, f3 all link to target. Plus f1 has TWO links to
+        // target (to test dedup).
+        let f1 = synth_finding(1, vec![link_to(&target_id), link_to(&target_id)]);
+        let f2 = synth_finding(2, vec![link_to(&target_id)]);
+        let f3 = synth_finding(3, vec![link_to(&target_id)]);
+
+        let mut project = assemble("multi-dependents", vec![], 0, 0, "test");
+        project.findings = vec![target, f1.clone(), f2.clone(), f3.clone()];
+
+        let idx = project.build_reverse_dep_index();
+        let mut expected = vec![f1.id.clone(), f2.id.clone(), f3.id.clone()];
+        expected.sort();
+        assert_eq!(idx.dependents_of(&target_id), expected.as_slice());
+    }
+
+    /// A finding id with no dependents — and an id that doesn't exist
+    /// in the project at all — both return an empty slice.
+    #[test]
+    fn dependents_of_unknown_or_orphan_returns_empty() {
+        let lonely = synth_finding(7, vec![]);
+        let mut project = assemble("orphan", vec![], 0, 0, "test");
+        project.findings = vec![lonely.clone()];
+
+        let idx = project.build_reverse_dep_index();
+        assert!(idx.dependents_of(&lonely.id).is_empty());
+        assert!(idx.dependents_of("vf_does_not_exist").is_empty());
+    }
+
+    /// Empty project → empty index.
+    #[test]
+    fn empty_project_yields_empty_index() {
+        let project = assemble("empty", vec![], 0, 0, "test");
+        let idx = project.build_reverse_dep_index();
+        assert_eq!(idx.edge_count(), 0);
+        assert_eq!(idx.target_count(), 0);
     }
 }
 

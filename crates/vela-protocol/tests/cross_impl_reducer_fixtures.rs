@@ -534,12 +534,16 @@ fn export_cross_impl_reducer_fixtures() {
 
 /// Coverage-completeness assertion: the union of event kinds across
 /// all exported fixtures must include every dispatch arm in
-/// `apply_event` (reducer.rs::apply_event lines ~36-55) except the
-/// structural-anchor-only `frontier.created`. If a new event kind is
-/// added to the reducer without a corresponding fixture branch, this
-/// test fails loudly.
+/// `apply_event`. v0.49.3 derives the required-kinds list from
+/// `vela_protocol::reducer::REDUCER_MUTATION_KINDS` instead of a
+/// hand-maintained mirror, so adding a new arm to the reducer
+/// automatically extends the fixture coverage requirement (and the
+/// `dispatch_handles_every_declared_kind` test in reducer.rs catches
+/// the inverse drift).
 #[test]
 fn fixture_coverage_includes_every_reducer_arm() {
+    use vela_protocol::reducer::REDUCER_MUTATION_KINDS;
+
     let frontier_idx = 0;
     let findings: Vec<FindingBundle> = (0..FINDINGS_PER_FRONTIER)
         .map(|i| make_finding(frontier_idx, i))
@@ -556,20 +560,12 @@ fn fixture_coverage_includes_every_reducer_arm() {
         all_kinds.insert(ev.kind);
     }
 
-    let required = [
-        "finding.asserted",
-        "finding.reviewed",
-        "finding.noted",
-        "finding.caveated",
-        "finding.confidence_revised",
-        "finding.rejected",
-        "finding.retracted",
-        "finding.dependency_invalidated",
-    ];
-    for kind in required {
+    for kind in REDUCER_MUTATION_KINDS {
         assert!(
-            all_kinds.contains(kind),
-            "cross-impl fixture coverage missing reducer arm: {kind}"
+            all_kinds.contains(*kind),
+            "cross-impl fixture coverage missing reducer arm: {kind} \
+             (declared in REDUCER_MUTATION_KINDS but not exercised by \
+             any fixture builder)"
         );
     }
 }

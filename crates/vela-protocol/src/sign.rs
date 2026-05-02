@@ -225,6 +225,29 @@ fn load_signing_key(path: &Path) -> Result<SigningKey, String> {
     Ok(SigningKey::from_bytes(&key_bytes))
 }
 
+/// v0.49.3: public key-loading and primitive-signing helpers so the
+/// hub (and any other downstream binary) can sign small JSON payloads
+/// — e.g., the `/.well-known/vela` manifest — without needing direct
+/// access to the ed25519_dalek dep or to the SigningKey type.
+
+/// Load a hex-encoded Ed25519 signing key from disk.
+///
+/// Same on-disk format `vela sign generate-keypair` writes.
+pub fn load_signing_key_from_path(path: &Path) -> Result<SigningKey, String> {
+    load_signing_key(path)
+}
+
+/// Sign arbitrary bytes with the given key. Returns the 64-byte
+/// signature.
+pub fn sign_bytes(signing_key: &SigningKey, bytes: &[u8]) -> [u8; 64] {
+    signing_key.sign(bytes).to_bytes()
+}
+
+/// Hex-encoded Ed25519 public key (64 chars) for the given signing key.
+pub fn pubkey_hex(signing_key: &SigningKey) -> String {
+    hex::encode(signing_key.verifying_key().to_bytes())
+}
+
 /// Load a verifying key from a hex-encoded file.
 fn load_verifying_key(path: &Path) -> Result<VerifyingKey, String> {
     let hex_str =

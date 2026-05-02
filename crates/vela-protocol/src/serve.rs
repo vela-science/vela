@@ -1770,14 +1770,30 @@ fn tool_propagate_retraction(args: &Value, frontier: &Project) -> Result<String,
         .iter()
         .find(|finding| finding.id == id || finding.id.starts_with(id))
         .ok_or_else(|| format!("Finding '{id}' not found"))?;
+
+    // v0.49.3: O(1) reverse-dep lookup via the denormalized index
+    // instead of the prior O(N×L) scan over every finding × every
+    // link. The index is built once per request — at this corridor's
+    // size it costs microseconds; at 100K findings it stays under a
+    // second. Filter on link_type after the lookup so "supports" /
+    // "depends" semantics are preserved.
+    let reverse_idx = frontier.build_reverse_dep_index();
+    let dependent_ids = reverse_idx.dependents_of(&target.id);
+    let id_to_finding: std::collections::HashMap<&str, &crate::bundle::FindingBundle> =
+        frontier.findings.iter().map(|f| (f.id.as_str(), f)).collect();
+
     let mut affected = Vec::new();
-    for finding in &frontier.findings {
-        for link in &finding.links {
-            if matches!(link.link_type.as_str(), "supports" | "depends") && link.target == target.id
+    for dep_id in dependent_ids {
+        let Some(dependent) = id_to_finding.get(dep_id.as_str()) else {
+            continue;
+        };
+        for link in &dependent.links {
+            if matches!(link.link_type.as_str(), "supports" | "depends")
+                && link.target == target.id
             {
                 affected.push(json!({
-                    "id": finding.id,
-                    "assertion": trunc(&finding.assertion.text, 100),
+                    "id": dependent.id,
+                    "assertion": trunc(&dependent.assertion.text, 100),
                     "link_type": link.link_type,
                 }));
             }
