@@ -1,0 +1,133 @@
+---
+/*
+  Mini-constellation rendered as a static SVG at site build time.
+  Used on the homepage right under the hero hook so the first thing
+  a visitor sees beneath the prose is the live system, not a painting.
+
+  Hover wiring is owned by the importing page (it writes the hovered
+  node's claim into a caption strip outside this component).
+*/
+import type { ClaimView } from "../lib/frontier";
+
+interface Props {
+  claims: ClaimView[];
+  /** Optional ceiling on the number of nodes rendered. Default 28. */
+  max?: number;
+}
+const { claims, max = 28 } = Astro.props;
+
+const nodes = claims.slice(0, max);
+
+function deriveStateClass(claim: ClaimView): string {
+  const f = claim.finding;
+  if (f.flags?.retracted) return "lost";
+  if (f.flags?.gap || f.flags?.negative_space) return "stale";
+  if (
+    f.flags?.review_state === "contested" ||
+    f.flags?.review_state === "needs_revision"
+  )
+    return "warn";
+  if (f.flags?.contested) return "warn";
+  return "ok";
+}
+
+const VIEW_W = 720;
+const VIEW_H = 280;
+const CX = VIEW_W / 2;
+const CY = VIEW_H / 2;
+const RING_R = Math.min(CX, CY) - 36;
+
+const positioned = nodes.map((c, i) => {
+  const angle = (i / nodes.length) * Math.PI * 2 - Math.PI / 2;
+  const x = CX + RING_R * Math.cos(angle);
+  const y = CY + RING_R * Math.sin(angle);
+  const conf = Math.max(0, Math.min(1, c.finding.confidence.score));
+  const r = 3.5 + conf * 4.5;
+  const stateClass = deriveStateClass(c);
+  return {
+    vf: c.finding.id,
+    claim: c.finding.assertion.text,
+    href: `/claims/${c.slug}`,
+    x: Number(x.toFixed(1)),
+    y: Number(y.toFixed(1)),
+    r: Number(r.toFixed(1)),
+    rg: Number((r * 2.6).toFixed(1)),
+    stateClass,
+    isLive: stateClass === "ok" && Boolean(c.finding.evidence?.replicated),
+    fill: "fill:var(--state-" + deriveStateClass(c) + ");",
+  };
+});
+---
+
+<svg
+  class="hc"
+  viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
+  preserveAspectRatio="xMidYMid meet"
+  role="img"
+  aria-label={`The ${nodes.length} highest-confidence findings as a star chart`}
+>
+  <circle class="hc-ring" cx={CX} cy={CY} r={RING_R} />
+  <circle class="hc-core" cx={CX} cy={CY} r="2" />
+  <g class="hc-nodes">
+    {positioned.map((n) => (
+      <a
+        class={n.isLive ? "hc-node hc-node--live" : "hc-node"}
+        href={n.href}
+        data-vf={n.vf}
+        data-claim={n.claim}
+      >
+        <circle class="hc-glow" cx={n.x} cy={n.y} r={n.rg} />
+        <circle class="hc-dot" cx={n.x} cy={n.y} r={n.r} style={n.fill} />
+      </a>
+    ))}
+  </g>
+</svg>
+
+<style is:global>
+  .hc {
+    display: block;
+    width: 100%;
+    height: auto;
+    max-height: 280px;
+    background:
+      radial-gradient(circle at 50% 50%, var(--star-glow) 0%, transparent 38%),
+      var(--paper-1);
+  }
+  .hc-ring {
+    fill: none;
+    stroke: color-mix(in oklab, var(--gold) 20%, transparent);
+    stroke-width: 0.5;
+    stroke-dasharray: 1 5;
+  }
+  .hc-core {
+    fill: var(--gold);
+    filter: drop-shadow(0 0 5px var(--gold-glow));
+  }
+  .hc-node { cursor: pointer; outline: none; }
+  .hc-glow {
+    fill: var(--gold);
+    opacity: 0;
+    transition: opacity 200ms var(--ease);
+    pointer-events: none;
+  }
+  .hc-node:hover .hc-glow,
+  .hc-node:focus .hc-glow { opacity: 0.32; }
+  .hc-dot {
+    transition: r 240ms var(--ease), stroke 240ms var(--ease), stroke-width 240ms var(--ease);
+    stroke: color-mix(in oklab, var(--ink-1) 18%, transparent);
+    stroke-width: 0.5;
+  }
+  .hc-node:hover .hc-dot,
+  .hc-node:focus .hc-dot {
+    stroke: var(--ink-1);
+    stroke-width: 1;
+  }
+  .hc-node--live .hc-dot {
+    filter: drop-shadow(0 0 4px var(--gold-glow));
+  }
+  .hc-node--live .hc-glow { opacity: 0.16; }
+
+  @media (max-width: 720px) {
+    .hc { max-height: 200px; }
+  }
+</style>

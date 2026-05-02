@@ -16,6 +16,7 @@
 import Page from "../layouts/Page.astro";
 import ClaimCard from "../components/ClaimCard.astro";
 import ImagePlate from "../components/ImagePlate.astro";
+import HeroConstellation from "../components/HeroConstellation.astro";
 import {
   loadFrontier,
   frontierStats,
@@ -50,6 +51,13 @@ const featured: ClaimView[] = claims
 /* Recent activity — the most recently created findings. Will become
    "this week" once weekly diff machinery lands in v0.32. */
 const recent: ClaimView[] = claims.slice(0, 5);
+
+/* Mini-constellation source — the top-confidence claims feed the
+   build-time star chart rendered by <HeroConstellation />. */
+const constellationClaims = claims
+  .slice()
+  .sort((a, b) => b.finding.confidence.score - a.finding.confidence.score)
+  .slice(0, 28);
 
 /* Latest weekly diff (link target for the recent panel). */
 const weeks = activeWeeks();
@@ -98,6 +106,15 @@ const lastUpdated = stats.lastUpdated
       Every claim below is a content-addressed object. Every correction is an event.
       Two machines compute the same hash from the same frontier, or one of them is wrong.
     </p>
+
+    <figure class="hero__constellation">
+      <HeroConstellation claims={constellationClaims} />
+      <p class="hero__constellation-caption" data-hero-tip>
+        {constellationClaims.length} claims, top-confidence first. Hover any node — click to read the evidence.
+        <a class="hero__constellation-link" href="/workbench">Open the workbench →</a>
+      </p>
+    </figure>
+
     <nav class="hero__paths" aria-label="See the substrate work">
       <a class="hero__path" href="/proof/pericyte-correction">
         <span class="hero__path-kicker">Watch one</span>
@@ -230,6 +247,45 @@ const lastUpdated = stats.lastUpdated
     )}
   </div>
 
+  <!-- ── Build on this — the developer affordance ── -->
+  <section class="build" aria-label="Build on this">
+    <header class="build__head">
+      <span class="build__kicker">Build on this</span>
+      <h2 class="build__title">One binary. One open hub. Query it now.</h2>
+    </header>
+    <div class="build__cols">
+      <div class="build__col">
+        <div class="build__col-head">
+          <span class="build__col-tag">$ run locally</span>
+          <span class="build__col-aside">~60 seconds</span>
+        </div>
+        <pre class="build__code"><code><span class="tm-ps">$</span> <span class="tm-cmd">git clone</span> {REPO_URL}
+<span class="tm-ps">$</span> <span class="tm-cmd">cd</span> vela <span class="tm-ps">&&</span> <span class="tm-cmd">cargo build</span> <span class="tm-flag">--release</span>
+<span class="tm-ps">$</span> ./target/release/vela <span class="tm-cmd">frontier compile</span> ./papers
+<span class="tm-ps">$</span> ./target/release/vela <span class="tm-cmd">serve --workbench</span></code></pre>
+        <p class="build__caption">A signed, content-addressed frontier from a folder of papers in four commands.</p>
+      </div>
+      <div class="build__col">
+        <div class="build__col-head">
+          <span class="build__col-tag">$ query the live hub</span>
+          <span class="build__col-aside">no auth, CORS open</span>
+        </div>
+        <pre class="build__code"><code><span class="tm-ps">$</span> <span class="tm-cmd">curl</span> {HUB_URL}/entries \
+    <span class="tm-flag">-H</span> <span class="tm-str">"accept: application/json"</span>
+{`
+# {"entries":[
+#   {"vfr_id":"vfr_bd91…","name":"Alzheimer's Therapeutics",
+#    "owner_actor_id":"reviewer:will-blair",
+#    "signed_publish_at":"2026-04-27T18:32:01Z",
+#    "snapshot_hash":"f23b4aba17…"}, …]}`}</code></pre>
+        <p class="build__caption">
+          Every entry is a signed manifest pointing at a frontier file. Pull, verify, replay.
+          <a class="inline-link" href={`${HUB_URL}/entries`} rel="noopener">Browse the hub →</a>
+        </p>
+      </div>
+    </div>
+  </section>
+
   <!-- ── How this stays honest — the protocol entry, second-class ── -->
   <aside class="frontier-honest">
     <div class="frontier-honest__eyebrow">How this stays honest</div>
@@ -247,6 +303,31 @@ const lastUpdated = stats.lastUpdated
       <a class="inline-link" href="/essays/science-needs-state">Read the essay →</a>
     </p>
   </aside>
+
+  <script>
+    /* Hero constellation hover wiring. Build-time SVG; this just
+       writes the hovered node's claim into the caption strip. */
+    (function () {
+      var tip = document.querySelector("[data-hero-tip]");
+      var nodes = document.querySelectorAll(".hc-node");
+      if (!tip || nodes.length === 0) return;
+      var original = tip.innerHTML;
+      nodes.forEach(function (n) {
+        var write = function () {
+          var claim = n.getAttribute("data-claim") || "";
+          tip.innerHTML =
+            '<span class="hero__constellation-quote">' + claim + "</span>";
+        };
+        var reset = function () {
+          tip.innerHTML = original;
+        };
+        n.addEventListener("mouseenter", write);
+        n.addEventListener("mouseleave", reset);
+        n.addEventListener("focus", write);
+        n.addEventListener("blur", reset);
+      });
+    })();
+  </script>
 
   <!-- ── Quiet closing imprint ── -->
   <footer class="home-imprint" role="contentinfo">
@@ -296,6 +377,55 @@ const lastUpdated = stats.lastUpdated
     margin: 0;
     max-width: 60ch;
   }
+  /* ── Hero mini-constellation ──
+     Frame around the <HeroConstellation /> component. The SVG itself
+     and the .hc-* node/dot/glow CSS live in the component. */
+  .hero__constellation {
+    margin: 1.4rem 0 0;
+    padding: 0;
+    background: var(--paper-1);
+    border-top: 1px solid color-mix(in oklab, var(--gold) 28%, transparent);
+    border-bottom: 1px solid var(--rule-2);
+    overflow: hidden;
+  }
+  .hero__constellation-caption {
+    margin: 0;
+    padding: 10px 16px 12px;
+    border-top: 1px solid var(--rule-1);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    color: color-mix(in oklab, var(--ink-3) 92%, transparent);
+    background: transparent;
+    text-wrap: pretty;
+    min-height: 1.4em;
+  }
+  .hero__constellation-link {
+    margin-left: 8px;
+    color: var(--ink-1);
+    text-decoration: underline;
+    text-decoration-color: color-mix(in oklab, var(--gold) 56%, transparent);
+    text-underline-offset: 3px;
+    text-decoration-thickness: 1px;
+    transition: color var(--dur-1) var(--ease), text-decoration-color var(--dur-1) var(--ease);
+  }
+  .hero__constellation-link:hover {
+    color: var(--gold);
+    text-decoration-color: var(--gold);
+  }
+  .hero__constellation-quote {
+    font-family: var(--font-body);
+    font-style: italic;
+    font-size: 12px;
+    color: var(--ink-1);
+    letter-spacing: 0;
+    text-transform: none;
+  }
+  @media (max-width: 720px) {
+    .hero__svg { max-height: 200px; }
+    .hero__constellation-caption { font-size: 10px; padding: 8px 12px 10px; }
+  }
+
   /* ── Hero proof affordances ──
      Three quiet routes into the substrate, surfaced right under the
      hook so a skeptic who scrolled the data doesn't have to know
@@ -596,6 +726,93 @@ const lastUpdated = stats.lastUpdated
     font-size: 14px;
     line-height: 1.42;
     letter-spacing: -0.008em;
+  }
+
+  /* ── Build on this — quickstart + curl side-by-side ──
+     The Stripe / Linear / Datasette move: the API on the front door.
+     A scientist or developer who lands here can copy two terminal
+     blocks and have a working frontier or a live hub query in under
+     a minute. Show by doing, for the audience that integrates. */
+  .build {
+    margin: var(--space-7) 0;
+    padding: 1.6rem 0;
+    border-top: 1px solid color-mix(in oklab, var(--gold) 28%, transparent);
+    border-bottom: 1px solid var(--rule-2);
+  }
+  .build__head { margin-bottom: 1.4rem; }
+  .build__kicker {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: var(--size-kicker);
+    letter-spacing: var(--track-imprint);
+    text-transform: uppercase;
+    color: color-mix(in oklab, var(--gold) 76%, var(--ink-2));
+    margin-bottom: 0.45rem;
+  }
+  .build__title {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: clamp(1.25rem, 2.4vw, 1.6rem);
+    line-height: 1.18;
+    letter-spacing: -0.018em;
+    color: var(--ink-0);
+    margin: 0;
+    text-wrap: balance;
+  }
+  .build__cols {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.4rem;
+  }
+  @media (max-width: 900px) {
+    .build__cols { grid-template-columns: 1fr; }
+  }
+  .build__col {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+  }
+  .build__col-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: color-mix(in oklab, var(--ink-3) 92%, transparent);
+  }
+  .build__col-tag {
+    color: color-mix(in oklab, var(--gold) 72%, var(--ink-2));
+    font-weight: 500;
+  }
+  .build__code {
+    margin: 0;
+    padding: 14px 18px 16px;
+    background: var(--paper-1);
+    border: 1px solid var(--rule-2);
+    border-radius: var(--radius-sm);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.65;
+    color: var(--ink-1);
+    overflow-x: auto;
+    white-space: pre;
+  }
+  .build__code code { background: transparent; border: 0; padding: 0; font: inherit; color: inherit; }
+  .build__code .tm-ps { color: color-mix(in oklab, var(--gold) 56%, var(--ink-3)); }
+  .build__code .tm-cmd { color: var(--ink-0); font-weight: 500; }
+  .build__code .tm-flag { color: var(--ink-2); }
+  .build__code .tm-str { color: color-mix(in oklab, var(--moss) 72%, var(--ink-1)); }
+  .build__code .tm-comment { color: color-mix(in oklab, var(--ink-3) 72%, transparent); font-style: italic; }
+  .build__caption {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-size: 0.92rem;
+    line-height: 1.5;
+    color: color-mix(in oklab, var(--ink-2) 92%, transparent);
+    letter-spacing: -0.005em;
   }
 
   /* ── How this stays honest — the protocol pointer ── */
