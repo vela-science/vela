@@ -179,6 +179,47 @@ import { REPO_URL, HUB_URL, VERSION } from "../config";
       </p>
     </section>
 
+    <section class="gov__sec" id="hub-operations">
+      <h2 class="gov__sec-title">Hub operations and continuity.</h2>
+      <p class="gov__line">
+        The canonical hub at <code>vela-hub.fly.dev</code> is run by the founder today.
+        This is named openly because a hub claiming to host long-lived scientific citations
+        cannot pretend its operational picture is institutional when it isn't yet.
+      </p>
+      <dl class="gov__pair">
+        <dt>Hosting</dt>
+        <dd>Fly.io (Hobby tier through 2026-Q3, Scale tier from 2026-Q4 once the second
+          steward holds the billing relationship). Region <code>iad</code> primary,
+          <code>sjc</code> warm standby.</dd>
+        <dt>DNS</dt>
+        <dd><code>vela-hub.fly.dev</code> is a Fly subdomain and survives founder
+          unavailability. The <code>vela.science</code> apex is registered through
+          Cloudflare with a 5-year prepayment; renewal contact is published in
+          <code>/.well-known/security.txt</code>.</dd>
+        <dt>Backup</dt>
+        <dd>The full event log is git-mirrored to
+          <a class="inline-link" href={REPO_URL} rel="noopener">github.com/vela-science/vela</a>
+          on every signed publish. Reconstructing the hub from a clean machine takes one
+          <code>vela registry pull --full</code> against any conformant mirror.</dd>
+        <dt>Mirroring</dt>
+        <dd>Any third party can run <code>vela registry mirror --from {HUB_URL.replace(/^https?:\/\//, '')} --to &lt;your-hub&gt;</code>
+          to operate an independent mirror. Two such mirrors plus the canonical hub satisfy
+          the §13 hub-equivocation cross-check threshold.</dd>
+        <dt>Handoff</dt>
+        <dd>On second-steward acceptance (RFC-001 above), DNS, hosting, and the canonical
+          hub key transfer to the steward via a documented runbook in
+          <code>{`{REPO_URL}`}/blob/main/HANDOFF.md</code>. The runbook is testable today —
+          a third party with the founder's permission can dry-run the full transfer in a
+          staging environment.</dd>
+        <dt>Failure mode</dt>
+        <dd>If the hub disappears tomorrow without notice: the event log on GitHub is the
+          source of truth; any conformant reducer reconstructs the canonical state in
+          minutes; the <code>vela:</code> URI scheme can be re-resolved by any new hub
+          with the same <code>vfr_id</code>. Citations remain verifiable; only the
+          read-side resolver path needs replacement.</dd>
+      </dl>
+    </section>
+
     <section class="gov__sec" id="conformance-registry">
       <h2 class="gov__sec-title">Conformance registry.</h2>
       <p class="gov__line">

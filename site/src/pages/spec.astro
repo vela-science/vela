@@ -218,6 +218,79 @@ import { REPO_URL, VERSION } from "../config";
           <dt><code>frontier-snapshot</code></dt>
           <dd>A signed snapshot manifest summarizing the canonical state at a given event sequence. Optional; advisory only.</dd>
         </dl>
+
+        <h3 class="spec__sub" id="agent-run">AgentRun — provenance metadata for LLM-authored proposals.</h3>
+        <p>
+          Any event where the immediate author is an LLM agent (rather than a human signer)
+          <strong>MUST</strong> attach an <code>AgentRun</code> object to the event payload.
+          The <code>AgentRun</code> is informational provenance — it is captured in the
+          signing surface but does not alter the event's content-addressed id (a test in
+          the reference implementation, <code>agent_run_does_not_change_proposal_id</code>,
+          enforces this).
+        </p>
+        <pre class="spec__code"><code>{`{
+  "agent": {
+    "id":        "scout-v3.2",                  // stable identifier
+    "kind":      "llm_agent",                   // llm_agent | script | human
+    "operator":  "did:key:z6Mk…"                // who ran the agent
+  },
+  "model": {
+    "name":         "claude-sonnet-4-7",        // exact model name
+    "version":      "20260301",                 // pinned version, no aliases
+    "temperature":  0.0,
+    "max_tokens":   4096,
+    "system_prompt_hash": "sha256:7a91…"        // hash of the system prompt used
+  },
+  "telemetry": {
+    "started_at":   "2026-05-02T18:14:33Z",
+    "completed_at": "2026-05-02T18:15:09Z",
+    "duration_ms":  35_704,
+    "input_tokens":  12_318,
+    "output_tokens":  847,
+    "cost_usd":     0.0432,
+    "retry_count":  0
+  },
+  "tool_calls": [
+    {
+      "tool":             "fetch_pdf",
+      "schema":           "anthropic.tool_use.v1",   // or "openai.function_call.v1"
+      "started_at":       "2026-05-02T18:14:38Z",
+      "input":            { "url": "https://doi.org/10.1038/jcbfm.2015.44" },
+      "permission_state": "granted"                  // granted | denied | not_required
+    }
+  ],
+  "permissions": {
+    "data_access":   ["frontier:read", "frontier:propose"],
+    "tool_access":   ["fetch_pdf", "search_pubmed"],
+    "publish_scope": "proposal_only"               // proposal_only | requires_review
+  },
+  "eval": {
+    "harness_id":   "alzheimer-bbb-corridor-v1",
+    "fixture_set":  "sha256:b3c2…",
+    "passed":       true
+  }
+}`}</code></pre>
+        <p>
+          <strong>Required fields:</strong> <code>agent.id</code>, <code>agent.kind</code>,
+          <code>agent.operator</code>; for <code>kind=llm_agent</code> additionally
+          <code>model.name</code> and <code>model.version</code> (pinned, never an alias);
+          <code>permissions.publish_scope</code>. <strong>Recommended:</strong>
+          <code>telemetry.cost_usd</code>, <code>telemetry.duration_ms</code>, and
+          <code>model.system_prompt_hash</code> so reviewer-acceptance rates can be
+          attributed to a specific model + prompt combination, and reproductions can be
+          re-run from the original system prompt.
+        </p>
+        <p>
+          <strong>Tool-call schema mapping.</strong> <code>tool_calls[].schema</code>
+          declares which provider's tool-use envelope the <code>input</code> follows:
+          <code>anthropic.tool_use.v1</code> (the <code>tool_use</code> / <code>tool_result</code>
+          block format), <code>openai.function_call.v1</code> (the
+          <code>tool_calls</code> array format), or <code>mcp.v1</code> (Model Context
+          Protocol). Reducers <strong>MUST NOT</strong> validate the inner
+          <code>input</code> shape; that is the agent author's responsibility. This keeps
+          the protocol agnostic to provider-specific tool-use evolution while preserving
+          replayability of the agent run.
+        </p>
       </div>
     </section>
 
@@ -310,6 +383,35 @@ import { REPO_URL, VERSION } from "../config";
           Local-first: any client with the event log can reconstruct the canonical state
           without contacting any hub. The hub's role is convenience, not authority.
         </p>
+
+        <h3 class="spec__sub" id="hub-agent-traffic">Agent traffic semantics.</h3>
+        <p>
+          Hubs serving high-volume agent traffic <strong>MUST</strong> implement the
+          following semantics for <code>POST /publish</code>:
+        </p>
+        <ul class="spec__list">
+          <li id="MUST-hub-idempotency"><strong>MUST</strong> accept an
+            <code>Idempotency-Key</code> request header on POST. Two requests with the same
+            <code>Idempotency-Key</code> + actor + frontier triple within a 24-hour window
+            <strong>MUST</strong> resolve to the same outcome (the second is a no-op
+            returning the original response). Prevents duplicate proposals from agent
+            retries.</li>
+          <li id="MUST-hub-batch"><strong>MUST</strong> accept newline-delimited JSON event
+            arrays at <code>POST /publish</code> with <code>Content-Type:
+            application/jsonl</code>. Up to 1000 events per request. Validation is
+            transactional: either all events accepted or none, with a per-event error array
+            in the response on rejection.</li>
+          <li id="SHOULD-hub-streaming"><strong>SHOULD</strong> serve a streaming inbox
+            endpoint at <code>GET /frontier/&lt;vfr&gt;/inbox?since=&lt;event_id&gt;</code>
+            using server-sent events (text/event-stream) so reviewer agents and human
+            inboxes can subscribe without polling.</li>
+          <li id="MUST-hub-agent-sla">Hubs intending to serve agent traffic
+            <strong>MUST</strong> publish an <code>agent_sla</code> object in
+            <code>/.well-known/vela</code>: max events/second per actor, max bytes/event,
+            request-rejection codes, and intended retry-after semantics. A hub that does
+            not publish <code>agent_sla</code> is signaling it is not prepared for agent
+            traffic and clients should treat it as best-effort.</li>
+        </ul>
       </div>
     </section>
 
@@ -522,6 +624,48 @@ https://vela-hub.fly.dev/v/vf_83185611d673465b   # HTTP resolver (redirects to f
           — please don't open public issues for vulnerabilities; use the policy's private
           reporting channel. PGP / age public key for sensitive disclosures is published
           in <code>/.well-known/security.txt</code>.
+        </p>
+
+        <h3 class="spec__sub" id="incident-response">Incident response runbook.</h3>
+        <p>
+          When a private signing key is compromised — laptop theft, supply-chain malware,
+          coerced disclosure, or any reason to suspect the key is no longer under the
+          actor's sole control — execute these steps in order:
+        </p>
+        <ol class="spec__list">
+          <li><strong>Within 1 hour:</strong> publish a <code>key-rotation</code> event from
+            the compromised actor identity using the procedure in §4. The new key supersedes
+            the old; the strictly-increasing per-actor <code>seq</code>
+            (<a class="inline-link" href="#MUST-rotation-seq"><code>#MUST-rotation-seq</code></a>)
+            and the <code>ts</code>-regression bound
+            (<a class="inline-link" href="#MUST-rotation-ts-bound"><code>#MUST-rotation-ts-bound</code></a>)
+            prevent an attacker from backdating a fraudulent rotation that would race the
+            legitimate one.</li>
+          <li><strong>Within 24 hours:</strong> post the new public-key fingerprint
+            out-of-band on at least three independent surfaces — the actor's institutional
+            web page, the actor's ORCID profile, and the
+            <code>/.well-known/vela/key-rotation-log</code> on every conformant hub. Readers
+            verifying a finding signed by this actor MUST be able to cross-check the
+            fingerprint against at least two independent surfaces.</li>
+          <li><strong>Within 72 hours:</strong> publish an incident notice as a signed
+            <code>finding-drafted</code> event in the <code>vfr_incident-log</code> system
+            frontier with kind=<code>key-compromise</code>, the compromised key fingerprint,
+            the time window of suspected unauthorized use, and any signed events from that
+            window the actor disavows. Reducers MUST NOT auto-revoke the disavowed events;
+            disavowal is a reader-side annotation, not a state transition.</li>
+        </ol>
+        <p>
+          <strong>If the actor is unreachable:</strong> the actor MUST register an
+          <em>alternate</em> contact at the time of <code>actor.add</code> — a second
+          person with authority to publish a <code>key-rotation</code> from a designated
+          recovery key that the alternate holds. The recovery key fingerprint is published
+          in the same out-of-band locations as the primary. Without an alternate contact,
+          the actor's identity is unrecoverable on key compromise — the protocol cannot
+          rescue an actor from operational silence.
+        </p>
+        <p>
+          The current canonical out-of-band fingerprint location for the founder's signing
+          key is <a class="inline-link" href="https://github.com/vela-science/vela/blob/main/SECURITY.md" rel="noopener">github.com/vela-science/vela/blob/main/SECURITY.md</a>.
         </p>
       </div>
     </section>

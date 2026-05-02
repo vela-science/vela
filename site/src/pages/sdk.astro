@@ -135,8 +135,8 @@ vela registry mirror --vfr-id &lt;VFR-ID&gt; --from &lt;HUB&gt; --to &lt;HUB&gt;
       </div>
 
       <div class="sdk__cmd">
-        <h3 class="sdk__cmd-name">Agent commands</h3>
-        <p>LLM-backed pipelines that walk source material and write <code>finding.add</code> proposals tagged with an <code>AgentRun</code> record. Reviewers accept via the inbox.</p>
+        <h3 class="sdk__cmd-name">Agent commands (Vela's bundled agents)</h3>
+        <p>LLM-backed pipelines that walk source material and write <code>finding.add</code> proposals tagged with an <code>AgentRun</code> record (full schema in <a class="inline-link" href="/spec#agent-run">/spec § 4 · AgentRun</a>). Reviewers accept via the inbox; nothing becomes canonical without a separate signed <code>finding-accepted</code> from a registered reviewer.</p>
         <pre class="sdk__code"><code>vela scout         &lt;FOLDER&gt; --frontier &lt;PATH&gt;   # Literature Scout (PDFs)
 vela compile-notes &lt;VAULT&gt;  --frontier &lt;PATH&gt;   # Markdown / Obsidian
 vela compile-code  &lt;ROOT&gt;   --frontier &lt;PATH&gt;   # Jupyter / Python / R
@@ -144,6 +144,38 @@ vela compile-data  &lt;ROOT&gt;   --frontier &lt;PATH&gt;   # CSV / Parquet
 vela review-pending      --frontier &lt;PATH&gt;   # Reviewer Agent
 vela find-tensions       --frontier &lt;PATH&gt;   # Contradiction Finder
 vela plan-experiments    --frontier &lt;PATH&gt;   # Experiment Planner</code></pre>
+      </div>
+
+      <div class="sdk__cmd">
+        <h3 class="sdk__cmd-name">Agent SDK — third-party integration</h3>
+        <p>
+          <strong>Status:</strong> Spec'd, not yet shipped. The CLI agents above are
+          Vela's bundled pipelines — useful as reference implementations but not how an
+          AI lab integrates its own agents. The third-party agent SDK lives in two
+          packages, on the roadmap for v0.50:
+        </p>
+        <ul class="sdk__flags">
+          <li><code>vela-py</code> (Python) — <code>vela.publish_proposal(event,
+            agent_run=…)</code> signs a <code>finding-drafted</code> in-process and POSTs
+            to a hub. Idempotency tokens, batch publish, streaming inbox subscription.</li>
+          <li><code>vela-ts</code> (TypeScript) — same surface, ESM module for
+            Node and edge runtimes; same wire-format guarantees as the existing
+            <code>vela_reducer.mjs</code>.</li>
+        </ul>
+        <p>
+          Until the SDK ships, third-party integrators drive Vela through the CLI by
+          shelling out to the binary. That works but it isn't how production agent
+          orchestrators want to operate. The hub already implements the agent-traffic
+          semantics (<a class="inline-link" href="/spec#hub-agent-traffic">/spec § 7 · agent
+          traffic</a>: idempotency keys, batch publish, streaming inbox); the SDK is the
+          missing language binding, not a missing protocol surface.
+        </p>
+        <p>
+          A reference Python wrapper that signs <code>finding-drafted</code> events with
+          your own Ed25519 key (~80 lines, stdlib + <code>cryptography</code>) is in
+          <code>tools/agent-sdk-skeleton.py</code> on the repo. It is not tagged
+          conformant; it is a starting point for an external implementer.
+        </p>
       </div>
 
       <div class="sdk__cmd">
