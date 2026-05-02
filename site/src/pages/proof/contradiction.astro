@@ -20,7 +20,6 @@
   domain.
 */
 import Reading from "../../layouts/Reading.astro";
-import ImagePlate from "../../components/ImagePlate.astro";
 import Imprint from "../../components/Imprint.astro";
 ---
 
@@ -36,26 +35,14 @@ import Imprint from "../../components/Imprint.astro";
   </header>
 
   <article class="wc">
-    <!-- ── Hero ── -->
-    <section class="wc__hero">
-      <ImagePlate
-        fallback="/images/plates/finding.png"
-        width={1916}
-        height={821}
-        alt="Two faint watercolor pinpoints suspended in atmospheric warmth, neither dominant."
-      />
-      <p class="wc__hook">
-        <em>Disagreement is the data.</em>
-      </p>
-      <p class="wc__sub">
-        When two reviewers from different institutions sign opposing findings
-        under the same scope, Vela does not pick a winner. It stores both as
-        first-class objects, links them with a typed Contradiction edge, and
-        carries the disagreement forward until new evidence lets the field
-        choose. The companion page <a class="wc__inline" href="/proof/pericyte-correction">/proof/pericyte-correction</a>
-        shows scope narrowing; this page shows scope holding.
-      </p>
-    </section>
+    <p class="wc__lede">
+      When two reviewers from different institutions sign opposing findings under the same
+      scope, Vela does not pick a winner. It stores both as first-class objects, links them
+      with a typed Contradiction edge, and carries the disagreement forward until new
+      evidence lets the field choose. Companion to
+      <a class="inline-link" href="/proof/pericyte-correction">/proof/pericyte-correction</a>:
+      that page shows scope narrowing; this one shows scope holding.
+    </p>
 
     <!-- ── Stop 1 — finding A lands ── -->
     <section class="wc__stop">
@@ -238,11 +225,11 @@ import Imprint from "../../components/Imprint.astro";
       <p class="wc__close-cta">
         <a class="wc__cta-link" href="/proof/pericyte-correction">See a Correction landing →</a>
         <span class="wc__sep">·</span>
-        <a class="wc__cta-link" href="/protocol/agents">Agent integration →</a>
+        <a class="wc__cta-link" href="/sdk">SDK reference →</a>
       </p>
     </section>
 
-    <Imprint returnHref="/protocol" returnLabel="Back to the protocol" />
+    <Imprint returnHref="/spec" returnLabel="Back to the spec" />
   </article>
 </Reading>
 
@@ -267,36 +254,13 @@ import Imprint from "../../components/Imprint.astro";
     padding: 0;
   }
 
-  .wc__hero {
-    margin: 0 0 clamp(3rem, 8vh, 5rem);
-  }
-  .wc__hero :global(.vela-image-plate) {
-    margin-top: 0;
-    margin-bottom: 1.4rem;
-  }
-  .wc__hook {
-    font-family: var(--font-display);
-    font-weight: 450;
-    font-size: clamp(1.8rem, 3.4vw, 2.5rem);
-    line-height: 1.08;
-    letter-spacing: -0.018em;
-    color: var(--ink-0);
-    margin: 0 0 1rem;
-    max-width: 30ch;
-    text-wrap: balance;
-    font-variation-settings: "opsz" 144, "SOFT" 30;
-  }
-  .wc__hook em { font-style: italic; }
-  .wc__sub {
+  .wc__lede {
     font-family: var(--font-sans);
-    font-weight: 400;
-    font-size: 1.05rem;
-    line-height: 1.55;
-    letter-spacing: -0.005em;
-    color: color-mix(in oklab, var(--ink-2) 92%, transparent);
-    margin: 0;
-    max-width: 64ch;
-    text-wrap: pretty;
+    font-size: 0.98rem;
+    line-height: 1.6;
+    color: var(--ink-2);
+    margin: 0 0 var(--rhythm-section);
+    max-width: 70ch;
   }
   .wc__inline {
     color: var(--ink-1);
@@ -595,7 +559,6 @@ import Imprint from "../../components/Imprint.astro";
   }
 
   @media (max-width: 720px) {
-    .wc__hook { font-size: 1.45rem; }
     .wc__stop-title { font-size: 1.25rem; }
     .wc__line, .wc__dep-body { font-size: 1rem; }
     .wc__field { grid-template-columns: 1fr; gap: 4px; }

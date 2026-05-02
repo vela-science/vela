@@ -1,7 +1,6 @@
 ---
 import Reading from "../layouts/Reading.astro";
 import ClaimCard from "../components/ClaimCard.astro";
-import HeroConstellation from "../components/HeroConstellation.astro";
 import {
   loadFrontier,
   frontierStats,
@@ -18,11 +17,6 @@ const featured: ClaimView[] = claims
   .slice()
   .sort((a, b) => b.finding.confidence.score - a.finding.confidence.score)
   .slice(0, 9);
-
-const constellationClaims = claims
-  .slice()
-  .sort((a, b) => b.finding.confidence.score - a.finding.confidence.score)
-  .slice(0, 24);
 
 const lastUpdated = stats.lastUpdated
   ? new Date(stats.lastUpdated).toISOString().slice(0, 10)
@@ -90,26 +84,15 @@ const lastUpdated = stats.lastUpdated
     </div>
   </header>
 
-  <!-- Live frontier -->
+  <!-- Live frontier — claim cards, no decorative viz. -->
   <section class="vh-section" aria-label="Live frontier">
     <div class="vh-section__head">
       <p class="vh-section__eyebrow">Live frontier · {FRONTIER.name}</p>
-      <h2 class="vh-section__title">{FRONTIER.name}, mapped.</h2>
+      <h2 class="vh-section__title">Strongest claims, by confidence.</h2>
       <p class="vh-section__sub">
-        {stats.claims} signed findings, {stats.papers} papers, {stats.contradictions} open contradictions.
-        Hover any star to read its claim.
+        {stats.claims} signed findings, {stats.papers} papers, {stats.contradictions} open
+        contradictions. Each card is content-addressed; click to read the evidence chain.
       </p>
-    </div>
-
-    <figure class="vh-constellation">
-      <HeroConstellation claims={constellationClaims} />
-      <figcaption class="vh-constellation__cap" data-hero-tip>
-        {constellationClaims.length} top-confidence claims. Click any node to read the evidence.
-      </figcaption>
-    </figure>
-
-    <div class="vh-section__head" style="margin-top: 2.4rem;">
-      <h2 class="vh-section__title vh-section__title--small">Strongest claims, by confidence.</h2>
     </div>
 
     <div class="vh-grid">
@@ -165,26 +148,6 @@ const lastUpdated = stats.lastUpdated
     </div>
   </section>
 
-  <script>
-    (function () {
-      var tip = document.querySelector("[data-hero-tip]");
-      var nodes = document.querySelectorAll(".hc-node");
-      if (!tip || nodes.length === 0) return;
-      var original = tip.innerHTML;
-      nodes.forEach(function (n) {
-        var write = function () {
-          var claim = n.getAttribute("data-claim") || "";
-          tip.innerHTML = '<span class="vh-constellation__quote">' + claim + "</span>";
-        };
-        var reset = function () { tip.innerHTML = original; };
-        n.addEventListener("mouseenter", write);
-        n.addEventListener("mouseleave", reset);
-        n.addEventListener("focus", write);
-        n.addEventListener("blur", reset);
-      });
-    })();
-  </script>
-
   <!-- Site directory -->
   <nav class="vh-directory" aria-label="Site directory">
     <div class="vh-directory__col">
@@ -217,10 +180,33 @@ const lastUpdated = stats.lastUpdated
     </div>
   </nav>
 
-  <footer class="vh-imprint" role="contentinfo">
-    <p class="vh-imprint__lines">
-      vela {VERSION} · MIT · open protocol
-    </p>
+  <footer class="vh-foot" role="contentinfo">
+    <dl class="vh-foot__meta">
+      <div class="vh-foot__cell">
+        <dt>Spec version</dt>
+        <dd><a class="vh-foot__link" href="/spec">v{VERSION}</a></dd>
+      </div>
+      <div class="vh-foot__cell">
+        <dt>License</dt>
+        <dd><a class="vh-foot__link" href={`${REPO_URL}/blob/main/LICENSE`} rel="noopener">Apache-2.0 / MIT</a></dd>
+      </div>
+      <div class="vh-foot__cell">
+        <dt>Hub</dt>
+        <dd><a class="vh-foot__link" href={`${HUB_URL}/.well-known/vela`} rel="noopener">vela-hub.fly.dev</a></dd>
+      </div>
+      <div class="vh-foot__cell">
+        <dt>Last signed</dt>
+        <dd><span class="vh-foot__mono">{lastUpdated}</span></dd>
+      </div>
+      <div class="vh-foot__cell">
+        <dt>Source</dt>
+        <dd><a class="vh-foot__link" href={REPO_URL} rel="noopener">github</a></dd>
+      </div>
+      <div class="vh-foot__cell">
+        <dt>Security</dt>
+        <dd><a class="vh-foot__link" href={`${REPO_URL}/security/policy`} rel="noopener">policy</a></dd>
+      </div>
+    </dl>
   </footer>
 </Reading>
 
@@ -467,61 +453,6 @@ const lastUpdated = stats.lastUpdated
     border-bottom-color: var(--gold);
   }
 
-  /* ── Constellation figure — twilight substrate so stars actually
-     read. Per brand boards, constellation viz sits on a deeper warm
-     ground that lets gold + ink dots glow. Light-mode-friendly using
-     a deeper sand + warm navy hint. */
-  .vh-constellation {
-    margin: 0 0 1.6rem;
-    background:
-      radial-gradient(
-        ellipse at 50% 35%,
-        color-mix(in oklab, var(--paper-2) 75%, var(--gold)) 0%,
-        color-mix(in oklab, var(--paper-2) 95%, var(--ink-2)) 60%,
-        color-mix(in oklab, var(--paper-2) 88%, var(--ink-1)) 100%
-      );
-    border: 1px solid color-mix(in oklab, var(--gold) 28%, var(--rule-3));
-    border-radius: 12px;
-    overflow: hidden;
-    box-shadow: inset 0 1px 0 color-mix(in oklab, var(--gold) 18%, transparent), 0 2px 12px rgba(8, 19, 32, 0.06);
-  }
-  .vh-constellation :global(.hc) {
-    background: transparent !important;
-    max-height: 420px !important;
-  }
-  .vh-constellation :global(.hc-dot) {
-    stroke: color-mix(in oklab, var(--ink-0) 55%, transparent) !important;
-    stroke-width: 0.8 !important;
-    filter: drop-shadow(0 0 2px var(--gold-glow));
-  }
-  .vh-constellation :global(.hc-ring) {
-    stroke: color-mix(in oklab, var(--gold) 38%, transparent) !important;
-  }
-  .vh-constellation :global(.hc-core) {
-    filter: drop-shadow(0 0 8px var(--gold)) !important;
-  }
-  .vh-constellation__cap {
-    margin: 0;
-    padding: 14px 20px;
-    border-top: 1px solid color-mix(in oklab, var(--gold) 22%, transparent);
-    background: color-mix(in oklab, var(--paper-2) 60%, var(--paper-1));
-    font-family: var(--font-mono);
-    font-size: 11px;
-    letter-spacing: 0.06em;
-    color: var(--ink-3);
-    text-wrap: pretty;
-    min-height: 1.4em;
-  }
-  .vh-constellation__quote {
-    font-family: var(--font-sans);
-    font-weight: 500;
-    font-size: 0.92rem;
-    color: var(--ink-0);
-    letter-spacing: -0.005em;
-    text-transform: none;
-    font-weight: 400;
-  }
-
   /* ── Claims grid ─────────────────────────────────────────────── */
   .vh-grid {
     display: grid;
@@ -607,33 +538,47 @@ const lastUpdated = stats.lastUpdated
   }
   .vh-directory__link:hover { color: var(--gold); }
 
-  /* ── Imprint footer ──────────────────────────────────────────── */
-  .vh-imprint {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.7rem;
-    padding-top: 2.4rem;
-    border-top: 1px solid var(--rule-1);
-    text-align: center;
+  /* ── Institutional footer — License · Spec · Hub · Last signed
+     · Source · Security. Six cells, mono, no preciousness. */
+  .vh-foot {
+    margin-top: var(--rhythm-section);
+    padding: 1.6rem 0 2rem;
+    border-top: 1px solid var(--rule-2);
   }
-  .vh-imprint__lines {
+  .vh-foot__meta {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 0.85rem 1.6rem;
     margin: 0;
-    display: inline-flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 6px 14px;
-    align-items: baseline;
+    padding: 0;
   }
-  .vh-imprint__sep { color: var(--ink-4); }
-  .vh-imprint__mark {
-    margin: 0;
+  .vh-foot__cell { display: flex; flex-direction: column; gap: 4px; }
+  .vh-foot__cell dt {
     font-family: var(--font-mono);
+    font-size: 9.5px;
     font-weight: 500;
-    font-size: 0.7rem;
-    letter-spacing: 0.32em;
+    letter-spacing: 0.18em;
     text-transform: uppercase;
-    color: color-mix(in oklab, var(--gold) 70%, var(--ink-2));
+    color: var(--ink-3);
+    margin: 0;
+  }
+  .vh-foot__cell dd {
+    font-family: var(--font-sans);
+    font-size: 0.85rem;
+    color: var(--ink-1);
+    margin: 0;
+  }
+  .vh-foot__link {
+    color: var(--ink-1);
+    text-decoration: none;
+    border-bottom: 1px solid color-mix(in oklab, var(--gold) 38%, transparent);
+    padding-bottom: 1px;
+    transition: color 160ms var(--ease), border-bottom-color 160ms var(--ease);
+  }
+  .vh-foot__link:hover { color: var(--gold); border-bottom-color: var(--gold); }
+  .vh-foot__mono { font-family: var(--font-mono); font-size: 0.85em; }
+  @media (max-width: 720px) {
+    .vh-foot__meta { grid-template-columns: repeat(2, 1fr); }
   }
 
   /* Mobile */

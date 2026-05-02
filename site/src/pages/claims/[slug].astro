@@ -298,24 +298,19 @@ const created = new Date(f.created).toISOString().slice(0, 10);
 </Page>
 
 <style is:global>
-  /* ── Title override for claim pages ──
-     Generic chrome titles ("Workbench", "The protocol") use Inter Tight
-     bold. But a finding's assertion IS scientific prose ("Pericyte loss
-     precedes cognitive decline...") and deserves an italic Cormorant
-     pull-quote moment. Override only on this page. */
+  /* Claim page title — sans like the rest of Vela. The assertion is
+     scientific text but it's still a docs-page heading, not a pullquote. */
   .wb-head__title {
-    font-family: var(--font-display) !important;
-    font-style: italic !important;
-    font-weight: 500 !important;
-    font-size: clamp(1.85rem, 4vw, 2.85rem) !important;
-    line-height: 1.12 !important;
-    letter-spacing: var(--track-display) !important;
+    font-family: var(--font-sans) !important;
+    font-weight: 600 !important;
+    font-size: clamp(1.5rem, 3vw, 2.1rem) !important;
+    line-height: 1.18 !important;
+    letter-spacing: -0.022em !important;
     text-wrap: pretty !important;
-    max-width: 32ch;
+    max-width: 36ch;
   }
   .wb-head__sub {
-    font-family: var(--font-body) !important;
-    font-style: italic !important;
+    font-family: var(--font-sans) !important;
     font-size: clamp(0.95rem, 1.4vw, 1.05rem) !important;
     color: color-mix(in oklab, var(--ink-2) 92%, transparent) !important;
     max-width: 56ch !important;

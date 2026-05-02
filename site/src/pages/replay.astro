@@ -14,7 +14,6 @@
   scrubber drives the cursor; CSS animates the transitions.
 */
 import Reading from "../layouts/Reading.astro";
-import ImagePlate from "../components/ImagePlate.astro";
 import Imprint from "../components/Imprint.astro";
 ---
 
@@ -30,23 +29,11 @@ import Imprint from "../components/Imprint.astro";
   </header>
 
   <article class="rp">
-    <section class="rp__hero">
-      <ImagePlate
-        fallback="/images/plates/constellation.png"
-        width={1817}
-        height={866}
-        alt="A watercolor field of navy and gold stars connected by faint dotted arcs across pale paper."
-      />
-      <p class="rp__hook">
-        <em>Drag the cursor. Watch the field assemble.</em>
-      </p>
-      <p class="rp__sub">
-        A small Vela frontier from a Friday in April through a Wednesday in July.
-        Fourteen signed events. Each scrub position is byte-identical across reloads
-        and across implementations. That is the only thing the protocol promises;
-        it is enough to make the field navigable.
-      </p>
-    </section>
+    <p class="rp__lede">
+      Fourteen signed events from a small Vela frontier, April through July. Drag the cursor;
+      each position is byte-identical across reloads and across the three reducer
+      implementations. That guarantee is the only thing the protocol promises.
+    </p>
 
     <!-- ── The replay player ── -->
     <figure class="rp__player" data-rp-player>
@@ -92,7 +79,7 @@ import Imprint from "../components/Imprint.astro";
       </p>
     </figure>
 
-    <Imprint returnHref="/protocol" returnLabel="Back to the protocol" />
+    <Imprint returnHref="/spec" returnLabel="Back to the spec" />
   </article>
 </Reading>
 
@@ -396,36 +383,13 @@ import Imprint from "../components/Imprint.astro";
     padding: 0;
   }
 
-  .rp__hero {
-    margin: 0 0 clamp(2.5rem, 6vh, 4rem);
-  }
-  .rp__hero :global(.vela-image-plate) {
-    margin-top: 0;
-    margin-bottom: 1.4rem;
-  }
-  .rp__hook {
-    font-family: var(--font-display);
-    font-weight: 450;
-    font-size: clamp(1.7rem, 3.2vw, 2.4rem);
-    line-height: 1.08;
-    letter-spacing: -0.018em;
-    color: var(--ink-0);
-    margin: 0 0 1rem;
-    max-width: 30ch;
-    text-wrap: balance;
-    font-variation-settings: "opsz" 144, "SOFT" 30;
-  }
-  .rp__hook em { font-style: italic; }
-  .rp__sub {
+  .rp__lede {
     font-family: var(--font-sans);
-    font-weight: 400;
-    font-size: 1rem;
-    line-height: 1.55;
-    letter-spacing: -0.005em;
-    color: color-mix(in oklab, var(--ink-2) 92%, transparent);
-    margin: 0;
-    max-width: 64ch;
-    text-wrap: pretty;
+    font-size: 0.98rem;
+    line-height: 1.6;
+    color: var(--ink-2);
+    margin: 0 0 var(--rhythm-section);
+    max-width: 70ch;
   }
 
   /* ── Player ── */
@@ -635,7 +599,6 @@ import Imprint from "../components/Imprint.astro";
   }
 
   @media (max-width: 720px) {
-    .rp__hook { font-size: 1.4rem; }
     :global(.rp-log-item) {
       grid-template-columns: 1fr;
       gap: 2px;
