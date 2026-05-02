@@ -3,6 +3,7 @@ import "../styles/global.css";
 import WbRim from "../components/WbRim.astro";
 import WbHead from "../components/WbHead.astro";
 import WbFoot from "../components/WbFoot.astro";
+import SignatureLine from "../components/SignatureLine.astro";
 
 interface Props {
   title: string;
@@ -54,13 +55,27 @@ const canonical = new URL(Astro.url.pathname, Astro.site);
 <body>
   <div class="wb">
     <WbRim active={active} />
-    <WbHead eyebrow={eyebrow} title={pageTitle} subtitle={subtitle}>
-      <slot name="aside" slot="aside" />
-    </WbHead>
-    <main class="wb-main">
-      <slot />
-    </main>
-    <WbFoot />
+    <div class="wb-page">
+      <SignatureLine />
+      <WbHead eyebrow={eyebrow} title={pageTitle} subtitle={subtitle}>
+        <slot name="aside" slot="aside" />
+      </WbHead>
+      <main class="wb-main">
+        <slot />
+      </main>
+      <WbFoot />
+    </div>
   </div>
+  <style is:global>
+    /* Restore the wb grid: rim on the left, everything else flows in
+       a single right-side column so the signature line sits above the
+       eyebrow without breaking the original three-row grid. */
+    .wb { grid-template-columns: 56px 1fr 40px; grid-template-rows: 1fr; }
+    .wb-page { grid-column: 2 / span 2; display: flex; flex-direction: column; min-height: 100vh; min-width: 0; }
+    .wb-page > .wb-main { flex: 1; }
+    @media (max-width: 720px) {
+      .wb-page { grid-column: 1 / -1; }
+    }
+  </style>
 </body>
 </html>

@@ -1,0 +1,672 @@
+---
+/*
+  /proof/pericyte-correction — the central worked example.
+
+  The Borrowed Light essay's pericyte paragraph (Halliday → Nation →
+  Montagne → Correction event → dependencies notified) made
+  interactive. Four scroll stops. Each stop is a real primitive
+  (Finding, EvidenceObject, Correction, ConfidenceUpdate) with a
+  signature, a delta, and a small visual showing the dependency graph
+  responding. The substrate seen working, end-to-end.
+
+  This is the page that converts skeptics. It is not a doc; it is an
+  illustration of one Correction event landing in a real frontier and
+  changing what the next reader inherits.
+
+  Names + papers are real (Halliday 2016, Nation 2019, Montagne 2020).
+  vf_/vfr_/vrev_ ids are illustrative — they're shaped exactly like
+  what the substrate generates, but seeded so the page reproduces
+  byte-identically across reloads.
+*/
+import Page from "../../layouts/Page.astro";
+import ImagePlate from "../../components/ImagePlate.astro";
+import Imprint from "../../components/Imprint.astro";
+---
+
+<Page
+  title="A worked Correction · Vela"
+  description="One Correction event, end-to-end: how a 2020 paper narrowed the scope of a 2016 finding and notified its dependents."
+  active="protocol"
+  eyebrow="Proof · worked example"
+  pageTitle="A worked Correction"
+  subtitle="One event, end-to-end. The substrate seen working."
+>
+  <a href="/protocol" slot="aside" class="aside-link">← Protocol</a>
+
+  <article class="wc">
+    <!-- ── Hero ── -->
+    <section class="wc__hero">
+      <ImagePlate
+        fallback="/images/plates/proof.png"
+        width={1672}
+        height={941}
+        alt="A watercolor sealed envelope with a faint gold seam, suggesting an artifact handed forward."
+      />
+      <p class="wc__hook">
+        <em>Watch one Correction event land.</em>
+      </p>
+      <p class="wc__sub">
+        Three real papers. One signed event. The scope of a four-year-old finding narrows;
+        three downstream objects in two countries find out the same week. This is the substrate doing the only thing the essay says it must do.
+      </p>
+    </section>
+
+    <!-- ── Stop 1 — the original finding ── -->
+    <section class="wc__stop" id="stop-1">
+      <div class="wc__stop-head">
+        <span class="wc__date">2026-01-08</span>
+        <span class="wc__sep">·</span>
+        <span class="wc__primitive">Finding</span>
+      </div>
+      <h2 class="wc__stop-title">The original finding lands.</h2>
+      <p class="wc__line">
+        Halliday and colleagues post-mortem work on hippocampal pericyte degeneration is
+        compiled into a Vela finding by an agent and accepted by a reviewer.
+      </p>
+
+      <article class="wc__card">
+        <header class="wc__card-head">
+          <span class="wc__card-id">vf_4a91ce…</span>
+          <span class="wc__sep">·</span>
+          <span class="wc__card-state wc__card-state--ok">supported</span>
+          <span class="wc__sep">·</span>
+          <span class="wc__card-conf">conf <span class="wc__card-conf-num">0.62</span></span>
+        </header>
+        <p class="wc__assertion">
+          Pericyte loss precedes cognitive decline in early Alzheimer's disease.
+        </p>
+        <dl class="wc__fields">
+          <div class="wc__field"><dt>scope</dt><dd>human · sporadic AD · prodromal stage</dd></div>
+          <div class="wc__field"><dt>evidence</dt><dd>1 EvidenceObject · postmortem hippocampal histology</dd></div>
+          <div class="wc__field"><dt>cite</dt><dd><em>Halliday et al., J Cereb Blood Flow Metab 2016</em></dd></div>
+          <div class="wc__field"><dt>signed by</dt><dd>reviewer:halliday-lab → vrev_71f2…</dd></div>
+        </dl>
+      </article>
+
+      <p class="wc__caption">
+        At this point the constellation has one node here. No dependents yet.
+      </p>
+    </section>
+
+    <!-- ── Stop 2 — new evidence raises confidence ── -->
+    <section class="wc__stop" id="stop-2">
+      <div class="wc__stop-head">
+        <span class="wc__date">2026-04-14</span>
+        <span class="wc__sep">·</span>
+        <span class="wc__primitive">EvidenceObject</span>
+        <span class="wc__sep">·</span>
+        <span class="wc__primitive wc__primitive--soft">ConfidenceUpdate</span>
+      </div>
+      <h2 class="wc__stop-title">New evidence attaches. Confidence rises.</h2>
+      <p class="wc__line">
+        Nation and colleagues' longitudinal MRI study showing blood-brain-barrier
+        leakage as an early biomarker of cognitive dysfunction is added as a second
+        EvidenceObject. The reviewer signs a ConfidenceUpdate; the same finding now
+        carries 0.78.
+      </p>
+
+      <div class="wc__delta">
+        <div class="wc__delta-row">
+          <span class="wc__delta-side">before</span>
+          <span class="wc__delta-bar"><span class="wc__delta-fill" style="width:62%;"></span></span>
+          <span class="wc__delta-num">0.62</span>
+        </div>
+        <div class="wc__delta-row">
+          <span class="wc__delta-side wc__delta-side--gold">after</span>
+          <span class="wc__delta-bar"><span class="wc__delta-fill wc__delta-fill--gold" style="width:78%;"></span></span>
+          <span class="wc__delta-num">0.78</span>
+        </div>
+      </div>
+
+      <article class="wc__event">
+        <header class="wc__event-head">
+          <span class="wc__event-tag">ConfidenceUpdate</span>
+          <span class="wc__event-id">vrev_3c7e91…</span>
+        </header>
+        <dl class="wc__fields">
+          <div class="wc__field"><dt>target</dt><dd>vf_4a91ce…</dd></div>
+          <div class="wc__field"><dt>delta</dt><dd>+0.16 (0.62 → 0.78)</dd></div>
+          <div class="wc__field"><dt>cite</dt><dd><em>Nation et al., Nature Medicine 2019</em></dd></div>
+          <div class="wc__field"><dt>signed by</dt><dd>reviewer:nation-mri → Ed25519 over canonical preimage</dd></div>
+          <div class="wc__field"><dt>signed at</dt><dd>2026-04-14T11:42:08Z</dd></div>
+        </dl>
+      </article>
+
+      <p class="wc__caption">
+        Same node, brighter. Two EvidenceObjects attached.
+      </p>
+    </section>
+
+    <!-- ── Stop 3 — the correction lands ── -->
+    <section class="wc__stop" id="stop-3">
+      <div class="wc__stop-head">
+        <span class="wc__date">2026-06-02</span>
+        <span class="wc__sep">·</span>
+        <span class="wc__primitive wc__primitive--accent">Correction</span>
+      </div>
+      <h2 class="wc__stop-title">A 2020 paper narrows the scope.</h2>
+      <p class="wc__line">
+        Montagne and colleagues' 2020 paper showing the BBB breakdown is concentrated in
+        APOE4 carriers lands. A reviewer drafts a Correction event and signs it.
+        The scope narrows from <em>sporadic AD</em> to <em>APOE4-positive sporadic AD</em>;
+        confidence on the broader claim drops; a new child Finding spawns for the APOE4-positive subgroup.
+      </p>
+
+      <article class="wc__event wc__event--correction">
+        <header class="wc__event-head">
+          <span class="wc__event-tag wc__event-tag--accent">Correction</span>
+          <span class="wc__event-id">vrev_b0144a…</span>
+        </header>
+        <dl class="wc__fields">
+          <div class="wc__field"><dt>target</dt><dd>vf_4a91ce…</dd></div>
+          <div class="wc__field"><dt>scope before</dt><dd>human · sporadic AD · prodromal stage</dd></div>
+          <div class="wc__field"><dt>scope after</dt><dd>human · sporadic AD · prodromal stage · APOE4-positive</dd></div>
+          <div class="wc__field"><dt>confidence on broader claim</dt><dd>0.78 → 0.41</dd></div>
+          <div class="wc__field"><dt>spawns</dt><dd>vf_d92710… (APOE4-positive subgroup, conf 0.74)</dd></div>
+          <div class="wc__field"><dt>cite</dt><dd><em>Montagne et al., Nature 2020</em></dd></div>
+          <div class="wc__field"><dt>signed by</dt><dd>reviewer:nakamura-v10 → Ed25519</dd></div>
+          <div class="wc__field"><dt>signed at</dt><dd>2026-06-02T16:19:33Z</dd></div>
+        </dl>
+      </article>
+
+      <div class="wc__delta">
+        <div class="wc__delta-row">
+          <span class="wc__delta-side">broader</span>
+          <span class="wc__delta-bar"><span class="wc__delta-fill wc__delta-fill--cinnabar" style="width:41%;"></span></span>
+          <span class="wc__delta-num">0.41</span>
+        </div>
+        <div class="wc__delta-row">
+          <span class="wc__delta-side wc__delta-side--gold">APOE4+</span>
+          <span class="wc__delta-bar"><span class="wc__delta-fill wc__delta-fill--gold" style="width:74%;"></span></span>
+          <span class="wc__delta-num">0.74</span>
+        </div>
+      </div>
+
+      <p class="wc__caption">
+        The constellation now has two nodes here, linked by a parent-of relationship.
+        The original is dimmer; the child is brighter; the seam is visible.
+      </p>
+    </section>
+
+    <!-- ── Stop 4 — dependents notified ── -->
+    <section class="wc__stop" id="stop-4">
+      <div class="wc__stop-head">
+        <span class="wc__date">2026-06-04 → 2026-07-11</span>
+        <span class="wc__sep">·</span>
+        <span class="wc__primitive">Dependency notification</span>
+      </div>
+      <h2 class="wc__stop-title">Three downstream objects find out.</h2>
+      <p class="wc__line">
+        The dependency graph notifies three objects that previously rested on
+        the broader claim. None of these teams talked. None of them needed to.
+        The substrate carried the correction.
+      </p>
+
+      <ul class="wc__deps">
+        <li class="wc__dep">
+          <header class="wc__dep-head">
+            <span class="wc__dep-when">+ 2 days</span>
+            <span class="wc__sep">·</span>
+            <span class="wc__dep-where">biotech · Cambridge MA</span>
+          </header>
+          <p class="wc__dep-body">
+            A target hypothesis at one neurovascular biotech updates its priors:
+            the program redirects from a sporadic-AD pan-cohort design to an
+            APOE4-stratified Phase Ib. The portfolio review the next Friday
+            takes thirty minutes instead of three weeks.
+          </p>
+        </li>
+        <li class="wc__dep">
+          <header class="wc__dep-head">
+            <span class="wc__dep-when">+ 9 days</span>
+            <span class="wc__sep">·</span>
+            <span class="wc__dep-where">trial · Toronto</span>
+          </header>
+          <p class="wc__dep-body">
+            A Phase II inclusion criterion that depended on the broader claim is
+            amended in a CRO change-control event the following sprint. The
+            amendment carries a back-link to <code>vrev_b0144a…</code> so a future
+            auditor can trace the reasoning.
+          </p>
+        </li>
+        <li class="wc__dep">
+          <header class="wc__dep-head">
+            <span class="wc__dep-when">+ 39 days</span>
+            <span class="wc__sep">·</span>
+            <span class="wc__dep-where">review article · Osaka</span>
+          </header>
+          <p class="wc__dep-body">
+            A review article's headline claim picks up a margin gloss: the
+            broader pericyte-loss-precedes claim is annotated with the APOE4
+            stratification before the proof galley is signed. The reader sees
+            both lines on first read.
+          </p>
+        </li>
+      </ul>
+
+      <p class="wc__caption">
+        Total time from Montagne 2020 reaching the substrate to all three
+        downstream objects updating: <span class="wc__num">39 days</span>.
+        In the world the essay describes, this loop typically takes
+        <span class="wc__num">five to twelve years</span>.
+      </p>
+    </section>
+
+    <!-- ── Closing ── -->
+    <section class="wc__closing">
+      <p class="wc__close-line">
+        <em>This is one Correction event. The substrate carries millions.</em>
+      </p>
+      <p class="wc__close-sub">
+        Every Finding above is a content-addressed object. Every event is signed.
+        Two implementations replay this same sequence and reduce to the same hash,
+        or one of them is wrong. That is the only invariant the protocol promises;
+        it is enough to make the field navigable.
+      </p>
+      <p class="wc__close-cta">
+        <a class="wc__cta-link" href="/workbench">Open the workbench →</a>
+        <span class="wc__sep">·</span>
+        <a class="wc__cta-link" href="/protocol">Read the protocol →</a>
+      </p>
+    </section>
+
+    <Imprint returnHref="/protocol" returnLabel="Back to the protocol" />
+  </article>
+</Page>
+
+<style>
+  .aside-link {
+    font-family: var(--font-mono);
+    font-size: var(--size-imprint);
+    letter-spacing: var(--track-imprint);
+    text-transform: uppercase;
+    color: var(--ink-3);
+    border-bottom: 1px solid transparent;
+    transition: color var(--dur-1) var(--ease), border-bottom-color var(--dur-1) var(--ease);
+  }
+  .aside-link:hover {
+    color: var(--gold);
+    border-bottom-color: color-mix(in oklab, var(--gold) 56%, transparent);
+  }
+
+  .wc {
+    max-width: var(--measure-wide);
+    margin: 0 auto;
+    padding: 0;
+  }
+
+  /* ── Hero ── */
+  .wc__hero {
+    margin: 0 0 clamp(3rem, 8vh, 5rem);
+  }
+  .wc__hero :global(.vela-image-plate) {
+    margin-top: 0;
+    margin-bottom: 1.4rem;
+  }
+  .wc__hook {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-weight: 500;
+    font-size: clamp(1.65rem, 3.4vw, 2.4rem);
+    line-height: 1.18;
+    letter-spacing: var(--track-display);
+    color: var(--ink-0);
+    margin: 0 0 0.85rem;
+    max-width: 38ch;
+    text-wrap: balance;
+  }
+  .wc__sub {
+    font-family: var(--font-sans);
+    font-weight: 400;
+    font-size: 1.05rem;
+    line-height: 1.55;
+    letter-spacing: -0.005em;
+    color: color-mix(in oklab, var(--ink-2) 92%, transparent);
+    margin: 0;
+    max-width: 64ch;
+    text-wrap: pretty;
+  }
+
+  /* ── Each scroll stop ── */
+  .wc__stop {
+    margin: 0 0 clamp(3rem, 7vh, 4.5rem);
+    padding-top: 1.2rem;
+    border-top: 1px solid color-mix(in oklab, var(--gold) 28%, transparent);
+  }
+  .wc__stop-head {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px 8px;
+    font-family: var(--font-mono);
+    font-size: var(--size-kicker);
+    letter-spacing: var(--track-imprint);
+    text-transform: uppercase;
+    color: color-mix(in oklab, var(--gold) 72%, var(--ink-2));
+    margin-bottom: 0.85rem;
+  }
+  .wc__date {
+    font-variant-numeric: tabular-nums;
+    color: var(--ink-2);
+    letter-spacing: 0.06em;
+  }
+  .wc__primitive { color: color-mix(in oklab, var(--gold) 80%, var(--ink-2)); font-weight: 500; }
+  .wc__primitive--soft { color: color-mix(in oklab, var(--gold) 56%, var(--ink-3)); }
+  .wc__primitive--accent { color: var(--cinnabar); }
+  .wc__sep { color: var(--ink-4); }
+
+  .wc__stop-title {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-weight: 500;
+    font-size: clamp(1.5rem, 3vw, 2.1rem);
+    line-height: 1.18;
+    letter-spacing: var(--track-display);
+    color: var(--ink-0);
+    margin: 0 0 1.1rem;
+    max-width: 32ch;
+    text-wrap: balance;
+  }
+
+  .wc__line {
+    font-family: var(--font-body);
+    font-size: 1.08rem;
+    line-height: var(--leading-read);
+    color: color-mix(in oklab, var(--ink-1) 88%, var(--ink-2));
+    margin: 0 0 1.5rem;
+    max-width: 56ch;
+    text-wrap: pretty;
+  }
+  .wc__line em { font-style: italic; color: var(--ink-1); }
+
+  .wc__caption {
+    margin: 1rem 0 0;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    color: color-mix(in oklab, var(--ink-3) 92%, transparent);
+    max-width: 60ch;
+    text-wrap: pretty;
+  }
+  .wc__num { color: var(--ink-1); font-weight: 500; }
+
+  /* ── Finding card ── */
+  .wc__card {
+    background: var(--paper-1);
+    border: 1px solid var(--rule-2);
+    border-radius: var(--radius-md);
+    padding: 1.2rem 1.4rem 1.3rem;
+    margin: 0;
+    max-width: 38rem;
+  }
+  .wc__card-head {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px 8px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin-bottom: 0.85rem;
+  }
+  .wc__card-id { color: var(--ink-2); letter-spacing: 0.02em; text-transform: none; font-size: 11px; }
+  .wc__card-state {
+    padding: 1px 6px;
+    border: 1px solid color-mix(in oklab, var(--moss) 38%, transparent);
+    border-radius: var(--radius-sm);
+    color: var(--moss);
+  }
+  .wc__card-state--ok { color: var(--moss); border-color: color-mix(in oklab, var(--moss) 38%, transparent); }
+  .wc__card-conf { color: var(--ink-3); }
+  .wc__card-conf-num { color: var(--ink-1); font-variant-numeric: tabular-nums; }
+
+  .wc__assertion {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-weight: 500;
+    font-size: 1.25rem;
+    line-height: 1.32;
+    letter-spacing: var(--track-display);
+    color: var(--ink-0);
+    margin: 0 0 0.95rem;
+    text-wrap: pretty;
+  }
+
+  .wc__fields {
+    border-top: 1px solid var(--rule-2);
+    margin: 0;
+    padding: 0;
+  }
+  .wc__field {
+    display: grid;
+    grid-template-columns: 160px 1fr;
+    gap: 12px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--rule-1);
+    align-items: baseline;
+    margin: 0;
+  }
+  .wc__field:last-child { border-bottom: 0; }
+  .wc__field dt {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: color-mix(in oklab, var(--ink-3) 88%, transparent);
+    font-weight: 500;
+  }
+  .wc__field dd {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: -0.005em;
+    color: var(--ink-1);
+  }
+  .wc__field dd em { font-family: var(--font-body); font-style: italic; font-size: 13px; color: color-mix(in oklab, var(--ink-1) 88%, var(--ink-2)); }
+  .wc__field dd code {
+    font-family: var(--font-mono);
+    font-size: 0.92em;
+    color: var(--ink-1);
+    background: var(--paper-1);
+    padding: 1px 5px;
+    border: 1px solid var(--rule-2);
+    border-radius: var(--radius-xs);
+  }
+
+  /* ── Event card (ConfidenceUpdate, Correction) ── */
+  .wc__event {
+    margin: 1.4rem 0 0;
+    padding: 1.05rem 1.35rem 1.2rem;
+    border-top: 1px solid color-mix(in oklab, var(--gold) 38%, transparent);
+    border-bottom: 1px solid var(--rule-2);
+    background: transparent;
+    max-width: 42rem;
+  }
+  .wc__event--correction {
+    border-top: 2px solid color-mix(in oklab, var(--cinnabar) 56%, transparent);
+  }
+  .wc__event-head {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 0.65rem;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+  .wc__event-tag {
+    color: color-mix(in oklab, var(--gold) 72%, var(--ink-2));
+    font-weight: 500;
+  }
+  .wc__event-tag--accent { color: var(--cinnabar); }
+  .wc__event-id {
+    color: var(--ink-3);
+    letter-spacing: 0.02em;
+    text-transform: none;
+    font-size: 11px;
+  }
+
+  /* ── Delta bars (before / after) ── */
+  .wc__delta {
+    margin: 1.2rem 0 0;
+    max-width: 32rem;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .wc__delta-row {
+    display: grid;
+    grid-template-columns: 80px 1fr 60px;
+    gap: 12px;
+    align-items: center;
+  }
+  .wc__delta-side {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    font-weight: 500;
+  }
+  .wc__delta-side--gold { color: color-mix(in oklab, var(--gold) 76%, var(--ink-2)); }
+  .wc__delta-bar {
+    display: block;
+    height: 4px;
+    background: var(--rule-1);
+    position: relative;
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .wc__delta-fill {
+    display: block;
+    height: 100%;
+    background: var(--ink-3);
+    transition: width 600ms var(--ease);
+  }
+  .wc__delta-fill--gold { background: var(--gold); }
+  .wc__delta-fill--cinnabar { background: var(--cinnabar); opacity: 0.78; }
+  .wc__delta-num {
+    text-align: right;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--ink-1);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+  }
+
+  /* ── Dependents list ── */
+  .wc__deps {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border-top: 1px solid var(--rule-2);
+  }
+  .wc__dep {
+    padding: 1.1rem 0;
+    border-bottom: 1px solid var(--rule-1);
+  }
+  .wc__dep:last-child { border-bottom: 0; }
+  .wc__dep-head {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 0.55rem;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  .wc__dep-when {
+    color: color-mix(in oklab, var(--gold) 76%, var(--ink-2));
+    font-weight: 500;
+  }
+  .wc__dep-where {
+    color: var(--ink-2);
+    text-transform: none;
+    letter-spacing: 0.04em;
+    font-size: 11px;
+  }
+  .wc__dep-body {
+    font-family: var(--font-body);
+    font-size: 1.02rem;
+    line-height: 1.6;
+    color: color-mix(in oklab, var(--ink-1) 90%, var(--ink-2));
+    margin: 0;
+    max-width: 60ch;
+    text-wrap: pretty;
+  }
+  .wc__dep-body code {
+    font-family: var(--font-mono);
+    font-size: 0.86em;
+    color: var(--ink-1);
+    background: var(--paper-1);
+    padding: 1px 5px;
+    border: 1px solid var(--rule-2);
+    border-radius: var(--radius-xs);
+  }
+
+  /* ── Closing ── */
+  .wc__closing {
+    margin: clamp(3rem, 8vh, 5rem) 0 0;
+    padding-top: 1.6rem;
+    border-top: 1px solid color-mix(in oklab, var(--gold) 38%, transparent);
+    max-width: var(--measure);
+  }
+  .wc__close-line {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-weight: 500;
+    font-size: clamp(1.45rem, 2.8vw, 1.95rem);
+    line-height: 1.32;
+    letter-spacing: var(--track-display);
+    color: var(--ink-0);
+    margin: 0 0 1rem;
+    max-width: 38ch;
+    text-wrap: balance;
+  }
+  .wc__close-sub {
+    font-family: var(--font-sans);
+    font-weight: 400;
+    font-size: 0.98rem;
+    line-height: 1.55;
+    letter-spacing: -0.005em;
+    color: color-mix(in oklab, var(--ink-2) 92%, transparent);
+    margin: 0 0 1.4rem;
+    max-width: 60ch;
+    text-wrap: pretty;
+  }
+  .wc__close-cta {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    color: var(--ink-3);
+  }
+  .wc__cta-link {
+    color: var(--ink-1);
+    text-decoration: underline;
+    text-decoration-color: color-mix(in oklab, var(--gold) 56%, transparent);
+    text-underline-offset: 3px;
+    text-decoration-thickness: 1px;
+    transition: color var(--dur-1) var(--ease), text-decoration-color var(--dur-1) var(--ease);
+  }
+  .wc__cta-link:hover {
+    color: var(--gold);
+    text-decoration-color: var(--gold);
+  }
+
+  @media (max-width: 720px) {
+    .wc__hook { font-size: 1.45rem; }
+    .wc__stop-title { font-size: 1.25rem; }
+    .wc__line, .wc__dep-body { font-size: 1rem; }
+    .wc__field { grid-template-columns: 1fr; gap: 4px; }
+    .wc__field dd em { font-size: 12px; }
+    .wc__delta-row { grid-template-columns: 60px 1fr 48px; }
+    .wc__close-line { font-size: 1.3rem; }
+  }
+</style>

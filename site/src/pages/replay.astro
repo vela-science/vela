@@ -1,0 +1,643 @@
+---
+/*
+  /replay — the scrubbable event log.
+
+  Take a synthetic but realistic 14-event sequence over a small Vela
+  frontier and render it as a draggable timeline. As the visitor
+  scrubs, the constellation evolves — findings appear, get attached
+  to evidence, get contested, get retracted, get linked. The byte-
+  identical reproduction promise the protocol makes becomes visceral:
+  same input → same output, every replay.
+
+  No backend. The event log is embedded in the page as JSON. The
+  constellation is a pure SVG snapshot at the current cursor; the
+  scrubber drives the cursor; CSS animates the transitions.
+*/
+import Page from "../layouts/Page.astro";
+import ImagePlate from "../components/ImagePlate.astro";
+import Imprint from "../components/Imprint.astro";
+---
+
+<Page
+  title="Replay · Vela"
+  description="Scrub through a real-shaped event log and watch the constellation evolve. Same input, same output, every replay."
+  active="protocol"
+  eyebrow="Replay · the event log"
+  pageTitle="Replay"
+  subtitle="Drag the cursor. Watch the field move. Same hash, every time."
+>
+  <a href="/protocol" slot="aside" class="aside-link">← Protocol</a>
+
+  <article class="rp">
+    <section class="rp__hero">
+      <ImagePlate
+        fallback="/images/plates/constellation.png"
+        width={1817}
+        height={866}
+        alt="A watercolor field of navy and gold stars connected by faint dotted arcs across pale paper."
+      />
+      <p class="rp__hook">
+        <em>Drag the cursor. Watch the field assemble.</em>
+      </p>
+      <p class="rp__sub">
+        A small Vela frontier from a Friday in April through a Wednesday in July.
+        Fourteen signed events. Each scrub position is byte-identical across reloads
+        and across implementations. That is the only thing the protocol promises;
+        it is enough to make the field navigable.
+      </p>
+    </section>
+
+    <!-- ── The replay player ── -->
+    <figure class="rp__player" data-rp-player>
+      <svg class="rp__svg" viewBox="0 0 760 380" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Constellation at the current scrub position">
+        <circle class="rp__ring" cx="380" cy="190" r="155"/>
+        <circle class="rp__center" cx="380" cy="190" r="2.5"/>
+        <g class="rp__edges" data-rp-edges></g>
+        <g class="rp__nodes" data-rp-nodes></g>
+      </svg>
+
+      <div class="rp__readout">
+        <span class="rp__readout-label">cursor</span>
+        <span class="rp__readout-time" data-rp-time>2026-04-11T09:00Z</span>
+        <span class="rp__sep">·</span>
+        <span class="rp__readout-label">event</span>
+        <span class="rp__readout-event" data-rp-event>—</span>
+        <span class="rp__sep">·</span>
+        <span class="rp__readout-label">snapshot</span>
+        <span class="rp__readout-hash" data-rp-hash>a3c8…0000</span>
+      </div>
+
+      <div class="rp__controls">
+        <button type="button" class="rp__btn" data-rp-prev aria-label="Step back">‹</button>
+        <button type="button" class="rp__btn rp__btn--primary" data-rp-play aria-label="Play / pause">▶</button>
+        <button type="button" class="rp__btn" data-rp-next aria-label="Step forward">›</button>
+        <input
+          type="range"
+          class="rp__scrub"
+          min="0"
+          max="14"
+          step="1"
+          value="0"
+          data-rp-scrub
+          aria-label="Scrub through events"
+        />
+        <span class="rp__step" data-rp-step>0 / 14</span>
+      </div>
+
+      <ol class="rp__log" data-rp-log></ol>
+
+      <p class="rp__caption">
+        ↑ Same input, same output. Reload the page and the cursor reproduces every state byte-identically. Two implementations would compute the same snapshot hash at every position.
+      </p>
+    </figure>
+
+    <Imprint returnHref="/protocol" returnLabel="Back to the protocol" />
+  </article>
+</Page>
+
+<script>
+  // Synthetic but real-shaped event log. Each event mutates a local
+  // `frontier` snapshot; we precompute the snapshot at every cursor
+  // position, then render whichever the scrubber selects.
+
+  type NodeKind = "ok" | "warn" | "stale" | "lost" | "live";
+  type NodeState = {
+    id: string;
+    label: string;
+    kind: NodeKind;
+    confidence: number;
+    /** Position on the ring, 0..1, fixed at create time */
+    angle: number;
+  };
+  type EdgeState = { from: string; to: string };
+  type Snap = {
+    nodes: Map<string, NodeState>;
+    edges: EdgeState[];
+    /** Pseudo content-addressed hash; deterministic over (nodes, edges) */
+    hash: string;
+  };
+
+  type Ev =
+    | { t: string; kind: "Finding";           id: string; label: string; conf: number; nodeKind?: NodeKind }
+    | { t: string; kind: "EvidenceObject";    target: string; conf: number }
+    | { t: string; kind: "Replication";       target: string }
+    | { t: string; kind: "Contested";         target: string }
+    | { t: string; kind: "Correction";        target: string; spawn?: { id: string; label: string; conf: number }; conf?: number }
+    | { t: string; kind: "Link";              from: string; to: string }
+    | { t: string; kind: "Retract";           target: string };
+
+  const EVENTS: Ev[] = [
+    { t: "2026-04-11T09:00Z", kind: "Finding",        id: "vf_a01",  label: "Pericyte loss precedes cognitive decline (sporadic AD)",      conf: 0.62 },
+    { t: "2026-04-14T11:42Z", kind: "EvidenceObject", target: "vf_a01", conf: 0.78 },
+    { t: "2026-04-23T15:08Z", kind: "Finding",        id: "vf_a02",  label: "BBB transferrin receptor enables therapeutic delivery",       conf: 0.81 },
+    { t: "2026-05-02T10:31Z", kind: "Finding",        id: "vf_a03",  label: "Lecanemab shows benefit in early symptomatic disease",        conf: 0.55 },
+    { t: "2026-05-09T08:19Z", kind: "Replication",    target: "vf_a02" },
+    { t: "2026-05-19T14:02Z", kind: "Contested",      target: "vf_a03" },
+    { t: "2026-06-02T16:19Z", kind: "Correction",     target: "vf_a01", spawn: { id: "vf_a04", label: "Pericyte loss in APOE4-positive sporadic AD", conf: 0.74 }, conf: 0.41 },
+    { t: "2026-06-04T11:11Z", kind: "Link",           from: "vf_a04", to: "vf_a02" },
+    { t: "2026-06-11T09:48Z", kind: "Finding",        id: "vf_a05",  label: "GLP-1 agonists reduce Alzheimer's risk in T2D patients",      conf: 0.68 },
+    { t: "2026-06-18T13:02Z", kind: "Finding",        id: "vf_a06",  label: "TREM2 R47H impairs microglial response to Aβ",                conf: 0.74 },
+    { t: "2026-06-25T17:35Z", kind: "Link",           from: "vf_a06", to: "vf_a01" },
+    { t: "2026-07-02T10:22Z", kind: "EvidenceObject", target: "vf_a05", conf: 0.78 },
+    { t: "2026-07-09T08:55Z", kind: "Retract",        target: "vf_a03" },
+    { t: "2026-07-11T15:40Z", kind: "Link",           from: "vf_a04", to: "vf_a06" },
+  ];
+
+  // Stable angle assignment by node id (golden-ratio walk).
+  const PHI = 0.61803398875;
+  const angleOf: Record<string, number> = {};
+  let phiCursor = 0.18;
+  function pickAngle(id: string): number {
+    if (angleOf[id] != null) return angleOf[id];
+    phiCursor = (phiCursor + PHI) % 1;
+    angleOf[id] = phiCursor;
+    return phiCursor;
+  }
+
+  function emptySnap(): Snap {
+    return { nodes: new Map(), edges: [], hash: "0000" };
+  }
+
+  function djb2(s: string): string {
+    let h = 5381;
+    for (let i = 0; i < s.length; i++) h = (((h << 5) + h) ^ s.charCodeAt(i)) >>> 0;
+    return h.toString(16).padStart(8, "0");
+  }
+
+  function rehash(s: Snap): void {
+    const parts: string[] = [];
+    const ids = Array.from(s.nodes.keys()).sort();
+    for (const id of ids) {
+      const n = s.nodes.get(id)!;
+      parts.push(`${id}|${n.kind}|${n.confidence.toFixed(3)}`);
+    }
+    for (const e of s.edges.slice().sort((a, b) => (a.from + a.to).localeCompare(b.from + b.to))) {
+      parts.push(`E|${e.from}|${e.to}`);
+    }
+    const h = djb2(parts.join("\n"));
+    s.hash = `a3c8${h.slice(0, 4)}`;
+  }
+
+  function applyEvent(prev: Snap, ev: Ev): Snap {
+    const nodes = new Map(prev.nodes);
+    const edges = prev.edges.slice();
+    switch (ev.kind) {
+      case "Finding": {
+        nodes.set(ev.id, {
+          id: ev.id,
+          label: ev.label,
+          kind: ev.nodeKind ?? "ok",
+          confidence: ev.conf,
+          angle: pickAngle(ev.id),
+        });
+        break;
+      }
+      case "EvidenceObject": {
+        const n = nodes.get(ev.target);
+        if (n) nodes.set(ev.target, { ...n, confidence: ev.conf });
+        break;
+      }
+      case "Replication": {
+        const n = nodes.get(ev.target);
+        if (n) nodes.set(ev.target, { ...n, kind: "live" });
+        break;
+      }
+      case "Contested": {
+        const n = nodes.get(ev.target);
+        if (n) nodes.set(ev.target, { ...n, kind: "warn" });
+        break;
+      }
+      case "Correction": {
+        const n = nodes.get(ev.target);
+        if (n) nodes.set(ev.target, {
+          ...n,
+          confidence: ev.conf ?? n.confidence,
+          kind: "warn",
+        });
+        if (ev.spawn) {
+          nodes.set(ev.spawn.id, {
+            id: ev.spawn.id,
+            label: ev.spawn.label,
+            kind: "ok",
+            confidence: ev.spawn.conf,
+            angle: pickAngle(ev.spawn.id),
+          });
+          edges.push({ from: ev.spawn.id, to: ev.target });
+        }
+        break;
+      }
+      case "Link": {
+        if (nodes.has(ev.from) && nodes.has(ev.to)) {
+          if (!edges.some((e) => e.from === ev.from && e.to === ev.to)) {
+            edges.push({ from: ev.from, to: ev.to });
+          }
+        }
+        break;
+      }
+      case "Retract": {
+        const n = nodes.get(ev.target);
+        if (n) nodes.set(ev.target, { ...n, kind: "lost" });
+        break;
+      }
+    }
+    const next: Snap = { nodes, edges, hash: "" };
+    rehash(next);
+    return next;
+  }
+
+  // Precompute snapshots [t=0 (empty), t=1, ..., t=N]
+  const snaps: Snap[] = [emptySnap()];
+  for (const ev of EVENTS) snaps.push(applyEvent(snaps[snaps.length - 1], ev));
+
+  // ── Rendering ──
+  const VIEW_W = 760;
+  const VIEW_H = 380;
+  const CX = VIEW_W / 2;
+  const CY = VIEW_H / 2;
+  const RING_R = 155;
+
+  function describe(ev: Ev): string {
+    switch (ev.kind) {
+      case "Finding":        return `Finding ${ev.id} · ${ev.label.slice(0, 60)}${ev.label.length > 60 ? "…" : ""}`;
+      case "EvidenceObject": return `EvidenceObject → ${ev.target} · conf → ${ev.conf.toFixed(2)}`;
+      case "Replication":    return `Replication → ${ev.target}`;
+      case "Contested":      return `Contested → ${ev.target}`;
+      case "Correction":     return `Correction → ${ev.target}${ev.spawn ? ` · spawns ${ev.spawn.id}` : ""}`;
+      case "Link":           return `Link ${ev.from} → ${ev.to}`;
+      case "Retract":        return `Retract → ${ev.target}`;
+    }
+  }
+
+  function renderSvg(snap: Snap): { nodesHtml: string; edgesHtml: string } {
+    const pos: Record<string, { x: number; y: number }> = {};
+    for (const n of snap.nodes.values()) {
+      const a = n.angle * Math.PI * 2 - Math.PI / 2;
+      pos[n.id] = { x: CX + RING_R * Math.cos(a), y: CY + RING_R * Math.sin(a) };
+    }
+    let nodesHtml = "";
+    for (const n of snap.nodes.values()) {
+      const p = pos[n.id];
+      const r = 4 + Math.max(0, Math.min(1, n.confidence)) * 5;
+      const rg = r * 2.6;
+      const liveClass = n.kind === "live" ? " rp-node--live" : "";
+      const fill = `var(--state-${n.kind === "live" ? "ok" : n.kind})`;
+      const opacity = n.kind === "lost" ? "0.4" : "1";
+      nodesHtml += `<g class="rp-node${liveClass}" style="opacity:${opacity};"><circle class="rp-glow" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${rg.toFixed(1)}"/><circle class="rp-dot" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${r.toFixed(1)}" style="fill:${fill};"/></g>`;
+    }
+    let edgesHtml = "";
+    for (const e of snap.edges) {
+      const a = pos[e.from], b = pos[e.to];
+      if (!a || !b) continue;
+      const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+      const qx = CX + (mx - CX) * 0.45;
+      const qy = CY + (my - CY) * 0.45;
+      edgesHtml += `<path class="rp-edge" d="M ${a.x.toFixed(1)} ${a.y.toFixed(1)} Q ${qx.toFixed(1)} ${qy.toFixed(1)} ${b.x.toFixed(1)} ${b.y.toFixed(1)}"/>`;
+    }
+    return { nodesHtml, edgesHtml };
+  }
+
+  function fmtTime(t: string): string {
+    return t.replace("T", " ").replace("Z", " UTC");
+  }
+
+  // ── Wire up ──
+  const player = document.querySelector<HTMLElement>("[data-rp-player]")!;
+  const nodesG = player.querySelector<SVGGElement>("[data-rp-nodes]")!;
+  const edgesG = player.querySelector<SVGGElement>("[data-rp-edges]")!;
+  const timeEl = player.querySelector<HTMLElement>("[data-rp-time]")!;
+  const eventEl = player.querySelector<HTMLElement>("[data-rp-event]")!;
+  const hashEl = player.querySelector<HTMLElement>("[data-rp-hash]")!;
+  const stepEl = player.querySelector<HTMLElement>("[data-rp-step]")!;
+  const scrub = player.querySelector<HTMLInputElement>("[data-rp-scrub]")!;
+  const playBtn = player.querySelector<HTMLButtonElement>("[data-rp-play]")!;
+  const prevBtn = player.querySelector<HTMLButtonElement>("[data-rp-prev]")!;
+  const nextBtn = player.querySelector<HTMLButtonElement>("[data-rp-next]")!;
+  const logEl = player.querySelector<HTMLOListElement>("[data-rp-log]")!;
+
+  // Pre-render the log once.
+  logEl.innerHTML = EVENTS.map((ev, i) => {
+    return `<li class="rp-log-item" data-i="${i + 1}"><span class="rp-log-time">${fmtTime(ev.t)}</span><span class="rp-log-kind">${ev.kind}</span><span class="rp-log-desc">${describe(ev)}</span></li>`;
+  }).join("");
+  const logItems = Array.from(logEl.querySelectorAll<HTMLLIElement>(".rp-log-item"));
+
+  function setCursor(i: number): void {
+    const idx = Math.max(0, Math.min(EVENTS.length, i));
+    const snap = snaps[idx];
+    const { nodesHtml, edgesHtml } = renderSvg(snap);
+    nodesG.innerHTML = nodesHtml;
+    edgesG.innerHTML = edgesHtml;
+    if (idx === 0) {
+      timeEl.textContent = "—";
+      eventEl.textContent = "—";
+    } else {
+      const ev = EVENTS[idx - 1];
+      timeEl.textContent = fmtTime(ev.t);
+      eventEl.textContent = ev.kind;
+    }
+    hashEl.textContent = snap.hash;
+    stepEl.textContent = `${idx} / ${EVENTS.length}`;
+    scrub.value = String(idx);
+    logItems.forEach((li, k) => {
+      li.classList.toggle("rp-log-item--past", k + 1 <= idx);
+      li.classList.toggle("rp-log-item--now", k + 1 === idx);
+    });
+  }
+
+  setCursor(0);
+
+  scrub.addEventListener("input", () => setCursor(parseInt(scrub.value, 10)));
+  prevBtn.addEventListener("click", () => setCursor(parseInt(scrub.value, 10) - 1));
+  nextBtn.addEventListener("click", () => setCursor(parseInt(scrub.value, 10) + 1));
+
+  let timer: number | null = null;
+  function setPlaying(on: boolean): void {
+    if (on) {
+      playBtn.textContent = "❚❚";
+      timer = window.setInterval(() => {
+        const i = parseInt(scrub.value, 10);
+        if (i >= EVENTS.length) { setPlaying(false); return; }
+        setCursor(i + 1);
+      }, 900);
+    } else {
+      playBtn.textContent = "▶";
+      if (timer != null) { window.clearInterval(timer); timer = null; }
+    }
+  }
+  playBtn.addEventListener("click", () => setPlaying(timer == null));
+
+  // Click a log row to jump
+  logEl.addEventListener("click", (e) => {
+    const li = (e.target as HTMLElement)?.closest<HTMLLIElement>(".rp-log-item");
+    if (!li) return;
+    const i = parseInt(li.dataset.i || "0", 10);
+    setCursor(i);
+  });
+</script>
+
+<style>
+  .aside-link {
+    font-family: var(--font-mono);
+    font-size: var(--size-imprint);
+    letter-spacing: var(--track-imprint);
+    text-transform: uppercase;
+    color: var(--ink-3);
+    border-bottom: 1px solid transparent;
+    transition: color var(--dur-1) var(--ease), border-bottom-color var(--dur-1) var(--ease);
+  }
+  .aside-link:hover {
+    color: var(--gold);
+    border-bottom-color: color-mix(in oklab, var(--gold) 56%, transparent);
+  }
+
+  .rp {
+    max-width: var(--measure-wide);
+    margin: 0 auto;
+    padding: 0;
+  }
+
+  .rp__hero {
+    margin: 0 0 clamp(2.5rem, 6vh, 4rem);
+  }
+  .rp__hero :global(.vela-image-plate) {
+    margin-top: 0;
+    margin-bottom: 1.4rem;
+  }
+  .rp__hook {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-weight: 500;
+    font-size: clamp(1.55rem, 3vw, 2.1rem);
+    line-height: 1.18;
+    letter-spacing: var(--track-display);
+    color: var(--ink-0);
+    margin: 0 0 0.85rem;
+    max-width: 38ch;
+    text-wrap: balance;
+  }
+  .rp__sub {
+    font-family: var(--font-sans);
+    font-weight: 400;
+    font-size: 1rem;
+    line-height: 1.55;
+    letter-spacing: -0.005em;
+    color: color-mix(in oklab, var(--ink-2) 92%, transparent);
+    margin: 0;
+    max-width: 64ch;
+    text-wrap: pretty;
+  }
+
+  /* ── Player ── */
+  .rp__player {
+    margin: 0;
+    padding: 0;
+    background: var(--paper-1);
+    border: 1px solid var(--rule-2);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+  }
+  .rp__svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    max-height: 460px;
+    background:
+      radial-gradient(circle at 50% 50%, var(--star-glow) 0%, transparent 38%),
+      var(--paper-1);
+  }
+  .rp__ring { fill: none; stroke: color-mix(in oklab, var(--gold) 22%, transparent); stroke-width: 0.6; stroke-dasharray: 1 5; }
+  .rp__center { fill: var(--gold); filter: drop-shadow(0 0 6px var(--gold-glow)); }
+  .rp__edges {
+    fill: none;
+    stroke: color-mix(in oklab, var(--gold) 30%, transparent);
+    stroke-width: 0.6;
+  }
+  :global(.rp-edge) {
+    transition: stroke 200ms var(--ease), opacity 200ms var(--ease);
+  }
+  :global(.rp-node) {
+    transition: opacity 300ms var(--ease);
+  }
+  :global(.rp-glow) {
+    fill: var(--gold);
+    opacity: 0;
+    transition: opacity 200ms var(--ease);
+    pointer-events: none;
+  }
+  :global(.rp-node--live .rp-glow) { opacity: 0.18; }
+  :global(.rp-dot) {
+    transition: r 240ms var(--ease), fill 240ms var(--ease);
+    stroke: color-mix(in oklab, var(--ink-1) 18%, transparent);
+    stroke-width: 0.5;
+  }
+  :global(.rp-node--live .rp-dot) {
+    filter: drop-shadow(0 0 4px var(--gold-glow));
+  }
+
+  .rp__readout {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 6px 10px;
+    padding: 12px 18px;
+    border-top: 1px solid color-mix(in oklab, var(--gold) 24%, transparent);
+    border-bottom: 1px solid var(--rule-2);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    color: var(--ink-2);
+    background: transparent;
+  }
+  .rp__readout-label {
+    color: color-mix(in oklab, var(--gold) 64%, var(--ink-3));
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    font-size: 10px;
+    font-weight: 500;
+  }
+  .rp__readout-time, .rp__readout-event {
+    color: var(--ink-1);
+    font-variant-numeric: tabular-nums;
+  }
+  .rp__readout-hash {
+    color: color-mix(in oklab, var(--gold) 60%, var(--ink-1));
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.06em;
+  }
+  .rp__sep { color: var(--ink-4); }
+
+  .rp__controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 18px;
+    border-bottom: 1px solid var(--rule-1);
+    background: transparent;
+  }
+  .rp__btn {
+    font-family: var(--font-mono);
+    font-size: 14px;
+    width: 32px;
+    height: 32px;
+    border: 1px solid var(--rule-2);
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--ink-1);
+    cursor: pointer;
+    transition: color var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease), background var(--dur-1) var(--ease);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .rp__btn:hover {
+    color: var(--gold);
+    border-color: color-mix(in oklab, var(--gold) 56%, transparent);
+  }
+  .rp__btn--primary {
+    color: var(--ink-0);
+    border-color: color-mix(in oklab, var(--gold) 56%, transparent);
+  }
+  .rp__scrub {
+    flex: 1;
+    height: 4px;
+    appearance: none;
+    background: var(--rule-1);
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+  }
+  .rp__scrub::-webkit-slider-thumb {
+    appearance: none;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--gold);
+    box-shadow: 0 0 0 2px var(--gold-soft);
+    cursor: pointer;
+    border: none;
+  }
+  .rp__scrub::-moz-range-thumb {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--gold);
+    box-shadow: 0 0 0 2px var(--gold-soft);
+    border: none;
+    cursor: pointer;
+  }
+  .rp__step {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--ink-3);
+    letter-spacing: 0.04em;
+    font-variant-numeric: tabular-nums;
+    min-width: 60px;
+    text-align: right;
+  }
+
+  /* ── Event log ── */
+  .rp__log {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    max-height: 320px;
+    overflow-y: auto;
+    background: transparent;
+  }
+  :global(.rp-log-item) {
+    display: grid;
+    grid-template-columns: 180px 130px 1fr;
+    gap: 12px;
+    padding: 8px 18px;
+    border-bottom: 1px solid var(--rule-1);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: color-mix(in oklab, var(--ink-3) 78%, transparent);
+    cursor: pointer;
+    transition: color var(--dur-1) var(--ease), background var(--dur-1) var(--ease);
+    letter-spacing: 0.02em;
+    align-items: baseline;
+  }
+  :global(.rp-log-item:hover) { background: color-mix(in oklab, var(--gold) 6%, transparent); color: var(--ink-2); }
+  :global(.rp-log-item--past) { color: var(--ink-2); }
+  :global(.rp-log-item--past .rp-log-kind) { color: color-mix(in oklab, var(--gold) 72%, var(--ink-2)); }
+  :global(.rp-log-item--now) {
+    background: color-mix(in oklab, var(--gold) 14%, transparent);
+    color: var(--ink-0);
+  }
+  :global(.rp-log-item--now .rp-log-kind) { color: var(--cinnabar); }
+  :global(.rp-log-time) {
+    font-variant-numeric: tabular-nums;
+    color: inherit;
+  }
+  :global(.rp-log-kind) {
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    font-size: 10px;
+    font-weight: 500;
+    color: color-mix(in oklab, var(--ink-3) 88%, transparent);
+  }
+  :global(.rp-log-desc) {
+    color: inherit;
+    font-size: 11px;
+  }
+
+  .rp__caption {
+    margin: 0;
+    padding: 14px 18px 16px;
+    border-top: 1px solid var(--rule-1);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    color: color-mix(in oklab, var(--ink-3) 92%, transparent);
+    text-wrap: pretty;
+  }
+
+  @media (max-width: 720px) {
+    .rp__hook { font-size: 1.4rem; }
+    :global(.rp-log-item) {
+      grid-template-columns: 1fr;
+      gap: 2px;
+      padding: 8px 14px;
+    }
+  }
+</style>
