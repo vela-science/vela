@@ -75,8 +75,8 @@ const lastUpdated = stats.lastUpdated
         <dd><a class="cor__link" href={`${HUB_URL}/entries`} rel="noopener">vela-hub.fly.dev</a></dd>
       </div>
       <div class="cor__meta-cell">
-        <dt>Reviewer-in-residence</dt>
-        <dd class="cor__meta-mono">recruiting</dd>
+        <dt>External signers</dt>
+        <dd class="cor__meta-mono">0 — open call ↓</dd>
       </div>
       <div class="cor__meta-cell">
         <dt>Replay</dt>
@@ -180,14 +180,16 @@ const lastUpdated = stats.lastUpdated
           <strong>Propose a finding.</strong>
           Sign a <code>finding.add</code> event with your own Ed25519 key and POST to
           <a class="cor__link" href={`${HUB_URL}/publish`} rel="noopener">{HUB_URL.replace(/^https?:\/\//, '')}/publish</a>.
-          The reviewer-in-residence merges proposals into canonical events.
+          Proposals land in the inbox; a curator merges them into canonical events.
         </li>
         <li>
-          <strong>Become reviewer-in-residence.</strong>
-          Curate the corridor — recruit other signers, accept or reject proposals, sign
-          Corrections. Open a discussion on the
-          <a class="cor__link" href={REPO_URL} rel="noopener">repo</a> with the
-          <code>corridor</code> label.
+          <strong>Curate the corridor.</strong>
+          The corridor needs one credentialed neurovascular scientist (or small group) to
+          sign Corrections, recruit other signers, and arbitrate scope. Email
+          will.blair0708@gmail.com or open a
+          <a class="cor__link" href={`${REPO_URL}/discussions`} rel="noopener">repo discussion</a>.
+          The first external signer on this corridor unlocks every adoption argument
+          downstream of it.
         </li>
       </ul>
     </section>

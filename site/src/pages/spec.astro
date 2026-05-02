@@ -61,7 +61,7 @@ import { REPO_URL, VERSION } from "../config";
           Conformance language is RFC 2119. Each <strong>MUST</strong> / <strong>SHOULD</strong>
           / <strong>MAY</strong> below has a stable anchor id (e.g.
           <code>#MUST-canonical-keys</code>) so external conformance reports can cite exact
-          clauses. The full anchor list is at <a class="inline-link" href="#anchors">§10</a>.
+          clauses. The full anchor list is at <a class="inline-link" href="#anchors">§11</a>.
         </p>
       </div>
     </section>
@@ -310,10 +310,42 @@ import { REPO_URL, VERSION } from "../config";
       </div>
     </section>
 
+    <!-- ── Citation format — DOI-equivalent for findings ── -->
+    <section class="spec__section" id="citation">
+      <header class="spec__head">
+        <span class="spec__num">§9</span>
+        <h2 class="spec__title">Citation format.</h2>
+      </header>
+      <div class="spec__body">
+        <p>
+          Findings are citable by URI. The canonical scheme is <code>vela:</code> followed by
+          the content-addressed id; HTTP resolvers MUST redirect to a frontier-scoped page
+          on a known hub.
+        </p>
+        <pre class="spec__code"><code>vela:vf_83185611d673465b              # bare id, ambiguous across frontiers
+vela:vfr_bd91…/vf_83185611d673465b   # frontier-scoped, unambiguous
+https://vela-hub.fly.dev/v/vf_83185611d673465b   # HTTP resolver (redirects to frontier page)</code></pre>
+        <p>
+          Publishers <strong>SHOULD</strong> use the frontier-scoped form in references so
+          readers can verify which signed manifest the citation points at. Hubs that resolve
+          <code>vela:</code> URIs <strong>MUST</strong> serve a stable HTTP redirect target,
+          MUST verify the frontier signature against its registered owner, and MUST surface
+          the snapshot hash in the resolved page so readers can recompute the canonical state.
+        </p>
+        <p>
+          Recommended in-text citation:
+          <code>(Halliday et al. 2016, vela:vfr_bd91…/vf_8318…)</code> — the parenthetical
+          carries both the human reference and the machine-checkable id. Reference managers
+          and journal stylesheets adopting <code>vela:</code> can resolve directly to the
+          signed evidence chain.
+        </p>
+      </div>
+    </section>
+
     <!-- ── Reference implementation ── -->
     <section class="spec__section" id="reference">
       <header class="spec__head">
-        <span class="spec__num">§9</span>
+        <span class="spec__num">§10</span>
         <h2 class="spec__title">Reference implementation.</h2>
       </header>
       <div class="spec__body">
@@ -335,7 +367,7 @@ import { REPO_URL, VERSION } from "../config";
     <!-- ── Anchor index ── -->
     <section class="spec__section" id="anchors">
       <header class="spec__head">
-        <span class="spec__num">§10</span>
+        <span class="spec__num">§11</span>
         <h2 class="spec__title">Anchor index.</h2>
       </header>
       <div class="spec__body">
@@ -357,7 +389,7 @@ import { REPO_URL, VERSION } from "../config";
     <!-- ── Change history ── -->
     <section class="spec__section" id="history">
       <header class="spec__head">
-        <span class="spec__num">§11</span>
+        <span class="spec__num">§12</span>
         <h2 class="spec__title">Change history.</h2>
       </header>
       <div class="spec__body">

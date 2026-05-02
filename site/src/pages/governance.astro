@@ -138,6 +138,65 @@ import { REPO_URL, HUB_URL, VERSION } from "../config";
       </p>
     </section>
 
+    <section class="gov__sec" id="rfc-stewardship">
+      <h2 class="gov__sec-title">Open call: second steward.</h2>
+      <p class="gov__line">
+        <strong>RFC-001 · published 2026-05-02 · status: open · deadline: rolling.</strong>
+        A protocol with one signing key is not yet a protocol. Vela invites a second
+        steward — an institution or named individual — to hold a co-equal signing role on
+        the canonical hub. This is the prerequisite for foundation handoff and for any
+        adoption argument downstream.
+      </p>
+      <p class="gov__line">Criteria for a candidate second steward:</p>
+      <dl class="gov__pair">
+        <dt>Institutional standing</dt>
+        <dd>A research institute, university lab, scientific foundation, or open-science
+          organization with public charter and at least 3 years' continuous operation.</dd>
+        <dt>Domain credibility</dt>
+        <dd>A track record in cumulative-science infrastructure (preprints, registries,
+          shared archives, replication networks). Open-science publications a plus, not
+          required.</dd>
+        <dt>Governance posture</dt>
+        <dd>Willingness to publish a co-stewardship MOU, hold a designated key, and
+          participate in protocol RFC merges. No equity, no exclusivity, no platform fee.</dd>
+        <dt>Operational capacity</dt>
+        <dd>One named human committing 0.1–0.25 FTE to corridor curation, signature review,
+          and quarterly governance check-ins. Reviewer stipend negotiable.</dd>
+      </dl>
+      <p class="gov__line">
+        Inquiries: <a class="inline-link" href="mailto:will.blair0708@gmail.com">will.blair0708@gmail.com</a>
+        with subject <code>RFC-001 second steward</code>. Responses public unless requested
+        otherwise. The first qualified candidate to engage in good faith gets the conversation
+        before any second.
+      </p>
+    </section>
+
+    <section class="gov__sec" id="conformance-registry">
+      <h2 class="gov__sec-title">Conformance registry.</h2>
+      <p class="gov__line">
+        Any reducer implementation that reproduces byte-identical state on every fixture in
+        <a class="inline-link" href="/reducer-fixtures.tar.gz">/reducer-fixtures.tar.gz</a>
+        earns a conformance badge and a public registry entry. The registry is a public
+        manifest signed by the protocol editor; entries are removed only on a regression
+        against a future fixture.
+      </p>
+      <p class="gov__line">Current entries:</p>
+      <dl class="gov__pair">
+        <dt><code>vela-reducer</code></dt>
+        <dd>Rust · reference · canonical conformance witness · current at <code>v0.48.0</code></dd>
+        <dt><code>vela_reducer.py</code></dt>
+        <dd>Python · stdlib-only · auditable in one sitting · <a class="inline-link" href="/vela_reducer.py">source</a></dd>
+        <dt><code>vela_reducer.mjs</code></dt>
+        <dd>TypeScript · ESM module · runs in browser + node · <a class="inline-link" href="/vela_reducer.mjs">source</a></dd>
+      </dl>
+      <p class="gov__line">
+        Submit a new implementation: open a PR adding your reducer to the conformance suite
+        with passing fixtures. The registry is the answer to "how do I know there isn't a
+        single-vendor lock-in?" — not a promise, but a public list of independent
+        implementations that have demonstrably reduced the same event log to the same hash.
+      </p>
+    </section>
+
     <section class="gov__sec">
       <h2 class="gov__sec-title">Code of conduct + security.</h2>
       <p class="gov__line">

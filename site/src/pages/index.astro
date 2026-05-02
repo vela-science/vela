@@ -35,12 +35,13 @@ const lastUpdated = stats.lastUpdated
     <p class="vh-hero__eyebrow">vela {VERSION} · open protocol for scientific findings</p>
 
     <div class="vh-try">
-      <pre class="vh-code"><code><span class="vh-ps">$</span> <span class="vh-cmd">curl</span> <span class="vh-flag">-sSL</span> https://vela.science/try | <span class="vh-cmd">bash</span></code></pre>
-      <p class="vh-try__note">
-        Downloads a real signed proof packet and a stdlib-only Python verifier; recomputes
-        every file's SHA-256 against the manifest; exits non-zero on any mismatch.
-        <a class="vh-try__src" href="/try">view source</a>.
-      </p>
+      <pre class="vh-code"><code><span class="vh-cm"># inspect the script first if you don't trust the domain:</span>
+<span class="vh-ps">$</span> <span class="vh-cmd">curl</span> https://vela.science/try   <span class="vh-cm"># prints the bash; ~80 lines</span>
+
+<span class="vh-cm"># or run it directly. downloads a signed proof packet (~68 KB)</span>
+<span class="vh-cm"># and a stdlib-only Python verifier; SHA-256s every file in</span>
+<span class="vh-cm"># the manifest; exits non-zero on any mismatch.</span>
+<span class="vh-ps">$</span> <span class="vh-cmd">curl</span> <span class="vh-flag">-sSL</span> https://vela.science/try | <span class="vh-cmd">bash</span></code></pre>
     </div>
 
     <dl class="vh-stats">
@@ -113,8 +114,8 @@ const lastUpdated = stats.lastUpdated
     - <span class="vh-tk">type</span>: postmortem_histology
       <span class="vh-tk">doi</span>:  10.1038/jcbfm.2015.44
   <span class="vh-tk">provenance</span>:
-    <span class="vh-tk">extracted_from</span>: halliday-2016.pdf
-    <span class="vh-tk">reviewed_by</span>:    reviewer:halliday-lab
+    <span class="vh-tk">extracted_from</span>: halliday-2016.pdf   <span class="vh-cm"># real DOI: 10.1038/jcbfm.2015.44</span>
+    <span class="vh-tk">reviewed_by</span>:    reviewer:demo-curator   <span class="vh-cm"># illustrative; no real PI signed this</span>
   <span class="vh-tk">signature</span>:  ed25519:88ccb43144e9e228…
   <span class="vh-tk">links</span>:
     <span class="vh-tk">narrowed_by</span>: vrev_b0144a…   <span class="vh-cm"># Montagne 2020 → APOE4-positive only</span>
