@@ -297,6 +297,30 @@ const created = new Date(f.created).toISOString().slice(0, 10);
   </div>
 </Page>
 
+<style is:global>
+  /* ── Title override for claim pages ──
+     Generic chrome titles ("Workbench", "The protocol") use Inter Tight
+     bold. But a finding's assertion IS scientific prose ("Pericyte loss
+     precedes cognitive decline...") and deserves an italic Cormorant
+     pull-quote moment. Override only on this page. */
+  .wb-head__title {
+    font-family: var(--font-display) !important;
+    font-style: italic !important;
+    font-weight: 500 !important;
+    font-size: clamp(1.85rem, 4vw, 2.85rem) !important;
+    line-height: 1.12 !important;
+    letter-spacing: var(--track-display) !important;
+    text-wrap: pretty !important;
+    max-width: 32ch;
+  }
+  .wb-head__sub {
+    font-family: var(--font-body) !important;
+    font-style: italic !important;
+    font-size: clamp(0.95rem, 1.4vw, 1.05rem) !important;
+    color: color-mix(in oklab, var(--ink-2) 92%, transparent) !important;
+    max-width: 56ch !important;
+  }
+</style>
 <style>
   .aside-link {
     font-family: var(--font-mono);
@@ -304,7 +328,7 @@ const created = new Date(f.created).toISOString().slice(0, 10);
     letter-spacing: 0.06em;
     color: var(--ink-3);
   }
-  .aside-link:hover { color: var(--ink-0); }
+  .aside-link:hover { color: var(--gold); }
   .aside-mono {
     font-family: var(--font-mono);
     font-size: var(--size-xs);
@@ -318,10 +342,16 @@ const created = new Date(f.created).toISOString().slice(0, 10);
   }
 
   .inline-link {
-    color: var(--signal);
+    color: var(--ink-1);
     text-decoration: underline;
-    text-underline-offset: 2px;
+    text-decoration-color: color-mix(in oklab, var(--gold) 56%, transparent);
+    text-underline-offset: 3px;
     text-decoration-thickness: 1px;
+    transition: color var(--dur-1) var(--ease), text-decoration-color var(--dur-1) var(--ease);
+  }
+  .inline-link:hover {
+    color: var(--gold);
+    text-decoration-color: var(--gold);
   }
 
   /* ── Instrument bar — confidence + evidence + conditions ── */

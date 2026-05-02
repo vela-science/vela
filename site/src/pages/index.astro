@@ -15,6 +15,7 @@
 
 import Page from "../layouts/Page.astro";
 import ClaimCard from "../components/ClaimCard.astro";
+import ImagePlate from "../components/ImagePlate.astro";
 import {
   loadFrontier,
   frontierStats,
@@ -81,6 +82,23 @@ const lastUpdated = stats.lastUpdated
     <a href={HUB_URL} class="aside-link">hub</a>
     <span class="aside-version" title={`Vela ${VERSION}`}>v{VERSION}</span>
   </div>
+
+  <!-- ── Hero: one painted plate + one italic hook ── -->
+  <section class="hero" aria-label="What this is">
+    <ImagePlate
+      fallback="/images/plates/frontier.png"
+      width={1916}
+      height={821}
+      alt="A quiet watercolor cross-section beneath a horizon, with faint navy and gold stars forming above structured records below."
+    />
+    <p class="hero__hook">
+      <em>The live state of one scientific question, signed and replayable.</em>
+    </p>
+    <p class="hero__sub">
+      Every claim below is a content-addressed object. Every correction is an event.
+      Two machines compute the same hash from the same frontier, or one of them is wrong.
+    </p>
+  </section>
 
   <!-- ── Frontier readout — the masthead's instrument bar ── -->
   <div class="frontier-readout" aria-label="Frontier statistics">
@@ -242,6 +260,46 @@ const lastUpdated = stats.lastUpdated
 </Page>
 
 <style>
+  /* ── Hero: painted plate + italic Cormorant hook ──
+     Single visible element above the data. The plate sets atmosphere,
+     the italic line tells you what you're looking at, the sub line
+     answers "why should I believe it" — all in two sentences. */
+  .hero {
+    margin: 0 0 var(--space-7);
+    text-wrap: pretty;
+  }
+  .hero :global(.vela-image-plate) {
+    margin-top: 0;
+    margin-bottom: 1.4rem;
+  }
+  .hero__hook {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-weight: 500;
+    font-size: clamp(1.45rem, 2.6vw, 1.95rem);
+    line-height: 1.32;
+    letter-spacing: var(--track-display);
+    color: var(--ink-0);
+    margin: 0 0 0.85rem;
+    max-width: 44ch;
+    text-wrap: balance;
+  }
+  .hero__hook em { font-style: italic; }
+  .hero__sub {
+    font-family: var(--font-sans);
+    font-weight: 400;
+    font-size: 1rem;
+    line-height: 1.55;
+    letter-spacing: -0.005em;
+    color: color-mix(in oklab, var(--ink-2) 92%, transparent);
+    margin: 0;
+    max-width: 60ch;
+  }
+  @media (max-width: 720px) {
+    .hero { margin-bottom: var(--space-6); }
+    .hero__hook { font-size: 1.35rem; }
+  }
+
   .aside-link {
     font-family: var(--font-mono);
     font-size: var(--size-xs);
