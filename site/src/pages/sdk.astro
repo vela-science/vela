@@ -55,65 +55,100 @@ import { REPO_URL, HUB_URL } from "../config";
       </p>
 
       <div class="sdk__cmd">
+        <h3 class="sdk__cmd-name"><code>vela frontier new</code></h3>
+        <p>Scaffold a publishable <code>frontier.json</code>.</p>
+        <pre class="sdk__code"><code>vela frontier new --name &lt;NAME&gt; [--description &lt;TEXT&gt;] [--force] &lt;PATH&gt;</code></pre>
+      </div>
+
+      <div class="sdk__cmd">
         <h3 class="sdk__cmd-name"><code>vela init</code></h3>
-        <p>Initialize a new frontier in the current directory.</p>
-        <pre class="sdk__code"><code>vela init --name &lt;NAME&gt; [--description &lt;TEXT&gt;] [--key &lt;LABEL&gt;]</code></pre>
-        <ul class="sdk__flags">
-          <li><code>--name</code> — frontier display name (required)</li>
-          <li><code>--description</code> — one-line scope description</li>
-          <li><code>--key</code> — signing key label (defaults to <code>default</code>)</li>
-        </ul>
+        <p>Initialize a local <code>.vela/</code> repo (not directly publishable; use <code>frontier new</code> for hub-bound work).</p>
+        <pre class="sdk__code"><code>vela init [--name &lt;NAME&gt;] [&lt;PATH&gt;]</code></pre>
       </div>
 
       <div class="sdk__cmd">
-        <h3 class="sdk__cmd-name"><code>vela key</code></h3>
-        <p>Manage Ed25519 signing keys. Private keys are stored at <code>~/.vela/keys/</code>.</p>
-        <pre class="sdk__code"><code>vela key generate --label &lt;LABEL&gt;
-vela key list
-vela key export --label &lt;LABEL&gt; --public-only
-vela key rotate --old &lt;LABEL&gt; --new &lt;LABEL&gt;</code></pre>
-      </div>
-
-      <div class="sdk__cmd">
-        <h3 class="sdk__cmd-name"><code>vela add</code></h3>
-        <p>Draft a new event of a given type. Events are unsigned until <code>vela sign</code>.</p>
-        <pre class="sdk__code"><code>vela add finding \
+        <h3 class="sdk__cmd-name"><code>vela finding add</code></h3>
+        <p>Add a finding to a frontier. Without <code>--apply</code> it lands as a pending proposal in the inbox.</p>
+        <pre class="sdk__code"><code>vela finding add &lt;FRONTIER&gt; \
     --assertion &lt;TEXT&gt; \
-    --confidence &lt;0.0-1.0&gt; \
-    --scope &lt;COMMA-SEP-TAGS&gt; \
-    --evidence &lt;DOI-OR-URL&gt; [--evidence ...]
-
-vela add evidence \
-    --finding &lt;FINDING-ID&gt; \
-    --type [paper|dataset|trial|code|null-result] \
-    --pointer &lt;DOI-OR-URL&gt; \
-    --note &lt;TEXT&gt;
-
-vela add correction \
-    --finding &lt;FINDING-ID&gt; \
-    --kind [scope-narrow|confidence-down|confidence-up|retract] \
-    --reason &lt;TEXT&gt; \
-    --evidence &lt;DOI-OR-URL&gt;
-
-vela add dependency \
-    --from &lt;CLAIM-ID&gt; \
-    --to &lt;CLAIM-ID&gt; \
-    --kind [supports|depends-on|contradicts]</code></pre>
+    --author &lt;ACTOR-ID&gt; \
+    [--type mechanism|therapeutic|diagnostic|epidemiological|...] \
+    [--source &lt;LABEL&gt;] [--source-type published_paper|preprint|...] \
+    [--confidence 0.0-1.0] \
+    [--evidence-type experimental|observational|...] \
+    [--entities name:type,name:type,...] \
+    [--doi &lt;DOI&gt;] [--pmid &lt;PMID&gt;] [--year &lt;YYYY&gt;] \
+    [--apply]</code></pre>
       </div>
 
       <div class="sdk__cmd">
-        <h3 class="sdk__cmd-name"><code>vela sign / publish / verify</code></h3>
-        <pre class="sdk__code"><code>vela sign [--key &lt;LABEL&gt;]                # signs all unsigned events
-vela publish --hub &lt;HUB-URL&gt;              # pushes signed events to a hub
-vela verify [&lt;PATH-OR-URL&gt;]               # verifies signatures + replays state
-vela log                                  # prints the event log
-vela frontier show                        # prints current canonical state</code></pre>
+        <h3 class="sdk__cmd-name"><code>vela finding supersede</code></h3>
+        <p>Supersede an existing finding with a revised content-addressed claim. Old finding flagged <code>superseded</code>; new finding gets an auto-injected <code>supersedes</code> link.</p>
+        <pre class="sdk__code"><code>vela finding supersede &lt;FRONTIER&gt; \
+    --supersedes &lt;FINDING-ID&gt; \
+    --assertion &lt;TEXT&gt; \
+    --author &lt;ACTOR-ID&gt; \
+    [--confidence 0.0-1.0] \
+    [--apply]</code></pre>
       </div>
 
       <div class="sdk__cmd">
-        <h3 class="sdk__cmd-name"><code>vela fetch</code></h3>
-        <p>Mirror a frontier from a hub to local disk.</p>
-        <pre class="sdk__code"><code>vela fetch &lt;FRONTIER-ID&gt; [--hub &lt;HUB-URL&gt;] [--path &lt;DIR&gt;]</code></pre>
+        <h3 class="sdk__cmd-name"><code>vela link add</code></h3>
+        <p>Typed edge between two findings. Cross-frontier targets use <code>vf_…@vfr_…</code> form.</p>
+        <pre class="sdk__code"><code>vela link add &lt;FRONTIER&gt; \
+    --from &lt;FINDING-ID&gt; \
+    --to &lt;FINDING-ID&gt; \
+    --type supports|depends|contradicts|narrows|supersedes</code></pre>
+      </div>
+
+      <div class="sdk__cmd">
+        <h3 class="sdk__cmd-name"><code>vela sign</code></h3>
+        <pre class="sdk__code"><code>vela sign generate-keypair [--out &lt;DIR&gt;]
+vela sign apply &lt;FRONTIER&gt; --private-key &lt;PATH&gt;
+vela sign verify &lt;FRONTIER&gt; [--public-key &lt;PATH&gt;]
+vela sign threshold-set &lt;FRONTIER&gt; &lt;FINDING-ID&gt; --to &lt;N&gt;</code></pre>
+      </div>
+
+      <div class="sdk__cmd">
+        <h3 class="sdk__cmd-name"><code>vela actor add</code></h3>
+        <p>Register an Ed25519 public key for a stable actor identity.</p>
+        <pre class="sdk__code"><code>vela actor add &lt;FRONTIER&gt; &lt;ACTOR-ID&gt; --pubkey &lt;HEX&gt; [--orcid &lt;ORCID&gt;]
+vela actor list &lt;FRONTIER&gt;</code></pre>
+      </div>
+
+      <div class="sdk__cmd">
+        <h3 class="sdk__cmd-name"><code>vela registry</code></h3>
+        <p>Publish, list, pull, and mirror frontier manifests.</p>
+        <pre class="sdk__code"><code>vela registry publish &lt;FRONTIER&gt; \
+    --owner &lt;ACTOR-ID&gt; --key &lt;PRIVATE-KEY&gt; \
+    --locator &lt;URL&gt; [--to &lt;HUB&gt;]
+
+vela registry list [--from &lt;HUB&gt;]
+vela registry pull &lt;VFR-ID&gt; [--from &lt;HUB&gt;] [--to &lt;PATH&gt;]
+vela registry mirror --vfr-id &lt;VFR-ID&gt; --from &lt;HUB&gt; --to &lt;HUB&gt;</code></pre>
+      </div>
+
+      <div class="sdk__cmd">
+        <h3 class="sdk__cmd-name"><code>vela workbench</code></h3>
+        <p>Launch the local workbench web app against a Vela repo.</p>
+        <pre class="sdk__code"><code>vela workbench [&lt;PATH&gt;] [--port &lt;PORT&gt;] [--no-open]</code></pre>
+      </div>
+
+      <div class="sdk__cmd">
+        <h3 class="sdk__cmd-name">Agent commands</h3>
+        <p>LLM-backed pipelines that walk source material and write <code>finding.add</code> proposals tagged with an <code>AgentRun</code> record. Reviewers accept via the inbox.</p>
+        <pre class="sdk__code"><code>vela scout         &lt;FOLDER&gt; --frontier &lt;PATH&gt;   # Literature Scout (PDFs)
+vela compile-notes &lt;VAULT&gt;  --frontier &lt;PATH&gt;   # Markdown / Obsidian
+vela compile-code  &lt;ROOT&gt;   --frontier &lt;PATH&gt;   # Jupyter / Python / R
+vela compile-data  &lt;ROOT&gt;   --frontier &lt;PATH&gt;   # CSV / Parquet
+vela review-pending      --frontier &lt;PATH&gt;   # Reviewer Agent
+vela find-tensions       --frontier &lt;PATH&gt;   # Contradiction Finder
+vela plan-experiments    --frontier &lt;PATH&gt;   # Experiment Planner</code></pre>
+      </div>
+
+      <div class="sdk__cmd">
+        <h3 class="sdk__cmd-name">Full subcommand list</h3>
+        <p>The binary ships 30+ subcommands across causal reasoning (<code>vela causal audit|effect|graph|counterfactual</code>), bridges (<code>vela bridges derive</code>), federation (<code>vela federation peer-add</code>), entity resolution, threshold signatures, and more. Run <code>vela help advanced</code> for the full list.</p>
       </div>
     </section>
 
