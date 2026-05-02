@@ -41,14 +41,14 @@ const featuredClaim = allClaims
   </div>
 
   <article class="protocol">
-    <!-- ── Hero ── -->
+    <!-- ── Hero ──
+         Watercolor plate removed: pale watercolor on cream paper
+         under mix-blend-mode multiply rendered as a viewport-scale
+         void. The page header (eyebrow + h1 + subtitle) already does
+         the masthead work; this section now adds the four-noun thesis
+         and a jump-to-section nav so a developer scrolling can see
+         the full doc shape immediately. -->
     <section class="protocol__hero">
-      <ImagePlate
-        fallback="/images/plates/frontier.png"
-        width={1916}
-        height={821}
-        alt="A quiet watercolor cross-section beneath a horizon, with faint navy and gold stars forming above structured records below."
-      />
       <p class="protocol__hook">
         <em>Four nouns, one binary.</em>
       </p>
@@ -57,10 +57,20 @@ const featuredClaim = allClaims
         a constellation of findings has a content-addressed id,
         two implementations agree byte-for-byte, the signature is the bind.
       </p>
+
+      <nav class="protocol__toc" aria-label="On this page">
+        <span class="protocol__toc-label">on this page</span>
+        <ol class="protocol__toc-list">
+          <li><a href="#finding"><span class="protocol__toc-num">§1</span> Finding</a></li>
+          <li><a href="#constellation"><span class="protocol__toc-num">§2</span> Constellation</a></li>
+          <li><a href="#proof-packet"><span class="protocol__toc-num">§3</span> Proof packet</a></li>
+          <li><a href="#use-it"><span class="protocol__toc-num">§4</span> Use it</a></li>
+        </ol>
+      </nav>
     </section>
 
     <!-- ── §1 Finding ── -->
-    <section class="protocol__section">
+    <section id="finding" class="protocol__section">
       <SectionHeading title="Finding" glyph="finding" kicker="§1 · the unit" />
       <p class="protocol__status">
         <span class="protocol__badge protocol__badge--shipping">shipping · v0.48</span>
@@ -87,7 +97,7 @@ const featuredClaim = allClaims
     </section>
 
     <!-- ── §2 Constellation ── -->
-    <section class="protocol__section">
+    <section id="constellation" class="protocol__section">
       <SectionHeading title="Constellation" glyph="constellation" kicker="§2 · the field" />
       <p class="protocol__status">
         <span class="protocol__badge protocol__badge--shipping">shipping · v0.48</span>
@@ -115,7 +125,7 @@ const featuredClaim = allClaims
     </section>
 
     <!-- ── §3 Proof ── -->
-    <section class="protocol__section">
+    <section id="proof-packet" class="protocol__section">
       <SectionHeading title="Proof packet" glyph="proof" kicker="§3 · the seam" />
       <p class="protocol__status">
         <span class="protocol__badge protocol__badge--shipping">shipping · v0.48</span>
@@ -270,7 +280,7 @@ reducer: ok
     </section>
 
     <!-- ── §4 Use it ── -->
-    <section class="protocol__section">
+    <section id="use-it" class="protocol__section">
       <SectionHeading title="Use it" kicker="§4 · one binary" />
       <p class="protocol__status">
         <span class="protocol__badge protocol__badge--shipping">shipping · v0.48</span>
@@ -357,8 +367,61 @@ reducer: ok
     line-height: 1.55;
     letter-spacing: -0.005em;
     color: color-mix(in oklab, var(--ink-2) 92%, transparent);
-    margin: 0;
+    margin: 0 0 var(--space-5);
     max-width: 60ch;
+  }
+
+  /* ── Table of contents ──
+     Stripe-style "on this page" jump nav so a developer scanning a
+     long doc sees the full shape immediately. */
+  .protocol__toc {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.85rem 0;
+    border-top: 1px solid color-mix(in oklab, var(--gold) 28%, transparent);
+    border-bottom: 1px solid var(--rule-1);
+    max-width: 60ch;
+  }
+  .protocol__toc-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: color-mix(in oklab, var(--gold) 76%, var(--ink-2));
+  }
+  .protocol__toc-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 1.2rem;
+  }
+  .protocol__toc-list li { padding: 2px 0; }
+  .protocol__toc-list a {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 8px;
+    font-family: var(--font-sans);
+    font-weight: 500;
+    font-size: 0.95rem;
+    letter-spacing: -0.005em;
+    color: var(--ink-1);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: color var(--dur-1) var(--ease), border-bottom-color var(--dur-1) var(--ease);
+  }
+  .protocol__toc-list a:hover {
+    color: var(--gold);
+    border-bottom-color: color-mix(in oklab, var(--gold) 56%, transparent);
+  }
+  .protocol__toc-num {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    color: var(--ink-3);
+    font-weight: 400;
   }
 
   /* ── Sections ── */

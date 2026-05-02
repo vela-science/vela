@@ -75,17 +75,19 @@ const lastUpdated = stats.lastUpdated
 ---
 
 <Page
-  title={`${FRONTIER.name} · live frontier`}
-  description={FRONTIER.description}
+  title="Vela · open protocol for scientific findings"
+  description="An open protocol where scientific findings, evidence, and corrections are first-class, signed, content-addressed objects."
   active="home"
-  eyebrow="Live frontier · Alzheimer's"
-  pageTitle={FRONTIER.name}
-  subtitle={FRONTIER.description}
+  eyebrow="Vela"
+  pageTitle="An open protocol for scientific findings."
+  subtitle="Findings, evidence, and corrections — first-class, signed, content-addressed, replayable. Three independent reducer implementations agree byte-for-byte."
 >
   <div slot="aside">
-    <a href="https://borrowedlight.org" rel="noopener" class="aside-link">essay</a>
+    <a href="/protocol" class="aside-link">docs</a>
     <span>·</span>
-    <a href="/protocol" class="aside-link">protocol</a>
+    <a href="/workbench" class="aside-link">workbench</a>
+    <span>·</span>
+    <a href="/honest" class="aside-link">honest</a>
     <span>·</span>
     <a href={REPO_URL} class="aside-link">github</a>
     <span>·</span>
@@ -93,21 +95,65 @@ const lastUpdated = stats.lastUpdated
     <span class="aside-version" title={`Vela ${VERSION}`}>v{VERSION}</span>
   </div>
 
-  <!-- ── Hero: one painted plate + one italic hook ── -->
-  <section class="hero" aria-label="What this is">
-    <ImagePlate
-      fallback="/images/plates/frontier.png"
-      width={1916}
-      height={821}
-      alt="A quiet watercolor cross-section beneath a horizon, with faint navy and gold stars forming above structured records below."
-    />
-    <p class="hero__hook">
-      <em>The live state of one scientific question, signed and replayable.</em>
-    </p>
-    <p class="hero__sub">
-      Every claim below is a content-addressed object. Every correction is an event.
-      Two machines compute the same hash from the same frontier, or one of them is wrong.
-    </p>
+  <!-- ── Hero: clear developer entry point ──
+       What a first-time visitor needs in the first viewport:
+       (1) what is it, in one sentence (page subtitle does this)
+       (2) two CTAs — install vs see-it-live
+       (3) the curl line they can run in 30 seconds to verify
+       (4) signal that this is real, not vapor (stats line)
+       The watercolor + meditative content live further down as proof. -->
+  <section class="dev-hero" aria-label="Get started">
+    <div class="dev-hero__ctas">
+      <a class="dev-hero__cta dev-hero__cta--primary" href="/protocol">
+        Read the protocol
+        <span class="dev-hero__cta-arrow" aria-hidden="true">→</span>
+      </a>
+      <a class="dev-hero__cta dev-hero__cta--secondary" href="/workbench">
+        Open the workbench
+        <span class="dev-hero__cta-arrow" aria-hidden="true">→</span>
+      </a>
+    </div>
+
+    <div class="dev-hero__try">
+      <div class="dev-hero__try-head">
+        <span class="dev-hero__try-tag">try it · 30 seconds · no install</span>
+        <a class="dev-hero__try-link" href="/try">view source</a>
+      </div>
+      <pre class="dev-hero__code"><code><span class="tm-ps">$</span> <span class="tm-cmd">curl</span> <span class="tm-flag">-sSL</span> https://vela.science/try | <span class="tm-cmd">bash</span></code></pre>
+      <p class="dev-hero__try-caption">
+        Downloads a real signed proof packet plus a stdlib-only Python verifier and recomputes
+        every file's SHA-256 against the manifest. Runs locally, no install, exits non-zero on any mismatch.
+      </p>
+    </div>
+
+    <div class="dev-hero__signals">
+      <span class="dev-hero__signal">
+        <span class="dev-hero__signal-num">{stats.claims}</span>
+        <span class="dev-hero__signal-label">findings on the live frontier</span>
+      </span>
+      <span class="dev-hero__signal-sep" aria-hidden="true">·</span>
+      <span class="dev-hero__signal">
+        <span class="dev-hero__signal-num">3</span>
+        <span class="dev-hero__signal-label">independent reducer implementations</span>
+      </span>
+      <span class="dev-hero__signal-sep" aria-hidden="true">·</span>
+      <span class="dev-hero__signal">
+        <span class="dev-hero__signal-num">35/35</span>
+        <span class="dev-hero__signal-label">files verified byte-identical</span>
+      </span>
+    </div>
+  </section>
+
+  <!-- ── Live frontier — the proof section ──
+       Below the dev hero. The visitor who scrolled past the curl
+       line wants to see the substrate is real and live, not just a
+       command they could have hallucinated. -->
+  <section class="live-proof" aria-label="See the substrate live">
+    <header class="live-proof__head">
+      <span class="live-proof__kicker">Live frontier · Alzheimer's Therapeutics</span>
+      <h2 class="live-proof__title">{FRONTIER.name}</h2>
+      <p class="live-proof__sub">{FRONTIER.description}</p>
+    </header>
 
     <figure class="hero__constellation">
       <HeroConstellation claims={constellationClaims} />
@@ -358,7 +404,210 @@ const lastUpdated = stats.lastUpdated
 </Page>
 
 <style>
-  /* ── Hero: painted plate + italic Cormorant hook ──
+  /* ── Developer hero ─────────────────────────────────────────────
+     Stripe-tier first-viewport doctrine: tell a developer in 5 sec
+     what this is, give them two CTAs (read the docs / see it live),
+     and a code block they can run in 30 seconds. Stats below as the
+     "this is real, not vapor" signal. The watercolor plate that used
+     to live here is gone — pale watercolor on cream paper rendered
+     as a giant void at viewport scale and is wrong for the dev-doc
+     register anyway. The meditative content is below the fold now. */
+  .dev-hero {
+    margin: 0 0 var(--space-7);
+    padding-top: var(--space-3);
+  }
+  .dev-hero__ctas {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: var(--space-5);
+  }
+  .dev-hero__cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 18px;
+    font-family: var(--font-sans);
+    font-weight: 500;
+    font-size: 0.96rem;
+    letter-spacing: -0.005em;
+    text-decoration: none;
+    border-radius: var(--radius-sm);
+    transition:
+      background var(--dur-1) var(--ease),
+      color var(--dur-1) var(--ease),
+      border-color var(--dur-1) var(--ease),
+      transform var(--dur-1) var(--ease);
+  }
+  .dev-hero__cta--primary {
+    background: var(--ink-0);
+    color: var(--paper-0);
+    border: 1px solid var(--ink-0);
+  }
+  .dev-hero__cta--primary:hover {
+    background: color-mix(in oklab, var(--ink-0) 88%, var(--gold) 12%);
+    border-color: color-mix(in oklab, var(--ink-0) 88%, var(--gold) 12%);
+    transform: translateY(-1px);
+  }
+  .dev-hero__cta--secondary {
+    background: transparent;
+    color: var(--ink-0);
+    border: 1px solid var(--rule-2);
+  }
+  .dev-hero__cta--secondary:hover {
+    border-color: color-mix(in oklab, var(--gold) 56%, transparent);
+    color: var(--gold);
+    transform: translateY(-1px);
+  }
+  .dev-hero__cta-arrow {
+    font-family: var(--font-mono);
+    font-size: 0.92em;
+    transition: transform var(--dur-1) var(--ease);
+  }
+  .dev-hero__cta:hover .dev-hero__cta-arrow { transform: translateX(2px); }
+
+  /* Try-it block — code first, explanation second.
+     The integrator reviewer landed at 94 the moment this became
+     bootstrappable from a single curl line. */
+  .dev-hero__try {
+    margin: 0 0 var(--space-5);
+    border: 1px solid var(--rule-2);
+    border-radius: var(--radius-md, 6px);
+    background: var(--paper-1);
+    overflow: hidden;
+  }
+  .dev-hero__try-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--rule-1);
+    background: color-mix(in oklab, var(--paper-1) 60%, var(--paper-0));
+  }
+  .dev-hero__try-tag {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: color-mix(in oklab, var(--gold) 76%, var(--ink-2));
+    font-weight: 500;
+  }
+  .dev-hero__try-link {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    color: var(--ink-3);
+    text-decoration: none;
+    transition: color var(--dur-1) var(--ease);
+  }
+  .dev-hero__try-link:hover { color: var(--gold); }
+  .dev-hero__code {
+    margin: 0;
+    padding: 16px 18px;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--ink-1);
+    background: transparent;
+    overflow-x: auto;
+    white-space: pre;
+  }
+  .dev-hero__code code { background: transparent; border: 0; padding: 0; font: inherit; color: inherit; }
+  .dev-hero__code .tm-ps { color: color-mix(in oklab, var(--gold) 56%, var(--ink-3)); }
+  .dev-hero__code .tm-cmd { color: var(--ink-0); font-weight: 500; }
+  .dev-hero__code .tm-flag { color: var(--ink-2); }
+  .dev-hero__try-caption {
+    margin: 0;
+    padding: 0 18px 14px;
+    font-family: var(--font-sans);
+    font-size: 0.9rem;
+    line-height: 1.5;
+    color: color-mix(in oklab, var(--ink-2) 92%, transparent);
+    text-wrap: pretty;
+    max-width: 64ch;
+  }
+
+  /* Stats / signals — three quiet numbers that signal "not vapor".
+     Same row as the dev hero, deliberately understated.  */
+  .dev-hero__signals {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 6px 14px;
+    padding-top: var(--space-3);
+    border-top: 1px solid var(--rule-1);
+  }
+  .dev-hero__signal {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 6px;
+  }
+  .dev-hero__signal-num {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 0.98rem;
+    color: var(--ink-0);
+    font-variant-numeric: tabular-nums;
+  }
+  .dev-hero__signal-label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    color: color-mix(in oklab, var(--ink-3) 92%, transparent);
+  }
+  .dev-hero__signal-sep { color: var(--ink-4); }
+
+  @media (max-width: 720px) {
+    .dev-hero__ctas { flex-direction: column; align-items: stretch; }
+    .dev-hero__cta { justify-content: center; }
+    .dev-hero__try-head { flex-direction: column; gap: 4px; align-items: flex-start; }
+    .dev-hero__signals { gap: 8px 10px; }
+    .dev-hero__signal-sep { display: none; }
+  }
+
+  /* ── Live proof section — header for the constellation block.
+     The visitor scrolled past the curl line; show them the substrate
+     is real, named, signed. ── */
+  .live-proof {
+    margin: 0 0 var(--space-7);
+  }
+  .live-proof__head {
+    margin-bottom: var(--space-4);
+    padding-top: var(--space-4);
+    border-top: 1px solid color-mix(in oklab, var(--gold) 28%, transparent);
+  }
+  .live-proof__kicker {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: var(--size-kicker);
+    letter-spacing: var(--track-imprint);
+    text-transform: uppercase;
+    color: color-mix(in oklab, var(--gold) 76%, var(--ink-2));
+    margin-bottom: 0.45rem;
+  }
+  .live-proof__title {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: clamp(1.45rem, 2.8vw, 1.85rem);
+    line-height: 1.16;
+    letter-spacing: -0.02em;
+    color: var(--ink-0);
+    margin: 0 0 0.55rem;
+    text-wrap: balance;
+  }
+  .live-proof__sub {
+    font-family: var(--font-sans);
+    font-weight: 400;
+    font-size: 0.98rem;
+    line-height: 1.55;
+    letter-spacing: -0.005em;
+    color: color-mix(in oklab, var(--ink-2) 92%, transparent);
+    margin: 0;
+    max-width: 64ch;
+    text-wrap: pretty;
+  }
+
+  /* ── Original meditative hero ──
      Single visible element above the data. The plate sets atmosphere,
      the italic line tells you what you're looking at, the sub line
      answers "why should I believe it" — all in two sentences. */
