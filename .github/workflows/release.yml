@@ -29,7 +29,9 @@ jobs:
           targets: ${{ matrix.target }}
       - uses: Swatinem/rust-cache@v2
       - name: Build
-        run: cargo build --release -p vela-protocol --target ${{ matrix.target }}
+        # The `vela` binary lives in crates/vela-cli — building -p vela-protocol
+        # produces the substrate library but not the CLI artifact.
+        run: cargo build --release --bin vela --target ${{ matrix.target }}
       - name: Package
         run: |
           mkdir -p dist
