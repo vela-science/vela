@@ -136,16 +136,10 @@ pub async fn run(input: CodeAnalystInput) -> Result<CodeAnalystReport, String> {
         ..Default::default()
     };
 
-    let existing_finding_ids: HashSet<String> = frontier
-        .findings
-        .iter()
-        .map(|f| f.id.clone())
-        .collect();
-    let existing_proposal_ids: HashSet<String> = frontier
-        .proposals
-        .iter()
-        .map(|p| p.id.clone())
-        .collect();
+    let existing_finding_ids: HashSet<String> =
+        frontier.findings.iter().map(|f| f.id.clone()).collect();
+    let existing_proposal_ids: HashSet<String> =
+        frontier.proposals.iter().map(|p| p.id.clone()).collect();
     let mut new_proposals: Vec<StateProposal> = Vec::new();
 
     for path in &files {
@@ -290,14 +284,7 @@ fn stage(
         });
         return;
     }
-    let proposal = build_finding_add_proposal(
-        &finding,
-        ctx,
-        source_label,
-        &rationale,
-        &[],
-        run,
-    );
+    let proposal = build_finding_add_proposal(&finding, ctx, source_label, &rationale, &[], run);
     if existing_proposal_ids.contains(&proposal.id) {
         skipped.push(SkippedSource {
             path: format!("{source_label}#{}", proposal.id),
@@ -550,9 +537,9 @@ fn lift_analysis(a: &MAnalysis, label: &str, ext: &str) -> FindingBundle {
         entities: Vec::new(),
         relation: None,
         direction: None,
-            causal_claim: None,
-            causal_evidence_grade: None,
-        };
+        causal_claim: None,
+        causal_evidence_grade: None,
+    };
     let confidence = Confidence::raw(
         0.4,
         "code_analyst: analysis described from source code",
@@ -601,14 +588,10 @@ fn lift_code_finding(c: &MCodeFinding, label: &str, ext: &str) -> FindingBundle 
         entities: Vec::new(),
         relation: None,
         direction: None,
-            causal_claim: None,
-            causal_evidence_grade: None,
-        };
-    let confidence = Confidence::raw(
-        0.5,
-        "code_analyst: claim with code+output evidence",
-        0.7,
-    );
+        causal_claim: None,
+        causal_evidence_grade: None,
+    };
+    let confidence = Confidence::raw(0.5, "code_analyst: claim with code+output evidence", 0.7);
     FindingBundle::new(
         assertion,
         evidence,
@@ -642,14 +625,10 @@ fn lift_experiment_intent(e: &MExperimentIntent, label: &str, ext: &str) -> Find
         entities: Vec::new(),
         relation: None,
         direction: None,
-            causal_claim: None,
-            causal_evidence_grade: None,
-        };
-    let confidence = Confidence::raw(
-        0.0,
-        "code_analyst: proposed experiment, not yet run",
-        0.7,
-    );
+        causal_claim: None,
+        causal_evidence_grade: None,
+    };
+    let confidence = Confidence::raw(0.0, "code_analyst: proposed experiment, not yet run", 0.7);
     let mut flags = base_flags();
     flags.gap = true;
     FindingBundle::new(

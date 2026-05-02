@@ -6,6 +6,13 @@
   <em>A git-native protocol for replayable scientific frontier state.</em>
 </p>
 
+<p align="center">
+  <a href="https://github.com/vela-science/vela/actions/workflows/ci.yml"><img src="https://github.com/vela-science/vela/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/vela-science/vela/blob/main/LICENSE-APACHE"><img src="https://img.shields.io/badge/license-Apache--2.0_OR_MIT-blue.svg" alt="License"></a>
+  <a href="https://vela.science"><img src="https://img.shields.io/badge/site-vela.science-C9A227" alt="Site"></a>
+  <a href="https://github.com/vela-science/vela/releases"><img src="https://img.shields.io/github/v/release/vela-science/vela?display_name=tag" alt="Release"></a>
+</p>
+
 ---
 
 Vela turns a folder of papers into a bounded, reviewable state that a
@@ -248,7 +255,8 @@ state, changes what a human or agent inherits, and marks prior proof stale. See
 - canonical checked-in BBB/Alzheimer frontier under `frontiers/`
 - local paper-folder compile path with quality reports
 - proof packets, replay checks, proposal records, and proof freshness
-- Apache-2.0
+- dual-licensed Apache-2.0 OR MIT (see [LICENSE-APACHE](LICENSE-APACHE) /
+  [LICENSE-MIT](LICENSE-MIT))
 
 ## Brand
 

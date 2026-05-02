@@ -93,9 +93,7 @@ pub fn extract_via_claude_cli(
         .get("findings")
         .and_then(|v| v.as_array())
         .cloned()
-        .ok_or_else(|| {
-            format!("structured_output has no `findings` array: {findings_value}")
-        })?;
+        .ok_or_else(|| format!("structured_output has no `findings` array: {findings_value}"))?;
 
     let mut out = Vec::new();
     for raw in arr {
@@ -191,9 +189,9 @@ fn lift_to_bundle(c: &ModelCandidate, label: &str) -> FindingBundle {
         entities: Vec::new(),
         relation: None,
         direction: None,
-            causal_claim: None,
-            causal_evidence_grade: None,
-        };
+        causal_claim: None,
+        causal_evidence_grade: None,
+    };
     let evidence = Evidence {
         evidence_type: "extracted_from_paper".to_string(),
         model_system: c.scope.intervention.clone(),
@@ -257,5 +255,7 @@ fn lift_to_bundle(c: &ModelCandidate, label: &str) -> FindingBundle {
         citation_count: None,
     };
     let flags = Flags::default();
-    FindingBundle::new(assertion, evidence, conditions, confidence, provenance, flags)
+    FindingBundle::new(
+        assertion, evidence, conditions, confidence, provenance, flags,
+    )
 }

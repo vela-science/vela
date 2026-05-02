@@ -28,11 +28,9 @@ use vela_protocol::project::Project;
 use vela_protocol::proposals::{AgentRun, StateProposal};
 use vela_protocol::repo;
 
-use crate::agent::{
-    AgentContext, agent_run_meta, build_finding_add_proposal, discover_files,
-};
-use crate::extract::extract_via_claude_cli;
 use crate::AGENT_LITERATURE_SCOUT;
+use crate::agent::{AgentContext, agent_run_meta, build_finding_add_proposal, discover_files};
+use crate::extract::extract_via_claude_cli;
 
 /// Inputs to a single Literature Scout run.
 #[derive(Debug, Clone)]
@@ -138,16 +136,10 @@ pub async fn run(input: ScoutInput) -> Result<ScoutReport, String> {
         apply: input.apply,
     };
 
-    let existing_finding_ids: std::collections::HashSet<String> = frontier
-        .findings
-        .iter()
-        .map(|f| f.id.clone())
-        .collect();
-    let existing_proposal_ids: std::collections::HashSet<String> = frontier
-        .proposals
-        .iter()
-        .map(|p| p.id.clone())
-        .collect();
+    let existing_finding_ids: std::collections::HashSet<String> =
+        frontier.findings.iter().map(|f| f.id.clone()).collect();
+    let existing_proposal_ids: std::collections::HashSet<String> =
+        frontier.proposals.iter().map(|p| p.id.clone()).collect();
 
     let mut new_proposals: Vec<StateProposal> = Vec::new();
 
@@ -171,21 +163,17 @@ pub async fn run(input: ScoutInput) -> Result<ScoutReport, String> {
             }
         };
 
-        let candidates = match extract_via_claude_cli(
-            &text,
-            pdf,
-            input.model.as_deref(),
-            &input.cli_command,
-        ) {
-            Ok(b) => b,
-            Err(e) => {
-                report.skipped.push(SkippedFile {
-                    path: label,
-                    reason: format!("LLM extract failed: {e}"),
-                });
-                continue;
-            }
-        };
+        let candidates =
+            match extract_via_claude_cli(&text, pdf, input.model.as_deref(), &input.cli_command) {
+                Ok(b) => b,
+                Err(e) => {
+                    report.skipped.push(SkippedFile {
+                        path: label,
+                        reason: format!("LLM extract failed: {e}"),
+                    });
+                    continue;
+                }
+            };
 
         report.pdfs_processed += 1;
         for (rationale, finding) in candidates {

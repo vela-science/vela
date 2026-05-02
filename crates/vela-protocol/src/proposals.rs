@@ -1618,9 +1618,9 @@ mod tests {
                 gravity_well: false,
                 review_state: None,
                 superseded: false,
-            signature_threshold: None,
-            jointly_accepted: false,
-        },
+                signature_threshold: None,
+                jointly_accepted: false,
+            },
             links: Vec::new(),
             annotations: Vec::new(),
             attachments: Vec::new(),
@@ -2188,7 +2188,10 @@ mod tests {
             permissions: None,
         });
         let id_with_run = proposal_id(&with_run);
-        assert_eq!(id_bare, id_with_run, "agent_run leaked into proposal_id preimage");
+        assert_eq!(
+            id_bare, id_with_run,
+            "agent_run leaked into proposal_id preimage"
+        );
     }
 
     /// v0.49 byte-stability: tool_calls and permissions on AgentRun
@@ -2292,21 +2295,18 @@ mod tests {
         let json: serde_json::Value =
             serde_json::from_slice(&bytes).expect("canonical bytes round-trip");
         assert_eq!(
-            json["agent_run"]["tool_calls"][0]["tool"],
-            "pubmed_search",
+            json["agent_run"]["tool_calls"][0]["tool"], "pubmed_search",
             "tool_calls did not survive the round trip: {json}"
         );
         assert_eq!(
-            json["agent_run"]["permissions"]["data_access"][0],
-            "pubmed:",
+            json["agent_run"]["permissions"]["data_access"][0], "pubmed:",
             "permissions did not survive the round trip: {json}"
         );
         // v0.49: a failed tool call with error_message carries the
         // explanation through canonical JSON. A reviewer can audit
         // exactly what failed without rerunning the agent.
         assert_eq!(
-            json["agent_run"]["tool_calls"][1]["status"],
-            "error",
+            json["agent_run"]["tool_calls"][1]["status"], "error",
             "failed tool call status did not survive: {json}"
         );
         assert_eq!(

@@ -42,12 +42,10 @@ mod db;
 use db::{HubDb, ensure_sqlite_schema};
 use tower_http::cors::CorsLayer;
 use vela_protocol::canonical;
-use vela_protocol::sign as vsign;
-use vela_protocol::counterfactual::{
-    CounterfactualQuery, answer_counterfactual,
-};
+use vela_protocol::counterfactual::{CounterfactualQuery, answer_counterfactual};
 use vela_protocol::project::Project;
 use vela_protocol::registry::{RegistryEntry as ProtocolEntry, verify_entry};
+use vela_protocol::sign as vsign;
 
 const HUB_VERSION: &str = env!("CARGO_PKG_VERSION");
 const REGISTRY_SCHEMA: &str = "vela.registry.v0.1";
@@ -173,8 +171,7 @@ const STALE_AGE_BUCKETS: [u64; 6] = [60, 120, 300, 600, 1200, 1800];
 
 impl DbCacheMetrics {
     fn record_hit(&self) {
-        self.hits
-            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        self.hits.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     }
     fn record_miss(&self) {
         self.misses
@@ -187,8 +184,7 @@ impl DbCacheMetrics {
             .iter()
             .position(|&b| age_secs <= b)
             .unwrap_or(STALE_AGE_BUCKETS.len());
-        self.stale_age_buckets[bucket_idx]
-            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        self.stale_age_buckets[bucket_idx].fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     }
     fn record_db_error(&self) {
         self.db_errors
@@ -256,13 +252,17 @@ impl DbCacheMetrics {
         out.push_str(&format!("vela_hub_db_cache_misses_total {misses}\n"));
         out.push_str("# HELP vela_hub_db_cache_stale_hits_total Cache misses served stale because the DB errored within the stale window.\n");
         out.push_str("# TYPE vela_hub_db_cache_stale_hits_total counter\n");
-        out.push_str(&format!("vela_hub_db_cache_stale_hits_total {stale_hits}\n"));
+        out.push_str(&format!(
+            "vela_hub_db_cache_stale_hits_total {stale_hits}\n"
+        ));
         out.push_str("# HELP vela_hub_db_errors_total Distinct DB query errors observed by the cache layer.\n");
         out.push_str("# TYPE vela_hub_db_errors_total counter\n");
         out.push_str(&format!("vela_hub_db_errors_total {db_errors}\n"));
         out.push_str("# HELP vela_hub_db_cache_stale_hit_rate Stale hits as a fraction of total cache serves.\n");
         out.push_str("# TYPE vela_hub_db_cache_stale_hit_rate gauge\n");
-        out.push_str(&format!("vela_hub_db_cache_stale_hit_rate {stale_hit_rate}\n"));
+        out.push_str(&format!(
+            "vela_hub_db_cache_stale_hit_rate {stale_hit_rate}\n"
+        ));
 
         // Stale-age histogram, cumulative buckets per Prometheus convention.
         out.push_str("# HELP vela_hub_db_cache_stale_age_seconds Stale-age distribution (seconds since last good fetch) for stale serves.\n");
@@ -397,9 +397,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
         _ => {
-            tracing::info!(
-                "VELA_HUB_SIGNING_KEY_PATH not set; /.well-known/vela in unsigned mode"
-            );
+            tracing::info!("VELA_HUB_SIGNING_KEY_PATH not set; /.well-known/vela in unsigned mode");
             None
         }
     };
@@ -430,8 +428,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/entries/{vfr_id}/depends-on", get(get_depends_on))
         .route("/entries/{vfr_id}/findings/{vf_id}", get(get_finding))
         .route("/entries/{vfr_id}/proof", get(get_proof_packet))
-        .route("/entries/{vfr_id}/proof/download", get(get_proof_packet_download))
-        .route("/api/counterfactual/{vfr_id}", axum::routing::post(api_counterfactual))
+        .route(
+            "/entries/{vfr_id}/proof/download",
+            get(get_proof_packet_download),
+        )
+        .route(
+            "/api/counterfactual/{vfr_id}",
+            axum::routing::post(api_counterfactual),
+        )
         .route("/static/tokens.css", get(static_tokens_css))
         .route("/static/workbench.css", get(static_workbench_css))
         .route("/static/site.css", get(static_site_css))
@@ -646,11 +650,11 @@ async fn list_entries(State(state): State<AppState>, headers: HeaderMap) -> Resp
     let now = std::time::Instant::now();
 
     // Fresh cache window — serve straight from memory, skip DB.
-    if let Some(entry) = cached.as_ref() {
-        if now.duration_since(entry.fetched_at) < DB_CACHE_FRESH_TTL {
-            state.db_cache_metrics.record_hit();
-            return cached_list_response(&state.urls, &entry.value, &headers, false);
-        }
+    if let Some(entry) = cached.as_ref()
+        && now.duration_since(entry.fetched_at) < DB_CACHE_FRESH_TTL
+    {
+        state.db_cache_metrics.record_hit();
+        return cached_list_response(&state.urls, &entry.value, &headers, false);
     }
 
     match state.db.list_latest_entries().await {
@@ -1027,10 +1031,7 @@ fn read_packet_json(dir: &std::path::Path, name: &str) -> Option<Value> {
     serde_json::from_str(&raw).ok()
 }
 
-async fn get_proof_packet(
-    State(state): State<AppState>,
-    Path(vfr_id): Path<String>,
-) -> Response {
+async fn get_proof_packet(State(state): State<AppState>, Path(vfr_id): Path<String>) -> Response {
     let dir = match resolve_packet_dir(&vfr_id) {
         Some(d) => d,
         None => {
@@ -1093,7 +1094,10 @@ async fn get_proof_packet_download(
     (
         StatusCode::OK,
         [
-            (axum::http::header::CONTENT_TYPE, "application/gzip".to_string()),
+            (
+                axum::http::header::CONTENT_TYPE,
+                "application/gzip".to_string(),
+            ),
             (
                 axum::http::header::CONTENT_DISPOSITION,
                 format!("attachment; filename=\"{filename}\""),
@@ -2465,7 +2469,11 @@ fn is_replicated(
             }
         }
     }
-    if has_record { has_success } else { b.evidence.replicated }
+    if has_record {
+        has_success
+    } else {
+        b.evidence.replicated
+    }
 }
 
 fn finding_state(
@@ -2511,8 +2519,12 @@ fn finding_state(
 /// distributed angles. Hover a node to read the claim; click to navigate
 /// to its detail page.
 fn render_findings_constellation(vfr_id: &str, frontier: Option<&Project>) -> String {
-    let Some(p) = frontier else { return String::new(); };
-    if p.findings.is_empty() { return String::new(); }
+    let Some(p) = frontier else {
+        return String::new();
+    };
+    if p.findings.is_empty() {
+        return String::new();
+    }
 
     let n = p.findings.len();
     let view_w: i32 = 720;
@@ -2538,10 +2550,8 @@ fn render_findings_constellation(vfr_id: &str, frontier: Option<&Project>) -> St
     // Per-finding link counts so the focused tooltip can show
     // "N dependencies · M dependents". We count edges incident to each
     // node; cross-frontier links count too.
-    let mut deps_out: std::collections::HashMap<&str, u32> =
-        std::collections::HashMap::new();
-    let mut deps_in: std::collections::HashMap<&str, u32> =
-        std::collections::HashMap::new();
+    let mut deps_out: std::collections::HashMap<&str, u32> = std::collections::HashMap::new();
+    let mut deps_in: std::collections::HashMap<&str, u32> = std::collections::HashMap::new();
     for b in &p.findings {
         let from = b.id.as_str();
         for link in &b.links {
@@ -2561,7 +2571,9 @@ fn render_findings_constellation(vfr_id: &str, frontier: Option<&Project>) -> St
     // viewer sees external dependencies without a fetch chain.
     let mut edges = String::new();
     for b in &p.findings {
-        let Some(&(x1, y1)) = pos.get(b.id.as_str()) else { continue };
+        let Some(&(x1, y1)) = pos.get(b.id.as_str()) else {
+            continue;
+        };
         let from = escape_html(&b.id);
         for link in &b.links {
             if let Some(&(x2, y2)) = pos.get(link.target.as_str()) {
@@ -2600,15 +2612,16 @@ fn render_findings_constellation(vfr_id: &str, frontier: Option<&Project>) -> St
         let (x, y) = pos[b.id.as_str()];
         let (label, state_class) = finding_state(b, &p.replications);
         let r = 4.0 + b.confidence.score.clamp(0.0, 1.0) * 5.0;
-        let live_class = if label == "replicated" { " vc-node--live" } else { "" };
+        let live_class = if label == "replicated" {
+            " vc-node--live"
+        } else {
+            ""
+        };
         let vf = escape_html(&b.id);
         let claim = escape_html(&b.assertion.text);
         let n_out = deps_out.get(b.id.as_str()).copied().unwrap_or(0);
         let n_in = deps_in.get(b.id.as_str()).copied().unwrap_or(0);
-        let href = format!(
-            "/entries/{vfr}/findings/{vf}",
-            vfr = escape_html(vfr_id)
-        );
+        let href = format!("/entries/{vfr}/findings/{vf}", vfr = escape_html(vfr_id));
         nodes.push_str(&format!(
             r#"<a class="vc-node{live_class}" href="{href}" data-vf="{vf}" data-state="{label}" data-claim="{claim}" data-deps-out="{n_out}" data-deps-in="{n_in}">
               <circle class="vc-glow" cx="{x:.1}" cy="{y:.1}" r="{rg:.1}"/>
@@ -3464,7 +3477,7 @@ fn render_proof_packet_html(
             .and_then(|v| v.as_array())
             .map(|arr| {
                 arr.iter()
-                    .filter_map(|x| x.as_str().map(|s| escape_html(s)))
+                    .filter_map(|x| x.as_str().map(escape_html))
                     .collect()
             })
             .unwrap_or_default();
@@ -3484,7 +3497,7 @@ fn render_proof_packet_html(
             .and_then(|v| v.as_array())
             .map(|arr| {
                 arr.iter()
-                    .filter_map(|x| x.as_str().map(|s| escape_html(s)))
+                    .filter_map(|x| x.as_str().map(escape_html))
                     .collect()
             })
             .unwrap_or_default();
@@ -3530,7 +3543,10 @@ fn render_proof_packet_html(
     // ─── Lock summary ──────────────────────────────────────────────
     let lock_html = if let Some(l) = lock {
         let lock_format = l.get("lock_format").and_then(|v| v.as_str()).unwrap_or("—");
-        let lock_generated = l.get("generated_at").and_then(|v| v.as_str()).unwrap_or("—");
+        let lock_generated = l
+            .get("generated_at")
+            .and_then(|v| v.as_str())
+            .unwrap_or("—");
         let n_files = l
             .get("files")
             .and_then(|v| v.as_array())

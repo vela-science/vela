@@ -433,11 +433,7 @@ impl Bridge {
     pub fn content_address(frontiers: &[String], entity_name: &str) -> String {
         let mut sorted = frontiers.to_vec();
         sorted.sort();
-        let preimage = format!(
-            "bridge|{}|{}",
-            sorted.join(","),
-            entity_name.to_lowercase()
-        );
+        let preimage = format!("bridge|{}|{}", sorted.join(","), entity_name.to_lowercase());
         let hash = Sha256::digest(preimage.as_bytes());
         format!("vbr_{}", &hex::encode(hash)[..16])
     }
@@ -499,18 +495,11 @@ impl Bridge {
 /// same `vbr_<id>` per (entity_name, frontier-pair). Callers are
 /// expected to merge by id rather than blindly re-write.
 #[must_use]
-pub fn derive_bridges(
-    named_frontiers: &[(&str, &Project)],
-    derived_at: &str,
-) -> Vec<Bridge> {
+pub fn derive_bridges(named_frontiers: &[(&str, &Project)], derived_at: &str) -> Vec<Bridge> {
     let entities = detect_bridges(named_frontiers);
     let frontier_ids: HashMap<String, String> = named_frontiers
         .iter()
-        .filter_map(|(label, p)| {
-            p.frontier_id
-                .clone()
-                .map(|fid| (label.to_string(), fid))
-        })
+        .filter_map(|(label, p)| p.frontier_id.clone().map(|fid| (label.to_string(), fid)))
         .collect();
     entities
         .iter()
@@ -536,29 +525,20 @@ mod v046_tests {
             .map(|s| format!("{s}/../.."))
             .unwrap_or_else(|_| ".".into());
         let bbb_path = format!("{workspace_root}/frontiers/bbb-alzheimer.json");
-        let landscape_path =
-            format!("{workspace_root}/frontiers/will-alzheimer-landscape.json");
+        let landscape_path = format!("{workspace_root}/frontiers/will-alzheimer-landscape.json");
         if !std::path::Path::new(&bbb_path).exists() {
             eprintln!("skipping derive_real_frontier_pair_is_stable: fixture missing");
             return;
         }
         let bbb_text = fs::read_to_string(&bbb_path).expect("read bbb");
-        let landscape_text =
-            fs::read_to_string(&landscape_path).expect("read landscape");
-        let bbb: crate::project::Project =
-            serde_json::from_str(&bbb_text).expect("parse bbb");
+        let landscape_text = fs::read_to_string(&landscape_path).expect("read landscape");
+        let bbb: crate::project::Project = serde_json::from_str(&bbb_text).expect("parse bbb");
         let landscape: crate::project::Project =
             serde_json::from_str(&landscape_text).expect("parse landscape");
 
         let now = "2026-04-28T00:00:00Z";
-        let first = derive_bridges(
-            &[("bbb", &bbb), ("landscape", &landscape)],
-            now,
-        );
-        let second = derive_bridges(
-            &[("bbb", &bbb), ("landscape", &landscape)],
-            now,
-        );
+        let first = derive_bridges(&[("bbb", &bbb), ("landscape", &landscape)], now);
+        let second = derive_bridges(&[("bbb", &bbb), ("landscape", &landscape)], now);
         assert!(
             !first.is_empty(),
             "expected real cross-frontier bridges; found 0"
@@ -582,14 +562,8 @@ mod v046_tests {
 
     #[test]
     fn content_address_independent_of_frontier_order() {
-        let a = Bridge::content_address(
-            &["bbb".to_string(), "landscape".to_string()],
-            "trem2",
-        );
-        let b = Bridge::content_address(
-            &["landscape".to_string(), "bbb".to_string()],
-            "trem2",
-        );
+        let a = Bridge::content_address(&["bbb".to_string(), "landscape".to_string()], "trem2");
+        let b = Bridge::content_address(&["landscape".to_string(), "bbb".to_string()], "trem2");
         assert_eq!(a, b);
     }
 
@@ -693,9 +667,9 @@ mod tests {
                 gravity_well: false,
                 review_state: None,
                 superseded: false,
-            signature_threshold: None,
-            jointly_accepted: false,
-        },
+                signature_threshold: None,
+                jointly_accepted: false,
+            },
             links: vec![],
             annotations: vec![],
             attachments: vec![],

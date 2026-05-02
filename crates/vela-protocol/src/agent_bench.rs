@@ -102,12 +102,8 @@ pub struct BenchReport {
 pub fn run(input: BenchInput) -> Result<BenchReport, String> {
     let gold: Project = repo::load_from_path(&input.gold_path)
         .map_err(|e| format!("load gold {}: {e}", input.gold_path.display()))?;
-    let candidate: Project = repo::load_from_path(&input.candidate_path).map_err(|e| {
-        format!(
-            "load candidate {}: {e}",
-            input.candidate_path.display()
-        )
-    })?;
+    let candidate: Project = repo::load_from_path(&input.candidate_path)
+        .map_err(|e| format!("load candidate {}: {e}", input.candidate_path.display()))?;
 
     let gold_findings = sorted_findings(&gold);
     // Candidates are most often unsigned: an agent's `vela scout`
@@ -128,8 +124,7 @@ pub fn run(input: BenchInput) -> Result<BenchReport, String> {
     let (duplicate_inv, duplicate_rate) = score_duplicates(&candidate_findings);
     let novelty_rate = score_novelty(&candidate_findings, &matches);
     let contradiction_recall = score_contradiction_recall(&gold_findings, &candidate_findings);
-    let downstream_link_rate =
-        score_downstream_link(&gold_findings, &candidate_findings, &matches);
+    let downstream_link_rate = score_downstream_link(&gold_findings, &candidate_findings, &matches);
 
     let composite = compute_composite(
         &claim_match_rate,
@@ -199,10 +194,7 @@ fn sorted_findings_with_proposals(p: &Project) -> Vec<FindingBundle> {
 /// (not full Hungarian — F1 is symmetric in our use, and this
 /// stays deterministic with sorted-by-id input). Match rule:
 /// either content-address equal OR claim-text Jaccard ≥ 0.4.
-fn match_findings(
-    gold: &[FindingBundle],
-    candidate: &[FindingBundle],
-) -> Vec<(usize, usize)> {
+fn match_findings(gold: &[FindingBundle], candidate: &[FindingBundle]) -> Vec<(usize, usize)> {
     let mut used_g: HashSet<usize> = HashSet::new();
     let mut used_c: HashSet<usize> = HashSet::new();
     let mut pairs: Vec<(usize, usize, f64)> = Vec::new();
@@ -293,9 +285,7 @@ fn score_claim_match(
         score,
         target,
         pass: score >= target,
-        note: format!(
-            "F1 over claim-text match: 2·|M|/(|G|+|C|) = 2·{m}/({g}+{c})"
-        ),
+        note: format!("F1 over claim-text match: 2·|M|/(|G|+|C|) = 2·{m}/({g}+{c})"),
         vacuous: false,
     }
 }
@@ -327,8 +317,7 @@ fn score_scope(
         score,
         target: 0.80,
         pass: score >= 0.80,
-        note: "mean of (0.5·organism_eq + 0.5·intervention_overlap) over matched pairs"
-            .to_string(),
+        note: "mean of (0.5·organism_eq + 0.5·intervention_overlap) over matched pairs".to_string(),
         vacuous: false,
     }
 }
@@ -421,9 +410,7 @@ fn score_evidence_fidelity(candidate: &[FindingBundle], sources: &Path) -> Metri
         score,
         target: 0.95,
         pass: score >= 0.95,
-        note: format!(
-            "{hit}/{checked} candidate evidence spans substring-match a source file"
-        ),
+        note: format!("{hit}/{checked} candidate evidence spans substring-match a source file"),
         vacuous: false,
     }
 }
@@ -498,10 +485,7 @@ fn score_novelty(candidate: &[FindingBundle], matches: &[(usize, usize)]) -> f64
     novel as f64 / candidate.len() as f64
 }
 
-fn score_contradiction_recall(
-    gold: &[FindingBundle],
-    candidate: &[FindingBundle],
-) -> MetricResult {
+fn score_contradiction_recall(gold: &[FindingBundle], candidate: &[FindingBundle]) -> MetricResult {
     let gold_contradictions = collect_contradiction_set(gold);
     if gold_contradictions.is_empty() {
         return MetricResult {
@@ -639,7 +623,10 @@ pub fn render_pretty(report: &BenchReport) -> String {
         "  candidate:           {} ({} findings)\n",
         report.candidate_path, report.candidate_findings
     ));
-    out.push_str(&format!("  matched pairs:       {}\n", report.matched_pairs));
+    out.push_str(&format!(
+        "  matched pairs:       {}\n",
+        report.matched_pairs
+    ));
     out.push_str("  ----\n");
     pretty_metric(&mut out, "claim_match_rate    ", &report.claim_match_rate);
     pretty_metric(&mut out, "scope_accuracy      ", &report.scope_accuracy);
@@ -661,7 +648,11 @@ pub fn render_pretty(report: &BenchReport) -> String {
         "contradiction_recall",
         &report.contradiction_recall,
     );
-    pretty_metric(&mut out, "downstream_link_rate", &report.downstream_link_rate);
+    pretty_metric(
+        &mut out,
+        "downstream_link_rate",
+        &report.downstream_link_rate,
+    );
     out.push_str("  ----\n");
     // v0.29.2: surface a clear "no-overlap detected" banner when
     // claim_match_rate is 0 against a non-empty gold + candidate.
@@ -669,9 +660,8 @@ pub fn render_pretty(report: &BenchReport) -> String {
     // can collapse the composite to whatever the duplicate_inv +
     // duplicate_rate floor allows, and the user reads the score as
     // "passing". Friction #13.
-    let no_overlap = report.matched_pairs == 0
-        && report.gold_findings > 0
-        && report.candidate_findings > 0;
+    let no_overlap =
+        report.matched_pairs == 0 && report.gold_findings > 0 && report.candidate_findings > 0;
     if no_overlap {
         out.push_str(
             "  ⚠ no overlap detected: 0 matched pairs against a non-empty gold;\n    composite reflects only the metrics with real data\n",
@@ -718,9 +708,9 @@ mod tests {
                 entities: Vec::new(),
                 relation: None,
                 direction: None,
-            causal_claim: None,
-            causal_evidence_grade: None,
-        },
+                causal_claim: None,
+                causal_evidence_grade: None,
+            },
             evidence: Evidence {
                 evidence_type: "test".to_string(),
                 model_system: String::new(),
@@ -780,9 +770,9 @@ mod tests {
                 gravity_well: false,
                 review_state: None,
                 superseded: false,
-            signature_threshold: None,
-            jointly_accepted: false,
-        },
+                signature_threshold: None,
+                jointly_accepted: false,
+            },
             links: Vec::new(),
             annotations: Vec::new(),
             attachments: Vec::new(),

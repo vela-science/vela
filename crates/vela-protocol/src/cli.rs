@@ -1,7 +1,7 @@
 use crate::{
-    benchmark, bridge, bundle, conformance, diff, events, export, lint, normalize,
-    packet, project, propagate, proposals, repo, review, search, serve, sign, signals, sources,
-    state, tensions, validate,
+    benchmark, bridge, bundle, conformance, diff, events, export, lint, normalize, packet, project,
+    propagate, proposals, repo, review, search, serve, sign, signals, sources, state, tensions,
+    validate,
 };
 
 use std::future::Future;
@@ -1959,14 +1959,7 @@ pub async fn run_command() {
             dry_run,
             json,
         } => {
-            cmd_find_tensions(
-                &frontier,
-                backend.as_deref(),
-                max_findings,
-                dry_run,
-                json,
-            )
-            .await;
+            cmd_find_tensions(&frontier, backend.as_deref(), max_findings, dry_run, json).await;
         }
         Commands::PlanExperiments {
             frontier,
@@ -1975,14 +1968,7 @@ pub async fn run_command() {
             dry_run,
             json,
         } => {
-            cmd_plan_experiments(
-                &frontier,
-                backend.as_deref(),
-                max_findings,
-                dry_run,
-                json,
-            )
-            .await;
+            cmd_plan_experiments(&frontier, backend.as_deref(), max_findings, dry_run, json).await;
         }
         Commands::Check {
             source,
@@ -2177,7 +2163,14 @@ pub async fn run_command() {
                     );
                     std::process::exit(2);
                 };
-                cmd_agent_bench(&g, &cand, sources.as_deref(), threshold, report.as_deref(), json);
+                cmd_agent_bench(
+                    &g,
+                    &cand,
+                    sources.as_deref(),
+                    threshold,
+                    report.as_deref(),
+                    json,
+                );
             } else {
                 cmd_bench(BenchArgs {
                     frontier,
@@ -2438,9 +2431,15 @@ pub async fn run_command() {
                         bundle::VALID_CAUSAL_EVIDENCE_GRADES
                     ));
                 }
-                let report =
-                    state::set_causal(&frontier, &finding_id, &claim, grade.as_deref(), &actor, &reason)
-                        .unwrap_or_else(|e| fail_return(&e));
+                let report = state::set_causal(
+                    &frontier,
+                    &finding_id,
+                    &claim,
+                    grade.as_deref(),
+                    &actor,
+                    &reason,
+                )
+                .unwrap_or_else(|e| fail_return(&e));
                 print_state_report(&report, json);
             }
         },
@@ -2764,8 +2763,8 @@ fn cmd_consensus(
     if !target.starts_with("vf_") {
         fail(&format!("target `{target}` is not a vf_ finding id"));
     }
-    let scheme = crate::aggregate::WeightingScheme::parse(weighting_str)
-        .unwrap_or_else(|e| fail_return(&e));
+    let scheme =
+        crate::aggregate::WeightingScheme::parse(weighting_str).unwrap_or_else(|e| fail_return(&e));
 
     let parsed_claim = match causal_claim {
         None => None,
@@ -2806,29 +2805,34 @@ fn cmd_consensus(
     println!();
     println!(
         "  {}",
-        format!("VELA · CONSENSUS · {} ({})", result.target, result.weighting)
-            .to_uppercase()
-            .dimmed()
+        format!(
+            "VELA · CONSENSUS · {} ({})",
+            result.target, result.weighting
+        )
+        .to_uppercase()
+        .dimmed()
     );
     println!("  {}", style::tick_row(60));
-    println!("  target:           {}", truncate(&result.target_assertion, 80));
+    println!(
+        "  target:           {}",
+        truncate(&result.target_assertion, 80)
+    );
     println!("  similar findings: {}", result.n_findings);
     println!(
         "  consensus:        {:.3}  ({:.3} – {:.3} 95% credible)",
-        result.consensus_confidence,
-        result.credible_interval_lo,
-        result.credible_interval_hi
+        result.consensus_confidence, result.credible_interval_lo, result.credible_interval_hi
     );
     println!();
     println!("  constituents (sorted by weight):");
     let mut sorted = result.constituents.clone();
-    sorted.sort_by(|a, b| b.weight.partial_cmp(&a.weight).unwrap_or(std::cmp::Ordering::Equal));
+    sorted.sort_by(|a, b| {
+        b.weight
+            .partial_cmp(&a.weight)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
     for c in sorted.iter().take(10) {
         let repls = if c.n_replications > 0 {
-            format!(
-                "  ({}r {}f)",
-                c.n_replicated, c.n_failed_replications
-            )
+            format!("  ({}r {}f)", c.n_replicated, c.n_failed_replications)
         } else {
             String::new()
         };
@@ -2866,9 +2870,7 @@ fn parse_expected_outcome(s: &str) -> Result<crate::bundle::ExpectedOutcome, Str
         let (val_s, tol_s) = vt
             .split_once('±')
             .or_else(|| vt.split_once("+/-"))
-            .ok_or_else(|| {
-                format!("expected `quant:VALUE±TOL UNITS`, got `quant:{rest}`")
-            })?;
+            .ok_or_else(|| format!("expected `quant:VALUE±TOL UNITS`, got `quant:{rest}`"))?;
         let value: f64 = val_s
             .parse()
             .map_err(|e| format!("bad quant value `{val_s}`: {e}"))?;
@@ -2901,12 +2903,9 @@ fn cmd_predict(
     json: bool,
 ) {
     if !(0.0..=1.0).contains(&confidence) {
-        fail(&format!(
-            "confidence must be in [0, 1]; got {confidence}"
-        ));
+        fail(&format!("confidence must be in [0, 1]; got {confidence}"));
     }
-    let expected =
-        parse_expected_outcome(outcome).unwrap_or_else(|e| fail_return(&e));
+    let expected = parse_expected_outcome(outcome).unwrap_or_else(|e| fail_return(&e));
 
     let mut project = repo::load_from_path(frontier).unwrap_or_else(|e| fail_return(&e));
 
@@ -2995,7 +2994,9 @@ fn cmd_predict(
         println!();
         println!(
             "  {}",
-            format!("VELA · PREDICT · {}", new_id).to_uppercase().dimmed()
+            format!("VELA · PREDICT · {}", new_id)
+                .to_uppercase()
+                .dimmed()
         );
         println!("  {}", style::tick_row(60));
         println!("  by:           {by}");
@@ -3116,13 +3117,19 @@ fn cmd_resolve(
         println!();
         println!(
             "  {}",
-            format!("VELA · RESOLVE · {}", new_id).to_uppercase().dimmed()
+            format!("VELA · RESOLVE · {}", new_id)
+                .to_uppercase()
+                .dimmed()
         );
         println!("  {}", style::tick_row(60));
         println!("  prediction:   {prediction_id}");
         println!(
             "  matched:      {}",
-            if matched { style::ok("yes") } else { style::lost("no") }
+            if matched {
+                style::ok("yes")
+            } else {
+                style::lost("no")
+            }
         );
         println!("  by:           {by}");
         println!("  outcome:      {}", truncate(actual_outcome, 80));
@@ -3207,10 +3214,7 @@ fn cmd_predictions(frontier: &Path, by: Option<&str>, open: bool, json: bool) {
         } else {
             style::warn("open")
         };
-        let deadline = p
-            .resolves_by
-            .as_deref()
-            .unwrap_or("(no deadline)");
+        let deadline = p.resolves_by.as_deref().unwrap_or("(no deadline)");
         println!(
             "  · {}  {}  by {}  → {}",
             p.id.dimmed(),
@@ -3227,12 +3231,7 @@ fn cmd_predictions(frontier: &Path, by: Option<&str>, open: bool, json: bool) {
 /// v0.40.1: Walk every prediction whose deadline has passed and mark
 /// them as `expired_unresolved`. Emits one
 /// `prediction.expired_unresolved` event per newly-expired prediction.
-fn cmd_predictions_expire(
-    frontier: &Path,
-    now_override: Option<&str>,
-    dry_run: bool,
-    json: bool,
-) {
+fn cmd_predictions_expire(frontier: &Path, now_override: Option<&str>, dry_run: bool, json: bool) {
     use chrono::DateTime;
 
     let now_dt = match now_override {
@@ -3307,17 +3306,12 @@ fn cmd_predictions_expire(
 fn cmd_calibration(frontier: &Path, actor: Option<&str>, json: bool) {
     let project = repo::load_from_path(frontier).unwrap_or_else(|e| fail_return(&e));
     let records = match actor {
-        Some(a) => crate::calibration::calibration_for_actor(
-            a,
-            &project.predictions,
-            &project.resolutions,
-        )
-        .map(|r| vec![r])
-        .unwrap_or_default(),
-        None => crate::calibration::calibration_records(
-            &project.predictions,
-            &project.resolutions,
-        ),
+        Some(a) => {
+            crate::calibration::calibration_for_actor(a, &project.predictions, &project.resolutions)
+                .map(|r| vec![r])
+                .unwrap_or_default()
+        }
+        None => crate::calibration::calibration_records(&project.predictions, &project.resolutions),
     };
 
     if json {
@@ -3358,11 +3352,17 @@ fn cmd_calibration(frontier: &Path, actor: Option<&str>, json: bool) {
             None => println!("      hit rate:    n/a"),
         }
         match r.brier_score {
-            Some(b) => println!("      brier:       {:.4}  (lower is better; 0.25 = chance)", b),
+            Some(b) => println!(
+                "      brier:       {:.4}  (lower is better; 0.25 = chance)",
+                b
+            ),
             None => println!("      brier:       n/a"),
         }
         match r.log_score {
-            Some(l) => println!("      log score:   {:.4}  (higher is better; 0 = perfect)", l),
+            Some(l) => println!(
+                "      log score:   {:.4}  (higher is better; 0 = perfect)",
+                l
+            ),
             None => println!("      log score:   n/a"),
         }
     }
@@ -3463,7 +3463,9 @@ fn cmd_dataset_add(
         println!();
         println!(
             "  {}",
-            format!("VELA · DATASET · {}", new_id).to_uppercase().dimmed()
+            format!("VELA · DATASET · {}", new_id)
+                .to_uppercase()
+                .dimmed()
         );
         println!("  {}", style::tick_row(60));
         println!("  name:          {name}");
@@ -3661,13 +3663,7 @@ fn cmd_code_artifacts(frontier: &Path, json: bool) {
             .line_range
             .map(|(a, b)| format!(":{a}-{b}"))
             .unwrap_or_default();
-        println!(
-            "  · {}  {} {}{}",
-            c.id.dimmed(),
-            c.language,
-            c.path,
-            lr
-        );
+        println!("  · {}  {} {}{}", c.id.dimmed(), c.language, c.path, lr);
         if let Some(r) = &c.repo_url {
             println!("      repo:   {}", truncate(r, 80));
         }
@@ -3894,10 +3890,7 @@ fn cmd_replicate(
                 result.events.len()
             );
         } else {
-            println!(
-                "  {} cascade skipped (--no-cascade)",
-                style::warn("info")
-            );
+            println!("  {} cascade skipped (--no-cascade)", style::warn("info"));
         }
     }
 }
@@ -3922,8 +3915,7 @@ fn cmd_replications(frontier: &Path, target: Option<&str>, json: bool) {
         });
         println!(
             "{}",
-            serde_json::to_string_pretty(&payload)
-                .expect("failed to serialize replications list")
+            serde_json::to_string_pretty(&payload).expect("failed to serialize replications list")
         );
         return;
     }
@@ -4187,7 +4179,6 @@ async fn cmd_scout(
         }
     }
 }
-
 
 #[allow(clippy::too_many_arguments)]
 fn cmd_check(
@@ -4973,10 +4964,7 @@ fn cmd_status(path: &Path, json: bool) {
     );
     println!("  {}", style::tick_row(60));
     println!();
-    println!(
-        "  frontier:    {}",
-        frontier_label(&project)
-    );
+    println!("  frontier:    {}", frontier_label(&project));
     println!("  vfr_id:      {}", project.frontier_id());
     println!(
         "  findings:    {}    events: {}    peers: {}    actors: {}",
@@ -4987,7 +4975,10 @@ fn cmd_status(path: &Path, json: bool) {
     );
     println!();
     if pending_total > 0 {
-        println!("  {}  {pending_total} pending proposals", style::warn("inbox"));
+        println!(
+            "  {}  {pending_total} pending proposals",
+            style::warn("inbox")
+        );
         for (k, n) in &pending_by_kind {
             println!("    · {n:>3}  {k}");
         }
@@ -5010,10 +5001,17 @@ fn cmd_status(path: &Path, json: bool) {
             audit_summary.underdetermined,
         );
         if audit_summary.underidentified > 0 {
-            println!("    next: vela causal audit {} --problems-only", path.display());
+            println!(
+                "    next: vela causal audit {} --problems-only",
+                path.display()
+            );
         }
     } else if audit_summary.underdetermined == 0 {
-        println!("  {}  causal audit: all {} identified", style::ok("ok"), audit_summary.identified);
+        println!(
+            "  {}  causal audit: all {} identified",
+            style::ok("ok"),
+            audit_summary.identified
+        );
     } else {
         println!(
             "  {}  causal audit: {} identified, {} ungraded",
@@ -5033,7 +5031,10 @@ fn cmd_status(path: &Path, json: bool) {
         );
     }
     if project.peers.is_empty() {
-        println!("  {}  no federation peers registered", style::warn("federation"));
+        println!(
+            "  {}  no federation peers registered",
+            style::warn("federation")
+        );
     } else {
         let last = last_sync
             .map(|e| fmt_timestamp(&e.timestamp))
@@ -5117,10 +5118,7 @@ fn cmd_log(path: &Path, limit: usize, kind_filter: Option<&str>, json: bool) {
         let reason: String = e.reason.chars().take(70).collect();
         println!(
             "  {:<19}  {:<32}  {:<24}  {}",
-            when,
-            e.kind,
-            target_short,
-            reason
+            when, e.kind, target_short, reason
         );
     }
     println!();
@@ -5145,11 +5143,7 @@ fn cmd_inbox(path: &Path, kind_filter: Option<&str>, limit: usize, json: bool) {
         let Some(target) = reason.split_whitespace().find(|s| s.starts_with("vpr_")) else {
             continue;
         };
-        let text = p
-            .payload
-            .get("text")
-            .and_then(|v| v.as_str())
-            .unwrap_or("");
+        let text = p.payload.get("text").and_then(|v| v.as_str()).unwrap_or("");
         let extract = |k: &str| -> f64 {
             let pat = format!("{k} ");
             text.find(&pat)
@@ -5283,11 +5277,7 @@ fn cmd_inbox(path: &Path, kind_filter: Option<&str>, limit: usize, json: bool) {
         };
         println!(
             "  {}  {}  {:<13}  {:<18}  {}",
-            score_str,
-            p.id,
-            kind_short,
-            assertion_type,
-            summary
+            score_str, p.id, kind_short, assertion_type, summary
         );
     }
     println!();
@@ -5306,7 +5296,9 @@ fn cmd_ask(path: &Path, question: &str, json: bool) {
         println!();
         println!(
             "  {}",
-            format!("VELA · ASK · {}", path.display()).to_uppercase().dimmed()
+            format!("VELA · ASK · {}", path.display())
+                .to_uppercase()
+                .dimmed()
         );
         println!("  {}", style::tick_row(60));
         println!("  Ask a question. Type `exit` to quit.");
@@ -5414,8 +5406,20 @@ fn answer(project: &crate::project::Project, q: &str, json: bool) {
                 summary.underdetermined,
             );
             if summary.underidentified > 0 {
-                println!("  The {} underidentified findings are concrete review items:", summary.underidentified);
-                for e in entries.iter().filter(|e| matches!(e.verdict, crate::causal_reasoning::Identifiability::Underidentified)).take(8) {
+                println!(
+                    "  The {} underidentified findings are concrete review items:",
+                    summary.underidentified
+                );
+                for e in entries
+                    .iter()
+                    .filter(|e| {
+                        matches!(
+                            e.verdict,
+                            crate::causal_reasoning::Identifiability::Underidentified
+                        )
+                    })
+                    .take(8)
+                {
                     let txt: String = e.assertion_text.chars().take(70).collect();
                     println!("    · {}  {}", e.finding_id, txt);
                 }
@@ -5490,10 +5494,8 @@ fn answer(project: &crate::project::Project, q: &str, json: bool) {
 
     // Pattern: calibration.
     if lower.contains("calibration") || lower.contains("brier") || lower.contains("predict") {
-        let records = crate::calibration::calibration_records(
-            &project.predictions,
-            &project.resolutions,
-        );
+        let records =
+            crate::calibration::calibration_records(&project.predictions, &project.resolutions);
         if json {
             println!("{}", serde_json::to_string_pretty(&records).unwrap());
         } else if records.is_empty() {
@@ -5501,7 +5503,10 @@ fn answer(project: &crate::project::Project, q: &str, json: bool) {
         } else {
             println!("  Calibration over {} actor(s):", records.len());
             for r in &records {
-                let brier = r.brier_score.map(|b| format!("{:.3}", b)).unwrap_or_else(|| "—".into());
+                let brier = r
+                    .brier_score
+                    .map(|b| format!("{:.3}", b))
+                    .unwrap_or_else(|| "—".into());
                 println!(
                     "    · {:<28}  predictions {} · resolved {} · expired {} · Brier {}",
                     r.actor, r.n_predictions, r.n_resolved, r.n_expired, brier
@@ -5927,8 +5932,7 @@ fn cmd_sign(action: SignAction) {
             if to == 0 {
                 fail("--to must be >= 1");
             }
-            let mut project =
-                repo::load_from_path(&frontier).unwrap_or_else(|e| fail_return(&e));
+            let mut project = repo::load_from_path(&frontier).unwrap_or_else(|e| fail_return(&e));
             let Some(idx) = project.findings.iter().position(|f| f.id == finding_id) else {
                 fail(&format!("finding '{finding_id}' not present in frontier"));
             };
@@ -6124,7 +6128,9 @@ fn cmd_causal(action: CausalAction) {
             for e in &entries {
                 let chip = match e.verdict {
                     crate::causal_reasoning::Identifiability::Identified => style::ok("identified"),
-                    crate::causal_reasoning::Identifiability::Conditional => style::warn("conditional"),
+                    crate::causal_reasoning::Identifiability::Conditional => {
+                        style::warn("conditional")
+                    }
                     crate::causal_reasoning::Identifiability::Underidentified => {
                         style::lost("underidentified")
                     }
@@ -6132,12 +6138,12 @@ fn cmd_causal(action: CausalAction) {
                         style::warn("underdetermined")
                     }
                 };
-                let claim = e.causal_claim.map_or("none".to_string(), |c| {
-                    format!("{c:?}").to_lowercase()
-                });
-                let grade = e.causal_evidence_grade.map_or("none".to_string(), |g| {
-                    format!("{g:?}").to_lowercase()
-                });
+                let claim = e
+                    .causal_claim
+                    .map_or("none".to_string(), |c| format!("{c:?}").to_lowercase());
+                let grade = e
+                    .causal_evidence_grade
+                    .map_or("none".to_string(), |g| format!("{g:?}").to_lowercase());
                 println!();
                 println!("  {chip}  {}  ({}/{})", e.finding_id, claim, grade);
                 let assertion_short: String = e.assertion_text.chars().take(78).collect();
@@ -6159,7 +6165,7 @@ fn cmd_causal(action: CausalAction) {
             on: target,
             json,
         } => {
-            use crate::causal_graph::{identify_effect, CausalEffectVerdict};
+            use crate::causal_graph::{CausalEffectVerdict, identify_effect};
 
             let project = repo::load_from_path(&frontier).unwrap_or_else(|e| fail_return(&e));
             let verdict = identify_effect(&project, &source, &target);
@@ -6199,10 +6205,7 @@ fn cmd_causal(action: CausalAction) {
                             style::ok("identified")
                         );
                     } else {
-                        println!(
-                            "  {}  identified by adjusting on:",
-                            style::ok("identified")
-                        );
+                        println!("  {}  identified by adjusting on:", style::ok("identified"));
                         for z in &adjustment_set {
                             println!("    · {z}");
                         }
@@ -6226,10 +6229,7 @@ fn cmd_causal(action: CausalAction) {
                     );
                 }
                 CausalEffectVerdict::NoCausalPath { reason } => {
-                    println!(
-                        "  {}  no causal path: {reason}",
-                        style::warn("no_path")
-                    );
+                    println!("  {}  no causal path: {reason}", style::warn("no_path"));
                 }
                 CausalEffectVerdict::Underidentified {
                     unblocked_back_door_paths,
@@ -6338,7 +6338,7 @@ fn cmd_causal(action: CausalAction) {
             json,
         } => {
             use crate::counterfactual::{
-                answer_counterfactual, CounterfactualQuery, CounterfactualVerdict,
+                CounterfactualQuery, CounterfactualVerdict, answer_counterfactual,
             };
 
             let project = repo::load_from_path(&frontier).unwrap_or_else(|e| fail_return(&e));
@@ -6451,8 +6451,7 @@ fn cmd_bridges(action: BridgesAction) {
         let dir = bridges_dir(frontier);
         std::fs::create_dir_all(&dir).map_err(|e| format!("mkdir bridges/: {e}"))?;
         let path = dir.join(format!("{}.json", b.id));
-        let data =
-            serde_json::to_string_pretty(b).map_err(|e| format!("serialize bridge: {e}"))?;
+        let data = serde_json::to_string_pretty(b).map_err(|e| format!("serialize bridge: {e}"))?;
         std::fs::write(&path, format!("{data}\n")).map_err(|e| format!("write bridge: {e}"))
     }
 
@@ -6468,10 +6467,9 @@ fn cmd_bridges(action: BridgesAction) {
             if path.extension().and_then(|s| s.to_str()) != Some("json") {
                 continue;
             }
-            let data =
-                std::fs::read_to_string(&path).map_err(|e| format!("read {path:?}: {e}"))?;
-            let b: Bridge = serde_json::from_str(&data)
-                .map_err(|e| format!("parse {path:?}: {e}"))?;
+            let data = std::fs::read_to_string(&path).map_err(|e| format!("read {path:?}: {e}"))?;
+            let b: Bridge =
+                serde_json::from_str(&data).map_err(|e| format!("parse {path:?}: {e}"))?;
             out.push(b);
         }
         out.sort_by(|a, b| {
@@ -6494,7 +6492,8 @@ fn cmd_bridges(action: BridgesAction) {
             let a = repo::load_from_path(&frontier_a).unwrap_or_else(|e| fail_return(&e));
             let b = repo::load_from_path(&frontier_b).unwrap_or_else(|e| fail_return(&e));
             let now = chrono::Utc::now().to_rfc3339();
-            let new_bridges = derive_bridges(&[(label_a.as_str(), &a), (label_b.as_str(), &b)], &now);
+            let new_bridges =
+                derive_bridges(&[(label_a.as_str(), &a), (label_b.as_str(), &b)], &now);
 
             // Merge: preserve status from existing bridges with the
             // same vbr_<id> (we don't blindly overwrite a Confirmed
@@ -6506,13 +6505,13 @@ fn cmd_bridges(action: BridgesAction) {
             let mut preserved = 0;
             let mut new_ids = Vec::new();
             for mut bridge in new_bridges {
-                if let Some(prev) = existing_by_id.get(&bridge.id) {
-                    if prev.status != BridgeStatus::Derived {
-                        // Reviewer judgment is sticky.
-                        bridge.status = prev.status;
-                        bridge.derived_at = prev.derived_at.clone();
-                        preserved += 1;
-                    }
+                if let Some(prev) = existing_by_id.get(&bridge.id)
+                    && prev.status != BridgeStatus::Derived
+                {
+                    // Reviewer judgment is sticky.
+                    bridge.status = prev.status;
+                    bridge.derived_at = prev.derived_at.clone();
+                    preserved += 1;
                 }
                 save_bridge(&frontier_a, &bridge).unwrap_or_else(|e| fail_return(&e));
                 new_ids.push(bridge.id.clone());
@@ -6539,12 +6538,9 @@ fn cmd_bridges(action: BridgesAction) {
             println!();
             println!(
                 "  {}",
-                format!(
-                    "VELA · BRIDGES · DERIVE · {} ↔ {}",
-                    label_a, label_b
-                )
-                .to_uppercase()
-                .dimmed()
+                format!("VELA · BRIDGES · DERIVE · {} ↔ {}", label_a, label_b)
+                    .to_uppercase()
+                    .dimmed()
             );
             println!("  {}", style::tick_row(60));
             println!("  {}  {} bridge(s) materialized", style::ok("ok"), written);
@@ -6568,8 +6564,7 @@ fn cmd_bridges(action: BridgesAction) {
             status,
             json,
         } => {
-            let mut bridges =
-                list_bridges(&frontier).unwrap_or_else(|e| fail_return(&e));
+            let mut bridges = list_bridges(&frontier).unwrap_or_else(|e| fail_return(&e));
             if let Some(s) = status.as_deref() {
                 let want = match s.to_lowercase().as_str() {
                     "derived" => BridgeStatus::Derived,
@@ -6677,12 +6672,7 @@ fn cmd_bridges(action: BridgesAction) {
                 return;
             }
             println!();
-            println!(
-                "  {}  {} now {}",
-                style::ok("confirmed"),
-                b.id,
-                "confirmed"
-            );
+            println!("  {}  {} now confirmed", style::ok("confirmed"), b.id);
             println!();
         }
         BridgesAction::Refute {
@@ -6698,12 +6688,7 @@ fn cmd_bridges(action: BridgesAction) {
                 return;
             }
             println!();
-            println!(
-                "  {}  {} now {}",
-                style::lost("refuted"),
-                b.id,
-                "refuted"
-            );
+            println!("  {}  {} now refuted", style::lost("refuted"), b.id);
             println!();
         }
     }
@@ -6823,9 +6808,9 @@ fn cmd_federation(action: FederationAction) {
             // v0.41.0: three sync modes (via-hub / direct-url / default-manifest-path).
             #[derive(Debug)]
             enum SyncOutcome {
-                Resolved(crate::project::Project, String),      // (peer state, source description)
-                BrokenLocator(String, String, u16),              // (vfr_id, locator, status)
-                UnverifiedEntry(String, String),                 // (vfr_id, reason)
+                Resolved(crate::project::Project, String), // (peer state, source description)
+                BrokenLocator(String, String, u16),        // (vfr_id, locator, status)
+                UnverifiedEntry(String, String),           // (vfr_id, reason)
                 EntryNotFound(String, u16),
             }
 
@@ -6837,12 +6822,15 @@ fn cmd_federation(action: FederationAction) {
                     Some(&peer.public_key),
                 ) {
                     DiscoveryResult::Resolved(p) => {
-                        let src = format!("{}/entries/{}", peer.url.trim_end_matches('/'), target_vfr);
+                        let src =
+                            format!("{}/entries/{}", peer.url.trim_end_matches('/'), target_vfr);
                         SyncOutcome::Resolved(p, src)
                     }
-                    DiscoveryResult::BrokenLocator { vfr_id, locator, status } => {
-                        SyncOutcome::BrokenLocator(vfr_id, locator, status)
-                    }
+                    DiscoveryResult::BrokenLocator {
+                        vfr_id,
+                        locator,
+                        status,
+                    } => SyncOutcome::BrokenLocator(vfr_id, locator, status),
                     DiscoveryResult::UnverifiedEntry { vfr_id, reason } => {
                         SyncOutcome::UnverifiedEntry(vfr_id, reason)
                     }
@@ -6908,8 +6896,7 @@ fn cmd_federation(action: FederationAction) {
                         &locator,
                         status,
                     );
-                    repo::save_to_path(&frontier, &project)
-                        .unwrap_or_else(|e| fail_return(&e));
+                    repo::save_to_path(&frontier, &project).unwrap_or_else(|e| fail_return(&e));
                     if json {
                         println!(
                             "{}",
@@ -6957,14 +6944,9 @@ fn cmd_federation(action: FederationAction) {
                         }
                         return;
                     }
-                    let report = federation::record_unverified_entry(
-                        &mut project,
-                        &peer_id,
-                        &vfr,
-                        &reason,
-                    );
-                    repo::save_to_path(&frontier, &project)
-                        .unwrap_or_else(|e| fail_return(&e));
+                    let report =
+                        federation::record_unverified_entry(&mut project, &peer_id, &vfr, &reason);
+                    repo::save_to_path(&frontier, &project).unwrap_or_else(|e| fail_return(&e));
                     if json {
                         println!(
                             "{}",
@@ -7693,7 +7675,7 @@ fn cmd_frontier(action: FrontierAction) {
                 code_artifacts: Vec::new(),
                 predictions: Vec::new(),
                 resolutions: Vec::new(),
-            peers: Vec::new(),
+                peers: Vec::new(),
             };
             repo::save_to_path(&path, &project).unwrap_or_else(|e| fail_return(&e));
             let payload = json!({
@@ -8070,12 +8052,7 @@ fn cmd_frontier(action: FrontierAction) {
 /// If `--since` is given, the upper bound is "now" (UTC); the diff
 /// covers `[since, now)`. If `--week` is given (or defaulted), the
 /// window is `[Mon 00:00 UTC, next Mon 00:00 UTC)`.
-fn cmd_frontier_diff(
-    frontier: &Path,
-    since: Option<&str>,
-    week: Option<&str>,
-    json: bool,
-) {
+fn cmd_frontier_diff(frontier: &Path, since: Option<&str>, week: Option<&str>, json: bool) {
     let project = repo::load_from_path(frontier).unwrap_or_else(|e| fail_return(&e));
 
     // ── Resolve the window ──
@@ -8179,8 +8156,7 @@ fn cmd_frontier_diff(
     if json {
         println!(
             "{}",
-            serde_json::to_string_pretty(&payload)
-                .expect("failed to serialize frontier.diff")
+            serde_json::to_string_pretty(&payload).expect("failed to serialize frontier.diff")
         );
         return;
     }
@@ -8191,7 +8167,9 @@ fn cmd_frontier_diff(
     println!();
     println!(
         "  {}",
-        format!("VELA · FRONTIER · DIFF · {label}").to_uppercase().dimmed()
+        format!("VELA · FRONTIER · DIFF · {label}")
+            .to_uppercase()
+            .dimmed()
     );
     println!("  {}", style::tick_row(60));
     println!(
@@ -8264,10 +8242,7 @@ fn iso_week_bounds(
     let monday = chrono::NaiveDate::from_isoywd_opt(year, week, chrono::Weekday::Mon)
         .ok_or_else(|| format!("invalid ISO week: {key}"))?;
     let next_monday = monday + chrono::Duration::days(7);
-    let start = monday
-        .and_hms_opt(0, 0, 0)
-        .expect("00:00 valid")
-        .and_utc();
+    let start = monday.and_hms_opt(0, 0, 0).expect("00:00 valid").and_utc();
     let end = next_monday
         .and_hms_opt(0, 0, 0)
         .expect("00:00 valid")
@@ -9218,7 +9193,9 @@ fn cmd_verify(path: &Path, json_output: bool) {
         }
         Ok(output) => {
             println!("{output}");
-            println!("\nverify: ok\n  every file in the manifest matched its claimed sha256.\n  pull this packet on another machine, run the same command, see the same line.");
+            println!(
+                "\nverify: ok\n  every file in the manifest matched its claimed sha256.\n  pull this packet on another machine, run the same command, see the same line."
+            );
         }
         Err(e) => fail(&e),
     }
@@ -9316,7 +9293,6 @@ fn cmd_propagate(
     repo::save_to_path(out, &frontier).expect("Failed to save frontier");
     println!("  output: {}", out.display());
 }
-
 
 fn cmd_mcp_setup(source: Option<&Path>, frontiers: Option<&Path>) {
     let source_desc = source
@@ -9990,7 +9966,6 @@ pub fn register_datasets_handler(handler: DatasetsHandler) {
     let _ = DATASETS_HANDLER.set(handler);
 }
 
-
 /// v0.28 Agent Inbox: handler for `vela review-pending`.
 pub type ReviewerHandler = fn(
     frontier: PathBuf,
@@ -10110,8 +10085,7 @@ fn print_session_dashboard(project: &crate::project::Project, repo_path: &Path) 
     let vfr_short = vfr.chars().take(16).collect::<String>();
 
     let mut pending = 0usize;
-    let mut by_kind: std::collections::BTreeMap<String, usize> =
-        std::collections::BTreeMap::new();
+    let mut by_kind: std::collections::BTreeMap<String, usize> = std::collections::BTreeMap::new();
     for p in &project.proposals {
         if p.status == "pending_review" {
             pending += 1;
@@ -10126,22 +10100,22 @@ fn print_session_dashboard(project: &crate::project::Project, repo_path: &Path) 
     let mut bridge_total = 0usize;
     let mut bridge_confirmed = 0usize;
     let mut bridge_derived = 0usize;
-    if bridges_dir.is_dir() {
-        if let Ok(entries) = std::fs::read_dir(&bridges_dir) {
-            for entry in entries.flatten() {
-                let path = entry.path();
-                if path.extension().and_then(|s| s.to_str()) != Some("json") {
-                    continue;
-                }
-                bridge_total += 1;
-                if let Ok(data) = std::fs::read_to_string(&path) {
-                    if let Ok(b) = serde_json::from_str::<crate::bridge::Bridge>(&data) {
-                        match b.status {
-                            crate::bridge::BridgeStatus::Confirmed => bridge_confirmed += 1,
-                            crate::bridge::BridgeStatus::Derived => bridge_derived += 1,
-                            _ => {}
-                        }
-                    }
+    if bridges_dir.is_dir()
+        && let Ok(entries) = std::fs::read_dir(&bridges_dir)
+    {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.extension().and_then(|s| s.to_str()) != Some("json") {
+                continue;
+            }
+            bridge_total += 1;
+            if let Ok(data) = std::fs::read_to_string(&path)
+                && let Ok(b) = serde_json::from_str::<crate::bridge::Bridge>(&data)
+            {
+                match b.status {
+                    crate::bridge::BridgeStatus::Confirmed => bridge_confirmed += 1,
+                    crate::bridge::BridgeStatus::Derived => bridge_derived += 1,
+                    _ => {}
                 }
             }
         }
@@ -10176,10 +10150,7 @@ fn print_session_dashboard(project: &crate::project::Project, repo_path: &Path) 
     );
 
     if pending > 0 {
-        let parts: Vec<String> = by_kind
-            .iter()
-            .map(|(k, n)| format!("{n} {k}"))
-            .collect();
+        let parts: Vec<String> = by_kind.iter().map(|(k, n)| format!("{n} {k}")).collect();
         println!("  {}     · {}", style::warn("inbox"), parts.join("  "));
     }
     if audit_summary.underidentified > 0 || audit_summary.conditional > 0 {
@@ -10275,10 +10246,7 @@ fn run_session_verb(verb: &str, repo_path: &Path) -> bool {
                 }
             };
             println!();
-            println!(
-                "  {}",
-                "VELA · COUNTERFACTUAL · LIVE PAIRS".dimmed()
-            );
+            println!("  {}", "VELA · COUNTERFACTUAL · LIVE PAIRS".dimmed());
             println!("  {}", style::tick_row(60));
             // Walk every finding's `depends`/`supports` links; a live
             // counterfactual pair is (target, child) where the link

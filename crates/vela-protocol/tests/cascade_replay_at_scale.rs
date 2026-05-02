@@ -26,7 +26,7 @@
 use serde_json::{Map, json};
 
 use vela_protocol::bundle::{
-    Assertion, Author, Confidence, ConfidenceKind, ConfidenceMethod, Conditions, Entity, Evidence,
+    Assertion, Author, Conditions, Confidence, ConfidenceKind, ConfidenceMethod, Entity, Evidence,
     Extraction, FindingBundle, Flags, Link, Provenance,
 };
 use vela_protocol::events::{

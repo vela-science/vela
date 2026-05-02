@@ -734,12 +734,8 @@ fn save_vela_repo(dir: &Path, project: &Project) -> Result<(), String> {
 
     // v0.32: write replications as one file per `vrep_<id>.json`.
     for replication in &project.replications {
-        let json = serde_json::to_string_pretty(replication).map_err(|e| {
-            format!(
-                "Failed to serialize replication {}: {e}",
-                replication.id
-            )
-        })?;
+        let json = serde_json::to_string_pretty(replication)
+            .map_err(|e| format!("Failed to serialize replication {}: {e}", replication.id))?;
         let filename = format!("{}.json", replication.id);
         std::fs::write(replications_dir.join(&filename), json)
             .map_err(|e| format!("Failed to write replication {}: {e}", filename))?;
@@ -930,9 +926,9 @@ mod tests {
                 gravity_well: false,
                 review_state: None,
                 superseded: false,
-            signature_threshold: None,
-            jointly_accepted: false,
-        },
+                signature_threshold: None,
+                jointly_accepted: false,
+            },
             links: vec![],
             annotations: vec![],
             attachments: vec![],

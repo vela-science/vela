@@ -225,7 +225,7 @@ fn make_test_finding(v: &serde_json::Value) -> FindingBundle {
             entities,
             relation: None,
             direction,
-        causal_claim: None,
+            causal_claim: None,
             causal_evidence_grade: None,
         },
         evidence: Evidence {
@@ -531,9 +531,9 @@ fn run_retraction_propagation(
                     entities: vec![],
                     relation: None,
                     direction: None,
-            causal_claim: None,
-            causal_evidence_grade: None,
-        },
+                    causal_claim: None,
+                    causal_evidence_grade: None,
+                },
                 evidence: Evidence {
                     evidence_type: "experimental".into(),
                     model_system: String::new(),
@@ -604,11 +604,7 @@ fn run_retraction_propagation(
             let outcome = r["outcome"].as_str().unwrap_or("").to_string();
             let attempted_by = r["attempted_by"].as_str().unwrap_or("test:lab").to_string();
             corr.replications.push(crate::bundle::Replication {
-                id: format!(
-                    "vrep_test_{}_{}",
-                    target.replace("vf_", ""),
-                    outcome
-                ),
+                id: format!("vrep_test_{}_{}", target.replace("vf_", ""), outcome),
                 target_finding: target,
                 attempted_by,
                 outcome,

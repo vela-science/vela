@@ -433,9 +433,7 @@ pub async fn run_http(source: ProjectSource, backend: Option<&str>, port: u16, w
         // frontier should not need to publish before reviewing in a
         // browser"). Same banner works against `npm run dev` at
         // localhost:4321 too.
-        eprintln!(
-            "  workbench UI: https://vela-site.fly.dev/frontiers/view?api=http://{addr}"
-        );
+        eprintln!("  workbench UI: https://vela-site.fly.dev/frontiers/view?api=http://{addr}");
         eprintln!(
             "                (or  http://localhost:4321/frontiers/view?api=http://{addr}  for a local site)"
         );
@@ -1779,8 +1777,11 @@ fn tool_propagate_retraction(args: &Value, frontier: &Project) -> Result<String,
     // "depends" semantics are preserved.
     let reverse_idx = frontier.build_reverse_dep_index();
     let dependent_ids = reverse_idx.dependents_of(&target.id);
-    let id_to_finding: std::collections::HashMap<&str, &crate::bundle::FindingBundle> =
-        frontier.findings.iter().map(|f| (f.id.as_str(), f)).collect();
+    let id_to_finding: std::collections::HashMap<&str, &crate::bundle::FindingBundle> = frontier
+        .findings
+        .iter()
+        .map(|f| (f.id.as_str(), f))
+        .collect();
 
     let mut affected = Vec::new();
     for dep_id in dependent_ids {
@@ -1788,8 +1789,7 @@ fn tool_propagate_retraction(args: &Value, frontier: &Project) -> Result<String,
             continue;
         };
         for link in &dependent.links {
-            if matches!(link.link_type.as_str(), "supports" | "depends")
-                && link.target == target.id
+            if matches!(link.link_type.as_str(), "supports" | "depends") && link.target == target.id
             {
                 affected.push(json!({
                     "id": dependent.id,

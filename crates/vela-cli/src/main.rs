@@ -275,7 +275,10 @@ fn code_handler(
                 println!("  scripts processed:    {}", report.scripts_processed);
                 println!("  analyses:             {}", report.analyses_emitted);
                 println!("  code findings:        {}", report.code_findings_emitted);
-                println!("  experiment intents:   {}", report.experiment_intents_emitted);
+                println!(
+                    "  experiment intents:   {}",
+                    report.experiment_intents_emitted
+                );
                 println!(
                     "  proposals:            {} {}",
                     report.proposals_written,
@@ -364,8 +367,14 @@ fn datasets_handler(
                 println!("  datasets seen:        {}", report.datasets_seen);
                 println!("  csv processed:        {}", report.csv_processed);
                 println!("  parquet processed:    {}", report.parquet_processed);
-                println!("  dataset summaries:    {}", report.dataset_summaries_emitted);
-                println!("  supported claims:     {}", report.supported_claims_emitted);
+                println!(
+                    "  dataset summaries:    {}",
+                    report.dataset_summaries_emitted
+                );
+                println!(
+                    "  supported claims:     {}",
+                    report.supported_claims_emitted
+                );
                 println!(
                     "  proposals:            {} {}",
                     report.proposals_written,
@@ -421,7 +430,8 @@ fn reviewer_handler(
         let input = ReviewerInput {
             frontier_path: frontier.clone(),
             model,
-            cli_command: std::env::var("VELA_SCIENTIST_CLI").unwrap_or_else(|_| "claude".to_string()),
+            cli_command: std::env::var("VELA_SCIENTIST_CLI")
+                .unwrap_or_else(|_| "claude".to_string()),
             apply: !dry_run,
             max_proposals: max_proposals.or(Some(30)),
             batch_size,
@@ -429,7 +439,10 @@ fn reviewer_handler(
         match run(input).await {
             Ok(report) => {
                 if json_out {
-                    println!("{}", serde_json::to_string_pretty(&report).unwrap_or_default());
+                    println!(
+                        "{}",
+                        serde_json::to_string_pretty(&report).unwrap_or_default()
+                    );
                     return;
                 }
                 println!();
@@ -443,7 +456,11 @@ fn reviewer_handler(
                 println!(
                     "  notes:           {} {}",
                     report.notes_written,
-                    if dry_run { "(dry-run, not written)" } else { "(appended to frontier)" }
+                    if dry_run {
+                        "(dry-run, not written)"
+                    } else {
+                        "(appended to frontier)"
+                    }
                 );
                 if !report.skipped.is_empty() {
                     println!("  skipped:         {}", report.skipped.len());
@@ -482,18 +499,25 @@ fn tensions_handler(
         let input = TensionsInput {
             frontier_path: frontier.clone(),
             model,
-            cli_command: std::env::var("VELA_SCIENTIST_CLI").unwrap_or_else(|_| "claude".to_string()),
+            cli_command: std::env::var("VELA_SCIENTIST_CLI")
+                .unwrap_or_else(|_| "claude".to_string()),
             apply: !dry_run,
             max_findings: max_findings.or(Some(60)),
         };
         match run(input).await {
             Ok(report) => {
                 if json_out {
-                    println!("{}", serde_json::to_string_pretty(&report).unwrap_or_default());
+                    println!(
+                        "{}",
+                        serde_json::to_string_pretty(&report).unwrap_or_default()
+                    );
                     return;
                 }
                 println!();
-                println!("  {}", "VELA · FIND-TENSIONS · CONTRADICTION-FINDER".dimmed());
+                println!(
+                    "  {}",
+                    "VELA · FIND-TENSIONS · CONTRADICTION-FINDER".dimmed()
+                );
                 println!("  {}", tick_row(60));
                 println!("  agent:               {}", report.run.agent);
                 println!("  run id:              {}", report.run.run_id);
@@ -504,7 +528,11 @@ fn tensions_handler(
                 println!(
                     "  proposals:           {} {}",
                     report.proposals_written,
-                    if dry_run { "(dry-run, not written)" } else { "(appended to frontier)" }
+                    if dry_run {
+                        "(dry-run, not written)"
+                    } else {
+                        "(appended to frontier)"
+                    }
                 );
                 if !report.skipped.is_empty() {
                     println!("  skipped batches:     {}", report.skipped.len());
@@ -543,18 +571,25 @@ fn experiments_handler(
         let input = ExperimentsInput {
             frontier_path: frontier.clone(),
             model,
-            cli_command: std::env::var("VELA_SCIENTIST_CLI").unwrap_or_else(|_| "claude".to_string()),
+            cli_command: std::env::var("VELA_SCIENTIST_CLI")
+                .unwrap_or_else(|_| "claude".to_string()),
             apply: !dry_run,
             max_findings: max_findings.or(Some(20)),
         };
         match run(input).await {
             Ok(report) => {
                 if json_out {
-                    println!("{}", serde_json::to_string_pretty(&report).unwrap_or_default());
+                    println!(
+                        "{}",
+                        serde_json::to_string_pretty(&report).unwrap_or_default()
+                    );
                     return;
                 }
                 println!();
-                println!("  {}", "VELA · PLAN-EXPERIMENTS · EXPERIMENT-PLANNER".dimmed());
+                println!(
+                    "  {}",
+                    "VELA · PLAN-EXPERIMENTS · EXPERIMENT-PLANNER".dimmed()
+                );
                 println!("  {}", tick_row(60));
                 println!("  agent:               {}", report.run.agent);
                 println!("  run id:              {}", report.run.run_id);
@@ -565,7 +600,11 @@ fn experiments_handler(
                 println!(
                     "  proposals:           {} {}",
                     report.proposals_written,
-                    if dry_run { "(dry-run, not written)" } else { "(appended to frontier)" }
+                    if dry_run {
+                        "(dry-run, not written)"
+                    } else {
+                        "(appended to frontier)"
+                    }
                 );
                 if !report.skipped.is_empty() {
                     println!("  skipped:             {}", report.skipped.len());

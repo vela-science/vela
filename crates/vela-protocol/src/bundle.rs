@@ -213,12 +213,8 @@ pub struct Evidence {
 /// some conditions matched, others didn't (e.g., effect size present but
 /// smaller). `inconclusive`: methodology ambiguity prevents a clean
 /// outcome judgment.
-pub const VALID_REPLICATION_OUTCOMES: &[&str] = &[
-    "replicated",
-    "failed",
-    "partial",
-    "inconclusive",
-];
+pub const VALID_REPLICATION_OUTCOMES: &[&str] =
+    &["replicated", "failed", "partial", "inconclusive"];
 
 /// v0.32: Replication as a first-class kernel object.
 ///
@@ -1033,9 +1029,7 @@ pub fn compute_confidence_from_components(
         _ => 0.50,
     };
 
-    let replication_strength = (0.7
-        + 0.1 * f64::from(n_replicated)
-        + 0.05 * f64::from(n_partial)
+    let replication_strength = (0.7 + 0.1 * f64::from(n_replicated) + 0.05 * f64::from(n_partial)
         - 0.10 * f64::from(n_failed))
     .clamp(0.4, 1.0);
 
@@ -1147,8 +1141,7 @@ pub fn recompute_all_confidence(
     for bundle in findings.iter_mut() {
         let old_score = bundle.confidence.score;
         let extraction_conf = bundle.confidence.extraction_confidence;
-        let (n_repl, n_failed, n_partial) =
-            count_replication_outcomes(replications, &bundle.id);
+        let (n_repl, n_failed, n_partial) = count_replication_outcomes(replications, &bundle.id);
         // If the v0.32 collection has nothing for this finding, fall back
         // to the legacy scalar so unmigrated frontiers keep their prior
         // computed confidence.
@@ -1509,7 +1502,9 @@ impl Mechanism {
     pub fn apply(&self, delta_x: f64) -> Option<f64> {
         match *self {
             Self::Linear { sign, slope } => Some(sign.as_f64() * slope * delta_x),
-            Self::Monotonic { sign } => Some(sign.as_f64() * delta_x.signum() * delta_x.abs().min(1.0)),
+            Self::Monotonic { sign } => {
+                Some(sign.as_f64() * delta_x.signum() * delta_x.abs().min(1.0))
+            }
             Self::Threshold { sign, threshold } => {
                 if delta_x.abs() >= threshold {
                     Some(sign.as_f64() * delta_x.signum())
@@ -2811,8 +2806,7 @@ mod tests {
     fn causal_multiplier_neutral_when_either_field_none() {
         assert!((causal_consistency_multiplier(None, None) - 1.0).abs() < 1e-12);
         assert!(
-            (causal_consistency_multiplier(Some(CausalClaim::Intervention), None) - 1.0)
-                .abs()
+            (causal_consistency_multiplier(Some(CausalClaim::Intervention), None) - 1.0).abs()
                 < 1e-12
         );
         assert!(

@@ -244,7 +244,10 @@ mod tests {
 
     #[test]
     fn underdetermined_when_missing_either_field() {
-        assert_eq!(is_identifiable(None, None), Identifiability::Underdetermined);
+        assert_eq!(
+            is_identifiable(None, None),
+            Identifiability::Underdetermined
+        );
         assert_eq!(
             is_identifiable(Some(CausalClaim::Intervention), None),
             Identifiability::Underdetermined

@@ -300,7 +300,7 @@ fn build_mechanism_index(project: &Project) -> HashMap<(String, String), Mechani
 mod tests {
     use super::*;
     use crate::bundle::{
-        Assertion, Confidence, Conditions, Evidence, Extraction, FindingBundle, Flags, Link,
+        Assertion, Conditions, Confidence, Evidence, Extraction, FindingBundle, Flags, Link,
         Mechanism, MechanismSign, Provenance,
     };
     use crate::project;
@@ -524,7 +524,9 @@ mod tests {
         };
         match answer_counterfactual(&project, &q) {
             CounterfactualVerdict::Resolved {
-                counterfactual, delta, ..
+                counterfactual,
+                delta,
+                ..
             } => {
                 assert!((delta - (-0.05)).abs() < 1e-6, "delta = {delta}");
                 assert!((counterfactual - 0.65).abs() < 1e-6);

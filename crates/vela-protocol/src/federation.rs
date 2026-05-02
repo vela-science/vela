@@ -198,7 +198,7 @@ pub fn diff_frontiers(ours: &Project, theirs: &Project) -> Vec<Conflict> {
     let mut conflicts = Vec::new();
 
     // Findings only in ours.
-    for (id, _) in &our_by_id {
+    for id in our_by_id.keys() {
         if !their_by_id.contains_key(id) {
             conflicts.push(Conflict {
                 finding_id: (*id).to_string(),
@@ -208,7 +208,7 @@ pub fn diff_frontiers(ours: &Project, theirs: &Project) -> Vec<Conflict> {
         }
     }
     // Findings only in theirs.
-    for (id, _) in &their_by_id {
+    for id in their_by_id.keys() {
         if !our_by_id.contains_key(id) {
             conflicts.push(Conflict {
                 finding_id: (*id).to_string(),
@@ -266,12 +266,18 @@ pub fn diff_frontiers(ours: &Project, theirs: &Project) -> Vec<Conflict> {
             conflicts.push(Conflict {
                 finding_id: (*id).to_string(),
                 kind: ConflictKind::AssertionTextDiverged,
-                detail: "matching id but diverging assertion text — possible content-address collision".to_string(),
+                detail:
+                    "matching id but diverging assertion text — possible content-address collision"
+                        .to_string(),
             });
         }
     }
 
-    conflicts.sort_by(|a, b| a.finding_id.cmp(&b.finding_id).then_with(|| a.kind.as_str().cmp(b.kind.as_str())));
+    conflicts.sort_by(|a, b| {
+        a.finding_id
+            .cmp(&b.finding_id)
+            .then_with(|| a.kind.as_str().cmp(b.kind.as_str()))
+    });
     conflicts
 }
 
@@ -460,11 +466,7 @@ pub fn record_unverified_entry(
 /// Splitting fetch from sync this way lets the sync logic be
 /// fully unit-testable without HTTP — the CLI pipes a real fetch
 /// into this function.
-pub fn sync_with_peer(
-    project: &mut Project,
-    peer_id: &str,
-    peer: &Project,
-) -> SyncReport {
+pub fn sync_with_peer(project: &mut Project, peer_id: &str, peer: &Project) -> SyncReport {
     let our_hash = snapshot_hash(project);
     let peer_hash = snapshot_hash(peer);
     let conflicts = diff_frontiers(project, peer);
@@ -512,11 +514,7 @@ pub fn sync_with_peer(
 
     let mut conflict_events: Vec<StateEvent> = Vec::with_capacity(conflicts.len());
     for c in &conflicts {
-        let reason = format!(
-            "peer={peer_id} kind={} {}",
-            c.kind.as_str(),
-            c.detail
-        );
+        let reason = format!("peer={peer_id} kind={} {}", c.kind.as_str(), c.detail);
         let mut ev = StateEvent {
             schema: EVENT_SCHEMA.to_string(),
             id: String::new(),
@@ -578,7 +576,11 @@ pub enum DiscoveryResult {
     UnverifiedEntry { vfr_id: String, reason: String },
     /// Hub entry verifies, but its `network_locator` URL returns
     /// 4xx/5xx. Stale-locator failure mode.
-    BrokenLocator { vfr_id: String, locator: String, status: u16 },
+    BrokenLocator {
+        vfr_id: String,
+        locator: String,
+        status: u16,
+    },
     /// Network error to the hub itself or to the locator.
     Unreachable { url: String, error: String },
 }
@@ -604,13 +606,15 @@ pub fn discover_peer_frontier(
     let vfr_owned = vfr_id.to_string();
     let expected = expected_owner_pubkey.map(|s| s.to_string());
 
-    let outcome = std::thread::spawn(move || -> DiscoveryResult {
+    std::thread::spawn(move || -> DiscoveryResult {
         let resp = match reqwest::blocking::get(&entries_url) {
             Ok(r) => r,
-            Err(e) => return DiscoveryResult::Unreachable {
-                url: entries_url.clone(),
-                error: e.to_string(),
-            },
+            Err(e) => {
+                return DiscoveryResult::Unreachable {
+                    url: entries_url.clone(),
+                    error: e.to_string(),
+                };
+            }
         };
         let status = resp.status();
         if status.as_u16() == 404 {
@@ -627,17 +631,21 @@ pub fn discover_peer_frontier(
         }
         let body = match resp.text() {
             Ok(b) => b,
-            Err(e) => return DiscoveryResult::Unreachable {
-                url: entries_url.clone(),
-                error: format!("read body: {e}"),
-            },
+            Err(e) => {
+                return DiscoveryResult::Unreachable {
+                    url: entries_url.clone(),
+                    error: format!("read body: {e}"),
+                };
+            }
         };
         let entry: crate::registry::RegistryEntry = match serde_json::from_str(&body) {
             Ok(e) => e,
-            Err(e) => return DiscoveryResult::UnverifiedEntry {
-                vfr_id: vfr_owned,
-                reason: format!("parse registry entry: {e}"),
-            },
+            Err(e) => {
+                return DiscoveryResult::UnverifiedEntry {
+                    vfr_id: vfr_owned,
+                    reason: format!("parse registry entry: {e}"),
+                };
+            }
         };
 
         // Verify signature.
@@ -646,7 +654,8 @@ pub fn discover_peer_frontier(
             Ok(false) => {
                 return DiscoveryResult::UnverifiedEntry {
                     vfr_id: vfr_owned,
-                    reason: "registry entry signature does not verify against entry.owner_pubkey".to_string(),
+                    reason: "registry entry signature does not verify against entry.owner_pubkey"
+                        .to_string(),
                 };
             }
             Err(e) => {
@@ -674,11 +683,14 @@ pub fn discover_peer_frontier(
         let locator = entry.network_locator.clone();
         let mresp = match reqwest::blocking::get(&locator) {
             Ok(r) => r,
-            Err(e) => return DiscoveryResult::BrokenLocator {
-                vfr_id: vfr_owned,
-                locator,
-                status: 0,
-            }.with_error(e.to_string()),
+            Err(e) => {
+                return DiscoveryResult::BrokenLocator {
+                    vfr_id: vfr_owned,
+                    locator,
+                    status: 0,
+                }
+                .with_error(e.to_string());
+            }
         };
         let mstatus = mresp.status();
         if !mstatus.is_success() {
@@ -690,11 +702,14 @@ pub fn discover_peer_frontier(
         }
         let mbody = match mresp.text() {
             Ok(b) => b,
-            Err(e) => return DiscoveryResult::BrokenLocator {
-                vfr_id: vfr_owned,
-                locator,
-                status: 0,
-            }.with_error(e.to_string()),
+            Err(e) => {
+                return DiscoveryResult::BrokenLocator {
+                    vfr_id: vfr_owned,
+                    locator,
+                    status: 0,
+                }
+                .with_error(e.to_string());
+            }
         };
         match serde_json::from_str::<Project>(&mbody) {
             Ok(p) => DiscoveryResult::Resolved(p),
@@ -702,15 +717,15 @@ pub fn discover_peer_frontier(
                 vfr_id: vfr_owned,
                 locator,
                 status: 0,
-            }.with_error(format!("manifest parse: {e}")),
+            }
+            .with_error(format!("manifest parse: {e}")),
         }
     })
     .join()
     .unwrap_or(DiscoveryResult::Unreachable {
         url: hub_url.to_string(),
         error: "discovery thread panicked".to_string(),
-    });
-    outcome
+    })
 }
 
 impl DiscoveryResult {
@@ -907,7 +922,9 @@ mod tests {
         let theirs = assemble("theirs", vec![f_theirs]);
         let conflicts = diff_frontiers(&ours, &theirs);
         assert!(
-            conflicts.iter().any(|c| c.kind == ConflictKind::ConfidenceDiverged),
+            conflicts
+                .iter()
+                .any(|c| c.kind == ConflictKind::ConfidenceDiverged),
             "expected confidence_diverged in {conflicts:?}"
         );
     }
@@ -922,7 +939,9 @@ mod tests {
         let theirs = assemble("theirs", vec![f_theirs]);
         let conflicts = diff_frontiers(&ours, &theirs);
         assert!(
-            !conflicts.iter().any(|c| c.kind == ConflictKind::ConfidenceDiverged),
+            !conflicts
+                .iter()
+                .any(|c| c.kind == ConflictKind::ConfidenceDiverged),
             "0.03 drift should not flag: {conflicts:?}"
         );
     }
@@ -937,7 +956,11 @@ mod tests {
         let ours = assemble("ours", vec![f_ours]);
         let theirs = assemble("theirs", vec![f_theirs]);
         let conflicts = diff_frontiers(&ours, &theirs);
-        assert!(conflicts.iter().any(|c| c.kind == ConflictKind::RetractedDiverged));
+        assert!(
+            conflicts
+                .iter()
+                .any(|c| c.kind == ConflictKind::RetractedDiverged)
+        );
     }
 
     #[test]
@@ -950,7 +973,11 @@ mod tests {
         let ours = assemble("ours", vec![f_ours]);
         let theirs = assemble("theirs", vec![f_theirs]);
         let conflicts = diff_frontiers(&ours, &theirs);
-        assert!(conflicts.iter().any(|c| c.kind == ConflictKind::ReviewStateDiverged));
+        assert!(
+            conflicts
+                .iter()
+                .any(|c| c.kind == ConflictKind::ReviewStateDiverged)
+        );
     }
 
     #[test]
@@ -963,7 +990,11 @@ mod tests {
         let ours = assemble("ours", vec![f_ours]);
         let theirs = assemble("theirs", vec![f_theirs]);
         let conflicts = diff_frontiers(&ours, &theirs);
-        assert!(conflicts.iter().any(|c| c.kind == ConflictKind::AssertionTextDiverged));
+        assert!(
+            conflicts
+                .iter()
+                .any(|c| c.kind == ConflictKind::AssertionTextDiverged)
+        );
     }
 
     #[test]

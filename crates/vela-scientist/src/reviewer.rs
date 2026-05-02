@@ -106,10 +106,7 @@ pub async fn run(input: ReviewerInput) -> Result<ReviewerReport, String> {
     let already_reviewed_targets: HashSet<String> = frontier
         .proposals
         .iter()
-        .filter(|p| {
-            p.kind == "finding.note"
-                && p.actor.id == format!("agent:{AGENT_REVIEWER}")
-        })
+        .filter(|p| p.kind == "finding.note" && p.actor.id == format!("agent:{AGENT_REVIEWER}"))
         .map(|p| p.target.id.clone())
         .collect();
 
@@ -140,11 +137,8 @@ pub async fn run(input: ReviewerInput) -> Result<ReviewerReport, String> {
         skipped: Vec::new(),
     };
 
-    let existing_proposal_ids: HashSet<String> = frontier
-        .proposals
-        .iter()
-        .map(|p| p.id.clone())
-        .collect();
+    let existing_proposal_ids: HashSet<String> =
+        frontier.proposals.iter().map(|p| p.id.clone()).collect();
 
     let mut new_notes: Vec<StateProposal> = Vec::new();
     let total = to_review.len();
@@ -152,36 +146,35 @@ pub async fn run(input: ReviewerInput) -> Result<ReviewerReport, String> {
 
     // Helper closure: turn a (proposal, assessment) into a note
     // and append to `new_notes` if its id is fresh.
-    let emit_note =
-        |proposal: &StateProposal,
-         assessment: &Assessment,
-         report: &mut ReviewerReport,
-         new_notes: &mut Vec<StateProposal>| {
-            let note_text = format_note(assessment);
-            let payload = json!({ "text": note_text });
-            let mut note = new_proposal(
-                "finding.note",
-                StateTarget {
-                    r#type: "finding".to_string(),
-                    id: proposal.target.id.clone(),
-                },
-                &ctx.actor_id,
-                "agent",
-                format!("Reviewer Agent score for {}", proposal.id),
-                payload,
-                vec![proposal.id.clone()],
-                assessment.flags(),
-            );
-            note.agent_run = Some(report.run.clone());
-            if existing_proposal_ids.contains(&note.id) {
-                report.skipped.push(SkippedProposal {
-                    proposal_id: proposal.id.clone(),
-                    reason: "reviewer note id already in frontier".to_string(),
-                });
-                return;
-            }
-            new_notes.push(note);
-        };
+    let emit_note = |proposal: &StateProposal,
+                     assessment: &Assessment,
+                     report: &mut ReviewerReport,
+                     new_notes: &mut Vec<StateProposal>| {
+        let note_text = format_note(assessment);
+        let payload = json!({ "text": note_text });
+        let mut note = new_proposal(
+            "finding.note",
+            StateTarget {
+                r#type: "finding".to_string(),
+                id: proposal.target.id.clone(),
+            },
+            &ctx.actor_id,
+            "agent",
+            format!("Reviewer Agent score for {}", proposal.id),
+            payload,
+            vec![proposal.id.clone()],
+            assessment.flags(),
+        );
+        note.agent_run = Some(report.run.clone());
+        if existing_proposal_ids.contains(&note.id) {
+            report.skipped.push(SkippedProposal {
+                proposal_id: proposal.id.clone(),
+                reason: "reviewer note id already in frontier".to_string(),
+            });
+            return;
+        }
+        new_notes.push(note);
+    };
 
     if batch_size <= 1 {
         // ---------- per-proposal mode (v0.28 default) ----------
@@ -262,11 +255,7 @@ pub async fn run(input: ReviewerInput) -> Result<ReviewerReport, String> {
                     }
                 }
             }
-            eprintln!(
-                "    scored {}/{} in batch",
-                assessments.len(),
-                chunk.len()
-            );
+            eprintln!("    scored {}/{} in batch", assessments.len(), chunk.len());
         }
     }
 
@@ -335,10 +324,7 @@ fn format_note(a: &Assessment) -> String {
     out
 }
 
-fn call_reviewer(
-    proposal: &StateProposal,
-    input: &ReviewerInput,
-) -> Result<Assessment, String> {
+fn call_reviewer(proposal: &StateProposal, input: &ReviewerInput) -> Result<Assessment, String> {
     let user_prompt = build_user_prompt(proposal);
     let system_prompt = build_system_prompt();
     let schema = output_schema_json();
@@ -431,11 +417,7 @@ fn build_user_prompt(p: &StateProposal) -> String {
         .as_ref()
         .map(|r| r.agent.as_str())
         .unwrap_or("(human)");
-    let model = p
-        .agent_run
-        .as_ref()
-        .map(|r| r.model.as_str())
-        .unwrap_or("");
+    let model = p.agent_run.as_ref().map(|r| r.model.as_str()).unwrap_or("");
     let source_refs = p.source_refs.join(", ");
 
     format!(

@@ -163,9 +163,9 @@ Supersede applied
     <section class="rcp__r" id="verify">
       <h2 class="rcp__r-title">7 · Verify a published frontier from disk</h2>
       <p class="rcp__r-line">
-        Anyone can pull the frontier file, recompute the snapshot hash through any of the
-        three reducer implementations, and check it matches the hub manifest. No trust in
-        the hub required.
+        Anyone can pull the frontier file, recompute the snapshot hash through either
+        reducer implementation (Rust or Python), and check it matches the hub manifest.
+        No trust in the hub required.
       </p>
       <pre class="rcp__code"><code>$ vela registry pull vfr_72f8019b3d4c8a1e --to /tmp/pulled.json
 · fetched manifest from {HUB_URL.replace(/^https?:\/\//, '')}

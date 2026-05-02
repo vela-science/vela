@@ -23,10 +23,23 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
+      # Build the `vela` binary first. It lives in crates/vela-cli, so
+      # integration tests in crates/vela-protocol/tests/ can't get it via
+      # CARGO_BIN_EXE_vela and fall back to ../../target/debug/vela.
+      - name: Build vela CLI
+        run: cargo build --bin vela
       - name: Run tests
         run: cargo test --workspace
       - name: Run conformance
-        run: cargo run -p vela-protocol -- conformance tests/conformance/
+        run: cargo run --bin vela -- conformance tests/conformance/
+      # Cross-implementation parity. The site's load-bearing trust claim is
+      # that the per-kind reducer mutation rules are protocol, not Rust
+      # artifact: a second-language reducer applied to the same event log
+      # must produce byte-equivalent finding state. Run on every push.
+      - name: Two-reducer parity (Rust ↔ Python)
+        run: python3 clients/python/vela_reducer.py crates/vela-protocol/tests/fixtures/
+      - name: Cross-impl content-addressing (canonical-JSON IDs)
+        run: python3 scripts/cross_impl_conformance.py frontiers/bbb-alzheimer.json
 
   lint:
     runs-on: ubuntu-latest

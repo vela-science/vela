@@ -136,13 +136,7 @@ pub fn calibration_records(
         };
 
         // Reliability buckets: 5 bands of width 0.2, omit empty bands.
-        let bands: [(f64, f64); 5] = [
-            (0.0, 0.2),
-            (0.2, 0.4),
-            (0.4, 0.6),
-            (0.6, 0.8),
-            (0.8, 1.001),
-        ];
+        let bands: [(f64, f64); 5] = [(0.0, 0.2), (0.2, 0.4), (0.4, 0.6), (0.6, 0.8), (0.8, 1.001)];
         let mut reliability_buckets: Vec<(f64, f64, usize)> = Vec::new();
         for (lo, hi) in bands {
             let in_band: Vec<&(&Prediction, &Resolution)> = resolved

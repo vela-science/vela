@@ -33,7 +33,7 @@ use axum::{
 use tower_http::cors::CorsLayer;
 
 use crate::bridge::{Bridge, BridgeStatus};
-use crate::causal_reasoning::{audit_frontier, summarize_audit, Identifiability};
+use crate::causal_reasoning::{Identifiability, audit_frontier, summarize_audit};
 use crate::project::Project;
 use crate::repo;
 
@@ -61,8 +61,8 @@ pub async fn run(repo_path: PathBuf, port: u16, open_browser: bool) -> Result<()
         ));
     }
     // Sanity-check loadability before binding the port.
-    let _ = repo::load_from_path(&repo_path)
-        .map_err(|e| format!("failed to load .vela/ repo: {e}"))?;
+    let _ =
+        repo::load_from_path(&repo_path).map_err(|e| format!("failed to load .vela/ repo: {e}"))?;
 
     let state = AppState {
         repo_path: Arc::new(repo_path),
@@ -91,10 +91,8 @@ pub async fn run(repo_path: PathBuf, port: u16, open_browser: bool) -> Result<()
     let url = format!("http://{actual_addr}/");
 
     println!("vela workbench listening on {url}");
-    if open_browser {
-        if let Err(e) = open_browser_at(&url) {
-            eprintln!("(could not auto-open browser: {e})");
-        }
+    if open_browser && let Err(e) = open_browser_at(&url) {
+        eprintln!("(could not auto-open browser: {e})");
     }
     println!("Ctrl-C to stop.");
 
@@ -424,7 +422,9 @@ async fn page_finding_detail(
             let mech = l.mechanism.map_or("—".to_string(), |m| {
                 use crate::bundle::Mechanism;
                 match m {
-                    Mechanism::Linear { sign, slope } => format!("linear {sign:?} slope {slope:.2}"),
+                    Mechanism::Linear { sign, slope } => {
+                        format!("linear {sign:?} slope {slope:.2}")
+                    }
                     Mechanism::Monotonic { sign } => format!("monotonic {sign:?}"),
                     Mechanism::Threshold { sign, threshold } => {
                         format!("threshold {sign:?} {threshold:.2}")
@@ -572,14 +572,7 @@ async fn page_bridges(State(state): State<AppState>) -> Response {
   <p>No bridges yet. Derive one with:</p>
   <p><code>vela bridges derive &lt;frontier_a&gt; &lt;frontier_b&gt;</code></p>
 </div>"#;
-        return Html(shell(
-            "bridges",
-            "Bridges",
-            "Workbench",
-            "No bridges",
-            body,
-        ))
-        .into_response();
+        return Html(shell("bridges", "Bridges", "Workbench", "No bridges", body)).into_response();
     }
 
     let mut cards = String::new();
@@ -607,10 +600,7 @@ async fn page_bridges(State(state): State<AppState>) -> Response {
             ));
         }
         if b.finding_refs.len() > 6 {
-            refs_html.push_str(&format!(
-                "<p>… and {} more</p>",
-                b.finding_refs.len() - 6
-            ));
+            refs_html.push_str(&format!("<p>… and {} more</p>", b.finding_refs.len() - 6));
         }
 
         let actions_html = match b.status {
@@ -636,7 +626,10 @@ async fn page_bridges(State(state): State<AppState>) -> Response {
         };
 
         let tension_html = b.tension.as_deref().map_or(String::new(), |t| {
-            format!(r#"<p style="color:#872c2c;font-style:italic;">tension: {}</p>"#, escape_html(t))
+            format!(
+                r#"<p style="color:#872c2c;font-style:italic;">tension: {}</p>"#,
+                escape_html(t)
+            )
         });
 
         cards.push_str(&format!(
@@ -702,10 +695,10 @@ fn list_bridges(repo_path: &Path) -> Vec<Bridge> {
             if p.extension().and_then(|s| s.to_str()) != Some("json") {
                 continue;
             }
-            if let Ok(data) = std::fs::read_to_string(&p) {
-                if let Ok(b) = serde_json::from_str::<Bridge>(&data) {
-                    out.push(b);
-                }
+            if let Ok(data) = std::fs::read_to_string(&p)
+                && let Ok(b) = serde_json::from_str::<Bridge>(&data)
+            {
+                out.push(b);
             }
         }
     }

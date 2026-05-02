@@ -23,3 +23,6 @@ vela-scientist = { workspace = true }
 tokio = { workspace = true }
 serde_json = { workspace = true }
 colored = { workspace = true }
+
+[lints]
+workspace = true

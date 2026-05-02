@@ -35,9 +35,7 @@ use vela_protocol::project::Project;
 use vela_protocol::proposals::StateProposal;
 use vela_protocol::repo;
 
-use crate::agent::{
-    AgentContext, agent_run_meta, build_finding_add_proposal, discover_files,
-};
+use crate::agent::{AgentContext, agent_run_meta, build_finding_add_proposal, discover_files};
 use crate::llm_cli::{ClaudeCall, run_structured};
 
 pub const AGENT_DATASETS: &str = "datasets";
@@ -135,16 +133,10 @@ pub async fn run(input: DatasetInput) -> Result<DatasetReport, String> {
         ..Default::default()
     };
 
-    let existing_finding_ids: HashSet<String> = frontier
-        .findings
-        .iter()
-        .map(|f| f.id.clone())
-        .collect();
-    let existing_proposal_ids: HashSet<String> = frontier
-        .proposals
-        .iter()
-        .map(|p| p.id.clone())
-        .collect();
+    let existing_finding_ids: HashSet<String> =
+        frontier.findings.iter().map(|f| f.id.clone()).collect();
+    let existing_proposal_ids: HashSet<String> =
+        frontier.proposals.iter().map(|p| p.id.clone()).collect();
     let mut new_proposals: Vec<StateProposal> = Vec::new();
 
     for path in &files {
@@ -280,14 +272,7 @@ fn stage(
         });
         return;
     }
-    let proposal = build_finding_add_proposal(
-        &finding,
-        ctx,
-        source_label,
-        &rationale,
-        &[],
-        run,
-    );
+    let proposal = build_finding_add_proposal(&finding, ctx, source_label, &rationale, &[], run);
     if existing_proposal_ids.contains(&proposal.id) {
         skipped.push(SkippedDataset {
             path: format!("{source_label}#{}", proposal.id),
@@ -305,8 +290,7 @@ fn read_delim_schema(
     delim: char,
     sample_rows: usize,
 ) -> Result<DatasetSchema, String> {
-    let raw = std::fs::read_to_string(path)
-        .map_err(|e| format!("read {}: {e}", path.display()))?;
+    let raw = std::fs::read_to_string(path).map_err(|e| format!("read {}: {e}", path.display()))?;
     if raw.trim().is_empty() {
         return Err("empty file".to_string());
     }
@@ -436,8 +420,7 @@ fn infer_columns(names: &[String], sample: &[Vec<String>]) -> Vec<ColumnSpec> {
 // ---------- Parquet reader ----------
 
 fn read_parquet_schema(path: &Path, sample_rows: usize) -> Result<DatasetSchema, String> {
-    let file = std::fs::File::open(path)
-        .map_err(|e| format!("open {}: {e}", path.display()))?;
+    let file = std::fs::File::open(path).map_err(|e| format!("open {}: {e}", path.display()))?;
     let reader = SerializedFileReader::new(file)
         .map_err(|e| format!("parquet open {}: {e}", path.display()))?;
     let metadata = reader.metadata();
@@ -595,7 +578,10 @@ fn build_user_prompt(schema: &DatasetSchema, basename: &str) -> String {
     let mut prompt = format!(
         "Source dataset: {basename} (format: {}, rows≈{})\n\n",
         schema.format,
-        schema.rows_estimate.map(|n| n.to_string()).unwrap_or_else(|| "?".to_string())
+        schema
+            .rows_estimate
+            .map(|n| n.to_string())
+            .unwrap_or_else(|| "?".to_string())
     );
     prompt.push_str("--- columns ---\n");
     for c in &schema.columns {
@@ -764,11 +750,7 @@ fn lift_summary(s: &MDatasetSummary, schema: &DatasetSchema, label: &str) -> Fin
     )
 }
 
-fn lift_supported_claim(
-    c: &MSupportedClaim,
-    schema: &DatasetSchema,
-    label: &str,
-) -> FindingBundle {
+fn lift_supported_claim(c: &MSupportedClaim, schema: &DatasetSchema, label: &str) -> FindingBundle {
     let mut spans: Vec<serde_json::Value> = Vec::new();
     if !c.columns_used.is_empty() {
         spans.push(serde_json::json!({
@@ -800,9 +782,9 @@ fn lift_supported_claim(
         entities: Vec::new(),
         relation: None,
         direction: None,
-            causal_claim: None,
-            causal_evidence_grade: None,
-        };
+        causal_claim: None,
+        causal_evidence_grade: None,
+    };
     let confidence = Confidence::raw(
         0.4,
         "datasets_agent: claim plausibly supported by schema",

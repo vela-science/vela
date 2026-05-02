@@ -1064,13 +1064,7 @@ mod v0_38_causal_tests {
         let proposal = build_add_finding_proposal(opts).unwrap();
         let finding: FindingBundle =
             serde_json::from_value(proposal.payload["finding"].clone()).unwrap();
-        let project = project::assemble(
-            "Test",
-            vec![finding],
-            1,
-            0,
-            "test causal frontier",
-        );
+        let project = project::assemble("Test", vec![finding], 1, 0, "test causal frontier");
         repo::save_to_path(&path, &project).unwrap();
         path
     }
@@ -1114,15 +1108,8 @@ mod v0_38_causal_tests {
         let path = seed_frontier(dir.path());
         let project = repo::load_from_path(&path).unwrap();
         let finding_id = project.findings[0].id.clone();
-        let err = set_causal(
-            &path,
-            &finding_id,
-            "magic",
-            None,
-            "reviewer:test",
-            "test",
-        )
-        .unwrap_err();
+        let err =
+            set_causal(&path, &finding_id, "magic", None, "reviewer:test", "test").unwrap_err();
         assert!(err.contains("invalid causal claim"));
     }
 

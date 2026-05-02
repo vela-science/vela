@@ -741,9 +741,9 @@ mod tests {
                 gravity_well: false,
                 review_state: None,
                 superseded: false,
-            signature_threshold: None,
-            jointly_accepted: false,
-        },
+                signature_threshold: None,
+                jointly_accepted: false,
+            },
         )
     }
 

@@ -1,0 +1,27 @@
+cff-version: 1.2.0
+title: "Vela: an open protocol for scientific findings"
+message: "If you use Vela in research, please cite it using the metadata below."
+type: software
+authors:
+  - family-names: Blair
+    given-names: Will
+    email: will.blair0708@gmail.com
+    orcid: ""
+repository-code: "https://github.com/vela-science/vela"
+url: "https://vela.science"
+abstract: >-
+  Vela is a content-addressed, signed, replayable protocol for scientific
+  findings. It defines five primitives — Finding, EvidenceObject, Correction,
+  Link, Frontier — together with a canonical-JSON serialization, an Ed25519
+  signing scheme, and a deterministic reducer that replays a signed event log
+  into the same byte-identical frontier state across independent reducer
+  implementations.
+keywords:
+  - open science
+  - reproducibility
+  - scientific knowledge graph
+  - content addressing
+  - protocol
+license: "Apache-2.0 OR MIT"
+version: "0.48.0"
+date-released: "2026-04-27"

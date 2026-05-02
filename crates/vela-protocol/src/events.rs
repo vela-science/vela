@@ -659,15 +659,11 @@ pub fn validate_event_payload(kind: &str, payload: &Value) -> Result<(), String>
             }
             // The revoked key cannot also be the replacement; that
             // would be a self-rotation that revokes nothing.
-            if let Some(replacement) = object
-                .get("replacement_pubkey")
-                .and_then(Value::as_str)
+            if let Some(replacement) = object.get("replacement_pubkey").and_then(Value::as_str)
                 && !replacement.is_empty()
                 && replacement.eq_ignore_ascii_case(revoked)
             {
-                return Err(
-                    "replacement_pubkey must differ from revoked_pubkey".to_string(),
-                );
+                return Err("replacement_pubkey must differ from revoked_pubkey".to_string());
             }
         }
         other => return Err(format!("unknown event kind '{other}'")),
@@ -716,9 +712,9 @@ mod tests {
                 entities: Vec::new(),
                 relation: None,
                 direction: None,
-            causal_claim: None,
-            causal_evidence_grade: None,
-        },
+                causal_claim: None,
+                causal_evidence_grade: None,
+            },
             Evidence {
                 evidence_type: "experimental".to_string(),
                 model_system: "mouse".to_string(),
@@ -772,9 +768,9 @@ mod tests {
                 gravity_well: false,
                 review_state: None,
                 superseded: false,
-            signature_threshold: None,
-            jointly_accepted: false,
-        },
+                signature_threshold: None,
+                jointly_accepted: false,
+            },
         )
     }
 
@@ -881,123 +877,145 @@ mod tests {
     #[test]
     fn validates_synced_with_peer_payload() {
         // OK: full payload.
-        assert!(validate_event_payload(
-            "frontier.synced_with_peer",
-            &json!({
-                "peer_id": "hub:peer",
-                "peer_snapshot_hash": "abc",
-                "our_snapshot_hash": "def",
-                "divergence_count": 3,
-            }),
-        )
-        .is_ok());
+        assert!(
+            validate_event_payload(
+                "frontier.synced_with_peer",
+                &json!({
+                    "peer_id": "hub:peer",
+                    "peer_snapshot_hash": "abc",
+                    "our_snapshot_hash": "def",
+                    "divergence_count": 3,
+                }),
+            )
+            .is_ok()
+        );
         // FAIL: missing divergence_count.
-        assert!(validate_event_payload(
-            "frontier.synced_with_peer",
-            &json!({
-                "peer_id": "hub:peer",
-                "peer_snapshot_hash": "abc",
-                "our_snapshot_hash": "def",
-            }),
-        )
-        .is_err());
+        assert!(
+            validate_event_payload(
+                "frontier.synced_with_peer",
+                &json!({
+                    "peer_id": "hub:peer",
+                    "peer_snapshot_hash": "abc",
+                    "our_snapshot_hash": "def",
+                }),
+            )
+            .is_err()
+        );
         // FAIL: missing peer_id.
-        assert!(validate_event_payload(
-            "frontier.synced_with_peer",
-            &json!({
-                "peer_snapshot_hash": "abc",
-                "our_snapshot_hash": "def",
-                "divergence_count": 0,
-            }),
-        )
-        .is_err());
+        assert!(
+            validate_event_payload(
+                "frontier.synced_with_peer",
+                &json!({
+                    "peer_snapshot_hash": "abc",
+                    "our_snapshot_hash": "def",
+                    "divergence_count": 0,
+                }),
+            )
+            .is_err()
+        );
     }
 
     #[test]
     fn validates_conflict_detected_payload() {
         // OK: full payload.
-        assert!(validate_event_payload(
-            "frontier.conflict_detected",
-            &json!({
-                "peer_id": "hub:peer",
-                "finding_id": "vf_xyz",
-                "kind": "different_review_verdict",
-            }),
-        )
-        .is_ok());
+        assert!(
+            validate_event_payload(
+                "frontier.conflict_detected",
+                &json!({
+                    "peer_id": "hub:peer",
+                    "finding_id": "vf_xyz",
+                    "kind": "different_review_verdict",
+                }),
+            )
+            .is_ok()
+        );
         // FAIL: empty kind.
-        assert!(validate_event_payload(
-            "frontier.conflict_detected",
-            &json!({
-                "peer_id": "hub:peer",
-                "finding_id": "vf_xyz",
-                "kind": "  ",
-            }),
-        )
-        .is_err());
+        assert!(
+            validate_event_payload(
+                "frontier.conflict_detected",
+                &json!({
+                    "peer_id": "hub:peer",
+                    "finding_id": "vf_xyz",
+                    "kind": "  ",
+                }),
+            )
+            .is_err()
+        );
         // FAIL: missing finding_id.
-        assert!(validate_event_payload(
-            "frontier.conflict_detected",
-            &json!({
-                "peer_id": "hub:peer",
-                "kind": "missing_in_peer",
-            }),
-        )
-        .is_err());
+        assert!(
+            validate_event_payload(
+                "frontier.conflict_detected",
+                &json!({
+                    "peer_id": "hub:peer",
+                    "kind": "missing_in_peer",
+                }),
+            )
+            .is_err()
+        );
     }
 
     // v0.38 — causal-typing event validation
     #[test]
     fn validates_reinterpreted_causal_payload() {
         // OK: missing claim/grade is fine (None means no prior reading).
-        assert!(validate_event_payload(
-            "assertion.reinterpreted_causal",
-            &json!({
-                "proposal_id": "vpr_test",
-                "before": {},
-                "after": { "claim": "intervention", "grade": "rct" },
-            }),
-        )
-        .is_ok());
+        assert!(
+            validate_event_payload(
+                "assertion.reinterpreted_causal",
+                &json!({
+                    "proposal_id": "vpr_test",
+                    "before": {},
+                    "after": { "claim": "intervention", "grade": "rct" },
+                }),
+            )
+            .is_ok()
+        );
         // OK: pure claim revision, no grade.
-        assert!(validate_event_payload(
-            "assertion.reinterpreted_causal",
-            &json!({
-                "proposal_id": "vpr_test",
-                "before": { "claim": "correlation" },
-                "after": { "claim": "mediation" },
-            }),
-        )
-        .is_ok());
+        assert!(
+            validate_event_payload(
+                "assertion.reinterpreted_causal",
+                &json!({
+                    "proposal_id": "vpr_test",
+                    "before": { "claim": "correlation" },
+                    "after": { "claim": "mediation" },
+                }),
+            )
+            .is_ok()
+        );
         // FAIL: invalid claim.
-        assert!(validate_event_payload(
-            "assertion.reinterpreted_causal",
-            &json!({
-                "proposal_id": "vpr_test",
-                "before": {},
-                "after": { "claim": "magic" },
-            }),
-        )
-        .is_err());
+        assert!(
+            validate_event_payload(
+                "assertion.reinterpreted_causal",
+                &json!({
+                    "proposal_id": "vpr_test",
+                    "before": {},
+                    "after": { "claim": "magic" },
+                }),
+            )
+            .is_err()
+        );
         // FAIL: invalid grade.
-        assert!(validate_event_payload(
-            "assertion.reinterpreted_causal",
-            &json!({
-                "proposal_id": "vpr_test",
-                "before": {},
-                "after": { "claim": "intervention", "grade": "vibes" },
-            }),
-        )
-        .is_err());
+        assert!(
+            validate_event_payload(
+                "assertion.reinterpreted_causal",
+                &json!({
+                    "proposal_id": "vpr_test",
+                    "before": {},
+                    "after": { "claim": "intervention", "grade": "vibes" },
+                }),
+            )
+            .is_err()
+        );
         // FAIL: missing proposal_id.
-        assert!(validate_event_payload(
-            "assertion.reinterpreted_causal",
-            &json!({
-                "before": {},
-                "after": { "claim": "intervention" },
-            }),
-        )
-        .is_err());
+        assert!(
+            validate_event_payload(
+                "assertion.reinterpreted_causal",
+                &json!({
+                    "before": {},
+                    "after": { "claim": "intervention" },
+                }),
+            )
+            .is_err()
+        );
     }
 
     /// v0.49: a `key.revoke` event names the revoked pubkey, the
@@ -1072,83 +1090,95 @@ mod tests {
     /// Tests cover the four real failure modes plus the happy path.
     #[test]
     fn revocation_payload_validation() {
-        let good_pubkey =
-            "4892f93877e637b5f59af31d9ec6704814842fb278cacb0eb94704baef99455e";
-        let other_pubkey =
-            "8891a2ab35ca2ed2182ed4e46b6567ce8dacc9985eb496d895578201272a1cd9";
+        let good_pubkey = "4892f93877e637b5f59af31d9ec6704814842fb278cacb0eb94704baef99455e";
+        let other_pubkey = "8891a2ab35ca2ed2182ed4e46b6567ce8dacc9985eb496d895578201272a1cd9";
 
         // OK: minimal valid payload.
-        assert!(validate_event_payload(
-            EVENT_KIND_KEY_REVOKE,
-            &json!({
-                "revoked_pubkey": good_pubkey,
-                "revoked_at": "2026-05-01T17:00:00Z",
-            }),
-        )
-        .is_ok());
+        assert!(
+            validate_event_payload(
+                EVENT_KIND_KEY_REVOKE,
+                &json!({
+                    "revoked_pubkey": good_pubkey,
+                    "revoked_at": "2026-05-01T17:00:00Z",
+                }),
+            )
+            .is_ok()
+        );
 
         // OK: full payload with replacement and reason.
-        assert!(validate_event_payload(
-            EVENT_KIND_KEY_REVOKE,
-            &json!({
-                "revoked_pubkey": good_pubkey,
-                "revoked_at": "2026-05-01T17:00:00Z",
-                "replacement_pubkey": other_pubkey,
-                "reason": "key file leaked",
-            }),
-        )
-        .is_ok());
+        assert!(
+            validate_event_payload(
+                EVENT_KIND_KEY_REVOKE,
+                &json!({
+                    "revoked_pubkey": good_pubkey,
+                    "revoked_at": "2026-05-01T17:00:00Z",
+                    "replacement_pubkey": other_pubkey,
+                    "reason": "key file leaked",
+                }),
+            )
+            .is_ok()
+        );
 
         // FAIL: revoked_pubkey wrong length (32 bytes ASCII, not 64 hex).
-        assert!(validate_event_payload(
-            EVENT_KIND_KEY_REVOKE,
-            &json!({
-                "revoked_pubkey": "abc123",
-                "revoked_at": "2026-05-01T17:00:00Z",
-            }),
-        )
-        .is_err());
+        assert!(
+            validate_event_payload(
+                EVENT_KIND_KEY_REVOKE,
+                &json!({
+                    "revoked_pubkey": "abc123",
+                    "revoked_at": "2026-05-01T17:00:00Z",
+                }),
+            )
+            .is_err()
+        );
 
         // FAIL: revoked_pubkey contains non-hex chars.
-        assert!(validate_event_payload(
-            EVENT_KIND_KEY_REVOKE,
-            &json!({
-                "revoked_pubkey": "ZZ".repeat(32),
-                "revoked_at": "2026-05-01T17:00:00Z",
-            }),
-        )
-        .is_err());
+        assert!(
+            validate_event_payload(
+                EVENT_KIND_KEY_REVOKE,
+                &json!({
+                    "revoked_pubkey": "ZZ".repeat(32),
+                    "revoked_at": "2026-05-01T17:00:00Z",
+                }),
+            )
+            .is_err()
+        );
 
         // FAIL: missing revoked_at.
-        assert!(validate_event_payload(
-            EVENT_KIND_KEY_REVOKE,
-            &json!({
-                "revoked_pubkey": good_pubkey,
-            }),
-        )
-        .is_err());
+        assert!(
+            validate_event_payload(
+                EVENT_KIND_KEY_REVOKE,
+                &json!({
+                    "revoked_pubkey": good_pubkey,
+                }),
+            )
+            .is_err()
+        );
 
         // FAIL: replacement_pubkey wrong length.
-        assert!(validate_event_payload(
-            EVENT_KIND_KEY_REVOKE,
-            &json!({
-                "revoked_pubkey": good_pubkey,
-                "revoked_at": "2026-05-01T17:00:00Z",
-                "replacement_pubkey": "deadbeef",
-            }),
-        )
-        .is_err());
+        assert!(
+            validate_event_payload(
+                EVENT_KIND_KEY_REVOKE,
+                &json!({
+                    "revoked_pubkey": good_pubkey,
+                    "revoked_at": "2026-05-01T17:00:00Z",
+                    "replacement_pubkey": "deadbeef",
+                }),
+            )
+            .is_err()
+        );
 
         // FAIL: replacement equals revoked (no-op rotation).
-        assert!(validate_event_payload(
-            EVENT_KIND_KEY_REVOKE,
-            &json!({
-                "revoked_pubkey": good_pubkey,
-                "revoked_at": "2026-05-01T17:00:00Z",
-                "replacement_pubkey": good_pubkey,
-            }),
-        )
-        .is_err());
+        assert!(
+            validate_event_payload(
+                EVENT_KIND_KEY_REVOKE,
+                &json!({
+                    "revoked_pubkey": good_pubkey,
+                    "revoked_at": "2026-05-01T17:00:00Z",
+                    "replacement_pubkey": good_pubkey,
+                }),
+            )
+            .is_err()
+        );
 
         // FAIL: revoked_at is non-empty but not a valid ISO-8601 stamp.
         // The v0.49.1 validator parses it as RFC-3339 so typos can't
@@ -1159,8 +1189,8 @@ mod tests {
         // fail, which is the bar we care about.
         for bad in [
             "yesterday",
-            "2026-13-01T00:00:00Z",   // month 13
-            "2026-05-01",             // date only, no time
+            "2026-13-01T00:00:00Z", // month 13
+            "2026-05-01",           // date only, no time
             "x",
         ] {
             assert!(

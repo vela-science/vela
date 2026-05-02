@@ -13,8 +13,8 @@
 //! let llm_count = link::infer_links(&client, &config, &mut all_bundles).await.unwrap_or(0);
 //! println!("  -> {llm_count} LLM links inferred");
 //! ```
-use std::collections::HashSet;
 use crate::bundle::FindingBundle;
+use std::collections::HashSet;
 // ── Deterministic entity-overlap linking ─────────────────────────────
 
 /// Run a fast, deterministic linking pass based on shared entities between
@@ -291,9 +291,9 @@ mod tests {
                 gravity_well: false,
                 review_state: None,
                 superseded: false,
-            signature_threshold: None,
-            jointly_accepted: false,
-        },
+                signature_threshold: None,
+                jointly_accepted: false,
+            },
             links: vec![],
             annotations: vec![],
             attachments: vec![],

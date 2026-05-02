@@ -170,9 +170,13 @@ import { REPO_URL } from "../config";
           the protocol. There is no central key authority that gates participation.
         </p>
         <p>
-          <strong>Three independent reducer implementations.</strong> Rust, Python, TypeScript
-          — each can replay the event log to byte-identical state. Anyone worried about
-          implementation lock-in can verify against a different reducer in twenty minutes.
+          <strong>Two independent reducer implementations</strong> — a Rust reducer in
+          <code>crates/vela-protocol</code> and a stdlib-only Python reducer in
+          <code>clients/python/vela_reducer.py</code> — each replays the event log to
+          byte-identical finding state. CI runs the parity check on every push. A
+          third reducer (TypeScript) is on the v1 roadmap; the bit-stability claim
+          does not depend on it because it is already a cross-language claim, not a
+          single-language claim.
         </p>
         <p>
           The defense isn't "we promise to stay open." The defense is that closing wouldn't

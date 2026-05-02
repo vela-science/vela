@@ -142,16 +142,10 @@ pub async fn run(input: NotesInput) -> Result<NotesReport, String> {
         ..Default::default()
     };
 
-    let existing_finding_ids: HashSet<String> = frontier
-        .findings
-        .iter()
-        .map(|f| f.id.clone())
-        .collect();
-    let existing_proposal_ids: HashSet<String> = frontier
-        .proposals
-        .iter()
-        .map(|p| p.id.clone())
-        .collect();
+    let existing_finding_ids: HashSet<String> =
+        frontier.findings.iter().map(|f| f.id.clone()).collect();
+    let existing_proposal_ids: HashSet<String> =
+        frontier.proposals.iter().map(|p| p.id.clone()).collect();
 
     let mut new_proposals: Vec<StateProposal> = Vec::new();
 
@@ -298,14 +292,7 @@ fn stage(
         });
         return;
     }
-    let proposal = build_finding_add_proposal(
-        &finding,
-        ctx,
-        source_label,
-        &rationale,
-        &[],
-        run,
-    );
+    let proposal = build_finding_add_proposal(&finding, ctx, source_label, &rationale, &[], run);
     if existing_proposal_ids.contains(&proposal.id) {
         skipped.push(SkippedNote {
             path: format!("{source_label}#{}", proposal.id),
@@ -658,14 +645,10 @@ fn lift_open_question(q: &MOpenQuestion, label: &str) -> FindingBundle {
         entities: Vec::new(),
         relation: None,
         direction: None,
-            causal_claim: None,
-            causal_evidence_grade: None,
-        };
-    let confidence = Confidence::raw(
-        0.0,
-        "notes_compiler: open question, no evidence yet",
-        0.7,
-    );
+        causal_claim: None,
+        causal_evidence_grade: None,
+    };
+    let confidence = Confidence::raw(0.0, "notes_compiler: open question, no evidence yet", 0.7);
     FindingBundle::new(
         assertion,
         evidence,
@@ -721,9 +704,9 @@ fn lift_candidate_finding(c: &MCandidateFinding, label: &str) -> FindingBundle {
         entities: Vec::new(),
         relation: None,
         direction: None,
-            causal_claim: None,
-            causal_evidence_grade: None,
-        };
+        causal_claim: None,
+        causal_evidence_grade: None,
+    };
     let confidence = Confidence::raw(
         0.5,
         "notes_compiler: candidate finding from researcher's notes",
@@ -749,10 +732,7 @@ fn lift_tension(t: &MTension, label: &str) -> FindingBundle {
         format!(" Why: {}", t.why)
     };
     let assertion = Assertion {
-        text: format!(
-            "Tension: \"{}\" vs \"{}\".{why}",
-            t.claim_a, t.claim_b
-        ),
+        text: format!("Tension: \"{}\" vs \"{}\".{why}", t.claim_a, t.claim_b),
         assertion_type: "tension".to_string(),
         entities: Vec::new(),
         relation: None,
@@ -760,11 +740,7 @@ fn lift_tension(t: &MTension, label: &str) -> FindingBundle {
         causal_claim: None,
         causal_evidence_grade: None,
     };
-    let confidence = Confidence::raw(
-        0.0,
-        "notes_compiler: tension surfaced for review",
-        0.7,
-    );
+    let confidence = Confidence::raw(0.0, "notes_compiler: tension surfaced for review", 0.7);
     FindingBundle::new(
         assertion,
         evidence,

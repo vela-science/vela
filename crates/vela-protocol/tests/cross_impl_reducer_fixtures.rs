@@ -25,7 +25,7 @@ use serde_json::{Map, Value, json};
 use std::path::PathBuf;
 
 use vela_protocol::bundle::{
-    Assertion, Author, Confidence, ConfidenceKind, ConfidenceMethod, Conditions, Entity, Evidence,
+    Assertion, Author, Conditions, Confidence, ConfidenceKind, ConfidenceMethod, Entity, Evidence,
     Extraction, FindingBundle, Flags, Link, Provenance,
 };
 use vela_protocol::events::{self, FindingEventInput, NULL_HASH};
@@ -179,10 +179,7 @@ fn synthetic_id(frontier_idx: usize, finding_idx: usize) -> String {
     FindingBundle::content_address(&assertion, &provenance)
 }
 
-fn build_event_log(
-    frontier_idx: usize,
-    findings: &[FindingBundle],
-) -> Vec<events::StateEvent> {
+fn build_event_log(frontier_idx: usize, findings: &[FindingBundle]) -> Vec<events::StateEvent> {
     let mut log = Vec::new();
     let actor_id = format!("reviewer:cross-impl-{frontier_idx}");
     for f in findings {
@@ -305,7 +302,11 @@ fn build_review_branches_log(
         // Alternate integer vs fractional new_score to stress the
         // basis-string formatting (Rust {:.3}, Python :.3f, JS
         // .toFixed(3)) and the digest 6-decimal boundary.
-        let (prev, new) = if i % 2 == 0 { (0.7, 1.0) } else { (0.7, 0.42_f64) };
+        let (prev, new) = if i % 2 == 0 {
+            (0.7, 1.0)
+        } else {
+            (0.7, 0.42_f64)
+        };
         let revise_reason = format!("revise to {new:.3}");
         log.push(events::new_finding_event(FindingEventInput {
             kind: "finding.confidence_revised",
@@ -485,8 +486,7 @@ fn export_one(
     });
 
     let path = out_dir.join(format!("cascade-fixture-{fixture_idx:02}.json"));
-    std::fs::write(&path, serde_json::to_string_pretty(&fixture).unwrap())
-        .expect("write fixture");
+    std::fs::write(&path, serde_json::to_string_pretty(&fixture).unwrap()).expect("write fixture");
     eprintln!("wrote {}", path.display());
 }
 
@@ -516,7 +516,13 @@ fn export_cross_impl_reducer_fixtures() {
             .map(|i| make_finding(frontier_idx, i))
             .collect();
         let event_log = build_review_branches_log(frontier_idx, &findings);
-        export_one(&out_dir, frontier_idx, "review_branches", findings, event_log);
+        export_one(
+            &out_dir,
+            frontier_idx,
+            "review_branches",
+            findings,
+            event_log,
+        );
     }
 
     // Fixture 04 — annotations + rejected scenario. Exercises both

@@ -197,9 +197,7 @@ fn score_finding(
     // findings that have no `Replication` records yet. A finding gets
     // the multiplier only when at least one `replicated` outcome is
     // recorded; a `failed` outcome with no successes loses it.
-    let has_record = replications
-        .iter()
-        .any(|r| r.target_finding == finding.id);
+    let has_record = replications.iter().any(|r| r.target_finding == finding.id);
     let has_success = replications
         .iter()
         .any(|r| r.target_finding == finding.id && r.outcome == "replicated");
@@ -562,9 +560,9 @@ mod tests {
                 gravity_well: false,
                 review_state: None,
                 superseded: false,
-            signature_threshold: None,
-            jointly_accepted: false,
-        },
+                signature_threshold: None,
+                jointly_accepted: false,
+            },
             links: vec![],
             annotations: vec![],
             attachments: vec![],

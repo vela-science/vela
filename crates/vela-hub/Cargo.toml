@@ -31,3 +31,6 @@ flate2 = "1.0"
 ed25519-dalek.workspace = true
 chrono.workspace = true
 hex = "0.4"
+
+[lints]
+workspace = true

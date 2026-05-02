@@ -25,10 +25,10 @@ use crate::new_run_id;
 /// agent's own `run` function stays small.
 #[derive(Debug, Clone)]
 pub struct AgentContext {
-    pub agent_name: String,    // e.g. "literature-scout"
-    pub actor_id: String,      // e.g. "agent:literature-scout"
-    pub run_id: String,        // vrun_…
-    pub started_at: String,    // RFC3339
+    pub agent_name: String, // e.g. "literature-scout"
+    pub actor_id: String,   // e.g. "agent:literature-scout"
+    pub run_id: String,     // vrun_…
+    pub started_at: String, // RFC3339
     pub model: Option<String>,
     pub cli_command: String,
     pub frontier_path: PathBuf,
@@ -70,11 +70,14 @@ impl AgentContext {
 /// agent only adds its own.
 #[must_use]
 pub fn agent_run_meta(ctx: &AgentContext, mut extra: BTreeMap<String, String>) -> AgentRun {
-    extra.entry("backend".to_string())
+    extra
+        .entry("backend".to_string())
         .or_insert_with(|| "claude-cli".to_string());
-    extra.entry("cli_command".to_string())
+    extra
+        .entry("cli_command".to_string())
         .or_insert_with(|| ctx.cli_command.clone());
-    extra.entry("input_root".to_string())
+    extra
+        .entry("input_root".to_string())
         .or_insert_with(|| ctx.input_root.display().to_string());
     AgentRun {
         agent: ctx.agent_name.clone(),
@@ -149,8 +152,7 @@ pub fn build_finding_add_proposal(
 /// directories. Recursive walking lands in v0.24+ if the dogfood
 /// runs show it's needed.
 pub fn discover_files(root: &Path, extensions: &[&str]) -> Result<Vec<PathBuf>, String> {
-    let entries = std::fs::read_dir(root)
-        .map_err(|e| format!("read {}: {e}", root.display()))?;
+    let entries = std::fs::read_dir(root).map_err(|e| format!("read {}: {e}", root.display()))?;
     let mut out = Vec::new();
     for entry in entries.flatten() {
         let path = entry.path();
@@ -187,8 +189,8 @@ pub fn discover_files_recursive(
     let mut out = Vec::new();
     let mut stack: Vec<PathBuf> = vec![root.to_path_buf()];
     while let Some(dir) = stack.pop() {
-        let entries = std::fs::read_dir(&dir)
-            .map_err(|e| format!("read {}: {e}", dir.display()))?;
+        let entries =
+            std::fs::read_dir(&dir).map_err(|e| format!("read {}: {e}", dir.display()))?;
         for entry in entries.flatten() {
             let path = entry.path();
             let basename = path
@@ -267,12 +269,9 @@ mod tests {
         std::fs::create_dir(dir.path().join(".git")).unwrap();
         std::fs::write(dir.path().join(".git/skip.md"), b"x").unwrap();
 
-        let mds = discover_files_recursive(
-            dir.path(),
-            &["md"],
-            &["node_modules", "target", "dist"],
-        )
-        .unwrap();
+        let mds =
+            discover_files_recursive(dir.path(), &["md"], &["node_modules", "target", "dist"])
+                .unwrap();
         let names: Vec<String> = mds
             .iter()
             .map(|p| p.file_name().unwrap().to_string_lossy().into_owned())

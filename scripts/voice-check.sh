@@ -55,11 +55,33 @@ EMOJI_RX=$'[\U0001F300-\U0001FAFF\U00002600-\U000027BF]'
 while read -r file; do
   # BRAND.md is the ban-list canon itself — exempt from the ban word scan.
   if [[ $file != "docs/BRAND.md" ]]; then
-    if grep -nE "$BAN_RX" "$file" >/dev/null 2>&1; then
-      hits=$(grep -nE "$BAN_RX" "$file")
+    # Use Python to strip inline-code spans (single, double, triple backticks)
+    # before testing for ban-list words. Lets PRODUCT.md / AGENTS.md / DESIGN.md
+    # cite the ban-list as documentation without triggering itself.
+    if ! python3 -c "
+import sys, re
+ban = re.compile(r'\b(unlock|supercharge|AI-powered|revolutionize|blazing|next-generation|game-changing|cutting-edge)\b')
+in_fence = False
+hits = []
+for i, line in enumerate(open(sys.argv[1], encoding='utf-8'), 1):
+    stripped = line.rstrip('\n')
+    if stripped.lstrip().startswith('\`\`\`'):
+        in_fence = not in_fence
+        continue
+    if in_fence:
+        continue
+    # strip inline-code spans
+    cleaned = re.sub(r'\`[^\`]*\`', '', stripped)
+    if ban.search(cleaned):
+        hits.append(f'{sys.argv[1]}:{i}: {stripped}')
+if hits:
+    for h in hits: print(h)
+    sys.exit(1)
+" "$file" >/tmp/voice_check_ban_$$.out 2>/dev/null; then
       report "banned hype word in $file:"
-      while IFS= read -r line; do echo "      $line"; done <<<"$hits"
+      while IFS= read -r line; do echo "      $line"; done </tmp/voice_check_ban_$$.out
     fi
+    rm -f /tmp/voice_check_ban_$$.out
   fi
 
   if grep -nE "$H3_TITLECASE_RX" "$file" >/dev/null 2>&1; then
@@ -71,8 +93,16 @@ while read -r file; do
   if python3 -c "
 import sys, re
 s = open(sys.argv[1], encoding='utf-8').read()
+# Tally / arrow / editorial dingbats are allowed: ✓ ✗ ✔ ✘ ★ → ↗ ↘ etc.
+ALLOW = {'✓','✗','✔','✘','★','☆',
+         '→','←','↑','↓','↗','↘','↙','↖',
+         '—','–','…'}
 pat = re.compile(r'[\U0001F300-\U0001FAFF\U00002600-\U000027BF]')
-hits = [(i+1, line) for i, line in enumerate(s.splitlines()) if pat.search(line)]
+hits = []
+for i, line in enumerate(s.splitlines(), 1):
+    found = [c for c in line if pat.match(c) and c not in ALLOW]
+    if found:
+        hits.append((i, line))
 if hits:
     for n, l in hits: print(f'{sys.argv[1]}:{n}: {l}')
     sys.exit(1)

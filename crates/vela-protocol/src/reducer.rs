@@ -122,7 +122,7 @@ pub fn replay_from_genesis(
         code_artifacts: Vec::new(),
         predictions: Vec::new(),
         resolutions: Vec::new(),
-            peers: Vec::new(),
+        peers: Vec::new(),
     };
     crate::sources::materialize_project(&mut state);
     for event in events {
@@ -432,9 +432,9 @@ mod tests {
                 gravity_well: false,
                 review_state: None,
                 superseded: false,
-            signature_threshold: None,
-            jointly_accepted: false,
-        },
+                signature_threshold: None,
+                jointly_accepted: false,
+            },
         )
     }
 

@@ -201,7 +201,13 @@ impl CausalGraph {
     ///
     /// Returns paths as `Vec<Vec<String>>`, where each inner Vec is
     /// the node sequence from start to end.
-    pub fn paths_between(&self, start: &str, end: &str, max_paths: usize, max_len: usize) -> Vec<Vec<String>> {
+    pub fn paths_between(
+        &self,
+        start: &str,
+        end: &str,
+        max_paths: usize,
+        max_len: usize,
+    ) -> Vec<Vec<String>> {
         if !self.contains(start) || !self.contains(end) || start == end {
             return Vec::new();
         }
@@ -209,7 +215,15 @@ impl CausalGraph {
         let mut current: Vec<String> = vec![start.to_string()];
         let mut visited: HashSet<String> = HashSet::new();
         visited.insert(start.to_string());
-        self.dfs_paths(start, end, &mut current, &mut visited, &mut all_paths, max_paths, max_len);
+        self.dfs_paths(
+            start,
+            end,
+            &mut current,
+            &mut visited,
+            &mut all_paths,
+            max_paths,
+            max_len,
+        );
         all_paths
     }
 
@@ -266,22 +280,10 @@ impl CausalGraph {
     /// of both neighbors in the path), or collider (B is a child of
     /// both neighbors in the path).
     fn node_role_in_path(&self, prev: &str, node: &str, next: &str) -> NodeRole {
-        let prev_is_parent_of_node = self
-            .parents
-            .get(node)
-            .is_some_and(|ps| ps.contains(prev));
-        let next_is_parent_of_node = self
-            .parents
-            .get(node)
-            .is_some_and(|ps| ps.contains(next));
-        let prev_is_child_of_node = self
-            .children
-            .get(node)
-            .is_some_and(|cs| cs.contains(prev));
-        let next_is_child_of_node = self
-            .children
-            .get(node)
-            .is_some_and(|cs| cs.contains(next));
+        let prev_is_parent_of_node = self.parents.get(node).is_some_and(|ps| ps.contains(prev));
+        let next_is_parent_of_node = self.parents.get(node).is_some_and(|ps| ps.contains(next));
+        let prev_is_child_of_node = self.children.get(node).is_some_and(|cs| cs.contains(prev));
+        let next_is_child_of_node = self.children.get(node).is_some_and(|cs| cs.contains(next));
 
         match (
             prev_is_parent_of_node,
@@ -327,10 +329,7 @@ impl CausalGraph {
                 }
                 NodeRole::Collider => {
                     let in_z = z.contains(node);
-                    let descendant_in_z = self
-                        .descendants(node)
-                        .iter()
-                        .any(|d| z.contains(d));
+                    let descendant_in_z = self.descendants(node).iter().any(|d| z.contains(d));
                     if !in_z && !descendant_in_z {
                         return true;
                     }
@@ -349,9 +348,7 @@ impl CausalGraph {
             return false;
         }
         let second = &path[1];
-        self.parents
-            .get(x)
-            .is_some_and(|ps| ps.contains(second))
+        self.parents.get(x).is_some_and(|ps| ps.contains(second))
     }
 
     /// v0.44.2: True iff every consecutive edge in `path` points
@@ -369,10 +366,7 @@ impl CausalGraph {
             let b = &path[i + 1];
             // edge a → b means b is a child of a (or equivalently,
             // a is a parent of b).
-            let a_is_parent_of_b = self
-                .parents
-                .get(b)
-                .is_some_and(|ps| ps.contains(a));
+            let a_is_parent_of_b = self.parents.get(b).is_some_and(|ps| ps.contains(a));
             if !a_is_parent_of_b {
                 return false;
             }
@@ -422,9 +416,7 @@ pub enum CausalEffectVerdict {
     /// Source and target are not connected, or source has no
     /// directed path to target — the effect question is ill-posed
     /// at the graph level.
-    NoCausalPath {
-        reason: String,
-    },
+    NoCausalPath { reason: String },
     /// At least one open back-door path remains under every
     /// adjustment set the search examined, AND no front-door
     /// mediator was found. The effect is not identifiable from
@@ -434,9 +426,7 @@ pub enum CausalEffectVerdict {
         candidates_tried: usize,
     },
     /// Either source or target is missing from the frontier.
-    UnknownNode {
-        which: String,
-    },
+    UnknownNode { which: String },
 }
 
 impl CausalEffectVerdict {
@@ -473,11 +463,7 @@ impl CausalEffectVerdict {
 /// Subset search is bounded at size 2 by default. For larger graphs
 /// this is incomplete but the existing graph density on Vela is
 /// low enough that empty / singleton / pair coverage is typical.
-pub fn identify_effect(
-    project: &Project,
-    source: &str,
-    target: &str,
-) -> CausalEffectVerdict {
+pub fn identify_effect(project: &Project, source: &str, target: &str) -> CausalEffectVerdict {
     let graph = CausalGraph::from_project(project);
     identify_effect_in_graph(&graph, source, target)
 }
@@ -680,7 +666,9 @@ fn find_front_door_set(
             .filter(|p| graph.is_back_door_path(p, source))
             .collect();
         let empty: HashSet<String> = HashSet::new();
-        let any_open = back_door_sm.iter().any(|p| !graph.is_path_blocked(p, &empty));
+        let any_open = back_door_sm
+            .iter()
+            .any(|p| !graph.is_path_blocked(p, &empty));
         if any_open {
             continue;
         }
@@ -812,7 +800,10 @@ mod tests {
         let v = identify_effect(&p, "vf_a", "vf_c");
         match v {
             CausalEffectVerdict::Identified { adjustment_set, .. } => {
-                assert!(adjustment_set.is_empty(), "chain should need no adjustment, got {adjustment_set:?}");
+                assert!(
+                    adjustment_set.is_empty(),
+                    "chain should need no adjustment, got {adjustment_set:?}"
+                );
             }
             other => panic!("expected Identified for A→B→C, got {other:?}"),
         }

@@ -332,7 +332,7 @@ pub fn assemble(
         code_artifacts: Vec::new(),
         predictions: Vec::new(),
         resolutions: Vec::new(),
-            peers: Vec::new(),
+        peers: Vec::new(),
     };
     crate::sources::materialize_project(&mut project);
     project
@@ -440,7 +440,9 @@ impl Project {
             std::collections::HashMap::with_capacity(self.findings.len());
         for f in &self.findings {
             for link in &f.links {
-                map.entry(link.target.clone()).or_default().push(f.id.clone());
+                map.entry(link.target.clone())
+                    .or_default()
+                    .push(f.id.clone());
             }
         }
         // Stable sort each dependent list so two implementations of the
@@ -549,7 +551,7 @@ mod cross_frontier_dep_tests {
 mod reverse_dep_index_tests {
     use super::*;
     use crate::bundle::{
-        Assertion, Author, Confidence, ConfidenceKind, ConfidenceMethod, Conditions, Evidence,
+        Assertion, Author, Conditions, Confidence, ConfidenceKind, ConfidenceMethod, Evidence,
         Extraction, FindingBundle, Flags, Link, Provenance,
     };
 
@@ -604,7 +606,10 @@ mod reverse_dep_index_tests {
             openalex_id: None,
             url: None,
             title: format!("Synthetic test paper {idx}"),
-            authors: vec![Author { name: "T".into(), orcid: None }],
+            authors: vec![Author {
+                name: "T".into(),
+                orcid: None,
+            }],
             year: None,
             journal: None,
             license: None,
@@ -937,9 +942,9 @@ mod tests {
                 gravity_well: false,
                 review_state: None,
                 superseded: false,
-            signature_threshold: None,
-            jointly_accepted: false,
-        },
+                signature_threshold: None,
+                jointly_accepted: false,
+            },
             links: vec![],
             annotations: vec![],
             attachments: vec![],

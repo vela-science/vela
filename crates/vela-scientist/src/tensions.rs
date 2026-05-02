@@ -315,9 +315,9 @@ fn lift_tension(a: &FindingBundle, b: &FindingBundle, why: &str) -> FindingBundl
         entities: Vec::new(),
         relation: None,
         direction: None,
-            causal_claim: None,
-            causal_evidence_grade: None,
-        };
+        causal_claim: None,
+        causal_evidence_grade: None,
+    };
     let evidence = Evidence {
         evidence_type: "tension_pair".to_string(),
         model_system: String::new(),
@@ -346,11 +346,7 @@ fn lift_tension(a: &FindingBundle, b: &FindingBundle, why: &str) -> FindingBundl
         age_group: None,
         cell_type: None,
     };
-    let confidence = Confidence::raw(
-        0.0,
-        "contradiction_finder: pair surfaced for review",
-        0.7,
-    );
+    let confidence = Confidence::raw(0.0, "contradiction_finder: pair surfaced for review", 0.7);
     let provenance = Provenance {
         source_type: "agent_inference".to_string(),
         doi: None,
@@ -380,7 +376,9 @@ fn lift_tension(a: &FindingBundle, b: &FindingBundle, why: &str) -> FindingBundl
         ..Flags::default()
     };
     let _ = &mut flags;
-    FindingBundle::new(assertion, evidence, conditions, confidence, provenance, flags)
+    FindingBundle::new(
+        assertion, evidence, conditions, confidence, provenance, flags,
+    )
 }
 
 #[cfg(test)]

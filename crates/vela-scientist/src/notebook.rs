@@ -41,10 +41,9 @@ pub struct NbCell {
 }
 
 pub fn parse_ipynb(path: &Path) -> Result<ParsedNotebook, String> {
-    let raw = std::fs::read_to_string(path)
-        .map_err(|e| format!("read {}: {e}", path.display()))?;
-    let nb: Value = serde_json::from_str(&raw)
-        .map_err(|e| format!("parse {} as JSON: {e}", path.display()))?;
+    let raw = std::fs::read_to_string(path).map_err(|e| format!("read {}: {e}", path.display()))?;
+    let nb: Value =
+        serde_json::from_str(&raw).map_err(|e| format!("parse {} as JSON: {e}", path.display()))?;
 
     let cells_raw = nb
         .get("cells")
@@ -53,10 +52,7 @@ pub fn parse_ipynb(path: &Path) -> Result<ParsedNotebook, String> {
 
     let mut cells = Vec::with_capacity(cells_raw.len());
     for cell in cells_raw {
-        let kind = cell
-            .get("cell_type")
-            .and_then(Value::as_str)
-            .unwrap_or("");
+        let kind = cell.get("cell_type").and_then(Value::as_str).unwrap_or("");
         if kind != "code" && kind != "markdown" {
             continue;
         }

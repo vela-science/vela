@@ -84,8 +84,7 @@ pub async fn run(input: ExperimentsInput) -> Result<ExperimentsReport, String> {
         .map_err(|e| format!("load frontier {}: {e}", input.frontier_path.display()))?;
 
     let cap = input.max_findings.unwrap_or(usize::MAX);
-    let mut all_candidates: Vec<FindingBundle> =
-        frontier.findings.clone();
+    let mut all_candidates: Vec<FindingBundle> = frontier.findings.clone();
     for p in &frontier.proposals {
         if p.kind == "finding.add"
             && let Some(v) = p.payload.get("finding")
@@ -244,10 +243,7 @@ struct ExperimentSpec {
     confounders: Vec<String>,
 }
 
-fn call_planner(
-    finding: &FindingBundle,
-    input: &ExperimentsInput,
-) -> Result<PlanOutput, String> {
+fn call_planner(finding: &FindingBundle, input: &ExperimentsInput) -> Result<PlanOutput, String> {
     let user_prompt = build_user_prompt(finding);
     let system_prompt = build_system_prompt();
     let schema = output_schema_json();
@@ -331,9 +327,9 @@ fn lift_experiment(exp: &ExperimentSpec, source: &FindingBundle) -> FindingBundl
         entities: Vec::new(),
         relation: None,
         direction: None,
-            causal_claim: None,
-            causal_evidence_grade: None,
-        };
+        causal_claim: None,
+        causal_evidence_grade: None,
+    };
     let mut spans: Vec<serde_json::Value> = Vec::new();
     spans.push(serde_json::json!({
         "section": "method",
@@ -414,7 +410,9 @@ fn lift_experiment(exp: &ExperimentSpec, source: &FindingBundle) -> FindingBundl
         gap: true,
         ..Flags::default()
     };
-    FindingBundle::new(assertion, evidence, conditions, confidence, provenance, flags)
+    FindingBundle::new(
+        assertion, evidence, conditions, confidence, provenance, flags,
+    )
 }
 
 #[cfg(test)]

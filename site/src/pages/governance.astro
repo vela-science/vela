@@ -108,8 +108,9 @@ import { REPO_URL, HUB_URL, VERSION } from "../config";
         <dd>Ed25519 signatures travel with events. A finding signed for one hub verifies on
           every conformant hub. There is no central key authority that gates participation.</dd>
         <dt>Replaceable reducers</dt>
-        <dd>Three independent reducer implementations, byte-identical. A fourth or fifth can
-          be written in any language. The reference reducer is open-source MIT/Apache.</dd>
+        <dd>Two independent reducer implementations (Rust + Python), byte-identical and
+          checked in CI on every push. A third or fourth can be written in any language.
+          The reference reducer is dual-licensed Apache-2.0 / MIT.</dd>
         <dt>Mirrorable hubs</dt>
         <dd>The hub stores signed manifests pointing at content-addressed frontier files.
           Mirroring is a no-op for authenticity. Anyone can run their own hub against the
