@@ -1,0 +1,458 @@
+---
+/*
+  /proof/packet — browsable manifest for the BBB Flagship proof packet.
+
+  Shows the same data the Rust validator and the Python verifier check
+  byte-for-byte, but rendered in the browser so a visitor doesn't need
+  to clone, build, or run anything to see the seam they're being told
+  about. Manifest summary, signer-relevant metadata, full included-files
+  table with sha256 hashes, and a download link to the same .tar.gz the
+  /try script pulls down.
+
+  Doctrine: the proof packet exists on disk and verifies via two
+  implementations. This page makes it clickable.
+*/
+
+import Page from "../../layouts/Page.astro";
+import { REPO_URL } from "../../config";
+import manifest from "../../data/sample-packet-manifest.json";
+
+type ManifestFile = { path: string; bytes: number; sha256: string };
+type Manifest = {
+  generated_at: string;
+  packet_format: string;
+  packet_version: string;
+  source: {
+    project_name: string;
+    description: string;
+    compiler: string;
+    vela_version: string;
+    schema: string;
+    compiled_at: string;
+  };
+  stats: Record<string, number>;
+  included_files: ManifestFile[];
+};
+
+const m = manifest as Manifest;
+
+const totalBytes = m.included_files.reduce((s, f) => s + f.bytes, 0);
+const totalKB = (totalBytes / 1024).toFixed(1);
+
+// Files to render in gold (canonical / proof-bearing per packet.rs).
+const CANONICAL = new Set([
+  "manifest.json",
+  "packet.lock.json",
+  "proof-trace.json",
+  "ro-crate-metadata.jsonld",
+  "findings/full.json",
+  "sources/source-registry.json",
+  "evidence/evidence-atoms.json",
+  "conditions/condition-records.json",
+  "events/events.json",
+  "events/replay-report.json",
+  "proposals/proposals.json",
+  "reviews/review-events.json",
+  "reviews/confidence-updates.json",
+  "check-summary.json",
+]);
+
+function fmtBytes(b: number): string {
+  if (b < 1024) return `${b} B`;
+  if (b < 1024 * 1024) return `${(b / 1024).toFixed(1)} KB`;
+  return `${(b / (1024 * 1024)).toFixed(2)} MB`;
+}
+
+function shortHash(h: string): string {
+  return `${h.slice(0, 12)}…${h.slice(-6)}`;
+}
+---
+
+<Page
+  title="Proof packet · BBB Flagship · Vela"
+  description="The bytes a skeptic actually wants to see — manifest, included files, sha256 hashes, downloadable."
+  active="proof"
+  eyebrow="Proof · BBB Flagship packet"
+  pageTitle="The bytes the skeptic wants to see"
+  subtitle={`Manifest summary and per-file SHA-256 for the BBB Flagship proof packet — the same packet \`vela verify\` and the Python verifier check byte-for-byte.`}
+>
+  <div slot="aside">
+    <a href="/protocol" class="aside-link">← protocol</a>
+    <span>·</span>
+    <a href="/sample-packet.tar.gz" class="aside-link" download>download .tar.gz</a>
+  </div>
+
+  <article class="pp">
+
+    <!-- ── Quick stats / manifest summary ── -->
+    <section class="pp__summary" aria-label="Manifest summary">
+      <header class="pp__head">
+        <span class="pp__head-tag">manifest summary</span>
+        <span class="pp__head-aside">vela.frontier-packet · {m.packet_version}</span>
+      </header>
+      <dl class="pp__manifest">
+        <div class="pp__manifest-row">
+          <dt>project</dt>
+          <dd>{m.source.project_name}</dd>
+        </div>
+        <div class="pp__manifest-row">
+          <dt>vela version</dt>
+          <dd><code>{m.source.compiler}</code></dd>
+        </div>
+        <div class="pp__manifest-row">
+          <dt>schema</dt>
+          <dd><a class="inline-link" href={m.source.schema} rel="noopener"><code>{m.source.schema.replace(/^https?:\/\//, '')}</code></a></dd>
+        </div>
+        <div class="pp__manifest-row">
+          <dt>generated</dt>
+          <dd><code>{m.generated_at}</code></dd>
+        </div>
+        <div class="pp__manifest-row">
+          <dt>files</dt>
+          <dd>{m.included_files.length} · {fmtBytes(totalBytes)} total</dd>
+        </div>
+        <div class="pp__manifest-row">
+          <dt>scope</dt>
+          <dd>{m.source.description}</dd>
+        </div>
+      </dl>
+    </section>
+
+    <!-- ── Stats — what's inside the packet ── -->
+    <section class="pp__stats" aria-label="Packet contents">
+      <div class="pp__stat">
+        <span class="pp__stat-num">{m.stats.findings}</span>
+        <span class="pp__stat-label">findings</span>
+      </div>
+      <div class="pp__stat">
+        <span class="pp__stat-num">{m.stats.evidence_atoms}</span>
+        <span class="pp__stat-label">evidence atoms</span>
+      </div>
+      <div class="pp__stat">
+        <span class="pp__stat-num">{m.stats.condition_records}</span>
+        <span class="pp__stat-label">conditions</span>
+      </div>
+      <div class="pp__stat">
+        <span class="pp__stat-num">{m.stats.sources}</span>
+        <span class="pp__stat-label">sources</span>
+      </div>
+      <div class="pp__stat">
+        <span class="pp__stat-num">{m.stats.contested}</span>
+        <span class="pp__stat-label">contested</span>
+      </div>
+      <div class="pp__stat">
+        <span class="pp__stat-num">{m.stats.contradiction_edges}</span>
+        <span class="pp__stat-label">contradiction edges</span>
+      </div>
+      <div class="pp__stat">
+        <span class="pp__stat-num">{m.stats.bridge_entities}</span>
+        <span class="pp__stat-label">bridges</span>
+      </div>
+      <div class="pp__stat">
+        <span class="pp__stat-num">{m.stats.gaps}</span>
+        <span class="pp__stat-label">gaps</span>
+      </div>
+    </section>
+
+    <!-- ── Included files table — the seam ── -->
+    <section class="pp__files" aria-label="Included files">
+      <header class="pp__head">
+        <span class="pp__head-tag">included files · sha-256</span>
+        <span class="pp__head-aside">{m.included_files.length} files · canonical files in gold</span>
+      </header>
+      <table class="pp__table">
+        <thead>
+          <tr>
+            <th class="pp__th pp__th--path">path</th>
+            <th class="pp__th pp__th--bytes">bytes</th>
+            <th class="pp__th pp__th--hash">sha-256</th>
+          </tr>
+        </thead>
+        <tbody>
+          {m.included_files.map((f) => {
+            const isCanonical = CANONICAL.has(f.path);
+            return (
+              <tr class={`pp__row${isCanonical ? " pp__row--canonical" : ""}`}>
+                <td class="pp__td pp__td--path">
+                  <code>{f.path}</code>
+                  {isCanonical && <span class="pp__chip">canonical</span>}
+                </td>
+                <td class="pp__td pp__td--bytes">{fmtBytes(f.bytes)}</td>
+                <td class="pp__td pp__td--hash" title={f.sha256}><code>{shortHash(f.sha256)}</code></td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </section>
+
+    <!-- ── How to verify ── -->
+    <section class="pp__verify">
+      <header class="pp__head">
+        <span class="pp__head-tag">verify these hashes yourself</span>
+        <span class="pp__head-aside">two implementations · ~30 seconds · no install</span>
+      </header>
+      <p class="pp__verify-line">
+        Either pipe to bash for the convenience version, or read the script first and run by hand.
+        Both run a stdlib-only Python verifier against the same .tar.gz this page links.
+      </p>
+      <pre class="pp__verify-code"><code><span class="tm-comment"># convenience</span>
+<span class="tm-ps">$</span> <span class="tm-cmd">curl</span> <span class="tm-flag">-sSL</span> https://vela.science/try | <span class="tm-cmd">bash</span>
+
+<span class="tm-comment"># careful (read it first)</span>
+<span class="tm-ps">$</span> <span class="tm-cmd">curl</span> <span class="tm-flag">-sSL</span> https://vela.science/try | <span class="tm-cmd">less</span>
+<span class="tm-ps">$</span> <span class="tm-cmd">curl</span> <span class="tm-flag">-O</span> https://vela.science/sample-packet.tar.gz
+<span class="tm-ps">$</span> <span class="tm-cmd">curl</span> <span class="tm-flag">-O</span> https://vela.science/vela_verify.py
+<span class="tm-ps">$</span> <span class="tm-cmd">tar</span> <span class="tm-flag">-xzf</span> sample-packet.tar.gz
+<span class="tm-ps">$</span> <span class="tm-cmd">python3</span> vela_verify.py ./bbb-alzheimer-proof-packet</code></pre>
+      <p class="pp__verify-caption">
+        The Rust binary at <a class="inline-link" href={REPO_URL} rel="noopener">github.com/willblair0708/vela</a>
+        computes the same hashes via <code>vela verify &lt;packet&gt;</code>. Two implementations, byte-identical agreement.
+      </p>
+    </section>
+
+  </article>
+</Page>
+
+<style>
+  .aside-link {
+    font-family: var(--font-mono);
+    font-size: var(--size-xs);
+    letter-spacing: 0.06em;
+    color: var(--ink-3);
+  }
+  .aside-link:hover { color: var(--gold); }
+  div[slot="aside"] {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .inline-link {
+    color: var(--ink-1);
+    text-decoration: underline;
+    text-decoration-color: color-mix(in oklab, var(--gold) 56%, transparent);
+    text-underline-offset: 3px;
+    text-decoration-thickness: 1px;
+    transition: color var(--dur-1) var(--ease), text-decoration-color var(--dur-1) var(--ease);
+  }
+  .inline-link:hover { color: var(--gold); text-decoration-color: var(--gold); }
+
+  .pp { padding: 8px 0 32px; max-width: var(--measure-wide, 72ch); margin: 0 auto; }
+  .pp section { margin: 0 0 var(--space-7); }
+
+  .pp__head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: var(--space-3);
+    padding-bottom: 8px;
+    border-bottom: 1px solid color-mix(in oklab, var(--gold) 32%, transparent);
+    flex-wrap: wrap;
+  }
+  .pp__head-tag {
+    font-family: var(--font-mono);
+    font-size: var(--size-kicker);
+    letter-spacing: var(--track-imprint);
+    text-transform: uppercase;
+    color: color-mix(in oklab, var(--gold) 76%, var(--ink-2));
+    font-weight: 500;
+  }
+  .pp__head-aside {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: color-mix(in oklab, var(--ink-3) 92%, transparent);
+  }
+
+  /* Manifest summary */
+  .pp__manifest {
+    display: grid;
+    gap: 10px 0;
+    margin: 0;
+    padding: 0;
+  }
+  .pp__manifest-row {
+    display: grid;
+    grid-template-columns: 9rem 1fr;
+    gap: 14px;
+    align-items: baseline;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--rule-1);
+  }
+  @media (max-width: 720px) {
+    .pp__manifest-row { grid-template-columns: 1fr; gap: 2px; }
+  }
+  .pp__manifest-row dt {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: color-mix(in oklab, var(--ink-3) 92%, transparent);
+    margin: 0;
+  }
+  .pp__manifest-row dd {
+    font-family: var(--font-sans);
+    font-size: 0.96rem;
+    line-height: 1.5;
+    color: var(--ink-1);
+    margin: 0;
+    text-wrap: pretty;
+  }
+  .pp__manifest-row dd code {
+    font-family: var(--font-mono);
+    font-size: 0.86em;
+    color: var(--ink-0);
+  }
+
+  /* Stats */
+  .pp__stats {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 0;
+    border-top: 1px solid var(--rule-2);
+    border-bottom: 1px solid var(--rule-2);
+  }
+  @media (max-width: 1100px) { .pp__stats { grid-template-columns: repeat(4, 1fr); } }
+  @media (max-width: 720px)  { .pp__stats { grid-template-columns: repeat(2, 1fr); } }
+  .pp__stat {
+    padding: var(--space-4) var(--space-3);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    border-right: 1px solid var(--rule-1);
+  }
+  .pp__stat:last-child { border-right: 0; }
+  .pp__stat-num {
+    font-family: var(--font-sans);
+    font-weight: 500;
+    font-size: clamp(1.4rem, 2.4vw, 1.8rem);
+    line-height: 1;
+    color: var(--ink-0);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+  }
+  .pp__stat-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: color-mix(in oklab, var(--ink-3) 92%, transparent);
+  }
+
+  /* Files table */
+  .pp__table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--font-mono);
+    font-size: 12px;
+  }
+  .pp__th {
+    text-align: left;
+    padding: 8px 10px;
+    border-bottom: 1px solid color-mix(in oklab, var(--gold) 32%, transparent);
+    font-weight: 500;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: color-mix(in oklab, var(--ink-3) 92%, transparent);
+  }
+  .pp__th--bytes { text-align: right; width: 80px; }
+  .pp__th--hash { width: 220px; }
+  .pp__row {
+    border-bottom: 1px solid var(--rule-1);
+    transition: background var(--dur-1) var(--ease);
+  }
+  .pp__row:hover { background: var(--paper-1); }
+  .pp__td {
+    padding: 7px 10px;
+    color: var(--ink-1);
+    line-height: 1.5;
+    vertical-align: top;
+  }
+  .pp__td--path code {
+    color: var(--ink-0);
+    font-size: inherit;
+    background: transparent;
+    padding: 0;
+    border: 0;
+  }
+  .pp__row--canonical .pp__td--path code {
+    color: color-mix(in oklab, var(--gold) 88%, var(--ink-1));
+    font-weight: 500;
+  }
+  .pp__td--bytes {
+    text-align: right;
+    color: var(--ink-2);
+    font-variant-numeric: tabular-nums;
+  }
+  .pp__td--hash code {
+    color: var(--ink-3);
+    background: transparent;
+    padding: 0;
+    border: 0;
+  }
+  .pp__chip {
+    display: inline-block;
+    margin-left: 8px;
+    padding: 1px 6px;
+    background: color-mix(in oklab, var(--gold) 14%, transparent);
+    border: 1px solid color-mix(in oklab, var(--gold) 38%, transparent);
+    border-radius: 3px;
+    font-family: var(--font-mono);
+    font-size: 9px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: color-mix(in oklab, var(--gold) 80%, var(--ink-2));
+    vertical-align: middle;
+  }
+  @media (max-width: 720px) {
+    .pp__th--hash, .pp__td--hash { display: none; }
+  }
+
+  /* Verify block */
+  .pp__verify-line {
+    font-family: var(--font-sans);
+    font-size: 0.96rem;
+    line-height: 1.55;
+    color: color-mix(in oklab, var(--ink-1) 90%, var(--ink-2));
+    margin: 0 0 var(--space-3);
+    max-width: 64ch;
+  }
+  .pp__verify-code {
+    margin: 0 0 var(--space-3);
+    padding: 14px 18px 16px;
+    background: var(--paper-1);
+    border: 1px solid var(--rule-2);
+    border-radius: var(--radius-sm);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.65;
+    color: var(--ink-1);
+    overflow-x: auto;
+    white-space: pre;
+  }
+  .pp__verify-code code { background: transparent; border: 0; padding: 0; font: inherit; color: inherit; }
+  .pp__verify-code .tm-ps      { color: color-mix(in oklab, var(--gold) 56%, var(--ink-3)); }
+  .pp__verify-code .tm-cmd     { color: var(--ink-0); font-weight: 500; }
+  .pp__verify-code .tm-flag    { color: var(--ink-2); }
+  .pp__verify-code .tm-comment { color: color-mix(in oklab, var(--ink-3) 72%, transparent); font-style: italic; }
+  .pp__verify-caption {
+    font-family: var(--font-sans);
+    font-size: 0.92rem;
+    line-height: 1.5;
+    color: color-mix(in oklab, var(--ink-2) 92%, transparent);
+    margin: 0;
+    max-width: 60ch;
+  }
+  .pp__verify-caption code {
+    font-family: var(--font-mono);
+    font-size: 0.86em;
+    background: var(--paper-1);
+    padding: 1px 6px;
+    border-radius: 3px;
+    border: 1px solid var(--rule-1);
+    color: var(--ink-0);
+  }
+</style>

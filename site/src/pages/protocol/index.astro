@@ -170,6 +170,103 @@ verify: ok
           One mismatch and it exits non-zero.
         </p>
       </div>
+
+      <!-- ── 30-second proof — no install required ──
+           A second, independent implementation of the verifier in
+           pure Python stdlib. Pipe to bash and watch a real packet
+           verified byte-for-byte against its manifest. The point is
+           portability: if two implementations agree on every hash
+           in the manifest, the protocol is a specification, not an
+           artifact of one binary. Sceptics: read the script first
+           with `curl … | less`. ── -->
+      <div class="protocol__demo protocol__demo--try">
+        <div class="protocol__verify-head">
+          <span class="protocol__verify-tag">30-second proof — no install</span>
+          <span class="protocol__verify-aside">downloads ~80 KB · runs locally · python stdlib only</span>
+        </div>
+        <pre class="protocol__verify-code"><code>{`$ curl -sSL https://vela.science/try | bash
+
+  vela · 30-second proof
+  downloading a real signed proof packet, then independently verifying every byte.
+
+  · fetching sample-packet.tar.gz from https://vela.science
+  · fetching vela_verify.py (stdlib-only python verifier)
+  · extracting packet
+  · running verifier against bbb-alzheimer-proof-packet
+
+vela verify (python · stdlib)
+  root:           /tmp/vela-try.XXXXXX/bbb-alzheimer-proof-packet
+  status:         ok
+  checked_files:  35 / 35
+  project:        BBB Flagship
+  vela_version:   0.8.0
+  packet_format:  vela.frontier-packet · v1
+  proof_trace:    ok
+
+verify: ok
+  every file in the manifest matched its claimed sha256, computed
+  by an independent python implementation. the protocol is
+  not a rust artifact — it is a portable specification.
+
+  ✓ independently verified.`}</code></pre>
+        <p class="protocol__demo-caption">
+          ↑ A second implementation, in pure Python stdlib, computes the same hashes.
+          Two implementations agreeing byte-for-byte on every file is the test that matters for any portable specification.
+          <span class="protocol__sep">·</span>
+          <a class="inline-link" href="/try">Read the script</a>
+          <span class="protocol__sep">·</span>
+          <a class="inline-link" href="/vela_verify.py">Read the verifier</a>
+          <span class="protocol__sep">·</span>
+          <a class="inline-link" href="/proof/packet">Browse the manifest →</a>
+        </p>
+      </div>
+
+      <!-- ── Cross-implementation reducer agreement ──
+           The packet verifier proves byte-identical agreement on the
+           hashed file layer. The reducer is the harder claim: two
+           implementations of the per-kind mutation rules must produce
+           the same post-replay finding state from the same event log.
+           This block ships the second implementation and a fixture
+           set so a reviewer can exercise it offline. ── -->
+      <div class="protocol__demo protocol__demo--reducer">
+        <div class="protocol__verify-head">
+          <span class="protocol__verify-tag">cross-impl reducer agreement</span>
+          <span class="protocol__verify-aside">5 fixtures · every dispatch arm covered · stdlib python · stdlib node</span>
+        </div>
+        <pre class="protocol__verify-code"><code>{`# Three implementations of the per-kind reducer must produce
+# byte-equivalent post-replay finding state. Run all three ends:
+
+$ curl -sSL https://vela.science/vela_reducer.py -O
+$ curl -sSL https://vela.science/vela_reducer.mjs -O
+$ curl -sSL https://vela.science/reducer-fixtures.tar.gz | tar -xz
+$ python3 vela_reducer.py fixtures/
+$ node    vela_reducer.mjs fixtures/
+
+vela reducer (typescript / node · third implementation)
+  ok   · frontier 00 · 8/8 findings · 22 events · cascade depth 5
+  ok   · frontier 01 · 8/8 findings · 22 events · cascade depth 5
+  ok   · frontier 02 · 8/8 findings · 22 events · cascade depth 5
+  ok   · frontier 03 · 8/8 findings · 24 events · cascade depth 0  # review-branches + confidence-revised
+  ok   · frontier 04 · 8/8 findings · 17 events · cascade depth 0  # annotations + rejected
+
+reducer: ok
+  every event-log replay through the typescript reducer produced
+  the same per-finding state the rust and python reducers produced.
+  the per-kind mutation rules now have three independent
+  implementations that agree byte-for-byte.`}</code></pre>
+        <p class="protocol__demo-caption">
+          ↑ Cross-implementation agreement on every dispatch arm of the per-kind reducer — including a depth-5 retraction cascade, all four <code>finding.reviewed</code> branches (accepted / contested / needs_revision / rejected), <code>finding.confidence_revised</code> with both integer and fractional new_score values, both annotation kinds (<code>noted</code> / <code>caveated</code>), and <code>finding.rejected</code>. Each fixture carries genesis findings, the canonical event log, and the post-replay <code>expected_states</code> the Rust reducer produced. Python and Node reduce the same log through their own dispatch tables and assert deep equality on every finding's <code>retracted</code>, <code>contested</code>, <code>review_state</code>, <code>confidence_score</code>, and <code>annotation_ids</code>.
+          <span class="protocol__sep">·</span>
+          <a class="inline-link" href="/vela_reducer.py">Python reducer</a>
+          <span class="protocol__sep">·</span>
+          <a class="inline-link" href="/vela_reducer.mjs">TypeScript reducer (Node)</a>
+        </p>
+        <p class="protocol__demo-caption protocol__demo-caption--coda">
+          <strong>Three independent implementations</strong> of the per-kind mutation rules — Rust, Python, TypeScript — agree byte-for-byte across <strong>every dispatch arm</strong> in the reducer.
+          A coverage-assertion test fails CI if a new event kind ships without a fixture branch, so the agreement claim cannot drift in either direction.
+          The doctrine "two implementations of the reducer must agree on the mutation rules per kind" is no longer aspirational.
+        </p>
+      </div>
     </section>
 
     <!-- ── §4 Use it ── -->

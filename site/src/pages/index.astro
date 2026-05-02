@@ -83,6 +83,8 @@ const lastUpdated = stats.lastUpdated
   subtitle={FRONTIER.description}
 >
   <div slot="aside">
+    <a href="https://borrowedlight.org" rel="noopener" class="aside-link">essay</a>
+    <span>·</span>
     <a href="/protocol" class="aside-link">protocol</a>
     <span>·</span>
     <a href={REPO_URL} class="aside-link">github</a>
@@ -130,6 +132,20 @@ const lastUpdated = stats.lastUpdated
       </a>
     </nav>
   </section>
+
+  <!-- ── From the essay — quiet recognition for visitors arriving
+       from borrowedlight.org. Single italic pull-quote, attributed,
+       no banner heaviness. Reassures the arrival without preamble. ── -->
+  <aside class="from-essay" aria-label="From the essay">
+    <p class="from-essay__quote">
+      <em>The implementation direction I'm working on is Vela — a shared state layer for findings, evidence, corrections, and the events that move them.</em>
+    </p>
+    <p class="from-essay__cite">
+      <a class="from-essay__link" href="https://borrowedlight.org" rel="noopener">Constellations of Borrowed Light</a>
+      <span class="from-essay__sep">·</span>
+      <span>§ The Inheritance</span>
+    </p>
+  </aside>
 
   <!-- ── Frontier readout — the masthead's instrument bar ── -->
   <div class="frontier-readout" aria-label="Frontier statistics">
@@ -300,7 +316,7 @@ const lastUpdated = stats.lastUpdated
       <span class="frontier-honest__sep">·</span>
       <a class="inline-link" href="/workbench">Open the workbench →</a>
       <span class="frontier-honest__sep">·</span>
-      <a class="inline-link" href="/essays/science-needs-state">Read the essay →</a>
+      <a class="inline-link" href="/honest">What isn't true yet →</a>
     </p>
   </aside>
 
@@ -509,6 +525,51 @@ const lastUpdated = stats.lastUpdated
     color: var(--gold);
     text-decoration-color: var(--gold);
   }
+
+  /* ── From the essay — quiet pull-quote for arrivals from BL ── */
+  .from-essay {
+    margin: 0 0 var(--space-5);
+    padding: 1.1rem 0 1.2rem;
+    border-top: 1px solid color-mix(in oklab, var(--gold) 28%, transparent);
+    border-bottom: 1px solid var(--rule-1);
+    max-width: var(--measure-wide);
+  }
+  .from-essay__quote {
+    margin: 0 0 0.55rem;
+    font-family: var(--font-display);
+    font-style: italic;
+    font-weight: 500;
+    font-size: clamp(1.05rem, 1.8vw, 1.25rem);
+    line-height: 1.42;
+    letter-spacing: -0.005em;
+    color: color-mix(in oklab, var(--ink-1) 92%, var(--ink-2));
+    max-width: 64ch;
+    text-wrap: pretty;
+  }
+  .from-essay__quote em { font-style: italic; }
+  .from-essay__cite {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    color: var(--ink-3);
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 6px 10px;
+    align-items: baseline;
+  }
+  .from-essay__link {
+    color: var(--ink-1);
+    text-decoration: none;
+    border-bottom: 1px solid color-mix(in oklab, var(--gold) 38%, transparent);
+    padding-bottom: 1px;
+    transition: color var(--dur-1) var(--ease), border-bottom-color var(--dur-1) var(--ease);
+  }
+  .from-essay__link:hover {
+    color: var(--gold);
+    border-bottom-color: var(--gold);
+  }
+  .from-essay__sep { color: var(--ink-4); }
 
   /* ── Frontier readout — instrument bar under the masthead ──
      v0.32 added replications. v0.33 added datasets + code. v0.34

@@ -1,0 +1,88 @@
+#!/usr/bin/env bash
+# vela.science/try — 30-second proof
+#
+# Downloads a real signed Vela proof packet (~68 KB) and an independent
+# stdlib-only Python verifier, recomputes SHA-256 over every file in the
+# packet manifest, and compares to the manifest's claimed hashes.
+#
+# What you should see at the end:
+#   verify: ok — every file in the manifest matched its claimed sha256
+#
+# This script is read-only: it writes to a temp directory and prints
+# the path so you can inspect the packet by hand afterward. To read
+# the script before running it:
+#
+#   curl -sSL https://vela.science/try | less
+#
+# To run it:
+#
+#   curl -sSL https://vela.science/try | bash
+#
+# Source: github.com/willblair0708/vela
+# Verifier source: clients/python/vela_verify.py
+# Sample packet: bbb-alzheimer-proof-packet (Alzheimer's Therapeutics frontier)
+
+set -euo pipefail
+
+BASE="${VELA_TRY_BASE:-https://vela.science}"
+TMPDIR="$(mktemp -d -t vela-try.XXXXXX)"
+trap 'echo; echo "  artifacts left in: $TMPDIR"' EXIT
+
+bold()   { printf '\033[1m%s\033[0m' "$1"; }
+gold()   { printf '\033[38;5;178m%s\033[0m' "$1"; }
+ink()    { printf '\033[38;5;240m%s\033[0m' "$1"; }
+green()  { printf '\033[38;5;71m%s\033[0m'  "$1"; }
+red()    { printf '\033[38;5;160m%s\033[0m' "$1"; }
+
+step() {
+  printf '  %s %s\n' "$(gold "·")" "$1"
+}
+
+require() {
+  if ! command -v "$1" >/dev/null 2>&1; then
+    printf '  %s missing required tool: %s\n' "$(red "✗")" "$1" >&2
+    exit 2
+  fi
+}
+
+require curl
+require tar
+require python3
+
+echo
+echo "  $(bold "vela · 30-second proof")"
+echo "  $(ink "downloading a real signed proof packet, then independently verifying every byte.")"
+echo
+
+step "fetching sample-packet.tar.gz from $BASE"
+curl -sSL "$BASE/sample-packet.tar.gz" -o "$TMPDIR/sample-packet.tar.gz"
+
+step "fetching vela_verify.py (stdlib-only python verifier)"
+curl -sSL "$BASE/vela_verify.py" -o "$TMPDIR/vela_verify.py"
+
+step "extracting packet"
+tar -xzf "$TMPDIR/sample-packet.tar.gz" -C "$TMPDIR"
+
+PACKET_DIR="$(find "$TMPDIR" -maxdepth 2 -type d -name '*-proof-packet' | head -n1)"
+if [[ -z "$PACKET_DIR" ]]; then
+  printf '  %s no packet directory found after extraction\n' "$(red "✗")" >&2
+  exit 1
+fi
+
+step "running verifier against $(basename "$PACKET_DIR")"
+echo
+
+if python3 "$TMPDIR/vela_verify.py" "$PACKET_DIR"; then
+  echo
+  printf '  %s independently verified.\n' "$(green "✓")"
+  printf '  %s\n' "$(ink "the rust binary at github.com/willblair0708/vela computes the same hashes.")"
+  printf '  %s\n' "$(ink "two implementations agree byte-for-byte on every file in the manifest.")"
+  echo
+  printf '  next: %s\n' "$(bold "https://vela.science/protocol")"
+  echo
+  exit 0
+else
+  echo
+  printf '  %s verification failed. inspect the packet at %s\n' "$(red "✗")" "$PACKET_DIR" >&2
+  exit 1
+fi

@@ -1,0 +1,319 @@
+---
+/*
+  /honest — what isn't true yet.
+
+  The page that beats every reviewer-style critique by getting there
+  first. Three honest gaps named in plain language: only one signer
+  so far, only one corridor, no production users. For each gap: what
+  is true now, what would change it, what an interested reader could
+  do about it.
+
+  Doctrine: a funder, AI lab, or skeptical reviewer should leave this
+  page understanding (a) we know what isn't true, (b) we know what
+  would make it true, (c) it's an invitation, not a defence. Operator
+  voice, not promoter voice.
+*/
+
+import Page from "../layouts/Page.astro";
+import { REPO_URL, HUB_URL } from "../config";
+---
+
+<Page
+  title="What isn't true yet · Vela"
+  description="An honest accounting of what Vela has not yet proven, and what would change each one."
+  active="honest"
+  eyebrow="Vela · operator notes"
+  pageTitle="What isn't true yet"
+  subtitle="An honest accounting of what Vela has not yet proven, and what would change each one."
+>
+  <div slot="aside">
+    <a href="/" class="aside-link">← home</a>
+    <span>·</span>
+    <a href="/protocol" class="aside-link">protocol</a>
+    <span>·</span>
+    <a href={REPO_URL} class="aside-link">github</a>
+  </div>
+
+  <article class="honest">
+    <p class="honest__lede">
+      Most projects publish a launch page that reads as if everything in the architecture diagram
+      already exists. Vela is being built in public, and the gap between the architecture and
+      what is actually true on a given Tuesday is real. This page names that gap, deliberately,
+      so a reader doesn't have to reverse-engineer it from the demo.
+    </p>
+
+    <!-- ── Gap 1 ── -->
+    <section class="honest__gap" aria-labelledby="gap-signers">
+      <header class="honest__gap-head">
+        <span class="honest__gap-num">01</span>
+        <h2 class="honest__gap-title" id="gap-signers">The only signers, today, are mine.</h2>
+      </header>
+      <div class="honest__gap-body">
+        <p>
+          The hub at <a class="inline-link" href={`${HUB_URL}/entries`} rel="noopener">{HUB_URL.replace(/^https?:\/\//, '')}/entries</a>
+          currently lists three signed frontier entries. All three were signed by an Ed25519
+          key under my control. The signature chain works, the byte-identical replay works,
+          the validator works — but none of it has been exercised by a key I cannot also revoke.
+        </p>
+        <dl class="honest__gap-pair">
+          <dt>What's true now</dt>
+          <dd>
+            One signer · 188 findings · 11 contradictions · the protocol's surface holds at single-actor scale.
+          </dd>
+          <dt>What would change it</dt>
+          <dd>
+            One external lab, journal, or researcher signs and publishes a frontier entry under their own key. The hub
+            verifies it, the network locator resolves, and a third party can re-replay it. That single event moves Vela
+            from "specification with one implementation" to "specification with adoption."
+          </dd>
+          <dt>What you could do</dt>
+          <dd>
+            <code>git clone {REPO_URL}</code>, generate a keypair with <code>vela sign generate-keypair</code>, sign a frontier
+            covering whatever bounded question you actually work on, and publish it to the hub. There is no allowlist.
+          </dd>
+        </dl>
+      </div>
+    </section>
+
+    <!-- ── Gap 2 ── -->
+    <section class="honest__gap" aria-labelledby="gap-corridor">
+      <header class="honest__gap-head">
+        <span class="honest__gap-num">02</span>
+        <h2 class="honest__gap-title" id="gap-corridor">One corridor is not the field.</h2>
+      </header>
+      <div class="honest__gap-body">
+        <p>
+          The Alzheimer's Therapeutics frontier is the only corridor running against real
+          published evidence today. It has 188 findings, 11 contradictions, and one worked
+          Correction event (pericyte loss → APOE4-narrowed scope). The protocol's claim is
+          field-general — but until a second corridor exists, that claim is a hypothesis,
+          not a result.
+        </p>
+        <dl class="honest__gap-pair">
+          <dt>What's true now</dt>
+          <dd>
+            One non-trivial corridor, 86 papers ingested, three real signed events including a Correction with
+            scope narrowing. The shape works for neurovascular dementia.
+          </dd>
+          <dt>What would change it</dt>
+          <dd>
+            A second corridor in a structurally different field — e.g., catalyst design, single-cell methods,
+            superconductor materials, or a clinical trial registry — built on the same primitives. If the same
+            Finding / Evidence / Correction / Contradiction model carries the load there, the field-general
+            claim earns its keep.
+          </dd>
+          <dt>What you could do</dt>
+          <dd>
+            Pick a question your lab cannot afford to keep relearning. Ten findings is enough to start;
+            the protocol is more useful at small scale than people expect.
+          </dd>
+        </dl>
+      </div>
+    </section>
+
+    <!-- ── Gap 3 ── -->
+    <section class="honest__gap" aria-labelledby="gap-production">
+      <header class="honest__gap-head">
+        <span class="honest__gap-num">03</span>
+        <h2 class="honest__gap-title" id="gap-production">No journal, funder, or AI lab uses Vela in production.</h2>
+      </header>
+      <div class="honest__gap-body">
+        <p>
+          The infrastructure-adoption story is the one that takes years. Git existed before
+          GitHub had network effects. The PDB existed before journals required deposition.
+          Vela is in the period where the spec and the binary work, and the social layer that
+          would make it load-bearing has not formed yet. Pretending otherwise would be
+          worse than naming it.
+        </p>
+        <dl class="honest__gap-pair">
+          <dt>What's true now</dt>
+          <dd>
+            Working spec · open protocol · running hub · two implementations of the verifier (Rust, Python).
+            Zero institutional integrations.
+          </dd>
+          <dt>What would change it</dt>
+          <dd>
+            A journal accepts a signed Correction event as a first-class submission, instead of requiring a
+            four-page paper to weaken a claim by 30%. A funder asks grantees to deposit findings into a public
+            substrate as a condition of award. An AI lab agrees to write its agent-generated proposals into a
+            public log so that the next generation of models can inherit them. Any one of those changes the gradient.
+          </dd>
+          <dt>What you could do</dt>
+          <dd>
+            If you edit a journal, fund science, or run an AI scientific-agents program: a 30-minute conversation
+            costs me almost nothing and may be the highest-leverage thing you read this week.
+            <a class="inline-link" href="mailto:will@vela.science">will@vela.science</a>.
+          </dd>
+        </dl>
+      </div>
+    </section>
+
+    <!-- ── Closing — operator note ── -->
+    <section class="honest__close">
+      <p class="honest__close-line">
+        The reason this page exists is that I would rather be told these gaps before
+        someone funds the work than after. If you have read this far and noticed an
+        honest gap that isn't on the page, that's the email I want most.
+      </p>
+      <p class="honest__close-meta">
+        Last reviewed: 2026-05-02
+        <span class="honest__sep">·</span>
+        <a class="inline-link" href="/">Back to the live frontier →</a>
+        <span class="honest__sep">·</span>
+        <a class="inline-link" href="/protocol">Read the protocol →</a>
+      </p>
+    </section>
+  </article>
+</Page>
+
+<style>
+  .aside-link {
+    font-family: var(--font-mono);
+    font-size: var(--size-xs);
+    letter-spacing: 0.06em;
+    color: var(--ink-3);
+  }
+  .aside-link:hover { color: var(--gold); }
+  div[slot="aside"] {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .inline-link {
+    color: var(--ink-1);
+    text-decoration: underline;
+    text-decoration-color: color-mix(in oklab, var(--gold) 56%, transparent);
+    text-underline-offset: 3px;
+    text-decoration-thickness: 1px;
+    transition: color var(--dur-1) var(--ease), text-decoration-color var(--dur-1) var(--ease);
+  }
+  .inline-link:hover {
+    color: var(--gold);
+    text-decoration-color: var(--gold);
+  }
+
+  /* ── Honest page ── */
+  .honest {
+    max-width: var(--measure-wide, 72ch);
+    padding: 8px 0 32px;
+    margin: 0 auto;
+  }
+  .honest__lede {
+    font-family: var(--font-sans);
+    font-size: 1.05rem;
+    line-height: 1.62;
+    letter-spacing: -0.005em;
+    color: color-mix(in oklab, var(--ink-1) 92%, var(--ink-2));
+    margin: 0 0 var(--space-7);
+    text-wrap: pretty;
+  }
+
+  .honest__gap {
+    border-top: 1px solid color-mix(in oklab, var(--gold) 32%, transparent);
+    padding: var(--space-5) 0 var(--space-6);
+  }
+  .honest__gap:last-of-type {
+    border-bottom: 1px solid var(--rule-2);
+  }
+  .honest__gap-head {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    margin-bottom: var(--space-4);
+  }
+  .honest__gap-num {
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: 13px;
+    letter-spacing: 0.18em;
+    color: color-mix(in oklab, var(--gold) 72%, var(--ink-2));
+    flex-shrink: 0;
+  }
+  .honest__gap-title {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: clamp(1.2rem, 2.4vw, 1.55rem);
+    line-height: 1.22;
+    letter-spacing: -0.018em;
+    color: var(--ink-0);
+    margin: 0;
+    text-wrap: balance;
+  }
+  .honest__gap-body p {
+    font-family: var(--font-sans);
+    font-size: 0.98rem;
+    line-height: 1.62;
+    letter-spacing: -0.005em;
+    color: color-mix(in oklab, var(--ink-1) 90%, var(--ink-2));
+    margin: 0 0 var(--space-4);
+    max-width: 64ch;
+    text-wrap: pretty;
+  }
+
+  .honest__gap-pair {
+    display: grid;
+    grid-template-columns: 11rem 1fr;
+    gap: 0.75rem var(--space-4);
+    margin: 0;
+    padding: 0;
+  }
+  @media (max-width: 720px) {
+    .honest__gap-pair {
+      grid-template-columns: 1fr;
+      gap: 4px 0;
+    }
+    .honest__gap-pair dd { margin-bottom: var(--space-4); }
+  }
+  .honest__gap-pair dt {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: color-mix(in oklab, var(--ink-3) 92%, transparent);
+    padding-top: 4px;
+  }
+  .honest__gap-pair dd {
+    font-family: var(--font-sans);
+    font-size: 0.96rem;
+    line-height: 1.6;
+    letter-spacing: -0.005em;
+    color: var(--ink-1);
+    margin: 0;
+    text-wrap: pretty;
+  }
+  .honest__gap-pair code {
+    font-family: var(--font-mono);
+    font-size: 0.86em;
+    background: var(--paper-1);
+    padding: 1px 6px;
+    border-radius: var(--radius-xs, 3px);
+    border: 1px solid var(--rule-1);
+    color: var(--ink-0);
+  }
+
+  .honest__close {
+    margin-top: var(--space-6);
+    padding-top: var(--space-5);
+    border-top: 1px solid color-mix(in oklab, var(--gold) 38%, transparent);
+  }
+  .honest__close-line {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-weight: 500;
+    font-size: clamp(1.05rem, 1.8vw, 1.2rem);
+    line-height: 1.5;
+    color: color-mix(in oklab, var(--ink-1) 92%, var(--ink-2));
+    margin: 0 0 var(--space-4);
+    max-width: 60ch;
+    text-wrap: pretty;
+  }
+  .honest__close-meta {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    color: var(--ink-3);
+  }
+  .honest__sep { margin: 0 8px; color: var(--ink-4); }
+</style>

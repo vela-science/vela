@@ -105,6 +105,9 @@ struct AppState {
     /// long-lived outage still surfaces; but a single failed query
     /// no longer takes down the registry.
     db_cache: DbCache,
+    /// v0.49.1: hit/miss/stale counters for the DB cache. Surfaced at
+    /// `/healthz` so an operator can monitor degradation.
+    db_cache_metrics: Arc<DbCacheMetrics>,
     /// Shared reqwest client. Connection pool reuse matters for
     /// repeat fetches against the same locator host.
     http: reqwest::Client,
@@ -127,6 +130,156 @@ struct DbCacheEntry {
 
 const DB_CACHE_FRESH_TTL: std::time::Duration = std::time::Duration::from_secs(60);
 const DB_CACHE_STALE_WINDOW: std::time::Duration = std::time::Duration::from_secs(30 * 60);
+
+/// v0.49.1: counters for the DB-cache fast/slow paths so an operator
+/// can see at a glance whether the registry is healthy or limping.
+/// `hits` are fresh-window cache hits (served without touching the
+/// DB). `misses` are misses that fell through to the DB and the DB
+/// answered. `stale_hits` are misses where the DB errored *and* we
+/// served the last-known-good payload with `X-Vela-Stale: 1`.
+///
+/// The crucial signal for production: a sustained rise in `stale_hits`
+/// means Postgres is failing repeatedly and the registry is degrading.
+/// The cache is buying time, not papering over a healthy backend.
+///
+/// v0.49.2: per-bucket histogram of stale-age in seconds so an
+/// operator can distinguish "we served stale 30 s ago" from "we've
+/// been serving 28-min-stale data" — both increment `stale_hits`,
+/// but only the second is reason to page someone.
+#[derive(Default)]
+struct DbCacheMetrics {
+    hits: std::sync::atomic::AtomicU64,
+    misses: std::sync::atomic::AtomicU64,
+    stale_hits: std::sync::atomic::AtomicU64,
+    db_errors: std::sync::atomic::AtomicU64,
+    /// Histogram buckets for stale-age in seconds. Indexes correspond
+    /// to STALE_AGE_BUCKETS upper bounds (final bucket is "+Inf").
+    stale_age_buckets: [std::sync::atomic::AtomicU64; STALE_AGE_BUCKETS.len() + 1],
+}
+
+/// Stale-age histogram bucket upper bounds, in seconds. Chosen to
+/// straddle the fresh window (60 s), short outage (5 min), and the
+/// stale window itself (30 min).
+const STALE_AGE_BUCKETS: [u64; 6] = [60, 120, 300, 600, 1200, 1800];
+
+impl DbCacheMetrics {
+    fn record_hit(&self) {
+        self.hits
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    }
+    fn record_miss(&self) {
+        self.misses
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    }
+    fn record_stale_hit(&self, age_secs: u64) {
+        self.stale_hits
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let bucket_idx = STALE_AGE_BUCKETS
+            .iter()
+            .position(|&b| age_secs <= b)
+            .unwrap_or(STALE_AGE_BUCKETS.len());
+        self.stale_age_buckets[bucket_idx]
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    }
+    fn record_db_error(&self) {
+        self.db_errors
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    }
+    fn snapshot(&self) -> Value {
+        let hits = self.hits.load(std::sync::atomic::Ordering::Relaxed);
+        let misses = self.misses.load(std::sync::atomic::Ordering::Relaxed);
+        let stale_hits = self.stale_hits.load(std::sync::atomic::Ordering::Relaxed);
+        let db_errors = self.db_errors.load(std::sync::atomic::Ordering::Relaxed);
+        let total_serves = hits + misses + stale_hits;
+        let stale_hit_rate = if total_serves == 0 {
+            0.0
+        } else {
+            stale_hits as f64 / total_serves as f64
+        };
+
+        // Histogram snapshot: cumulative buckets in Prometheus style
+        // (each bucket counts every observation ≤ its upper bound).
+        let raw: Vec<u64> = self
+            .stale_age_buckets
+            .iter()
+            .map(|c| c.load(std::sync::atomic::Ordering::Relaxed))
+            .collect();
+        let mut cumulative = 0u64;
+        let mut buckets_obj = serde_json::Map::new();
+        for (i, &bound) in STALE_AGE_BUCKETS.iter().enumerate() {
+            cumulative += raw[i];
+            buckets_obj.insert(format!("le_{bound}s"), json!(cumulative));
+        }
+        cumulative += raw[STALE_AGE_BUCKETS.len()];
+        buckets_obj.insert("le_inf".to_string(), json!(cumulative));
+
+        json!({
+            "hits": hits,
+            "misses": misses,
+            "stale_hits": stale_hits,
+            "db_errors": db_errors,
+            "total_serves": total_serves,
+            "stale_hit_rate": stale_hit_rate,
+            "stale_age_seconds": buckets_obj,
+        })
+    }
+
+    /// Render the cache metrics as Prometheus 0.0.4 text format. The
+    /// shape `vela_hub_db_cache_*` is namespaced so a federated
+    /// scrape can pull this hub alongside others without collision.
+    fn render_prometheus(&self) -> String {
+        let hits = self.hits.load(std::sync::atomic::Ordering::Relaxed);
+        let misses = self.misses.load(std::sync::atomic::Ordering::Relaxed);
+        let stale_hits = self.stale_hits.load(std::sync::atomic::Ordering::Relaxed);
+        let db_errors = self.db_errors.load(std::sync::atomic::Ordering::Relaxed);
+        let total_serves = hits + misses + stale_hits;
+        let stale_hit_rate = if total_serves == 0 {
+            0.0
+        } else {
+            stale_hits as f64 / total_serves as f64
+        };
+        let mut out = String::new();
+        out.push_str("# HELP vela_hub_db_cache_hits_total Cache fresh-window hits served without touching the DB.\n");
+        out.push_str("# TYPE vela_hub_db_cache_hits_total counter\n");
+        out.push_str(&format!("vela_hub_db_cache_hits_total {hits}\n"));
+        out.push_str("# HELP vela_hub_db_cache_misses_total Cache misses that fell through to the DB and the DB answered.\n");
+        out.push_str("# TYPE vela_hub_db_cache_misses_total counter\n");
+        out.push_str(&format!("vela_hub_db_cache_misses_total {misses}\n"));
+        out.push_str("# HELP vela_hub_db_cache_stale_hits_total Cache misses served stale because the DB errored within the stale window.\n");
+        out.push_str("# TYPE vela_hub_db_cache_stale_hits_total counter\n");
+        out.push_str(&format!("vela_hub_db_cache_stale_hits_total {stale_hits}\n"));
+        out.push_str("# HELP vela_hub_db_errors_total Distinct DB query errors observed by the cache layer.\n");
+        out.push_str("# TYPE vela_hub_db_errors_total counter\n");
+        out.push_str(&format!("vela_hub_db_errors_total {db_errors}\n"));
+        out.push_str("# HELP vela_hub_db_cache_stale_hit_rate Stale hits as a fraction of total cache serves.\n");
+        out.push_str("# TYPE vela_hub_db_cache_stale_hit_rate gauge\n");
+        out.push_str(&format!("vela_hub_db_cache_stale_hit_rate {stale_hit_rate}\n"));
+
+        // Stale-age histogram, cumulative buckets per Prometheus convention.
+        out.push_str("# HELP vela_hub_db_cache_stale_age_seconds Stale-age distribution (seconds since last good fetch) for stale serves.\n");
+        out.push_str("# TYPE vela_hub_db_cache_stale_age_seconds histogram\n");
+        let raw: Vec<u64> = self
+            .stale_age_buckets
+            .iter()
+            .map(|c| c.load(std::sync::atomic::Ordering::Relaxed))
+            .collect();
+        let mut cumulative = 0u64;
+        for (i, &bound) in STALE_AGE_BUCKETS.iter().enumerate() {
+            cumulative += raw[i];
+            out.push_str(&format!(
+                "vela_hub_db_cache_stale_age_seconds_bucket{{le=\"{bound}\"}} {cumulative}\n"
+            ));
+        }
+        cumulative += raw[STALE_AGE_BUCKETS.len()];
+        out.push_str(&format!(
+            "vela_hub_db_cache_stale_age_seconds_bucket{{le=\"+Inf\"}} {cumulative}\n"
+        ));
+        out.push_str(&format!(
+            "vela_hub_db_cache_stale_age_seconds_count {cumulative}\n"
+        ));
+        out
+    }
+}
 
 async fn db_cache_read(cache: &DbCache, key: &str) -> Option<DbCacheEntry> {
     cache.read().await.get(key).cloned()
@@ -213,6 +366,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         db,
         frontier_cache: Arc::new(RwLock::new(HashMap::new())),
         db_cache: Arc::new(RwLock::new(HashMap::new())),
+        db_cache_metrics: Arc::new(DbCacheMetrics::default()),
         http,
         urls,
     };
@@ -226,6 +380,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let app = Router::new()
         .route("/", get(root))
         .route("/healthz", get(healthz))
+        .route("/metrics", get(metrics_prometheus))
+        .route("/.well-known/vela", get(well_known_vela))
         .route("/entries", get(list_entries).post(publish_entry))
         .route("/entries/{vfr_id}", get(get_entry))
         .route("/entries/{vfr_id}/depends-on", get(get_depends_on))
@@ -269,12 +425,34 @@ fn root_json() -> Value {
         "doctrine": "Dumb transport for signed registry manifests. The signature is the bind; clients verify locally.",
         "endpoints": [
             "GET  /              — this banner",
-            "GET  /healthz       — liveness",
+            "GET  /healthz       — liveness + db-cache metrics",
             "GET  /entries       — full registry (latest-publish-wins per vfr_id)",
             "GET  /entries/{vfr_id} — single entry",
+            "GET  /entries/{vfr_id}/proof — browse the proof packet (HTML or JSON)",
+            "GET  /entries/{vfr_id}/proof/download — proof packet as .tar.gz",
             "POST /entries       — publish a signed manifest (open, signature-gated)",
             "POST /api/counterfactual/{vfr_id} — Pearl level 3 counterfactual over a registered frontier",
         ],
+        "api": {
+            "counterfactual": {
+                "method": "POST",
+                "path": "/api/counterfactual/{vfr_id}",
+                "request_body": {
+                    "intervene_on": "vf_<id>  // finding to set the confidence of",
+                    "set_to":       "0.0..1.0 // confidence value to imagine",
+                    "target":       "vf_<id>  // finding to read counterfactual confidence of"
+                },
+                "response_verdicts": [
+                    "Resolved             — twin-network propagated; returns factual, counterfactual, delta, paths_used[]",
+                    "MechanismUnspecified — every connecting path has at least one edge without a Mechanism",
+                    "NoCausalPath         — no directed path; counterfactual = factual",
+                    "UnknownNode          — intervened or target finding not in this frontier",
+                    "InvalidIntervention  — set_to outside [0, 1]"
+                ],
+                "schema": "https://vela.science/schema/counterfactual/v0.45.1",
+                "kernel": "vela_protocol::counterfactual::answer_counterfactual"
+            }
+        }
     })
 }
 
@@ -286,12 +464,75 @@ async fn root(State(state): State<AppState>, headers: HeaderMap) -> Response {
     }
 }
 
+/// v0.49.2: Prometheus 0.0.4 text format metrics endpoint. Exposes
+/// the same DbCacheMetrics counters and stale-age histogram an
+/// operator would otherwise have to scrape out of `/healthz` JSON.
+async fn metrics_prometheus(State(state): State<AppState>) -> impl axum::response::IntoResponse {
+    let body = state.db_cache_metrics.render_prometheus();
+    (
+        StatusCode::OK,
+        [(
+            axum::http::header::CONTENT_TYPE,
+            "text/plain; version=0.0.4; charset=utf-8",
+        )],
+        body,
+    )
+}
+
+/// v0.49.2: schema discoverability endpoint. Returns the canonical
+/// list of versioned protocol schemas this hub knows about. Lets a
+/// federated client bootstrap without scraping HTML or guessing URLs.
+async fn well_known_vela(State(state): State<AppState>) -> Json<Value> {
+    Json(json!({
+        "name": "vela-hub",
+        "version": HUB_VERSION,
+        "protocol_version": "0.48",
+        "site": state.urls.site.clone(),
+        "endpoints": {
+            "registry": format!("{}/entries", state.urls.hub),
+            "publish":  format!("{}/entries", state.urls.hub),
+            "counterfactual": format!("{}/api/counterfactual/{{vfr_id}}", state.urls.hub),
+            "metrics":  format!("{}/metrics", state.urls.hub),
+            "healthz":  format!("{}/healthz", state.urls.hub),
+        },
+        "schemas": {
+            "registry":               "https://vela.science/schema/registry/v1",
+            "finding-bundle":         "https://vela.science/schema/finding-bundle/v0.10.0",
+            "frontier-packet":        "https://vela.science/schema/frontier-packet/v1",
+            "event":                  "https://vela.science/schema/event/v1",
+            "counterfactual-query":   "https://vela.science/schema/counterfactual/v0.45.1",
+            "agent-run":              "https://vela.science/schema/agent-run/v0.22",
+            "key-revoke":             "https://vela.science/schema/event/key-revoke/v0.49",
+            "cross-impl-reducer-fixture": "https://vela.science/schema/cross-impl-reducer-fixture/v1",
+        },
+        "second_implementations": {
+            "packet_verifier": "https://vela.science/vela_verify.py",
+            "reducer":         "https://vela.science/vela_reducer.py",
+        },
+    }))
+}
+
 async fn healthz(State(state): State<AppState>) -> (StatusCode, Json<Value>) {
+    let cache = state.db_cache_metrics.snapshot();
     match state.db.health().await {
-        Ok(()) => (StatusCode::OK, Json(json!({"ok": true, "db": "reachable"}))),
+        Ok(()) => (
+            StatusCode::OK,
+            Json(json!({
+                "ok": true,
+                "db": "reachable",
+                "version": HUB_VERSION,
+                "cache": cache,
+            })),
+        ),
         Err(e) => (
             StatusCode::SERVICE_UNAVAILABLE,
-            Json(json!({"ok": false, "db": "unreachable", "error": e})),
+            Json(json!({
+                "ok": false,
+                "db": "unreachable",
+                "error": e,
+                "version": HUB_VERSION,
+                "cache": cache,
+            })),
         ),
     }
 }
@@ -304,12 +545,14 @@ async fn list_entries(State(state): State<AppState>, headers: HeaderMap) -> Resp
     // Fresh cache window — serve straight from memory, skip DB.
     if let Some(entry) = cached.as_ref() {
         if now.duration_since(entry.fetched_at) < DB_CACHE_FRESH_TTL {
+            state.db_cache_metrics.record_hit();
             return cached_list_response(&state.urls, &entry.value, &headers, false);
         }
     }
 
     match state.db.list_latest_entries().await {
         Ok(values) => {
+            state.db_cache_metrics.record_miss();
             let payload = json!({"schema": REGISTRY_SCHEMA, "entries": values});
             db_cache_write(&state.db_cache, cache_key, payload.clone()).await;
             if wants_html(&headers) {
@@ -319,14 +562,17 @@ async fn list_entries(State(state): State<AppState>, headers: HeaderMap) -> Resp
             }
         }
         Err(e) => {
+            state.db_cache_metrics.record_db_error();
             // v0.49: stale-on-read fallback. Serve the last good
             // payload (with X-Vela-Stale) instead of 5xx-ing on a
             // single DB hiccup. Inside the stale window only.
             if let Some(entry) = cached {
-                if now.duration_since(entry.fetched_at) < DB_CACHE_STALE_WINDOW {
+                let age = now.duration_since(entry.fetched_at);
+                if age < DB_CACHE_STALE_WINDOW {
+                    state.db_cache_metrics.record_stale_hit(age.as_secs());
                     tracing::warn!(
                         "list_entries: db error '{e}', serving stale ({}s old)",
-                        now.duration_since(entry.fetched_at).as_secs()
+                        age.as_secs()
                     );
                     return cached_list_response(&state.urls, &entry.value, &headers, true);
                 }

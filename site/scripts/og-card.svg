@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <defs>
+    <linearGradient id="paperGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FAF6EC"/>
+      <stop offset="100%" stop-color="#F4EDD9"/>
+    </linearGradient>
+    <radialGradient id="goldGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#C9A227" stop-opacity="0.55"/>
+      <stop offset="60%" stop-color="#C9A227" stop-opacity="0.10"/>
+      <stop offset="100%" stop-color="#C9A227" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="softShadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="0.6"/>
+    </filter>
+  </defs>
+
+  <!-- Paper background -->
+  <rect width="1200" height="630" fill="url(#paperGrad)"/>
+
+  <!-- Top hairline (gold) -->
+  <line x1="80" y1="62" x2="1120" y2="62" stroke="#C9A227" stroke-opacity="0.40" stroke-width="1"/>
+  <!-- Bottom hairline (ink) -->
+  <line x1="80" y1="568" x2="1120" y2="568" stroke="#1F2937" stroke-opacity="0.10" stroke-width="1"/>
+
+  <!-- Eyebrow: monospace, uppercase, gold tint -->
+  <text x="80" y="50"
+        font-family="'JetBrains Mono', 'Menlo', monospace"
+        font-size="13"
+        letter-spacing="3.2"
+        fill="#9C7C20">VELA · OPEN PROTOCOL · v0.48.0</text>
+
+  <!-- Right-aligned signature snippet -->
+  <text x="1120" y="50"
+        text-anchor="end"
+        font-family="'JetBrains Mono', 'Menlo', monospace"
+        font-size="12"
+        letter-spacing="1.6"
+        fill="#5B6573">vfr_bd91…  ·  signed 2026-04-27</text>
+
+  <!-- Constellation cluster, centred high-left of title -->
+  <g transform="translate(220, 250)">
+    <!-- soft gold halo behind cluster -->
+    <circle cx="0" cy="0" r="120" fill="url(#goldGlow)"/>
+
+    <!-- edges (faint quadratic arcs) -->
+    <g stroke="#C9A227" stroke-opacity="0.42" stroke-width="0.9" fill="none">
+      <path d="M -60,-30 Q -10,-50 35,-15"/>
+      <path d="M 35,-15 Q 25,30 -10,55"/>
+      <path d="M -60,-30 Q -75,30 -10,55"/>
+      <path d="M 35,-15 Q 80,5 70,40"/>
+      <path d="M -10,55 Q 30,70 70,40"/>
+      <path d="M -60,-30 Q -55,-70 0,-65"/>
+      <path d="M 0,-65 Q 35,-50 35,-15"/>
+      <path d="M 70,40 Q 95,15 100,-25"/>
+      <path d="M 0,-65 Q 60,-65 100,-25"/>
+    </g>
+
+    <!-- nodes -->
+    <g>
+      <circle cx="-60" cy="-30" r="5.5" fill="#C9A227"/>
+      <circle cx="0" cy="-65" r="4.2" fill="#1B2940"/>
+      <circle cx="35" cy="-15" r="6.5" fill="#C9A227"/>
+      <circle cx="-10" cy="55" r="4.8" fill="#1B2940"/>
+      <circle cx="70" cy="40" r="4.2" fill="#C9A227"/>
+      <circle cx="100" cy="-25" r="3.6" fill="#1B2940"/>
+
+      <!-- micro-dots (orphans / context) -->
+      <circle cx="-90" cy="20" r="1.6" fill="#C9A227" opacity="0.7"/>
+      <circle cx="-30" cy="-90" r="1.6" fill="#C9A227" opacity="0.7"/>
+      <circle cx="120" cy="20" r="1.4" fill="#1B2940" opacity="0.55"/>
+      <circle cx="50" cy="90" r="1.4" fill="#1B2940" opacity="0.55"/>
+      <circle cx="-100" cy="-60" r="1.2" fill="#1B2940" opacity="0.45"/>
+    </g>
+  </g>
+
+  <!-- Title block, right-of-cluster -->
+  <text x="430" y="270"
+        font-family="'Inter Tight', 'Helvetica Neue', sans-serif"
+        font-weight="600"
+        font-size="86"
+        letter-spacing="-2.4"
+        fill="#0E1A2F">Vela</text>
+
+  <text x="430" y="332"
+        font-family="'Inter Tight', 'Helvetica Neue', sans-serif"
+        font-weight="500"
+        font-size="30"
+        letter-spacing="-0.6"
+        fill="#1F2937">An open protocol for scientific findings.</text>
+
+  <text x="430" y="378"
+        font-family="'Inter Tight', 'Helvetica Neue', sans-serif"
+        font-weight="400"
+        font-size="22"
+        letter-spacing="-0.2"
+        fill="#5B6573">Findings, evidence, corrections — first-class, signed, replayable.</text>
+
+  <!-- Stats row -->
+  <g transform="translate(80, 470)">
+    <line x1="0" y1="-8" x2="1040" y2="-8" stroke="#C9A227" stroke-opacity="0.32" stroke-width="0.8"/>
+
+    <text x="0" y="20"
+          font-family="'Inter Tight', sans-serif"
+          font-weight="500" font-size="34" fill="#0E1A2F"
+          letter-spacing="-0.8">188</text>
+    <text x="0" y="44"
+          font-family="'JetBrains Mono', monospace"
+          font-size="11" letter-spacing="2.2" fill="#5B6573">FINDINGS</text>
+
+    <text x="180" y="20"
+          font-family="'Inter Tight', sans-serif"
+          font-weight="500" font-size="34" fill="#0E1A2F"
+          letter-spacing="-0.8">11</text>
+    <text x="180" y="44"
+          font-family="'JetBrains Mono', monospace"
+          font-size="11" letter-spacing="2.2" fill="#5B6573">CONTRADICTIONS</text>
+
+    <text x="430" y="20"
+          font-family="'Inter Tight', sans-serif"
+          font-weight="500" font-size="34" fill="#0E1A2F"
+          letter-spacing="-0.8">86</text>
+    <text x="430" y="44"
+          font-family="'JetBrains Mono', monospace"
+          font-size="11" letter-spacing="2.2" fill="#5B6573">PAPERS</text>
+
+    <text x="600" y="20"
+          font-family="'Inter Tight', sans-serif"
+          font-weight="500" font-size="34" fill="#0E1A2F"
+          letter-spacing="-0.8">35/35</text>
+    <text x="600" y="44"
+          font-family="'JetBrains Mono', monospace"
+          font-size="11" letter-spacing="2.2" fill="#5B6573">SHA-256 VERIFIED</text>
+  </g>
+
+  <!-- Footer -->
+  <text x="80" y="608"
+        font-family="'JetBrains Mono', monospace"
+        font-size="12" letter-spacing="2.4" fill="#9C7C20">VELA.SCIENCE</text>
+  <text x="1120" y="608"
+        text-anchor="end"
+        font-family="'JetBrains Mono', monospace"
+        font-size="12" letter-spacing="1.4" fill="#5B6573">git-native · local-first · Ed25519</text>
+</svg>

@@ -1,0 +1,202 @@
+{
+  "generated_at": "2026-04-26T04:43:48.014150+00:00",
+  "included_files": [
+    {
+      "bytes": 1659,
+      "path": "README.md",
+      "sha256": "3f51168f26fb7f44802b5324d6c1e695be8f267a7dbf4dbbcfe6cc0425975791"
+    },
+    {
+      "bytes": 1304,
+      "path": "reviewer-guide.md",
+      "sha256": "8864487350c4580f3263f9e48467abc9ac642752dc702612f6f3ac7cf812886b"
+    },
+    {
+      "bytes": 5075,
+      "path": "overview.json",
+      "sha256": "b99eecee2929b14b129bfa7702b986e0ac60d253e39fe99777623264e6eaf2cf"
+    },
+    {
+      "bytes": 1261,
+      "path": "scope.json",
+      "sha256": "636186644f3329bc45f1e465c5df9b8502e1ec0370c266524aa528edf8b0d61a"
+    },
+    {
+      "bytes": 6496,
+      "path": "source-table.json",
+      "sha256": "1f80dda9b4d5fdfbd6f37d12b44d67fe817bb152de50be7a3a3b430d9dbf025e"
+    },
+    {
+      "bytes": 10208,
+      "path": "sources/source-registry.json",
+      "sha256": "00400da77b8030457aee8812c5e10c3471672b944fd0cd2cb00ba30d03178125"
+    },
+    {
+      "bytes": 29499,
+      "path": "evidence-matrix.json",
+      "sha256": "7b47440d4081cf87ef149698d13269e235331b270cd339b859cc93253acbaefb"
+    },
+    {
+      "bytes": 28406,
+      "path": "evidence/evidence-atoms.json",
+      "sha256": "650db52e0dda7090c5d89c956f056e485b9160298145d822a169f7920a202770"
+    },
+    {
+      "bytes": 12606,
+      "path": "evidence/source-evidence-map.json",
+      "sha256": "bc8ab8a41293584d12615fe992afe4cbae469db4da21169c984c65f2df25d045"
+    },
+    {
+      "bytes": 27112,
+      "path": "conditions/condition-records.json",
+      "sha256": "e23a4c7eaed6371341569ccd862b728f39cb1f293e6ee95354e11fd0cd7fbb61"
+    },
+    {
+      "bytes": 27043,
+      "path": "conditions/condition-matrix.json",
+      "sha256": "f27c3f613adca279b7ed0ff052d10c96b0a25f8429379661aa3fb1acae12bca2"
+    },
+    {
+      "bytes": 3110,
+      "path": "signals.json",
+      "sha256": "34132ac379600c8c77b4e4e3d1966f0400ab88d942bc67348cbb79a22ac6cadf"
+    },
+    {
+      "bytes": 2783,
+      "path": "review-queue.json",
+      "sha256": "2914f34a0b3822ef10ed0e4d19c232a836f315b66158b1eba12d9f6d7f67593a"
+    },
+    {
+      "bytes": 2200,
+      "path": "quality-table.json",
+      "sha256": "bce4b32d6ef57b51abb6045ec8d77b4bc9171acf8b8dbd41fe404570d384ca40"
+    },
+    {
+      "bytes": 94,
+      "path": "state-transitions.json",
+      "sha256": "ccdc58c15a875623f0ab168a1994e51e2a2666d88b500e7cd47ba414097cc5fc"
+    },
+    {
+      "bytes": 2,
+      "path": "events/events.json",
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "bytes": 568,
+      "path": "events/replay-report.json",
+      "sha256": "92d73b65db6dc1503d98a45eee8dd78443420552d4aeaad9a22dae3d04922a84"
+    },
+    {
+      "bytes": 2,
+      "path": "proposals/proposals.json",
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "bytes": 3396,
+      "path": "ro-crate-metadata.jsonld",
+      "sha256": "0c8b6bdb98317ae306a2fa599c0de7650246de9358d86a24a31e5d67e124b84b"
+    },
+    {
+      "bytes": 2,
+      "path": "candidate-tensions.json",
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "bytes": 415,
+      "path": "candidate-gaps.json",
+      "sha256": "321597fcdbaea2d6a30840d66a6c9262defc987188ef73b562a4b17968bf541e"
+    },
+    {
+      "bytes": 5333,
+      "path": "candidate-bridges.json",
+      "sha256": "eaa2ddeb3b0b734567933bee4a3b66f76931079010a222f7ef17a7b20d677767"
+    },
+    {
+      "bytes": 16504,
+      "path": "mcp-session.json",
+      "sha256": "0af3f43fd96b2d99b42caa1d864496abdc16871007414650a11b7d8006c61bb6"
+    },
+    {
+      "bytes": 1860,
+      "path": "check-summary.json",
+      "sha256": "c6a6577393ae48c9cb127684f95c07d9bb97be0bd6fcbf89c6c802e07bfd453b"
+    },
+    {
+      "bytes": 1500,
+      "path": "proof-trace.json",
+      "sha256": "140c54f936d6c615ae68bb9400bad3bd6f5cf1af9a4357509b20fef2713d1d8d"
+    },
+    {
+      "bytes": 31520,
+      "path": "findings/high-signal.json",
+      "sha256": "12cf02353b5c2c4cf6b0dae6070214ab7e25c68634159593a1e2ecb2da89b0a1"
+    },
+    {
+      "bytes": 341962,
+      "path": "findings/full.json",
+      "sha256": "0a611c67c6f3c2b39f431775efc38912533f738325614f4a72e6c7500b979d1e"
+    },
+    {
+      "bytes": 723,
+      "path": "findings/gaps.json",
+      "sha256": "be0e9ccbc57e539beb6e4509ea458594a98873390c364312c943dbdb5c5b4f61"
+    },
+    {
+      "bytes": 723,
+      "path": "findings/contested.json",
+      "sha256": "be0e9ccbc57e539beb6e4509ea458594a98873390c364312c943dbdb5c5b4f61"
+    },
+    {
+      "bytes": 5333,
+      "path": "findings/bridges.json",
+      "sha256": "eaa2ddeb3b0b734567933bee4a3b66f76931079010a222f7ef17a7b20d677767"
+    },
+    {
+      "bytes": 2,
+      "path": "findings/contradictions.json",
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "bytes": 2,
+      "path": "reviews/review-events.json",
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "bytes": 2,
+      "path": "reviews/confidence-updates.json",
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "bytes": 17782,
+      "path": "benchmark-summary.json",
+      "sha256": "b6161888ce7cba0b420a9548de1df8afd2f2deeea97547315f711734ad287346"
+    },
+    {
+      "bytes": 5416,
+      "path": "packet.lock.json",
+      "sha256": "a3af0a8578cc5b5fea8cdf7b3ed120ce060dba6ebadbb48ea751a45607ad15db"
+    }
+  ],
+  "packet_format": "vela.frontier-packet",
+  "packet_version": "v1",
+  "source": {
+    "compiled_at": "2026-04-22T00:00:00Z",
+    "compiler": "vela/0.8.0",
+    "description": "Bounded flagship frontier for BBB delivery strategies for Alzheimer's-relevant therapeutics. Curated from checked-in abstract-level source files under projects/bbb-flagship/raw.",
+    "project_name": "BBB Flagship",
+    "schema": "https://vela.science/schema/finding-bundle/v0.8.0",
+    "vela_version": "0.8.0"
+  },
+  "stats": {
+    "bridge_entities": 12,
+    "condition_records": 48,
+    "contested": 1,
+    "contradiction_edges": 0,
+    "evidence_atoms": 48,
+    "findings": 48,
+    "gaps": 1,
+    "proposals": 0,
+    "review_events": 0,
+    "sources": 10
+  }
+}

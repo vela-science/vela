@@ -6,7 +6,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
@@ -616,6 +616,60 @@ pub fn validate_event_payload(kind: &str, payload: &Value) -> Result<(), String>
                 ));
             }
         }
+        // v0.49: key revocation event. Carries the revoked Ed25519
+        // pubkey (hex-encoded 64 chars), the ISO-8601 moment compromise
+        // was detected, and an optional replacement pubkey + reason.
+        // Validating here keeps a hand-emitted or peer-fetched
+        // revocation honest at the event-pipeline boundary so a
+        // malformed revocation can't slip through replay and silently
+        // re-trust the compromised key.
+        EVENT_KIND_KEY_REVOKE => {
+            let revoked = require_str("revoked_pubkey")?;
+            if revoked.len() != 64 || !revoked.chars().all(|c| c.is_ascii_hexdigit()) {
+                return Err(format!(
+                    "revoked_pubkey must be 64 hex chars (Ed25519 pubkey), got {} chars",
+                    revoked.len()
+                ));
+            }
+            let revoked_at = require_str("revoked_at")?;
+            if revoked_at.trim().is_empty() {
+                return Err("revoked_at must be a non-empty ISO-8601 timestamp".to_string());
+            }
+            // v0.49.1: parse as RFC-3339 / ISO-8601 so a typo'd value
+            // ("yesterday", "x", "2026-13-99T...") fails at the
+            // validator boundary rather than poisoning re-verification
+            // of post-revocation signatures further downstream.
+            if DateTime::parse_from_rfc3339(revoked_at).is_err() {
+                return Err(format!(
+                    "revoked_at must parse as RFC-3339/ISO-8601, got {revoked_at:?}"
+                ));
+            }
+            // replacement_pubkey is optional but if present must be a
+            // valid hex pubkey of the same shape — a typo here would
+            // strand the actor's identity at the wrong forward key.
+            if let Some(replacement) = object.get("replacement_pubkey")
+                && let Some(rep_str) = replacement.as_str()
+                && !rep_str.is_empty()
+                && (rep_str.len() != 64 || !rep_str.chars().all(|c| c.is_ascii_hexdigit()))
+            {
+                return Err(format!(
+                    "replacement_pubkey must be 64 hex chars when present, got {} chars",
+                    rep_str.len()
+                ));
+            }
+            // The revoked key cannot also be the replacement; that
+            // would be a self-rotation that revokes nothing.
+            if let Some(replacement) = object
+                .get("replacement_pubkey")
+                .and_then(Value::as_str)
+                && !replacement.is_empty()
+                && replacement.eq_ignore_ascii_case(revoked)
+            {
+                return Err(
+                    "replacement_pubkey must differ from revoked_pubkey".to_string(),
+                );
+            }
+        }
         other => return Err(format!("unknown event kind '{other}'")),
     }
     Ok(())
@@ -1012,5 +1066,114 @@ mod tests {
             !minimal_s.contains("\"reason\":\"\""),
             "empty payload reason leaked into canonical JSON: {minimal_s}"
         );
+    }
+
+    /// v0.49: validate_event_payload now recognises `key.revoke`.
+    /// Tests cover the four real failure modes plus the happy path.
+    #[test]
+    fn revocation_payload_validation() {
+        let good_pubkey =
+            "4892f93877e637b5f59af31d9ec6704814842fb278cacb0eb94704baef99455e";
+        let other_pubkey =
+            "8891a2ab35ca2ed2182ed4e46b6567ce8dacc9985eb496d895578201272a1cd9";
+
+        // OK: minimal valid payload.
+        assert!(validate_event_payload(
+            EVENT_KIND_KEY_REVOKE,
+            &json!({
+                "revoked_pubkey": good_pubkey,
+                "revoked_at": "2026-05-01T17:00:00Z",
+            }),
+        )
+        .is_ok());
+
+        // OK: full payload with replacement and reason.
+        assert!(validate_event_payload(
+            EVENT_KIND_KEY_REVOKE,
+            &json!({
+                "revoked_pubkey": good_pubkey,
+                "revoked_at": "2026-05-01T17:00:00Z",
+                "replacement_pubkey": other_pubkey,
+                "reason": "key file leaked",
+            }),
+        )
+        .is_ok());
+
+        // FAIL: revoked_pubkey wrong length (32 bytes ASCII, not 64 hex).
+        assert!(validate_event_payload(
+            EVENT_KIND_KEY_REVOKE,
+            &json!({
+                "revoked_pubkey": "abc123",
+                "revoked_at": "2026-05-01T17:00:00Z",
+            }),
+        )
+        .is_err());
+
+        // FAIL: revoked_pubkey contains non-hex chars.
+        assert!(validate_event_payload(
+            EVENT_KIND_KEY_REVOKE,
+            &json!({
+                "revoked_pubkey": "ZZ".repeat(32),
+                "revoked_at": "2026-05-01T17:00:00Z",
+            }),
+        )
+        .is_err());
+
+        // FAIL: missing revoked_at.
+        assert!(validate_event_payload(
+            EVENT_KIND_KEY_REVOKE,
+            &json!({
+                "revoked_pubkey": good_pubkey,
+            }),
+        )
+        .is_err());
+
+        // FAIL: replacement_pubkey wrong length.
+        assert!(validate_event_payload(
+            EVENT_KIND_KEY_REVOKE,
+            &json!({
+                "revoked_pubkey": good_pubkey,
+                "revoked_at": "2026-05-01T17:00:00Z",
+                "replacement_pubkey": "deadbeef",
+            }),
+        )
+        .is_err());
+
+        // FAIL: replacement equals revoked (no-op rotation).
+        assert!(validate_event_payload(
+            EVENT_KIND_KEY_REVOKE,
+            &json!({
+                "revoked_pubkey": good_pubkey,
+                "revoked_at": "2026-05-01T17:00:00Z",
+                "replacement_pubkey": good_pubkey,
+            }),
+        )
+        .is_err());
+
+        // FAIL: revoked_at is non-empty but not a valid ISO-8601 stamp.
+        // The v0.49.1 validator parses it as RFC-3339 so typos can't
+        // reach replay verification.
+        // chrono's parse_from_rfc3339 is intentionally lenient on the
+        // `T` vs space separator (RFC-3339 §5.6), so we don't include
+        // that case here — chronologically nonsensical strings still
+        // fail, which is the bar we care about.
+        for bad in [
+            "yesterday",
+            "2026-13-01T00:00:00Z",   // month 13
+            "2026-05-01",             // date only, no time
+            "x",
+        ] {
+            assert!(
+                validate_event_payload(
+                    EVENT_KIND_KEY_REVOKE,
+                    &json!({
+                        "revoked_pubkey": good_pubkey,
+                        "revoked_at": bad,
+                    }),
+                )
+                .is_err(),
+                "expected revoked_at {bad:?} to fail validation"
+            );
+        }
     }
 }

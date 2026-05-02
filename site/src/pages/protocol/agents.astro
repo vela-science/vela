@@ -126,6 +126,70 @@ Content-Type: application/json
         <a class="inline-link" href="https://github.com/vela-science/vela/blob/main/crates/vela-protocol/src/proposals.rs" rel="noopener"><code>proposals.rs</code></a>.
         Empty fields skip serialization so existing frontiers round-trip byte-identically.
       </p>
+
+      <!-- ── Runtime contract — what the protocol enforces vs. what
+           the agent author is on the hook for. Without this split,
+           an integrator cannot write a conformant runtime, because
+           "checked against by the runtime" is ambiguous about whose
+           runtime. v0.49.2 makes the contract explicit. ── -->
+      <div class="agents__contract" aria-labelledby="agent-contract-head">
+        <h3 id="agent-contract-head" class="agents__contract-head">Runtime contract — enforced vs. advisory</h3>
+        <p class="agents__contract-lede">
+          A proposal carrying an <code>AgentRun</code> declares what the agent did. The protocol validates the <em>shape</em> of that declaration at the proposal-acceptance boundary; honesty about <em>what actually ran</em> is the agent author's responsibility. The split below is the integration contract.
+        </p>
+        <table class="agents__contract-table">
+          <thead>
+            <tr>
+              <th>Field</th>
+              <th>Vela enforces</th>
+              <th>Agent runtime is on the hook for</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>agent.id</code> · <code>agent.kind</code></td>
+              <td>Both required strings; <code>kind</code> ∈ <code>llm_agent</code>/<code>script</code>/<code>human</code>.</td>
+              <td>Stable identity across runs (so audits can correlate).</td>
+            </tr>
+            <tr>
+              <td><code>model</code> · <code>model_version</code></td>
+              <td>Required when <code>kind = llm_agent</code>; non-empty.</td>
+              <td>Reporting the actual model invoked, not a placeholder.</td>
+            </tr>
+            <tr>
+              <td><code>tool_calls[]</code></td>
+              <td>Schema (each entry has <code>tool</code>, <code>started_at</code>, <code>permission_state</code>); ordering preserved through canonical JSON.</td>
+              <td>Logging <em>every</em> external call the agent made. A proposal that names two tool calls when the agent made twelve is a runtime bug, not a protocol bug.</td>
+            </tr>
+            <tr>
+              <td><code>permissions.data_access</code> · <code>tool_access</code></td>
+              <td>Both arrays of strings; serialized iff non-empty.</td>
+              <td><strong>Pre-flight enforcement.</strong> Vela does NOT block tool calls outside the declared allow-list — the runtime must refuse the call before invocation. Vela validates the declaration; the runtime enforces the boundary.</td>
+            </tr>
+            <tr>
+              <td><code>tool_calls[].permission_state</code></td>
+              <td>Enum: <code>granted</code> / <code>denied</code> / <code>not_required</code>.</td>
+              <td>Truthful. A <code>granted</code> for a call the runtime never authorized is a runtime fault.</td>
+            </tr>
+            <tr>
+              <td><code>tool_calls[].error_message</code></td>
+              <td>Optional string; if present, must be non-empty.</td>
+              <td>Recording the actual error class (timeout, refusal, network) — not silently treating failures as success.</td>
+            </tr>
+            <tr>
+              <td><code>started_at</code> · <code>finished_at</code></td>
+              <td>RFC-3339 / ISO-8601 timestamps; <code>finished_at</code> ≥ <code>started_at</code>.</td>
+              <td>Wall-clock truth. Spoofing timestamps to backdate a run defeats the audit trail.</td>
+            </tr>
+          </tbody>
+        </table>
+        <p class="agents__contract-foot">
+          Where the boundary lives, in code:
+          <code>validate_event_payload</code> in <a class="inline-link" href="https://github.com/vela-science/vela/blob/main/crates/vela-protocol/src/events.rs" rel="noopener">events.rs</a> validates the shape;
+          <code>apply_proposal</code> in <a class="inline-link" href="https://github.com/vela-science/vela/blob/main/crates/vela-protocol/src/proposals.rs" rel="noopener">proposals.rs</a> validates structural invariants at acceptance time;
+          everything past that — including pre-flight permission checks — is yours.
+        </p>
+      </div>
     </section>
 
     <!-- ── §3 The signing model ── -->
@@ -397,5 +461,99 @@ Content-Type: application/json
     .agents__flow li { grid-template-columns: 1fr; gap: 4px; }
     .agents__deferred li { grid-template-columns: 1fr; gap: 4px; }
     .agents__defer-tag { width: fit-content; }
+  }
+
+  /* ── Runtime contract block ── */
+  .agents__contract {
+    margin-top: 1.6rem;
+    padding-top: 1.2rem;
+    border-top: 1px solid color-mix(in oklab, var(--gold) 32%, transparent);
+  }
+  .agents__contract-head {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 1.05rem;
+    margin: 0 0 0.5rem;
+    color: var(--ink-0);
+    letter-spacing: -0.012em;
+  }
+  .agents__contract-lede {
+    font-family: var(--font-sans);
+    font-size: 0.96rem;
+    line-height: 1.55;
+    color: var(--ink-1);
+    margin: 0 0 1rem;
+    max-width: 64ch;
+    text-wrap: pretty;
+  }
+  .agents__contract-lede code,
+  .agents__contract-foot code,
+  .agents__contract-table code {
+    font-family: var(--font-mono);
+    font-size: 0.86em;
+    background: var(--paper-1);
+    padding: 1px 5px;
+    border: 1px solid var(--rule-1);
+    border-radius: 3px;
+    color: var(--ink-0);
+  }
+  .agents__contract-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--font-sans);
+    font-size: 0.92rem;
+    line-height: 1.5;
+    margin: 0 0 1rem;
+  }
+  .agents__contract-table th {
+    text-align: left;
+    padding: 8px 10px;
+    border-bottom: 1px solid color-mix(in oklab, var(--gold) 38%, transparent);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: color-mix(in oklab, var(--ink-3) 92%, transparent);
+    vertical-align: bottom;
+    font-weight: 500;
+  }
+  .agents__contract-table th:nth-child(1) { width: 30%; }
+  .agents__contract-table th:nth-child(2) { width: 35%; }
+  .agents__contract-table th:nth-child(3) { width: 35%; }
+  .agents__contract-table td {
+    padding: 9px 10px;
+    border-bottom: 1px solid var(--rule-1);
+    color: var(--ink-1);
+    vertical-align: top;
+    text-wrap: pretty;
+  }
+  .agents__contract-table tr:last-child td { border-bottom: none; }
+  .agents__contract-foot {
+    font-family: var(--font-sans);
+    font-size: 0.9rem;
+    line-height: 1.5;
+    color: color-mix(in oklab, var(--ink-2) 92%, transparent);
+    margin: 0;
+    max-width: 64ch;
+  }
+  @media (max-width: 720px) {
+    .agents__contract-table,
+    .agents__contract-table thead,
+    .agents__contract-table tbody,
+    .agents__contract-table tr,
+    .agents__contract-table th,
+    .agents__contract-table td {
+      display: block;
+      width: 100%;
+    }
+    .agents__contract-table thead { display: none; }
+    .agents__contract-table tr { padding: 0.6rem 0; border-bottom: 1px solid var(--rule-1); }
+    .agents__contract-table td { padding: 4px 0; border: none; }
+    .agents__contract-table td:first-child {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: 0.06em;
+      color: var(--ink-3);
+    }
   }
 </style>

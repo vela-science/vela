@@ -99,6 +99,51 @@ function trunc(s: string, n: number): string {
     })}
   </ol>
 
+  <!-- ── HTTP API spec — the same kernel, callable over the wire ── -->
+  <section class="cf-api" aria-labelledby="cf-api-head">
+    <h2 id="cf-api-head" class="cf-api__head">HTTP API · POST /api/counterfactual/&#123;vfr_id&#125;</h2>
+    <p class="cf-api__lede">
+      The hub runs the same <code>answer_counterfactual</code> kernel a local CLI runs, against the
+      registered frontier the registry declares. Same input, same output, regardless of where the
+      query originates.
+    </p>
+    <pre class="cf-api__code"><code>{`# Request — JSON body, all three fields required.
+POST /api/counterfactual/vfr_bd91…
+Content-Type: application/json
+
+{
+  "intervene_on": "vf_<id>",   // finding to imagine setting confidence on
+  "set_to":       0.8,         // confidence value, in [0.0, 1.0]
+  "target":       "vf_<id>"    // finding whose counterfactual confidence to read
+}
+
+# Response — verdict tagged by kind.
+HTTP/1.1 200 OK
+{
+  "ok": true,
+  "vfr_id": "vfr_bd91…",
+  "query":   { … },
+  "verdict": {
+    "kind": "Resolved",
+    "factual":        0.62,
+    "counterfactual": 0.81,
+    "delta":          0.19,
+    "paths_used": [["vf_a", "vf_b", "vf_c"]]
+  }
+}
+
+# Other verdicts the kernel may return:
+#   { "kind": "MechanismUnspecified", "unspecified_edges": [["vf_a","vf_b"], …] }
+#   { "kind": "NoCausalPath",         "factual": 0.5 }
+#   { "kind": "UnknownNode",          "which": "vf_???" }
+#   { "kind": "InvalidIntervention",  "reason": "set_to outside [0,1]" }`}</code></pre>
+    <p class="cf-api__caption">
+      Schema: <code>https://vela.science/schema/counterfactual/v0.45.1</code>.
+      Kernel source: <code>vela_protocol::counterfactual::answer_counterfactual</code>.
+      The CLI form (<code>vela counterfactual</code>) wraps the same call locally.
+    </p>
+  </section>
+
   <p class="cf-version">vela {VERSION} · level 3</p>
 </Page>
 
@@ -166,5 +211,63 @@ function trunc(s: string, n: number): string {
     font-size: 0.78rem;
     text-align: right;
     font-family: ui-monospace, Menlo, monospace;
+  }
+
+  /* ── HTTP API block — the wire-format spec for the kernel ── */
+  .cf-api {
+    margin: 2.5rem 0 0;
+    padding-top: 1.4rem;
+    border-top: 1px solid color-mix(in oklab, var(--gold, #c9a227) 38%, transparent);
+  }
+  .cf-api__head {
+    font-family: var(--font-sans, system-ui);
+    font-weight: 600;
+    font-size: 1.05rem;
+    margin: 0 0 0.6rem;
+    color: var(--ink-0, #0e1a2f);
+    letter-spacing: -0.01em;
+  }
+  .cf-api__lede {
+    font-family: var(--font-sans, system-ui);
+    font-size: 0.95rem;
+    line-height: 1.55;
+    color: var(--ink-1, #1f2937);
+    margin: 0 0 1rem;
+    max-width: 64ch;
+  }
+  .cf-api__lede code {
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 0.86em;
+    background: var(--bg-3, #ebe6dd);
+    padding: 0.05em 0.35em;
+    border-radius: 2px;
+  }
+  .cf-api__code {
+    margin: 0 0 0.85rem;
+    padding: 14px 18px 16px;
+    background: var(--bg-1, #fafaf6);
+    border: 1px solid var(--rule-2, #d8d4cc);
+    border-radius: 4px;
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--ink-1, #1f2937);
+    overflow-x: auto;
+    white-space: pre;
+  }
+  .cf-api__caption {
+    margin: 0;
+    font-family: var(--font-sans, system-ui);
+    font-size: 0.88rem;
+    line-height: 1.5;
+    color: var(--ink-2, #6b665d);
+    max-width: 60ch;
+  }
+  .cf-api__caption code {
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 0.86em;
+    background: var(--bg-3, #ebe6dd);
+    padding: 0.05em 0.35em;
+    border-radius: 2px;
   }
 </style>
