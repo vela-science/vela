@@ -549,19 +549,40 @@ async fn well_known_vela(State(state): State<AppState>) -> Json<Value> {
             "agent-run":              "https://vela.science/schema/agent-run/v0.22",
             "key-revoke":             "https://vela.science/schema/event/key-revoke/v0.49",
             "cross-impl-reducer-fixture": "https://vela.science/schema/cross-impl-reducer-fixture/v1",
+            "canonical-json":         "https://vela.science/schema/canonical-json/v1",
+        },
+        "canonical_json_v1": {
+            "summary": "RFC-8785-shaped canonical JSON used as the preimage for every Vela signature.",
+            "rules": [
+                "object keys sorted lexicographically by UTF-8 byte order, recursively",
+                "no insignificant whitespace between tokens",
+                "strings are UTF-8 with JSON-standard escaping",
+                "numbers in shortest round-trip form; NaN and Infinity rejected",
+                "no trailing commas; arrays preserve source order"
+            ],
+            "reference_impl": "vela_protocol::canonical::to_canonical_bytes (Rust)"
         },
         "second_implementations": {
             "packet_verifier": "https://vela.science/vela_verify.py",
             "reducer":         "https://vela.science/vela_reducer.py",
+            "reducer_typescript": "https://vela.science/vela_reducer.mjs"
         },
     });
 
-    // v0.49.3: detached signature over the manifest's canonical bytes.
-    // Verifier algorithm (matches `vela_protocol::canonical::to_canonical_bytes`):
-    //   1. take envelope.manifest as a JSON object
-    //   2. canonicalize: keys sorted lex, no extra whitespace, UTF-8
-    //   3. SHA-512(canonical_bytes) signed via Ed25519 with envelope.signature.pubkey
-    //   4. signature.value is hex-encoded 64-byte signature
+    // v0.49.3.1: detached Ed25519 signature over the manifest's
+    // canonical-JSON bytes. To verify (TS / Python / any language with
+    // an Ed25519 lib):
+    //   1. Take envelope.manifest as a JSON object.
+    //   2. Re-canonicalize per the `canonical_json_v1` rules above
+    //      (sorted keys, no whitespace, UTF-8) → raw bytes.
+    //   3. Verify(signature.pubkey, canonical_bytes, signature.value)
+    //      using **pure Ed25519** (RFC 8032 §5.1.7 EdDSA).
+    //
+    // Pure Ed25519 hashes the message internally with SHA-512 as part
+    // of the EdDSA signing equation — DO NOT pre-hash the canonical
+    // bytes before verifying. (`ed25519_dalek::SigningKey::sign(bytes)`
+    // is pure Ed25519, not Ed25519ph.)
+    //
     // Mode is "unsigned" when VELA_HUB_SIGNING_KEY_PATH is unset.
     match (&state.signing_key, canonical::to_canonical_bytes(&manifest)) {
         (Some(key), Ok(bytes)) => {
@@ -570,10 +591,17 @@ async fn well_known_vela(State(state): State<AppState>) -> Json<Value> {
                 "manifest": manifest,
                 "signature": {
                     "alg": "Ed25519",
+                    "alg_variant": "pure",
                     "pubkey": vsign::pubkey_hex(key),
                     "value": hex::encode(sig),
                     "canonical_format": "vela.canonical-json/v1",
+                    "canonical_format_spec": "https://vela.science/schema/canonical-json/v1",
                     "signed_at": signed_at,
+                    "verifier_steps": [
+                        "1. take envelope.manifest as JSON",
+                        "2. re-canonicalize per canonical_json_v1 → raw bytes",
+                        "3. Ed25519 verify (RFC 8032 §5.1.7, pure not ph) over canonical bytes — do NOT pre-hash"
+                    ],
                 },
                 "mode": "signed",
             }))
@@ -582,7 +610,7 @@ async fn well_known_vela(State(state): State<AppState>) -> Json<Value> {
             "manifest": manifest,
             "signature": null,
             "mode": "unsigned",
-            "note": "set VELA_HUB_SIGNING_KEY_PATH on the hub to enable detached Ed25519 signatures over this discovery manifest",
+            "note": "set VELA_HUB_SIGNING_KEY_PATH on the hub to enable detached pure-Ed25519 signatures over this discovery manifest",
         })),
     }
 }
