@@ -35,7 +35,7 @@ const lastUpdated = stats.lastUpdated
     <p class="vh-hero__eyebrow">vela {VERSION} · open protocol for scientific findings</p>
 
     <div class="vh-try">
-      <pre class="vh-code"><code><span class="vh-cm"># inspect the script first if you don't trust the domain:</span>
+      <pre class="vh-code" aria-label="Shell commands to fetch and verify a Vela proof packet"><code lang="bash"><span class="vh-cm"># inspect the script first if you don't trust the domain:</span>
 <span class="vh-ps">$</span> <span class="vh-cmd">curl</span> https://vela.science/try   <span class="vh-cm"># prints the bash; ~80 lines</span>
 
 <span class="vh-cm"># or run it directly. downloads a signed proof packet (~68 KB)</span>
@@ -46,20 +46,20 @@ const lastUpdated = stats.lastUpdated
 
     <dl class="vh-stats">
       <a class="vh-stat" href={`${HUB_URL}/entries`}>
-        <dt>{stats.claims}</dt>
-        <dd>findings on the live frontier ↗</dd>
+        <dt>findings on the live frontier ↗</dt>
+        <dd>{stats.claims}</dd>
       </a>
       <a class="vh-stat" href="/spec#reducer">
-        <dt>3</dt>
-        <dd>reducer impls, byte-identical →</dd>
+        <dt>reducer impls, byte-identical →</dt>
+        <dd>3</dd>
       </a>
       <a class="vh-stat" href="/try">
-        <dt>35/35</dt>
-        <dd>files verified by the proof script →</dd>
+        <dt>files verified by the proof script →</dt>
+        <dd>35/35</dd>
       </a>
       <div class="vh-stat">
-        <dt>{lastUpdated}</dt>
-        <dd>last signed</dd>
+        <dt>last signed</dt>
+        <dd>{lastUpdated}</dd>
       </div>
     </dl>
 
@@ -103,7 +103,7 @@ const lastUpdated = stats.lastUpdated
         <a class="vh-link" href="/quickstart">/quickstart</a>.
       </p>
     </div>
-    <pre class="vh-object__code"><code><span class="vh-tk">finding</span>:
+    <pre class="vh-object__code" aria-label="A Finding object encoded as YAML"><code lang="yaml"><span class="vh-tk">finding</span>:
   <span class="vh-tk">id</span>:        vf_83185611d673465b
   <span class="vh-tk">assertion</span>: <span class="vh-str">"Pericyte loss precedes cognitive decline in early Alzheimer's."</span>
   <span class="vh-tk">scope</span>:     [human, sporadic_AD, prodromal_stage]
@@ -204,7 +204,7 @@ const lastUpdated = stats.lastUpdated
           <span class="vh-build__pane-tag">$ run locally</span>
           <span class="vh-build__pane-aside">~60 seconds</span>
         </div>
-        <pre class="vh-code vh-code--block"><code><span class="vh-ps">$</span> <span class="vh-cmd">git clone</span> {REPO_URL}
+        <pre class="vh-code vh-code--block" aria-label="Build and run the Vela CLI locally"><code lang="bash"><span class="vh-ps">$</span> <span class="vh-cmd">git clone</span> {REPO_URL}
 <span class="vh-ps">$</span> <span class="vh-cmd">cd</span> vela <span class="vh-ps">&&</span> <span class="vh-cmd">cargo build</span> <span class="vh-flag">--release</span>
 <span class="vh-ps">$</span> ./target/release/vela <span class="vh-cmd">frontier compile</span> ./papers
 <span class="vh-ps">$</span> ./target/release/vela <span class="vh-cmd">serve --workbench</span></code></pre>
@@ -214,7 +214,7 @@ const lastUpdated = stats.lastUpdated
           <span class="vh-build__pane-tag">$ query the live hub</span>
           <span class="vh-build__pane-aside">no auth · CORS open</span>
         </div>
-        <pre class="vh-code vh-code--block"><code><span class="vh-ps">$</span> <span class="vh-cmd">curl</span> {HUB_URL}/entries \
+        <pre class="vh-code vh-code--block" aria-label="Query the live Vela hub for frontier entries"><code lang="bash"><span class="vh-ps">$</span> <span class="vh-cmd">curl</span> {HUB_URL}/entries \
     <span class="vh-flag">-H</span> <span class="vh-str">"accept: application/json"</span>
 {`
 # {"entries":[
@@ -403,7 +403,7 @@ const lastUpdated = stats.lastUpdated
     text-decoration: none;
     transition: color 160ms var(--ease);
   }
-  .vh-try__src:hover { color: var(--gold); }
+  .vh-try__src:hover { color: var(--gold-ink); }
 
   .vh-code {
     margin: 0;
@@ -445,7 +445,7 @@ const lastUpdated = stats.lastUpdated
   }
   .vh-stat {
     display: flex;
-    flex-direction: column;
+    flex-direction: column-reverse;
     gap: 6px;
     padding: 1.1rem 0 1rem;
     border-right: 1px solid var(--rule-1);
@@ -454,11 +454,11 @@ const lastUpdated = stats.lastUpdated
     transition: background 160ms var(--ease);
   }
   a.vh-stat:hover { background: var(--paper-1); }
-  a.vh-stat:hover dt { color: var(--gold); }
+  a.vh-stat:hover dd { color: var(--gold-ink); }
   .vh-stat:first-child { padding-left: 0; }
   .vh-stat:not(:first-child) { padding-left: 1.4rem; }
   .vh-stat:last-child { border-right: 0; }
-  .vh-stat dt {
+  .vh-stat dd {
     font-family: var(--font-sans);
     font-weight: 600;
     font-size: 1.5rem;
@@ -468,7 +468,7 @@ const lastUpdated = stats.lastUpdated
     font-variant-numeric: tabular-nums;
     margin: 0;
   }
-  .vh-stat dd {
+  .vh-stat dt {
     font-family: var(--font-mono);
     font-size: 10px;
     font-weight: 500;
@@ -638,8 +638,8 @@ const lastUpdated = stats.lastUpdated
     transition: color 160ms var(--ease), border-bottom-color 160ms var(--ease);
   }
   .vh-link:hover {
-    color: var(--gold);
-    border-bottom-color: var(--gold);
+    color: var(--gold-ink);
+    border-bottom-color: var(--gold-ink);
   }
 
   /* ── Claims grid ─────────────────────────────────────────────── */
@@ -725,7 +725,7 @@ const lastUpdated = stats.lastUpdated
     text-decoration: none;
     transition: color 160ms var(--ease);
   }
-  .vh-directory__link:hover { color: var(--gold); }
+  .vh-directory__link:hover { color: var(--gold-ink); }
 
   /* ── Institutional footer — License · Spec · Hub · Last signed
      · Source · Security. Six cells, mono, no preciousness. */
@@ -764,7 +764,7 @@ const lastUpdated = stats.lastUpdated
     padding-bottom: 1px;
     transition: color 160ms var(--ease), border-bottom-color 160ms var(--ease);
   }
-  .vh-foot__link:hover { color: var(--gold); border-bottom-color: var(--gold); }
+  .vh-foot__link:hover { color: var(--gold-ink); border-bottom-color: var(--gold-ink); }
   .vh-foot__mono { font-family: var(--font-mono); font-size: 0.85em; }
   @media (max-width: 720px) {
     .vh-foot__meta { grid-template-columns: repeat(2, 1fr); }

@@ -52,7 +52,8 @@
   --rule-ink:       rgba(35, 43, 58, 0.86);   /* engraved line */
 
   /* ── The single accent — luminous gold per brand spec ─────────────── */
-  --gold:           #D4AF37;   /* Luminous Gold from brand boards */
+  --gold:           #D4AF37;   /* Luminous Gold — decorative use only (borders, halos, dot accents) */
+  --gold-ink:       #8a6d18;   /* Contrast-safe gold for TEXT on paper-0; 4.6:1 ratio (WCAG AA) */
   --gold-soft:      rgba(212, 175, 55, 0.32);
   --gold-glow:      rgba(212, 175, 55, 0.20);
   --gold-light:     #D1B98C;   /* Gold Light variant for softer accents */

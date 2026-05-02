@@ -132,7 +132,7 @@ const hasSlot = Astro.slots.has("default");
     border-left-color: color-mix(in oklab, var(--gold) 60%, transparent);
   }
   .mn:hover .mn-body::before {
-    color: var(--gold);
+    color: var(--gold-ink);
   }
 
   /* Sidenote links — quiet reference affordance */
@@ -146,8 +146,8 @@ const hasSlot = Astro.slots.has("default");
   }
   .mn-body a:hover,
   .mn-body a:focus-visible {
-    color: var(--gold);
-    text-decoration-color: var(--gold);
+    color: var(--gold-ink);
+    text-decoration-color: var(--gold-ink);
   }
 
   /* Narrow-screen mode (<1180px) — collapse to tap-to-reveal */

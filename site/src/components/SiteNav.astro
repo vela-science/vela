@@ -75,8 +75,8 @@ const { active = "home" } = Astro.props;
     color: var(--ink-0);
     transition: color 200ms var(--ease);
   }
-  .vl-brand:hover { color: var(--gold); }
-  .vl-brand__glyph { color: var(--gold); flex-shrink: 0; }
+  .vl-brand:hover { color: var(--gold-ink); }
+  .vl-brand__glyph { color: var(--gold-ink); flex-shrink: 0; }
 
   .vl-brand__wordmark {
     font-family: var(--font-mono);
@@ -104,9 +104,9 @@ const { active = "home" } = Astro.props;
     transition: color 200ms var(--ease);
     text-transform: lowercase;
   }
-  .vl-nav__link:hover { color: var(--gold); }
+  .vl-nav__link:hover { color: var(--gold-ink); }
   .vl-nav__link--active {
-    color: var(--gold);
+    color: var(--gold-ink);
     border-bottom: 1px solid color-mix(in oklab, var(--gold) 56%, transparent);
     padding-bottom: 1px;
   }

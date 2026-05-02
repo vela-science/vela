@@ -126,7 +126,7 @@ import { REPO_URL, VERSION } from "../config";
         </dl>
 
         <p>The event envelope wraps every payload:</p>
-        <pre class="spec__code"><code>{`{
+        <pre class="spec__code" aria-label="Event envelope JSON schema"><code lang="json">{`{
   "v":        1,                          // protocol version (uint)
   "id":       "ev_<hash>",                // content-addressed event id
   "ts":       "<RFC3339-UTC>",            // monotonic per actor
@@ -228,7 +228,7 @@ import { REPO_URL, VERSION } from "../config";
           the reference implementation, <code>agent_run_does_not_change_proposal_id</code>,
           enforces this).
         </p>
-        <pre class="spec__code"><code>{`{
+        <pre class="spec__code" aria-label="AgentRun provenance object JSON schema"><code lang="json">{`{
   "agent": {
     "id":        "scout-v3.2",                  // stable identifier
     "kind":      "llm_agent",                   // llm_agent | script | human
@@ -444,7 +444,7 @@ import { REPO_URL, VERSION } from "../config";
           the content-addressed id; HTTP resolvers MUST redirect to a frontier-scoped page
           on a known hub.
         </p>
-        <pre class="spec__code"><code>vela:vf_83185611d673465b              # bare id, ambiguous across frontiers
+        <pre class="spec__code" aria-label="Vela citation URI examples"><code lang="text">vela:vf_83185611d673465b              # bare id, ambiguous across frontiers
 vela:vfr_bd91…/vf_83185611d673465b   # frontier-scoped, unambiguous
 https://vela-hub.fly.dev/v/vf_83185611d673465b   # HTTP resolver (redirects to frontier page)</code></pre>
         <p>
@@ -545,6 +545,117 @@ https://vela-hub.fly.dev/v/vf_83185611d673465b   # HTTP resolver (redirects to f
           <li><a class="inline-link" href="#MUST-canonical-nfc"><code>#MUST-canonical-nfc</code></a> — NFC-normalize Unicode strings</li>
           <li><a class="inline-link" href="#MUST-canonical-utf8"><code>#MUST-canonical-utf8</code></a> — UTF-8, no BOM</li>
         </ul>
+      </div>
+    </section>
+
+    <!-- ── Epistemic stance ── -->
+    <section class="spec__section" id="epistemic-stance">
+      <header class="spec__head">
+        <span class="spec__num">§12</span>
+        <h2 class="spec__title">Epistemic stance.</h2>
+      </header>
+      <div class="spec__body">
+        <p>
+          A protocol is not philosophy-neutral. The choice to model science as Findings
+          plus Corrections plus typed Links carries assumptions about what kind of object
+          a scientific claim is, how knowledge accumulates, and what counts as progress.
+          This section names those assumptions so they can be argued with rather than
+          smuggled.
+        </p>
+
+        <h3 class="spec__sub" id="stance-default">What the protocol assumes by default.</h3>
+        <ul class="spec__list">
+          <li><strong>Confidence is a scalar updated by evidence.</strong> The
+            <code>confidence.score</code> field on a Finding is a single number on
+            <code>[0,1]</code>. Reducers do not prescribe how a curator arrives at it,
+            but the data structure presupposes that something like a Bayesian-style
+            posterior is the right summary of an evidence base. Frequentist <em>p</em>-values,
+            likelihoodist <em>likelihood ratios</em>, and severity-test outcomes all have
+            to be projected onto that scalar to be expressible as a Finding.</li>
+          <li><strong>Knowledge accumulates by edge addition.</strong> The link graph
+            (<code>depends</code>, <code>contradicts</code>, <code>narrowed_by</code>,
+            <code>superseded_by</code>) treats progress as the steady accretion of typed
+            relations between persistent objects. This is a Mertonian-cumulativist picture
+            of science: prior work persists, gets corrected at the edges, and the structure
+            of the field grows monotonically richer.</li>
+          <li><strong>Disagreement is local.</strong> A Contradiction is an edge between
+            two specific Findings. Two reviewers who disagree about the credibility of a
+            measurement can both publish signed Findings; the resulting contradiction is a
+            graph artifact at the leaf, not a schism in the scaffolding.</li>
+          <li><strong>Observation is treated as separable from theory.</strong> An
+            <code>EvidenceObject</code> records a measurement, an effect size, an image, a
+            dataset row. The schema does not encode the theoretical apparatus that made
+            that measurement legible — the instrument calibration, the analysis pipeline,
+            the choice of what counted as a signal. Those live (if anywhere) in
+            <code>provenance</code> as free-text and DOI references.</li>
+        </ul>
+
+        <h3 class="spec__sub" id="stance-handles">What the protocol handles well.</h3>
+        <ul class="spec__list">
+          <li><strong>Normal-science correction.</strong> A measurement is replicated;
+            the new value is more precise; the older Finding is superseded. The
+            <code>vrev</code> chain captures this without ambiguity.</li>
+          <li><strong>Scope refinement.</strong> A claim that held for "humans" is shown
+            to hold only for an APOE4-positive subset; <code>narrowed_by</code> is exactly
+            the edge type for this move.</li>
+          <li><strong>Contradiction surfacing.</strong> Two Findings make incompatible
+            claims at compatible scopes; the Contradiction-Finder agent emits a
+            <code>contradicts</code> edge with both sides traceable to signed evidence.</li>
+          <li><strong>Provenance and credit.</strong> Who signed what, when, and on the
+            basis of what evidence — these are first-class fields, not a CSV exported from
+            a journal database.</li>
+        </ul>
+
+        <h3 class="spec__sub" id="stance-limits">What the protocol does not capture.</h3>
+        <p>
+          These are not bugs; they are the cost of choosing a structure. Naming them is
+          how the protocol stays honest about what it is for.
+        </p>
+        <ul class="spec__list">
+          <li><strong>Paradigm-class shifts.</strong> When a community comes to see a
+            whole class of prior measurements as artifacts of an outmoded apparatus —
+            phlogiston-era calorimetry, pre-DNA classifications of life, pre-GR
+            measurements of Mercury's perihelion — the right move is not to add
+            <code>contradicts</code> edges to every individual prior Finding. It is to
+            mark a body of work as no-longer-comparable. The current schema can record
+            this only crudely, by mass-superseding nodes inside a frontier; the
+            <em>reasons</em> for the shift live in essays and reviews outside the graph.
+            A future <code>methodology-disqualification</code> primitive (§8 versioning)
+            is on the consideration list. We are not pretending Kuhn solved by adding a
+            field; we are pretending only that incremental corrections are well-modeled
+            here, and that paradigm-class shifts will need extra structure when the
+            community finds itself wanting one.</li>
+          <li><strong>Theory-laden observation.</strong> The protocol cannot adjudicate
+            whether two laboratories looking at the same slide are seeing the same
+            phenomenon under different theoretical descriptions, or different phenomena
+            altogether. The graph will faithfully record the disagreement; it will not
+            tell you whose theoretical lens to trust.</li>
+          <li><strong>Tacit knowledge and craft.</strong> A measurement that requires a
+            specific reagent batch, an assayist's hand, or an undocumented protocol step
+            cannot be re-executed from a Finding plus its EvidenceObjects. The protocol
+            captures what was claimed and signed; it does not capture what was known how
+            to do.</li>
+          <li><strong>Discipline-scale norms.</strong> Whether a 0.62-confidence Finding
+            counts as "strong evidence" depends on the field's evidentiary norms —
+            what's routine in epidemiology is unacceptable in particle physics. The
+            scalar travels across frontiers; the normative weight does not.</li>
+          <li><strong>Adversarial reframing.</strong> A bad-faith actor who publishes
+            signed Findings designed to pollute the graph (rather than make false claims
+            outright) is bounded by curator review, not by the schema. Reducers are
+            value-neutral about whether a signed Finding deserves to be in the frontier.</li>
+        </ul>
+
+        <h3 class="spec__sub" id="stance-position">Where this puts Vela.</h3>
+        <p>
+          The protocol is best read as <em>infrastructure for the parts of scientific
+          practice that are well-modeled by signed, content-addressed, typed-edge
+          accumulation</em>. That is most of what most working scientists do most days.
+          It is not a model of how scientific revolutions occur, nor a substitute for the
+          disciplinary judgment of which measurements deserve to be believed. Treat the
+          frontier as the audit trail of a research community; treat the philosophy of
+          why that community changed its mind as something the trail records traces of,
+          not something the protocol decides.
+        </p>
       </div>
     </section>
 
@@ -871,7 +982,7 @@ https://vela-hub.fly.dev/v/vf_83185611d673465b   # HTTP resolver (redirects to f
     transition: color var(--dur-1) var(--ease), text-decoration-color var(--dur-1) var(--ease);
   }
   .inline-link:hover {
-    color: var(--gold);
-    text-decoration-color: var(--gold);
+    color: var(--gold-ink);
+    text-decoration-color: var(--gold-ink);
   }
 </style>

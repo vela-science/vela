@@ -192,7 +192,7 @@
   transition: color 220ms var(--ease), background-image 220ms var(--ease);
 }
 .reading-shell a:where(:not(.eyebrow):not([class*="vh-"]):not([class*="vl-"]):not([class*="dev-hero"]):not([class*="quiet-link"]):not(.claim-card)):hover {
-  color: var(--gold);
+  color: var(--gold-ink);
   background-image: linear-gradient(to right, var(--gold), var(--gold));
 }
 

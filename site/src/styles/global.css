@@ -125,8 +125,8 @@ a:hover { color: var(--ink-0); }
   border-bottom: 1px solid color-mix(in oklab, var(--gold) 38%, transparent);
 }
 .reading a:hover {
-  color: var(--gold);
-  border-bottom-color: var(--gold);
+  color: var(--gold-ink);
+  border-bottom-color: var(--gold-ink);
 }
 .reading table {
   font-family: var(--font-sans);
@@ -199,8 +199,8 @@ a:hover { color: var(--ink-0); }
   border-bottom: 1px solid color-mix(in oklab, var(--gold) 38%, transparent);
 }
 .endpoint-list .desc a:hover {
-  color: var(--gold);
-  border-bottom-color: var(--gold);
+  color: var(--gold-ink);
+  border-bottom-color: var(--gold-ink);
 }
 
 /* ----- Card grid ----- */
@@ -273,8 +273,8 @@ a:hover { color: var(--ink-0); }
   transition: color var(--dur-1) var(--ease), border-bottom-color var(--dur-1) var(--ease);
 }
 .bl-quiet-link:hover {
-  color: var(--gold);
-  border-bottom-color: var(--gold);
+  color: var(--gold-ink);
+  border-bottom-color: var(--gold-ink);
 }
 
 /* ----- Mobile rim fallback ----- */
