@@ -90,6 +90,71 @@ pub struct AgentRun {
     /// through canonical JSON without imposing a schema.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub context: BTreeMap<String, String>,
+    /// v0.49: explicit tool-call traces from this run. Each entry
+    /// records one tool invocation by content-addressable summary
+    /// (tool name + input hash + output hash + duration). Lets a
+    /// reviewer see what the agent actually called without bloating
+    /// the bundle with raw payloads. Optional + skip-if-empty so
+    /// existing frontiers round-trip byte-identically.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub tool_calls: Vec<ToolCallTrace>,
+    /// v0.49: declared permission state for this run. Lists the
+    /// data sources the agent had read access to and the tools it
+    /// could invoke. Reviewers compare this declaration against
+    /// `tool_calls` to spot drift. Optional + skip-if-empty so
+    /// existing frontiers round-trip byte-identically.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub permissions: Option<PermissionState>,
+}
+
+/// One tool invocation made during an `AgentRun`. Stored as a
+/// content-addressable summary, never the raw payload — keeps the
+/// bundle bounded while preserving "did this happen, with what
+/// inputs, returning what outputs" for reviewer audit. v0.49.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ToolCallTrace {
+    /// Tool identifier (e.g. "pubmed_search", "arxiv_fetch", "compile").
+    pub tool: String,
+    /// SHA-256 hex of the canonical-JSON input. 64-char.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub input_sha256: String,
+    /// SHA-256 hex of the canonical-JSON output. 64-char. Optional
+    /// for tools whose output is opaque (a side effect, a navigation,
+    /// etc.).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub output_sha256: Option<String>,
+    /// ISO-8601 wall-clock start of the call.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub at: String,
+    /// Wall-clock duration in milliseconds.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub duration_ms: Option<u32>,
+    /// Optional non-error status string (e.g. "ok", "rate_limited",
+    /// "partial"). Kept free-form so a tool layer can emit whatever
+    /// taxonomy it wants without protocol bumps.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub status: String,
+}
+
+/// Declared permission boundary for an `AgentRun`. Lists what the
+/// agent could read and which tools it could call. Reviewers can
+/// diff this against `tool_calls` to spot scope creep. v0.49.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+pub struct PermissionState {
+    /// Data sources the agent had read access to. Free-form URIs:
+    /// `pubmed:`, `dataset:`, `frontier:vfr_…`, `path:./papers/…`.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub data_access: Vec<String>,
+    /// Tool identifiers the agent was allowed to call. Should be the
+    /// allow-list `tool_calls[*].tool` is checked against by the
+    /// runtime.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub tool_access: Vec<String>,
+    /// Optional human-readable note explaining the scope (e.g.
+    /// "read-only access to BBB Flagship; can call pubmed search
+    /// and arxiv fetch only"). Reviewer affordance only.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub note: String,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
@@ -2111,8 +2176,107 @@ mod tests {
                 ("input_folder".to_string(), "./papers".to_string()),
                 ("pdf_count".to_string(), "12".to_string()),
             ]),
+            tool_calls: Vec::new(),
+            permissions: None,
         });
         let id_with_run = proposal_id(&with_run);
         assert_eq!(id_bare, id_with_run, "agent_run leaked into proposal_id preimage");
+    }
+
+    /// v0.49 byte-stability: tool_calls and permissions on AgentRun
+    /// must skip serialization when empty/None, so existing frontiers
+    /// (none of which carry these fields today) round-trip byte-
+    /// identically through canonical JSON. Same invariant as
+    /// agent_run itself in v0.22.
+    #[test]
+    fn agent_run_empty_tool_calls_and_permissions_skip_serialization() {
+        let p = new_proposal(
+            "finding.add",
+            StateTarget {
+                r#type: "finding".to_string(),
+                id: "vf_test0000000000".to_string(),
+            },
+            "agent:scout",
+            "agent",
+            "test",
+            json!({}),
+            Vec::new(),
+            Vec::new(),
+        );
+        let mut with_run = p.clone();
+        with_run.agent_run = Some(AgentRun {
+            agent: "scout".to_string(),
+            model: "claude-opus-4-7".to_string(),
+            run_id: "vrun_x".to_string(),
+            started_at: "2026-04-26T01:00:00Z".to_string(),
+            finished_at: None,
+            context: BTreeMap::new(),
+            tool_calls: Vec::new(),
+            permissions: None,
+        });
+        let bytes = canonical::to_canonical_bytes(&with_run).unwrap();
+        let s = std::str::from_utf8(&bytes).unwrap();
+        assert!(
+            !s.contains("tool_calls"),
+            "empty tool_calls leaked into canonical JSON: {s}"
+        );
+        assert!(
+            !s.contains("permissions"),
+            "empty permissions leaked into canonical JSON: {s}"
+        );
+    }
+
+    /// v0.49: when populated, tool_calls and permissions DO serialize
+    /// — this is the round-trip we want for new agent runs that
+    /// actually carry tool traces.
+    #[test]
+    fn agent_run_populated_tool_calls_and_permissions_roundtrip() {
+        let mut p = new_proposal(
+            "finding.add",
+            StateTarget {
+                r#type: "finding".to_string(),
+                id: "vf_test0000000000".to_string(),
+            },
+            "agent:scout",
+            "agent",
+            "test",
+            json!({}),
+            Vec::new(),
+            Vec::new(),
+        );
+        p.agent_run = Some(AgentRun {
+            agent: "scout".to_string(),
+            model: "claude-opus-4-7".to_string(),
+            run_id: "vrun_x".to_string(),
+            started_at: "2026-04-26T01:00:00Z".to_string(),
+            finished_at: None,
+            context: BTreeMap::new(),
+            tool_calls: vec![ToolCallTrace {
+                tool: "pubmed_search".to_string(),
+                input_sha256: "a".repeat(64),
+                output_sha256: Some("b".repeat(64)),
+                at: "2026-04-26T01:00:05Z".to_string(),
+                duration_ms: Some(842),
+                status: "ok".to_string(),
+            }],
+            permissions: Some(PermissionState {
+                data_access: vec!["pubmed:".to_string(), "frontier:vfr_bd91".to_string()],
+                tool_access: vec!["pubmed_search".to_string(), "arxiv_fetch".to_string()],
+                note: "read-only access to BBB Flagship".to_string(),
+            }),
+        });
+        let bytes = canonical::to_canonical_bytes(&p).unwrap();
+        let json: serde_json::Value =
+            serde_json::from_slice(&bytes).expect("canonical bytes round-trip");
+        assert_eq!(
+            json["agent_run"]["tool_calls"][0]["tool"],
+            "pubmed_search",
+            "tool_calls did not survive the round trip: {json}"
+        );
+        assert_eq!(
+            json["agent_run"]["permissions"]["data_access"][0],
+            "pubmed:",
+            "permissions did not survive the round trip: {json}"
+        );
     }
 }

@@ -83,6 +83,8 @@ pub fn agent_run_meta(ctx: &AgentContext, mut extra: BTreeMap<String, String>) -
         started_at: ctx.started_at.clone(),
         finished_at: None,
         context: extra,
+        tool_calls: Vec::new(),
+        permissions: None,
     }
 }
 

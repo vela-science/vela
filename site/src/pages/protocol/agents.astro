@@ -1,0 +1,401 @@
+---
+/*
+  /protocol/agents — the agent-write surface, documented honestly.
+
+  An AI agent that wants to propose a Finding into a Vela frontier
+  goes through three steps: draft (POST /api/queue), get reviewed
+  (signed ReviewEvent), publish (POST hub /entries). Each draft
+  carries an AgentRun with tool_calls and permissions so the reviewer
+  can audit what the agent actually did.
+
+  This is the page Reviewer B asked for: the API spec, the call
+  sequence, the schema, the signing model.
+*/
+import Page from "../../layouts/Page.astro";
+import SectionHeading from "../../components/SectionHeading.astro";
+import Imprint from "../../components/Imprint.astro";
+import { HUB_URL, REPO_URL } from "../../config";
+---
+
+<Page
+  title="Agent integration · Vela protocol"
+  description="How an AI agent writes a draft Finding into a Vela frontier — the call sequence, the schema, the signing model."
+  active="protocol"
+  eyebrow="Protocol · agent integration"
+  pageTitle="Agent integration"
+  subtitle="The write surface, documented honestly. Draft, review, sign, publish."
+>
+  <a href="/protocol" slot="aside" class="aside-link">← Protocol</a>
+
+  <article class="agents">
+    <p class="agents__hook">
+      <em>Agents draft. Reviewers sign. The hub transports.</em>
+    </p>
+    <p class="agents__sub">
+      Vela does not auto-promote agent output. An agent proposes; a
+      reviewer (human or institutional) accepts; the accepted proposal
+      becomes a signed canonical event. The substrate carries the
+      provenance trail — who proposed, with what model, calling which
+      tools, against which data — as first-class objects, so a future
+      auditor can replay the chain end-to-end.
+    </p>
+
+    <!-- ── §1 The flow ── -->
+    <section class="agents__section">
+      <SectionHeading title="The flow" kicker="§1 · four steps" />
+      <ol class="agents__flow">
+        <li>
+          <span class="agents__flow-step">draft</span>
+          <span class="agents__flow-body">
+            Agent POSTs an unsigned <code>StateProposal</code> to the local workbench (<code>POST /api/queue</code> on a running <code>vela serve</code>) with an attached <code>AgentRun</code> recording model, tool calls, and declared permissions. The substrate stores it in the inbox with status <code>pending_review</code>.
+          </span>
+        </li>
+        <li>
+          <span class="agents__flow-step">review</span>
+          <span class="agents__flow-body">
+            A reviewer opens the inbox, inspects the proposal alongside its <code>AgentRun.tool_calls</code> and <code>permissions</code> declaration, and either accepts (signs a <code>ReviewEvent</code>) or rejects (signs a Rejection). Acceptance applies the proposal to the frontier as a canonical signed event.
+          </span>
+        </li>
+        <li>
+          <span class="agents__flow-step">sign</span>
+          <span class="agents__flow-body">
+            The accepted event is canonical-JSON-serialized and signed with the reviewer's Ed25519 key. The frontier's <code>snapshot_hash</code> and <code>event_log_hash</code> advance. Two implementations replaying the same events from the same starting state reduce to the same hash, byte for byte.
+          </span>
+        </li>
+        <li>
+          <span class="agents__flow-step">publish</span>
+          <span class="agents__flow-body">
+            <code>vela registry publish</code> creates a signed <code>RegistryEntry</code> manifest (vfr_id, owner, network_locator, snapshot_hash, signature) and POSTs it to the hub. The hub verifies the signature before insert and serves the entry to anyone who asks. Pulling the entry, fetching the locator, and replaying gives the exact same state the publisher signed.
+          </span>
+        </li>
+      </ol>
+    </section>
+
+    <!-- ── §2 The proposal schema ── -->
+    <section class="agents__section">
+      <SectionHeading title="What an agent submits" kicker="§2 · the schema" />
+      <p class="agents__line">
+        Every draft is a <code>StateProposal</code> with an attached <code>AgentRun</code>. The substrate uses content-addressing on the proposal body (assertion, evidence, conditions, confidence) — the <code>AgentRun</code> is informational provenance and never enters the proposal id preimage. That guarantee is enforced by an existing test (<code>agent_run_does_not_change_proposal_id</code> in <code>crates/vela-protocol/src/proposals.rs</code>) so attaching agent metadata never changes the canonical hash of what the proposal says.
+      </p>
+      <pre class="agents__code"><code>{`POST /api/queue HTTP/1.1
+Content-Type: application/json
+
+{
+  "kind": "finding.add",
+  "actor": { "id": "agent:literature-scout", "kind": "agent" },
+  "target": { "type": "finding", "id": "vf_pending" },
+  "rationale": "Extracted from PMID 38432167; matches the BBB delivery cluster.",
+  "args": {
+    "assertion": {
+      "text": "Pericyte loss precedes cognitive decline in early Alzheimer's",
+      "type": "mechanism"
+    },
+    "evidence": { "type": "experimental", "evidence_spans": [...] },
+    "conditions": { "scope": "human · sporadic AD · prodromal stage" },
+    "confidence": { "score": 0.62, "method": "agent_judgment" },
+    "provenance": { "doi": "10.1038/jcbfm.2015.44" }
+  },
+  "agent_run": {
+    "agent": "literature-scout",
+    "model": "claude-opus-4-7",
+    "run_id": "vrun_a3c8b40f",
+    "started_at": "2026-04-26T01:00:00Z",
+    "context": {
+      "input_root": "./papers/bbb-cluster-2026-04",
+      "pdf_count": "12"
+    },
+    "tool_calls": [
+      {
+        "tool": "pubmed_search",
+        "input_sha256": "a3c8b40f...",
+        "output_sha256": "8891a2ab...",
+        "at": "2026-04-26T01:00:05Z",
+        "duration_ms": 842,
+        "status": "ok"
+      }
+    ],
+    "permissions": {
+      "data_access": ["pubmed:", "frontier:vfr_bd91"],
+      "tool_access": ["pubmed_search", "arxiv_fetch"],
+      "note": "read-only access to BBB Flagship; pubmed + arxiv only"
+    }
+  }
+}`}</code></pre>
+      <p class="agents__caption">
+        <code>AgentRun</code> + <code>ToolCallTrace</code> + <code>PermissionState</code> live in
+        <a class="inline-link" href="https://github.com/vela-science/vela/blob/main/crates/vela-protocol/src/proposals.rs" rel="noopener"><code>proposals.rs</code></a>.
+        Empty fields skip serialization so existing frontiers round-trip byte-identically.
+      </p>
+    </section>
+
+    <!-- ── §3 The signing model ── -->
+    <section class="agents__section">
+      <SectionHeading title="Signing" kicker="§3 · who can canonicalize" />
+      <p class="agents__line">
+        Drafts are unsigned. Canonical events require an Ed25519 signature from an actor the frontier has registered. Each frontier carries its own <code>actors[]</code> list; cross-frontier composition does not transfer signing authority. A finding accepted into one constellation never becomes canonical in another by default.
+      </p>
+      <pre class="agents__code"><code><span class="tm-ps">$</span> <span class="tm-cmd">vela sign generate-keypair</span> <span class="tm-flag">--out</span> ./keys
+<span class="tm-ps">$</span> <span class="tm-cmd">vela actor add</span> ./frontier.json reviewer:you \
+    <span class="tm-flag">--pubkey</span> "$(cat ./keys/public.key)"
+<span class="tm-ps">$</span> <span class="tm-cmd">vela review accept</span> ./frontier.json &lt;proposal_id&gt; \
+    <span class="tm-flag">--key</span> ./keys/private.key</code></pre>
+      <p class="agents__caption">
+        The reviewer's Ed25519 key signs over the canonical-JSON preimage of the event. The same preimage on two machines produces the same signature bytes. Verify with <code>vela sign verify</code> or your favourite library — Ed25519 is a stable IETF standard.
+      </p>
+    </section>
+
+    <!-- ── §4 Publishing to the hub ── -->
+    <section class="agents__section">
+      <SectionHeading title="Publishing" kicker="§4 · the registry" />
+      <p class="agents__line">
+        The hub is a signed-manifest registry, not a database of findings. A frontier lives where its publisher hosts it (an HTTPS URL, a GitHub raw, a custom locator). The hub stores the signed pointer and verifies the signature before accepting.
+      </p>
+      <pre class="agents__code"><code><span class="tm-ps">$</span> <span class="tm-cmd">vela registry publish</span> ./frontier.json \
+    <span class="tm-flag">--owner</span> reviewer:you \
+    <span class="tm-flag">--key</span> ./keys/private.key \
+    <span class="tm-flag">--locator</span> https://your-domain.tld/frontier.json \
+    <span class="tm-flag">--to</span> {HUB_URL}
+
+<span class="tm-comment"># registry entry signed and accepted:</span>
+<span class="tm-comment">#   vfr_id:    vfr_773f6e60b19b438f</span>
+<span class="tm-comment">#   signed_at: 2026-04-26T01:51:32.939374+00:00</span>
+<span class="tm-comment">#   pubkey:    4892f93877e637b5f59af31d9ec6704814842fb278cacb0eb94704baef99455e</span></code></pre>
+      <p class="agents__caption">
+        Anyone can pull the entry with <code>vela registry pull &lt;vfr_id&gt;</code> and verify the signature against the published pubkey before fetching the locator. The hub never authenticates content; it transports signed claims and lets the reader decide who they trust.
+        <span class="agents__sep">·</span>
+        <a class="inline-link" href={HUB_URL + "/entries"} rel="noopener">Browse the live hub →</a>
+      </p>
+    </section>
+
+    <!-- ── §5 What's deferred ── -->
+    <section class="agents__section">
+      <SectionHeading title="Deferred" kicker="§5 · honest gaps" />
+      <p class="agents__line">
+        Things this surface does not yet do, with honest version targets:
+      </p>
+      <ul class="agents__deferred">
+        <li>
+          <span class="agents__defer-tag">v0.50</span>
+          <span class="agents__defer-body">A second-implementation byte-identical replay verifier (Python or Go) running against the canonical-JSON spec. The Rust implementation already produces deterministic hashes; an independent re-implementation closes the protocol-not-implementation question.</span>
+        </li>
+        <li>
+          <span class="agents__defer-tag">v0.50</span>
+          <span class="agents__defer-body">A JSON Schema export for <code>StateProposal</code>, <code>AgentRun</code>, and <code>RegistryEntry</code> so language clients can codegen against a stable contract.</span>
+        </li>
+        <li>
+          <span class="agents__defer-tag">v0.51</span>
+          <span class="agents__defer-body">An MCP server wrapping the local workbench API so an agent in any MCP-aware host (Claude, Codex, etc.) can draft proposals without writing HTTP code.</span>
+        </li>
+        <li>
+          <span class="agents__defer-tag">v0.52</span>
+          <span class="agents__defer-body">A federation runtime so two hubs can mirror each other's signed entries without a central authority. The peer registry primitive lands in v0.39; the sync loop is the gap.</span>
+        </li>
+      </ul>
+    </section>
+
+    <Imprint returnHref="/protocol" returnLabel="Back to the protocol" />
+  </article>
+</Page>
+
+<style>
+  .aside-link {
+    font-family: var(--font-mono);
+    font-size: var(--size-imprint);
+    letter-spacing: var(--track-imprint);
+    text-transform: uppercase;
+    color: var(--ink-3);
+    border-bottom: 1px solid transparent;
+    transition: color var(--dur-1) var(--ease), border-bottom-color var(--dur-1) var(--ease);
+  }
+  .aside-link:hover {
+    color: var(--gold);
+    border-bottom-color: color-mix(in oklab, var(--gold) 56%, transparent);
+  }
+
+  .agents {
+    max-width: var(--measure-wide);
+    margin: 0 auto;
+  }
+  .agents__hook {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-weight: 500;
+    font-size: clamp(1.55rem, 3.2vw, 2.2rem);
+    line-height: 1.2;
+    letter-spacing: var(--track-display);
+    color: var(--ink-0);
+    margin: 0 0 0.85rem;
+    max-width: 38ch;
+    text-wrap: balance;
+  }
+  .agents__sub {
+    font-family: var(--font-sans);
+    font-weight: 400;
+    font-size: 1rem;
+    line-height: 1.55;
+    letter-spacing: -0.005em;
+    color: color-mix(in oklab, var(--ink-2) 92%, transparent);
+    margin: 0 0 clamp(2.5rem, 6vh, 4rem);
+    max-width: 64ch;
+    text-wrap: pretty;
+  }
+
+  .agents__section {
+    margin: 0 0 clamp(2.6rem, 6vh, 3.8rem);
+    padding-top: 1rem;
+    border-top: 1px solid color-mix(in oklab, var(--gold) 28%, transparent);
+  }
+  .agents__line {
+    font-family: var(--font-body);
+    font-size: 1.05rem;
+    line-height: 1.6;
+    color: color-mix(in oklab, var(--ink-1) 90%, var(--ink-2));
+    margin: 0 0 1.2rem;
+    max-width: 60ch;
+    text-wrap: pretty;
+  }
+  .agents__line code, .agents__caption code {
+    font-family: var(--font-mono);
+    font-size: 0.86em;
+    color: var(--ink-1);
+    background: var(--paper-1);
+    padding: 1px 5px;
+    border: 1px solid var(--rule-2);
+    border-radius: var(--radius-xs);
+  }
+  .agents__sep { color: var(--ink-4); margin: 0 6px; }
+
+  .agents__flow {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    counter-reset: agent-flow;
+  }
+  .agents__flow li {
+    counter-increment: agent-flow;
+    display: grid;
+    grid-template-columns: 110px 1fr;
+    gap: 18px;
+    padding: 1rem 0;
+    border-bottom: 1px solid var(--rule-1);
+    align-items: baseline;
+  }
+  .agents__flow li:last-child { border-bottom: 0; }
+  .agents__flow-step {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: color-mix(in oklab, var(--gold) 72%, var(--ink-2));
+    font-weight: 500;
+  }
+  .agents__flow-step::before {
+    content: counter(agent-flow, decimal-leading-zero) " · ";
+    color: color-mix(in oklab, var(--ink-3) 88%, transparent);
+    margin-right: 4px;
+  }
+  .agents__flow-body {
+    font-family: var(--font-body);
+    font-size: 1.02rem;
+    line-height: 1.6;
+    color: color-mix(in oklab, var(--ink-1) 90%, var(--ink-2));
+    text-wrap: pretty;
+  }
+
+  .agents__code {
+    margin: 0 0 1rem;
+    padding: 14px 18px 16px;
+    background: var(--paper-1);
+    border: 1px solid var(--rule-2);
+    border-radius: var(--radius-sm);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.65;
+    color: var(--ink-1);
+    overflow-x: auto;
+    white-space: pre;
+  }
+  .agents__code code {
+    font-family: inherit; font-size: inherit; color: inherit;
+    background: transparent; border: 0; padding: 0;
+  }
+  .agents__code .tm-ps { color: color-mix(in oklab, var(--gold) 56%, var(--ink-3)); }
+  .agents__code .tm-cmd { color: var(--ink-0); font-weight: 500; }
+  .agents__code .tm-flag { color: var(--ink-2); }
+  .agents__code .tm-comment { color: color-mix(in oklab, var(--ink-3) 72%, transparent); font-style: italic; }
+
+  .agents__caption {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-weight: 400;
+    font-size: 0.95rem;
+    line-height: 1.55;
+    letter-spacing: -0.005em;
+    color: color-mix(in oklab, var(--ink-2) 92%, transparent);
+    text-wrap: pretty;
+  }
+  .agents__caption .inline-link {
+    color: var(--ink-1);
+    text-decoration: underline;
+    text-decoration-color: color-mix(in oklab, var(--gold) 56%, transparent);
+    text-underline-offset: 3px;
+    text-decoration-thickness: 1px;
+    transition: color var(--dur-1) var(--ease), text-decoration-color var(--dur-1) var(--ease);
+  }
+  .agents__caption .inline-link:hover {
+    color: var(--gold);
+    text-decoration-color: var(--gold);
+  }
+
+  .agents__deferred {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    border-top: 1px solid color-mix(in oklab, var(--brass) 28%, transparent);
+  }
+  .agents__deferred li {
+    display: grid;
+    grid-template-columns: 90px 1fr;
+    gap: 18px;
+    padding: 0.9rem 0;
+    border-bottom: 1px solid var(--rule-1);
+    align-items: baseline;
+  }
+  .agents__deferred li:last-child { border-bottom: 0; }
+  .agents__defer-tag {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: color-mix(in oklab, var(--brass) 80%, var(--ink-2));
+    font-weight: 500;
+    border: 1px solid color-mix(in oklab, var(--brass) 38%, transparent);
+    border-radius: var(--radius-sm);
+    padding: 2px 8px;
+    text-align: center;
+  }
+  .agents__defer-body {
+    font-family: var(--font-body);
+    font-size: 1rem;
+    line-height: 1.55;
+    color: color-mix(in oklab, var(--ink-1) 90%, var(--ink-2));
+    text-wrap: pretty;
+  }
+  .agents__defer-body code {
+    font-family: var(--font-mono);
+    font-size: 0.86em;
+    color: var(--ink-1);
+    background: var(--paper-1);
+    padding: 1px 5px;
+    border: 1px solid var(--rule-2);
+    border-radius: var(--radius-xs);
+  }
+
+  @media (max-width: 720px) {
+    .agents__hook { font-size: 1.4rem; }
+    .agents__line, .agents__flow-body, .agents__defer-body { font-size: 0.98rem; }
+    .agents__flow li { grid-template-columns: 1fr; gap: 4px; }
+    .agents__deferred li { grid-template-columns: 1fr; gap: 4px; }
+    .agents__defer-tag { width: fit-content; }
+  }
+</style>

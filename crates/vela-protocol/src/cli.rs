@@ -414,6 +414,18 @@ enum Commands {
         #[command(subcommand)]
         action: PacketAction,
     },
+    /// Recompute SHA-256 over every file in a proof packet, compare to
+    /// the manifest, and validate the proof-trace chain. Friendlier
+    /// alias for `vela packet validate <path>` — same code path, same
+    /// guarantee. Use this when you've pulled a packet from someone
+    /// else and want one command that says "yes, this is what they
+    /// signed, byte for byte."
+    Verify {
+        /// Path to the proof packet directory (the one with manifest.json)
+        path: PathBuf,
+        #[arg(long)]
+        json: bool,
+    },
     /// Run deterministic benchmark gates.
     ///
     /// Two modes:
@@ -2135,6 +2147,7 @@ pub async fn run_command() {
             output,
         } => export::run(&frontier, &format, output.as_deref()),
         Commands::Packet { action } => cmd_packet(action),
+        Commands::Verify { path, json } => cmd_verify(&path, json),
         Commands::Bench {
             frontier,
             gold,
@@ -9185,6 +9198,32 @@ fn cmd_packet(action: PacketAction) {
     }
 }
 
+/// `vela verify <packet_dir>` — same code path as
+/// `vela packet validate`, surfaced under a friendlier top-level name.
+/// Reads every file in the manifest, recomputes SHA-256, validates the
+/// proof-trace chain. Exit 0 on all-match, 1 on any mismatch.
+fn cmd_verify(path: &Path, json_output: bool) {
+    let result = packet::validate(path);
+    match result {
+        Ok(output) if json_output => {
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&json!({
+                    "ok": true,
+                    "command": "verify",
+                    "result": output,
+                }))
+                .expect("failed to serialize verify response")
+            );
+        }
+        Ok(output) => {
+            println!("{output}");
+            println!("\nverify: ok\n  every file in the manifest matched its claimed sha256.\n  pull this packet on another machine, run the same command, see the same line.");
+        }
+        Err(e) => fail(&e),
+    }
+}
+
 fn cmd_init(path: &Path, name: &str) {
     let vela_dir = path.join(".vela");
     if vela_dir.exists() {
@@ -9791,6 +9830,8 @@ const SCIENCE_SUBCOMMANDS: &[&str] = &[
     "bridges",
     // v0.48: local workbench web app.
     "workbench",
+    // v0.49: friendlier alias for `vela packet validate <path>`.
+    "verify",
 ];
 
 pub fn is_science_subcommand(name: &str) -> bool {
