@@ -1,0 +1,478 @@
+---
+/*
+  /sdk — the SDK and CLI reference.
+
+  Comprehensive reference for the vela CLI, the Rust crates, and the
+  Python and TypeScript reducer bindings. Designed so a researcher or
+  research engineer can integrate without contacting the team.
+*/
+
+import Reading from "../layouts/Reading.astro";
+import { REPO_URL, HUB_URL } from "../config";
+---
+
+<Reading
+  title="SDK reference · Vela"
+  description="CLI, Rust crates, Python and TypeScript reducer bindings, hub HTTP API. Reference for integrating with the substrate."
+  active="docs"
+>
+  <header class="page-head">
+    <p class="eyebrow">Vela · SDK reference</p>
+    <h1 class="page-head__title">Build against the substrate.</h1>
+    <p class="page-head__sub">
+      The CLI, the Rust crates, the Python and TypeScript reducer bindings, and the hub
+      HTTP API. Everything a researcher or research engineer needs to integrate without
+      contacting the team.
+    </p>
+  </header>
+
+  <article class="sdk">
+
+    <nav class="sdk__toc" aria-label="On this page">
+      <p class="sdk__toc-eyebrow">On this page</p>
+      <ol class="sdk__toc-list">
+        <li><a href="#cli">§1 · vela CLI</a></li>
+        <li><a href="#rust">§2 · Rust crates</a></li>
+        <li><a href="#python">§3 · Python reducer</a></li>
+        <li><a href="#typescript">§4 · TypeScript reducer</a></li>
+        <li><a href="#http">§5 · Hub HTTP API</a></li>
+        <li><a href="#schema">§6 · Event schema</a></li>
+      </ol>
+    </nav>
+
+    <!-- ── CLI ── -->
+    <section class="sdk__section" id="cli">
+      <header class="sdk__head">
+        <span class="sdk__num">§1</span>
+        <h2 class="sdk__title">vela CLI</h2>
+      </header>
+
+      <p class="sdk__intro">
+        The <code>vela</code> binary is the canonical write surface. Every command produces a
+        signed event that any reducer in the world can replay byte-for-byte. New users should
+        start with <a class="inline-link" href="/quickstart">/quickstart</a> for the end-to-end
+        loop; this section is the reference.
+      </p>
+
+      <div class="sdk__cmd">
+        <h3 class="sdk__cmd-name"><code>vela init</code></h3>
+        <p>Initialize a new frontier in the current directory.</p>
+        <pre class="sdk__code"><code>vela init --name &lt;NAME&gt; [--description &lt;TEXT&gt;] [--key &lt;LABEL&gt;]</code></pre>
+        <ul class="sdk__flags">
+          <li><code>--name</code> — frontier display name (required)</li>
+          <li><code>--description</code> — one-line scope description</li>
+          <li><code>--key</code> — signing key label (defaults to <code>default</code>)</li>
+        </ul>
+      </div>
+
+      <div class="sdk__cmd">
+        <h3 class="sdk__cmd-name"><code>vela key</code></h3>
+        <p>Manage Ed25519 signing keys. Private keys are stored at <code>~/.vela/keys/</code>.</p>
+        <pre class="sdk__code"><code>vela key generate --label &lt;LABEL&gt;
+vela key list
+vela key export --label &lt;LABEL&gt; --public-only
+vela key rotate --old &lt;LABEL&gt; --new &lt;LABEL&gt;</code></pre>
+      </div>
+
+      <div class="sdk__cmd">
+        <h3 class="sdk__cmd-name"><code>vela add</code></h3>
+        <p>Draft a new event of a given type. Events are unsigned until <code>vela sign</code>.</p>
+        <pre class="sdk__code"><code>vela add finding \
+    --assertion &lt;TEXT&gt; \
+    --confidence &lt;0.0-1.0&gt; \
+    --scope &lt;COMMA-SEP-TAGS&gt; \
+    --evidence &lt;DOI-OR-URL&gt; [--evidence ...]
+
+vela add evidence \
+    --finding &lt;FINDING-ID&gt; \
+    --type [paper|dataset|trial|code|null-result] \
+    --pointer &lt;DOI-OR-URL&gt; \
+    --note &lt;TEXT&gt;
+
+vela add correction \
+    --finding &lt;FINDING-ID&gt; \
+    --kind [scope-narrow|confidence-down|confidence-up|retract] \
+    --reason &lt;TEXT&gt; \
+    --evidence &lt;DOI-OR-URL&gt;
+
+vela add dependency \
+    --from &lt;CLAIM-ID&gt; \
+    --to &lt;CLAIM-ID&gt; \
+    --kind [supports|depends-on|contradicts]</code></pre>
+      </div>
+
+      <div class="sdk__cmd">
+        <h3 class="sdk__cmd-name"><code>vela sign / publish / verify</code></h3>
+        <pre class="sdk__code"><code>vela sign [--key &lt;LABEL&gt;]                # signs all unsigned events
+vela publish --hub &lt;HUB-URL&gt;              # pushes signed events to a hub
+vela verify [&lt;PATH-OR-URL&gt;]               # verifies signatures + replays state
+vela log                                  # prints the event log
+vela frontier show                        # prints current canonical state</code></pre>
+      </div>
+
+      <div class="sdk__cmd">
+        <h3 class="sdk__cmd-name"><code>vela fetch</code></h3>
+        <p>Mirror a frontier from a hub to local disk.</p>
+        <pre class="sdk__code"><code>vela fetch &lt;FRONTIER-ID&gt; [--hub &lt;HUB-URL&gt;] [--path &lt;DIR&gt;]</code></pre>
+      </div>
+    </section>
+
+    <!-- ── Rust ── -->
+    <section class="sdk__section" id="rust">
+      <header class="sdk__head">
+        <span class="sdk__num">§2</span>
+        <h2 class="sdk__title">Rust crates</h2>
+      </header>
+
+      <p class="sdk__intro">
+        The canonical reducer is implemented in Rust. Three crates compose the workspace.
+      </p>
+
+      <dl class="sdk__pair">
+        <dt><code>vela-protocol</code></dt>
+        <dd>The protocol types: <code>Event</code>, <code>Finding</code>,
+          <code>EvidenceObject</code>, <code>Correction</code>, <code>Signature</code>,
+          canonical-JSON serialization, hash-of-canonical signing surface. Pure
+          <code>no_std</code>-compatible types with serde.</dd>
+        <dt><code>vela-reducer</code></dt>
+        <dd>The deterministic state machine. <code>fn reduce(events: &amp;[Event]) -&gt;
+          Frontier</code>. Byte-identical output across machines and versions for any given
+          event log. Test fixtures verify byte-equality with the Python and TypeScript
+          reducers.</dd>
+        <dt><code>vela-hub</code></dt>
+        <dd>The HTTP server (axum) that accepts signed events, persists the log, and serves
+          the canonical state. The <code>vela-hub</code> binary is what runs at
+          <a class="inline-link" href={HUB_URL} rel="noopener">{HUB_URL.replace(/^https?:\/\//, '')}</a>.</dd>
+      </dl>
+
+      <p>Add the crates to a Rust project from the workspace root.</p>
+      <pre class="sdk__code"><code>[dependencies]
+vela-protocol = {`{ git = "${REPO_URL}", branch = "main" }`}
+vela-reducer  = {`{ git = "${REPO_URL}", branch = "main" }`}</code></pre>
+
+      <p>Replay an event log from disk:</p>
+      <pre class="sdk__code"><code>use vela_protocol::Event;
+use vela_reducer::reduce;
+
+let events: Vec&lt;Event&gt; = std::fs::read_dir(".vela/events")?
+    .map(|e| serde_json::from_slice(&amp;std::fs::read(e?.path())?))
+    .collect::&lt;Result&lt;_, _&gt;&gt;()?;
+
+let frontier = reduce(&amp;events);
+println!("findings: {`{}`}", frontier.findings.len());</code></pre>
+    </section>
+
+    <!-- ── Python ── -->
+    <section class="sdk__section" id="python">
+      <header class="sdk__head">
+        <span class="sdk__num">§3</span>
+        <h2 class="sdk__title">Python reducer</h2>
+      </header>
+
+      <p class="sdk__intro">
+        Stdlib-only verifier and reducer. Designed to be auditable in one sitting and
+        installable with no transitive dependencies — the same constraint that lets the
+        thirty-second proof at <a class="inline-link" href="/try">/try</a> run on any laptop.
+      </p>
+
+      <pre class="sdk__code"><code>from vela_reducer import reduce, verify_signature
+
+with open(".vela/events/0001-finding-drafted.json") as f:
+    events = [json.loads(line) for line in f]
+
+frontier = reduce(events)
+assert verify_signature(events[0])
+print(f"findings: {`{len(frontier['findings'])}`}")</code></pre>
+
+      <p>
+        Source at <a class="inline-link" href="/vela_reducer.py">vela_reducer.py</a> on this
+        domain. Stdlib-only. Auditable end-to-end in roughly 600 lines.
+      </p>
+    </section>
+
+    <!-- ── TypeScript ── -->
+    <section class="sdk__section" id="typescript">
+      <header class="sdk__head">
+        <span class="sdk__num">§4</span>
+        <h2 class="sdk__title">TypeScript reducer</h2>
+      </header>
+
+      <p class="sdk__intro">
+        ESM module, runs in node and modern browsers without polyfills. Used by the workbench
+        to replay state in the client and verify signatures locally.
+      </p>
+
+      <pre class="sdk__code"><code>import {`{ reduce, verifySignature }`} from "/vela_reducer.mjs";
+
+const events = await fetch("/api/frontier/vfr_bd91/events")
+    .then(r =&gt; r.json());
+
+const frontier = reduce(events);
+const allValid = events.every(verifySignature);
+console.log(`findings: ${`{frontier.findings.length}`}, valid: ${`{allValid}`}`);</code></pre>
+
+      <p>Source at <a class="inline-link" href="/vela_reducer.mjs">vela_reducer.mjs</a>. ESM module, no build step required.</p>
+    </section>
+
+    <!-- ── HTTP API ── -->
+    <section class="sdk__section" id="http">
+      <header class="sdk__head">
+        <span class="sdk__num">§5</span>
+        <h2 class="sdk__title">Hub HTTP API</h2>
+      </header>
+
+      <p class="sdk__intro">
+        The canonical hub at <a class="inline-link" href={HUB_URL} rel="noopener">{HUB_URL.replace(/^https?:\/\//, '')}</a>.
+        No authentication, no rate limiting, CORS open. The signature scheme is the bind.
+      </p>
+
+      <div class="sdk__cmd">
+        <h3 class="sdk__cmd-name"><code>GET /entries</code></h3>
+        <p>List all known frontier entries.</p>
+        <pre class="sdk__code"><code>curl {HUB_URL}/entries</code></pre>
+      </div>
+
+      <div class="sdk__cmd">
+        <h3 class="sdk__cmd-name"><code>GET /entries/{`{vfr_id}`}</code></h3>
+        <p>Get a single frontier's signed manifest and event count.</p>
+      </div>
+
+      <div class="sdk__cmd">
+        <h3 class="sdk__cmd-name"><code>GET /frontier/{`{vfr_id}`}/events</code></h3>
+        <p>Stream the full event log for a frontier as newline-delimited JSON.</p>
+      </div>
+
+      <div class="sdk__cmd">
+        <h3 class="sdk__cmd-name"><code>GET /frontier/{`{vfr_id}`}/snapshot</code></h3>
+        <p>Server-computed reduced state. Byte-identical to what your local reducer produces.</p>
+      </div>
+
+      <div class="sdk__cmd">
+        <h3 class="sdk__cmd-name"><code>POST /publish</code></h3>
+        <p>Append a signed event log to a frontier. Body is newline-delimited signed events.</p>
+        <pre class="sdk__code"><code>curl -X POST {HUB_URL}/publish \
+    -H "content-type: application/jsonl" \
+    --data-binary @.vela/events/0001-finding-drafted.json</code></pre>
+        <p>The hub validates each signature; events with invalid signatures are rejected with HTTP 400.</p>
+      </div>
+
+      <div class="sdk__cmd">
+        <h3 class="sdk__cmd-name"><code>GET /.well-known/vela</code></h3>
+        <p>Discovery endpoint. Returns hub capabilities, supported protocol versions, signing
+          algorithm (always <code>ed25519-canonical-json-v1</code>), and admin contact.</p>
+      </div>
+    </section>
+
+    <!-- ── Schema ── -->
+    <section class="sdk__section" id="schema">
+      <header class="sdk__head">
+        <span class="sdk__num">§6</span>
+        <h2 class="sdk__title">Event schema</h2>
+      </header>
+
+      <p class="sdk__intro">
+        Every event is canonical-JSON, signed with Ed25519 over the byte-canonical
+        serialization (no pre-hash). The four primitive event types share a common envelope.
+      </p>
+
+      <pre class="sdk__code"><code>{`{
+  "v": 1,                              // protocol version
+  "id": "ev_8a3e...",                  // content-addressed event id
+  "ts": "2026-05-02T15:42:01Z",        // ISO-8601 UTC, monotonic per actor
+  "actor": "did:key:z6Mk...",          // signer's verifying key
+  "kind": "finding-drafted",           // event type
+  "frontier": "vfr_bd91...",           // target frontier
+  "payload": { ... },                  // type-specific body
+  "sig": "ed25519:8c2a9f..."           // signature over canonical bytes
+}`}</code></pre>
+
+      <p>Full schema documentation, including the payload shape for each event kind, lives in
+        the protocol spec at <a class="inline-link" href="/spec">/spec</a>. The
+        <a class="inline-link" href="/primitives/">primitives appendix</a> walks the
+        information model in prose.</p>
+    </section>
+
+  </article>
+</Reading>
+
+<style>
+  .sdk { max-width: 64rem; margin: 0 auto; }
+
+  .sdk__toc {
+    margin: 0 0 var(--space-7);
+    padding: 1.1rem 1.4rem;
+    background: var(--paper-1);
+    border: 1px solid var(--rule-2);
+    border-radius: 8px;
+  }
+  .sdk__toc-eyebrow {
+    margin: 0 0 0.55rem;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: color-mix(in oklab, var(--gold) 76%, var(--ink-2));
+  }
+  .sdk__toc-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem 1.4rem;
+  }
+  .sdk__toc-list li {
+    font-family: var(--font-display);
+    font-size: 1.02rem;
+  }
+  .sdk__toc-list a {
+    color: var(--ink-1);
+    text-decoration: none;
+    border-bottom: 1px solid color-mix(in oklab, var(--gold) 38%, transparent);
+    transition: color 160ms var(--ease), border-bottom-color 160ms var(--ease);
+  }
+  .sdk__toc-list a:hover { color: var(--gold); border-bottom-color: var(--gold); }
+
+  .sdk__section {
+    border-top: 1px solid color-mix(in oklab, var(--gold) 32%, transparent);
+    padding: var(--space-5) 0 var(--space-6);
+  }
+  .sdk__section:last-of-type { border-bottom: 1px solid var(--rule-2); }
+
+  .sdk__head {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    margin-bottom: var(--space-4);
+  }
+  .sdk__num {
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: 13px;
+    letter-spacing: 0.18em;
+    color: color-mix(in oklab, var(--gold) 72%, var(--ink-2));
+    flex-shrink: 0;
+  }
+  .sdk__title {
+    font-family: var(--font-display);
+    font-weight: 450;
+    font-size: clamp(1.5rem, 2.8vw, 2rem);
+    line-height: 1.1;
+    letter-spacing: -0.018em;
+    color: var(--ink-0);
+    margin: 0;
+    text-wrap: balance;
+    font-variation-settings: "opsz" 96, "SOFT" 30;
+  }
+  .sdk__intro {
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    line-height: 1.62;
+    letter-spacing: -0.005em;
+    color: color-mix(in oklab, var(--ink-1) 90%, var(--ink-2));
+    margin: 0 0 var(--space-4);
+    max-width: 64ch;
+    text-wrap: pretty;
+  }
+
+  .sdk__cmd { margin: 0 0 var(--space-4); }
+  .sdk__cmd:last-child { margin-bottom: 0; }
+  .sdk__cmd-name {
+    margin: 0 0 0.5rem;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 1.02rem;
+    line-height: 1.4;
+    letter-spacing: -0.005em;
+    text-transform: none;
+    color: var(--ink-0);
+  }
+  .sdk__cmd-name code {
+    background: transparent;
+    padding: 0;
+    font-family: var(--font-mono);
+    font-size: 0.96em;
+    color: var(--ink-0);
+    letter-spacing: -0.005em;
+    text-transform: none;
+  }
+  .sdk__cmd p {
+    font-family: var(--font-sans);
+    font-size: 0.96rem;
+    line-height: 1.55;
+    color: var(--ink-1);
+    margin: 0 0 0.6rem;
+  }
+  .sdk__flags {
+    margin: 0;
+    padding: 0 0 0 1.2rem;
+    list-style: disc;
+  }
+  .sdk__flags li {
+    font-family: var(--font-sans);
+    font-size: 0.94rem;
+    line-height: 1.55;
+    color: var(--ink-1);
+    margin-bottom: 0.3rem;
+  }
+  .sdk__pair {
+    display: grid;
+    grid-template-columns: 12rem 1fr;
+    gap: 0.75rem var(--space-5);
+    margin: 0 0 var(--space-4);
+  }
+  .sdk__pair dt {
+    font-family: var(--font-mono);
+    font-size: 0.9rem;
+    color: var(--ink-0);
+    font-weight: 500;
+  }
+  .sdk__pair dd {
+    font-family: var(--font-sans);
+    font-size: 0.96rem;
+    line-height: 1.55;
+    color: var(--ink-1);
+    margin: 0;
+    text-wrap: pretty;
+  }
+  @media (max-width: 720px) {
+    .sdk__pair { grid-template-columns: 1fr; gap: 0.3rem; }
+    .sdk__pair dt { margin-top: 0.6rem; }
+    .sdk__pair dt:first-of-type { margin-top: 0; }
+  }
+  .sdk__code {
+    margin: var(--space-3) 0;
+    padding: 14px 18px 16px;
+    background: var(--paper-1);
+    border: 1px solid var(--rule-2);
+    border-radius: 6px;
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    line-height: 1.65;
+    color: var(--ink-1);
+    overflow-x: auto;
+    white-space: pre;
+  }
+  .sdk__code code { background: transparent; border: 0; padding: 0; font: inherit; color: inherit; }
+  .sdk__intro code, .sdk__cmd p code, .sdk__pair dd code, .sdk__flags li code {
+    font-family: var(--font-mono);
+    font-size: 0.86em;
+    padding: 1px 5px;
+    background: color-mix(in oklab, var(--paper-1) 70%, var(--paper-deep));
+    border-radius: 3px;
+    color: var(--ink-0);
+  }
+  .inline-link {
+    color: var(--ink-1);
+    text-decoration: underline;
+    text-decoration-color: color-mix(in oklab, var(--gold) 56%, transparent);
+    text-underline-offset: 3px;
+    text-decoration-thickness: 1px;
+    transition: color var(--dur-1) var(--ease), text-decoration-color var(--dur-1) var(--ease);
+  }
+  .inline-link:hover {
+    color: var(--gold);
+    text-decoration-color: var(--gold);
+  }
+</style>

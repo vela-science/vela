@@ -129,6 +129,7 @@ const lastUpdated = stats.lastUpdated
         </a>
       )}
       <a class="vh-link" href="/honest">What isn't true yet →</a>
+      <a class="vh-link" href="/quickstart">Deposit your first finding →</a>
     </div>
   </section>
 
@@ -189,6 +190,38 @@ const lastUpdated = stats.lastUpdated
       });
     })();
   </script>
+
+  <!-- Site directory -->
+  <nav class="vh-directory" aria-label="Site directory">
+    <div class="vh-directory__col">
+      <p class="vh-directory__head">Read</p>
+      <a class="vh-directory__link" href="https://borrowedlight.org" rel="noopener">The essay</a>
+      <a class="vh-directory__link" href="/protocol">The protocol</a>
+      <a class="vh-directory__link" href="/spec">Protocol specification</a>
+      <a class="vh-directory__link" href="/scope">Operational scope</a>
+    </div>
+    <div class="vh-directory__col">
+      <p class="vh-directory__head">Try</p>
+      <a class="vh-directory__link" href="/quickstart">Five-minute quickstart</a>
+      <a class="vh-directory__link" href="/sdk">SDK reference</a>
+      <a class="vh-directory__link" href="/workbench">The workbench</a>
+      <a class="vh-directory__link" href="/try">The 30-second proof</a>
+    </div>
+    <div class="vh-directory__col">
+      <p class="vh-directory__head">Verify</p>
+      <a class="vh-directory__link" href="/proof/pericyte-correction">A worked Correction</a>
+      <a class="vh-directory__link" href="/proof/contradiction">A worked contradiction</a>
+      <a class="vh-directory__link" href="/proof/packet">The signed proof packet</a>
+      <a class="vh-directory__link" href="/honest">What isn't true yet</a>
+    </div>
+    <div class="vh-directory__col">
+      <p class="vh-directory__head">Questions</p>
+      <a class="vh-directory__link" href="/faq">Frequently questioned answers</a>
+      <a class="vh-directory__link" href="/replay">Replay an event log</a>
+      <a class="vh-directory__link" href="/lineage">Why this exists</a>
+      <a class="vh-directory__link" href={REPO_URL} rel="noopener">Source on GitHub</a>
+    </div>
+  </nav>
 
   <!-- Imprint footer -->
   <footer class="vh-imprint" role="contentinfo">
@@ -558,6 +591,40 @@ const lastUpdated = stats.lastUpdated
     font-size: 0.82rem;
     line-height: 1.65;
   }
+
+  /* ── Site directory — four-column footer of every page ────────── */
+  .vh-directory {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 2rem;
+    padding-top: 2.4rem;
+    padding-bottom: 1.6rem;
+    border-top: 1px solid var(--rule-2);
+  }
+  @media (max-width: 880px) {
+    .vh-directory { grid-template-columns: repeat(2, 1fr); gap: 1.6rem 1.2rem; }
+  }
+  @media (max-width: 480px) {
+    .vh-directory { grid-template-columns: 1fr; }
+  }
+  .vh-directory__col { display: flex; flex-direction: column; gap: 0.5rem; }
+  .vh-directory__head {
+    margin: 0 0 0.4rem;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: color-mix(in oklab, var(--gold) 78%, var(--ink-2));
+  }
+  .vh-directory__link {
+    font-family: var(--font-sans);
+    font-size: 0.92rem;
+    color: var(--ink-1);
+    text-decoration: none;
+    transition: color 160ms var(--ease);
+  }
+  .vh-directory__link:hover { color: var(--gold); }
 
   /* ── Imprint footer ──────────────────────────────────────────── */
   .vh-imprint {

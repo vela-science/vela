@@ -1,0 +1,351 @@
+---
+/*
+  /faq — frequently questioned answers.
+
+  Pre-empts every "isn't this just X?" objection that a serious reader
+  has in the first thirty seconds. Each entry names the comparison
+  honestly, says what's true about it, and says what Vela does that the
+  comparison doesn't. The goal is to kill ambient skepticism so the
+  rest of the site can be read on its own terms.
+
+  Doctrine: name the strongest version of each objection, then answer.
+  Never strawman. If something Vela does is also true of the comparison,
+  say so.
+*/
+
+import Reading from "../layouts/Reading.astro";
+import { REPO_URL } from "../config";
+---
+
+<Reading
+  title="Questions · Vela"
+  description="Frequently questioned answers — what Vela is and isn't, against the projects it gets pattern-matched to."
+  active="docs"
+>
+  <header class="page-head">
+    <p class="eyebrow">Vela · questions</p>
+    <h1 class="page-head__title">Frequently questioned answers.</h1>
+    <p class="page-head__sub">
+      The comparisons every serious reader makes in the first thirty seconds.
+      Named honestly, answered concretely.
+    </p>
+  </header>
+
+  <article class="faq">
+
+    <details class="faq__q" open>
+      <summary class="faq__summary">Isn't this just BioRxiv / arXiv with extra steps?</summary>
+      <div class="faq__a">
+        <p>
+          Preprint servers move <em>artifacts</em>: a paper, a PDF, a snapshot at one moment.
+          Vela moves <em>state</em>: which findings a field currently believes, what evidence
+          they rest on, what would weaken them, and what depends on them.
+        </p>
+        <p>
+          A retraction on bioRxiv is metadata next to the paper. A Correction in Vela is an
+          event that propagates through the dependency graph and notifies every downstream
+          finding, trial, or review article that depended on the original claim. Different
+          primitives, different unit of work.
+        </p>
+      </div>
+    </details>
+
+    <details class="faq__q">
+      <summary class="faq__summary">Isn't this just Zenodo / figshare / OSF?</summary>
+      <div class="faq__a">
+        <p>
+          Those are content-addressed deposit registries. They store data, code, supplementary
+          materials, and DOIs reliably. They're load-bearing for the work Vela depends on.
+        </p>
+        <p>
+          What they do not maintain is the live state of a claim. A dataset on Zenodo doesn't
+          know which findings cite it, which ones have been retracted, or which downstream
+          experiments would fail if the dataset turned out to be wrong. Vela is the layer that
+          carries those edges.
+        </p>
+      </div>
+    </details>
+
+    <details class="faq__q">
+      <summary class="faq__summary">Isn't this just OpenAlex / Semantic Scholar?</summary>
+      <div class="faq__a">
+        <p>
+          OpenAlex and Semantic Scholar are read-mostly graphs over the existing literature.
+          They're invaluable as indexes; they let you find what's been written. Vela is a
+          write target. The point is not to index what was published; the point is to give
+          findings, failures, and corrections somewhere to live before they become a paper —
+          and somewhere to update after they do.
+        </p>
+        <p>
+          A useful test: can an agent write a contradiction event into OpenAlex that other
+          agents inherit? No, because OpenAlex is a snapshot of someone else's metadata.
+          That gap is the gap Vela exists to fill.
+        </p>
+      </div>
+    </details>
+
+    <details class="faq__q">
+      <summary class="faq__summary">Isn't this just nf-core / Galaxy / Snakemake?</summary>
+      <div class="faq__a">
+        <p>
+          Workflow systems are how an experiment runs reproducibly. They are upstream of
+          Vela: a Vela EvidenceObject can point at a Galaxy or nf-core pipeline as the
+          provenance of a numerical result. The substrate doesn't replace pipelines; it
+          gives the things pipelines produce a place to be addressed and contested.
+        </p>
+      </div>
+    </details>
+
+    <details class="faq__q">
+      <summary class="faq__summary">Isn't this just PubPeer + Retraction Watch?</summary>
+      <div class="faq__a">
+        <p>
+          Both do critical work and Vela cites them. PubPeer surfaces problems faster than
+          journals do. Retraction Watch documents what journals quietly fix without proper
+          correction trails. Both are read by humans. Neither produces machine-readable
+          events that downstream pipelines can subscribe to.
+        </p>
+        <p>
+          A Correction event in Vela is structured enough that a Phase II trial's enrollment
+          criteria can be programmatically updated when a foundational claim narrows in
+          scope. PubPeer can tell you the foundational claim is contested; it cannot make
+          the trial know.
+        </p>
+      </div>
+    </details>
+
+    <details class="faq__q">
+      <summary class="faq__summary">Isn't the protocol overprescriptive? Fields are different.</summary>
+      <div class="faq__a">
+        <p>
+          The four primitives — Finding, EvidenceObject, Correction, dependency edge — were
+          chosen because every field already uses them implicitly. A claim, the evidence
+          behind it, the events that change it, the things that depend on it. Vela makes
+          them addressable; it doesn't impose a schema on what counts as evidence inside a
+          field.
+        </p>
+        <p>
+          Schema specialization happens above the protocol. An oncology corridor and a
+          climate-model intercomparison corridor share the same primitives and disagree
+          freely on what an EvidenceObject's metadata should look like. The
+          <a class="inline-link" href="/primitives/">primitives appendix</a> documents the
+          minimum surface that has to be shared.
+        </p>
+      </div>
+    </details>
+
+    <details class="faq__q">
+      <summary class="faq__summary">What about credit? Tenure committees don't count this.</summary>
+      <div class="faq__a">
+        <p>
+          This is the load-bearing political problem and Vela does not pretend to solve it
+          from inside the protocol. The
+          <a class="inline-link" href="/scope#failure">scope page</a> names it as the most
+          likely failure mode. Without parallel credit reform — search committees, tenure
+          committees, study sections counting signed contributions the way they count
+          first-author papers — the people best positioned to deposit will reasonably refuse.
+        </p>
+        <p>
+          What the substrate does is make a signed Correction or a signed null result
+          something that <em>could</em> be counted, the way a GitHub commit can be counted.
+          The technical preconditions exist. The political work happens at the institutions
+          that decide what counts.
+        </p>
+      </div>
+    </details>
+
+    <details class="faq__q">
+      <summary class="faq__summary">What stops one company from capturing the substrate?</summary>
+      <div class="faq__a">
+        <p>
+          Three structural defenses, not aspirational ones.
+        </p>
+        <p>
+          <strong>Local-first by design.</strong> Every reducer can replay the canonical state
+          from a folder of signed events. The hub is a mirror, not the source of truth. If
+          the canonical hub disappears tomorrow, anyone with the event log can stand up
+          another one.
+        </p>
+        <p>
+          <strong>Signed events portable across hubs.</strong> Ed25519 signatures travel with
+          the events. A finding signed for one hub is verifiable on every hub that implements
+          the protocol. There is no central key authority that gates participation.
+        </p>
+        <p>
+          <strong>Three independent reducer implementations.</strong> Rust, Python, TypeScript
+          — each can replay the event log to byte-identical state. Anyone worried about
+          implementation lock-in can verify against a different reducer in twenty minutes.
+        </p>
+        <p>
+          The defense isn't "we promise to stay open." The defense is that closing wouldn't
+          accomplish anything: every event is already portable, every reducer is already
+          replaceable, and every hub is already mirrorable.
+        </p>
+      </div>
+    </details>
+
+    <details class="faq__q">
+      <summary class="faq__summary">Why Rust?</summary>
+      <div class="faq__a">
+        <p>
+          The reducer is the load-bearing piece: deterministic, byte-identical replay
+          across machines and across years. Memory safety and freedom from undefined behavior
+          matter when "did the same input produce the same output" is the central guarantee.
+          The TypeScript and Python reducers exist to prove the guarantee isn't accidental.
+        </p>
+      </div>
+    </details>
+
+    <details class="faq__q">
+      <summary class="faq__summary">Why Ed25519 specifically?</summary>
+      <div class="faq__a">
+        <p>
+          Compact (32-byte public keys, 64-byte signatures), fast, deterministic signatures,
+          well-understood security model, and no dependency on a particular curve choice that
+          might be deprecated. The signature scheme is part of the protocol; the implementation
+          uses standard libraries on every reducer.
+        </p>
+      </div>
+    </details>
+
+    <details class="faq__q">
+      <summary class="faq__summary">How is this different from the OpenAI Foundation Alzheimer's initiative?</summary>
+      <div class="faq__a">
+        <p>
+          The OpenAI Foundation initiative is a research program with funded teams producing
+          findings. It is exactly the kind of effort that needs the substrate Vela proposes.
+          Multiple teams producing discoveries in parallel still leave no shared map unless
+          their failed attempts, partial replications, biomarkers, target hypotheses, and
+          changing confidence enter one record. Vela is the candidate record.
+        </p>
+        <p>
+          They are not in conflict; they are complementary. The initiative's outputs become
+          much more cumulative if there is a writeable substrate they all deposit into.
+          Without one, six well-funded teams will produce six private maps.
+        </p>
+      </div>
+    </details>
+
+    <details class="faq__q">
+      <summary class="faq__summary">Has anyone outside the founding team used this?</summary>
+      <div class="faq__a">
+        <p>
+          Not yet. <a class="inline-link" href="/honest">/honest</a> names this directly:
+          every signature on the live hub today is by a key under the founder's control. The
+          technical substrate works. The social substrate begins when the first credentialed
+          external scientist deposits a signed finding. That is the explicit year-one milestone
+          on <a class="inline-link" href="/scope#milestones">/scope</a> and the kill criterion
+          for month 18.
+        </p>
+      </div>
+    </details>
+
+    <details class="faq__q">
+      <summary class="faq__summary">How do I try it?</summary>
+      <div class="faq__a">
+        <p>
+          Two paths. Thirty-second proof: <code>curl -sSL https://vela.science/try | bash</code>
+          downloads a real signed packet and a stdlib-only Python verifier and recomputes every
+          file's SHA-256 against the manifest. Ten-minute deposit: see
+          <a class="inline-link" href="/quickstart">/quickstart</a> for the full flow from
+          empty folder to first signed finding on the public hub.
+        </p>
+      </div>
+    </details>
+
+    <details class="faq__q">
+      <summary class="faq__summary">How do I get involved or contribute?</summary>
+      <div class="faq__a">
+        <p>
+          Repository at <a class="inline-link" href={REPO_URL} rel="noopener">{REPO_URL.replace(/^https?:\/\//, '')}</a>.
+          The protocol design and reducers welcome pull requests; the corridor work
+          (BBB Flagship) welcomes proposed findings, evidence pointers, and Correction
+          drafts via signed events. Email and DM for everything else — Vela has no formal
+          signup yet because every mechanism that exists is meant to work without one.
+        </p>
+      </div>
+    </details>
+
+  </article>
+</Reading>
+
+<style>
+  .faq {
+    max-width: 60rem;
+    margin: 0 auto;
+  }
+  .faq__q {
+    border-top: 1px solid var(--rule-2);
+    padding: 1rem 0 1.2rem;
+  }
+  .faq__q:last-of-type { border-bottom: 1px solid var(--rule-2); }
+
+  .faq__summary {
+    cursor: pointer;
+    list-style: none;
+    display: flex;
+    align-items: baseline;
+    gap: 0.85rem;
+    font-family: var(--font-display);
+    font-weight: 450;
+    font-size: clamp(1.15rem, 1.8vw, 1.4rem);
+    line-height: 1.18;
+    letter-spacing: -0.012em;
+    color: var(--ink-0);
+    text-wrap: balance;
+    font-variation-settings: "opsz" 96, "SOFT" 30;
+    padding: 0.4rem 0;
+    transition: color 160ms var(--ease);
+  }
+  .faq__summary::-webkit-details-marker { display: none; }
+  .faq__summary::before {
+    content: "+";
+    flex-shrink: 0;
+    width: 1.4rem;
+    font-family: var(--font-mono);
+    font-size: 1.1rem;
+    color: color-mix(in oklab, var(--gold) 72%, var(--ink-3));
+    transition: transform 200ms var(--ease);
+    line-height: 1;
+    transform-origin: center;
+  }
+  .faq__q[open] .faq__summary::before {
+    content: "−";
+  }
+  .faq__summary:hover { color: var(--gold); }
+
+  .faq__a {
+    padding: 0.8rem 0 0.4rem 1.4rem;
+  }
+  .faq__a p {
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    line-height: 1.62;
+    letter-spacing: -0.005em;
+    color: color-mix(in oklab, var(--ink-1) 90%, var(--ink-2));
+    margin: 0 0 0.85rem;
+    max-width: 64ch;
+    text-wrap: pretty;
+  }
+  .faq__a p:last-child { margin-bottom: 0; }
+  .faq__a code {
+    font-family: var(--font-mono);
+    font-size: 0.86em;
+    padding: 1px 6px;
+    background: color-mix(in oklab, var(--paper-1) 70%, var(--paper-deep));
+    border-radius: 3px;
+    color: var(--ink-0);
+  }
+  .inline-link {
+    color: var(--ink-1);
+    text-decoration: underline;
+    text-decoration-color: color-mix(in oklab, var(--gold) 56%, transparent);
+    text-underline-offset: 3px;
+    text-decoration-thickness: 1px;
+    transition: color var(--dur-1) var(--ease), text-decoration-color var(--dur-1) var(--ease);
+  }
+  .inline-link:hover {
+    color: var(--gold);
+    text-decoration-color: var(--gold);
+  }
+</style>

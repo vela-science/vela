@@ -1,0 +1,435 @@
+---
+/*
+  /spec — formal protocol specification.
+
+  The technical reference. Audience: a research engineer, security
+  researcher, or skeptical reviewer who needs to verify the design
+  choices independently. Self-contained enough to re-implement.
+*/
+
+import Reading from "../layouts/Reading.astro";
+import { REPO_URL, VERSION } from "../config";
+---
+
+<Reading
+  title="Protocol specification · Vela"
+  description="Formal technical specification of the Vela protocol — primitives, canonical serialization, signing scheme, reducer semantics, hub model."
+  active="docs"
+>
+  <header class="page-head">
+    <p class="eyebrow">Vela · protocol specification · v{VERSION}</p>
+    <h1 class="page-head__title">The protocol, formally.</h1>
+    <p class="page-head__sub">
+      Primitives, canonical serialization, signing scheme, reducer semantics, hub model.
+      Self-contained enough to re-implement the substrate from scratch.
+    </p>
+  </header>
+
+  <article class="spec">
+
+    <p class="spec__lede">
+      This is the document a research engineer or security reviewer earns by needing the
+      technical commitments. Prose intuition lives in the <a class="inline-link" href="https://borrowedlight.org">essay</a>;
+      design narrative lives at <a class="inline-link" href="/protocol">/protocol</a>; the
+      operational pitch lives at <a class="inline-link" href="/scope">/scope</a>. This page
+      defines what a conformant implementation has to do.
+    </p>
+
+    <!-- ── Conformance ── -->
+    <section class="spec__section" id="conformance">
+      <header class="spec__head">
+        <span class="spec__num">§1</span>
+        <h2 class="spec__title">Conformance.</h2>
+      </header>
+      <div class="spec__body">
+        <p>
+          A Vela implementation is conformant if and only if, given the canonical event log,
+          it produces a frontier state byte-identical to the reference reducer. The reference
+          reducer is the Rust crate <code>vela-reducer</code> at the version pinned by the
+          tagged release. The Python and TypeScript reducers in the same release must match
+          byte-for-byte; the byte-equality test is the conformance test.
+        </p>
+        <p>
+          The protocol uses RFC 2119 keywords. <strong>MUST</strong> means a non-conformant
+          implementation is rejected by the hub. <strong>SHOULD</strong> means a non-conformant
+          implementation is accepted but flagged. <strong>MAY</strong> means optional.
+        </p>
+      </div>
+    </section>
+
+    <!-- ── Primitives ── -->
+    <section class="spec__section" id="primitives">
+      <header class="spec__head">
+        <span class="spec__num">§2</span>
+        <h2 class="spec__title">Primitives.</h2>
+      </header>
+      <div class="spec__body">
+        <p>The protocol defines four primitive object types and one event envelope.</p>
+
+        <dl class="spec__pair">
+          <dt><code>Finding</code></dt>
+          <dd>A scoped scientific claim. Has a content-addressed id, an assertion (free text),
+            a confidence in [0,1], a scope (set of tags), and a list of evidence references.
+            Findings MUST be content-addressed: id is the hash of the canonical-JSON of the
+            finding minus the id field itself.</dd>
+          <dt><code>EvidenceObject</code></dt>
+          <dd>A pointer to evidence. Either a DOI, a dataset hash, a code commit, a trial
+            registration id, or a URL. Has a type tag and an optional note. EvidenceObjects
+            are referenced by Findings and by Corrections.</dd>
+          <dt><code>Correction</code></dt>
+          <dd>An event that updates a Finding. Has a kind (<code>scope-narrow</code>,
+            <code>confidence-down</code>, <code>confidence-up</code>, <code>retract</code>),
+            a reason (free text), and a list of supporting EvidenceObjects. Corrections
+            propagate through the dependency graph: every claim that depends on the corrected
+            Finding is notified.</dd>
+          <dt><code>Dependency</code></dt>
+          <dd>A typed edge between two claim ids. Kind is one of <code>supports</code>,
+            <code>depends-on</code>, or <code>contradicts</code>. The dependency graph is
+            what makes Correction propagation meaningful.</dd>
+        </dl>
+
+        <p>The event envelope wraps every payload:</p>
+        <pre class="spec__code"><code>{`{
+  "v":        1,                          // protocol version (uint)
+  "id":       "ev_<hash>",                // content-addressed event id
+  "ts":       "<RFC3339-UTC>",            // monotonic per actor
+  "actor":    "did:key:z<base58btc>",     // signer's verifying key
+  "kind":     "<event-kind>",             // see §4
+  "frontier": "vfr_<hash>",               // target frontier id
+  "payload":  { ... },                    // type-specific body
+  "sig":      "ed25519:<base64url>"       // signature, see §5
+}`}</code></pre>
+
+        <p>
+          Every field is REQUIRED. Implementations MUST reject events missing any field.
+          Unknown fields MUST be preserved verbatim through serialization (forward-compat).
+        </p>
+      </div>
+    </section>
+
+    <!-- ── Canonical JSON ── -->
+    <section class="spec__section" id="canonical">
+      <header class="spec__head">
+        <span class="spec__num">§3</span>
+        <h2 class="spec__title">Canonical JSON serialization.</h2>
+      </header>
+      <div class="spec__body">
+        <p>
+          Vela uses <code>vela.canonical-json/v1</code> for every byte-stable surface
+          (signing, hashing, content-addressing). The rules:
+        </p>
+        <ol class="spec__list">
+          <li>Object keys MUST be sorted lexicographically by their UTF-8 byte sequence.</li>
+          <li>No whitespace between tokens. No leading or trailing whitespace.</li>
+          <li>Strings MUST use the JSON escape rules in RFC 8259, with no extensions.</li>
+          <li>Numbers MUST be integers or finite IEEE-754 doubles serialized in their shortest
+            round-trip form (ECMA-262 ToString).</li>
+          <li>Arrays preserve element order.</li>
+          <li>Unicode strings are NFC-normalized before serialization.</li>
+          <li>The output is UTF-8 with no BOM.</li>
+        </ol>
+        <p>
+          Two implementations producing different bytes for the same logical document are
+          non-conformant. The byte-equality conformance test (§1) catches this.
+        </p>
+      </div>
+    </section>
+
+    <!-- ── Event kinds ── -->
+    <section class="spec__section" id="kinds">
+      <header class="spec__head">
+        <span class="spec__num">§4</span>
+        <h2 class="spec__title">Event kinds.</h2>
+      </header>
+      <div class="spec__body">
+        <p>The protocol defines the following event kinds. Each carries a type-specific payload schema.</p>
+
+        <dl class="spec__pair spec__pair--narrow">
+          <dt><code>frontier-init</code></dt>
+          <dd>Bootstraps a frontier. Payload: name, description. The first event in any frontier.</dd>
+          <dt><code>finding-drafted</code></dt>
+          <dd>A new Finding proposed (unsigned by reviewer). Payload: assertion, confidence, scope, evidence_refs.</dd>
+          <dt><code>finding-accepted</code></dt>
+          <dd>A reviewer accepts a drafted finding into the canonical state. Payload: finding_id, reviewer_did.</dd>
+          <dt><code>evidence-attached</code></dt>
+          <dd>An EvidenceObject attached to an existing Finding. Payload: finding_id, evidence_object.</dd>
+          <dt><code>correction</code></dt>
+          <dd>A Correction event. Payload: finding_id, kind, reason, supporting_evidence.</dd>
+          <dt><code>dependency-asserted</code></dt>
+          <dd>A typed edge between two claim ids. Payload: from_id, to_id, kind.</dd>
+          <dt><code>key-rotation</code></dt>
+          <dd>Rotates an actor's signing key. Payload: old_pubkey, new_pubkey, signature_by_old, signature_by_new.</dd>
+          <dt><code>frontier-snapshot</code></dt>
+          <dd>A signed snapshot manifest summarizing the canonical state at a given event sequence. Optional; advisory only.</dd>
+        </dl>
+      </div>
+    </section>
+
+    <!-- ── Signing ── -->
+    <section class="spec__section" id="signing">
+      <header class="spec__head">
+        <span class="spec__num">§5</span>
+        <h2 class="spec__title">Signing scheme.</h2>
+      </header>
+      <div class="spec__body">
+        <p>
+          The signing scheme is <code>ed25519-canonical-json-v1</code>. The signing surface
+          is the canonical-JSON serialization of the event with the <code>sig</code> field
+          removed. Signatures are produced by Ed25519 over those bytes directly — the
+          signing routine MUST NOT pre-hash. Implementations using libraries that pre-hash
+          (e.g., Ed25519ph variants) are non-conformant.
+        </p>
+        <p>
+          Verification: re-serialize the event minus <code>sig</code>, recompute the signature
+          surface, run <code>ed25519_verify(actor_pubkey, surface, sig_bytes)</code>. The
+          actor field encodes the verifying key as a <code>did:key</code> with multibase
+          base58btc and multicodec ed25519-pub. Implementations MUST verify the multicodec
+          tag matches before treating the embedded bytes as an Ed25519 public key.
+        </p>
+        <p>
+          The signature is base64url-encoded with no padding. The <code>sig</code> field
+          format is <code>ed25519:&lt;base64url&gt;</code>. Other signature algorithm prefixes
+          MAY be defined in future protocol versions; implementations MUST reject any
+          prefix they do not recognize.
+        </p>
+      </div>
+    </section>
+
+    <!-- ── Reducer ── -->
+    <section class="spec__section" id="reducer">
+      <header class="spec__head">
+        <span class="spec__num">§6</span>
+        <h2 class="spec__title">Reducer semantics.</h2>
+      </header>
+      <div class="spec__body">
+        <p>
+          The reducer takes an ordered event log and produces a Frontier state. The function
+          MUST be pure: same input bytes, same output bytes, no system clock, no randomness,
+          no network.
+        </p>
+        <p>
+          Event ordering is determined first by <code>ts</code> (RFC 3339 UTC), then by
+          <code>actor</code> (lexicographic on the did:key string), then by <code>id</code>
+          (lexicographic on the content-addressed hash). Implementations MUST reject events
+          whose <code>ts</code> precedes the most recent event by the same actor in the same
+          frontier.
+        </p>
+        <p>The output Frontier is a struct containing:</p>
+        <ul class="spec__list">
+          <li><code>findings</code>: map of finding_id → current Finding (after all Corrections applied)</li>
+          <li><code>evidence</code>: map of evidence_object_id → EvidenceObject</li>
+          <li><code>dependencies</code>: directed graph keyed by (from_id, to_id, kind)</li>
+          <li><code>actors</code>: map of did:key → current verifying key (after all key rotations)</li>
+          <li><code>snapshot_hash</code>: the canonical-JSON hash of the entire above structure</li>
+        </ul>
+        <p>
+          Two reducers in different languages MUST produce identical <code>snapshot_hash</code>
+          for the same event log. This is the load-bearing conformance property.
+        </p>
+      </div>
+    </section>
+
+    <!-- ── Hub ── -->
+    <section class="spec__section" id="hub">
+      <header class="spec__head">
+        <span class="spec__num">§7</span>
+        <h2 class="spec__title">Hub model.</h2>
+      </header>
+      <div class="spec__body">
+        <p>
+          A hub is a server that accepts signed events, persists the log, and serves the
+          canonical state. The hub is a mirror, not the source of truth — every event is
+          self-validating against its actor's public key.
+        </p>
+        <ul class="spec__list">
+          <li>Hubs MUST validate signatures on POST and reject events with invalid signatures (HTTP 400).</li>
+          <li>Hubs MUST NOT modify event bytes. Stored events are byte-identical to received events.</li>
+          <li>Hubs SHOULD compute and serve <code>snapshot_hash</code> for every frontier.</li>
+          <li>Hubs MUST publish a <code>/.well-known/vela</code> document listing their supported protocol versions, signing algorithms, and admin contact.</li>
+          <li>Hubs MAY implement rate limiting; if they do, limits MUST be documented in the well-known document.</li>
+          <li>Hubs MUST NOT require authentication for read endpoints.</li>
+          <li>Hubs MUST set <code>Access-Control-Allow-Origin: *</code> on all read endpoints.</li>
+        </ul>
+        <p>
+          Local-first: any client with the event log can reconstruct the canonical state
+          without contacting any hub. The hub's role is convenience, not authority.
+        </p>
+      </div>
+    </section>
+
+    <!-- ── Versioning ── -->
+    <section class="spec__section" id="versioning">
+      <header class="spec__head">
+        <span class="spec__num">§8</span>
+        <h2 class="spec__title">Protocol versioning.</h2>
+      </header>
+      <div class="spec__body">
+        <p>
+          Every event carries a <code>v</code> field naming the protocol version it conforms
+          to. The current version is <code>1</code>. Future versions will be defined in
+          backwards-compatible additions; breaking changes increment the major version.
+          Hubs MAY accept events from multiple versions and MUST advertise supported versions
+          in the well-known document.
+        </p>
+      </div>
+    </section>
+
+    <!-- ── Reference implementation ── -->
+    <section class="spec__section" id="reference">
+      <header class="spec__head">
+        <span class="spec__num">§9</span>
+        <h2 class="spec__title">Reference implementation.</h2>
+      </header>
+      <div class="spec__body">
+        <p>
+          The reference implementation is the Rust workspace at
+          <a class="inline-link" href={REPO_URL} rel="noopener">{REPO_URL.replace(/^https?:\/\//, '')}</a>.
+          The Python reducer at <a class="inline-link" href="/vela_reducer.py">vela_reducer.py</a>
+          and the TypeScript reducer at <a class="inline-link" href="/vela_reducer.mjs">vela_reducer.mjs</a>
+          are independent re-implementations, used as conformance witnesses.
+        </p>
+        <p>
+          A new implementation is conformant if and only if its byte-output matches the
+          reference reducer's byte-output for the test corpus published with each tagged
+          release. The corpus lives at <a class="inline-link" href="/reducer-fixtures.tar.gz">/reducer-fixtures.tar.gz</a>.
+        </p>
+      </div>
+    </section>
+
+  </article>
+</Reading>
+
+<style>
+  .spec { max-width: 64rem; margin: 0 auto; }
+  .spec__lede {
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    line-height: 1.62;
+    letter-spacing: -0.005em;
+    color: color-mix(in oklab, var(--ink-1) 92%, var(--ink-2));
+    margin: 0 0 var(--space-7);
+    text-wrap: pretty;
+    max-width: 64ch;
+  }
+  .spec__section {
+    border-top: 1px solid color-mix(in oklab, var(--gold) 32%, transparent);
+    padding: var(--space-5) 0 var(--space-6);
+  }
+  .spec__section:last-of-type { border-bottom: 1px solid var(--rule-2); }
+  .spec__head {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    margin-bottom: var(--space-4);
+  }
+  .spec__num {
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: 13px;
+    letter-spacing: 0.18em;
+    color: color-mix(in oklab, var(--gold) 72%, var(--ink-2));
+    flex-shrink: 0;
+  }
+  .spec__title {
+    font-family: var(--font-display);
+    font-weight: 450;
+    font-size: clamp(1.45rem, 2.6vw, 1.95rem);
+    line-height: 1.1;
+    letter-spacing: -0.018em;
+    color: var(--ink-0);
+    margin: 0;
+    text-wrap: balance;
+    font-variation-settings: "opsz" 96, "SOFT" 30;
+  }
+  .spec__body p {
+    font-family: var(--font-sans);
+    font-size: 0.98rem;
+    line-height: 1.62;
+    letter-spacing: -0.005em;
+    color: color-mix(in oklab, var(--ink-1) 90%, var(--ink-2));
+    margin: 0 0 var(--space-3);
+    max-width: 70ch;
+    text-wrap: pretty;
+  }
+  .spec__body p strong {
+    color: var(--ink-0);
+    font-family: var(--font-mono);
+    font-size: 0.92em;
+    letter-spacing: 0.06em;
+  }
+  .spec__pair {
+    display: grid;
+    grid-template-columns: 14rem 1fr;
+    gap: 0.75rem var(--space-5);
+    margin: 0 0 var(--space-4);
+  }
+  .spec__pair--narrow { grid-template-columns: 16rem 1fr; }
+  .spec__pair dt {
+    font-family: var(--font-mono);
+    font-size: 0.9rem;
+    color: var(--ink-0);
+    font-weight: 500;
+  }
+  .spec__pair dd {
+    font-family: var(--font-sans);
+    font-size: 0.96rem;
+    line-height: 1.55;
+    color: var(--ink-1);
+    margin: 0;
+    text-wrap: pretty;
+  }
+  @media (max-width: 720px) {
+    .spec__pair { grid-template-columns: 1fr; gap: 0.3rem; }
+    .spec__pair--narrow { grid-template-columns: 1fr; }
+    .spec__pair dt { margin-top: 0.6rem; }
+    .spec__pair dt:first-of-type { margin-top: 0; }
+  }
+  .spec__list {
+    margin: 0 0 var(--space-3);
+    padding: 0 0 0 1.4rem;
+  }
+  .spec__list li {
+    font-family: var(--font-sans);
+    font-size: 0.96rem;
+    line-height: 1.55;
+    color: var(--ink-1);
+    margin-bottom: 0.4rem;
+    max-width: 70ch;
+    text-wrap: pretty;
+  }
+  .spec__code {
+    margin: var(--space-3) 0;
+    padding: 14px 18px 16px;
+    background: var(--paper-1);
+    border: 1px solid var(--rule-2);
+    border-radius: 6px;
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    line-height: 1.65;
+    color: var(--ink-1);
+    overflow-x: auto;
+    white-space: pre;
+  }
+  .spec__code code { background: transparent; border: 0; padding: 0; font: inherit; color: inherit; }
+  .spec__body code, .spec__list code, .spec__pair dd code, .spec__pair dt code {
+    font-family: var(--font-mono);
+    font-size: 0.86em;
+    padding: 1px 5px;
+    background: color-mix(in oklab, var(--paper-1) 70%, var(--paper-deep));
+    border-radius: 3px;
+    color: var(--ink-0);
+  }
+  .spec__pair dt code { background: transparent; padding: 0; }
+  .inline-link {
+    color: var(--ink-1);
+    text-decoration: underline;
+    text-decoration-color: color-mix(in oklab, var(--gold) 56%, transparent);
+    text-underline-offset: 3px;
+    text-decoration-thickness: 1px;
+    transition: color var(--dur-1) var(--ease), text-decoration-color var(--dur-1) var(--ease);
+  }
+  .inline-link:hover {
+    color: var(--gold);
+    text-decoration-color: var(--gold);
+  }
+</style>

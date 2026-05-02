@@ -1,0 +1,394 @@
+---
+/*
+  /quickstart — five minutes from empty folder to first signed finding.
+
+  The page that converts curious-but-skeptical readers into people who
+  have actually run the substrate against a real example. Numbered
+  steps, copyable code blocks, expected output for each step, and a
+  troubleshooting bottom that handles the three things that most often
+  go wrong.
+
+  Doctrine: the reader should not have to talk to anyone, register for
+  anything, or trust any unverifiable claim to complete this page. The
+  thirty-second proof at /try is upstream; this is the next step.
+*/
+
+import Reading from "../layouts/Reading.astro";
+import { REPO_URL, HUB_URL } from "../config";
+---
+
+<Reading
+  title="Quickstart · Vela"
+  description="Five minutes from empty folder to first signed finding on the public hub. No account, no install dependency beyond Rust."
+  active="docs"
+>
+  <header class="page-head">
+    <p class="eyebrow">Vela · quickstart</p>
+    <h1 class="page-head__title">Five minutes to your first signed finding.</h1>
+    <p class="page-head__sub">
+      Empty folder, one binary, four commands, signed event on the public hub.
+      No account, no API key, no central authority.
+    </p>
+  </header>
+
+  <article class="qs">
+
+    <p class="qs__lede">
+      The thirty-second proof at <a class="inline-link" href="/try">/try</a> verifies a
+      pre-built signed packet against an independent verifier. This page goes one step further:
+      you draft a finding, sign it with a key you generate locally, and publish the signed
+      event to the public hub. The same primitives a credentialed reviewer would use, with
+      training-wheels content so you can run the loop end-to-end before you do it for real.
+    </p>
+
+    <!-- ── Prerequisites ── -->
+    <section class="qs__step" aria-labelledby="prereq">
+      <header class="qs__step-head">
+        <span class="qs__step-num">00</span>
+        <h2 class="qs__step-title" id="prereq">Prerequisites.</h2>
+      </header>
+      <div class="qs__step-body">
+        <p>One toolchain. Rust 1.79+ is the only hard dependency.</p>
+        <pre class="qs__code"><code>$ rustc --version
+rustc 1.79.0 (or newer)</code></pre>
+        <p>
+          If you don't have Rust, <a class="inline-link" href="https://rustup.rs/" rel="noopener">rustup.rs</a>
+          installs it in a minute. You'll also want <code>jq</code> for inspecting JSON output;
+          it's optional but everything below assumes you have it.
+        </p>
+      </div>
+    </section>
+
+    <!-- ── Step 1 — install ── -->
+    <section class="qs__step" aria-labelledby="install">
+      <header class="qs__step-head">
+        <span class="qs__step-num">01</span>
+        <h2 class="qs__step-title" id="install">Install the binary.</h2>
+      </header>
+      <div class="qs__step-body">
+        <p>Clone the repository and build the release binary. ~60 seconds on a recent laptop.</p>
+        <pre class="qs__code"><code>$ git clone {REPO_URL}
+$ cd vela && cargo build --release -p vela
+$ export PATH="$PWD/target/release:$PATH"
+$ vela --version
+vela 0.48.0</code></pre>
+        <p class="qs__expect">
+          <strong>Expected:</strong> <code>vela 0.48.0</code> (or whatever the current pinned
+          version is on the homepage masthead). If you see a different version, the hub may
+          reject your events as protocol-incompatible — bump and rebuild.
+        </p>
+      </div>
+    </section>
+
+    <!-- ── Step 2 — generate a signing key ── -->
+    <section class="qs__step" aria-labelledby="key">
+      <header class="qs__step-head">
+        <span class="qs__step-num">02</span>
+        <h2 class="qs__step-title" id="key">Generate a signing key.</h2>
+      </header>
+      <div class="qs__step-body">
+        <p>
+          Ed25519 keypair, generated locally. The private key never leaves your machine. The
+          public key is what other reducers will use to verify your signatures.
+        </p>
+        <pre class="qs__code"><code>$ vela key generate --label "quickstart-$(whoami)"
+key written: ~/.vela/keys/quickstart-you.ed25519
+public:      did:key:z6Mk...   # your verifying public key</code></pre>
+        <p class="qs__expect">
+          <strong>Expected:</strong> a <code>did:key:z6Mk...</code> identifier printed to
+          stdout. This is your reviewer identity for everything below. Keep the private key
+          file backed up; losing it means losing the ability to sign as you.
+        </p>
+      </div>
+    </section>
+
+    <!-- ── Step 3 — initialize a frontier ── -->
+    <section class="qs__step" aria-labelledby="init">
+      <header class="qs__step-head">
+        <span class="qs__step-num">03</span>
+        <h2 class="qs__step-title" id="init">Initialize a sandbox frontier.</h2>
+      </header>
+      <div class="qs__step-body">
+        <p>
+          A frontier is a named scope — typically a corridor of related findings. For
+          quickstart we use a sandbox name so you don't pollute the live BBB Flagship
+          corridor.
+        </p>
+        <pre class="qs__code"><code>$ mkdir my-quickstart && cd my-quickstart
+$ vela init --name "quickstart-$(whoami)" --description "Quickstart sandbox"
+initialized frontier: vfr_q5...
+config:    .vela/config.toml
+events:    .vela/events/   (empty)</code></pre>
+        <p class="qs__expect">
+          <strong>Expected:</strong> a <code>.vela/</code> directory with a config and an
+          empty events folder. The <code>vfr_q5...</code> ID is the content-addressed
+          identifier for your sandbox.
+        </p>
+      </div>
+    </section>
+
+    <!-- ── Step 4 — add a finding ── -->
+    <section class="qs__step" aria-labelledby="add">
+      <header class="qs__step-head">
+        <span class="qs__step-num">04</span>
+        <h2 class="qs__step-title" id="add">Add a finding.</h2>
+      </header>
+      <div class="qs__step-body">
+        <p>
+          A Finding is a content-addressed claim with a confidence score, an evidence list,
+          and a scope. The training-wheels example below is a deliberate placeholder; replace
+          the assertion with a claim from your own field once you've completed the loop.
+        </p>
+        <pre class="qs__code"><code>$ vela add finding \
+    --assertion "Coffee consumption correlates with afternoon productivity" \
+    --confidence 0.42 \
+    --scope "anecdotal,n=1,sandbox" \
+    --evidence "https://en.wikipedia.org/wiki/Caffeine"
+finding drafted: f_8a3e...
+events:          .vela/events/0001-finding-drafted.json   (unsigned)</code></pre>
+        <p class="qs__expect">
+          <strong>Expected:</strong> a new event file in <code>.vela/events/</code>, marked
+          unsigned. Inspect it with <code>jq . .vela/events/0001-finding-drafted.json</code>
+          to see the canonical JSON the substrate signs over.
+        </p>
+      </div>
+    </section>
+
+    <!-- ── Step 5 — sign + publish ── -->
+    <section class="qs__step" aria-labelledby="sign">
+      <header class="qs__step-head">
+        <span class="qs__step-num">05</span>
+        <h2 class="qs__step-title" id="sign">Sign and publish.</h2>
+      </header>
+      <div class="qs__step-body">
+        <p>
+          Sign the drafted event with your key, then publish to the public hub. Publication
+          is dumb signed transport — the hub does not curate, gatekeep, or rate-limit. Your
+          public key is the bind.
+        </p>
+        <pre class="qs__code"><code>$ vela sign --key quickstart-you
+signed: 0001-finding-drafted.json
+sig:    ed25519:8c2a9f...
+
+$ vela publish --hub {HUB_URL.replace(/^https?:\/\//, '')}
+publishing 1 event to {HUB_URL.replace(/^https?:\/\//, '')}/entries
+ok: vfr_q5... · f_8a3e... · sig verified
+view: {HUB_URL}/frontier/vfr_q5...</code></pre>
+        <p class="qs__expect">
+          <strong>Expected:</strong> a URL to your published frontier. Open it; you should
+          see your finding listed under your <code>did:key</code> identity. Three independent
+          reducers (Rust, Python, TypeScript) will replay the event and reach byte-identical
+          state — your finding either lands on all three or on none.
+        </p>
+      </div>
+    </section>
+
+    <!-- ── Step 6 — verify ── -->
+    <section class="qs__step" aria-labelledby="verify">
+      <header class="qs__step-head">
+        <span class="qs__step-num">06</span>
+        <h2 class="qs__step-title" id="verify">Verify, from a clean machine.</h2>
+      </header>
+      <div class="qs__step-body">
+        <p>
+          The same content-addressed signed event that landed on the hub can be downloaded
+          from anywhere and verified against your public key without any of your local state.
+          This is the property that makes the substrate replayable.
+        </p>
+        <pre class="qs__code"><code>$ curl -s {HUB_URL}/entries/vfr_q5... | vela verify
+verifying 1 event...
+sig:    ed25519:8c2a9f... ok
+hash:   sha256:e42b... ok
+state:  byte-identical to sandbox replay
+ok</code></pre>
+        <p class="qs__expect">
+          <strong>Expected:</strong> <code>ok</code> on the last line. The sandbox loop is
+          now complete — you have a content-addressed, signed, publicly verifiable scientific
+          finding on a substrate that any other reducer in the world can replay.
+        </p>
+      </div>
+    </section>
+
+    <!-- ── What to do next ── -->
+    <section class="qs__step qs__step--close" aria-labelledby="next">
+      <header class="qs__step-head">
+        <span class="qs__step-num">07</span>
+        <h2 class="qs__step-title" id="next">What to do next.</h2>
+      </header>
+      <div class="qs__step-body">
+        <p>
+          Replace the training-wheels assertion with a real claim from your field. Add the
+          actual evidence pointers (DOIs, dataset hashes, code commits). Set a confidence you
+          can defend. If a finding contradicts an existing claim, draft the
+          <code>vela add correction</code> event. The
+          <a class="inline-link" href="/sdk">SDK reference</a> documents every command and
+          the JSON schema for every event type.
+        </p>
+        <p>
+          When you're ready to deposit into a real corridor instead of your sandbox, the
+          BBB Flagship corridor at <code>vfr_bd91...</code> accepts proposed findings. The
+          reviewer-in-residence merges proposals; you can also stand up your own corridor
+          and recruit your own reviewers — Vela does not centralize that decision.
+        </p>
+      </div>
+    </section>
+
+    <!-- ── Troubleshooting ── -->
+    <section class="qs__step qs__step--trouble" aria-labelledby="trouble">
+      <header class="qs__step-head">
+        <span class="qs__step-num">08</span>
+        <h2 class="qs__step-title" id="trouble">If something went wrong.</h2>
+      </header>
+      <div class="qs__step-body">
+        <dl class="qs__trouble">
+          <dt><code>vela: command not found</code></dt>
+          <dd>The <code>cargo build</code> step succeeded but the binary isn't on PATH. Run
+            <code>export PATH="$PWD/target/release:$PATH"</code> from the repository root, or
+            move the binary somewhere on your existing PATH.</dd>
+          <dt><code>publish: hub rejected: protocol version mismatch</code></dt>
+          <dd>Your local <code>vela</code> is older than what the hub accepts. <code>git pull</code>
+            and rebuild. The version pin is documented in the masthead at
+            <a class="inline-link" href="/">vela.science</a>.</dd>
+          <dt><code>verify: sig failed</code></dt>
+          <dd>The signature on the downloaded event doesn't match the public key the event
+            claims it was signed by. Either the event was tampered with in transit (re-fetch
+            from the hub) or the key was rotated (the new public key is recorded as a
+            <code>KeyRotation</code> event in the same frontier).</dd>
+          <dt>Anything else</dt>
+          <dd>Open an issue at <a class="inline-link" href={REPO_URL} rel="noopener">{REPO_URL.replace(/^https?:\/\//, '')}</a>.
+            Quickstart bugs are the highest-priority bugs — every one of them is a reader
+            who almost made it through the loop.</dd>
+        </dl>
+      </div>
+    </section>
+
+  </article>
+</Reading>
+
+<style>
+  .qs { max-width: 60rem; margin: 0 auto; }
+  .qs__lede {
+    font-family: var(--font-sans);
+    font-size: 1.05rem;
+    line-height: 1.62;
+    letter-spacing: -0.005em;
+    color: color-mix(in oklab, var(--ink-1) 92%, var(--ink-2));
+    margin: 0 0 var(--space-7);
+    text-wrap: pretty;
+  }
+  .qs__step {
+    border-top: 1px solid color-mix(in oklab, var(--gold) 32%, transparent);
+    padding: var(--space-5) 0 var(--space-6);
+  }
+  .qs__step--trouble { border-top-color: color-mix(in oklab, var(--cinnabar) 38%, transparent); }
+  .qs__step--close { border-top-color: color-mix(in oklab, var(--gold) 48%, transparent); }
+  .qs__step:last-of-type { border-bottom: 1px solid var(--rule-2); }
+
+  .qs__step-head {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    margin-bottom: var(--space-4);
+  }
+  .qs__step-num {
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: 13px;
+    letter-spacing: 0.18em;
+    color: color-mix(in oklab, var(--gold) 72%, var(--ink-2));
+    flex-shrink: 0;
+  }
+  .qs__step-title {
+    font-family: var(--font-display);
+    font-weight: 450;
+    font-size: clamp(1.4rem, 2.6vw, 1.85rem);
+    line-height: 1.1;
+    letter-spacing: -0.018em;
+    color: var(--ink-0);
+    margin: 0;
+    text-wrap: balance;
+    font-variation-settings: "opsz" 96, "SOFT" 30;
+  }
+  .qs__step-body p {
+    font-family: var(--font-sans);
+    font-size: 0.98rem;
+    line-height: 1.6;
+    letter-spacing: -0.005em;
+    color: color-mix(in oklab, var(--ink-1) 90%, var(--ink-2));
+    margin: 0 0 var(--space-3);
+    max-width: 70ch;
+    text-wrap: pretty;
+  }
+  .qs__code {
+    margin: var(--space-3) 0;
+    padding: 14px 18px 16px;
+    background: var(--paper-1);
+    border: 1px solid var(--rule-2);
+    border-radius: 6px;
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    line-height: 1.65;
+    color: var(--ink-1);
+    overflow-x: auto;
+    white-space: pre;
+  }
+  .qs__code code { background: transparent; border: 0; padding: 0; font: inherit; color: inherit; }
+  .qs__expect {
+    margin: 0 !important;
+    padding: 0.7rem 0.95rem;
+    background: color-mix(in oklab, var(--moss) 6%, var(--paper-0));
+    border-left: 2px solid color-mix(in oklab, var(--moss) 48%, transparent);
+    border-radius: 2px;
+    font-size: 0.92rem !important;
+  }
+  .qs__expect code {
+    font-family: var(--font-mono);
+    font-size: 0.86em;
+    color: var(--ink-0);
+  }
+  .qs__step-body code {
+    font-family: var(--font-mono);
+    font-size: 0.86em;
+    padding: 1px 5px;
+    background: color-mix(in oklab, var(--paper-1) 70%, var(--paper-deep));
+    border-radius: 3px;
+    color: var(--ink-0);
+  }
+  .qs__trouble {
+    display: grid;
+    grid-template-columns: 24rem 1fr;
+    gap: 0.75rem var(--space-5);
+    margin: 0;
+  }
+  .qs__trouble dt {
+    font-family: var(--font-mono);
+    font-size: 0.86rem;
+    color: var(--ink-0);
+    text-wrap: nowrap;
+  }
+  .qs__trouble dd {
+    font-family: var(--font-sans);
+    font-size: 0.95rem;
+    line-height: 1.55;
+    color: var(--ink-1);
+    margin: 0;
+    text-wrap: pretty;
+  }
+  @media (max-width: 720px) {
+    .qs__trouble { grid-template-columns: 1fr; gap: 0.3rem; }
+    .qs__trouble dt { margin-top: 0.6rem; word-break: break-all; }
+    .qs__trouble dt:first-of-type { margin-top: 0; }
+  }
+  .inline-link {
+    color: var(--ink-1);
+    text-decoration: underline;
+    text-decoration-color: color-mix(in oklab, var(--gold) 56%, transparent);
+    text-underline-offset: 3px;
+    text-decoration-thickness: 1px;
+    transition: color var(--dur-1) var(--ease), text-decoration-color var(--dur-1) var(--ease);
+  }
+  .inline-link:hover {
+    color: var(--gold);
+    text-decoration-color: var(--gold);
+  }
+</style>
