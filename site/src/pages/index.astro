@@ -64,11 +64,11 @@ const lastUpdated = stats.lastUpdated
       </div>
     </dl>
 
-    <h1 class="vh-hero__title">Findings, signed. Corrections, addressable. State, replayable.</h1>
+    <h1 class="vh-hero__title">An open protocol for scientific findings.</h1>
     <p class="vh-hero__sub">
-      Findings, evidence, and corrections as content-addressed signed events. When a finding
-      weakens, the trials and downstream claims that depended on it know — through the
-      dependency graph, not by rumor.
+      Vela turns claims, evidence, uncertainty, provenance, and corrections into signed,
+      versioned objects that humans and AI systems can read, verify, compose, and update.
+      One Rust binary, three reducer implementations agreeing byte-for-byte, one open hub.
     </p>
 
     <div class="vh-hero__ctas">
@@ -83,6 +83,85 @@ const lastUpdated = stats.lastUpdated
       </a>
     </div>
   </header>
+
+  <!-- This is a Finding — the object, named once. -->
+  <section class="vh-object" aria-label="The Finding object">
+    <div class="vh-object__copy">
+      <p class="vh-section__eyebrow">The object</p>
+      <h2 class="vh-section__title">This is a Finding.</h2>
+      <p class="vh-section__sub">
+        A scientific claim, scoped, sourced, signed, and content-addressed. Carries its
+        evidence, its confidence, its provenance, and a typed link graph to the findings
+        that depend on it. When a Correction lands, every dependent finding knows.
+      </p>
+      <p class="vh-section__sub">
+        Five primitives: <span class="vh-pill">Finding</span> ·
+        <span class="vh-pill">EvidenceObject</span> ·
+        <span class="vh-pill">Correction</span> ·
+        <span class="vh-pill">Link</span> ·
+        <span class="vh-pill">Frontier</span>. Defined in
+        <a class="vh-link" href="/spec">/spec</a>; used in
+        <a class="vh-link" href="/quickstart">/quickstart</a>.
+      </p>
+    </div>
+    <pre class="vh-object__code"><code><span class="vh-tk">finding</span>:
+  <span class="vh-tk">id</span>:        vf_83185611d673465b
+  <span class="vh-tk">assertion</span>: <span class="vh-str">"Pericyte loss precedes cognitive decline in early Alzheimer's."</span>
+  <span class="vh-tk">scope</span>:     [human, sporadic_AD, prodromal_stage]
+  <span class="vh-tk">confidence</span>:
+    <span class="vh-tk">score</span>: 0.62
+    <span class="vh-tk">basis</span>: replication_count + study_design
+  <span class="vh-tk">evidence</span>:
+    - <span class="vh-tk">type</span>: postmortem_histology
+      <span class="vh-tk">doi</span>:  10.1038/jcbfm.2015.44
+  <span class="vh-tk">provenance</span>:
+    <span class="vh-tk">extracted_from</span>: halliday-2016.pdf
+    <span class="vh-tk">reviewed_by</span>:    reviewer:halliday-lab
+  <span class="vh-tk">signature</span>:  ed25519:88ccb43144e9e228…
+  <span class="vh-tk">links</span>:
+    <span class="vh-tk">narrowed_by</span>: vrev_b0144a…   <span class="vh-cm"># Montagne 2020 → APOE4-positive only</span>
+    <span class="vh-tk">depends</span>:     [vf_a91c…, vf_4d22…]</code></pre>
+  </section>
+
+  <!-- Three pillars — Rust-style. -->
+  <section class="vh-pillars" aria-label="Three pillars">
+    <div class="vh-pillar">
+      <h3 class="vh-pillar__title">Structured.</h3>
+      <p class="vh-pillar__body">
+        Findings, evidence, corrections, and links are first-class objects with declared
+        schemas. Not free-text papers, not metadata-on-PDFs. The substrate stores claims,
+        not artifacts.
+      </p>
+    </div>
+    <div class="vh-pillar">
+      <h3 class="vh-pillar__title">Provenance-preserving.</h3>
+      <p class="vh-pillar__body">
+        Every event is content-addressed and signed with Ed25519 over canonical-JSON.
+        The reducer is deterministic: same input bytes, same output bytes, in three
+        independent implementations. No hidden state, no replay drift.
+      </p>
+    </div>
+    <div class="vh-pillar">
+      <h3 class="vh-pillar__title">Correctable.</h3>
+      <p class="vh-pillar__body">
+        A Correction is an event, not an erratum buried beside a paper. When a finding
+        weakens or a scope narrows, every downstream finding, trial, and review article
+        that depended on it is notified by the dependency graph.
+      </p>
+    </div>
+  </section>
+
+  <!-- What Vela is not — vendor-neutral substrate positioning (OpenTelemetry move). -->
+  <section class="vh-not" aria-label="What Vela is not">
+    <p class="vh-not__title">What Vela is not.</p>
+    <p class="vh-not__body">
+      Vela is not an electronic lab notebook, not a publisher, not a citation manager,
+      not a knowledge graph, not an AI scientist, and not a journal replacement. It is
+      the open shared-state layer those systems can write to, read from, and verify
+      against. Apache Arrow for code, the Protein Data Bank for structures, OpenTelemetry
+      for traces — Vela for findings.
+    </p>
+  </section>
 
   <!-- Live frontier — claim cards, no decorative viz. -->
   <section class="vh-section" aria-label="Live frontier">
@@ -389,6 +468,108 @@ const lastUpdated = stats.lastUpdated
     text-transform: uppercase;
     color: var(--ink-3);
     margin: 0;
+  }
+
+  /* ── Object panel: prose left, JSON right (Stripe code-panel move) */
+  .vh-object {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+    gap: 2rem;
+    align-items: start;
+    max-width: 76rem;
+  }
+  @media (max-width: 880px) {
+    .vh-object { grid-template-columns: 1fr; }
+  }
+  .vh-object__copy { display: flex; flex-direction: column; gap: 0.85rem; }
+  .vh-object__copy .vh-section__sub { margin: 0; }
+  .vh-object__code {
+    margin: 0;
+    padding: 18px 20px 20px;
+    background: var(--paper-1);
+    border: 1px solid var(--rule-2);
+    border-radius: 8px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.62;
+    color: var(--ink-1);
+    overflow-x: auto;
+    white-space: pre;
+  }
+  .vh-object__code code { background: transparent; border: 0; padding: 0; font: inherit; color: inherit; }
+  .vh-tk { color: color-mix(in oklab, var(--gold) 70%, var(--ink-3)); }
+  .vh-str { color: color-mix(in oklab, var(--moss) 72%, var(--ink-1)); }
+  .vh-cm { color: var(--ink-3); font-style: italic; }
+  .vh-pill {
+    display: inline-block;
+    padding: 1px 7px;
+    margin: 0 1px;
+    font-family: var(--font-mono);
+    font-size: 0.78em;
+    color: var(--ink-1);
+    background: var(--paper-1);
+    border: 1px solid var(--rule-2);
+    border-radius: 4px;
+    white-space: nowrap;
+  }
+
+  /* ── Three pillars — Rust-style. */
+  .vh-pillars {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2rem;
+    max-width: 76rem;
+    padding-top: 2rem;
+    border-top: 1px solid var(--rule-2);
+  }
+  @media (max-width: 880px) {
+    .vh-pillars { grid-template-columns: 1fr; gap: 1.4rem; }
+  }
+  .vh-pillar { display: flex; flex-direction: column; gap: 0.5rem; }
+  .vh-pillar__title {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 1.05rem;
+    line-height: 1.3;
+    letter-spacing: -0.018em;
+    text-transform: none;
+    color: var(--ink-0);
+    margin: 0;
+  }
+  .vh-pillar__body {
+    font-family: var(--font-sans);
+    font-size: 0.94rem;
+    line-height: 1.55;
+    color: var(--ink-2);
+    margin: 0;
+    text-wrap: pretty;
+  }
+
+  /* ── What Vela is not — vendor-neutral disambiguation. */
+  .vh-not {
+    max-width: 64rem;
+    padding: 1.4rem 1.6rem;
+    background: var(--paper-1);
+    border-left: 2px solid color-mix(in oklab, var(--gold) 56%, transparent);
+    border-radius: 0 6px 6px 0;
+  }
+  .vh-not__title {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    font-weight: 500;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: color-mix(in oklab, var(--gold) 76%, var(--ink-2));
+    margin: 0 0 0.6rem;
+  }
+  .vh-not__body {
+    font-family: var(--font-sans);
+    font-size: 0.96rem;
+    line-height: 1.6;
+    color: var(--ink-1);
+    margin: 0;
+    max-width: 70ch;
+    text-wrap: pretty;
   }
 
   /* ── Section frame ───────────────────────────────────────────── */
