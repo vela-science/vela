@@ -28,7 +28,7 @@ cd "$CLONE_DIR"
 git status --short --branch
 
 echo "== Build release binary =="
-cargo build --release -p vela-protocol
+cargo build --release --bin vela
 VELA="./target/release/vela"
 
 echo "== Core deterministic workflow =="

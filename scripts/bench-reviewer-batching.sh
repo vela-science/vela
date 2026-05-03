@@ -25,7 +25,7 @@ WORK="$(mktemp -d -t vela-reviewer-bench-XXXX)"
 
 if [[ ! -x "$VELA" ]]; then
   echo "building vela…" >&2
-  cargo build --release -p vela-protocol >/dev/null
+  cargo build --release --bin vela >/dev/null
 fi
 
 echo "== Reviewer batching benchmark · N=$N =="

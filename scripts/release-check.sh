@@ -92,10 +92,10 @@ echo "== Clippy =="
 cargo clippy --workspace --all-targets -- -D warnings
 
 echo "== Conformance =="
-cargo run -p vela-protocol -- conformance tests/conformance/
+cargo run --bin vela -- conformance tests/conformance/
 
 echo "== Release binary =="
-cargo build --release -p vela-protocol
+cargo build --release --bin vela
 
 echo "== Removed command gates =="
 assert_removed_command benchmark

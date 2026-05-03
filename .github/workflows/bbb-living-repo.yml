@@ -43,7 +43,7 @@ jobs:
           key: ${{ runner.os }}-bbb-living-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Build vela CLI
-        run: cargo build --release -p vela-protocol --bin vela
+        run: cargo build --release --bin vela
 
       - name: Stage bot key (mode 0600)
         env:
