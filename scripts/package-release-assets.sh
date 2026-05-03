@@ -11,7 +11,9 @@ VELA="$ROOT/target/release/vela"
 cd "$ROOT"
 
 echo "== Build release binary =="
-cargo build --release -p vela-protocol
+# The `vela` binary lives in crates/vela-cli (vela-protocol is the
+# substrate library only). Build the bin explicitly so $VELA resolves.
+cargo build --release --bin vela
 
 rm -rf "$OUT"
 mkdir -p "$OUT"
