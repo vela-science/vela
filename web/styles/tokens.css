@@ -13,16 +13,16 @@
    ========================================================================= */
 
 :root {
-  /* ── Surfaces ─── infrastructure register, near-white not cream ────────
-     The cream paper inheritance from Borrowed Light worked for the essay
-     site; Vela docs need to read as serious dev infrastructure, not as
-     editorial. White / near-white grounds, cool neutrals, navy ink, gold
-     stays as the single accent. */
-  --paper-0:        #FCFCFD;   /* page ground — near-white, faintest cool wash */
-  --paper-1:        #F6F8FA;   /* raised: cards, callouts, code blocks */
-  --paper-2:        #EAEDF0;   /* sunken: hover wells, tag bg, table stripes */
-  --paper-deep:     #EAEDF0;   /* alias for paper-2 */
-  --paper-edge:     #D6DAE0;   /* standard border */
+  /* ── Surfaces ─── Atelier brand-toolkit register.
+     Warm aged cream ground (matches the Atelier flagship-screen
+     reference), with the workbench-app dark navy as the accent register
+     for product-detail panels. Reads as Lyon Display + Inter on cream,
+     not as a Stripe-tier near-white SaaS landing. */
+  --paper-0:        #F6F4EF;   /* page ground — Paper from brand toolkit */
+  --paper-1:        #FBF8F1;   /* raised: cards, panels, callouts */
+  --paper-2:        #ECE3D2;   /* sunken: hover well, tag bg, sidebar */
+  --paper-deep:     #ECE3D2;   /* alias for paper-2 */
+  --paper-edge:     #D6CEBA;   /* standard border */
 
   --background:     var(--paper-0);
   --surface:        var(--paper-1);
@@ -32,14 +32,15 @@
   --mist:           #DCE0E6;   /* atmospheric depth, cool */
   --stone:          #B7BDC6;   /* heavier divider, inactive control */
 
-  /* ── Ink ─── Vela Navy family per brand spec, never grey ─────────── */
-  --ink-0:          #081320;   /* Midnight Ink — strongest, hero headlines, primary buttons */
-  --ink-1:          #0E1C2E;   /* body ink — eased one stop from pure navy */
+  /* ── Ink ─── Vela Navy family per brand toolkit (Midnight + Deep Sea + Fog) */
+  --ink-0:          #081320;   /* Midnight Ink — hero headlines */
+  --ink-1:          #0E1C2E;   /* body ink */
   --ink-2:          #1E2F44;   /* Deep Sea — secondary text, subhead */
-  --ink-3:          #4A5A6F;   /* tertiary, captions */
+  --ink-3:          #4A5A6F;   /* tertiary, captions, eyebrows */
   --ink-4:          #6E7B8B;   /* Fog — placeholder, faintest text */
   --navy-1:         #081320;   /* canonical brand navy alias */
   --navy-2:         #1E2F44;
+  --navy-deep:      #0B1A2E;   /* dark-panel ground, matches Atelier "Finding Detail (DARK)" */
 
   --on-background:  var(--ink-0);
   --on-surface:     var(--ink-1);
@@ -51,12 +52,12 @@
   --rule-3:         rgba(35, 43, 58, 0.22);   /* emphasis rule */
   --rule-ink:       rgba(35, 43, 58, 0.86);   /* engraved line */
 
-  /* ── The single accent — luminous gold per brand spec ─────────────── */
-  --gold:           #D4AF37;   /* Luminous Gold — decorative use only (borders, halos, dot accents) */
-  --gold-ink:       #8a6d18;   /* Contrast-safe gold for TEXT on paper-0; 4.6:1 ratio (WCAG AA) */
+  /* ── The single accent — Luminous Gold per brand toolkit ─── */
+  --gold:           #D4AF37;   /* Luminous Gold — decorative (borders, halos, dot accents) */
+  --gold-ink:       #8a6d18;   /* WCAG-AA gold for TEXT on paper-0 */
   --gold-soft:      rgba(212, 175, 55, 0.32);
   --gold-glow:      rgba(212, 175, 55, 0.20);
-  --gold-light:     #D1B98C;   /* Gold Light variant for softer accents */
+  --gold-light:     #D1B98C;   /* softer accent variant */
   --tertiary:       var(--gold);
   --on-tertiary:    #1A1206;
   --focus-ring:     #D4B048;
@@ -107,22 +108,18 @@
   --vela-frost-blue:    var(--winter);
   --vela-ember-red:     var(--cinnabar);
 
-  /* ── Type ─── editorial-modernist register.
-     Display: Fraunces (modern serif w/ optical-size axis) — gives the
-       site the "designed publication" register the brand asks for
-       without falling into Stripe/SaaS sans monotony.
-     Body: EB Garamond — humanist serif, generous x-height, reads at 18-20px.
-     Sans: Inter — used for METADATA only (eyebrows, nav labels, stats,
-       small caps). Workbench tool surfaces override body to sans locally.
-     Mono: JetBrains Mono — code, ids, signatures.
-     Serif/Poetic kept as aliases for any callers expecting them. */
+  /* ── Type ─── modern, sleek, restrained.
+     Inter for everything human (display, body, UI, eyebrows). The brand
+     toolkit shows Lyon Display headlines; Inter Display is the closest
+     restrained sans equivalent — modern, geometric, doesn't shout.
+     JetBrains Mono for everything mechanical. */
   --font-sans:      "Inter", -apple-system, BlinkMacSystemFont, "Söhne", ui-sans-serif, system-ui, sans-serif;
   --font-mono:      "JetBrains Mono", "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
-  --font-serif:     "Fraunces", "EB Garamond", Georgia, serif;
-  --font-display:   "Fraunces", "EB Garamond", Georgia, serif;
-  --font-body:      "EB Garamond", "Fraunces", Georgia, serif;
-  --font-poetic:    "Fraunces", "EB Garamond", Georgia, serif;
-  --font-jp:        "Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", serif;
+  --font-display:   var(--font-sans);
+  --font-serif:     var(--font-sans);
+  --font-body:      var(--font-sans);
+  --font-poetic:    var(--font-sans);
+  --font-jp:        var(--font-sans);
 
   /* ── Type scale ─── px scale for instrument/UI; clamp scale for prose ─ */
 

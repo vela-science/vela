@@ -26,6 +26,14 @@ const { active = "home" } = Astro.props;
 <header class="vl-mast">
   <div class="vl-mast-inner">
     <a href="/" class="vl-brand" aria-label="vela · home">
+      <!-- Sailboat-and-star mark from the brand toolkit. Navy sail with
+           gold four-point star at the peak. Sits left of the wordmark. -->
+      <svg class="vl-brand__glyph" viewBox="0 0 24 28" aria-hidden="true" focusable="false">
+        <path d="M12 4 L12 22 L4 22 Z" fill="currentColor" opacity="0.92" />
+        <path d="M12 6 L12 22 L20 22 Z" fill="currentColor" opacity="0.5" />
+        <line x1="2" y1="22.5" x2="22" y2="22.5" stroke="currentColor" stroke-width="0.6" opacity="0.32" />
+        <path class="vl-brand__star" d="M16 4 L16.6 5.6 L18.2 6 L16.6 6.4 L16 8 L15.4 6.4 L13.8 6 L15.4 5.6 Z" />
+      </svg>
       <span class="vl-brand__wordmark">vela</span>
     </a>
 
@@ -64,25 +72,34 @@ const { active = "home" } = Astro.props;
     gap: 2rem;
   }
 
-  /* Wordmark — mono small-caps, letter-spaced. Reads as a publisher's
-     stamp. The strong letter-spacing is what carries the editorial
-     register; the actual letterforms stay quiet. */
+  /* Sailboat glyph + Fraunces "vela" wordmark, per brand toolkit. */
   .vl-brand {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: 9px;
     text-decoration: none;
     color: var(--ink-0);
     transition: color 200ms var(--ease);
   }
   .vl-brand:hover { color: var(--gold-ink); }
-  .vl-brand__glyph { color: var(--gold-ink); flex-shrink: 0; }
+  .vl-brand__glyph {
+    color: var(--ink-0);
+    width: 22px;
+    height: auto;
+    flex-shrink: 0;
+    transition: color 200ms var(--ease);
+  }
+  .vl-brand__star {
+    fill: var(--gold);
+    filter: drop-shadow(0 0 2px var(--gold-glow));
+  }
+  .vl-brand:hover .vl-brand__glyph { color: var(--gold-ink); }
 
   .vl-brand__wordmark {
-    font-family: var(--font-mono);
-    font-weight: 500;
-    font-size: 0.95rem;
-    letter-spacing: 0.02em;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 1.05rem;
+    letter-spacing: -0.018em;
     color: inherit;
     line-height: 1;
     text-transform: lowercase;
