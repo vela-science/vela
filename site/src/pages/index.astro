@@ -5,6 +5,8 @@ import {
   loadFrontier,
   frontierStats,
   contradictions,
+  corpusBreakdown,
+  publicationGroundedClaims,
   type ClaimView,
 } from "../lib/frontier";
 import { FRONTIER, REPO_URL, HUB_URL, VERSION } from "../config";
@@ -12,8 +14,11 @@ import { FRONTIER, REPO_URL, HUB_URL, VERSION } from "../config";
 const claims = loadFrontier();
 const stats = frontierStats();
 const tensionList = contradictions();
+const corpus = corpusBreakdown();
 
-const featured: ClaimView[] = claims
+// Featured claims = publication-grounded only. The notes-extracted
+// research questions live in their own section on the corridor page.
+const featured: ClaimView[] = publicationGroundedClaims()
   .slice()
   .sort((a, b) => b.finding.confidence.score - a.finding.confidence.score)
   .slice(0, 9);
@@ -45,17 +50,17 @@ const lastUpdated = stats.lastUpdated
     </div>
 
     <dl class="vh-stats">
-      <a class="vh-stat" href={`${HUB_URL}/entries`}>
-        <dt>findings on the live frontier ↗</dt>
-        <dd>{stats.claims}</dd>
+      <a class="vh-stat" href="/frontiers/alzheimers-bbb">
+        <dt>signed findings from {corpus.uniquePapers} source papers ↗</dt>
+        <dd>{corpus.publicationGrounded}</dd>
+      </a>
+      <a class="vh-stat" href="/frontiers/alzheimers-bbb#open-questions">
+        <dt>open questions on the active surface →</dt>
+        <dd>{corpus.openQuestions}</dd>
       </a>
       <a class="vh-stat" href="/spec#reducer">
         <dt>reducer impls, byte-identical →</dt>
         <dd>2</dd>
-      </a>
-      <a class="vh-stat" href="/try">
-        <dt>files verified by the proof script →</dt>
-        <dd>35/35</dd>
       </a>
       <div class="vh-stat">
         <dt>last signed</dt>

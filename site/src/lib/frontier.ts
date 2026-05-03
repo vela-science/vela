@@ -1737,6 +1737,68 @@ export function frontierStats(): FrontierStats {
   };
 }
 
+// ── Honest split: publication-grounded findings vs open questions ──
+//
+// The corridor includes two categorically different objects in a
+// single namespace:
+//
+// 1. Publication-grounded findings — assertions extracted from a
+//    specific paper, with a DOI in `provenance.doi` and an
+//    evidence-span snippet from the source. These are the findings
+//    that back every "signed evidence" claim on the site.
+//
+// 2. Open questions — research questions, hypotheses, and gap-text
+//    surfaced by the Notes Compiler from working notes. They have no
+//    DOI, evidence type is `extracted_from_notes`, and they represent
+//    the *active research surface* — what the corridor wants to know
+//    but hasn't yet anchored to published evidence.
+//
+// Mixing the two without distinction over-states the corridor's
+// publication weight. Splitting them lets the site honestly show
+// "what's settled" beside "what's still open."
+
+export function isPublicationGrounded(c: ClaimView): boolean {
+  return Boolean(
+    c.finding.provenance.doi ||
+      c.finding.provenance.pmid ||
+      c.finding.provenance.pmc,
+  );
+}
+
+export function publicationGroundedClaims(): ClaimView[] {
+  return loadFrontier().filter(isPublicationGrounded);
+}
+
+export function openQuestionClaims(): ClaimView[] {
+  return loadFrontier().filter((c) => !isPublicationGrounded(c));
+}
+
+export interface CorpusBreakdown {
+  publicationGrounded: number;
+  openQuestions: number;
+  totalClaims: number;
+  uniquePapers: number;
+}
+
+export function corpusBreakdown(): CorpusBreakdown {
+  const claims = loadFrontier();
+  const dois = new Set<string>();
+  let grounded = 0;
+  for (const c of claims) {
+    if (isPublicationGrounded(c)) {
+      grounded += 1;
+      if (c.finding.provenance.doi) dois.add(c.finding.provenance.doi);
+      else if (c.finding.provenance.pmid) dois.add(`pmid:${c.finding.provenance.pmid}`);
+    }
+  }
+  return {
+    publicationGrounded: grounded,
+    openQuestions: claims.length - grounded,
+    totalClaims: claims.length,
+    uniquePapers: dois.size,
+  };
+}
+
 // ── Citation rendering ──────────────────────────────────────────────
 
 // ── Weekly diffs ────────────────────────────────────────────────────

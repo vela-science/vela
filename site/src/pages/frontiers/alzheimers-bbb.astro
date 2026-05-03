@@ -5,6 +5,8 @@ import {
   loadFrontier,
   frontierStats,
   contradictions,
+  corpusBreakdown,
+  isPublicationGrounded,
   TARGETS,
   type ClaimView,
 } from "../../lib/frontier";
@@ -13,6 +15,7 @@ import { FRONTIER, HUB_URL, REPO_URL, VERSION } from "../../config";
 const claims = loadFrontier();
 const stats = frontierStats();
 const tensionList = contradictions();
+const corpus = corpusBreakdown();
 
 // Filter to BBB-relevant findings (target = bbb-delivery, plus
 // the abeta42 / tau / apoe / trem2 findings that depend on BBB).
@@ -22,10 +25,26 @@ const bbbClaims: ClaimView[] = claims.filter((c) =>
   c.targets.includes("amyloid-beta")
 );
 
+// Featured = publication-grounded only. Notes-extracted research
+// questions go in the "Open questions" section so the two object
+// classes don't visually conflate.
 const featured: ClaimView[] = bbbClaims
+  .filter(isPublicationGrounded)
   .slice()
   .sort((a, b) => b.finding.confidence.score - a.finding.confidence.score)
   .slice(0, 12);
+
+// Open-question sample: notes-extracted findings without a DOI.
+// Surface a sample of 8, sorted by most recently created — those are
+// the questions the corridor is currently trying to answer.
+const openQuestions: ClaimView[] = bbbClaims
+  .filter((c) => !isPublicationGrounded(c))
+  .slice()
+  .sort((a, b) => b.finding.created.localeCompare(a.finding.created))
+  .slice(0, 8);
+
+const bbbGroundedCount = bbbClaims.filter(isPublicationGrounded).length;
+const bbbOpenCount = bbbClaims.length - bbbGroundedCount;
 
 const targetsWithCounts = TARGETS.map((t) => ({
   ...t,
@@ -59,28 +78,28 @@ const lastUpdated = stats.lastUpdated
     <!-- Live metadata strip -->
     <dl class="cor__meta">
       <div class="cor__meta-cell">
-        <dt>Findings</dt>
-        <dd>{bbbClaims.length}</dd>
+        <dt>Signed findings</dt>
+        <dd>{bbbGroundedCount}</dd>
+      </div>
+      <div class="cor__meta-cell">
+        <dt>Source papers</dt>
+        <dd>{corpus.uniquePapers}</dd>
+      </div>
+      <div class="cor__meta-cell">
+        <dt>Open questions</dt>
+        <dd><a class="cor__link" href="#open-questions">{bbbOpenCount} ↓</a></dd>
       </div>
       <div class="cor__meta-cell">
         <dt>Open contradictions</dt>
         <dd>{tensionList.length}</dd>
       </div>
       <div class="cor__meta-cell">
-        <dt>Last signed</dt>
-        <dd class="cor__meta-mono">{lastUpdated}</dd>
-      </div>
-      <div class="cor__meta-cell">
-        <dt>Hub</dt>
-        <dd><a class="cor__link" href={`${HUB_URL}/entries`} rel="noopener">vela-hub.fly.dev</a></dd>
-      </div>
-      <div class="cor__meta-cell">
         <dt>External signers</dt>
         <dd class="cor__meta-mono">0 — open call ↓</dd>
       </div>
       <div class="cor__meta-cell">
-        <dt>Replay</dt>
-        <dd><a class="cor__link" href="/replay">14 signed events →</a></dd>
+        <dt>Last signed</dt>
+        <dd class="cor__meta-mono">{lastUpdated}</dd>
       </div>
     </dl>
 
@@ -123,14 +142,50 @@ const lastUpdated = stats.lastUpdated
     <section class="cor__sec">
       <h2 class="cor__sec-title">Strongest claims, by confidence.</h2>
       <p class="cor__line">
-        {featured.length} findings on this corridor right now. Each card is content-addressed;
-        click to read evidence, supporting trials, and any active Corrections. Full corridor
-        in <a class="cor__link" href="/workbench">/workbench</a>.
+        {featured.length} of the {bbbGroundedCount} publication-grounded findings on this
+        corridor, ordered by confidence. Each card is content-addressed; click to read
+        evidence, supporting trials, and any active Corrections. Full corridor in
+        <a class="cor__link" href="/workbench">/workbench</a>.
+      </p>
+      <p class="cor__line cor__line--muted">
+        These {bbbGroundedCount} findings are extracted from {corpus.uniquePapers} foundational
+        papers — a depth-first cut, not a survey. Expansion of the source corpus is on the
+        year-one roadmap; the corridor's growth surface is the open questions below.
       </p>
       <div class="cor__grid">
         {featured.map((c) => <ClaimCard claim={c} />)}
       </div>
     </section>
+
+    <!-- Open questions: the active research surface -->
+    {openQuestions.length > 0 && (
+      <section class="cor__sec" id="open-questions">
+        <h2 class="cor__sec-title">Open questions on the active surface.</h2>
+        <p class="cor__line">
+          {bbbOpenCount} questions, hypotheses, and gaps surfaced from working notes by
+          the Notes Compiler. These are <em>not</em> signed findings — they have no DOI
+          and no extracted evidence span. They are what the corridor is currently trying
+          to answer. A question becomes a finding when a curator anchors it to a paper
+          and signs the resulting evidence object.
+        </p>
+        <p class="cor__line cor__line--muted">
+          Showing {openQuestions.length} of {bbbOpenCount}, most recently surfaced first.
+          The full set is in <a class="cor__link" href="/workbench">/workbench</a>;
+          source files in
+          <a class="cor__link" href={`${REPO_URL}/tree/main/projects/bbb-flagship/.vela/findings`} rel="noopener">
+            <code>projects/bbb-flagship/.vela/findings/</code>
+          </a>.
+        </p>
+        <ul class="cor__questions">
+          {openQuestions.map((c) => (
+            <li class="cor__question">
+              <span class="cor__question-id">{c.finding.id.slice(0, 12)}…</span>
+              <p class="cor__question-text">{c.finding.assertion.text}</p>
+            </li>
+          ))}
+        </ul>
+      </section>
+    )}
 
     <!-- Open contradictions -->
     {tensionList.length > 0 && (
@@ -271,6 +326,47 @@ const lastUpdated = stats.lastUpdated
     margin: 0 0 0.85rem;
     text-wrap: pretty;
   }
+  .cor__line--muted {
+    color: var(--ink-3);
+    font-size: 0.9rem;
+  }
+
+  /* Open-question list — visually distinct from publication-grounded
+     ClaimCards. No confidence number, no DOI, no evidence span. Just
+     the question and its content-addressed id. */
+  .cor__questions {
+    list-style: none;
+    margin: 1rem 0 0;
+    padding: 0;
+    border-top: 1px solid var(--rule-2);
+  }
+  .cor__question {
+    display: grid;
+    grid-template-columns: 9rem 1fr;
+    gap: 1.25rem;
+    padding: 0.85rem 0;
+    border-bottom: 1px solid var(--rule-2);
+  }
+  .cor__question-id {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    letter-spacing: 0.04em;
+    color: var(--ink-3);
+    align-self: start;
+    padding-top: 2px;
+  }
+  .cor__question-text {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-size: 0.95rem;
+    line-height: 1.55;
+    color: var(--ink-1);
+    text-wrap: pretty;
+  }
+  @media (max-width: 640px) {
+    .cor__question { grid-template-columns: 1fr; gap: 0.35rem; }
+  }
+
   .cor__sec--honest {
     border-top-color: color-mix(in oklab, var(--cinnabar) 38%, transparent);
   }
