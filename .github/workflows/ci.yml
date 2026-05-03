@@ -34,10 +34,13 @@ jobs:
         run: cargo run --bin vela -- conformance tests/conformance/
       # Cross-implementation parity. The site's load-bearing trust claim is
       # that the per-kind reducer mutation rules are protocol, not Rust
-      # artifact: a second-language reducer applied to the same event log
+      # artifact: independent-language reducers applied to the same event log
       # must produce byte-equivalent finding state. Run on every push.
       - name: Two-reducer parity (Rust ↔ Python)
         run: python3 clients/python/vela_reducer.py crates/vela-protocol/tests/fixtures/
+      - uses: oven-sh/setup-bun@v2
+      - name: Three-reducer parity (Rust ↔ Python ↔ TypeScript)
+        run: bun clients/typescript/vela_reducer.ts crates/vela-protocol/tests/fixtures/
       - name: Cross-impl content-addressing (canonical-JSON IDs)
         run: python3 scripts/cross_impl_conformance.py frontiers/bbb-alzheimer.json
 

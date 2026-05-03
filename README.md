@@ -25,7 +25,28 @@ question. Corrections enter as *proposals*, become canonical events on review,
 and replay deterministically into the frontier. A *proof packet* seals the
 current state so another party can re-verify it offline.
 
-**Prerequisites:** Rust toolchain. The agent-inbox path (`vela scout`,
+## Install
+
+**Prebuilt binaries** (recommended): every tagged release publishes
+`vela-macos-aarch64`, `vela-macos-x86_64`, and `vela-linux-x86_64` along with
+SHA-256 checksums. Latest:
+[v0.48.0](https://github.com/vela-science/vela/releases/tag/v0.48.0).
+
+```bash
+# macOS Apple silicon
+curl -sSL -o vela https://github.com/vela-science/vela/releases/download/v0.48.0/vela-macos-aarch64
+curl -sSL -o vela.sha256 https://github.com/vela-science/vela/releases/download/v0.48.0/vela-macos-aarch64.sha256
+shasum -a 256 -c vela.sha256
+chmod +x vela && ./vela --help
+```
+
+Each release also ships the canonical BBB-Alzheimer frontier
+(`bbb-alzheimer.json`), the sealed proof packet
+(`bbb-alzheimer-proof-packet.tar.gz`), and a full set of derived reports
+(check, bench, quality table, evidence matrix, RO-Crate metadata). See the
+release page for the full asset list and `RELEASE_MANIFEST.json` for hashes.
+
+**Build from source:** Rust toolchain. The agent-inbox path (`vela scout`,
 `compile-notes`, etc.) additionally uses the [`claude`](https://docs.anthropic.com/claude/docs/claude-code)
 CLI to drive `claude -p` subprocesses against your local OAuth session — no
 `ANTHROPIC_API_KEY` required for that path. The legacy `vela compile` runs in
@@ -33,7 +54,7 @@ deterministic-fallback mode when no model key is configured.
 
 ```bash
 # Build and run against the in-repo paper fixture
-cargo build --release
+cargo build --release --bin vela
 PATH="$PWD/target/release:$PATH"
 
 vela compile examples/paper-folder/papers --output /tmp/frontier.json
