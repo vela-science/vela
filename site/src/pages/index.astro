@@ -39,13 +39,16 @@ const lastUpdated = stats.lastUpdated
        toolkit specifies. ─── -->
   <header class="vh-hero">
     <div class="vh-hero__copy">
-      <p class="vh-hero__eyebrow">vela {VERSION} · open protocol</p>
+      <p class="vh-hero__eyebrow">
+        <span class="vh-hero__dot" aria-hidden="true"></span>
+        Open protocol · v{VERSION}
+      </p>
       <h1 class="vh-hero__title">An open protocol for scientific findings.</h1>
       <p class="vh-hero__sub">
-        Vela turns claims, evidence, uncertainty, provenance, and corrections
-        into signed, versioned objects that humans and AI systems can read,
-        verify, compose, and update. One Rust binary, three reducer
-        implementations agreeing byte-for-byte, one open hub.
+        Claims, evidence, uncertainty, provenance, and corrections as signed,
+        versioned objects that humans and AI systems can read, verify, compose,
+        and update. One Rust binary, three reducer implementations agreeing
+        byte-for-byte, one open hub.
       </p>
       <div class="vh-hero__ctas">
         <a class="vh-btn vh-btn--primary" href="/quickstart">
@@ -53,9 +56,6 @@ const lastUpdated = stats.lastUpdated
         </a>
         <a class="vh-btn" href="/spec">
           Read the spec <span aria-hidden="true">→</span>
-        </a>
-        <a class="vh-btn" href="/workbench">
-          Open workbench <span aria-hidden="true">→</span>
         </a>
       </div>
     </div>
@@ -247,7 +247,7 @@ const lastUpdated = stats.lastUpdated
   <!-- ── This is a Finding — the object, named once. ─── -->
   <section class="vh-object" aria-label="The Finding object">
     <div class="vh-object__copy">
-      <p class="vh-eyebrow">01 · the object</p>
+      <p class="vh-eyebrow">The object</p>
       <h2 class="vh-section__title">This is a Finding.</h2>
       <p class="vh-section__sub">
         A scientific claim, scoped, sourced, signed, and content-addressed.
@@ -287,7 +287,6 @@ const lastUpdated = stats.lastUpdated
   <!-- ── Three pillars ─── -->
   <section class="vh-pillars" aria-label="Three pillars">
     <div class="vh-pillar">
-      <span class="vh-pillar__num">A</span>
       <h3 class="vh-pillar__title">Structured.</h3>
       <p class="vh-pillar__body">
         Findings, evidence, corrections, and links are first-class objects with
@@ -296,7 +295,6 @@ const lastUpdated = stats.lastUpdated
       </p>
     </div>
     <div class="vh-pillar">
-      <span class="vh-pillar__num">B</span>
       <h3 class="vh-pillar__title">Provenance-preserving.</h3>
       <p class="vh-pillar__body">
         Every event is content-addressed and signed with Ed25519 over
@@ -305,7 +303,6 @@ const lastUpdated = stats.lastUpdated
       </p>
     </div>
     <div class="vh-pillar">
-      <span class="vh-pillar__num">C</span>
       <h3 class="vh-pillar__title">Correctable.</h3>
       <p class="vh-pillar__body">
         A Correction is an event, not an erratum buried beside a paper. When a
@@ -318,7 +315,7 @@ const lastUpdated = stats.lastUpdated
   <!-- ── Finding Detail panel — dark-navy register, mirrors Atelier 02. ─── -->
   <section class="vh-detail" aria-label="Finding detail preview">
     <div class="vh-detail__head">
-      <p class="vh-eyebrow vh-eyebrow--dark">02 · finding detail</p>
+      <p class="vh-eyebrow vh-eyebrow--dark">Finding detail</p>
       <h2 class="vh-detail__title">Every finding opens to its evidence chain.</h2>
       <p class="vh-detail__sub">
         Confidence with a basis. Reproducibility recorded. Consensus across
@@ -410,15 +407,20 @@ const lastUpdated = stats.lastUpdated
       Vela is not an electronic lab notebook, not a publisher, not a citation
       manager, not a knowledge graph, not an AI scientist, and not a journal
       replacement. It is the open shared-state layer those systems can write
-      to, read from, and verify against. Apache Arrow for code, the Protein
-      Data Bank for structures, OpenTelemetry for traces. Vela for findings.
+      to, read from, and verify against.
+    </p>
+    <p class="vh-not__line">
+      Apache Arrow for code.<br />
+      The Protein Data Bank for structures.<br />
+      OpenTelemetry for traces.<br />
+      <span class="vh-not__hit">Vela for findings.</span>
     </p>
   </section>
 
   <!-- ── Live frontier — claim cards. ─── -->
   <section class="vh-section" aria-label="Live frontier">
     <div class="vh-section__head">
-      <p class="vh-eyebrow">03 · live frontier · {FRONTIER.name}</p>
+      <p class="vh-eyebrow">Live frontier · {FRONTIER.name}</p>
       <h2 class="vh-section__title">Strongest claims, by confidence.</h2>
       <p class="vh-section__sub">
         {stats.claims} signed findings, {stats.papers} papers, {stats.contradictions} open
@@ -445,7 +447,7 @@ const lastUpdated = stats.lastUpdated
   <!-- ── Build on this — two panes. ─── -->
   <section class="vh-section" aria-label="Build on this">
     <div class="vh-section__head">
-      <p class="vh-eyebrow">04 · build on this</p>
+      <p class="vh-eyebrow">Build on this</p>
       <h2 class="vh-section__title">One binary. One open hub. Query it now.</h2>
       <p class="vh-section__sub">
         Compile a frontier from a folder of papers, or pull signed manifests
@@ -477,60 +479,6 @@ const lastUpdated = stats.lastUpdated
 #    "name":"Alzheimer's Therapeutics",
 #    "owner_actor_id":"reviewer:will-blair",
 #    "snapshot_hash":"f23b4aba17…"}, …]}`}</code></pre>
-      </div>
-    </div>
-  </section>
-
-  <!-- ── Design system showcase — mirrors Atelier 07. ─── -->
-  <section class="vh-system" aria-label="Design system">
-    <div class="vh-section__head">
-      <p class="vh-eyebrow">05 · system &amp; components</p>
-      <h2 class="vh-section__title">A small, honest set of parts.</h2>
-    </div>
-
-    <div class="vh-system__grid">
-      <div class="vh-system__col">
-        <p class="vh-system__col-head">Buttons</p>
-        <a class="vh-system__btn vh-system__btn--primary">Primary action</a>
-        <a class="vh-system__btn vh-system__btn--secondary">Secondary action</a>
-        <a class="vh-system__btn vh-system__btn--tertiary">Tertiary action</a>
-      </div>
-
-      <div class="vh-system__col">
-        <p class="vh-system__col-head">Tags</p>
-        <div class="vh-system__tags">
-          <span class="vh-tag">Genomics</span>
-          <span class="vh-tag">Cells</span>
-          <span class="vh-tag">Proteomics</span>
-        </div>
-        <div class="vh-system__tags">
-          <span class="vh-tag vh-tag--ok">High confidence</span>
-          <span class="vh-tag vh-tag--mid">Medium</span>
-          <span class="vh-tag vh-tag--low">Low</span>
-        </div>
-      </div>
-
-      <div class="vh-system__col">
-        <p class="vh-system__col-head">Confidence</p>
-        <div class="vh-system__conf">
-          <span class="vh-system__conf-num">0.92</span>
-          <span class="vh-system__conf-lbl">High</span>
-        </div>
-        <div class="vh-system__bar">
-          <div class="vh-system__bar-fill" style="width: 92%"></div>
-        </div>
-      </div>
-
-      <div class="vh-system__col">
-        <p class="vh-system__col-head">Palette</p>
-        <div class="vh-system__swatches">
-          <span class="vh-swatch" style="background: #081320"></span>
-          <span class="vh-swatch" style="background: #1E2F44"></span>
-          <span class="vh-swatch" style="background: #6E7B8B"></span>
-          <span class="vh-swatch" style="background: #F6F4EF; box-shadow: inset 0 0 0 1px var(--rule-2)"></span>
-          <span class="vh-swatch" style="background: #D4AF37"></span>
-        </div>
-        <p class="vh-system__swatch-meta">Midnight · Deep Sea · Fog · Paper · Gold</p>
       </div>
     </div>
   </section>
@@ -634,6 +582,9 @@ const lastUpdated = stats.lastUpdated
   }
   .vh-hero__copy { display: flex; flex-direction: column; }
   .vh-hero__eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
     margin: 0 0 1.4rem;
     font-family: var(--font-mono);
     font-size: 0.7rem;
@@ -641,6 +592,13 @@ const lastUpdated = stats.lastUpdated
     color: var(--ink-3);
     letter-spacing: 0.18em;
     text-transform: uppercase;
+  }
+  .vh-hero__dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--gold);
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--gold) 18%, transparent);
   }
   .vh-hero__title {
     font-family: var(--font-display);
@@ -1069,13 +1027,12 @@ const lastUpdated = stats.lastUpdated
   @media (max-width: 880px) {
     .vh-pillars { grid-template-columns: 1fr; gap: 2.4rem; }
   }
-  .vh-pillar { display: flex; flex-direction: column; gap: 0.7rem; }
-  .vh-pillar__num {
-    font-family: var(--font-mono);
-    font-size: 0.65rem;
-    letter-spacing: 0.18em;
-    color: color-mix(in oklab, var(--gold) 75%, var(--ink-2));
-    text-transform: uppercase;
+  .vh-pillar {
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+    padding-top: 1rem;
+    border-top: 1px solid color-mix(in oklab, var(--gold) 50%, transparent);
   }
   .vh-pillar__title {
     font-family: var(--font-display);
@@ -1337,9 +1294,23 @@ const lastUpdated = stats.lastUpdated
     font-size: 1.05rem;
     line-height: 1.6;
     color: color-mix(in oklab, var(--ink-2) 88%, var(--ink-3));
-    margin: 0;
+    margin: 0 0 1.4rem;
     max-width: 60ch;
     text-wrap: pretty;
+  }
+  .vh-not__line {
+    margin: 0;
+    font-family: var(--font-body);
+    font-size: 1.05rem;
+    line-height: 1.7;
+    color: var(--ink-2);
+  }
+  .vh-not__hit {
+    color: var(--ink-0);
+    font-weight: 600;
+    background: linear-gradient(to right, transparent, transparent);
+    box-shadow: inset 0 -2px 0 var(--gold);
+    padding: 0 2px;
   }
 
   /* ── Generic section ─── */
