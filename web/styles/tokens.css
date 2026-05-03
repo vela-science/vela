@@ -107,15 +107,20 @@
   --vela-frost-blue:    var(--winter);
   --vela-ember-red:     var(--cinnabar);
 
-  /* ── Type ─── infrastructure register. Inter for everything human,
-     JetBrains Mono for everything mechanical. Serif faces still
-     available for the rare deliberate atmospheric moment but are NOT
-     the default. */
+  /* ── Type ─── editorial-modernist register.
+     Display: Fraunces (modern serif w/ optical-size axis) — gives the
+       site the "designed publication" register the brand asks for
+       without falling into Stripe/SaaS sans monotony.
+     Body: EB Garamond — humanist serif, generous x-height, reads at 18-20px.
+     Sans: Inter — used for METADATA only (eyebrows, nav labels, stats,
+       small caps). Workbench tool surfaces override body to sans locally.
+     Mono: JetBrains Mono — code, ids, signatures.
+     Serif/Poetic kept as aliases for any callers expecting them. */
   --font-sans:      "Inter", -apple-system, BlinkMacSystemFont, "Söhne", ui-sans-serif, system-ui, sans-serif;
-  --font-display:   var(--font-sans);
-  --font-body:      var(--font-sans);
   --font-mono:      "JetBrains Mono", "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
   --font-serif:     "Fraunces", "EB Garamond", Georgia, serif;
+  --font-display:   "Fraunces", "EB Garamond", Georgia, serif;
+  --font-body:      "EB Garamond", "Fraunces", Georgia, serif;
   --font-poetic:    "Fraunces", "EB Garamond", Georgia, serif;
   --font-jp:        "Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", serif;
 

@@ -35,30 +35,31 @@ a:hover { color: var(--ink-0); }
   color: var(--ink-1);
 }
 .reading h1 {
-  font-family: var(--font-sans);
-  font-weight: 600;
-  font-size: clamp(2.1rem, 5vw, 3rem);
-  line-height: 1.06;
-  letter-spacing: -0.022em;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-variation-settings: "opsz" 144;
+  font-size: clamp(2.4rem, 5.4vw, 3.8rem);
+  line-height: 1.04;
+  letter-spacing: -0.014em;
   color: var(--ink-0);
   margin: 0 0 1.2rem;
   text-wrap: balance;
 }
 .reading h2 {
-  font-family: var(--font-sans);
-  font-weight: 560;
-  font-size: 0.7rem;
-  line-height: 1.36;
-  letter-spacing: var(--track-eyebrow);
-  text-transform: uppercase;
-  color: color-mix(in oklab, var(--gold) 72%, var(--ink-2));
-  margin: 2.6rem 0 0.8rem;
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: clamp(1.5rem, 2.6vw, 1.85rem);
+  line-height: 1.18;
+  letter-spacing: -0.005em;
+  color: var(--ink-0);
+  text-transform: none;
+  margin: 2.8rem 0 0.9rem;
 }
 .reading h3 {
-  font-family: var(--font-sans);
-  font-weight: 600;
-  font-size: 0.95rem;
-  letter-spacing: -0.005em;
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 1.18rem;
+  letter-spacing: 0;
   color: var(--ink-0);
   margin: 2rem 0 0.6rem;
 }
