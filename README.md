@@ -196,6 +196,7 @@ vela stats frontiers/bbb-alzheimer.json
 vela search "LRP1 RAGE amyloid" --source frontiers/bbb-alzheimer.json
 vela tensions frontiers/bbb-alzheimer.json --both-high
 vela gaps rank frontiers/bbb-alzheimer.json --top 5
+vela frontier validate-doi frontiers/bbb-alzheimer.json --json
 vela proof frontiers/bbb-alzheimer.json --out /tmp/vela-proof-packet
 ```
 

@@ -255,3 +255,30 @@ fn tool_check_json_has_concise_tool_lists() {
             .contains(&Value::String("check_pubmed".to_string()))
     );
 }
+
+#[test]
+fn frontier_validate_doi_reports_empty_frontier() {
+    let tmp = TempDir::new().unwrap();
+    let frontier = tmp.path().join("frontier.json");
+
+    run_json(&[
+        "frontier",
+        "new",
+        frontier.to_str().unwrap(),
+        "--name",
+        "Empty DOI check",
+        "--json",
+    ]);
+
+    let payload = run_json(&[
+        "frontier",
+        "validate-doi",
+        frontier.to_str().unwrap(),
+        "--json",
+    ]);
+
+    assert_eq!(payload["ok"], true);
+    assert_eq!(payload["summary"]["findings"], 0);
+    assert_eq!(payload["summary"]["checked"], 0);
+    assert_eq!(payload["summary"]["failed"], 0);
+}

@@ -1390,6 +1390,20 @@ enum FrontierAction {
         #[arg(long)]
         json: bool,
     },
+    /// Resolve every DOI declared in finding provenance.
+    ValidateDoi {
+        /// Path to the frontier file.
+        frontier: PathBuf,
+        /// Retries for transient HTTP/network failures.
+        #[arg(long, default_value_t = 2)]
+        retry_count: u32,
+        /// Delay between DOI requests.
+        #[arg(long, default_value_t = 250)]
+        rate_limit_ms: u64,
+        /// Emit JSON to stdout.
+        #[arg(long)]
+        json: bool,
+    },
     /// v0.32: emit a structured diff of findings added, updated, and
     /// contradicted in a time window. The canonical replacement for the
     /// `scripts/weekly-diff.sh` Python fallback shipped in v0.31.
@@ -8035,6 +8049,12 @@ fn cmd_frontier(action: FrontierAction) {
                 }
             }
         }
+        FrontierAction::ValidateDoi {
+            frontier,
+            retry_count,
+            rate_limit_ms,
+            json,
+        } => cmd_frontier_validate_doi(&frontier, retry_count, rate_limit_ms, json),
         FrontierAction::Diff {
             frontier,
             since,
@@ -8042,6 +8062,200 @@ fn cmd_frontier(action: FrontierAction) {
             json,
         } => cmd_frontier_diff(&frontier, since.as_deref(), week.as_deref(), json),
     }
+}
+
+fn cmd_frontier_validate_doi(
+    frontier: &Path,
+    retry_count: u32,
+    rate_limit_ms: u64,
+    json_output: bool,
+) {
+    let frontier = frontier.to_path_buf();
+    let failed = std::thread::spawn(move || {
+        run_frontier_validate_doi(&frontier, retry_count, rate_limit_ms, json_output)
+    })
+    .join()
+    .unwrap_or_else(|_| fail_return("DOI validation worker panicked"));
+
+    if failed > 0 {
+        std::process::exit(1);
+    }
+}
+
+fn run_frontier_validate_doi(
+    frontier: &Path,
+    retry_count: u32,
+    rate_limit_ms: u64,
+    json_output: bool,
+) -> usize {
+    let project = repo::load_from_path(frontier).unwrap_or_else(|e| fail_return(&e));
+    let client = reqwest::blocking::Client::builder()
+        .timeout(std::time::Duration::from_secs(20))
+        .redirect(reqwest::redirect::Policy::limited(10))
+        .user_agent("vela-doi-validator/0.48")
+        .build()
+        .unwrap_or_else(|e| fail_return(&format!("http client init failed: {e}")));
+
+    let mut results = Vec::new();
+    let mut checked = 0usize;
+    let mut resolved = 0usize;
+    let mut failed = 0usize;
+    let mut skipped = 0usize;
+
+    for finding in &project.findings {
+        let Some(doi) = finding.provenance.doi.as_deref().map(str::trim) else {
+            skipped += 1;
+            continue;
+        };
+        if doi.is_empty() {
+            skipped += 1;
+            continue;
+        }
+
+        checked += 1;
+        let url = format!(
+            "https://doi.org/{}",
+            doi.trim_start_matches("https://doi.org/")
+        );
+        let outcome = resolve_doi(&client, &url, retry_count);
+        match outcome {
+            DoiResolveOutcome::Resolved { status, final_url } => {
+                resolved += 1;
+                results.push(json!({
+                    "finding_id": finding.id,
+                    "doi": doi,
+                    "status": "resolved",
+                    "http_status": status,
+                    "url": url,
+                    "final_url": final_url,
+                }));
+            }
+            DoiResolveOutcome::Failed { status, error } => {
+                failed += 1;
+                results.push(json!({
+                    "finding_id": finding.id,
+                    "doi": doi,
+                    "status": "failed",
+                    "http_status": status,
+                    "url": url,
+                    "error": error,
+                }));
+            }
+        }
+
+        if rate_limit_ms > 0 {
+            std::thread::sleep(std::time::Duration::from_millis(rate_limit_ms));
+        }
+    }
+
+    let payload = json!({
+        "ok": failed == 0,
+        "command": "frontier.validate-doi",
+        "frontier": frontier.display().to_string(),
+        "summary": {
+            "findings": project.findings.len(),
+            "checked": checked,
+            "resolved": resolved,
+            "failed": failed,
+            "skipped_without_doi": skipped,
+        },
+        "results": results,
+    });
+
+    if json_output {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&payload)
+                .expect("failed to serialize frontier.validate-doi")
+        );
+    } else {
+        println!();
+        println!(
+            "  {}",
+            format!("VELA · FRONTIER · VALIDATE-DOI · {}", frontier.display())
+                .to_uppercase()
+                .dimmed()
+        );
+        println!("  {}", style::tick_row(60));
+        println!("  findings:            {}", project.findings.len());
+        println!("  checked dois:        {checked}");
+        println!("  resolved:            {resolved}");
+        println!("  failed:              {failed}");
+        println!("  skipped without doi: {skipped}");
+        for result in &results {
+            if result["status"].as_str() == Some("failed") {
+                println!(
+                    "  - {} {} {}",
+                    result["finding_id"].as_str().unwrap_or("?"),
+                    result["doi"].as_str().unwrap_or("?"),
+                    result["error"].as_str().unwrap_or("failed")
+                );
+            }
+        }
+    }
+
+    failed
+}
+
+enum DoiResolveOutcome {
+    Resolved { status: u16, final_url: String },
+    Failed { status: Option<u16>, error: String },
+}
+
+fn resolve_doi(
+    client: &reqwest::blocking::Client,
+    url: &str,
+    retry_count: u32,
+) -> DoiResolveOutcome {
+    let attempts = retry_count.saturating_add(1);
+    let mut last_error = None;
+
+    for attempt in 0..attempts {
+        match client.get(url).send() {
+            Ok(response) if response.status().is_success() || response.status().as_u16() == 403 => {
+                let status = response.status().as_u16();
+                let final_url = response.url().to_string();
+                return DoiResolveOutcome::Resolved { status, final_url };
+            }
+            Ok(response) => {
+                let status = response.status().as_u16();
+                let error = format!("DOI resolver returned HTTP {status}");
+                if status == 404 || status == 410 || attempt + 1 == attempts {
+                    return DoiResolveOutcome::Failed {
+                        status: Some(status),
+                        error,
+                    };
+                }
+                if is_retryable_status(status) {
+                    last_error = Some(error);
+                } else {
+                    return DoiResolveOutcome::Resolved {
+                        status,
+                        final_url: response.url().to_string(),
+                    };
+                }
+            }
+            Err(e) => {
+                let error = e.to_string();
+                if attempt + 1 == attempts {
+                    return DoiResolveOutcome::Failed {
+                        status: None,
+                        error,
+                    };
+                }
+                last_error = Some(error);
+            }
+        }
+    }
+
+    DoiResolveOutcome::Failed {
+        status: None,
+        error: last_error.unwrap_or_else(|| "DOI resolution failed".to_string()),
+    }
+}
+
+fn is_retryable_status(status: u16) -> bool {
+    status == 408 || status == 429 || (500..600).contains(&status)
 }
 
 /// v0.32: structured diff of findings added/updated/contradicted in a

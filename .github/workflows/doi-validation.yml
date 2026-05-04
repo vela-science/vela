@@ -1,0 +1,27 @@
+name: DOI validation
+
+on:
+  schedule:
+    - cron: '0 15 * * 1'
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  validate-doi:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: '1.89'
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build vela CLI
+        run: cargo build --release --bin vela
+
+      - name: Validate BBB frontier DOIs
+        run: ./target/release/vela frontier validate-doi frontiers/bbb-alzheimer.json --json
