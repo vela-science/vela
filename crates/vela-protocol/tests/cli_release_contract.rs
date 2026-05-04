@@ -255,3 +255,11 @@ fn tool_check_json_has_concise_tool_lists() {
             .contains(&Value::String("check_pubmed".to_string()))
     );
 }
+
+#[test]
+fn completions_bash_emits_script() {
+    let script = run_text(&["completions", "bash"]);
+    assert!(!script.trim().is_empty());
+    assert!(script.contains("_vela"));
+    assert!(script.contains("complete"));
+}

@@ -9,7 +9,8 @@ use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::sync::OnceLock;
 
-use clap::{Parser, Subcommand};
+use clap::{CommandFactory, Parser, Subcommand};
+use clap_complete::{Shell, generate};
 use colored::Colorize;
 
 use crate::cli_style as style;
@@ -28,6 +29,11 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
+    /// Generate a shell completion script.
+    Completions {
+        /// Shell to generate completions for.
+        shell: Shell,
+    },
     /// v0.22 Agent Inbox: run Literature Scout against a folder of
     /// PDFs. Each candidate finding becomes a `finding.add`
     /// `StateProposal` tagged with the scout's `AgentRun`, written
@@ -1869,6 +1875,10 @@ pub async fn run_command() {
     dotenvy::dotenv().ok();
 
     match Cli::parse().command {
+        Commands::Completions { shell } => {
+            let mut cmd = Cli::command();
+            generate(shell, &mut cmd, "vela", &mut std::io::stdout());
+        }
         Commands::Scout {
             folder,
             frontier,
@@ -9730,6 +9740,7 @@ pub struct ProofTrace {
 }
 
 const SCIENCE_SUBCOMMANDS: &[&str] = &[
+    "completions",
     "compile-notes",
     "compile-code",
     "compile-data",
@@ -9823,6 +9834,7 @@ Usage:
   vela <COMMAND>
 
 Core commands:
+  completions   Generate a shell completion script
   compile       Compile a topic or local paper folder into frontier.json
   check         Validate a frontier, repo, or proof packet
   normalize     Apply deterministic frontier-state repairs
