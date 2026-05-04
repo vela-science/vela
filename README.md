@@ -40,6 +40,15 @@ shasum -a 256 -c vela.sha256
 chmod +x vela && ./vela --help
 ```
 
+To install shell completions, generate the script for your shell and source it
+from the standard location:
+
+```bash
+vela completions bash > /etc/bash_completion.d/vela
+vela completions zsh > ~/.zfunc/_vela
+vela completions fish > ~/.config/fish/completions/vela.fish
+```
+
 Each release also ships the canonical BBB-Alzheimer frontier
 (`bbb-alzheimer.json`), the sealed proof packet
 (`bbb-alzheimer-proof-packet.tar.gz`), and a full set of derived reports

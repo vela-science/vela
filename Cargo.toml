@@ -17,6 +17,7 @@ publish = false
 # Shared dependencies
 dotenvy = "0.15"
 clap = { version = "4", features = ["derive"] }
+clap_complete = "4"
 ctrlc = { version = "3", features = ["termination"] }
 libc = "0.2"
 reqwest = { version = "0.12", features = ["json", "blocking"] }

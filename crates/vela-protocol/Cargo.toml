@@ -17,6 +17,7 @@ path = "src/lib.rs"
 [dependencies]
 dotenvy.workspace = true
 clap.workspace = true
+clap_complete.workspace = true
 ctrlc.workspace = true
 libc.workspace = true
 reqwest.workspace = true
