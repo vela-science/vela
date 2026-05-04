@@ -85,6 +85,10 @@ signature is the bind, not access control. See [docs/HUB.md](docs/HUB.md)
 and [docs/PUBLISHING.md](docs/PUBLISHING.md) for the end-to-end first-publish
 walkthrough.
 
+External reducer, SDK, and agent authors should also read
+[docs/PRIMITIVES.md](docs/PRIMITIVES.md), which defines the five core protocol
+primitives in language-neutral JSON terms.
+
 ## Publish your own frontier
 
 The minimum-viable path from "I have a bounded scientific question" to "my
