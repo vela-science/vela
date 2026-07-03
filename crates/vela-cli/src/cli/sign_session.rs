@@ -90,10 +90,6 @@ fn read_line(prompt: &str) -> String {
 
 /// The interactive session (the default form of `vela sign`).
 pub(crate) fn cmd_sign_session(frontier: Option<PathBuf>, key: Option<PathBuf>, json: bool) {
-    // Custody gate before anything renders.
-    let actor = crate::cli_identity::resolve_decision_actor(None);
-    ceremony_binary_gate();
-
     let frontiers = session_frontiers(frontier);
     if frontiers.is_empty() {
         ui::fail_with(
@@ -138,6 +134,13 @@ pub(crate) fn cmd_sign_session(frontier: Option<PathBuf>, key: Option<PathBuf>, 
         return;
     }
 
+    // The ceremony begins HERE — the --json list above is a plain read
+    // (agents and the plugin's status render depend on it). Custody
+    // gate, then the clear-signing binary check, before anything
+    // renders or prompts.
+    let actor = crate::cli_identity::resolve_decision_actor(None);
+    ceremony_binary_gate();
+
     let fr = if queues.len() == 1 {
         "frontier"
     } else {
@@ -158,15 +161,10 @@ pub(crate) fn cmd_sign_session(frontier: Option<PathBuf>, key: Option<PathBuf>, 
         return;
     }
 
-    let default_reason = "accepted via sign session";
-    let session_reason = {
-        let entered = read_line(&format!("session reason [Enter = \"{default_reason}\"]: "));
-        if entered.is_empty() {
-            default_reason.to_string()
-        } else {
-            entered
-        }
-    };
+    // Accepts carry this bookkeeping note; the judgment IS the a/r
+    // answer, so nothing prompts for it. (Rejects still ask for their
+    // reason — that one is content.)
+    let session_reason = "accepted via sign session".to_string();
 
     // The judgment loop: per frontier, per item; resume-safe.
     let total_signable = total;

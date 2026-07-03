@@ -97,9 +97,11 @@ const TEMPLATES: &str = "witness-rederivation, statement-drafts, notes-threshold
 ///
 ///   witness-rederivation  exact witnesses the frozen gate re-derived (A3,
 ///                         independent, method-sound, no claim-text change)
-///   statement-drafts      formal statement drafts — drafts ARE text, so
-///                         semantic text change is allowed, bounded to one
-///                         finding at A2
+///   statement-drafts      theoretical receipts from `vela land` (statement
+///                         drafts land as receipt_theoretical) — drafts ARE
+///                         text, so semantic text change is allowed, bounded
+///                         to one finding at A2; independence is a
+///                         verdict-time property, not a draft-time one
 ///   notes-threshold       notes attach without ceremony (A0) but the impact
 ///                         constraints stay tight: one finding, no dependents,
 ///                         no claim-language mutation
@@ -130,7 +132,10 @@ fn template_policy(name: &str) -> Option<(Vec<PolicyRule>, &'static str)> {
             vec![PolicyRule {
                 id: "statement-drafts-v1".to_string(),
                 effect: Outcome::Permit,
-                claim_classes: vec!["formal_statement_draft".to_string()],
+                // The class `vela land` actually stamps for statement
+                // drafts (receipt_<type>); a class nothing produces would
+                // make this a ceremony that delegates nothing.
+                claim_classes: vec!["receipt_theoretical".to_string()],
                 constraints: Constraints {
                     max_changed_findings: 1,
                     max_downstream_dependents: 0,
@@ -141,11 +146,14 @@ fn template_policy(name: &str) -> Option<(Vec<PolicyRule>, &'static str)> {
                     allow_semantic_text_change: true,
                     allow_contested: false,
                     allow_governance_mutation: false,
-                    require_independence: true,
+                    // A draft is one agent's work by nature; independence
+                    // is judged at verdict time, and landing stamps it
+                    // false — requiring it here would permit nothing.
+                    require_independence: false,
                     require_method_integrity: true,
                 },
             }],
-            "formal statement drafts land at A2 (drafts ARE text)",
+            "statement drafts (theoretical receipts) land at A2 (drafts ARE text)",
         )),
         "notes-threshold" => Some((
             vec![PolicyRule {
@@ -280,6 +288,32 @@ fn draft_policy(
         replaced_signed = true;
     }
 
+    // A rotation carries the standing grants forward: the new epoch is
+    // the prior authority PLUS the template's rule, not a reset — a
+    // signed lane must never close as a side effect of opening another.
+    // A template rule with the same id supersedes (that IS the edit).
+    let mut rules = rules;
+    if let Some(old) = prior.as_ref().filter(|_| replaced_signed) {
+        let new_ids: std::collections::HashSet<&str> =
+            rules.iter().map(|r| r.id.as_str()).collect();
+        let mut carried: Vec<PolicyRule> = old
+            .rules
+            .iter()
+            .filter(|r| !new_ids.contains(r.id.as_str()))
+            .cloned()
+            .collect();
+        carried.append(&mut rules);
+        rules = carried;
+    }
+    let quorum = prior
+        .as_ref()
+        .filter(|_| replaced_signed)
+        .map(|p| p.quorum.clone())
+        .unwrap_or(Quorum {
+            threshold: 1,
+            eligible_roles: vec!["steward".to_string()],
+        });
+
     let now = Utc::now();
     let mut policy = AcceptancePolicy {
         schema: "vela.acceptance_policy.v0.1".to_string(),
@@ -289,10 +323,7 @@ fn draft_policy(
         issued_by: crate::cli_identity::load_identity()
             .map(|i| vec![i.actor_id])
             .unwrap_or_default(),
-        quorum: Quorum {
-            threshold: 1,
-            eligible_roles: vec!["steward".to_string()],
-        },
+        quorum,
         rules,
         default: Outcome::Defer,
         expires_at: (now + chrono::Duration::days(90)).to_rfc3339(),
@@ -1442,6 +1473,91 @@ mod tests {
         assert_eq!(note.claim_class, "finding_note");
         let review = rows.iter().find(|r| r.kind == "finding.review").unwrap();
         assert_eq!(review.claim_class, "sidon_lower_bound");
+    }
+
+    /// The template must permit what `vela land` actually produces — the
+    /// exact PolicyContext a draft receipt with a passing verifier run is
+    /// stamped with (workflow.rs): class receipt_theoretical, A2, text
+    /// mutated, independence NOT satisfied. A template that never fires
+    /// is a ceremony that delegates nothing.
+    #[test]
+    fn statement_drafts_template_permits_a_landed_receipt() {
+        let (rules, _) = template_policy("statement-drafts").unwrap();
+        let mut policy = AcceptancePolicy {
+            schema: "vela.acceptance_policy.v0.1".to_string(),
+            id: String::new(),
+            frontier_id: "vfr_test".to_string(),
+            epoch: 1,
+            issued_by: vec!["reviewer:test".to_string()],
+            quorum: Quorum {
+                threshold: 1,
+                eligible_roles: vec!["steward".to_string()],
+            },
+            rules,
+            default: Outcome::Defer,
+            expires_at: "2099-12-31T23:59:59Z".to_string(),
+            revocation_ref: None,
+        };
+        policy.id = policy.content_address();
+
+        let ctx = vela_protocol::acceptance_policy::PolicyContext {
+            claim_class: "receipt_theoretical".to_string(),
+            assurance_level: 2,
+            impact_tier: 1,
+            changed_findings: 1,
+            downstream_dependents: 0,
+            assertion_text_mutated: true,
+            target_contested: false,
+            governance_mutation: false,
+            independence_satisfied: false,
+            method_integrity_sound: true,
+            credential_valid: true,
+            has_unknown_fields: false,
+        };
+        let d = vela_protocol::acceptance_policy::evaluate(&policy, &ctx, AT);
+        assert_eq!(
+            d.outcome,
+            Outcome::Permit,
+            "a landed statement draft must route through this lane: {:?}",
+            d.reasons
+        );
+    }
+
+    /// Rotating a signed policy must carry its rules into the new epoch:
+    /// opening one lane may never close another as a side effect.
+    #[test]
+    fn replace_carries_the_prior_rules_forward() {
+        let tmp = TempDir::new().unwrap();
+        let dir = init_frontier(&tmp);
+        let (first, _) = draft_policy(&dir, "witness-rederivation", false).unwrap();
+        // Rotation semantics trigger only on a SIGNED prior; the sig's
+        // content is irrelevant to draft's existence check.
+        std::fs::write(active_sig_path(&dir), "{}\n").unwrap();
+
+        let (second, replaced) = draft_policy(&dir, "statement-drafts", true).unwrap();
+        assert!(replaced);
+        assert_eq!(second.epoch, first.epoch + 1);
+        let ids: Vec<&str> = second.rules.iter().map(|r| r.id.as_str()).collect();
+        assert!(
+            ids.contains(&"witness-rederivation-v1"),
+            "the standing grant must survive the rotation: {ids:?}"
+        );
+        assert!(ids.contains(&"statement-drafts-v1"), "{ids:?}");
+        // The outgoing signed pair is snapshotted under its content address.
+        assert!(
+            policies_dir(&dir)
+                .join(format!("{}.json", first.id))
+                .exists()
+        );
+        // Re-drafting the SAME template supersedes, not duplicates.
+        std::fs::write(active_sig_path(&dir), "{}\n").unwrap();
+        let (third, _) = draft_policy(&dir, "statement-drafts", true).unwrap();
+        let dup = third
+            .rules
+            .iter()
+            .filter(|r| r.id == "statement-drafts-v1")
+            .count();
+        assert_eq!(dup, 1, "same-id template rule supersedes the carried one");
     }
 
     #[test]

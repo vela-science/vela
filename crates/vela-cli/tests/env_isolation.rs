@@ -101,6 +101,61 @@ fn real_env_still_resolves() {
     );
 }
 
+/// A stale pin refuses the CEREMONY, not the read-only list: `sign
+/// --json` is how agents and the plugin render the queue, and a changed
+/// binary must never take that down (only the pen stops).
+#[test]
+fn stale_pin_blocks_ceremony_not_list() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    init_frontier(tmp.path());
+    let run = |args: &[&str]| {
+        Command::new(vela_bin())
+            .current_dir(tmp.path())
+            .env("HOME", tmp.path())
+            .env("VELA_NO_PUBLISH", "1")
+            .args(args)
+            .output()
+            .expect("spawn")
+    };
+    let out = run(&["id", "create", "--handle", "probe"]);
+    assert!(out.status.success(), "{out:?}");
+    let out = run(&["id", "pin-binary", "--yes"]);
+    assert!(out.status.success(), "pin failed: {out:?}");
+    // Rewrite the pin to a hash the binary cannot match ("it changed").
+    let pin_path = tmp.path().join(".vela").join("binary-pin.json");
+    let mut pin: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&pin_path).unwrap()).unwrap();
+    pin["sha256"] = serde_json::Value::String("0".repeat(64));
+    std::fs::write(&pin_path, serde_json::to_string_pretty(&pin).unwrap()).unwrap();
+
+    // The read-only list still serves.
+    let out = run(&["sign", "--json"]);
+    assert!(
+        out.status.success(),
+        "sign --json must stay a plain read under a stale pin: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    assert!(
+        String::from_utf8_lossy(&out.stdout).contains("signable_total"),
+        "list shape missing: {}",
+        String::from_utf8_lossy(&out.stdout)
+    );
+
+    // The ceremony refuses with the custody exit and names the mismatch.
+    let out = run(&["sign", "--frontier", "."]);
+    assert_eq!(
+        out.status.code(),
+        Some(4),
+        "a stale pin must stop the ceremony: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    assert!(
+        String::from_utf8_lossy(&out.stderr).contains("does not match your pin"),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+}
+
 /// The binary pin holds: pin a copy of the binary, mutate it, and the
 /// ceremony refuses with the custody exit. The clear-signing invariant
 /// as a regression test.
