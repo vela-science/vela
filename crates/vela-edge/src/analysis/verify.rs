@@ -60,6 +60,20 @@ pub fn verify_frontier_strict(dir: &Path) -> Result<(Project, String), String> {
         ));
     }
 
+    // Pass 3.5 — the policy lane must RE-DERIVE: every accept that
+    // landed under a standing policy re-runs the evaluator over its
+    // stamped context against the persisted human-signed policy bytes.
+    // A lane that cannot re-derive is a forged autonomy claim.
+    let lane_errors =
+        vela_protocol::proposals::policy_accept::verify_policy_lane_events(&project, dir);
+    if !lane_errors.is_empty() {
+        return Err(format!(
+            "policy-lane verification failed ({} event(s)): {}",
+            lane_errors.len(),
+            lane_errors.join(" | ")
+        ));
+    }
+
     let signals = crate::signals::analyze(&project, &[]);
     let errors: Vec<String> = signals
         .signals

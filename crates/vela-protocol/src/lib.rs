@@ -19,7 +19,7 @@
 //! is key custody: an agent may draft, only a key-holding human signs an accept.
 
 mod kernel;
-pub use kernel::{bundle, canonical, events, reducer, repo, sign, signing_input};
+pub use kernel::{bundle, canonical, detached, events, reducer, repo, sign, signing_input};
 mod computed;
 pub use computed::{frontier_repo, project, registry, sources, state, transfer_registry};
 mod analysis;

@@ -251,6 +251,7 @@ pub fn actor_kind(id: &str) -> &'static str {
     if id.starts_with("agent:")
         || id.starts_with("sim:")
         || id.starts_with("ci:")
+        || id.starts_with("policy:")
         || handle.ends_with("-bot")
         || handle.ends_with("-sim")
     {

@@ -15,6 +15,7 @@ use crate::project::{self, Project};
 use crate::propagate::{self, PropagationAction};
 use crate::repo;
 
+pub mod policy_accept;
 mod types;
 pub use types::*;
 
@@ -3929,4 +3930,4 @@ fn build_changed_finding_details(
 }
 
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;

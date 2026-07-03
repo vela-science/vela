@@ -6,7 +6,7 @@ use crate::bundle::{
 use crate::project;
 use tempfile::TempDir;
 
-fn finding(id: &str) -> FindingBundle {
+pub(crate) fn finding(id: &str) -> FindingBundle {
     FindingBundle {
         id: id.to_string(),
         version: 1,

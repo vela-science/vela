@@ -3,6 +3,7 @@
 
 pub mod bundle;
 pub mod canonical;
+pub mod detached;
 pub mod events;
 pub mod reducer;
 pub mod repo;
