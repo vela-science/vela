@@ -1,0 +1,7 @@
+{
+  "schema": "vela.fixtures-manifest-signature.v0.1",
+  "manifest": "fixtures.manifest.json",
+  "signer_pubkey_hex": "4892f93877e637b5f59af31d9ec6704814842fb278cacb0eb94704baef99455e",
+  "signature_hex": "f464853d11cea13c737a1fbf881a14cda1964f3716c3b4e47710a7f5789e719d14e93131c0970676ad297e1050e3f5f6133e45c8cbd58c108949fbe1d50de80d",
+  "signed_at": "2026-07-03T16:36:55.464353+00:00"
+}
