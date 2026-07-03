@@ -635,6 +635,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/diff-packs/{pack_id}", get(get_diff_pack))
         .route("/entries/{vfr_id}/packs/{pack_id}", get(get_pack_review))
         .route("/entries/{vfr_id}/reproduce", get(get_reproduce))
+        .route("/entries/{vfr_id}/review", get(get_entry_review))
         .route("/entries/{vfr_id}/findings/{vf_id}", get(get_finding))
         .route(
             "/entries/{vfr_id}/findings/{vf_id}/context",
@@ -906,6 +907,7 @@ fn root_json() -> Value {
             "GET  /entries/{vfr_id}/events/stream - server-sent event inbox",
             "GET  /entries/{vfr_id}/proof - browse the proof packet (HTML or JSON)",
             "GET  /entries/{vfr_id}/proof/download - proof packet as .tar.gz",
+            "GET  /entries/{vfr_id}/review - the review queue + the autonomy ledger (HTML or JSON; ?format=json)",
             "POST /entries       - publish a signed manifest (open, signature-gated)",
         ],
         "api": {
@@ -2679,6 +2681,167 @@ async fn get_reproduce(State(state): State<AppState>, Path(vfr_id): Path<String>
         &git_subdir,
     ))
     .into_response()
+}
+
+/// `GET /entries/{vfr_id}/review` — the review queue + the autonomy
+/// ledger for one frontier. Read-only, dual-mode: HTML for browsers,
+/// JSON otherwise or with `?format=json`.
+///
+/// Three ledgers, one page: what awaits a human key (the sign-queue
+/// Judgment + Decision lanes), what landed under a human-signed policy
+/// (every event carrying a `policy_lane` block — machine-admitted,
+/// human-authorized, replay-verified by strict check), and what a human
+/// key decided directly. The hub renders custody; it never exercises it.
+async fn get_entry_review(
+    State(state): State<AppState>,
+    Path(vfr_id): Path<String>,
+    Query(params): Query<HashMap<String, String>>,
+    headers: HeaderMap,
+) -> Response {
+    let html = params.get("format").map(String::as_str) != Some("json") && wants_html(&headers);
+    let entry = match state.db.get_live_entry(&vfr_id).await {
+        Ok(Some(v)) => v,
+        Ok(None) => {
+            if html {
+                return (
+                    StatusCode::NOT_FOUND,
+                    Html(render_not_found_html(&state.urls, &vfr_id)),
+                )
+                    .into_response();
+            }
+            return (
+                StatusCode::NOT_FOUND,
+                Json(error_body("NOT_FOUND", format!("{vfr_id} not found"))),
+            )
+                .into_response();
+        }
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(error_body("INTERNAL", format!("query: {e}"))),
+            )
+                .into_response();
+        }
+    };
+    let signed_at = entry
+        .get("signed_publish_at")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+    let Some(project) = load_substrate(&state, &vfr_id, signed_at).await else {
+        if html {
+            return (
+                StatusCode::SERVICE_UNAVAILABLE,
+                Html(render_entry_unavailable_html(
+                    &state.urls,
+                    &vfr_id,
+                    "frontier projection unavailable; pull via the CLI to inspect",
+                )),
+            )
+                .into_response();
+        }
+        return (
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(error_body(
+                "UNAVAILABLE",
+                "frontier projection unavailable; pull via the CLI to inspect",
+            )),
+        )
+            .into_response();
+    };
+
+    let queue = build_review_queue(&state, &vfr_id, &project).await;
+
+    if html {
+        return Html(render_review_html(&state.urls, &vfr_id, &project, &queue)).into_response();
+    }
+
+    let admissions = policy_admissions(&project);
+    let decisions = human_decisions(&project);
+    let autonomy = vela_edge::frontier_health::compounding_metrics(&project).autonomy_ratio;
+    let mut by_policy: std::collections::BTreeMap<&str, usize> = Default::default();
+    for a in &admissions {
+        *by_policy.entry(a.policy_id.as_str()).or_default() += 1;
+    }
+    (
+        StatusCode::OK,
+        Json(json!({
+            "schema": "vela.hub.review.v0.1",
+            "vfr_id": vfr_id,
+            "stats": {
+                "awaiting": queue.rows.len(),
+                "policy_admitted": admissions.len(),
+                "human_decided": decisions.len(),
+                "autonomy_ratio": autonomy,
+            },
+            "policy": {
+                "active": queue.policy_active,
+                "policy_id": queue.policy_id,
+                "filtered": queue.policy_filtered,
+            },
+            "awaiting": queue.rows.iter().map(|r| json!({
+                "lane": r.lane,
+                "id": r.id,
+                "title": r.title,
+                "why_here": r.why_here,
+                "signable": r.signable,
+                "pack": r.pack,
+            })).collect::<Vec<_>>(),
+            "policy_admitted": {
+                "by_policy": by_policy,
+                "events": admissions.iter().map(|a| json!({
+                    "event_id": a.event_id,
+                    "policy_id": a.policy_id,
+                    "rule_ids": a.rule_ids,
+                    "proposal_id": a.proposal_id,
+                    "timestamp": a.timestamp,
+                    "target": {"type": a.target_type, "id": a.target_id},
+                })).collect::<Vec<_>>(),
+            },
+            "human_decisions": decisions.iter().rev().take(HUMAN_DECISIONS_SHOWN).map(|d| json!({
+                "event_id": d.event_id,
+                "kind": d.kind,
+                "reviewer": d.reviewer,
+                "timestamp": d.timestamp,
+                "target": {"type": d.target_type, "id": d.target_id},
+            })).collect::<Vec<_>>(),
+        })),
+    )
+        .into_response()
+}
+
+/// Build the awaiting-judgment view for the review page. The policy
+/// evaluation needs a real frontier directory (`.vela/policies/` under
+/// this machine's git-ingest checkout — the hub has no `~/.vela` of its
+/// own); when no checkout exists here, fall back to the raw pending
+/// proposals and let the page say so. The context passed is the
+/// conservative default (nothing proven), so the hub can only ever show
+/// MORE deferred items than the CLI's landing-path derivation — never
+/// hide a decision behind a permit it did not re-derive.
+async fn build_review_queue(state: &AppState, vfr_id: &str, project: &Project) -> ReviewQueueView {
+    use vela_protocol::acceptance_policy::PolicyContext;
+    let subdir = match state.db.git_ingest_targets().await {
+        Ok(rows) => rows.into_iter().find(|r| r.0 == vfr_id).map(|r| r.3),
+        Err(_) => None,
+    };
+    let Some(subdir) = subdir else {
+        return pending_review_fallback(project);
+    };
+    let mut dir = vela_hub::git_ingest::GitIngestConfig::from_env()
+        .scratch_dir
+        .join(vfr_id);
+    if !subdir.is_empty() {
+        dir = dir.join(subdir);
+    }
+    if !dir.join(".vela").is_dir() {
+        return pending_review_fallback(project);
+    }
+    match vela_edge::sign_queue::sign_queue(project, &dir, |_, _| PolicyContext::default()) {
+        Ok(q) => review_queue_from_sign_queue(q),
+        Err(e) => {
+            tracing::warn!(%vfr_id, error = %e, "review page: sign-queue projection failed; serving unfiltered pending proposals");
+            pending_review_fallback(project)
+        }
+    }
 }
 
 /// `GET /entries/{vfr_id}/findings/{vf_id}/context`

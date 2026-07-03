@@ -1118,6 +1118,7 @@ pub(crate) fn render_root_html(urls: &PublicUrls) -> String {
     <li><span class="verb"><span class="v">GET</span>/healthz</span><span class="desc"><a href="/healthz">liveness</a></span></li>
     <li><span class="verb"><span class="v">GET</span>/entries</span><span class="desc"><a href="/entries">full registry, latest-publish-wins per <code>vfr_id</code></a></span></li>
     <li><span class="verb"><span class="v">GET</span>/entries/&#123;vfr_id&#125;</span><span class="desc">single entry</span></li>
+    <li><span class="verb"><span class="v">GET</span>/entries/&#123;vfr_id&#125;/review</span><span class="desc">the review queue + the autonomy ledger</span></li>
     <li><span class="verb"><span class="v">POST</span>/entries/&#123;vfr_id&#125;/git-remote</span><span class="desc">the one write: owner-signed git-remote registration</span></li>
     <li><span class="verb"><span class="v">POST</span>/mcp</span><span class="desc">hosted MCP (streamable HTTP, read-only tools over every live frontier)</span></li>
     <li><span class="verb"><span class="v">POST</span>/webhook/github</span><span class="desc">push events refresh the index ahead of the sweep</span></li>
@@ -1517,7 +1518,7 @@ pub(crate) fn render_entry_html(
         &name,
         "One signed manifest, read end-to-end. Pull the frontier from the network locator; verify hashes locally.",
         &format!(
-            r#"<a href="/entries">← Entries</a><span>·</span><a href="/entries/{vfr_safe}">JSON</a><span>·</span><a href="/entries/{vfr_safe}/proof">Proof packet →</a>"#
+            r#"<a href="/entries">← Entries</a><span>·</span><a href="/entries/{vfr_safe}">JSON</a><span>·</span><a href="/entries/{vfr_safe}/review">Review queue</a><span>·</span><a href="/entries/{vfr_safe}/proof">Proof packet →</a>"#
         ),
         &main,
         &format!("{vfr_safe} · latest"),
@@ -2668,6 +2669,427 @@ pub(crate) fn render_pack_not_found_html(urls: &PublicUrls, vfr_id: &str, pack_i
     )
 }
 
+// ── Review page (v0.738): the review queue + the autonomy ledger ─────
+//
+// The one page that renders custody instead of content: what awaits a
+// human key, what landed under a human-signed policy (replay-verified),
+// and what a human key decided directly. The hub renders these ledgers;
+// it never exercises them.
+
+/// How many key-signed decisions the page shows (and the JSON returns).
+pub(crate) const HUMAN_DECISIONS_SHOWN: usize = 20;
+
+/// One row awaiting a human key. Mirrors `vela_edge::sign_queue::SignItem`
+/// narrowed to the two lanes the page renders (judgment, decision), and
+/// owned by the presentation tier so the fallback path — no frontier
+/// checkout on this hub machine — can build the same rows straight from
+/// `Project.proposals`.
+pub(crate) struct ReviewQueueRow {
+    pub lane: &'static str,
+    pub id: String,
+    pub title: String,
+    pub why_here: String,
+    /// False for policy-Denied items: shown, never signable.
+    pub signable: bool,
+    /// Pack id when the item decides a whole changeset.
+    pub pack: Option<String>,
+}
+
+pub(crate) struct ReviewQueueView {
+    pub rows: Vec<ReviewQueueRow>,
+    pub policy_active: bool,
+    pub policy_id: Option<String>,
+    /// False when this machine had no frontier checkout to evaluate the
+    /// signed policy against: the rows are then every pending proposal,
+    /// unfiltered, and the page says so.
+    pub policy_filtered: bool,
+}
+
+/// Narrow the CLI's sign-queue projection to the review page's lanes.
+/// Hygiene and Detached are operator ceremonies on the frontier's own
+/// machine — not decisions a reader of this page can weigh.
+pub(crate) fn review_queue_from_sign_queue(q: vela_edge::sign_queue::SignQueue) -> ReviewQueueView {
+    use vela_edge::sign_queue::SignLane;
+    let rows = q
+        .items
+        .into_iter()
+        .filter_map(|item| {
+            let lane = match item.lane {
+                SignLane::Judgment => "judgment",
+                SignLane::Decision => "decision",
+                SignLane::Hygiene | SignLane::Detached => return None,
+            };
+            Some(ReviewQueueRow {
+                lane,
+                id: item.id,
+                title: item.title,
+                why_here: item.why_here,
+                signable: item.signable,
+                pack: item.pack,
+            })
+        })
+        .collect();
+    ReviewQueueView {
+        rows,
+        policy_active: q.policy_active,
+        policy_id: q.policy_id,
+        policy_filtered: true,
+    }
+}
+
+/// The checkout-less fallback: every pending proposal, unfiltered. Same
+/// row shape and the same pack resolution the sign queue uses, so the
+/// page degrades honestly instead of vanishing.
+pub(crate) fn pending_review_fallback(project: &Project) -> ReviewQueueView {
+    let pack_of = |proposal_id: &str| -> Option<String> {
+        project
+            .released_diff_packs
+            .iter()
+            .find(|p| p.verdict.is_none() && p.member_proposals.iter().any(|m| m == proposal_id))
+            .map(|p| p.pack_id.clone())
+    };
+    let rows = project
+        .proposals
+        .iter()
+        .filter(|p| p.status == "pending_review")
+        .map(|p| ReviewQueueRow {
+            lane: "decision",
+            id: p.id.clone(),
+            title: format!("{} · {}", p.kind, p.reason),
+            why_here: "awaits a key-custody decision (policy routing not evaluated on this hub)"
+                .to_string(),
+            signable: true,
+            pack: pack_of(&p.id),
+        })
+        .collect();
+    ReviewQueueView {
+        rows,
+        policy_active: false,
+        policy_id: None,
+        policy_filtered: false,
+    }
+}
+
+/// One event admitted under a signed policy: the `policy_lane` payload
+/// block is the marker (stamped into the event's content address at
+/// landing; `vela check --strict` re-derives the Permit on replay).
+pub(crate) struct PolicyAdmission {
+    pub event_id: String,
+    pub policy_id: String,
+    pub rule_ids: Vec<String>,
+    pub proposal_id: String,
+    pub timestamp: String,
+    pub target_type: String,
+    pub target_id: String,
+}
+
+/// Every policy-admitted event on the frontier, in log order.
+pub(crate) fn policy_admissions(project: &Project) -> Vec<PolicyAdmission> {
+    use vela_protocol::proposals::policy_accept::POLICY_LANE_PAYLOAD_KEY;
+    project
+        .events
+        .iter()
+        .filter_map(|ev| {
+            let lane = ev.payload.get(POLICY_LANE_PAYLOAD_KEY)?;
+            let policy_id = lane
+                .get("policy_id")
+                .and_then(Value::as_str)
+                .unwrap_or("(policy id missing)")
+                .to_string();
+            let rule_ids = lane
+                .get("rule_ids")
+                .and_then(Value::as_array)
+                .map(|a| {
+                    a.iter()
+                        .filter_map(|r| r.as_str().map(String::from))
+                        .collect()
+                })
+                .unwrap_or_default();
+            let proposal_id = lane
+                .get("certificate")
+                .and_then(|c| c.get("proposal_id"))
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+                .to_string();
+            Some(PolicyAdmission {
+                event_id: ev.id.clone(),
+                policy_id,
+                rule_ids,
+                proposal_id,
+                timestamp: ev.timestamp.clone(),
+                target_type: ev.target.r#type.clone(),
+                target_id: ev.target.id.clone(),
+            })
+        })
+        .collect()
+}
+
+/// One accept/review event carried by a human key.
+pub(crate) struct HumanDecision {
+    pub event_id: String,
+    pub kind: String,
+    pub reviewer: String,
+    pub timestamp: String,
+    pub target_type: String,
+    pub target_id: String,
+}
+
+/// Accept/review events whose actor classifies as human (the canonical
+/// `actor_kind`) AND that carry a signature. Log order (oldest first);
+/// callers slice the tail for "recent". Kind gate: the `review.*`
+/// decision events plus the `*.reviewed` verdict events.
+pub(crate) fn human_decisions(project: &Project) -> Vec<HumanDecision> {
+    project
+        .events
+        .iter()
+        .filter(|ev| ev.signature.is_some())
+        .filter(|ev| vela_protocol::events::actor_kind(&ev.actor.id) == "human")
+        .filter(|ev| {
+            let k = ev.kind.as_str();
+            k.starts_with("review.") || k.ends_with(".reviewed")
+        })
+        .map(|ev| HumanDecision {
+            event_id: ev.id.clone(),
+            kind: ev.kind.as_str().to_string(),
+            reviewer: ev.actor.id.clone(),
+            timestamp: ev.timestamp.clone(),
+            target_type: ev.target.r#type.clone(),
+            target_id: ev.target.id.clone(),
+        })
+        .collect()
+}
+
+/// Link a review-surface target to the page that already renders it:
+/// findings get their record page, proposals their evidence-diff
+/// projection; anything else stays a plain id.
+fn review_target_html(vfr_safe: &str, target_type: &str, target_id: &str) -> String {
+    let id_safe = escape_html(target_id);
+    if target_id.starts_with("vf_") {
+        format!(r#"<a href="/entries/{vfr_safe}/findings/{id_safe}"><code>{id_safe}</code></a>"#)
+    } else if target_id.starts_with("vpr_") {
+        format!(
+            r#"<a href="/entries/{vfr_safe}/proposals/{id_safe}/evidence-diff"><code>{id_safe}</code></a>"#
+        )
+    } else if target_type.is_empty() {
+        format!("<code>{id_safe}</code>")
+    } else {
+        format!(
+            "{ttype} <code>{id_safe}</code>",
+            ttype = escape_html(target_type)
+        )
+    }
+}
+
+pub(crate) fn render_review_html(
+    urls: &PublicUrls,
+    vfr_id: &str,
+    project: &Project,
+    queue: &ReviewQueueView,
+) -> String {
+    let vfr_safe = escape_html(vfr_id);
+    let frontier_name = escape_html(&project.project.name);
+
+    let admissions = policy_admissions(project);
+    let decisions = human_decisions(project);
+    let autonomy = vela_edge::frontier_health::compounding_metrics(project).autonomy_ratio;
+    let autonomy_pct = format!("{:.0}%", autonomy * 100.0);
+
+    // ── §1 Awaiting judgment ─────────────────────────────────────────
+    let routing_note = if !queue.policy_filtered {
+        r#"<p class="fd-prov-meta">This hub machine has no frontier checkout to evaluate the signed acceptance policy against, so every pending proposal is shown unfiltered. The CLI's <code>vela sign</code> queue is the authoritative routing.</p>"#.to_string()
+    } else if let Some(pid) = &queue.policy_id {
+        format!(
+            r#"<p class="fd-prov-meta">Routed under active policy <code>{pid}</code> with the conservative default context: items the policy would permit auto-land at landing time and never appear here; deferred items await a key; denied items are shown dimmed, never signable.</p>"#,
+            pid = escape_html(pid),
+        )
+    } else {
+        r#"<p class="fd-prov-meta">No active signed policy — the lane is closed, so every pending decision routes to a human key.</p>"#.to_string()
+    };
+    let queue_rows: String = queue
+        .rows
+        .iter()
+        .map(|row| {
+            // Queue ids are proposals in the decision lane but can be
+            // vsa-requests / actor ids in the judgment lane — the empty
+            // type keeps unknown shapes unlabeled rather than mislabeled.
+            let id_html = review_target_html(&vfr_safe, "", &row.id);
+            let dim = if row.signable {
+                ""
+            } else {
+                r#" style="opacity:.55;""#
+            };
+            let mark = if row.signable { row.lane } else { "denied" };
+            let pack_html = row
+                .pack
+                .as_deref()
+                .map(|p| {
+                    let p_safe = escape_html(p);
+                    format!(
+                        r#" · pack <a href="/entries/{vfr_safe}/packs/{p_safe}"><code>{p_safe}</code></a>"#
+                    )
+                })
+                .unwrap_or_default();
+            format!(
+                r#"<li{dim}><span class="link-rel">{mark}</span> <span>{id_html} · {title}<span class="cross-vfr"> — {why}</span>{pack_html}</span></li>"#,
+                title = escape_html(&row.title),
+                why = escape_html(&row.why_here),
+            )
+        })
+        .collect();
+    let queue_html = if queue.rows.is_empty() {
+        r#"<p class="empty">Nothing awaits a human key. Every pending decision has either landed under the signed policy or been decided.</p>"#.to_string()
+    } else {
+        format!(r#"<ul class="link-list">{queue_rows}</ul>"#)
+    };
+
+    // ── §2 Admitted under policy (the autonomy ledger) ───────────────
+    let mut by_policy: std::collections::BTreeMap<&str, Vec<&PolicyAdmission>> = Default::default();
+    for a in &admissions {
+        by_policy.entry(a.policy_id.as_str()).or_default().push(a);
+    }
+    let ledger_html = if admissions.is_empty() {
+        r#"<p class="empty">No event on this frontier has landed under a signed policy yet. When one does, it appears here with the policy, the matched rules, and the certificate that strict replay re-derives.</p>"#.to_string()
+    } else {
+        by_policy
+            .iter()
+            .map(|(pid, rows)| {
+                let pid_safe = escape_html(pid);
+                let items: String = rows
+                    .iter()
+                    .map(|a| {
+                        let target = review_target_html(&vfr_safe, &a.target_type, &a.target_id);
+                        let proposal_html = if a.proposal_id.is_empty() {
+                            String::new()
+                        } else {
+                            format!(
+                                "{} → ",
+                                review_target_html(&vfr_safe, "proposal", &a.proposal_id)
+                            )
+                        };
+                        let rules = if a.rule_ids.is_empty() {
+                            "(no rule ids)".to_string()
+                        } else {
+                            escape_html(&a.rule_ids.join(", "))
+                        };
+                        format!(
+                            r#"<li><span class="link-rel">permit</span> <span>{proposal_html}{target} · rules {rules}<span class="cross-vfr"> · {ts} · event <code>{eid}</code></span></span></li>"#,
+                            ts = escape_html(&a.timestamp),
+                            eid = escape_html(&a.event_id),
+                        )
+                    })
+                    .collect();
+                format!(
+                    r#"<p class="fd-note" style="margin-bottom:6px;">policy <code>{pid_safe}</code> · {n} admission{plural} — machine-admitted, human-authorized once, re-derived by <code>vela check --strict</code></p>
+      <ul class="link-list">{items}</ul>"#,
+                    n = rows.len(),
+                    plural = if rows.len() == 1 { "" } else { "s" },
+                )
+            })
+            .collect()
+    };
+
+    // ── §3 Decided by key ────────────────────────────────────────────
+    let decisions_html = if decisions.is_empty() {
+        r#"<p class="empty">No key-signed accept/review event is on this log yet.</p>"#.to_string()
+    } else {
+        let items: String = decisions
+            .iter()
+            .rev()
+            .take(HUMAN_DECISIONS_SHOWN)
+            .map(|d| {
+                let target = review_target_html(&vfr_safe, &d.target_type, &d.target_id);
+                format!(
+                    r#"<li><span class="link-rel">{kind}</span> <span><span class="t-mono">{reviewer}</span> → {target}<span class="cross-vfr"> · {ts} · Ed25519-signed</span></span></li>"#,
+                    kind = escape_html(&d.kind),
+                    reviewer = escape_html(&d.reviewer),
+                    ts = escape_html(&d.timestamp),
+                )
+            })
+            .collect();
+        format!(r#"<ul class="link-list">{items}</ul>"#)
+    };
+
+    let main = format!(
+        r#"<div class="fd">
+  <article>
+    <p class="fd-note">State lands on <a href="/entries/{vfr_safe}">{frontier_name}</a> exactly two ways: a human key, or a policy a human signed once. This page is both ledgers, plus the queue in between — read from the replayed log, never adjudicated by the hub.</p>
+
+    <section class="wb-section">
+      <div class="wb-section__head">
+        <span class="wb-section__num">§1</span>
+        <span class="wb-section__t">Awaiting judgment · {n_awaiting}</span>
+        <span class="wb-section__aside">judgment · decision · key-custody</span>
+      </div>
+      {routing_note}
+      {queue_html}
+    </section>
+
+    <section class="wb-section">
+      <div class="wb-section__head">
+        <span class="wb-section__num">§2</span>
+        <span class="wb-section__t">Admitted under policy · {n_admitted}</span>
+        <span class="wb-section__aside">policy_lane · replay-verified</span>
+      </div>
+      {ledger_html}
+    </section>
+
+    <section class="wb-section">
+      <div class="wb-section__head">
+        <span class="wb-section__num">§3</span>
+        <span class="wb-section__t">Decided by key · {n_decided}</span>
+        <span class="wb-section__aside">actor_kind human · signature present · last {shown}</span>
+      </div>
+      {decisions_html}
+    </section>
+  </article>
+
+  <aside class="fd-margin">
+    <div class="fd-dial">
+      <div class="fd-dial__k">awaiting a key</div>
+      <div class="fd-dial__v mono">{n_awaiting}</div>
+      <div class="fd-dial__k" style="margin-top:16px;">policy-admitted</div>
+      <div class="fd-dial__v mono">{n_admitted}</div>
+      <div class="fd-dial__k" style="margin-top:16px;">autonomy ratio</div>
+      <div class="fd-dial__v mono">{autonomy_pct}</div>
+      <div class="fd-dial__k" style="margin-top:16px;">decided by key</div>
+      <div class="fd-dial__v mono">{n_decided}</div>
+    </div>
+
+    <div class="fd-dial">
+      <div class="fd-dial__k">JSON</div>
+      <div style="font-family:var(--font-mono);font-size:12px;line-height:1.6;color:var(--ink-1);margin-top:6px;">
+        <a href="/entries/{vfr_safe}/review?format=json" style="border-bottom:1px solid var(--rule-3);">/entries/{vfr_safe}/review?format=json</a>
+        <div style="color:var(--ink-3);margin-top:4px;">or <code>Accept: application/json</code></div>
+      </div>
+    </div>
+  </aside>
+</div>"#,
+        n_awaiting = queue.rows.len(),
+        n_admitted = admissions.len(),
+        n_decided = decisions.len(),
+        shown = HUMAN_DECISIONS_SHOWN,
+    );
+
+    shell(
+        urls,
+        &format!("Vela Hub · review · {vfr_id}"),
+        "entries",
+        &format!("Review · <span style=\"color:var(--ink-2);\">{vfr_safe}</span>"),
+        "The review queue",
+        &format!(
+            "{n_awaiting} awaiting a key · {n_admitted} admitted under policy ({autonomy_pct} of acceptance on rails) · {n_decided} decided by key.",
+            n_awaiting = queue.rows.len(),
+            n_admitted = admissions.len(),
+            n_decided = decisions.len(),
+        ),
+        &format!(
+            r#"<a href="/entries/{vfr_safe}">← {vfr_safe}</a><span>·</span><a href="/entries/{vfr_safe}/review?format=json">JSON</a>"#
+        ),
+        &main,
+        &format!("review queue @ {vfr_safe}"),
+    )
+}
+
 /// Directory name a `git clone` of `remote` produces: the last path
 /// segment with any `.git` suffix removed. Handles both HTTPS and
 /// scp-style SSH remotes.
@@ -3285,5 +3707,86 @@ mod reproduce_page_tests {
     #[test]
     fn empty_remote_falls_back_to_placeholder() {
         assert_eq!(repo_dir_from_remote(""), "<repo>");
+    }
+}
+
+#[cfg(test)]
+mod review_page_tests {
+    use super::*;
+
+    /// The review page over a minimal frontier: one pending proposal
+    /// (the queue), one policy-lane accept (the autonomy ledger), one
+    /// key-signed review (decided by key). All three sections must
+    /// render, and the admitting policy id must appear.
+    #[test]
+    fn renders_queue_ledger_and_key_decisions() {
+        // Same minimal frontier `test_support::make_project` builds,
+        // without the feature-gated dev dependency: assemble() emits
+        // the genesis event the fixtures below clone.
+        let mut project =
+            vela_protocol::project::assemble("review-fixture", vec![], 10, 0, "Test project");
+        project.proposals.push(
+            serde_json::from_value(serde_json::json!({
+                "id": "vpr_pending1",
+                "kind": "finding.assert",
+                "target": {"type": "finding", "id": "vf_new"},
+                "actor": {"id": "agent:scout", "type": "agent"},
+                "created_at": "2026-07-01T00:00:00Z",
+                "reason": "a new bound to weigh",
+                "status": "pending_review",
+            }))
+            .expect("minimal pending proposal"),
+        );
+
+        let mut policy_ev = project.events[0].clone();
+        policy_ev.id = "vev_policy1".to_string();
+        policy_ev.kind = "review.accepted".into();
+        policy_ev.actor.id = "policy:vap_test01".to_string();
+        policy_ev.actor.r#type = "agent".to_string();
+        policy_ev.target.r#type = "proposal".to_string();
+        policy_ev.target.id = "vpr_landed1".to_string();
+        policy_ev.payload = serde_json::json!({
+            "policy_lane": {
+                "policy_id": "vap_test01",
+                "rule_ids": ["exact-lane-a2"],
+                "certificate": {"proposal_id": "vpr_landed1"},
+                "context": {},
+            }
+        });
+        project.events.push(policy_ev);
+
+        let mut human_ev = project.events[0].clone();
+        human_ev.id = "vev_human1".to_string();
+        human_ev.kind = "review.accepted".into();
+        human_ev.actor.id = "reviewer:will".to_string();
+        human_ev.actor.r#type = "human".to_string();
+        human_ev.target.r#type = "proposal".to_string();
+        human_ev.target.id = "vpr_decided1".to_string();
+        human_ev.signature = Some("ed25519:test-signature".to_string());
+        project.events.push(human_ev);
+
+        let queue = pending_review_fallback(&project);
+        assert_eq!(queue.rows.len(), 1, "one pending proposal in the queue");
+        assert!(
+            !queue.policy_filtered,
+            "fallback declares itself unfiltered"
+        );
+
+        let html = render_review_html(&PublicUrls::from_env(), "vfr_test", &project, &queue);
+
+        // The three sections.
+        assert!(html.contains("Awaiting judgment"), "queue section renders");
+        assert!(html.contains("Admitted under policy"), "ledger renders");
+        assert!(html.contains("Decided by key"), "key section renders");
+        // The admitting policy id, the queue row, and the human reviewer.
+        assert!(html.contains("vap_test01"), "policy id appears");
+        assert!(html.contains("vpr_pending1"), "pending proposal appears");
+        assert!(html.contains("reviewer:will"), "human reviewer appears");
+        // The fallback is honest about not evaluating the policy.
+        assert!(
+            html.contains("policy routing not evaluated on this hub")
+                || html.contains("no frontier checkout"),
+            "unfiltered fallback says so"
+        );
     }
 }
