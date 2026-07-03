@@ -56,11 +56,11 @@ mod governance;
 mod identity;
 mod json_edit;
 mod lifecycle;
-mod sign_session;
 mod links;
 mod output;
 mod records;
 mod session;
+mod sign_session;
 mod surface;
 #[cfg(test)]
 mod tests;
@@ -818,7 +818,10 @@ pub async fn run_command() {
         Commands::Policy { action } => match action {
             PolicyAction::Show { frontier, json } => {
                 crate::ui::set_mode("policy", json);
-                crate::config::cli_policy::cmd_policy_show(&crate::ui::resolve_frontier(frontier), json)
+                crate::config::cli_policy::cmd_policy_show(
+                    &crate::ui::resolve_frontier(frontier),
+                    json,
+                )
             }
             PolicyAction::Draft {
                 frontier,
@@ -836,7 +839,10 @@ pub async fn run_command() {
             }
             PolicyAction::Test { frontier, json } => {
                 crate::ui::set_mode("policy", json);
-                crate::config::cli_policy::cmd_policy_test(&crate::ui::resolve_frontier(frontier), json)
+                crate::config::cli_policy::cmd_policy_test(
+                    &crate::ui::resolve_frontier(frontier),
+                    json,
+                )
             }
             PolicyAction::Sign { frontier, key, yes } => {
                 crate::ui::set_mode("policy", false);
@@ -860,7 +866,10 @@ pub async fn run_command() {
             }
             PolicyAction::Log { frontier, json } => {
                 crate::ui::set_mode("policy", json);
-                crate::config::cli_policy::cmd_policy_log(&crate::ui::resolve_frontier(frontier), json)
+                crate::config::cli_policy::cmd_policy_log(
+                    &crate::ui::resolve_frontier(frontier),
+                    json,
+                )
             }
         },
         Commands::Accept {

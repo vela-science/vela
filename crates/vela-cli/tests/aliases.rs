@@ -79,10 +79,10 @@ fn key_flag_is_canonical_key_only() {
         "`id sign --key` should parse, got: {}",
         stderr(&ok)
     );
-    let retired = vela(&["sign", "apply", "/tmp/x.json", "--key", "/tmp/nope"]);
+    let retired = vela(&["attest", "apply", "/tmp/x.json", "--key", "/tmp/nope"]);
     assert!(
         combined(&retired).contains("unknown or non-release command"),
-        "retired `sign` top-level should 404, got: {}",
+        "retired `attest` top-level should 404, got: {}",
         combined(&retired)
     );
 }
@@ -99,7 +99,6 @@ fn retired_top_level_verbs_404() {
         "normalize",
         "ingest",
         "claim",
-        "sign",
         "campaign",
         "lean",
         "attempt",

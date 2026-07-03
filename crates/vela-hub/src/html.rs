@@ -81,7 +81,10 @@ mod typography_parity_tests {
         assert!(FONT_LINK.contains("space-grotesk"), "preload Space Grotesk");
         assert!(FONT_LINK.contains("spectral"), "preload Spectral");
         assert!(!FONT_LINK.contains("inter"), "no Inter preload");
-        assert!(!FONT_LINK.contains("source-serif"), "no Source Serif preload");
+        assert!(
+            !FONT_LINK.contains("source-serif"),
+            "no Source Serif preload"
+        );
     }
 }
 

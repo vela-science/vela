@@ -86,6 +86,7 @@ mod surface_tests {
         "init",
         "log",
         "pack",
+        "policy",
         "proof",
         "proposals",
         "propose",
@@ -93,6 +94,7 @@ mod surface_tests {
         "reproduce",
         "review",
         "serve",
+        "sign",
         "status",
     ];
     const V0723_HIDDEN: &[&str] = &["completions", "queue"];
@@ -137,7 +139,6 @@ mod surface_tests {
                 "normalize",
                 "ingest",
                 "claim",
-                "sign",
                 "campaign",
                 "lean",
                 "attempt",

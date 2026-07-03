@@ -106,6 +106,10 @@ The loop:
   attach        Bind mechanical verifier evidence (or --proof lean_kernel) to a finding
 
 Verify:
+  sign          THE human ceremony: everything awaiting your key, one
+                session, one confirm, one key read. Agents are refused.
+  policy        Standing rules (draft/test/sign/revoke/log): what agents
+                may land without you. Signing a policy IS the autonomy.
   check         The full trust gate: replay, signatures, parity (--strict)
   reproduce     Re-verify stored witnesses from scratch (frozen verifiers)
   proof         Export a proof packet; `proof verify` re-checks one, `proof explain`

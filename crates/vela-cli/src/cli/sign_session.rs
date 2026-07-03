@@ -162,7 +162,10 @@ pub(crate) fn cmd_sign_session(frontier: Option<PathBuf>, key: Option<PathBuf>, 
             if !item.signable || state.answers.contains_key(&item.id) {
                 continue;
             }
-            println!("\n  ── {} · {:?} ─────────────────────────", item.id, item.lane);
+            println!(
+                "\n  ── {} · {:?} ─────────────────────────",
+                item.id, item.lane
+            );
             println!("  {}", item.title);
             println!("  why: {}", item.why_here);
             if let Some(pack) = &item.pack {
@@ -214,7 +217,12 @@ pub(crate) fn cmd_sign_session(frontier: Option<PathBuf>, key: Option<PathBuf>, 
         let state = load_session(dir);
         for item in items {
             if let Some(ans) = state.answers.get(&item.id) {
-                println!("  {:>9}  {}  {}", ans.split(':').next().unwrap_or(ans), item.id, item.title);
+                println!(
+                    "  {:>9}  {}  {}",
+                    ans.split(':').next().unwrap_or(ans),
+                    item.id,
+                    item.title
+                );
                 planned += 1;
             }
         }
@@ -244,14 +252,21 @@ pub(crate) fn cmd_sign_session(frontier: Option<PathBuf>, key: Option<PathBuf>, 
                 (SignLane::Decision, "accept") => accepted.push(item.id.clone()),
                 (SignLane::Decision, a) if a.starts_with("reject:") => {
                     let reason = a.trim_start_matches("reject:");
-                    match proposals::reject_at_path(
+                    // Reject emits its signed review event inside the
+                    // engine; the publish below sweeps the store change.
+                    if let Err(e) = proposals::reject_at_path(
                         dir,
                         &item.id,
                         &actor,
-                        if reason.is_empty() { "rejected via sign session" } else { reason },
+                        if reason.is_empty() {
+                            "rejected via sign session"
+                        } else {
+                            reason
+                        },
                     ) {
-                        Ok(ev) => event_ids.extend(ev),
-                        Err(e) => eprintln!("  reject {} failed: {e}", item.id),
+                        eprintln!("  reject {} failed: {e}", item.id);
+                    } else {
+                        event_ids.push(format!("reject:{}", item.id));
                     }
                 }
                 (SignLane::Hygiene, "yes") => {
