@@ -309,7 +309,8 @@ pub async fn run(
     _backend: Option<&str>,
     profile: tool_registry::McpProfile,
 ) {
-    dotenvy::dotenv().ok();
+    // No working-tree .env: serve runs inside cloned frontier checkouts
+    // (see run_command's note on the injection class).
     let (frontier, project_infos) = load_projects(&source);
     let source_path: Option<PathBuf> = match &source {
         ProjectSource::Single(path) => Some(path.clone()),
@@ -560,7 +561,8 @@ pub async fn run_http(
     profile: tool_registry::McpProfile,
 ) {
     let _ = backend;
-    dotenvy::dotenv().ok();
+    // No working-tree .env: serve runs inside cloned frontier checkouts
+    // (see run_command's note on the injection class).
     let (frontier, project_infos) = load_projects(&source);
     let source_path = match &source {
         ProjectSource::Single(path) => Some(path.clone()),

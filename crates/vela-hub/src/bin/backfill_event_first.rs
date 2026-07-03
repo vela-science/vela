@@ -33,7 +33,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         )
         .init();
 
-    let _ = dotenvy::dotenv();
+    // Explicit path only — never the working tree (injection class).
+    let _ = dotenvy::from_path(
+        std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default())
+            .join(".vela")
+            .join("hub.env"),
+    );
 
     let dry_run = env::args().any(|a| a == "--dry-run");
     let db_url = env::var("VELA_HUB_DATABASE_URL").map_err(|_| "VELA_HUB_DATABASE_URL not set")?;

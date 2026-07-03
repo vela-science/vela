@@ -81,7 +81,13 @@ pub use checks::scan_for_sensitive_paths;
 pub use surface::is_science_subcommand;
 
 pub async fn run_command() {
-    dotenvy::dotenv().ok();
+    // Deliberately NO dotenv here. `dotenvy::dotenv()` walks the working
+    // tree upward, and vela runs inside CLONED frontier repos — a
+    // committed .env could silently inject VELA_HUB_URL / VELA_ACTOR_ID /
+    // VELA_KEY_PATH / VELA_NO_PUBLISH for anyone who runs vela in it
+    // (the attack class git blocks via protected configuration and
+    // Codex blocks by refusing base-url keys in project config).
+    // Configuration comes from the real environment and ~/.vela only.
 
     let cli = Cli::parse();
     crate::ui::set_quiet(cli.quiet);
