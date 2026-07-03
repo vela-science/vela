@@ -84,12 +84,38 @@ impl Boundary {
     /// Pure and deterministic.
     #[must_use]
     pub fn derive_with_demoted(project: &Project, demoted: &BTreeSet<String>) -> Self {
+        Self::derive_with_overrides(project, demoted, &BTreeSet::new())
+    }
+
+    /// Derive the boundary treating every finding id in `established` as if it
+    /// were `Established` — the inverse of [`Self::derive_with_demoted`], the
+    /// what-if arm of the unlock measure. Promoting a target's last missing
+    /// premise into the established pool can only grow `one_premise_away` (the
+    /// target becomes one step from done), so `one_premise_away(promoted) -
+    /// one_premise_away(actual)` measures the unlock yield a candidate
+    /// acceptance would produce before anyone signs it. Pure and deterministic.
+    #[must_use]
+    pub fn derive_with_promoted(project: &Project, established: &BTreeSet<String>) -> Self {
+        Self::derive_with_overrides(project, &BTreeSet::new(), established)
+    }
+
+    /// The shared body behind the demoted/promoted arms. `demoted` wins over
+    /// `promoted` when an id appears in both (the control arm strips state; a
+    /// what-if promotion never resurrects a deliberately demoted lemma).
+    #[must_use]
+    fn derive_with_overrides(
+        project: &Project,
+        demoted: &BTreeSet<String>,
+        promoted: &BTreeSet<String>,
+    ) -> Self {
         let graph = FrontierGraph::from_project(project);
-        // Effective state: a demoted finding is treated as Open regardless of
-        // its actual review state (the control arm strips the inherited lemma).
+        // Effective state: a demoted finding is treated as Open, a promoted
+        // finding as Established, regardless of its actual review state.
         let eff = |id: &str, actual: FindingState| -> FindingState {
             if demoted.contains(id) {
                 FindingState::Open
+            } else if promoted.contains(id) {
+                FindingState::Established
             } else {
                 actual
             }
@@ -320,6 +346,40 @@ mod tests {
             treatment > control,
             "inheritance compounds: Δ = {}",
             treatment - control
+        );
+    }
+
+    #[test]
+    fn promoting_the_sole_missing_premise_moves_target_into_one_premise_away() {
+        // The inverse arm: `a` established, `b` open, target `z` depends on
+        // BOTH. Actual state -> z is not one-premise-away (b is open).
+        // Promoting b (treat as Established) -> z becomes one-premise-away.
+        // Δ = 1 = the unlock yield accepting b would produce.
+        let mut a = synth_finding(0, vec![]);
+        a.flags.review_state = Some(ReviewState::Accepted);
+        a.confidence.score = 0.9;
+        let b = synth_finding(1, vec![]);
+        let z = synth_finding(
+            2,
+            vec![link_typed(&a.id, "depends"), link_typed(&b.id, "depends")],
+        );
+        let (b_id, z_id) = (b.id.clone(), z.id.clone());
+        let mut project = assemble("promote", vec![], 0, 0, "test");
+        project.findings = vec![a, b, z];
+
+        let actual = Boundary::derive(&project);
+        assert!(
+            actual.one_premise_away.iter().all(|i| i.finding != z_id),
+            "z is two premises away in the actual state"
+        );
+        let established: BTreeSet<String> = std::iter::once(b_id).collect();
+        let promoted = Boundary::derive_with_promoted(&project, &established);
+        assert_eq!(promoted.one_premise_away.len(), 1);
+        assert_eq!(promoted.one_premise_away[0].finding, z_id);
+        assert!(
+            promoted.one_premise_away.len() > actual.one_premise_away.len(),
+            "promotion unlocks: Δ = {}",
+            promoted.one_premise_away.len() - actual.one_premise_away.len()
         );
     }
 

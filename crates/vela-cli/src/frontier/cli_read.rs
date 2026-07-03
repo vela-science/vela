@@ -81,6 +81,23 @@ pub(crate) fn cmd_status(path: &Path, json: bool) {
         m
     };
 
+    // Compounding block (v0.736): is accepted state running on policy rails,
+    // is failure landing channel-attributed, is context being reused — plus
+    // the curated channel map when a channels.yaml sits next to the frontier.
+    let compounding = vela_edge::frontier_health::compounding_metrics(&project);
+    let (channels_cold, channels_total) =
+        match vela_edge::channel_map::ChannelTaxonomy::load_for_frontier(path) {
+            Some(taxonomy) => {
+                let map = vela_edge::channel_map::channel_map(&project, &taxonomy);
+                let cold = map
+                    .iter()
+                    .filter(|c| c.status == vela_edge::channel_map::ChannelState::Cold)
+                    .count();
+                (cold, map.len())
+            }
+            None => (0, 0),
+        };
+
     if json {
         println!(
             "{}",
@@ -116,6 +133,14 @@ pub(crate) fn cmd_status(path: &Path, json: bool) {
                 },
                 "events": project.events.len(),
                 "actors": project.actors.len(),
+                "compounding": {
+                    "autonomy_ratio": compounding.autonomy_ratio,
+                    "dead_channel_coverage": compounding.dead_channel_coverage,
+                    "unlock_yield_last": compounding.unlock_yield_last,
+                    "context_reuse_ratio": compounding.context_reuse_ratio,
+                    "attempts_avoided": compounding.attempts_avoided,
+                    "channels": {"cold": channels_cold, "total": channels_total},
+                },
                 "inbox": {
                     "pending_total": pending_total,
                     "pending_by_kind": pending_by_kind,
@@ -201,6 +226,12 @@ pub(crate) fn cmd_status(path: &Path, json: bool) {
         project.findings.len(),
         project.events.len(),
         project.actors.len(),
+    );
+    let pct = |r: f64| (r * 100.0).round() as i64;
+    println!(
+        "  compounding: autonomy {}% · channels {channels_cold}/{channels_total} cold · reuse {}%",
+        pct(compounding.autonomy_ratio),
+        pct(compounding.context_reuse_ratio),
     );
     println!();
     match vela_protocol::acceptance_policy::load_active_policy(path) {

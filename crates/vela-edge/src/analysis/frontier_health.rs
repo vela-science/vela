@@ -18,7 +18,7 @@ use vela_protocol::released_diff_pack::ReleasedVerdict;
 use vela_protocol::repo::{self, VelaSource};
 use vela_protocol::scientific_diff::ScientificDiffPack;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct FrontierHealthReport {
     pub ok: bool,
     pub command: String,
@@ -37,7 +37,7 @@ pub struct FrontierHealthReport {
     pub caveats: Vec<String>,
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct FrontierHealthMetrics {
     pub active_tasks: usize,
     pub blocked_tasks: usize,
@@ -57,6 +57,90 @@ pub struct FrontierHealthMetrics {
     pub max_review_latency_days: i64,
     pub missing_attestations: usize,
     pub missing_attestation_targets: usize,
+    /// The compounding-loop block: is accepted state doing work, and is
+    /// failure landing where the next producer can read it?
+    #[serde(default)]
+    pub compounding: CompoundingMetrics,
+}
+
+/// The compounding-loop metrics (v0.736): ratios over the event log and the
+/// attempt ledger that say whether the frontier is accumulating leverage —
+/// policy-mediated acceptance, channel-attributed failure, reused context —
+/// or just accumulating events.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+pub struct CompoundingMetrics {
+    /// Accepted-kind events (kinds ending in `.accepted`, plus
+    /// `policy.auto_admitted`) whose payload names a `policy_id`, over all
+    /// accepted-kind events. Trailing all-time for now; a policy-named
+    /// acceptance is one a machine could re-derive, so this is the fraction
+    /// of acceptance running on rails rather than ad-hoc judgment.
+    pub autonomy_ratio: f64,
+    /// Failed attempts naming a `channel:` obstruction, over all failed
+    /// attempts. Failure that names its channel is failure the channel map
+    /// can compound; anonymous failure is heat loss.
+    pub dead_channel_coverage: f64,
+    /// `one_premise_away(promoted) − one_premise_away(actual)` for the most
+    /// recent acceptance. Left 0.0 until the `Boundary::derive_with_promoted`
+    /// wiring lands in the accept path.
+    pub unlock_yield_last: f64,
+    /// Attempts carrying a `base_frontier_root`, over all attempts — a proxy
+    /// for context reuse (the producer pinned what state it searched against).
+    /// Refinement: check the pinned root against actually-materialized
+    /// frontier roots so a fabricated or stale pin does not count as reuse.
+    pub context_reuse_ratio: f64,
+    /// Deposits avoided by the fold-at-deposit path. 0 for now: folds are
+    /// absence-of-events (nothing lands in the log), so this is counted at
+    /// deposit time by the MCP layer later, not derivable from replay.
+    pub attempts_avoided: usize,
+}
+
+/// Compute the compounding block from a project. Pure and deterministic —
+/// reads only the event log and the attempt ledger, never wall clock.
+#[must_use]
+pub fn compounding_metrics(project: &Project) -> CompoundingMetrics {
+    let mut accepted_events = 0usize;
+    let mut policy_backed = 0usize;
+    for event in &project.events {
+        let kind = event.kind.as_str();
+        if !(kind.ends_with(".accepted") || kind == "policy.auto_admitted") {
+            continue;
+        }
+        accepted_events += 1;
+        if event.payload.get("policy_id").is_some() {
+            policy_backed += 1;
+        }
+    }
+
+    let mut with_root = 0usize;
+    let mut failed = 0usize;
+    let mut failed_with_channel = 0usize;
+    for attempt in &project.attempts {
+        if !attempt.base_frontier_root.is_empty() {
+            with_root += 1;
+        }
+        if crate::channel_map::attempt_is_failed(project, attempt) {
+            failed += 1;
+            if crate::channel_map::attempt_channel(attempt).is_some() {
+                failed_with_channel += 1;
+            }
+        }
+    }
+
+    CompoundingMetrics {
+        autonomy_ratio: ratio(policy_backed, accepted_events),
+        dead_channel_coverage: ratio(failed_with_channel, failed),
+        unlock_yield_last: 0.0,
+        context_reuse_ratio: ratio(with_root, project.attempts.len()),
+        attempts_avoided: 0,
+    }
+}
+
+fn ratio(numerator: usize, denominator: usize) -> f64 {
+    if denominator == 0 {
+        0.0
+    } else {
+        numerator as f64 / denominator as f64
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -134,6 +218,7 @@ pub fn analyze(frontier_path: &Path) -> Result<FrontierHealthReport, String> {
         max_review_latency_days,
         missing_attestations,
         missing_attestation_targets,
+        compounding: compounding_metrics(&project),
     };
 
     let mut report = FrontierHealthReport {
@@ -470,6 +555,70 @@ fn local_repo_root(path: &Path) -> Option<PathBuf> {
     match repo::detect(path).ok()? {
         VelaSource::VelaRepo(root) => Some(root),
         VelaSource::ProjectFile(_) | VelaSource::PacketDir(_) => None,
+    }
+}
+
+#[cfg(test)]
+mod compounding_tests {
+    use super::*;
+    use ed25519_dalek::SigningKey;
+    use vela_protocol::attempt::{Attempt, AttemptDraft};
+    use vela_protocol::test_support::make_project;
+
+    fn attempt(claim: &str, status: &str, obstructions: Vec<&str>, root: &str) -> Attempt {
+        let draft = AttemptDraft {
+            problem: 647,
+            frontier: "t".into(),
+            kind: "route".into(),
+            claim: claim.into(),
+            claimed_status: status.into(),
+            named_obstructions: obstructions.into_iter().map(String::from).collect(),
+            base_frontier_root: root.into(),
+            ..Default::default()
+        };
+        Attempt::build(draft, &SigningKey::from_bytes(&[3u8; 32])).unwrap()
+    }
+
+    #[test]
+    fn empty_project_yields_all_zero_ratios() {
+        let project = make_project("empty", vec![]);
+        let c = compounding_metrics(&project);
+        assert_eq!(c, CompoundingMetrics::default());
+    }
+
+    #[test]
+    fn ratios_read_the_log_and_the_ledger() {
+        let mut project = make_project("comp", vec![]);
+        // Two accepted-kind events, one policy-backed.
+        let mut with_policy = project.events[0].clone();
+        with_policy.kind = "review.accepted".into();
+        with_policy.payload = serde_json::json!({"policy_id": "vap_d03dc"});
+        let mut without_policy = project.events[0].clone();
+        without_policy.kind = "review.accepted".into();
+        without_policy.payload = serde_json::json!({});
+        project.events.push(with_policy);
+        project.events.push(without_policy);
+        // Three attempts: two failed (one channel-named), one banked with a
+        // pinned base root.
+        project.attempts.push(attempt(
+            "route a",
+            "failed",
+            vec!["channel:erdos647:prime"],
+            "",
+        ));
+        project
+            .attempts
+            .push(attempt("route b", "failed", vec![], ""));
+        project
+            .attempts
+            .push(attempt("route c", "banked", vec![], "sha256:deadbeef"));
+
+        let c = compounding_metrics(&project);
+        assert!((c.autonomy_ratio - 0.5).abs() < f64::EPSILON);
+        assert!((c.dead_channel_coverage - 0.5).abs() < f64::EPSILON);
+        assert!((c.context_reuse_ratio - 1.0 / 3.0).abs() < f64::EPSILON);
+        assert_eq!(c.unlock_yield_last, 0.0);
+        assert_eq!(c.attempts_avoided, 0);
     }
 }
 

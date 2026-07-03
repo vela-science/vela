@@ -883,6 +883,233 @@ pub fn record_propose(args: &Value) -> Result<String, String> {
     .to_string())
 }
 
+// ----------------------------------------------------------------------------
+// v0.736: fold-at-deposit — the attempt ledger compounds instead of bloating.
+// ----------------------------------------------------------------------------
+
+/// The search signature an attempt's identity-of-search folds on:
+/// `sha256(target_obligation_id ‖ ":" ‖ channel ‖ ":" ‖
+/// sorted(method_families).join(","))[:16]`. Two failed passes at the same
+/// obligation, down the same channel, with the same method families are the
+/// same search — a second deposit that learned nothing new is ledger noise.
+#[must_use]
+pub fn search_signature(
+    target_obligation_id: &str,
+    channel: &str,
+    method_families: &[String],
+) -> String {
+    let mut fams: Vec<&str> = method_families.iter().map(String::as_str).collect();
+    fams.sort_unstable();
+    let preimage = format!("{target_obligation_id}:{channel}:{}", fams.join(","));
+    sha256_hex(preimage.as_bytes())[..16].to_string()
+}
+
+/// An attempt's derived search signature: channel = its first `channel:`
+/// named obstruction (or "" when it names none).
+#[must_use]
+pub fn attempt_search_signature(a: &vela_protocol::attempt::Attempt) -> String {
+    let channel = crate::channel_map::attempt_channel(a).unwrap_or("");
+    search_signature(&a.target_obligation_id, channel, &a.method_families)
+}
+
+/// The numeric bound a bound-shaped claim carries ("a(8) >= 33" → 33.0).
+/// Attempts have no first-class bound field yet; the claim text is where
+/// bounds live on this substrate (`kind` gives the direction). `None` for
+/// non-bound claims.
+fn claim_bound(a: &vela_protocol::attempt::Attempt) -> Option<f64> {
+    for op in ["<=", ">=", "<", ">", "="] {
+        if let Some(idx) = a.claim.rfind(op) {
+            let tail = a.claim[idx + op.len()..].trim();
+            let num: String = tail
+                .chars()
+                .take_while(|c| c.is_ascii_digit() || *c == '.' || *c == '-')
+                .collect();
+            if let Ok(v) = num.parse::<f64>() {
+                return Some(v);
+            }
+        }
+    }
+    None
+}
+
+/// Whether `new_bound` improves on `old_bound` for this attempt kind:
+/// upper bounds improve downward, everything else (lower bounds, exact
+/// values) improves upward.
+fn bound_improves(kind: &str, new_bound: f64, old_bound: f64) -> bool {
+    if kind.contains("upper") {
+        new_bound < old_bound
+    } else {
+        new_bound > old_bound
+    }
+}
+
+/// The fold predicate: true when the candidate deposit adds NO new
+/// information over an already-banked attempt with the same search
+/// signature — no new named obstruction, no artifact (verifier attachment)
+/// hash not already present, no better bound. A fold returns the existing
+/// `vat_` id instead of depositing a duplicate; anything new deposits
+/// normally.
+#[must_use]
+pub fn folds_into(
+    candidate: &vela_protocol::attempt::Attempt,
+    existing: &vela_protocol::attempt::Attempt,
+) -> bool {
+    use std::collections::BTreeSet;
+    if attempt_search_signature(candidate) != attempt_search_signature(existing) {
+        return false;
+    }
+    let known_obstructions: BTreeSet<&str> = existing
+        .named_obstructions
+        .iter()
+        .map(String::as_str)
+        .collect();
+    if candidate
+        .named_obstructions
+        .iter()
+        .any(|o| !known_obstructions.contains(o.as_str()))
+    {
+        return false;
+    }
+    let known_artifacts: BTreeSet<&str> = existing
+        .verifier_attachments
+        .iter()
+        .map(String::as_str)
+        .collect();
+    if candidate
+        .verifier_attachments
+        .iter()
+        .any(|v| !known_artifacts.contains(v.as_str()))
+    {
+        return false;
+    }
+    match (claim_bound(candidate), claim_bound(existing)) {
+        (Some(nb), Some(eb)) => !bound_improves(&candidate.kind, nb, eb),
+        // A bound where none was banked is information.
+        (Some(_), None) => false,
+        _ => true,
+    }
+}
+
+/// Whether the proposer self-reports this deposit as a failed pass (the
+/// only deposits that fold; a success is never silently dropped).
+fn is_failed_deposit(claimed_status: &str) -> bool {
+    let s = claimed_status.to_ascii_lowercase();
+    s.contains("fail") || s == "refuted"
+}
+
+/// `work` action=deposit — deposit a signed `vat_` attempt on the LOCAL
+/// frontier, folding duplicate failed searches. Before a FAILED attempt
+/// lands, the existing ledger is scanned for an attempt with the same
+/// derived search signature; when one exists and the new attempt adds no
+/// new information ([`folds_into`]), nothing is deposited and the existing
+/// `vat_` id returns with `"folded": true`. Success deposits, and failures
+/// that learned something new, always land. Signed under the agent's own
+/// auto-minted session key; `claimed_status` stays display-only.
+pub fn deposit_attempt(args: &Value) -> Result<String, String> {
+    use vela_protocol::attempt::{Attempt, AttemptDraft, ProducerRef};
+
+    let frontier_path = frontier_path_arg(args)?;
+    let agent_actor = args
+        .get("agent_actor")
+        .and_then(Value::as_str)
+        .ok_or("agent_actor required")?;
+    if !agent_actor.starts_with("agent:") && !agent_actor.starts_with("ci:") {
+        return Err("deposit_attempt is for agent:/ci: actors".to_string());
+    }
+    let key = agent_signing_key(Some(agent_actor))?;
+
+    let str_arg = |k: &str| -> String {
+        args.get(k)
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string()
+    };
+    let vec_arg = |k: &str| -> Vec<String> {
+        args.get(k)
+            .and_then(Value::as_array)
+            .map(|a| {
+                a.iter()
+                    .filter_map(Value::as_str)
+                    .map(String::from)
+                    .collect()
+            })
+            .unwrap_or_default()
+    };
+
+    let mut project = vela_protocol::repo::load_from_path(&frontier_path)
+        .map_err(|e| format!("load frontier: {e}"))?;
+
+    let mut frontier_label = str_arg("frontier");
+    if frontier_label.is_empty() {
+        frontier_label = project.frontier_id();
+    }
+    let producer = args.get("producer").cloned().unwrap_or(Value::Null);
+    let producer_str = |k: &str| -> String {
+        producer
+            .get(k)
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string()
+    };
+    let claimed_status = str_arg("claimed_status");
+    let draft = AttemptDraft {
+        problem: args.get("problem").and_then(Value::as_u64).unwrap_or(0) as u32,
+        frontier: frontier_label,
+        kind: str_arg("kind"),
+        claim: str_arg("claim"),
+        detail: str_arg("detail"),
+        claimed_status: claimed_status.clone(),
+        insight: str_arg("insight"),
+        base_frontier_root: str_arg("base_frontier_root"),
+        target_obligation_id: str_arg("target_obligation_id"),
+        statement_variant_id: str_arg("statement_variant_id"),
+        method_families: vec_arg("method_families"),
+        remaining_obligations: vec_arg("remaining_obligations"),
+        named_obstructions: vec_arg("named_obstructions"),
+        verifier_attachments: vec_arg("verifier_attachments"),
+        producer: ProducerRef {
+            system: producer_str("system"),
+            version: producer_str("version"),
+            config_digest: producer_str("config_digest"),
+        },
+        ..Default::default()
+    };
+    let attempt = Attempt::build(draft, &key)?;
+
+    // Fold: a failed pass that re-ran a banked search and learned nothing
+    // new returns the banked id instead of depositing ledger noise.
+    if is_failed_deposit(&claimed_status)
+        && let Some(existing) = project.attempts.iter().find(|e| folds_into(&attempt, e))
+    {
+        return Ok(serde_json::json!({
+            "ok": true,
+            "attempt_id": existing.attempt_id,
+            "folded": true,
+            "search_signature": attempt_search_signature(&attempt),
+            "note": "same search signature, no new information — banked attempt returned instead of a duplicate deposit",
+        })
+        .to_string());
+    }
+
+    let mut event = attempt.deposit_event(
+        agent_actor,
+        vela_protocol::events::actor_kind(agent_actor),
+        "attempt deposit via MCP (provenance, not a verdict)",
+    );
+    vela_protocol::reducer::apply_event(&mut project, &event)?;
+    event.signature = Some(vela_protocol::sign::sign_event(&event, &key)?);
+    project.events.push(event);
+    vela_protocol::repo::save_to_path(&frontier_path, &project)
+        .map_err(|e| format!("save: {e}"))?;
+    Ok(serde_json::json!({
+        "ok": true,
+        "attempt_id": attempt.attempt_id,
+        "folded": false,
+        "search_signature": attempt_search_signature(&attempt),
+    })
+    .to_string())
+}
+
 // Note: the write-side tools here mutate VELA_AGENT_KEY_HEX (the
 // env-driven signing key for submit_diff_pack), which cannot run
 // safely under cargo's parallel test runner because env mutation is
@@ -890,6 +1117,118 @@ pub fn record_propose(args: &Value) -> Result<String, String> {
 // roundtrip is exercised end-to-end by the bash gate
 // `scripts/test-mcp-server.sh` instead, which spawns the server with
 // a controlled env.
+
+#[cfg(test)]
+mod fold_tests {
+    use super::*;
+    use ed25519_dalek::SigningKey;
+    use vela_protocol::attempt::{Attempt, AttemptDraft};
+
+    fn key() -> SigningKey {
+        SigningKey::from_bytes(&[9u8; 32])
+    }
+
+    fn failed(claim: &str, obstructions: Vec<&str>, attachments: Vec<&str>) -> Attempt {
+        let draft = AttemptDraft {
+            problem: 647,
+            frontier: "erdos-frontier".into(),
+            kind: "upper_bound".into(),
+            claim: claim.into(),
+            claimed_status: "failed".into(),
+            target_obligation_id: "erdos:647".into(),
+            method_families: vec!["sieve".into(), "cp-sat".into()],
+            named_obstructions: obstructions.into_iter().map(String::from).collect(),
+            verifier_attachments: attachments.into_iter().map(String::from).collect(),
+            ..Default::default()
+        };
+        Attempt::build(draft, &key()).unwrap()
+    }
+
+    #[test]
+    fn signature_is_order_independent_over_method_families() {
+        let a = search_signature("erdos:647", "erdos647:prime", &["b".into(), "a".into()]);
+        let b = search_signature("erdos:647", "erdos647:prime", &["a".into(), "b".into()]);
+        assert_eq!(a, b);
+        assert_eq!(a.len(), 16);
+        // Any component change moves the signature.
+        assert_ne!(
+            a,
+            search_signature("erdos:647", "erdos647:crt_cover", &["a".into(), "b".into()])
+        );
+        assert_ne!(
+            a,
+            search_signature("erdos:648", "erdos647:prime", &["a".into(), "b".into()])
+        );
+    }
+
+    #[test]
+    fn duplicate_failed_search_folds() {
+        let banked = failed("no route", vec!["channel:erdos647:prime"], vec![]);
+        let rerun = failed("still no route", vec!["channel:erdos647:prime"], vec![]);
+        assert!(folds_into(&rerun, &banked), "same search, nothing new");
+    }
+
+    #[test]
+    fn new_obstruction_blocks_the_fold() {
+        let banked = failed("no route", vec!["channel:erdos647:prime"], vec![]);
+        let learned = failed(
+            "no route",
+            vec!["channel:erdos647:prime", "parity-wall:mod-4"],
+            vec![],
+        );
+        assert!(
+            !folds_into(&learned, &banked),
+            "a named obstruction is information"
+        );
+    }
+
+    #[test]
+    fn new_artifact_hash_blocks_the_fold() {
+        let banked = failed(
+            "no route",
+            vec!["channel:erdos647:prime"],
+            vec!["vva_0000000000000001"],
+        );
+        let with_artifact = failed(
+            "no route",
+            vec!["channel:erdos647:prime"],
+            vec!["vva_0000000000000001", "vva_0000000000000002"],
+        );
+        assert!(!folds_into(&with_artifact, &banked));
+        // The reverse (a subset of already-known artifacts) still folds.
+        let subset = failed("no route", vec!["channel:erdos647:prime"], vec![]);
+        assert!(folds_into(&subset, &banked));
+    }
+
+    #[test]
+    fn better_bound_blocks_the_fold() {
+        // kind = upper_bound: smaller is better.
+        let banked = failed("f(n) <= 40", vec!["channel:erdos647:prime"], vec![]);
+        let better = failed("f(n) <= 35", vec!["channel:erdos647:prime"], vec![]);
+        let worse = failed("f(n) <= 50", vec!["channel:erdos647:prime"], vec![]);
+        assert!(
+            !folds_into(&better, &banked),
+            "an improved bound is information"
+        );
+        assert!(folds_into(&worse, &banked), "a worse bound adds nothing");
+    }
+
+    #[test]
+    fn different_channel_never_folds() {
+        let banked = failed("no route", vec!["channel:erdos647:prime"], vec![]);
+        let other = failed("no route", vec!["channel:erdos647:crt_cover"], vec![]);
+        assert!(!folds_into(&other, &banked), "different search signature");
+    }
+
+    #[test]
+    fn only_failed_statuses_are_fold_candidates() {
+        assert!(is_failed_deposit("failed"));
+        assert!(is_failed_deposit("failed_search"));
+        assert!(is_failed_deposit("refuted"));
+        assert!(!is_failed_deposit("candidate"));
+        assert!(!is_failed_deposit("machine_verified"));
+    }
+}
 
 #[cfg(test)]
 mod agent_key_tests {
