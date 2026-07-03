@@ -29,6 +29,7 @@ pub(crate) fn cmd_init(
         },
     )
     .unwrap_or_else(|e| fail_return(&e));
+    crate::config::workspace_registry::register(path, Some(name));
     let hooks = scaffold_git_hooks(path);
     if json_output {
         print_json(&payload);
