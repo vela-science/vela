@@ -51,9 +51,13 @@ pub(crate) struct Receipt {
     pub caveats: Vec<String>,
     #[serde(default)]
     pub verifier_runs: Vec<ReceiptVerifierRun>,
+    /// Part of the published schema; carried for provenance consumers
+    /// (not yet read by the landing path itself).
     #[serde(default)]
+    #[allow(dead_code)]
     pub environment: Value,
     #[serde(default)]
+    #[allow(dead_code)]
     pub provenance: Value,
 }
 
