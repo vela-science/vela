@@ -1,9 +1,17 @@
 //! `vela agents sync|doctor|diff` — generate vendor agent-config adapters from
 //! the canonical `VELA.md` (memo §5, §10). One source of truth; the adapter
 //! files (`AGENTS.md`, `CLAUDE.md`, `.cursor/rules/vela.mdc`,
-//! `.github/copilot-instructions.md`, `.mcp.json`) are disposable, regenerable
+//! `.github/copilot-instructions.md`, `.mcp.json`,
+//! `.claude/skills/vela-frontier/SKILL.md`) are disposable, regenerable
 //! leaves. The deletion test holds: delete every adapter, run `agents sync`,
 //! the same rules regenerate from VELA.md.
+//!
+//! The skill adapter is the one exception to "derived from VELA.md": its text
+//! is the Vela frontier skill template, embedded below as a const and mirrored
+//! byte-for-byte from `integrations/claude-plugin/skills/vela-frontier/SKILL.md`
+//! (a test pins the parity). VELA.md stays the charter for THIS worktree; the
+//! skill teaches the protocol-level loop, receipt, and custody rules that are
+//! the same in every frontier.
 
 use crate::cli::{fail_return, print_json};
 use crate::cli_commands::AgentsAction;
@@ -28,6 +36,7 @@ const TARGETS: &[&str] = &[
     ".github/copilot-instructions.md",
     ".cursor/rules/vela.mdc",
     ".mcp.json",
+    ".claude/skills/vela-frontier/SKILL.md",
 ];
 
 struct Adapter {
@@ -128,6 +137,134 @@ fn mcp_json_adapter(root: &Path) -> String {
     s
 }
 
+/// Frontmatter of the Vela frontier skill (Claude Code / Codex shared format).
+/// Mirrored byte-for-byte from
+/// `integrations/claude-plugin/skills/vela-frontier/SKILL.md`; a test pins the
+/// parity. Edit the plugin file and this const together.
+const SKILL_FRONTMATTER: &str = r##"---
+name: vela-frontier
+description: Working in a repository that has a .vela/ directory (a Vela frontier). Use when picking targets, running verifiers, writing receipts, or landing results — any time vela, receipt.json, frontier state, or the sign queue comes up. The loop is next → work → land; humans sign.
+---
+"##;
+
+/// Body of the Vela frontier skill. See [`SKILL_FRONTMATTER`] for the mirror
+/// rule.
+const SKILL_BODY: &str = r##"
+# Vela frontier work
+
+Vela is version control for scientific state. Findings, evidence, provenance,
+and proofs live as content-addressed, signed, replayable events; everything
+else (frontier.json, proof packets, rollups) is a derived view. Activity is not
+state: a script that ran is activity; a witness plus a frozen verifier anyone
+can re-run is state. A repository with a `.vela/` directory is a frontier, and
+this skill is how an agent works inside one.
+
+## The loop
+
+Four verbs; everything else is reading or plumbing.
+
+```text
+next -> work -> land -> sign
+```
+
+- `vela next --json` — the offer: ranked open targets with the compounding
+  payload pre-loaded (premises to build on, banked routes, prior attempts,
+  dead channels). Returns `{targets: [{lane, id, title, why, next_command}]}`.
+  Trust the ranking; it already encodes what the frontier knows.
+- `vela work <target> --as agent:<you> --json` — claim the lease, load the
+  briefing into `.vela/work/<target>/` (`offer.json`). Read the briefing
+  before working: dead channels listed there are dead — do not respend them.
+- `vela land receipt.json --as agent:<you> --json` — the write edge. Artifacts
+  are hashed at land time, a pending proposal lands, and the frontier's signed
+  policy routes it.
+- `vela sign` — the one human ceremony. Not yours: it refuses `agent:` actors
+  (exit 4) by design.
+
+Every verb takes `--json` and returns one object with `ok` and `command`; no
+prose leaks into a JSON stream. Exit codes: 0 ok, 1 domain failure, 2 usage,
+3 not found, 4 custody refused, 5 already exists. The frontier argument is
+discovered by walking upward from the current directory, like git.
+
+## The receipt
+
+A Vela Receipt (`vela.receipt.v1`) is the portable JSON any tool exports —
+a notebook, a search run, a proof attempt:
+
+```json
+{
+  "schema": "vela.receipt.v1",
+  "claim": "what is now known / bounded / refuted",
+  "type": "computational | theoretical | empirical | negative",
+  "artifacts": [{"path": "witness.json", "kind": "witness"}],
+  "caveats": ["what this does NOT establish"],
+  "verifier_runs": [{"method": "…", "outcome": "pass", "log": "…"}]
+}
+```
+
+The claim is one scoped sentence a skeptical reviewer could sign against.
+Artifact paths must exist — they are hashed at land time. Caveats state what
+the work does not establish; write at least one unless the claim is genuinely
+unconditional. Verifier runs record only what actually ran, with honest
+outcomes. Negative results (channel exhausted, bound unimproved) are landable
+state and save the next session the respend.
+
+## Landing routes
+
+Landing routes by the frontier's signed policy:
+
+- **Permit** — admitted canonically with no key ceremony. The human's
+  authority arrived earlier, once, as the policy signature; the event carries
+  the certificate and replay verifies it.
+- **Defer** — parked in the human's sign queue for `vela sign`.
+- **Deny** — nothing lands.
+
+Truth-bearing claims stay human-keyed in every mode. There is no configuration
+in which an agent's proposal becomes accepted state without a human key.
+
+## Custody
+
+- Never run the decision verbs bare: `sign`, `accept`, `review`, and
+  `proposals reject` are key-custody human acts, and the engine refuses
+  `agent:` actors on them.
+- Every write carries an explicit acting identity: `--as agent:<you>`, or set
+  `VELA_ACTOR_ID=agent:<you>` for the session. Never write as a human.
+- Never sign anything, never read or handle key material, never sit in a
+  trust path. A model may produce a candidate witness; only a frozen verifier
+  may check it, and only a key-holding human accepts a truth-bearing proposal.
+- Never pre-fill a verdict the human did not explicitly give. Presenting
+  evidence is yours; the judgment is not.
+- Never hand-edit accepted events or derived views (`frontier.json`, proof
+  packets); regenerate with `vela frontier materialize`. Never bulk-move
+  Vela-canonical paths (`examples/`, `projects/`, `lean/`, `.vela/`).
+
+## The gate
+
+Frontier repos carry a conformance gate (conventionally
+`./scripts/full-conformance.sh --mode=ci`); it must report 0 FAIL after every
+change, and it is the bar `git push` is held to. `vela check . --strict` is
+the same bar the hub's ingestor enforces. `vela reproduce <frontier>` re-runs
+the frozen verifiers over stored witnesses from scratch — run it before
+claiming a reproduction, and never silently break the reproduction of a
+banked result.
+
+## Reading state
+
+`vela status --json` is the one-screen summary (findings, replay integrity,
+policy mode, sign-queue depth, compounding metrics). `vela state <vf_id>` is
+one finding's claim-state cell; `vela log <dir> <vf_id>` its history. The MCP
+server (`vela serve . --profile read-only`) exposes the same read surface as
+tools.
+"##;
+
+/// The note stamped into the EMITTED skill adapter (after the frontmatter, so
+/// the skill still parses). The plugin's copy of the skill carries no note —
+/// there it is authored source.
+const SKILL_NOTE: &str = "<!-- GENERATED BY `vela agents sync`. The skill template ships inside the vela\n     binary (mirror of integrations/claude-plugin/skills/vela-frontier/SKILL.md).\n     Do not edit here; upgrade vela and re-run `vela agents sync`. -->";
+
+fn skill_adapter() -> String {
+    format!("{SKILL_FRONTMATTER}\n{SKILL_NOTE}\n{SKILL_BODY}")
+}
+
 /// Build the full set of adapters from `<root>/VELA.md`. Fails loudly if VELA.md
 /// is absent or missing the sections the adapters derive from.
 fn build_adapters(root: &Path) -> Vec<Adapter> {
@@ -158,6 +295,7 @@ fn build_adapters(root: &Path) -> Vec<Adapter> {
                 }
                 ".cursor/rules/vela.mdc" => cursor_adapter(&rules),
                 ".mcp.json" => mcp_json_adapter(root),
+                ".claude/skills/vela-frontier/SKILL.md" => skill_adapter(),
                 other => fail_return(&format!("unknown adapter target {other}")),
             };
             Adapter {
@@ -271,5 +409,40 @@ pub(crate) fn cmd_agents_diff(root: &Path, json_output: bool) {
         for p in &would_change {
             println!("  {p}");
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// One source of truth: the embedded skill template must be byte-identical
+    /// to the plugin's authored SKILL.md. Edit them together or this fails.
+    #[test]
+    fn skill_template_mirrors_plugin_skill() {
+        let plugin: &str = include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../integrations/claude-plugin/skills/vela-frontier/SKILL.md"
+        ));
+        let embedded = format!("{SKILL_FRONTMATTER}{SKILL_BODY}");
+        assert_eq!(
+            plugin, embedded,
+            "integrations/claude-plugin/skills/vela-frontier/SKILL.md and the \
+             SKILL_* consts in cli_agents.rs drifted apart"
+        );
+    }
+
+    /// The emitted adapter must keep the YAML frontmatter first (the skill
+    /// loader requires it) with the generated note inside the body.
+    #[test]
+    fn skill_adapter_keeps_frontmatter_first() {
+        let s = skill_adapter();
+        assert!(s.starts_with("---\nname: vela-frontier\n"));
+        assert!(s.contains("GENERATED BY `vela agents sync`"));
+        assert!(s.contains("# Vela frontier work"));
+        // The note lands after the closing `---`, never inside the frontmatter.
+        let fm_end = s.find("\n---\n").expect("frontmatter closes");
+        let note_at = s.find("GENERATED BY").expect("note present");
+        assert!(note_at > fm_end);
     }
 }

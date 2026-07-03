@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "vela-local": {
+      "command": "vela",
+      "args": ["serve", ".", "--profile", "read-only"]
+    }
+  }
+}
