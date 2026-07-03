@@ -311,7 +311,7 @@ pub fn list_conflicts(args: &Value) -> Result<String, String> {
 /// a human identity is a deliberate `vela id create`, never a side
 /// effect. The minted key signs only agent-grade objects (leases,
 /// records); every decision verb still refuses agent actors outright.
-fn agent_signing_key(explicit_actor: Option<&str>) -> Result<SigningKey, String> {
+pub fn agent_signing_key(explicit_actor: Option<&str>) -> Result<SigningKey, String> {
     if let Ok(hex_str) = std::env::var(AGENT_KEY_ENV) {
         let bytes =
             hex::decode(hex_str.trim()).map_err(|e| format!("decode {AGENT_KEY_ENV}: {e}"))?;

@@ -472,6 +472,59 @@ pub(crate) enum Commands {
         json: bool,
     },
 
+    /// THE offer: ranked open targets with the compounding payload
+    /// pre-loaded (premises, banked routes, attempts, dead channels).
+    /// `--json` is the agent contract. Take one with `vela work`.
+    Next {
+        /// Frontier path. Optional: discovered upward.
+        frontier: Option<PathBuf>,
+        #[arg(long, default_value_t = 5)]
+        limit: usize,
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// Open a work session on a target: claim the lease, print the
+    /// briefing, materialize the context bundle. Close with `vela land`.
+    Work {
+        /// The target (obligation id, e.g. erdos:617). Omit to list
+        /// open sessions.
+        target: Option<String>,
+        #[arg(long)]
+        frontier: Option<PathBuf>,
+        /// Lease seconds (default from work.lease_ttl_seconds config).
+        #[arg(long)]
+        ttl: Option<u64>,
+        /// Release the lease/session instead of opening one.
+        #[arg(long)]
+        drop: bool,
+        #[arg(long, help = HELP_AS)]
+        r#as: Option<String>,
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// Land a result: record -> propose -> route by the signed policy.
+    /// Permit admits canonically (the autonomy lane); Defer parks it in
+    /// the human's sign queue; Deny lands nothing. The positional is a
+    /// vela.receipt.v1 JSON — the portable contract ANY tool exports.
+    Land {
+        /// Path to a receipt JSON. Or use --claim/--artifact/--caveat.
+        receipt: Option<PathBuf>,
+        #[arg(long)]
+        frontier: Option<PathBuf>,
+        #[arg(long)]
+        claim: Option<String>,
+        #[arg(long)]
+        artifact: Vec<String>,
+        #[arg(long)]
+        caveat: Vec<String>,
+        #[arg(long, help = HELP_AS)]
+        r#as: Option<String>,
+        #[arg(long)]
+        json: bool,
+    },
+
     /// Plain configuration: how YOUR tools behave — never what enters
     /// the record (that is `vela policy`) or who you are (`vela id`).
     /// A closed, validated key set with visible origins; frontier scope

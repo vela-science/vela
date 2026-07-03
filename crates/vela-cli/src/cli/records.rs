@@ -450,3 +450,101 @@ pub(crate) fn cmd_record(
         }
     }
 }
+
+// ── land adapters (the workflow engine's record path) ────────────────
+
+/// Mint a signed activity record from a Receipt, for `vela land`.
+/// Artifacts are hashed NOW (land time), the head is pinned NOW, and
+/// the record signs under the executor's agent session key (agents) or
+/// lands unsigned-honest for humans (their accept carries the key).
+pub(crate) fn mint_record_for_land(
+    frontier: &std::path::Path,
+    receipt: &crate::workflow::Receipt,
+    executor: &str,
+) -> Result<serde_json::Value, String> {
+    use sha2::{Digest, Sha256};
+    use vela_protocol::record::{
+        ActivityRecord, ActivityRecordDraft, RecordArtifact, RecordVerifierRun,
+    };
+
+    let project = repo::load_from_path(frontier)?;
+    let mut artifacts = Vec::new();
+    for a in &receipt.artifacts {
+        let path = frontier.join(&a.path);
+        let bytes =
+            std::fs::read(&path).map_err(|e| format!("artifact {}: {e}", path.display()))?;
+        artifacts.push(RecordArtifact {
+            locator: a.path.clone(),
+            kind: if a.kind.is_empty() {
+                "witness".to_string()
+            } else {
+                a.kind.clone()
+            },
+            sha256: hex::encode(Sha256::digest(&bytes)),
+            note: String::new(),
+        });
+    }
+    let verifier_runs = receipt
+        .verifier_runs
+        .iter()
+        .map(|r| RecordVerifierRun {
+            method: r.method.clone(),
+            outcome: r.outcome.clone(),
+            output_hash: r.log.clone(),
+            solver: r.solver.clone(),
+        })
+        .collect();
+    let draft = ActivityRecordDraft {
+        frontier_id: project.frontier_id().to_string(),
+        against_head: vela_protocol::events::event_log_hash(&project.events),
+        assertion: receipt.claim.clone(),
+        assertion_type: receipt.r#type.clone(),
+        artifacts,
+        verifier_runs,
+        caveats: receipt.caveats.clone(),
+        emitted_by: executor.to_string(),
+        emitted_at: chrono::Utc::now().to_rfc3339(),
+    };
+    let key = if executor.starts_with("agent:") || executor.starts_with("ci:") {
+        Some(vela_edge::vela_agent_mcp::agent_signing_key(Some(
+            executor,
+        ))?)
+    } else {
+        None
+    };
+    let record = ActivityRecord::build(draft, key.as_ref())?;
+    // Persist next to the frontier's other records so locators resolve.
+    let records_dir = frontier.join("records");
+    std::fs::create_dir_all(&records_dir).map_err(|e| e.to_string())?;
+    let body = serde_json::to_value(&record).map_err(|e| e.to_string())?;
+    std::fs::write(
+        records_dir.join(format!("{}.json", record.id)),
+        format!(
+            "{}\n",
+            serde_json::to_string_pretty(&body).map_err(|e| e.to_string())?
+        ),
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(body)
+}
+
+/// Land a minted record as a PENDING finding proposal (never applies —
+/// deciding is the policy's or the human's job). Returns the vpr_ id.
+pub(crate) fn propose_record_for_land(
+    frontier: &std::path::Path,
+    record_json: &serde_json::Value,
+) -> Result<String, String> {
+    use vela_protocol::record::ActivityRecord;
+    let rc: ActivityRecord =
+        serde_json::from_value(record_json.clone()).map_err(|e| format!("record parse: {e}"))?;
+    let signed = rc.verify()?;
+    let report = state::add_finding(
+        frontier,
+        rc.to_finding_draft("recorded against the current head", signed),
+        false,
+    )?;
+    if report.proposal_id.is_empty() {
+        return Err("record landed no proposal".to_string());
+    }
+    Ok(report.proposal_id)
+}

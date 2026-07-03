@@ -1720,6 +1720,24 @@ pub(crate) fn decl_premise_slice(
 /// open obligations from the linked gap findings, the attempt ledger, and the
 /// submission contract. Compact and complete: small enough to read, but every
 /// authoritative line replays from the named root.
+/// The workflow engine's briefing entry: full task packet for
+/// problem-shaped targets, a frontier-level slice otherwise.
+pub(crate) fn briefing_for_target(
+    frontier: &Project,
+    source_path: &std::path::Path,
+    target: &str,
+) -> Value {
+    match build_task_packet(target, frontier, Some(source_path), None) {
+        Ok(packet) => packet,
+        Err(_) => serde_json::json!({
+            "kind": "frontier_slice",
+            "target": target,
+            "stats": frontier.stats,
+            "note": "no problem-shaped packet resolves this target; the frontier slice is the briefing",
+        }),
+    }
+}
+
 pub(crate) fn build_task_packet(
     arg: &str,
     frontier: &Project,

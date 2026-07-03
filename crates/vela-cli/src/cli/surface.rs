@@ -106,6 +106,13 @@ The loop:
   attach        Bind mechanical verifier evidence (or --proof lean_kernel) to a finding
 
 Verify:
+  next          THE offer: ranked open targets, compounding payload
+                pre-loaded; --json is the agent contract.
+  work          Open a session: claim the lease, load the briefing into
+                .vela/work/<target>/. Close with `vela land`.
+  land          Land a result (vela.receipt.v1): record -> propose ->
+                routed by the signed policy. Permit admits; Defer parks
+                it in the sign queue; Deny lands nothing.
   config        Plain settings (get/set/list, closed key set, origins
                 shown). Never touches identity, custody, or the record.
   sign          THE human ceremony: everything awaiting your key, one

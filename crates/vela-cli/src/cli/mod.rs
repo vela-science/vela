@@ -58,7 +58,7 @@ mod json_edit;
 mod lifecycle;
 mod links;
 mod output;
-mod records;
+pub(crate) mod records;
 mod session;
 mod sign_session;
 mod surface;
@@ -834,6 +834,168 @@ pub async fn run_command() {
                 }
             } else {
                 sign_session::cmd_sign_session(frontier, key, json);
+            }
+        }
+        Commands::Next {
+            frontier,
+            limit,
+            json,
+        } => {
+            crate::ui::set_mode("next", json);
+            let dir = crate::ui::resolve_frontier(frontier);
+            let project =
+                vela_protocol::repo::load_from_path(&dir).unwrap_or_else(|e| fail_return(&e));
+            let targets = vela_edge::frontier_next::frontier_next(&project, Some(&dir), limit);
+            if json {
+                print_json(&serde_json::json!({
+                    "ok": true, "command": "next",
+                    "targets": targets.iter().map(|t| serde_json::json!({
+                        "lane": t.lane, "id": t.id, "title": t.title,
+                        "why": t.why, "next_command": t.next_command,
+                    })).collect::<Vec<_>>(),
+                }));
+            } else {
+                crate::ui::header("NEXT", ".", Some(&format!("{} target(s)", targets.len())));
+                for t in &targets {
+                    println!("  [{}] {}  {}", t.lane, t.id, t.title);
+                    println!("      why: {}", t.why);
+                    println!("      {}", t.next_command);
+                }
+                if targets.is_empty() {
+                    println!("  · nothing open — the frontier is waiting on new seeds");
+                }
+            }
+        }
+        Commands::Work {
+            target,
+            frontier,
+            ttl,
+            drop: drop_it,
+            r#as,
+            json,
+        } => {
+            crate::ui::set_mode("work", json);
+            let dir = crate::ui::resolve_frontier(frontier);
+            let Some(target) = target else {
+                let base = crate::workflow::session_dir(&dir, "");
+                let sessions = base
+                    .parent()
+                    .map(|p| std::fs::read_dir(p).map(|d| d.count()).unwrap_or(0))
+                    .unwrap_or(0);
+                println!("  {} open session dir(s) under .vela/work/", sessions);
+                return;
+            };
+            let actor = crate::cli_identity::resolve_actor(r#as.as_deref());
+            if drop_it {
+                let sdir = crate::workflow::session_dir(&dir, &target);
+                let _ = std::fs::remove_dir_all(&sdir);
+                println!("  · dropped session {target} (lease expires by TTL)");
+                return;
+            }
+            let ttl = ttl.unwrap_or_else(|| {
+                crate::config::settings::resolve("work.lease_ttl_seconds", Some(&dir))
+                    .0
+                    .parse()
+                    .unwrap_or(86400)
+            });
+            match crate::workflow::claim(&dir, &target, &actor, Some(ttl)) {
+                Ok(claim) => {
+                    let briefing = crate::workflow::briefing(&dir, &target)
+                        .unwrap_or_else(|e| fail_return(&e));
+                    let sdir = crate::workflow::session_dir(&dir, &target);
+                    std::fs::create_dir_all(&sdir).ok();
+                    std::fs::write(
+                        sdir.join("offer.json"),
+                        serde_json::to_string_pretty(&briefing).unwrap_or_default(),
+                    )
+                    .ok();
+                    if json {
+                        print_json(&serde_json::json!({
+                            "ok": true, "command": "work", "target": target,
+                            "claim": claim, "briefing": briefing,
+                            "session_dir": sdir.display().to_string(),
+                        }));
+                    } else {
+                        crate::ui::header("WORK", &target, Some("lease claimed, briefing loaded"));
+                        println!(
+                            "{}",
+                            serde_json::to_string_pretty(&briefing).unwrap_or_default()
+                        );
+                        println!("\n  session dir: {}", sdir.display());
+                        println!("  when done:   vela land <receipt.json>");
+                    }
+                }
+                Err(e) => fail(&e),
+            }
+        }
+        Commands::Land {
+            receipt,
+            frontier,
+            claim,
+            artifact,
+            caveat,
+            r#as,
+            json,
+        } => {
+            crate::ui::set_mode("land", json);
+            let dir = crate::ui::resolve_frontier(frontier);
+            let actor = crate::cli_identity::resolve_actor(r#as.as_deref());
+            let receipt: crate::workflow::Receipt = if let Some(path) = receipt {
+                let raw = std::fs::read_to_string(&path)
+                    .unwrap_or_else(|e| fail_return(&format!("read {}: {e}", path.display())));
+                serde_json::from_str(&raw)
+                    .unwrap_or_else(|e| fail_return(&format!("receipt parse: {e}")))
+            } else {
+                let Some(claim) = claim else {
+                    crate::ui::fail_with(
+                        crate::ui::ErrorKind::Usage,
+                        "land needs a receipt file or --claim",
+                        Some(
+                            "vela land receipt.json · or: vela land --claim '…' --artifact w.json --caveat '…'",
+                        ),
+                    );
+                };
+                serde_json::from_value(serde_json::json!({
+                    "schema": crate::workflow::RECEIPT_SCHEMA,
+                    "claim": claim,
+                    "artifacts": artifact.iter().map(|a| {
+                        let (path, kind) = a.split_once(':').unwrap_or((a.as_str(), "witness"));
+                        serde_json::json!({"path": path, "kind": kind})
+                    }).collect::<Vec<_>>(),
+                    "caveats": caveat,
+                }))
+                .unwrap_or_else(|e| fail_return(&format!("receipt build: {e}")))
+            };
+            match crate::workflow::land(&dir, &receipt, &actor) {
+                Ok(outcome) => {
+                    let (route, detail) = match &outcome.route {
+                        crate::workflow::LandRoute::PolicyAdmitted(o) => (
+                            "policy_admitted",
+                            format!("event {} under {}", o.event_id, o.certificate.policy_id),
+                        ),
+                        crate::workflow::LandRoute::Deferred { reasons } => {
+                            ("deferred", reasons.join(", "))
+                        }
+                    };
+                    // Publication: the store changed either way.
+                    let opts = crate::config::git_publish::PublishOptions::new(false, false);
+                    crate::config::git_publish::publish_decision(
+                        &dir,
+                        "land",
+                        &[outcome.proposal_id.clone()],
+                        &opts,
+                    );
+                    if json {
+                        print_json(&serde_json::json!({
+                            "ok": true, "command": "land",
+                            "proposal_id": outcome.proposal_id,
+                            "route": route, "detail": detail,
+                        }));
+                    } else {
+                        println!("  · landed {} — {route}: {detail}", outcome.proposal_id);
+                    }
+                }
+                Err(e) => fail(&e),
             }
         }
         Commands::Config { action } => match action {

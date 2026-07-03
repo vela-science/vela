@@ -85,7 +85,9 @@ mod surface_tests {
         "id",
         "inbox",
         "init",
+        "land",
         "log",
+        "next",
         "pack",
         "policy",
         "proof",
@@ -97,6 +99,7 @@ mod surface_tests {
         "serve",
         "sign",
         "status",
+        "work",
     ];
     const V0723_HIDDEN: &[&str] = &["completions", "queue"];
 
@@ -133,7 +136,6 @@ mod surface_tests {
     fn retired_verbs_are_not_reachable() {
         on_big_stack(|| {
             for name in [
-                "land",
                 "verify",
                 "history",
                 "accept-batch",
