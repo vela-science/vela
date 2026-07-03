@@ -868,6 +868,9 @@ pub(crate) fn cmd_policy_draft(frontier: &Path, template: &str, replace: bool, j
 /// (see [`evaluate_pending`]) so the preview under-promises; richer context
 /// derivation lands with `vela land`. Never mutates anything.
 pub(crate) fn cmd_policy_test(frontier: &Path, json: bool) {
+    let spin = (!json).then(|| {
+        crate::cli::progress::Spinner::start("dry-running the policy over every pending proposal")
+    });
     let policy = read_sealed_active(frontier).unwrap_or_else(|e| e.fail());
     let lane_open = matches!(load_active_policy(frontier), Ok(Some(_)));
     let project =
@@ -879,6 +882,9 @@ pub(crate) fn cmd_policy_test(frontier: &Path, json: bool) {
     let defer = rows.iter().filter(|r| r.outcome == Outcome::Defer).count();
     let deny = rows.iter().filter(|r| r.outcome == Outcome::Deny).count();
 
+    if let Some(s) = spin {
+        s.finish("evaluated");
+    }
     if json {
         print_json(&json!({
             "ok": true,

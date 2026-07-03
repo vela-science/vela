@@ -2537,6 +2537,12 @@ pub(crate) fn cmd_reproduce(path: &Path, json_output: bool) {
             path.display()
         ));
     }
+    let spinner = (!json_output).then(|| {
+        crate::cli::progress::Spinner::start(&format!(
+            "re-verifying {} witness(es) with the frozen verifiers",
+            files.len()
+        ))
+    });
     let mut results: Vec<Value> = Vec::new();
     let mut passed = 0usize;
     let mut failed = 0usize;
@@ -2616,6 +2622,9 @@ pub(crate) fn cmd_reproduce(path: &Path, json_output: bool) {
             "ok": outcome.ok,
             "message": outcome.message,
         }));
+    }
+    if let Some(s) = spinner {
+        s.finish(&format!("{passed} verified, {failed} failed"));
     }
     if json_output {
         println!(

@@ -18,6 +18,21 @@ discovery plane nests under `foundry`. Every porcelain verb takes
 | `id` | Your key + identity: `create`, `show`, `import`, `keygen`, `sign`. After `vela id create`, no `--key`/`--as` flags are needed for your own writes; `id sign` re-signs your historical unsigned events. |
 | `init` | Initialize a git-native frontier repo: `.vela/` is committed, the CI gate, agent charter (`VELA.md`), and `.mcp.json` are scaffolded. |
 
+## The form factor
+
+The CLI is **agent plumbing plus one human ceremony** — by design and
+by evidence. Agents drive the loop (`--json` everywhere is their
+contract; MCP is their read path). Humans meet Vela in three places:
+their own coding agent (the official Vela plugin ships `/vela`
+commands that render state, triage the queue, and author receipts
+in-chat), the hub web (read, verify, cite, review), and exactly one
+terminal act — `vela sign`, the clear-signing ceremony: it renders
+every claim from the canonical log (never from agent output), takes
+one confirm and one key read, and refuses to run under a binary that
+no longer matches your pin (`vela id pin-binary`). There is no
+interactive app and no TUI: the interactivity of this era belongs to
+the agent, and the pen belongs to you.
+
 ## The loop
 
 | Verb | What it does |

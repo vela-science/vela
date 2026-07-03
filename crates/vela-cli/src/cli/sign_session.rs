@@ -288,6 +288,7 @@ pub(crate) fn cmd_sign_session(frontier: Option<PathBuf>, key: Option<PathBuf>, 
     }
 
     // Apply, one publish per frontier.
+    let apply_spin = crate::cli::progress::Spinner::start("applying your decisions");
     for (dir, _, items) in &queues {
         let mut state = load_session(dir);
         let mut accepted: Vec<String> = Vec::new();
@@ -368,6 +369,7 @@ pub(crate) fn cmd_sign_session(frontier: Option<PathBuf>, key: Option<PathBuf>, 
         state.answers.clear();
         let _ = std::fs::remove_file(session_path(dir));
     }
+    apply_spin.finish("applied");
     println!("\n  · signed. `vela log` shows the lane on every event.");
 }
 
