@@ -9,13 +9,16 @@ primary_region = "yyz"
 [build]
   dockerfile = "Dockerfile"
 
-# Blue-green, not rolling: an in-place rolling restart leaves NO machine
-# with a built MCP projection (the restarted machine rebuilds ~6 min and
-# with auto_stop only one machine runs at steady state). Blue-green
-# starts the new machines alongside, waits for /readyz to pass, then
-# cuts over — the old machine serves /mcp for the whole build.
+# Rolling with BOTH machines always running — measured truth after two
+# dark rollouts: fly's bluegreen promotes greens on machine checks, not
+# the failing /readyz http check, so unready greens replace blues
+# (v0.736: 4 min dark; v0.738: same shape; v0.737's clean run was a
+# fast projection build, not the strategy working). Rolling + two warm
+# machines + short readyz grace gives the real guarantee: the restarted
+# machine fails readyz within 5s, the proxy routes everything to its
+# healthy twin for the ~4 min build, then they swap.
 [deploy]
-  strategy = "bluegreen"
+  strategy = "rolling"
 
 [http_service]
   internal_port = 8080
@@ -23,9 +26,11 @@ primary_region = "yyz"
   # Keep one machine always warm: the hub is the trust substrate / verifier
   # endpoint, so a cold-start tax on the first request after idle is
   # unacceptable. The second machine still scales to zero.
-  auto_stop_machines = "stop"
+  # Both machines stay warm: the zero-downtime deploy story requires a
+  # healthy twin to route to while the other rebuilds its projection.
+  auto_stop_machines = "off"
   auto_start_machines = true
-  min_machines_running = 1
+  min_machines_running = 2
 
   # Self-healing: poll /healthz so Fly routes traffic away from a wedged
   # machine to the healthy one and restarts the bad one automatically. Without
