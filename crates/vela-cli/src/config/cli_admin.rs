@@ -89,6 +89,45 @@ pub(crate) fn cmd_id(action: IdAction) {
             save_identity(&identity).unwrap_or_else(|e| fail_return(&e));
             print_identity_created(&identity, json);
         }
+        IdAction::PinBinary { status, yes } => {
+            use crate::config::binary_pin;
+            if status {
+                match binary_pin::verify_for_ceremony() {
+                    Ok(Some(pin)) => println!(
+                        "  · pinned {} ({} at {}) — matches the running binary",
+                        &pin.sha256[..16],
+                        pin.version,
+                        pin.pinned_at
+                    ),
+                    Ok(None) => println!(
+                        "  · no binary pin recorded — ceremonies run unpinned (run `vela id pin-binary`)"
+                    ),
+                    Err(e) => crate::ui::fail_with(crate::ui::ErrorKind::Custody, &e, None),
+                }
+                return;
+            }
+            // A pin is a HUMAN act: agents may not move the trust anchor.
+            let actor = crate::cli_identity::resolve_decision_actor(None);
+            if !yes {
+                use std::io::{BufRead, Write};
+                print!("pin the running vela binary as {actor}'s ceremony anchor? [y/N] ");
+                let _ = std::io::stdout().flush();
+                let mut line = String::new();
+                let _ = std::io::stdin().lock().read_line(&mut line);
+                if line.trim() != "y" {
+                    println!("not pinned.");
+                    return;
+                }
+            }
+            match binary_pin::record_pin() {
+                Ok(pin) => println!(
+                    "  · pinned {} ({}) — ceremonies now verify the binary first",
+                    &pin.sha256[..16],
+                    pin.version
+                ),
+                Err(e) => crate::ui::fail_with(crate::ui::ErrorKind::Domain, &e, None),
+            }
+        }
         IdAction::Show { json } => {
             let Some(identity) = load_identity() else {
                 if json {

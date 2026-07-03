@@ -7,6 +7,7 @@ pub mod cli_experiment;
 pub mod cli_identity;
 pub mod cli_policy;
 
+pub(crate) mod binary_pin;
 pub(crate) mod git_publish;
 pub(crate) mod settings;
 pub(crate) mod workspace_registry;

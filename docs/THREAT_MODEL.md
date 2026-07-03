@@ -191,6 +191,35 @@ sign arbitrary findings under that reviewer's id. **Mitigations:**
   can rotate within seconds; the rotation event is itself a
   canonical record. Pinned by
   `scripts/test-actor-rotate.sh`.
+- **v0.740: binary integrity pin on the sign ceremonies.** A pinned
+  `vela` binary hash (recorded by the human via `vela id pin-binary`,
+  stored at `~/.vela/binary-pin.json`) is re-verified at every
+  ceremony start; mismatch refuses with exit 4. Raises the bar against
+  an agent swapping the renderer between your deliberate upgrade and
+  your next ceremony. It cannot stop an actor that can rewrite the pin
+  file — keep it outside agent-writable sandboxes (`chmod 400`), and
+  see the hardware design below for the full answer. Pinned by the
+  tamper probe in the sign test suite.
+- **DESIGN (v0.741 target): hardware touch-to-sign (`ed25519-sk`).**
+  FIDO2 assertions sign over `sha256(clientDataHash ‖ authenticator
+  data)`, NOT raw message bytes — an sk signature is not a pure
+  Ed25519 signature over the event preimage, so it cannot drop into
+  the existing `signature` field. The extension: a second envelope,
+  `signature_sk: { alg: "ed25519-sk", credential_id, auth_data_b64,
+  client_data: { challenge: <event content preimage sha256>, origin:
+  "vela:sign" }, signature_hex }`, verified by reconstructing the
+  FIDO2 signing input from the stored auth_data + the RE-DERIVED
+  event preimage hash (so the claim signed is still content-addressed
+  state, never agent-supplied bytes) and checking the counter is
+  monotonic per credential (anti-clone). Events carry EITHER
+  signature (pure) OR signature_sk; verification dispatches on
+  presence; the id preimage excludes both (unchanged). Why it is
+  worth the wire surface: a fully compromised workstation can render
+  lies but cannot produce a signature without a physical touch —
+  Apple secure-intent / Yubico git-signing class. Implementation
+  gated on this design's review and an end-to-end YubiKey test;
+  `vela sign --sk` exists today as an honest refusal naming this
+  section.
 - **v0.735: the hub remembers revocations across force-pushes.**
   Every git-ingest promote records revoked actors into an
   append-only, earliest-wins `frontier_revocations` log, and every

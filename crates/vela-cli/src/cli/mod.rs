@@ -59,7 +59,7 @@ mod links;
 mod output;
 pub(crate) mod records;
 mod session;
-mod sign_session;
+pub(crate) mod sign_session;
 mod surface;
 #[cfg(test)]
 mod tests;
@@ -636,10 +636,20 @@ pub async fn run_command() {
             yes,
             reason,
             batch,
+            sk,
             key,
             json,
         } => {
             crate::ui::set_mode("sign", json);
+            if sk {
+                crate::ui::fail_with(
+                    crate::ui::ErrorKind::Usage,
+                    "--sk (hardware touch-to-sign) is designed but not yet wired: FIDO2                      signatures need the signature_sk envelope (docs/THREAT_MODEL.md, v0.741)",
+                    Some(
+                        "run the ceremony with your file key; pin the binary with `vela id pin-binary`",
+                    ),
+                );
+            }
             if let Some(batch) = batch {
                 let dir = crate::ui::resolve_frontier(frontier);
                 cmd_review_fidelity_batch(dir, batch, None, key, json);

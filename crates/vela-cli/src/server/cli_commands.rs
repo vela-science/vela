@@ -398,6 +398,11 @@ pub(crate) enum Commands {
         /// signs every row under one key read.
         #[arg(long)]
         batch: Option<PathBuf>,
+        /// Hardware touch-to-sign (FIDO2). Not yet wired: the sk
+        /// signature envelope is designed in docs/THREAT_MODEL.md and
+        /// lands next release.
+        #[arg(long)]
+        sk: bool,
         #[arg(long, help = HELP_KEY)]
         key: Option<PathBuf>,
         #[arg(long)]
@@ -485,6 +490,18 @@ pub(crate) enum Commands {
 
 #[derive(Subcommand)]
 pub(crate) enum IdAction {
+    /// Pin the current `vela` binary's hash (a human, confirm-gated
+    /// act). Every sign ceremony then refuses to run under a binary
+    /// that no longer matches — the clear-signing invariant. Re-pin
+    /// after every deliberate upgrade.
+    PinBinary {
+        /// Show the pin state without recording.
+        #[arg(long)]
+        status: bool,
+        /// Skip the confirm prompt.
+        #[arg(long)]
+        yes: bool,
+    },
     /// One-time setup: generate a key, store it, and remember your actor id
     /// and default hub. After this, `vela land` / `vela sign` need no
     /// `--key`/`--actor`/`--hub` flags.

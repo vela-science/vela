@@ -92,6 +92,7 @@ fn read_line(prompt: &str) -> String {
 pub(crate) fn cmd_sign_session(frontier: Option<PathBuf>, key: Option<PathBuf>, json: bool) {
     // Custody gate before anything renders.
     let actor = crate::cli_identity::resolve_decision_actor(None);
+    ceremony_binary_gate();
 
     let frontiers = session_frontiers(frontier);
     if frontiers.is_empty() {
@@ -370,6 +371,22 @@ pub(crate) fn cmd_sign_session(frontier: Option<PathBuf>, key: Option<PathBuf>, 
     println!("\n  · signed. `vela log` shows the lane on every event.");
 }
 
+/// The clear-signing binary gate every ceremony runs first: a pinned
+/// binary that no longer matches refuses; no pin renders a one-line
+/// notice (pinning is opt-in but the ceremony never hides its state).
+pub(crate) fn ceremony_binary_gate() {
+    match crate::config::binary_pin::verify_for_ceremony() {
+        Ok(Some(_)) => {}
+        Ok(None) => eprintln!(
+            "  {}",
+            vela_protocol::cli_style::dim(
+                "unpinned binary — `vela id pin-binary` anchors your ceremonies"
+            )
+        ),
+        Err(e) => ui::fail_with(ErrorKind::Custody, &e, None),
+    }
+}
+
 /// `vela sign <vpr_id> --yes` — the scripted single accept.
 pub(crate) fn cmd_sign_one(
     frontier: Option<PathBuf>,
@@ -379,6 +396,7 @@ pub(crate) fn cmd_sign_one(
     json: bool,
 ) {
     let actor = crate::cli_identity::resolve_decision_actor(None);
+    ceremony_binary_gate();
     let dir = crate::ui::resolve_frontier(frontier);
     let signing_key = crate::cli_identity::resolve_signing_key_opt(key.as_deref());
     let reason = reason.unwrap_or_else(|| "accepted via sign".to_string());
