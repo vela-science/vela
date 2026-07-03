@@ -451,7 +451,7 @@ mod tests {
     use crate::policy::acceptance_policy::{
         Constraints, PolicyRule, PolicySignatureRecord, Quorum,
     };
-    use crate::proposals::{StateProposal, new_proposal};
+    use crate::proposals::new_proposal;
     use ed25519_dalek::Signer;
     use serde_json::json;
     use tempfile::TempDir;

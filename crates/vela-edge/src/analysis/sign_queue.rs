@@ -20,6 +20,8 @@
 //! 4. `detached` — sealed-but-unsigned governance artifacts (policies
 //!    awaiting their signature).
 
+#![allow(dead_code)] // the projection behind `vela sign` (W3); built and tested ahead of its consumer
+
 use std::path::Path;
 
 use serde::Serialize;

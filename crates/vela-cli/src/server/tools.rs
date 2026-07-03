@@ -692,6 +692,18 @@ pub(crate) fn tool_work(args: &Value) -> ToolOutput {
             }
             vela_edge::vela_agent_mcp::claim_task(args)
         }
+        Some("deposit") => {
+            let actor = args
+                .get("agent_actor")
+                .and_then(Value::as_str)
+                .unwrap_or_default();
+            if !actor.starts_with("agent:") && !actor.starts_with("ci:") {
+                return Err(ToolError::invalid(
+                    "work action=deposit requires `agent_actor` matching ^(agent:|ci:)",
+                ));
+            }
+            vela_edge::vela_agent_mcp::deposit_attempt(args)
+        }
         Some("record") => {
             if args
                 .get("record_path")

@@ -75,6 +75,7 @@ pub fn register(frontier_dir: &Path, name: Option<&str>) {
 
 /// Registered frontiers that still exist on disk and still look like
 /// frontiers (stale rows are skipped, not errors).
+#[allow(dead_code)] // the cross-frontier `vela sign` walk (W3); built ahead of its consumer
 pub fn live_frontiers() -> Vec<PathBuf> {
     load()
         .frontiers
