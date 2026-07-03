@@ -90,6 +90,48 @@ ranks stranded state above all other work.
 staged (committed store can never lead its views), pre-push holds the
 push to the same strict bar CI enforces.
 
+## The loop
+
+The daily grammar is four verbs; everything else is reading or plumbing:
+
+```text
+next -> work -> land -> sign
+```
+
+- `vela next` — the offer: ranked open targets with the compounding
+  payload pre-loaded (premises you may build on, banked routes, prior
+  attempts, dead channels). `--json` is the agent contract.
+- `vela work <target>` — claim the lease, load the briefing into
+  `.vela/work/<target>/` (offer.json). Sessions are cheap; drop with
+  `--drop`.
+- `vela land <receipt.json>` — the write edge. A **Vela Receipt**
+  (`vela.receipt.v1`) is the portable JSON ANY tool exports — a Claude
+  Science artifact, a notebook, a Codex run, a foundry search:
+
+  ```json
+  {
+    "schema": "vela.receipt.v1",
+    "claim": "what is now known / bounded / refuted",
+    "type": "computational | theoretical | empirical | negative",
+    "artifacts": [{"path": "witness.json", "kind": "witness"}],
+    "caveats": ["what this does NOT establish"],
+    "verifier_runs": [{"method": "…", "outcome": "pass", "log": "…"}]
+  }
+  ```
+
+  Landing records (artifacts hashed at land time, head pinned), lands a
+  PENDING proposal, then routes by the frontier's signed policy:
+  **Permit** admits canonically with no key ceremony (the human's
+  authority arrived once, as the policy signature; the event carries
+  the certificate, replay-verified); **Defer** parks it in the sign
+  queue; **Deny** lands nothing.
+- `vela sign` — the one human ceremony: everything exceeding policy,
+  one session, one confirm, one key read.
+
+Retired spellings and their successors: `inbox` → sign/next ·
+`propose`/`record`/`pack`/`attach` → land · `accept`/`review` → sign ·
+`id sign` → sign (hygiene lane) · `frontier next` → next.
+
 ## Configuration
 
 Four layers, one doctrine: **plain config may change how Vela speaks to
