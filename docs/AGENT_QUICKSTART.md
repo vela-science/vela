@@ -11,19 +11,20 @@ decision verb.
 
 Agents may:
 
-- inspect state: `vela status . --json`, `vela inbox .`, `vela log .`,
+- inspect state: `vela status . --json`, `vela next . --json`, `vela log .`,
   `vela check . --strict`, `vela state <dir> <vf_>`, `vela diff <vpr_>`
-- record activity: `vela record . --claim … --artifact … --caveat …`
-- draft proposals: `vela finding add . --as agent:<you> …`,
-  `vela record <vrc_file> --propose .`, `vela propose …`
-- attach mechanical verifier evidence: `vela attach . --target <vf_> …`
+- land results: `vela land receipt.json` (vela.receipt.v1) or
+  `vela land --claim … --artifact … --caveat …`
+- everything lands through `vela land` — records, drafts, verifier
+  evidence; the signed policy routes each landing (Permit admits
+  mechanically, Defer waits in the human's sign queue)
 - run the frozen verifiers: `vela reproduce .`
 - rebuild derived views: `vela frontier materialize .`
 
 Agents may not — the engine refuses these for `agent:`/`ci:` actors:
 
-- `vela accept`, `vela review`, `vela proposals reject`, `vela id sign` —
-  key-custody human decisions, every one
+- `vela sign` and `vela policy sign` — key-custody human ceremonies,
+  every decision path leads there
 - sign anything with a human's key (an agent-actor `record` never
   auto-resolves the configured human key; it signs only with a key passed
   explicitly, or stays honestly unsigned)
