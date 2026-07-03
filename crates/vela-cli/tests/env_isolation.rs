@@ -100,3 +100,49 @@ fn real_env_still_resolves() {
         String::from_utf8_lossy(&out.stderr)
     );
 }
+
+/// The binary pin holds: pin a copy of the binary, mutate it, and the
+/// ceremony refuses with the custody exit. The clear-signing invariant
+/// as a regression test.
+#[test]
+fn tampered_binary_refuses_ceremony() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    init_frontier(tmp.path());
+    let bin_copy = tmp.path().join("vela-bin");
+    std::fs::copy(vela_bin(), &bin_copy).unwrap();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&bin_copy, std::fs::Permissions::from_mode(0o755)).unwrap();
+    }
+    let run = |args: &[&str]| {
+        Command::new(&bin_copy)
+            .current_dir(tmp.path())
+            .env("HOME", tmp.path())
+            .env("VELA_NO_PUBLISH", "1")
+            .args(args)
+            .output()
+            .expect("spawn copy")
+    };
+    // Identity + pin (human act, --yes for the test).
+    let out = run(&["id", "create", "--handle", "probe"]);
+    assert!(out.status.success(), "{out:?}");
+    let out = run(&["id", "pin-binary", "--yes"]);
+    assert!(out.status.success(), "pin failed: {out:?}");
+    // Tamper.
+    let mut bytes = std::fs::read(&bin_copy).unwrap();
+    bytes.push(0);
+    std::fs::write(&bin_copy, bytes).unwrap();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&bin_copy, std::fs::Permissions::from_mode(0o755)).unwrap();
+    }
+    let out = run(&["sign", "--frontier", "."]);
+    assert_eq!(
+        out.status.code(),
+        Some(4),
+        "a tampered binary must refuse the ceremony: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+}
