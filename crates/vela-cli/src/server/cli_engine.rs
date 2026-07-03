@@ -2289,7 +2289,7 @@ fn cmd_gate_backfill(frontier: &Path, reviewer: &str, dry_run: bool, json_output
             // `verifier.attach` (it ran the frozen verifier) but may not
             // self-apply it — that is a truth-bearing acceptance reserved for a
             // named human with key custody. So for agents we create the
-            // proposal as PENDING; a maintainer accepts it with `vela accept`.
+            // proposal as PENDING; a maintainer decides it in `vela sign`.
             // A human reviewer applies inline (subject to key custody).
             match proposals::create_or_apply(frontier, proposal, apply) {
                 Ok(res) if res.applied_event_id.is_some() => {
@@ -2356,7 +2356,7 @@ fn cmd_gate_backfill(frontier: &Path, reviewer: &str, dry_run: bool, json_output
         }
         if !pending.is_empty() {
             println!(
-                "· gate backfill: {} verifier.attach proposal{} drafted + frozen-verified, PENDING a maintainer's key-custody accept (`vela accept`):",
+                "· gate backfill: {} verifier.attach proposal{} drafted + frozen-verified, PENDING a maintainer's key-custody decision (`vela sign`):",
                 pending.len(),
                 if pending.len() == 1 { "" } else { "s" },
             );
@@ -2685,67 +2685,6 @@ pub(crate) fn cmd_evidence_ci(frontier: &Path, json: bool) {
             check.target_id,
             check.message
         );
-    }
-}
-
-pub(crate) fn cmd_attach(
-    frontier: &std::path::Path,
-    target: &str,
-    attachment_file: &std::path::Path,
-    reviewer: &str,
-    reason: &str,
-    json: bool,
-) {
-    use vela_protocol::events::StateTarget;
-    let body = match std::fs::read_to_string(attachment_file) {
-        Ok(b) => b,
-        Err(e) => fail(&format!("read {}: {e}", attachment_file.display())),
-    };
-    let att_value: Value = match serde_json::from_str(&body) {
-        Ok(v) => v,
-        Err(e) => fail(&format!("parse attachment JSON: {e}")),
-    };
-    let actor_type = if reviewer.starts_with("agent:") {
-        "agent"
-    } else {
-        "human"
-    };
-    let proposal = proposals::new_proposal(
-        "verifier.attach",
-        StateTarget {
-            r#type: "finding".to_string(),
-            id: target.to_string(),
-        },
-        reviewer,
-        actor_type,
-        reason,
-        json!({ "attachment": att_value }),
-        Vec::new(),
-        Vec::new(),
-    );
-    match proposals::create_or_apply(frontier, proposal, true) {
-        Ok(result) => {
-            let event = result.applied_event_id.clone().unwrap_or_default();
-            if json {
-                println!(
-                    "{}",
-                    serde_json::to_string_pretty(&json!({
-                        "command": "attach",
-                        "target": target,
-                        "proposal_id": result.proposal_id,
-                        "event_id": event,
-                        "applied": result.applied_event_id.is_some(),
-                    }))
-                    .expect("serialize attach response")
-                );
-            } else {
-                println!(
-                    "· ok attached verifier evidence to {target}\n  proposal {}\n  event {event}",
-                    result.proposal_id
-                );
-            }
-        }
-        Err(e) => fail(&format!("attach: {e}")),
     }
 }
 

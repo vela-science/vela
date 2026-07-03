@@ -137,7 +137,7 @@ pub(crate) fn resolve_decision_actor(flag: Option<&str>) -> String {
                 "`{actor}` cannot decide: committing truth-bearing state is a key-custody human act"
             ),
             Some(
-                "a human runs this under their own identity (`vela id show`); agents draft with `vela propose` / `vela pack`",
+                "a human runs this under their own identity (`vela id show`); agents land drafts with `vela land`",
             ),
         );
     }

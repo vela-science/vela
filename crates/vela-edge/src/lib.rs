@@ -13,7 +13,7 @@ pub use analysis::{
 mod packaging;
 pub use packaging::{export, packet, proof_packet};
 mod registry;
-pub use registry::{frontier_release, incremental_ingest, index_db_schema, queue, tool_registry};
+pub use registry::{frontier_release, incremental_ingest, index_db_schema, tool_registry};
 mod review;
 pub use review::{agent_attestation, governance, lean_anchors, reviewer_identity};
 mod mcp;

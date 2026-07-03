@@ -26,7 +26,7 @@ const RELEASE_DENY: &[&str] = &[];
 /// completeness guard (`every_subcommand_is_documented_in_advanced_help`) skips
 /// these so the curated menu can shrink without losing the "no command is
 /// silently undocumented" protection for the canonical set.
-pub(crate) const DEPRECATED_FROM_HELP: &[&str] = &["queue", "completions"];
+pub(crate) const DEPRECATED_FROM_HELP: &[&str] = &["completions"];
 
 /// Whether `name` is a released top-level command the dispatcher will hand
 /// to clap. Derived from the clap command tree (`Cli::command()`), not a
@@ -76,36 +76,12 @@ pub(crate) fn strict_help_text() -> String {
     format!(
         r#"Vela {}
 Version control for scientific state.
-Agents propose. Verifiers reproduce. Humans accept. Git publishes.
+Agents land. Verifiers reproduce. Humans sign. Git publishes.
 
 Usage:
   vela <COMMAND>
 
-Setup (once):
-  id            Your key + identity (create/show/import/keygen/sign); then no
-                --key/--as flags. `id sign` re-signs your unsigned events.
-  init          Initialize a new frontier repo (git-native: .vela is committed,
-                CI gate + agent charter + MCP scaffolded)
-
 The loop:
-  status        One-screen frontier state
-  inbox         Pending proposals awaiting a human key
-  log           Recent signed events; `vela log <dir> <vf_>` = one finding's history
-  diff          Two frontiers, or one pending proposal previewed
-  record        Record activity into a portable claim packet (vrc_): claim +
-                hashed artifacts + caveats; --propose lands it pending review
-  propose       Draft the common finding.review proposal
-  review        Signed human judgments: statement-fidelity verdicts (--fidelity,
-                --batch) and role-scoped reviewer attestations
-  accept        Apply proposals under your key; --all-pending/--id for the batch,
-                --pack vsd_… for one atomic changeset decision
-  pack          Bundle pending proposals into a changeset (vsd_) — the
-                pull-request analogue; `vela pack . vsd_…` shows one
-  proposals     The full proposal store: list/show/preview/import/validate/export/
-                accept/reject
-  attach        Bind mechanical verifier evidence (or --proof lean_kernel) to a finding
-
-Verify:
   next          THE offer: ranked open targets, compounding payload
                 pre-loaded; --json is the agent contract.
   work          Open a session: claim the lease, load the briefing into
@@ -113,16 +89,33 @@ Verify:
   land          Land a result (vela.receipt.v1): record -> propose ->
                 routed by the signed policy. Permit admits; Defer parks
                 it in the sign queue; Deny lands nothing.
-  config        Plain settings (get/set/list, closed key set, origins
-                shown). Never touches identity, custody, or the record.
   sign          THE human ceremony: everything awaiting your key, one
                 session, one confirm, one key read. Agents are refused.
   policy        Standing rules (draft/test/sign/revoke/log): what agents
                 may land without you. Signing a policy IS the autonomy.
+
+Read:
+  status        One-screen frontier state
+  log           Recent signed events; `vela log <dir> <vf_>` = one finding's history
+  diff          Two frontiers, or one pending proposal previewed
+
+Verify:
   check         The full trust gate: replay, signatures, parity (--strict)
   reproduce     Re-verify stored witnesses from scratch (frozen verifiers)
   proof         Export a proof packet; `proof verify` re-checks one, `proof explain`
   gate          Claim-level verification gate (grade/check/vocab/backfill/auto-admit)
+
+Setup (once):
+  init          Initialize a new frontier repo (git-native: .vela is committed,
+                CI gate + agent charter + MCP scaffolded)
+  id            Your key + identity (create/show/import/keygen); then no
+                --key/--as flags
+  config        Plain settings (get/set/list, closed key set, origins
+                shown). Never touches identity, custody, or the record.
+  serve         MCP + HTTP read surface (profiles: read-only/draft/maintainer)
+  foundry       The discovery/prover plane: run/targets/ablate, campaign,
+                lean, attempt, transfer, experiment
+  doctor        First-user diagnosis of checkout/frontier/proof/serve
 
 Publish (git push IS publication):
   hub           The index: register-git (bind repo->vfr once), witness-check,
@@ -131,17 +124,14 @@ Publish (git push IS publication):
 Nouns (run `vela <noun> --help`):
   finding       The core primitive: add/show/supersede/note/caveat/revise/reject/retract/link
   frontier      Repo-level: new/materialize/add-dep/list-deps/diff/release/audit
+  proposals     The full proposal store: list/show/preview/import/validate/export/
+                accept/reject
   actor         Frontier-registered identities: add/list/rotate
   agents        VELA.md charter adapters: sync/doctor/diff
-  serve         MCP + HTTP read surface (profiles: read-only/draft/maintainer)
 
 Projections (read-only):
   state         Claim-state cell, trust vector, packs, evidence diff, anchors
   atlas         Cross-frontier math atlas projections
-  policy        Governance policy: show/seal/test/evaluate
-  doctor        First-user diagnosis of checkout/frontier/proof/serve
-  foundry       The discovery/prover plane: run/targets/ablate, campaign,
-                lean, attempt, transfer, experiment
 
 Off-menu (reachable, intentionally undocumented here): {}
 "#,

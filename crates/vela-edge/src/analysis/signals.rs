@@ -445,7 +445,7 @@ pub fn analyze(frontier: &Project, diagnostics: &[Value]) -> SignalReport {
                     finding.provenance.source_type
                 ),
                 recommended_action:
-                    "Run `vela review --apply` against this finding or flag it as gap before strict use."
+                    "Decide a review verdict for this finding in `vela sign`, or flag it as gap before strict use."
                         .to_string(),
                 blocks: vec!["strict_check".to_string(), "proof_ready".to_string()],
                 caveats: vec![
@@ -804,8 +804,8 @@ pub fn analyze(frontier: &Project, diagnostics: &[Value]) -> SignalReport {
         signals.push(SignalItem {
             id: signal_id("pending_proposal_review", &proposal.id),
             kind: "pending_proposal_review".into(),
-            // Info, deliberately: pending review is the INBOX (`vela
-            // inbox`), the normal state of a living frontier — not
+            // Info, deliberately: pending review is the sign queue
+            // (`vela sign`), the normal state of a living frontier — not
             // integrity debt. Strict measures whether the tree IS the
             // signed state, not whether work is waiting.
             severity: "info".to_string(),
@@ -814,11 +814,11 @@ pub fn analyze(frontier: &Project, diagnostics: &[Value]) -> SignalReport {
                 id: proposal.target.id.clone(),
             },
             reason: format!(
-                "Pending {} proposal awaits review (`vela inbox`).",
+                "Pending {} proposal awaits a human key (`vela sign`).",
                 proposal.kind
             ),
             recommended_action:
-                "Review the proposal and accept or reject it (`vela accept`, `--pack`).".to_string(),
+                "Decide it in `vela sign` (or `vela proposals reject` with a reason).".to_string(),
             // Blocks NOTHING: a pending proposal is not active frontier
             // state (the caveat below) and therefore cannot be integrity
             // debt on the state that IS active. Pending review is the

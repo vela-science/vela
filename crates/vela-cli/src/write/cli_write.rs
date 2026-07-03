@@ -1,7 +1,6 @@
-use crate::cli::{confirm_action, print_state_report, sign_and_apply};
+use crate::cli::print_state_report;
 use crate::cli::{fail, fail_return, print_json};
 use crate::cli_commands::*;
-use colored::Colorize;
 use serde_json::json;
 use std::path::{Path, PathBuf};
 use vela_protocol::cli_style as style;
@@ -283,136 +282,6 @@ pub(crate) fn cmd_proposals(action: ProposalAction) {
     }
 }
 
-/// Phase R (v0.5): walk the local Workbench draft queue. The Workbench
-/// browser writes unsigned drafts to a queue file; this CLI is the only
-/// place where the actor's private key reads its drafts and signs them.
-/// The browser never sees the key.
-pub(crate) fn cmd_queue(action: QueueAction) {
-    use vela_edge::queue;
-    match action {
-        QueueAction::List { queue_file, json } => {
-            let path = queue_file.unwrap_or_else(queue::default_queue_path);
-            let q = queue::load(&path).unwrap_or_else(|e| fail_return(&e));
-            if json {
-                let payload = json!({
-                    "ok": true,
-                    "command": "queue.list",
-                    "queue_file": path.display().to_string(),
-                    "schema": q.schema,
-                    "actions": q.actions,
-                });
-                print_json(&payload);
-            } else {
-                println!();
-                println!(
-                    "  {}",
-                    format!("VELA · QUEUE · LIST · {}", path.display())
-                        .to_uppercase()
-                        .dimmed()
-                );
-                println!("  {}", style::tick_row(60));
-                if q.actions.is_empty() {
-                    println!("  (queue is empty)");
-                } else {
-                    for (idx, action) in q.actions.iter().enumerate() {
-                        println!(
-                            "  [{idx}] {} → {}  queued {}",
-                            action.kind,
-                            action.frontier.display(),
-                            action.queued_at
-                        );
-                    }
-                }
-            }
-        }
-        QueueAction::Clear { queue_file, json } => {
-            let path = queue_file.unwrap_or_else(queue::default_queue_path);
-            let dropped = queue::clear(&path).unwrap_or_else(|e| fail_return(&e));
-            if json {
-                let payload = json!({
-                    "ok": true,
-                    "command": "queue.clear",
-                    "queue_file": path.display().to_string(),
-                    "dropped": dropped,
-                });
-                print_json(&payload);
-            } else {
-                println!("{} dropped {dropped} queued action(s)", style::ok("ok"));
-            }
-        }
-        QueueAction::Sign {
-            actor,
-            key,
-            queue_file,
-            yes_to_all,
-            json,
-        } => {
-            let path = queue_file.unwrap_or_else(queue::default_queue_path);
-            let q = queue::load(&path).unwrap_or_else(|e| fail_return(&e));
-            if q.actions.is_empty() {
-                if json {
-                    println!("{}", json!({"ok": true, "signed": 0, "remaining": 0}));
-                } else {
-                    println!("{} queue is empty", style::ok("ok"));
-                }
-                return;
-            }
-            let actor = crate::cli_identity::resolve_decision_actor(actor.as_deref());
-            let signing_key = crate::cli_identity::resolve_signing_key(key.as_deref());
-            let mut signed_count = 0usize;
-            let mut remaining = Vec::new();
-            for action in q.actions.iter() {
-                if !yes_to_all && !confirm_action(action) {
-                    remaining.push(action.clone());
-                    continue;
-                }
-                match sign_and_apply(&signing_key, &actor, action) {
-                    Ok(report) => {
-                        signed_count += 1;
-                        if !json {
-                            println!(
-                                "{} {} on {}  →  {}",
-                                style::ok("signed"),
-                                action.kind,
-                                action.frontier.display(),
-                                report
-                            );
-                        }
-                    }
-                    Err(error) => {
-                        // Keep failed actions in the queue so the user can retry.
-                        remaining.push(action.clone());
-                        if !json {
-                            eprintln!(
-                                "{} {} on {}: {error}",
-                                style::warn("failed"),
-                                action.kind,
-                                action.frontier.display()
-                            );
-                        }
-                    }
-                }
-            }
-            queue::replace_actions(&path, remaining.clone()).unwrap_or_else(|e| fail_return(&e));
-            if json {
-                let payload = json!({
-                    "ok": true,
-                    "command": "queue.sign",
-                    "signed": signed_count,
-                    "remaining": remaining.len(),
-                });
-                print_json(&payload);
-            } else {
-                println!(
-                    "{} signed {signed_count} action(s); {} remaining in queue",
-                    style::ok("ok"),
-                    remaining.len()
-                );
-            }
-        }
-    }
-}
-
 // ── Finding-verb handlers (shared by the top-level alias + `vela finding`) ──
 // Extracted so `vela note …` (hidden top-level) and `vela finding note …`
 // (canonical) dispatch to one body.
@@ -495,11 +364,10 @@ pub(crate) fn cmd_finding_retract(
     print_state_report(&report, json);
 }
 
-/// `vela review <frontier> <finding_id> --fidelity ...`: write a signed
-/// statement-faithfulness attestation (`vsa_`) — the human judgment that a
-/// FORMAL statement faithfully encodes an INFORMAL problem. Reserved for
-/// `reviewer:` actors by design: `StatementAttestation::build` refuses any
-/// agent, so a model can PROPOSE a finding but never attest that a
+/// A signed statement-faithfulness attestation (`vsa_`) — the human
+/// judgment that a FORMAL statement faithfully encodes an INFORMAL problem.
+/// Reserved for `reviewer:` actors by design: `StatementAttestation::build`
+/// refuses any agent, so a model can LAND a finding but never attest that a
 /// formalization means what a human meant. Mirrors `cmd_claim`'s
 /// load -> event -> apply -> sign -> save path; the reducer
 /// (`apply_statement_attested`) re-verifies the attestation signature.
@@ -591,51 +459,8 @@ fn resolve_faithfulness_signer(
     (by, signing_key)
 }
 
-#[allow(clippy::too_many_arguments)]
-pub(crate) fn cmd_review_fidelity(
-    frontier: PathBuf,
-    target: String,
-    verdict: String,
-    informal_ref: String,
-    formal_ref: String,
-    formal_statement_hash: String,
-    note: String,
-    reviewer: Option<String>,
-    key: Option<PathBuf>,
-    json: bool,
-) {
-    let (by, signing_key) = resolve_faithfulness_signer(reviewer, key.as_deref());
-    let mut project = repo::load_from_path(&frontier).unwrap_or_else(|e| fail_return(&e));
-    let attestation_id = apply_one_faithfulness(
-        &mut project,
-        &target,
-        &verdict,
-        informal_ref,
-        formal_ref,
-        formal_statement_hash,
-        note,
-        &by,
-        &signing_key,
-    )
-    .unwrap_or_else(|e| fail_return(&format!("attest: {e}")));
-    repo::save_to_path(&frontier, &project).unwrap_or_else(|e| fail_return(&e));
-    let payload = json!({
-        "ok": true, "command": "attest.faithfulness",
-        "attestation_id": attestation_id, "target": target,
-        "verdict": verdict, "by": by,
-    });
-    if json {
-        print_json(&payload);
-    } else {
-        println!(
-            "{} attested {attestation_id} for {target} ({verdict}) by {by} (signed)",
-            style::ok("ok"),
-        );
-    }
-}
-
-/// `vela review <frontier> --batch <file>`: sign a whole list of fidelity
-/// verdicts under ONE key read and ONE save, instead of one keyed command per
+/// `vela sign --batch <file>`: sign a whole list of fidelity verdicts
+/// under ONE key read and ONE save, instead of one keyed command per
 /// verdict. Each verdict is still a human judgment signed by the reviewer's own
 /// key; batching only removes the per-verdict repetition (the migration of the
 /// overrides table is the motivating case). The file is JSON, either a bare
@@ -719,110 +544,5 @@ pub(crate) fn cmd_review_fidelity_batch(
                 a["verdict"].as_str().unwrap_or(""),
             );
         }
-    }
-}
-
-/// `vela attach <frontier> --target <finding_id> --proof ...`: attach a `lean_kernel`
-/// CI verification to a proof finding. It records that the hosted Lean proof
-/// compiled clean against its pinned toolchain (axiom footprint kernel-only),
-/// as attested by CI, NOT an independent reproduction. A single such attachment
-/// carries no `independent_of` and no adversarial probe, so it deliberately
-/// fails the verifier gate's G1/G3: it reads "attested by CI", never "verified".
-/// Drafts a `verifier.attach` proposal exactly like `vela attach`.
-#[allow(clippy::too_many_arguments)]
-pub(crate) fn cmd_attach_lean_proof(
-    frontier: PathBuf,
-    target: String,
-    solver: String,
-    verifier_actor: String,
-    axioms_clean: bool,
-    undischarged_hypotheses: Vec<String>,
-    note: String,
-    key: Option<PathBuf>,
-    json: bool,
-) {
-    use vela_protocol::verifier_attachment::{
-        AttachmentDraft, AttachmentOutcome, MatchToClaim, MethodIntegrity, VerifierAttachment,
-        VerifierMethod, claim_digest,
-    };
-    let signing_key = crate::cli_identity::resolve_signing_key(key.as_deref());
-    let mut project = repo::load_from_path(&frontier).unwrap_or_else(|e| fail_return(&e));
-    let claim = match project.findings.iter().find(|f| f.id == target) {
-        Some(f) => f.assertion.text.clone(),
-        None => fail_return(&format!(
-            "attest: target finding {target} not found in frontier"
-        )),
-    };
-    let integrity = if axioms_clean {
-        MethodIntegrity::Sound
-    } else {
-        MethodIntegrity::Compromised
-    };
-    let att = VerifierAttachment::build(AttachmentDraft {
-        target: target.clone(),
-        claim_digest: claim_digest(&claim),
-        verifier_method: VerifierMethod::LeanKernel,
-        solver_id: solver,
-        independent_of: Vec::new(),
-        match_to_claim: MatchToClaim {
-            matches: true,
-            checker_actor: verifier_actor.clone(),
-        },
-        adversarial_probes: Vec::new(),
-        outcome: AttachmentOutcome::Passed,
-        verifier_actor: verifier_actor.clone(),
-        note,
-    })
-    .and_then(|a| a.with_method_integrity(integrity))
-    .and_then(|a| {
-        if undischarged_hypotheses.is_empty() {
-            Ok(a)
-        } else {
-            a.with_undischarged_hypotheses(undischarged_hypotheses)
-        }
-    })
-    .unwrap_or_else(|e| fail_return(&format!("attest: {e}")));
-    let attachment_id = att.id.clone();
-    let att_value = serde_json::to_value(&att)
-        .unwrap_or_else(|e| fail_return(&format!("serialize attachment: {e}")));
-    // A verifier attachment is signed EVIDENCE, not a truth-bearing decision: the
-    // producer (here a CI verifier under its OWN key, never a human's) signs and
-    // adds it directly via a verifier_attachment.added event, with no human
-    // accept. The gate (G1-G4) still governs whether the finding ever reaches
-    // "verified", so a lone CI attachment records evidence and never stands in
-    // for a review. This is what removes the per-attachment key friction.
-    let mut event =
-        vela_protocol::events::new_finding_event(vela_protocol::events::FindingEventInput {
-            kind: "verifier_attachment.added",
-            finding_id: &target,
-            actor_id: &verifier_actor,
-            actor_type: vela_protocol::events::actor_kind(&verifier_actor),
-            reason: "lean_kernel CI attestation",
-            before_hash: "sha256:null",
-            after_hash: "sha256:null",
-            payload: serde_json::json!({ "attachment": att_value }),
-            caveats: Vec::new(),
-            timestamp: None,
-        });
-    vela_protocol::reducer::apply_event(&mut project, &event).unwrap_or_else(|e| fail_return(&e));
-    event.signature = Some(
-        vela_protocol::sign::sign_event(&event, &signing_key).unwrap_or_else(|e| fail_return(&e)),
-    );
-    project.events.push(event);
-    repo::save_to_path(&frontier, &project).unwrap_or_else(|e| fail_return(&e));
-    let payload = json!({
-        "ok": true, "command": "attest.proof",
-        "attachment_id": attachment_id, "target": target,
-        "method": "lean_kernel", "integrity": integrity.as_str(),
-        "verifier_actor": verifier_actor, "signed": true,
-    });
-    if json {
-        print_json(&payload);
-    } else {
-        println!(
-            "{} added lean_kernel attachment {attachment_id} ({}) to {target}, signed by {verifier_actor}",
-            style::ok("ok"),
-            integrity.as_str(),
-        );
     }
 }

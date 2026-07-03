@@ -148,7 +148,7 @@ pub(crate) fn cmd_status(path: &Path, json: bool) {
                 "unpublished_store_files": unpublished_store_files(path),
                 "next": if pending_total > 0 {
                     json!(format!(
-                        "{pending_total} pending proposal(s) await a human key: `vela inbox .` then `vela accept . --all-pending`"
+                        "{pending_total} pending proposal(s) await a human key: `vela sign`"
                     ))
                 } else if !replay.ok {
                     json!("replay DIVERGED: run `vela check .` and inspect")
@@ -255,19 +255,19 @@ pub(crate) fn cmd_status(path: &Path, json: bool) {
     if pending_total > 0 {
         println!(
             "  {}  {pending_total} pending proposals",
-            style::warn("inbox")
+            style::warn("sign queue")
         );
         for (k, n) in &pending_by_kind {
             println!("    · {n:>3}  {k}");
         }
         println!();
-        println!("  next:  vela inbox .   then decide under your key (vela accept)");
+        println!("  next:  vela sign   (one session, one confirm, one key read)");
     } else if !replay.ok {
         println!("  {}  replay diverged", style::warn("!!"));
         println!();
         println!("  next:  vela check . --strict");
     } else {
-        println!("  {}  inbox clean", style::ok("ok"));
+        println!("  {}  sign queue clean", style::ok("ok"));
     }
     println!();
 }
@@ -392,207 +392,6 @@ pub(crate) fn cmd_log(path: &Path, limit: usize, kind_filter: Option<&str>, json
             kw = kind_w,
             aw = actor_w,
         );
-    }
-    println!();
-}
-
-/// v0.42: Pending-proposals triage. The thing you sit down to review.
-pub(crate) fn cmd_inbox(path: &Path, kind_filter: Option<&str>, limit: usize, json: bool) {
-    crate::ui::set_mode("inbox", json);
-    let project = repo::load_from_path(path).unwrap_or_else(|e| fail_return(&e));
-
-    // Collect reviewer-agent score map (composite shown alongside each
-    // proposal where present).
-    let mut score_map: std::collections::HashMap<String, (f64, f64, f64, f64)> =
-        std::collections::HashMap::new();
-    for p in &project.proposals {
-        if p.kind != "finding.note" {
-            continue;
-        }
-        if p.actor.id != "agent:reviewer-agent" {
-            continue;
-        }
-        let reason = &p.reason;
-        let Some(target) = reason.split_whitespace().find(|s| s.starts_with("vpr_")) else {
-            continue;
-        };
-        let text = p.payload.get("text").and_then(|v| v.as_str()).unwrap_or("");
-        let extract = |k: &str| -> f64 {
-            let pat = format!("{k} ");
-            text.find(&pat)
-                .and_then(|idx| text[idx + pat.len()..].split_whitespace().next())
-                .and_then(|t| t.parse::<f64>().ok())
-                .unwrap_or(0.0)
-        };
-        score_map.insert(
-            target.to_string(),
-            (
-                extract("plausibility"),
-                extract("evidence"),
-                extract("scope"),
-                extract("duplicate-risk"),
-            ),
-        );
-    }
-
-    let mut pending: Vec<&vela_protocol::proposals::StateProposal> = project
-        .proposals
-        .iter()
-        .filter(|p| {
-            p.status == "pending_review"
-                && match kind_filter {
-                    Some(k) => p.kind.contains(k),
-                    None => true,
-                }
-        })
-        .collect();
-    // Sort: high reviewer-agent composite first, then untyped.
-    pending.sort_by(|a, b| {
-        let sa = score_map
-            .get(&a.id)
-            .map(|(p, e, s, d)| 0.4 * p + 0.3 * e + 0.2 * s - 0.3 * d);
-        let sb = score_map
-            .get(&b.id)
-            .map(|(p, e, s, d)| 0.4 * p + 0.3 * e + 0.2 * s - 0.3 * d);
-        sb.partial_cmp(&sa).unwrap_or(std::cmp::Ordering::Equal)
-    });
-    pending.truncate(limit);
-
-    // Changeset grouping: a pending proposal that belongs to an undecided
-    // pack is reviewed as part of that pack (`vela accept . --pack …`).
-    let pack_of: std::collections::BTreeMap<String, String> = project
-        .released_diff_packs
-        .iter()
-        .filter(|r| r.verdict.is_none())
-        .flat_map(|r| {
-            r.member_proposals
-                .iter()
-                .map(move |m| (m.clone(), r.pack_id.clone()))
-        })
-        .collect();
-
-    if json {
-        let payload: Vec<_> = pending
-            .iter()
-            .map(|p| {
-                let assertion_text = p
-                    .payload
-                    .get("finding")
-                    .and_then(|f| f.get("assertion"))
-                    .and_then(|a| a.get("text"))
-                    .and_then(|t| t.as_str());
-                let assertion_type = p
-                    .payload
-                    .get("finding")
-                    .and_then(|f| f.get("assertion"))
-                    .and_then(|a| a.get("type"))
-                    .and_then(|t| t.as_str());
-                let composite = score_map
-                    .get(&p.id)
-                    .map(|(pl, e, s, d)| 0.4 * pl + 0.3 * e + 0.2 * s - 0.3 * d);
-                json!({
-                    "proposal_id": p.id,
-                    "kind": p.kind,
-                    "actor": p.actor,
-                    "reason": p.reason,
-                    "assertion_text": assertion_text,
-                    "assertion_type": assertion_type,
-                    "reviewer_composite": composite,
-                    "pack": pack_of.get(&p.id),
-                })
-            })
-            .collect();
-        println!(
-            "{}",
-            serde_json::to_string_pretty(&json!({
-                "ok": true,
-                "command": "inbox",
-                "shown": pending.len(),
-                "proposals": payload,
-            }))
-            .expect("serialize inbox")
-        );
-        return;
-    }
-
-    println!();
-    println!(
-        "  {}",
-        format!(
-            "VELA · INBOX · {}  ({} pending shown)",
-            path.display(),
-            pending.len()
-        )
-        .to_uppercase()
-        .dimmed()
-    );
-    println!("  {}", style::tick_row(60));
-    if pending.is_empty() {
-        println!("  (inbox clean)");
-        return;
-    }
-    for p in &pending {
-        let assertion_text = p
-            .payload
-            .get("finding")
-            .and_then(|f| f.get("assertion"))
-            .and_then(|a| a.get("text"))
-            .and_then(|t| t.as_str())
-            .unwrap_or("");
-        let assertion_type = p
-            .payload
-            .get("finding")
-            .and_then(|f| f.get("assertion"))
-            .and_then(|a| a.get("type"))
-            .and_then(|t| t.as_str())
-            .unwrap_or("");
-        let composite = score_map
-            .get(&p.id)
-            .map(|(pl, e, s, d)| 0.4 * pl + 0.3 * e + 0.2 * s - 0.3 * d);
-        let score_str = composite
-            .map(|c| format!("[{:.2}]", c))
-            .unwrap_or_else(|| "[—]   ".to_string());
-        let kind_short = if p.kind.len() > 12 {
-            format!("{}…", &p.kind[..11])
-        } else {
-            p.kind.clone()
-        };
-        let summary: String = if !assertion_text.is_empty() {
-            assertion_text.chars().take(80).collect()
-        } else {
-            p.reason.chars().take(80).collect()
-        };
-        let pack_tag = pack_of
-            .get(&p.id)
-            .map(|v| format!("  ⟨{v}⟩"))
-            .unwrap_or_default();
-        println!(
-            "  {}  {}  {:<13}  {:<18}  {}{}",
-            score_str, p.id, kind_short, assertion_type, summary, pack_tag
-        );
-    }
-    // Undecided packs, so the reviewer sees the changeset units first.
-    let mut undecided: Vec<_> = project
-        .released_diff_packs
-        .iter()
-        .filter(|r| vela_edge::frontier_next::pack_awaits_decision(r, &project))
-        .collect();
-    undecided.sort_by(|a, b| a.summary.cmp(&b.summary).then(a.pack_id.cmp(&b.pack_id)));
-    if !undecided.is_empty() {
-        println!();
-        println!("  packs awaiting one decision:");
-        for r in &undecided {
-            let n = r.member_proposals.len();
-            println!(
-                "    {}  {:>2} member{}  {}",
-                r.pack_id,
-                n,
-                if n == 1 { " " } else { "s" },
-                r.summary.chars().take(60).collect::<String>()
-            );
-        }
-        println!();
-        println!("  decide:  vela accept . --pack <vsd_id>    (one atomic verdict per pack)");
     }
     println!();
 }

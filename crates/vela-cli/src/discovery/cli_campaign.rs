@@ -258,9 +258,7 @@ fn cmd_run(
         );
         if let Some(a) = proposal_note {
             println!("  proposed (pending review): {a}");
-            println!(
-                "  accept with your key: vela accept <frontier> <proposal-id> --reviewer {reviewer} --key <key>"
-            );
+            println!("  decide with your key: vela sign   (as {reviewer})");
         } else {
             println!("  re-verify: vela reproduce {}", out_path.display());
         }

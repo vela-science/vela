@@ -40,7 +40,7 @@ fn init_frontier(dir: &std::path::Path) {
 }
 
 /// The poisoned .env sets VELA_ACTOR_ID=agent:evil. If the CLI loaded
-/// it, a decision verb would refuse with the CUSTODY exit (4). It must
+/// it, the sign ceremony would refuse with the CUSTODY exit (4). It must
 /// instead fail on identity setup / lookup — anything but 4.
 #[test]
 fn frontier_env_cannot_set_actor_id() {
@@ -52,7 +52,7 @@ fn frontier_env_cannot_set_actor_id() {
     )
     .unwrap();
 
-    let out = run_scrubbed(tmp.path(), &["accept", ".", "vpr_x", "--reason", "x"]);
+    let out = run_scrubbed(tmp.path(), &["sign", "vpr_x", "--yes", "--reason", "x"]);
     let code = out.status.code().unwrap_or(-1);
     assert_ne!(
         code,
@@ -70,8 +70,9 @@ fn frontier_env_cannot_mute_advice() {
     init_frontier(tmp.path());
     std::fs::write(tmp.path().join(".env"), "VELA_ADVICE=0\n").unwrap();
 
-    // A no-selection accept prints a usage error WITH the inbox hint.
-    let out = run_scrubbed(tmp.path(), &["accept", "."]);
+    // A scripted sign without --yes prints a usage error WITH the
+    // corrective hint (and fires before any identity lookup).
+    let out = run_scrubbed(tmp.path(), &["sign", "vpr_x"]);
     let stderr = String::from_utf8_lossy(&out.stderr);
     assert!(
         stderr.contains("hint:"),
@@ -90,7 +91,7 @@ fn real_env_still_resolves() {
     cmd.current_dir(tmp.path())
         .env("HOME", tmp.path())
         .env("VELA_ACTOR_ID", "agent:probe")
-        .args(["accept", ".", "vpr_x", "--reason", "x"]);
+        .args(["sign", "vpr_x", "--yes", "--reason", "x"]);
     let out = cmd.output().expect("spawn");
     assert_eq!(
         out.status.code(),

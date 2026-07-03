@@ -341,11 +341,6 @@ pub(crate) fn fail_not_found<T>(message: &str, hint: &str) -> T {
     crate::ui::fail_with(crate::ui::ErrorKind::NotFound, message, Some(hint))
 }
 
-/// A wrong invocation. Exit 2; the hint shows the corrected command.
-pub(crate) fn fail_usage<T>(message: &str, hint: &str) -> T {
-    crate::ui::fail_with(crate::ui::ErrorKind::Usage, message, Some(hint))
-}
-
 /// Validate that a CLI string argument is one of the allowed enum values.
 /// On mismatch, prints a friendly error naming the flag and the valid set
 /// and exits with code 1. Used at finding-add time so users learn before
@@ -371,33 +366,4 @@ pub(crate) fn print_json<T: Serialize + ?Sized>(value: &T) {
         "{}",
         serde_json::to_string_pretty(value).expect("serialize json output")
     );
-}
-
-pub(crate) fn print_engine_verdict(v: &proposals::EngineVerdict) {
-    match v.status.as_str() {
-        "pass" => {
-            println!("  {} evidence-ci: clean", style::ok("engine"));
-        }
-        "warn" => {
-            println!(
-                "  {} evidence-ci: {} new review warning(s)",
-                style::warn("engine"),
-                v.new_warnings.len()
-            );
-            for w in v.new_warnings.iter().take(6) {
-                println!("    {}", style::dim(w));
-            }
-        }
-        "forced" => {
-            println!(
-                "  {} gate overridden: {} new blocking, {} new warning(s) — recorded in decision reason",
-                style::warn("engine"),
-                v.new_blocking.len(),
-                v.new_warnings.len()
-            );
-        }
-        other => {
-            println!("  {} evidence-ci: {}", style::warn("engine"), other);
-        }
-    }
 }

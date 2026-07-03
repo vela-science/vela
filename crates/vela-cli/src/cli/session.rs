@@ -34,13 +34,16 @@ pub(crate) fn print_session_help() {
         env!("CARGO_PKG_VERSION")
     );
     println!();
-    println!("  Agents propose. Verifiers reproduce. Humans accept. Git publishes.");
+    println!("  Agents land. Verifiers reproduce. Humans sign. Git publishes.");
     println!();
     println!("  HOW IT FITS");
     println!("    A frontier is a git repo whose .vela/ event log is the state.");
-    println!("    record   = your ACTIVITY, as a portable claim packet (optional)");
-    println!("    propose  = one reviewable CHANGE; pack = several as one changeset");
-    println!("    accept   = a human key decides — and the decision publishes itself");
+    println!("    next     = THE offer: ranked open targets, payload pre-loaded");
+    println!("    work     = claim the lease, load the briefing, open a session");
+    println!("    land     = cross activity into state (vela.receipt.v1), routed");
+    println!("               by the signed policy: Permit admits, Defer waits");
+    println!("    sign     = the human ceremony — every deferred decision, one");
+    println!("               session, one confirm, one key read");
     println!("    check    = is the LOG intact (replay, signatures, parity)");
     println!("    reproduce= is the SCIENCE intact (re-run every frozen verifier)");
     println!();
@@ -54,16 +57,16 @@ pub(crate) fn print_session_help() {
     println!("    init <dir>        Start a new frontier repo (git clone joins one)");
     println!();
     println!("  THE LOOP");
+    println!("    next              What to work on, ranked (--json = agent contract)");
+    println!("    work <target>     Take one: lease + briefing into .vela/work/");
+    println!("    land <receipt>    Land the result; policy routes it");
+    println!("    sign              Decide everything awaiting your key");
+    println!("    policy            Standing rules: what agents land without you");
+    println!();
+    println!("  READ");
     println!("    status            One-screen frontier state");
-    println!("    inbox             Pending proposals awaiting a human key");
     println!("    log [vf_]         Recent signed events, or one finding's history");
     println!("    diff <vpr_>       Preview a pending proposal");
-    println!("    record <dir>      Record activity: claim + hashed artifacts + caveats");
-    println!("    propose           Draft a finding.review proposal");
-    println!("    review            Sign fidelity verdicts (--fidelity, --batch)");
-    println!("    accept            Decide under your key: <vpr_>, --all-pending,");
-    println!("                      or --pack <vsd_> for one atomic changeset verdict");
-    println!("    attach            Bind mechanical verifier evidence to a finding");
     println!();
     println!("  VERIFY");
     println!("    check <dir>       The full trust gate, locally (--strict)");
@@ -78,8 +81,6 @@ pub(crate) fn print_session_help() {
     println!("    serve             This frontier as an MCP server for AI agents");
     println!("                      (Claude Code, Cursor, any MCP client; also hosted");
     println!("                      at hub.constellate.science/mcp — no clone needed)");
-    println!("    policy            The governance policy: what auto-admits, what");
-    println!("                      always needs a human key (show/seal/test)");
     println!();
 }
 
@@ -122,12 +123,10 @@ pub(crate) fn print_session_dashboard(project: &vela_protocol::project::Project,
 
     if pending > 0 {
         let parts: Vec<String> = by_kind.iter().map(|(k, n)| format!("{n} {k}")).collect();
-        println!("  {}     · {}", style::warn("inbox"), parts.join("  "));
+        println!("  {}   · {}", style::warn("pending"), parts.join("  "));
     }
     println!();
-    println!("  type a verb or ask anything:");
-    println!("    i  inbox (pending)    l  log (recent)        s  refresh status");
-    println!("    h  help (more verbs)  q  quit");
+    println!("  the loop: vela next · vela work <target> · vela land · vela sign");
     println!();
 }
 
@@ -190,10 +189,7 @@ pub(crate) fn run_session() {
     let targets = vela_edge::frontier_next::frontier_next(&project, Some(&repo_path), 3);
     if !targets.is_empty() {
         println!();
-        println!(
-            "  {}",
-            "next, ranked (vela frontier next for more):".dimmed()
-        );
+        println!("  {}", "next, ranked (vela next for more):".dimmed());
         for t in &targets {
             println!(
                 "    {}  {}",

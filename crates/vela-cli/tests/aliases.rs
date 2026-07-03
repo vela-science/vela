@@ -1,10 +1,10 @@
 //! Integration tests pinning the consolidated CLI surface. After the
 //! dev-only cleanup, each concept has exactly ONE spelling: the
-//! acting-identity flag is `--reviewer` (no `--actor`/`--by`), the key flag
-//! is `--key` (no `--private-key`), and the finding-mutation verbs live only
-//! under `vela finding <verb>` (no top-level `vela note`). These run the
-//! built `vela` binary so they catch surface drift the clap-tree unit tests
-//! can't.
+//! acting-identity flag is `--as` (no `--reviewer`/`--actor`/`--by`), the
+//! key flag is `--key` (no `--private-key`), and the finding-mutation verbs
+//! live only under `vela finding <verb>` (no top-level `vela note`). These
+//! run the built `vela` binary so they catch surface drift the clap-tree
+//! unit tests can't.
 
 use std::process::{Command, Output};
 
@@ -32,28 +32,22 @@ fn combined(out: &Output) -> String {
 #[test]
 fn identity_flag_is_canonical_as_only() {
     let ok = vela(&[
-        "accept",
-        "/tmp/vela_nonexistent.json",
-        "vpr_x",
+        "land",
+        "/tmp/vela_nonexistent_receipt.json",
         "--as",
         "reviewer:w",
-        "--reason",
-        "r",
     ]);
     assert!(
         !stderr(&ok).contains("unexpected argument"),
-        "`accept --as` should parse, got: {}",
+        "`land --as` should parse, got: {}",
         stderr(&ok)
     );
     for retired in ["--reviewer", "--actor", "--by"] {
         let out = vela(&[
-            "accept",
-            "/tmp/x.json",
-            "vpr_x",
+            "land",
+            "/tmp/vela_nonexistent_receipt.json",
             retired,
             "reviewer:w",
-            "--reason",
-            "r",
         ]);
         assert!(
             stderr(&out).contains("unexpected argument") || stderr(&out).contains(retired),
@@ -63,20 +57,22 @@ fn identity_flag_is_canonical_as_only() {
     }
 }
 
-/// `id sign` takes `--key` and only `--key`; the retired `sign` top-level
+/// `sign` takes `--key` and only `--key`; the retired `attest` top-level
 /// 404s outright.
 #[test]
 fn key_flag_is_canonical_key_only() {
     let ok = vela(&[
-        "id",
         "sign",
-        "/tmp/vela_nonexistent.json",
+        "vpr_nonexistent",
+        "--yes",
         "--key",
         "/tmp/nope",
+        "--frontier",
+        "/tmp/vela_nonexistent_frontier",
     ]);
     assert!(
         !stderr(&ok).contains("unexpected argument"),
-        "`id sign --key` should parse, got: {}",
+        "`sign --key` should parse, got: {}",
         stderr(&ok)
     );
     let retired = vela(&["attest", "apply", "/tmp/x.json", "--key", "/tmp/nope"]);
@@ -109,12 +105,66 @@ fn retired_top_level_verbs_404() {
         "publish",
         "clone",
         "workspace",
+        // the v0.738 hard cut: ten verbs retired into the loop
+        "inbox",
+        "propose",
+        "accept",
+        "review",
+        "record",
+        "pack",
+        "attach",
+        "queue",
     ] {
         let out = vela(&[verb, "--help"]);
         assert!(
             combined(&out).contains("unknown or non-release command"),
             "retired verb `{verb}` should 404, got: {}",
             combined(&out)
+        );
+        assert_eq!(
+            out.status.code(),
+            Some(2),
+            "retired verb `{verb}` should exit 2"
+        );
+    }
+}
+
+/// The v0.738 hard cut names each retired verb's successor in the hint,
+/// so a stale script or habit self-corrects in one read.
+#[test]
+fn retired_verbs_name_their_successor() {
+    for (argv, successor) in [
+        (
+            vec!["inbox", "."],
+            "vela sign (decisions) / vela next (work)",
+        ),
+        (vec!["propose", ".", "vf_x"], "vela land"),
+        (vec!["record", ".", "--claim", "x"], "vela land"),
+        (vec!["pack", ".", "--summary", "x"], "vela land"),
+        (vec!["attach", ".", "--target", "vf_x"], "vela land"),
+        (vec!["accept", ".", "vpr_x"], "vela sign"),
+        (vec!["review", ".", "--batch", "/tmp/x.json"], "vela sign"),
+        (vec!["queue", "list"], "vela sign"),
+        (vec!["id", "sign", "."], "`vela sign` (the hygiene lane)"),
+        (vec!["frontier", "next", "."], "vela next"),
+    ] {
+        let out = vela(&argv);
+        assert_eq!(
+            out.status.code(),
+            Some(2),
+            "`vela {}` should exit 2",
+            argv.join(" ")
+        );
+        let text = combined(&out);
+        assert!(
+            text.contains("unknown or non-release command"),
+            "`vela {}` should 404, got: {text}",
+            argv.join(" ")
+        );
+        assert!(
+            text.contains(successor),
+            "`vela {}` should name successor `{successor}`, got: {text}",
+            argv.join(" ")
         );
     }
 }
@@ -130,7 +180,7 @@ fn folded_spellings_dispatch() {
         vec!["foundry", "transfer", "--help"],
         vec!["foundry", "experiment", "--help"],
         vec!["id", "keygen", "--help"],
-        vec!["accept", "--help"],
+        vec!["sign", "--help"],
     ] {
         let out = vela(&args);
         assert!(
@@ -155,13 +205,10 @@ fn folded_spellings_dispatch() {
 #[test]
 fn unknown_flag_is_rejected() {
     let out = vela(&[
-        "accept",
-        "/tmp/x.json",
-        "vpr_x",
+        "land",
+        "/tmp/vela_nonexistent_receipt.json",
         "--definitely-not-a-flag",
         "y",
-        "--reason",
-        "r",
     ]);
     let e = stderr(&out);
     assert!(
@@ -170,14 +217,13 @@ fn unknown_flag_is_rejected() {
     );
 }
 
-/// The two intentionally-distinct accept/reject paths still dispatch:
-/// top-level `accept` (engine-gated) + `proposals accept`/`proposals reject`
-/// (lower-level). Neither regresses to "unknown or non-release command".
-/// (Top-level `vela reject` was retired — see `finding_verbs_are_nested_only`.)
+/// The store-level decision verbs still dispatch: `proposals accept` /
+/// `proposals reject` survive the hard cut (the porcelain `vela sign` is
+/// their ceremony driver). Neither regresses to "unknown or non-release
+/// command".
 #[test]
 fn accept_paths_dispatch() {
     for args in [
-        vec!["accept", "--help"],
         vec!["proposals", "accept", "--help"],
         vec!["proposals", "reject", "--help"],
     ] {

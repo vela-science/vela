@@ -37,7 +37,7 @@ use vela_protocol::proposals::policy_accept::{self, PolicyAcceptOutcome, PolicyL
 use vela_protocol::repo;
 
 /// The portable receipt (see module doc). Field names deliberately
-/// match the `vela record` flags and the vrc_ draft body.
+/// match the vrc_ draft body (and `vela land`'s flag spellings).
 #[derive(Debug, Clone, Deserialize)]
 pub(crate) struct Receipt {
     #[serde(default)]
@@ -97,6 +97,20 @@ pub(crate) enum LandRoute {
 pub(crate) struct LandOutcome {
     pub proposal_id: String,
     pub route: LandRoute,
+}
+
+impl LandRoute {
+    /// The `(route, detail)` pair every landing surface reports — the CLI
+    /// verb and the MCP `work` tool speak the same contract.
+    pub(crate) fn summary(&self) -> (&'static str, String) {
+        match self {
+            LandRoute::PolicyAdmitted(o) => (
+                "policy_admitted",
+                format!("event {} under {}", o.event_id, o.certificate.policy_id),
+            ),
+            LandRoute::Deferred { reasons } => ("deferred", reasons.join(", ")),
+        }
+    }
 }
 
 /// Claim a lease on a target (the same engine the MCP work tool uses).

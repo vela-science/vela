@@ -1,7 +1,6 @@
 use crate::serve;
 use vela_edge::frontier_health;
 use vela_edge::lint;
-use vela_edge::reviewer_identity;
 use vela_edge::signals;
 use vela_edge::state_integrity;
 use vela_edge::validate;
@@ -217,17 +216,6 @@ pub async fn run_command() {
                 cmd_log(&frontier, limit, kind.as_deref(), json);
             }
         }
-        Commands::Inbox {
-            frontier,
-            kind,
-            limit,
-            json,
-        } => cmd_inbox(
-            &crate::ui::resolve_frontier(frontier),
-            kind.as_deref(),
-            limit,
-            json,
-        ),
         Commands::Gate { action } => cmd_gate(action),
         Commands::Agents { action } => crate::cli_agents::cmd_agents(action),
         Commands::Foundry { action } => crate::cli_engine::cmd_foundry(action),
@@ -246,54 +234,8 @@ pub async fn run_command() {
             clap_complete::generate(shell_kind, &mut cmd, name, &mut std::io::stdout());
         }
 
-        Commands::Attach {
-            frontier,
-            target,
-            attachment_file,
-            proof,
-            solver,
-            verifier_actor,
-            axioms_clean,
-            undischarged_hypothesis,
-            note,
-            reviewer,
-            reason,
-            json,
-        } => {
-            // Proof mode: BUILD a lean_kernel attachment and land it (the
-            // mode that used to live on the retired `attest --proof`).
-            if proof {
-                cmd_attach_lean_proof(
-                    frontier,
-                    target,
-                    solver.unwrap_or_else(|| "lean4@4.29.1".to_string()),
-                    verifier_actor.unwrap_or_else(|| {
-                        fail_return("attach: --verifier-actor is required with --proof")
-                    }),
-                    axioms_clean,
-                    undischarged_hypothesis,
-                    note.unwrap_or_else(|| fail_return("attach: --note is required with --proof")),
-                    None,
-                    json,
-                );
-                return;
-            }
-            let attachment_file = attachment_file
-                .unwrap_or_else(|| fail_return("attach: --attachment-file is required"));
-            // Reviewer authority defaults from `vela id`.
-            let reviewer = crate::cli_identity::resolve_actor(reviewer.as_deref());
-            cmd_attach(
-                &frontier,
-                &target,
-                &attachment_file,
-                &reviewer,
-                &reason,
-                json,
-            )
-        }
         Commands::Reproduce { path, json } => cmd_reproduce(&path, json),
         Commands::Id { action } => cmd_id(action),
-        Commands::Queue { action } => cmd_queue(action),
         Commands::Actor { action } => cmd_actor(action),
         Commands::Frontier { action } => cmd_frontier(action),
         Commands::Hub { action } => cmd_hub(action),
@@ -445,11 +387,11 @@ pub async fn run_command() {
                     }
                     println!();
                     match pack_id {
-                        Some(pack) => println!(
-                            "  decide:    vela accept . --pack {pack}    (this proposal rides its pack)"
-                        ),
+                        Some(pack) => {
+                            println!("  decide:    vela sign    (this proposal rides pack {pack})")
+                        }
                         None => println!(
-                            "  decide:    vela accept . --id {target}    (or: vela proposals reject . {target} --reason \"…\")"
+                            "  decide:    vela sign {target} --yes    (or: vela proposals reject . {target} --reason \"…\")"
                         ),
                     }
                     println!();
@@ -491,55 +433,6 @@ pub async fn run_command() {
                 let frontier_b_path = resolve_side(&b_str, "b");
                 diff::run(&frontier_a, &frontier_b_path, json, quiet);
             }
-        }
-        Commands::Record {
-            target,
-            claim,
-            r#type,
-            artifacts,
-            caveats,
-            verifier_runs,
-            actor,
-            key,
-            out,
-            propose,
-            json,
-        } => cmd_record(
-            &target,
-            claim,
-            r#type,
-            artifacts,
-            caveats,
-            verifier_runs,
-            actor,
-            key,
-            out,
-            propose,
-            json,
-        ),
-        Commands::Pack {
-            frontier,
-            pack_id,
-            summary,
-            from_pending,
-            ids,
-            aggregate_kind,
-            actor,
-            json,
-        } => {
-            let (frontier, pack_id) =
-                crate::ui::resolve_frontier_with_id(frontier, pack_id, &["vsd_"]);
-            crate::ui::set_mode("pack", json);
-            cmd_pack(
-                &frontier,
-                pack_id,
-                summary,
-                from_pending,
-                ids,
-                aggregate_kind,
-                actor,
-                json,
-            )
         }
         Commands::Proposals { action } => cmd_proposals(action),
         Commands::Finding { command } => match command {
@@ -737,75 +630,6 @@ pub async fn run_command() {
             FindingCommands::Link { action } => cmd_link(action),
         },
 
-        // v0.74: alias verb dispatch. Each arm calls into an
-        // existing canonical-event emission path.
-        Commands::Propose {
-            frontier,
-            finding_id,
-            status,
-            reason,
-            reviewer,
-            apply,
-            sign,
-            key,
-            co_author,
-            generated_by,
-            json,
-        } => {
-            // Reviewer and reason auto-resolve from managed identity / a sane
-            // default, so the happy path is just
-            // `vela propose <frontier> <vf> --status …`.
-            let reviewer = crate::cli_identity::resolve_actor(reviewer.as_deref());
-            let reason = reason.unwrap_or_else(|| format!("marked {status}"));
-            if sign {
-                // One-step solo path: record the proposal, then accept and sign
-                // it under one key in a single command (the git-commit analogue).
-                let options = state::ReviewOptions {
-                    status: status.clone(),
-                    reason: reason.clone(),
-                    reviewer: reviewer.clone(),
-                };
-                let draft = state::review_finding(&frontier, &finding_id, options, false)
-                    .unwrap_or_else(|e| fail_return(&e));
-                let signing_key = crate::cli_identity::resolve_signing_key_opt(key.as_deref());
-                let provenance = crate::cli_identity::resolve_co_author_provenance(
-                    co_author.as_deref(),
-                    generated_by.as_deref(),
-                );
-                let outcome = proposals::accept_at_path_engine(
-                    &frontier,
-                    &draft.proposal_id,
-                    &reviewer,
-                    &reason,
-                    proposals::AcceptOptions {
-                        strict: false,
-                        force: false,
-                        signing_key,
-                        custody_verified: false,
-                        provenance,
-                    },
-                )
-                .unwrap_or_else(|e| fail_return(&e));
-                print_json(&serde_json::json!({
-                    "ok": true,
-                    "command": "propose.sign",
-                    "finding_id": finding_id,
-                    "proposal_id": draft.proposal_id,
-                    "event_id": outcome.event_id,
-                    "signed": true,
-                }));
-                return;
-            }
-            let options = state::ReviewOptions {
-                status: status.clone(),
-                reason,
-                reviewer,
-            };
-            let report = state::review_finding(&frontier, &finding_id, options, apply)
-                .unwrap_or_else(|e| fail_return(&e));
-            print_state_report(&report, json);
-        }
-
         Commands::Sign {
             target,
             frontier,
@@ -968,15 +792,7 @@ pub async fn run_command() {
             };
             match crate::workflow::land(&dir, &receipt, &actor) {
                 Ok(outcome) => {
-                    let (route, detail) = match &outcome.route {
-                        crate::workflow::LandRoute::PolicyAdmitted(o) => (
-                            "policy_admitted",
-                            format!("event {} under {}", o.event_id, o.certificate.policy_id),
-                        ),
-                        crate::workflow::LandRoute::Deferred { reasons } => {
-                            ("deferred", reasons.join(", "))
-                        }
-                    };
+                    let (route, detail) = outcome.route.summary();
                     // Publication: the store changed either way.
                     let opts = crate::config::git_publish::PublishOptions::new(false, false);
                     crate::config::git_publish::publish_decision(
@@ -1082,509 +898,6 @@ pub async fn run_command() {
                 )
             }
         },
-        Commands::Accept {
-            frontier,
-            proposal_id,
-            reviewer,
-            reason,
-            key,
-            strict,
-            force,
-            co_author,
-            generated_by,
-            pack,
-            all_pending,
-            ids,
-            kinds,
-            limit,
-            dry_run,
-            no_reconcile,
-            no_commit,
-            no_push,
-            json,
-        } => {
-            let (frontier, proposal_id) =
-                crate::ui::resolve_frontier_with_id(frontier, proposal_id, &["vpr_"]);
-            crate::ui::set_mode("accept", json);
-            let publish_opts = crate::config::git_publish::PublishOptions::new(no_commit, no_push);
-            // Pack mode: one decision for a whole changeset.
-            if let Some(pack_id) = pack {
-                let reviewer = crate::cli_identity::resolve_decision_actor(reviewer.as_deref());
-                let signing_key = crate::cli_identity::resolve_signing_key_opt(key.as_deref());
-                let reason = reason
-                    .clone()
-                    .unwrap_or_else(|| format!("accepted pack {pack_id}"));
-                let (report, verdict_event) =
-                    vela_protocol::released_diff_pack::accept_pack_at_path(
-                        &frontier,
-                        &pack_id,
-                        &reviewer,
-                        &reason,
-                        proposals::AcceptOptions {
-                            strict,
-                            force,
-                            signing_key,
-                            custody_verified: false,
-                            provenance: crate::cli_identity::resolve_co_author_provenance(
-                                co_author.as_deref(),
-                                generated_by.as_deref(),
-                            ),
-                        },
-                        dry_run,
-                    )
-                    .unwrap_or_else(|e| fail_return(&e));
-                if json {
-                    print_json(&json!({
-                        "ok": report.failed.is_empty(),
-                        "command": "accept",
-                        "pack": pack_id,
-                        "accepted": report.accepted_proposal_ids,
-                        "failed": report.failed.len(),
-                        "dry_run": report.dry_run,
-                        "verdict_event": verdict_event,
-                    }));
-                } else {
-                    println!(
-                        "{} pack {pack_id}: {} member(s) accepted{}{}",
-                        style::ok("ok"),
-                        report.accepted_proposal_ids.len(),
-                        if report.failed.is_empty() {
-                            String::new()
-                        } else {
-                            format!(", {} FAILED", report.failed.len())
-                        },
-                        if report.dry_run { " (dry-run)" } else { "" }
-                    );
-                    if let Some(ev) = verdict_event {
-                        println!("  verdict event: {ev}");
-                    }
-                }
-                if !report.gated && !report.dry_run && !no_reconcile {
-                    let _ = vela_protocol::frontier_repo::materialize(&frontier);
-                }
-                if !report.gated && !report.dry_run {
-                    crate::config::git_publish::publish_decision(
-                        &frontier,
-                        &format!(
-                            "accept: pack {pack_id} ({} member(s))",
-                            report.accepted_proposal_ids.len()
-                        ),
-                        &report.accepted_proposal_ids,
-                        &publish_opts,
-                    );
-                }
-                return;
-            }
-            // Batch mode: every selected proposal in one signed pass
-            if all_pending || !ids.is_empty() {
-                let reason = reason
-                    .clone()
-                    .unwrap_or_else(|| "accepted via batch review".to_string());
-                let reviewer = crate::cli_identity::resolve_decision_actor(reviewer.as_deref());
-                // Sign with the configured identity's key (managed-identity model):
-                // key custody, not the typed name, is the accept authority.
-                let signing_key = crate::cli_identity::resolve_signing_key_opt(None);
-                if !all_pending && ids.is_empty() {
-                    fail_return::<()>(
-                        "accept-batch: pass --all-pending and/or one or more --id <proposal_id>",
-                    );
-                }
-                // Resolve the selection by loading the frontier once for the id
-                // list; the batch fn reloads, but resolving here keeps the
-                // selection logic (pending filter, kind filter, limit) in one
-                // place and lets --dry-run report the exact set.
-                let loaded = repo::load_from_path(&frontier).unwrap_or_else(|e| fail_return(&e));
-                let kind_filter: std::collections::BTreeSet<&str> =
-                    kinds.iter().map(|s| s.as_str()).collect();
-                let mut selected: Vec<String> = Vec::new();
-                let mut seen: std::collections::BTreeSet<String> =
-                    std::collections::BTreeSet::new();
-                // Explicit ids first, in the order given.
-                for id in &ids {
-                    if seen.insert(id.clone()) {
-                        selected.push(id.clone());
-                    }
-                }
-                if all_pending {
-                    for p in &loaded.proposals {
-                        let pending = p.status == "pending_review" && p.applied_event_id.is_none();
-                        let kind_ok =
-                            kind_filter.is_empty() || kind_filter.contains(p.kind.as_str());
-                        if pending && kind_ok && seen.insert(p.id.clone()) {
-                            selected.push(p.id.clone());
-                        }
-                    }
-                }
-                if limit > 0 && selected.len() > limit {
-                    selected.truncate(limit);
-                }
-                if selected.is_empty() {
-                    fail_return::<()>("accept-batch: no proposals matched the selection");
-                }
-
-                let report = proposals::accept_batch_at_path(
-                    &frontier,
-                    &selected,
-                    &reviewer,
-                    &reason,
-                    proposals::AcceptOptions {
-                        strict,
-                        force,
-                        signing_key,
-                        custody_verified: false,
-                        provenance: crate::cli_identity::resolve_co_author_provenance(None, None),
-                    },
-                    dry_run,
-                )
-                .unwrap_or_else(|e| fail_return(&e));
-
-                let v = &report.verdict;
-                let payload = json!({
-                    "ok": !report.gated,
-                    "command": "accept-batch",
-                    "frontier": frontier.display().to_string(),
-                    "dry_run": report.dry_run,
-                    "gated": report.gated,
-                    "selected": selected.len(),
-                    "accepted": report.accepted_proposal_ids.len(),
-                    "already_applied": report.already_applied,
-                    "failed": report.failed.iter().map(|(id, e)| json!({"id": id, "error": e})).collect::<Vec<_>>(),
-                    "reviewer": reviewer,
-                    "event_ids": report.event_ids,
-                    "engine": {
-                        "verdict": v.status,
-                        "new_blocking": v.new_blocking,
-                        "new_warnings": v.new_warnings,
-                        "forced": v.forced,
-                        "strict": v.strict,
-                        "release_blocking_failed": v.release_blocking_failed,
-                        "warnings": v.warnings,
-                    },
-                });
-                if json {
-                    print_json(&payload);
-                } else if report.gated {
-                    println!(
-                        "{} Engine gate BLOCKED the batch of {} — nothing persisted",
-                        style::lost("blocked"),
-                        report.accepted_proposal_ids.len()
-                    );
-                    print_engine_verdict(v);
-                    println!("  re-run with --force to override, or resolve the checks first");
-                } else {
-                    let verb = if report.dry_run {
-                        "would accept"
-                    } else {
-                        "accepted"
-                    };
-                    println!(
-                        "{} {} {} proposal(s) in one pass{}",
-                        style::ok("ok"),
-                        verb,
-                        report.accepted_proposal_ids.len(),
-                        if report.dry_run {
-                            " (dry-run: nothing written)"
-                        } else {
-                            ""
-                        }
-                    );
-                    if report.already_applied > 0 {
-                        println!("  {} already applied (skipped)", report.already_applied);
-                    }
-                    if !report.failed.is_empty() {
-                        println!("  {} failed:", report.failed.len());
-                        for (id, e) in report.failed.iter().take(10) {
-                            println!("    {id}: {e}");
-                        }
-                        if report.failed.len() > 10 {
-                            println!("    … and {} more", report.failed.len() - 10);
-                        }
-                    }
-                    print_engine_verdict(v);
-                }
-                // Reconcile derived views in the same pass, so the reviewer is not
-                // left to run `vela proof` + `vela frontier materialize` by hand
-                // after a batch accept. Skipped on dry-run / gated / --no-reconcile.
-                if !report.gated && !report.dry_run && !no_reconcile {
-                    let _ = vela_protocol::frontier_repo::materialize(&frontier);
-                    if !json {
-                        println!("  reconciled derived views (frontier.json, vela.lock, proof)");
-                    }
-                }
-                if !report.gated && !report.dry_run {
-                    crate::config::git_publish::publish_decision(
-                        &frontier,
-                        &format!(
-                            "accept: {} proposal(s) in one signed pass",
-                            report.accepted_proposal_ids.len()
-                        ),
-                        &report.event_ids,
-                        &publish_opts,
-                    );
-                }
-                return;
-            }
-            let proposal_id = proposal_id.unwrap_or_else(|| {
-                fail_usage(
-                    "accept: pass a vpr_… id, or --all-pending / --id for batch, or --pack vsd_… for a changeset",
-                    "run `vela inbox .` first — it lists the pending vpr_/vsd_ ids and the exact accept command",
-                )
-            });
-            let reviewer = crate::cli_identity::resolve_decision_actor(reviewer.as_deref());
-            let reason = reason.unwrap_or_else(|| "accepted via review".to_string());
-            let signing_key = crate::cli_identity::resolve_signing_key_opt(key.as_deref());
-            let provenance = crate::cli_identity::resolve_co_author_provenance(
-                co_author.as_deref(),
-                generated_by.as_deref(),
-            );
-            // The Engine runs Evidence CI on the post-accept state and gates
-            // the acceptance on the regression it would introduce.
-            let outcome = proposals::accept_at_path_engine(
-                &frontier,
-                &proposal_id,
-                &reviewer,
-                &reason,
-                proposals::AcceptOptions {
-                    strict,
-                    force,
-                    signing_key,
-                    custody_verified: false,
-                    provenance,
-                },
-            )
-            .unwrap_or_else(|e| fail_return(&e));
-            let v = &outcome.verdict;
-
-            let payload = json!({
-                "ok": true,
-                "command": "accept",
-                "frontier": frontier.display().to_string(),
-                "proposal_id": proposal_id,
-                "reviewer": reviewer,
-                "applied_event_id": outcome.event_id,
-                "engine": {
-                    "verdict": v.status,
-                    "new_blocking": v.new_blocking,
-                    "new_warnings": v.new_warnings,
-                    "forced": v.forced,
-                    "strict": v.strict,
-                    "release_blocking_failed": v.release_blocking_failed,
-                    "warnings": v.warnings,
-                },
-            });
-            if json {
-                print_json(&payload);
-            } else {
-                println!(
-                    "{} accepted and applied proposal {}",
-                    style::ok("ok"),
-                    proposal_id
-                );
-                println!("  event: {}", outcome.event_id);
-                print_engine_verdict(v);
-            }
-            crate::config::git_publish::publish_decision(
-                &frontier,
-                &format!("accept: {proposal_id}"),
-                std::slice::from_ref(&outcome.event_id),
-                &publish_opts,
-            );
-        }
-
-        Commands::Review {
-            frontier,
-            no_commit,
-            no_push,
-            target_id,
-            scopes,
-            reviewer,
-            role,
-            reason,
-            orcid,
-            ror,
-            event,
-            attester,
-            scope_note,
-            proof_id,
-            signature,
-            key,
-            fidelity,
-            informal_ref,
-            formal_ref,
-            formal_statement_hash,
-            note,
-            batch,
-            json,
-        } => {
-            // Fidelity batch mode: sign a whole verdict file under one key
-            // read and one save. Checked before the single --fidelity path.
-            let (frontier, target_id) = crate::ui::resolve_frontier_with_id(
-                frontier,
-                target_id,
-                &["vev_", "vsd_", "vrp_", "vpf_", "vf_"],
-            );
-            crate::ui::set_mode("review", json);
-            let publish_opts = crate::config::git_publish::PublishOptions::new(no_commit, no_push);
-            if let Some(batch) = batch {
-                cmd_review_fidelity_batch(frontier.clone(), batch, reviewer, key, json);
-                crate::config::git_publish::publish_decision(
-                    &frontier,
-                    "review: fidelity verdict batch",
-                    &[],
-                    &publish_opts,
-                );
-                return;
-            }
-            // Statement-fidelity mode: a signed `vsa_` human verdict on
-            // whether the formal statement encodes the informal problem.
-            // Keyed on --fidelity so the reviewer-identity and per-event
-            // modes below are untouched.
-            if let Some(fidelity) = fidelity {
-                let target = target_id.clone().unwrap_or_else(|| {
-                    fail_return("review: positional <finding-id> is required with --fidelity")
-                });
-                cmd_review_fidelity(
-                    frontier.clone(),
-                    target,
-                    fidelity,
-                    informal_ref.unwrap_or_else(|| {
-                        fail_return("review: --informal-ref is required with --fidelity")
-                    }),
-                    formal_ref.unwrap_or_else(|| {
-                        fail_return("review: --formal-ref is required with --fidelity")
-                    }),
-                    formal_statement_hash.unwrap_or_else(|| {
-                        fail_return("review: --formal-statement-hash is required with --fidelity")
-                    }),
-                    note.unwrap_or_else(|| {
-                        fail_return("review: --note is required with --fidelity")
-                    }),
-                    reviewer,
-                    key,
-                    json,
-                );
-                crate::config::git_publish::publish_decision(
-                    &frontier,
-                    "review: statement-fidelity verdict",
-                    &[],
-                    &publish_opts,
-                );
-                return;
-            }
-            if let Some(target_id) = target_id {
-                let parsed_scopes = reviewer_identity::parse_scopes(&scopes)
-                    .unwrap_or_else(|e| fail_return(&format!("review: {e}")));
-                let reviewer = reviewer.unwrap_or_else(|| {
-                    fail_return("review: --reviewer is required for target attestations")
-                });
-                let role = role.unwrap_or_else(|| {
-                    fail_return("review: --role is required for target attestations")
-                });
-                let reason = reason.unwrap_or_else(|| {
-                    fail_return("review: --reason is required for target attestations")
-                });
-                let report = reviewer_identity::record(
-                    &frontier,
-                    reviewer_identity::AttestationInput {
-                        target_id,
-                        scopes: parsed_scopes,
-                        reviewer_id: reviewer,
-                        role,
-                        reason,
-                        orcid,
-                        ror,
-                        proof_id,
-                        signature,
-                    },
-                )
-                .unwrap_or_else(|e| fail_return(&format!("attest failed: {e}")));
-                if json {
-                    print_json(&report);
-                } else {
-                    println!(
-                        "{} {} -> {}",
-                        style::ok("attest"),
-                        report.attestation.attestation_id,
-                        report.attestation.target_id
-                    );
-                    if let Some(event_id) = &report.attestation.canonical_event_id {
-                        println!("  event: {}", event_id);
-                    }
-                    println!("  path: {}", report.path);
-                }
-                crate::config::git_publish::publish_decision(
-                    &frontier,
-                    &format!("review: attestation on {}", report.attestation.target_id),
-                    report.attestation.canonical_event_id.clone().as_slice(),
-                    &publish_opts,
-                );
-                return;
-            }
-            // v0.80.1: per-event mode. When --event is supplied,
-            // emit an attestation.recorded canonical event
-            // targeting the named event id.
-            if let Some(target_event_id) = event {
-                let attester_id = attester.unwrap_or_else(|| {
-                    fail_return("attest: --attester is required in per-event mode")
-                });
-                let scope = scope_note.unwrap_or_else(|| {
-                    fail_return("attest: --scope-note is required in per-event mode")
-                });
-                let attestation_event_id = state::record_attestation(
-                    &frontier,
-                    &target_event_id,
-                    &attester_id,
-                    &scope,
-                    proof_id.as_deref(),
-                    signature.as_deref(),
-                )
-                .unwrap_or_else(|e| fail_return(&e));
-                if json {
-                    let payload = json!({
-                        "ok": true,
-                        "command": "attest.event",
-                        "frontier": frontier.display().to_string(),
-                        "target_event_id": target_event_id,
-                        "attestation_event_id": attestation_event_id,
-                        "attester_id": attester_id,
-                    });
-                    print_json(&payload);
-                } else {
-                    println!(
-                        "{} attested {} by {} ({})",
-                        style::ok("ok"),
-                        target_event_id,
-                        attester_id,
-                        attestation_event_id
-                    );
-                }
-                return;
-            }
-            // v0.74 frontier-wide path: --key required.
-            let key_path = key.unwrap_or_else(|| {
-                fail_return(
-                    "attest: --key is required in frontier-wide mode (or pass --event for per-event mode)",
-                )
-            });
-            let count = sign::sign_registered_events(&frontier, &key_path)
-                .unwrap_or_else(|e| fail_return(&e));
-            let payload = json!({
-                "ok": true,
-                "command": "attest",
-                "frontier": frontier.display().to_string(),
-                "private_key": key_path.display().to_string(),
-                "signed": count,
-            });
-            if json {
-                print_json(&payload);
-            } else {
-                println!(
-                    "{} {count} event(s) in {}",
-                    style::ok("attested"),
-                    frontier.display()
-                );
-            }
-        }
     }
 }
 
@@ -1745,6 +1058,41 @@ pub fn run_from_args() {
         Some("atlas") => {
             crate::cli_atlas::run(&args);
             return;
+        }
+        // The v0.738 hard cut: ten porcelain verbs retired into the loop.
+        // Each retired spelling 404s like any non-release command, but the
+        // hint names its successor so a stale script or habit self-corrects.
+        Some(
+            cmd @ ("inbox" | "propose" | "accept" | "review" | "record" | "pack" | "attach"
+            | "queue"),
+        ) => {
+            let successor = match cmd {
+                "inbox" => "vela sign (decisions) / vela next (work)",
+                "propose" | "record" | "pack" | "attach" => "vela land",
+                _ => "vela sign",
+            };
+            crate::ui::fail_with(
+                crate::ui::ErrorKind::Usage,
+                &format!("unknown or non-release command: {cmd}"),
+                Some(&format!(
+                    "retired in the v0.738 hard cut — use `{successor}`"
+                )),
+            );
+        }
+        // Retired subactions of surviving nouns get the same treatment.
+        Some("id") if args.get(2).map(String::as_str) == Some("sign") => {
+            crate::ui::fail_with(
+                crate::ui::ErrorKind::Usage,
+                "unknown or non-release command: id sign",
+                Some("retired in the v0.738 hard cut — use `vela sign` (the hygiene lane)"),
+            );
+        }
+        Some("frontier") if args.get(2).map(String::as_str) == Some("next") => {
+            crate::ui::fail_with(
+                crate::ui::ErrorKind::Usage,
+                "unknown or non-release command: frontier next",
+                Some("retired in the v0.738 hard cut — use `vela next`"),
+            );
         }
         Some(cmd) if !is_science_subcommand(cmd) => {
             eprintln!(

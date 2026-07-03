@@ -13,21 +13,6 @@ pub(crate) fn cmd_id(action: IdAction) {
     };
     match action {
         IdAction::Keygen { out, json } => crate::cli::cmd_id_keygen(out, json),
-        IdAction::Sign {
-            frontier,
-            no_commit,
-            no_push,
-            key,
-            json,
-        } => {
-            crate::cli::cmd_id_sign(frontier.clone(), key, json);
-            crate::config::git_publish::publish_decision(
-                &frontier,
-                "re-sign: unsigned events signed under the registered key",
-                &[],
-                &crate::config::git_publish::PublishOptions::new(no_commit, no_push),
-            );
-        }
         IdAction::Create {
             handle,
             agent,

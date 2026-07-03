@@ -668,69 +668,78 @@ pub(crate) async fn tool_decide(
     Ok((parse_payload(result)?, Vec::new()))
 }
 
-/// `work` — the agent work loop: claim a lease, land a record as a pending
-/// proposal, or sign an attestation + diff pack. All three sign under the
-/// agent's own auto-minted session key; none finalizes state.
+/// `work` — the compounding loop for agents: claim a lease, land a
+/// receipt (routed by the signed policy), drop a session, or deposit a
+/// failed/partial attempt. Everything signs under the agent's own
+/// auto-minted session key; nothing here is a human decision — a landing
+/// either rides a policy the human already signed, or defers to the
+/// human's sign queue.
 pub(crate) fn tool_work(args: &Value) -> ToolOutput {
-    if args
+    let frontier_path = args
         .get("frontier_path")
         .and_then(Value::as_str)
-        .is_none_or(str::is_empty)
-    {
-        return Err(ToolError::invalid("work requires `frontier_path`"));
-    }
+        .filter(|p| !p.is_empty())
+        .ok_or_else(|| ToolError::invalid("work requires `frontier_path`"))?;
+    let agent_actor = |action: &str| -> Result<&str, ToolError> {
+        let actor = args
+            .get("agent_actor")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+        if !actor.starts_with("agent:") && !actor.starts_with("ci:") {
+            return Err(ToolError::invalid(format!(
+                "work action={action} requires `agent_actor` matching ^(agent:|ci:)"
+            )));
+        }
+        Ok(actor)
+    };
     let result = match args.get("action").and_then(Value::as_str) {
         Some("claim") => {
-            let actor = args
-                .get("agent_actor")
-                .and_then(Value::as_str)
-                .unwrap_or_default();
-            if !actor.starts_with("agent:") && !actor.starts_with("ci:") {
-                return Err(ToolError::invalid(
-                    "work action=claim requires `agent_actor` matching ^(agent:|ci:)",
-                ));
-            }
+            agent_actor("claim")?;
             vela_edge::vela_agent_mcp::claim_task(args)
         }
         Some("deposit") => {
-            let actor = args
-                .get("agent_actor")
-                .and_then(Value::as_str)
-                .unwrap_or_default();
-            if !actor.starts_with("agent:") && !actor.starts_with("ci:") {
-                return Err(ToolError::invalid(
-                    "work action=deposit requires `agent_actor` matching ^(agent:|ci:)",
-                ));
-            }
+            agent_actor("deposit")?;
             vela_edge::vela_agent_mcp::deposit_attempt(args)
         }
-        Some("record") => {
-            if args
-                .get("record_path")
-                .and_then(Value::as_str)
-                .is_none_or(str::is_empty)
-            {
-                return Err(ToolError::invalid(
-                    "work action=record requires `record_path` (a vrc_… record JSON)",
-                ));
-            }
-            vela_edge::vela_agent_mcp::record_propose(args)
+        Some("land") => {
+            let actor = agent_actor("land")?;
+            let receipt_value = args.get("receipt").cloned().ok_or_else(|| {
+                ToolError::invalid("work action=land requires `receipt` (a vela.receipt.v1 object)")
+            })?;
+            let receipt: crate::workflow::Receipt = serde_json::from_value(receipt_value)
+                .map_err(|e| ToolError::invalid(format!("receipt parse: {e}")))?;
+            let outcome = crate::workflow::land(Path::new(frontier_path), &receipt, actor)
+                .map_err(ToolError::classify)?;
+            let (route, detail) = outcome.route.summary();
+            return Ok((
+                json!({
+                    "proposal_id": outcome.proposal_id,
+                    "route": route,
+                    "detail": detail,
+                }),
+                Vec::new(),
+            ));
         }
-        Some("pack") => {
-            if args
-                .get("summary")
+        Some("drop") => {
+            let target = args
+                .get("obligation_id")
                 .and_then(Value::as_str)
-                .is_none_or(|s| s.trim().is_empty())
-            {
-                return Err(ToolError::invalid(
-                    "work action=pack requires a non-empty `summary`",
-                ));
-            }
-            vela_edge::vela_agent_mcp::submit_diff_pack(args)
+                .filter(|t| !t.is_empty())
+                .ok_or_else(|| ToolError::invalid("work action=drop requires `obligation_id`"))?;
+            let session = crate::workflow::session_dir(Path::new(frontier_path), target);
+            let removed = std::fs::remove_dir_all(&session).is_ok();
+            return Ok((
+                json!({
+                    "dropped": target,
+                    "session_dir_removed": removed,
+                    "note": "the lease expires by TTL; no state was written",
+                }),
+                Vec::new(),
+            ));
         }
         _ => {
             return Err(ToolError::invalid("work requires `action`")
-                .with_hint("valid actions: claim, record, pack"));
+                .with_hint("valid actions: claim, land, drop, deposit"));
         }
     };
     Ok((parse_payload(result)?, Vec::new()))

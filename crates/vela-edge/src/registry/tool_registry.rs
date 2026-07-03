@@ -360,13 +360,17 @@ pub fn all_tools() -> Vec<ToolDefinition> {
         ),
         tool(
             "work",
-            "The agent work loop against a local frontier checkout. action=claim leases an \
-             open obligation so other agents route around it, signed with the agent's \
-             auto-minted session key; action=record lands a vrc_ activity record as a pending \
-             proposal; action=pack signs a vaa_ agent attestation plus a vsd_ scientific diff \
-             pack bundling proposals. Coordination and drafting only — nothing here finalizes \
-             state (that is `decide`). Example: {\"frontier_path\": \".\", \"action\": \
-             \"claim\", \"obligation_id\": \"vf_3f9a\", \"agent_actor\": \"agent:swarm-1\"}.",
+            "The compounding loop against a local frontier checkout. action=claim leases an \
+             open target so other agents route around it, signed with the agent's auto-minted \
+             session key; action=land crosses a result from activity into state — a \
+             vela.receipt.v1 is recorded (artifacts hashed, head pinned), proposed, and routed \
+             by the frontier's signed policy (Permit admits mechanically, Defer parks it in \
+             the human's sign queue); action=drop releases a session (the lease expires by \
+             TTL); action=deposit banks a failed or partial attempt so the channel map \
+             compounds. Nothing here is a human decision — a landing either rides a policy a \
+             human already signed, or waits for their key. Example: {\"frontier_path\": \
+             \".\", \"action\": \"claim\", \"obligation_id\": \"vf_3f9a\", \"agent_actor\": \
+             \"agent:swarm-1\"}.",
             json!({
                 "type": "object",
                 "additionalProperties": false,
@@ -379,100 +383,93 @@ pub fn all_tools() -> Vec<ToolDefinition> {
                     },
                     "action": {
                         "type": "string",
-                        "enum": ["claim", "record", "pack"],
-                        "description": "claim = lease an obligation; record = land a vrc_ record as a pending proposal; pack = sign an attestation + diff pack."
+                        "enum": ["claim", "land", "drop", "deposit"],
+                        "description": "claim = lease a target; land = route a vela.receipt.v1 by the signed policy; drop = release a session; deposit = bank a failed/partial attempt."
                     },
                     "obligation_id": {
                         "type": "string",
                         "minLength": 1,
-                        "description": "claim: the vf_ finding to lease, or a namespaced external target like erdos:443."
+                        "description": "claim/drop: the vf_ finding to lease or release, or a namespaced external target like erdos:443."
                     },
                     "agent_actor": {
                         "type": "string",
                         "minLength": 4,
                         "pattern": "^(agent:|ci:)",
-                        "description": "claim/pack: the agent identity doing the work (agent:<name> or ci:<name>)."
+                        "description": "claim/land/deposit: the agent identity doing the work (agent:<name> or ci:<name>)."
                     },
                     "ttl_seconds": {
                         "type": "integer",
                         "minimum": 1,
                         "description": "claim: lease TTL (default 86400)."
                     },
-                    "record_path": {
-                        "type": "string",
-                        "minLength": 1,
-                        "description": "record: path to the vrc_ activity-record JSON emitted by `vela record`."
+                    "receipt": {
+                        "type": "object",
+                        "description": "land: the vela.receipt.v1 object — claim, type, artifacts (paths hashed at land time), caveats (at least one), verifier_runs, environment, provenance."
                     },
-                    "summary": {
-                        "type": "string",
-                        "minLength": 1,
-                        "description": "pack: one-line summary of the submission."
-                    },
-                    "aggregate_kind": {
-                        "type": "string",
-                        "minLength": 1,
-                        "description": "pack: the aggregate kind of the bundled proposals."
-                    },
-                    "model_name": {
-                        "type": "string",
-                        "minLength": 1,
-                        "description": "pack: model name for the attestation envelope."
-                    },
-                    "model_version": {
-                        "type": "string",
-                        "minLength": 1,
-                        "description": "pack: model version for the attestation envelope."
-                    },
-                    "proposals": {
-                        "type": "array",
-                        "minItems": 1,
-                        "description": "pack: the proposals to bundle.",
-                        "items": {
-                            "type": "object",
-                            "required": ["kind", "payload"],
-                            "properties": {
-                                "kind": {"type": "string", "minLength": 1, "description": "Proposal kind."},
-                                "payload": {"description": "Proposal payload."}
-                            }
-                        }
-                    },
-                    "prompt": {
-                        "type": "string",
-                        "description": "pack: hashed server-side; never stored verbatim."
-                    },
-                    "started_at": {
-                        "type": "string",
-                        "description": "pack: RFC-3339 run start (defaults to now)."
-                    },
-                    "finished_at": {
-                        "type": "string",
-                        "description": "pack: RFC-3339 run end (defaults to now)."
-                    },
-                    "total_tokens": {
+                    "problem": {
                         "type": "integer",
                         "minimum": 0,
-                        "description": "pack: tokens consumed by the run."
+                        "description": "deposit: the problem number the attempt targeted."
                     },
-                    "tool_calls": {
+                    "kind": {
+                        "type": "string",
+                        "description": "deposit: attempt kind."
+                    },
+                    "claim": {
+                        "type": "string",
+                        "description": "deposit: what the attempt claims (often a negative/partial result)."
+                    },
+                    "detail": {
+                        "type": "string",
+                        "description": "deposit: how the attempt proceeded."
+                    },
+                    "claimed_status": {
+                        "type": "string",
+                        "description": "deposit: the attempt's claimed outcome status."
+                    },
+                    "insight": {
+                        "type": "string",
+                        "description": "deposit: the transferable insight (what the next attempt should know)."
+                    },
+                    "base_frontier_root": {
+                        "type": "string",
+                        "description": "deposit: the frontier head the attempt started from."
+                    },
+                    "target_obligation_id": {
+                        "type": "string",
+                        "description": "deposit: the obligation the attempt targeted."
+                    },
+                    "statement_variant_id": {
+                        "type": "string",
+                        "description": "deposit: the statement variant attacked."
+                    },
+                    "method_families": {
                         "type": "array",
-                        "description": "pack: tool-call ledger; inputs/outputs are hashed, not stored.",
-                        "items": {
-                            "type": "object",
-                            "properties": {
-                                "tool_name": {"type": "string", "description": "Tool invoked."},
-                                "input": {"description": "Input (hashed server-side)."},
-                                "output": {"description": "Output (hashed server-side)."},
-                                "duration_ms": {"type": "integer", "minimum": 0, "description": "Call duration."}
-                            }
-                        }
+                        "description": "deposit: method families tried.",
+                        "items": {"type": "string", "description": "A method-family label."}
                     },
-                    "parent_attestation": {
-                        "type": "string",
-                        "description": "pack: parent vaa_ id for chained runs."
+                    "remaining_obligations": {
+                        "type": "array",
+                        "description": "deposit: what remains open after the attempt.",
+                        "items": {"type": "string", "description": "An open obligation."}
                     },
-                    "parent_pack": {
+                    "named_obstructions": {
+                        "type": "array",
+                        "description": "deposit: the walls the attempt hit, named.",
+                        "items": {"type": "string", "description": "An obstruction."}
+                    },
+                    "verifier_attachments": {
+                        "type": "array",
+                        "description": "deposit: verifier evidence ids backing the attempt.",
+                        "items": {"type": "string", "description": "An attachment id."}
+                    },
+                    "producer": {
+                        "type": "object",
+                        "description": "deposit: producer provenance {system, version, config_digest}."
+                    },
+                    "frontier": {
                         "type": "string",
-                        "description": "pack: parent vsd_ id for chained packs."
+                        "description": "deposit: frontier label override (defaults to the repo's vfr_ id)."
                     }
                 }
             }),
@@ -480,7 +477,7 @@ pub fn all_tools() -> Vec<ToolDefinition> {
             true,
             vec![
                 "Signs under the agent's own auto-minted session key (never a human's); VELA_AGENT_KEY_HEX overrides when an explicit key is wanted.",
-                "A lease is coordination, never authority; records and packs stay reviewer-pending until a human key decides.",
+                "A lease is coordination, never authority; a landing is admitted only by a human-signed policy, else it waits in the sign queue.",
             ],
         ),
         tool(

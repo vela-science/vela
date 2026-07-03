@@ -252,21 +252,6 @@ pub(crate) enum Commands {
         #[arg(long)]
         json: bool,
     },
-    /// v0.42: Triage list of pending proposals. What you sit down to
-    /// review. Reviewer-agent scores surface where present; flagged
-    /// items rise to the top.
-    Inbox {
-        frontier: Option<PathBuf>,
-        /// Show only proposals matching this kind (substring match).
-        #[arg(long)]
-        kind: Option<String>,
-        /// Cap on entries shown.
-        #[arg(long, default_value = "30")]
-        limit: usize,
-        /// Output stable JSON.
-        #[arg(long)]
-        json: bool,
-    },
     /// The verification gate: deliverable-grade and verifier-attachment
     /// checks. `vela verify` proves the *log* is what was signed; `vela
     /// gate` proves a *claim* earned its status — ≥2 independent matched
@@ -307,7 +292,7 @@ pub(crate) enum Commands {
         #[command(subcommand)]
         action: FoundryAction,
     },
-    /// Your Vela identity: set up a key once, then publish/accept/propose
+    /// Your Vela identity: set up a key once, then land and sign
     /// with no `--key`/`--actor`/`--hub` flags. `vela id create` is the
     /// one-time onboarding step.
     Id {
@@ -387,59 +372,6 @@ pub(crate) enum Commands {
         #[command(subcommand)]
         command: FindingCommands,
     },
-    // v0.74: top-level alias verbs. Each variant is a thin wrapper
-    // routing to an existing canonical-event emission path. No new
-    // substrate logic. The aliases exist so the daily flow reads
-    // `init / ingest / propose / diff / accept / attest / log /
-    // lineage / serve` rather than burying the verbs under
-    // `proposals accept`, `sign apply`, `history`. See plan
-    // v0.74.1.
-    /// v0.74: shortcut for the most common reviewer proposal, a
-    /// `finding.review` verdict. Mirrors `vela review`. Other
-    /// proposal kinds (note, caveat, revise, reject, retract)
-    /// keep their existing top-level verbs and stay reachable via
-    /// `vela help advanced`.
-    Propose {
-        frontier: PathBuf,
-        finding_id: String,
-        /// One of: accepted | needs_revision | contested | rejected.
-        #[arg(long)]
-        status: String,
-        /// Decision note. Optional: defaults to "marked <status>".
-        #[arg(long)]
-        reason: Option<String>,
-        /// Reviewer actor id. Optional: defaults to your configured identity.
-        #[arg(long = "as", help = HELP_AS)]
-        reviewer: Option<String>,
-        /// Apply the proposal locally WITHOUT signing it (a draft applied under
-        /// reviewer authority, no signature). Prefer `--sign` for the one-step
-        /// solo path; an unsigned applied event is not a canonical decision.
-        #[arg(long)]
-        apply: bool,
-        /// Draft AND sign in one step (the solo git-commit path): records the
-        /// review proposal and immediately accepts it under your key, emitting
-        /// one signed canonical event. Use this when you are both author and
-        /// reviewer. When a different human must approve, omit it and let them
-        /// run `vela accept`.
-        #[arg(long)]
-        sign: bool,
-        /// Path to your Ed25519 key (hex seed) for `--sign`. Optional: defaults
-        /// to your configured identity's key.
-        #[arg(long, help = HELP_KEY)]
-        key: Option<PathBuf>,
-        /// Record a non-human co-author (an AI that drafted), e.g.
-        /// `agent:claude`. Defaults to `$VELA_CO_AUTHOR`. Signed-over
-        /// attribution: you remain the accountable signer.
-        #[arg(long = "co-author")]
-        co_author: Option<String>,
-        /// Free-text tool/model string for the co-author. Defaults to
-        /// `$VELA_GENERATED_BY`.
-        #[arg(long = "generated-by")]
-        generated_by: Option<String>,
-        #[arg(long)]
-        json: bool,
-    },
-
     /// THE human ceremony: one interactive session over everything
     /// that awaits your key — deferred decisions, re-sign hygiene,
     /// unsigned governance artifacts — one confirm, one key read,
@@ -543,321 +475,19 @@ pub(crate) enum Commands {
         action: PolicyAction,
     },
 
-    /// v0.74: alias for `proposals accept`. Apply a pending
-    /// proposal under the configured reviewer id, emitting the
-    /// signed canonical event.
-    Accept {
-        /// Leave the signed decision uncommitted (publication stays manual).
-        #[arg(long)]
-        no_commit: bool,
-        /// Publish the commit locally but do not push.
-        #[arg(long)]
-        no_push: bool,
-        frontier: Option<PathBuf>,
-        /// The proposal to accept (`vpr_…`). Omit in batch mode
-        /// (`--all-pending` / `--id`).
-        proposal_id: Option<String>,
-        /// Reviewer actor id. Optional: defaults to your configured
-        /// identity (`vela id create`).
-        #[arg(long = "as", help = HELP_AS)]
-        reviewer: Option<String>,
-        /// Decision note recorded in the signed event. Optional: defaults to
-        /// "accepted via review". Key custody, not the note, is the authority.
-        #[arg(long)]
-        reason: Option<String>,
-        /// Path to the reviewer's Ed25519 private key (hex seed). Optional:
-        /// defaults to your configured identity's key. Key custody, not the
-        /// typed name, is the accept authority; the event is signed with it.
-        #[arg(long, help = HELP_KEY)]
-        key: Option<PathBuf>,
-        /// Engine strict mode: also block when the acceptance introduces
-        /// new review warnings, not only release-blocking regressions.
-        #[arg(long)]
-        strict: bool,
-        /// Override the Engine gate. The override is recorded in the
-        /// proposal's decision reason so it stays auditable.
-        #[arg(long)]
-        force: bool,
-        /// Record a non-human co-author of this decision (an AI that drafted, a
-        /// CI that attested), e.g. `agent:claude`. Signed-over attribution: you
-        /// remain the accountable signer. Defaults to `$VELA_CO_AUTHOR` so an
-        /// agent harness credits itself automatically, like a Co-authored-by
-        /// trailer.
-        #[arg(long = "co-author")]
-        co_author: Option<String>,
-        /// Free-text tool/model string for the co-author, e.g.
-        /// `model: claude-opus-4-8`. Defaults to `$VELA_GENERATED_BY`.
-        /// Unverified attribution, never resolved to a key.
-        #[arg(long = "generated-by")]
-        generated_by: Option<String>,
-        /// Pack mode: accept a whole changeset (`vsd_…`) — every member
-        /// proposal engine-accepted, then one atomic verdict event.
-        #[arg(long = "pack")]
-        pack: Option<String>,
-        /// Batch mode: accept every pending proposal in one signed pass.
-        #[arg(long = "all-pending")]
-        all_pending: bool,
-        /// Batch mode: accept these specific proposal ids. Repeatable.
-        #[arg(long = "id")]
-        ids: Vec<String>,
-        /// Batch mode: only proposals of these kinds. Repeatable.
-        #[arg(long = "kind")]
-        kinds: Vec<String>,
-        /// Batch mode: cap how many are accepted this pass (0 = no cap).
-        #[arg(long, default_value_t = 0)]
-        limit: usize,
-        /// Batch mode: show what would be accepted, sign nothing.
-        #[arg(long = "dry-run")]
-        dry_run: bool,
-        /// Batch mode: skip the post-accept derived-view reconcile.
-        #[arg(long = "no-reconcile")]
-        no_reconcile: bool,
-        #[arg(long)]
-        json: bool,
-    },
-
-    /// Walk the local serve draft queue:
-    /// list, sign-and-apply, or clear queued review actions
-    #[command(hide = true)]
-    Queue {
-        #[command(subcommand)]
-        action: QueueAction,
-    },
-    /// Bind a verifier attachment to a finding (propose → accept in one step).
-    /// Reads a `vela.verifier_attachment.v0.1` JSON object (whose `target` is the
-    /// finding's `vf_…` id) and lands it via the canonical `verifier.attach`
-    /// proposal→accept path. The finding's trust-gate status is derived on read.
-    Attach {
-        frontier: PathBuf,
-        /// The finding (`vf_…`) the attachment binds to.
-        #[arg(long)]
-        target: String,
-        /// Path to a JSON file holding the VerifierAttachment object.
-        /// Omit with --proof to BUILD a lean_kernel attachment instead.
-        #[arg(long, required_unless_present = "proof")]
-        attachment_file: Option<PathBuf>,
-        /// Build-and-attach a `lean_kernel` CI verifier attachment (the
-        /// mode that used to live on the retired `attest --proof`).
-        #[arg(long)]
-        proof: bool,
-        /// Proof mode: solver identity (e.g. lean4@4.29.1).
-        #[arg(long)]
-        solver: Option<String>,
-        /// Proof mode: the CI verifier actor (e.g. ci:github-actions).
-        #[arg(long = "verifier-actor")]
-        verifier_actor: Option<String>,
-        /// Proof mode: the axiom footprint is kernel-clean
-        /// (`[propext, Classical.choice, Quot.sound]`); omit for Compromised.
-        #[arg(long = "axioms-clean")]
-        axioms_clean: bool,
-        /// Proof mode: an undischarged hypothesis the theorem assumes as a
-        /// parameter. Repeatable; any such hypothesis makes the proof
-        /// CONDITIONAL.
-        #[arg(long = "undischarged-hypothesis")]
-        undischarged_hypothesis: Vec<String>,
-        /// Proof mode: what was verified (the reviewer reads this).
-        #[arg(long)]
-        note: Option<String>,
-        /// Reviewer authority applying the attachment (e.g. `reviewer:opus`).
-        /// Optional: defaults to your `vela id`.
-        #[arg(long = "as", help = HELP_AS)]
-        reviewer: Option<String>,
-        #[arg(long, default_value = "bind verifier attachment")]
-        reason: String,
-        #[arg(long)]
-        json: bool,
-    },
-
     /// Emit shell completions for bash, zsh, or fish.
     #[command(hide = true)]
     Completions {
         /// bash | zsh | fish
         shell: String,
     },
-
-    /// v0.74: alias for `sign apply`. Sign every unsigned finding
-    /// in the frontier under the supplied private key.
-    ///
-    /// v0.80: extended with `--event <vev_id>` for per-event
-    /// attestation. When `--event` is supplied, instead of signing
-    /// findings frontier-wide, the substrate emits an
-    /// `attestation.recorded` canonical event pointing at the
-    /// target event id. Useful for layered attestation
-    /// (e.g. a second reviewer countersigning a finding.reviewed
-    /// event, or a Lean run attesting a Stupp-protocol claim by
-    /// pointing at its accept event).
-    /// Bundle pending proposals into a changeset (`vsd_` pack) — the
-    /// pull-request analogue: one reviewable unit, one atomic verdict.
-    /// `vela pack . --summary … --from-pending` bundles; `vela pack . vsd_…`
-    /// shows one. Packing is grouping, never deciding.
-    Pack {
-        /// The frontier repo.
-        frontier: Option<PathBuf>,
-        /// A pack id (`vsd_…`) to show. Omit to CREATE a pack.
-        pack_id: Option<String>,
-        /// What this changeset claims, in one reviewer-first sentence.
-        #[arg(long)]
-        summary: Option<String>,
-        /// Bundle every pending proposal not already in an undecided pack.
-        #[arg(long = "from-pending")]
-        from_pending: bool,
-        /// Bundle these specific proposal ids. Repeatable.
-        #[arg(long = "id")]
-        ids: Vec<String>,
-        /// Aggregate kind label (defaults to `mixed`).
-        #[arg(long, default_value = "mixed")]
-        aggregate_kind: String,
-        /// Who packs (defaults to $VELA_ACTOR_ID / your identity).
-        #[arg(long = "as", help = HELP_AS)]
-        actor: Option<String>,
-        #[arg(long)]
-        json: bool,
-    },
-    /// Record activity into a portable claim packet (vrc_): the claim, the
-    /// artifact files (hashed at record time), the caveats, pinned against
-    /// the frontier's current head. One verb, git-plain:
-    /// `vela record <dir> --claim …` records; `vela record <file.json>`
-    /// validates (every hash re-derived); add `--propose <dir>` to land it
-    /// as a PENDING proposal. A record is not truth — it is activity shaped
-    /// so the merge layer can judge it; a human key decides.
-    Record {
-        /// A frontier dir (record mode) or a vrc_ JSON file (validate mode).
-        target: PathBuf,
-        /// What you assert is now known / bounded / refuted (record mode).
-        #[arg(long)]
-        claim: Option<String>,
-        /// theoretical | computational | empirical | negative
-        #[arg(long, default_value = "computational")]
-        r#type: String,
-        /// Artifact file `path[:kind]` (kind defaults to `witness`), hashed
-        /// at record time. Repeatable; record mode requires at least one.
-        #[arg(long = "artifact")]
-        artifacts: Vec<String>,
-        /// What this does NOT establish. Repeatable; record mode requires
-        /// at least one.
-        #[arg(long = "caveat")]
-        caveats: Vec<String>,
-        /// A verifier run you already performed: `method:outcome:logfile[:solver]`.
-        #[arg(long = "verifier-run")]
-        verifier_runs: Vec<String>,
-        /// Who records (defaults to $VELA_ACTOR_ID / your identity).
-        #[arg(long = "as", help = HELP_AS)]
-        actor: Option<String>,
-        /// Signing key (optional — agents without keys record unsigned).
-        #[arg(long, help = HELP_KEY)]
-        key: Option<PathBuf>,
-        /// Where to write the record (default: records/<vrc_id>.json).
-        #[arg(long)]
-        out: Option<PathBuf>,
-        /// Validate mode: land the validated record on this frontier as a
-        /// pending proposal.
-        #[arg(long)]
-        propose: Option<PathBuf>,
-        #[arg(long)]
-        json: bool,
-    },
-    /// Human review judgments, signed with YOUR key: statement-fidelity
-    /// verdicts (single or batch) and role-scoped reviewer attestations.
-    /// Everything here is a decision — agents are refused by the engine.
-    Review {
-        /// Leave the signed decision uncommitted (publication stays manual).
-        #[arg(long)]
-        no_commit: bool,
-        /// Publish the commit locally but do not push.
-        #[arg(long)]
-        no_push: bool,
-        /// Frontier path. Required.
-        frontier: Option<PathBuf>,
-        /// Role-scoped target id (`vev_*`, `vsd_*`, `vrp_*`, or `vpf_*`).
-        /// When present, writes a local scientific attestation record.
-        target_id: Option<String>,
-        /// Role-scoped attestation scope. Repeatable.
-        #[arg(long = "scope")]
-        scopes: Vec<String>,
-        /// Local reviewer id, for example `reviewer:will-blair`.
-        #[arg(long = "as", help = HELP_AS)]
-        reviewer: Option<String>,
-        /// Reviewer role for this attestation, such as `domain_reviewer`.
-        #[arg(long)]
-        role: Option<String>,
-        /// Bounded reason for the attestation.
-        #[arg(long)]
-        reason: Option<String>,
-        /// Optional ORCID for the reviewer.
-        #[arg(long)]
-        orcid: Option<String>,
-        /// Optional ROR affiliation.
-        #[arg(long)]
-        ror: Option<String>,
-        /// Per-event mode: target event id (`vev_*`).
-        /// When omitted, runs the v0.74 frontier-wide
-        /// `sign apply` path.
-        #[arg(long)]
-        event: Option<String>,
-        /// Reviewer attester id (`reviewer:<name>` or
-        /// `agent:<name>`). Required for per-event mode.
-        #[arg(long)]
-        attester: Option<String>,
-        /// Scope note explaining what this attestation covers.
-        /// Required for per-event mode.
-        #[arg(long)]
-        scope_note: Option<String>,
-        /// Optional Carina Proof primitive id (`vpf_*`) the
-        /// attestation is backed by.
-        #[arg(long)]
-        proof_id: Option<String>,
-        /// Optional Ed25519 signature over the target event's
-        /// canonical preimage. Future-cycle work to verify; today
-        /// the substrate stores the signature and trusts the
-        /// emitter's keypair.
-        #[arg(long)]
-        signature: Option<String>,
-        /// v0.74 frontier-wide path: private key for `sign apply`.
-        /// Ignored in per-event mode.
-        #[arg(long, help = HELP_KEY)]
-        key: Option<PathBuf>,
-        /// Statement-faithfulness mode: the attester's verdict on whether
-        /// the FORMAL statement encodes the INFORMAL problem
-        /// (`faithful`, `variant`, or `unfaithful`). When present, writes a
-        /// signed `vsa_` statement attestation against the positional
-        /// target finding id. Reserved for `reviewer:` actors by design.
-        #[arg(long, alias = "verdict")]
-        fidelity: Option<String>,
-        /// Faithfulness: where the informal problem lives
-        /// (e.g. `erdosproblems.com/214`).
-        #[arg(long = "informal-ref")]
-        informal_ref: Option<String>,
-        /// Faithfulness: where the formal statement lives
-        /// (repo path / URL at a commit).
-        #[arg(long = "formal-ref")]
-        formal_ref: Option<String>,
-        /// Faithfulness: sha256 (64 hex chars) of the formal statement's
-        /// exact bytes.
-        #[arg(long = "formal-statement-hash")]
-        formal_statement_hash: Option<String>,
-        /// Faithfulness: the attester's reasoning — what was compared and
-        /// what diverges. Required; an attestation without reasoning is a
-        /// rubber stamp.
-        #[arg(long)]
-        note: Option<String>,
-        /// Faithfulness batch mode: a JSON file of verdicts to sign under one
-        /// key read and one save (a bare array or `{"verdicts": [...]}`, each
-        /// row `{target, verdict, informal_ref, formal_ref,
-        /// formal_statement_hash, note}`). Each verdict is still a human
-        /// judgment signed by the reviewer's key; this only removes the
-        /// per-verdict repetition.
-        #[arg(long = "batch")]
-        batch: Option<PathBuf>,
-        #[arg(long)]
-        json: bool,
-    },
 }
 
 #[derive(Subcommand)]
 pub(crate) enum IdAction {
     /// One-time setup: generate a key, store it, and remember your actor id
-    /// and default hub. After this, `vela accept` / `vela propose` /
-    /// `vela review` need no `--key`/`--actor`/`--hub` flags.
+    /// and default hub. After this, `vela land` / `vela sign` need no
+    /// `--key`/`--actor`/`--hub` flags.
     Create {
         /// Your handle, e.g. `alice`. Becomes `reviewer:alice` (or
         /// `agent:alice` with --agent). Defaults to `$USER`.
@@ -903,23 +533,6 @@ pub(crate) enum IdAction {
     Keygen {
         #[arg(long, default_value = ".vela/keys")]
         out: PathBuf,
-        #[arg(long)]
-        json: bool,
-    },
-    /// Sign your unsigned events in a frontier with your registered actor
-    /// key — the re-sign ceremony verb.
-    Sign {
-        /// Leave the signed decision uncommitted (publication stays manual).
-        #[arg(long)]
-        no_commit: bool,
-        /// Publish the commit locally but do not push.
-        #[arg(long)]
-        no_push: bool,
-        frontier: PathBuf,
-        /// Path to the Ed25519 private key. Optional: defaults to your
-        /// `vela id` identity key (or `$VELA_KEY_PATH`).
-        #[arg(long = "key", help = HELP_KEY)]
-        key: Option<PathBuf>,
         #[arg(long)]
         json: bool,
     },
@@ -1830,59 +1443,6 @@ pub(crate) enum FrontierAction {
     Audit {
         /// Frontier repo directory or frontier JSON file.
         frontier: PathBuf,
-        #[arg(long)]
-        json: bool,
-    },
-    /// What should I work on? Ranked open targets, read-only: undecided
-    /// packs and pending proposals (the human's decisions first), open
-    /// campaign seeds with no live lease and no landed statement
-    /// (`campaign.yaml`, batch order kept), and accepted findings the
-    /// verification gate still refuses. Advice, never authority.
-    Next {
-        /// Frontier repo directory. Optional: discovered upward from cwd.
-        frontier: Option<PathBuf>,
-        /// Maximum targets to list.
-        #[arg(long, default_value_t = 12)]
-        limit: usize,
-        #[arg(long)]
-        json: bool,
-    },
-}
-
-#[derive(Subcommand)]
-pub(crate) enum QueueAction {
-    /// List queued draft actions (no signing)
-    List {
-        #[arg(long)]
-        queue_file: Option<PathBuf>,
-        #[arg(long)]
-        json: bool,
-    },
-    /// Sign each queued draft with the actor's Ed25519 key and apply
-    /// it locally. Removes signed entries from the queue on success.
-    Sign {
-        /// Stable actor id matching a registered entry in the frontier.
-        /// Optional: defaults to your configured identity (`vela id`).
-        #[arg(long = "as", help = HELP_AS)]
-        actor: Option<String>,
-        /// Path to the actor's Ed25519 private key. Optional: defaults to
-        /// your configured identity's key.
-        #[arg(long, help = HELP_KEY)]
-        key: Option<PathBuf>,
-        /// Override the queue file location
-        #[arg(long)]
-        queue_file: Option<PathBuf>,
-        /// Skip per-action confirmation prompts and sign every queued
-        /// draft. Required in non-interactive contexts.
-        #[arg(long)]
-        yes_to_all: bool,
-        #[arg(long)]
-        json: bool,
-    },
-    /// Drop all queued draft actions
-    Clear {
-        #[arg(long)]
-        queue_file: Option<PathBuf>,
         #[arg(long)]
         json: bool,
     },

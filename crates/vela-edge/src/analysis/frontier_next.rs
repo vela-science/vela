@@ -173,7 +173,7 @@ pub fn frontier_next(
                 "{} member proposal(s) blocked on one key-custody decision",
                 r.member_proposals.len()
             ),
-            next_command: format!("vela accept . --pack {}", r.pack_id),
+            next_command: "vela sign".to_string(),
         });
     }
     for p in &project.proposals {
@@ -216,9 +216,7 @@ pub fn frontier_next(
                 id: obligation.clone(),
                 title: format!("{batch} seed {seed}"),
                 why: "open campaign seed: no live lease, no landed statement".into(),
-                next_command: format!(
-                    "lease {obligation} via the vela_claim_task MCP tool, then draft → gate → pack"
-                ),
+                next_command: format!("vela work {obligation}"),
             });
         }
     }
@@ -251,7 +249,7 @@ pub fn frontier_next(
                         .first()
                         .cloned()
                         .unwrap_or_else(|| "accepted but unverified".into()),
-                    next_command: format!("vela attach . --target {} …", bundle.id),
+                    next_command: format!("vela work {}", bundle.id),
                 },
             ));
         }

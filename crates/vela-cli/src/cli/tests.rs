@@ -64,15 +64,13 @@ mod surface_tests {
         });
     }
 
-    /// The v0.723 porcelain: the EXACT visible surface, guarded in both
-    /// directions. A dropped command fails ("a collapse removed it"); a new
-    /// command fails too ("extend this list deliberately"). Growth is a
-    /// decision, not a drift.
-    const V0723_VISIBLE: &[&str] = &[
-        "accept",
+    /// The v0.738 porcelain (the hard cut): the EXACT visible surface,
+    /// guarded in both directions. A dropped command fails ("a collapse
+    /// removed it"); a new command fails too ("extend this list
+    /// deliberately"). Growth is a decision, not a drift.
+    const V0738_VISIBLE: &[&str] = &[
         "actor",
         "agents",
-        "attach",
         "check",
         "config",
         "diff",
@@ -83,28 +81,23 @@ mod surface_tests {
         "gate",
         "hub",
         "id",
-        "inbox",
         "init",
         "land",
         "log",
         "next",
-        "pack",
         "policy",
         "proof",
         "proposals",
-        "propose",
-        "record",
         "reproduce",
-        "review",
         "serve",
         "sign",
         "status",
         "work",
     ];
-    const V0723_HIDDEN: &[&str] = &["completions", "queue"];
+    const V0738_HIDDEN: &[&str] = &["completions"];
 
     #[test]
-    fn v0723_surface_is_exact_both_directions() {
+    fn v0738_surface_is_exact_both_directions() {
         on_big_stack(|| {
             let cmd = Cli::command();
             let mut visible: Vec<String> = Vec::new();
@@ -118,8 +111,8 @@ mod surface_tests {
             }
             visible.sort();
             hidden.sort();
-            let want_visible: Vec<String> = V0723_VISIBLE.iter().map(|s| s.to_string()).collect();
-            let want_hidden: Vec<String> = V0723_HIDDEN.iter().map(|s| s.to_string()).collect();
+            let want_visible: Vec<String> = V0738_VISIBLE.iter().map(|s| s.to_string()).collect();
+            let want_hidden: Vec<String> = V0738_HIDDEN.iter().map(|s| s.to_string()).collect();
             assert_eq!(
                 visible, want_visible,
                 "the VISIBLE surface drifted — a removal broke the porcelain, or an \
@@ -153,6 +146,15 @@ mod surface_tests {
                 "workspace",
                 "attest",
                 "receipt",
+                // the v0.738 hard cut: ten verbs retired into the loop
+                "inbox",
+                "propose",
+                "accept",
+                "review",
+                "record",
+                "pack",
+                "attach",
+                "queue",
             ] {
                 assert!(
                     !is_science_subcommand(name),
