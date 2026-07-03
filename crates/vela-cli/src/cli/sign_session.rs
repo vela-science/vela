@@ -21,6 +21,9 @@ use vela_edge::sign_queue::{SignItem, SignLane, sign_queue};
 use vela_protocol::acceptance_policy::PolicyContext;
 use vela_protocol::{detached, proposals, repo};
 
+use colored::Colorize;
+use vela_protocol::cli_style as style;
+
 use crate::ui::{self, ErrorKind};
 
 /// Saved-as-you-go session state: answers survive `q` and crashes.
@@ -134,16 +137,25 @@ pub(crate) fn cmd_sign_session(frontier: Option<PathBuf>, key: Option<PathBuf>, 
         return;
     }
 
+    let fr = if queues.len() == 1 {
+        "frontier"
+    } else {
+        "frontiers"
+    };
+    let it = if total == 1 {
+        "item awaits"
+    } else {
+        "items await"
+    };
     ui::header(
         "SIGN",
-        &format!("{} frontier(s)", queues.len()),
-        Some(&format!("{total} item(s) await your key")),
+        &format!("{} {fr}", queues.len()),
+        Some(&format!("{total} {it} your key")),
     );
     if total == 0 {
         println!("  · nothing awaits you — the policy lane is doing its job");
         return;
     }
-    println!("  keys per item: [a]ccept [r]eject [y]es [s]kip [q]uit(saved)\n");
 
     let default_reason = "accepted via sign session";
     let session_reason = {
@@ -156,27 +168,62 @@ pub(crate) fn cmd_sign_session(frontier: Option<PathBuf>, key: Option<PathBuf>, 
     };
 
     // The judgment loop: per frontier, per item; resume-safe.
+    let total_signable = total;
+    let mut position = 0usize;
     for (dir, _project, items) in &queues {
         let mut state = load_session(dir);
         for item in items {
             if !item.signable || state.answers.contains_key(&item.id) {
                 continue;
             }
+            position += 1;
+            let lane_chip = match item.lane {
+                SignLane::Judgment => style::brass("judgment"),
+                SignLane::Decision => style::signal("decision"),
+                SignLane::Hygiene => style::moss("hygiene"),
+                SignLane::Detached => style::moss("governance"),
+            };
+            println!();
             println!(
-                "\n  ── {} · {:?} ─────────────────────────",
-                item.id, item.lane
+                "  {}  {}",
+                style::dim(&format!("{position}/{total_signable}")),
+                lane_chip,
             );
-            println!("  {}", item.title);
-            println!("  why: {}", item.why_here);
-            if let Some(pack) = &item.pack {
-                println!("  pack: {pack} (deciding the member decides with the pack)");
+            // The CLAIM is the headline — bold, full width, the thing
+            // being judged.
+            println!("  {}", item.title.bold());
+            for line in &item.preview {
+                println!("    {}", style::dim(line));
             }
+            println!("    {}", style::dim(&format!("why you: {}", item.why_here)));
+            if let Some(pack) = &item.pack {
+                println!(
+                    "    {}",
+                    style::dim(&format!("pack {pack} — deciding one decides the set"))
+                );
+            }
+            println!("    {}", style::dim(&item.id));
             let keys = match item.lane {
                 SignLane::Decision => "a/r/s/q",
                 _ => "y/s/q",
             };
             loop {
-                let ans = read_line(&format!("  [{}] {keys}: ", item.id));
+                let legend = match item.lane {
+                    SignLane::Decision => format!(
+                        "{}ccept · {}eject · {}kip · {}uit",
+                        style::moss("a"),
+                        style::madder("r"),
+                        style::dim("s"),
+                        style::dim("q")
+                    ),
+                    _ => format!(
+                        "{}es · {}kip · {}uit",
+                        style::moss("y"),
+                        style::dim("s"),
+                        style::dim("q")
+                    ),
+                };
+                let ans = read_line(&format!("  {legend}  > "));
                 match (ans.as_str(), item.lane) {
                     ("q", _) => {
                         save_session(dir, &state);

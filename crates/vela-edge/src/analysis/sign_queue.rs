@@ -50,6 +50,11 @@ pub struct SignItem {
     pub signable: bool,
     /// Pack id when the item decides a whole changeset.
     pub pack: Option<String>,
+    /// The content being decided, as renderable lines: the claim, its
+    /// artifacts with hashes, its caveats. A judgment surface that
+    /// hides the artifact is a rubber stamp with extra steps.
+    #[serde(default)]
+    pub preview: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Default)]
@@ -62,7 +67,7 @@ pub struct SignQueue {
 }
 
 impl SignQueue {
-    pub fn push_judgment(&mut self, id: &str, title: &str, why: &str) {
+    pub fn push_judgment(&mut self, id: &str, title: &str, why: &str, preview: Vec<String>) {
         self.items.insert(
             0,
             SignItem {
@@ -72,9 +77,108 @@ impl SignQueue {
                 why_here: why.to_string(),
                 signable: true,
                 pack: None,
+                preview,
             },
         );
     }
+}
+
+/// The headline of a proposal is its CLAIM, never its kind string.
+fn proposal_headline(p: &vela_protocol::proposals::StateProposal) -> String {
+    // finding.add nests the claim at payload.finding.assertion.text;
+    // review/note kinds carry it flatter. Walk the known shapes.
+    let flat = &p.payload;
+    let nested = flat.get("finding").unwrap_or(flat);
+    nested
+        .get("assertion")
+        .and_then(|a| a.get("text"))
+        .and_then(|t| t.as_str())
+        .or_else(|| flat.get("text").and_then(|t| t.as_str()))
+        .or_else(|| flat.get("status").and_then(|s| s.as_str()))
+        .unwrap_or(&p.reason)
+        .to_string()
+}
+
+/// The content a human must SEE before deciding: type, artifacts with
+/// hashes, verifier runs, caveats, author.
+fn proposal_preview(p: &vela_protocol::proposals::StateProposal) -> Vec<String> {
+    let mut out = Vec::new();
+    let nested = p.payload.get("finding").unwrap_or(&p.payload);
+    let atype = nested
+        .get("assertion")
+        .and_then(|a| a.get("type"))
+        .and_then(|v| v.as_str())
+        .or_else(|| p.payload.get("assertion_type").and_then(|v| v.as_str()));
+    match atype {
+        Some(t) => out.push(format!("type      {t} · {}", p.kind)),
+        None => out.push(format!("kind      {}", p.kind)),
+    }
+    out.push(format!("author    {}", p.actor.id));
+    if let Some(cond) = nested
+        .get("conditions")
+        .and_then(|c| c.get("text"))
+        .and_then(|v| v.as_str())
+    {
+        out.push(format!("evidence  {}", &cond[..cond.len().min(90)]));
+    }
+    if let Some(score) = nested
+        .get("confidence")
+        .and_then(|c| c.get("score"))
+        .and_then(|v| v.as_f64())
+    {
+        out.push(format!("prior     {score:.2} (review required)"));
+    }
+    if let Some(arts) = p
+        .payload
+        .get("evidence_atoms")
+        .or_else(|| p.payload.get("artifacts"))
+        .and_then(|a| a.as_array())
+    {
+        for a in arts.iter().take(4) {
+            let loc = a
+                .get("locator")
+                .or_else(|| a.get("path"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("?");
+            let sha = a.get("sha256").and_then(|v| v.as_str()).unwrap_or("");
+            out.push(format!("artifact  {loc}  {}", &sha[..sha.len().min(12)]));
+        }
+    }
+    if let Some(runs) = p.payload.get("verifier_runs").and_then(|a| a.as_array()) {
+        for r in runs.iter().take(3) {
+            out.push(format!(
+                "verified  {} -> {}",
+                r.get("method").and_then(|v| v.as_str()).unwrap_or("?"),
+                r.get("outcome").and_then(|v| v.as_str()).unwrap_or("?"),
+            ));
+        }
+    }
+    if let Some(caveats) = p.payload.get("caveats").and_then(|c| c.as_array()) {
+        for c in caveats.iter().filter_map(|v| v.as_str()).take(3) {
+            out.push(format!("caveat    {c}"));
+        }
+    }
+    for c in p.caveats.iter().take(2) {
+        out.push(format!("caveat    {c}"));
+    }
+    out
+}
+
+/// Reason codes become sentences. A bare rule id at a judgment prompt
+/// is developer debris.
+fn humanize_reasons(reasons: &[String]) -> String {
+    let mapped: Vec<String> = reasons
+        .iter()
+        .map(|r| match r.as_str() {
+            "default_defer" => "no policy rule covers this — the default is to ask you".to_string(),
+            "assurance_below_minimum" => {
+                "the evidence hasn't cleared the rule's assurance bar".to_string()
+            }
+            "no_matching_rule" => "no policy rule matches this claim class".to_string(),
+            other => other.replace('_', " "),
+        })
+        .collect();
+    mapped.join("; ")
 }
 
 /// Build the queue for one frontier. `ctx_for` derives the policy
@@ -108,7 +212,7 @@ pub fn sign_queue(
     {
         let (why, signable) = match &policy {
             None => (
-                "no active policy: every decision is yours".to_string(),
+                "no standing policy covers this frontier — every decision is yours".to_string(),
                 true,
             ),
             Some(vp) => {
@@ -119,9 +223,12 @@ pub fn sign_queue(
                     // landing path admits them. Showing them here would
                     // re-create the per-item ceremony the lane removed.
                     Outcome::Permit => continue,
-                    Outcome::Defer => (decision.reasons.join(", "), true),
+                    Outcome::Defer => (humanize_reasons(&decision.reasons), true),
                     Outcome::Deny => (
-                        format!("policy denies: {}", decision.reasons.join(", ")),
+                        format!(
+                            "policy prohibits this: {}",
+                            humanize_reasons(&decision.reasons)
+                        ),
                         false,
                     ),
                 }
@@ -130,10 +237,11 @@ pub fn sign_queue(
         queue.items.push(SignItem {
             lane: SignLane::Decision,
             id: proposal.id.clone(),
-            title: format!("{} · {}", proposal.kind, proposal.reason),
+            title: proposal_headline(proposal),
             why_here: why,
             signable,
             pack: pack_of(&proposal.id),
+            preview: proposal_preview(proposal),
         });
     }
 
@@ -155,6 +263,7 @@ pub fn sign_queue(
             why_here: "events predate signing; strict flags unsigned_registered_actor".to_string(),
             signable: true,
             pack: None,
+            preview: Vec::new(),
         });
     }
 
@@ -168,6 +277,7 @@ pub fn sign_queue(
             why_here: "a policy without a human signature carries no authority".into(),
             signable: true,
             pack: None,
+            preview: Vec::new(),
         });
     }
 

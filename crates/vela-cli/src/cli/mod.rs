@@ -679,11 +679,24 @@ pub async fn run_command() {
                     })).collect::<Vec<_>>(),
                 }));
             } else {
-                crate::ui::header("NEXT", ".", Some(&format!("{} target(s)", targets.len())));
+                let tg = if targets.len() == 1 {
+                    "target"
+                } else {
+                    "targets"
+                };
+                crate::ui::header("NEXT", ".", Some(&format!("{} {tg}", targets.len())));
                 for t in &targets {
-                    println!("  [{}] {}  {}", t.lane, t.id, t.title);
-                    println!("      why: {}", t.why);
-                    println!("      {}", t.next_command);
+                    let chip = match t.lane.as_str() {
+                        "attack" => vela_protocol::cli_style::brass("attack"),
+                        "verify" => vela_protocol::cli_style::moss("verify"),
+                        other => vela_protocol::cli_style::dim(other),
+                    };
+                    println!("  {chip}  {}", t.title.chars().take(64).collect::<String>());
+                    println!(
+                        "      {}",
+                        vela_protocol::cli_style::dim(&format!("{} · {}", t.id, t.why))
+                    );
+                    println!("      {}", vela_protocol::cli_style::dim(&t.next_command));
                 }
                 if targets.is_empty() {
                     println!("  · nothing open — the frontier is waiting on new seeds");
@@ -741,12 +754,38 @@ pub async fn run_command() {
                         }));
                     } else {
                         crate::ui::header("WORK", &target, Some("lease claimed, briefing loaded"));
+                        let b = briefing.get("briefing").unwrap_or(&briefing);
+                        if let Some(s) = b.get("statement").and_then(|v| v.as_str()) {
+                            println!("  {}", s);
+                        }
+                        for (label, key) in [
+                            ("gate", "gate"),
+                            ("value to beat", "value_to_beat"),
+                            ("attempts", "attempt_count"),
+                        ] {
+                            if let Some(v) = b.get(key) {
+                                let vs = v
+                                    .as_str()
+                                    .map(str::to_string)
+                                    .unwrap_or_else(|| v.to_string());
+                                if vs != "null" {
+                                    println!(
+                                        "  {:<14} {}",
+                                        vela_protocol::cli_style::dim(label),
+                                        vs
+                                    );
+                                }
+                            }
+                        }
                         println!(
-                            "{}",
-                            serde_json::to_string_pretty(&briefing).unwrap_or_default()
+                            "  {:<14} {}",
+                            vela_protocol::cli_style::dim("full offer"),
+                            sdir.join("offer.json").display()
                         );
-                        println!("\n  session dir: {}", sdir.display());
-                        println!("  when done:   vela land <receipt.json>");
+                        println!(
+                            "  {:<14} vela land <receipt.json>",
+                            vela_protocol::cli_style::dim("when done")
+                        );
                     }
                 }
                 Err(e) => fail(&e),
