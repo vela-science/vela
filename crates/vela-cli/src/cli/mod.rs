@@ -56,6 +56,7 @@ mod governance;
 mod identity;
 mod json_edit;
 mod lifecycle;
+mod sign_session;
 mod links;
 mod output;
 mod records;
@@ -784,6 +785,84 @@ pub async fn run_command() {
             print_state_report(&report, json);
         }
 
+        Commands::Sign {
+            target,
+            frontier,
+            yes,
+            reason,
+            batch,
+            key,
+            json,
+        } => {
+            crate::ui::set_mode("sign", json);
+            if let Some(batch) = batch {
+                let dir = crate::ui::resolve_frontier(frontier);
+                cmd_review_fidelity_batch(dir, batch, None, key, json);
+            } else if let Some(target) = target {
+                let as_path = std::path::Path::new(&target);
+                if as_path.exists() {
+                    sign_session::cmd_sign_detached(as_path, key.as_deref(), json);
+                } else if yes {
+                    sign_session::cmd_sign_one(frontier, &target, reason, key, json);
+                } else {
+                    crate::ui::fail_with(
+                        crate::ui::ErrorKind::Usage,
+                        &format!("`vela sign {target}` needs --yes for a scripted decision"),
+                        Some("or run bare `vela sign` for the interactive session"),
+                    );
+                }
+            } else {
+                sign_session::cmd_sign_session(frontier, key, json);
+            }
+        }
+        Commands::Policy { action } => match action {
+            PolicyAction::Show { frontier, json } => {
+                crate::ui::set_mode("policy", json);
+                crate::config::cli_policy::cmd_policy_show(&crate::ui::resolve_frontier(frontier), json)
+            }
+            PolicyAction::Draft {
+                frontier,
+                template,
+                replace,
+                json,
+            } => {
+                crate::ui::set_mode("policy", json);
+                crate::config::cli_policy::cmd_policy_draft(
+                    &crate::ui::resolve_frontier(frontier),
+                    &template,
+                    replace,
+                    json,
+                )
+            }
+            PolicyAction::Test { frontier, json } => {
+                crate::ui::set_mode("policy", json);
+                crate::config::cli_policy::cmd_policy_test(&crate::ui::resolve_frontier(frontier), json)
+            }
+            PolicyAction::Sign { frontier, key, yes } => {
+                crate::ui::set_mode("policy", false);
+                crate::config::cli_policy::cmd_policy_sign(
+                    &crate::ui::resolve_frontier(frontier),
+                    key.as_deref(),
+                    yes,
+                )
+            }
+            PolicyAction::Revoke {
+                frontier,
+                reason,
+                yes,
+            } => {
+                crate::ui::set_mode("policy", false);
+                crate::config::cli_policy::cmd_policy_revoke(
+                    &crate::ui::resolve_frontier(frontier),
+                    &reason,
+                    yes,
+                )
+            }
+            PolicyAction::Log { frontier, json } => {
+                crate::ui::set_mode("policy", json);
+                crate::config::cli_policy::cmd_policy_log(&crate::ui::resolve_frontier(frontier), json)
+            }
+        },
         Commands::Accept {
             frontier,
             proposal_id,

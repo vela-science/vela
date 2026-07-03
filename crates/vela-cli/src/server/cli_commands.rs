@@ -27,6 +27,61 @@ pub(crate) const HELP_KEY: &str = "Path to an Ed25519 private key (hex seed file
 pub(crate) const HELP_AS: &str = "Acting identity for this write (reviewer:<you> or agent:<name>). Optional: defaults to your `vela id`";
 pub(crate) const HELP_AS_OF: &str = "Answer as of this RFC3339 instant, e.g. 2026-07-02T16:00:00Z";
 
+#[derive(Subcommand, Debug)]
+pub enum PolicyAction {
+    /// The active policy: rules, signature state, what it admitted lately.
+    Show {
+        frontier: Option<PathBuf>,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Seal a policy from a template (witness-rederivation,
+    /// statement-drafts, notes-threshold). Sealed carries NO authority
+    /// until `vela policy sign`.
+    Draft {
+        /// Template name.
+        template: String,
+        frontier: Option<PathBuf>,
+        /// Replace an existing SIGNED active policy (deliberate act).
+        #[arg(long)]
+        replace: bool,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Dry-run the active/sealed policy over every pending proposal.
+    Test {
+        frontier: Option<PathBuf>,
+        #[arg(long)]
+        json: bool,
+    },
+    /// THE ceremony: review the sealed policy, one confirm, one key
+    /// read — the lane opens. Humans only.
+    Sign {
+        frontier: Option<PathBuf>,
+        #[arg(long, help = HELP_KEY)]
+        key: Option<PathBuf>,
+        /// Skip the confirm prompt (the policy is still shown).
+        #[arg(long)]
+        yes: bool,
+    },
+    /// Close the lane: the active signature loses authority; snapshots
+    /// stay for replay verification of past admissions.
+    Revoke {
+        /// Why (recorded next to the revocation).
+        #[arg(long)]
+        reason: String,
+        frontier: Option<PathBuf>,
+        #[arg(long)]
+        yes: bool,
+    },
+    /// Every policy-lane admission, grouped by policy.
+    Log {
+        frontier: Option<PathBuf>,
+        #[arg(long)]
+        json: bool,
+    },
+}
+
 #[derive(Subcommand)]
 pub(crate) enum Commands {
     /// Is the LOG intact: replay, signatures, hash parity (--strict is
@@ -348,6 +403,47 @@ pub(crate) enum Commands {
         generated_by: Option<String>,
         #[arg(long)]
         json: bool,
+    },
+
+    /// THE human ceremony: one interactive session over everything
+    /// that awaits your key — deferred decisions, re-sign hygiene,
+    /// unsigned governance artifacts — one confirm, one key read,
+    /// self-publishes. Scripted forms: `sign <vpr_id> --yes`,
+    /// `sign --batch <verdicts.json>`, `sign <file>` (detached bytes).
+    /// Inside a frontier: that frontier. Outside: every registered
+    /// frontier, one session. Agents are refused (exit 4) — this verb
+    /// IS the human boundary.
+    Sign {
+        /// A proposal id to decide (with --yes), or a file path to
+        /// sign detached. Omit for the interactive session.
+        target: Option<String>,
+        /// Frontier path. Optional: discovered upward, or all
+        /// registered frontiers when outside one.
+        #[arg(long)]
+        frontier: Option<PathBuf>,
+        /// Scripted single-item accept (no session).
+        #[arg(long)]
+        yes: bool,
+        /// Decision reason for scripted accepts.
+        #[arg(long)]
+        reason: Option<String>,
+        /// A pre-filled verdicts JSON (the fidelity batch contract):
+        /// signs every row under one key read.
+        #[arg(long)]
+        batch: Option<PathBuf>,
+        #[arg(long, help = HELP_KEY)]
+        key: Option<PathBuf>,
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// Standing rules: the ceremony that pays compound interest. A
+    /// policy you sign ONCE lets agents land whole classes of gated
+    /// work with no per-item key ceremony; everything outside policy
+    /// waits in `vela sign`. show / draft / test / sign / revoke / log.
+    Policy {
+        #[command(subcommand)]
+        action: PolicyAction,
     },
 
     /// v0.74: alias for `proposals accept`. Apply a pending

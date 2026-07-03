@@ -169,6 +169,24 @@ pub(crate) fn run_session() {
             style::warn("unpublished")
         );
     }
+    // The sign queue: what awaits the human key (policy-filtered — a
+    // Permit-able item never appears; that's the autonomy working).
+    if let Ok(queue) = vela_edge::sign_queue::sign_queue(&project, &repo_path, |_, _| {
+        vela_protocol::acceptance_policy::PolicyContext::default()
+    }) {
+        let signable = queue.items.iter().filter(|i| i.signable).count();
+        if signable > 0 {
+            println!(
+                "  {}  {signable} item(s) await your key — `vela sign`{}",
+                style::warn("sign queue"),
+                if queue.policy_active {
+                    ""
+                } else {
+                    "  (no signed policy: everything defers to you — `vela policy draft`)"
+                }
+            );
+        }
+    }
     let targets = vela_edge::frontier_next::frontier_next(&project, Some(&repo_path), 3);
     if !targets.is_empty() {
         println!();
