@@ -664,20 +664,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         )
         .route("/static/rete.svg", get(static_rete_svg))
         .route(
-            "/static/fonts/inter-latin-400-normal.woff2",
-            get(|| async { woff2_response(FONT_INTER_400) }),
+            "/static/fonts/space-grotesk-latin-400-normal.woff2",
+            get(|| async { woff2_response(FONT_GROTESK_400) }),
         )
         .route(
-            "/static/fonts/inter-latin-600-normal.woff2",
-            get(|| async { woff2_response(FONT_INTER_600) }),
+            "/static/fonts/space-grotesk-latin-500-normal.woff2",
+            get(|| async { woff2_response(FONT_GROTESK_500) }),
         )
         .route(
-            "/static/fonts/source-serif-4-latin-400-normal.woff2",
-            get(|| async { woff2_response(FONT_SS4_400) }),
+            "/static/fonts/space-grotesk-latin-600-normal.woff2",
+            get(|| async { woff2_response(FONT_GROTESK_600) }),
         )
         .route(
-            "/static/fonts/source-serif-4-latin-400-italic.woff2",
-            get(|| async { woff2_response(FONT_SS4_400_ITALIC) }),
+            "/static/fonts/spectral-latin-400-normal.woff2",
+            get(|| async { woff2_response(FONT_SPECTRAL_400) }),
+        )
+        .route(
+            "/static/fonts/spectral-latin-600-normal.woff2",
+            get(|| async { woff2_response(FONT_SPECTRAL_600) }),
         )
         .route(
             "/static/fonts/jetbrains-mono-latin-400-normal.woff2",

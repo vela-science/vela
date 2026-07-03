@@ -11,17 +11,21 @@ use vela_protocol::project::Project;
 
 use crate::{HUB_VERSION, PublicUrls};
 
-pub(crate) const FONT_LINK: &str = r#"<link rel="preload" href="/static/fonts/inter-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="/static/fonts/source-serif-4-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>"#;
+pub(crate) const FONT_LINK: &str = r#"<link rel="preload" href="/static/fonts/space-grotesk-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/static/fonts/spectral-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>"#;
 
-pub(crate) const FONT_INTER_400: &[u8] =
-    include_bytes!("../../../web/fonts/inter-latin-400-normal.woff2");
-pub(crate) const FONT_INTER_600: &[u8] =
-    include_bytes!("../../../web/fonts/inter-latin-600-normal.woff2");
-pub(crate) const FONT_SS4_400: &[u8] =
-    include_bytes!("../../../web/fonts/source-serif-4-latin-400-normal.woff2");
-pub(crate) const FONT_SS4_400_ITALIC: &[u8] =
-    include_bytes!("../../../web/fonts/source-serif-4-latin-400-italic.woff2");
+// Canonical faces (vela-site DESIGN.md): Space Grotesk (chrome), Spectral
+// (plate/prose), JetBrains Mono (ledger). Inter + Source Serif 4 retired.
+pub(crate) const FONT_GROTESK_400: &[u8] =
+    include_bytes!("../../../web/fonts/space-grotesk-latin-400-normal.woff2");
+pub(crate) const FONT_GROTESK_500: &[u8] =
+    include_bytes!("../../../web/fonts/space-grotesk-latin-500-normal.woff2");
+pub(crate) const FONT_GROTESK_600: &[u8] =
+    include_bytes!("../../../web/fonts/space-grotesk-latin-600-normal.woff2");
+pub(crate) const FONT_SPECTRAL_400: &[u8] =
+    include_bytes!("../../../web/fonts/spectral-latin-400-normal.woff2");
+pub(crate) const FONT_SPECTRAL_600: &[u8] =
+    include_bytes!("../../../web/fonts/spectral-latin-600-normal.woff2");
 pub(crate) const FONT_JBM_400: &[u8] =
     include_bytes!("../../../web/fonts/jetbrains-mono-latin-400-normal.woff2");
 
@@ -36,13 +40,59 @@ pub(crate) const LOGO_WORDMARK_SVG: &str =
     include_str!("../../../assets/brand/vela-logo-wordmark.svg");
 pub(crate) const RETE_SVG: &str = include_str!("../../../assets/brand/rete.svg");
 
+/// Typography parity guard. The hub shares the canonical Observatory type
+/// system with vela-site (app/globals.css + DESIGN.md): Space Grotesk for
+/// chrome, Spectral for the plate, JetBrains Mono for the ledger. DESIGN.md
+/// bans Inter/Geist for chrome; Source Serif 4 is retired. This test fails
+/// the build if the hub ever drifts back, keeping the two properties in
+/// sync from the hub side (the site enforces its own law via acceptance.mjs).
+#[cfg(test)]
+mod typography_parity_tests {
+    use super::{FONT_LINK, TOKENS_CSS};
+
+    const CANONICAL: [&str; 3] = ["Space Grotesk", "Spectral", "JetBrains Mono"];
+    const RETIRED: [&str; 4] = ["Inter", "Source Serif", "Fraunces", "Inter Tight"];
+
+    #[test]
+    fn tokens_declare_canonical_faces() {
+        for face in CANONICAL {
+            assert!(
+                TOKENS_CSS.contains(face),
+                "tokens.css must declare the canonical face {face:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn tokens_do_not_reference_retired_faces() {
+        // Scan only the --font-* declarations, not prose comments.
+        for line in TOKENS_CSS.lines().filter(|l| l.contains("--font-")) {
+            for bad in RETIRED {
+                assert!(
+                    !line.contains(bad),
+                    "retired face {bad:?} reappeared in a --font-* declaration: {line:?}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn preloads_are_canonical() {
+        assert!(FONT_LINK.contains("space-grotesk"), "preload Space Grotesk");
+        assert!(FONT_LINK.contains("spectral"), "preload Spectral");
+        assert!(!FONT_LINK.contains("inter"), "no Inter preload");
+        assert!(!FONT_LINK.contains("source-serif"), "no Source Serif preload");
+    }
+}
+
 // Hub-specific page styles. The frame and tokens come from the shared
 // stylesheets above; this block adds the entries table, the manifest
 // detail layout, the terminal-paper code block, and the endpoint list.
 //
-// Visual register: Borrowed Light. Inter Tight as the dominant face;
-// EB Garamond reserved for true prose (evidence quotes, annotations);
-// JetBrains Mono for IDs / kickers. Cream paper, gold accent, hairlines.
+// Visual register: the Observatory (canonical, vela-site DESIGN.md).
+// Space Grotesk is the chrome (UI, body, headings); Spectral the plate
+// (finding claims, prose); JetBrains Mono for IDs / kickers. Cool
+// first-light paper, scarce gold, hairlines.
 pub(crate) const HUB_STYLES: &str = r#"
 /* Entries table — frontier registry */
 .fr-table { width: 100%; border-collapse: collapse; margin-top: 8px; }
@@ -740,14 +790,16 @@ code, .mono-inline {
    one 1180px container, hero head, quiet footer.
    ============================================================ */
 
-@font-face { font-family: "Inter"; font-style: normal; font-weight: 400; font-display: swap;
-  src: url("/static/fonts/inter-latin-400-normal.woff2") format("woff2"); }
-@font-face { font-family: "Inter"; font-style: normal; font-weight: 600; font-display: swap;
-  src: url("/static/fonts/inter-latin-600-normal.woff2") format("woff2"); }
-@font-face { font-family: "Source Serif 4"; font-style: normal; font-weight: 400; font-display: swap;
-  src: url("/static/fonts/source-serif-4-latin-400-normal.woff2") format("woff2"); }
-@font-face { font-family: "Source Serif 4"; font-style: italic; font-weight: 400; font-display: swap;
-  src: url("/static/fonts/source-serif-4-latin-400-italic.woff2") format("woff2"); }
+@font-face { font-family: "Space Grotesk"; font-style: normal; font-weight: 400; font-display: swap;
+  src: url("/static/fonts/space-grotesk-latin-400-normal.woff2") format("woff2"); }
+@font-face { font-family: "Space Grotesk"; font-style: normal; font-weight: 500; font-display: swap;
+  src: url("/static/fonts/space-grotesk-latin-500-normal.woff2") format("woff2"); }
+@font-face { font-family: "Space Grotesk"; font-style: normal; font-weight: 600; font-display: swap;
+  src: url("/static/fonts/space-grotesk-latin-600-normal.woff2") format("woff2"); }
+@font-face { font-family: "Spectral"; font-style: normal; font-weight: 400; font-display: swap;
+  src: url("/static/fonts/spectral-latin-400-normal.woff2") format("woff2"); }
+@font-face { font-family: "Spectral"; font-style: normal; font-weight: 600; font-display: swap;
+  src: url("/static/fonts/spectral-latin-600-normal.woff2") format("woff2"); }
 @font-face { font-family: "JetBrains Mono"; font-style: normal; font-weight: 400; font-display: swap;
   src: url("/static/fonts/jetbrains-mono-latin-400-normal.woff2") format("woff2"); }
 

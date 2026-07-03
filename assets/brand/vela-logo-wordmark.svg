@@ -9,5 +9,5 @@
     <circle cx="39" cy="16" r="1" fill="#3B5BDB"></circle>
   </g>
   
-  <text x="62" y="36" font-family="Source Serif 4, Georgia, serif" font-size="28" font-weight="400" fill="#1B1F27" letter-spacing="-0.01em">vela</text>
+  <text x="62" y="36" font-family="Spectral, Georgia, serif" font-size="28" font-weight="400" fill="#1B1F27" letter-spacing="-0.01em">vela</text>
 </svg>

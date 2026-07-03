@@ -139,19 +139,19 @@
   --vela-ember-red:     var(--cinnabar);
 
   /* =======================================================================
-     TYPE — one variable serif (Fraunces), one sans (Inter Tight),
-     one mono (IBM Plex Mono). Cormorant + Newsreader deprecated.
+     TYPE — the Observatory, canonical with vela-site (app/globals.css +
+     DESIGN.md). Three voices, never mixed; drama from size, not weight.
      ======================================================================= */
 
-  /* v0.180 (split-architecture polish): unified typography with the
-     Next.js platform. Source Serif 4 carries display + emphasis (the
-     observatory-notebook serif), Inter handles UI + body, JetBrains
-     Mono carries code, ids, sha256 hashes. Fraunces + Inter Tight +
-     IBM Plex Mono retained as fallbacks so any not-yet-migrated
-     legacy pages still render legibly. */
-  --font-sans:      "Inter", "Inter Tight", -apple-system, BlinkMacSystemFont, ui-sans-serif, system-ui, sans-serif;
-  --font-mono:      "JetBrains Mono", "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
-  --font-display:   "Source Serif 4", "Source Serif Pro", "Fraunces", Georgia, serif;
+  /* Reconciled to canonical (2026-07): Space Grotesk is the chrome (UI,
+     body, headings) — the technical grotesque, deliberately NOT Inter or
+     Geist, which DESIGN.md bans for chrome. Spectral is the plate: finding
+     claims, theorem prose, the masthead. JetBrains Mono carries code, ids,
+     sha256 hashes. Inter + Source Serif 4 retired here and in the hub
+     binary (crates/vela-hub/src/{html,main}.rs) and web/fonts/. */
+  --font-sans:      "Space Grotesk", -apple-system, BlinkMacSystemFont, ui-sans-serif, system-ui, sans-serif;
+  --font-mono:      "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-display:   "Spectral", Georgia, "Times New Roman", serif;
   --font-serif:     var(--font-display);
   --font-body:      var(--font-sans);
   --font-poetic:    var(--font-display);
