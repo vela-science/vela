@@ -109,10 +109,13 @@ pub(crate) fn cmd_frontier(action: FrontierAction) {
             }
         }
         FrontierAction::Materialize { frontier, json } => {
-            let spin =
-                crate::cli::progress::Spinner::start("materializing derived views from the log");
+            let spin = (!json).then(|| {
+                crate::cli::progress::Spinner::start("materializing derived views from the log")
+            });
             let payload = frontier_repo::materialize(&frontier).unwrap_or_else(|e| fail_return(&e));
-            spin.finish("materialized");
+            if let Some(s) = spin {
+                s.finish("materialized");
+            }
             if json {
                 print_json(&payload);
             } else {

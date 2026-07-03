@@ -139,10 +139,19 @@ fn tampered_binary_refuses_ceremony() {
         std::fs::set_permissions(&bin_copy, std::fs::Permissions::from_mode(0o755)).unwrap();
     }
     let out = run(&["sign", "--frontier", "."]);
-    assert_eq!(
-        out.status.code(),
-        Some(4),
-        "a tampered binary must refuse the ceremony: {}",
-        String::from_utf8_lossy(&out.stderr)
-    );
+    // Two refusal layers both count: vela's pin check (exit 4), or —
+    // on macOS — the kernel killing the copy outright because the
+    // mutation broke its code signature (status None = died by
+    // signal). Either way, the tampered binary produced no ceremony.
+    match out.status.code() {
+        Some(4) => {
+            let err = String::from_utf8_lossy(&out.stderr);
+            assert!(err.contains("does not match your pin"), "{err}");
+        }
+        None => {} // killed by the OS before main — defense in depth
+        other => panic!(
+            "a tampered binary must not run the ceremony (got {other:?}): {}",
+            String::from_utf8_lossy(&out.stderr)
+        ),
+    }
 }
