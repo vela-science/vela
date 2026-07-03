@@ -3294,6 +3294,7 @@ dependencies = [
  "splr",
  "tempfile",
  "tokio",
+ "toml",
  "tower-http",
  "urlencoding",
  "vela-edge",

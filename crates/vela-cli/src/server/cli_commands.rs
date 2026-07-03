@@ -28,6 +28,41 @@ pub(crate) const HELP_AS: &str = "Acting identity for this write (reviewer:<you>
 pub(crate) const HELP_AS_OF: &str = "Answer as of this RFC3339 instant, e.g. 2026-07-02T16:00:00Z";
 
 #[derive(Subcommand, Debug)]
+pub enum ConfigAction {
+    /// Print one key's effective value.
+    Get {
+        key: String,
+        #[arg(long)]
+        frontier: Option<PathBuf>,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Set a key (user scope by default; --frontier writes the shared,
+    /// committed frontier file — allowlisted keys only).
+    Set {
+        key: String,
+        value: String,
+        #[arg(long)]
+        frontier: Option<PathBuf>,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Remove a key from a scope.
+    Unset {
+        key: String,
+        #[arg(long)]
+        frontier: Option<PathBuf>,
+    },
+    /// Every key, its effective value, and where it came from.
+    List {
+        #[arg(long)]
+        frontier: Option<PathBuf>,
+        #[arg(long)]
+        json: bool,
+    },
+}
+
+#[derive(Subcommand, Debug)]
 pub enum PolicyAction {
     /// The active policy: rules, signature state, what it admitted lately.
     Show {
@@ -435,6 +470,15 @@ pub(crate) enum Commands {
         key: Option<PathBuf>,
         #[arg(long)]
         json: bool,
+    },
+
+    /// Plain configuration: how YOUR tools behave — never what enters
+    /// the record (that is `vela policy`) or who you are (`vela id`).
+    /// A closed, validated key set with visible origins; frontier scope
+    /// is allowlisted and can only narrow, never widen.
+    Config {
+        #[command(subcommand)]
+        action: ConfigAction,
     },
 
     /// Standing rules: the ceremony that pays compound interest. A

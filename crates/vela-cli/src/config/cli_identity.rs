@@ -156,9 +156,10 @@ pub(crate) fn resolve_hub(flag: Option<&str>) -> String {
     {
         return h;
     }
-    load_identity()
-        .map(|id| id.hub_url)
-        .unwrap_or_else(|| DEFAULT_HUB.to_string())
+    // settings covers user config.toml, the legacy identity field,
+    // and the baked default (frontier scope deliberately unreadable
+    // for routing).
+    crate::config::settings::resolve("hub.url", None).0
 }
 
 /// Resolve a signing key path. `--key` flag wins, then `$VELA_KEY_PATH`,

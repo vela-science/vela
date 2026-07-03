@@ -90,6 +90,26 @@ ranks stranded state above all other work.
 staged (committed store can never lead its views), pre-push holds the
 push to the same strict bar CI enforces.
 
+## Configuration
+
+Four layers, one doctrine: **plain config may change how Vela speaks to
+you and how mechanical consequences execute; it may never change what
+enters the record, who may decide, or where signatures go.** Those live
+in `vela id` (identity + keys) and `vela policy` (signed rules) — no
+scope of `vela config` can reach them.
+
+- `vela config list` — the WHOLE closed key set, effective values, and
+  where each came from (default / user / frontier / env / legacy).
+- `vela config set <key> <value>` writes `~/.vela/config.toml` (user
+  scope, the default). `--frontier` writes the shared, committed
+  `.vela/config.toml` — allowlisted keys only, and safety-adjacent keys
+  (`publish.*`) may only NARROW there: a cloned frontier can turn
+  publishing off, never on, and can never name your hub (the git
+  protected-configuration / Codex base-url rule).
+- Every key has a `VELA_*` env alias that beats both files; flags beat
+  everything. The CLI reads NO `.env` from the working tree — a cloned
+  repo cannot configure its operator.
+
 ## The output contract
 
 One grammar, enforced by one module (`crates/vela-cli/src/ui.rs`):

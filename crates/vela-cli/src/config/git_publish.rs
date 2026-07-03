@@ -62,11 +62,10 @@ pub(crate) fn publish_decision(
     if !cfg!(test) && std::env::var("VELA_NO_PUBLISH").is_ok_and(|v| v == "1") {
         return;
     }
-    let identity = crate::cli_identity::load_identity();
-    let commit_mode = identity
-        .as_ref()
-        .map(|i| i.git_commit.clone())
-        .unwrap_or_else(|| "auto".to_string());
+    // Settings resolution (env > frontier-narrowing > user config >
+    // legacy identity field > default): a frontier may force "off",
+    // never "auto" — a clone can stop publication, not start it.
+    let (commit_mode, _) = crate::config::settings::resolve("publish.git_commit", Some(frontier));
     if opts.no_commit || commit_mode == "off" {
         println!("  unpublished: decision is signed but not committed (publish it with git)");
         return;
@@ -133,10 +132,7 @@ pub(crate) fn publish_decision(
     let sha = git(&root, &["rev-parse", "--short", "HEAD"]).unwrap_or_default();
     println!("  published · {sha} {summary}");
 
-    let push_mode = identity
-        .as_ref()
-        .map(|i| i.git_push.clone())
-        .unwrap_or_else(|| "auto".to_string());
+    let (push_mode, _) = crate::config::settings::resolve("publish.git_push", Some(frontier));
     if opts.no_push || push_mode == "off" {
         println!("  not pushed (push when ready: git push)");
         return;

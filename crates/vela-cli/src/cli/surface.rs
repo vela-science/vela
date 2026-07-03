@@ -106,6 +106,8 @@ The loop:
   attach        Bind mechanical verifier evidence (or --proof lean_kernel) to a finding
 
 Verify:
+  config        Plain settings (get/set/list, closed key set, origins
+                shown). Never touches identity, custody, or the record.
   sign          THE human ceremony: everything awaiting your key, one
                 session, one confirm, one key read. Agents are refused.
   policy        Standing rules (draft/test/sign/revoke/log): what agents

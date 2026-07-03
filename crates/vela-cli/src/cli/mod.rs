@@ -89,6 +89,21 @@ pub async fn run_command() {
     // Codex blocks by refusing base-url keys in project config).
     // Configuration comes from the real environment and ~/.vela only.
 
+    // Color contract: NO_COLOR always wins; ui.color=never/always
+    // overrides the tty heuristic.
+    if std::env::var_os("NO_COLOR").is_some() {
+        colored::control::set_override(false);
+    } else {
+        match crate::config::settings::resolve("ui.color", None)
+            .0
+            .as_str()
+        {
+            "never" => colored::control::set_override(false),
+            "always" => colored::control::set_override(true),
+            _ => {}
+        }
+    }
+
     let cli = Cli::parse();
     crate::ui::set_quiet(cli.quiet);
     match cli.command {
@@ -821,6 +836,33 @@ pub async fn run_command() {
                 sign_session::cmd_sign_session(frontier, key, json);
             }
         }
+        Commands::Config { action } => match action {
+            ConfigAction::Get {
+                key,
+                frontier,
+                json,
+            } => {
+                crate::ui::set_mode("config", json);
+                crate::config::settings::cmd_config_get(&key, frontier.as_deref(), json)
+            }
+            ConfigAction::Set {
+                key,
+                value,
+                frontier,
+                json,
+            } => {
+                crate::ui::set_mode("config", json);
+                crate::config::settings::cmd_config_set(&key, &value, frontier.as_deref(), json)
+            }
+            ConfigAction::Unset { key, frontier } => {
+                crate::ui::set_mode("config", false);
+                crate::config::settings::cmd_config_unset(&key, frontier.as_deref())
+            }
+            ConfigAction::List { frontier, json } => {
+                crate::ui::set_mode("config", json);
+                crate::config::settings::cmd_config_list(frontier.as_deref(), json)
+            }
+        },
         Commands::Policy { action } => match action {
             PolicyAction::Show { frontier, json } => {
                 crate::ui::set_mode("policy", json);

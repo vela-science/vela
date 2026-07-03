@@ -100,7 +100,8 @@ fn advice_enabled() -> bool {
     if QUIET.load(std::sync::atomic::Ordering::Relaxed) {
         return false;
     }
-    !std::env::var("VELA_ADVICE").is_ok_and(|v| v == "0")
+    let (v, _) = crate::config::settings::resolve("ui.advice", None);
+    v != "0" && v != "off"
 }
 
 /// Terminate with the one error grammar. Human mode:

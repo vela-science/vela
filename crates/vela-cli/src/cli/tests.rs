@@ -74,6 +74,7 @@ mod surface_tests {
         "agents",
         "attach",
         "check",
+        "config",
         "diff",
         "doctor",
         "finding",

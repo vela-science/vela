@@ -8,4 +8,5 @@ pub mod cli_identity;
 pub mod cli_policy;
 
 pub(crate) mod git_publish;
+pub(crate) mod settings;
 pub(crate) mod workspace_registry;
