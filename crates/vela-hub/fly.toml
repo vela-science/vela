@@ -43,10 +43,15 @@ primary_region = "yyz"
   # rolling deploy keeps the old machine serving /mcp until the new one
   # is actually ready (~minutes for the first build on a fresh disk).
   # Deploy with `--wait-timeout 600` so flyctl outlasts the build.
+  # Grace is SHORT on purpose: the proxy treats in-grace machines as
+  # healthy, so a long grace lets not-yet-ready greens absorb traffic
+  # during a bluegreen rollout (measured: ~4 min dark on v0.736.0's
+  # deploy). Five seconds bounds that window to a blip; the check then
+  # fails honestly until the projection is built and bluegreen waits.
   [[http_service.checks]]
     interval = "15s"
     timeout = "8s"
-    grace_period = "30s"
+    grace_period = "5s"
     method = "GET"
     path = "/readyz"
 
