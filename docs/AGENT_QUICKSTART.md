@@ -47,14 +47,14 @@ export VELA_ACTOR_ID=agent:demo
 vela status . --json      # where the frontier stands: findings by status,
                           # verdict distribution, replay integrity, inbox,
                           # and a `next` hint
-vela record . \
+vela land \
   --claim "a(17) >= 292 for the Sidon frontier" \
   --artifact witnesses/a17.json \
   --caveat "lower bound only; optimality not established"
                           # -> records/vrc_<id>.json (content-addressed,
-                          #    head-pinned, artifact-hashed)
-vela record records/vrc_<id>.json --propose .
-                          # -> pending proposal; a human key decides
+                          #    head-pinned, artifact-hashed) -> pending
+                          #    proposal -> routed by the signed policy:
+                          #    Permit admits, Defer waits for `vela sign`
 vela check . --strict     # the full trust gate, locally
 git push                  # publication: CI re-derives the frontier and the
                           # hub re-indexes from the repo
