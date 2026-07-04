@@ -3763,6 +3763,7 @@ async fn get_proof_packet_download(
 async fn get_entry_snapshot(
     State(state): State<AppState>,
     Path(vfr_id): Path<String>,
+    headers: axum::http::HeaderMap,
     Query(params): Query<SnapshotQuery>,
 ) -> Response {
     let row = match state.db.get_live_entry(&vfr_id).await {
@@ -3811,6 +3812,31 @@ async fn get_entry_snapshot(
             )),
         )
             .into_response();
+    }
+
+    // Conditional GET: the snapshot is content-addressed, so its hash IS
+    // the ETag. A polling swarm that sends `If-None-Match: "<hash>"` gets a
+    // 304 here — before we materialize and serialize a multi-MB project —
+    // whenever the frontier has not moved. The natural HTTP expression of
+    // content addressing.
+    if let Some(inm) = headers
+        .get(axum::http::header::IF_NONE_MATCH)
+        .and_then(|v| v.to_str().ok())
+        && inm
+            .trim_matches('"')
+            .trim_start_matches("W/")
+            .trim_matches('"')
+            == snap_hash
+    {
+        let mut resp = StatusCode::NOT_MODIFIED.into_response();
+        if let Ok(etag) = axum::http::HeaderValue::from_str(&format!("\"{snap_hash}\"")) {
+            resp.headers_mut().insert(axum::http::header::ETAG, etag);
+        }
+        resp.headers_mut().insert(
+            axum::http::header::CACHE_CONTROL,
+            axum::http::HeaderValue::from_static("public, max-age=60, stale-while-revalidate=300"),
+        );
+        return resp;
     }
 
     // Optional export optimization: callers that explicitly ask for

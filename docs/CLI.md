@@ -72,7 +72,7 @@ the agent, and the pen belongs to you.
 | `frontier` | Repo-level: new/materialize/add-dep/list-deps/diff/release/audit. |
 | `actor` | Frontier-registered identities: add/list/rotate. |
 | `agents` | `VELA.md` charter adapters: sync/doctor/diff (AGENTS.md, CLAUDE.md, .mcp.json are generated, never hand-edited). |
-| `serve` | The frontier as an MCP server (stdio, or `/mcp` over `--http`) with ten agent-first tools; profiles nest `read-only` (7) ⊂ `draft` (9) ⊂ `maintainer` (10). The hub hosts the clone-free subset (5) at `hub.constellate.science/mcp`. |
+| `serve` | The frontier as an MCP server (stateless streamable HTTP or stdio) with ten agent-first tools; profiles nest `read-only` (7) ⊂ `draft` (9) ⊂ `maintainer` (10). Tools carry MCP annotations (`readOnlyHint` lets a client run the read tools in parallel; every tool is `destructiveHint:false` — the log is append-only) and the high-traffic tools declare an `outputSchema` and return `structuredContent`, so a typed client reads a validated object instead of parsing JSON from text. The hub hosts the clone-free subset at `hub.constellate.science/mcp`. |
 | `doctor` | First-user diagnosis of checkout/frontier/proof/serve. |
 | `foundry` | The discovery plane: `campaign`, `lean-*`, `attempt`, `transfer`, `experiment`. Search proposes; the frozen verifier is the gate. |
 

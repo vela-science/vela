@@ -963,14 +963,19 @@ impl ToolResult {
     }
 
     fn to_rpc(&self, id: &Option<Value>) -> Value {
-        json_rpc_result(
-            id,
-            json!({
-                "content": [{"type": "text", "text": self.to_json_text()}],
-                "isError": !self.ok,
-                "_meta": self.metadata()
-            }),
-        )
+        let mut result = json!({
+            "content": [{"type": "text", "text": self.to_json_text()}],
+            "isError": !self.ok,
+            "_meta": self.metadata()
+        });
+        // Structured output (MCP 2025-06): when the tool declares an
+        // outputSchema, mirror the result `data` as `structuredContent` so
+        // typed clients read a validated object instead of parsing JSON out
+        // of the text block. The text block stays for older clients.
+        if self.ok && tool_registry::tool_output_schema(&self.tool).is_some() {
+            result["structuredContent"] = self.data.clone();
+        }
+        json_rpc_result(id, result)
     }
 }
 

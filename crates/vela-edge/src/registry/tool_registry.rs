@@ -654,17 +654,98 @@ pub fn tools_for_profile(profile: McpProfile) -> Vec<ToolDefinition> {
         .collect()
 }
 
-fn tool_to_mcp_json(tool: &ToolDefinition) -> Value {
+/// The MCP-standard tool annotations, derived from the tool's own
+/// permission level and scope. Claude Code reads `readOnlyHint` to run
+/// read tools concurrently, so exposing these speeds a swarm's inspection
+/// calls. `destructiveHint` is false for every tool because Vela's event
+/// log is append-only — no tool deletes state (even `decide` appends the
+/// accept event). `openWorldHint` is true only for `external`, which
+/// reaches outside the frontier (PubMed / nanopublications).
+fn tool_annotations(tool: &ToolDefinition) -> Value {
+    let read_only = matches!(tool.permission_level, PermissionLevel::ReadOnly);
     json!({
+        "title": tool.name,
+        "readOnlyHint": read_only,
+        "destructiveHint": false,
+        "idempotentHint": read_only,
+        "openWorldHint": tool.name == "external",
+    })
+}
+
+/// Output schema (JSON Schema for the result `data` payload) for the
+/// high-traffic tools, so typed clients can validate `structuredContent`.
+/// The envelope (ok/signals/caveats/duration) stays in the text block;
+/// this describes the `data` a caller actually consumes. Tools without a
+/// schema here return text only (still valid MCP).
+pub fn tool_output_schema(name: &str) -> Option<Value> {
+    let schema = match name {
+        "orient" => json!({
+            "type": "object",
+            "description": "Situational awareness for the served frontier.",
+            "properties": {
+                "frontier": {"type": "object"},
+                "open_targets": {"type": "array"},
+                "gaps": {"type": "array"},
+                "recent_events": {"type": "array"},
+                "agent_objects": {"type": ["array", "object", "null"]},
+                "briefing": {"type": ["object", "null"]}
+            }
+        }),
+        "finding" => json!({
+            "type": "object",
+            "description": "One finding's claim, evidence, gate status, and links.",
+            "properties": {
+                "id": {"type": "string"},
+                "assertion": {"type": "object"},
+                "gate_status": {"type": "string"},
+                "evidence": {"type": "array"},
+                "links": {"type": "array"}
+            }
+        }),
+        "search" => json!({
+            "type": "object",
+            "description": "Cross-frontier matches for the query.",
+            "properties": {
+                "query": {"type": "string"},
+                "results": {"type": "array"},
+                "total": {"type": "integer"}
+            }
+        }),
+        "work" => json!({
+            "type": "object",
+            "description": "The lease/land outcome for a work action.",
+            "properties": {
+                "action": {"type": "string"},
+                "proposal_id": {"type": ["string", "null"]},
+                "route": {
+                    "type": ["string", "null"],
+                    "description": "policy_admitted | deferred (for land)"
+                },
+                "detail": {"type": ["string", "null"]}
+            }
+        }),
+        _ => return None,
+    };
+    Some(schema)
+}
+
+fn tool_to_mcp_json(tool: &ToolDefinition) -> Value {
+    let mut obj = json!({
         "name": tool.name,
+        "title": tool.name,
         "description": tool.description,
         "inputSchema": tool.parameters,
+        "annotations": tool_annotations(tool),
         "metadata": {
             "permission_level": tool.permission_level,
             "mutating": tool.mutating,
             "caveats": tool.caveats,
         }
-    })
+    });
+    if let Some(out) = tool_output_schema(&tool.name) {
+        obj["outputSchema"] = out;
+    }
+    obj
 }
 
 pub fn mcp_tools_json() -> Value {
@@ -819,5 +900,51 @@ mod profile_tests {
             McpProfile::Maintainer
         );
         assert!(McpProfile::parse("god-mode").is_err());
+    }
+
+    #[test]
+    fn tool_annotations_match_permission_and_scope() {
+        let by_name: std::collections::HashMap<String, Value> = mcp_tools_json()
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|t| (t["name"].as_str().unwrap().to_string(), t.clone()))
+            .collect();
+
+        // Read tools: readOnlyHint + idempotentHint true (Claude Code runs
+        // these in parallel); every tool is non-destructive (append-only).
+        for name in ["orient", "finding", "search", "graph", "verify", "objects"] {
+            let a = &by_name[name]["annotations"];
+            assert_eq!(a["readOnlyHint"], json!(true), "{name} should be read-only");
+            assert_eq!(a["idempotentHint"], json!(true), "{name}");
+            assert_eq!(a["destructiveHint"], json!(false), "{name}");
+            assert_eq!(
+                a["openWorldHint"],
+                json!(false),
+                "{name} is frontier-scoped"
+            );
+        }
+        // Write tools: not read-only, still non-destructive.
+        for name in ["propose", "decide", "work"] {
+            let a = &by_name[name]["annotations"];
+            assert_eq!(a["readOnlyHint"], json!(false), "{name} writes");
+            assert_eq!(
+                a["destructiveHint"],
+                json!(false),
+                "{name} appends, never deletes"
+            );
+        }
+        // external reaches outside the frontier.
+        assert_eq!(
+            by_name["external"]["annotations"]["openWorldHint"],
+            json!(true)
+        );
+        // Structured output on the high-traffic tools.
+        for name in ["orient", "finding", "search", "work"] {
+            assert!(
+                by_name[name].get("outputSchema").is_some(),
+                "{name} should declare an outputSchema"
+            );
+        }
     }
 }
