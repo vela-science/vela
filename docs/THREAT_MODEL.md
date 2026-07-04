@@ -343,9 +343,27 @@ The A9 historical note is the whole story: the dormant PyPI
 impersonate or a user could stumble into. Re-publish or yank is
 tracked as maintainer work.
 
-### A11. Compromised hub server · Partial (witness-check Defended at v0.129)
+### A11. Compromised hub server · Defended (measured at v0.742)
 
-`hub.constellate.science` is a single hub today. If it is compromised:
+**v0.742:** federation is practiced, not documented. An independent
+witness mirror (`vela-hub-witness.fly.dev`) runs its OWN SQLite store
+on its own volume with its own signing key — it shares nothing with
+the primary but the protocol. It was seeded by replaying the
+owner-signed registrations (the signature covers the payload, not a
+session) and re-derives every frontier from git on its own ingest
+loop. The conformance gate runs `vela hub witness-check` over every
+public entry against both hubs on every run: a SPLIT fails the gate in
+any mode. The comparison covers the content-bearing entry (the log's
+hashes, name, locator) and excludes `signed_publish_at`, the hub-local
+promote time — two honest hubs that promoted the same state at
+different moments must not read as divergent (measured live during
+bring-up: a one-field false split whose content hashes all agreed).
+The app's /trust page renders per-frontier cross-hub agreement
+publicly. Residual risk: both hubs are operated by the same person
+today; an external operator running a third mirror is the remaining
+step, and the recipe is one SQLite volume + seed-witness.sh (HUB.md).
+
+If a single hub is compromised:
 
 - the index could omit entries (discovery lies).
 - the index could serve a stale or wrong projection; but bytes

@@ -133,7 +133,19 @@ pub(crate) fn cmd_hub(action: HubAction) {
                 match client.get(&url).send() {
                     Ok(resp) if resp.status().is_success() => {
                         match resp.json::<serde_json::Value>() {
-                            Ok(entry) => {
+                            Ok(mut entry) => {
+                                // Compare the LOG, not the librarian's
+                                // stamp (the CT rule). `signed_publish_at`
+                                // is the hub-local promote time: two
+                                // honest hubs that promoted the same
+                                // state at different moments carry
+                                // different values (measured live as a
+                                // false split whose content hashes all
+                                // agreed). Strip it; every remaining
+                                // field attests state.
+                                if let Some(obj) = entry.as_object_mut() {
+                                    obj.remove("signed_publish_at");
+                                }
                                 // Canonicalize via the substrate's
                                 // canonical-bytes helper so hub-side
                                 // key ordering or whitespace
