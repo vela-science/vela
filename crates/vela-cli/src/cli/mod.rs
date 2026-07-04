@@ -843,6 +843,15 @@ pub async fn run_command() {
             match crate::workflow::land(&dir, &receipt, &actor) {
                 Ok(outcome) => {
                     let (route, detail) = outcome.route.summary();
+                    // A re-land of an existing claim changed nothing: report
+                    // it idempotently (exit 5), publish nothing.
+                    if let crate::workflow::LandRoute::AlreadyLanded { .. } = outcome.route {
+                        crate::ui::fail_with(
+                            crate::ui::ErrorKind::Exists,
+                            &format!("already landed: {detail}"),
+                            Some("this exact claim is already in the frontier; nothing to do"),
+                        );
+                    }
                     // Publication: the store changed either way.
                     let opts = crate::config::git_publish::PublishOptions::new(false, false);
                     crate::config::git_publish::publish_decision(

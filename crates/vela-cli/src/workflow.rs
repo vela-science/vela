@@ -91,6 +91,11 @@ pub(crate) enum LandRoute {
     PolicyAdmitted(Box<PolicyAcceptOutcome>),
     /// Pending — a human's `vela sign` queue holds it now. Success-shaped.
     Deferred { reasons: Vec<String> },
+    /// This exact claim is already in the frontier — a retry, not a new
+    /// finding. The activity is timestamped (each land is a distinct act),
+    /// but the CLAIM is content: re-landing must not fork a duplicate for a
+    /// human to sign twice. Idempotent; the caller's exit 5.
+    AlreadyLanded { finding_id: String },
 }
 
 #[derive(Debug)]
@@ -109,6 +114,10 @@ impl LandRoute {
                 format!("event {} under {}", o.event_id, o.certificate.policy_id),
             ),
             LandRoute::Deferred { reasons } => ("deferred", reasons.join(", ")),
+            LandRoute::AlreadyLanded { finding_id } => (
+                "already_landed",
+                format!("this claim is already {finding_id}"),
+            ),
         }
     }
 }
@@ -178,6 +187,49 @@ pub(crate) fn land(
         return Err(
             "a receipt needs at least one caveat — what does this NOT establish?".to_string(),
         );
+    }
+
+    // 0. Idempotency: landing a byte-identical claim is a retry (a crashed
+    //    session, a network blip), not a new finding. The activity record
+    //    is timestamped so each land IS a distinct act, but the CLAIM is
+    //    content — forking a duplicate finding for a human to sign twice
+    //    (or a policy to auto-land twice) is the failure. If this exact
+    //    live claim already exists, return it; the CLI maps this to exit 5.
+    let project = repo::load_from_path(frontier)?;
+    let claim = receipt.claim.trim();
+    // Accepted findings carry the claim on `assertion.text`.
+    if let Some(existing) = project.findings.iter().find(|f| {
+        !f.flags.retracted
+            && f.assertion.text.trim() == claim
+            && f.assertion.assertion_type == receipt.r#type
+    }) {
+        return Ok(LandOutcome {
+            proposal_id: existing.id.clone(),
+            route: LandRoute::AlreadyLanded {
+                finding_id: existing.id.clone(),
+            },
+        });
+    }
+    // A PENDING proposal from a prior land holds the claim nested in its
+    // payload (finding.assertion.text) and hasn't become a finding yet —
+    // a fast retry must dedup against it too, or the queue gets twins.
+    if let Some(pending) = project.proposals.iter().find(|p| {
+        p.status == "pending_review" && {
+            let nested = p.payload.get("finding").unwrap_or(&p.payload);
+            nested
+                .get("assertion")
+                .and_then(|a| a.get("text"))
+                .and_then(|t| t.as_str())
+                .map(|t| t.trim() == claim)
+                .unwrap_or(false)
+        }
+    }) {
+        return Ok(LandOutcome {
+            proposal_id: pending.id.clone(),
+            route: LandRoute::AlreadyLanded {
+                finding_id: pending.id.clone(),
+            },
+        });
     }
 
     // 1. The activity record (vrc_) via the existing record engine:

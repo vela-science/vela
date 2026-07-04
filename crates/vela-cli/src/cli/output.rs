@@ -341,6 +341,12 @@ pub(crate) fn fail_not_found<T>(message: &str, hint: &str) -> T {
     crate::ui::fail_with(crate::ui::ErrorKind::NotFound, message, Some(hint))
 }
 
+/// A malformed invocation (missing/unknown operand). Exit 2 — the code an
+/// agent reads to mean "I called it wrong," distinct from a domain no (1).
+pub(crate) fn fail_usage(message: &str) -> ! {
+    crate::ui::fail_with(crate::ui::ErrorKind::Usage, message, None)
+}
+
 /// Validate that a CLI string argument is one of the allowed enum values.
 /// On mismatch, prints a friendly error naming the flag and the valid set
 /// and exits with code 1. Used at finding-add time so users learn before

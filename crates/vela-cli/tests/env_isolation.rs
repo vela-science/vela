@@ -39,6 +39,86 @@ fn init_frontier(dir: &std::path::Path) {
     assert!(out.status.success(), "init failed: {out:?}");
 }
 
+fn run_in(dir: &std::path::Path, args: &[&str]) -> std::process::Output {
+    Command::new(vela_bin())
+        .current_dir(dir)
+        .env("HOME", dir)
+        .env("VELA_NO_PUBLISH", "1")
+        .args(args)
+        .output()
+        .expect("spawn vela")
+}
+
+/// The exit-code contract is what an agent branches on. `state` used to
+/// route every failure through the generic exit-1; a missing finding must
+/// be 3 (not found), a malformed invocation 2 (usage).
+#[test]
+fn state_honors_the_exit_code_contract() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    init_frontier(tmp.path());
+    let dir = ".";
+    // A well-formed but absent finding id → not found (3).
+    let out = run_in(
+        tmp.path(),
+        &["state", "trust", dir, "vf_ffffffffffffffff", "--json"],
+    );
+    assert_eq!(
+        out.status.code(),
+        Some(3),
+        "missing finding must be exit 3: {out:?}"
+    );
+    // A malformed invocation (no operands) → usage (2).
+    let out = run_in(tmp.path(), &["state", "--json"]);
+    assert_eq!(
+        out.status.code(),
+        Some(2),
+        "usage error must be exit 2: {out:?}"
+    );
+}
+
+/// Landing a byte-identical receipt is a retry, not a new finding. The
+/// second land must be exit 5 (already_exists) and must NOT fork a twin
+/// into the sign queue.
+#[test]
+fn land_is_idempotent_on_the_claim() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    init_frontier(tmp.path());
+    assert!(
+        run_in(tmp.path(), &["id", "create", "--handle", "t"])
+            .status
+            .success()
+    );
+    std::fs::create_dir_all(tmp.path().join("witnesses")).unwrap();
+    std::fs::write(tmp.path().join("witnesses/w.json"), "{\"k\":\"d\"}").unwrap();
+    std::fs::write(
+        tmp.path().join("r.json"),
+        r#"{"schema":"vela.receipt.v1","claim":"idempotency regression claim",
+            "type":"computational","artifacts":[{"path":"witnesses/w.json","kind":"witness"}],
+            "caveats":["test"],"verifier_runs":[{"method":"d","outcome":"pass","log":"ok"}]}"#,
+    )
+    .unwrap();
+
+    let first = run_in(tmp.path(), &["land", "r.json", "--as", "agent:t", "--json"]);
+    assert!(
+        first.status.success(),
+        "first land should succeed: {first:?}"
+    );
+    let second = run_in(tmp.path(), &["land", "r.json", "--as", "agent:t", "--json"]);
+    assert_eq!(
+        second.status.code(),
+        Some(5),
+        "a re-landed identical claim must be exit 5: {second:?}"
+    );
+
+    // Exactly one item in the sign queue — no twin.
+    let q = run_in(tmp.path(), &["sign", "--json"]);
+    let v: serde_json::Value = serde_json::from_slice(&q.stdout).unwrap();
+    assert_eq!(
+        v["signable_total"], 1,
+        "the retry must not have forked a duplicate: {v}"
+    );
+}
+
 /// The poisoned .env sets VELA_ACTOR_ID=agent:evil. If the CLI loaded
 /// it, the sign ceremony would refuse with the CUSTODY exit (4). It must
 /// instead fail on identity setup / lookup — anything but 4.

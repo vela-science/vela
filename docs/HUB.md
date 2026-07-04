@@ -84,7 +84,7 @@ see below).
 | `GET /entries/{vfr_id}/events?cursor=&limit=&kind=&target=` | Cursor-paginated canonical event log ordered by `seq`; `next_cursor` resumes the walk. Unknown cursors return 400. |
 | `GET /entries/{vfr_id}/events/stream?cursor=` | Server-sent event stream: backlog, then heartbeat while idle. |
 | `GET /frontier/{vfr_id}/inbox` | Agent-facing alias for the event stream. |
-| `GET /entries/{vfr_id}/snapshot` | Derived materialized snapshot JSON. `?redirect=cdn` redirects to the immutable blob when available. |
+| `GET /entries/{vfr_id}/snapshot` | Derived materialized snapshot JSON. Content-addressed, so `latest_snapshot_hash` is the `ETag`: send `If-None-Match: "<hash>"` for a `304` when the frontier has not moved (before the hub materializes a multi-MB project). `?redirect=cdn` redirects to the immutable blob when available. |
 | `GET /entries/{vfr_id}/summary` | Cheap projection-table counts. |
 | `GET /entries/{vfr_id}/manifest` | Counts + log head + object-id index (the sparse-read primitive). |
 | `GET /entries/{vfr_id}/status` | `live` / `deprecated`, with the signed deprecation receipt. |

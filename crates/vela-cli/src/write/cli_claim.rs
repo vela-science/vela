@@ -41,7 +41,7 @@ use vela_protocol::project::Project;
 use vela_protocol::repo;
 use vela_protocol::verifier_attachment::{AttachmentOutcome, claim_digest, derive_gate_status};
 
-use crate::cli::{fail, print_json};
+use crate::cli::{fail, fail_not_found, fail_usage, print_json};
 
 /// Entry point from the `cli.rs::run_from_args` intercept. `args` is the
 /// full `std::env::args()` vector; `args[2]` is the verb
@@ -61,14 +61,12 @@ pub(crate) fn run(args: &[String]) {
     // The `diff` projection takes a proposal id (vpr_…), not a finding id,
     // and renders the Evidence Diff.
     if verb == "diff" {
-        let frontier = positionals
-            .first()
-            .copied()
-            .unwrap_or_else(|| fail("usage: vela state diff <frontier> <proposal_id> [--json]"));
-        let proposal_id = positionals
-            .get(1)
-            .copied()
-            .unwrap_or_else(|| fail("usage: vela state diff <frontier> <proposal_id> [--json]"));
+        let frontier = positionals.first().copied().unwrap_or_else(|| {
+            fail_usage("usage: vela state diff <frontier> <proposal_id> [--json]")
+        });
+        let proposal_id = positionals.get(1).copied().unwrap_or_else(|| {
+            fail_usage("usage: vela state diff <frontier> <proposal_id> [--json]")
+        });
         let delta = derive_evidence_diff(Path::new(frontier), proposal_id);
         if json {
             print_json(&delta);
@@ -78,14 +76,12 @@ pub(crate) fn run(args: &[String]) {
         return;
     }
 
-    let frontier = positionals
-        .first()
-        .copied()
-        .unwrap_or_else(|| fail("usage: vela state [trust|pack] <frontier> <vf_id> [--json]"));
-    let vf_id = positionals
-        .get(1)
-        .copied()
-        .unwrap_or_else(|| fail("usage: vela state [trust|pack] <frontier> <vf_id> [--json]"));
+    let frontier = positionals.first().copied().unwrap_or_else(|| {
+        fail_usage("usage: vela state [trust|pack] <frontier> <vf_id> [--json]")
+    });
+    let vf_id = positionals.get(1).copied().unwrap_or_else(|| {
+        fail_usage("usage: vela state [trust|pack] <frontier> <vf_id> [--json]")
+    });
 
     // Bi-temporal read: `--as-of <RFC3339>` renders the finding's state at
     // that instant (flags, confidence, review events filtered to the
@@ -125,7 +121,12 @@ pub(crate) fn run(args: &[String]) {
         .findings
         .iter()
         .find(|f| f.id == vf_id)
-        .unwrap_or_else(|| fail(&format!("finding {vf_id} not found in {frontier}")));
+        .unwrap_or_else(|| {
+            fail_not_found(
+                &format!("finding {vf_id} not found in {frontier}"),
+                "list ids with `vela status` or find one with the `search` tool",
+            )
+        });
 
     match verb {
         "state" => {
@@ -160,7 +161,7 @@ pub(crate) fn run(args: &[String]) {
             // also JSON so a copy-paste is byte-faithful.
             print_json(&pack);
         }
-        other => fail(&format!("unknown claim projection '{other}'")),
+        other => fail_usage(&format!("unknown claim projection '{other}'")),
     }
 }
 
@@ -190,7 +191,7 @@ pub(crate) fn run_anchor(args: &[String]) {
     };
 
     let frontier = positionals.first().copied().unwrap_or_else(|| {
-        fail("usage: vela state anchor <frontier> <vf_id> --ns <ns> --id <id> --role <role>")
+        fail_usage("usage: vela state anchor <frontier> <vf_id> --ns <ns> --id <id> --role <role>")
     });
 
     // ── anchors: read-only list ──
@@ -230,7 +231,7 @@ pub(crate) fn run_anchor(args: &[String]) {
         let val_id = positionals
             .get(1)
             .copied()
-            .unwrap_or_else(|| fail("usage: vela state unanchor <frontier> <val_id>"));
+            .unwrap_or_else(|| fail_usage("usage: vela state unanchor <frontier> <val_id>"));
         let by = crate::cli_identity::resolve_actor(flag("--reviewer").as_deref());
         let mut project = repo::load_from_path(Path::new(frontier)).unwrap_or_else(|e| fail(&e));
         let target = project
@@ -265,7 +266,7 @@ pub(crate) fn run_anchor(args: &[String]) {
 
     // ── anchor: attach a signed external-catalogue anchor ──
     let vf_id = positionals.get(1).copied().unwrap_or_else(|| {
-        fail("usage: vela state anchor <frontier> <vf_id> --ns <ns> --id <id> --role <role>")
+        fail_usage("usage: vela state anchor <frontier> <vf_id> --ns <ns> --id <id> --role <role>")
     });
     let ns = flag("--ns")
         .or_else(|| flag("--namespace"))
