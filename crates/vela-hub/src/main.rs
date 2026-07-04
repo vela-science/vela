@@ -122,6 +122,12 @@ struct AppState {
     /// v0.49.1: hit/miss/stale counters for the DB cache. Surfaced at
     /// `/healthz` so an operator can monitor degradation.
     db_cache_metrics: Arc<DbCacheMetrics>,
+    /// Per-route request metrics (count by status class + latency
+    /// histogram), recorded by the router-level middleware and rendered
+    /// at `/metrics` alongside the db-cache series. Keyed by the matched
+    /// route TEMPLATE (`/entries/{vfr_id}`), never the raw path — raw
+    /// paths would explode label cardinality.
+    http_metrics: Arc<HttpMetrics>,
     /// v0.49.3: optional Ed25519 signing key for the
     /// `/.well-known/vela` discovery manifest. When present, the
     /// manifest's `manifest_canonical` bytes are signed and a
@@ -316,6 +322,168 @@ impl DbCacheMetrics {
     }
 }
 
+/// Latency histogram bucket upper bounds, in seconds. Chosen to straddle
+/// the cache fast path (single-digit ms), a healthy Postgres read
+/// (tens of ms), and a cold projection hydrate (seconds).
+const HTTP_LATENCY_BUCKETS_SECS: [f64; 9] = [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 5.0];
+
+/// One route template + method's counters: requests by status class and
+/// the latency histogram (raw per-bucket counts; render cumulates them
+/// in Prometheus style).
+#[derive(Default)]
+struct HttpRouteStat {
+    /// Indexes 0..=4 ⇔ status classes 1xx..5xx.
+    by_class: [u64; 5],
+    latency_buckets: [u64; HTTP_LATENCY_BUCKETS_SECS.len() + 1],
+    latency_sum_secs: f64,
+    latency_count: u64,
+}
+
+/// Hand-rolled per-route request metrics, same register as
+/// `DbCacheMetrics`: no metrics crate, Prometheus 0.0.4 text on render.
+/// A `Mutex<HashMap>` is deliberate — the hub's request volume is far
+/// below where lock contention matters, and the route-template key set
+/// is small and bounded by the router itself.
+#[derive(Default)]
+struct HttpMetrics {
+    routes: std::sync::Mutex<HashMap<(String, String), HttpRouteStat>>,
+}
+
+impl HttpMetrics {
+    fn record(&self, method: &str, route: &str, status: u16, latency_secs: f64) {
+        let mut routes = self.routes.lock().unwrap_or_else(|e| e.into_inner());
+        let stat = routes
+            .entry((method.to_string(), route.to_string()))
+            .or_default();
+        let class_idx = (usize::from(status) / 100).clamp(1, 5) - 1;
+        stat.by_class[class_idx] += 1;
+        let bucket_idx = HTTP_LATENCY_BUCKETS_SECS
+            .iter()
+            .position(|&bound| latency_secs <= bound)
+            .unwrap_or(HTTP_LATENCY_BUCKETS_SECS.len());
+        stat.latency_buckets[bucket_idx] += 1;
+        stat.latency_sum_secs += latency_secs;
+        stat.latency_count += 1;
+    }
+
+    /// Render as Prometheus 0.0.4 text, `vela_hub_http_*` namespaced.
+    /// Keys are sorted so consecutive scrapes diff cleanly.
+    fn render_prometheus(&self) -> String {
+        let routes = self.routes.lock().unwrap_or_else(|e| e.into_inner());
+        let mut keys: Vec<&(String, String)> = routes.keys().collect();
+        keys.sort();
+
+        let mut out = String::new();
+        out.push_str("# HELP vela_hub_http_requests_total Requests served, by route template, method, and status class.\n");
+        out.push_str("# TYPE vela_hub_http_requests_total counter\n");
+        for key in &keys {
+            let (method, route) = (key.0.as_str(), key.1.as_str());
+            let stat = &routes[*key];
+            for (idx, &count) in stat.by_class.iter().enumerate() {
+                if count == 0 {
+                    continue;
+                }
+                out.push_str(&format!(
+                    "vela_hub_http_requests_total{{method=\"{method}\",route=\"{route}\",class=\"{}xx\"}} {count}\n",
+                    idx + 1,
+                ));
+            }
+        }
+
+        out.push_str("# HELP vela_hub_http_request_duration_seconds Request latency by route template and method.\n");
+        out.push_str("# TYPE vela_hub_http_request_duration_seconds histogram\n");
+        for key in &keys {
+            let (method, route) = (key.0.as_str(), key.1.as_str());
+            let stat = &routes[*key];
+            let mut cumulative = 0u64;
+            for (idx, &bound) in HTTP_LATENCY_BUCKETS_SECS.iter().enumerate() {
+                cumulative += stat.latency_buckets[idx];
+                out.push_str(&format!(
+                    "vela_hub_http_request_duration_seconds_bucket{{method=\"{method}\",route=\"{route}\",le=\"{bound}\"}} {cumulative}\n",
+                ));
+            }
+            cumulative += stat.latency_buckets[HTTP_LATENCY_BUCKETS_SECS.len()];
+            out.push_str(&format!(
+                "vela_hub_http_request_duration_seconds_bucket{{method=\"{method}\",route=\"{route}\",le=\"+Inf\"}} {cumulative}\n",
+            ));
+            out.push_str(&format!(
+                "vela_hub_http_request_duration_seconds_sum{{method=\"{method}\",route=\"{route}\"}} {}\n",
+                stat.latency_sum_secs,
+            ));
+            out.push_str(&format!(
+                "vela_hub_http_request_duration_seconds_count{{method=\"{method}\",route=\"{route}\"}} {}\n",
+                stat.latency_count,
+            ));
+        }
+        out
+    }
+}
+
+#[cfg(test)]
+mod http_metrics_tests {
+    use super::*;
+
+    #[test]
+    fn record_and_render_by_route_template() {
+        let metrics = HttpMetrics::default();
+        metrics.record("GET", "/entries/{vfr_id}", 200, 0.003);
+        metrics.record("GET", "/entries/{vfr_id}", 200, 0.040);
+        metrics.record("GET", "/entries/{vfr_id}", 404, 0.002);
+        metrics.record("POST", "/mcp", 503, 0.001);
+
+        let out = metrics.render_prometheus();
+        // Counters carry the route TEMPLATE and the status class.
+        assert!(out.contains(
+            r#"vela_hub_http_requests_total{method="GET",route="/entries/{vfr_id}",class="2xx"} 2"#
+        ));
+        assert!(out.contains(
+            r#"vela_hub_http_requests_total{method="GET",route="/entries/{vfr_id}",class="4xx"} 1"#
+        ));
+        assert!(
+            out.contains(
+                r#"vela_hub_http_requests_total{method="POST",route="/mcp",class="5xx"} 1"#
+            )
+        );
+        // Histogram buckets are cumulative and end at +Inf = count.
+        assert!(out.contains(
+            r#"vela_hub_http_request_duration_seconds_bucket{method="GET",route="/entries/{vfr_id}",le="0.005"} 2"#
+        ));
+        assert!(out.contains(
+            r#"vela_hub_http_request_duration_seconds_bucket{method="GET",route="/entries/{vfr_id}",le="+Inf"} 3"#
+        ));
+        assert!(out.contains(
+            r#"vela_hub_http_request_duration_seconds_count{method="GET",route="/entries/{vfr_id}"} 3"#
+        ));
+    }
+}
+
+/// Router-level metrics middleware. Added via `route_layer`, so it runs
+/// AFTER routing and can read the `MatchedPath` extension — the route
+/// TEMPLATE — instead of the raw path. Unmatched requests (the 404
+/// fallback) never reach a route layer and are deliberately unrecorded:
+/// arbitrary probe paths must not mint label values.
+async fn http_metrics_mw(
+    State(metrics): State<Arc<HttpMetrics>>,
+    req: axum::extract::Request,
+    next: axum::middleware::Next,
+) -> Response {
+    let route = req
+        .extensions()
+        .get::<axum::extract::MatchedPath>()
+        .map(|m| m.as_str().to_string())
+        .unwrap_or_else(|| "(unmatched)".to_string());
+    let method = req.method().as_str().to_string();
+    let started = std::time::Instant::now();
+    let response = next.run(req).await;
+    metrics.record(
+        &method,
+        &route,
+        response.status().as_u16(),
+        started.elapsed().as_secs_f64(),
+    );
+    response
+}
+
 async fn db_cache_read(cache: &DbCache, key: &str) -> Option<DbCacheEntry> {
     cache.read().await.get(key).cloned()
 }
@@ -474,6 +642,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         frontier_cache: Arc::new(RwLock::new(HashMap::new())),
         db_cache: Arc::new(RwLock::new(HashMap::new())),
         db_cache_metrics: Arc::new(DbCacheMetrics::default()),
+        http_metrics: Arc::new(HttpMetrics::default()),
         signing_key,
         urls,
         storage,
@@ -557,14 +726,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         vela_hub::git_ingest::GitIngestConfig::from_env(),
     );
 
-    // The hosted MCP lane (v0.727): per-machine checkout refresher +
-    // in-process serve dispatcher behind /mcp. Read-only by construction.
-    vela_hub::mcp_host::spawn(
-        state.db.clone(),
-        vela_hub::git_ingest::GitIngestConfig::from_env(),
-        state.mcp.clone(),
-        state.mcp_kick.clone(),
-    );
+    // The hosted MCP lane: per-machine refresher hydrating the in-process
+    // serve dispatcher behind /mcp from the live projection tables.
+    // Read-only by construction.
+    vela_hub::mcp_host::spawn(state.db.clone(), state.mcp.clone(), state.mcp_kick.clone());
 
     let port: u16 = env::var("VELA_HUB_PORT")
         .ok()
@@ -693,6 +858,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         // ingest + MCP refresh ahead of the interval sweeps.
         .route("/mcp", post(post_mcp).get(get_mcp))
         .route("/webhook/github", post(post_webhook_github))
+        // Per-route request metrics. route_layer (not layer) so the
+        // middleware runs after routing and sees MatchedPath.
+        .route_layer(axum::middleware::from_fn_with_state(
+            state.http_metrics.clone(),
+            http_metrics_mw,
+        ))
         .layer(DefaultBodyLimit::max(MAX_PUBLISH_BODY_BYTES))
         .layer(CorsLayer::permissive())
         .with_state(state);
@@ -795,8 +966,8 @@ async fn post_webhook_github(
             Json(serde_json::json!({"ok": true, "pong": true})),
         );
     }
-    state.mcp_kick.notify_one();
     let db = state.db.clone();
+    let mcp_kick = state.mcp_kick.clone();
     tokio::spawn(async move {
         match vela_hub::git_ingest::run_once(
             &db,
@@ -808,6 +979,11 @@ async fn post_webhook_github(
             Ok(_) => {}
             Err(e) => tracing::warn!(error = %e, "webhook-triggered ingest failed"),
         }
+        // Kick the MCP refresher only AFTER the ingest sweep finishes:
+        // the refresher hydrates from the DB, so kicking before the push
+        // was promoted would rebuild yesterday's projection. Kicked even
+        // on a sweep error — the refresh no-ops on unchanged hashes.
+        mcp_kick.notify_one();
     });
     (
         StatusCode::ACCEPTED,
@@ -942,10 +1118,12 @@ async fn root(State(state): State<AppState>, headers: HeaderMap) -> Response {
 }
 
 /// v0.49.2: Prometheus 0.0.4 text format metrics endpoint. Exposes
-/// the same DbCacheMetrics counters and stale-age histogram an
-/// operator would otherwise have to scrape out of `/healthz` JSON.
+/// the DbCacheMetrics counters and stale-age histogram an operator
+/// would otherwise have to scrape out of `/healthz` JSON, plus the
+/// per-route request counters and latency histograms.
 async fn metrics_prometheus(State(state): State<AppState>) -> impl axum::response::IntoResponse {
-    let body = state.db_cache_metrics.render_prometheus();
+    let mut body = state.db_cache_metrics.render_prometheus();
+    body.push_str(&state.http_metrics.render_prometheus());
     (
         StatusCode::OK,
         [(
@@ -1973,6 +2151,7 @@ fn render_search_html(urls: &PublicUrls, q: &str, object_type: &str, results: &[
         urls,
         "Vela Hub · Search",
         "entries",
+        &[("entries", "/entries"), ("search", "")],
         "Search",
         "Cross-frontier search",
         &count_note,

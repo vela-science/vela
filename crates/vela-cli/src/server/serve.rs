@@ -474,30 +474,51 @@ impl McpService {
     /// Load named frontier directories into one merged read-only service.
     /// A broken entry is skipped and reported in the returned warnings,
     /// never fatal: one frontier failing to replay must not take the
-    /// hosted endpoint down for the rest.
+    /// hosted endpoint down for the rest. Loading is the only filesystem
+    /// touch; the merge itself is `from_projects`.
     pub fn from_named_paths(
         entries: &[(String, PathBuf)],
         profile_str: &str,
         exclude: &[String],
     ) -> Result<(Self, Vec<String>), String> {
-        let profile = tool_registry::McpProfile::parse(profile_str)?;
-        let mut named = Vec::new();
+        let mut loaded = Vec::new();
         let mut warnings = Vec::new();
         for (name, path) in entries {
             match repo::load_from_path(path) {
-                Ok(mut frontier) => {
-                    sources::materialize_project(&mut frontier);
-                    named.push((name.clone(), frontier));
-                }
+                Ok(frontier) => loaded.push((name.clone(), frontier)),
                 Err(e) => warnings.push(format!("{name}: {e}")),
             }
         }
-        if named.is_empty() {
+        if loaded.is_empty() {
             return Err(format!(
                 "no loadable frontier among {} entries: {}",
                 entries.len(),
                 warnings.join(" | ")
             ));
+        }
+        let (service, more) = Self::from_projects(loaded, profile_str, exclude)?;
+        warnings.extend(more);
+        Ok((service, warnings))
+    }
+
+    /// Build the merged read-only service from already-loaded projects —
+    /// the path the hub's DB-hydrated refresher uses (no filesystem at
+    /// all). Each project is re-materialized here: promoted DB snapshots
+    /// were persisted WITHOUT `materialize_project`, so skipping it would
+    /// diverge from the checkout loader's output.
+    pub fn from_projects(
+        entries: Vec<(String, Project)>,
+        profile_str: &str,
+        exclude: &[String],
+    ) -> Result<(Self, Vec<String>), String> {
+        let profile = tool_registry::McpProfile::parse(profile_str)?;
+        if entries.is_empty() {
+            return Err("no frontier projects to serve".to_string());
+        }
+        let mut named = Vec::with_capacity(entries.len());
+        for (name, mut frontier) in entries {
+            sources::materialize_project(&mut frontier);
+            named.push((name, frontier));
         }
         let project_infos = named
             .iter()
@@ -521,7 +542,7 @@ impl McpService {
                 },
                 excluded: exclude.iter().cloned().collect(),
             },
-            warnings,
+            Vec::new(),
         ))
     }
 
@@ -1271,6 +1292,77 @@ mod mcp_service_tests {
             .to_string();
         let envelope: Value = serde_json::from_str(&text).unwrap();
         assert_eq!(envelope["error"]["kind"], "CUSTODY_REFUSED");
+    }
+
+    /// Fetch one orient envelope and strip the per-build noise: the
+    /// envelope's `duration_ms`, the merged project's `compiled_at`
+    /// (merge_projects stamps `Utc::now()`), and the replay report's
+    /// snapshot hashes (they hash the merged snapshot, which embeds that
+    /// timestamp). Two builds of the same frontier differ there and
+    /// nowhere else.
+    async fn orient_envelope_normalized(svc: &McpService) -> Value {
+        let (status, body) = svc
+            .handle_http(
+                r#"{"jsonrpc":"2.0","id":9,"method":"tools/call","params":{"name":"orient","arguments":{}}}"#,
+            )
+            .await;
+        assert_eq!(status, 200);
+        let body = body.unwrap();
+        assert_eq!(body["result"]["isError"], false, "orient call succeeds");
+        let text = body["result"]["content"][0]["text"].as_str().unwrap();
+        let mut envelope: Value = serde_json::from_str(text).unwrap();
+        envelope.as_object_mut().unwrap().remove("duration_ms");
+        if let Some(frontier) = envelope
+            .pointer_mut("/data/frontier")
+            .and_then(Value::as_object_mut)
+        {
+            frontier.remove("compiled_at");
+        }
+        if let Some(replay) = envelope
+            .pointer_mut("/data/verification/events/replay")
+            .and_then(Value::as_object_mut)
+        {
+            for key in ["current_hash", "replayed_hash", "source_hash"] {
+                replay.remove(key);
+            }
+        }
+        envelope
+    }
+
+    /// The hosted-parity contract: a service hydrated from already-loaded
+    /// `Project`s (the hub's DB path) must be indistinguishable from one
+    /// loaded off the filesystem — same tools/list, same orient output.
+    #[tokio::test]
+    async fn from_projects_matches_from_named_paths() {
+        let via_paths = service();
+
+        // The DB path: load the raw project (no materialize — DB snapshots
+        // are persisted un-materialized too) and hand it to from_projects.
+        let project = repo::load_from_path(&fixture()).expect("fixture frontier loads raw");
+        let (via_projects, warnings) = McpService::from_projects(
+            vec![("erdos-formalization".to_string(), project)],
+            "read-only",
+            &McpService::hosted_exclusions(),
+        )
+        .expect("service builds from in-memory projects");
+        assert!(warnings.is_empty(), "unexpected warnings: {warnings:?}");
+
+        let list_req = r#"{"jsonrpc":"2.0","id":8,"method":"tools/list"}"#;
+        let (s1, list_paths) = via_paths.handle_http(list_req).await;
+        let (s2, list_projects) = via_projects.handle_http(list_req).await;
+        assert_eq!(s1, 200);
+        assert_eq!(s2, 200);
+        assert_eq!(
+            list_paths, list_projects,
+            "tools/list must be identical across the two constructors"
+        );
+
+        let orient_paths = orient_envelope_normalized(&via_paths).await;
+        let orient_projects = orient_envelope_normalized(&via_projects).await;
+        assert_eq!(
+            orient_paths, orient_projects,
+            "orient output must be identical across the two constructors"
+        );
     }
 
     #[tokio::test]

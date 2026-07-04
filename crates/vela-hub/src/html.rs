@@ -908,6 +908,30 @@ a:hover { color: var(--ink-0); text-decoration-color: var(--gold-ink); }
 /* Quiet the numbered section labels; the heading carries the meaning. */
 .wb-section__num { display: none; }
 
+/* Breadcrumb strip — entries → entry → finding|review|pack. Mono
+   kicker register, same as the eyebrow; the last crumb is the page. */
+.hub-crumbs {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin: 0 0 20px;
+  font-family: var(--font-mono); font-size: 11px;
+  letter-spacing: 0.08em; color: var(--ink-3);
+}
+.hub-crumbs a {
+  color: var(--ink-3); text-decoration: none;
+  border-bottom: 1px solid var(--rule-2);
+}
+.hub-crumbs a:hover { color: var(--gold-ink); border-bottom-color: var(--gold-ink); }
+.hub-crumbs .crumb-sep { color: var(--ink-4); }
+.hub-crumbs .crumb-here { color: var(--ink-1); }
+
+/* Section self-links: stable anchors on finding-page sections. */
+.fd-anchor {
+  font-family: var(--font-mono); font-size: 11px; color: var(--ink-4);
+  text-decoration: none; border: 0; margin-left: 6px;
+}
+.fd-anchor:hover { color: var(--gold-ink); }
+:target { scroll-margin-top: 80px; }
+
 @media (max-width: 720px) {
   .hub-header__inner { height: auto; min-height: 52px; flex-wrap: wrap; padding-top: 8px; padding-bottom: 8px; row-gap: 4px; }
   .hub-header__right { display: none; }
@@ -937,13 +961,17 @@ pub(crate) fn escape_html(s: &str) -> String {
 
 /// Build the workbench frame around a page body. `active` controls which
 /// rim link is marked with the alidade; `eyebrow` is the small mono label
-/// above the title. URLs in the rim and foot come from `urls` so the
-/// same render code works for any deploy.
+/// above the title. `crumbs` renders the breadcrumb strip above the page
+/// head — `(label, href)` pairs, raw text (escaped here); an empty href
+/// marks the current page; an empty slice renders no strip. URLs in the
+/// rim and foot come from `urls` so the same render code works for any
+/// deploy.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn shell(
     urls: &PublicUrls,
     title: &str,
     active: &str,
+    crumbs: &[(&str, &str)],
     eyebrow_html: &str,
     title_html: &str,
     sub_html: &str,
@@ -976,6 +1004,29 @@ pub(crate) fn shell(
         l1 = nav_link("hub", "/", "Hub"),
         l2 = nav_link("entries", "/entries", "Entries"),
     );
+    let crumbs_html = if crumbs.is_empty() {
+        String::new()
+    } else {
+        let items = crumbs
+            .iter()
+            .map(|(label, href)| {
+                if href.is_empty() {
+                    format!(r#"<span class="crumb-here">{}</span>"#, escape_html(label))
+                } else {
+                    format!(
+                        r#"<a href="{}">{}</a>"#,
+                        escape_html(href),
+                        escape_html(label)
+                    )
+                }
+            })
+            .collect::<Vec<_>>()
+            .join(r#"<span class="crumb-sep">/</span>"#);
+        format!(
+            r#"<nav class="hub-crumbs" aria-label="Breadcrumb">{items}</nav>
+"#
+        )
+    };
     format!(
         r#"<!doctype html>
 <html lang="en">
@@ -992,7 +1043,7 @@ pub(crate) fn shell(
 <body>
 {header}
 <div class="hub-page">
-<header class="wb-head">
+{crumbs_html}<header class="wb-head">
   <div class="wb-head__row">
     <div>
       <div class="wb-head__eyebrow">{eyebrow_html}</div>
@@ -1157,6 +1208,7 @@ pub(crate) fn render_root_html(urls: &PublicUrls) -> String {
         urls,
         "Vela Hub",
         "hub",
+        &[],
         "Hub",
         "Vela Hub",
         "Signed registry manifests over HTTP. Open publishing, signature-gated; clients verify locally.",
@@ -1227,6 +1279,7 @@ pub(crate) fn render_producer_html(
         urls,
         "Vela Hub · Producer",
         "entries",
+        &[("entries", "/entries"), ("producer", "")],
         "Producer",
         "Signed work",
         &format!("{total} object(s) across {} frontier(s)", by_frontier.len()),
@@ -1289,6 +1342,7 @@ pub(crate) fn render_entries_html(urls: &PublicUrls, entries: &[Value]) -> Strin
         urls,
         "Vela Hub · Entries",
         "entries",
+        &[("entries", "")],
         &format!("Entries · <span style=\"color:var(--ink-2);\">{count} signed</span>"),
         "Registry",
         "Latest-publish-wins per <code>vfr_id</code>. Click through for the manifest, the pull recipe, and the raw signed bytes.",
@@ -1514,6 +1568,7 @@ pub(crate) fn render_entry_html(
         urls,
         &format!("Vela Hub · {vfr_id}"),
         "entries",
+        &[("entries", "/entries"), (vfr_id, "")],
         &format!("Entry · <span style=\"color:var(--ink-2);\">{vfr_safe}</span>"),
         &name,
         "One signed manifest, read end-to-end. Pull the frontier from the network locator; verify hashes locally.",
@@ -2278,24 +2333,26 @@ pub(crate) fn render_finding_html(
     );
 
     let main = format!(
-        r#"<div class="fd">
+        // r## because the section self-links (`href="#claim"`) contain the
+        // `"#` byte pair that would terminate a plain r#"…"# raw string.
+        r##"<div class="fd">
   <article>
-    <p class="fd-claim">{claim_html}</p>
+    <p class="fd-claim" id="claim">{claim_html} <a class="fd-anchor" href="#claim" aria-label="Link to this claim">#</a></p>
     <p class="fd-note">{prov_link}{prov_meta_html}</p>
 
-    <section class="wb-section">
+    <section class="wb-section" id="conditions">
       <div class="wb-section__head">
         <span class="wb-section__num">§1</span>
-        <span class="wb-section__t">Conditions</span>
+        <span class="wb-section__t">Conditions <a class="fd-anchor" href="#conditions" aria-label="Link to conditions">#</a></span>
         <span class="wb-section__aside">declared on creation · immutable</span>
       </div>
       {conditions_dl}
     </section>
 
-    <section class="wb-section">
+    <section class="wb-section" id="evidence">
       <div class="wb-section__head">
         <span class="wb-section__num">§2</span>
-        <span class="wb-section__t">Evidence</span>
+        <span class="wb-section__t">Evidence <a class="fd-anchor" href="#evidence" aria-label="Link to evidence">#</a></span>
         <span class="wb-section__aside">{assertion_type}</span>
       </div>
       {evidence_dl}
@@ -2332,16 +2389,22 @@ pub(crate) fn render_finding_html(
       </div>
     </div>
   </aside>
-</div>"#,
+</div>"##,
         score = bundle.confidence.score,
         version = bundle.version,
         created = escape_html(&bundle.created),
     );
 
+    let entry_href = format!("/entries/{vfr_id}");
     shell(
         urls,
         &format!("Vela Hub · {}", &bundle.id),
         "entries",
+        &[
+            ("entries", "/entries"),
+            (vfr_id, entry_href.as_str()),
+            (&bundle.id, ""),
+        ],
         &format!("Finding · <span style=\"color:var(--ink-2);\">{vf_safe}</span>"),
         "Finding",
         &claim_html,
@@ -2364,10 +2427,16 @@ pub(crate) fn render_finding_unavailable_html(
         r#"<p class="t-lead">The frontier state for <code>{vfr_safe}</code> is not currently available in the hub projections, so we cannot show finding <code>{vf_safe}</code>. The manifest is still verifiable; pull the frontier with the CLI to inspect.</p>
 <p class="t-lead"><a href="/entries/{vfr_safe}" style="border-bottom:1px solid var(--rule-3);">← back to entry</a></p>"#
     );
+    let entry_href = format!("/entries/{vfr_id}");
     shell(
         urls,
         "Vela Hub · finding unavailable",
         "entries",
+        &[
+            ("entries", "/entries"),
+            (vfr_id, entry_href.as_str()),
+            (vf_id, ""),
+        ],
         "503 · Frontier unavailable",
         "Frontier unavailable",
         "The manifest is verifiable from the hub; live reads require promoted frontier state.",
@@ -2388,10 +2457,16 @@ pub(crate) fn render_finding_not_found_html(
         r#"<p class="t-lead">No finding <code>{vf_safe}</code> in <code>{vfr_safe}</code>. The id may belong to a different frontier or an earlier publish.</p>
 <p class="t-lead"><a href="/entries/{vfr_safe}" style="border-bottom:1px solid var(--rule-3);">← back to entry</a></p>"#
     );
+    let entry_href = format!("/entries/{vfr_id}");
     shell(
         urls,
         "Vela Hub · finding not found",
         "entries",
+        &[
+            ("entries", "/entries"),
+            (vfr_id, entry_href.as_str()),
+            (vf_id, ""),
+        ],
         "404 · Finding not found",
         "Not found",
         "Findings are content-addressed; their ids change with content.",
@@ -2610,10 +2685,16 @@ pub(crate) fn render_pack_html(
 </div>"#,
     );
 
+    let entry_href = format!("/entries/{vfr_id}");
     shell(
         urls,
         &format!("Vela Hub · {}", rec.pack_id),
         "entries",
+        &[
+            ("entries", "/entries"),
+            (vfr_id, entry_href.as_str()),
+            (&rec.pack_id, ""),
+        ],
         &format!("Pack · <span style=\"color:var(--ink-2);\">{pack_safe}</span>"),
         "Diff pack review",
         &summary,
@@ -2636,10 +2717,16 @@ pub(crate) fn render_pack_unavailable_html(
         r#"<p class="t-lead">The frontier state for <code>{vfr_safe}</code> is not currently available in the hub projections, so we cannot show pack <code>{pack_safe}</code>. The manifest is still verifiable; pull the frontier with the CLI to inspect.</p>
 <p class="t-lead"><a href="/entries/{vfr_safe}" style="border-bottom:1px solid var(--rule-3);">← back to entry</a></p>"#
     );
+    let entry_href = format!("/entries/{vfr_id}");
     shell(
         urls,
         "Vela Hub · pack unavailable",
         "entries",
+        &[
+            ("entries", "/entries"),
+            (vfr_id, entry_href.as_str()),
+            (pack_id, ""),
+        ],
         "503 · Frontier unavailable",
         "Frontier unavailable",
         "The manifest is verifiable from the hub; live reads require promoted frontier state.",
@@ -2656,10 +2743,16 @@ pub(crate) fn render_pack_not_found_html(urls: &PublicUrls, vfr_id: &str, pack_i
         r#"<p class="t-lead">No released pack <code>{pack_safe}</code> on <code>{vfr_safe}</code>. A pack appears here once a <code>diff_pack.released</code> event has been applied on this frontier's canonical log.</p>
 <p class="t-lead"><a href="/entries/{vfr_safe}" style="border-bottom:1px solid var(--rule-3);">← back to entry</a></p>"#
     );
+    let entry_href = format!("/entries/{vfr_id}");
     shell(
         urls,
         "Vela Hub · pack not found",
         "entries",
+        &[
+            ("entries", "/entries"),
+            (vfr_id, entry_href.as_str()),
+            (pack_id, ""),
+        ],
         "404 · Pack not found",
         "Not found",
         "Packs are content-addressed; their ids change with content.",
@@ -3070,10 +3163,16 @@ pub(crate) fn render_review_html(
         shown = HUMAN_DECISIONS_SHOWN,
     );
 
+    let entry_href = format!("/entries/{vfr_id}");
     shell(
         urls,
         &format!("Vela Hub · review · {vfr_id}"),
         "entries",
+        &[
+            ("entries", "/entries"),
+            (vfr_id, entry_href.as_str()),
+            ("review", ""),
+        ],
         &format!("Review · <span style=\"color:var(--ink-2);\">{vfr_safe}</span>"),
         "The review queue",
         &format!(
@@ -3239,10 +3338,16 @@ pub(crate) fn render_reproduce_html(
         },
     );
 
+    let entry_href = format!("/entries/{vfr_id}");
     shell(
         urls,
         &format!("Vela Hub · reproduce · {vfr_id}"),
         "entries",
+        &[
+            ("entries", "/entries"),
+            (vfr_id, entry_href.as_str()),
+            ("reproduce", ""),
+        ],
         &format!("Reproduce · <span style=\"color:var(--ink-2);\">{vfr_safe}</span>"),
         "Reproduce",
         "Two commands re-derive this frontier's state from its source repository. Nothing here requires trusting the hub.",
@@ -3261,10 +3366,16 @@ pub(crate) fn render_reproduce_no_remote_html(urls: &PublicUrls, vfr_id: &str) -
 <p class="t-lead">The signed manifest and its hashes remain verifiable on the entry page.</p>
 <p class="t-lead"><a href="/entries/{vfr_safe}" style="border-bottom:1px solid var(--rule-3);">← back to entry</a></p>"#
     );
+    let entry_href = format!("/entries/{vfr_id}");
     shell(
         urls,
         "Vela Hub · reproduce",
         "entries",
+        &[
+            ("entries", "/entries"),
+            (vfr_id, entry_href.as_str()),
+            ("reproduce", ""),
+        ],
         &format!("Reproduce · <span style=\"color:var(--ink-2);\">{vfr_safe}</span>"),
         "No registered repository",
         "Reproduction needs a source repository; this frontier has not registered one.",
@@ -3290,10 +3401,16 @@ pub(crate) fn render_no_packet_html(urls: &PublicUrls, vfr_id: &str) -> String {
 </div>
 <p class="t-lead"><a href="/entries/{vfr_safe}" style="border-bottom:1px solid var(--rule-3);">← back to entry</a></p>"#
     );
+    let entry_href = format!("/entries/{vfr_id}");
     shell(
         urls,
         "Vela Hub · no proof packet",
         "entries",
+        &[
+            ("entries", "/entries"),
+            (vfr_id, entry_href.as_str()),
+            ("proof", ""),
+        ],
         &format!("Proof · <span style=\"color:var(--ink-2);\">{vfr_safe}</span>"),
         "No proof packet",
         "The hub has no packet for this entry. Generate one with the CLI and serve it via VELA_PROOF_PACKET_DIR.",
@@ -3616,10 +3733,16 @@ pub(crate) fn render_proof_packet_html(
         packet_version = escape_html(packet_version),
     );
 
+    let entry_href = format!("/entries/{vfr_id}");
     shell(
         urls,
         &format!("Vela Hub · proof · {vfr_id}"),
         "entries",
+        &[
+            ("entries", "/entries"),
+            (vfr_id, entry_href.as_str()),
+            ("proof", ""),
+        ],
         &format!("Proof · <span style=\"color:var(--ink-2);\">{vfr_safe}</span>"),
         "Proof packet",
         "Manifest, signed-trace chain, integrity lock, and the file-by-file SHA-256 table the skeptic actually wants to see.",
@@ -3641,6 +3764,7 @@ pub(crate) fn render_not_found_html(urls: &PublicUrls, vfr_id: &str) -> String {
         urls,
         "Vela Hub · not found",
         "entries",
+        &[("entries", "/entries"), (vfr_id, "")],
         "404 · Not found",
         "Not found",
         "Anyone can publish a signed manifest at this id. Until then, there is nothing here.",
@@ -3667,6 +3791,7 @@ pub(crate) fn render_entry_unavailable_html(
         urls,
         "Vela Hub · unavailable",
         "entries",
+        &[("entries", "/entries"), (vfr_id, "")],
         "424 · Unavailable",
         "Frontier unavailable",
         "The signed registry row remains auditable. It is not served as live state.",

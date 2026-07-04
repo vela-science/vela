@@ -2,7 +2,8 @@
 //! the canonical `VELA.md` (memo §5, §10). One source of truth; the adapter
 //! files (`AGENTS.md`, `CLAUDE.md`, `.cursor/rules/vela.mdc`,
 //! `.github/copilot-instructions.md`, `.mcp.json`,
-//! `.claude/skills/vela-frontier/SKILL.md`) are disposable, regenerable
+//! `.claude/skills/vela-frontier/SKILL.md`,
+//! `.agents/skills/vela-frontier/SKILL.md`) are disposable, regenerable
 //! leaves. The deletion test holds: delete every adapter, run `agents sync`,
 //! the same rules regenerate from VELA.md.
 //!
@@ -37,6 +38,7 @@ const TARGETS: &[&str] = &[
     ".cursor/rules/vela.mdc",
     ".mcp.json",
     ".claude/skills/vela-frontier/SKILL.md",
+    ".agents/skills/vela-frontier/SKILL.md",
 ];
 
 struct Adapter {
@@ -137,8 +139,9 @@ fn mcp_json_adapter(root: &Path) -> String {
     s
 }
 
-/// Frontmatter of the Vela frontier skill (Claude Code / Codex shared format).
-/// Mirrored byte-for-byte from
+/// Frontmatter of the Vela frontier skill (Claude Code / Codex shared format:
+/// Claude Code discovers it at `.claude/skills/`, Codex at `.agents/skills/`
+/// per the open agent-skills standard). Mirrored byte-for-byte from
 /// `integrations/claude-plugin/skills/vela-frontier/SKILL.md`; a test pins the
 /// parity. Edit the plugin file and this const together.
 const SKILL_FRONTMATTER: &str = r##"---
@@ -295,7 +298,12 @@ fn build_adapters(root: &Path) -> Vec<Adapter> {
                 }
                 ".cursor/rules/vela.mdc" => cursor_adapter(&rules),
                 ".mcp.json" => mcp_json_adapter(root),
-                ".claude/skills/vela-frontier/SKILL.md" => skill_adapter(),
+                // The same skill text serves both discovery roots: Claude Code
+                // reads `.claude/skills/`, Codex reads `.agents/skills/` (the
+                // open agent-skills standard; same SKILL.md format). One
+                // string, two paths — a test pins the parity.
+                ".claude/skills/vela-frontier/SKILL.md"
+                | ".agents/skills/vela-frontier/SKILL.md" => skill_adapter(),
                 other => fail_return(&format!("unknown adapter target {other}")),
             };
             Adapter {
@@ -347,7 +355,7 @@ pub(crate) fn cmd_agents_sync(root: &Path, json_output: bool) {
 
 /// Doctor / diff share the comparison core: which adapters are missing, drifted,
 /// or in-sync against what `sync` would produce.
-fn compare(root: &Path) -> (Vec<String>, Vec<String>, Vec<String>) {
+pub(crate) fn compare(root: &Path) -> (Vec<String>, Vec<String>, Vec<String>) {
     let adapters = build_adapters(root);
     let (mut missing, mut drifted, mut in_sync) = (Vec::new(), Vec::new(), Vec::new());
     for a in &adapters {
@@ -416,8 +424,10 @@ pub(crate) fn cmd_agents_diff(root: &Path, json_output: bool) {
 mod tests {
     use super::*;
 
-    /// One source of truth: the embedded skill template must be byte-identical
-    /// to the plugin's authored SKILL.md. Edit them together or this fails.
+    /// One source of truth, three copies: the plugin's authored SKILL.md, the
+    /// `.claude/skills/` adapter, and the `.agents/skills/` (Codex) adapter
+    /// must all carry byte-identical skill text. Edit them together or this
+    /// fails.
     #[test]
     fn skill_template_mirrors_plugin_skill() {
         let plugin: &str = include_str!(concat!(
@@ -429,6 +439,38 @@ mod tests {
             plugin, embedded,
             "integrations/claude-plugin/skills/vela-frontier/SKILL.md and the \
              SKILL_* consts in cli_agents.rs drifted apart"
+        );
+
+        // Both skill targets are declared, and both emit the same string via
+        // `skill_adapter()`: build the adapters against a minimal VELA.md and
+        // compare the two emitted copies byte-for-byte.
+        for path in [
+            ".claude/skills/vela-frontier/SKILL.md",
+            ".agents/skills/vela-frontier/SKILL.md",
+        ] {
+            assert!(TARGETS.contains(&path), "{path} missing from TARGETS");
+        }
+        let tmp = tempfile::TempDir::new().unwrap();
+        std::fs::write(
+            tmp.path().join("VELA.md"),
+            "# Vela\n\n## Agent rules\n\n- rule\n\n## Fast commands\n\n- cmd\n",
+        )
+        .unwrap();
+        let adapters = build_adapters(tmp.path());
+        let skill_copies: Vec<&str> = adapters
+            .iter()
+            .filter(|a| a.path.ends_with("skills/vela-frontier/SKILL.md"))
+            .map(|a| a.content.as_str())
+            .collect();
+        assert_eq!(skill_copies.len(), 2, "expected exactly two skill adapters");
+        assert_eq!(
+            skill_copies[0], skill_copies[1],
+            ".claude/skills and .agents/skills adapters drifted apart"
+        );
+        assert_eq!(
+            skill_copies[0],
+            skill_adapter(),
+            "skill adapters must emit skill_adapter() verbatim"
         );
     }
 

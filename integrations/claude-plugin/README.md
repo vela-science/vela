@@ -39,14 +39,41 @@ Marketplace, later: once published, `claude plugin install vela`.
 `vela-frontier` teaches any session working in a `.vela/` repository the loop,
 the receipt contract, the landing routes, and the custody rules. The same
 skill text is emitted into frontier repos by `vela agents sync` (as
-`.claude/skills/vela-frontier/SKILL.md`), so a repo teaches the same rules
+`.claude/skills/vela-frontier/SKILL.md` and
+`.agents/skills/vela-frontier/SKILL.md`), so a repo teaches the same rules
 whether or not the plugin is installed.
+
+## Codex
+
+Codex discovers skills at `.agents/skills/` (repo) and `~/.agents/skills/`
+(user) — the open agent-skills standard, same SKILL.md format Claude Code
+reads. `vela agents sync` emits the identical `vela-frontier` skill to both
+roots, byte-for-byte (a test pins the parity), so a frontier teaches Claude
+Code and Codex the same rules from one source. Invoke it explicitly with
+`$vela-frontier`, or let it trigger implicitly whenever the work touches a
+`.vela/` repository. Codex custom prompts are deliberately not used: they are
+deprecated upstream in favor of skills.
 
 ## MCP
 
-`.mcp.json` starts `vela serve . --profile read-only` — the frontier's read
-surface as tools. Read-only is the point: the write edge stays on the CLI,
-where identity and policy are enforced.
+`.mcp.json` starts `vela serve . --profile draft` with
+`VELA_ACTOR_ID=agent:claude`. The draft profile is the read surface plus the
+drafting writes — `propose` (signed proposals that land pending review) and
+`work` (claim a target, land a receipt, bank an attempt). Every landing
+routes through the frontier's signed policy: Permit admits mechanically,
+Defer parks it in the human's sign queue. Nothing on this surface finalizes —
+the `decide` tier is excluded by profile, and a truth-bearing accept remains
+a key-custody human act off the MCP surface entirely.
+
+## Session brief
+
+`hooks/hooks.json` runs `scripts/session-brief.sh` on SessionStart. Inside a
+frontier (a `.vela/` directory at or above the cwd, discovered the way git
+finds `.git`), it emits a few lines of session context: the frontier name, a
+one-line state summary, the sign-queue depth, and the top `next` target.
+Anywhere else — or on any error — it exits silently; a broken hook must never
+break a session. `/vela:status` is the full render when you want the whole
+picture.
 
 ## The custody line
 

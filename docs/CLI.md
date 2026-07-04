@@ -143,6 +143,21 @@ next -> work -> land -> sign
 - `vela sign` — the one human ceremony: everything exceeding policy,
   one session, one confirm, one key read.
 
+The ceremony shrinks itself. `vela policy suggest` folds every ask that
+reached your key into a histogram of claim classes and, when a class
+recurs (3+), SHOWS the one rule whose signature would absorb it — a
+named template when one covers the class, else a conservative bespoke
+rule sealable with `vela policy draft --from-suggest`. Suggest never
+seals and never signs; the sign session ends with the same hint when a
+pattern exists. Rules you sign are branch protection; the residue at
+your key is judgment, not friction.
+
+`vela doctor` carries a setup lane for the operator machine: identity +
+key permissions, binary pin state (including the workshop-build warning
+— a cargo `target/` binary churns the pin), hub reachability, policy
+freshness (14-day expiry warning), adapter sync, and registry health —
+each row with the one command that fixes it.
+
 Retired spellings and their successors: `inbox` → sign/next ·
 `propose`/`record`/`pack`/`attach` → land · `accept`/`review` → sign ·
 `id sign` → sign (hygiene lane) · `frontier next` → next.

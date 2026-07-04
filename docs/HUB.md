@@ -110,10 +110,26 @@ curl https://hub.constellate.science/entries        # the index view
 Remote agents connect to the hub as an MCP server — no clone, no local
 binary. The endpoint is streamable HTTP with stateless JSON responses
 (POST a JSON-RPC message; no server-initiated SSE stream), backed by the
-same dispatcher, profile gate, and tool registry as `vela serve`, loaded
-from local checkouts of every registered frontier remote and refreshed on
-an interval (`VELA_HUB_MCP_REFRESH_SECS`, default 300 s) or immediately on
-a webhook push.
+same dispatcher, profile gate, and tool registry as `vela serve`. The
+projection is hydrated from the hub's own database — every live
+frontier's materialized snapshot, the same rows `/entries/{vfr}/snapshot`
+serves — and rebuilt when any promoted snapshot hash moves: on an
+interval (`VELA_HUB_MCP_REFRESH_SECS`, default 300 s) or immediately
+after a webhook push's ingest sweep lands. There are no per-machine git
+checkouts in this lane.
+
+Two consequences of hydrating from promoted state, stated plainly:
+
+- `/mcp` serves only strictly-verified promoted frontiers. The retired
+  checkout loader was lenient and could merge a frontier that had never
+  passed the strict replay bar into the hosted projection; that leak is
+  closed.
+- A newly registered git remote appears on `/mcp` after its FIRST ingest
+  sweep promotes it (≤ 300 s, or immediately via the webhook) — the MCP
+  refresher no longer fetches repos itself. This also fixes the case
+  where a live entry without a working git remote kept `/readyz`
+  answering 503 forever: readiness now depends only on the projection
+  tables, which such an entry already has.
 
 Add it to any MCP client as `https://hub.constellate.science/mcp`
 (transport: streamable HTTP, no auth). The tool surface is the read-only
@@ -422,10 +438,11 @@ flyctl deploy --config crates/vela-hub/fly.toml \
 ```
 
 **Always pass `--wait-timeout 600`.** New machines fail the `/readyz`
-check until their hosted-MCP projection finishes its first build
-(~minutes on a fresh disk); the long wait lets flyctl outlast the build
-while the old machine keeps serving `/mcp`. A deploy never blanks the
-public endpoint.
+check until their hosted-MCP projection finishes its first build. That
+build now hydrates from Postgres (no git clones), so readiness arrives
+in seconds rather than minutes — the generous timeout is kept as margin
+for slow DB cold-starts, and the old machine keeps serving `/mcp` until
+the new one is ready. A deploy never blanks the public endpoint.
 
 **Always pass `--depot=true`.** `vela-hub` lives in the `vela-237` org, but
 flyctl's default remote builder is the `fly-builder-*` app in the (currently

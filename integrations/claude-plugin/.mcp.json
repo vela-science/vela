@@ -2,7 +2,8 @@
   "mcpServers": {
     "vela-local": {
       "command": "vela",
-      "args": ["serve", ".", "--profile", "read-only"]
+      "args": ["serve", ".", "--profile", "draft"],
+      "env": { "VELA_ACTOR_ID": "agent:claude" }
     }
   }
 }

@@ -177,6 +177,31 @@ fn template_policy(name: &str) -> Option<(Vec<PolicyRule>, &'static str)> {
     }
 }
 
+/// Whether a named template's rules cover a claim class (suggest uses
+/// this to prefer a reviewed, named shape over a bespoke rule).
+pub(crate) fn template_covers_class(template: &str, class: &str) -> bool {
+    template_policy(template)
+        .map(|(rules, _)| {
+            rules
+                .iter()
+                .any(|r| r.claim_classes.iter().any(|c| c == class))
+        })
+        .unwrap_or(false)
+}
+
+/// The first rule of a named template, for suggestion previews.
+pub(crate) fn template_rule(template: &str) -> Option<PolicyRule> {
+    template_policy(template).and_then(|(rules, _)| rules.into_iter().next())
+}
+
+/// Proposal ids the policy lane admitted (they never reached a human).
+pub(crate) fn lane_admission_proposal_ids(project: &Project) -> std::collections::BTreeSet<String> {
+    lane_admissions(project)
+        .into_iter()
+        .map(|a| a.proposal_id)
+        .collect()
+}
+
 // ── Cores (testable; no process exits, no prompts) ─────────────────────
 
 /// Read + integrity-check the sealed `active.json`. This is the shared
@@ -232,6 +257,18 @@ fn draft_policy(
             format!("templates: {TEMPLATES}"),
         )
     })?;
+    seal_policy(frontier, rules, replace)
+}
+
+/// The sealing core, decoupled from the template ladder so suggested
+/// rules and templates share one path. Same contract as before the
+/// split: content-addressed id, epoch+1, Defer default, +90d expiry,
+/// rotation carries prior rules and quorum forward.
+fn seal_policy(
+    frontier: &Path,
+    rules: Vec<PolicyRule>,
+    replace: bool,
+) -> Result<(AcceptancePolicy, bool), CmdError> {
     let project =
         repo::load_from_path(frontier).map_err(|e| CmdError::new(ErrorKind::Domain, e))?;
 
@@ -550,7 +587,7 @@ fn evaluate_pending(project: &Project, policy: &AcceptancePolicy, now: &str) -> 
 /// note-shaped work, then the assertion text. Conservative — an
 /// unrecognized proposal is "unknown", and the engine then defers, never
 /// permits.
-fn proposal_claim_class(p: &StateProposal) -> String {
+pub(crate) fn proposal_claim_class(p: &StateProposal) -> String {
     if p.kind == "finding.note" {
         return "finding_note".to_string();
     }
@@ -670,18 +707,22 @@ fn render_policy(p: &AcceptancePolicy) {
     println!();
     println!("  rules");
     for r in &p.rules {
-        let classes = if r.claim_classes.is_empty() {
-            "any claim class".to_string()
-        } else {
-            r.claim_classes.join(", ")
-        };
-        println!("    {:<6} {}  →  {}", r.effect.as_str(), r.id, classes);
-        if r.effect == Outcome::Permit {
-            println!(
-                "           {}",
-                style::dim(&constraints_summary(&r.constraints))
-            );
-        }
+        render_rule(r);
+    }
+}
+
+fn render_rule(r: &PolicyRule) {
+    let classes = if r.claim_classes.is_empty() {
+        "any claim class".to_string()
+    } else {
+        r.claim_classes.join(", ")
+    };
+    println!("    {:<6} {}  →  {}", r.effect.as_str(), r.id, classes);
+    if r.effect == Outcome::Permit {
+        println!(
+            "           {}",
+            style::dim(&constraints_summary(&r.constraints))
+        );
     }
 }
 
@@ -851,6 +892,135 @@ pub(crate) fn cmd_policy_show(frontier: &Path, json: bool) {
         );
         print_admission_rows(&last);
     }
+}
+
+/// `vela policy suggest` — the histogram of asks plus the covering rules.
+/// Pure read: it seals nothing and signs nothing. The next command it
+/// hands is `draft` (a template or --from-suggest), then `sign`.
+pub(crate) fn cmd_policy_suggest(frontier: &Path, json: bool) {
+    let project =
+        repo::load_from_path(frontier).unwrap_or_else(|e| fail_with(ErrorKind::Domain, &e, None));
+    let rows = super::policy_suggest::ask_histogram(&project, frontier)
+        .unwrap_or_else(|e| fail_with(ErrorKind::Domain, &e, None));
+    let suggested = super::policy_suggest::suggestions(&rows);
+    let has_signed = active_sig_path(frontier).exists();
+
+    if json {
+        print_json(&json!({
+            "ok": true,
+            "command": "policy.suggest",
+            "asks": rows,
+            "suggestions": suggested,
+            "threshold": super::policy_suggest::SUGGEST_THRESHOLD,
+        }));
+        return;
+    }
+
+    ui::header("POLICY", &frontier.display().to_string(), Some("suggest"));
+    if rows.is_empty() {
+        println!("  no asks on record — nothing reached your key that a rule could absorb");
+        return;
+    }
+    println!("  what has been reaching your key:");
+    for r in &rows {
+        println!(
+            "  {:>4}x  {}  {}",
+            r.count,
+            r.claim_class,
+            style::dim(&r.reason.replace('_', " "))
+        );
+    }
+    if suggested.is_empty() {
+        println!();
+        println!(
+            "  nothing recurs past the bar ({}x) — these asks are judgment, not friction",
+            super::policy_suggest::SUGGEST_THRESHOLD
+        );
+        return;
+    }
+    for s in &suggested {
+        println!();
+        println!(
+            "  {} {} asks were {} — one signature covers the class:",
+            style::brass("suggest"),
+            s.covers,
+            s.claim_class
+        );
+        render_rule(&s.rule);
+        let replace_flag = if has_signed { " --replace" } else { "" };
+        match &s.template {
+            Some(t) => {
+                println!("  next: `vela policy draft {t} .{replace_flag} && vela policy sign .`")
+            }
+            None => println!(
+                "  next: `vela policy draft --from-suggest .{replace_flag} && vela policy sign .`"
+            ),
+        }
+    }
+}
+
+/// The one-line nudge other surfaces (the sign session) print. None when
+/// nothing crosses the bar.
+pub(crate) fn suggest_hint(frontier: &Path) -> Option<String> {
+    let project = repo::load_from_path(frontier).ok()?;
+    let rows = super::policy_suggest::ask_histogram(&project, frontier).ok()?;
+    let top = super::policy_suggest::suggestions(&rows)
+        .into_iter()
+        .next()?;
+    Some(format!(
+        "{} of your recent asks were {} — `vela policy suggest` shows the rule that would cover them",
+        top.covers, top.claim_class
+    ))
+}
+
+/// `vela policy draft --from-suggest` — seal the suggested covering
+/// rules (still unsigned; authority arrives with `vela policy sign`).
+pub(crate) fn cmd_policy_draft_from_suggest(frontier: &Path, replace: bool, json: bool) {
+    let project =
+        repo::load_from_path(frontier).unwrap_or_else(|e| fail_with(ErrorKind::Domain, &e, None));
+    let rows = super::policy_suggest::ask_histogram(&project, frontier)
+        .unwrap_or_else(|e| fail_with(ErrorKind::Domain, &e, None));
+    let suggested = super::policy_suggest::suggestions(&rows);
+    if suggested.is_empty() {
+        fail_with(
+            ErrorKind::NotFound,
+            "nothing to draft — no class recurs past the suggestion bar",
+            Some("`vela policy suggest` shows the histogram"),
+        );
+    }
+    let rules: Vec<PolicyRule> = suggested.iter().map(|s| s.rule.clone()).collect();
+    let (policy, replaced) = seal_policy(frontier, rules, replace).unwrap_or_else(|e| e.fail());
+
+    if json {
+        print_json(&json!({
+            "ok": true,
+            "command": "policy.draft",
+            "template": "from-suggest",
+            "policy_id": policy.id,
+            "epoch": policy.epoch,
+            "replaced_signed": replaced,
+            "signed": false,
+            "policy": serde_json::to_value(&policy).unwrap_or_default(),
+            "next": "vela policy sign",
+        }));
+        return;
+    }
+    ui::header("POLICY", "from-suggest", Some("sealed draft"));
+    println!(
+        "  covering rules for {} recurring class(es), sealed from the ask histogram",
+        suggested.len()
+    );
+    println!();
+    render_policy(&policy);
+    println!();
+    if replaced {
+        println!(
+            "  {} the outgoing signed policy was snapshotted; the lane is CLOSED until you sign",
+            style::warn("rotated")
+        );
+    }
+    println!("  sealed — carries no authority yet");
+    println!("  review the rules above, then: `vela policy sign` (one confirm, one key read)");
 }
 
 /// `vela policy draft <template>` — seal a policy from the template ladder.
@@ -1163,6 +1333,7 @@ pub(crate) fn run(args: &[String]) {
     let verb = args.get(2).map(String::as_str).unwrap_or("");
     let json = args.iter().any(|a| a == "--json");
     let replace = args.iter().any(|a| a == "--replace");
+    let from_suggest = args.iter().any(|a| a == "--from-suggest");
     let yes = args.iter().any(|a| a == "--yes");
     let value_of = |name: &str| -> Option<String> {
         args.iter()
@@ -1190,9 +1361,15 @@ pub(crate) fn run(args: &[String]) {
         i += 1;
     }
 
-    let usage = "usage: vela policy <show|draft <template>|test|sign|revoke --reason <why>|log> \
-                 [frontier] [--json] [--replace] [--yes] [--key <path>]";
+    let usage = "usage: vela policy <show|suggest|draft <template>|test|sign|revoke --reason \
+                 <why>|log> [frontier] [--json] [--replace] [--from-suggest] [--yes] \
+                 [--key <path>]";
     match verb {
+        "suggest" => {
+            ui::set_mode("policy", json);
+            let dir = ui::resolve_frontier(positionals.first().map(PathBuf::from));
+            cmd_policy_suggest(&dir, json);
+        }
         "show" | "test" | "log" | "sign" | "revoke" => {
             let interactive = matches!(verb, "sign" | "revoke");
             ui::set_mode("policy", json && !interactive);
@@ -1217,10 +1394,15 @@ pub(crate) fn run(args: &[String]) {
         }
         "draft" => {
             ui::set_mode("policy", json);
+            if from_suggest {
+                let dir = ui::resolve_frontier(positionals.first().map(PathBuf::from));
+                cmd_policy_draft_from_suggest(&dir, replace, json);
+                return;
+            }
             let template = positionals.first().cloned().unwrap_or_else(|| {
                 fail_with(
                     ErrorKind::Usage,
-                    &format!("draft needs a template (templates: {TEMPLATES})"),
+                    &format!("draft needs a template (templates: {TEMPLATES}) or --from-suggest"),
                     Some("vela policy draft witness-rederivation"),
                 )
             });

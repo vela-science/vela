@@ -426,8 +426,23 @@ pub(crate) fn cmd_verify(path: &Path, json_output: bool) {
 
 pub(crate) fn cmd_doctor(frontier: Option<&Path>, port: u16, json_output: bool) {
     let report = doctor::run(frontier, port);
+    // The setup/ceremony lane lives crate-side (identity, pin, hub,
+    // policy freshness, adapters, registry) and merges into the report.
+    let frontier_dir = if report.frontier_load_ok {
+        Some(std::path::PathBuf::from(&report.frontier_path))
+    } else {
+        None
+    };
+    let setup = crate::config::doctor_setup::run(frontier_dir.as_deref());
     if json_output {
-        print_json(&report);
+        let mut merged = serde_json::to_value(&report).unwrap_or_default();
+        if let Some(obj) = merged.as_object_mut() {
+            obj.insert(
+                "setup".to_string(),
+                serde_json::to_value(&setup).unwrap_or_default(),
+            );
+        }
+        print_json(&merged);
     } else {
         println!("vela doctor");
         println!("  binary:      {}", report.binary_version);
@@ -459,6 +474,19 @@ pub(crate) fn cmd_doctor(frontier: Option<&Path>, port: u16, json_output: bool) 
                 "unavailable"
             }
         );
+        println!();
+        println!("setup:");
+        for c in &setup {
+            let mark = match c.status {
+                crate::config::doctor_setup::SetupStatus::Ok => "ok  ",
+                crate::config::doctor_setup::SetupStatus::Warn => "warn",
+                crate::config::doctor_setup::SetupStatus::Fail => "FAIL",
+            };
+            println!("  {mark}  {:<11} {}", c.name, c.detail);
+            if !c.next.is_empty() {
+                println!("        {:<11} → {}", "", c.next);
+            }
+        }
         if !report.blocking.is_empty() {
             println!("  blocking:    {}", report.blocking.join(", "));
         }

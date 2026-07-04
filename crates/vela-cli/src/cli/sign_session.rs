@@ -369,6 +369,15 @@ pub(crate) fn cmd_sign_session(frontier: Option<PathBuf>, key: Option<PathBuf>, 
     }
     apply_spin.finish("applied");
     println!("\n  · signed. `vela log` shows the lane on every event.");
+
+    // The self-shrinking step: if what you just signed keeps recurring,
+    // say so once — the rule that absorbs the class is one command away.
+    for (dir, _, _) in &queues {
+        if let Some(hint) = crate::config::cli_policy::suggest_hint(dir) {
+            println!("  {}", vela_protocol::cli_style::dim(&hint));
+            break;
+        }
+    }
 }
 
 /// The clear-signing binary gate every ceremony runs first: a pinned

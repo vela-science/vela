@@ -5,7 +5,10 @@ allowed-tools: Bash(vela status:*), Bash(vela sign --frontier . --json:*), Bash(
 
 # /vela:status
 
-Render the frontier dashboard. Run these three commands (any directory inside a
+Render the frontier dashboard. The plugin's SessionStart hook already emitted
+a compact brief (frontier name, state one-liner, sign-queue depth, top
+target) as session context — this command is the full render, for when the
+user wants the whole picture or the brief has gone stale. Run these three commands (any directory inside a
 frontier works — vela discovers `.vela/` by walking upward, like git finds `.git`):
 
 1. `vela status --json`

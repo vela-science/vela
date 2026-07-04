@@ -38,14 +38,19 @@ nothing else.
    anything (AskUserQuestion or a plain question). Apply their edits.
 3. Write it to `receipt.json` (or the path in `$ARGUMENTS`, or one the user
    prefers).
-4. Land it:
+4. Land it. Prefer the MCP `work` tool when the vela-local server is attached
+   (the plugin's `.mcp.json` serves the draft profile, which exposes it):
+   call `work` with `action: "land"`, the receipt path, and the agent
+   identity. If the MCP tool is unavailable, shell out:
 
    ```
    vela land receipt.json --as agent:<name> --json
    ```
 
    Identity: `$VELA_ACTOR_ID` if set, else `agent:claude`. Agent writes always
-   carry an explicit `agent:` identity — never land bare.
+   carry an explicit `agent:` identity — never land bare. Both paths are the
+   same write edge: the receipt is hashed, a pending record lands, and the
+   frontier's signed policy routes it.
 5. Report the route from the JSON result:
    - **policy_admitted** — the signed policy ruled; the record is canonical
      state with no ceremony needed. Name the policy id if the output carries
