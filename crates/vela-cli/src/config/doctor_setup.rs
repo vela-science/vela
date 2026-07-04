@@ -238,13 +238,25 @@ fn registry_check() -> SetupCheck {
     if gone.is_empty() {
         ok("registry", format!("{} live frontier(s)", all.len()))
     } else {
+        // Show enough to recognize the debris, never a wall of temp paths.
+        let shown = gone
+            .iter()
+            .take(3)
+            .map(|p| p.rsplit('/').next().unwrap_or(p))
+            .collect::<Vec<_>>()
+            .join(", ");
+        let more = gone.len().saturating_sub(3);
+        let tail = if more > 0 {
+            format!(" (+{more} more)")
+        } else {
+            String::new()
+        };
         warn(
             "registry",
             format!(
-                "{} of {} registered frontier(s) no longer exist: {}",
+                "{} of {} registered frontier(s) no longer exist: {shown}{tail} — compacts on the next registration",
                 gone.len(),
                 all.len(),
-                gone.join(", ")
             ),
             String::new(),
         )

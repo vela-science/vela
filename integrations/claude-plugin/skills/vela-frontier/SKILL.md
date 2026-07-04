@@ -105,5 +105,7 @@ banked result.
 `vela status --json` is the one-screen summary (findings, replay integrity,
 policy mode, sign-queue depth, compounding metrics). `vela state <vf_id>` is
 one finding's claim-state cell; `vela log <dir> <vf_id>` its history. The MCP
-server (`vela serve . --profile read-only`) exposes the same read surface as
-tools.
+server (`vela serve . --profile draft`) exposes the read surface plus the
+non-finalizing writes (`propose`, `work` — claim|land|drop|deposit) as tools;
+`decide` is excluded by construction, so nothing an agent does through MCP
+finalizes state.

@@ -102,8 +102,12 @@ fn mcp_json_adapter(root: &Path) -> String {
     // root serves its conventional frontiers directory (`frontiers/` per the
     // atlas layout, else `examples/`). `serve .` at a multi-frontier root, and
     // `serve --frontiers .` (which rescans non-frontier JSON), both fail.
+    // Draft profile: the read surface plus the non-finalizing writes the
+    // loop needs (propose, work). `decide` is excluded by construction, so
+    // this delegates nothing — matching what the skill teaches. Keep the
+    // profile and the skill text in step.
     let args: Vec<String> = if root.join(".vela").is_dir() {
-        ["serve", ".", "--profile", "read-only"]
+        ["serve", ".", "--profile", "draft"]
             .iter()
             .map(|s| s.to_string())
             .collect()
@@ -113,16 +117,10 @@ fn mcp_json_adapter(root: &Path) -> String {
         } else {
             "examples"
         };
-        [
-            "serve",
-            "--frontiers",
-            frontiers_dir,
-            "--profile",
-            "read-only",
-        ]
-        .iter()
-        .map(|s| s.to_string())
-        .collect()
+        ["serve", "--frontiers", frontiers_dir, "--profile", "draft"]
+            .iter()
+            .map(|s| s.to_string())
+            .collect()
     };
     let value = json!({
         "_generated_by": "vela agents sync (from VELA.md) — edit VELA.md, not this file",
@@ -255,8 +253,10 @@ banked result.
 `vela status --json` is the one-screen summary (findings, replay integrity,
 policy mode, sign-queue depth, compounding metrics). `vela state <vf_id>` is
 one finding's claim-state cell; `vela log <dir> <vf_id>` its history. The MCP
-server (`vela serve . --profile read-only`) exposes the same read surface as
-tools.
+server (`vela serve . --profile draft`) exposes the read surface plus the
+non-finalizing writes (`propose`, `work` — claim|land|drop|deposit) as tools;
+`decide` is excluded by construction, so nothing an agent does through MCP
+finalizes state.
 "##;
 
 /// The note stamped into the EMITTED skill adapter (after the frontmatter, so

@@ -52,6 +52,11 @@ pub fn register(frontier_dir: &Path, name: Option<&str>) {
         .canonicalize()
         .unwrap_or_else(|_| frontier_dir.to_path_buf());
     let mut reg = load();
+    // Write-time compaction: rows whose frontier vanished (deleted temp
+    // dirs, moved checkouts) drop here, so the registry self-heals on
+    // every registration instead of accreting debris forever.
+    reg.frontiers
+        .retain(|f| Path::new(&f.path).join(".vela").is_dir());
     if let Some(existing) = reg
         .frontiers
         .iter_mut()
@@ -75,7 +80,6 @@ pub fn register(frontier_dir: &Path, name: Option<&str>) {
 
 /// Registered frontiers that still exist on disk and still look like
 /// frontiers (stale rows are skipped, not errors).
-#[allow(dead_code)] // the cross-frontier `vela sign` walk (W3); built ahead of its consumer
 pub fn live_frontiers() -> Vec<PathBuf> {
     load()
         .frontiers

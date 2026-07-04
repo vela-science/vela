@@ -143,6 +143,15 @@ next -> work -> land -> sign
 - `vela sign` — the one human ceremony: everything exceeding policy,
   one session, one confirm, one key read.
 
+Coming from Claude Code or Codex: what those tools call *permissions*
+(which tools an agent may call, auto-accept, bypass) maps to Vela's
+**MCP profiles** — `read-only` / `draft` / `maintainer`, enforced by the
+server, no ceremony. `vela policy` is the other trust level: a signed,
+expiring, content-addressed rule about what may become CANONICAL STATE
+without your key — branch protection, except auditable in the log
+forever. Profiles gate activity; policies gate state. Two words because
+they are two different delegations.
+
 The ceremony shrinks itself. `vela policy suggest` folds every ask that
 reached your key into a histogram of claim classes and, when a class
 recurs (3+), SHOWS the one rule whose signature would absorb it — a
