@@ -24,7 +24,7 @@
 
 use std::collections::HashMap;
 use std::env;
-use std::net::SocketAddr;
+use std::net::{IpAddr, SocketAddr};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -51,8 +51,8 @@ use tokio::sync::RwLock;
 // declared inline.
 use db::{HubDb, ensure_postgres_event_first_schema, ensure_sqlite_schema};
 use tower_http::cors::CorsLayer;
-mod html;
-use html::*;
+mod review;
+use review::*;
 
 use vela_hub::db;
 use vela_hub::storage::Storage;
@@ -72,10 +72,12 @@ const DEFAULT_SITE_URL: &str = "https://app.constellate.science";
 /// timestamp, so the key changes and the next read re-fetches.
 type FrontierCache = Arc<RwLock<HashMap<(String, String), Arc<Project>>>>;
 
-/// URL strings the hub renders into HTML. Sourced at startup from env
-/// vars (`VELA_HUB_PUBLIC_URL`, `VELA_REPO_URL`, `VELA_SITE_URL`) with
-/// hardcoded defaults that match the v0.7 deploy. Changing the deploy
-/// target is one secret-set away.
+/// Public URL strings the hub quotes back to clients: the JSON banners,
+/// the `/.well-known/vela` manifest, and the 301 redirects into the app
+/// (`site`). Sourced at startup from env vars (`VELA_HUB_PUBLIC_URL`,
+/// `VELA_REPO_URL`, `VELA_SITE_URL`) with hardcoded defaults that match
+/// the production deploy. Changing the deploy target is one secret-set
+/// away.
 #[derive(Clone)]
 struct PublicUrls {
     hub: String,
@@ -93,11 +95,6 @@ impl PublicUrls {
             repo: strip(env::var("VELA_REPO_URL").unwrap_or_else(|_| DEFAULT_REPO_URL.into())),
             site: strip(env::var("VELA_SITE_URL").unwrap_or_else(|_| DEFAULT_SITE_URL.into())),
         }
-    }
-    fn hub_host(&self) -> &str {
-        self.hub
-            .trim_start_matches("https://")
-            .trim_start_matches("http://")
     }
 }
 
@@ -153,6 +150,14 @@ struct AppState {
     /// webhook lane answers 503 and the interval sweeps remain the only
     /// refresh path.
     webhook_secret: Option<Arc<String>>,
+    /// Peer hub URLs advertised in the `/.well-known/vela` manifest
+    /// (`VELA_HUB_PEERS`, comma-separated). Discovery only — a peer is
+    /// never a trust root; clients verify signatures per frontier.
+    peers: Arc<Vec<String>>,
+    /// Per-IP sliding-window rate limiter (protocol-node hygiene).
+    /// `VELA_HUB_RATE_LIMIT_PER_MIN` configures the default GET budget;
+    /// 0 disables the limiter entirely.
+    rate_limiter: Arc<RateLimiter>,
 }
 
 /// v0.49: tiny stale-on-read cache for DB query results. Keyed by a
@@ -484,6 +489,267 @@ async fn http_metrics_mw(
     response
 }
 
+// ─── Rate limiting ────────────────────────────────────────────────────
+//
+// Hand-rolled per-IP sliding window, same register as `HttpMetrics`: no
+// middleware crate, a `Mutex<HashMap>` because the hub's request volume
+// is far below where lock contention matters. Budgets are per (client
+// IP, route class) so a GET flood cannot starve the POST lanes.
+
+const RATE_LIMIT_WINDOW: Duration = Duration::from_secs(60);
+const RATE_LIMIT_DEFAULT_PER_MIN: u32 = 120;
+const RATE_LIMIT_MCP_PER_MIN: u32 = 20;
+const RATE_LIMIT_WEBHOOK_PER_MIN: u32 = 60;
+/// Operational endpoints are exempt entirely: health checks and the
+/// Prometheus scraper must never be starved by an abusive client
+/// sharing a NAT'd IP with them.
+const RATE_LIMIT_EXEMPT_ROUTES: [&str; 3] = ["/healthz", "/readyz", "/metrics"];
+
+struct RateLimiter {
+    /// The default budget per window (GETs and any route without its own
+    /// class). 0 ⇒ the limiter is disabled.
+    default_per_min: u32,
+    window: Duration,
+    hits: std::sync::Mutex<
+        HashMap<(IpAddr, &'static str), std::collections::VecDeque<std::time::Instant>>,
+    >,
+    /// Requests refused with 429, exposed at `/metrics`.
+    rate_limited_total: std::sync::atomic::AtomicU64,
+}
+
+impl RateLimiter {
+    fn new(default_per_min: u32) -> Self {
+        Self {
+            default_per_min,
+            window: RATE_LIMIT_WINDOW,
+            hits: std::sync::Mutex::new(HashMap::new()),
+            rate_limited_total: std::sync::atomic::AtomicU64::new(0),
+        }
+    }
+
+    /// `VELA_HUB_RATE_LIMIT_PER_MIN`: 0 disables; unset/unparsable ⇒ 120.
+    fn from_env() -> Self {
+        let per_min = env::var("VELA_HUB_RATE_LIMIT_PER_MIN")
+            .ok()
+            .and_then(|s| s.trim().parse().ok())
+            .unwrap_or(RATE_LIMIT_DEFAULT_PER_MIN);
+        Self::new(per_min)
+    }
+
+    fn disabled(&self) -> bool {
+        self.default_per_min == 0
+    }
+
+    /// The (class, budget) for a matched route template, or `None` when
+    /// the route is exempt from rate limiting.
+    fn class_limit(&self, method: &str, route: &str) -> Option<(&'static str, u32)> {
+        if RATE_LIMIT_EXEMPT_ROUTES.contains(&route) {
+            return None;
+        }
+        match (method, route) {
+            ("POST", "/mcp") => Some(("mcp", RATE_LIMIT_MCP_PER_MIN)),
+            // HMAC'd, but still bounded: a stolen secret must not buy
+            // an unmetered ingest-kick lane.
+            ("POST", "/webhook/github") => Some(("webhook", RATE_LIMIT_WEBHOOK_PER_MIN)),
+            _ => Some(("default", self.default_per_min)),
+        }
+    }
+
+    /// Admit or refuse one request at `now`. `Err(retry_after_secs)`
+    /// means over budget. Window math is sliding: a hit expires exactly
+    /// `window` after it was recorded.
+    fn check_at(
+        &self,
+        ip: IpAddr,
+        class: &'static str,
+        limit: u32,
+        now: std::time::Instant,
+    ) -> Result<(), u64> {
+        let mut hits = self.hits.lock().unwrap_or_else(|e| e.into_inner());
+        // Periodic pruning: when the map grows past a bound, sweep out
+        // every expired hit and drop empty keys so one-shot scanners
+        // cannot grow the map without bound.
+        if hits.len() > 4096 {
+            hits.retain(|_, q| {
+                while q
+                    .front()
+                    .is_some_and(|t| now.duration_since(*t) >= self.window)
+                {
+                    q.pop_front();
+                }
+                !q.is_empty()
+            });
+        }
+        let q = hits.entry((ip, class)).or_default();
+        while q
+            .front()
+            .is_some_and(|t| now.duration_since(*t) >= self.window)
+        {
+            q.pop_front();
+        }
+        if (q.len() as u32) < limit {
+            q.push_back(now);
+            return Ok(());
+        }
+        let oldest = *q.front().expect("deque non-empty when at limit");
+        let remaining = self.window.saturating_sub(now.duration_since(oldest));
+        self.rate_limited_total
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        Err(remaining.as_secs().max(1))
+    }
+
+    fn render_prometheus(&self) -> String {
+        let total = self
+            .rate_limited_total
+            .load(std::sync::atomic::Ordering::Relaxed);
+        format!(
+            "# HELP vela_hub_rate_limited_total Requests refused with 429 by the per-IP sliding-window rate limiter.\n\
+             # TYPE vela_hub_rate_limited_total counter\n\
+             vela_hub_rate_limited_total {total}\n"
+        )
+    }
+}
+
+/// The client IP for rate limiting. Fly terminates TLS and sets
+/// `Fly-Client-IP`; prefer it, then the first `X-Forwarded-For` hop,
+/// then the socket peer address.
+fn client_ip(req: &axum::extract::Request) -> Option<IpAddr> {
+    let headers = req.headers();
+    if let Some(v) = headers.get("fly-client-ip").and_then(|v| v.to_str().ok())
+        && let Ok(ip) = v.trim().parse()
+    {
+        return Some(ip);
+    }
+    if let Some(v) = headers.get("x-forwarded-for").and_then(|v| v.to_str().ok())
+        && let Some(first) = v.split(',').next()
+        && let Ok(ip) = first.trim().parse()
+    {
+        return Some(ip);
+    }
+    req.extensions()
+        .get::<axum::extract::ConnectInfo<SocketAddr>>()
+        .map(|ci| ci.0.ip())
+}
+
+/// Router-level rate-limit middleware. Added via `route_layer` INSIDE the
+/// metrics layer (metrics added last ⇒ outermost), so a 429 is still
+/// recorded in the per-route request counters.
+async fn rate_limit_mw(
+    State(limiter): State<Arc<RateLimiter>>,
+    req: axum::extract::Request,
+    next: axum::middleware::Next,
+) -> Response {
+    if limiter.disabled() {
+        return next.run(req).await;
+    }
+    let route = req
+        .extensions()
+        .get::<axum::extract::MatchedPath>()
+        .map(|m| m.as_str().to_string())
+        .unwrap_or_default();
+    let Some((class, limit)) = limiter.class_limit(req.method().as_str(), &route) else {
+        return next.run(req).await;
+    };
+    // No resolvable client IP (shouldn't happen behind Fly or the local
+    // listener) fails open: rate limiting is hygiene, not custody.
+    let Some(ip) = client_ip(&req) else {
+        return next.run(req).await;
+    };
+    match limiter.check_at(ip, class, limit, std::time::Instant::now()) {
+        Ok(()) => next.run(req).await,
+        Err(retry_after_secs) => {
+            let mut resp = (
+                StatusCode::TOO_MANY_REQUESTS,
+                Json(error_body(
+                    "RATE_LIMITED",
+                    format!(
+                        "rate limit exceeded ({limit} requests per {}s for this endpoint class); retry in {retry_after_secs}s",
+                        RATE_LIMIT_WINDOW.as_secs()
+                    ),
+                )),
+            )
+                .into_response();
+            if let Ok(v) = axum::http::HeaderValue::from_str(&retry_after_secs.to_string()) {
+                resp.headers_mut()
+                    .insert(axum::http::header::RETRY_AFTER, v);
+            }
+            resp
+        }
+    }
+}
+
+#[cfg(test)]
+mod rate_limiter_tests {
+    use super::*;
+    use std::time::Instant;
+
+    fn ip() -> IpAddr {
+        "203.0.113.7".parse().unwrap()
+    }
+
+    #[test]
+    fn window_math_admits_then_refuses_then_recovers() {
+        let rl = RateLimiter::new(3);
+        let t0 = Instant::now();
+        for _ in 0..3 {
+            assert!(rl.check_at(ip(), "default", 3, t0).is_ok());
+        }
+        // Fourth hit inside the window is refused, with a sane Retry-After.
+        let retry = rl.check_at(ip(), "default", 3, t0).unwrap_err();
+        assert!((1..=60).contains(&retry), "retry-after in (0, 60]: {retry}");
+        assert_eq!(
+            rl.rate_limited_total
+                .load(std::sync::atomic::Ordering::Relaxed),
+            1
+        );
+        // Mid-window: still refused, Retry-After shrinks with time left.
+        let retry_mid = rl
+            .check_at(ip(), "default", 3, t0 + Duration::from_secs(30))
+            .unwrap_err();
+        assert!(retry_mid <= 30, "half the window elapsed: {retry_mid}");
+        // After the window slides past the oldest hit, admitted again.
+        assert!(
+            rl.check_at(ip(), "default", 3, t0 + Duration::from_secs(61))
+                .is_ok()
+        );
+    }
+
+    #[test]
+    fn classes_have_independent_budgets() {
+        let rl = RateLimiter::new(2);
+        let t0 = Instant::now();
+        assert!(rl.check_at(ip(), "default", 2, t0).is_ok());
+        assert!(rl.check_at(ip(), "default", 2, t0).is_ok());
+        assert!(rl.check_at(ip(), "default", 2, t0).is_err());
+        // The mcp class for the same IP is untouched.
+        assert!(rl.check_at(ip(), "mcp", 20, t0).is_ok());
+    }
+
+    #[test]
+    fn exemptions_and_route_classes() {
+        let rl = RateLimiter::new(120);
+        assert!(rl.class_limit("GET", "/healthz").is_none());
+        assert!(rl.class_limit("GET", "/readyz").is_none());
+        assert!(rl.class_limit("GET", "/metrics").is_none());
+        assert_eq!(rl.class_limit("POST", "/mcp"), Some(("mcp", 20)));
+        assert_eq!(
+            rl.class_limit("POST", "/webhook/github"),
+            Some(("webhook", 60))
+        );
+        assert_eq!(rl.class_limit("GET", "/entries"), Some(("default", 120)));
+        assert_eq!(
+            rl.class_limit("GET", "/entries/{vfr_id}"),
+            Some(("default", 120))
+        );
+    }
+
+    #[test]
+    fn zero_disables() {
+        let rl = RateLimiter::new(0);
+        assert!(rl.disabled());
+    }
+}
+
 async fn db_cache_read(cache: &DbCache, key: &str) -> Option<DbCacheEntry> {
     cache.read().await.get(key).cloned()
 }
@@ -652,7 +918,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .ok()
             .filter(|s| !s.is_empty())
             .map(Arc::new),
+        peers: Arc::new(parse_peers(&env::var("VELA_HUB_PEERS").unwrap_or_default())),
+        rate_limiter: Arc::new(RateLimiter::from_env()),
     };
+    if state.rate_limiter.disabled() {
+        tracing::warn!("VELA_HUB_RATE_LIMIT_PER_MIN=0; per-IP rate limiting disabled");
+    }
     if state.webhook_secret.is_none() {
         tracing::info!(
             "no VELA_HUB_WEBHOOK_SECRET set; /webhook/github disabled (interval sweeps only)"
@@ -737,7 +1008,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .unwrap_or(3849);
     let addr: SocketAddr = ([0, 0, 0, 0], port).into();
 
-    let app = Router::new()
+    let app = build_router(state);
+
+    tracing::info!("vela-hub {HUB_VERSION} listening on http://{addr}");
+    let listener = tokio::net::TcpListener::bind(&addr).await?;
+    // ConnectInfo gives the rate limiter its socket-address fallback when
+    // no proxy header names the client.
+    axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<SocketAddr>(),
+    )
+    .await?;
+    Ok(())
+}
+
+/// The whole HTTP surface. Factored out of `main` so the in-process
+/// tests exercise the same router (routes + middleware) the binary runs.
+fn build_router(state: AppState) -> Router {
+    Router::new()
         .route("/", get(root))
         .route("/healthz", get(healthz))
         .route("/readyz", get(readyz))
@@ -819,45 +1107,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             "/entries/{vfr_id}/proof/download",
             get(get_proof_packet_download),
         )
-        .route("/static/tokens.css", get(static_tokens_css))
-        .route("/static/workbench.css", get(static_workbench_css))
-        .route("/static/site.css", get(static_site_css))
-        .route("/static/favicon.svg", get(static_favicon_svg))
-        .route("/static/vela-logo-mark.svg", get(static_logo_mark_svg))
-        .route(
-            "/static/vela-logo-wordmark.svg",
-            get(static_logo_wordmark_svg),
-        )
-        .route("/static/rete.svg", get(static_rete_svg))
-        .route(
-            "/static/fonts/space-grotesk-latin-400-normal.woff2",
-            get(|| async { woff2_response(FONT_GROTESK_400) }),
-        )
-        .route(
-            "/static/fonts/space-grotesk-latin-500-normal.woff2",
-            get(|| async { woff2_response(FONT_GROTESK_500) }),
-        )
-        .route(
-            "/static/fonts/space-grotesk-latin-600-normal.woff2",
-            get(|| async { woff2_response(FONT_GROTESK_600) }),
-        )
-        .route(
-            "/static/fonts/spectral-latin-400-normal.woff2",
-            get(|| async { woff2_response(FONT_SPECTRAL_400) }),
-        )
-        .route(
-            "/static/fonts/spectral-latin-600-normal.woff2",
-            get(|| async { woff2_response(FONT_SPECTRAL_600) }),
-        )
-        .route(
-            "/static/fonts/jetbrains-mono-latin-400-normal.woff2",
-            get(|| async { woff2_response(FONT_JBM_400) }),
-        )
         // v0.727: the hosted MCP endpoint (streamable HTTP, stateless
         // JSON, read-only profile) and the GitHub webhook that kicks
         // ingest + MCP refresh ahead of the interval sweeps.
         .route("/mcp", post(post_mcp).get(get_mcp))
         .route("/webhook/github", post(post_webhook_github))
+        // Per-IP rate limiting. route_layer so MatchedPath is visible for
+        // the exemption/class table; added BEFORE the metrics layer so
+        // metrics wraps it and a 429 still lands in the request counters.
+        .route_layer(axum::middleware::from_fn_with_state(
+            state.rate_limiter.clone(),
+            rate_limit_mw,
+        ))
         // Per-route request metrics. route_layer (not layer) so the
         // middleware runs after routing and sees MatchedPath.
         .route_layer(axum::middleware::from_fn_with_state(
@@ -866,12 +1127,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         ))
         .layer(DefaultBodyLimit::max(MAX_PUBLISH_BODY_BYTES))
         .layer(CorsLayer::permissive())
-        .with_state(state);
-
-    tracing::info!("vela-hub {HUB_VERSION} listening on http://{addr}");
-    let listener = tokio::net::TcpListener::bind(&addr).await?;
-    axum::serve(listener, app).await?;
-    Ok(())
+        .with_state(state)
 }
 
 /// POST /mcp — the hosted MCP endpoint: streamable HTTP with stateless
@@ -991,13 +1247,58 @@ async fn post_webhook_github(
     )
 }
 
-/// usually omit the header or send `*/*`. We render HTML only when the
-/// client explicitly asks for it.
+/// usually omit the header or send `*/*`. We redirect to the app only
+/// when the client explicitly asks for HTML.
 fn wants_html(headers: &HeaderMap) -> bool {
     headers
         .get(ACCEPT)
         .and_then(|v| v.to_str().ok())
         .is_some_and(|s| s.contains("text/html"))
+}
+
+/// The one browser exit (protocol-only hub): a permanent redirect into
+/// the app at `{VELA_SITE_URL}{path}`. The hub serves protocol JSON;
+/// any client that renders it is a viewer, and app.constellate.science
+/// is the reference viewer. The body names the target for curl users
+/// who sent `Accept: text/html` without following redirects.
+fn redirect_to_site(urls: &PublicUrls, path: &str) -> Response {
+    let target = format!("{}{}", urls.site, path);
+    (
+        StatusCode::MOVED_PERMANENTLY,
+        [
+            (axum::http::header::LOCATION, target.clone()),
+            (
+                axum::http::header::CONTENT_TYPE,
+                "text/plain; charset=utf-8".to_string(),
+            ),
+        ],
+        format!("moved permanently: this page now lives at {target}\n"),
+    )
+        .into_response()
+}
+
+/// Percent-encode one query-string value (RFC 3986 unreserved set kept).
+fn urlencode(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    for b in s.bytes() {
+        match b {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                out.push(b as char);
+            }
+            _ => out.push_str(&format!("%{b:02X}")),
+        }
+    }
+    out
+}
+
+/// `VELA_HUB_PEERS` is a comma-separated URL list; absent or empty ⇒ no
+/// peers. Trailing slashes are stripped so peer URLs compose like
+/// `urls.hub` does.
+fn parse_peers(raw: &str) -> Vec<String> {
+    raw.split(',')
+        .map(|p| p.trim().trim_end_matches('/').to_string())
+        .filter(|p| !p.is_empty())
+        .collect()
 }
 
 /// The one JSON error body shape, shared with `vela serve`'s HTTP surface
@@ -1109,9 +1410,63 @@ fn root_json() -> Value {
     })
 }
 
+/// The one page the hub still serves itself: a minimal self-describing
+/// banner. System font stack, no external assets, no design system —
+/// the app owns presentation; this exists so a human landing on the
+/// bare node learns what it is and where the doors are. The endpoint
+/// list is the JSON banner's own data, rendered once.
+fn render_root_banner(urls: &PublicUrls) -> String {
+    let endpoints: String = root_json()["endpoints"]
+        .as_array()
+        .map(|a| {
+            a.iter()
+                .filter_map(Value::as_str)
+                .map(|e| format!("<li><code>{e}</code></li>\n"))
+                .collect()
+        })
+        .unwrap_or_default();
+    let site = &urls.site;
+    let repo = &urls.repo;
+    let hub = &urls.hub;
+    format!(
+        r#"<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>vela-hub {HUB_VERSION}</title>
+<style>
+  body {{ font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+         max-width: 44rem; margin: 3rem auto; padding: 0 1.25rem;
+         line-height: 1.55; color: #1a1a1a; background: #fdfdfc; }}
+  h1 {{ font-size: 1.3rem; font-weight: 600; }}
+  h1 small {{ font-weight: 400; color: #777; }}
+  code {{ font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+          font-size: 0.85em; }}
+  ul {{ padding-left: 0; }}
+  li {{ list-style: none; margin: 0.3rem 0; }}
+  .doctrine {{ color: #555; font-style: italic; }}
+  a {{ color: #1a1a1a; }}
+</style>
+</head>
+<body>
+<h1>vela-hub <small>{HUB_VERSION}</small></h1>
+<p class="doctrine">a Vela protocol node — the log proves itself; viewers are replaceable</p>
+<p>Every endpoint below speaks JSON. Browsers are redirected to the
+reference viewer at <a href="{site}">{site}</a>.</p>
+<ul>
+{endpoints}</ul>
+<p>Protocol docs: <a href="{repo}/blob/main/docs/HUB.md">docs/HUB.md</a>
+· try <code>curl -s {hub}/entries</code></p>
+</body>
+</html>
+"#
+    )
+}
+
 async fn root(State(state): State<AppState>, headers: HeaderMap) -> Response {
     if wants_html(&headers) {
-        Html(render_root_html(&state.urls)).into_response()
+        Html(render_root_banner(&state.urls)).into_response()
     } else {
         Json(root_json()).into_response()
     }
@@ -1124,6 +1479,34 @@ async fn root(State(state): State<AppState>, headers: HeaderMap) -> Response {
 async fn metrics_prometheus(State(state): State<AppState>) -> impl axum::response::IntoResponse {
     let mut body = state.db_cache_metrics.render_prometheus();
     body.push_str(&state.http_metrics.render_prometheus());
+    body.push_str(&state.rate_limiter.render_prometheus());
+    // Ingest health, queried at scrape time. Born of a real incident: a
+    // missing UPDATE grant left every re-ingest failing for days while
+    // the error sat in a JSON field nobody scraped. A failing ingest is
+    // a stale public record — it must be a first-class signal.
+    if let Ok(rows) = state.db.ingest_health().await {
+        body.push_str(
+            "# HELP vela_hub_ingest_failing 1 when the frontier's last ingest sweep recorded an error.\n\
+             # TYPE vela_hub_ingest_failing gauge\n",
+        );
+        for (vfr_id, failing, _age) in &rows {
+            body.push_str(&format!(
+                "vela_hub_ingest_failing{{vfr_id=\"{vfr_id}\"}} {}\n",
+                if *failing { 1 } else { 0 }
+            ));
+        }
+        body.push_str(
+            "# HELP vela_hub_ingest_age_seconds Seconds since the frontier's last completed ingest.\n\
+             # TYPE vela_hub_ingest_age_seconds gauge\n",
+        );
+        for (vfr_id, _failing, age) in &rows {
+            if let Some(age) = age {
+                body.push_str(&format!(
+                    "vela_hub_ingest_age_seconds{{vfr_id=\"{vfr_id}\"}} {age}\n"
+                ));
+            }
+        }
+    }
     (
         StatusCode::OK,
         [(
@@ -1145,6 +1528,12 @@ async fn well_known_vela(State(state): State<AppState>) -> Json<Value> {
         "protocol_version": "0.48",
         "site": state.urls.site.clone(),
         "signed_at": signed_at,
+        // Peer discovery (`VELA_HUB_PEERS`): other hubs known to carry
+        // the same protocol surface. Discovery only — never a trust
+        // root. Part of the manifest, so the detached signature below
+        // covers it (the signature is over the canonical bytes of this
+        // whole object).
+        "peers": &*state.peers,
         "endpoints": {
             "registry": format!("{}/entries", state.urls.hub),
             "publish":  format!("{}/entries", state.urls.hub),
@@ -1299,7 +1688,53 @@ async fn healthz(State(state): State<AppState>) -> (StatusCode, Json<Value>) {
     }
 }
 
-async fn list_entries(State(state): State<AppState>, headers: HeaderMap) -> Response {
+/// The `/entries` response body. Default (no `limit`) is the full list —
+/// byte-identical to the pre-pagination contract. When `limit` is
+/// present the page is sliced and `{total, next_offset}` are added
+/// ADDITIVELY (`next_offset` only when more rows remain).
+fn entries_payload(values: &[Value], limit: Option<i64>, offset: i64) -> Value {
+    let Some(limit) = limit else {
+        return json!({"schema": REGISTRY_SCHEMA, "entries": values});
+    };
+    let total = values.len() as i64;
+    let start = offset.min(total) as usize;
+    let end = offset.saturating_add(limit).min(total) as usize;
+    let mut body = json!({
+        "schema": REGISTRY_SCHEMA,
+        "entries": &values[start..end],
+        "total": total,
+    });
+    if (end as i64) < total {
+        body["next_offset"] = json!(end as i64);
+    }
+    body
+}
+
+/// Parse `/entries` pagination params: `limit` clamped to 1..=500 (and
+/// only active when present), `offset` clamped >= 0.
+fn entries_page_params(params: &HashMap<String, String>) -> (Option<i64>, i64) {
+    let limit = params
+        .get("limit")
+        .and_then(|s| s.parse::<i64>().ok())
+        .map(|l| l.clamp(1, 500));
+    let offset = params
+        .get("offset")
+        .and_then(|s| s.parse::<i64>().ok())
+        .unwrap_or(0)
+        .max(0);
+    (limit, offset)
+}
+
+async fn list_entries(
+    State(state): State<AppState>,
+    Query(params): Query<HashMap<String, String>>,
+    headers: HeaderMap,
+) -> Response {
+    // Protocol-only hub: the browsable frontier list lives in the app.
+    if wants_html(&headers) {
+        return redirect_to_site(&state.urls, "/frontiers");
+    }
+    let (limit, offset) = entries_page_params(&params);
     let cache_key = "list_entries";
     let cached = db_cache_read(&state.db_cache, cache_key).await;
     let now = std::time::Instant::now();
@@ -1309,19 +1744,21 @@ async fn list_entries(State(state): State<AppState>, headers: HeaderMap) -> Resp
         && now.duration_since(entry.fetched_at) < DB_CACHE_FRESH_TTL
     {
         state.db_cache_metrics.record_hit();
-        return cached_list_response(&state.urls, &entry.value, &headers, false);
+        return cached_list_response(&entry.value, limit, offset, false);
     }
 
     match state.db.list_live_entries().await {
         Ok(values) => {
             state.db_cache_metrics.record_miss();
+            // The cache holds the FULL list; pagination is a read-time
+            // slice so every limit/offset shares one cache entry.
             let payload = json!({"schema": REGISTRY_SCHEMA, "entries": values});
             db_cache_write(&state.db_cache, cache_key, payload.clone()).await;
-            if wants_html(&headers) {
-                Html(render_entries_html(&state.urls, &values)).into_response()
-            } else {
-                (StatusCode::OK, Json(payload)).into_response()
-            }
+            (
+                StatusCode::OK,
+                Json(entries_payload(&values, limit, offset)),
+            )
+                .into_response()
         }
         Err(e) => {
             state.db_cache_metrics.record_db_error();
@@ -1336,7 +1773,7 @@ async fn list_entries(State(state): State<AppState>, headers: HeaderMap) -> Resp
                         "list_entries: db error '{e}', serving stale ({}s old)",
                         age.as_secs()
                     );
-                    return cached_list_response(&state.urls, &entry.value, &headers, true);
+                    return cached_list_response(&entry.value, limit, offset, true);
                 }
             }
             (
@@ -1348,22 +1785,17 @@ async fn list_entries(State(state): State<AppState>, headers: HeaderMap) -> Resp
     }
 }
 
-fn cached_list_response(
-    urls: &PublicUrls,
-    payload: &Value,
-    headers: &HeaderMap,
-    stale: bool,
-) -> Response {
+fn cached_list_response(payload: &Value, limit: Option<i64>, offset: i64, stale: bool) -> Response {
     let entries = payload
         .get("entries")
         .and_then(|v| v.as_array())
         .cloned()
         .unwrap_or_default();
-    let mut resp = if wants_html(headers) {
-        Html(render_entries_html(urls, &entries)).into_response()
-    } else {
-        (StatusCode::OK, Json(payload.clone())).into_response()
-    };
+    let mut resp = (
+        StatusCode::OK,
+        Json(entries_payload(&entries, limit, offset)),
+    )
+        .into_response();
     if stale {
         resp.headers_mut().insert(
             axum::http::header::HeaderName::from_static("x-vela-stale"),
@@ -1540,56 +1972,18 @@ async fn get_entry(
     Path(vfr_id): Path<String>,
     headers: HeaderMap,
 ) -> Response {
+    // Protocol-only hub: browsers land on the app's record page, which
+    // renders live state (and its own not-found / unavailable views).
+    if wants_html(&headers) {
+        return redirect_to_site(&state.urls, &format!("/r/{vfr_id}"));
+    }
     let row = state.db.get_live_entry(&vfr_id).await;
     match row {
-        Ok(Some(value)) => {
-            if wants_html(&headers) {
-                let signed_at = value
-                    .get("signed_publish_at")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("");
-                let frontier = load_substrate(&state, &vfr_id, signed_at).await;
-                let git_remote = state
-                    .db
-                    .get_git_remote(&vfr_id)
-                    .await
-                    .ok()
-                    .flatten()
-                    .and_then(|v| {
-                        v.get("git_remote")
-                            .and_then(|r| r.as_str())
-                            .map(str::to_string)
-                    });
-                Html(render_entry_html(
-                    &state.urls,
-                    &vfr_id,
-                    &value,
-                    frontier.as_deref(),
-                    git_remote.as_deref(),
-                ))
-                .into_response()
-            } else {
-                (StatusCode::OK, Json(value)).into_response()
-            }
-        }
+        Ok(Some(value)) => (StatusCode::OK, Json(value)).into_response(),
         Ok(None) => {
             if let Ok(Some(audit)) = state.db.latest_audit_status(&vfr_id).await
                 && audit.status == "failed"
             {
-                if wants_html(&headers) {
-                    return (
-                        StatusCode::FAILED_DEPENDENCY,
-                        Html(render_entry_unavailable_html(
-                            &state.urls,
-                            &vfr_id,
-                            audit
-                                .error
-                                .as_deref()
-                                .unwrap_or("frontier failed verification"),
-                        )),
-                    )
-                        .into_response();
-                }
                 return (
                     StatusCode::FAILED_DEPENDENCY,
                     Json(json!({
@@ -1602,19 +1996,11 @@ async fn get_entry(
                 )
                     .into_response();
             }
-            if wants_html(&headers) {
-                (
-                    StatusCode::NOT_FOUND,
-                    Html(render_not_found_html(&state.urls, &vfr_id)),
-                )
-                    .into_response()
-            } else {
-                (
-                    StatusCode::NOT_FOUND,
-                    Json(error_body("NOT_FOUND", format!("{vfr_id} not found"))),
-                )
-                    .into_response()
-            }
+            (
+                StatusCode::NOT_FOUND,
+                Json(error_body("NOT_FOUND", format!("{vfr_id} not found"))),
+            )
+                .into_response()
         }
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -1960,6 +2346,9 @@ async fn get_producer(
     Path(pubkey): Path<String>,
     headers: HeaderMap,
 ) -> Response {
+    if wants_html(&headers) {
+        return redirect_to_site(&state.urls, &format!("/producer/{pubkey}"));
+    }
     match state.db.producer_objects(&pubkey, 500).await {
         Ok(rows) => {
             let mut by_frontier: std::collections::BTreeMap<String, Vec<Value>> =
@@ -1970,10 +2359,6 @@ async fn get_producer(
                     "id": oid,
                     "summary": raw.get("claim").or_else(|| raw.get("assertion").and_then(|a| a.get("text"))).cloned().unwrap_or(Value::Null),
                 }));
-            }
-            if wants_html(&headers) {
-                return Html(render_producer_html(&state.urls, &pubkey, &by_frontier))
-                    .into_response();
             }
             Json(json!({
                 "pubkey": pubkey,
@@ -2037,10 +2422,13 @@ async fn get_entry_manifest(State(state): State<AppState>, Path(vfr_id): Path<St
         .into_response()
 }
 
-/// Cross-frontier object text search (the public /search page's backend). One
-/// hub query over frontier_objects instead of downloading every frontier's
-/// snapshot. Params: `q` (text), `type` (finding|source|evidence_atom|…,
-/// default finding), `limit` (default 24, max 200).
+/// Cross-frontier object text search. One hub query over
+/// frontier_objects instead of downloading every frontier's snapshot.
+/// Params: `q` (text), `type` (finding|source|evidence_atom|…, default
+/// finding), `limit` (default 24, max 200), `offset` (default 0).
+/// Postgres backends rank with full-text search
+/// (`websearch_to_tsquery` + `ts_rank`); SQLite keeps substring LIKE.
+/// `{total, next_offset}` are additive on the pre-FTS response shape.
 async fn search_endpoint(
     State(state): State<AppState>,
     Query(params): Query<HashMap<String, String>>,
@@ -2050,6 +2438,14 @@ async fn search_endpoint(
         .get("q")
         .map(|s| s.trim().to_string())
         .unwrap_or_default();
+    if wants_html(&headers) {
+        let path = if q.is_empty() {
+            "/search".to_string()
+        } else {
+            format!("/search?q={}", urlencode(&q))
+        };
+        return redirect_to_site(&state.urls, &path);
+    }
     let object_type = params
         .get("type")
         .cloned()
@@ -2059,27 +2455,38 @@ async fn search_endpoint(
         .and_then(|s| s.parse().ok())
         .unwrap_or(24)
         .clamp(1, 200);
-    let html = wants_html(&headers);
+    let offset: i64 = params
+        .get("offset")
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(0)
+        .max(0);
     if q.is_empty() {
-        if html {
-            return Html(render_search_html(&state.urls, "", &object_type, &[])).into_response();
-        }
         return (
             StatusCode::OK,
             Json(json!({"results": [], "q": q, "type": object_type})),
         )
             .into_response();
     }
-    match state.db.search_objects(&q, &object_type, limit).await {
-        Ok(results) => {
-            if html {
-                return Html(render_search_html(&state.urls, &q, &object_type, &results))
-                    .into_response();
+    match state
+        .db
+        .search_objects(&q, &object_type, limit, offset)
+        .await
+    {
+        Ok((results, total)) => {
+            let consumed = offset + results.len() as i64;
+            let mut body = json!({
+                "results": results,
+                "q": q,
+                "type": object_type,
+                "total": total,
+            });
+            if consumed < total {
+                body["next_offset"] = json!(consumed);
             }
             (
                 StatusCode::OK,
                 [(axum::http::header::CACHE_CONTROL, "public, max-age=60")],
-                Json(json!({"results": results, "q": q, "type": object_type})),
+                Json(body),
             )
                 .into_response()
         }
@@ -2089,79 +2496,6 @@ async fn search_endpoint(
         )
             .into_response(),
     }
-}
-
-/// The cross-frontier search page: a form plus result rows. Findings link
-/// to their finding page; anything else lands on the frontier entry.
-fn render_search_html(urls: &PublicUrls, q: &str, object_type: &str, results: &[Value]) -> String {
-    let q_safe = escape_html(q);
-    let type_options: String = ["finding", "source", "evidence_atom", "proposal"]
-        .iter()
-        .map(|t| {
-            let sel = if *t == object_type { " selected" } else { "" };
-            format!(r#"<option value="{t}"{sel}>{t}</option>"#)
-        })
-        .collect();
-    let form = format!(
-        r#"<form method="get" action="/search" class="tm-paper" style="padding:14px 16px;display:flex;gap:10px;align-items:center;">
-  <input type="search" name="q" value="{q_safe}" placeholder="search live frontier state…" style="flex:1;font-family:var(--font-mono);font-size:13px;padding:8px 10px;background:transparent;border:1px solid var(--line);border-radius:6px;color:var(--ink-0);" autofocus>
-  <select name="type" style="font-family:var(--font-mono);font-size:12px;padding:8px;background:transparent;border:1px solid var(--line);border-radius:6px;color:var(--ink-1);">{type_options}</select>
-  <button type="submit" class="wb-chip" style="cursor:pointer;">search</button>
-</form>"#
-    );
-    let rows: String = results
-        .iter()
-        .filter_map(|r| {
-            let vfr = r.get("vfr_id").and_then(Value::as_str)?;
-            let obj = r.get("object")?;
-            let id = obj.get("id").and_then(Value::as_str).unwrap_or("");
-            let text = obj
-                .pointer("/assertion/text")
-                .and_then(Value::as_str)
-                .or_else(|| obj.get("claim").and_then(Value::as_str))
-                .or_else(|| obj.get("reason").and_then(Value::as_str))
-                .or_else(|| obj.get("title").and_then(Value::as_str))
-                .unwrap_or("");
-            let text: String = escape_html(&text.chars().take(160).collect::<String>());
-            let href = if object_type == "finding" && !id.is_empty() {
-                format!("/entries/{vfr}/findings/{id}")
-            } else {
-                format!("/entries/{vfr}")
-            };
-            Some(format!(
-                r#"<li><span class="link-rel">{vfr_short}</span> <span><a href="{href}"><code>{id}</code></a> · {text}</span></li>"#,
-                vfr_short = escape_html(&vfr.chars().take(12).collect::<String>()),
-                id = escape_html(id),
-            ))
-        })
-        .collect();
-    let body = if q.is_empty() {
-        String::new()
-    } else if rows.is_empty() {
-        r#"<p class="empty">No live object matches. The search is exact-substring over replayed state — try a shorter fragment.</p>"#.to_string()
-    } else {
-        format!(r#"<ul class="link-list">{rows}</ul>"#)
-    };
-    let count_note = if q.is_empty() {
-        "search every live frontier".to_string()
-    } else {
-        format!("{} result(s) for “{q_safe}”", results.len())
-    };
-    shell(
-        urls,
-        "Vela Hub · Search",
-        "entries",
-        &[("entries", "/entries"), ("search", "")],
-        "Search",
-        "Cross-frontier search",
-        &count_note,
-        "",
-        &format!(
-            "{form}
-{body}"
-        ),
-        "exact-substring over verified, replayed state — never an index of claims nobody signed",
-    )
 }
 
 /// One page of a frontier's objects of a given type — lets detail surfaces
@@ -2608,18 +2942,15 @@ async fn get_finding(
     Path((vfr_id, vf_id)): Path<(String, String)>,
     headers: HeaderMap,
 ) -> Response {
+    // Protocol-only hub: the finding record page lives in the app.
+    if wants_html(&headers) {
+        return redirect_to_site(&state.urls, &format!("/r/{vfr_id}/findings/{vf_id}"));
+    }
     // Find the entry to get the locator.
     let entry = state.db.get_live_entry(&vfr_id).await;
     let entry = match entry {
         Ok(Some(v)) => v,
         Ok(None) => {
-            if wants_html(&headers) {
-                return (
-                    StatusCode::NOT_FOUND,
-                    Html(render_not_found_html(&state.urls, &vfr_id)),
-                )
-                    .into_response();
-            }
             return (
                 StatusCode::NOT_FOUND,
                 Json(error_body("NOT_FOUND", format!("{vfr_id} not found"))),
@@ -2642,14 +2973,6 @@ async fn get_finding(
     let frontier = load_substrate(&state, &vfr_id, signed_at).await;
 
     let Some(project) = frontier else {
-        if wants_html(&headers) {
-            return Html(render_finding_unavailable_html(
-                &state.urls,
-                &vfr_id,
-                &vf_id,
-            ))
-            .into_response();
-        }
         return (
             StatusCode::SERVICE_UNAVAILABLE,
             Json(error_body(
@@ -2661,13 +2984,6 @@ async fn get_finding(
     };
 
     let Some(bundle) = project.findings.iter().find(|b| b.id == vf_id) else {
-        if wants_html(&headers) {
-            return (
-                StatusCode::NOT_FOUND,
-                Html(render_finding_not_found_html(&state.urls, &vfr_id, &vf_id)),
-            )
-                .into_response();
-        }
         return (
             StatusCode::NOT_FOUND,
             Json(error_body("NOT_FOUND", format!("{vf_id} not in {vfr_id}"))),
@@ -2675,41 +2991,13 @@ async fn get_finding(
             .into_response();
     };
 
-    if wants_html(&headers) {
-        // Citation anchors: the snapshot hash from the registry row and
-        // the ingest cursor from the git-remote registration, when one
-        // exists. Both are content addresses — the citation pins to
-        // them, not to this page.
-        let snapshot_hash = entry
-            .get("latest_snapshot_hash")
-            .and_then(|v| v.as_str())
-            .unwrap_or("")
-            .to_string();
-        let ingest_commit = match state.db.get_git_remote(&vfr_id).await {
-            Ok(Some(rec)) => rec
-                .get("last_ingested_commit")
-                .and_then(|v| v.as_str())
-                .map(String::from),
-            _ => None,
-        };
-        Html(render_finding_html(
-            &state.urls,
-            &vfr_id,
-            &project,
-            bundle,
-            &snapshot_hash,
-            ingest_commit.as_deref(),
-        ))
-        .into_response()
-    } else {
-        match serde_json::to_value(bundle) {
-            Ok(v) => (StatusCode::OK, Json(v)).into_response(),
-            Err(e) => (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(error_body("INTERNAL", format!("serialize: {e}"))),
-            )
-                .into_response(),
-        }
+    match serde_json::to_value(bundle) {
+        Ok(v) => (StatusCode::OK, Json(v)).into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(error_body("INTERNAL", format!("serialize: {e}"))),
+        )
+            .into_response(),
     }
 }
 
@@ -2725,16 +3013,13 @@ async fn get_pack_review(
     Path((vfr_id, pack_id)): Path<(String, String)>,
     headers: HeaderMap,
 ) -> Response {
+    // Protocol-only hub: the pack review page lives in the app.
+    if wants_html(&headers) {
+        return redirect_to_site(&state.urls, &format!("/r/{vfr_id}/packs/{pack_id}"));
+    }
     let entry = match state.db.get_live_entry(&vfr_id).await {
         Ok(Some(v)) => v,
         Ok(None) => {
-            if wants_html(&headers) {
-                return (
-                    StatusCode::NOT_FOUND,
-                    Html(render_not_found_html(&state.urls, &vfr_id)),
-                )
-                    .into_response();
-            }
             return (
                 StatusCode::NOT_FOUND,
                 Json(error_body("NOT_FOUND", format!("{vfr_id} not found"))),
@@ -2755,10 +3040,6 @@ async fn get_pack_review(
         .and_then(|v| v.as_str())
         .unwrap_or("");
     let Some(project) = load_substrate(&state, &vfr_id, signed_at).await else {
-        if wants_html(&headers) {
-            return Html(render_pack_unavailable_html(&state.urls, &vfr_id, &pack_id))
-                .into_response();
-        }
         return (
             StatusCode::SERVICE_UNAVAILABLE,
             Json(error_body(
@@ -2774,13 +3055,6 @@ async fn get_pack_review(
         .iter()
         .find(|r| r.pack_id == pack_id)
     else {
-        if wants_html(&headers) {
-            return (
-                StatusCode::NOT_FOUND,
-                Html(render_pack_not_found_html(&state.urls, &vfr_id, &pack_id)),
-            )
-                .into_response();
-        }
         return (
             StatusCode::NOT_FOUND,
             Json(error_body(
@@ -2791,80 +3065,27 @@ async fn get_pack_review(
             .into_response();
     };
 
-    if wants_html(&headers) {
-        Html(render_pack_html(&state.urls, &vfr_id, &project, rec)).into_response()
-    } else {
-        match serde_json::to_value(rec) {
-            Ok(v) => (StatusCode::OK, Json(v)).into_response(),
-            Err(e) => (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(error_body("INTERNAL", format!("serialize: {e}"))),
-            )
-                .into_response(),
-        }
+    match serde_json::to_value(rec) {
+        Ok(v) => (StatusCode::OK, Json(v)).into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(error_body("INTERNAL", format!("serialize: {e}"))),
+        )
+            .into_response(),
     }
 }
 
-/// The "verify this yourself" page: the exact copy-paste sequence that
-/// re-derives this frontier's state locally — clone the registered
-/// repo, replay the event log under `vela check --strict`, re-check
-/// every witness with the frozen verifiers under `vela reproduce`.
-/// The hub is an index; nothing on this page requires trusting it.
+/// The "verify this yourself" page was HTML-only presentation; the app
+/// owns it now. The whole route is the redirect — the reproduce data
+/// (registered remote, ingest cursor) stays queryable at
+/// `GET /entries/{vfr_id}/git-remote`.
 async fn get_reproduce(State(state): State<AppState>, Path(vfr_id): Path<String>) -> Response {
-    let remote = match state.db.get_git_remote(&vfr_id).await {
-        Ok(r) => r,
-        Err(e) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(error_body("INTERNAL", format!("query: {e}"))),
-            )
-                .into_response();
-        }
-    };
-
-    let Some(rec) = remote else {
-        // No registered remote. Say so honestly — but only 404 when the
-        // frontier itself is unknown to this hub.
-        return match state.db.get_live_entry(&vfr_id).await {
-            Ok(Some(_)) => {
-                Html(render_reproduce_no_remote_html(&state.urls, &vfr_id)).into_response()
-            }
-            Ok(None) => (
-                StatusCode::NOT_FOUND,
-                Html(render_not_found_html(&state.urls, &vfr_id)),
-            )
-                .into_response(),
-            Err(e) => (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(error_body("INTERNAL", format!("query: {e}"))),
-            )
-                .into_response(),
-        };
-    };
-
-    // `get_git_remote` does not carry the subdir; the ingest-targets
-    // table does. One extra tiny-table read, main.rs-local.
-    let git_subdir = match state.db.git_ingest_targets().await {
-        Ok(rows) => rows
-            .into_iter()
-            .find(|r| r.0 == vfr_id)
-            .map(|r| r.3)
-            .unwrap_or_default(),
-        Err(_) => String::new(),
-    };
-
-    Html(render_reproduce_html(
-        &state.urls,
-        &vfr_id,
-        &rec,
-        &git_subdir,
-    ))
-    .into_response()
+    redirect_to_site(&state.urls, &format!("/r/{vfr_id}/reproduce"))
 }
 
 /// `GET /entries/{vfr_id}/review` — the review queue + the autonomy
-/// ledger for one frontier. Read-only, dual-mode: HTML for browsers,
-/// JSON otherwise or with `?format=json`.
+/// ledger for one frontier. Read-only JSON; browsers (or
+/// `?format=html`) are redirected to the app's review page.
 ///
 /// Three ledgers, one page: what awaits a human key (the sign-queue
 /// Judgment + Decision lanes), what landed under a human-signed policy
@@ -2877,17 +3098,16 @@ async fn get_entry_review(
     Query(params): Query<HashMap<String, String>>,
     headers: HeaderMap,
 ) -> Response {
-    let html = params.get("format").map(String::as_str) != Some("json") && wants_html(&headers);
+    // Protocol-only hub: the review page lives in the app. Browsers
+    // (or an explicit `?format=html`) are redirected; `?format=json`
+    // still forces JSON for a client that cannot drop its Accept header.
+    let format = params.get("format").map(String::as_str);
+    if format == Some("html") || (format != Some("json") && wants_html(&headers)) {
+        return redirect_to_site(&state.urls, &format!("/r/{vfr_id}/review"));
+    }
     let entry = match state.db.get_live_entry(&vfr_id).await {
         Ok(Some(v)) => v,
         Ok(None) => {
-            if html {
-                return (
-                    StatusCode::NOT_FOUND,
-                    Html(render_not_found_html(&state.urls, &vfr_id)),
-                )
-                    .into_response();
-            }
             return (
                 StatusCode::NOT_FOUND,
                 Json(error_body("NOT_FOUND", format!("{vfr_id} not found"))),
@@ -2907,17 +3127,6 @@ async fn get_entry_review(
         .and_then(|v| v.as_str())
         .unwrap_or("");
     let Some(project) = load_substrate(&state, &vfr_id, signed_at).await else {
-        if html {
-            return (
-                StatusCode::SERVICE_UNAVAILABLE,
-                Html(render_entry_unavailable_html(
-                    &state.urls,
-                    &vfr_id,
-                    "frontier projection unavailable; pull via the CLI to inspect",
-                )),
-            )
-                .into_response();
-        }
         return (
             StatusCode::SERVICE_UNAVAILABLE,
             Json(error_body(
@@ -2929,10 +3138,6 @@ async fn get_entry_review(
     };
 
     let queue = build_review_queue(&state, &vfr_id, &project).await;
-
-    if html {
-        return Html(render_review_html(&state.urls, &vfr_id, &project, &queue)).into_response();
-    }
 
     let admissions = policy_admissions(&project);
     let decisions = human_decisions(&project);
@@ -3417,9 +3622,9 @@ fn gate_status_value(
 //       every entry), or
 //   (b) a directory of packet directories named by vfr_id (multi-
 //       packet deploy, future).
-// If the env is unset OR the path doesn't resolve, the route renders
-// an honest "no packet has been generated for this entry yet" page
-// with the CLI invocation that would generate one.
+// If the env is unset OR the path doesn't resolve, the route answers
+// 404 in the house error envelope — no packet has been generated for
+// this entry yet (`vela frontier export --packet` would).
 
 fn resolve_packet_dir(vfr_id: &str) -> Option<std::path::PathBuf> {
     let base = std::env::var("VELA_PROOF_PACKET_DIR").ok()?;
@@ -3444,28 +3649,52 @@ fn read_packet_json(dir: &std::path::Path, name: &str) -> Option<Value> {
     serde_json::from_str(&raw).ok()
 }
 
-async fn get_proof_packet(State(state): State<AppState>, Path(vfr_id): Path<String>) -> Response {
-    let dir = match resolve_packet_dir(&vfr_id) {
-        Some(d) => d,
-        None => {
-            return Html(render_no_packet_html(&state.urls, &vfr_id)).into_response();
-        }
+/// Browsers get the app's proof page; protocol clients get the three
+/// canonical packet files the page renders — `manifest.json`,
+/// `proof-trace.json`, `packet.lock.json` — as one JSON object. No
+/// packet on this hub ⇒ 404 in the house error envelope. The full
+/// artifact stays at `/entries/{vfr_id}/proof/download`.
+async fn get_proof_packet(
+    State(state): State<AppState>,
+    Path(vfr_id): Path<String>,
+    Query(params): Query<HashMap<String, String>>,
+    headers: HeaderMap,
+) -> Response {
+    let format = params.get("format").map(String::as_str);
+    if format != Some("json") && wants_html(&headers) {
+        return redirect_to_site(&state.urls, &format!("/r/{vfr_id}/proof"));
+    }
+    let Some(dir) = resolve_packet_dir(&vfr_id) else {
+        return (
+            StatusCode::NOT_FOUND,
+            Json(error_body(
+                "NOT_FOUND",
+                format!("no proof packet available for {vfr_id}"),
+            )),
+        )
+            .into_response();
     };
-    let manifest = match read_packet_json(&dir, "manifest.json") {
-        Some(v) => v,
-        None => return Html(render_no_packet_html(&state.urls, &vfr_id)).into_response(),
+    let Some(manifest) = read_packet_json(&dir, "manifest.json") else {
+        return (
+            StatusCode::NOT_FOUND,
+            Json(error_body(
+                "NOT_FOUND",
+                format!("no proof packet available for {vfr_id}"),
+            )),
+        )
+            .into_response();
     };
     let proof_trace = read_packet_json(&dir, "proof-trace.json");
     let lock = read_packet_json(&dir, "packet.lock.json");
-    Html(render_proof_packet_html(
-        &state.urls,
-        &vfr_id,
-        &dir,
-        &manifest,
-        proof_trace.as_ref(),
-        lock.as_ref(),
-    ))
-    .into_response()
+    (
+        StatusCode::OK,
+        Json(json!({
+            "manifest": manifest,
+            "proof_trace": proof_trace,
+            "lock": lock,
+        })),
+    )
+        .into_response()
 }
 
 async fn get_proof_packet_download(
@@ -3858,16 +4087,14 @@ async fn get_entry_events_stream(
         .into_response()
 }
 
-// ── HTML rendering ───────────────────────────────────────────────────
+// ── Presentation ──────────────────────────────────────────────────────
 //
-// The hub renders against the canonical Vela design system. The same
-// `tokens.css` and `workbench.css` files that drive `web/index.html`
-// are baked into the binary via `include_str!` and served at
-// `/static/...` so the marketing site and the hub share one source of
-// truth. Hub-specific page styles are kept in a small inline block.
+// There is none. The hub is a protocol node: every surface is JSON (or
+// a content-addressed artifact), and `Accept: text/html` is a 301 into
+// the app (`redirect_to_site`). The root banner above is the single
+// hand-written HTML page — system fonts, no assets, no design system.
+// The app is the sole owner of the design system.
 
-// Self-hosted latin subsets (OFL; web/fonts/LICENSE.md) — no third-party
-// font CDN. The faces match the frontier kit and the production app.
 #[cfg(test)]
 mod gate_status_tests {
     use super::finding_gate_status_body;
@@ -3952,6 +4179,398 @@ mod gate_status_tests {
         assert!(
             finding_gate_status_body(&findings, &[], "vfr_test", "vf_does_not_exist").is_none(),
             "absent finding must return None (404), not a body"
+        );
+    }
+}
+
+#[cfg(test)]
+mod protocol_surface_tests {
+    use super::*;
+
+    const SITE: &str = "https://app.constellate.example";
+
+    fn test_urls() -> PublicUrls {
+        PublicUrls {
+            hub: "http://127.0.0.1".to_string(),
+            repo: "https://github.com/constellate-science/vela".to_string(),
+            site: SITE.to_string(),
+        }
+    }
+
+    async fn test_state() -> AppState {
+        let file = tempfile::NamedTempFile::new().expect("temp sqlite");
+        let url = format!("sqlite://{}", file.path().display());
+        let opts = SqliteConnectOptions::from_str(&url)
+            .expect("sqlite opts")
+            .create_if_missing(true);
+        let pool = SqlitePoolOptions::new()
+            .max_connections(4)
+            .connect_with(opts)
+            .await
+            .expect("sqlite connect");
+        ensure_sqlite_schema(&pool).await.expect("schema");
+        std::mem::forget(file); // keep the db file for the process lifetime
+        AppState {
+            db: HubDb::Sqlite(pool),
+            frontier_cache: Arc::new(RwLock::new(HashMap::new())),
+            db_cache: Arc::new(RwLock::new(HashMap::new())),
+            db_cache_metrics: Arc::new(DbCacheMetrics::default()),
+            http_metrics: Arc::new(HttpMetrics::default()),
+            signing_key: None,
+            urls: test_urls(),
+            storage: None,
+            mcp: Arc::new(tokio::sync::RwLock::new(None)),
+            mcp_kick: Arc::new(tokio::sync::Notify::new()),
+            webhook_secret: None,
+            peers: Arc::new(vec![]),
+            // High budget: these tests exercise routing, not the limiter.
+            rate_limiter: Arc::new(RateLimiter::new(10_000)),
+        }
+    }
+
+    /// One live frontier: a signed-manifest registry row + its promoted
+    /// projection (a minimal assembled Project). Returns the manifest —
+    /// the exact JSON `/entries` and `/entries/{vfr}` must serve.
+    async fn seed_entry(state: &AppState, vfr_id: &str) -> Value {
+        let HubDb::Sqlite(pool) = &state.db else {
+            unreachable!("test state is sqlite")
+        };
+        let manifest = json!({
+            "schema": "vela.registry-entry.v0.1",
+            "vfr_id": vfr_id,
+            "name": "Fixture frontier",
+            "owner_actor_id": "reviewer:test",
+            "owner_pubkey": "00".repeat(32),
+            "latest_snapshot_hash": "hash_snapshot",
+            "latest_event_log_hash": "hash_log",
+            "network_locator": "https://example.com/frontier.json",
+            "signed_publish_at": "2026-07-01T00:00:00Z",
+            "signature": "sig_fixture",
+        });
+        sqlx::query(
+            "INSERT INTO registry_entries (vfr_id, schema, name, owner_actor_id, \
+             owner_pubkey, latest_snapshot_hash, latest_event_log_hash, \
+             network_locator, signed_publish_at, signature, raw_json) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        )
+        .bind(vfr_id)
+        .bind("vela.registry-entry.v0.1")
+        .bind("Fixture frontier")
+        .bind("reviewer:test")
+        .bind("00".repeat(32))
+        .bind("hash_snapshot")
+        .bind("hash_log")
+        .bind("https://example.com/frontier.json")
+        .bind("2026-07-01T00:00:00Z")
+        .bind("sig_fixture")
+        .bind(manifest.to_string())
+        .execute(pool)
+        .await
+        .expect("insert registry entry");
+        let project = vela_protocol::project::assemble("fixture", vec![], 10, 0, "Fixture project");
+        sqlx::query(
+            "INSERT INTO frontiers (vfr_id, registry_entry_id, name, owner_actor_id, \
+             owner_pubkey, latest_snapshot_hash, latest_event_log_hash, schema_version, \
+             signed_publish_at, materialized_snapshot_json, authority_mode, status) \
+             VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?, ?, 'git_ingested', 'live')",
+        )
+        .bind(vfr_id)
+        .bind("Fixture frontier")
+        .bind("reviewer:test")
+        .bind("00".repeat(32))
+        .bind("hash_snapshot")
+        .bind("hash_log")
+        .bind("v1")
+        .bind("2026-07-01T00:00:00Z")
+        .bind(serde_json::to_string(&project).expect("project json"))
+        .execute(pool)
+        .await
+        .expect("insert frontier");
+        manifest
+    }
+
+    /// Serve the REAL router (routes + middleware) on an ephemeral port.
+    async fn serve(state: AppState) -> (String, reqwest::Client) {
+        let router = build_router(state);
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+            .await
+            .expect("bind");
+        let addr = listener.local_addr().expect("local addr");
+        tokio::spawn(async move {
+            axum::serve(
+                listener,
+                router.into_make_service_with_connect_info::<SocketAddr>(),
+            )
+            .await
+            .expect("serve");
+        });
+        let client = reqwest::Client::builder()
+            .redirect(reqwest::redirect::Policy::none())
+            .build()
+            .expect("client");
+        (format!("http://{addr}"), client)
+    }
+
+    /// THE 301 matrix: every HTML arm answers `301 Location: {site}…`,
+    /// and the same requests with `Accept: application/json` serve the
+    /// unchanged protocol JSON (fixture equality below).
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn html_arms_301_into_the_app() {
+        let state = test_state().await;
+        seed_entry(&state, "vfr_fix1").await;
+        let (base, client) = serve(state).await;
+
+        let matrix = [
+            ("/entries", "/frontiers"),
+            ("/entries/vfr_fix1", "/r/vfr_fix1"),
+            (
+                "/entries/vfr_fix1/findings/vf_abc",
+                "/r/vfr_fix1/findings/vf_abc",
+            ),
+            ("/entries/vfr_fix1/review", "/r/vfr_fix1/review"),
+            (
+                "/entries/vfr_fix1/packs/vsd_pack1",
+                "/r/vfr_fix1/packs/vsd_pack1",
+            ),
+            ("/entries/vfr_fix1/reproduce", "/r/vfr_fix1/reproduce"),
+            ("/entries/vfr_fix1/proof", "/r/vfr_fix1/proof"),
+            ("/producers/aabbccdd", "/producer/aabbccdd"),
+            ("/search?q=sidon sets", "/search?q=sidon%20sets"),
+        ];
+        for (path, target) in matrix {
+            let resp = client
+                .get(format!("{base}{path}"))
+                .header("accept", "text/html")
+                .send()
+                .await
+                .expect(path);
+            assert_eq!(resp.status(), 301, "{path} must 301 for text/html");
+            assert_eq!(
+                resp.headers()["location"].to_str().unwrap(),
+                format!("{SITE}{target}"),
+                "{path} Location"
+            );
+            // The plain-text body names the target for curl users.
+            assert!(resp.text().await.unwrap().contains(target), "{path} body");
+        }
+
+        // /reproduce is redirect-only: no Accept header still 301s.
+        let resp = client
+            .get(format!("{base}/entries/vfr_fix1/reproduce"))
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), 301);
+
+        // /review?format=html forces the redirect without an Accept header.
+        let resp = client
+            .get(format!("{base}/entries/vfr_fix1/review?format=html"))
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), 301);
+        assert_eq!(
+            resp.headers()["location"].to_str().unwrap(),
+            format!("{SITE}/r/vfr_fix1/review")
+        );
+
+        // An unknown vfr_id still redirects — the app owns not-found UX.
+        let resp = client
+            .get(format!("{base}/entries/vfr_nope"))
+            .header("accept", "text/html")
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), 301);
+    }
+
+    /// JSON fixture equality on the precut shapes: /entries,
+    /// /entries/{vfr}, /entries/{vfr}/review, /search — plus the
+    /// additive-only pagination fields and the proof 404 envelope.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn json_branches_serve_protocol_shapes() {
+        let state = test_state().await;
+        let manifest = seed_entry(&state, "vfr_fix1").await;
+        let (base, client) = serve(state).await;
+        let get_json = |path: String| {
+            let client = client.clone();
+            let base = base.clone();
+            async move {
+                let resp = client
+                    .get(format!("{base}{path}"))
+                    .header("accept", "application/json")
+                    .send()
+                    .await
+                    .expect("request");
+                (
+                    resp.status().as_u16(),
+                    resp.json::<Value>().await.expect("json body"),
+                )
+            }
+        };
+
+        // /entries — the precut entries.json shape, byte-compatible keys.
+        let (status, body) = get_json("/entries".to_string()).await;
+        assert_eq!(status, 200);
+        assert_eq!(
+            body,
+            json!({"schema": REGISTRY_SCHEMA, "entries": [manifest]})
+        );
+
+        // /entries/{vfr} — the precut entry-erdos.json shape: the raw
+        // signed manifest, nothing added.
+        let (status, body) = get_json("/entries/vfr_fix1".to_string()).await;
+        assert_eq!(status, 200);
+        assert_eq!(body, manifest);
+
+        // /entries?limit= — ADDITIVE pagination: same schema + entries,
+        // plus total (and next_offset only when more remain).
+        let (status, body) = get_json("/entries?limit=1".to_string()).await;
+        assert_eq!(status, 200);
+        assert_eq!(
+            body,
+            json!({"schema": REGISTRY_SCHEMA, "entries": [manifest], "total": 1})
+        );
+
+        // /search — the precut search-sidon.json keys plus additive total.
+        let (status, body) = get_json("/search?q=sidon".to_string()).await;
+        assert_eq!(status, 200);
+        assert_eq!(
+            body,
+            json!({"results": [], "q": "sidon", "type": "finding", "total": 0})
+        );
+        // Empty q stays exactly as before (no additive fields).
+        let (status, body) = get_json("/search".to_string()).await;
+        assert_eq!(status, 200);
+        assert_eq!(body, json!({"results": [], "q": "", "type": "finding"}));
+
+        // /entries/{vfr}/review — the precut review-erdos.json shape.
+        let (status, body) = get_json("/entries/vfr_fix1/review".to_string()).await;
+        assert_eq!(status, 200);
+        assert_eq!(
+            body,
+            json!({
+                "schema": "vela.hub.review.v0.1",
+                "vfr_id": "vfr_fix1",
+                "stats": {
+                    "awaiting": 0,
+                    "policy_admitted": 0,
+                    "human_decided": 0,
+                    "autonomy_ratio": 0.0,
+                },
+                "policy": {"active": false, "policy_id": null, "filtered": false},
+                "awaiting": [],
+                "policy_admitted": {"by_policy": {}, "events": []},
+                "human_decisions": [],
+            })
+        );
+
+        // /entries/{vfr}/proof — no packet on this hub: the house 404
+        // envelope, not an HTML page.
+        let (status, body) = get_json("/entries/vfr_fix1/proof".to_string()).await;
+        assert_eq!(status, 404);
+        assert_eq!(
+            body,
+            json!({"error": {"kind": "NOT_FOUND", "message": "no proof packet available for vfr_fix1"}})
+        );
+
+        // Root JSON banner is unchanged.
+        let (status, body) = get_json("/".to_string()).await;
+        assert_eq!(status, 200);
+        assert_eq!(body, root_json());
+    }
+
+    /// `/.well-known/vela` carries `peers` from VELA_HUB_PEERS (empty
+    /// array when unset), inside the manifest — i.e. under whatever
+    /// signature covers the manifest bytes.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn well_known_manifest_carries_peers() {
+        let mut state = test_state().await;
+        let (base, client) = serve(state.clone()).await;
+        let body: Value = client
+            .get(format!("{base}/.well-known/vela"))
+            .send()
+            .await
+            .unwrap()
+            .json()
+            .await
+            .unwrap();
+        assert_eq!(body["manifest"]["peers"], json!([]));
+
+        state.peers = Arc::new(parse_peers(
+            "https://hub-eu.example.org/, https://mirror.example.net",
+        ));
+        let (base, client) = serve(state).await;
+        let body: Value = client
+            .get(format!("{base}/.well-known/vela"))
+            .send()
+            .await
+            .unwrap()
+            .json()
+            .await
+            .unwrap();
+        assert_eq!(
+            body["manifest"]["peers"],
+            json!(["https://hub-eu.example.org", "https://mirror.example.net"])
+        );
+    }
+
+    #[test]
+    fn parse_peers_handles_slashes_gaps_and_absence() {
+        assert!(parse_peers("").is_empty());
+        assert_eq!(
+            parse_peers(" https://a.example/ ,, https://b.example "),
+            vec![
+                "https://a.example".to_string(),
+                "https://b.example".to_string()
+            ]
+        );
+    }
+
+    #[test]
+    fn urlencode_preserves_unreserved_and_encodes_the_rest() {
+        assert_eq!(urlencode("sidon sets"), "sidon%20sets");
+        assert_eq!(urlencode("a+b&c=d"), "a%2Bb%26c%3Dd");
+        assert_eq!(urlencode("Ab0-_.~"), "Ab0-_.~");
+    }
+
+    #[test]
+    fn entries_payload_is_additive_only_when_limit_present() {
+        let values: Vec<Value> = (0..3)
+            .map(|i| json!({"vfr_id": format!("vfr_{i}")}))
+            .collect();
+        // No limit: the exact legacy shape.
+        assert_eq!(
+            entries_payload(&values, None, 0),
+            json!({"schema": REGISTRY_SCHEMA, "entries": values})
+        );
+        // Page 1 of 2: total + next_offset appear.
+        assert_eq!(
+            entries_payload(&values, Some(2), 0),
+            json!({
+                "schema": REGISTRY_SCHEMA,
+                "entries": [values[0], values[1]],
+                "total": 3,
+                "next_offset": 2,
+            })
+        );
+        // Final page: no next_offset.
+        assert_eq!(
+            entries_payload(&values, Some(2), 2),
+            json!({
+                "schema": REGISTRY_SCHEMA,
+                "entries": [values[2]],
+                "total": 3,
+            })
+        );
+        // Offset past the end: empty page, still additive shape.
+        assert_eq!(
+            entries_payload(&values, Some(2), 99),
+            json!({
+                "schema": REGISTRY_SCHEMA,
+                "entries": [],
+                "total": 3,
+            })
         );
     }
 }

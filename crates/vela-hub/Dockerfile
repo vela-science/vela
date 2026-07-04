@@ -11,8 +11,8 @@
 # substrate root:
 #   flyctl deploy --config crates/vela-hub/fly.toml
 #
-# `web/styles/*.css` and `assets/brand/*.svg` are embedded into the binary at
-# compile time via `include_str!`, so the runtime image carries no asset dir.
+# The hub is protocol-only: no styles or brand assets are embedded (the app
+# owns all presentation via `include_str!`, so the runtime image carries no asset dir.
 
 FROM rust:1.91-slim-bookworm AS chef
 WORKDIR /build
@@ -42,8 +42,6 @@ RUN CARGO_BUILD_JOBS=${CARGO_JOBS} cargo chef cook --release -p vela-hub --recip
 # recompiles the workspace crates that actually changed.
 COPY Cargo.toml Cargo.lock ./
 COPY crates ./crates
-COPY web ./web
-COPY assets ./assets
 RUN CARGO_BUILD_JOBS=${CARGO_JOBS} cargo build --release -p vela-hub
 
 FROM debian:bookworm-slim AS runtime

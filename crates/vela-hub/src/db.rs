@@ -350,60 +350,87 @@ impl HubDb {
             .collect())
     }
 
-    /// Cross-frontier object text search for the public site's /search page —
-    /// one query over `frontier_objects` instead of downloading every frontier's
-    /// multi-MB snapshot and scanning client-side. Matches `q` anywhere in the
-    /// object's raw_json (id, assertion text, doi, …), restricted to one
-    /// `object_type`, across live frontiers only. Returns `{vfr_id, object}`.
+    /// Cross-frontier object text search (the /search backend) — one query
+    /// over `frontier_objects` instead of downloading every frontier's
+    /// multi-MB snapshot and scanning client-side. Restricted to one
+    /// `object_type`, across live frontiers only. Returns
+    /// `({vfr_id, object} rows, total)` where `total` counts every match
+    /// under the same predicate so callers can paginate additively.
+    ///
+    /// Postgres: real FTS — `websearch_to_tsquery('english', q)` against
+    /// the stored generated `search_text` tsvector, ranked by `ts_rank`.
+    /// `websearch_to_tsquery` is total (never errors on user syntax).
+    /// SQLite (self-hosted): the original substring LIKE, same shape.
     pub async fn search_objects(
         &self,
         q: &str,
         object_type: &str,
         limit: i64,
-    ) -> Result<Vec<Value>, String> {
-        let pattern = format!(
-            "%{}%",
-            q.replace('\\', "\\\\")
-                .replace('%', "\\%")
-                .replace('_', "\\_")
-        );
+        offset: i64,
+    ) -> Result<(Vec<Value>, i64), String> {
         type Row = (String, String);
-        let rows: Vec<Row> = match self {
-            Self::Postgres(p) => sqlx::query_as(
-                "SELECT f.vfr_id, o.raw_json::text \
-                 FROM frontier_objects o \
-                 JOIN frontiers f ON f.vfr_id = o.vfr_id AND f.status = 'live' \
-                 WHERE o.object_type = $1 AND o.raw_json::text ILIKE $2 ESCAPE '\\' \
-                 ORDER BY o.vfr_id, o.seq LIMIT $3",
-            )
-            .bind(object_type)
-            .bind(&pattern)
-            .bind(limit)
-            .fetch_all(p)
-            .await
-            .map_err(|e| e.to_string())?,
-            Self::Sqlite(p) => sqlx::query_as(
-                "SELECT f.vfr_id, o.raw_json \
-                 FROM frontier_objects o \
-                 JOIN frontiers f ON f.vfr_id = o.vfr_id AND f.status = 'live' \
-                 WHERE o.object_type = ? AND o.raw_json LIKE ? ESCAPE '\\' \
-                 ORDER BY o.vfr_id, o.seq LIMIT ?",
-            )
-            .bind(object_type)
-            .bind(&pattern)
-            .bind(limit)
-            .fetch_all(p)
-            .await
-            .map_err(|e| e.to_string())?,
+        let (rows, total): (Vec<Row>, i64) = match self {
+            Self::Postgres(p) => {
+                let rows: Vec<Row> = sqlx::query_as(PG_FTS_SEARCH_SQL)
+                    .bind(object_type)
+                    .bind(q)
+                    .bind(limit)
+                    .bind(offset)
+                    .fetch_all(p)
+                    .await
+                    .map_err(|e| e.to_string())?;
+                let total: i64 = sqlx::query_scalar(PG_FTS_COUNT_SQL)
+                    .bind(object_type)
+                    .bind(q)
+                    .fetch_one(p)
+                    .await
+                    .map_err(|e| e.to_string())?;
+                (rows, total)
+            }
+            Self::Sqlite(p) => {
+                let pattern = format!(
+                    "%{}%",
+                    q.replace('\\', "\\\\")
+                        .replace('%', "\\%")
+                        .replace('_', "\\_")
+                );
+                let rows: Vec<Row> = sqlx::query_as(
+                    "SELECT f.vfr_id, o.raw_json \
+                     FROM frontier_objects o \
+                     JOIN frontiers f ON f.vfr_id = o.vfr_id AND f.status = 'live' \
+                     WHERE o.object_type = ? AND o.raw_json LIKE ? ESCAPE '\\' \
+                     ORDER BY o.vfr_id, o.seq LIMIT ? OFFSET ?",
+                )
+                .bind(object_type)
+                .bind(&pattern)
+                .bind(limit)
+                .bind(offset)
+                .fetch_all(p)
+                .await
+                .map_err(|e| e.to_string())?;
+                let total: i64 = sqlx::query_scalar(
+                    "SELECT COUNT(*) \
+                     FROM frontier_objects o \
+                     JOIN frontiers f ON f.vfr_id = o.vfr_id AND f.status = 'live' \
+                     WHERE o.object_type = ? AND o.raw_json LIKE ? ESCAPE '\\'",
+                )
+                .bind(object_type)
+                .bind(&pattern)
+                .fetch_one(p)
+                .await
+                .map_err(|e| e.to_string())?;
+                (rows, total)
+            }
         };
-        Ok(rows
+        let values = rows
             .into_iter()
             .filter_map(|(vfr, raw)| {
                 serde_json::from_str::<Value>(&raw)
                     .ok()
                     .map(|obj| json!({"vfr_id": vfr, "object": obj}))
             })
-            .collect())
+            .collect();
+        Ok((values, total))
     }
 
     /// One page of a frontier's objects of a given type (raw_json), ordered by
@@ -1158,11 +1185,16 @@ impl HubDb {
 
     /// The git-remote registration + ingest cursor for one frontier (status surface).
     pub async fn get_git_remote(&self, vfr_id: &str) -> Result<Option<Value>, String> {
+        // `registration` is the stored owner-signed document verbatim —
+        // exposing it makes mirrors self-seedable: a new hub can replay
+        // it against POST /entries/{vfr}/git-remote and the signature
+        // (which covers the payload, not a session) verifies there too.
         const Q_PG: &str = "SELECT json_build_object(\
             'git_remote', git_remote, 'git_ref', git_ref, \
             'registered_at', registered_at, 'registered_by_pubkey', registered_by_pubkey, \
             'last_ingested_commit', last_ingested_commit, \
-            'last_ingested_at', last_ingested_at::text, 'ingest_error', ingest_error) \
+            'last_ingested_at', last_ingested_at::text, 'ingest_error', ingest_error, \
+            'registration', raw_json::jsonb) \
             FROM frontier_git_remotes WHERE vfr_id = $1";
         match self {
             Self::Postgres(p) => sqlx::query_scalar::<_, Value>(Q_PG)
@@ -1179,24 +1211,73 @@ impl HubDb {
                     Option<String>,
                     Option<String>,
                     Option<String>,
+                    Option<String>,
                 );
                 let row: Option<GitRemoteRow> = sqlx::query_as(
                     "SELECT git_remote, git_ref, registered_at, registered_by_pubkey, \
-                         last_ingested_commit, last_ingested_at, ingest_error \
+                         last_ingested_commit, last_ingested_at, ingest_error, raw_json \
                          FROM frontier_git_remotes WHERE vfr_id = ?1",
                 )
                 .bind(vfr_id)
                 .fetch_optional(p)
                 .await
                 .map_err(|e| e.to_string())?;
-                Ok(row.map(|(remote, r#ref, at, by, commit, ing_at, err)| {
-                    serde_json::json!({
-                        "git_remote": remote, "git_ref": r#ref,
-                        "registered_at": at, "registered_by_pubkey": by,
-                        "last_ingested_commit": commit,
-                        "last_ingested_at": ing_at, "ingest_error": err,
+                Ok(
+                    row.map(|(remote, r#ref, at, by, commit, ing_at, err, raw)| {
+                        let registration = raw
+                            .as_deref()
+                            .and_then(|r| serde_json::from_str::<Value>(r).ok())
+                            .unwrap_or(Value::Null);
+                        serde_json::json!({
+                            "git_remote": remote, "git_ref": r#ref,
+                            "registered_at": at, "registered_by_pubkey": by,
+                            "last_ingested_commit": commit,
+                            "last_ingested_at": ing_at, "ingest_error": err,
+                            "registration": registration,
+                        })
+                    }),
+                )
+            }
+        }
+    }
+
+    /// Ingest health per registered remote: (vfr_id, failing, seconds
+    /// since last completed ingest). Feeds the /metrics gauges.
+    pub async fn ingest_health(&self) -> Result<Vec<(String, bool, Option<i64>)>, String> {
+        match self {
+            Self::Postgres(p) => {
+                let rows: Vec<(String, bool, Option<f64>)> = sqlx::query_as(
+                    "SELECT vfr_id, ingest_error IS NOT NULL, \
+                     EXTRACT(EPOCH FROM now() - last_ingested_at)::float8 \
+                     FROM frontier_git_remotes",
+                )
+                .fetch_all(p)
+                .await
+                .map_err(|e| e.to_string())?;
+                Ok(rows
+                    .into_iter()
+                    .map(|(v, f, age)| (v, f, age.map(|a| a as i64)))
+                    .collect())
+            }
+            Self::Sqlite(p) => {
+                let rows: Vec<(String, Option<String>, Option<String>)> = sqlx::query_as(
+                    "SELECT vfr_id, ingest_error, last_ingested_at \
+                     FROM frontier_git_remotes",
+                )
+                .fetch_all(p)
+                .await
+                .map_err(|e| e.to_string())?;
+                let now = chrono::Utc::now();
+                Ok(rows
+                    .into_iter()
+                    .map(|(v, err, at)| {
+                        let age = at
+                            .as_deref()
+                            .and_then(|t| chrono::DateTime::parse_from_rfc3339(t).ok())
+                            .map(|t| (now - t.with_timezone(&chrono::Utc)).num_seconds());
+                        (v, err.is_some(), age)
                     })
-                }))
+                    .collect())
             }
         }
     }
@@ -3275,6 +3356,15 @@ pub const POSTGRES_EVENT_FIRST_SCHEMA: &[&str] = &[
         inserted_at TIMESTAMPTZ NOT NULL DEFAULT now()
     )"#,
     "ALTER TABLE frontier_git_remotes ADD COLUMN IF NOT EXISTS git_subdir TEXT NOT NULL DEFAULT ''",
+    // Full-text search over frontier objects (the /search backend). A
+    // stored generated tsvector over the first 8 KiB of the raw JSON —
+    // enough to cover ids, assertion text, DOIs — plus a GIN index so
+    // websearch_to_tsquery ranking stays sub-linear as the corpus grows.
+    // Applied through the same opportunistic privileged-DDL path as the
+    // rest of this schema (least-privilege roles skip it; the privileged
+    // migration job applies it).
+    "ALTER TABLE frontier_objects ADD COLUMN IF NOT EXISTS search_text tsvector GENERATED ALWAYS AS (to_tsvector('english', left(raw_json::text, 8192))) STORED",
+    "CREATE INDEX IF NOT EXISTS idx_frontier_objects_fts ON frontier_objects USING GIN (search_text)",
 ];
 
 pub async fn ensure_postgres_event_first_schema(pool: &PgPool) -> Result<(), String> {
@@ -3712,6 +3802,23 @@ fn collect_array_objects(
 pub struct IngestLockGuard {
     _tx: Option<sqlx::Transaction<'static, sqlx::Postgres>>,
 }
+
+/// The Postgres FTS search query (`search_objects`). Bind order:
+/// $1 = object_type, $2 = the raw user query (websearch grammar — total,
+/// never a syntax error), $3 = limit, $4 = offset. Rank-ordered with a
+/// stable `(vfr_id, seq)` tiebreak so pagination never shuffles.
+pub(crate) const PG_FTS_SEARCH_SQL: &str = "SELECT f.vfr_id, o.raw_json::text \
+     FROM frontier_objects o \
+     JOIN frontiers f ON f.vfr_id = o.vfr_id AND f.status = 'live' \
+     WHERE o.object_type = $1 AND o.search_text @@ websearch_to_tsquery('english', $2) \
+     ORDER BY ts_rank(o.search_text, websearch_to_tsquery('english', $2)) DESC, o.vfr_id, o.seq \
+     LIMIT $3 OFFSET $4";
+
+/// The matching total, counted over the SAME predicate as the page query.
+pub(crate) const PG_FTS_COUNT_SQL: &str = "SELECT COUNT(*)::bigint \
+     FROM frontier_objects o \
+     JOIN frontiers f ON f.vfr_id = o.vfr_id AND f.status = 'live' \
+     WHERE o.object_type = $1 AND o.search_text @@ websearch_to_tsquery('english', $2)";
 
 #[cfg(test)]
 mod tests {
@@ -4186,5 +4293,104 @@ mod tests {
             .expect("audit lookup")
             .expect("audit row");
         assert_eq!(audit.status, "failed");
+    }
+
+    /// The Postgres search lane is env-gated out of unit tests (no PG in
+    /// the harness), so pin the query-builder strings instead: real FTS
+    /// (websearch grammar + rank ordering), the live filter, the stable
+    /// pagination tiebreak, and a count over the SAME predicate.
+    #[test]
+    fn postgres_fts_query_shape() {
+        assert!(PG_FTS_SEARCH_SQL.contains("websearch_to_tsquery('english', $2)"));
+        assert!(PG_FTS_SEARCH_SQL.contains("o.search_text @@"));
+        assert!(PG_FTS_SEARCH_SQL.contains("ts_rank"));
+        assert!(PG_FTS_SEARCH_SQL.contains("f.status = 'live'"));
+        assert!(
+            PG_FTS_SEARCH_SQL.contains("o.vfr_id, o.seq"),
+            "stable tiebreak"
+        );
+        assert!(PG_FTS_SEARCH_SQL.contains("LIMIT $3 OFFSET $4"));
+        assert!(PG_FTS_COUNT_SQL.starts_with("SELECT COUNT(*)::bigint"));
+        assert!(PG_FTS_COUNT_SQL.contains("o.search_text @@ websearch_to_tsquery('english', $2)"));
+        assert!(PG_FTS_COUNT_SQL.contains("f.status = 'live'"));
+        // The migration that backs the query, pinned from the schema DDL.
+        let ddl = POSTGRES_EVENT_FIRST_SCHEMA.join("\n");
+        assert!(ddl.contains(
+            "ALTER TABLE frontier_objects ADD COLUMN IF NOT EXISTS search_text tsvector"
+        ));
+        assert!(ddl.contains("to_tsvector('english', left(raw_json::text, 8192))"));
+        assert!(ddl.contains(
+            "CREATE INDEX IF NOT EXISTS idx_frontier_objects_fts ON frontier_objects USING GIN (search_text)"
+        ));
+    }
+
+    /// SQLite search keeps the LIKE lane but gains the additive
+    /// pagination contract: `(rows, total)` with total counted over the
+    /// same predicate, honoring limit/offset.
+    #[tokio::test]
+    async fn sqlite_search_returns_rows_and_total() {
+        let db = sqlite_db().await;
+        let HubDb::Sqlite(pool) = &db else {
+            unreachable!()
+        };
+        sqlx::query(
+            "INSERT INTO frontiers (vfr_id, name, owner_actor_id, owner_pubkey, \
+             latest_snapshot_hash, latest_event_log_hash, schema_version, \
+             signed_publish_at, materialized_snapshot_json, authority_mode, status) \
+             VALUES ('vfr_s1', 'sidon', 'reviewer:test', '00', 'h', 'h', 'v1', \
+             '2026-07-01T00:00:00Z', '{}', 'git_ingested', 'live')",
+        )
+        .execute(pool)
+        .await
+        .expect("insert frontier");
+        for (i, text) in [
+            "a sidon set of size 33",
+            "a sidon set of size 34",
+            "unrelated claim",
+        ]
+        .iter()
+        .enumerate()
+        {
+            sqlx::query(
+                "INSERT INTO frontier_objects (vfr_id, object_type, object_id, seq, raw_json) \
+                 VALUES ('vfr_s1', 'finding', ?, ?, ?)",
+            )
+            .bind(format!("vf_{i}"))
+            .bind(i as i64)
+            .bind(json!({"id": format!("vf_{i}"), "assertion": {"text": text}}).to_string())
+            .execute(pool)
+            .await
+            .expect("insert object");
+        }
+
+        // Page 1 of 2: one row back, total counts both matches.
+        let (rows, total) = db
+            .search_objects("sidon", "finding", 1, 0)
+            .await
+            .expect("search");
+        assert_eq!(rows.len(), 1);
+        assert_eq!(total, 2);
+        assert_eq!(rows[0]["vfr_id"], json!("vfr_s1"));
+        assert!(
+            rows[0]["object"]["assertion"]["text"]
+                .as_str()
+                .unwrap()
+                .contains("sidon")
+        );
+        // Page 2: the offset walks forward under the same total.
+        let (rows2, total2) = db
+            .search_objects("sidon", "finding", 1, 1)
+            .await
+            .expect("search page 2");
+        assert_eq!(rows2.len(), 1);
+        assert_eq!(total2, 2);
+        assert_ne!(rows[0]["object"]["id"], rows2[0]["object"]["id"]);
+        // No matches: empty page, zero total.
+        let (none, zero) = db
+            .search_objects("nomatch", "finding", 10, 0)
+            .await
+            .expect("search none");
+        assert!(none.is_empty());
+        assert_eq!(zero, 0);
     }
 }
