@@ -987,22 +987,6 @@ pub(crate) fn parse_evidence_spans(inputs: &[String]) -> Vec<Value> {
         .collect()
 }
 
-#[derive(Debug, Serialize)]
-pub struct ProofTrace {
-    pub trace_version: String,
-    pub command: Vec<String>,
-    pub source: String,
-    pub source_hash: String,
-    pub schema_version: String,
-    pub checked_artifacts: Vec<String>,
-    pub benchmark: Option<Value>,
-    pub packet_manifest: String,
-    pub packet_validation: String,
-    pub caveats: Vec<String>,
-    pub status: String,
-    pub trace_path: String,
-}
-
 // Bare `vela` (no args) opens a session against the nearest `.vela/`
 // repo, walking up from cwd. The session prints a one-screen
 // dashboard, then accepts single-letter verb shortcuts or

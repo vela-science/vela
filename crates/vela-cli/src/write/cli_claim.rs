@@ -94,7 +94,7 @@ pub(crate) fn run(args: &[String]) {
         .map(String::as_str);
     if let Some(cutoff) = as_of {
         if verb != "state" && !verb.is_empty() {
-            fail("--as-of is supported on the plain state projection only");
+            fail_usage("--as-of is supported on the plain state projection only");
         }
         let payload = vela_protocol::state::history_as_of(Path::new(frontier), vf_id, Some(cutoff))
             .unwrap_or_else(|e| fail(&e));
@@ -239,7 +239,12 @@ pub(crate) fn run_anchor(args: &[String]) {
             .iter()
             .find(|l| l.id == val_id)
             .map(|l| l.target.clone())
-            .unwrap_or_else(|| fail(&format!("anchor link {val_id} not found in {frontier}")));
+            .unwrap_or_else(|| {
+                fail_not_found(
+                    &format!("anchor link {val_id} not found in {frontier}"),
+                    "list anchors with `vela state anchors`",
+                )
+            });
         let event =
             vela_protocol::events::new_finding_event(vela_protocol::events::FindingEventInput {
                 kind: "anchor.retracted",
@@ -270,11 +275,11 @@ pub(crate) fn run_anchor(args: &[String]) {
     });
     let ns = flag("--ns")
         .or_else(|| flag("--namespace"))
-        .unwrap_or_else(|| fail("--ns is required (oeis|erdos|mathlib|arxiv|msc|dblp)"));
-    let ext_id =
-        flag("--id").unwrap_or_else(|| fail("--id is required (the external id, e.g. A309370)"));
-    let role =
-        flag("--role").unwrap_or_else(|| fail("--role is required (e.g. \"lower-bound a(n)\")"));
+        .unwrap_or_else(|| fail_usage("--ns is required (oeis|erdos|mathlib|arxiv|msc|dblp)"));
+    let ext_id = flag("--id")
+        .unwrap_or_else(|| fail_usage("--id is required (the external id, e.g. A309370)"));
+    let role = flag("--role")
+        .unwrap_or_else(|| fail_usage("--role is required (e.g. \"lower-bound a(n)\")"));
 
     // Default kind + join policy by namespace; --kind / --join override.
     // MSC/arXiv/DBLP/DOI are search affordances, never identity (the spec's
@@ -296,7 +301,7 @@ pub(crate) fn run_anchor(args: &[String]) {
         Some("taxonomy") => AnchorKind::Taxonomy,
         Some("sequence") => AnchorKind::Sequence,
         Some("dataset") => AnchorKind::Dataset,
-        Some(o) => fail(&format!("unknown --kind '{o}'")),
+        Some(o) => fail_usage(&format!("unknown --kind '{o}'")),
     };
     let join_policy = match flag("--join").as_deref() {
         None => match ns.as_str() {
@@ -306,7 +311,7 @@ pub(crate) fn run_anchor(args: &[String]) {
         Some("hard") | Some("hard_identity") => JoinPolicy::HardIdentity,
         Some("soft") | Some("soft_candidate") => JoinPolicy::SoftCandidate,
         Some("search") | Some("search_only") => JoinPolicy::SearchOnly,
-        Some(o) => fail(&format!("unknown --join '{o}' (hard|soft|search)")),
+        Some(o) => fail_usage(&format!("unknown --join '{o}' (hard|soft|search)")),
     };
 
     let by = crate::cli_identity::resolve_actor(flag("--reviewer").as_deref());
@@ -314,7 +319,10 @@ pub(crate) fn run_anchor(args: &[String]) {
         crate::cli_identity::resolve_signing_key(flag("--key").as_deref().map(Path::new));
     let mut project = repo::load_from_path(Path::new(frontier)).unwrap_or_else(|e| fail(&e));
     if !project.findings.iter().any(|f| f.id == vf_id) {
-        fail(&format!("target finding {vf_id} not found in {frontier}"));
+        fail_not_found::<()>(
+            &format!("target finding {vf_id} not found in {frontier}"),
+            "list ids with `vela status`",
+        );
     }
 
     let link = AnchorLink::build(

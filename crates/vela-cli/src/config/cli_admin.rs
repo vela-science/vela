@@ -1,5 +1,5 @@
 use crate::cli::print_identity_created;
-use crate::cli::{fail, fail_return, parse_signing_key, print_json};
+use crate::cli::{fail, fail_return, fail_usage, parse_signing_key, print_json};
 use crate::cli_commands::*;
 use colored::Colorize;
 use serde_json::json;
@@ -178,13 +178,13 @@ pub(crate) fn cmd_actor(action: ActorAction) {
             let pubkey = pubkey
                 .or_else(|| crate::cli_identity::load_identity().map(|i| i.pubkey))
                 .unwrap_or_else(|| {
-                    fail("no --pubkey given and no configured identity; run `vela id import` / `vela id create`, or pass --pubkey")
+                    fail_usage("no --pubkey given and no configured identity; run `vela id import` / `vela id create`, or pass --pubkey")
                 });
             let id = crate::cli_identity::resolve_actor(id.as_deref());
             // Validate the pubkey shape before mutating the frontier.
             let trimmed = pubkey.trim();
             if trimmed.len() != 64 || hex::decode(trimmed).is_err() {
-                fail("Public key must be 64 hex characters (32-byte Ed25519 pubkey).");
+                fail_usage("Public key must be 64 hex characters (32-byte Ed25519 pubkey).");
             }
             // v0.43: Validate ORCID shape if supplied. Stored in bare form.
             let orcid_normalized = orcid
@@ -251,13 +251,15 @@ pub(crate) fn cmd_actor(action: ActorAction) {
             // v0.127: validate the new pubkey shape up front.
             let trimmed = new_pubkey.trim();
             if trimmed.len() != 64 || hex::decode(trimmed).is_err() {
-                fail("--new-pubkey must be 64 hex characters (32-byte Ed25519 pubkey).");
+                fail_usage("--new-pubkey must be 64 hex characters (32-byte Ed25519 pubkey).");
             }
             if reason.trim().is_empty() {
-                fail("--reason must be non-empty (record why the rotation is happening).");
+                fail_usage("--reason must be non-empty (record why the rotation is happening).");
             }
             if id == new_id {
-                fail("--id and --new-id must differ; rotation registers a fresh actor record.");
+                fail_usage(
+                    "--id and --new-id must differ; rotation registers a fresh actor record.",
+                );
             }
 
             let mut project = repo::load_from_path(&frontier).unwrap_or_else(|e| fail_return(&e));

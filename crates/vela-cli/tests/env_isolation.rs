@@ -49,6 +49,43 @@ fn run_in(dir: &std::path::Path, args: &[&str]) -> std::process::Output {
         .expect("spawn vela")
 }
 
+/// Malformed invocations across the command families must be exit 2
+/// (usage), not the generic exit 1 — the same class fixed in `state`,
+/// swept through cli_claim / cli_admin / cli_check.
+#[test]
+fn usage_errors_are_exit_2() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    init_frontier(tmp.path());
+    // `check --json` with no frontier source is a usage error.
+    let out = run_in(tmp.path(), &["check", "--json"]);
+    assert_eq!(
+        out.status.code(),
+        Some(2),
+        "check --json no source: {out:?}"
+    );
+    // `state anchor` missing its required flags is a usage error.
+    let out = run_in(tmp.path(), &["state", "anchor", ".", "vf_x", "--json"]);
+    assert_eq!(
+        out.status.code(),
+        Some(2),
+        "state anchor missing --ns: {out:?}"
+    );
+    // `id rotate-key` with identical old/new id is a usage error.
+    let out = run_in(
+        tmp.path(),
+        &[
+            "id",
+            "rotate-key",
+            "--id",
+            "reviewer:x",
+            "--new-id",
+            "reviewer:x",
+            "--json",
+        ],
+    );
+    assert_eq!(out.status.code(), Some(2), "id rotate same id: {out:?}");
+}
+
 /// The exit-code contract is what an agent branches on. `state` used to
 /// route every failure through the generic exit-1; a missing finding must
 /// be 3 (not found), a malformed invocation 2 (usage).

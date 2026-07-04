@@ -1,7 +1,7 @@
 //! `cmd_check` and its handler logic, split out of cli.rs.
 
 use crate::cli::{
-    check_json_payload, fail, load_frontier_or_fail, print_json, print_signal_summary,
+    check_json_payload, fail_usage, load_frontier_or_fail, print_json, print_signal_summary,
     scan_for_sensitive_paths,
 };
 use serde_json::Value;
@@ -27,7 +27,7 @@ pub(crate) fn cmd_check(
 ) {
     if json_output {
         let Some(src) = source else {
-            fail("--json requires a frontier source");
+            fail_usage("--json requires a frontier source");
         };
         let payload = check_json_payload(src, schema_only, strict);
         print_json(&payload);
@@ -79,7 +79,7 @@ pub(crate) fn cmd_check(
     }
     if !schema_only && (run_all || stats) {
         let Some(src) = source else {
-            fail("--stats requires a frontier source");
+            fail_usage("--stats requires a frontier source");
         };
         let frontier = load_frontier_or_fail(src);
         let report = lint::lint(&frontier, None, None);
