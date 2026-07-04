@@ -88,7 +88,7 @@ impl CmdError {
 
 // ── The template ladder ────────────────────────────────────────────────
 
-const TEMPLATES: &str = "witness-rederivation, statement-drafts, notes-threshold";
+const TEMPLATES: &str = "witness-rederivation, statement-drafts, search-witness, notes-threshold";
 
 /// The hardcoded template ladder, ordered by how much a signature delegates.
 /// Every template defaults to `Defer` (never a permit default) and expires in
@@ -102,6 +102,14 @@ const TEMPLATES: &str = "witness-rederivation, statement-drafts, notes-threshold
 ///                         text, so semantic text change is allowed, bounded
 ///                         to one finding at A2; independence is a
 ///                         verdict-time property, not a draft-time one
+///   search-witness        computational receipts whose witness a FROZEN
+///                         verifier already re-checked (`vela land`
+///                         type=computational, assurance 2 = a passing
+///                         verifier run). The autonomy lane for the harvest:
+///                         a lower bound or a finite confirmation the machine
+///                         can prove, landing without ceremony. No claim-text
+///                         mutation and no dependents — a witness attests
+///                         exactly its own assertion, nothing downstream.
 ///   notes-threshold       notes attach without ceremony (A0) but the impact
 ///                         constraints stay tight: one finding, no dependents,
 ///                         no claim-language mutation
@@ -154,6 +162,41 @@ fn template_policy(name: &str) -> Option<(Vec<PolicyRule>, &'static str)> {
                 },
             }],
             "statement drafts (theoretical receipts) land at A2 (drafts ARE text)",
+        )),
+        "search-witness" => Some((
+            vec![PolicyRule {
+                id: "search-witness-v1".to_string(),
+                effect: Outcome::Permit,
+                // The class `vela land` stamps for a computational receipt
+                // (type=computational → receipt_computational). The witness
+                // was frozen-verifier-checked before the claim existed, so
+                // the assurance-2 floor here IS that passing verifier run.
+                claim_classes: vec!["receipt_computational".to_string()],
+                constraints: Constraints {
+                    max_changed_findings: 1,
+                    // A witness attests exactly its own assertion (a bound, a
+                    // finite confirmation); nothing hangs downstream of it.
+                    max_downstream_dependents: 0,
+                    // A2 = at least one passing frozen-verifier run at land.
+                    required_assurance_min: 2,
+                    // `vela land` stamps assertion_text_mutated=true for
+                    // EVERY new receipt (a new claim is new text), so this
+                    // must be open or the lane never fires — the same
+                    // structural fact statement-drafts rides. The real guard
+                    // for a witness is require_method_integrity below: the
+                    // frozen verifier re-checked it. (Caught by the harness
+                    // dry-run, which exercises the real land path.)
+                    allow_semantic_text_change: true,
+                    allow_contested: false,
+                    allow_governance_mutation: false,
+                    // Independence is a verdict-time property; the frozen
+                    // verifier re-checking the witness IS the method integrity
+                    // this lane stands on.
+                    require_independence: false,
+                    require_method_integrity: true,
+                },
+            }],
+            "frozen-verified computational witnesses (bounds, finite confirmations) land at A2",
         )),
         "notes-threshold" => Some((
             vec![PolicyRule {
@@ -1702,6 +1745,69 @@ mod tests {
             Outcome::Permit,
             "a landed statement draft must route through this lane: {:?}",
             d.reasons
+        );
+    }
+
+    /// The search-witness lane is the harvest's autonomy edge: a frozen-
+    /// verified computational witness (assurance 2) permits, but the SAME
+    /// claim with no passing verifier run (assurance 0) must defer. This is
+    /// the exact boundary Lane A rides.
+    #[test]
+    fn search_witness_permits_at_a2_defers_at_a0() {
+        let (rules, _) = template_policy("search-witness").unwrap();
+        let mut policy = AcceptancePolicy {
+            schema: "vela.acceptance_policy.v0.1".to_string(),
+            id: String::new(),
+            frontier_id: "vfr_test".to_string(),
+            epoch: 1,
+            issued_by: vec!["reviewer:test".to_string()],
+            quorum: Quorum {
+                threshold: 1,
+                eligible_roles: vec!["steward".to_string()],
+            },
+            rules,
+            default: Outcome::Defer,
+            expires_at: "2099-12-31T23:59:59Z".to_string(),
+            revocation_ref: None,
+        };
+        policy.id = policy.content_address();
+
+        // The EXACT context `vela land` stamps for a computational receipt
+        // with a passing verifier run (workflow.rs): has_pass → assurance 2
+        // and method_integrity_sound; assertion_text_mutated is ALWAYS true
+        // for a new receipt (a new claim is new text). The lane must permit
+        // under that real context, not a hand-tuned one.
+        let verified = vela_protocol::acceptance_policy::PolicyContext {
+            claim_class: "receipt_computational".to_string(),
+            assurance_level: 2,
+            impact_tier: 1,
+            changed_findings: 1,
+            downstream_dependents: 0,
+            assertion_text_mutated: true,
+            target_contested: false,
+            governance_mutation: false,
+            independence_satisfied: false,
+            method_integrity_sound: true,
+            credential_valid: true,
+            has_unknown_fields: false,
+        };
+        assert_eq!(
+            vela_protocol::acceptance_policy::evaluate(&policy, &verified, AT).outcome,
+            Outcome::Permit,
+            "a frozen-verified computational witness must auto-land"
+        );
+
+        // Same claim, no passing verifier run: assurance 0, method integrity
+        // unproven. The witness never cleared a verifier, so it must defer.
+        let unverified = vela_protocol::acceptance_policy::PolicyContext {
+            assurance_level: 0,
+            method_integrity_sound: false,
+            ..verified
+        };
+        assert_eq!(
+            vela_protocol::acceptance_policy::evaluate(&policy, &unverified, AT).outcome,
+            Outcome::Defer,
+            "an unverified computational claim must NOT auto-land"
         );
     }
 

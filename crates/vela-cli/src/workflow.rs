@@ -239,6 +239,23 @@ pub(crate) fn land(
                 },
             })
         }
+        Err(PolicyLaneRefusal::Error(e)) if e.contains("engine gate blocked policy-lane") => {
+            // The proposal is already PENDING on disk (propose ran before
+            // the accept); the policy would admit but the engine gate found
+            // new review warnings, so a human must glance. That is a
+            // deferral to the sign queue, not a failed landing — the
+            // fidelity discipline made automatic.
+            Ok(LandOutcome {
+                proposal_id,
+                route: LandRoute::Deferred {
+                    reasons: vec![
+                        "the policy admits this, but the engine gate found review warnings — \
+                         a human glances at it in `vela sign`"
+                            .to_string(),
+                    ],
+                },
+            })
+        }
         Err(PolicyLaneRefusal::Error(e)) => Err(e),
     }
 }

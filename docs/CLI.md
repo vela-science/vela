@@ -161,6 +161,19 @@ seals and never signs; the sign session ends with the same hint when a
 pattern exists. Rules you sign are branch protection; the residue at
 your key is judgment, not friction.
 
+The policy template ladder (`vela policy draft <template>`), ordered by
+how much a signature delegates: `witness-rederivation` (exact witnesses
+the frozen gate re-derived, A3, independent), `statement-drafts`
+(theoretical receipts, A2), `search-witness` (frozen-verified
+computational witnesses — bounds and finite confirmations from
+`vela land type=computational` — A2, the autonomy lane for a harvest),
+`notes-threshold` (notes, A0). A signed policy admits only GATE-CLEAN
+results: even where a template permits a class, the engine gate still
+requires zero new review warnings, so a fresh lone claim defers to a
+human glance while a corroborated, gate-clean witness auto-lands. That is
+the fidelity discipline made automatic — the policy opens the lane, the
+gate keeps it honest.
+
 `vela doctor` carries a setup lane for the operator machine: identity +
 key permissions, binary pin state (including the workshop-build warning
 — a cargo `target/` binary churns the pin), hub reachability, policy
