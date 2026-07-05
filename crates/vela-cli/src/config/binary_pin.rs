@@ -67,27 +67,74 @@ pub(crate) fn load_pin() -> Option<BinaryPin> {
     serde_json::from_str(&std::fs::read_to_string(path).ok()?).ok()
 }
 
-/// Ceremony gate: Ok(None) = no pin recorded (allowed, but the
-/// ceremony says so); Ok(Some(pin)) = verified; Err = MISMATCH, the
-/// ceremony must refuse.
-pub(crate) fn verify_for_ceremony() -> Result<Option<BinaryPin>, String> {
-    let Some(pin) = load_pin() else {
-        return Ok(None);
-    };
+/// Whether `path` looks like a cargo build artifact (`…/target/debug/…` or
+/// `…/target/release/…`) rather than an installed release. A dev build's hash
+/// changes on every `cargo build`, so pinning it guarantees the next ceremony
+/// mismatches — the footgun the `vela` → `scripts/vela` wrapper makes easy to
+/// hit. Callers warn when this is true.
+pub(crate) fn is_dev_build_path(path: &std::path::Path) -> bool {
+    let s = path.to_string_lossy();
+    s.contains("/target/debug/") || s.contains("/target/release/")
+}
+
+/// The comparison the ceremony reasons over, so it can render old -> new and
+/// offer an inline re-pin instead of aborting to a separate command.
+pub(crate) enum PinState {
+    /// No pin recorded — ceremonies run unpinned (opt-in).
+    Unpinned,
+    /// The running binary matches the pin.
+    Match(BinaryPin),
+    /// The running binary changed since the pin was set.
+    Mismatch {
+        pinned: BinaryPin,
+        current_sha: String,
+        current_version: String,
+        current_path: PathBuf,
+    },
+}
+
+/// Classify the running binary against the pin. Never prompts, never writes.
+pub(crate) fn pin_state() -> Result<PinState, String> {
     let (exe, sha) = current_binary_sha()?;
-    if sha != pin.sha256 {
-        return Err(format!(
-            "the running binary does not match your pin: {} now, {} pinned ({} at {}). If you \
-             upgraded deliberately, re-pin with `vela id pin-binary`; if you did not, do NOT \
-             sign — inspect {} first.",
-            &sha[..16],
-            &pin.sha256[..16],
-            pin.version,
-            pin.pinned_at,
-            exe.display()
-        ));
+    let Some(pin) = load_pin() else {
+        return Ok(PinState::Unpinned);
+    };
+    if sha == pin.sha256 {
+        Ok(PinState::Match(pin))
+    } else {
+        Ok(PinState::Mismatch {
+            pinned: pin,
+            current_sha: sha,
+            current_version: env!("CARGO_PKG_VERSION").to_string(),
+            current_path: exe,
+        })
     }
-    Ok(Some(pin))
+}
+
+/// Ceremony gate for the SCRIPTED (non-interactive) forms: Ok(None) = no pin
+/// (allowed, noted); Ok(Some) = verified; Err = MISMATCH -> refuse. A script
+/// cannot vouch for a new binary, so a mismatch is always fatal here; the
+/// interactive ceremony ([`PinState`]) offers an inline re-pin instead.
+pub(crate) fn verify_for_ceremony() -> Result<Option<BinaryPin>, String> {
+    match pin_state()? {
+        PinState::Unpinned => Ok(None),
+        PinState::Match(pin) => Ok(Some(pin)),
+        PinState::Mismatch {
+            pinned,
+            current_sha,
+            current_path,
+            ..
+        } => Err(format!(
+            "the running binary does not match your pin: {} now, {} pinned ({} at {}). If you \
+             upgraded deliberately, re-run `vela sign` interactively to re-pin in place; if you \
+             did not, do NOT sign — inspect {} first.",
+            &current_sha[..16],
+            &pinned.sha256[..16],
+            pinned.version,
+            pinned.pinned_at,
+            current_path.display()
+        )),
+    }
 }
 
 #[cfg(test)]
@@ -98,5 +145,18 @@ mod tests {
     fn current_binary_hashes() {
         let (_, sha) = current_binary_sha().expect("hash self");
         assert_eq!(sha.len(), 64);
+    }
+
+    #[test]
+    fn dev_build_paths_are_flagged() {
+        use std::path::Path;
+        // Build-tree binaries: hash churns on every `cargo build`.
+        assert!(is_dev_build_path(Path::new(
+            "/Users/x/personal/vela/vendor/vela/target/debug/vela"
+        )));
+        assert!(is_dev_build_path(Path::new("/repo/target/release/vela")));
+        // Installed releases: stable to pin.
+        assert!(!is_dev_build_path(Path::new("/Users/x/.cargo/bin/vela")));
+        assert!(!is_dev_build_path(Path::new("/usr/local/bin/vela")));
     }
 }

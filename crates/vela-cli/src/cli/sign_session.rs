@@ -139,7 +139,7 @@ pub(crate) fn cmd_sign_session(frontier: Option<PathBuf>, key: Option<PathBuf>, 
     // gate, then the clear-signing binary check, before anything
     // renders or prompts.
     let actor = crate::cli_identity::resolve_decision_actor(None);
-    ceremony_binary_gate();
+    ceremony_binary_gate(true);
 
     let fr = if queues.len() == 1 {
         "frontier"
@@ -380,18 +380,112 @@ pub(crate) fn cmd_sign_session(frontier: Option<PathBuf>, key: Option<PathBuf>, 
     }
 }
 
-/// The clear-signing binary gate every ceremony runs first: a pinned
-/// binary that no longer matches refuses; no pin renders a one-line
-/// notice (pinning is opt-in but the ceremony never hides its state).
-pub(crate) fn ceremony_binary_gate() {
-    match crate::config::binary_pin::verify_for_ceremony() {
-        Ok(Some(_)) => {}
-        Ok(None) => eprintln!(
-            "  {}",
-            vela_protocol::cli_style::dim(
-                "unpinned binary — `vela id pin-binary` anchors your ceremonies"
-            )
-        ),
+/// The clear-signing binary gate every ceremony runs first.
+///
+/// `interactive` = a human is at the keyboard (the default `vela sign`
+/// session). When it is, a changed binary does not abort to a separate
+/// command: the ceremony renders old -> new and offers a one-key inline
+/// re-pin, folding what used to be `vela id pin-binary` into the flow. A
+/// scripted ceremony (`--yes`/`--batch`/`<path>`, `interactive = false`)
+/// cannot vouch for a new binary, so a mismatch stays fatal there.
+pub(crate) fn ceremony_binary_gate(interactive_form: bool) {
+    use crate::config::binary_pin::{self, PinState};
+    use std::io::IsTerminal;
+    use vela_protocol::cli_style::dim;
+
+    // Prompt ONLY when a real human is at a terminal. An interactive-FORM
+    // ceremony with a piped or CI stdin still behaves non-interactively, so a
+    // changed binary refuses (never silently re-pins) and an unpinned binary is
+    // only noted — the classic clear-signing behavior the scripted paths rely on.
+    let interactive = interactive_form && std::io::stdin().is_terminal();
+    if !interactive {
+        match binary_pin::verify_for_ceremony() {
+            Ok(Some(_)) => {}
+            Ok(None) => eprintln!(
+                "  {}",
+                dim("unpinned binary — run `vela sign` interactively once to anchor it")
+            ),
+            Err(e) => ui::fail_with(ErrorKind::Custody, &e, None),
+        }
+        return;
+    }
+
+    let state = match binary_pin::pin_state() {
+        Ok(s) => s,
+        Err(e) => ui::fail_with(ErrorKind::Custody, &e, None),
+    };
+    match state {
+        PinState::Match(_) => {}
+        PinState::Unpinned => {
+            // First run: offer to anchor now, so pinning never needs a separate
+            // trip to `vela id pin-binary`.
+            let ans =
+                read_line("  no binary pin yet. pin this binary as your ceremony anchor? [Y/n] > ");
+            if ans.is_empty() || ans.eq_ignore_ascii_case("y") {
+                record_pin_or_warn();
+            } else {
+                eprintln!("  {}", dim("continuing unpinned."));
+            }
+        }
+        PinState::Mismatch {
+            pinned,
+            current_sha,
+            current_version,
+            current_path,
+        } => {
+            let render = format!(
+                "the vela binary changed since you pinned it:\n    \
+                 pinned  {}  (v{}, {})\n    now     {}  (v{})  {}",
+                &pinned.sha256[..16],
+                pinned.version,
+                &pinned.pinned_at[..pinned.pinned_at.len().min(10)],
+                &current_sha[..16],
+                current_version,
+                current_path.display()
+            );
+            eprintln!("  {}", vela_protocol::cli_style::warn("binary changed"));
+            for line in render.lines() {
+                eprintln!("  {line}");
+            }
+            let ans = read_line(
+                "  re-pin this binary and continue signing? [y/N]  (only if you upgraded it) > ",
+            );
+            if ans.eq_ignore_ascii_case("y") {
+                record_pin_or_warn();
+            } else {
+                ui::fail_with(
+                    ErrorKind::Custody,
+                    "not re-pinned — ceremony stopped. Inspect the binary if you did not upgrade it.",
+                    None,
+                );
+            }
+        }
+    }
+}
+
+/// Record the pin, surfacing the dev-build footgun: pinning a `target/…`
+/// binary (what the `vela` -> `scripts/vela` wrapper resolves to) anchors a
+/// hash that changes on the next `cargo build`. The pin still records — the
+/// human asked — but the warning tells them to pin their installed release.
+fn record_pin_or_warn() {
+    use crate::config::binary_pin;
+    match binary_pin::record_pin() {
+        Ok(pin) => {
+            println!(
+                "  · pinned {} (v{}) — ceremonies verify the binary first",
+                &pin.sha256[..16],
+                pin.version
+            );
+            if binary_pin::is_dev_build_path(std::path::Path::new(&pin.binary_path)) {
+                eprintln!(
+                    "  {}",
+                    vela_protocol::cli_style::warn(
+                        "note: this is a build-tree binary; its hash changes on every \
+                         `cargo build`. Pin your installed release (e.g. ~/.cargo/bin/vela) instead."
+                    )
+                );
+            }
+        }
         Err(e) => ui::fail_with(ErrorKind::Custody, &e, None),
     }
 }
@@ -405,7 +499,7 @@ pub(crate) fn cmd_sign_one(
     json: bool,
 ) {
     let actor = crate::cli_identity::resolve_decision_actor(None);
-    ceremony_binary_gate();
+    ceremony_binary_gate(false);
     let dir = crate::ui::resolve_frontier(frontier);
     let signing_key = crate::cli_identity::resolve_signing_key_opt(key.as_deref());
     let reason = reason.unwrap_or_else(|| "accepted via sign".to_string());

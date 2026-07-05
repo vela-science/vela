@@ -303,6 +303,32 @@ fn gate_attach_inspect_is_wired_and_validated() {
     );
 }
 
+/// Pinning a build-tree binary (the `vela` -> `scripts/vela` wrapper trap)
+/// warns: its hash churns on every `cargo build`, so the next ceremony would
+/// mismatch. The test binary IS `target/debug/vela`, a dev build, so the guard
+/// must fire. (It still records the pin — the human asked — it just says so.)
+#[test]
+fn pin_binary_warns_on_a_dev_build() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    init_frontier(tmp.path());
+    assert!(
+        run_in(tmp.path(), &["id", "create", "--handle", "probe"])
+            .status
+            .success()
+    );
+    let out = run_in(tmp.path(), &["id", "pin-binary", "--yes"]);
+    assert!(out.status.success(), "pin should record: {out:?}");
+    let text = format!(
+        "{}{}",
+        String::from_utf8_lossy(&out.stdout),
+        String::from_utf8_lossy(&out.stderr)
+    );
+    assert!(
+        text.contains("build-tree binary"),
+        "pinning a target/ binary must warn: {text}"
+    );
+}
+
 /// The poisoned .env sets VELA_ACTOR_ID=agent:evil. If the CLI loaded
 /// it, the sign ceremony would refuse with the CUSTODY exit (4). It must
 /// instead fail on identity setup / lookup — anything but 4.

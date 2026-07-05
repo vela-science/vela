@@ -490,10 +490,11 @@ pub(crate) enum Commands {
 
 #[derive(Subcommand)]
 pub(crate) enum IdAction {
-    /// Pin the current `vela` binary's hash (a human, confirm-gated
-    /// act). Every sign ceremony then refuses to run under a binary
-    /// that no longer matches — the clear-signing invariant. Re-pin
-    /// after every deliberate upgrade.
+    /// Pin the current `vela` binary's hash (a human, confirm-gated act) so
+    /// every ceremony verifies the binary first — the clear-signing invariant.
+    /// You rarely need this by hand: the interactive `vela sign` offers to pin
+    /// on first run and to re-pin in place when it sees the binary changed.
+    /// Use `--status` to inspect the pin.
     PinBinary {
         /// Show the pin state without recording.
         #[arg(long)]

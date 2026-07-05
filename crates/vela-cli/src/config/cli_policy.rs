@@ -1192,7 +1192,7 @@ pub(crate) fn cmd_policy_test(frontier: &Path, json: bool) {
 /// over the canonical bytes opens the lane: every matching permit rule is now
 /// live authority with no per-item key ceremony.
 pub(crate) fn cmd_policy_sign(frontier: &Path, key: Option<&Path>, yes: bool) {
-    crate::cli::sign_session::ceremony_binary_gate();
+    crate::cli::sign_session::ceremony_binary_gate(!yes);
     // Humans only: the whole point of the lane is that a HUMAN signed once.
     let actor = crate::cli_identity::resolve_decision_actor(None);
     let policy = read_sealed_active(frontier).unwrap_or_else(|e| e.fail());

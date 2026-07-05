@@ -120,11 +120,22 @@ pub(crate) fn cmd_id(action: IdAction) {
                 }
             }
             match binary_pin::record_pin() {
-                Ok(pin) => println!(
-                    "  · pinned {} ({}) — ceremonies now verify the binary first",
-                    &pin.sha256[..16],
-                    pin.version
-                ),
+                Ok(pin) => {
+                    println!(
+                        "  · pinned {} ({}) — ceremonies now verify the binary first",
+                        &pin.sha256[..16],
+                        pin.version
+                    );
+                    if binary_pin::is_dev_build_path(std::path::Path::new(&pin.binary_path)) {
+                        eprintln!(
+                            "  {} this is a build-tree binary ({}); its hash changes on every \
+                             `cargo build`. Pin your installed release (e.g. ~/.cargo/bin/vela) \
+                             so the pin stays stable.",
+                            style::warn("note"),
+                            pin.binary_path
+                        );
+                    }
+                }
                 Err(e) => crate::ui::fail_with(crate::ui::ErrorKind::Domain, &e, None),
             }
         }
