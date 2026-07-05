@@ -129,46 +129,6 @@ fn retired_top_level_verbs_404() {
     }
 }
 
-/// The v0.738 hard cut names each retired verb's successor in the hint,
-/// so a stale script or habit self-corrects in one read.
-#[test]
-fn retired_verbs_name_their_successor() {
-    for (argv, successor) in [
-        (
-            vec!["inbox", "."],
-            "vela sign (decisions) / vela next (work)",
-        ),
-        (vec!["propose", ".", "vf_x"], "vela land"),
-        (vec!["record", ".", "--claim", "x"], "vela land"),
-        (vec!["pack", ".", "--summary", "x"], "vela land"),
-        (vec!["attach", ".", "--target", "vf_x"], "vela land"),
-        (vec!["accept", ".", "vpr_x"], "vela sign"),
-        (vec!["review", ".", "--batch", "/tmp/x.json"], "vela sign"),
-        (vec!["queue", "list"], "vela sign"),
-        (vec!["id", "sign", "."], "`vela sign` (the hygiene lane)"),
-        (vec!["frontier", "next", "."], "vela next"),
-    ] {
-        let out = vela(&argv);
-        assert_eq!(
-            out.status.code(),
-            Some(2),
-            "`vela {}` should exit 2",
-            argv.join(" ")
-        );
-        let text = combined(&out);
-        assert!(
-            text.contains("unknown or non-release command"),
-            "`vela {}` should 404, got: {text}",
-            argv.join(" ")
-        );
-        assert!(
-            text.contains(successor),
-            "`vela {}` should name successor `{successor}`, got: {text}",
-            argv.join(" ")
-        );
-    }
-}
-
 /// The folded spellings dispatch: hub, foundry planes, id keygen, state.
 #[test]
 fn folded_spellings_dispatch() {

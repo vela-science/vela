@@ -1452,22 +1452,6 @@ pub(crate) fn run(args: &[String]) {
             let dir = ui::resolve_frontier(positionals.get(1).map(PathBuf::from));
             cmd_policy_draft(&dir, &template, replace, json);
         }
-        "seal" => {
-            ui::set_mode("policy", json);
-            fail_with(
-                ErrorKind::Usage,
-                "`seal` folded into `draft` — drafting from a template seals the policy",
-                Some(format!("vela policy draft <template> (templates: {TEMPLATES})").as_str()),
-            );
-        }
-        "evaluate" => {
-            ui::set_mode("policy", json);
-            fail_with(
-                ErrorKind::Usage,
-                "`evaluate` folded into `test` — a dry-run over every pending proposal",
-                Some("vela policy test [frontier] [--json]"),
-            );
-        }
         _ => {
             ui::set_mode("policy", json);
             fail_with(ErrorKind::Usage, usage, None);

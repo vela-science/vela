@@ -1102,41 +1102,6 @@ pub fn run_from_args() {
             crate::cli_atlas::run(&args);
             return;
         }
-        // The v0.738 hard cut: ten porcelain verbs retired into the loop.
-        // Each retired spelling 404s like any non-release command, but the
-        // hint names its successor so a stale script or habit self-corrects.
-        Some(
-            cmd @ ("inbox" | "propose" | "accept" | "review" | "record" | "pack" | "attach"
-            | "queue"),
-        ) => {
-            let successor = match cmd {
-                "inbox" => "vela sign (decisions) / vela next (work)",
-                "propose" | "record" | "pack" | "attach" => "vela land",
-                _ => "vela sign",
-            };
-            crate::ui::fail_with(
-                crate::ui::ErrorKind::Usage,
-                &format!("unknown or non-release command: {cmd}"),
-                Some(&format!(
-                    "retired in the v0.738 hard cut — use `{successor}`"
-                )),
-            );
-        }
-        // Retired subactions of surviving nouns get the same treatment.
-        Some("id") if args.get(2).map(String::as_str) == Some("sign") => {
-            crate::ui::fail_with(
-                crate::ui::ErrorKind::Usage,
-                "unknown or non-release command: id sign",
-                Some("retired in the v0.738 hard cut — use `vela sign` (the hygiene lane)"),
-            );
-        }
-        Some("frontier") if args.get(2).map(String::as_str) == Some("next") => {
-            crate::ui::fail_with(
-                crate::ui::ErrorKind::Usage,
-                "unknown or non-release command: frontier next",
-                Some("retired in the v0.738 hard cut — use `vela next`"),
-            );
-        }
         Some(cmd) if !is_science_subcommand(cmd) => {
             eprintln!(
                 "{} unknown or non-release command: {cmd}",
