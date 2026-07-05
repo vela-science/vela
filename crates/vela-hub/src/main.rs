@@ -1085,6 +1085,7 @@ fn build_router(state: AppState) -> Router {
         )
         .route("/frontier/{vfr_id}/inbox", get(get_entry_events_stream))
         .route("/entries/{vfr_id}/depends-on", get(get_depends_on))
+        .route("/entries/{vfr_id}/graph", get(get_entry_graph))
         .route("/diff-packs/{pack_id}", get(get_diff_pack))
         .route("/entries/{vfr_id}/packs/{pack_id}", get(get_pack_review))
         .route("/entries/{vfr_id}/reproduce", get(get_reproduce))
@@ -2937,6 +2938,78 @@ async fn get_depends_on(
 /// the entry detail page uses), looks up the finding by id, renders
 /// claim + conditions + evidence + history in workbench finding-pattern.
 /// JSON path returns the finding bundle as-is.
+/// `GET /entries/{vfr_id}/graph` — the frontier's typed finding-link graph
+/// (nodes + edges), the hosted counterpart of the MCP `graph` tool's traverse
+/// mode. Reads the reconstructed `Project` and derives a [`FrontierGraph`], so
+/// the same 12-type link vocabulary the CLI walks is answerable over HTTP: a
+/// client can pull the whole Erdős dependency graph in one call. The graph is a
+/// pure derived view of the declared links (candidates, not adjudicated truth) —
+/// the `claim_boundary` says so on the wire.
+async fn get_entry_graph(
+    State(state): State<AppState>,
+    Path(vfr_id): Path<String>,
+    headers: HeaderMap,
+) -> Response {
+    if wants_html(&headers) {
+        return redirect_to_site(&state.urls, &format!("/r/{vfr_id}/graph"));
+    }
+    let entry = match state.db.get_live_entry(&vfr_id).await {
+        Ok(Some(v)) => v,
+        Ok(None) => {
+            return (
+                StatusCode::NOT_FOUND,
+                Json(error_body("NOT_FOUND", format!("{vfr_id} not found"))),
+            )
+                .into_response();
+        }
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(error_body("INTERNAL", format!("query: {e}"))),
+            )
+                .into_response();
+        }
+    };
+    let signed_at = entry
+        .get("signed_publish_at")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+    let Some(frontier) = load_substrate(&state, &vfr_id, signed_at).await else {
+        return (
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(error_body(
+                "UNAVAILABLE",
+                "frontier projection unavailable; pull via the CLI to inspect",
+            )),
+        )
+            .into_response();
+    };
+
+    let graph = vela_protocol::frontier_graph::FrontierGraph::from_project(&frontier);
+    let nodes: Vec<_> = graph.nodes().collect();
+    let edges = graph.all_edges();
+    (
+        StatusCode::OK,
+        Json(json!({
+            "schema": "vela.frontier-graph.v0.1",
+            "vfr_id": vfr_id,
+            "claim_boundary": {
+                "graph_is_derived": true,
+                "edges_are_declared_links": true,
+                "relations_are_candidates_not_adjudicated": true,
+            },
+            "counts": {
+                "nodes": nodes.len(),
+                "edges": edges.len(),
+                "by_edge_kind": graph.edge_kind_counts(),
+            },
+            "nodes": nodes,
+            "edges": edges,
+        })),
+    )
+        .into_response()
+}
+
 async fn get_finding(
     State(state): State<AppState>,
     Path((vfr_id, vf_id)): Path<(String, String)>,
