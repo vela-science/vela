@@ -983,18 +983,27 @@ async fn arxiv_result_count(client: &Client, query: &str) -> Result<u64, String>
 }
 
 /// Rough Semantic Scholar prior-art count via the Graph API paper-search
-/// `total`. The unauthenticated pool is shared and throttles under load (429);
-/// per the API docs we retry once with a short backoff, then surface a clear
-/// rate-limit message rather than a parse error. `fields` is minimized.
+/// `total`. When an API key is set in the environment (`SEMANTIC_SCHOLAR_API_KEY`,
+/// or `S2_API_KEY` as a fallback) we send it as the `x-api-key` header (per the
+/// Graph API docs) for the dedicated rate; otherwise the request rides the
+/// shared unauthenticated pool, which throttles under load (429), so we retry
+/// once with a short backoff, then surface a clear rate-limit message rather
+/// than a parse error. `fields` is minimized.
 async fn semantic_scholar_result_count(client: &Client, query: &str) -> Result<u64, String> {
     let url = format!(
         "https://api.semanticscholar.org/graph/v1/paper/search?query={}&limit=1&fields=paperId",
         urlencoding::encode(query)
     );
+    let api_key = std::env::var("SEMANTIC_SCHOLAR_API_KEY")
+        .or_else(|_| std::env::var("S2_API_KEY"))
+        .ok()
+        .filter(|k| !k.trim().is_empty());
     for attempt in 0..2u8 {
-        let resp = client
-            .get(&url)
-            .timeout(std::time::Duration::from_secs(15))
+        let mut req = client.get(&url).timeout(std::time::Duration::from_secs(15));
+        if let Some(key) = &api_key {
+            req = req.header("x-api-key", key);
+        }
+        let resp = req
             .send()
             .await
             .map_err(|e| format!("Semantic Scholar: {e}"))?;
