@@ -19,10 +19,16 @@
 //! 1. **Target = solvability, not publication.** Vela's nodes are already
 //!    canonical (a finding is a finding), and the useful question is not "what
 //!    will be published" but "which open finding is a *verifier-run* from done".
-//!    So the dominant feature is premise-establishment (all required premises
-//!    already `Established` ⇒ one frozen-verifier run closes it), not raw
-//!    link-prediction. The forward foundry+verifier loop is the ground truth,
-//!    not a publication backtest.
+//!    The signal is the accumulated **structural support** around an open
+//!    finding — its premise/support/path density — exactly the topology Garg's
+//!    frontier-identification scores. That support is read RAW from the edge
+//!    graph, present before anything is curated; premise-establishment is a
+//!    BONUS multiplier on top (verified scaffolding ⇒ closer to a
+//!    one-frozen-verifier-run close), never a gate. (Gating the whole score on
+//!    `Established` made a frontier with real structure but no accepted reviews
+//!    score a flat zero — the signal has to live in the topology, not a review
+//!    flag.) The forward foundry+verifier loop is the ground truth, not a
+//!    publication backtest.
 //! 2. **Advice, never authority.** Like [`crate::boundary`], this is a pure
 //!    projection over the typed [`FrontierGraph`]. It reorders `vela next`; it
 //!    never mutates state, and it carries the *inspectable evidence* (the
@@ -135,60 +141,77 @@ pub fn frontier_identification(project: &Project) -> Vec<Candidate> {
         let sup = supporters.get(id).cloned().unwrap_or_default();
         let sup_est = sup.iter().filter(|s| is_established(&graph, s)).count();
 
-        // Mediating support: distinct established findings within two support
-        // hops — the "path support" family. Reuses the graph's own traversal.
+        // Mediating support: distinct findings within two support hops — the
+        // "path support" family (Garg's signal). Counted RAW from the accumulated
+        // edge structure: it is present in a dense graph regardless of any review
+        // state, which is exactly why it discriminates before anything is curated.
         let mut mediating: BTreeSet<&str> = BTreeSet::new();
         for hop1 in prem.iter().chain(sup.iter()) {
-            if is_established(&graph, hop1) {
-                mediating.insert(hop1);
-            }
+            mediating.insert(hop1);
             if let Some(p2) = premises.get(*hop1) {
                 for hop2 in p2 {
-                    if is_established(&graph, hop2) {
-                        mediating.insert(hop2);
-                    }
+                    mediating.insert(hop2);
                 }
             }
         }
         let unlock = dependents.get(id).copied().unwrap_or(0);
 
-        // Premise ratio is the direct solvability signal, weighted by how much
-        // the finding actually rests on (a finding with 3/3 established premises
-        // ranks above one with 1/1, all else equal).
-        let premise_ratio = if prem_total == 0 {
-            0.0
-        } else {
-            prem_est as f64 / prem_total as f64
-        };
+        // Raw structural support — the Garg signal. Score by the accumulated
+        // premise / support / path density around this open finding, present in
+        // the topology before anything is established. `Established` is folded in
+        // below as a BONUS multiplier, never a gate: a graph with rich structure
+        // but no curated review state still ranks, and gains a lift as its
+        // scaffolding gets verified. (The old form multiplied every term by the
+        // established fraction, so a frontier with zero accepted findings scored
+        // flat zero even with thousands of real support edges.)
         let ln = |n: usize| ((n as f64) + 1.0).ln();
-        let score = W_PREMISE * premise_ratio * ln(prem_total)
-            + W_SUPPORT * ln(sup_est)
+        let raw_support = W_PREMISE * ln(prem_total)
+            + W_SUPPORT * ln(sup.len())
             + W_PATH * ln(mediating.len())
             + W_UNLOCK * ln(unlock);
+        let scaffold = prem_total + sup.len();
+        let est_fraction = if scaffold == 0 {
+            0.0
+        } else {
+            (prem_est + sup_est) as f64 / scaffold as f64
+        };
+        // Multiplier in [1, 2]: the verified fraction of the neighborhood is a
+        // bonus on top of the raw structural rank.
+        let score = raw_support * (1.0 + est_fraction);
         // Popularity baseline: preferential attachment on total degree.
         let baseline =
             (out_deg.get(id).copied().unwrap_or(0) * in_deg.get(id).copied().unwrap_or(0)) as f64;
 
-        let why = if prem_total > 0 && prem_est == prem_total {
-            format!("all {prem_total} premise(s) established — a verifier run from done")
-        } else if prem_total > 0 {
+        let why = if scaffold == 0 {
+            "open, no structural support yet".to_string()
+        } else if prem_est + sup_est == scaffold {
             format!(
-                "{prem_est}/{prem_total} premises established, {sup_est} established supporter(s)"
-            )
-        } else if sup_est > 0 || !mediating.is_empty() {
-            format!(
-                "{sup_est} established supporter(s), {} mediating result(s)",
-                mediating.len()
+                "{prem_total} premise(s) + {} supporter(s), all established — a verifier run from done",
+                sup.len()
             )
         } else {
-            "open with no established scaffolding yet".to_string()
+            format!(
+                "{prem_total} premise(s), {} supporter(s), {} mediating result(s); {} established",
+                sup.len(),
+                mediating.len(),
+                prem_est + sup_est
+            )
         };
+        // Evidence: prefer the established scaffolding to inspect; fall back to
+        // the raw premises/supporters so there is always something behind a score.
         let mut evidence: Vec<String> = prem
             .iter()
-            .filter(|t| is_established(&graph, t))
-            .chain(sup.iter().filter(|s| is_established(&graph, s)))
+            .chain(sup.iter())
+            .filter(|s| is_established(&graph, s))
             .map(|s| (*s).to_string())
             .collect();
+        if evidence.is_empty() {
+            evidence = prem
+                .iter()
+                .chain(sup.iter())
+                .map(|s| (*s).to_string())
+                .collect();
+        }
         evidence.sort();
         evidence.dedup();
 
@@ -281,6 +304,44 @@ mod tests {
         assert!(b_cand.why.contains("verifier run") || b_cand.why.contains("premise"));
         // evidence names the established premise it rests on
         assert!(!b_cand.evidence.is_empty());
+    }
+
+    #[test]
+    fn raw_structure_discriminates_with_zero_established() {
+        // The Garg fix: on a graph where NOTHING is established, an open finding
+        // resting on real premise structure still outranks an isolated one. The
+        // raw topology is the signal; `Established` is only a bonus multiplier.
+        // Before the fix, every candidate scored a flat zero without a curated
+        // review state — which is exactly the Erdős-frontier failure mode.
+        let a = synth_finding(0, vec![]); // open, unestablished premise
+        let d = synth_finding(3, vec![]); // open, unestablished premise
+        let b = synth_finding(
+            1,
+            vec![link_typed(&a.id, "depends"), link_typed(&d.id, "depends")],
+        ); // open, rests on real (unestablished) structure
+        let c = synth_finding(2, vec![]); // open, isolated
+        let (b_id, c_id) = (b.id.clone(), c.id.clone());
+        let mut project = assemble("fi", vec![], 0, 0, "test");
+        project.findings = vec![a, b, c, d];
+        // Precondition: not one finding is established.
+        assert!(
+            project
+                .findings
+                .iter()
+                .all(|f| f.flags.review_state.is_none())
+        );
+
+        let ranked = frontier_identification(&project);
+        let pos = |id: &str| ranked.iter().position(|r| r.id == id).unwrap();
+        assert!(
+            pos(&b_id) < pos(&c_id),
+            "b rests on real structure and must outrank isolated c with zero established: {ranked:?}"
+        );
+        let b_cand = &ranked[pos(&b_id)];
+        assert!(
+            b_cand.score > 0.0 && b_cand.premises_established == 0,
+            "b scores on raw structure alone (0 established), got {b_cand:?}"
+        );
     }
 
     fn _established_id(project: &crate::project::Project) -> String {
