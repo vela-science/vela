@@ -1493,6 +1493,20 @@ pub(crate) enum FrontierAction {
         #[arg(long)]
         json: bool,
     },
+    /// Rank the frontier's OPEN findings by accumulating structural support —
+    /// which open finding is closest to a verifier-run from done. A projection
+    /// (advice, never authority), with the popularity baseline and the
+    /// inspectable evidence behind each score. Adapts Garg's Frontier Graph
+    /// method to a verifier-gated substrate; validated forward by the loop.
+    Rank {
+        /// Frontier repo directory or frontier JSON file.
+        frontier: PathBuf,
+        /// How many top candidates to show.
+        #[arg(long, default_value_t = 20)]
+        limit: usize,
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 #[derive(Subcommand)]

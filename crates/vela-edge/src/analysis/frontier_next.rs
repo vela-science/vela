@@ -226,7 +226,23 @@ pub fn frontier_next(
     for a in &project.verifier_attachments {
         by_target.entry(a.target.as_str()).or_default().push(a);
     }
-    let mut verify: Vec<(usize, NextTarget)> = Vec::new();
+    // Structural leverage: how many findings rest on X as a required premise
+    // (`depends`/`synthesized_from`/`derived_from`/`discharges`). Verifying a
+    // high-leverage finding unblocks more downstream work — the structural
+    // signal from `frontier_identification`, applied as the verify-lane tiebreak.
+    let mut unlock: std::collections::HashMap<&str, usize> = std::collections::HashMap::new();
+    for f in &project.findings {
+        for l in &f.links {
+            if matches!(
+                l.link_type.as_str(),
+                "depends" | "synthesized_from" | "derived_from" | "discharges"
+            ) {
+                *unlock.entry(l.target.as_str()).or_default() += 1;
+            }
+        }
+    }
+    // (attachment_count, unlock_count, target)
+    let mut verify: Vec<(usize, usize, NextTarget)> = Vec::new();
     for bundle in &project.findings {
         use vela_protocol::bundle::ReviewState;
         if !matches!(bundle.flags.review_state, Some(ReviewState::Accepted)) {
@@ -238,25 +254,29 @@ pub fn frontier_next(
             .unwrap_or_default();
         let outcome = derive_gate_status(&claim_digest(&bundle.assertion.text), &attachments);
         if outcome.status == GateStatus::NeedsVerification {
+            let lev = unlock.get(bundle.id.as_str()).copied().unwrap_or(0);
+            let why = match outcome.reasons.first() {
+                Some(r) if lev > 0 => format!("{r} ({lev} finding(s) rest on this)"),
+                Some(r) => r.clone(),
+                None => "accepted but unverified".into(),
+            };
             verify.push((
                 attachments.len(),
+                lev,
                 NextTarget {
                     lane: "verify".into(),
                     id: bundle.id.clone(),
                     title: bundle.assertion.text.chars().take(80).collect(),
-                    why: outcome
-                        .reasons
-                        .first()
-                        .cloned()
-                        .unwrap_or_else(|| "accepted but unverified".into()),
+                    why,
                     next_command: format!("vela work {}", bundle.id),
                 },
             ));
         }
     }
-    // Closest to the bar first: more attachments = one run from verified.
-    verify.sort_by(|a, b| b.0.cmp(&a.0).then(a.1.id.cmp(&b.1.id)));
-    targets.extend(verify.into_iter().map(|(_, t)| t));
+    // Closest to the bar first (more attachments = one run from verified), then
+    // highest structural leverage (unblocks the most downstream work), then id.
+    verify.sort_by(|a, b| b.0.cmp(&a.0).then(b.1.cmp(&a.1)).then(a.2.id.cmp(&b.2.id)));
+    targets.extend(verify.into_iter().map(|(_, _, t)| t));
 
     targets.truncate(limit);
     targets

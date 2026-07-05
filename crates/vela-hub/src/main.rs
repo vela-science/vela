@@ -1087,6 +1087,7 @@ fn build_router(state: AppState) -> Router {
         .route("/frontier/{vfr_id}/inbox", get(get_entry_events_stream))
         .route("/entries/{vfr_id}/depends-on", get(get_depends_on))
         .route("/entries/{vfr_id}/graph", get(get_entry_graph))
+        .route("/entries/{vfr_id}/frontier", get(get_entry_frontier))
         .route("/diff-packs/{pack_id}", get(get_diff_pack))
         .route("/entries/{vfr_id}/packs/{pack_id}", get(get_pack_review))
         .route("/entries/{vfr_id}/reproduce", get(get_reproduce))
@@ -3157,6 +3158,76 @@ async fn get_entry_graph(
             },
             "nodes": nodes,
             "edges": edges,
+        })),
+    )
+        .into_response()
+}
+
+/// `GET /entries/{vfr_id}/frontier` — the frontier-identification ranking:
+/// OPEN findings ordered by accumulating structural support (which is closest to
+/// a verifier-run from done), each with the popularity baseline and inspectable
+/// evidence. A derived projection (advice, never adjudication), served with the
+/// same claim-boundary discipline as `/graph`.
+async fn get_entry_frontier(
+    State(state): State<AppState>,
+    Path(vfr_id): Path<String>,
+    Query(params): Query<HashMap<String, String>>,
+    headers: HeaderMap,
+) -> Response {
+    if wants_html(&headers) {
+        return redirect_to_site(&state.urls, &format!("/r/{vfr_id}/frontier"));
+    }
+    let limit = params
+        .get("limit")
+        .and_then(|s| s.parse::<usize>().ok())
+        .unwrap_or(50)
+        .min(500);
+    let entry = match state.db.get_live_entry(&vfr_id).await {
+        Ok(Some(v)) => v,
+        Ok(None) => {
+            return (
+                StatusCode::NOT_FOUND,
+                Json(error_body("NOT_FOUND", format!("{vfr_id} not found"))),
+            )
+                .into_response();
+        }
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(error_body("INTERNAL", format!("query: {e}"))),
+            )
+                .into_response();
+        }
+    };
+    let signed_at = entry
+        .get("signed_publish_at")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+    let Some(frontier) = load_substrate(&state, &vfr_id, signed_at).await else {
+        return (
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(error_body(
+                "UNAVAILABLE",
+                "frontier projection unavailable; pull via the CLI to inspect",
+            )),
+        )
+            .into_response();
+    };
+    let ranked = vela_protocol::frontier_identification::frontier_identification(&frontier);
+    let open_total = ranked.len();
+    let candidates: Vec<_> = ranked.into_iter().take(limit).collect();
+    (
+        StatusCode::OK,
+        Json(json!({
+            "schema": "vela.frontier_rank.v0.1",
+            "vfr_id": vfr_id,
+            "claim_boundary": {
+                "ranking_is_derived": true,
+                "advice_not_authority": true,
+                "target_is_solvability_not_truth": true,
+            },
+            "open_total": open_total,
+            "candidates": candidates,
         })),
     )
         .into_response()

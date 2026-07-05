@@ -234,5 +234,58 @@ pub(crate) fn cmd_frontier(action: FrontierAction) {
         } => cmd_frontier_release(frontier, name, notes, previous, json),
         FrontierAction::Releases { frontier, json } => cmd_frontier_releases(frontier, json),
         FrontierAction::Audit { frontier, json } => cmd_frontier_audit(frontier, json),
+        FrontierAction::Rank {
+            frontier,
+            limit,
+            json,
+        } => cmd_frontier_rank(&frontier, limit, json),
     }
+}
+
+/// `vela frontier rank` — rank OPEN findings by accumulating structural support
+/// (which is closest to a verifier-run from done). A read-only projection over
+/// the typed frontier graph; carries the popularity baseline and the evidence
+/// behind each score so the suggestion is inspectable.
+fn cmd_frontier_rank(frontier: &std::path::Path, limit: usize, json: bool) {
+    use vela_protocol::frontier_identification::frontier_identification;
+    use vela_protocol::repo;
+    let source = repo::detect(frontier).unwrap_or_else(|e| fail_return(&e));
+    let proj = repo::load(&source).unwrap_or_else(|e| fail_return(&e));
+    let ranked = frontier_identification(&proj);
+    let shown: Vec<_> = ranked.iter().take(limit).collect();
+    if json {
+        print_json(&json!({
+            "command": "frontier rank",
+            "schema": "vela.frontier_rank.v0.1",
+            "frontier_id": proj.frontier_id(),
+            "open_total": ranked.len(),
+            "candidates": shown,
+        }));
+        return;
+    }
+    if ranked.is_empty() {
+        println!("no open findings to rank — the frontier has no open work surfaced.");
+        return;
+    }
+    println!(
+        "frontier rank: {} open finding(s), most-solvable first (structural support)",
+        ranked.len()
+    );
+    for (i, c) in shown.iter().enumerate() {
+        println!(
+            "{:>3}. {}  {}",
+            i + 1,
+            c.id,
+            style::dim(&c.label.chars().take(70).collect::<String>())
+        );
+        println!(
+            "      score {:.2} (popularity baseline {:.0}) — {}",
+            c.score, c.baseline, c.why
+        );
+        if !c.evidence.is_empty() {
+            let ev: Vec<&str> = c.evidence.iter().take(4).map(String::as_str).collect();
+            println!("      evidence: {}", ev.join(", "));
+        }
+    }
+    println!("\n  advice, not authority: claim one with `vela work <id>`; the verifier decides.");
 }

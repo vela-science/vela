@@ -10,6 +10,7 @@ pub mod evidence_ci;
 pub mod evidence_diff;
 pub mod frontier_bound;
 pub mod frontier_graph;
+pub mod frontier_identification;
 pub mod inspect_adapter;
 pub mod pathfind;
 pub mod propagate;
