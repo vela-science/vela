@@ -2333,19 +2333,26 @@ fn cmd_gate_backfill(frontier: &Path, reviewer: &str, dry_run: bool, json_output
         if !(is_json && art.metadata.contains_key("verifier")) {
             continue;
         }
-        // Resolve content. local_blob / local_file locators are relative to the
-        // frontier dir; remote / pointer artifacts are not re-checkable here.
-        let content = match (art.storage_mode.as_str(), &art.locator) {
+        // Resolve content. Prefer the content-addressed blob at the locator;
+        // fall back to the canonical `witnesses/<witness_file>` source when the
+        // blob is absent (it lives in object storage, not the checkout — the
+        // common case for a hub-hosted frontier) or the artifact is a
+        // remote/pointer. The tracked witness file is the same bytes the blob
+        // was hashed from, so the frozen re-check is identical.
+        let from_locator = match (art.storage_mode.as_str(), &art.locator) {
             ("local_blob" | "local_file", Some(loc)) => {
-                match std::fs::read_to_string(frontier.join(loc.as_str())) {
-                    Ok(c) => c,
-                    Err(_) => {
-                        skipped += 1;
-                        continue;
-                    }
-                }
+                std::fs::read_to_string(frontier.join(loc.as_str())).ok()
             }
-            _ => {
+            _ => None,
+        };
+        let content = match from_locator.or_else(|| {
+            art.metadata
+                .get("witness_file")
+                .and_then(Value::as_str)
+                .and_then(|wf| std::fs::read_to_string(frontier.join("witnesses").join(wf)).ok())
+        }) {
+            Some(c) => c,
+            None => {
                 skipped += 1;
                 continue;
             }
