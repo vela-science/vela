@@ -790,3 +790,222 @@ pub fn review_warnings(report: &EvidenceCiReport) -> BTreeSet<String> {
         .map(check_key)
         .collect()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test_support::make_finding;
+
+    /// Assemble a report from a raw check list, running the same
+    /// `finish()` roll-up the real pipeline uses.
+    fn report_with(checks: Vec<EvidenceCiCheck>) -> EvidenceCiReport {
+        EvidenceCiReport {
+            ok: false,
+            command: "evidence-ci".to_string(),
+            frontier_id: "vfr_test".to_string(),
+            frontier_path: "/tmp/frontier".to_string(),
+            checked_at: "2026-06-23T00:00:00Z".to_string(),
+            scope: "frontier".to_string(),
+            summary: EvidenceCiSummary::default(),
+            checks,
+            caveats: vec![],
+        }
+        .finish()
+    }
+
+    #[test]
+    fn classification_ranks_release_blocking_over_warning() {
+        // A failed release-blocking check classifies as ReleaseBlocking
+        // regardless of status; a bare warning is a ReviewWarning; and a
+        // non-blocking pass is Info.
+        assert_eq!(
+            classification_for_check(&EvidenceCiStatus::Failed, true),
+            EvidenceCiClassification::ReleaseBlocking
+        );
+        // release_blocking flag dominates even for a passing check.
+        assert_eq!(
+            classification_for_check(&EvidenceCiStatus::Passed, true),
+            EvidenceCiClassification::ReleaseBlocking
+        );
+        assert_eq!(
+            classification_for_check(&EvidenceCiStatus::Warning, false),
+            EvidenceCiClassification::ReviewWarning
+        );
+        assert_eq!(
+            classification_for_check(&EvidenceCiStatus::Passed, false),
+            EvidenceCiClassification::Info
+        );
+    }
+
+    #[test]
+    fn group_assignment_follows_check_id_prefix() {
+        // Group is derived from the check id namespace, not its status.
+        assert_eq!(
+            group_for_check("source.id_presence", &EvidenceCiStatus::Passed),
+            "source_locator_coverage"
+        );
+        // trial.registry_reference is folded into source coverage by name.
+        assert_eq!(
+            group_for_check("trial.registry_reference", &EvidenceCiStatus::Warning),
+            "source_locator_coverage"
+        );
+        assert_eq!(
+            group_for_check("condition.endpoint", &EvidenceCiStatus::Warning),
+            "evidence_atom_quality"
+        );
+        assert_eq!(
+            group_for_check("policy.review_requirement", &EvidenceCiStatus::Failed),
+            "policy_requirements"
+        );
+        assert_eq!(
+            group_for_check("proof.freshness", &EvidenceCiStatus::Warning),
+            "stale_proof"
+        );
+    }
+
+    #[test]
+    fn release_ok_only_when_no_blocking_check_fails() {
+        // A failing release-blocking check drops the report to not-ok and
+        // records exactly one release_blocking_failed; the report `ok` mirrors it.
+        let blocked = report_with(vec![
+            fail(
+                "policy.review_requirement",
+                "frontier",
+                "vfr_test",
+                "policy missing",
+                None,
+                true,
+            ),
+            warn("source.id_presence", "finding", "vf_a", "no source", None),
+        ]);
+        assert!(!blocked.ok);
+        assert_eq!(blocked.summary.release_blocking_failed, 1);
+        assert_eq!(blocked.summary.failed, 1);
+        assert_eq!(blocked.summary.warnings, 1);
+
+        // A warning-only report has no blocking failure, so the release is ok.
+        let clean = report_with(vec![warn(
+            "source.id_presence",
+            "finding",
+            "vf_a",
+            "no source",
+            None,
+        )]);
+        assert!(clean.ok);
+        assert_eq!(clean.summary.release_blocking_failed, 0);
+    }
+
+    #[test]
+    fn failing_blocking_pass_does_not_block() {
+        // A release-blocking check that PASSES is not a failure — only a
+        // failing one blocks. This guards the difference between "this check
+        // can block" and "this check is blocking right now".
+        let report = report_with(vec![pass(
+            "policy.review_requirement",
+            "frontier",
+            "vfr_test",
+            "policy present",
+            None,
+            true,
+        )]);
+        assert!(report.ok);
+        assert_eq!(report.summary.release_blocking, 1);
+        assert_eq!(report.summary.release_blocking_failed, 0);
+    }
+
+    #[test]
+    fn blocking_failures_and_warnings_keyed_by_id_and_target() {
+        // The Engine diffs these keyed sets to find regressions. Keys are
+        // `id@target_id`, so the same check id on two findings is two keys.
+        let report = report_with(vec![
+            fail(
+                "policy.review_requirement",
+                "frontier",
+                "vfr_test",
+                "policy missing",
+                None,
+                true,
+            ),
+            warn("source.id_presence", "finding", "vf_a", "no source", None),
+            warn("source.id_presence", "finding", "vf_b", "no source", None),
+        ]);
+
+        let blocking = release_blocking_failures(&report);
+        assert_eq!(blocking.len(), 1);
+        assert!(blocking.contains("policy.review_requirement@vfr_test"));
+
+        let warnings = review_warnings(&report);
+        assert_eq!(warnings.len(), 2);
+        assert!(warnings.contains("source.id_presence@vf_a"));
+        assert!(warnings.contains("source.id_presence@vf_b"));
+        // A warning is never counted as a release-blocking failure.
+        assert!(!blocking.contains("source.id_presence@vf_a"));
+    }
+
+    #[test]
+    fn study_design_checks_skip_theoretical_findings() {
+        // A theorem/conjecture-typed finding has no comparator arm or trial,
+        // so the clinical study-design checks are not applicable...
+        let theorem = make_finding("vf_thm", 0.9, "theorem");
+        assert!(!is_study_design_applicable(&theorem));
+        let conjecture = make_finding("vf_conj", 0.5, "conjecture");
+        assert!(!is_study_design_applicable(&conjecture));
+
+        // ...but an empirical (experimental) finding keeps them.
+        let empirical = make_finding("vf_exp", 0.7, "experimental");
+        assert!(is_study_design_applicable(&empirical));
+    }
+
+    #[test]
+    fn theoretical_finding_with_trial_signal_keeps_study_checks() {
+        // A theoretical-typed finding that still mentions a trial in its text
+        // carries empirical signal, so the study-design checks re-apply — a
+        // computational study of a clinical trial must not be waved through.
+        let mut finding = make_finding("vf_mix", 0.6, "theorem");
+        finding.assertion.text = "A computational model of a phase 3 trial".to_string();
+        assert!(mentions_trial(&finding_text(&finding)));
+        assert!(is_study_design_applicable(&finding));
+    }
+
+    #[test]
+    fn endpoint_and_trial_text_detectors_match_expected_signals() {
+        // Endpoint detection keys off measured-outcome vocabulary.
+        assert!(has_endpoint("primary endpoint was overall survival"));
+        assert!(has_endpoint("hazard ratio 0.7"));
+        assert!(!has_endpoint("a purely combinatorial statement"));
+
+        // Trial detection keys off trial / phase / randomized.
+        assert!(mentions_trial("a randomized study"));
+        assert!(mentions_trial("phase 2 results"));
+        assert!(!mentions_trial("an upper bound on b_2 sets"));
+    }
+
+    #[test]
+    fn theoretical_finding_records_study_dimensions_as_passes() {
+        // Running the finding-level checks on a theorem records the four
+        // study-design dimensions as not-applicable PASSES (not warnings),
+        // so a math finding raises no spurious clinical review gaps.
+        let theorem = make_finding("vf_thm", 0.9, "theorem");
+        let mut checks = Vec::new();
+        add_finding_checks(&mut checks, &theorem, &[], &[], &[]);
+
+        for id in [
+            "trial.registry_reference",
+            "condition.population",
+            "condition.comparator_or_baseline",
+            "condition.endpoint",
+        ] {
+            let check = checks
+                .iter()
+                .find(|c| c.id == id)
+                .unwrap_or_else(|| panic!("missing check {id}"));
+            assert_eq!(
+                check.status,
+                EvidenceCiStatus::Passed,
+                "{id} should be a not-applicable pass on a theorem"
+            );
+        }
+        // None of the finding-level checks are release-blocking.
+        assert!(checks.iter().all(|c| !c.release_blocking));
+    }
+}

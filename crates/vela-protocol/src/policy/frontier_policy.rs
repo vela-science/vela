@@ -383,3 +383,220 @@ fn summary_hash(summary: &FrontierPolicySummary) -> Result<String, String> {
     let bytes = canonical::to_canonical_bytes(&value)?;
     Ok(format!("sha256:{}", hex::encode(Sha256::digest(bytes))))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::TempDir;
+
+    /// Write one policy doc to the frontier's default policy dir
+    /// (`.vela/policy/<filename>`), creating the tree as needed.
+    fn write_default_policy(root: &Path, kind: PolicyDocumentKind, body: &str) {
+        let dir = root.join(".vela").join("policy");
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join(kind.filename()), body).unwrap();
+    }
+
+    /// A frontier dir with all four required policy docs present at their
+    /// default paths, so the summary is `ok`.
+    fn complete_frontier() -> TempDir {
+        let tmp = TempDir::new().unwrap();
+        for kind in PolicyDocumentKind::all() {
+            write_default_policy(
+                tmp.path(),
+                kind,
+                &format!("---\ntitle: {} rules\n---\nbody\n", kind.as_str()),
+            );
+        }
+        tmp
+    }
+
+    #[test]
+    fn kind_str_and_filename_round_trip() {
+        // Every kind has a distinct str and a filename that embeds it.
+        let kinds = PolicyDocumentKind::all();
+        let strs: BTreeSet<&str> = kinds.iter().map(|k| k.as_str()).collect();
+        assert_eq!(strs.len(), 4, "kinds must have distinct as_str values");
+        for kind in kinds {
+            assert!(
+                kind.filename().starts_with(kind.as_str()),
+                "{} filename {} should embed its str",
+                kind.as_str(),
+                kind.filename()
+            );
+            assert!(kind.filename().ends_with(".md"));
+        }
+    }
+
+    #[test]
+    fn complete_frontier_summary_is_ok_and_titles_parse() {
+        let tmp = complete_frontier();
+        let summary = load_policy_summary(tmp.path()).unwrap();
+        assert!(summary.ok, "all four docs present => ok");
+        assert!(summary.missing_required.is_empty());
+        assert_eq!(summary.documents.len(), 4);
+        // Front-matter title is lifted verbatim.
+        let review = summary
+            .documents
+            .iter()
+            .find(|d| d.kind == PolicyDocumentKind::Review)
+            .unwrap();
+        assert_eq!(review.title, "review rules");
+        // Default-path docs are not "declared in manifest".
+        assert!(!review.declared_in_manifest);
+        assert!(summary.defaults_used);
+        assert!(summary.canonical_json_sha256.starts_with("sha256:"));
+    }
+
+    #[test]
+    fn missing_documents_are_reported_and_summary_not_ok() {
+        let tmp = TempDir::new().unwrap();
+        // Only two of the four required docs are present.
+        write_default_policy(tmp.path(), PolicyDocumentKind::Evidence, "evidence body");
+        write_default_policy(tmp.path(), PolicyDocumentKind::Review, "review body");
+        let summary = load_policy_summary(tmp.path()).unwrap();
+        assert!(!summary.ok);
+        assert_eq!(summary.documents.len(), 2);
+        // missing_required is sorted and names exactly the absent kinds.
+        assert_eq!(summary.missing_required, vec!["agent", "confidence"]);
+    }
+
+    #[test]
+    fn title_falls_back_when_no_front_matter() {
+        let tmp = TempDir::new().unwrap();
+        // A body with no `---` front matter yields the default title.
+        write_default_policy(
+            tmp.path(),
+            PolicyDocumentKind::Confidence,
+            "plain body, no front matter\n",
+        );
+        let summary = load_policy_summary(tmp.path()).unwrap();
+        let doc = &summary.documents[0];
+        assert_eq!(doc.kind, PolicyDocumentKind::Confidence);
+        assert_eq!(doc.title, "confidence policy");
+        assert!(doc.front_matter.is_empty());
+        // Body hash and byte count reflect the written body.
+        assert_eq!(doc.bytes, "plain body, no front matter\n".len());
+        assert!(doc.body_sha256.starts_with("sha256:"));
+    }
+
+    #[test]
+    fn summary_hash_is_deterministic_and_excludes_itself() {
+        let tmp = complete_frontier();
+        let a = load_policy_summary(tmp.path()).unwrap();
+        let b = load_policy_summary(tmp.path()).unwrap();
+        // The canonical hash pins the whole summary and is reproducible.
+        assert_eq!(a.canonical_json_sha256, b.canonical_json_sha256);
+        // Recomputing the hash over the summary (which the field excludes)
+        // reproduces the stored value.
+        assert_eq!(summary_hash(&a).unwrap(), a.canonical_json_sha256);
+    }
+
+    #[test]
+    fn low_risk_operation_defaults_to_local_reviewer() {
+        // With no policy summary, an unremarkable operation is low-risk and
+        // needs one local reviewer, and only a `reason` field.
+        let req = review_requirement_for_operation(None, "note", "comment", false);
+        assert_eq!(req.review_class, "low_risk");
+        assert_eq!(req.reviewer_roles, vec!["local_reviewer"]);
+        assert_eq!(req.required_reviewer_count, 1);
+        assert_eq!(req.required_reason_fields, vec!["reason"]);
+        assert_eq!(req.policy_sources, vec!["built_in_defaults"]);
+    }
+
+    #[test]
+    fn clinical_translation_escalates_roles_and_reason_fields() {
+        // A clinical/translation keyword routes to the highest-touch class:
+        // two reviewer roles and the extra reason fields.
+        let req = review_requirement_for_operation(None, "revise_confidence", "clinical", false);
+        assert_eq!(req.review_class, "clinical_translation");
+        assert_eq!(
+            req.reviewer_roles,
+            vec!["domain_reviewer", "safety_reviewer"]
+        );
+        assert_eq!(req.required_reviewer_count, 2);
+        // reason + source_or_evidence_ref + impact_scope, sorted.
+        assert_eq!(
+            req.required_reason_fields,
+            vec!["impact_scope", "reason", "source_or_evidence_ref"]
+        );
+    }
+
+    #[test]
+    fn downstream_impact_promotes_unclassified_op_to_decision_impact() {
+        // An operation with no dedicated class but downstream impact becomes
+        // decision_impact (frontier_reviewer + impact_scope), whereas without
+        // impact the same op is low_risk.
+        let with_impact = review_requirement_for_operation(None, "misc_op", "misc", true);
+        assert_eq!(with_impact.review_class, "decision_impact");
+        assert_eq!(with_impact.reviewer_roles, vec!["frontier_reviewer"]);
+        assert!(
+            with_impact
+                .required_reason_fields
+                .contains(&"impact_scope".to_string())
+        );
+
+        let without = review_requirement_for_operation(None, "misc_op", "misc", false);
+        assert_eq!(without.review_class, "low_risk");
+    }
+
+    #[test]
+    fn policy_overrides_default_roles_and_surfaces_agent_actions() {
+        // A frontier whose review policy declares custom roles for a class,
+        // and whose agent policy declares allowed actions, is honored over
+        // the built-in defaults.
+        let tmp = complete_frontier();
+        write_default_policy(
+            tmp.path(),
+            PolicyDocumentKind::Review,
+            "---\nrequired_roles:\n  source_repair:\n    - senior_curator\n    - archivist\n---\nbody\n",
+        );
+        write_default_policy(
+            tmp.path(),
+            PolicyDocumentKind::Agent,
+            "---\nagents_may:\n  - draft_receipt\n  - run_verifier\n---\nbody\n",
+        );
+        let summary = load_policy_summary(tmp.path()).unwrap();
+
+        let req = review_requirement_for_operation(Some(&summary), "repair_locator", "fix", false);
+        assert_eq!(req.review_class, "source_repair");
+        // Custom roles replace the default `source_reviewer`, and are sorted.
+        assert_eq!(req.reviewer_roles, vec!["archivist", "senior_curator"]);
+        // Agent actions from the agent policy are surfaced, sorted.
+        assert_eq!(
+            req.allowed_agent_actions,
+            vec!["draft_receipt", "run_verifier"]
+        );
+        // A real summary marks the source as the frontier policy.
+        assert_eq!(req.policy_sources, vec!["frontier_policy"]);
+    }
+
+    #[test]
+    fn confidence_change_requires_ref_only_when_policy_opts_in() {
+        // confidence_change alone does not demand source_or_evidence_ref...
+        let plain = review_requirement_for_operation(None, "revise_confidence", "update", false);
+        assert_eq!(plain.review_class, "confidence_change");
+        assert!(
+            !plain
+                .required_reason_fields
+                .contains(&"source_or_evidence_ref".to_string())
+        );
+
+        // ...but a confidence policy that opts in flips the requirement on.
+        let tmp = complete_frontier();
+        write_default_policy(
+            tmp.path(),
+            PolicyDocumentKind::Confidence,
+            "---\nrequires_source_or_evidence_ref: true\n---\nbody\n",
+        );
+        let summary = load_policy_summary(tmp.path()).unwrap();
+        let gated =
+            review_requirement_for_operation(Some(&summary), "revise_confidence", "update", false);
+        assert_eq!(gated.review_class, "confidence_change");
+        assert!(
+            gated
+                .required_reason_fields
+                .contains(&"source_or_evidence_ref".to_string())
+        );
+    }
+}

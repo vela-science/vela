@@ -247,11 +247,16 @@ pub(crate) fn cmd_frontier(action: FrontierAction) {
 /// the typed frontier graph; carries the popularity baseline and the evidence
 /// behind each score so the suggestion is inspectable.
 fn cmd_frontier_rank(frontier: &std::path::Path, limit: usize, json: bool) {
-    use vela_protocol::frontier_identification::frontier_identification;
+    use vela_protocol::frontier_identification::{
+        frontier_identification, heterogeneity_surfacing,
+    };
     use vela_protocol::repo;
     let source = repo::detect(frontier).unwrap_or_else(|e| fail_return(&e));
     let proj = repo::load(&source).unwrap_or_else(|e| fail_return(&e));
     let ranked = frontier_identification(&proj);
+    // The companion query: relations in live disagreement (Garg's heterogeneity
+    // surfacing). Never auto-adjudicated — a lead for the human review queue.
+    let contested = heterogeneity_surfacing(&proj);
     let shown: Vec<_> = ranked.iter().take(limit).collect();
     if json {
         print_json(&json!({
@@ -260,6 +265,7 @@ fn cmd_frontier_rank(frontier: &std::path::Path, limit: usize, json: bool) {
             "frontier_id": proj.frontier_id(),
             "open_total": ranked.len(),
             "candidates": shown,
+            "contested": contested,
         }));
         return;
     }
@@ -285,6 +291,20 @@ fn cmd_frontier_rank(frontier: &std::path::Path, limit: usize, json: bool) {
         if !c.evidence.is_empty() {
             let ev: Vec<&str> = c.evidence.iter().take(4).map(String::as_str).collect();
             println!("      evidence: {}", ev.join(", "));
+        }
+    }
+    if !contested.is_empty() {
+        println!(
+            "\n  contested ({} relation(s) in live disagreement — for human review, never auto-resolved):",
+            contested.len()
+        );
+        for h in contested.iter().take(limit) {
+            println!(
+                "    {} <-> {}  {}",
+                h.finding,
+                h.partner,
+                style::dim(&h.label.chars().take(56).collect::<String>())
+            );
         }
     }
     println!("\n  advice, not authority: claim one with `vela work <id>`; the verifier decides.");

@@ -44,6 +44,14 @@ pub(crate) fn tool_orient(
         );
     }
 
+    // Solvability ranking: OPEN findings ordered by accumulating structural
+    // support (which is a verifier-run from done), with the popularity baseline
+    // + inspectable evidence. A projection — advice, never authority.
+    let ranked = vela_protocol::frontier_identification::frontier_identification(project);
+    let solvable_total = ranked.len();
+    let solvable: Vec<&_> = ranked.iter().take(limit).collect();
+    let contested = vela_protocol::frontier_identification::heterogeneity_surfacing(project);
+
     // Gap-flagged findings — the review leads that used to be `list_gaps`.
     let gap_findings: Vec<&vela_protocol::bundle::FindingBundle> = project
         .findings
@@ -147,6 +155,7 @@ pub(crate) fn tool_orient(
         },
         "signals": stats.get("signals"),
         "open_targets": targets,
+        "solvable": {"total": solvable_total, "items": solvable, "contested": contested},
         "gaps": {"total": gap_total, "items": gaps},
         "recent_events": recent_events,
         "agent_objects": objects_summary,
@@ -865,7 +874,8 @@ pub(crate) fn tool_objects(args: &Value) -> ToolOutput {
     Ok((data, notes))
 }
 
-/// `external` — external services: PubMed prior-art counts, nanopublication
+/// `external` — external services: PubMed / arXiv / Semantic Scholar prior-art
+/// counts, nanopublication
 /// export.
 pub(crate) async fn tool_external(args: &Value, project: &Project, client: &Client) -> ToolOutput {
     match args.get("service").and_then(Value::as_str) {
@@ -899,9 +909,119 @@ pub(crate) async fn tool_external(args: &Value, project: &Project, client: &Clie
                 Vec::new(),
             ))
         }
+        Some("arxiv") => {
+            let query = args
+                .get("query")
+                .and_then(Value::as_str)
+                .filter(|q| !q.trim().is_empty())
+                .ok_or_else(|| ToolError::invalid("external service=arxiv requires `query`"))?;
+            let count = arxiv_result_count(client, query)
+                .await
+                .map_err(ToolError::classify)?;
+            Ok((
+                json!({
+                    "service": "arxiv",
+                    "query": query,
+                    "arxiv_results": count,
+                    "rough_prior_art_clear": count == 0,
+                    "caveat": "arXiv exact-phrase count (math/CS/physics); a rough prior-art signal, not proof of novelty.",
+                }),
+                Vec::new(),
+            ))
+        }
+        Some("semantic_scholar") => {
+            let query = args
+                .get("query")
+                .and_then(Value::as_str)
+                .filter(|q| !q.trim().is_empty())
+                .ok_or_else(|| {
+                    ToolError::invalid("external service=semantic_scholar requires `query`")
+                })?;
+            let count = semantic_scholar_result_count(client, query)
+                .await
+                .map_err(ToolError::classify)?;
+            Ok((
+                json!({
+                    "service": "semantic_scholar",
+                    "query": query,
+                    "semantic_scholar_results": count,
+                    "rough_prior_art_clear": count == 0,
+                    "caveat": "Semantic Scholar count (all fields); a rough prior-art signal, not proof of novelty.",
+                }),
+                Vec::new(),
+            ))
+        }
         _ => Err(ToolError::invalid("external requires `service`")
-            .with_hint("valid services: pubmed, nanopub")),
+            .with_hint("valid services: pubmed, arxiv, semantic_scholar, nanopub")),
     }
+}
+
+/// Rough arXiv prior-art count via the public API's `opensearch:totalResults`.
+/// Per the arXiv API user manual: a phrase is escaped double-quotes (`%22`) with
+/// `+` for spaces, and `max_results` must be >= 1 (`max_results=0` 500s). One GET
+/// per call; the caller owns the manual's 3s-between-calls courtesy.
+async fn arxiv_result_count(client: &Client, query: &str) -> Result<u64, String> {
+    let phrase = format!("%22{}%22", query.trim().replace(' ', "+"));
+    let url = format!("http://export.arxiv.org/api/query?search_query=all:{phrase}&max_results=1");
+    let resp = client
+        .get(&url)
+        .timeout(std::time::Duration::from_secs(15))
+        .send()
+        .await
+        .map_err(|e| format!("arXiv: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(format!("arXiv {}", resp.status()));
+    }
+    let body = resp.text().await.map_err(|e| format!("arXiv body: {e}"))?;
+    // <opensearch:totalResults ...>N</opensearch:totalResults> in the Atom feed.
+    body.split("opensearch:totalResults")
+        .nth(1)
+        .and_then(|s| s.split('>').nth(1))
+        .and_then(|s| s.split('<').next())
+        .and_then(|s| s.trim().parse::<u64>().ok())
+        .ok_or_else(|| "arXiv: could not parse totalResults from the feed".to_string())
+}
+
+/// Rough Semantic Scholar prior-art count via the Graph API paper-search
+/// `total`. The unauthenticated pool is shared and throttles under load (429);
+/// per the API docs we retry once with a short backoff, then surface a clear
+/// rate-limit message rather than a parse error. `fields` is minimized.
+async fn semantic_scholar_result_count(client: &Client, query: &str) -> Result<u64, String> {
+    let url = format!(
+        "https://api.semanticscholar.org/graph/v1/paper/search?query={}&limit=1&fields=paperId",
+        urlencoding::encode(query)
+    );
+    for attempt in 0..2u8 {
+        let resp = client
+            .get(&url)
+            .timeout(std::time::Duration::from_secs(15))
+            .send()
+            .await
+            .map_err(|e| format!("Semantic Scholar: {e}"))?;
+        if resp.status().as_u16() == 429 {
+            if attempt == 0 {
+                tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+                continue;
+            }
+            return Err(
+                "Semantic Scholar rate-limited (shared unauthenticated pool); retry shortly, \
+                 or set an API key for a dedicated rate"
+                    .to_string(),
+            );
+        }
+        if !resp.status().is_success() {
+            return Err(format!("Semantic Scholar {}", resp.status()));
+        }
+        let json: Value = resp
+            .json()
+            .await
+            .map_err(|e| format!("Semantic Scholar parse: {e}"))?;
+        return json
+            .get("total")
+            .and_then(Value::as_u64)
+            .ok_or_else(|| "Semantic Scholar: no `total` in response".to_string());
+    }
+    Err("Semantic Scholar: unexpected retry exhaustion".to_string())
 }
 
 /// Phase β (v0.6): build the `finding.note` proposal payload from

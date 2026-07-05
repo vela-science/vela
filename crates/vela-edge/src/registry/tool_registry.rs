@@ -539,11 +539,12 @@ pub fn all_tools() -> Vec<ToolDefinition> {
         ),
         tool(
             "external",
-            "Query an external service. service=pubmed runs a rough prior-art count for \
-             `query` against NCBI esearch; service=nanopub exports `finding_id` as a \
-             nanopublication (TriG/RDF) for the FAIR / semantic-web ecosystem. Results are \
-             signals or interchange artifacts, never canonical state. Example: {\"service\": \
-             \"pubmed\", \"query\": \"Sidon set bounds\"}.",
+            "Query an external service for a rough prior-art count on `query`: \
+             service=pubmed (NCBI esearch, biomedical), service=arxiv (math/CS/physics, \
+             exact-phrase), service=semantic_scholar (all fields); or service=nanopub exports \
+             `finding_id` as a nanopublication (TriG/RDF) for the FAIR / semantic-web ecosystem. \
+             Results are signals or interchange artifacts, never canonical state. Example: \
+             {\"service\": \"arxiv\", \"query\": \"cap set problem\"}.",
             json!({
                 "type": "object",
                 "additionalProperties": false,

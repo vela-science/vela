@@ -1088,6 +1088,7 @@ fn build_router(state: AppState) -> Router {
         .route("/entries/{vfr_id}/depends-on", get(get_depends_on))
         .route("/entries/{vfr_id}/graph", get(get_entry_graph))
         .route("/entries/{vfr_id}/frontier", get(get_entry_frontier))
+        .route("/entries/{vfr_id}/boundary", get(get_entry_boundary))
         .route("/diff-packs/{pack_id}", get(get_diff_pack))
         .route("/entries/{vfr_id}/packs/{pack_id}", get(get_pack_review))
         .route("/entries/{vfr_id}/reproduce", get(get_reproduce))
@@ -3228,6 +3229,73 @@ async fn get_entry_frontier(
             },
             "open_total": open_total,
             "candidates": candidates,
+        })),
+    )
+        .into_response()
+}
+
+/// `GET /entries/{vfr_id}/boundary` — the frontier's dark-matter boundary: the
+/// productive edges (one_premise_away, fragile, brittle, contested, stale_open),
+/// a pure projection over the typed graph + review state. A health/triage view;
+/// classifies, never adjudicates.
+async fn get_entry_boundary(
+    State(state): State<AppState>,
+    Path(vfr_id): Path<String>,
+    headers: HeaderMap,
+) -> Response {
+    if wants_html(&headers) {
+        return redirect_to_site(&state.urls, &format!("/r/{vfr_id}/boundary"));
+    }
+    let entry = match state.db.get_live_entry(&vfr_id).await {
+        Ok(Some(v)) => v,
+        Ok(None) => {
+            return (
+                StatusCode::NOT_FOUND,
+                Json(error_body("NOT_FOUND", format!("{vfr_id} not found"))),
+            )
+                .into_response();
+        }
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(error_body("INTERNAL", format!("query: {e}"))),
+            )
+                .into_response();
+        }
+    };
+    let signed_at = entry
+        .get("signed_publish_at")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+    let Some(frontier) = load_substrate(&state, &vfr_id, signed_at).await else {
+        return (
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(error_body(
+                "UNAVAILABLE",
+                "frontier projection unavailable; pull via the CLI to inspect",
+            )),
+        )
+            .into_response();
+    };
+    let boundary = vela_protocol::boundary::Boundary::derive(&frontier);
+    (
+        StatusCode::OK,
+        Json(json!({
+            "schema": "vela.boundary.v0.1",
+            "vfr_id": vfr_id,
+            "claim_boundary": {
+                "derived_projection": true,
+                "classifies_not_adjudicates": true,
+            },
+            "counts": {
+                "one_premise_away": boundary.one_premise_away.len(),
+                "fragile": boundary.fragile.len(),
+                "brittle": boundary.brittle.len(),
+                "contested": boundary.contested.len(),
+                "stale_open": boundary.stale_open.len(),
+                "total": boundary.total(),
+            },
+            "boundary": boundary,
         })),
     )
         .into_response()
