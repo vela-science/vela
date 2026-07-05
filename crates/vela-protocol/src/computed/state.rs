@@ -1537,6 +1537,43 @@ mod v0_38_causal_tests {
     }
 
     #[test]
+    fn review_accept_sets_review_state_accepted_and_establishes() {
+        use crate::analysis::frontier_graph::FindingState;
+        use crate::bundle::ReviewState;
+        let dir = tempdir().unwrap();
+        let path = seed_frontier(dir.path());
+        let finding_id = repo::load_from_path(&path).unwrap().findings[0].id.clone();
+
+        let report = review_finding(
+            &path,
+            &finding_id,
+            ReviewOptions {
+                status: "accepted".to_string(),
+                reason: "reviewer accepted".to_string(),
+                reviewer: "reviewer:test".to_string(),
+            },
+            true,
+        )
+        .unwrap();
+        assert!(report.applied_event_id.is_some());
+
+        let after = repo::load_from_path(&path).unwrap();
+        let f = &after.findings[0];
+        // The finding.reviewed accept set review_state = Accepted, which the
+        // frontier state derives to an established state (Established, or Fragile
+        // only when confidence is below the fragile floor — the seed sits at 0.5).
+        assert_eq!(f.flags.review_state, Some(ReviewState::Accepted));
+        let state = FindingState::derive(&f.flags, f.confidence.score, None);
+        assert!(
+            matches!(state, FindingState::Established | FindingState::Fragile),
+            "review-accept should establish the finding, got {state:?}"
+        );
+        let last = after.events.last().expect("an event was appended");
+        assert_eq!(last.kind, "finding.reviewed");
+        assert_eq!(last.payload["status"], "accepted");
+    }
+
+    #[test]
     fn set_causal_preserves_grade_when_only_claim_changes() {
         let dir = tempdir().unwrap();
         let path = seed_frontier(dir.path());

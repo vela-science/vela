@@ -1854,6 +1854,26 @@ pub(crate) enum FindingCommands {
         #[arg(long)]
         json: bool,
     },
+    /// Record a review verdict on a finding. `--status accepted` (the default)
+    /// establishes it: it emits a `finding.reviewed` event, and a human
+    /// reviewer's accept sets `review_state = Accepted`, which the frontier
+    /// state derives to `Established`. Accepts carry no required reason.
+    Review {
+        frontier: PathBuf,
+        finding_id: String,
+        /// Verdict: accepted (default) | contested | needs_revision.
+        #[arg(long, default_value = "accepted")]
+        status: String,
+        /// Optional note (accepts default silently; only a downgrade needs one).
+        #[arg(long, default_value = "reviewer accepted")]
+        reason: String,
+        #[arg(long = "as")]
+        reviewer: String,
+        #[arg(long)]
+        apply: bool,
+        #[arg(long)]
+        json: bool,
+    },
     /// Retract a finding.
     Retract {
         source: PathBuf,

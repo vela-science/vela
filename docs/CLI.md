@@ -65,7 +65,7 @@ the agent, and the pen belongs to you.
 
 | Verb | What it does |
 |---|---|
-| `finding` | The core primitive: add/show/supersede/note/caveat/revise/reject/retract/link. |
+| `finding` | The core primitive: add/show/supersede/note/caveat/revise/review/reject/retract/link. `review <f> --status accepted --as <you> --apply` records a human review verdict; an accept sets `review_state = Accepted`, which the frontier state derives to `Established`. |
 | `frontier` | Repo-level: new/materialize/add-dep/list-deps/diff/release/releases/audit/rank. `rank` orders OPEN findings by accumulating structural support (which is a verifier-run from done) with the popularity baseline + inspectable evidence — a solvability projection, advice not authority. |
 | `actor` | Frontier-registered identities: add/list/rotate. |
 | `agents` | `VELA.md` charter adapters: sync/doctor/diff (AGENTS.md, CLAUDE.md, .mcp.json are generated, never hand-edited). |

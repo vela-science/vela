@@ -350,6 +350,34 @@ pub(crate) fn cmd_finding_reject(
     print_state_report(&report, json);
 }
 
+/// Record a review verdict on a finding. An accept (the default status) emits a
+/// human-keyed `finding.reviewed` event, setting `review_state = Accepted` so
+/// the derived frontier state becomes `Established`. This is the porcelain over
+/// `state::review_finding`; the finding must already exist (assert it first with
+/// `land`). The custody line is unchanged: only a human key applies it.
+pub(crate) fn cmd_finding_review(
+    frontier: PathBuf,
+    finding_id: String,
+    status: String,
+    reason: String,
+    reviewer: String,
+    apply: bool,
+    json: bool,
+) {
+    let report = vela_protocol::state::review_finding(
+        &frontier,
+        &finding_id,
+        vela_protocol::state::ReviewOptions {
+            status,
+            reason,
+            reviewer,
+        },
+        apply,
+    )
+    .unwrap_or_else(|e| fail_return(&e));
+    print_state_report(&report, json);
+}
+
 pub(crate) fn cmd_finding_retract(
     source: PathBuf,
     finding_id: String,
