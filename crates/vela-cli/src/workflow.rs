@@ -45,14 +45,27 @@ pub(crate) struct Receipt {
     pub claim: String,
     #[serde(default = "default_type")]
     pub r#type: String,
+    /// How faithfully this run can be re-executed (docs/RECEIPTS.md): `exact`
+    /// (same bytes, same frozen verifier) | `bounded` (deterministic code, only
+    /// partly-pinned external service) | `approximate` (same prompt/model label,
+    /// provider may vary) | `unavailable` (cannot rerun, but payloads are
+    /// hash-bound) | `unknown`. Optional; pre-v0.748 receipts default to
+    /// `unknown`. The signed policy reads it via `PolicyContext.replayability`,
+    /// so a non-`exact` receipt need not auto-admit a serious claim on its own.
+    #[serde(default = "default_replayability")]
+    pub replayability: String,
     #[serde(default)]
     pub artifacts: Vec<ReceiptArtifact>,
     #[serde(default)]
     pub caveats: Vec<String>,
     #[serde(default)]
     pub verifier_runs: Vec<ReceiptVerifierRun>,
-    /// Part of the published schema; carried for provenance consumers
-    /// (not yet read by the landing path itself).
+    /// Part of the published schema; the stable extension points for external-run
+    /// provenance (docs/RECEIPTS.md §"extension points"): `source`
+    /// {system,run_id,source_uri}, `trace_refs` {otel/shepherd/…}, `lineage_refs`
+    /// {swhid/dvc/datalad/ro_crate}, `independence_basis`. Carried for provenance
+    /// consumers (hub, export, adapters); the landing path itself does not branch
+    /// on them.
     #[serde(default)]
     #[allow(dead_code)]
     pub environment: Value,
@@ -64,6 +77,15 @@ pub(crate) struct Receipt {
 fn default_type() -> String {
     "computational".to_string()
 }
+
+fn default_replayability() -> String {
+    "unknown".to_string()
+}
+
+/// The receipt-level replay classes (docs/RECEIPTS.md). A landing with a value
+/// outside this set is rejected — an honest classification, or none.
+pub(crate) const REPLAYABILITY_CLASSES: &[&str] =
+    &["exact", "bounded", "approximate", "unavailable", "unknown"];
 
 #[derive(Debug, Clone, Deserialize)]
 pub(crate) struct ReceiptArtifact {
@@ -188,6 +210,13 @@ pub(crate) fn land(
             "a receipt needs at least one caveat — what does this NOT establish?".to_string(),
         );
     }
+    if !REPLAYABILITY_CLASSES.contains(&receipt.replayability.as_str()) {
+        return Err(format!(
+            "unknown replayability `{}` (expected one of: {})",
+            receipt.replayability,
+            REPLAYABILITY_CLASSES.join(", ")
+        ));
+    }
 
     // 0. Idempotency: landing a byte-identical claim is a retry (a crashed
     //    session, a network blip), not a new finding. The activity record
@@ -261,6 +290,7 @@ pub(crate) fn land(
         method_integrity_sound: has_pass,
         credential_valid: true,
         has_unknown_fields: false,
+        replayability: receipt.replayability.clone(),
     };
     match policy_accept::accept_under_policy_at_path(frontier, &proposal_id, &ctx, executor) {
         Ok(outcome) => Ok(LandOutcome {

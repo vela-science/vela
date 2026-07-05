@@ -222,7 +222,6 @@ frontier from scratch with the frozen Rust verifiers:
 
 ```
 vela reproduce examples/sidon-sets        # 18/18: every pairwise-sum set recomputed, all distinct
-vela reproduce examples/erdos-problems    # 21/21: each Erdős certificate re-checked from the witness
 vela gate check <finding-id>              # the trust-gate status for one finding
 ```
 
@@ -277,7 +276,9 @@ runs the Lean build, and asserts Python↔Rust gate parity. Or re-check a single
 
 ```
 vela reproduce examples/sidon-sets        # 18/18 Sidon witnesses
-vela reproduce examples/erdos-problems    # 21/21 Erdős certificates
+# the Erdős corpus lives in its own repo (vfr_0a25edabc16db143):
+git clone https://github.com/williamjblair/erdos-frontier
+vela reproduce erdos-frontier             # each Erdős certificate re-checked from the witness
 ```
 
 The always-current results surface is the live [`/results`](https://app.constellate.science/results) page,
@@ -304,7 +305,8 @@ the public OEIS mirror is [willblair0708/verified-combinatorics](https://github.
 ### B. Machine-checked certificates (Erdős problems)
 
 Exact certificates for cells on Erdős problems, each re-checked by a frozen Rust verifier kind from the
-witness alone (`vela reproduce examples/erdos-problems`, 21/21):
+witness alone. The corpus lives in its own repo, [erdos-frontier](https://github.com/williamjblair/erdos-frontier)
+(`vfr_0a25edabc16db143`); clone it, then `vela reproduce erdos-frontier`:
 
 | Problem | Certificate | Kind |
 |---|---|---|
@@ -400,18 +402,18 @@ scientific frontier state. No new mechanism; this names the existing flow so
 agents and contributors have a verb.
 
 ```
-knowledge change → Frontier PR → verification checks → review → accept → frontier state update
+knowledge change → Frontier PR → verification checks → sign → frontier state update
 ```
 
 ### The flow, by command
 
-1. **Open it.** A proposed transition is a signed `vpr_` proposal.
-   - Local: `vela propose <frontier> <vf_id> --status accepted --reviewer reviewer:you --reason "…"`
-     (or `vela note` / `vela finding add` without `--apply` to leave it pending).
-   - Remote: push the proposal on a branch of the frontier's git repo and open
-     an ordinary git PR — the hub is a read-only index, so there is no
-     over-the-wire propose. The `vela-check` reusable GitHub Action holds the
-     branch to `vela check --strict` before any human looks at it.
+1. **Open it.** A proposed transition is a `vpr_` proposal. `vela land
+   <receipt>` records the result, drafts the proposal, and routes it by the
+   signed policy (Permit admits, Defer parks it in the sign queue).
+   - Remote: push the frontier's git repo (or open an ordinary git PR on a
+     branch) — the hub is a read-only index, so there is no over-the-wire
+     propose. The `vela-check` reusable GitHub Action holds the branch to
+     `vela check --strict` before any human looks at it.
    - The proposal is content-addressed and signed over exact canonical bytes.
      Admission to the *log* rests on the signature, never on claimed identity.
 
@@ -421,24 +423,24 @@ knowledge change → Frontier PR → verification checks → review → accept �
      attachments + a surviving probe derives `verified` at the gate
      (`vela gate check`); with zero, it sits at `needs_verification` even after a
      reviewer accepts it.
-   - A formal claim carries a faithfulness attestation
-     (`vela review --scope formalism-fidelity`) so the formal statement is
-     attested to match the informal one.
+   - A formal claim carries a faithfulness attestation in the receipt's
+     `verifier_runs` (or, for Lean proofs, the `vela foundry lean-run` path) so
+     the formal statement is attested to match the informal one.
 
-3. **Review it.** A scoped human decision is the merge authority.
-   - `vela proposals list <frontier> --status pending_review`, then
-     `vela proposals accept <frontier> <vpr_id> --reviewer reviewer:you --reason "…"`
-     (or `reject`). Review is scoped: an `attest` records exactly what was
-     checked ("I reviewed the LRAT certificate, not the reduction"), never a bare
-     "approved."
+3. **Sign it.** A scoped human decision is the merge authority.
+   - `vela sign` opens one session over everything awaiting your key: each
+     deferred decision, one confirm, one key read. The decision is scoped and
+     records exactly what was checked ("I reviewed the LRAT certificate, not the
+     reduction"), never a bare "approved." The signed decision self-publishes.
 
 4. **Merge it.** The accept is the signed canonical event; the frontier's state
    is the deterministic replay of its event log including that event.
 
 ### What is a Frontier PR right now
 
-The 105 LLM-drafted semantic edges sitting in
-`examples/erdos-problems` as pending `note` proposals are open Frontier PRs:
+The LLM-drafted semantic edges sitting in the
+[erdos-frontier](https://github.com/williamjblair/erdos-frontier) repo
+(`vfr_0a25edabc16db143`) as pending `note` proposals are open Frontier PRs:
 attributed to their producer, carrying their justification, and explicitly *not*
 adjudicated until a reviewer accepts each one. That is the shape: proposed,
 checkable, reviewable, never auto-merged, never an AI signature.

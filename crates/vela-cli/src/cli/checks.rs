@@ -264,7 +264,7 @@ pub(crate) fn check_json_payload(src: &Path, schema_only: bool, strict: bool) ->
                 "finding_id": atom.finding_id,
                 "field_path": "evidence_atoms",
                 "message": format!("Evidence atom {} is derivable but not materialized in frontier state.", atom.id),
-                "suggestion": "Run `vela normalize` to materialize evidence atoms before proof export.",
+                "suggestion": "Run `vela frontier materialize .` to rebuild evidence atoms before proof export.",
                 "fixable": true,
                 "normalize_action": "materialize_evidence_atom",
             }));
@@ -281,7 +281,7 @@ pub(crate) fn check_json_payload(src: &Path, schema_only: bool, strict: bool) ->
                 "finding_id": condition.finding_id,
                 "field_path": "condition_records",
                 "message": format!("Condition record {} is derivable but not materialized in frontier state.", condition.id),
-                "suggestion": "Run `vela normalize` to materialize condition boundaries before proof export.",
+                "suggestion": "Run `vela frontier materialize .` to rebuild condition boundaries before proof export.",
                 "fixable": true,
                 "normalize_action": "materialize_condition_record",
             }));
@@ -534,7 +534,7 @@ fn collect_hash_files(root: &Path, dir: &Path, files: &mut Vec<PathBuf>) -> Resu
 
 fn schema_error_suggestion(error: &str) -> &'static str {
     if schema_error_action(error).is_some() {
-        "Run `vela normalize` to repair deterministic frontier state."
+        "Run `vela frontier materialize .` to rebuild deterministic frontier state."
     } else {
         "Inspect and correct the referenced frontier field."
     }

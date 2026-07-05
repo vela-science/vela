@@ -1038,6 +1038,35 @@ pub(crate) enum GateAction {
         #[arg(long)]
         json: bool,
     },
+    /// Attach an EXTERNAL verifier's output to a finding as a `verifier.attach`.
+    /// The first non-frozen source is Inspect-AI (`--from inspect`): an eval
+    /// log becomes an `eval_harness` attachment bound to the finding's claim.
+    /// Evidence, not a verdict — the attachment is `method_integrity:
+    /// unattested` and can NEVER auto-admit; a lone one fails the gate's G1. The
+    /// gate (>=2 independent) and the human key still decide.
+    Attach {
+        /// Frontier directory (e.g. `examples/sidon-sets`).
+        frontier: PathBuf,
+        /// The finding id (`vf_…`) whose claim the eval checked.
+        #[arg(long)]
+        finding: String,
+        /// The external source. Currently: `inspect` (Inspect-AI eval log).
+        #[arg(long, default_value = "inspect")]
+        from: String,
+        /// Path to the source log (an Inspect `EvalLog` JSON).
+        #[arg(long)]
+        log: PathBuf,
+        /// Headline-metric floor for a passing attachment (exact-match = 1.0).
+        #[arg(long, default_value_t = 1.0)]
+        threshold: f64,
+        /// Reviewer authority landing the attachment. Optional: defaults to your
+        /// configured identity (`vela id`). An `agent:` id drafts pending; a
+        /// human applies inline (subject to key custody).
+        #[arg(long = "as", help = HELP_AS)]
+        reviewer: Option<String>,
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 #[derive(Subcommand)]

@@ -156,6 +156,153 @@ fn land_is_idempotent_on_the_claim() {
     );
 }
 
+/// The v0.748 receipt replayability class: an explicit honest value lands; a
+/// value outside the closed set is rejected; and a receipt without the field
+/// still lands (defaults to `unknown`) — additive, backward-compatible.
+#[test]
+fn land_honors_the_replayability_class() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    init_frontier(tmp.path());
+    assert!(
+        run_in(tmp.path(), &["id", "create", "--handle", "t"])
+            .status
+            .success()
+    );
+    std::fs::create_dir_all(tmp.path().join("witnesses")).unwrap();
+    std::fs::write(tmp.path().join("witnesses/w.json"), "{\"k\":\"d\"}").unwrap();
+
+    // A valid, honest replayability value lands.
+    std::fs::write(
+        tmp.path().join("ok.json"),
+        r#"{"schema":"vela.receipt.v1","claim":"an approximately-replayable hosted-model run",
+            "type":"computational","replayability":"approximate",
+            "artifacts":[{"path":"witnesses/w.json","kind":"witness"}],
+            "caveats":["a hosted model call may not rerun byte-for-byte"]}"#,
+    )
+    .unwrap();
+    let ok = run_in(
+        tmp.path(),
+        &["land", "ok.json", "--as", "agent:t", "--json"],
+    );
+    assert!(
+        ok.status.success(),
+        "an `approximate` receipt should land: {ok:?}"
+    );
+
+    // A value outside the closed set is rejected on the usage contract (exit 2).
+    std::fs::write(
+        tmp.path().join("bad.json"),
+        r#"{"schema":"vela.receipt.v1","claim":"a mislabeled run","type":"computational",
+            "replayability":"totally-reproducible-trust-me",
+            "artifacts":[{"path":"witnesses/w.json","kind":"witness"}],"caveats":["x"]}"#,
+    )
+    .unwrap();
+    let bad = run_in(
+        tmp.path(),
+        &["land", "bad.json", "--as", "agent:t", "--json"],
+    );
+    assert!(
+        !bad.status.success(),
+        "an unknown replayability class must be rejected: {bad:?}"
+    );
+    let text = format!(
+        "{}{}",
+        String::from_utf8_lossy(&bad.stdout),
+        String::from_utf8_lossy(&bad.stderr)
+    );
+    assert!(
+        text.contains("replayability"),
+        "the rejection should name the offending field: {text}"
+    );
+}
+
+/// The v0.748 Inspect-AI adapter: `gate attach --from inspect` is wired,
+/// validates its source, and parses the eval log before it touches the
+/// frontier. (The deterministic `vva_` build + "a lone eval_harness attachment
+/// does not verify" doctrine are conformance-tested in
+/// `vela_protocol::inspect_adapter`.)
+#[test]
+fn gate_attach_inspect_is_wired_and_validated() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    init_frontier(tmp.path());
+    assert!(
+        run_in(tmp.path(), &["id", "create", "--handle", "t"])
+            .status
+            .success()
+    );
+    std::fs::write(
+        tmp.path().join("eval.json"),
+        r#"{"status":"success",
+            "eval":{"task":"erdos_sidon_bound","model":"openai/gpt-4o",
+                    "scorers":[{"name":"match"}]},
+            "results":{"total_samples":1,"completed_samples":1,
+                       "scores":[{"scorer":"match","metrics":{"accuracy":{"value":1.0}}}]},
+            "samples":[{"id":"s1","score":{"value":1.0},"metadata":{"adversarial":true}}]}"#,
+    )
+    .unwrap();
+
+    // An unknown --from source is rejected by name.
+    let bogus = run_in(
+        tmp.path(),
+        &[
+            "gate",
+            "attach",
+            ".",
+            "--finding",
+            "vf_0123456789abcdef",
+            "--from",
+            "bogus",
+            "--log",
+            "eval.json",
+            "--json",
+        ],
+    );
+    assert!(
+        !bogus.status.success(),
+        "unknown source must fail: {bogus:?}"
+    );
+    let btext = format!(
+        "{}{}",
+        String::from_utf8_lossy(&bogus.stdout),
+        String::from_utf8_lossy(&bogus.stderr)
+    );
+    assert!(
+        btext.contains("bogus") || btext.contains("inspect"),
+        "the rejection should name the source: {btext}"
+    );
+
+    // A valid inspect log against a non-existent finding parses the log, then
+    // fails cleanly on the finding lookup (proves wiring past arg parsing).
+    let missing = run_in(
+        tmp.path(),
+        &[
+            "gate",
+            "attach",
+            ".",
+            "--finding",
+            "vf_0123456789abcdef",
+            "--from",
+            "inspect",
+            "--log",
+            "eval.json",
+            "--json",
+        ],
+    );
+    assert!(
+        !missing.status.success(),
+        "attaching to a missing finding must fail: {missing:?}"
+    );
+    let mtext = format!(
+        "{}{}",
+        String::from_utf8_lossy(&missing.stdout),
+        String::from_utf8_lossy(&missing.stderr)
+    );
+    assert!(
+        mtext.contains("vf_0123456789abcdef") || mtext.contains("not found"),
+        "the rejection should name the missing finding: {mtext}"
+    );
+}
+
 /// The poisoned .env sets VELA_ACTOR_ID=agent:evil. If the CLI loaded
 /// it, the sign ceremony would refuse with the CUSTODY exit (4). It must
 /// instead fail on identity setup / lookup — anything but 4.

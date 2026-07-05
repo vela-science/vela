@@ -1722,6 +1722,7 @@ mod tests {
             method_integrity_sound: true,
             credential_valid: true,
             has_unknown_fields: false,
+            replayability: "unknown".to_string(),
         };
         let d = vela_protocol::acceptance_policy::evaluate(&policy, &ctx, AT);
         assert_eq!(
@@ -1774,6 +1775,7 @@ mod tests {
             method_integrity_sound: true,
             credential_valid: true,
             has_unknown_fields: false,
+            replayability: "unknown".to_string(),
         };
         assert_eq!(
             vela_protocol::acceptance_policy::evaluate(&policy, &verified, AT).outcome,

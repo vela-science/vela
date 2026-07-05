@@ -81,7 +81,7 @@ pub fn detect(path: &Path) -> Result<VelaSource, String> {
             return Ok(VelaSource::ProjectFile(path.to_path_buf()));
         }
         return Err(format!(
-            "Directory '{}' is not a Vela repository or frontier packet. Run `vela init`, `vela import`, or `vela migrate` first.",
+            "Directory '{}' is not a Vela repository or frontier packet. Run `vela init` here, or clone an existing frontier's git repo.",
             path.display()
         ));
     }

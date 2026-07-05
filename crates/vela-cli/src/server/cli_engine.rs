@@ -120,6 +120,7 @@ pub(crate) fn cmd_gate(action: GateAction) {
                 ProbeKind::BoundaryDualFeasibility,
                 ProbeKind::FiniteSizeExtrapolation,
                 ProbeKind::IndependentReimplementation,
+                ProbeKind::FormalismFidelity,
             ];
             let probe_kinds: Vec<&str> = probes.iter().map(|p| p.as_str()).collect();
             if json {
@@ -175,6 +176,132 @@ pub(crate) fn cmd_gate(action: GateAction) {
             apply,
             json,
         } => cmd_gate_auto_admit(&frontier, &finding, apply, json),
+        GateAction::Attach {
+            frontier,
+            finding,
+            from,
+            log,
+            threshold,
+            reviewer,
+            json,
+        } => {
+            let reviewer = crate::cli_identity::resolve_actor(reviewer.as_deref());
+            cmd_gate_attach(&frontier, &finding, &from, &log, threshold, &reviewer, json)
+        }
+    }
+}
+
+/// Attach an external verifier's output to a finding as a `verifier.attach`.
+/// Currently the only source is Inspect-AI (`--from inspect`): the eval log is
+/// parsed into an `eval_harness` [`VerifierAttachment`] bound to the finding's
+/// claim digest (G2). It is deliberately `method_integrity: Unattested` — an
+/// eval harness is evidence, not a frozen verifier — so it can never auto-admit
+/// and a lone one fails the gate's G1. The agent-drafts / human-applies boundary
+/// is the same as `gate backfill`: an `agent:` reviewer creates the proposal
+/// PENDING; a named human applies inline.
+fn cmd_gate_attach(
+    frontier: &Path,
+    finding: &str,
+    from: &str,
+    log: &Path,
+    threshold: f64,
+    reviewer: &str,
+    json_output: bool,
+) {
+    use vela_protocol::events::StateTarget;
+    use vela_protocol::inspect_adapter;
+    use vela_protocol::verifier_attachment::{VerifierAttachment, claim_digest};
+
+    if from != "inspect" {
+        fail(&format!(
+            "unknown --from source `{from}` (currently supported: inspect)"
+        ));
+    }
+
+    let source = repo::detect(frontier).unwrap_or_else(|e| fail_return(&e));
+    let proj = repo::load(&source).unwrap_or_else(|e| fail_return(&e));
+    let Some(claim) = proj
+        .findings
+        .iter()
+        .find(|f| f.id == finding)
+        .map(|f| f.assertion.text.clone())
+    else {
+        fail(&format!(
+            "finding {finding} not found in {}",
+            frontier.display()
+        ));
+    };
+    let digest = claim_digest(&claim);
+
+    let raw = std::fs::read_to_string(log)
+        .unwrap_or_else(|e| fail_return(&format!("read {}: {e}", log.display())));
+    let parsed = inspect_adapter::parse_log(&raw).unwrap_or_else(|e| fail_return(&e));
+    let draft = inspect_adapter::draft_from_log(
+        &parsed,
+        finding,
+        digest.clone(),
+        threshold,
+        &log.display().to_string(),
+    )
+    .unwrap_or_else(|e| fail_return(&e));
+    // Build WITHOUT with_method_integrity: an eval harness stays Unattested.
+    let att = VerifierAttachment::build(draft)
+        .unwrap_or_else(|e| fail_return(&format!("build attachment: {e}")));
+    let att_value = serde_json::to_value(&att)
+        .unwrap_or_else(|e| fail_return(&format!("serialize attachment: {e}")));
+
+    let actor_type = if reviewer.trim().to_ascii_lowercase().starts_with("agent:") {
+        "agent"
+    } else {
+        "human"
+    };
+    let apply = actor_type == "human";
+    let proposal = proposals::new_proposal(
+        "verifier.attach",
+        StateTarget {
+            r#type: "finding".to_string(),
+            id: finding.to_string(),
+        },
+        reviewer,
+        actor_type,
+        "Inspect-AI eval attachment (evidence, not a verdict)",
+        json!({ "attachment": att_value }),
+        Vec::new(),
+        Vec::new(),
+    );
+    let (proposal_id, status) = match proposals::create_or_apply(frontier, proposal, apply) {
+        Ok(res) if res.applied_event_id.is_some() => (res.proposal_id, "applied"),
+        Ok(res) => (res.proposal_id, "pending"),
+        Err(e) => fail_return(&e),
+    };
+
+    if json_output {
+        print_json(&json!({
+            "command": "gate attach",
+            "source": from,
+            "finding": finding,
+            "claim_digest": digest,
+            "attachment_id": att.id,
+            "verifier_method": "eval_harness",
+            "method_integrity": "unattested",
+            "outcome": format!("{:?}", att.outcome).to_lowercase(),
+            "proposal_id": proposal_id,
+            "status": status,
+            "note": "evidence only — a lone eval_harness attachment fails G1; never auto-admits",
+        }));
+    } else {
+        println!("gate attach: Inspect-AI eval -> {}", att.id);
+        println!("  finding:   {finding}");
+        println!("  claim:     {digest}");
+        println!(
+            "  outcome:   {} (eval_harness, method_integrity unattested)",
+            format!("{:?}", att.outcome).to_lowercase()
+        );
+        println!("  proposal:  {proposal_id} ({status})");
+        println!(
+            "  evidence only: a lone eval_harness attachment fails the gate's G1 and never \
+             auto-admits — the gate (>=2 independent) and the human key decide."
+        );
     }
 }
 
@@ -304,6 +431,7 @@ fn cmd_gate_auto_admit(frontier: &Path, finding_id: &str, apply: bool, json_outp
                 method_integrity_sound: vouched_ok,
                 credential_valid: true,
                 has_unknown_fields: false,
+                replayability: "unknown".to_string(),
             };
             let decision = vela_protocol::acceptance_policy::evaluate(
                 &vp.policy,

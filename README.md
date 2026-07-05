@@ -109,19 +109,18 @@ curl -fsSL https://raw.githubusercontent.com/constellate-science/vela/main/insta
 
 ## The working loop
 
-The full 25-verb porcelain reference, with a worked
-record → propose → pack → accept example, is [docs/CLI.md](docs/CLI.md).
+The full porcelain reference, with a worked
+next → work → land → sign example, is [docs/CLI.md](docs/CLI.md).
 
 ```sh
-vela status <frontier>          # one screen: replay verdict, proposals, judgment
-vela serve <frontier>           # ten MCP tools incl. orient (the agent entry contract)
-vela record <frontier> --claim … --artifact …   # activity into a portable claim packet
+vela next <frontier> --json     # ranked open targets, compounding payload pre-loaded
+vela work <target>              # claim the lease, load the briefing
+vela land <receipt.json>        # record + propose + route by the signed policy
 vela reproduce <frontier>       # frozen verifiers re-check every witness
-vela accept <frontier> <vpr>    # keyed authority lands state (--all-pending for batch)
-vela review <frontier> <vf> --fidelity …        # signed human faithfulness verdict (vsa_)
+vela sign                       # the human ceremony: one session, one confirm, one key
 ```
 
-An agent may propose; only a key-holding human accepts. Failures are
+An agent may land; only a key-holding human signs. Failures are
 signed ledger entries, not noise.
 
 The Rust reducer is the normative reference; the Python and TypeScript reducers

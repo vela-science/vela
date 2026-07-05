@@ -429,9 +429,9 @@ adapters from this file — edit here, never there.
 
 Agents may:
 
-- inspect state: `vela status .`, `vela inbox .`, `vela check .`
-- draft findings and receipts: `vela finding add . --author agent:<name> …`,
-  `vela record . --claim … --artifact …` / `vela record <vrc_file> --propose .`
+- inspect state: `vela status .`, `vela next .`, `vela check .`
+- draft findings and land receipts: `vela finding add . --author agent:<name> …`,
+  `vela land <receipt.json>` / `vela land --claim … --artifact … --caveat …`
 - run the verifiers: `vela reproduce .`, `vela check . --strict`
 - rebuild derived views: `vela frontier materialize .`
 

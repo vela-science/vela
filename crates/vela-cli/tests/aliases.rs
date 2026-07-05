@@ -150,14 +150,18 @@ fn folded_spellings_dispatch() {
             combined(&out)
         );
     }
-    // the state intercept: reaches the projection parser (usage error is
-    // fine; a 404 is not)
-    let out = vela(&["state"]);
-    assert!(
-        !combined(&out).contains("unknown or non-release command"),
-        "`state` should reach the intercept, got: {}",
-        combined(&out)
-    );
+    // the pre-clap intercepts: `state` (claim-state projection) and `atlas`
+    // (cross-frontier math atlas) reach their parsers ahead of clap. A usage
+    // error is fine; a 404 ("unknown or non-release command") means the
+    // intercept was dropped in a refactor.
+    for intercept in ["state", "atlas"] {
+        let out = vela(&[intercept]);
+        assert!(
+            !combined(&out).contains("unknown or non-release command"),
+            "`{intercept}` should reach the intercept, got: {}",
+            combined(&out)
+        );
+    }
 }
 
 /// Sanity: a genuinely-unknown flag is rejected (so the checks above mean

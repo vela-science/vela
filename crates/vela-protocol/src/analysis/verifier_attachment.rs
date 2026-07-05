@@ -86,6 +86,13 @@ pub enum VerifierMethod {
     LiteratureCorroboration,
     /// A human referee's structured judgment.
     ManualReferee,
+    /// An evaluation-harness run (e.g. Inspect-AI): a task + scorer scored a
+    /// model's output. Distinct from a frozen exact verifier — the scorer may
+    /// be model-graded, so an `EvalHarness` attachment is evidence, never a
+    /// self-certifying `Sound` method. It defaults to
+    /// [`MethodIntegrity::Unattested`] and cannot auto-admit; a lone one fails
+    /// G1 like any other single attachment.
+    EvalHarness,
 }
 
 impl VerifierMethod {
@@ -99,6 +106,7 @@ impl VerifierMethod {
             Self::ExactArithmeticRecompute => "exact_arithmetic_recompute",
             Self::LiteratureCorroboration => "literature_corroboration",
             Self::ManualReferee => "manual_referee",
+            Self::EvalHarness => "eval_harness",
         }
     }
 
@@ -112,11 +120,12 @@ impl VerifierMethod {
             "exact_arithmetic_recompute" => Self::ExactArithmeticRecompute,
             "literature_corroboration" => Self::LiteratureCorroboration,
             "manual_referee" => Self::ManualReferee,
+            "eval_harness" => Self::EvalHarness,
             _ => return None,
         })
     }
 
-    pub const ALL: [VerifierMethod; 7] = [
+    pub const ALL: [VerifierMethod; 8] = [
         Self::ComputationalSearch,
         Self::LpDualRecompute,
         Self::SatUnsatCert,
@@ -124,6 +133,7 @@ impl VerifierMethod {
         Self::ExactArithmeticRecompute,
         Self::LiteratureCorroboration,
         Self::ManualReferee,
+        Self::EvalHarness,
     ];
 }
 

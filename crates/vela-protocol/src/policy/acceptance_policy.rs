@@ -74,6 +74,17 @@ pub struct PolicyContext {
     pub credential_valid: bool,
     /// The evaluator saw a field it does not recognize → never permit (monotonic).
     pub has_unknown_fields: bool,
+    /// The originating receipt's honest replay classification (`exact` | `bounded`
+    /// | `approximate` | `unavailable` | `unknown`; docs/RECEIPTS.md). `unknown`
+    /// for non-receipt transitions and pre-v0.748 receipts. A policy MAY require
+    /// `exact` to auto-admit a serious claim class; a rule that never reads it is
+    /// unaffected (additive, monotonic — `unknown` is the cautious default).
+    #[serde(default = "default_replayability")]
+    pub replayability: String,
+}
+
+fn default_replayability() -> String {
+    "unknown".to_string()
 }
 
 impl Default for PolicyContext {
@@ -93,6 +104,7 @@ impl Default for PolicyContext {
             method_integrity_sound: false,
             credential_valid: false,
             has_unknown_fields: true,
+            replayability: "unknown".to_string(),
         }
     }
 }
@@ -522,6 +534,7 @@ mod tests {
             method_integrity_sound: true,
             credential_valid: true,
             has_unknown_fields: false,
+            replayability: "unknown".to_string(),
         }
     }
 

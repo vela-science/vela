@@ -266,8 +266,8 @@ behind a green Phase 0.
 - **LFS availability.** A quota or GC 403 fails reproduce for non-scientific
   reasons. Retain Tigris as an LFS custom-transport mirror.
 - **Producer ergonomics could regress** (fork, clone, lfs install, branch,
-  author canonical JSON, commit, push, PR) versus a flagless `vela propose`.
-  Ship a `vela propose --github` one-command shim.
+  author canonical JSON, commit, push, PR) versus a flagless `vela land`.
+  Ship a `vela land --github` one-command shim.
 - The intended loss: ~3,500 to 4,500 lines of hand-rolled git transport (the
   `cli_registry` verbs, `registry.rs` remote, `workspace.rs`, the `db.rs` write
   path, `hydrate`). `merkle.rs` (492) and `storage.rs` (191) stay, per the

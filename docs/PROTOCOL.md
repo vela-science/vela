@@ -398,12 +398,12 @@ Core proposal kinds:
 | Kind | CLI surface |
 |------|-------------|
 | `finding.add` | `vela finding add` |
-| `finding.review` | `vela propose` |
-| `finding.note` | `vela note` |
-| `finding.caveat` | `vela caveat` |
-| `finding.confidence_revise` | `vela revise` |
-| `finding.reject` | `vela reject` |
-| `finding.retract` | `vela retract` |
+| `finding.review` | `vela land` (drafts the proposal) |
+| `finding.note` | `vela finding note` |
+| `finding.caveat` | `vela finding caveat` |
+| `finding.confidence_revise` | `vela finding revise` |
+| `finding.reject` | `vela finding reject` |
+| `finding.retract` | `vela finding retract` |
 
 Core event kinds:
 
@@ -851,13 +851,13 @@ Required structure:
   agent-actor record never auto-resolves a configured human key: it signs
   only with a key passed explicitly, or not at all.
 
-Lifecycle: `vela record <frontier> --claim …` (hash + pin + write) →
-`vela record <vrc_file>` (validate: schema, id re-derivation, signature,
-every artifact hash) → `vela record <vrc_file> --propose <frontier>`
-(lands as a `finding.add` proposal in `pending_review`; propose NEVER
-accepts). Acceptance stays a human-keyed
-decision through the standard proposal gate; `git push` publishes and the
-hub re-derives its index.
+Lifecycle: `vela land <frontier> --claim …` (or `vela land <receipt.json>`)
+hashes the artifacts, pins the head, validates (schema, id re-derivation,
+signature, every artifact hash), and lands a `finding.add` proposal — then
+routes it by the signed policy: Permit admits, Defer parks it in the sign
+queue, Deny lands nothing. Landing NEVER accepts; a deferred decision stays
+a human-keyed act at `vela sign`. `git push` publishes and the hub
+re-derives its index.
 
 ## 7. storage layout
 

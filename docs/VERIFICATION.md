@@ -33,8 +33,12 @@ rule as the Python reference). It records:
 
 - `verifier_method`: one of the closed set (`computational_search`,
   `lp_dual_recompute`, `sat_unsat_cert`, `lean_kernel`,
-  `exact_arithmetic_recompute`, `literature_corroboration`, `manual_referee`).
-  `proof_verification` and `lean_verification` are instances of `lean_kernel`.
+  `exact_arithmetic_recompute`, `literature_corroboration`, `manual_referee`,
+  `eval_harness`). `proof_verification` and `lean_verification` are instances of
+  `lean_kernel`. `eval_harness` is an evaluation-harness run (the Inspect-AI
+  adapter, `gate attach --from inspect`): distinct from a frozen exact verifier,
+  it defaults to `MethodIntegrity::Unattested` and can never auto-admit — a lone
+  one fails G1, so it is evidence a human weighs, not a verdict.
 - `solver_id`: the independent tool that produced the check (`cp-sat`,
   `pulp-cbc`, `lean4@4.29.1`).
 - `independent_of`: ids of other attachments this one declares independence

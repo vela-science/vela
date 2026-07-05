@@ -60,9 +60,10 @@ git push                  # publication: CI re-derives the frontier and the
                           # hub re-indexes from the repo
 ```
 
-A human then runs `vela inbox .` and `vela accept . --all-pending` (their
-key) — and the decision publishes itself: materialize, commit, push, hub
-re-index, in the one act. That boundary is the product, not a limitation.
+A human then runs `vela sign` (their key) over everything awaiting a
+decision — and the signed decision publishes itself: materialize, commit,
+push, hub re-index, in the one act. That boundary is the product, not a
+limitation.
 
 ## MCP: the same loop for tool-calling agents
 
@@ -134,9 +135,9 @@ The loop scales by composition, not new machinery:
    orphaned targets.
 2. **Watch, don't poll blind**: `GET /entries/{vfr}/events/stream?cursor=<event_id>`
    (SSE, cursor-resumable) streams what changed.
-3. **One pack per session**: bundle your session's proposals into a
-   changeset — `vela pack . --summary "…" --from-pending` — so the
-   reviewer judges your work as one unit (`vela accept . --pack vsd_…`).
+3. **One receipt per result**: land your session's work as a single
+   `vela.receipt.v1` — `vela land receipt.json` — so the human judges your
+   claim, artifacts, and verifier runs as one unit at `vela sign`.
 4. **Policy-bound lanes**: when the frontier carries a signed acceptance
    policy (`vela status . --json → .policy.mode == "live"`), mechanical
    kinds (repairs, artifact provenance) auto-admit under the sealed

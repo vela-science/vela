@@ -6,10 +6,10 @@ use super::*;
 
 // The strict v0.700 command surface. Every name here is a live clap
 // subcommand in `cli_commands.rs::Commands` (plus the pre-clap
-// intercepts: `help`, `version`, `proof verify|explain`,
-// `claim state|trust|pack`). This list is the allowlist `run_from_args`
-// consults before handing off to clap; it must advertise nothing the
-// binary cannot run.
+// intercepts matched in `run_from_args`: `help`, `version`,
+// `proof verify|explain`, `state [trust|pack|diff|anchor…]`, `atlas`).
+// This list is the allowlist `run_from_args` consults before handing off
+// to clap; it must advertise nothing the binary cannot run.
 /// Commands intentionally withheld from the released surface. A DENY list,
 /// not an ALLOW list: hiding a command here is safe (the worst case is a
 /// real command stays unreachable until removed from the list), whereas the
@@ -105,7 +105,7 @@ Verify:
   check         The full trust gate: replay, signatures, parity (--strict)
   reproduce     Re-verify stored witnesses from scratch (frozen verifiers)
   proof         Export a proof packet; `proof verify` re-checks one, `proof explain`
-  gate          Claim-level verification gate (grade/check/vocab/backfill/auto-admit)
+  gate          Claim-level verification gate (grade/check/vocab/backfill/attach/auto-admit)
 
 Setup (once):
   init          Initialize a new frontier repo (git-native: .vela is committed,

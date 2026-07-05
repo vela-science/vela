@@ -2482,13 +2482,26 @@ async fn get_blob(State(state): State<AppState>, Path(hash): Path<String>) -> Re
 async fn get_producer(
     State(state): State<AppState>,
     Path(pubkey): Path<String>,
+    Query(params): Query<HashMap<String, String>>,
     headers: HeaderMap,
 ) -> Response {
     if wants_html(&headers) {
         return redirect_to_site(&state.urls, &format!("/producer/{pubkey}"));
     }
-    match state.db.producer_objects(&pubkey, 500).await {
+    // Bounded read with an HONEST cap: default 500, caller-tunable to 2000, and
+    // the response says when it truncated so a large producer is never silently
+    // clipped (the "no silent caps" rule).
+    const PRODUCER_DEFAULT_CAP: i64 = 500;
+    const PRODUCER_MAX_CAP: i64 = 2000;
+    let cap = params
+        .get("limit")
+        .and_then(|s| s.parse::<i64>().ok())
+        .filter(|n| *n > 0)
+        .unwrap_or(PRODUCER_DEFAULT_CAP)
+        .min(PRODUCER_MAX_CAP);
+    match state.db.producer_objects(&pubkey, cap).await {
         Ok(rows) => {
+            let truncated = rows.len() as i64 >= cap;
             let mut by_frontier: std::collections::BTreeMap<String, Vec<Value>> =
                 std::collections::BTreeMap::new();
             for (vfr, otype, oid, raw) in rows {
@@ -2501,6 +2514,8 @@ async fn get_producer(
             Json(json!({
                 "pubkey": pubkey,
                 "frontiers": by_frontier,
+                "limit": cap,
+                "truncated": truncated,
             }))
             .into_response()
         }

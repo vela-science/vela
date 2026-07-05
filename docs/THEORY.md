@@ -1012,7 +1012,7 @@ external mathematical claim alongside the substrate's own
 correctness theorems. This demonstrates that Vela can carry
 formalized claims for findings that ride on its frontiers
 (e.g. the agent-drafted Erdős proposals shipped with
-`examples/erdos-problems/` at v0.111) without leaving
+`erdos-frontier/` at v0.111) without leaving
 substrate concerns.
 
 **Proof sketch.** Every integer satisfies `x % 2 ∈ {0, 1}`,

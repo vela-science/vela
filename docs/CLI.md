@@ -37,17 +37,14 @@ the agent, and the pen belongs to you.
 
 | Verb | What it does |
 |---|---|
-| `status` | One-screen frontier state: findings by status, verdicts, replay integrity, inbox count, policy mode, and a `next` hint. |
-| `inbox` | Pending proposals awaiting a human key, grouped by pack. |
+| `next` | The offer: ranked open targets with the compounding payload pre-loaded (premises, banked routes, prior attempts, dead channels). `--json` is the agent contract. |
+| `work` | Claim the lease on a target and load its briefing into `.vela/work/<target>/`. Close with `land`. |
+| `land` | Land a result (`vela.receipt.v1`): record, propose, then route by the signed policy. Permit admits, Defer parks it in the sign queue, Deny lands nothing. |
+| `sign` | The one human ceremony: every deferred decision, one session, one confirm, one key read. |
+| `status` | One-screen frontier state: findings by status, verdicts, replay integrity, sign-queue count, policy mode, and a `next` hint. |
 | `log` | Recent signed events; `vela log <dir> <vf_>` is one finding's history. |
 | `diff` | Two frontiers, or one pending proposal previewed. |
-| `record` | Record activity into a portable claim packet (`vrc_`): a claim, hashed artifacts, and required caveats. `--propose` lands it as a pending proposal. |
-| `propose` | Draft the common `finding.review` proposal. |
-| `review` | Signed human judgments: statement-fidelity verdicts (`--fidelity`, `--batch`) and role-scoped reviewer attestations. |
-| `accept` | Apply proposals under your key: `--all-pending`, `--id vpr_…`, or `--pack vsd_…` for one atomic changeset decision. The decision self-publishes (see below). |
-| `pack` | Bundle pending proposals into a changeset (`vsd_`) — the pull-request analogue. `vela pack . vsd_…` shows one. |
 | `proposals` | The full proposal store: list/show/preview/import/validate/export/accept/reject. |
-| `attach` | Bind mechanical verifier evidence (or `--proof lean_kernel`) to a finding. |
 
 ## Verify
 
@@ -56,7 +53,7 @@ the agent, and the pen belongs to you.
 | `check` | The full trust gate: replay, signatures, parity. `--strict` is the same bar the hub's ingestor holds a repo to. |
 | `reproduce` | Re-verify stored witnesses from scratch with the frozen verifiers. |
 | `proof` | Export a proof packet; `proof verify` re-checks one, `proof explain` narrates it. |
-| `gate` | Claim-level verification gate: grade/check/vocab/backfill/auto-admit. |
+| `gate` | Claim-level verification gate: grade/check/vocab/backfill/attach/auto-admit. `gate attach --from inspect --log <eval.json> --finding <vf_>` ingests an Inspect-AI eval log as an `eval_harness` verifier attachment bound to the claim — evidence, not a verdict (`method_integrity: unattested`; a lone one fails the gate's independence check and never auto-admits). See [RECEIPTS.md](RECEIPTS.md). |
 
 ## Publish
 
@@ -87,8 +84,8 @@ the agent, and the pen belongs to you.
 ## Decisions self-publish
 
 Once your key has signed, everything that follows is mechanical
-consequence, and the verb finishes it: `accept`, `review`,
-`proposals reject`, `id sign`, and the policy auto-admit lane end by
+consequence, and the verb finishes it: `sign`, `proposals reject`,
+and the policy auto-admit lane end by
 materializing derived views, committing the store with a canonical
 message that binds the signed event ids, and pushing. One intention,
 one act — the signed decision can never again rot uncommitted on one
@@ -97,7 +94,7 @@ machine. `--no-commit` / `--no-push` hold publication per-call;
 default; `VELA_NO_PUBLISH=1` disables globally (the conformance gate
 sets it). Nothing is ever auto-signed: publication only carries events
 a key already signed. `vela status` warns about any store state that
-predates this (`unpublished: N store file(s)…`), and `frontier next`
+predates this (`unpublished: N store file(s)…`), and `vela next`
 ranks stranded state above all other work.
 
 `vela init` scaffolds versioned git hooks (`.vela/hooks`, activated via
@@ -211,7 +208,7 @@ One grammar, enforced by one module (`crates/vela-cli/src/ui.rs`):
 - **Frontier discovery**: the `[frontier]` positional is optional on the
   daily verbs — omitted, it is discovered by walking upward from the
   current directory, exactly like git finds `.git`. An object id in the
-  frontier slot shifts automatically (`vela accept vpr_x` works).
+  frontier slot shifts automatically (`vela sign vpr_x --yes` works).
 - **Exit codes**: 0 ok · 1 domain failure (gate red, verify fail) ·
   2 usage · 3 not found · 4 custody refused · 5 already exists. An agent
   that knows WHY a call failed can self-correct without parsing prose.
@@ -232,27 +229,27 @@ One grammar, enforced by one module (`crates/vela-cli/src/ui.rs`):
 author, distinct from who is acting). `--verifier-actor` names the
 mechanical identity a frozen-verifier attachment is drafted for. Nothing
 else names an identity. The engine refuses `agent:`/`ci:` actors on
-`accept`, `review`, `proposals reject`, and `id sign` — decisions are
+`sign` and `proposals reject` — decisions are
 key-custody human acts.
 
-## Worked example: record → propose → pack → accept
+## Worked example: next → work → land → sign
 
 ```bash
 # the agent's session (VELA_ACTOR_ID=agent:demo)
-vela record . \
+vela next examples/sidon-sets --json   # ranked targets, payload pre-loaded
+vela work sidon:a17                     # claim the lease, load the briefing
+vela land . \
   --claim "a(17) >= 292 for the Sidon frontier" \
   --artifact witnesses/a17.json \
   --caveat "lower bound only; optimality not established"
-vela record records/vrc_<id>.json --propose .
-vela pack . --summary "a(17) lower-bound attack" --from-pending
-vela check . --strict
-git push                        # publication; the hub re-indexes
+                                # records, proposes, routes by the signed
+                                # policy; a gate-clean witness auto-admits,
+                                # otherwise it defers to the sign queue
 
 # the human's session (their key)
-vela inbox .                    # packs awaiting one decision
-vela diff vpr_<id>              # preview any member
-vela accept . --pack vsd_<id>   # one act: signed, materialized,
-                                # committed, pushed, re-indexed
+vela sign                       # everything awaiting your key: one
+                                # session, one confirm, one key read —
+                                # self-publishes (materialize, commit, push)
 ```
 
 ## Policy tiers (shadow / staged / live)

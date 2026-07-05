@@ -504,6 +504,7 @@ mod tests {
             method_integrity_sound: true,
             credential_valid: true,
             has_unknown_fields: false,
+            replayability: "unknown".to_string(),
         }
     }
 

@@ -25,8 +25,8 @@ pub use computed::{frontier_repo, project, registry, sources, state, transfer_re
 mod analysis;
 pub use analysis::{
     atlas, boundary, contradiction, diff, diff_pack_review, evidence_ci, evidence_diff,
-    frontier_bound, frontier_graph, pathfind, propagate, released_diff_pack, scientific_diff,
-    status_provenance, transfer, verdict_conflict, verifier_attachment,
+    frontier_bound, frontier_graph, inspect_adapter, pathfind, propagate, released_diff_pack,
+    scientific_diff, status_provenance, transfer, verdict_conflict, verifier_attachment,
 };
 mod policy;
 pub use policy::{acceptance_policy, access_tier, endorsement, frontier_policy, tcb_policy};
