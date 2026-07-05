@@ -91,6 +91,13 @@ pub struct DeprecationRecord {
     pub vfr_id: String,
     pub deprecated_at: String,
     pub reason: String,
+    /// The vfr_id that supersedes this one, when the deprecation is a
+    /// consolidation rather than an abandonment. When present, the hub answers
+    /// the entry's routes with a permanent redirect to the successor instead of
+    /// a 404, so existing citations of the retired vfr resolve. Signed only when
+    /// present, so a plain abandonment keeps verifying byte-identically.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub superseded_by: Option<String>,
     pub signature: String,
     pub signer_pubkey_hex: String,
 }
@@ -98,12 +105,15 @@ pub struct DeprecationRecord {
 pub const DEPRECATION_SCHEMA: &str = "vela.frontier-deprecation.v0.1";
 
 pub fn deprecation_signing_bytes(rec: &DeprecationRecord) -> Result<Vec<u8>, String> {
-    let preimage = serde_json::json!({
+    let mut preimage = serde_json::json!({
         "schema": rec.schema,
         "vfr_id": rec.vfr_id,
         "deprecated_at": rec.deprecated_at,
         "reason": rec.reason,
     });
+    if let Some(succ) = &rec.superseded_by {
+        preimage["superseded_by"] = serde_json::Value::String(succ.clone());
+    }
     let body = crate::canonical::to_canonical_bytes(&preimage)?;
     Ok(crate::signing_input::signing_input(
         crate::signing_input::SigVersion::V0,
@@ -414,6 +424,56 @@ pub fn sign_entry(
 pub fn verify_entry(entry: &RegistryEntry) -> Result<bool, String> {
     let bytes = entry_signing_bytes(entry)?;
     crate::sign::verify_action_signature(&bytes, &entry.signature, &entry.owner_pubkey)
+}
+
+#[cfg(test)]
+mod deprecation_tests {
+    use super::*;
+    use ed25519_dalek::SigningKey;
+
+    fn key() -> SigningKey {
+        SigningKey::from_bytes(&[7u8; 32])
+    }
+
+    #[test]
+    fn deprecation_with_successor_roundtrips_and_is_tamper_evident() {
+        let sk = key();
+        let mut rec = DeprecationRecord {
+            schema: DEPRECATION_SCHEMA.to_string(),
+            vfr_id: "vfr_37aec80d874a0239".into(),
+            deprecated_at: "2026-07-05T00:00:00Z".into(),
+            reason: "consolidated into the complete Erdős frontier".into(),
+            superseded_by: Some("vfr_0a25edabc16db143".into()),
+            signature: String::new(),
+            signer_pubkey_hex: hex::encode(sk.verifying_key().to_bytes()),
+        };
+        rec.signature = sign_deprecation(&rec, &sk).unwrap();
+        assert!(verify_deprecation(&rec).unwrap(), "honest record verifies");
+
+        // The successor is inside the signed preimage: tampering breaks it.
+        let mut tampered = rec.clone();
+        tampered.superseded_by = Some("vfr_deadbeefdeadbeef".into());
+        assert!(
+            !verify_deprecation(&tampered).unwrap(),
+            "swapped successor fails"
+        );
+    }
+
+    #[test]
+    fn plain_abandonment_without_successor_still_verifies() {
+        let sk = key();
+        let mut rec = DeprecationRecord {
+            schema: DEPRECATION_SCHEMA.to_string(),
+            vfr_id: "vfr_abandoned0000".into(),
+            deprecated_at: "2026-07-05T00:00:00Z".into(),
+            reason: "withdrawn".into(),
+            superseded_by: None,
+            signature: String::new(),
+            signer_pubkey_hex: hex::encode(sk.verifying_key().to_bytes()),
+        };
+        rec.signature = sign_deprecation(&rec, &sk).unwrap();
+        assert!(verify_deprecation(&rec).unwrap());
+    }
 }
 
 // ── Local file-backed registry ───────────────────────────────────────

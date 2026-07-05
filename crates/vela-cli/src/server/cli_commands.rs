@@ -1496,6 +1496,31 @@ pub(crate) enum HubAction {
         #[arg(long)]
         json: bool,
     },
+    /// Retire a frontier — the owner-signed deprecation act. When
+    /// `--superseded-by` names a successor, the hub redirects the retired
+    /// entry's routes to it (a consolidation), so citations still resolve;
+    /// without it, the entry is a plain abandonment. Append-only,
+    /// earliest-wins; only the entry's owner key may sign it.
+    Deprecate {
+        /// The frontier to retire (vfr_…).
+        vfr_id: String,
+        /// The successor frontier (vfr_…) that supersedes it. Omit for a
+        /// plain abandonment (no redirect).
+        #[arg(long)]
+        superseded_by: Option<String>,
+        /// Why it is being retired (recorded in the signed deprecation).
+        #[arg(long, default_value = "")]
+        reason: String,
+        /// Hub base URL. Optional: defaults to your configured identity's hub.
+        #[arg(long)]
+        to: Option<String>,
+        /// Path to the owner's Ed25519 private key. Optional: defaults to
+        /// your configured identity's key (`vela id`).
+        #[arg(long, help = HELP_KEY)]
+        key: Option<PathBuf>,
+        #[arg(long)]
+        json: bool,
+    },
     /// v0.129: fetch the same registry entry from multiple hubs and
     /// assert byte-identical agreement. Closes part of
     /// THREAT_MODEL.md A11 (compromised hub) by giving operators a

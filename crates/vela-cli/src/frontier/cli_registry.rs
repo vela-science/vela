@@ -96,6 +96,73 @@ pub(crate) fn cmd_hub(action: HubAction) {
                 fail(&format!("register-git failed ({status}): {payload}"));
             }
         }
+        HubAction::Deprecate {
+            vfr_id,
+            superseded_by,
+            reason,
+            to,
+            key,
+            json,
+        } => {
+            let signing_key = crate::cli_identity::resolve_signing_key(key.as_deref());
+            let signer_pubkey = hex::encode(signing_key.verifying_key().to_bytes());
+            let mut rec = vela_protocol::registry::DeprecationRecord {
+                schema: vela_protocol::registry::DEPRECATION_SCHEMA.to_string(),
+                vfr_id: vfr_id.clone(),
+                deprecated_at: chrono::Utc::now().to_rfc3339(),
+                reason: reason.clone(),
+                superseded_by: superseded_by.clone(),
+                signature: String::new(),
+                signer_pubkey_hex: signer_pubkey,
+            };
+            rec.signature = vela_protocol::registry::sign_deprecation(&rec, &signing_key)
+                .unwrap_or_else(|e| fail_return(&format!("sign: {e}")));
+            let hub = crate::cli_identity::resolve_hub(to.as_deref())
+                .trim_end_matches('/')
+                .to_string();
+            let url = format!("{hub}/entries/{vfr_id}/deprecate");
+            let body = serde_json::to_value(&rec)
+                .unwrap_or_else(|e| fail_return(&format!("serialize: {e}")));
+            let (status, text) = {
+                let u = url.clone();
+                std::thread::spawn(move || -> Result<(u16, String), String> {
+                    let resp = reqwest::blocking::Client::new()
+                        .post(&u)
+                        .json(&body)
+                        .send()
+                        .map_err(|e| format!("POST {u}: {e}"))?;
+                    let status = resp.status().as_u16();
+                    let text = resp.text().map_err(|e| format!("read response: {e}"))?;
+                    Ok((status, text))
+                })
+                .join()
+                .unwrap_or_else(|_| fail_return("deprecate request thread panicked"))
+                .unwrap_or_else(|e| fail_return(&e))
+            };
+            let payload: serde_json::Value =
+                serde_json::from_str(&text).unwrap_or_else(|_| serde_json::json!({"raw": text}));
+            if json {
+                print_json(&serde_json::json!({
+                    "ok": status < 300,
+                    "command": "registry.deprecate",
+                    "vfr_id": vfr_id,
+                    "superseded_by": superseded_by,
+                    "status": status,
+                    "response": payload,
+                }));
+            } else if status < 300 {
+                let succ = superseded_by
+                    .as_deref()
+                    .map(|s| format!(" -> {s}"))
+                    .unwrap_or_default();
+                println!(
+                    "{} retired {vfr_id}{succ} on {hub}; its routes now redirect to the successor",
+                    style::ok("ok")
+                );
+            } else {
+                fail(&format!("deprecate failed ({status}): {payload}"));
+            }
+        }
         HubAction::WitnessCheck { vfr_id, hubs, json } => {
             // v0.129: A11 mitigation. Pull `vfr_id` from every named
             // hub, canonicalize each entry, compare. Reports per-hub

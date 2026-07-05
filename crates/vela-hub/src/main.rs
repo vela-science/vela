@@ -1037,6 +1037,7 @@ fn build_router(state: AppState) -> Router {
             "/entries/{vfr_id}/git-remote",
             get(get_git_remote).post(register_git_remote),
         )
+        .route("/entries/{vfr_id}/deprecate", post(deprecate_entry))
         .route("/entries/{vfr_id}/snapshot", get(get_entry_snapshot))
         .route(
             "/entries/{vfr_id}/sidon-frontier-map",
@@ -1982,6 +1983,9 @@ async fn get_entry(
     match row {
         Ok(Some(value)) => (StatusCode::OK, Json(value)).into_response(),
         Ok(None) => {
+            if let Some(redirect) = superseded_redirect(&state, &vfr_id, "").await {
+                return redirect;
+            }
             if let Ok(Some(audit)) = state.db.latest_audit_status(&vfr_id).await
                 && audit.status == "failed"
             {
@@ -2242,6 +2246,139 @@ async fn register_git_remote(
         "note": "registered; the ingestor re-derives the index from the repo on its next sweep",
     }))
     .into_response()
+}
+
+/// Deprecate a frontier — the owner-signed retirement act. The body is a
+/// `DeprecationRecord` (vela.frontier-deprecation.v0.1): the signature must
+/// verify AND the signer must be the entry's effective owner (the same
+/// continuity rule as register-git). When the record carries `superseded_by`,
+/// the entry's read routes thereafter answer a permanent redirect to the
+/// successor instead of a 404, so a consolidation retires the duplicate without
+/// breaking existing citations. Append-only, earliest-wins.
+async fn deprecate_entry(
+    State(state): State<AppState>,
+    Path(vfr_id): Path<String>,
+    Json(body): Json<Value>,
+) -> Response {
+    use vela_protocol::registry::{DeprecationRecord, verify_deprecation};
+    let rec: DeprecationRecord = match serde_json::from_value(body.clone()) {
+        Ok(r) => r,
+        Err(e) => {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(error_body("INVALID_ARG", format!("deprecation parse: {e}"))),
+            )
+                .into_response();
+        }
+    };
+    if rec.vfr_id != vfr_id {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(error_body(
+                "INVALID_ARG",
+                "deprecation vfr_id does not match the path",
+            )),
+        )
+            .into_response();
+    }
+    match verify_deprecation(&rec) {
+        Ok(true) => {}
+        Ok(false) => {
+            return (
+                StatusCode::UNAUTHORIZED,
+                Json(error_body(
+                    "PERMISSION_DENIED",
+                    "deprecation signature does not verify",
+                )),
+            )
+                .into_response();
+        }
+        Err(e) => {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(error_body("INVALID_ARG", format!("deprecation: {e}"))),
+            )
+                .into_response();
+        }
+    }
+    // Owner continuity: only the entry's effective owner may retire it.
+    match state.db.effective_owner_pubkey(&vfr_id).await {
+        Ok(Some(owner)) if owner != rec.signer_pubkey_hex => {
+            return (
+                StatusCode::FORBIDDEN,
+                Json(error_body(
+                    "PERMISSION_DENIED",
+                    "signer is not the frontier's effective owner",
+                )),
+            )
+                .into_response();
+        }
+        Ok(None) => {
+            return (
+                StatusCode::NOT_FOUND,
+                Json(error_body(
+                    "NOT_FOUND",
+                    format!("{vfr_id} is not a live entry"),
+                )),
+            )
+                .into_response();
+        }
+        Ok(_) => {}
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(error_body("INTERNAL", format!("owner lookup: {e}"))),
+            )
+                .into_response();
+        }
+    }
+    match state
+        .db
+        .record_deprecation(&vfr_id, &rec.deprecated_at, &rec.reason, &body)
+        .await
+    {
+        Ok(inserted) => Json(json!({
+            "ok": true,
+            "vfr_id": vfr_id,
+            "deprecated": true,
+            "already_deprecated": !inserted,
+            "superseded_by": rec.superseded_by,
+            "note": "the entry's read routes now redirect to the successor; the ingestor will not re-promote it",
+        }))
+        .into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(error_body("INTERNAL", format!("store: {e}"))),
+        )
+            .into_response(),
+    }
+}
+
+/// If `vfr_id` is a deprecated entry that names a `superseded_by`, a permanent
+/// redirect (308) to the successor's same sub-path, so citations of a retired
+/// frontier resolve to the consolidation. `None` when the entry is not
+/// deprecated or named no successor — the caller then serves its normal 404.
+async fn superseded_redirect(state: &AppState, vfr_id: &str, subpath: &str) -> Option<Response> {
+    let dep = state.db.get_deprecation(vfr_id).await.ok().flatten()?;
+    let succ = dep
+        .get("superseded_by")
+        .and_then(|v| v.as_str())?
+        .to_string();
+    let location = format!("/entries/{succ}{subpath}");
+    Some(
+        (
+            StatusCode::PERMANENT_REDIRECT,
+            [(axum::http::header::LOCATION, location)],
+            Json(json!({
+                "ok": false,
+                "status": "deprecated",
+                "vfr_id": vfr_id,
+                "superseded_by": succ,
+                "note": "this frontier was consolidated; follow Location to the successor",
+            })),
+        )
+            .into_response(),
+    )
 }
 
 /// The effective maintainer set + the action log scaffold.

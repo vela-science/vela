@@ -200,6 +200,13 @@ async fn ingest_one(
     // promote WINS: ingested rows share the empty-signature key per vfr,
     // and the old DO-NOTHING insert froze signed_publish_at (and every
     // page cache keyed on it) at first ingestion.
+    // A deprecated frontier is retired for good (the deprecation record is
+    // earliest-wins and never undone). Never re-promote it, so a lingering
+    // push to a consolidated frontier's old repo cannot resurrect it and
+    // silently override its redirect back to a live 200.
+    if db.get_deprecation(vfr_id).await?.is_some() {
+        return Ok(None);
+    }
     refuse_unrevocations(db, vfr_id, &project.actors).await?;
     let raw = serde_json::to_value(&entry).map_err(|e| e.to_string())?;
     db.upsert_ingested_entry(&entry, &raw).await?;
