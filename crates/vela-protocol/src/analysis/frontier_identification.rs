@@ -56,7 +56,16 @@ const SUPPORT_KINDS: [EdgeKind; 2] = [EdgeKind::Supports, EdgeKind::Improves];
 
 /// Weights for the structural-support score. Named so the combination is legible
 /// and tunable; the premise term dominates because premise-establishment is the
-/// direct solvability signal (Garg weights his path term similarly).
+/// direct solvability signal. This PATH-DOMINANT shape is empirically grounded:
+/// reproducing Garg's Frontier Graph scoring from his public 2026-04-13 release
+/// (`research/garg-repro/`) confirms his published `base_score` is r² ≈ 0.86 on
+/// `0.5·path_support + 0.2·gap_bonus` — a path-dominant combination wins, which
+/// `W_PREMISE = 1.0` mirrors (premise-establishment is Vela's solvability analog
+/// of his path-support). His model also carries a hub PENALTY, down-weighting
+/// support that flows through high-degree mediators (in a citation graph, that is
+/// spurious popularity). Vela DELIBERATELY does not: a Vela "hub" is a
+/// widely-depended-on lemma, and resting on it is good scaffolding toward a close,
+/// not spurious support — so the degree signal is not transferred.
 const W_PREMISE: f64 = 1.0;
 const W_SUPPORT: f64 = 0.4;
 const W_PATH: f64 = 0.3;
