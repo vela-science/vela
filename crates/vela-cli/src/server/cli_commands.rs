@@ -398,9 +398,10 @@ pub(crate) enum Commands {
         /// signs every row under one key read.
         #[arg(long)]
         batch: Option<PathBuf>,
-        /// Hardware touch-to-sign (FIDO2). Not yet wired: the sk
-        /// signature envelope is designed in docs/THREAT_MODEL.md and
-        /// lands next release.
+        /// Hardware touch-to-sign. Accepted but intentionally NOT wired yet —
+        /// the recommended path is an OpenPGP/PKCS#11 Ed25519 token (raw
+        /// Ed25519, zero verifier change), not FIDO2; see
+        /// docs/HARDWARE_SIGNING_PROPOSAL.md. Using it errors with that guidance.
         #[arg(long)]
         sk: bool,
         #[arg(long, help = HELP_KEY)]
@@ -1867,6 +1868,10 @@ pub(crate) enum FindingCommands {
         /// Optional note (accepts default silently; only a downgrade needs one).
         #[arg(long, default_value = "reviewer accepted")]
         reason: String,
+        /// Optionally set the finding's confidence in the same command — an
+        /// accept at >= 0.6 establishes it (below the fragile floor stays Fragile).
+        #[arg(long)]
+        confidence: Option<f64>,
         #[arg(long = "as")]
         reviewer: String,
         #[arg(long)]

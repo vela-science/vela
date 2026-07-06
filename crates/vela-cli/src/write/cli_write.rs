@@ -355,11 +355,13 @@ pub(crate) fn cmd_finding_reject(
 /// the derived frontier state becomes `Established`. This is the porcelain over
 /// `state::review_finding`; the finding must already exist (assert it first with
 /// `land`). The custody line is unchanged: only a human key applies it.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn cmd_finding_review(
     frontier: PathBuf,
     finding_id: String,
     status: String,
     reason: String,
+    confidence: Option<f64>,
     reviewer: String,
     apply: bool,
     json: bool,
@@ -371,6 +373,7 @@ pub(crate) fn cmd_finding_review(
             status,
             reason,
             reviewer,
+            confidence,
         },
         apply,
     )

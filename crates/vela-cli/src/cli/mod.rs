@@ -625,10 +625,13 @@ pub async fn run_command() {
                 finding_id,
                 status,
                 reason,
+                confidence,
                 reviewer,
                 apply,
                 json,
-            } => cmd_finding_review(frontier, finding_id, status, reason, reviewer, apply, json),
+            } => cmd_finding_review(
+                frontier, finding_id, status, reason, confidence, reviewer, apply, json,
+            ),
             FindingCommands::Retract {
                 source,
                 finding_id,

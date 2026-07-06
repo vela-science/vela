@@ -65,7 +65,7 @@ the agent, and the pen belongs to you.
 
 | Verb | What it does |
 |---|---|
-| `finding` | The core primitive: add/show/supersede/note/caveat/revise/review/reject/retract/link. `review <f> --status accepted --as <you> --apply` records a human review verdict; an accept sets `review_state = Accepted`, which the frontier state derives to `Established`. |
+| `finding` | The core primitive: add/show/supersede/note/caveat/revise/review/reject/retract/link. `review <f> --status accepted --as <you> [--confidence 0.9] --apply` records a human review verdict; an accept sets `review_state = Accepted` (with `--confidence` lifting it above the fragile floor in the same command), which the frontier state derives to `Established`. `add`/`supersede` are sourced by `--author`; the mutation verbs (`revise`/`review`/`reject`/`retract`) route to a reviewer via `--as`. These write with a human key and are CLI-only — they are not on the MCP agent surface. |
 | `frontier` | Repo-level: new/materialize/add-dep/list-deps/diff/release/releases/audit/rank. `rank` orders OPEN findings by accumulating structural support (which is a verifier-run from done) with the popularity baseline + inspectable evidence — a solvability projection, advice not authority. |
 | `actor` | Frontier-registered identities: add/list/rotate. |
 | `agents` | `VELA.md` charter adapters: sync/doctor/diff (AGENTS.md, CLAUDE.md, .mcp.json are generated, never hand-edited). |

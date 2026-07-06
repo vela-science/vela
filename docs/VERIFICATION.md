@@ -103,6 +103,34 @@ the claim guarantee.
 
 ---
 
+## How a witness becomes state (land, sign, review)
+
+A finding reaches `Established` state by one of two paths, both derived (never a
+stored flag) by `FindingState::derive`:
+
+1. **The verifier gate.** Two or more independent, matched verifier attachments
+   plus a surviving adversarial probe derive `gate == Verified`, and a
+   gate-verified finding is `Established` at any confidence prior. `vela gate
+   backfill` records a single frozen-verifier check per witness (it reads the
+   witness from its content-addressed blob, or falls back to the tracked
+   `witnesses/<file>` when the blob lives in object storage); the gate still
+   needs a second independent attachment to derive `Verified`.
+
+2. **A human review verdict.** A reviewer accepts the finding with their key:
+   `vela finding review <vf> --status accepted --as reviewer:<you> --apply`.
+   That emits a `finding.reviewed` event setting `review_state = Accepted`. An
+   accepted finding is `Established` when its confidence clears the fragile
+   floor (`0.6`), and `Fragile` below it; pass `--confidence 0.9` on the same
+   command to lift it in one step.
+
+The producer path for a fresh result is `land` (record an activity receipt,
+routed by the signed policy) then `sign` (the human ceremony that admits a
+deferred proposal, asserting the finding `Open`), then `finding review` to
+establish it. A worked end-to-end example is in
+`docs/history/2026-07-05-erdos-establishment.md`.
+
+---
+
 ## Proof-attestation records (`vpv_`)
 
 *Folded from the former PROOF_VERIFICATION.md.*

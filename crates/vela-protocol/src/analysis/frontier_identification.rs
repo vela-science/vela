@@ -344,6 +344,30 @@ mod tests {
         );
     }
 
+    #[test]
+    fn multi_node_topology_populates_all_structural_signals() {
+        // A realistic slice, nothing established: B depends on A; C and D both
+        // support B; E depends on B (so B unlocks E). B's score must reflect its
+        // premise, its two supporters, its mediating path count, and its unlock.
+        let a = synth_finding(0, vec![]);
+        let b = synth_finding(1, vec![link_typed(&a.id, "depends")]);
+        let c = synth_finding(2, vec![link_typed(&b.id, "supports")]);
+        let d = synth_finding(3, vec![link_typed(&b.id, "supports")]);
+        let e = synth_finding(4, vec![link_typed(&b.id, "depends")]);
+        let b_id = b.id.clone();
+        let mut project = assemble("fi", vec![], 0, 0, "test");
+        project.findings = vec![a, b, c, d, e];
+
+        let ranked = frontier_identification(&project);
+        let b_cand = ranked.iter().find(|r| r.id == b_id).expect("B is open");
+        assert_eq!(b_cand.premises_total, 1, "B depends on A");
+        assert_eq!(b_cand.premises_established, 0, "nothing is established");
+        assert_eq!(b_cand.support_established, 0, "C, D are not established");
+        assert_eq!(b_cand.mediating_support, 3, "A + C + D within two hops");
+        assert_eq!(b_cand.unlock, 1, "E rests on B");
+        assert!(b_cand.score > 0.0);
+    }
+
     fn _established_id(project: &crate::project::Project) -> String {
         project
             .findings

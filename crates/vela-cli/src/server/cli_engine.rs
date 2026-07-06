@@ -2325,7 +2325,9 @@ fn cmd_gate_backfill(frontier: &Path, reviewer: &str, dry_run: bool, json_output
     let mut done: Vec<(String, String, String)> = Vec::new();
     let mut pending: Vec<(String, String, String)> = Vec::new();
     let mut failed: Vec<(String, String)> = Vec::new();
-    let mut skipped: usize = 0;
+    // (witness name, reason) for each skipped artifact, so the skip is legible
+    // rather than a silent counter.
+    let mut skipped: Vec<(String, String)> = Vec::new();
 
     for art in &proj.artifacts {
         // Witness artifacts: a JSON payload tagged with a `verifier` in metadata.
@@ -2333,6 +2335,12 @@ fn cmd_gate_backfill(frontier: &Path, reviewer: &str, dry_run: bool, json_output
         if !(is_json && art.metadata.contains_key("verifier")) {
             continue;
         }
+        let wname = art
+            .metadata
+            .get("witness_file")
+            .and_then(Value::as_str)
+            .unwrap_or(art.id.as_str())
+            .to_string();
         // Resolve content. Prefer the content-addressed blob at the locator;
         // fall back to the canonical `witnesses/<witness_file>` source when the
         // blob is absent (it lives in object storage, not the checkout — the
@@ -2353,14 +2361,20 @@ fn cmd_gate_backfill(frontier: &Path, reviewer: &str, dry_run: bool, json_output
         }) {
             Some(c) => c,
             None => {
-                skipped += 1;
+                skipped.push((
+                    wname,
+                    "no local blob and no witnesses/<file> fallback found".to_string(),
+                ));
                 continue;
             }
         };
         let witness = match parse_witness(&content) {
             Ok(w) => w,
-            Err(_) => {
-                skipped += 1;
+            Err(e) => {
+                skipped.push((
+                    wname,
+                    format!("not a parseable frozen-verifier witness: {e}"),
+                ));
                 continue;
             }
         };
@@ -2455,7 +2469,11 @@ fn cmd_gate_backfill(frontier: &Path, reviewer: &str, dry_run: bool, json_output
                     .map(|(f, k, d)| json!({ "finding": f, "kind": k, "claim_digest": d }))
                     .collect::<Vec<_>>(),
                 "failed": failed.len(),
-                "skipped_artifacts": skipped,
+                "skipped_artifacts": skipped.len(),
+                "skipped_detail": skipped
+                    .iter()
+                    .map(|(a, r)| json!({ "witness": a, "reason": r }))
+                    .collect::<Vec<_>>(),
                 "findings": findings,
             }))
             .expect("serialize gate backfill response")
@@ -2481,13 +2499,17 @@ fn cmd_gate_backfill(frontier: &Path, reviewer: &str, dry_run: bool, json_output
             );
         }
         println!(
-            "· gate backfill: {verb} {} frozen-verifier check{} ({skipped} artifacts skipped, {} verify-failures)",
+            "· gate backfill: {verb} {} frozen-verifier check{} ({} artifacts skipped, {} verify-failures)",
             done.len(),
             if done.len() == 1 { "" } else { "s" },
+            skipped.len(),
             failed.len(),
         );
         for (f, k, d) in &done {
             println!("  {f} · {k} · claim {d}");
+        }
+        for (w, reason) in &skipped {
+            println!("  skipped {w}: {reason}");
         }
         if !pending.is_empty() {
             println!(

@@ -75,6 +75,9 @@ pub struct ReviewOptions {
     pub status: String,
     pub reason: String,
     pub reviewer: String,
+    /// Optionally lift the finding's confidence in the same command, so an
+    /// accept can carry a review above the fragile floor without a second verb.
+    pub confidence: Option<f64>,
 }
 
 #[derive(Debug, Clone)]
@@ -116,6 +119,9 @@ pub fn review_finding(
     options: ReviewOptions,
     apply: bool,
 ) -> Result<StateCommandReport, String> {
+    if let Some(c) = options.confidence {
+        validate_score(c)?;
+    }
     let proposal = proposals::new_proposal(
         "finding.review",
         events::StateTarget {
@@ -130,7 +136,28 @@ pub fn review_finding(
         Vec::new(),
     );
     let result = proposals::create_or_apply(path, proposal, apply)?;
+    // When a confidence is supplied, revise it in the same command by reusing the
+    // confidence path — so `review --status accepted --confidence 0.9` lifts an
+    // accepted finding above the fragile floor (→ Established) in one step.
+    if let Some(c) = options.confidence {
+        revise_confidence(
+            path,
+            finding_id,
+            ReviseOptions {
+                confidence: c,
+                reason: options.reason.clone(),
+                reviewer: options.reviewer.clone(),
+            },
+            apply,
+        )?;
+    }
     let frontier = repo::load_from_path(path)?;
+    let message = match (apply, options.confidence) {
+        (true, Some(c)) => format!("Review proposal applied (confidence set to {c})"),
+        (true, None) => "Review proposal applied".to_string(),
+        (false, Some(c)) => format!("Review proposal recorded (confidence {c})"),
+        (false, None) => "Review proposal recorded".to_string(),
+    };
     Ok(StateCommandReport {
         ok: true,
         command: "review".to_string(),
@@ -140,11 +167,7 @@ pub fn review_finding(
         proposal_status: result.status,
         applied_event_id: result.applied_event_id,
         wrote_to: path.display().to_string(),
-        message: if apply {
-            "Review proposal applied".to_string()
-        } else {
-            "Review proposal recorded".to_string()
-        },
+        message,
     })
 }
 
@@ -1551,6 +1574,7 @@ mod v0_38_causal_tests {
                 status: "accepted".to_string(),
                 reason: "reviewer accepted".to_string(),
                 reviewer: "reviewer:test".to_string(),
+                confidence: None,
             },
             true,
         )
@@ -1571,6 +1595,43 @@ mod v0_38_causal_tests {
         let last = after.events.last().expect("an event was appended");
         assert_eq!(last.kind, "finding.reviewed");
         assert_eq!(last.payload["status"], "accepted");
+    }
+
+    #[test]
+    fn review_accept_with_confidence_establishes_in_one_command() {
+        use crate::analysis::frontier_graph::FindingState;
+        use crate::bundle::ReviewState;
+        let dir = tempdir().unwrap();
+        let path = seed_frontier(dir.path()); // seeds a finding at confidence 0.5
+        let finding_id = repo::load_from_path(&path).unwrap().findings[0].id.clone();
+
+        review_finding(
+            &path,
+            &finding_id,
+            ReviewOptions {
+                status: "accepted".to_string(),
+                reason: "verified".to_string(),
+                reviewer: "reviewer:test".to_string(),
+                confidence: Some(0.9),
+            },
+            true,
+        )
+        .unwrap();
+
+        let after = repo::load_from_path(&path).unwrap();
+        let f = &after.findings[0];
+        // Both the review verdict and the confidence revision landed…
+        assert_eq!(f.flags.review_state, Some(ReviewState::Accepted));
+        assert!(
+            f.confidence.score >= 0.6,
+            "confidence lifted above the fragile floor, got {}",
+            f.confidence.score
+        );
+        // …so the finding derives to Established (not Fragile) in one command.
+        assert_eq!(
+            FindingState::derive(&f.flags, f.confidence.score, None),
+            FindingState::Established
+        );
     }
 
     #[test]

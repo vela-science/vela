@@ -177,9 +177,11 @@ impl FindingState {
     /// 2. a rejected review verdict → `Refuted`;
     /// 3. a contested/needs-revision verdict or the legacy `contested` flag →
     ///    `Contested`;
-    /// 4. the verifier gate passed, or the verdict is accepted → `Established`,
-    ///    or `Fragile` when confidence sits below `FRAGILE_CONFIDENCE`;
-    /// 5. everything else → `Open`.
+    /// 4. the verifier gate passed → `Established` unconditionally (a verified
+    ///    finding is not "thin ground", so the confidence floor does not apply);
+    /// 5. else an accepted review verdict → `Established`, or `Fragile` when
+    ///    confidence sits below `FRAGILE_CONFIDENCE` (accepted but thin);
+    /// 6. everything else → `Open`.
     ///
     /// `gate` is `None` when no gate was computed (e.g. a graph built without
     /// attachment context); then only the review verdict drives the state.
@@ -202,9 +204,14 @@ impl FindingState {
             None if flags.contested => return Self::Contested,
             _ => {}
         }
-        let established =
-            gate == Some(GateStatus::Verified) || flags.review_state == Some(ReviewState::Accepted);
-        if established {
+        // A passing frozen-verifier gate IS the verification: the finding is
+        // Established regardless of the confidence prior (verified is not thin).
+        if gate == Some(GateStatus::Verified) {
+            return Self::Established;
+        }
+        // A human accept of an as-yet-unverified claim establishes it, but stays
+        // Fragile below the confidence floor — accepted, resting on thin ground.
+        if flags.review_state == Some(ReviewState::Accepted) {
             if confidence < FRAGILE_CONFIDENCE {
                 Self::Fragile
             } else {
@@ -223,8 +230,10 @@ impl FindingState {
     }
 }
 
-/// An accepted finding below this confidence is `Fragile` rather than
-/// `Established` — established support exists but rests on thin ground.
+/// A review-accepted (but not verifier-gated) finding below this confidence is
+/// `Fragile` rather than `Established` — accepted, but resting on thin ground.
+/// The floor does NOT apply to a `gate == Verified` finding: a passing frozen
+/// verifier is the verification, so it is Established at any confidence prior.
 pub const FRAGILE_CONFIDENCE: f64 = 0.6;
 
 /// A claim node: a finding plus the small slice of state the graph
@@ -1168,6 +1177,35 @@ mod tests {
         let mut link = link_to(target);
         link.link_type = link_type.into();
         link
+    }
+
+    #[test]
+    fn gate_verified_establishes_regardless_of_confidence() {
+        use crate::bundle::{Flags, ReviewState};
+        use crate::verifier_attachment::GateStatus;
+        // A passing frozen-verifier gate IS the verification: Established even at a
+        // low confidence prior (verified is not "thin ground").
+        let flags = Flags::default();
+        assert_eq!(
+            FindingState::derive(&flags, 0.3, Some(GateStatus::Verified)),
+            FindingState::Established,
+            "gate=Verified at confidence 0.3 must be Established"
+        );
+        // A human accept of an as-yet-unverified low-confidence claim stays Fragile
+        // (the floor applies only to the review-verdict path)…
+        let accepted = Flags {
+            review_state: Some(ReviewState::Accepted),
+            ..Default::default()
+        };
+        assert_eq!(
+            FindingState::derive(&accepted, 0.3, None),
+            FindingState::Fragile
+        );
+        // …and lifts to Established once its confidence clears the floor.
+        assert_eq!(
+            FindingState::derive(&accepted, 0.9, None),
+            FindingState::Established
+        );
     }
 
     #[test]
