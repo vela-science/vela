@@ -182,6 +182,22 @@ pub struct GitRemoteRegistration {
 
 pub const GIT_REMOTE_SCHEMA: &str = "vela.frontier-git-remote.v0.1";
 
+/// Canonicalize a git clone URL to a stable identity: two spellings of the
+/// same repo (a trailing `.git`, a trailing slash) must collapse to one
+/// string. The hub builds each entry's `network_locator` from this, and
+/// `witness-check` hashes the whole entry — so without canonicalization two
+/// hubs that agree on the state but were registered `foo.git` vs `foo`
+/// false-split. Conservative on purpose: only a trailing slash and a single
+/// `.git` are trimmed; scheme, host, and path are left untouched (a real
+/// mirror on a different host SHOULD still surface as a divergence).
+pub fn canonical_git_remote(remote: &str) -> String {
+    let mut s = remote.trim();
+    s = s.strip_suffix('/').unwrap_or(s);
+    s = s.strip_suffix(".git").unwrap_or(s);
+    s = s.strip_suffix('/').unwrap_or(s);
+    s.to_string()
+}
+
 pub fn git_remote_signing_bytes(rec: &GitRemoteRegistration) -> Result<Vec<u8>, String> {
     let mut preimage = serde_json::json!({
         "schema": rec.schema,
@@ -473,6 +489,45 @@ mod deprecation_tests {
         };
         rec.signature = sign_deprecation(&rec, &sk).unwrap();
         assert!(verify_deprecation(&rec).unwrap());
+    }
+}
+
+#[cfg(test)]
+mod canonical_remote_tests {
+    use super::canonical_git_remote;
+
+    #[test]
+    fn strips_trailing_git_and_slash() {
+        let want = "https://github.com/c/s";
+        assert_eq!(canonical_git_remote("https://github.com/c/s"), want);
+        assert_eq!(canonical_git_remote("https://github.com/c/s.git"), want);
+        assert_eq!(canonical_git_remote("https://github.com/c/s/"), want);
+        assert_eq!(canonical_git_remote("https://github.com/c/s.git/"), want);
+        assert_eq!(canonical_git_remote("  https://github.com/c/s.git "), want);
+        assert_eq!(
+            canonical_git_remote("git@github.com:c/s.git"),
+            "git@github.com:c/s"
+        );
+    }
+
+    #[test]
+    fn the_dotgit_false_split_converges() {
+        // The exact cross-hub split this fix exists to prevent: the same repo
+        // registered `.git` on one hub and bare on another must collapse to one
+        // network_locator identity.
+        assert_eq!(
+            canonical_git_remote("https://github.com/constellate-science/sidon-frontier.git"),
+            canonical_git_remote("https://github.com/constellate-science/sidon-frontier"),
+        );
+    }
+
+    #[test]
+    fn leaves_a_bare_url_untouched() {
+        // No over-normalization: a `.git` in the middle of the path stays.
+        assert_eq!(
+            canonical_git_remote("https://example.com/x.git/y"),
+            "https://example.com/x.git/y"
+        );
     }
 }
 

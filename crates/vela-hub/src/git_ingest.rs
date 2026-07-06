@@ -188,7 +188,10 @@ async fn ingest_one(
         owner_pubkey: owner_pubkey.to_string(),
         latest_snapshot_hash: snapshot_hash(&project),
         latest_event_log_hash: event_log_hash(&project.events),
-        network_locator: format!("git+{remote}"),
+        network_locator: format!(
+            "git+{}",
+            vela_protocol::registry::canonical_git_remote(remote)
+        ),
         signed_publish_at: commit_time,
         signature: String::new(),
         license: None,

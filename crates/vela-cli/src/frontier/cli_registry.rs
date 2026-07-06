@@ -39,6 +39,11 @@ pub(crate) fn cmd_hub(action: HubAction) {
             key,
             json,
         } => {
+            // Canonicalize the clone URL (drop a trailing `.git`/slash) so the
+            // signed registration — and every hub's `network_locator` built
+            // from it — is byte-stable; `foo.git` and `foo` must not false-split
+            // witness-check across hubs.
+            let remote = vela_protocol::registry::canonical_git_remote(&remote);
             let signing_key = crate::cli_identity::resolve_signing_key(key.as_deref());
             let signer_pubkey = hex::encode(signing_key.verifying_key().to_bytes());
             let mut rec = vela_protocol::registry::GitRemoteRegistration {
