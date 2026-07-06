@@ -1329,7 +1329,11 @@ fn parse_sidon_bound(text: &str) -> Option<(i64, i64)> {
 
 /// The best accepted Sidon lower bound at dimension `n`, ignoring one finding
 /// (the proposal's own admitted finding, so a beat is measured against the rest).
-fn best_sidon_bound_for_n(project: &Project, n: i64, exclude_finding: Option<&str>) -> Option<i64> {
+pub(crate) fn best_sidon_bound_for_n(
+    project: &Project,
+    n: i64,
+    exclude_finding: Option<&str>,
+) -> Option<i64> {
     let mut best: Option<i64> = None;
     for f in &project.findings {
         if Some(f.id.as_str()) == exclude_finding {

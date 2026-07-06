@@ -89,6 +89,9 @@ The loop:
   land          Land a result (vela.receipt.v1): record -> propose ->
                 routed by the signed policy. Permit admits; Defer parks
                 it in the sign queue; Deny lands nothing.
+  submit        One-command producer path: frozen-verify a witness, land it,
+                bind it to its finding, drive the exact lane to
+                machine_verified, materialize. Commits locally; --push to publish.
   sign          THE human ceremony: everything awaiting your key, one
                 session, one confirm, one key read. Agents are refused.
   policy        Standing rules (suggest/draft/test/evaluate-proposal/sign/

@@ -93,6 +93,7 @@ mod surface_tests {
         "serve",
         "sign",
         "status",
+        "submit",
         "work",
     ];
     const V0738_HIDDEN: &[&str] = &["completions"];

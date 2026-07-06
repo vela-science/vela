@@ -236,6 +236,28 @@ pub async fn run_command() {
         }
 
         Commands::Reproduce { path, json } => cmd_reproduce(&path, json),
+        Commands::Submit {
+            witness,
+            frontier,
+            r#as,
+            push,
+            dry_run,
+            json,
+        } => {
+            let dir = crate::ui::resolve_frontier(frontier);
+            // A solver produced the witness, so it lands under an agent lane (a
+            // reviewer land would queue for the human sign ceremony instead).
+            let actor = crate::cli_identity::resolve_actor(r#as.as_deref());
+            let actor = if actor.starts_with("agent:") || actor.starts_with("ci:") {
+                actor
+            } else {
+                format!(
+                    "agent:{}",
+                    actor.split(':').next_back().unwrap_or("producer")
+                )
+            };
+            crate::cli_engine::cmd_submit(&dir, &witness, &actor, push, dry_run, json);
+        }
         Commands::Credit {
             finding_id,
             frontier,

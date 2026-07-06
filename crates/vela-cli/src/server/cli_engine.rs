@@ -315,27 +315,57 @@ fn cmd_gate_attach(
 /// witness structure. Then the proposal-level guards + the attachment
 /// corroboration predicate. The `policy.auto_admitted` emit is held off pending
 /// the acceptance checklist (docs/VERIFICATION.md).
-fn cmd_gate_auto_admit(frontier: &Path, finding_id: &str, apply: bool, json_output: bool) {
+/// The exact-lane verdict, computed from the frozen floor. Returned by
+/// [`gate_auto_admit_core`] so both `vela gate auto-admit` (which prints,
+/// publishes, and exits) and `vela submit` (which folds it into a receipt and
+/// controls its own publication) share one un-forgeable computation.
+pub(crate) struct AutoAdmitVerdict {
+    pub finding_id: String,
+    pub would_admit: bool,
+    pub canonical_claim: Option<String>,
+    pub witness_ok: bool,
+    pub witness_msg: String,
+    pub faithful_ok: Option<bool>,
+    pub faithful_reasons: Vec<String>,
+    pub wrapper_ok: bool,
+    pub wrapper_reasons: Vec<String>,
+    pub vouched_ok: bool,
+    pub vouch_reason: String,
+    pub matched_len: usize,
+    pub policy_ref: String,
+    pub policy_verdict: Option<String>,
+    /// `(event_id, newly_emitted)` when `apply && would_admit` recorded the
+    /// unsigned, idempotent `policy.auto_admitted` audit event.
+    pub emitted: Option<(String, bool)>,
+}
+
+/// Compute (and, with `apply`, record) the exact-lane auto-admit verdict, free of
+/// any printing / exit / publish — the caller owns those. This is the one place
+/// the frozen floor is evaluated; `vela gate auto-admit` and `vela submit` both
+/// call it so their verdicts can never drift.
+pub(crate) fn gate_auto_admit_core(
+    frontier: &Path,
+    finding_id: &str,
+    apply: bool,
+) -> Result<AutoAdmitVerdict, String> {
     use std::collections::BTreeSet;
 
-    let source = repo::detect(frontier).unwrap_or_else(|e| fail_return(&e));
-    let proj = repo::load(&source).unwrap_or_else(|e| fail_return(&e));
+    let source = repo::detect(frontier)?;
+    let proj = repo::load(&source)?;
 
     // Resolve the finding: a landed canonical finding, or a pending finding.add
     // proposal's payload. Both carry the assertion text + provenance the floor
     // and guards read.
     let (finding, proposal) = resolve_finding_and_proposal(&proj, finding_id);
-    let finding = finding.unwrap_or_else(|| {
-        fail_return(&format!(
-            "no finding '{finding_id}' (landed or in a pending finding.add proposal)"
-        ))
-    });
-    let proposal = proposal.unwrap_or_else(|| {
-        fail_return(&format!(
+    let finding = finding.ok_or_else(|| {
+        format!("no finding '{finding_id}' (landed or in a pending finding.add proposal)")
+    })?;
+    let proposal = proposal.ok_or_else(|| {
+        format!(
             "no finding.add proposal targets '{finding_id}'; the exact lane admits a proposal, \
              not an already-landed finding"
-        ))
-    });
+        )
+    })?;
 
     // FLOOR step 1: a fresh frozen re-check of the finding's witness.
     let (witness_ok, witness_msg, witness) = reproduce_finding_witness(&proj, frontier, finding_id);
@@ -414,8 +444,9 @@ fn cmd_gate_auto_admit(frontier: &Path, finding_id: &str, apply: bool, json_outp
                     && a.id.starts_with("reviewer:")
             });
             if !signer_registered {
-                fail_return::<()>(
-                    "active policy signer is not a registered reviewer on this frontier",
+                return Err(
+                    "active policy signer is not a registered reviewer on this frontier"
+                        .to_string(),
                 );
             }
             let ctx = vela_protocol::acceptance_policy::PolicyContext {
@@ -444,7 +475,7 @@ fn cmd_gate_auto_admit(frontier: &Path, finding_id: &str, apply: bool, json_outp
             policy_ref = vp.policy.id.clone();
         }
         Ok(None) => {}
-        Err(e) => fail_return(&format!("active policy: {e}")),
+        Err(e) => return Err(format!("active policy: {e}")),
     }
 
     // Apply (opt-in): record the unsigned, idempotent policy.auto_admitted audit
@@ -455,40 +486,68 @@ fn cmd_gate_auto_admit(frontier: &Path, finding_id: &str, apply: bool, json_outp
     if apply && would_admit {
         let digest = vela_protocol::verifier_attachment::claim_digest(&finding.assertion.text);
         let attachment_ids: Vec<String> = matched.iter().map(|a| a.id.clone()).collect();
-        match proposals::emit_policy_auto_admitted(
-            frontier,
-            &proposal.id,
-            &digest,
-            &attachment_ids,
-            &policy_ref,
-            vela_verify::ENV_ID,
-        ) {
-            Ok(res) => emitted = Some(res),
-            Err(e) => fail_return(&format!("emit policy.auto_admitted: {e}")),
-        }
+        emitted = Some(
+            proposals::emit_policy_auto_admitted(
+                frontier,
+                &proposal.id,
+                &digest,
+                &attachment_ids,
+                &policy_ref,
+                vela_verify::ENV_ID,
+            )
+            .map_err(|e| format!("emit policy.auto_admitted: {e}"))?,
+        );
     }
+
+    Ok(AutoAdmitVerdict {
+        finding_id: finding.id.clone(),
+        would_admit,
+        canonical_claim,
+        witness_ok,
+        witness_msg,
+        faithful_ok: faithful.as_ref().map(|f| f.faithful),
+        faithful_reasons: faithful
+            .as_ref()
+            .map(|f| f.reasons.clone())
+            .unwrap_or_default(),
+        wrapper_ok,
+        wrapper_reasons,
+        vouched_ok,
+        vouch_reason,
+        matched_len: matched.len(),
+        policy_ref,
+        policy_verdict,
+        emitted,
+    })
+}
+
+/// `vela gate auto-admit`: compute the verdict, print it (json or human),
+/// publish the audit event if one was emitted, and exit nonzero when the finding
+/// does not auto-admit.
+fn cmd_gate_auto_admit(frontier: &Path, finding_id: &str, apply: bool, json_output: bool) {
+    let v = gate_auto_admit_core(frontier, finding_id, apply).unwrap_or_else(|e| fail_return(&e));
 
     if json_output {
         let out = json!({
-            "finding": finding.id,
-            "would_auto_admit": would_admit,
-            "policy": {"ref": policy_ref, "verdict": policy_verdict},
+            "finding": v.finding_id,
+            "would_auto_admit": v.would_admit,
+            "policy": {"ref": v.policy_ref, "verdict": v.policy_verdict},
             "floor": {
-                "witness_reproduces": witness_ok,
-                "witness_detail": witness_msg,
-                "claim_witness_faithful": faithful.as_ref().map(|f| f.faithful),
-                "faithful_reasons": faithful.as_ref().map(|f| f.reasons.clone()),
+                "witness_reproduces": v.witness_ok,
+                "witness_detail": v.witness_msg,
+                "claim_witness_faithful": v.faithful_ok,
+                "faithful_reasons": v.faithful_reasons,
             },
-            "canonical_claim": canonical_claim,
-            "proposal_guards_ok": wrapper_ok,
-            "proposal_guard_reasons": wrapper_reasons,
-            "attachment_provenance_ok": vouched_ok,
-            "attachment_provenance_reason": if vouch_reason.is_empty() { serde_json::Value::Null } else { json!(vouch_reason) },
-            "matched_attachments": matched.len(),
+            "canonical_claim": v.canonical_claim,
+            "proposal_guards_ok": v.wrapper_ok,
+            "proposal_guard_reasons": v.wrapper_reasons,
+            "attachment_provenance_ok": v.vouched_ok,
+            "attachment_provenance_reason": if v.vouch_reason.is_empty() { serde_json::Value::Null } else { json!(v.vouch_reason) },
+            "matched_attachments": v.matched_len,
             "applied": apply,
-            "event_id": emitted.as_ref().map(|(id, _)| id.clone()),
-            "newly_emitted": emitted.as_ref().map(|(_, n)| *n),
-            "tier": emitted.as_ref().map(|_| "machine_verified"),
+            "event_id": v.emitted.as_ref().map(|(id, _)| id.clone()),
+            "newly_emitted": v.emitted.as_ref().map(|(_, n)| *n),
+            "tier": v.emitted.as_ref().map(|_| "machine_verified"),
             "note": if apply {
                 "policy.auto_admitted is unsigned + idempotent; machine_verified is distinct from human accepted and is NOT landed in canonical findings (docs/VERIFICATION.md)."
             } else {
@@ -497,50 +556,50 @@ fn cmd_gate_auto_admit(frontier: &Path, finding_id: &str, apply: bool, json_outp
         });
         println!("{}", serde_json::to_string_pretty(&out).unwrap());
     } else {
-        println!("exact-lane auto-admit for {}", finding.id);
+        println!("exact-lane auto-admit for {}", v.finding_id);
         println!(
             "  floor 1 (witness reproduces, frozen): {} {}",
-            if witness_ok { "PASS" } else { "FAIL" },
-            witness_msg
+            if v.witness_ok { "PASS" } else { "FAIL" },
+            v.witness_msg
         );
-        match &faithful {
-            Some(f) => println!(
+        match v.faithful_ok {
+            Some(faithful) => println!(
                 "  floor 2 (claim<->witness faithful, frozen): {}{}",
-                if f.faithful { "PASS" } else { "FAIL" },
-                if f.reasons.is_empty() {
+                if faithful { "PASS" } else { "FAIL" },
+                if v.faithful_reasons.is_empty() {
                     String::new()
                 } else {
-                    format!(" — {}", f.reasons.join("; "))
+                    format!(" — {}", v.faithful_reasons.join("; "))
                 }
             ),
             None => println!("  floor 2 (claim<->witness faithful): SKIP (no witness)"),
         }
         println!(
             "  proposal guards + corroboration: {}{}",
-            if wrapper_ok { "PASS" } else { "FAIL" },
-            if wrapper_reasons.is_empty() {
+            if v.wrapper_ok { "PASS" } else { "FAIL" },
+            if v.wrapper_reasons.is_empty() {
                 String::new()
             } else {
-                format!(" — {}", wrapper_reasons.join("; "))
+                format!(" — {}", v.wrapper_reasons.join("; "))
             }
         );
         println!(
             "  attachment provenance (human-vouched): {}{}",
-            if vouched_ok { "PASS" } else { "FAIL" },
-            if vouch_reason.is_empty() {
+            if v.vouched_ok { "PASS" } else { "FAIL" },
+            if v.vouch_reason.is_empty() {
                 String::new()
             } else {
-                format!(" — {vouch_reason}")
+                format!(" — {}", v.vouch_reason)
             }
         );
-        if let Some(c) = &canonical_claim {
+        if let Some(c) = &v.canonical_claim {
             println!("  verified claim (witness-derived, not prose): {c}");
         }
         println!(
             "  => auto-admit to machine_verified: {}",
-            if would_admit { "YES" } else { "NO" }
+            if v.would_admit { "YES" } else { "NO" }
         );
-        match &emitted {
+        match &v.emitted {
             Some((id, true)) => println!("  recorded policy.auto_admitted {id} (machine_verified)"),
             Some((id, false)) => {
                 println!("  already admitted: policy.auto_admitted {id} (idempotent no-op)")
@@ -554,8 +613,9 @@ fn cmd_gate_auto_admit(frontier: &Path, finding_id: &str, apply: bool, json_outp
     }
     // Mechanical-lane CD: the signed policy IS the standing human
     // authorization; requiring a human to come commit its output would
-    // contradict the point of the lane. Emitted = publish.
-    if let Some((id, true)) = &emitted {
+    // contradict the point of the lane. Emitted = publish (commit locally;
+    // push only if config opts in — explicit-publish default is off).
+    if let Some((id, true)) = &v.emitted {
         crate::config::git_publish::publish_decision(
             frontier,
             &format!("policy auto-admit: {finding_id}"),
@@ -563,7 +623,7 @@ fn cmd_gate_auto_admit(frontier: &Path, finding_id: &str, apply: bool, json_outp
             &crate::config::git_publish::PublishOptions::new(false, false),
         );
     }
-    if !would_admit {
+    if !v.would_admit {
         std::process::exit(1);
     }
 }
@@ -2548,6 +2608,98 @@ fn cmd_gate_backfill(frontier: &Path, reviewer: &str, dry_run: bool, json_output
 /// `gate backfill` to make their witnesses cloneable). Idempotent on content
 /// hash, and `targets.json` is the consent gate: a witness with no mapping is
 /// skipped, not registered.
+/// Deposit ONE frozen-verifier witness as a content-addressed, verifier-tagged
+/// artifact bound to `target_finding`. This IS the witness↔finding binding the
+/// exact-lane floor reads: `reproduce_finding_witness` matches an artifact by its
+/// `target_findings` + the `verifier` metadata tag + content hash, and never
+/// reads any `targets.json` map. `vela submit` calls this directly with the
+/// finding id it just landed, so there is no external consent file to maintain.
+/// Idempotent — a re-deposit of the same bytes is `Ok(false)` (already present).
+pub(crate) fn register_witness_artifact(
+    frontier: &Path,
+    witness_bytes: &[u8],
+    witness_kind: &str,
+    fname: &str,
+    target_finding: &str,
+    deposited_by: &str,
+) -> Result<bool, String> {
+    use sha2::{Digest, Sha256};
+    use std::collections::BTreeMap;
+
+    let hash_hex = hex::encode(Sha256::digest(witness_bytes));
+    let content_hash = format!("sha256:{hash_hex}");
+
+    let blob_rel = format!(".vela/artifact-blobs/sha256/{hash_hex}");
+    let blob_abs = frontier.join(&blob_rel);
+    if !blob_abs.exists() {
+        if let Some(parent) = blob_abs.parent() {
+            std::fs::create_dir_all(parent).map_err(|e| format!("create blob dir: {e}"))?;
+        }
+        std::fs::write(&blob_abs, witness_bytes)
+            .map_err(|e| format!("write blob {blob_rel}: {e}"))?;
+    }
+
+    let stem = fname.trim_end_matches(".witness.json");
+    let name = format!("Frozen-verifier witness: {stem} ({witness_kind})");
+    let mut metadata: BTreeMap<String, Value> = BTreeMap::new();
+    metadata.insert(
+        "verifier".to_string(),
+        Value::String(format!("vela-verify::{witness_kind}")),
+    );
+    metadata.insert(
+        "witness_kind".to_string(),
+        Value::String(witness_kind.to_string()),
+    );
+    metadata.insert("witness_file".to_string(), Value::String(fname.to_string()));
+
+    let provenance = bundle::Provenance {
+        source_type: "data_release".to_string(),
+        doi: None,
+        url: None,
+        title: name.clone(),
+        authors: Vec::new(),
+        year: None,
+        license: Some("CC-BY-4.0".to_string()),
+        publisher: None,
+        funders: Vec::new(),
+        extraction: bundle::Extraction::default(),
+        review: None,
+        contributions: Vec::new(),
+    };
+    let id =
+        bundle::Artifact::content_address("dataset", &name, &content_hash, None, Some(&blob_rel));
+    let artifact = bundle::Artifact {
+        id,
+        kind: "dataset".into(),
+        name,
+        content_hash,
+        size_bytes: Some(witness_bytes.len() as u64),
+        media_type: Some("application/json".to_string()),
+        storage_mode: "local_blob".to_string(),
+        locator: Some(blob_rel),
+        source_url: None,
+        license: Some("CC-BY-4.0".to_string()),
+        target_findings: vec![target_finding.to_string()],
+        source_id: None,
+        provenance,
+        metadata,
+        review_state: None,
+        retracted: false,
+        access_tier: vela_protocol::access_tier::AccessTier::default(),
+        created: chrono::Utc::now().to_rfc3339(),
+    };
+    match vela_protocol::state::add_artifact(
+        frontier,
+        artifact,
+        deposited_by,
+        "register frozen-verifier witness (intrinsic finding binding)",
+    ) {
+        Ok(_) => Ok(true),
+        Err(e) if e.contains("duplicate") => Ok(false),
+        Err(e) => Err(format!("register witness {fname}: {e}")),
+    }
+}
+
 pub(crate) fn register_canonical_witnesses(
     frontier: &Path,
     deposited_by: &str,
@@ -2605,82 +2757,236 @@ pub(crate) fn register_canonical_witnesses(
             continue;
         }
 
-        // Deposit the content-addressed blob if absent.
-        let blob_rel = format!(".vela/artifact-blobs/sha256/{hash_hex}");
-        let blob_abs = frontier.join(&blob_rel);
-        if !blob_abs.exists() {
-            if let Some(parent) = blob_abs.parent() {
-                std::fs::create_dir_all(parent)
-                    .unwrap_or_else(|e| fail_return(&format!("create blob dir: {e}")));
-            }
-            std::fs::write(&blob_abs, &bytes)
-                .unwrap_or_else(|e| fail_return(&format!("write blob {blob_rel}: {e}")));
-        }
-
-        let stem = fname.trim_end_matches(".witness.json");
-        let name = format!("Frozen-verifier witness: {stem} ({kind})");
-        let mut metadata: BTreeMap<String, Value> = BTreeMap::new();
-        metadata.insert(
-            "verifier".to_string(),
-            Value::String(format!("vela-verify::{kind}")),
-        );
-        metadata.insert("witness_kind".to_string(), Value::String(kind.clone()));
-        metadata.insert("witness_file".to_string(), Value::String(fname.clone()));
-
-        let provenance = bundle::Provenance {
-            source_type: "data_release".to_string(),
-            doi: None,
-            url: None,
-            title: name.clone(),
-            authors: Vec::new(),
-            year: None,
-            license: Some("CC-BY-4.0".to_string()),
-            publisher: None,
-            funders: Vec::new(),
-            extraction: bundle::Extraction::default(),
-            review: None,
-            contributions: Vec::new(),
-        };
-
-        let id = bundle::Artifact::content_address(
-            "dataset",
-            &name,
-            &content_hash,
-            None,
-            Some(&blob_rel),
-        );
-        let artifact = bundle::Artifact {
-            id,
-            kind: "dataset".into(),
-            name,
-            content_hash,
-            size_bytes: Some(bytes.len() as u64),
-            media_type: Some("application/json".to_string()),
-            storage_mode: "local_blob".to_string(),
-            locator: Some(blob_rel),
-            source_url: None,
-            license: Some("CC-BY-4.0".to_string()),
-            target_findings: vec![target.clone()],
-            source_id: None,
-            provenance,
-            metadata,
-            review_state: None,
-            retracted: false,
-            access_tier: vela_protocol::access_tier::AccessTier::default(),
-            created: chrono::Utc::now().to_rfc3339(),
-        };
-        match vela_protocol::state::add_artifact(
-            frontier,
-            artifact,
-            deposited_by,
-            "register canonical frozen-verifier witness for gate backfill",
-        ) {
-            Ok(_) => registered += 1,
-            Err(e) if e.contains("duplicate") => {}
-            Err(e) => fail_return(&format!("register witness {fname}: {e}")),
+        match register_witness_artifact(frontier, &bytes, &kind, &fname, target, deposited_by) {
+            Ok(true) => registered += 1,
+            Ok(false) => {}
+            Err(e) => fail_return(&e),
         }
     }
     (registered, no_target)
+}
+
+/// `vela submit <witness>` — the whole producer path in one transactional verb:
+/// frozen-verify the witness, land it (locally), bind the witness to the finding
+/// intrinsically (no `targets.json`), fire the exact lane to `machine_verified`,
+/// materialize the derived views LAST so `vela.lock` is never stale, and publish
+/// once (only with `--push`). Replaces the bespoke producer scripts: one command,
+/// no hand-run gate steps, no consent map.
+pub(crate) fn cmd_submit(
+    frontier: &Path,
+    witness_path: &Path,
+    actor: &str,
+    push: bool,
+    dry_run: bool,
+    json_output: bool,
+) {
+    crate::ui::set_mode("submit", json_output);
+
+    // Read + frozen-parse the witness.
+    let bytes = std::fs::read(witness_path)
+        .unwrap_or_else(|e| fail_return(&format!("read {}: {e}", witness_path.display())));
+    let raw = String::from_utf8_lossy(&bytes).to_string();
+    let witness = crate::cli::records::parse_witness(&raw)
+        .unwrap_or_else(|e| fail_return(&format!("not a valid witness: {e}")));
+    let kind = witness.kind().to_string();
+
+    // 1. Frozen verifier — fail fast before touching the store.
+    let vr = vela_verify::verify_witness(&witness);
+    if !vr.ok {
+        fail_return::<()>(&format!(
+            "frozen verifier rejected the witness: {}",
+            vr.message
+        ));
+    }
+
+    // Claim + beat preview, from the witness bytes and the current frontier state.
+    let wj: Value = serde_json::from_str(&raw).unwrap_or(Value::Null);
+    let n = wj.get("n").and_then(|v| v.as_i64());
+    let size = wj.get("claimed_size").and_then(|v| v.as_i64()).or_else(|| {
+        wj.get("points")
+            .and_then(|p| p.as_array())
+            .map(|a| a.len() as i64)
+    });
+    let claim = match (n, size) {
+        (Some(n), Some(s)) => format!(
+            "OEIS A309370 a({n}) >= {s}: a Sidon set of {s} distinct binary {n}-vectors with all pairwise sums distinct."
+        ),
+        _ => wj
+            .get("claim")
+            .and_then(|c| c.as_str())
+            .unwrap_or("frozen-verified witness")
+            .to_string(),
+    };
+    let (best, is_beat) = match (n, size) {
+        (Some(n), Some(s)) => {
+            let source = repo::detect(frontier).unwrap_or_else(|e| fail_return(&e));
+            let proj = repo::load(&source).unwrap_or_else(|e| fail_return(&e));
+            let best = crate::config::cli_policy::best_sidon_bound_for_n(&proj, n, None);
+            (best, best.is_none_or(|b| s > b))
+        }
+        _ => (None, true),
+    };
+
+    let witness_name = {
+        let base = witness_path
+            .file_name()
+            .and_then(|s| s.to_str())
+            .unwrap_or("witness.json");
+        if base.ends_with(".witness.json") {
+            base.to_string()
+        } else {
+            format!(
+                "{kind}-a{}-{}.witness.json",
+                n.unwrap_or(0),
+                size.unwrap_or(0)
+            )
+        }
+    };
+    let witness_sha = {
+        use sha2::{Digest, Sha256};
+        format!("sha256:{}", hex::encode(Sha256::digest(&bytes)))
+    };
+
+    if dry_run {
+        let verdict = match (n, best) {
+            (Some(_), Some(b)) if !is_beat => format!("NOT a beat (current best >= {b})"),
+            (Some(_), Some(b)) => format!("beats the current best {b}"),
+            (Some(_), None) => "new cell — first bound on the record for this n".to_string(),
+            _ => "will land + attempt exact-lane machine_verified".to_string(),
+        };
+        if json_output {
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&json!({
+                    "ok": true, "command": "submit", "dry_run": true,
+                    "claim": claim, "kind": kind, "n": n, "size": size,
+                    "beats": {"previous_best": best, "is_beat": is_beat},
+                    "witness_sha256": witness_sha, "applied": false,
+                }))
+                .unwrap()
+            );
+        } else {
+            crate::ui::header("SUBMIT", "--dry-run: writing nothing", None);
+            println!("  witness      ok (frozen verifier: {})", vr.message);
+            println!("  claim        {claim}");
+            println!("  beat check   {verdict}");
+            println!(
+                "  would        land -> register witness -> exact-lane auto-admit -> materialize"
+            );
+            println!(
+                "  publish      {}",
+                if push {
+                    "git push"
+                } else {
+                    "local only (push with --push)"
+                }
+            );
+        }
+        return;
+    }
+
+    // 2. Land (local; the transaction publishes ONCE at the end, not per step).
+    let receipt: crate::workflow::Receipt = serde_json::from_value(json!({
+        "schema": crate::workflow::RECEIPT_SCHEMA,
+        "claim": claim,
+        "artifacts": [{"path": witness_path.display().to_string(), "kind": kind}],
+        "caveats": ["Admission to the log is machine_verified by the frozen verifier, not a human accept."],
+    }))
+    .unwrap_or_else(|e| fail_return(&format!("receipt build: {e}")));
+
+    let outcome = crate::workflow::land(frontier, &receipt, actor)
+        .unwrap_or_else(|e| fail_return(&format!("land: {e}")));
+    let vpr = outcome.proposal_id.clone();
+    let vf = match &outcome.route {
+        crate::workflow::LandRoute::AlreadyLanded { finding_id } => finding_id.clone(),
+        _ => {
+            let pp = frontier
+                .join(".vela")
+                .join("proposals")
+                .join(format!("{vpr}.json"));
+            let pj: Value = std::fs::read_to_string(&pp)
+                .ok()
+                .and_then(|s| serde_json::from_str(&s).ok())
+                .unwrap_or(Value::Null);
+            pj.get("target")
+                .and_then(|t| t.get("id"))
+                .and_then(|i| i.as_str())
+                .unwrap_or_else(|| fail_return(&format!("proposal {vpr} has no target finding")))
+                .to_string()
+        }
+    };
+
+    // 3. Stage the witness + bind it to the finding INTRINSICALLY (no targets.json).
+    let wdir = frontier.join("witnesses");
+    let _ = std::fs::create_dir_all(&wdir);
+    let _ = std::fs::write(wdir.join(&witness_name), &bytes);
+    register_witness_artifact(frontier, &bytes, &kind, &witness_name, &vf, actor)
+        .unwrap_or_else(|e| fail_return(&format!("register witness: {e}")));
+
+    // 4. Fire the exact lane (frozen re-run + claim<->witness bind). No publish here.
+    let verdict = gate_auto_admit_core(frontier, &vf, true)
+        .unwrap_or_else(|e| fail_return(&format!("auto-admit: {e}")));
+
+    // 5. Materialize LAST (derived views reflect the full log), then publish ONCE.
+    vela_protocol::frontier_repo::materialize(frontier)
+        .unwrap_or_else(|e| fail_return(&format!("materialize: {e}")));
+    let opts = if push {
+        crate::config::git_publish::PublishOptions::pushing()
+    } else {
+        crate::config::git_publish::PublishOptions::new(false, false)
+    };
+    crate::config::git_publish::publish_decision(frontier, "submit", &[vpr.clone()], &opts);
+
+    // 6. Receipt.
+    let machine_verified = verdict.would_admit;
+    if json_output {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&json!({
+                "ok": true, "command": "submit",
+                "claim": verdict.canonical_claim.clone().unwrap_or(claim),
+                "kind": kind, "n": n, "size": size,
+                "finding_id": vf, "proposal_id": vpr,
+                "machine_verified": machine_verified,
+                "beats": {"previous_best": best, "is_beat": is_beat},
+                "witness_sha256": witness_sha,
+                "published": push,
+                "next": if push { "published — open a PR" } else { "git push (or re-run with --push) to publish, then open a PR" },
+            }))
+            .unwrap()
+        );
+    } else {
+        crate::ui::header("SUBMIT", &vf, None);
+        println!("  landed       {vf} (proposal {vpr}, as {actor})");
+        if let Some(c) = &verdict.canonical_claim {
+            println!("  verified     {c}");
+        }
+        println!(
+            "  machine_verified: {}",
+            if machine_verified {
+                "YES (frozen verifier)"
+            } else {
+                "NO — held; a maintainer reviews"
+            }
+        );
+        match (n, best) {
+            (Some(_), Some(b)) if is_beat => println!("  beats the current best {b}"),
+            (Some(_), Some(b)) => println!("  not a beat (current best >= {b})"),
+            (Some(_), None) => println!("  new cell on the record"),
+            _ => {}
+        }
+        println!(
+            "  {}",
+            if push {
+                "published (pushed) — open a PR"
+            } else {
+                "committed locally — git push (or --push) to publish, then open a PR"
+            }
+        );
+    }
+    if !machine_verified {
+        std::process::exit(1);
+    }
 }
 
 pub(crate) fn cmd_reproduce(path: &Path, json_output: bool) {

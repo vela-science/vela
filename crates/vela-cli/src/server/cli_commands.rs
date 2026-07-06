@@ -482,6 +482,26 @@ pub(crate) enum Commands {
         json: bool,
     },
 
+    /// Submit a frozen-verified witness in ONE step: verify it, land it, bind it
+    /// to its finding, drive the exact lane to `machine_verified`, and
+    /// materialize. The producer path — no scripts, no manual gate steps.
+    Submit {
+        /// Path to the witness JSON.
+        witness: PathBuf,
+        #[arg(long)]
+        frontier: Option<PathBuf>,
+        #[arg(long, help = HELP_AS)]
+        r#as: Option<String>,
+        /// Publish now: commit locally AND push. Default: commit locally only.
+        #[arg(long)]
+        push: bool,
+        /// Verify + preview the whole submission; write nothing.
+        #[arg(long)]
+        dry_run: bool,
+        #[arg(long)]
+        json: bool,
+    },
+
     /// Plain configuration: how YOUR tools behave — never what enters
     /// the record (that is `vela policy`) or who you are (`vela id`).
     /// A closed, validated key set with visible origins; frontier scope
