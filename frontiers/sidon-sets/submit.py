@@ -291,6 +291,15 @@ def main():
     fired = ("machine_verified" in aa_out) and re.search(r"auto-admit.*:\s*YES", aa_out) is not None
     print("\n  " + aa_out.replace("\n", "\n  "))
 
+    # ── 8b. reconcile the derived views with the FINAL event log ─────────
+    # `land` materializes frontier.json/proof/vela.lock at land time, but
+    # backfill and auto-admit append more events afterward. Without this final
+    # materialize the committed vela.lock snapshot_hash is stale, and CI's
+    # parity gate (the shared vela action) rejects the PR because the working
+    # tree no longer reproduces from its own event log. Refresh so it does.
+    subprocess.run([args.vela, "frontier", "materialize", frontier],
+                   capture_output=True, text=True)
+
     # ── 9. emit a citable receipt ────────────────────────────────────────
     receipt = {
         "ok": True,
