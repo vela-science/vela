@@ -623,6 +623,7 @@ pub(crate) mod reverse_dep_index_tests {
             funders: vec![],
             extraction: Extraction::default(),
             review: None,
+            contributions: Vec::new(),
         };
         let flags = Flags::default();
         let mut bundle = FindingBundle::new(
@@ -909,6 +910,7 @@ mod tests {
                 funders: vec![],
                 extraction: Extraction::default(),
                 review: None,
+                contributions: Vec::new(),
             },
             flags: Flags {
                 gap,

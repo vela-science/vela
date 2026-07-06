@@ -165,6 +165,7 @@ fn make_finding(frontier_idx: usize, finding_idx: usize) -> FindingBundle {
         funders: vec![],
         extraction: Extraction::default(),
         review: None,
+        contributions: Vec::new(),
     };
     let flags = Flags {
         gap: false,
@@ -222,6 +223,7 @@ fn synthetic_id(frontier_idx: usize, finding_idx: usize) -> String {
         funders: vec![],
         extraction: Extraction::default(),
         review: None,
+        contributions: Vec::new(),
     };
     FindingBundle::content_address(&assertion, &provenance)
 }
@@ -453,6 +455,31 @@ fn build_annotations_log(
             timestamp: None,
         }));
     }
+    // Record a claim-granularity attribution on the first finding: a model
+    // originated one unit. Descriptive provenance — exercises the
+    // finding.contribution.recorded reducer arm.
+    if let Some(first) = findings.first() {
+        log.push(events::new_finding_event(FindingEventInput {
+            kind: "finding.contribution.recorded",
+            finding_id: &first.id,
+            actor_id: &actor_id,
+            actor_type: "human",
+            reason: "contribution coverage",
+            before_hash: NULL_HASH,
+            after_hash: NULL_HASH,
+            payload: json!({
+                "contribution": {
+                    "unit": "lemma-1",
+                    "unit_type": "step",
+                    "agent_kind": "model",
+                    "agent_id": "test/model",
+                    "role": "originated",
+                }
+            }),
+            caveats: vec![],
+            timestamp: None,
+        }));
+    }
     log
 }
 
@@ -491,6 +518,7 @@ fn build_artifacts_log(frontier_idx: usize, findings: &[FindingBundle]) -> Vec<e
         funders: vec![],
         extraction: Extraction::default(),
         review: None,
+        contributions: Vec::new(),
     };
 
     let mut metadata = BTreeMap::new();

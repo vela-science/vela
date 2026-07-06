@@ -4,6 +4,7 @@
 pub mod atlas;
 pub mod boundary;
 pub mod contradiction;
+pub mod credit;
 pub mod diff;
 pub mod diff_pack_review;
 pub mod evidence_ci;

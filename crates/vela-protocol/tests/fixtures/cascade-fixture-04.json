@@ -397,6 +397,33 @@
         "type": "finding"
       },
       "timestamp": "2026-05-02T04:00:16Z"
+    },
+    {
+      "actor": {
+        "id": "reviewer:annotations-4",
+        "type": "human"
+      },
+      "after_hash": "sha256:null",
+      "before_hash": "sha256:null",
+      "caveats": [],
+      "id": "vev_f32f25b937a2beaa",
+      "kind": "finding.contribution.recorded",
+      "payload": {
+        "contribution": {
+          "agent_id": "test/model",
+          "agent_kind": "model",
+          "role": "originated",
+          "unit": "lemma-1",
+          "unit_type": "step"
+        }
+      },
+      "reason": "contribution coverage",
+      "schema": "vela.event.v0.1",
+      "target": {
+        "id": "vf_dfb7c52c859a3bf7",
+        "type": "finding"
+      },
+      "timestamp": "2026-05-02T04:00:17Z"
     }
   ],
   "expected_artifacts": [],
@@ -1123,11 +1150,12 @@
   "stats": {
     "artifacts": 0,
     "cascade_depth": 0,
-    "events": 17,
+    "events": 18,
     "findings": 8,
     "kinds_seen": {
       "finding.asserted": 8,
       "finding.caveated": 4,
+      "finding.contribution.recorded": 1,
       "finding.noted": 4,
       "finding.rejected": 1
     }

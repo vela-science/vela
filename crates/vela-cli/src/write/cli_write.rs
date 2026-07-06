@@ -381,6 +381,103 @@ pub(crate) fn cmd_finding_review(
     print_state_report(&report, json);
 }
 
+/// Record a claim-granularity attribution on a finding. Parses the string
+/// enum args and calls `state::record_contribution` (descriptive provenance,
+/// agent-draftable; `vouched` must be a human).
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn cmd_finding_contribution(
+    frontier: PathBuf,
+    finding_id: String,
+    unit: String,
+    unit_type: String,
+    agent_kind: String,
+    agent_id: String,
+    model: Option<String>,
+    model_version: Option<String>,
+    role: String,
+    basis: String,
+    actor: String,
+    apply: bool,
+    json_out: bool,
+) {
+    use vela_protocol::bundle::{AgentKind, Contribution, ContributionRole, ContributionUnitType};
+    let unit_type: ContributionUnitType =
+        serde_json::from_value(json!(unit_type)).unwrap_or_else(|_| {
+            fail_return("invalid --unit-type (evidence_span | lean_decl | step | whole)")
+        });
+    let agent_kind: AgentKind = serde_json::from_value(json!(agent_kind))
+        .unwrap_or_else(|_| fail_return("invalid --agent-kind (human | agent | model)"));
+    let role: ContributionRole = serde_json::from_value(json!(role)).unwrap_or_else(|_| {
+        fail_return(
+            "invalid --role (originated | derived | formalized | extracted | reviewed | vouched)",
+        )
+    });
+    let contribution = Contribution {
+        unit,
+        unit_type,
+        agent_kind,
+        agent_id,
+        model,
+        model_version,
+        role,
+        basis,
+    };
+    let report = vela_protocol::state::record_contribution(
+        &frontier,
+        &finding_id,
+        contribution,
+        &actor,
+        apply,
+    )
+    .unwrap_or_else(|e| fail_return(&e));
+    print_state_report(&report, json_out);
+}
+
+/// The derived credit view for a finding (read-only projection). Renders the
+/// accountable human author(s) of record, the disclosed contributors, and the
+/// originating agents. A machine never appears as an author.
+pub(crate) fn cmd_credit(frontier: &Path, finding_id: &str, json_out: bool) {
+    let source = repo::detect(frontier).unwrap_or_else(|e| fail_return(&e));
+    let proj = repo::load(&source).unwrap_or_else(|e| fail_return(&e));
+    let view = vela_protocol::credit::credit(&proj, finding_id)
+        .unwrap_or_else(|| fail_return(&format!("no such finding: {finding_id}")));
+    if json_out {
+        print_json(&json!({
+            "command": "credit",
+            "schema": "vela.credit.v0.1",
+            "credit": view,
+        }));
+        return;
+    }
+    println!("credit · {finding_id}");
+    if view.author_of_record.is_empty() {
+        println!("  author of record: (none — no accountable author yet)");
+    } else {
+        println!("  author of record: {}", view.author_of_record.join(", "));
+    }
+    if view.contributors.is_empty() {
+        println!("  contributors:     (none recorded)");
+    } else {
+        println!("  contributors:");
+        for c in &view.contributors {
+            println!(
+                "    {} [{}] {} — {}",
+                c.agent_id, c.agent_kind, c.role, c.unit
+            );
+        }
+    }
+    if !view.originating_agents.is_empty() {
+        println!("  originating agents (disclosed, not authors):");
+        for c in &view.originating_agents {
+            println!(
+                "    {} [{}] originated {}",
+                c.agent_id, c.agent_kind, c.unit
+            );
+        }
+    }
+    println!("  {}", view.statement);
+}
+
 pub(crate) fn cmd_finding_retract(
     source: PathBuf,
     finding_id: String,

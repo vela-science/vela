@@ -242,6 +242,52 @@ function applyFindingRetracted(state: Finding[], event: Event): void {
   _ensureFlags(f).retracted = true;
 }
 
+// Mirror of reducer.rs::apply_finding_contribution_recorded. Appends a
+// claim-granularity attribution to provenance.contributions, idempotent on
+// (unit, agent_id, role). Normalizes to Rust's serialized shape so the
+// canonical snapshot hash matches: model/model_version drop when null,
+// basis drops when empty (serde skip_serializing_if).
+function applyFindingContributionRecorded(state: Finding[], event: Event): void {
+  const findingId = event.target?.id ?? "";
+  const f = _findFinding(state, findingId);
+  if (!f) {
+    throw new Error(
+      `finding.contribution.recorded targets unknown finding ${findingId}`,
+    );
+  }
+  const raw = event.payload?.contribution;
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    throw new Error("finding.contribution.recorded missing payload.contribution");
+  }
+  const src = raw as { [k: string]: Json };
+  const c: { [k: string]: Json } = {
+    unit: src.unit,
+    unit_type: src.unit_type,
+    agent_kind: src.agent_kind,
+    agent_id: src.agent_id,
+    role: src.role,
+  };
+  if (src.model != null) c.model = src.model;
+  if (src.model_version != null) c.model_version = src.model_version;
+  if (typeof src.basis === "string" && src.basis.length > 0) c.basis = src.basis;
+
+  if (
+    f.provenance == null ||
+    typeof f.provenance !== "object" ||
+    Array.isArray(f.provenance)
+  ) {
+    f.provenance = {};
+  }
+  const prov = f.provenance as { [k: string]: Json };
+  if (!Array.isArray(prov.contributions)) prov.contributions = [];
+  const list = prov.contributions as Json[];
+  const dup = list.some((x) => {
+    const o = x as { [k: string]: Json };
+    return o.unit === c.unit && o.agent_id === c.agent_id && o.role === c.role;
+  });
+  if (!dup) list.push(c);
+}
+
 // Mirror of reducer.rs::apply_finding_dependency_invalidated.
 // Sets contested=true and appends a deterministic annotation whose
 // id encodes the upstream cascade event and the depth.
@@ -406,6 +452,8 @@ function applyEvent(state: ReducerState, event: Event): void {
     applyFindingRejected(state.findings, event);
   else if (kind === "finding.retracted")
     applyFindingRetracted(state.findings, event);
+  else if (kind === "finding.contribution.recorded")
+    applyFindingContributionRecorded(state.findings, event);
   else if (kind === "finding.dependency_invalidated")
     applyFindingDependencyInvalidated(state.findings, event);
   else if (kind === "artifact.asserted")

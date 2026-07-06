@@ -196,6 +196,54 @@ def apply_finding_retracted(state: list[dict], event: dict) -> None:
     _ensure_flags(f)["retracted"] = True
 
 
+def apply_finding_contribution_recorded(state: list[dict], event: dict) -> None:
+    """Mirror of reducer.rs::apply_finding_contribution_recorded. Appends a
+    claim-granularity attribution to provenance.contributions, idempotent on
+    (unit, agent_id, role). Normalizes to Rust's serialized shape so the
+    canonical snapshot hash matches: model/model_version drop when null,
+    basis drops when empty (serde skip_serializing_if)."""
+    finding_id = event.get("target", {}).get("id")
+    f = _find_finding(state, finding_id)
+    if f is None:
+        raise ValueError(
+            f"finding.contribution.recorded targets unknown finding {finding_id}"
+        )
+    src = (event.get("payload") or {}).get("contribution")
+    if not isinstance(src, dict):
+        raise ValueError("finding.contribution.recorded missing payload.contribution")
+    c: dict = {
+        "unit": src.get("unit"),
+        "unit_type": src.get("unit_type"),
+        "agent_kind": src.get("agent_kind"),
+        "agent_id": src.get("agent_id"),
+        "role": src.get("role"),
+    }
+    if src.get("model") is not None:
+        c["model"] = src["model"]
+    if src.get("model_version") is not None:
+        c["model_version"] = src["model_version"]
+    if isinstance(src.get("basis"), str) and src["basis"]:
+        c["basis"] = src["basis"]
+
+    prov = f.get("provenance")
+    if not isinstance(prov, dict):
+        prov = {}
+        f["provenance"] = prov
+    contributions = prov.get("contributions")
+    if not isinstance(contributions, list):
+        contributions = []
+        prov["contributions"] = contributions
+    dup = any(
+        x.get("unit") == c["unit"]
+        and x.get("agent_id") == c["agent_id"]
+        and x.get("role") == c["role"]
+        for x in contributions
+        if isinstance(x, dict)
+    )
+    if not dup:
+        contributions.append(c)
+
+
 def apply_finding_dependency_invalidated(state: list[dict], event: dict) -> None:
     """Mirror of reducer.rs::apply_finding_dependency_invalidated.
     Sets contested=true and appends a deterministic annotation whose
@@ -404,6 +452,8 @@ def apply_event(state: dict, event: dict) -> None:
         apply_finding_rejected(state["findings"], event)
     elif kind == "finding.retracted":
         apply_finding_retracted(state["findings"], event)
+    elif kind == "finding.contribution.recorded":
+        apply_finding_contribution_recorded(state["findings"], event)
     elif kind == "finding.dependency_invalidated":
         apply_finding_dependency_invalidated(state["findings"], event)
     elif kind == "artifact.asserted":

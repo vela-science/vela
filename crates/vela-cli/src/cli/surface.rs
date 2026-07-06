@@ -124,7 +124,8 @@ Publish (git push IS publication):
                 verify-chain, verify-log
 
 Nouns (run `vela <noun> --help`):
-  finding       The core primitive: add/show/supersede/note/caveat/revise/reject/retract/link
+  finding       The core primitive: add/show/supersede/note/caveat/revise/
+                review/reject/retract/contribution/link
   frontier      Repo-level: new/materialize/add-dep/list-deps/diff/release/audit
   proposals     The full proposal store: list/show/preview/import/validate/export/
                 accept/reject
@@ -134,6 +135,8 @@ Nouns (run `vela <noun> --help`):
 Projections (read-only):
   state         Claim-state cell, trust vector, packs, evidence diff, anchors
   atlas         Cross-frontier math atlas projections
+  credit        Derived attribution for a finding: accountable authors,
+                contributors, originating agents (a machine is never an author)
 
 Off-menu (reachable, intentionally undocumented here): {}
 "#,

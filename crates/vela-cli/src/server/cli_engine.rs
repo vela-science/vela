@@ -2639,6 +2639,7 @@ pub(crate) fn register_canonical_witnesses(
             funders: Vec::new(),
             extraction: bundle::Extraction::default(),
             review: None,
+            contributions: Vec::new(),
         };
 
         let id = bundle::Artifact::content_address(

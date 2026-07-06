@@ -898,6 +898,7 @@ mod tests {
                 extractor_version: "vela/0.2.0".to_string(),
             },
             review: None,
+            contributions: Vec::new(),
         };
         let mut finding = FindingBundle::new(
             assertion,

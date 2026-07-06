@@ -1576,6 +1576,15 @@ fn validate_proposal_shape(frontier: &Project, proposal: &StateProposal) -> Resu
         "finding.reject" => {
             require_existing_finding(frontier, &proposal.target.id)?;
         }
+        "finding.contribution.recorded" => {
+            require_existing_finding(frontier, &proposal.target.id)?;
+            let contribution: crate::bundle::Contribution =
+                serde_json::from_value(proposal.payload.get("contribution").cloned().ok_or(
+                    "finding.contribution.recorded proposal missing payload.contribution",
+                )?)
+                .map_err(|e| format!("malformed contribution: {e}"))?;
+            contribution.validate()?;
+        }
         "finding.retract" => {
             let idx = require_existing_finding(frontier, &proposal.target.id)?;
             if frontier.findings[idx].flags.retracted {
@@ -1956,6 +1965,14 @@ fn validate_standalone_proposal(
                 );
             }
         }
+        "finding.contribution.recorded" => {
+            let contribution: crate::bundle::Contribution =
+                serde_json::from_value(proposal.payload.get("contribution").cloned().ok_or(
+                    "finding.contribution.recorded proposal missing payload.contribution",
+                )?)
+                .map_err(|e| format!("malformed contribution: {e}"))?;
+            contribution.validate()?;
+        }
         "research_trace.review" => {
             validate_research_trace_review_payload(proposal)?;
         }
@@ -2156,14 +2173,20 @@ const TRUSTED_REPLICATOR_KINDS: &[&str] = &["finding.add", "finding.review"];
 /// rather than by a privileged actor.
 const TRUSTED_REPAIR_KINDS: &[&str] = &["finding.span_repair", "evidence_atom.locator_repair"];
 
-/// Non-truth-bearing provenance kinds any agent may self-apply:
-/// content-addressed artifact registration. These *store content* — they
-/// assert no scientific claim about the world, and a content-addressed
-/// artifact cannot misrepresent (its id is the hash of its bytes). They
-/// fall outside the human-gated truth boundary, so a fleet need not block
-/// on a human to store what it produced. Anything truth-bearing (a claim
-/// about the world, including a null result) stays gated.
-const AGENT_SELF_APPLIABLE_PROCESS_KINDS: &[&str] = &["artifact.assert", "artifact.add"];
+/// Non-truth-bearing provenance kinds any agent may self-apply: content-addressed
+/// artifact registration, and claim-granularity attribution
+/// (`finding.contribution.recorded`). These assert no scientific claim about the
+/// world — an artifact stores bytes, and a contribution records *who produced
+/// what*, disclosed and never conferring trust (the reducer ignores it, the gate
+/// never reads it, and the credit view keeps a machine out of `author_of_record`
+/// regardless). They fall outside the human-gated truth boundary, so a fleet need
+/// not block on a human. Anything truth-bearing (a claim about the world,
+/// including a null result) stays gated.
+const AGENT_SELF_APPLIABLE_PROCESS_KINDS: &[&str] = &[
+    "artifact.assert",
+    "artifact.add",
+    "finding.contribution.recorded",
+];
 
 /// Pure, deterministic check over a proposal payload's
 /// `replication_attestation` object. Returns true only when the recorded
@@ -2845,6 +2868,9 @@ pub(crate) fn apply_proposal(
         "finding.caveat" => apply_caveat(frontier, proposal, reviewer, decision_reason)?,
         "finding.note" => apply_note(frontier, proposal, reviewer, decision_reason)?,
         "finding.reject" => apply_reject(frontier, proposal, reviewer, decision_reason)?,
+        "finding.contribution.recorded" => {
+            apply_contribution(frontier, proposal, reviewer, decision_reason)?
+        }
         "finding.supersede" => apply_supersede(frontier, proposal, reviewer, decision_reason)?,
         "artifact.assert" => apply_artifact_assert(frontier, proposal, reviewer, decision_reason)?,
         "verifier.attach" => apply_verifier_attach(frontier, proposal, reviewer, decision_reason)?,
@@ -3256,6 +3282,55 @@ fn apply_review(
             "status": status,
             "proposal_id": proposal.id,
         }),
+        caveats: proposal.caveats.clone(),
+        timestamp: None,
+    }))
+}
+
+/// Append a claim-granularity attribution to a finding's provenance. Descriptive
+/// only: no flag, no confidence, no review state. Idempotent — a contribution
+/// already present (same unit + agent + role) is not re-added.
+fn apply_contribution(
+    frontier: &mut Project,
+    proposal: &StateProposal,
+    reviewer: &str,
+    _decision_reason: &str,
+) -> Result<StateEvent, String> {
+    let finding_id = proposal.target.id.as_str();
+    let idx = find_finding_index(frontier, finding_id)?;
+    let contribution: crate::bundle::Contribution = serde_json::from_value(
+        proposal
+            .payload
+            .get("contribution")
+            .cloned()
+            .ok_or("finding.contribution.recorded proposal missing payload.contribution")?,
+    )
+    .map_err(|e| format!("malformed contribution: {e}"))?;
+    contribution.validate()?;
+    let before_hash = events::finding_hash(&frontier.findings[idx]);
+    let existing = &mut frontier.findings[idx].provenance.contributions;
+    if !existing.iter().any(|c| {
+        c.unit == contribution.unit
+            && c.agent_id == contribution.agent_id
+            && c.role == contribution.role
+    }) {
+        existing.push(contribution.clone());
+    }
+    let after_hash = events::finding_hash(&frontier.findings[idx]);
+    let payload = json!({
+        "contribution": serde_json::to_value(&contribution)
+            .map_err(|e| format!("serialize contribution: {e}"))?,
+        "proposal_id": proposal.id,
+    });
+    Ok(events::new_finding_event(events::FindingEventInput {
+        kind: "finding.contribution.recorded",
+        finding_id,
+        actor_id: reviewer,
+        actor_type: events::actor_kind(reviewer),
+        reason: &proposal.reason,
+        before_hash: &before_hash,
+        after_hash: &after_hash,
+        payload,
         caveats: proposal.caveats.clone(),
         timestamp: None,
     }))

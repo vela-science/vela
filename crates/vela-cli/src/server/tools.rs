@@ -2633,6 +2633,7 @@ mod list_dependents_tests {
             funders: vec![],
             extraction: Extraction::default(),
             review: None,
+            contributions: Vec::new(),
         };
         let flags = Flags::default();
         let mut bundle = FindingBundle::new(

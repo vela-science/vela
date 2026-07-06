@@ -109,6 +109,7 @@ fn make_finding(frontier_idx: usize, finding_idx: usize) -> FindingBundle {
         funders: vec![],
         extraction: Extraction::default(),
         review: None,
+        contributions: Vec::new(),
     };
 
     let flags = Flags {
@@ -176,6 +177,7 @@ fn synthetic_finding_id(frontier_idx: usize, finding_idx: usize) -> String {
         funders: vec![],
         extraction: Extraction::default(),
         review: None,
+        contributions: Vec::new(),
     };
     FindingBundle::content_address(&assertion, &provenance)
 }

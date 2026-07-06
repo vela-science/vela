@@ -192,6 +192,7 @@ pub const KNOWN_EVENT_KINDS: &[&str] = &[
     "finding.confidence_revised",
     "finding.rejected",
     "finding.retracted",
+    "finding.contribution.recorded",
     "finding.superseded",
     "finding.dependency_invalidated",
     "finding.span_repaired",
@@ -312,6 +313,7 @@ event_kinds! {
     FindingConfidenceRevised => "finding.confidence_revised",
     FindingRejected => "finding.rejected",
     FindingRetracted => "finding.retracted",
+    FindingContributionRecorded => "finding.contribution.recorded",
     FindingDependencyInvalidated => "finding.dependency_invalidated",
     ArtifactAsserted => "artifact.asserted",
     VerifierAttachmentAdded => "verifier_attachment.added",
@@ -1219,6 +1221,30 @@ pub fn validate_event_payload(kind: &str, payload: &Value) -> Result<(), String>
                     .ok_or("payload.sdk_only_members must be an array when present")?;
             }
         }
+        "finding.contribution.recorded" => {
+            let contribution = object
+                .get("contribution")
+                .and_then(Value::as_object)
+                .ok_or("payload.contribution must be a JSON object")?;
+            for field in ["unit", "unit_type", "agent_kind", "agent_id", "role"] {
+                let v = contribution
+                    .get(field)
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| format!("payload.contribution.{field} must be a string"))?;
+                if v.trim().is_empty() {
+                    return Err(format!("payload.contribution.{field} must be non-empty"));
+                }
+            }
+            // The trust invariant, enforced at the wire boundary: `vouched` is a
+            // human role. A model or agent can never vouch.
+            if contribution.get("role").and_then(Value::as_str) == Some("vouched")
+                && contribution.get("agent_kind").and_then(Value::as_str) != Some("human")
+            {
+                return Err(
+                    "payload.contribution: role `vouched` requires agent_kind `human`".to_string(),
+                );
+            }
+        }
         "finding.noted" | "finding.caveated" => {
             require_str("proposal_id")?;
             require_str("annotation_id")?;
@@ -1906,6 +1932,7 @@ mod tests {
                 funders: Vec::new(),
                 extraction: Extraction::default(),
                 review: None,
+                contributions: Vec::new(),
             },
             Flags {
                 gap: false,

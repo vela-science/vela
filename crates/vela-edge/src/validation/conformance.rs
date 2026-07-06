@@ -245,6 +245,7 @@ fn run_retraction_propagation(
                     funders: vec![],
                     extraction: Extraction::default(),
                     review: None,
+                    contributions: Vec::new(),
                 },
                 flags: default_flags(),
                 links,

@@ -71,6 +71,7 @@ fn make_finding(idx: usize) -> FindingBundle {
         funders: vec![],
         extraction: Default::default(),
         review: None,
+        contributions: Vec::new(),
     };
     let evidence = Evidence {
         evidence_type: "experimental".into(),

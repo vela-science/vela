@@ -95,6 +95,7 @@ pub fn build_finding(rec: &SourceRecord, source_tag: &str) -> FindingBundle {
         funders: vec![],
         extraction: Extraction::default(),
         review: None,
+        contributions: Vec::new(),
     };
     let mut bundle = FindingBundle::new(
         assertion,

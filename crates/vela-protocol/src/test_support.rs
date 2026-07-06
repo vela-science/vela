@@ -62,6 +62,7 @@ pub fn make_finding(id: &str, score: f64, assertion_type: &str) -> FindingBundle
             funders: vec![],
             extraction: Extraction::default(),
             review: None,
+            contributions: Vec::new(),
         },
         flags: Flags {
             gap: false,

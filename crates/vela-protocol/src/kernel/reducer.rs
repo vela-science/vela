@@ -67,6 +67,7 @@ pub const REDUCER_MUTATION_KINDS: &[&str] = &[
     "finding.confidence_revised",
     "finding.rejected",
     "finding.retracted",
+    "finding.contribution.recorded",
     "finding.dependency_invalidated",
     // Generic artifacts: protocol files, trial registry records, source
     // files, notebooks, and other byte or pointer commitments.
@@ -165,6 +166,9 @@ pub fn apply_event_indexed(
         EventKind::FindingConfidenceRevised => apply_finding_confidence_revised(state, event, idx),
         EventKind::FindingRejected => apply_finding_rejected(state, event, idx),
         EventKind::FindingRetracted => apply_finding_retracted(state, event, idx),
+        EventKind::FindingContributionRecorded => {
+            apply_finding_contribution_recorded(state, event, idx)
+        }
         // Phase L: per-dependent cascade event. Replay marks the
         // dependent as contested and records the upstream chain in an
         // annotation so a fresh reduce reproduces the post-cascade
@@ -848,6 +852,39 @@ fn apply_finding_retracted(
         .get(id)
         .ok_or_else(|| format!("reducer: finding.retracted targets unknown finding {id}"))?;
     state.findings[idx].flags.retracted = true;
+    Ok(())
+}
+
+/// Append a claim-granularity attribution to a finding's provenance. Purely
+/// descriptive: it touches no flag, no confidence, no review state, and the gate
+/// never reads `contributions[]` as evidence. Idempotent replay — a contribution
+/// already present (same unit + agent + role) is not duplicated.
+fn apply_finding_contribution_recorded(
+    state: &mut Project,
+    event: &StateEvent,
+    index: &mut FindingIndex,
+) -> Result<(), String> {
+    let id = event.target.id.as_str();
+    let idx = *index.get(id).ok_or_else(|| {
+        format!("reducer: finding.contribution.recorded targets unknown finding {id}")
+    })?;
+    let contribution: crate::bundle::Contribution = serde_json::from_value(
+        event
+            .payload
+            .get("contribution")
+            .cloned()
+            .ok_or("reducer: finding.contribution.recorded missing payload.contribution")?,
+    )
+    .map_err(|e| format!("reducer: malformed contribution: {e}"))?;
+    contribution.validate()?;
+    let existing = &mut state.findings[idx].provenance.contributions;
+    if !existing.iter().any(|c| {
+        c.unit == contribution.unit
+            && c.agent_id == contribution.agent_id
+            && c.role == contribution.role
+    }) {
+        existing.push(contribution);
+    }
     Ok(())
 }
 
@@ -1721,6 +1758,7 @@ mod tests {
                 funders: Vec::new(),
                 extraction: crate::bundle::Extraction::default(),
                 review: None,
+                contributions: Vec::new(),
             },
             Flags {
                 gap: false,

@@ -687,6 +687,111 @@ pub struct Author {
     pub orcid: Option<String>,
 }
 
+/// What sub-part of a finding a contribution applies to.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ContributionUnitType {
+    /// An evidence span within a paper finding.
+    EvidenceSpan,
+    /// A Lean declaration name (FC / formal findings).
+    LeanDecl,
+    /// A single step of an argument.
+    Step,
+    /// The whole bundle (the finding-level default).
+    Whole,
+}
+
+/// The kind of actor behind a contribution. A `model` holds no key and can never
+/// be accountable; only a `human` can carry a signature.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AgentKind {
+    Human,
+    Agent,
+    Model,
+}
+
+/// The kind of contribution. Only `vouched` carries trust weight, and it maps to
+/// a human signature — a `model` or `agent` can never be `vouched`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ContributionRole {
+    Originated,
+    Derived,
+    Formalized,
+    Extracted,
+    Reviewed,
+    Vouched,
+}
+
+/// One attribution record at claim granularity: which actor contributed which
+/// unit of a finding, and in what role. Descriptive provenance only — the
+/// reducer never reads it as state, the gate never reads it as evidence, and it
+/// is outside the `vf_` id preimage (adding it does not change the finding id).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Contribution {
+    /// The sub-claim reference: an evidence-span ref, a Lean decl name, or the
+    /// literal `whole` (the current finding-level behaviour).
+    pub unit: String,
+    pub unit_type: ContributionUnitType,
+    pub agent_kind: AgentKind,
+    /// ORCID, agent handle, or model id.
+    pub agent_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub model: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub model_version: Option<String>,
+    pub role: ContributionRole,
+    /// Free text or an evidence-span reference backing the claim.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub basis: String,
+}
+
+impl AgentKind {
+    #[must_use]
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Human => "human",
+            Self::Agent => "agent",
+            Self::Model => "model",
+        }
+    }
+}
+
+impl ContributionRole {
+    #[must_use]
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Originated => "originated",
+            Self::Derived => "derived",
+            Self::Formalized => "formalized",
+            Self::Extracted => "extracted",
+            Self::Reviewed => "reviewed",
+            Self::Vouched => "vouched",
+        }
+    }
+}
+
+impl Contribution {
+    /// The one trust invariant: `vouched` is a human-signature role, so a
+    /// `model` or `agent` can never carry it. Structural, not a verdict.
+    pub fn validate(&self) -> Result<(), String> {
+        if self.role == ContributionRole::Vouched && self.agent_kind != AgentKind::Human {
+            return Err(
+                "a contribution with role `vouched` must be a human (agents and models hold no key)"
+                    .to_string(),
+            );
+        }
+        if self.unit.trim().is_empty() {
+            return Err("contribution `unit` must be non-empty".to_string());
+        }
+        if self.agent_id.trim().is_empty() {
+            return Err("contribution `agent_id` must be non-empty".to_string());
+        }
+        Ok(())
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Provenance {
     #[serde(default = "default_source_type")]
@@ -719,6 +824,13 @@ pub struct Provenance {
     #[serde(default)]
     pub extraction: Extraction,
     pub review: Option<Review>,
+    /// Claim-granularity attribution: which actor originated / derived /
+    /// formalized which unit of this finding. Descriptive provenance, distinct
+    /// from `extraction` (who extracted the whole bundle) and `authors` (the
+    /// source paper's humans). Skipped when empty so pre-existing bundles
+    /// serialise byte-identically, and outside the `vf_` id preimage.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub contributions: Vec<Contribution>,
 }
 
 fn default_source_type() -> String {
@@ -1522,6 +1634,7 @@ mod tests {
             funders: vec![],
             extraction: Extraction::default(),
             review: None,
+            contributions: Vec::new(),
         }
     }
 
@@ -1924,6 +2037,7 @@ mod tests {
             funders: vec![],
             extraction: Extraction::default(),
             review: None,
+            contributions: Vec::new(),
         };
 
         // Different entities, evidence, conditions, confidence -- should NOT matter
@@ -1963,6 +2077,7 @@ mod tests {
             funders: vec![],
             extraction: Extraction::default(),
             review: None,
+            contributions: Vec::new(),
         };
 
         let id1 = FindingBundle::content_address(&assertion1, &prov1);

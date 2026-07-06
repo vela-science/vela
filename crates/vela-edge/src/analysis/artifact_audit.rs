@@ -398,6 +398,7 @@ mod tests {
                     funders: vec![],
                     extraction: test_extraction(),
                     review: None,
+                    contributions: Vec::new(),
                 },
                 BTreeMap::from([("nct_id".to_string(), json!("NCT03887455"))]),
                 AccessTier::Public,
@@ -439,6 +440,7 @@ mod tests {
                     funders: vec![],
                     extraction: test_extraction(),
                     review: None,
+                    contributions: Vec::new(),
                 },
                 BTreeMap::new(),
                 AccessTier::Public,
@@ -489,6 +491,7 @@ mod tests {
                 funders: vec![],
                 extraction: test_extraction(),
                 review: None,
+                contributions: Vec::new(),
             },
             Flags::default(),
         );

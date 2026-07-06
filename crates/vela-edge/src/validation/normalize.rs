@@ -505,6 +505,7 @@ mod tests {
                 funders: vec![],
                 extraction: Extraction::default(),
                 review: None,
+                contributions: Vec::new(),
             },
             flags: Flags {
                 gap: false,

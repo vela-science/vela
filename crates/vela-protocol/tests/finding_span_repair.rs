@@ -43,6 +43,7 @@ fn fixture_finding() -> FindingBundle {
             funders: Vec::new(),
             extraction: Extraction::default(),
             review: None,
+            contributions: Vec::new(),
         },
         Flags {
             gap: false,

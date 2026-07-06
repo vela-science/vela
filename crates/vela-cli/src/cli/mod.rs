@@ -236,6 +236,11 @@ pub async fn run_command() {
         }
 
         Commands::Reproduce { path, json } => cmd_reproduce(&path, json),
+        Commands::Credit {
+            finding_id,
+            frontier,
+            json,
+        } => cmd_credit(&frontier, &finding_id, json),
         Commands::Id { action } => cmd_id(action),
         Commands::Actor { action } => cmd_actor(action),
         Commands::Frontier { action } => cmd_frontier(action),
@@ -631,6 +636,35 @@ pub async fn run_command() {
                 json,
             } => cmd_finding_review(
                 frontier, finding_id, status, reason, confidence, reviewer, apply, json,
+            ),
+            FindingCommands::Contribution {
+                frontier,
+                finding_id,
+                unit,
+                unit_type,
+                agent_kind,
+                agent_id,
+                model,
+                model_version,
+                role,
+                basis,
+                actor,
+                apply,
+                json,
+            } => cmd_finding_contribution(
+                frontier,
+                finding_id,
+                unit,
+                unit_type,
+                agent_kind,
+                agent_id,
+                model,
+                model_version,
+                role,
+                basis,
+                actor,
+                apply,
+                json,
             ),
             FindingCommands::Retract {
                 source,

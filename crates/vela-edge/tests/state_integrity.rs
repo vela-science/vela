@@ -32,6 +32,7 @@ fn finding(id_text: &str) -> FindingBundle {
         funders: Vec::new(),
         extraction: Extraction::default(),
         review: None,
+        contributions: Vec::new(),
     };
     let mut bundle = FindingBundle::new(
         assertion,

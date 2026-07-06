@@ -288,6 +288,60 @@ pub fn revise_confidence(
     })
 }
 
+/// Record a claim-granularity attribution (`finding.contribution.recorded`).
+/// Descriptive provenance only: it never touches confidence, review state, or the
+/// gate. An agent MAY draft it (attribution is not truth-bearing); the one
+/// invariant is that a `vouched` role must be a human, enforced by
+/// `Contribution::validate`.
+pub fn record_contribution(
+    path: &Path,
+    finding_id: &str,
+    contribution: crate::bundle::Contribution,
+    actor: &str,
+    apply: bool,
+) -> Result<StateCommandReport, String> {
+    contribution.validate()?;
+    let actor_type = if actor.trim().to_ascii_lowercase().starts_with("agent:") {
+        "agent"
+    } else {
+        "human"
+    };
+    let payload = json!({
+        "contribution": serde_json::to_value(&contribution)
+            .map_err(|e| format!("serialize contribution: {e}"))?
+    });
+    let proposal = proposals::new_proposal(
+        "finding.contribution.recorded",
+        events::StateTarget {
+            r#type: "finding".to_string(),
+            id: finding_id.to_string(),
+        },
+        actor.to_string(),
+        actor_type,
+        format!("record contribution on unit {}", contribution.unit),
+        payload,
+        Vec::new(),
+        Vec::new(),
+    );
+    let result = proposals::create_or_apply(path, proposal, apply)?;
+    let frontier = repo::load_from_path(path)?;
+    Ok(StateCommandReport {
+        ok: true,
+        command: "contribution".to_string(),
+        frontier: frontier.project.name,
+        finding_id: result.finding_id,
+        proposal_id: result.proposal_id,
+        proposal_status: result.status,
+        applied_event_id: result.applied_event_id,
+        wrote_to: path.display().to_string(),
+        message: if apply {
+            "Contribution recorded".to_string()
+        } else {
+            "Contribution proposal recorded".to_string()
+        },
+    })
+}
+
 pub fn reject_finding(
     path: &Path,
     finding_id: &str,
@@ -1158,6 +1212,7 @@ fn build_finding_bundle(options: &FindingDraftOptions) -> FindingBundle {
             reviewed_at: None,
             corrections: Vec::new(),
         }),
+        contributions: Vec::new(),
     };
     let flags = Flags {
         gap: options.gap,
@@ -1302,6 +1357,7 @@ fn build_add_finding_proposal(options: FindingDraftOptions) -> Result<StatePropo
             reviewed_at: None,
             corrections: Vec::new(),
         }),
+        contributions: Vec::new(),
     };
     let flags = Flags {
         gap: options.gap,
@@ -1675,5 +1731,103 @@ mod v0_38_causal_tests {
             .filter(|e| e.kind == "assertion.reinterpreted_causal")
             .count();
         assert_eq!(causal_events, 2);
+    }
+
+    fn model_contribution(unit: &str) -> crate::bundle::Contribution {
+        crate::bundle::Contribution {
+            unit: unit.to_string(),
+            unit_type: crate::bundle::ContributionUnitType::Step,
+            agent_kind: crate::bundle::AgentKind::Model,
+            agent_id: "openai/o5".to_string(),
+            model: Some("o5".to_string()),
+            model_version: None,
+            role: crate::bundle::ContributionRole::Originated,
+            basis: String::new(),
+        }
+    }
+
+    #[test]
+    fn record_contribution_appends_and_credits_model_but_never_as_author() {
+        let dir = tempdir().unwrap();
+        let path = seed_frontier(dir.path());
+        let finding_id = repo::load_from_path(&path).unwrap().findings[0].id.clone();
+
+        let report = record_contribution(
+            &path,
+            &finding_id,
+            model_contribution("lemma-1"),
+            "agent:drafter",
+            true,
+        )
+        .unwrap();
+        assert!(report.applied_event_id.is_some());
+
+        let after = repo::load_from_path(&path).unwrap();
+        let f = &after.findings[0];
+        assert_eq!(f.provenance.contributions.len(), 1);
+        assert_eq!(f.provenance.contributions[0].agent_id, "openai/o5");
+        let last = after.events.last().expect("an event was appended");
+        assert_eq!(last.kind, "finding.contribution.recorded");
+
+        // The credit projection discloses the model as an originating agent but
+        // never lifts it into author_of_record (no key, no accountable authorship).
+        let view = crate::analysis::credit::credit(&after, &finding_id).unwrap();
+        assert!(
+            view.author_of_record.is_empty(),
+            "a model contribution must not confer authorship: {:?}",
+            view.author_of_record
+        );
+        assert!(
+            view.originating_agents
+                .iter()
+                .any(|c| c.agent_id == "openai/o5"),
+            "the model should be disclosed as an originating agent"
+        );
+    }
+
+    #[test]
+    fn record_contribution_is_idempotent_on_unit_agent_role() {
+        let dir = tempdir().unwrap();
+        let path = seed_frontier(dir.path());
+        let finding_id = repo::load_from_path(&path).unwrap().findings[0].id.clone();
+
+        record_contribution(
+            &path,
+            &finding_id,
+            model_contribution("lemma-1"),
+            "agent:d",
+            true,
+        )
+        .unwrap();
+        record_contribution(
+            &path,
+            &finding_id,
+            model_contribution("lemma-1"),
+            "agent:d",
+            true,
+        )
+        .unwrap();
+
+        let after = repo::load_from_path(&path).unwrap();
+        assert_eq!(
+            after.findings[0].provenance.contributions.len(),
+            1,
+            "the same (unit, agent_id, role) attribution appends once"
+        );
+    }
+
+    #[test]
+    fn record_contribution_vouched_by_model_is_rejected() {
+        let dir = tempdir().unwrap();
+        let path = seed_frontier(dir.path());
+        let finding_id = repo::load_from_path(&path).unwrap().findings[0].id.clone();
+
+        let mut c = model_contribution("lemma-1");
+        c.role = crate::bundle::ContributionRole::Vouched;
+        let err = record_contribution(&path, &finding_id, c, "agent:d", true).unwrap_err();
+        assert!(
+            err.to_lowercase().contains("vouch") || err.to_lowercase().contains("human"),
+            "a model must not be able to vouch, got: {err}"
+        );
     }
 }

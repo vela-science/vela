@@ -73,6 +73,7 @@ mod surface_tests {
         "agents",
         "check",
         "config",
+        "credit",
         "diff",
         "doctor",
         "finding",

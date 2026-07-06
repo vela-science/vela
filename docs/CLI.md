@@ -65,7 +65,7 @@ the agent, and the pen belongs to you.
 
 | Verb | What it does |
 |---|---|
-| `finding` | The core primitive: add/show/supersede/note/caveat/revise/review/reject/retract/link. `review <f> --status accepted --as <you> [--confidence 0.9] --apply` records a human review verdict; an accept sets `review_state = Accepted` (with `--confidence` lifting it above the fragile floor in the same command), which the frontier state derives to `Established`. `add`/`supersede` are sourced by `--author`; the mutation verbs (`revise`/`review`/`reject`/`retract`) route to a reviewer via `--as`. These write with a human key and are CLI-only — they are not on the MCP agent surface. |
+| `finding` | The core primitive: add/show/supersede/note/caveat/revise/review/reject/retract/contribution/link. `review <f> --status accepted --as <you> [--confidence 0.9] --apply` records a human review verdict; an accept sets `review_state = Accepted` (with `--confidence` lifting it above the fragile floor in the same command), which the frontier state derives to `Established`. `contribution <f> --unit <ref> --role <role> --agent-kind <human\|agent\|model> --agent-id <id> [--apply]` appends claim-granularity attribution (who produced which unit); it is descriptive provenance an agent may self-apply — it never touches confidence or acceptance, and a `vouched` role requires a human. `add`/`supersede` are sourced by `--author`; the truth-bearing mutation verbs (`revise`/`review`/`reject`/`retract`) route to a reviewer via `--as`. These write with a human key and are CLI-only — they are not on the MCP agent surface. |
 | `frontier` | Repo-level: new/materialize/add-dep/list-deps/diff/release/releases/audit/rank. `rank` orders OPEN findings by accumulating structural support (which is a verifier-run from done) with the popularity baseline + inspectable evidence — a solvability projection, advice not authority. |
 | `actor` | Frontier-registered identities: add/list/rotate. |
 | `agents` | `VELA.md` charter adapters: sync/doctor/diff (AGENTS.md, CLAUDE.md, .mcp.json are generated, never hand-edited). |
@@ -80,6 +80,7 @@ the agent, and the pen belongs to you.
 | `state` | Claim-state cell for one finding; `state trust`, `state pack`, `state diff` (Evidence Diff), anchors; `--as-of <RFC3339>` answers "what did we hold on this date". |
 | `atlas` | Cross-frontier math-atlas projections. |
 | `policy` | Governance policy: show/seal/test/evaluate. |
+| `credit` | Derived attribution view for one finding: `author_of_record` (humans who signed the assertion or an accepting review), `contributors`, and `originating_agents` (disclosed, never authors). A machine can originate a unit and be credited for it; it never enters `author_of_record`. |
 
 ## Decisions self-publish
 

@@ -63,6 +63,7 @@ pub(crate) fn finding(id: &str) -> FindingBundle {
             funders: Vec::new(),
             extraction: Extraction::default(),
             review: None,
+            contributions: Vec::new(),
         },
         flags: Flags {
             gap: false,

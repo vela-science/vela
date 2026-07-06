@@ -24,7 +24,7 @@ mod computed;
 pub use computed::{frontier_repo, project, registry, sources, state, transfer_registry};
 mod analysis;
 pub use analysis::{
-    atlas, boundary, contradiction, diff, diff_pack_review, evidence_ci, evidence_diff,
+    atlas, boundary, contradiction, credit, diff, diff_pack_review, evidence_ci, evidence_diff,
     frontier_bound, frontier_graph, frontier_identification, inspect_adapter, pathfind, propagate,
     released_diff_pack, scientific_diff, status_provenance, transfer, verdict_conflict,
     verifier_attachment,

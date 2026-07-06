@@ -1238,6 +1238,7 @@ name = "minimal"
                 funders: vec![],
                 extraction: Extraction::default(),
                 review: None,
+                contributions: Vec::new(),
             },
             std::collections::BTreeMap::new(),
             crate::access_tier::AccessTier::Public,

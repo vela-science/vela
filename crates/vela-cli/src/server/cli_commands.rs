@@ -283,6 +283,21 @@ pub(crate) enum Commands {
         #[arg(long)]
         json: bool,
     },
+    /// The derived credit view for a finding: the accountable human author(s) of
+    /// record (valid signers only), the disclosed contributors (machines
+    /// included), and which agent originated which unit. A pure projection over
+    /// signatures + provenance — never signed, never authoritative, and it never
+    /// invents an author. A machine holds no key, so it appears only as a
+    /// contributor / originator, never as an author.
+    Credit {
+        /// The finding id (`vf_…`).
+        finding_id: String,
+        /// Frontier directory.
+        #[arg(default_value = ".")]
+        frontier: PathBuf,
+        #[arg(long)]
+        json: bool,
+    },
     /// The foundry: one unattended compounding turn (Phase 2). Produce a
     /// candidate with the frozen-verifier campaign, register its witness, and
     /// run it through the exact-lane de-human-gate — produce -> frozen-verify
@@ -1874,6 +1889,42 @@ pub(crate) enum FindingCommands {
         confidence: Option<f64>,
         #[arg(long = "as")]
         reviewer: String,
+        #[arg(long)]
+        apply: bool,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Record a claim-granularity attribution: which actor originated / derived /
+    /// formalized which unit of a finding. Descriptive provenance only — never
+    /// touches confidence, review state, or the gate. An agent may draft it; the
+    /// one rule is that `--role vouched` must be a human.
+    Contribution {
+        frontier: PathBuf,
+        finding_id: String,
+        /// The sub-claim reference: an evidence-span ref, a Lean decl name, or `whole`.
+        #[arg(long)]
+        unit: String,
+        /// evidence_span | lean_decl | step | whole
+        #[arg(long = "unit-type", default_value = "whole")]
+        unit_type: String,
+        /// human | agent | model
+        #[arg(long = "agent-kind")]
+        agent_kind: String,
+        /// ORCID, agent handle, or model id.
+        #[arg(long = "agent-id")]
+        agent_id: String,
+        #[arg(long)]
+        model: Option<String>,
+        #[arg(long = "model-version")]
+        model_version: Option<String>,
+        /// originated | derived | formalized | extracted | reviewed | vouched
+        #[arg(long)]
+        role: String,
+        /// Free text or an evidence-span reference backing the claim.
+        #[arg(long, default_value = "")]
+        basis: String,
+        #[arg(long = "as")]
+        actor: String,
         #[arg(long)]
         apply: bool,
         #[arg(long)]

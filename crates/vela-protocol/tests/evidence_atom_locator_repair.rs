@@ -47,6 +47,7 @@ fn finding_with_doi(slot: &str, doi: &str) -> FindingBundle {
             funders: Vec::new(),
             extraction: Extraction::default(),
             review: None,
+            contributions: Vec::new(),
         },
         Flags {
             gap: false,

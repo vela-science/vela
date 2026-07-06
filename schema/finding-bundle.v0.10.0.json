@@ -679,6 +679,76 @@
               }
             }
           }
+        },
+        "contributions": {
+          "type": "array",
+          "description": "Claim-granularity attribution: who produced which unit of this finding, at what role. Descriptive provenance only — never confers trust, never touches confidence or acceptance, and a machine (agent_kind agent|model) is disclosed but never an author of record. Appended by finding.contribution.recorded events.",
+          "items": {
+            "type": "object",
+            "required": [
+              "unit",
+              "unit_type",
+              "agent_kind",
+              "agent_id",
+              "role"
+            ],
+            "properties": {
+              "unit": {
+                "type": "string",
+                "description": "The sub-claim reference: an evidence-span ref, a Lean decl name, a step id, or the literal 'whole' for finding-level attribution."
+              },
+              "unit_type": {
+                "type": "string",
+                "enum": [
+                  "evidence_span",
+                  "lean_decl",
+                  "step",
+                  "whole"
+                ]
+              },
+              "agent_kind": {
+                "type": "string",
+                "enum": [
+                  "human",
+                  "agent",
+                  "model"
+                ]
+              },
+              "agent_id": {
+                "type": "string",
+                "description": "ORCID (human), agent handle, or model id."
+              },
+              "model": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Model family, when agent_kind is agent or model."
+              },
+              "model_version": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "role": {
+                "type": "string",
+                "enum": [
+                  "originated",
+                  "derived",
+                  "formalized",
+                  "extracted",
+                  "reviewed",
+                  "vouched"
+                ],
+                "description": "vouched requires agent_kind=human (a model has no key and cannot vouch)."
+              },
+              "basis": {
+                "type": "string",
+                "description": "Free text or an evidence-span reference backing the attribution."
+              }
+            }
+          }
         }
       }
     },

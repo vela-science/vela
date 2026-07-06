@@ -1187,6 +1187,7 @@ mod tests {
             funders: vec![],
             extraction: Default::default(),
             review: None,
+            contributions: Vec::new(),
         };
         FindingBundle {
             id: id.to_string(),
