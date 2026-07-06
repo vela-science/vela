@@ -133,9 +133,14 @@ in one command:
 
 ```sh
 vela id create --handle your-handle    # key + identity, once
-vela finding add . --assertion "..." --as reviewer:your-handle
+vela finding add . --assertion "..." --author reviewer:your-handle
 git push                               # publication; the hub re-derives its index
 ```
+
+No git remote of your own? A live frontier can carry a one-command submit path
+that POSTs the signed transition to the hub for you — see
+[`frontiers/sidon-sets`](frontiers/sidon-sets), where `python3 submit.py
+witness.json` beats a bound under your key in about five minutes, no account.
 
 A proposal is admitted to the *log* on the strength of its signature over
 content-addressed bytes, never on claimed identity. Admission to the log is not

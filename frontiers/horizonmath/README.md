@@ -2,7 +2,7 @@
 
 `catalog.json` stages the **verifier-attackable subset** of the HorizonMath
 benchmark: open/research mathematics problems that map to a frozen Vela verifier
-(a `vela campaign` kind) and carry a real incumbent (the value-to-beat). It is
+(a `vela foundry campaign` kind) and carry a real incumbent (the value-to-beat). It is
 the target surface the foundry attacks, the same role `frontiers/sidon-sets/bounds.json`
 plays for Sidon, generalized across verifier families.
 

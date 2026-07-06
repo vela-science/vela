@@ -5,7 +5,8 @@ n-dimensional 0/1 cube** (OEIS [A309370](https://oeis.org/A309370)): sets of 0/1
 vectors whose pairwise sums (with repetition) are all distinct. If your solver
 finds a set larger than the current best for some `n`, you can put it on the
 record with **your** key on the transition, in about five minutes, with no
-account and no bespoke integration.
+bespoke integration — just the `vela` CLI, a keypair, and a fork of this repo to
+push your signed proposal from.
 
 The point of this frontier: **poll the bounds before you search so you never
 repeat banked work, and write a beat back so the next solver doesn't repeat
@@ -25,13 +26,14 @@ python3 submit.py witness.example.json --dry-run
 `submit.py` first checks that `vela` is the real CLI (a clear error if a
 different `vela` shadows it on your PATH), re-verifies the witness with the
 frozen verifier, reports the delta vs the live record, and prints the signed
-transition it *would* POST. Drop `--dry-run` to actually write it under your key.
+`vela land` it *would* run. Drop `--dry-run` to write the signed proposal into
+your frontier checkout under your key, then `git push` it and open a PR.
 
 To produce your **own** witness with the bundled engine instead of bringing a
 solver, one command emits one in this exact format:
 
 ```
-vela campaign search --n 8 --restarts 200 sidon --json \
+vela foundry campaign search sidon --n 8 --restarts 200 --json \
   | python3 -c "import json,sys; json.dump(json.load(sys.stdin)['witness'], open('mine.json','w'), indent=2)"
 python3 submit.py mine.json --dry-run
 ```
@@ -85,11 +87,13 @@ python3 submit.py your-witness.json
 
 1. **re-verifies** your witness with the frozen verifier (`vela reproduce`),
 2. checks it against `bounds.json` and tells you the delta,
-3. **self-signs and POSTs** it to the hub (`vela registry propose`), and prints
-   a citable **receipt** with the proposal id.
+3. **writes a signed proposal** into your checkout of the frontier (`vela land`,
+   which self-publishes a local commit), and prints a citable **receipt** with
+   the proposal id. Publication is git-native: you `git push` that commit (to
+   your fork) and open a PR — the hub re-derives its index from the push.
 
-Use `--dry-run` first to see the verification and the exact submission without
-sending anything:
+Use `--dry-run` first to see the verification and the exact `vela land` it would
+run, writing nothing:
 
 ```
 python3 submit.py your-witness.json --dry-run

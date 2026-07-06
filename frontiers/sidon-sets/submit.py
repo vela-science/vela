@@ -6,35 +6,43 @@ best bound (see bounds.json). This submits it as a signed state transition
 with YOUR key on it. The flow is:
 
     1. re-verify your witness with the frozen verifier (vela reproduce)
-    2. build the finding bundle (the lower-bound claim + your witness)
-    3. self-sign and POST it to the hub (vela registry propose)
+    2. build the lower-bound claim from the witness
+    3. write it as a signed proposal into your checkout of the frontier
+       (vela land), which self-publishes a local commit; you then git push
+       that commit (to your fork) and open a PR
 
-Acceptance into the canonical frontier is a separate human review step; this
-is the external WRITE — "someone other than the maintainer signed a transition
-into the registry."
+Publication is git-native: the hub re-derives its index from the frontier's
+committed event log on every ingest sweep, so pushing the commit IS the write.
+Acceptance into verified state is a separate human review step; this is the
+external WRITE — "someone other than the maintainer signed a transition into
+the frontier."
 
 Prerequisites (one-time):
     - the `vela` binary on PATH         (cargo install, or a release binary)
     - a keypair + identity:  vela id create --handle <you>
+    - a checkout of the frontier repo   (this script ships inside it, at
+      examples/sidon-a309370 two levels up; fork it to get push access)
 
 Usage:
-    python3 submit.py <witness.json>
-    python3 submit.py <witness.json> --dry-run      # verify + build, do not POST
-    python3 submit.py <witness.json> --vfr <vfr_id> --to <hub-url>
+    python3 submit.py <witness.json>                # inside a checkout of the repo
+    python3 submit.py <witness.json> --dry-run      # verify + preview, write nothing
+    python3 submit.py <witness.json> --frontier <path-to/examples/sidon-a309370>
 
 A witness file is:
     {"kind": "sidon", "n": 20, "points": [[0,1,0,...], ...], "claimed_size": 1990}
 each point a 0/1 vector of length n; the set is Sidon iff all pairwise sums
 (with repetition) are distinct.
 """
-import argparse, hashlib, json, subprocess, sys, tempfile, urllib.request, os, datetime
+import argparse, hashlib, json, os, re, shlex, subprocess, sys, urllib.request, datetime
 
-# The Sidon frontier on the public hub (override with --vfr / --to).
+# The Sidon frontier's id (recorded in the receipt).
 DEFAULT_VFR = "vfr_496956067dc5ad79"
-DEFAULT_HUB = "https://hub.constellate.science"
 # bounds.json lives next to this script; also published in the public repo.
 HERE = os.path.dirname(os.path.abspath(__file__))
 BOUNDS_LOCAL = os.path.join(HERE, "bounds.json")
+# The sidon frontier repo lives at examples/sidon-a309370 in the same tree; a
+# producer who cloned the repo to get this script already has it two levels up.
+DEFAULT_FRONTIER = os.path.normpath(os.path.join(HERE, "..", "..", "examples", "sidon-a309370"))
 BOUNDS_URL = (
     "https://raw.githubusercontent.com/constellate-science/vela/main/"
     "frontiers/sidon-sets/bounds.json"
@@ -134,12 +142,14 @@ def build_finding(n, size, witness):
 def main():
     ap = argparse.ArgumentParser(description="Submit a Sidon witness to the Vela record.")
     ap.add_argument("witness", help="path to the witness JSON")
-    ap.add_argument("--vfr", default=DEFAULT_VFR, help="frontier id (vfr_…)")
-    ap.add_argument("--to", default=None, help="hub URL (default: your configured identity's hub)")
-    ap.add_argument("--key", default=None, help="path to your Ed25519 key (default: configured identity)")
-    ap.add_argument("--actor", default=None, help="your actor id (default: configured identity)")
+    ap.add_argument("--vfr", default=DEFAULT_VFR, help="frontier id (vfr_…), recorded in the receipt")
+    ap.add_argument("--frontier", default=DEFAULT_FRONTIER,
+                    help="path to your checkout of the sidon frontier (examples/sidon-a309370). "
+                         "`vela land` writes the signed proposal here; you then git push it and open a PR.")
+    ap.add_argument("--actor", default=None,
+                    help="your actor id, e.g. reviewer:alice (default: your configured `vela id`)")
     ap.add_argument("--vela", default="vela", help="path to the vela binary")
-    ap.add_argument("--dry-run", action="store_true", help="verify + build, but do not POST")
+    ap.add_argument("--dry-run", action="store_true", help="verify + preview the write, but change nothing")
     args = ap.parse_args()
 
     # ── 0. confirm `vela` is the Rust CLI (fail fast, clear message) ─────
@@ -197,50 +207,65 @@ def main():
     payload = build_finding(n, size, w)
     reason = f"Sidon lower bound a({n}) >= {size}, frozen-verified (sidon)."
 
+    claim = payload["finding"]["assertion"]["text"]
+    caveat = ("Admission to the log is not verification; this lower-bound claim "
+              "must earn `verified` at the gate before it counts as held state.")
+    frontier = os.path.abspath(args.frontier)
+    land_cmd = [args.vela, "land", "--frontier", frontier,
+                "--claim", claim, "--artifact", os.path.abspath(args.witness),
+                "--caveat", caveat, "--json"]
+    if args.actor:
+        land_cmd += ["--as", args.actor]
+
+    landable = os.path.isdir(os.path.join(frontier, ".vela"))
+
     if args.dry_run:
-        print("\n  --dry-run: not submitting. Payload preview:")
-        print("  " + json.dumps(payload["finding"]["assertion"]["text"]))
-        print(f"  would run: {args.vela} registry propose {args.vfr} "
-              f"--kind finding.add --reason {reason!r} --payload <stdin>")
+        print("\n  --dry-run: writing nothing. This would create a signed proposal via:")
+        print("    " + " ".join(shlex.quote(c) for c in land_cmd[:-1]))  # hide --json in the preview
+        if not landable:
+            print(f"  note: {frontier} is not a writable frontier checkout (no .vela store) —")
+            print("        pass --frontier <a clone of the sidon frontier's git repo> to write for real.")
+        print("  then publish it: git push your commit (to your fork) and open a PR at")
+        print("    https://github.com/constellate-science/vela")
         return
 
-    # ── 5. self-sign + POST to the hub (vela registry propose) ───────────
-    with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as tf:
-        json.dump(payload, tf)
-        payload_path = tf.name
-    cmd = [args.vela, "registry", "propose", args.vfr,
-           "--kind", "finding.add", "--reason", reason,
-           "--payload", payload_path, "--json"]
-    if args.to:    cmd += ["--to", args.to]
-    if args.key:   cmd += ["--key", args.key]
-    if args.actor: cmd += ["--actor", args.actor]
-    res = subprocess.run(cmd, capture_output=True, text=True)
-    os.unlink(payload_path)
+    # ── 5. write the signed proposal into the frontier repo (vela land) ──
+    if not landable:
+        die(f"no writable frontier checkout at {frontier} (no .vela store).\n"
+            "This is the git-native write path: `vela land` records the signed proposal into a\n"
+            "clone of the frontier's own git repo, which you then push. Point --frontier at such a\n"
+            "checkout. (The examples/ dirs in the main repo are re-verifiable snapshots, not\n"
+            "writable frontiers — see docs/HUB.md `register-git` for how a frontier is published.)")
+    res = subprocess.run(land_cmd, capture_output=True, text=True)
+    land_out = (res.stdout + res.stderr).strip()
     if res.returncode != 0:
-        die(f"hub submission failed:\n{(res.stdout + res.stderr).strip()}")
+        die(f"vela land failed:\n{land_out}")
+    print("\n  " + land_out.replace("\n", "\n  "))
 
     # ── 6. emit a citable receipt ────────────────────────────────────────
-    try:
-        hub_resp = json.loads(res.stdout)
-    except Exception:
-        hub_resp = {"raw": res.stdout.strip()}
+    # `vela land` interleaves human lines with its JSON, so pull the proposal id
+    # out of the combined output directly rather than json.loads()-ing all of it.
+    m = re.search(r"vpr_[0-9a-f]+", land_out)
+    proposal_id = m.group(0) if m else None
     receipt = {
         "ok": True,
         "frontier_id": args.vfr,
         "sequence": "oeis:A309370",
-        "claim": payload["finding"]["assertion"]["text"],
+        "claim": claim,
         "n": n, "size": size,
         "beats": {"previous_best": best, "delta": (size - best) if best is not None else None},
         "witness_sha256": sha256_file(args.witness),
         "verifier": {"kind": "sidon", "crate": "vela-verify", "reproduce": repro.splitlines()[0].strip()},
-        "proposal_id": hub_resp.get("proposal_id"),
-        "status": hub_resp.get("status", "pending_review"),
-        "hub": args.to or DEFAULT_HUB,
+        "proposal_id": proposal_id,
+        "status": "recorded (git-local; push to publish)",
         "submitted_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-        "note": "The external WRITE is recorded. Acceptance into the canonical frontier is a separate human review step.",
+        "note": "The signed proposal is committed in your frontier checkout. Publish it: git push the "
+                "commit to your fork and open a PR. The hub re-derives its index from the push.",
     }
-    print("\n  submitted. receipt:")
+    print("\n  receipt:")
     print(json.dumps(receipt, indent=2))
+    print("\n  next: git push this commit (to your fork) and open a PR at")
+    print("    https://github.com/constellate-science/vela")
 
 
 if __name__ == "__main__":
