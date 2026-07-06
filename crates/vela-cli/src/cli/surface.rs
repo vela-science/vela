@@ -109,6 +109,8 @@ Verify:
   reproduce     Re-verify stored witnesses from scratch (frozen verifiers)
   proof         Export a proof packet; `proof verify` re-checks one, `proof explain`
   gate          Claim-level verification gate (grade/check/vocab/backfill/attach/auto-admit)
+  ci            CI verbs for a frontier's Action; `ci verdict --base <ref>` is the
+                whole auto-merge decision (exit 0 iff a gate-clean machine_verified beat)
 
 Setup (once):
   init          Initialize a new frontier repo (git-native: .vela is committed,

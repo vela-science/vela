@@ -258,6 +258,15 @@ pub async fn run_command() {
             };
             crate::cli_engine::cmd_submit(&dir, &witness, &actor, push, dry_run, json);
         }
+        Commands::Ci { action } => match action {
+            crate::server::cli_commands::CiAction::Verdict {
+                frontier,
+                base,
+                json,
+            } => {
+                crate::config::cli_policy::cmd_ci_verdict(&frontier, &base, json);
+            }
+        },
         Commands::Credit {
             finding_id,
             frontier,

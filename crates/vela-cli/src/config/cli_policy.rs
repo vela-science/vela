@@ -1309,6 +1309,207 @@ pub(crate) fn cmd_policy_evaluate_proposal(frontier: &Path, proposal_id: &str, j
     }
 }
 
+/// `vela ci verdict --base <ref>` — the whole auto-merge decision in one verb, so
+/// a frontier's GitHub Action is ~15 lines. Discovers the proposals a PR adds
+/// (diffed against `<base>`), re-derives each one's exact-lane `machine_verified`
+/// verdict from the frozen floor, confirms at least one is a genuine beat of the
+/// accepted record, and guards that the PR only touches the append-only store +
+/// its derived views (never `bounds.json` or the pinned `vela_version`). Exits 0
+/// iff the PR may auto-merge. The floor (replay, signatures, reproduce, hash
+/// parity) is the shared `constellate-science/vela` action's job, run before this.
+pub(crate) fn cmd_ci_verdict(frontier: &Path, base: &str, json: bool) {
+    use std::process::Command;
+
+    let git = |args: &[&str]| -> Result<String, String> {
+        let out = Command::new("git")
+            .arg("-C")
+            .arg(frontier)
+            .args(args)
+            .output()
+            .map_err(|e| format!("git: {e}"))?;
+        if !out.status.success() {
+            return Err(String::from_utf8_lossy(&out.stderr).trim().to_string());
+        }
+        Ok(String::from_utf8_lossy(&out.stdout).trim().to_string())
+    };
+
+    // The frontier's path prefix within the repo ("" at the root), so root-relative
+    // diff paths can be compared against the store layout.
+    let prefix = git(&["rev-parse", "--show-prefix"]).unwrap_or_default();
+    let rel = |p: &str| -> String { p.strip_prefix(&prefix).unwrap_or(p).to_string() };
+
+    if git(&["rev-parse", "--verify", "--quiet", base]).is_err() {
+        fail_with(
+            ErrorKind::NotFound,
+            &format!("base ref '{base}' not found"),
+            Some("CI must fetch it — actions/checkout with fetch-depth: 0"),
+        );
+    }
+
+    let mut reasons: Vec<String> = Vec::new();
+
+    // (1) ALLOWLIST. A producer PR may add to the append-only store and its
+    // derived views; anything else (bounds.json, .github, docs) waits for a human.
+    let changed = git(&["diff", "--name-only", &format!("{base}...HEAD")]).unwrap_or_default();
+    for path in changed.lines().filter(|l| !l.is_empty()) {
+        let p = rel(path);
+        let allowed = p.starts_with(".vela/")
+            || p.starts_with("witnesses/")
+            || p.starts_with("records/")
+            || p.starts_with("proof/")
+            || p == "frontier.json"
+            || p == "frontier.yaml"
+            || p == "vela.lock";
+        if p == "bounds.json" {
+            reasons.push("bounds.json changed (the beat oracle is not producer-editable)".into());
+        } else if !allowed {
+            reasons.push(format!("changed outside the store: {p}"));
+        }
+    }
+
+    // The pinned verifier must not move under a producer PR (downgrade guard).
+    let ver_of = |lock: &str| -> Option<String> {
+        lock.lines().find_map(|l| {
+            l.trim()
+                .strip_prefix("vela_version:")
+                .map(|v| v.trim().to_string())
+        })
+    };
+    let base_ver = git(&["show", &format!("{base}:{prefix}vela.lock")])
+        .ok()
+        .and_then(|s| ver_of(&s));
+    let head_ver = std::fs::read_to_string(frontier.join("vela.lock"))
+        .ok()
+        .and_then(|s| ver_of(&s));
+    if let (Some(b), Some(h)) = (&base_ver, &head_ver)
+        && b != h
+    {
+        reasons.push(format!("vela_version changed ({b} -> {h})"));
+    }
+
+    // (2) NEW PROPOSALS = present at HEAD, absent at base.
+    let base_props: std::collections::HashSet<String> = git(&[
+        "ls-tree",
+        "--name-only",
+        "-r",
+        base,
+        "--",
+        &format!("{prefix}.vela/proposals"),
+    ])
+    .unwrap_or_default()
+    .lines()
+    .filter_map(|p| {
+        std::path::Path::new(p)
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .map(str::to_string)
+    })
+    .collect();
+
+    let project = repo::load_from_path(frontier)
+        .unwrap_or_else(|e| fail_with(ErrorKind::NotFound, &format!("load frontier: {e}"), None));
+    let new_proposals: Vec<&StateProposal> = project
+        .proposals
+        .iter()
+        .filter(|p| p.kind == "finding.add" && !base_props.contains(&p.id))
+        .collect();
+
+    // (3) Per new proposal: exact-lane machine_verified + is-it-a-beat.
+    let mut all_mv = true;
+    let mut any_beat = false;
+    let mut per: Vec<serde_json::Value> = Vec::new();
+    for p in &new_proposals {
+        let vf = p.target.id.clone();
+        let verdict = match crate::cli_engine::gate_auto_admit_core(frontier, &vf, false) {
+            Ok(v) => v,
+            Err(e) => {
+                all_mv = false;
+                per.push(
+                    json!({"proposal": p.id, "finding": vf, "machine_verified": false, "error": e}),
+                );
+                continue;
+            }
+        };
+        let mv = verdict.would_admit;
+        let claim = verdict.canonical_claim.clone().or_else(|| {
+            p.payload
+                .pointer("/finding/assertion/text")
+                .or_else(|| p.payload.pointer("/assertion/text"))
+                .and_then(|t| t.as_str())
+                .map(str::to_string)
+        });
+        let bound = claim.as_deref().and_then(parse_sidon_bound);
+        let (n_opt, claimed_opt) = bound.map_or((None, None), |(n, k)| (Some(n), Some(k)));
+        let best = n_opt.and_then(|n| best_sidon_bound_for_n(&project, n, Some(&vf)));
+        let is_beat = match (claimed_opt, best) {
+            (Some(k), Some(b)) => k > b,
+            (Some(_), None) => true,
+            _ => false,
+        };
+        if !mv {
+            all_mv = false;
+        }
+        if is_beat {
+            any_beat = true;
+        }
+        per.push(json!({
+            "proposal": p.id, "finding": vf,
+            "machine_verified": mv, "is_beat": is_beat,
+            "claim": claim, "n": n_opt, "claimed": claimed_opt, "current_best": best,
+        }));
+    }
+
+    if new_proposals.is_empty() {
+        reasons.push("no new finding proposals in this PR".into());
+    }
+    if !all_mv {
+        reasons.push("not every new finding is machine_verified".into());
+    }
+    if !new_proposals.is_empty() && !any_beat {
+        reasons.push("no new finding beats the accepted record".into());
+    }
+
+    let admit = reasons.is_empty();
+
+    if json {
+        print_json(&json!({
+            "ok": true,
+            "command": "ci.verdict",
+            "frontier": frontier.display().to_string(),
+            "base": base,
+            "admit": admit,
+            "machine_verified": all_mv && !new_proposals.is_empty(),
+            "is_beat": any_beat,
+            "new_proposals": new_proposals.iter().map(|p| p.id.clone()).collect::<Vec<_>>(),
+            "per_proposal": per,
+            "reasons": reasons,
+        }));
+    } else {
+        println!("ci · verdict · base {base}");
+        for pp in &per {
+            println!(
+                "  {} machine_verified={} beat={}",
+                pp.get("finding").and_then(|v| v.as_str()).unwrap_or("?"),
+                pp.get("machine_verified")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(false),
+                pp.get("is_beat").and_then(|v| v.as_bool()).unwrap_or(false),
+            );
+        }
+        if admit {
+            println!("  => ADMIT: a gate-clean machine_verified beat");
+        } else {
+            println!("  => HOLD (needs a human):");
+            for r in &reasons {
+                println!("     - {r}");
+            }
+        }
+    }
+    if !admit {
+        std::process::exit(1);
+    }
+}
+
 /// Parse the canonical Sidon claim text `… a(N) >= K …` into `(N, K)`. Matches
 /// the format `submit.py` emits; returns `None` for anything else.
 fn parse_sidon_bound(text: &str) -> Option<(i64, i64)> {

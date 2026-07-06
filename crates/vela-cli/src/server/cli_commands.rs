@@ -502,6 +502,12 @@ pub(crate) enum Commands {
         json: bool,
     },
 
+    /// Continuous-integration verbs for a frontier's GitHub Action.
+    Ci {
+        #[command(subcommand)]
+        action: CiAction,
+    },
+
     /// Plain configuration: how YOUR tools behave — never what enters
     /// the record (that is `vela policy`) or who you are (`vela id`).
     /// A closed, validated key set with visible origins; frontier scope
@@ -990,6 +996,24 @@ pub(crate) enum AgentsAction {
     Diff {
         #[arg(default_value = ".")]
         root: PathBuf,
+        #[arg(long)]
+        json: bool,
+    },
+}
+
+#[derive(Subcommand)]
+pub(crate) enum CiAction {
+    /// The whole auto-merge decision in one call: which proposals a PR adds,
+    /// whether each is `machine_verified` and a genuine beat, and whether the PR
+    /// only touched the append-only store. Exit 0 iff the PR may auto-merge, so
+    /// an Action is `vela ci verdict … && gh pr merge`.
+    Verdict {
+        #[arg(long, default_value = ".")]
+        frontier: PathBuf,
+        /// The base ref the PR merges into (e.g. `origin/main`). CI must fetch
+        /// it (actions/checkout with fetch-depth: 0).
+        #[arg(long)]
+        base: String,
         #[arg(long)]
         json: bool,
     },

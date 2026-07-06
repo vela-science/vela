@@ -72,6 +72,7 @@ mod surface_tests {
         "actor",
         "agents",
         "check",
+        "ci",
         "config",
         "credit",
         "diff",
