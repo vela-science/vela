@@ -160,8 +160,28 @@ impl HubDb {
     /// this path: only verified, promoted frontiers appear. The returned
     /// JSON is still the signed manifest shape (`registry_entries.raw_json`)
     /// so old CLI clients keep working.
+    /// Canonicalize a served entry's `git+` network_locator in place (strip a
+    /// trailing `.git`/slash). Applied on every read so a locator STORED before
+    /// the canonicalization landed — or written by an older hub — still serves
+    /// canonically; two hubs then agree in `witness-check` without every entry
+    /// having to re-ingest. Only `git+…` locators are touched, so a snapshot/
+    /// http locator (and its manifest signature) is left byte-identical.
+    fn canon_served_locator(entry: &mut Value) {
+        if let Some(loc) = entry.get("network_locator").and_then(Value::as_str)
+            && let Some(rest) = loc.strip_prefix("git+")
+        {
+            let canon = format!(
+                "git+{}",
+                vela_protocol::registry::canonical_git_remote(rest)
+            );
+            if canon != loc {
+                entry["network_locator"] = Value::String(canon);
+            }
+        }
+    }
+
     pub async fn list_live_entries(&self) -> Result<Vec<Value>, String> {
-        match self {
+        let mut entries: Vec<Value> = match self {
             Self::Postgres(p) => sqlx::query_scalar::<_, Value>(
                 r#"
                 SELECT r.raw_json
@@ -173,7 +193,7 @@ impl HubDb {
             )
             .fetch_all(p)
             .await
-            .map_err(|e| e.to_string()),
+            .map_err(|e| e.to_string())?,
             Self::Sqlite(p) => {
                 let rows: Vec<String> = sqlx::query_scalar(
                     r#"
@@ -189,13 +209,17 @@ impl HubDb {
                 .map_err(|e| e.to_string())?;
                 rows.into_iter()
                     .map(|s| serde_json::from_str::<Value>(&s).map_err(|e| e.to_string()))
-                    .collect()
+                    .collect::<Result<Vec<Value>, String>>()?
             }
+        };
+        for e in &mut entries {
+            Self::canon_served_locator(e);
         }
+        Ok(entries)
     }
 
     pub async fn get_live_entry(&self, vfr_id: &str) -> Result<Option<Value>, String> {
-        match self {
+        let mut entry: Option<Value> = match self {
             Self::Postgres(p) => sqlx::query_scalar::<_, Value>(
                 r#"
                 SELECT r.raw_json
@@ -208,7 +232,7 @@ impl HubDb {
             .bind(vfr_id)
             .fetch_optional(p)
             .await
-            .map_err(|e| e.to_string()),
+            .map_err(|e| e.to_string())?,
             Self::Sqlite(p) => {
                 let row: Option<String> = sqlx::query_scalar(
                     r#"
@@ -224,13 +248,15 @@ impl HubDb {
                 .await
                 .map_err(|e| e.to_string())?;
                 match row {
-                    Some(s) => serde_json::from_str::<Value>(&s)
-                        .map(Some)
-                        .map_err(|e| e.to_string()),
-                    None => Ok(None),
+                    Some(s) => Some(serde_json::from_str::<Value>(&s).map_err(|e| e.to_string())?),
+                    None => None,
                 }
             }
+        };
+        if let Some(e) = entry.as_mut() {
+            Self::canon_served_locator(e);
         }
+        Ok(entry)
     }
 
     /// Lightweight per-frontier counts for list/dashboard views, computed by
@@ -1124,11 +1150,17 @@ impl HubDb {
     /// Every registered git-ingestion target with its cursor, for the
     /// ingestor's tick. Row shape: (vfr_id, git_remote, git_ref, git_subdir,
     /// last_ingested_commit, registered_by_pubkey).
+    ///
+    /// A DEPRECATED frontier drops out of the sweep: retiring it via
+    /// `vela hub deprecate` should stop the hub re-fetching + re-verifying a
+    /// dead repo every tick (otherwise the target lingers, since there is no
+    /// un-register verb — deprecation is the owner-signed retirement act).
     pub async fn git_ingest_targets(
         &self,
     ) -> Result<Vec<(String, String, String, String, Option<String>, String)>, String> {
         const Q: &str = "SELECT vfr_id, git_remote, git_ref, git_subdir, last_ingested_commit, \
-                         registered_by_pubkey FROM frontier_git_remotes";
+                         registered_by_pubkey FROM frontier_git_remotes \
+                         WHERE vfr_id NOT IN (SELECT vfr_id FROM frontier_deprecations)";
         match self {
             Self::Postgres(p) => sqlx::query_as(Q)
                 .fetch_all(p)
