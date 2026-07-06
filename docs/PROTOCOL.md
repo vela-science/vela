@@ -404,6 +404,7 @@ Core proposal kinds:
 | `finding.confidence_revise` | `vela finding revise` |
 | `finding.reject` | `vela finding reject` |
 | `finding.retract` | `vela finding retract` |
+| `finding.contribution.recorded` | `vela finding contribution` |
 
 Core event kinds:
 
@@ -416,6 +417,9 @@ Core event kinds:
 | `finding.confidence_revised` | Revise confidence interpretation |
 | `finding.rejected` | Mark a finding rejected |
 | `finding.retracted` | Mark retraction state |
+| `finding.contribution.recorded` | Record claim-level attribution (who produced which unit) — descriptive provenance, never a verdict |
+| `finding.superseded` | Mark a finding superseded by a replacement |
+| `finding.span_repaired` | Mechanical evidence-span/locator repair (v0.66+) |
 | `finding.dependency_invalidated` | Per-dependent cascade event from an upstream retraction |
 | `negative_result.asserted` | Deposit a NegativeResult (`vnr_*`) — see §6.1 |
 | `negative_result.reviewed` | Record review verdict on a NegativeResult |

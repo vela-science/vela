@@ -7,9 +7,10 @@ publishes.**
 The porcelain is 25 visible verbs, pinned by a both-directions test
 (`crates/vela-cli/src/cli/tests.rs`): a verb cannot appear or disappear
 without the baseline changing on purpose. Three read-only projections
-(`state`, `atlas`, `policy`) are dispatched ahead of the parser, and the
-discovery plane nests under `foundry`. Every porcelain verb takes
-`--json` and emits a stable object with `ok` and `command` fields.
+(`state`, `atlas`, `policy`) are dispatched ahead of the parser, `credit`
+derives per-finding attribution, and the discovery plane nests under
+`foundry`. Every porcelain verb takes `--json` and emits a stable object
+with `ok` and `command` fields.
 
 ## Setup (once)
 
