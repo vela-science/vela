@@ -80,7 +80,7 @@ the agent, and the pen belongs to you.
 |---|---|
 | `state` | Claim-state cell for one finding; `state trust`, `state pack`, `state diff` (Evidence Diff), anchors; `--as-of <RFC3339>` answers "what did we hold on this date". |
 | `atlas` | Cross-frontier math-atlas projections. |
-| `policy` | Governance policy: show/seal/test/evaluate. |
+| `policy` | Governance policy: show/suggest/draft/test/sign/revoke/log. `evaluate-proposal <frontier> <vpr_>` is the CI-callable verdict on one proposal — `{admitted, verdict, is_beat, mergeable}` — that the frontier's auto-merge Action reads to merge a gate-clean beat unattended (re-verifies the recorded policy decision; never signs). |
 | `credit` | Derived attribution view for one finding: `author_of_record` (humans who signed the assertion or an accepting review), `contributors`, and `originating_agents` (disclosed, never authors). A machine can originate a unit and be credited for it; it never enters `author_of_record`. |
 
 ## Decisions self-publish

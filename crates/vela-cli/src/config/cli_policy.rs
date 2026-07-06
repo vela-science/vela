@@ -31,7 +31,7 @@ use vela_protocol::canonical;
 use vela_protocol::cli_style as style;
 use vela_protocol::project::Project;
 use vela_protocol::proposals::StateProposal;
-use vela_protocol::proposals::policy_accept::POLICY_LANE_PAYLOAD_KEY;
+use vela_protocol::proposals::policy_accept::{POLICY_LANE_PAYLOAD_KEY, verify_policy_lane_events};
 use vela_protocol::repo;
 
 use crate::cli::print_json;
@@ -1187,6 +1187,163 @@ pub(crate) fn cmd_policy_test(frontier: &Path, json: bool) {
     }
 }
 
+/// `vela policy evaluate-proposal <frontier> <proposal_id>` — the CI-callable
+/// verdict on ONE proposal, for the auto-merge Action. It answers two questions
+/// deterministically and read-only: (1) did the signed policy auto-admit this
+/// proposal, and does its *recorded* decision still re-derive `Permit` under the
+/// persisted policy (the routing-forgery re-check `vela check` also runs); and
+/// (2) is the proposal's Sidon bound a genuine beat of the current best at that
+/// `n`. The Action merges iff `mergeable` (admitted && permit && is_beat); a
+/// non-permit / non-beat / forged accept yields `mergeable: false` → defer to a
+/// human. No key, no mutation.
+pub(crate) fn cmd_policy_evaluate_proposal(frontier: &Path, proposal_id: &str, json: bool) {
+    let project = match repo::load_from_path(frontier) {
+        Ok(p) => p,
+        Err(e) => fail_with(
+            ErrorKind::NotFound,
+            &format!("cannot load frontier: {e}"),
+            None,
+        ),
+    };
+
+    // (1) Admission + forgery re-check. `lane_admissions` reads the tamper-evident
+    // `policy_lane` stamp; `verify_policy_lane_events` re-derives Permit from the
+    // stamped context under the persisted policy. A pending (deferred) proposal
+    // has no admission → not mergeable.
+    let admission = lane_admissions(&project)
+        .into_iter()
+        .find(|a| a.proposal_id == proposal_id);
+    let lane_errors = verify_policy_lane_events(&project, frontier);
+    let (admitted, rule_ids, admit_event, forgery_error) = match &admission {
+        Some(a) => {
+            let err = lane_errors
+                .iter()
+                .find(|e| e.starts_with(&a.event_id))
+                .cloned();
+            (
+                err.is_none(),
+                a.rule_ids.clone(),
+                Some(a.event_id.clone()),
+                err,
+            )
+        }
+        None => (false, Vec::new(), None, None),
+    };
+    let verdict = if admitted { "permit" } else { "defer" };
+
+    // (2) is_beat: parse the Sidon bound from the proposal's claim text and
+    // compare to the best accepted bound at the same n (excluding this
+    // proposal's own admitted finding). A cell with no prior bound is a first
+    // record, which counts as a beat.
+    let claim_text = project
+        .proposals
+        .iter()
+        .find(|p| p.id == proposal_id)
+        .and_then(|p| {
+            // `finding.add` nests the bundle under `finding`; `vela land` and the
+            // raw note/caveat shapes put the text at the top. Check both.
+            p.payload
+                .pointer("/finding/assertion/text")
+                .or_else(|| p.payload.pointer("/assertion/text"))
+                .or_else(|| p.payload.pointer("/text"))
+                .and_then(|t| t.as_str())
+                .map(str::to_string)
+        });
+    let own_finding_id = admit_event.as_ref().and_then(|eid| {
+        project
+            .events
+            .iter()
+            .find(|e| &e.id == eid)
+            .map(|e| e.target.id.clone())
+    });
+    let bound = claim_text.as_deref().and_then(parse_sidon_bound);
+    let (n_opt, claimed_opt) = match bound {
+        Some((n, k)) => (Some(n), Some(k)),
+        None => (None, None),
+    };
+    let current_best =
+        n_opt.and_then(|n| best_sidon_bound_for_n(&project, n, own_finding_id.as_deref()));
+    let is_beat = match (claimed_opt, current_best) {
+        (Some(k), Some(best)) => k > best,
+        (Some(_), None) => true, // first record at this n
+        _ => false,
+    };
+    let mergeable = admitted && verdict == "permit" && is_beat;
+
+    if json {
+        print_json(&json!({
+            "ok": true,
+            "command": "policy.evaluate-proposal",
+            "frontier": frontier.display().to_string(),
+            "proposal_id": proposal_id,
+            "admitted": admitted,
+            "verdict": verdict,
+            "rule_ids": rule_ids,
+            "n": n_opt,
+            "claimed": claimed_opt,
+            "current_best": current_best,
+            "is_beat": is_beat,
+            "forgery_check_error": forgery_error,
+            "mergeable": mergeable,
+        }));
+    } else {
+        println!("policy · evaluate-proposal · {proposal_id}");
+        let rule = if rule_ids.is_empty() {
+            String::new()
+        } else {
+            format!(", rule {}", rule_ids.join(","))
+        };
+        println!("  admitted:  {admitted}  (verdict: {verdict}{rule})");
+        match (n_opt, claimed_opt, current_best) {
+            (Some(n), Some(k), Some(b)) => println!(
+                "  beat:      a({n}) >= {k} vs current {b} -> {}",
+                if is_beat { "BEATS" } else { "not a beat" }
+            ),
+            (Some(n), Some(k), None) => println!("  beat:      a({n}) >= {k} -> FIRST RECORD"),
+            _ => println!("  beat:      (not a parseable Sidon bound)"),
+        }
+        if let Some(err) = &forgery_error {
+            println!("  {} forgery re-check: {err}", style::warn("!"));
+        }
+        println!("  mergeable: {mergeable}");
+    }
+}
+
+/// Parse the canonical Sidon claim text `… a(N) >= K …` into `(N, K)`. Matches
+/// the format `submit.py` emits; returns `None` for anything else.
+fn parse_sidon_bound(text: &str) -> Option<(i64, i64)> {
+    let idx = text.find("a(")?;
+    let rest = &text[idx + 2..];
+    let close = rest.find(')')?;
+    let n: i64 = rest[..close].trim().parse().ok()?;
+    let after = &rest[close + 1..];
+    let ge = after.find(">=")?;
+    let tail = &after[ge + 2..];
+    let digits: String = tail
+        .trim_start()
+        .chars()
+        .take_while(char::is_ascii_digit)
+        .collect();
+    Some((n, digits.parse().ok()?))
+}
+
+/// The best accepted Sidon lower bound at dimension `n`, ignoring one finding
+/// (the proposal's own admitted finding, so a beat is measured against the rest).
+fn best_sidon_bound_for_n(project: &Project, n: i64, exclude_finding: Option<&str>) -> Option<i64> {
+    let mut best: Option<i64> = None;
+    for f in &project.findings {
+        if Some(f.id.as_str()) == exclude_finding {
+            continue;
+        }
+        if let Some((fn_, fk)) = parse_sidon_bound(&f.assertion.text)
+            && fn_ == n
+        {
+            best = Some(best.map_or(fk, |b| b.max(fk)));
+        }
+    }
+    best
+}
+
 /// `vela policy sign` — THE ceremony. A human (never `agent:`/`ci:`) reviews
 /// the sealed rules, confirms once, the key is read once, and the signature
 /// over the canonical bytes opens the lane: every matching permit rule is now
@@ -1404,10 +1561,33 @@ pub(crate) fn run(args: &[String]) {
         i += 1;
     }
 
-    let usage = "usage: vela policy <show|suggest|draft <template>|test|sign|revoke --reason \
-                 <why>|log> [frontier] [--json] [--replace] [--from-suggest] [--yes] \
-                 [--key <path>]";
+    let usage = "usage: vela policy <show|suggest|draft <template>|test|evaluate-proposal <vpr_>|\
+                 sign|revoke --reason <why>|log> [frontier] [--json] [--replace] [--from-suggest] \
+                 [--yes] [--key <path>]";
     match verb {
+        "evaluate-proposal" => {
+            ui::set_mode("policy", json);
+            // Operands are `<vpr_id>` and an optional frontier, order-free: the
+            // vpr_ token is the proposal, the other positional is the frontier.
+            let pid = positionals
+                .iter()
+                .find(|p| p.starts_with("vpr_"))
+                .cloned()
+                .unwrap_or_else(|| {
+                    fail_with(
+                        ErrorKind::Usage,
+                        "evaluate-proposal needs a proposal id (vpr_…)",
+                        Some("vela policy evaluate-proposal . vpr_… --json"),
+                    )
+                });
+            let dir = ui::resolve_frontier(
+                positionals
+                    .iter()
+                    .find(|p| !p.starts_with("vpr_"))
+                    .map(PathBuf::from),
+            );
+            cmd_policy_evaluate_proposal(&dir, &pid, json);
+        }
         "suggest" => {
             ui::set_mode("policy", json);
             let dir = ui::resolve_frontier(positionals.first().map(PathBuf::from));
@@ -1468,6 +1648,31 @@ mod tests {
     use tempfile::TempDir;
     use vela_protocol::events::StateTarget;
     use vela_protocol::proposals::new_proposal;
+
+    #[test]
+    fn parse_sidon_bound_reads_the_canonical_claim() {
+        // The exact text submit.py emits.
+        assert_eq!(
+            parse_sidon_bound(
+                "OEIS A309370 a(6) >= 15: a Sidon set of 15 distinct binary vectors …"
+            ),
+            Some((6, 15))
+        );
+        assert_eq!(parse_sidon_bound("a(24) >= 1010"), Some((24, 1010)));
+        // Non-Sidon / malformed → None (the evaluator then reports not-a-beat).
+        assert_eq!(parse_sidon_bound("Lean theorem foo is proved"), None);
+        assert_eq!(parse_sidon_bound("a(6) = 15"), None);
+        assert_eq!(parse_sidon_bound("a() >= 5"), None);
+    }
+
+    #[test]
+    fn best_sidon_bound_empty_frontier_is_a_first_record() {
+        // The max/exclude behaviour over real findings is covered by the live
+        // integration walk; here we pin the base case: no bound at n is None
+        // (a first record, which the evaluator scores as a beat).
+        let project = vela_protocol::project::assemble("s", vec![], 0, 0, "t");
+        assert_eq!(best_sidon_bound_for_n(&project, 13, None), None);
+    }
 
     fn init_frontier(tmp: &TempDir) -> PathBuf {
         let dir = tmp.path().to_path_buf();

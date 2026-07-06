@@ -91,9 +91,9 @@ The loop:
                 it in the sign queue; Deny lands nothing.
   sign          THE human ceremony: everything awaiting your key, one
                 session, one confirm, one key read. Agents are refused.
-  policy        Standing rules (suggest/draft/test/sign/revoke/log): what
-                agents may land without you. Signing a policy IS the
-                autonomy; `suggest` shows the rule that would absorb
+  policy        Standing rules (suggest/draft/test/evaluate-proposal/sign/
+                revoke/log): what agents may land without you. Signing a policy
+                IS the autonomy; `suggest` shows the rule that would absorb
                 whatever keeps reaching your key.
 
 Read:
