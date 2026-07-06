@@ -1036,11 +1036,21 @@ pub fn accept_batch_at_path(
                 continue;
             }
         };
-        // Batch accepts stay keyless: on a frontier whose reviewer is
-        // registered with a key, each accept must be individually signed
-        // (`vela accept --key`) — bulk acceptance under a typed name is
-        // exactly what key custody exists to prevent.
-        match accept_proposal_in_frontier(&mut frontier, pid, reviewer, reason) {
+        // The batch honors the session's single key read: each accept is
+        // signed with `opts.signing_key` (the interactive `vela sign`
+        // resolves the reviewer's identity key once and threads it here).
+        // A key-registered reviewer whose key is absent still fails the
+        // custody check inside — keyless bulk acceptance under a typed name
+        // is exactly what key custody exists to prevent.
+        match accept_proposal_in_frontier_with_custody(
+            &mut frontier,
+            pid,
+            reviewer,
+            reason,
+            opts.signing_key.as_ref(),
+            opts.custody_verified,
+            opts.provenance.as_ref(),
+        ) {
             Ok(event_id) => {
                 if was_applied {
                     already_applied += 1;

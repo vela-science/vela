@@ -1264,6 +1264,83 @@ fn accept_batch_strict_gate_blocks_whole_batch() {
     }));
 }
 
+/// Regression: the interactive `vela sign` session runs its accepts through
+/// `accept_batch_at_path`. When the reviewer is registered with a key, the
+/// batch MUST honor `opts.signing_key` and persist a signed accept — and MUST
+/// refuse (into `report.failed`, persisting nothing) when the key is absent.
+/// Before the fix the batch was unconditionally keyless: a key-registered
+/// reviewer's accept failed silently, `report.failed` was ignored by the
+/// session, and the ceremony printed a false "signed" while nothing landed.
+#[test]
+fn accept_batch_honors_registered_reviewer_key() {
+    let key = accept_keypair();
+    let pubkey = crate::sign::pubkey_hex(&key);
+
+    // A key is REQUIRED but absent -> the accept lands in `failed`, nothing persists.
+    {
+        let (_tmp, path, ids) = frontier_with_pending_adds(1);
+        let mut fr = repo::load_from_path(&path).unwrap();
+        fr.actors.push(accept_actor("reviewer:will-blair", &pubkey));
+        repo::save_to_path(&path, &fr).unwrap();
+
+        let report = accept_batch_at_path(
+            &path,
+            &ids,
+            "reviewer:will-blair",
+            "keyless attempt",
+            AcceptOptions::default(), // signing_key: None
+            false,
+        )
+        .unwrap();
+
+        assert_eq!(report.event_ids.len(), 0, "no event without the key");
+        assert_eq!(report.accepted_proposal_ids.len(), 0);
+        assert_eq!(report.failed.len(), 1, "the custody refusal is REPORTED");
+        assert!(report.failed[0].1.contains("registered with a key"));
+
+        let loaded = repo::load_from_path(&path).unwrap();
+        assert_eq!(loaded.findings.len(), 0, "keyless accept persists nothing");
+        assert!(
+            loaded
+                .proposals
+                .iter()
+                .all(|p| p.status == "pending_review")
+        );
+    }
+
+    // The correct key is supplied -> the accept persists, signed.
+    {
+        let (_tmp, path, ids) = frontier_with_pending_adds(1);
+        let mut fr = repo::load_from_path(&path).unwrap();
+        fr.actors.push(accept_actor("reviewer:will-blair", &pubkey));
+        repo::save_to_path(&path, &fr).unwrap();
+
+        let report = accept_batch_at_path(
+            &path,
+            &ids,
+            "reviewer:will-blair",
+            "keyed accept",
+            AcceptOptions {
+                strict: false,
+                force: false,
+                signing_key: Some(key.clone()),
+                custody_verified: false,
+                provenance: None,
+            },
+            false,
+        )
+        .unwrap();
+
+        assert!(!report.gated);
+        assert_eq!(report.failed.len(), 0, "the keyed accept does not fail");
+        assert_eq!(report.event_ids.len(), 1, "one signed accept event");
+
+        let loaded = repo::load_from_path(&path).unwrap();
+        assert_eq!(loaded.findings.len(), 1, "the finding materialized");
+        assert!(loaded.proposals.iter().all(|p| p.status == "applied"));
+    }
+}
+
 #[test]
 fn math_profile_skips_study_design_checks_for_theoretical_findings() {
     use crate::evidence_ci::{self, EvidenceCiClassification};

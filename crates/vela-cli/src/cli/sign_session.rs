@@ -287,10 +287,18 @@ pub(crate) fn cmd_sign_session(frontier: Option<PathBuf>, key: Option<PathBuf>, 
 
     // Apply, one publish per frontier.
     let apply_spin = crate::cli::progress::Spinner::start("applying your decisions");
+    // One key read for the whole session: the reviewer's identity key,
+    // resolved once and threaded into every accept/reject. A key-registered
+    // reviewer whose key is absent fails the custody check in the engine —
+    // and that failure is surfaced below, never swallowed.
+    let signing_key = crate::cli_identity::resolve_signing_key_opt(key.as_deref());
+    let mut total_persisted = 0usize;
+    let mut failures: Vec<(String, String)> = Vec::new();
     for (dir, _, items) in &queues {
         let mut state = load_session(dir);
         let mut accepted: Vec<String> = Vec::new();
         let mut event_ids: Vec<String> = Vec::new();
+        let mut frontier_failed = false;
         for item in items {
             let Some(ans) = state.answers.get(&item.id).cloned() else {
                 continue;
@@ -299,9 +307,11 @@ pub(crate) fn cmd_sign_session(frontier: Option<PathBuf>, key: Option<PathBuf>, 
                 (SignLane::Decision, "accept") => accepted.push(item.id.clone()),
                 (SignLane::Decision, a) if a.starts_with("reject:") => {
                     let reason = a.trim_start_matches("reject:");
-                    // Reject emits its signed review event inside the
-                    // engine; the publish below sweeps the store change.
-                    if let Err(e) = proposals::reject_at_path(
+                    // Reject emits its signed review event inside the engine,
+                    // under the same session key; the publish below sweeps the
+                    // store change. A custody/validation failure is recorded,
+                    // not swallowed.
+                    match proposals::reject_at_path_signed(
                         dir,
                         &item.id,
                         &actor,
@@ -310,10 +320,13 @@ pub(crate) fn cmd_sign_session(frontier: Option<PathBuf>, key: Option<PathBuf>, 
                         } else {
                             reason
                         },
+                        signing_key.as_ref(),
                     ) {
-                        eprintln!("  reject {} failed: {e}", item.id);
-                    } else {
-                        event_ids.push(format!("reject:{}", item.id));
+                        Ok(()) => event_ids.push(format!("reject:{}", item.id)),
+                        Err(e) => {
+                            failures.push((item.id.clone(), e));
+                            frontier_failed = true;
+                        }
                     }
                 }
                 (SignLane::Hygiene, "yes") => {
@@ -328,7 +341,6 @@ pub(crate) fn cmd_sign_session(frontier: Option<PathBuf>, key: Option<PathBuf>, 
             }
         }
         if !accepted.is_empty() {
-            let signing_key = crate::cli_identity::resolve_signing_key_opt(key.as_deref());
             match proposals::accept_batch_at_path(
                 dir,
                 &accepted,
@@ -337,7 +349,7 @@ pub(crate) fn cmd_sign_session(frontier: Option<PathBuf>, key: Option<PathBuf>, 
                 proposals::AcceptOptions {
                     strict: false,
                     force: false,
-                    signing_key,
+                    signing_key: signing_key.clone(),
                     custody_verified: false,
                     provenance: crate::cli_identity::resolve_co_author_provenance(None, None),
                 },
@@ -349,26 +361,64 @@ pub(crate) fn cmd_sign_session(frontier: Option<PathBuf>, key: Option<PathBuf>, 
                             "  engine gate blocked the batch in {}: nothing persisted there",
                             dir.display()
                         );
-                        continue;
+                        frontier_failed = true;
+                    }
+                    // A per-proposal custody/validation error is reported by
+                    // the engine but does NOT abort the batch. Surface every
+                    // one — a failed accept must never masquerade as signed.
+                    for (pid, err) in &report.failed {
+                        failures.push((pid.clone(), err.clone()));
+                        frontier_failed = true;
                     }
                     event_ids.extend(report.event_ids.clone());
                 }
                 Err(e) => {
-                    eprintln!("  accept batch in {} failed: {e}", dir.display());
-                    continue;
+                    failures.push((dir.display().to_string(), e));
+                    frontier_failed = true;
                 }
             }
         }
         if !event_ids.is_empty() {
             let opts = crate::config::git_publish::PublishOptions::new(false, false);
             crate::config::git_publish::publish_decision(dir, "sign", &event_ids, &opts);
+            total_persisted += event_ids.len();
         }
-        // The session is consumed.
-        state.answers.clear();
-        let _ = std::fs::remove_file(session_path(dir));
+        // Consume the session only when every decision applied. A failure
+        // leaves the answers on disk so `vela sign` resumes and retries them.
+        if !frontier_failed {
+            state.answers.clear();
+            let _ = std::fs::remove_file(session_path(dir));
+        }
+    }
+    // Honesty gate: the ceremony reports "signed" only when a decision
+    // durably persisted. If nothing did, say so and exit non-zero — a false
+    // "signed" is the one failure a trust ceremony cannot have.
+    if total_persisted == 0 {
+        apply_spin.finish("nothing signed");
+        println!();
+        for (id, err) in &failures {
+            eprintln!("  {} {id}: {err}", style::madder("failed"));
+        }
+        ui::fail_with(
+            ErrorKind::Custody,
+            "no decision was signed — nothing changed. Fix the error above and re-run `vela sign`.",
+            Some(
+                "a reviewer registered with a key signs with that key; run `vela sign` at a \
+                 terminal (or pass --key) so the identity key is read",
+            ),
+        );
     }
     apply_spin.finish("applied");
     println!("\n  · signed. `vela log` shows the lane on every event.");
+    if !failures.is_empty() {
+        for (id, err) in &failures {
+            eprintln!("  {} {id}: {err}", style::madder("failed"));
+        }
+        eprintln!(
+            "  {} some items did not sign — re-run `vela sign` to retry them",
+            style::warn("partial")
+        );
+    }
 
     // The self-shrinking step: if what you just signed keeps recurring,
     // say so once — the rule that absorbs the class is one command away.

@@ -28,7 +28,7 @@ resolver = "3"
 # (0.700, 0.710, 0.720, ...). The patch field stays 0. The older `v0.X`
 # micro-version markers in comments/docs are historical provenance and do not
 # compare to this.
-version = "0.757.3"
+version = "0.757.4"
 edition = "2024"
 license = "Apache-2.0 OR MIT"
 repository = "https://github.com/constellate-science/vela"
