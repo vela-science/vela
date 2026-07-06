@@ -146,6 +146,27 @@ pub(crate) fn cmd_finding_show(frontier: &Path, finding_id: &str, json_out: bool
             );
         }
     }
+    // Attribution: the derived credit view — disclosed producers (machines
+    // included) and the accountable author (a valid human signature, or "none
+    // yet"). Shown only when the finding carries attribution data, so plain
+    // findings stay uncluttered. The `vela credit` projection is the full view.
+    if let Some(view) = vela_protocol::credit::credit(&project, finding_id)
+        && !view.contributors.is_empty()
+    {
+        println!("  contributions:");
+        for c in view.contributors.iter().take(12) {
+            println!(
+                "    - {} [{}] {} — {}",
+                c.agent_id, c.agent_kind, c.role, c.unit
+            );
+        }
+        let author = if view.author_of_record.is_empty() {
+            "no accountable author yet".to_string()
+        } else {
+            view.author_of_record.join(", ")
+        };
+        println!("    credit: {author}  (full view: `vela credit {finding_id}`)");
+    }
     println!(
         "  canonical events: {}",
         ctx.get("events")
