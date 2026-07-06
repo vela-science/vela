@@ -33,6 +33,15 @@ next -> work -> land -> sign
 - `vela sign` — the one human ceremony. Not yours: it refuses `agent:` actors
   (exit 4) by design.
 
+For the single-witness producer case — contributing one frozen-verified beat to
+a frontier you do not maintain (a fork PR) — reach for `vela submit <witness>
+--as agent:<you> --json` instead of driving `land` by hand. It is one
+transactional verb: reproduce the witness, land it, bind it to the finding as a
+content-addressed artifact, admit it through the exact lane, and materialize —
+in that order. It writes locally; `--push` publishes. The CI counterpart that
+decides the merge is `vela ci verdict` (it runs in the frontier's Action, not
+here). `submit` is porcelain over `land`; `land` stays the general write edge.
+
 Every verb takes `--json` and returns one object with `ok` and `command`; no
 prose leaks into a JSON stream. Exit codes: 0 ok, 1 domain failure, 2 usage,
 3 not found, 4 custody refused, 5 already exists. The frontier argument is
