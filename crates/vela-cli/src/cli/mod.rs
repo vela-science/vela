@@ -855,6 +855,7 @@ pub async fn run_command() {
             artifact,
             caveat,
             r#as,
+            push,
             json,
         } => {
             crate::ui::set_mode("land", json);
@@ -898,8 +899,13 @@ pub async fn run_command() {
                             Some("this exact claim is already in the frontier; nothing to do"),
                         );
                     }
-                    // Publication: the store changed either way.
-                    let opts = crate::config::git_publish::PublishOptions::new(false, false);
+                    // Publication: the store changed either way. Commit locally;
+                    // push only with --push (explicit publish).
+                    let opts = if push {
+                        crate::config::git_publish::PublishOptions::pushing()
+                    } else {
+                        crate::config::git_publish::PublishOptions::new(false, false)
+                    };
                     crate::config::git_publish::publish_decision(
                         &dir,
                         "land",

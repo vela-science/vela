@@ -474,6 +474,10 @@ pub(crate) enum Commands {
         caveat: Vec<String>,
         #[arg(long, help = HELP_AS)]
         r#as: Option<String>,
+        /// Publish now: commit locally AND push. Without it, land commits
+        /// locally and you publish deliberately with `git push`.
+        #[arg(long)]
+        push: bool,
         #[arg(long)]
         json: bool,
     },

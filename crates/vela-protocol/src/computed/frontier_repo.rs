@@ -1108,54 +1108,22 @@ fn collect_witness_json(dir: &Path, out: &mut Vec<std::path::PathBuf>) {
     }
 }
 
-fn materialization_generated_at(path: &Path, project: &Project) -> String {
-    let now = Utc::now().to_rfc3339_opts(SecondsFormat::Secs, true);
-    let Ok(Some(lock)) = read_lock(path) else {
-        return now;
-    };
-    if lock.generated_at.trim().is_empty() {
-        return now;
-    }
-    let Ok(locked) = project_with_frontier_id(project) else {
-        return now;
-    };
-    let reducer_package = format!("vela@{}", env!("CARGO_PKG_VERSION"));
-    let current = [
-        (
-            lock.snapshot_hash.as_str(),
-            prefixed(events::snapshot_hash(&locked)),
-        ),
-        (
-            lock.event_log_hash.as_str(),
-            prefixed(events::event_log_hash(&locked.events)),
-        ),
-        (
-            lock.proposal_state_hash.as_str(),
-            proposal_state_hash(&locked.proposals),
-        ),
-        (
-            lock.sources_hash.as_str(),
-            directory_hash(&path.join("sources")),
-        ),
-        (
-            lock.artifacts_hash.as_str(),
-            directory_hash(&path.join("artifacts")),
-        ),
-        (
-            lock.review_hash.as_str(),
-            directory_hash(&path.join("review")),
-        ),
-    ];
-    let hashes_match = current.iter().all(|(locked, current)| *locked == current);
-    let versions_match = lock.vela_version == env!("CARGO_PKG_VERSION")
-        && lock.carina_kernel == DEFAULT_CARINA_KERNEL
-        && lock.reducer.package == reducer_package
-        && lock.carina.kernel == DEFAULT_CARINA_KERNEL;
-    if hashes_match && versions_match && lock.proof_freshness == "fresh" {
-        lock.generated_at
-    } else {
-        now
-    }
+/// The materialization timestamp stamped into `frontier.json`/`vela.lock`/`proof`.
+///
+/// Deterministic by construction: a pure function of the event log, never the
+/// wall clock, so a given `.vela/events/` always materializes byte-identically
+/// (the property CI's parity gate and a cold reproduce both rely on). We use the
+/// latest event timestamp — the log head — and a fixed epoch sentinel for an
+/// empty log. This value feeds no hash (`snapshot_hash`/`event_log_hash` exclude
+/// it); it is human-facing metadata only.
+fn materialization_generated_at(_path: &Path, project: &Project) -> String {
+    project
+        .events
+        .iter()
+        .map(|e| e.timestamp.as_str())
+        .max()
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| "1970-01-01T00:00:00Z".to_string())
 }
 
 fn project_with_frontier_id(project: &Project) -> Result<Project, String> {
@@ -1379,7 +1347,12 @@ fn write_proof(path: &Path, project: &Project, generated_at: &str) -> Result<Pro
     // grep confirms nothing reads it), so a running chain is the correct O(N)
     // replacement. Schema bumped to v0.2 to mark the changed value semantics.
     let mut chained_log_hash = String::new();
-    for (idx, event) in locked.events.iter().enumerate() {
+    // Emit the manifest/trace in canonical event-id order, matching
+    // `event_log_hash`'s ordering, so the proof files are byte-identical
+    // regardless of how the log was loaded (directory read, packet array, …).
+    let mut ordered: Vec<_> = locked.events.iter().collect();
+    ordered.sort_by(|a, b| a.id.cmp(&b.id));
+    for (idx, event) in ordered.into_iter().enumerate() {
         let event_hash = prefixed(event_hash(event));
         let entry = json!({
             "schema": "vela.proof_event_manifest_entry.v0.1",

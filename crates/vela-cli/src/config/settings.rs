@@ -84,11 +84,14 @@ pub(crate) const KEYS: &[KeySpec] = &[
     },
     KeySpec {
         key: "publish.git_push",
-        default: "auto",
+        // Explicit publish, like git: a decision commits locally but does NOT
+        // push. Publishing is a deliberate `git push` or `--push`. Set "auto"
+        // (user config / env / CI) to opt back into auto-push.
+        default: "off",
         env: "VELA_PUBLISH_GIT_PUSH",
         frontier: Some(true),
         allowed: &["auto", "off"],
-        help: "auto-push the decision commit (publication is the push)",
+        help: "push the decision commit automatically (default off; publish with git push or --push)",
     },
     KeySpec {
         key: "ui.color",
@@ -182,7 +185,17 @@ fn identity_layer(key: &str) -> Option<String> {
     match key {
         "hub.url" => Some(id.hub_url),
         "publish.git_commit" => Some(id.git_commit),
-        "publish.git_push" => Some(id.git_push),
+        // Migration to explicit-publish: identities were written with
+        // git_push="auto" (the old default). Treat "auto"/empty from the
+        // identity as non-authoritative so it falls through to the new "off"
+        // default — existing users stop auto-pushing too. To opt back into
+        // auto-push, set publish.git_push=auto in user config or the env
+        // (both outrank this identity layer). A non-"auto" identity value is
+        // still honored here.
+        "publish.git_push" => match id.git_push.as_str() {
+            "auto" | "" => None,
+            other => Some(other.to_string()),
+        },
         _ => None,
     }
 }

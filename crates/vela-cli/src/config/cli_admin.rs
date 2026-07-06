@@ -46,7 +46,10 @@ pub(crate) fn cmd_id(action: IdAction) {
                 pubkey: pubkey.clone(),
                 hub_url: hub_url.clone(),
                 git_commit: "auto".to_string(),
-                git_push: "auto".to_string(),
+                // Inherit the default (currently "off"): explicit publish. A new
+                // identity does not auto-push; the user opts in per-verb (--push)
+                // or via config. Empty = fall through to the KeySpec default.
+                git_push: String::new(),
             };
             save_identity(&identity).unwrap_or_else(|e| fail_return(&e));
             print_identity_created(&identity, json);
@@ -84,7 +87,10 @@ pub(crate) fn cmd_id(action: IdAction) {
                 pubkey: pubkey.clone(),
                 hub_url: hub.unwrap_or_else(|| DEFAULT_HUB.to_string()),
                 git_commit: "auto".to_string(),
-                git_push: "auto".to_string(),
+                // Inherit the default (currently "off"): explicit publish. A new
+                // identity does not auto-push; the user opts in per-verb (--push)
+                // or via config. Empty = fall through to the KeySpec default.
+                git_push: String::new(),
             };
             save_identity(&identity).unwrap_or_else(|e| fail_return(&e));
             print_identity_created(&identity, json);

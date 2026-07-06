@@ -24,11 +24,28 @@ use vela_protocol::cli_style as style;
 pub(crate) struct PublishOptions {
     pub no_commit: bool,
     pub no_push: bool,
+    /// Push even when config resolves `publish.git_push` to "off" — the explicit
+    /// `--push` flag. Ordinary calls leave this false, so the default
+    /// (commit locally, do not push) holds and publishing stays deliberate.
+    pub force_push: bool,
 }
 
 impl PublishOptions {
     pub(crate) fn new(no_commit: bool, no_push: bool) -> Self {
-        Self { no_commit, no_push }
+        Self {
+            no_commit,
+            no_push,
+            force_push: false,
+        }
+    }
+
+    /// Explicit publish: commit locally and push regardless of config.
+    pub(crate) fn pushing() -> Self {
+        Self {
+            no_commit: false,
+            no_push: false,
+            force_push: true,
+        }
     }
 }
 
@@ -133,8 +150,8 @@ pub(crate) fn publish_decision(
     println!("  published · {sha} {summary}");
 
     let (push_mode, _) = crate::config::settings::resolve("publish.git_push", Some(frontier));
-    if opts.no_push || push_mode == "off" {
-        println!("  not pushed (push when ready: git push)");
+    if (opts.no_push || push_mode == "off") && !opts.force_push {
+        println!("  not pushed (push when ready: git push, or re-run with --push)");
         return;
     }
     match git(&root, &["push", "-q"]) {
