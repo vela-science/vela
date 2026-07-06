@@ -2,7 +2,7 @@
 #
 # Consume from any frontier repo:
 #
-#   - uses: actions/checkout@v4
+#   - uses: actions/checkout@v5
 #   - uses: constellate-science/vela@main
 #
 # It replays the signed event log from the clean checkout and proves the
