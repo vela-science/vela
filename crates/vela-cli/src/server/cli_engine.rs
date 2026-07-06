@@ -2916,10 +2916,9 @@ pub(crate) fn cmd_submit(
         }
     };
 
-    // 3. Stage the witness + bind it to the finding INTRINSICALLY (no targets.json).
-    let wdir = frontier.join("witnesses");
-    let _ = std::fs::create_dir_all(&wdir);
-    let _ = std::fs::write(wdir.join(&witness_name), &bytes);
+    // 3. Store the witness ONCE as a content-addressed, verifier-tagged artifact
+    //    bound to the finding (no targets.json, no loose witnesses/ file). The
+    //    exact-lane floor and `vela reproduce` both read it from the blob store.
     register_witness_artifact(frontier, &bytes, &kind, &witness_name, &vf, actor)
         .unwrap_or_else(|e| fail_return(&format!("register witness: {e}")));
 
@@ -2994,7 +2993,38 @@ pub(crate) fn cmd_reproduce(path: &Path, json_output: bool) {
     if !json_output {
         crate::ui::header("REPRODUCE", &path.display().to_string(), None);
     }
-    let files = collect_witness_files(path);
+    let mut files = collect_witness_files(path);
+    // Also re-verify content-addressed witness blobs: `vela submit` stores a
+    // witness as a verifier-tagged artifact under `.vela/artifact-blobs/` (the
+    // git-clean witness store), bound to its finding, not as a loose file. Cover
+    // any such blob that isn't already present as a loose witness (deduped by
+    // content hash) so a blob-only witness is reproduced too.
+    if let Ok(source) = repo::detect(path)
+        && let Ok(proj) = repo::load(&source)
+    {
+        use sha2::{Digest, Sha256};
+        let loose: std::collections::HashSet<String> = files
+            .iter()
+            .filter_map(|f| std::fs::read(f).ok())
+            .map(|b| format!("sha256:{}", hex::encode(Sha256::digest(&b))))
+            .collect();
+        for art in &proj.artifacts {
+            if art.media_type.as_deref() != Some("application/json")
+                || !art.metadata.contains_key("verifier")
+                || loose.contains(&art.content_hash)
+            {
+                continue;
+            }
+            if let ("local_blob" | "local_file", Some(loc)) =
+                (art.storage_mode.as_str(), &art.locator)
+            {
+                let blob = path.join(loc);
+                if blob.exists() {
+                    files.push(blob);
+                }
+            }
+        }
+    }
     if files.is_empty() {
         fail(&format!(
             "no witnesses found at {} (expected a `*.witness.json` file, or a directory containing them / a `witnesses/` subdir)",
