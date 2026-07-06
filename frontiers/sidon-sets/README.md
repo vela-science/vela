@@ -6,7 +6,7 @@ vectors whose pairwise sums (with repetition) are all distinct. If your solver
 finds a set larger than the current best for some `n`, you can put it on the
 record in about five minutes, with no bespoke integration: the `vela` CLI, a
 fork of [`constellate-science/sidon-frontier`](https://github.com/constellate-science/sidon-frontier),
-and one `submit.py` run. A frozen verifier re-runs your construction and CI
+and one `vela submit` run. A frozen verifier re-runs your construction and CI
 merges a gate-clean beat with no maintainer in the loop.
 
 The point of this frontier: **poll the bounds before you search so you never
@@ -21,14 +21,14 @@ A complete, valid example witness ships next to this file:
 
 ```
 vela reproduce witness.example.json            # frozen verifier: ok
-python3 submit.py witness.example.json --dry-run
+vela submit witness.example.json --dry-run
 ```
 
-`submit.py` first checks that `vela` is the real CLI (a clear error if a
-different `vela` shadows it on your PATH), re-verifies the witness with the
-frozen verifier, reports the delta vs the live record, and prints the signed
-`vela land` it *would* run. Drop `--dry-run` to write the signed proposal into
-your frontier checkout under your key, then `git push` it and open a PR.
+`vela submit --dry-run` re-verifies the witness with the frozen verifier, reports
+the delta vs the live record, and prints the exact writes it *would* make,
+changing nothing. Drop `--dry-run` to land it: `vela submit` reaches
+`machine_verified` and commits locally; `git push` it (or `vela submit --push`)
+and open a PR.
 
 To produce your **own** witness with the bundled engine instead of bringing a
 solver, one command emits one in this exact format:
@@ -36,7 +36,7 @@ solver, one command emits one in this exact format:
 ```
 vela foundry campaign search sidon --n 8 --restarts 200 --json \
   | python3 -c "import json,sys; json.dump(json.load(sys.stdin)['witness'], open('mine.json','w'), indent=2)"
-python3 submit.py mine.json --dry-run
+vela submit mine.json --dry-run
 ```
 
 For a real **beat**, poll `bounds.json` (below) and search an `n` where you can
@@ -72,29 +72,30 @@ trust.
 
 The writable frontier lives at
 [`constellate-science/sidon-frontier`](https://github.com/constellate-science/sidon-frontier).
-Fork it, clone your fork, and run `submit.py` from inside that checkout:
+Fork it, clone your fork, and run `vela submit` from inside that checkout:
 
 ```
 cargo install --git https://github.com/constellate-science/vela vela-cli   # or a release binary
-python3 submit.py your-witness.json
+vela submit your-witness.json
 ```
 
-`submit.py` (in this directory, stdlib-only) does four things:
+`vela submit` does the whole producer path in one transaction:
 
-1. **re-verifies** your witness with the frozen verifier (`vela reproduce`),
-2. checks it against `bounds.json` and tells you the delta,
-3. **lands** the finding under an `agent:` actor (`vela land`, which
-   self-publishes a local commit), stages the witness into `witnesses/` and maps
-   it in `witnesses/targets.json`, and
-4. fires the **exact-lane**: `vela gate auto-admit` re-runs the frozen verifier
+1. **re-verifies** your witness with the frozen verifier,
+2. **lands** the finding under an `agent:` actor and binds the witness to it
+   intrinsically (the exact-lane floor reads the binding off the artifact — there
+   is no `targets.json` to maintain),
+3. fires the **exact lane** (`vela gate auto-admit`): re-runs the frozen verifier
    and binds the claim to the construction, reaching **`machine_verified`** with
-   no human and no key. It prints a citable **receipt**.
+   no human and no key,
+4. materializes the derived views and prints a citable **receipt**. It commits
+   locally; `--push` publishes.
 
-Then `git push` those commits to your fork and open a PR. Use `--dry-run` first
-to see the verification and the exact writes it would make, changing nothing:
+Then `git push` your commit to your fork and open a PR. Use `--dry-run` first to
+see the verification and the exact writes it would make, changing nothing:
 
 ```
-python3 submit.py your-witness.json --dry-run
+vela submit your-witness.json --dry-run
 ```
 
 ## What you get, and what happens next

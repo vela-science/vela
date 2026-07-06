@@ -72,50 +72,38 @@ fn init_creates_canonical_frontier_repo_layout() {
 
     assert_eq!(payload["schema"], "vela.frontier_repo_init.v0.1");
     assert_eq!(payload["layout"], "vela.frontier_repo.v0.1");
+    // The git-clean skeleton: the record + its derived views + the CI/agent
+    // scaffold. No empty section-README stub dirs (those are created on demand
+    // when a section actually holds content).
     for path in [
         "README.md",
         "SCOPE.md",
+        "VELA.md",
+        ".gitignore",
+        ".github/workflows/vela-frontier.yml",
         "frontier.yaml",
         "frontier.json",
         "vela.lock",
-        "sources/README.md",
-        "artifacts/README.md",
-        "artifacts/packets",
-        "artifacts/runs",
-        "artifacts/code",
-        "artifacts/notebooks",
-        "artifacts/data",
-        "artifacts/notes",
-        "artifacts/tables",
-        "artifacts/figures",
-        "artifacts/analyses",
-        "artifacts/environments",
-        "review/README.md",
-        "proof/README.md",
         "proof/latest.json",
         "proof/events.manifest.jsonl",
         "proof/replay.trace.jsonl",
         "proof/freshness.md",
         "proof/hashes.json",
-        "proof/signatures",
-        "proof/attestations",
-        "exports/README.md",
-        "exports/prov",
-        "exports/ro-crate",
-        "exports/frictionless",
-        "exports/mcp",
-        "exports/report",
-        "exports/registry",
         ".vela/config.toml",
         ".vela/findings",
         ".vela/events",
         ".vela/proposals",
-        ".vela/tasks",
-        ".vela/workspaces",
         ".vela/proof-state.json",
         ".vela/actors.json",
     ] {
         assert!(frontier.join(path).exists(), "missing {path}");
+    }
+    // No empty stub directories litter a fresh frontier.
+    for stub in ["sources", "artifacts", "review", "exports"] {
+        assert!(
+            !frontier.join(stub).exists(),
+            "unexpected empty stub dir: {stub}"
+        );
     }
     assert!(!frontier.join(".git").exists());
     assert!(

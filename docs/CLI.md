@@ -40,7 +40,8 @@ the agent, and the pen belongs to you.
 |---|---|
 | `next` | The offer: ranked open targets with the compounding payload pre-loaded (premises, banked routes, prior attempts, dead channels). `--json` is the agent contract. |
 | `work` | Claim the lease on a target and load its briefing into `.vela/work/<target>/`. Close with `land`. |
-| `land` | Land a result (`vela.receipt.v1`): record, propose, then route by the signed policy. Permit admits, Defer parks it in the sign queue, Deny lands nothing. |
+| `land` | Land a result (`vela.receipt.v1`): record, propose, then route by the signed policy. Permit admits, Defer parks it in the sign queue, Deny lands nothing. Commits locally; `--push` publishes. |
+| `submit` | The producer path in one verb: frozen-verify a witness, land it, bind it to its finding, drive the exact lane to `machine_verified`, materialize. `--dry-run` previews; commits locally, `--push` publishes. Replaces bespoke submit scripts. |
 | `sign` | The one human ceremony: every deferred decision, one session, one confirm, one key read. |
 | `status` | One-screen frontier state: findings by status, verdicts, replay integrity, sign-queue count, policy mode, and a `next` hint. |
 | `log` | Recent signed events; `vela log <dir> <vf_>` is one finding's history. |
@@ -55,6 +56,7 @@ the agent, and the pen belongs to you.
 | `reproduce` | Re-verify stored witnesses from scratch with the frozen verifiers. |
 | `proof` | Export a proof packet; `proof verify` re-checks one, `proof explain` narrates it. |
 | `gate` | Claim-level verification gate: grade/check/vocab/backfill/attach/auto-admit. `gate attach --from inspect --log <eval.json> --finding <vf_>` ingests an Inspect-AI eval log as an `eval_harness` verifier attachment bound to the claim — evidence, not a verdict (`method_integrity: unattested`; a lone one fails the gate's independence check and never auto-admits). See [RECEIPTS.md](RECEIPTS.md). |
+| `ci verdict` | The whole auto-merge decision for a frontier's Action, in one call: which finding proposals a PR adds (diffed against `--base <ref>`), whether each is `machine_verified` and a genuine beat, and whether the PR only touched the append-only store. Exit 0 iff it may auto-merge, so the Action is `vela ci verdict … && gh pr merge`. |
 
 ## Publish
 
