@@ -88,7 +88,7 @@ confidence. A finding can be reviewer-accepted and still gate
 | `bindings/` | Python HTTP SDK: a client for `vela serve --http` (read endpoints + signed write tools). Not a reducer. |
 | `conformance/` | The cross-implementation test-vector suite (reducer fixtures + gate reject-vectors). |
 | `examples/sidon-a309370` | A worked, re-verifiable reference: the OEIS A309370 Sidon records you can re-check with `vela reproduce`. |
-| `frontiers/sidon-sets` | The external-producer on-ramp: poll `bounds.json` for the current best Sidon bound per n, beat one, and `python3 submit.py witness.json` writes a signed transition with your key. The frictionless second-signer path; see its `README.md`. |
+| `frontiers/sidon-sets` | The external-producer on-ramp: poll `bounds.json` for the current best Sidon bound per n, beat one, and `python3 submit.py witness.json` lands it and reaches `machine_verified` via the frozen verifier. Producers fork [`constellate-science/sidon-frontier`](https://github.com/constellate-science/sidon-frontier), where CI auto-merges a gate-clean beat; see its `README.md`. |
 | `lean/` | Machine-checked proofs of the governance-soundness theorems, plus `SidonCertificate.lean` (a kernel-checked vcert). |
 | `schema/` | Carina kernel schemas. |
 
@@ -137,10 +137,11 @@ vela finding add . --assertion "..." --author reviewer:your-handle
 git push                               # publication; the hub re-derives its index
 ```
 
-No git remote of your own? A live frontier can carry a one-command submit path
-that POSTs the signed transition to the hub for you — see
-[`frontiers/sidon-sets`](frontiers/sidon-sets), where `python3 submit.py
-witness.json` beats a bound under your key in about five minutes, no account.
+Want the frictionless path? A live frontier carries a one-command submit script:
+fork [`constellate-science/sidon-frontier`](https://github.com/constellate-science/sidon-frontier),
+run `python3 submit.py witness.json` (see [`frontiers/sidon-sets`](frontiers/sidon-sets)),
+and a gate-clean beat reaches `machine_verified` and auto-merges in about five
+minutes, no maintainer in the loop.
 
 A proposal is admitted to the *log* on the strength of its signature over
 content-addressed bytes, never on claimed identity. Admission to the log is not

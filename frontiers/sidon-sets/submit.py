@@ -33,7 +33,7 @@ A witness file is:
 each point a 0/1 vector of length n; the set is Sidon iff all pairwise sums
 (with repetition) are distinct.
 """
-import argparse, hashlib, json, os, re, shlex, subprocess, sys, urllib.request, datetime
+import argparse, hashlib, json, os, re, shlex, shutil, subprocess, sys, urllib.request, datetime
 
 # The Sidon frontier's id (recorded in the receipt).
 DEFAULT_VFR = "vfr_496956067dc5ad79"
@@ -203,50 +203,95 @@ def main():
         verdict = f"BELOW the current best a({n}) >= {best}; submitting anyway is allowed but will not improve the bound"
     print(f"  frontier    {verdict}")
 
-    # ── 4. build the finding bundle payload ──────────────────────────────
+    # ── 4. build the claim + the exact-lane submission plan ──────────────
     payload = build_finding(n, size, w)
-    reason = f"Sidon lower bound a({n}) >= {size}, frozen-verified (sidon)."
-
     claim = payload["finding"]["assertion"]["text"]
     caveat = ("Admission to the log is not verification; this lower-bound claim "
-              "must earn `verified` at the gate before it counts as held state.")
+              "reaches `machine_verified` by the frozen verifier, not human accept.")
     frontier = os.path.abspath(args.frontier)
-    land_cmd = [args.vela, "land", "--frontier", frontier,
-                "--claim", claim, "--artifact", os.path.abspath(args.witness),
-                "--caveat", caveat, "--json"]
-    if args.actor:
-        land_cmd += ["--as", args.actor]
-
+    # The autonomy lane admits an `agent:`/`ci:` landing (a solver produced the
+    # witness); a `reviewer:` land would go to the human sign queue instead
+    # ("Agents land. Verifiers reproduce. Humans sign."). Default to an agent.
+    actor = args.actor or "agent:producer"
+    if not actor.startswith(("agent:", "ci:")):
+        actor = "agent:" + actor.split(":", 1)[-1]
+    witness_name = os.path.basename(args.witness)
+    if not witness_name.endswith(".witness.json"):
+        witness_name = f"sidon-a{n}-{size}.witness.json"
     landable = os.path.isdir(os.path.join(frontier, ".vela"))
 
+    land_cmd = [args.vela, "land", "--frontier", frontier, "--claim", claim,
+                "--artifact", os.path.abspath(args.witness), "--caveat", caveat,
+                "--as", actor]
+
     if args.dry_run:
-        print("\n  --dry-run: writing nothing. This would create a signed proposal via:")
-        print("    " + " ".join(shlex.quote(c) for c in land_cmd[:-1]))  # hide --json in the preview
+        print("\n  --dry-run: writing nothing. In your frontier checkout this would:")
+        print("    1. land the finding under your agent key:")
+        print("       " + " ".join(shlex.quote(c) for c in land_cmd))
+        print(f"    2. stage the witness -> witnesses/{witness_name} and map it in")
+        print("       witnesses/targets.json (the exact-lane's consent map)")
+        print(f"    3. register it:  {args.vela} gate backfill {frontier}")
+        print(f"    4. auto-admit:   {args.vela} gate auto-admit {frontier} --finding <vf> --apply")
+        print("       the frozen verifier re-runs the witness and binds the claim to it")
+        print("       -> machine_verified. No human, no key.")
         if not landable:
-            print(f"  note: {frontier} is not a writable frontier checkout (no .vela store) —")
-            print("        pass --frontier <a clone of the sidon frontier's git repo> to write for real.")
-        print("  then publish it: git push your commit (to your fork) and open a PR at")
-        print("    https://github.com/constellate-science/vela")
+            print(f"  note: {frontier} has no .vela store — run this inside a fork of")
+            print("        github.com/constellate-science/sidon-frontier.")
+        print("  then: git push (to your fork) + open a PR; CI merges a gate-clean beat.")
         return
 
-    # ── 5. write the signed proposal into the frontier repo (vela land) ──
     if not landable:
         die(f"no writable frontier checkout at {frontier} (no .vela store).\n"
-            "This is the git-native write path: `vela land` records the signed proposal into a\n"
-            "clone of the frontier's own git repo, which you then push. Point --frontier at such a\n"
-            "checkout. (The examples/ dirs in the main repo are re-verifiable snapshots, not\n"
-            "writable frontiers — see docs/HUB.md `register-git` for how a frontier is published.)")
-    res = subprocess.run(land_cmd, capture_output=True, text=True)
+            "Run this inside a clone/fork of the sidon frontier's git repo\n"
+            "(github.com/constellate-science/sidon-frontier), or pass --frontier <that checkout>.")
+
+    # ── 5. land the finding (agent lane) ─────────────────────────────────
+    res = subprocess.run(land_cmd + ["--json"], capture_output=True, text=True)
     land_out = (res.stdout + res.stderr).strip()
     if res.returncode != 0:
         die(f"vela land failed:\n{land_out}")
-    print("\n  " + land_out.replace("\n", "\n  "))
-
-    # ── 6. emit a citable receipt ────────────────────────────────────────
-    # `vela land` interleaves human lines with its JSON, so pull the proposal id
-    # out of the combined output directly rather than json.loads()-ing all of it.
     m = re.search(r"vpr_[0-9a-f]+", land_out)
-    proposal_id = m.group(0) if m else None
+    if not m:
+        die(f"could not find the landed proposal id in:\n{land_out}")
+    vpr = m.group(0)
+    try:
+        prop = json.load(open(os.path.join(frontier, ".vela", "proposals", vpr + ".json")))
+        vf = prop.get("target", {}).get("id")
+    except Exception as e:
+        die(f"could not read the landed proposal {vpr}: {e}")
+    if not vf:
+        die(f"landed proposal {vpr} has no target finding id")
+    print(f"  landed      {vf} (proposal {vpr}, as {actor})")
+
+    # ── 6. stage the witness + targets.json (the exact-lane consent map) ─
+    wdir = os.path.join(frontier, "witnesses")
+    os.makedirs(wdir, exist_ok=True)
+    shutil.copyfile(args.witness, os.path.join(wdir, witness_name))
+    tpath = os.path.join(wdir, "targets.json")
+    targets = {}
+    if os.path.exists(tpath):
+        try:
+            targets = json.load(open(tpath))
+        except Exception:
+            targets = {}
+    targets[witness_name] = vf
+    with open(tpath, "w") as tf:
+        json.dump(targets, tf, indent=2, sort_keys=True)
+
+    # ── 7. register the witness as a verifier-tagged artifact ────────────
+    r = subprocess.run([args.vela, "gate", "backfill", frontier, "--as", actor],
+                       capture_output=True, text=True)
+    if r.returncode != 0:
+        die(f"gate backfill (witness registration) failed:\n{(r.stdout + r.stderr).strip()}")
+
+    # ── 8. fire the exact-lane: frozen re-run + claim<->witness binding ──
+    r = subprocess.run([args.vela, "gate", "auto-admit", frontier, "--finding", vf, "--apply"],
+                       capture_output=True, text=True)
+    aa_out = (r.stdout + r.stderr).strip()
+    fired = ("machine_verified" in aa_out) and re.search(r"auto-admit.*:\s*YES", aa_out) is not None
+    print("\n  " + aa_out.replace("\n", "\n  "))
+
+    # ── 9. emit a citable receipt ────────────────────────────────────────
     receipt = {
         "ok": True,
         "frontier_id": args.vfr,
@@ -256,16 +301,19 @@ def main():
         "beats": {"previous_best": best, "delta": (size - best) if best is not None else None},
         "witness_sha256": sha256_file(args.witness),
         "verifier": {"kind": "sidon", "crate": "vela-verify", "reproduce": repro.splitlines()[0].strip()},
-        "proposal_id": proposal_id,
-        "status": "recorded (git-local; push to publish)",
+        "finding_id": vf,
+        "proposal_id": vpr,
+        "status": "machine_verified (frozen verifier)" if fired
+                  else "landed; auto-admit deferred (see the gate output above)",
         "submitted_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-        "note": "The signed proposal is committed in your frontier checkout. Publish it: git push the "
-                "commit to your fork and open a PR. The hub re-derives its index from the push.",
+        "note": ("The frozen verifier re-ran your witness and bound the claim to it. Publish it: "
+                 "git push the commit(s) to your fork and open a PR. CI re-verifies and auto-merges "
+                 "a gate-clean beat; a human later marks significance for `accepted`."),
     }
     print("\n  receipt:")
     print(json.dumps(receipt, indent=2))
-    print("\n  next: git push this commit (to your fork) and open a PR at")
-    print("    https://github.com/constellate-science/vela")
+    print("\n  next: git push these commits (to your fork) and open a PR at")
+    print("    https://github.com/constellate-science/sidon-frontier")
 
 
 if __name__ == "__main__":

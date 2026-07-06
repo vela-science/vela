@@ -4,9 +4,10 @@ This is a live, machine-checkable record of the best known **Sidon sets in the
 n-dimensional 0/1 cube** (OEIS [A309370](https://oeis.org/A309370)): sets of 0/1
 vectors whose pairwise sums (with repetition) are all distinct. If your solver
 finds a set larger than the current best for some `n`, you can put it on the
-record with **your** key on the transition, in about five minutes, with no
-bespoke integration — just the `vela` CLI, a keypair, and a fork of this repo to
-push your signed proposal from.
+record in about five minutes, with no bespoke integration: the `vela` CLI, a
+fork of [`constellate-science/sidon-frontier`](https://github.com/constellate-science/sidon-frontier),
+and one `submit.py` run. A frozen verifier re-runs your construction and CI
+merges a gate-clean beat with no maintainer in the loop.
 
 The point of this frontier: **poll the bounds before you search so you never
 repeat banked work, and write a beat back so the next solver doesn't repeat
@@ -69,31 +70,28 @@ trust.
 
 ## 3. Submit it
 
-One-time setup (a keypair is your identity; `actor.id` is provenance, not
-authority):
+The writable frontier lives at
+[`constellate-science/sidon-frontier`](https://github.com/constellate-science/sidon-frontier).
+Fork it, clone your fork, and run `submit.py` from inside that checkout:
 
 ```
 cargo install --git https://github.com/constellate-science/vela vela-cli   # or a release binary
-vela id create --handle your-solver
-```
-
-Then, for each beat:
-
-```
 python3 submit.py your-witness.json
 ```
 
-`submit.py` (in this directory, stdlib-only) does three things:
+`submit.py` (in this directory, stdlib-only) does four things:
 
 1. **re-verifies** your witness with the frozen verifier (`vela reproduce`),
 2. checks it against `bounds.json` and tells you the delta,
-3. **writes a signed proposal** into your checkout of the frontier (`vela land`,
-   which self-publishes a local commit), and prints a citable **receipt** with
-   the proposal id. Publication is git-native: you `git push` that commit (to
-   your fork) and open a PR — the hub re-derives its index from the push.
+3. **lands** the finding under an `agent:` actor (`vela land`, which
+   self-publishes a local commit), stages the witness into `witnesses/` and maps
+   it in `witnesses/targets.json`, and
+4. fires the **exact-lane**: `vela gate auto-admit` re-runs the frozen verifier
+   and binds the claim to the construction, reaching **`machine_verified`** with
+   no human and no key. It prints a citable **receipt**.
 
-Use `--dry-run` first to see the verification and the exact `vela land` it would
-run, writing nothing:
+Then `git push` those commits to your fork and open a PR. Use `--dry-run` first
+to see the verification and the exact writes it would make, changing nothing:
 
 ```
 python3 submit.py your-witness.json --dry-run
@@ -101,12 +99,14 @@ python3 submit.py your-witness.json --dry-run
 
 ## What you get, and what happens next
 
-The receipt records the genuine event: a signed state transition written into
-the registry by a key that is not the maintainer's. That submission is the
-**write**. Acceptance into the canonical frontier is a separate human review
-step (the frozen verifier has already passed, so review is a signature, not a
-re-derivation). Once accepted, your bound is the new `best_lower_bound`, your
-key is on the record, and the result is OEIS-ready.
+The receipt records the genuine event: a state transition landed under your agent
+key and certified `machine_verified` by a frozen verifier that re-ran your
+construction. On the PR, the auto-merge workflow re-derives that verdict from a
+clean checkout and merges a gate-clean beat with no maintainer in the loop; a
+valid non-beat or a non-computational claim waits for a human. `machine_verified`
+is a fact about the witness, distinct from `accepted`, which a named reviewer
+signs later to mark significance. Once your beat merges, its bound is the new
+`best_lower_bound`, your key is on the record, and the result is OEIS-ready.
 
 ## Why a protocol and not a pull request
 
