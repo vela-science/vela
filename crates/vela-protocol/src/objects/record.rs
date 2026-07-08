@@ -52,6 +52,21 @@ pub struct RecordVerifierRun {
     pub solver: String,
 }
 
+/// External source-of-record metadata for a landed activity record.
+/// The emitting machine remains `emitted_by`; this names the scientific
+/// producer whose output the record carries.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct RecordSource {
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub name: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub source_type: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub uri: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub authors: Vec<String>,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ActivityRecord {
     pub schema: String,
@@ -73,6 +88,13 @@ pub struct ActivityRecord {
     /// What this claim does NOT establish. Required non-empty: a receipt
     /// with no stated limits is advertising, not science.
     pub caveats: Vec<String>,
+    /// Scientific source of record. Optional for legacy records.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source: Option<RecordSource>,
+    /// External references the proposal should cite. They are descriptive
+    /// provenance and may include content-addressed artifact refs.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub source_refs: Vec<String>,
     /// Who emitted (agent:…, ci:…, reviewer:…). Agents welcome — emitting
     /// is proposing, never deciding.
     pub emitted_by: String,
@@ -94,6 +116,8 @@ pub struct ActivityRecordDraft {
     pub artifacts: Vec<RecordArtifact>,
     pub verifier_runs: Vec<RecordVerifierRun>,
     pub caveats: Vec<String>,
+    pub source: Option<RecordSource>,
+    pub source_refs: Vec<String>,
     pub emitted_by: String,
     pub emitted_at: String,
 }
@@ -143,6 +167,8 @@ impl ActivityRecord {
             artifacts: draft.artifacts,
             verifier_runs: draft.verifier_runs,
             caveats: draft.caveats,
+            source: draft.source,
+            source_refs: draft.source_refs,
             emitted_by: draft.emitted_by,
             emitted_at: draft.emitted_at,
             signature: String::new(),
@@ -179,11 +205,9 @@ impl ActivityRecord {
         Ok(format!("vrc_{}", &hex::encode(Sha256::digest(bytes))[..16]))
     }
 
-    /// Shape this record into the standard `finding.add` proposal draft —
-    /// the ONE conversion every landing surface (CLI, MCP, future
-    /// workbenches) uses, so a record always lands identically: pending,
-    /// authored by the record's emitter, caveats and staleness in the
-    /// conditions text a reviewer reads at accept time.
+    /// Shape this record into the standard `finding.add` proposal draft.
+    /// The emitter is the acting originator. When source metadata is present,
+    /// scientific authorship comes from the external source of record.
     pub fn to_finding_draft(
         &self,
         staleness: &str,
@@ -197,18 +221,31 @@ impl ActivityRecord {
             self.caveats.join(" | "),
             self.artifacts.len(),
         );
+        let source = self.source.as_ref();
+        let source_label = source
+            .and_then(|s| (!s.name.trim().is_empty()).then(|| s.name.clone()))
+            .unwrap_or_else(|| format!("record:{}", self.id));
+        let source_type = source
+            .and_then(|s| (!s.source_type.trim().is_empty()).then(|| s.source_type.clone()))
+            .unwrap_or_else(|| "model_output".to_string());
+        let url = source.and_then(|s| (!s.uri.trim().is_empty()).then(|| s.uri.clone()));
+        let source_authors = source
+            .map(|s| s.authors.clone())
+            .filter(|authors| !authors.is_empty())
+            .unwrap_or_else(|| vec![self.emitted_by.clone()]);
         crate::state::FindingDraftOptions {
             text: self.assertion.clone(),
             assertion_type: self.assertion_type.clone(),
-            source: format!("record:{}", self.id),
-            source_type: "model_output".to_string(),
+            source: source_label,
+            source_type,
             author: self.emitted_by.clone(),
             confidence: 0.3,
             evidence_type: self.assertion_type.clone(),
             doi: None,
             year: None,
-            url: None,
-            source_authors: vec![],
+            url,
+            source_authors,
+            source_refs: self.source_refs.clone(),
             conditions_text: Some(conditions),
             evidence_spans: vec![],
             gap: false,
@@ -273,6 +310,8 @@ mod tests {
             }],
             verifier_runs: vec![],
             caveats: vec!["lower bound only; optimality not established".into()],
+            source: None,
+            source_refs: Vec::new(),
             emitted_by: "agent:claude".into(),
             emitted_at: "2026-07-01T00:00:00Z".into(),
         }

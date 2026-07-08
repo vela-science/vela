@@ -54,6 +54,9 @@ pub struct FindingDraftOptions {
     /// Authors of the source artifact (the paper/preprint/etc).
     /// Distinct from `author` above, which is the Vela actor doing the curation.
     pub source_authors: Vec<String>,
+    /// External source references that justify this proposal. These are
+    /// proposal provenance only; they never confer acceptance authority.
+    pub source_refs: Vec<String>,
     /// v0.11: structured conditions — replaces the placeholder
     /// "Manually added finding; requires evidence review…" that was on
     /// every manually-added finding in v0.10. Each field independently optional.
@@ -1390,7 +1393,7 @@ fn build_add_finding_proposal(options: FindingDraftOptions) -> Result<StatePropo
         actor_type,
         "Manual finding added to frontier state",
         payload,
-        Vec::new(),
+        options.source_refs,
         vec!["Manual findings require evidence review before scientific use.".to_string()],
     ))
 }
@@ -1444,6 +1447,7 @@ mod v0_11_finding_tests {
             year: None,
             url: None,
             source_authors: Vec::new(),
+            source_refs: Vec::new(),
             conditions_text: None,
             evidence_spans: Vec::new(),
             gap: false,
@@ -1557,6 +1561,7 @@ mod v0_38_causal_tests {
             year: Some(2025),
             url: None,
             source_authors: Vec::new(),
+            source_refs: Vec::new(),
             conditions_text: None,
             evidence_spans: Vec::new(),
             gap: false,

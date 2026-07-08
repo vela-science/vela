@@ -57,6 +57,26 @@ fn collect_witness_files_into(dir: &Path, out: &mut Vec<PathBuf>) {
 
 // ── land adapters (the workflow engine's record path) ────────────────
 
+fn value_str(value: Option<&Value>) -> Option<String> {
+    value
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(ToString::to_string)
+}
+
+fn value_str_array(value: Option<&Value>) -> Vec<String> {
+    value
+        .and_then(Value::as_array)
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(|item| value_str(Some(item)))
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
 /// Mint a signed activity record from a Receipt, for `vela land`.
 /// Artifacts are hashed NOW (land time), the head is pinned NOW, and
 /// the record signs under the executor's agent session key (agents) or
@@ -68,7 +88,7 @@ pub(crate) fn mint_record_for_land(
 ) -> Result<serde_json::Value, String> {
     use sha2::{Digest, Sha256};
     use vela_protocol::record::{
-        ActivityRecord, ActivityRecordDraft, RecordArtifact, RecordVerifierRun,
+        ActivityRecord, ActivityRecordDraft, RecordArtifact, RecordSource, RecordVerifierRun,
     };
 
     let project = repo::load_from_path(frontier)?;
@@ -98,6 +118,28 @@ pub(crate) fn mint_record_for_land(
             solver: r.solver.clone(),
         })
         .collect();
+    let source_env = receipt.environment.get("source").and_then(Value::as_object);
+    let source = source_env.map(|source| {
+        let name = value_str(source.get("name"))
+            .or_else(|| value_str(source.get("project")))
+            .or_else(|| value_str(source.get("system")))
+            .unwrap_or_default();
+        let source_type =
+            value_str(source.get("source_type")).unwrap_or_else(|| "database_record".to_string());
+        let uri = value_str(source.get("source_uri"))
+            .or_else(|| value_str(source.get("uri")))
+            .unwrap_or_default();
+        let authors = value_str_array(source.get("authors"));
+        RecordSource {
+            name,
+            source_type,
+            uri,
+            authors,
+        }
+    });
+    let source_refs = source_env
+        .map(|source| value_str_array(source.get("source_refs")))
+        .unwrap_or_default();
     let draft = ActivityRecordDraft {
         frontier_id: project.frontier_id().to_string(),
         against_head: vela_protocol::events::event_log_hash(&project.events),
@@ -106,6 +148,8 @@ pub(crate) fn mint_record_for_land(
         artifacts,
         verifier_runs,
         caveats: receipt.caveats.clone(),
+        source,
+        source_refs,
         emitted_by: executor.to_string(),
         emitted_at: chrono::Utc::now().to_rfc3339(),
     };
