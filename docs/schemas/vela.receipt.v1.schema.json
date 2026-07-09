@@ -1,10 +1,10 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://constellate.science/schemas/vela.receipt.v1.schema.json",
+  "$id": "https://vela.science/schemas/vela.receipt.v1.schema.json",
   "title": "Vela Receipt v1",
-  "description": "Portable activity packet emitted by external producers before Vela landing. Receipts are evidence, not verdicts.",
+  "description": "Portable in-toto receipt with machine, acceptance, and distillation layers. Receipts carry inheritance evidence. They are not acceptance by themselves.",
   "type": "object",
-  "additionalProperties": false,
+  "additionalProperties": true,
   "required": [
     "schema",
     "claim",
@@ -15,11 +15,21 @@
     "verifier_runs",
     "environment",
     "provenance",
-    "status"
+    "status",
+    "machine",
+    "acceptance",
+    "distillation",
+    "lineage",
+    "contributors",
+    "signature_identities",
+    "attestation"
   ],
   "properties": {
     "schema": {
       "const": "vela.receipt.v1"
+    },
+    "claim_id": {
+      "type": "string"
     },
     "claim": {
       "type": "string",
@@ -100,30 +110,19 @@
           "type": "string",
           "minLength": 1
         },
-        "submitter": {
-          "type": "object",
-          "additionalProperties": true,
-          "properties": {
-            "actor": {
-              "type": "string"
-            },
-            "name": {
-              "type": "string"
-            },
-            "uri": {
-              "type": "string"
-            }
-          }
-        },
         "emitted_at": {
           "type": "string",
           "format": "date-time"
+        },
+        "submitter": {
+          "type": "object",
+          "additionalProperties": true
         }
       }
     },
     "status": {
       "type": "object",
-      "additionalProperties": false,
+      "additionalProperties": true,
       "required": [
         "kind",
         "authority"
@@ -157,9 +156,6 @@
             "signed_policy"
           ]
         },
-        "note": {
-          "type": "string"
-        },
         "evidence_status": {
           "type": "string",
           "enum": [
@@ -177,119 +173,46 @@
         },
         "scope": {
           "type": "object",
-          "additionalProperties": true,
-          "properties": {
-            "accepted_by": {
-              "type": "string"
-            },
-            "domain": {
-              "type": "string"
-            },
-            "evidence_class": {
-              "type": "string"
-            },
-            "ground_truth": {
-              "type": "string"
-            },
-            "revocation_policy": {
-              "type": "string"
-            }
-          }
+          "additionalProperties": true
+        }
+      }
+    },
+    "machine": {
+      "$ref": "#/$defs/machine_layer"
+    },
+    "acceptance": {
+      "$ref": "#/$defs/acceptance_layer"
+    },
+    "distillation": {
+      "$ref": "#/$defs/distillation_layer"
+    },
+    "lineage": {
+      "$ref": "#/$defs/lineage"
+    },
+    "contributors": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/contributor"
+      }
+    },
+    "signature_identities": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "producer"
+      ],
+      "properties": {
+        "producer": {
+          "$ref": "#/$defs/signature_identity"
+        },
+        "acceptor": {
+          "$ref": "#/$defs/signature_identity"
         }
       }
     },
     "attestation": {
-      "type": "object",
-      "additionalProperties": true,
-      "required": [
-        "format",
-        "statement",
-        "dsse_envelope"
-      ],
-      "properties": {
-        "format": {
-          "const": "in-toto-statement"
-        },
-        "statement": {
-          "type": "object",
-          "additionalProperties": true,
-          "required": [
-            "_type",
-            "subject",
-            "predicateType",
-            "predicate"
-          ],
-          "properties": {
-            "_type": {
-              "const": "https://in-toto.io/Statement/v1"
-            },
-            "subject": {
-              "type": "array",
-              "minItems": 1,
-              "items": {
-                "type": "object",
-                "required": [
-                  "name",
-                  "digest"
-                ],
-                "properties": {
-                  "name": {
-                    "type": "string",
-                    "minLength": 1
-                  },
-                  "digest": {
-                    "type": "object",
-                    "additionalProperties": {
-                      "type": "string"
-                    }
-                  }
-                },
-                "additionalProperties": true
-              }
-            },
-            "predicateType": {
-              "const": "https://vela.science/predicate/frontier-transition/v1"
-            },
-            "predicate": {
-              "type": "object",
-              "additionalProperties": true
-            }
-          }
-        },
-        "dsse_envelope": {
-          "type": "object",
-          "additionalProperties": true,
-          "required": [
-            "payloadType",
-            "payload",
-            "signatures"
-          ],
-          "properties": {
-            "payloadType": {
-              "const": "application/vnd.in-toto+json"
-            },
-            "payload": {
-              "type": "string",
-              "minLength": 1
-            },
-            "signatures": {
-              "type": "array"
-            }
-          }
-        },
-        "prov": {
-          "type": "object",
-          "additionalProperties": true
-        },
-        "ro_crate": {
-          "type": [
-            "object",
-            "string",
-            "null"
-          ],
-          "additionalProperties": true
-        }
-      }
+      "$ref": "#/$defs/attestation"
     }
   },
   "$defs": {
@@ -351,6 +274,439 @@
         },
         "replay_command": {
           "type": "string"
+        }
+      }
+    },
+    "acceptance_scope": {
+      "type": "string",
+      "enum": [
+        "machine_verified",
+        "human_seen",
+        "locally_accepted",
+        "frontier_accepted",
+        "canon_accepted",
+        "hypothesis_only",
+        "retracted",
+        "superseded"
+      ]
+    },
+    "machine_layer": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "subject",
+        "claim",
+        "verification"
+      ],
+      "properties": {
+        "subject": {
+          "type": "array",
+          "minItems": 1
+        },
+        "claim": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": [
+            "text",
+            "type"
+          ]
+        },
+        "verification": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": [
+            "status",
+            "verifier_runs",
+            "trust_base"
+          ]
+        }
+      }
+    },
+    "acceptance_layer": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "profile",
+        "mechanism",
+        "acceptor",
+        "policyRef",
+        "evidenceRefs",
+        "artifact_verification",
+        "claim_acceptance",
+        "distillation_acceptance",
+        "acceptance_scope"
+      ],
+      "properties": {
+        "profile": {
+          "type": "string",
+          "minLength": 1
+        },
+        "mechanism": {
+          "const": "accountable_scientific_steward_signoff"
+        },
+        "acceptor": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "policyRef": {
+          "type": "string",
+          "minLength": 1
+        },
+        "evidenceRefs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "evidenceLevel": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "local_signoff",
+            "consortium_reviewed",
+            "journal_accepted",
+            "replicated",
+            "regulator_grade",
+            null
+          ]
+        },
+        "acceptance_scope": {
+          "$ref": "#/$defs/acceptance_scope"
+        },
+        "artifact_verification": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "claim_acceptance": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "distillation_acceptance": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      }
+    },
+    "distillation_layer": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "status",
+        "audience",
+        "rubric"
+      ],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "missing",
+            "not_required",
+            "draft",
+            "accepted",
+            "rejected",
+            "superseded",
+            "retracted"
+          ]
+        },
+        "uri": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "digest": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": true
+        },
+        "audience": {
+          "type": "string"
+        },
+        "level": {
+          "type": "string"
+        },
+        "accepted_by": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "rubric": {
+          "type": "string"
+        },
+        "comprehension_budget": {
+          "type": "string"
+        },
+        "inheritance_note": {
+          "type": "string"
+        },
+        "known_gaps": {
+          "type": "array"
+        },
+        "signature_refs": {
+          "type": "array"
+        }
+      }
+    },
+    "lineage": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "parents",
+        "derived_from",
+        "source_refs"
+      ]
+    },
+    "contributor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "roles"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "roles": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/contributor_role"
+          }
+        },
+        "credit_taxonomy": {
+          "type": "string"
+        },
+        "author": {
+          "type": "boolean"
+        },
+        "note": {
+          "type": "string"
+        }
+      }
+    },
+    "contributor_role": {
+      "type": "string",
+      "enum": [
+        "conceptualization",
+        "data_curation",
+        "formal_analysis",
+        "funding_acquisition",
+        "investigation",
+        "methodology",
+        "project_administration",
+        "resources",
+        "software",
+        "supervision",
+        "validation",
+        "visualization",
+        "writing_original_draft",
+        "writing_review_editing",
+        "machine_producer",
+        "human_formalizer",
+        "human_distiller",
+        "reviewer",
+        "acceptor",
+        "profile_maintainer"
+      ]
+    },
+    "signature_identity": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "role",
+        "mechanism"
+      ],
+      "properties": {
+        "role": {
+          "type": "string",
+          "enum": [
+            "producer",
+            "acceptor"
+          ]
+        },
+        "signatureRef": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "mechanism": {
+          "type": "string",
+          "enum": [
+            "sigstore_keyless_oidc",
+            "sigstore_keyless_oidc_fixture",
+            "ed25519_key_custody_ceremony",
+            "ed25519_key_custody_ceremony_fixture"
+          ]
+        },
+        "oidcIssuer": {
+          "type": "string"
+        },
+        "orcid": {
+          "type": "string"
+        },
+        "subject": {
+          "type": "string"
+        }
+      }
+    },
+    "status_event_receipt": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "schema",
+        "target",
+        "statusEvent",
+        "lineage",
+        "provenance",
+        "attestation"
+      ],
+      "properties": {
+        "schema": {
+          "const": "vela.receipt.statusEvent.v1"
+        },
+        "statusEvent": {
+          "$ref": "#/$defs/status_event"
+        }
+      }
+    },
+    "status_event": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "type",
+        "authorityBasis",
+        "actor",
+        "reasonCode",
+        "policyRef",
+        "evidenceRefs",
+        "createdAt"
+      ],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "supersedes",
+            "withdraws",
+            "revokes",
+            "challenges",
+            "deprecates",
+            "restores"
+          ]
+        },
+        "authorityBasis": {
+          "type": "string",
+          "enum": [
+            "original_issuer",
+            "acceptor",
+            "profile_authority",
+            "third_party"
+          ]
+        },
+        "actor": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reasonCode": {
+          "type": "string",
+          "minLength": 1
+        },
+        "policyRef": {
+          "type": "string",
+          "minLength": 1
+        },
+        "evidenceRefs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "replacementReceipt": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "attestation": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "format",
+        "statement",
+        "dsse_envelope"
+      ],
+      "properties": {
+        "format": {
+          "const": "in-toto-statement"
+        },
+        "statement": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": [
+            "_type",
+            "subject",
+            "predicateType",
+            "predicate"
+          ],
+          "properties": {
+            "_type": {
+              "const": "https://in-toto.io/Statement/v1"
+            },
+            "subject": {
+              "type": "array",
+              "minItems": 1
+            },
+            "predicateType": {
+              "const": "https://vela.science/receipt/v1"
+            },
+            "predicate": {
+              "type": "object",
+              "additionalProperties": true,
+              "required": [
+                "machine",
+                "acceptance",
+                "distillation",
+                "lineage",
+                "provenance"
+              ]
+            }
+          }
+        },
+        "dsse_envelope": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": [
+            "payloadType",
+            "payload",
+            "signatures"
+          ],
+          "properties": {
+            "payloadType": {
+              "const": "application/vnd.in-toto+json"
+            },
+            "payload": {
+              "type": "string",
+              "minLength": 1
+            },
+            "signatures": {
+              "type": "array"
+            }
+          }
         }
       }
     }

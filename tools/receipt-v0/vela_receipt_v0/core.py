@@ -10,7 +10,7 @@ from typing import Any
 
 RECEIPT_SCHEMA = "vela.receipt.v1"
 INTOTO_STATEMENT_TYPE = "https://in-toto.io/Statement/v1"
-VELA_PREDICATE_TYPE = "https://vela.science/predicate/frontier-transition/v1"
+VELA_PREDICATE_TYPE = "https://vela.science/receipt/v1"
 INTOTO_PAYLOAD_TYPE = "application/vnd.in-toto+json"
 
 
@@ -32,6 +32,8 @@ PROVENANCE_REQUIRED = set(_SCHEMA["properties"]["provenance"]["required"])
 STATUS_REQUIRED = set(_SCHEMA["properties"]["status"]["required"])
 ARTIFACT_REQUIRED = set(_SCHEMA["$defs"]["artifact"]["required"])
 VERIFIER_REQUIRED = set(_SCHEMA["$defs"]["verifier_run"]["required"])
+ACCEPTANCE_SCOPES = set(_SCHEMA["$defs"]["acceptance_scope"]["enum"])
+ACCEPTANCE_MECHANISM = "accountable_scientific_steward_signoff"
 
 
 def _utc_now() -> str:
@@ -76,6 +78,126 @@ def _subject_for_receipt(receipt: dict[str, Any]) -> list[dict[str, Any]]:
             "digest": {"sha256": hashlib.sha256(receipt["claim"].encode("utf-8")).hexdigest()},
         })
     return subjects
+
+
+def _machine_layer(receipt: dict[str, Any]) -> dict[str, Any]:
+    verifier_runs = receipt.get("verifier_runs") or []
+    status = verifier_runs[0].get("outcome", "unknown") if verifier_runs else "unknown"
+    return {
+        "subject": _subject_for_receipt(receipt),
+        "claim": {
+            "id": receipt.get("claim_id"),
+            "text": receipt["claim"],
+            "type": receipt["type"],
+        },
+        "verification": {
+            "status": status,
+            "verifier_runs": verifier_runs,
+            "trust_base": {
+                "kind": "producer-reported unless independently re-derived",
+                "allowed_axioms": [],
+                "toolchain": receipt.get("environment", {}).get("toolchain"),
+            },
+            "dependency_lock": receipt.get("environment", {}).get("dependency_lock", {}),
+        },
+    }
+
+
+def _acceptance_layer(receipt: dict[str, Any]) -> dict[str, Any]:
+    status = receipt.get("status") or {}
+    scope = status.get("scope", {}).get("acceptance_scope") or "machine_verified"
+    if scope not in ACCEPTANCE_SCOPES:
+        scope = "machine_verified"
+    verifier_runs = receipt.get("verifier_runs") or []
+    verification_status = verifier_runs[0].get("outcome", "unknown") if verifier_runs else "unknown"
+    scope_data = status.get("scope", {})
+    accepted_by = scope_data.get("accepted_by")
+    return {
+        "profile": scope_data.get("profile", "producer.default.v1"),
+        "mechanism": ACCEPTANCE_MECHANISM,
+        "acceptor": accepted_by,
+        "policyRef": scope_data.get("policyRef", "producer emission policy"),
+        "evidenceRefs": scope_data.get("evidenceRefs", []),
+        "evidenceLevel": scope_data.get("evidenceLevel"),
+        "artifact_verification": {
+            "status": verification_status,
+            "authority": "producer" if status.get("authority") == "producer" else status.get("authority"),
+        },
+        "claim_acceptance": {
+            "status": status.get("kind", "emitted"),
+            "accepted_by": accepted_by,
+            "authority_scope": scope,
+            "policy": scope_data.get("policyRef", "producer emission policy"),
+            "rationale": status.get("note", ""),
+            "accepted_at": scope_data.get("accepted_at"),
+            "signatures": scope_data.get("signatures", []),
+        },
+        "distillation_acceptance": {
+            "status": receipt.get("distillation", {}).get("status", "not_required"),
+            "accepted_by": receipt.get("distillation", {}).get("accepted_by"),
+            "rubric": receipt.get("distillation", {}).get("rubric", "not required for machine_verified receipts"),
+        },
+        "acceptance_scope": scope,
+    }
+
+
+def _distillation_layer(receipt: dict[str, Any]) -> dict[str, Any]:
+    existing = receipt.get("distillation")
+    if isinstance(existing, dict):
+        return existing
+    return {
+        "status": "not_required",
+        "uri": None,
+        "digest": None,
+        "audience": "frontier reviewer",
+        "level": "none",
+        "accepted_by": None,
+        "rubric": "Distillation is required only for frontier_accepted and canon_accepted scopes.",
+        "comprehension_budget": "not applicable",
+        "inheritance_note": "Producer receipt carries machine evidence only until a frontier accepts it.",
+        "known_gaps": [],
+        "signature_refs": [],
+    }
+
+
+def _lineage_layer(receipt: dict[str, Any]) -> dict[str, Any]:
+    source = (receipt.get("environment") or {}).get("source") or {}
+    state_diff = receipt.get("state_diff") or {}
+    return {
+        "frontier": state_diff.get("frontier"),
+        "parents": state_diff.get("parents", []),
+        "derived_from": state_diff.get("derived_from", []),
+        "supersedes": state_diff.get("supersedes", []),
+        "source_refs": source.get("source_refs", []),
+        "producer_run_id": source.get("run_id"),
+    }
+
+
+def _contributors_layer(receipt: dict[str, Any]) -> list[dict[str, Any]]:
+    submitter = (receipt.get("provenance") or {}).get("submitter") or {}
+    producer = submitter.get("actor") or receipt["provenance"]["generated_by"]
+    return [{
+        "id": producer,
+        "roles": ["machine_producer", "software"],
+        "credit_taxonomy": "CRediT+Vela",
+        "author": False,
+        "note": "Machine or relay is recorded as producer and originator, never author.",
+    }]
+
+
+def _signature_identities_layer(receipt: dict[str, Any]) -> dict[str, Any]:
+    source = (receipt.get("environment") or {}).get("source") or {}
+    return {
+        "producer": {
+            "role": "producer",
+            "signatureRef": None,
+            "mechanism": "sigstore_keyless_oidc",
+            "oidcIssuer": "https://token.actions.githubusercontent.com",
+            "subject": source.get("source_uri") or receipt["provenance"]["generated_by"],
+            "orcid": source.get("orcid"),
+            "note": "Producer identity records origin only. It is not human acceptance.",
+        }
+    }
 
 
 def _prov_for_receipt(receipt: dict[str, Any]) -> dict[str, Any]:
@@ -141,41 +263,24 @@ def in_toto_statement_from_receipt(receipt: dict[str, Any]) -> dict[str, Any]:
     verify it without importing Vela code.
     """
     source = (receipt.get("environment") or {}).get("source") or {}
-    verifier_runs = receipt.get("verifier_runs") or []
-    verifier = verifier_runs[0] if verifier_runs else {}
+    machine = receipt.get("machine") or _machine_layer(receipt)
+    acceptance = receipt.get("acceptance") or _acceptance_layer(receipt)
+    distillation = receipt.get("distillation") or _distillation_layer(receipt)
+    lineage = receipt.get("lineage") or _lineage_layer(receipt)
     return {
         "_type": INTOTO_STATEMENT_TYPE,
-        "subject": _subject_for_receipt(receipt),
+        "subject": machine["subject"],
         "predicateType": VELA_PREDICATE_TYPE,
         "predicate": {
-            "schema": "vela.frontier_transition_predicate.v1",
-            "prior_status": "activity",
-            "new_status": receipt.get("status", {}).get("kind", "emitted"),
-            "evidence_status": receipt.get("status", {}).get("evidence_status", "proposed"),
-            "claim": receipt["claim"],
-            "claim_type": receipt["type"],
-            "frontier": (receipt.get("state_diff") or {}).get("frontier"),
-            "replayability": receipt.get("replayability"),
-            "verifier": {
-                "type": verifier.get("method"),
-                "version": verifier.get("version"),
-                "content_hash": verifier.get("content_hash"),
-                "tolerances": verifier.get("tolerances", {}),
-            },
-            "verifier_result": {
-                "outcome": verifier.get("outcome", "unknown"),
-                "log": verifier.get("log", ""),
-                "replay_command": verifier.get("replay_command"),
-            },
-            "evidence": {
-                "artifacts": receipt.get("artifacts", []),
-                "ro_crate": source.get("ro_crate") or (receipt.get("environment") or {}).get("ro_crate"),
-            },
+            "schema": "vela.receipt.predicate.v1",
+            "machine": machine,
+            "acceptance": acceptance,
+            "distillation": distillation,
+            "lineage": lineage,
+            "contributors": receipt.get("contributors") or _contributors_layer(receipt),
+            "signature_identities": receipt.get("signature_identities") or _signature_identities_layer(receipt),
             "provenance": _prov_for_receipt(receipt),
-            "signer": None,
-            "acceptance_scope": receipt.get("status", {}).get("scope"),
-            "supersession": (receipt.get("state_diff") or {}).get("supersession", {}),
-            "source_refs": source.get("source_refs", []),
+            "ro_crate": source.get("ro_crate") or (receipt.get("environment") or {}).get("ro_crate"),
         },
     }
 
@@ -197,7 +302,7 @@ def attach_intoto(receipt: dict[str, Any]) -> dict[str, Any]:
         "statement": statement,
         "dsse_envelope": dsse_envelope_for_statement(statement),
         "prov": statement["predicate"]["provenance"],
-        "ro_crate": statement["predicate"]["evidence"].get("ro_crate"),
+        "ro_crate": statement["predicate"].get("ro_crate"),
     }
     return receipt
 
@@ -261,8 +366,15 @@ def emit_receipt(
             "authority": "producer",
             "evidence_status": "proposed",
             "note": "Producer emission only. Vela landing and human acceptance are separate.",
+            "scope": {"acceptance_scope": "machine_verified"},
         },
     }
+    receipt["machine"] = _machine_layer(receipt)
+    receipt["distillation"] = _distillation_layer(receipt)
+    receipt["acceptance"] = _acceptance_layer(receipt)
+    receipt["lineage"] = _lineage_layer(receipt)
+    receipt["contributors"] = _contributors_layer(receipt)
+    receipt["signature_identities"] = _signature_identities_layer(receipt)
     if include_intoto:
         attach_intoto(receipt)
     validate_receipt(receipt)
@@ -270,6 +382,15 @@ def emit_receipt(
 
 
 def validate_receipt(receipt: dict[str, Any]) -> list[str]:
+    if isinstance(receipt, dict) and receipt.get("schema") == RECEIPT_SCHEMA:
+        receipt.setdefault("machine", _machine_layer(receipt))
+        receipt.setdefault("distillation", _distillation_layer(receipt))
+        receipt.setdefault("acceptance", _acceptance_layer(receipt))
+        receipt.setdefault("lineage", _lineage_layer(receipt))
+        receipt.setdefault("contributors", _contributors_layer(receipt))
+        receipt.setdefault("signature_identities", _signature_identities_layer(receipt))
+        if "attestation" not in receipt:
+            attach_intoto(receipt)
     errors: list[str] = []
     for field in sorted(REQUIRED_FIELDS):
         if field not in receipt:
