@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import datetime as _dt
+import base64
 import hashlib
 import importlib.resources
 import json
@@ -8,6 +9,9 @@ from pathlib import Path
 from typing import Any
 
 RECEIPT_SCHEMA = "vela.receipt.v1"
+INTOTO_STATEMENT_TYPE = "https://in-toto.io/Statement/v1"
+VELA_PREDICATE_TYPE = "https://vela.science/predicate/frontier-transition/v1"
+INTOTO_PAYLOAD_TYPE = "application/vnd.in-toto+json"
 
 
 def receipt_schema() -> dict[str, Any]:
@@ -52,6 +56,152 @@ def _artifact(spec: str, base_dir: Path | None) -> dict[str, Any]:
     return item
 
 
+def _json_digest(payload: Any) -> str:
+    body = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    return hashlib.sha256(body.encode("utf-8")).hexdigest()
+
+
+def _subject_for_receipt(receipt: dict[str, Any]) -> list[dict[str, Any]]:
+    subjects: list[dict[str, Any]] = []
+    for artifact in receipt.get("artifacts", []):
+        digest = artifact.get("sha256")
+        if digest:
+            subjects.append({
+                "name": artifact.get("path", "artifact"),
+                "digest": {"sha256": digest},
+            })
+    if not subjects:
+        subjects.append({
+            "name": "claim",
+            "digest": {"sha256": hashlib.sha256(receipt["claim"].encode("utf-8")).hexdigest()},
+        })
+    return subjects
+
+
+def _prov_for_receipt(receipt: dict[str, Any]) -> dict[str, Any]:
+    source = (receipt.get("environment") or {}).get("source") or {}
+    submitter = (receipt.get("provenance") or {}).get("submitter") or {}
+    agent_id = submitter.get("actor") or source.get("system") or receipt["provenance"]["generated_by"]
+    activity_id = source.get("run_id") or _json_digest({
+        "claim": receipt["claim"],
+        "emitted_at": receipt["provenance"]["emitted_at"],
+    })[:16]
+    entities = {
+        "claim": {
+            "prov:type": "vela:claim",
+            "vela:claim": receipt["claim"],
+        }
+    }
+    for artifact in receipt.get("artifacts", []):
+        artifact_id = f"artifact:{artifact.get('path', 'unknown')}"
+        entities[artifact_id] = {
+            "prov:type": "vela:artifact",
+            "vela:kind": artifact.get("kind"),
+            "vela:sha256": artifact.get("sha256"),
+        }
+    return {
+        "prefix": {
+            "prov": "http://www.w3.org/ns/prov#",
+            "vela": "https://vela.science/ns#",
+        },
+        "entity": entities,
+        "activity": {
+            f"activity:{activity_id}": {
+                "prov:type": "vela:receipt-emission",
+                "prov:startedAtTime": receipt["provenance"]["emitted_at"],
+            }
+        },
+        "agent": {
+            f"agent:{agent_id}": {
+                "prov:type": "prov:SoftwareAgent",
+                "vela:source_system": source.get("system"),
+                "vela:source_uri": source.get("source_uri"),
+            }
+        },
+        "wasAssociatedWith": {
+            "_:assoc0": {
+                "prov:activity": f"activity:{activity_id}",
+                "prov:agent": f"agent:{agent_id}",
+            }
+        },
+        "wasGeneratedBy": {
+            "_:gen0": {
+                "prov:entity": "claim",
+                "prov:activity": f"activity:{activity_id}",
+            }
+        },
+    }
+
+
+def in_toto_statement_from_receipt(receipt: dict[str, Any]) -> dict[str, Any]:
+    """Build the standard in-toto Statement payload for a Vela receipt.
+
+    The returned object is the DSSE payload Vela signs at the boundary. It is
+    intentionally plain JSON so a standard in-toto parser can wrap, sign, and
+    verify it without importing Vela code.
+    """
+    source = (receipt.get("environment") or {}).get("source") or {}
+    verifier_runs = receipt.get("verifier_runs") or []
+    verifier = verifier_runs[0] if verifier_runs else {}
+    return {
+        "_type": INTOTO_STATEMENT_TYPE,
+        "subject": _subject_for_receipt(receipt),
+        "predicateType": VELA_PREDICATE_TYPE,
+        "predicate": {
+            "schema": "vela.frontier_transition_predicate.v1",
+            "prior_status": "activity",
+            "new_status": receipt.get("status", {}).get("kind", "emitted"),
+            "evidence_status": receipt.get("status", {}).get("evidence_status", "proposed"),
+            "claim": receipt["claim"],
+            "claim_type": receipt["type"],
+            "frontier": (receipt.get("state_diff") or {}).get("frontier"),
+            "replayability": receipt.get("replayability"),
+            "verifier": {
+                "type": verifier.get("method"),
+                "version": verifier.get("version"),
+                "content_hash": verifier.get("content_hash"),
+                "tolerances": verifier.get("tolerances", {}),
+            },
+            "verifier_result": {
+                "outcome": verifier.get("outcome", "unknown"),
+                "log": verifier.get("log", ""),
+                "replay_command": verifier.get("replay_command"),
+            },
+            "evidence": {
+                "artifacts": receipt.get("artifacts", []),
+                "ro_crate": source.get("ro_crate") or (receipt.get("environment") or {}).get("ro_crate"),
+            },
+            "provenance": _prov_for_receipt(receipt),
+            "signer": None,
+            "acceptance_scope": receipt.get("status", {}).get("scope"),
+            "supersession": (receipt.get("state_diff") or {}).get("supersession", {}),
+            "source_refs": source.get("source_refs", []),
+        },
+    }
+
+
+def dsse_envelope_for_statement(statement: dict[str, Any]) -> dict[str, Any]:
+    """Unsigned DSSE envelope skeleton for systems that sign outside this tool."""
+    payload = json.dumps(statement, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+    return {
+        "payloadType": INTOTO_PAYLOAD_TYPE,
+        "payload": base64.b64encode(payload).decode("ascii"),
+        "signatures": [],
+    }
+
+
+def attach_intoto(receipt: dict[str, Any]) -> dict[str, Any]:
+    statement = in_toto_statement_from_receipt(receipt)
+    receipt["attestation"] = {
+        "format": "in-toto-statement",
+        "statement": statement,
+        "dsse_envelope": dsse_envelope_for_statement(statement),
+        "prov": statement["predicate"]["provenance"],
+        "ro_crate": statement["predicate"]["evidence"].get("ro_crate"),
+    }
+    return receipt
+
+
 def emit_receipt(
     *,
     claim: str,
@@ -64,17 +214,26 @@ def emit_receipt(
     submitter_actor: str | None = None,
     source_system: str | None = None,
     source_uri: str | None = None,
+    source_name: str | None = None,
+    source_type: str | None = None,
+    source_authors: list[str] | None = None,
+    source_refs: list[str] | None = None,
     run_id: str | None = None,
     base_dir: str | Path | None = None,
     conditions: list[str] | None = None,
     verification_requirements: list[str] | None = None,
     state_diff: dict[str, Any] | None = None,
+    include_intoto: bool = True,
 ) -> dict[str, Any]:
     root = Path(base_dir).resolve() if base_dir else None
     environment: dict[str, Any] = {}
     source = {k: v for k, v in {
         "system": source_system,
         "source_uri": source_uri,
+        "name": source_name,
+        "source_type": source_type,
+        "authors": source_authors,
+        "source_refs": source_refs,
         "run_id": run_id,
         "exported_at": _utc_now() if (source_system or source_uri or run_id) else None,
     }.items() if v}
@@ -100,9 +259,12 @@ def emit_receipt(
         "status": {
             "kind": "emitted",
             "authority": "producer",
+            "evidence_status": "proposed",
             "note": "Producer emission only. Vela landing and human acceptance are separate.",
         },
     }
+    if include_intoto:
+        attach_intoto(receipt)
     validate_receipt(receipt)
     return receipt
 
@@ -170,6 +332,35 @@ def validate_receipt(receipt: dict[str, Any]) -> list[str]:
             errors.append(f"status.kind must be one of {', '.join(sorted(STATUS_KINDS))}")
         if status.get("authority") not in STATUS_AUTHORITIES:
             errors.append(f"status.authority must be one of {', '.join(sorted(STATUS_AUTHORITIES))}")
+        if status.get("kind") == "accepted" and not isinstance(status.get("scope"), dict):
+            errors.append("status.scope is required for accepted receipts")
+    attestation = receipt.get("attestation")
+    if attestation is not None:
+        if not isinstance(attestation, dict):
+            errors.append("attestation must be an object")
+        else:
+            statement = attestation.get("statement")
+            if not isinstance(statement, dict):
+                errors.append("attestation.statement must be an object")
+            else:
+                if statement.get("_type") != INTOTO_STATEMENT_TYPE:
+                    errors.append(f"attestation.statement._type must be {INTOTO_STATEMENT_TYPE}")
+                if statement.get("predicateType") != VELA_PREDICATE_TYPE:
+                    errors.append(f"attestation.statement.predicateType must be {VELA_PREDICATE_TYPE}")
+                if not isinstance(statement.get("subject"), list) or not statement["subject"]:
+                    errors.append("attestation.statement.subject must be a non-empty array")
+                if not isinstance(statement.get("predicate"), dict):
+                    errors.append("attestation.statement.predicate must be an object")
+            envelope = attestation.get("dsse_envelope")
+            if not isinstance(envelope, dict):
+                errors.append("attestation.dsse_envelope must be an object")
+            else:
+                if envelope.get("payloadType") != INTOTO_PAYLOAD_TYPE:
+                    errors.append(f"attestation.dsse_envelope.payloadType must be {INTOTO_PAYLOAD_TYPE}")
+                if not isinstance(envelope.get("payload"), str) or not envelope["payload"]:
+                    errors.append("attestation.dsse_envelope.payload must be base64 text")
+                if not isinstance(envelope.get("signatures"), list):
+                    errors.append("attestation.dsse_envelope.signatures must be an array")
     if errors:
         raise ValueError("\n".join(errors))
     return []

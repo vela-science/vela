@@ -134,10 +134,18 @@
           "enum": [
             "draft",
             "emitted",
+            "proposed",
+            "runs",
+            "minimal_sanity_check",
+            "reported_metric_rederived",
+            "full_reproduction",
             "landed_pending",
             "accepted",
             "rejected",
-            "superseded"
+            "superseded",
+            "retracted",
+            "contested",
+            "failed_reproduction"
           ]
         },
         "authority": {
@@ -151,6 +159,135 @@
         },
         "note": {
           "type": "string"
+        },
+        "evidence_status": {
+          "type": "string",
+          "enum": [
+            "proposed",
+            "runs",
+            "minimal_sanity_check",
+            "reported_metric_rederived",
+            "full_reproduction",
+            "accepted",
+            "superseded",
+            "retracted",
+            "contested",
+            "failed_reproduction"
+          ]
+        },
+        "scope": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "accepted_by": {
+              "type": "string"
+            },
+            "domain": {
+              "type": "string"
+            },
+            "evidence_class": {
+              "type": "string"
+            },
+            "ground_truth": {
+              "type": "string"
+            },
+            "revocation_policy": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "attestation": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "format",
+        "statement",
+        "dsse_envelope"
+      ],
+      "properties": {
+        "format": {
+          "const": "in-toto-statement"
+        },
+        "statement": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": [
+            "_type",
+            "subject",
+            "predicateType",
+            "predicate"
+          ],
+          "properties": {
+            "_type": {
+              "const": "https://in-toto.io/Statement/v1"
+            },
+            "subject": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "digest"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "digest": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "additionalProperties": true
+              }
+            },
+            "predicateType": {
+              "const": "https://vela.science/predicate/frontier-transition/v1"
+            },
+            "predicate": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          }
+        },
+        "dsse_envelope": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": [
+            "payloadType",
+            "payload",
+            "signatures"
+          ],
+          "properties": {
+            "payloadType": {
+              "const": "application/vnd.in-toto+json"
+            },
+            "payload": {
+              "type": "string",
+              "minLength": 1
+            },
+            "signatures": {
+              "type": "array"
+            }
+          }
+        },
+        "prov": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "ro_crate": {
+          "type": [
+            "object",
+            "string",
+            "null"
+          ],
+          "additionalProperties": true
         }
       }
     }
