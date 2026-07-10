@@ -107,6 +107,9 @@ Read:
 Verify:
   check         The full trust gate: replay, signatures, parity (--strict)
   reproduce     Re-verify stored witnesses from scratch (frozen verifiers)
+  reproduce-external
+                Pull a commit-pinned public Lean declaration into a controlled
+                Lake project and emit an unsigned typed reproduction receipt
   proof         Export a proof packet; `proof verify` re-checks one, `proof explain`
   gate          Claim-level verification gate (grade/check/vocab/backfill/attach/auto-admit)
   ci            CI verbs for a frontier's Action; `ci verdict --base <ref>` is the
