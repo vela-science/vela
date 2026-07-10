@@ -565,15 +565,22 @@ fn validate_finding(
         });
     }
 
-    let expected_id = FindingBundle::content_address(&finding.assertion, &finding.provenance);
-    if finding.id != expected_id {
-        errors.push(ValidationError {
-            file: file_label.to_string(),
-            error: format!(
-                "Finding id '{}' does not match content-address '{}'",
-                finding.id, expected_id
-            ),
-        });
+    // Retractions preserve the historical record as it was admitted. Current
+    // content-address and vocabulary rules apply to live findings, not to a
+    // retired record that may predate those rules. Structural checks above and
+    // link-integrity checks below still apply so retracted history remains
+    // replayable rather than becoming an unchecked blob.
+    if !finding.flags.retracted {
+        let expected_id = FindingBundle::content_address(&finding.assertion, &finding.provenance);
+        if finding.id != expected_id {
+            errors.push(ValidationError {
+                file: file_label.to_string(),
+                error: format!(
+                    "Finding id '{}' does not match content-address '{}'",
+                    finding.id, expected_id
+                ),
+            });
+        }
     }
 
     // Confidence score range
@@ -587,50 +594,52 @@ fn validate_finding(
         });
     }
 
-    // Assertion type validation
-    if !VALID_ASSERTION_TYPES.contains(&finding.assertion.assertion_type.as_str()) {
-        errors.push(ValidationError {
-            file: file_label.to_string(),
-            error: format!(
-                "Invalid assertion type '{}'. Valid: {}",
-                finding.assertion.assertion_type,
-                VALID_ASSERTION_TYPES.join(", "),
-            ),
-        });
-    }
+    if !finding.flags.retracted {
+        // Assertion type validation
+        if !VALID_ASSERTION_TYPES.contains(&finding.assertion.assertion_type.as_str()) {
+            errors.push(ValidationError {
+                file: file_label.to_string(),
+                error: format!(
+                    "Invalid assertion type '{}'. Valid: {}",
+                    finding.assertion.assertion_type,
+                    VALID_ASSERTION_TYPES.join(", "),
+                ),
+            });
+        }
 
-    // Evidence type validation
-    if !VALID_EVIDENCE_TYPES.contains(&finding.evidence.evidence_type.as_str()) {
-        errors.push(ValidationError {
-            file: file_label.to_string(),
-            error: format!(
-                "Invalid evidence type '{}'. Valid: {}",
-                finding.evidence.evidence_type,
-                VALID_EVIDENCE_TYPES.join(", "),
-            ),
-        });
-    }
+        // Evidence type validation
+        if !VALID_EVIDENCE_TYPES.contains(&finding.evidence.evidence_type.as_str()) {
+            errors.push(ValidationError {
+                file: file_label.to_string(),
+                error: format!(
+                    "Invalid evidence type '{}'. Valid: {}",
+                    finding.evidence.evidence_type,
+                    VALID_EVIDENCE_TYPES.join(", "),
+                ),
+            });
+        }
 
-    if !VALID_PROVENANCE_SOURCE_TYPES.contains(&finding.provenance.source_type.as_str()) {
-        errors.push(ValidationError {
-            file: file_label.to_string(),
-            error: format!(
-                "Invalid source_type '{}'. Valid: {}",
-                finding.provenance.source_type,
-                VALID_PROVENANCE_SOURCE_TYPES.join(", "),
-            ),
-        });
-    }
+        if !VALID_PROVENANCE_SOURCE_TYPES.contains(&finding.provenance.source_type.as_str()) {
+            errors.push(ValidationError {
+                file: file_label.to_string(),
+                error: format!(
+                    "Invalid source_type '{}'. Valid: {}",
+                    finding.provenance.source_type,
+                    VALID_PROVENANCE_SOURCE_TYPES.join(", "),
+                ),
+            });
+        }
 
-    if !VALID_EXTRACT_METHODS.contains(&finding.provenance.extraction.method.as_str()) {
-        errors.push(ValidationError {
-            file: file_label.to_string(),
-            error: format!(
-                "Invalid extraction method '{}'. Valid: {}",
-                finding.provenance.extraction.method,
-                VALID_EXTRACT_METHODS.join(", "),
-            ),
-        });
+        if !VALID_EXTRACT_METHODS.contains(&finding.provenance.extraction.method.as_str()) {
+            errors.push(ValidationError {
+                file: file_label.to_string(),
+                error: format!(
+                    "Invalid extraction method '{}'. Valid: {}",
+                    finding.provenance.extraction.method,
+                    VALID_EXTRACT_METHODS.join(", "),
+                ),
+            });
+        }
     }
 
     // Link targets must either reference an existing in-frontier vf_id
@@ -1029,6 +1038,23 @@ mod tests {
                 .iter()
                 .any(|e| e.error.contains("does not match content-address"))
         );
+    }
+
+    #[test]
+    fn retracted_legacy_finding_keeps_structural_validation_without_current_schema_errors() {
+        let tmp = TempDir::new().unwrap();
+        let mut f = make_valid_finding("legacy_retracted");
+        f.id = "vf_0000000000000002".into();
+        f.provenance.extraction.method = "legacy_relay_ingest".into();
+        f.flags.retracted = true;
+        let path = write_frontier(tmp.path(), vec![f]);
+
+        let report = validate(&path);
+
+        assert_eq!(report.total_files, 1);
+        assert_eq!(report.valid, 1);
+        assert_eq!(report.invalid, 0);
+        assert!(report.errors.is_empty());
     }
 
     #[test]
