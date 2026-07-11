@@ -64,6 +64,38 @@ mod surface_tests {
         });
     }
 
+    /// Every visible command leads its `--help` with an EXAMPLES block
+    /// (gh/clig.dev). The block is an `after_long_help` const in
+    /// `cli/help_text.rs`; a new verb without one fails here. `policy` is
+    /// intercepted before clap and carries its examples in the hand-rolled
+    /// usage string, but the clap arm still sets `after_long_help`, so it
+    /// passes the same check.
+    #[test]
+    fn every_visible_command_has_examples() {
+        on_big_stack(|| {
+            let cmd = Cli::command();
+            let mut missing = Vec::new();
+            for c in cmd.get_subcommands() {
+                if c.is_hide_set() {
+                    continue; // hidden (completions) is off-menu
+                }
+                let has = c
+                    .get_after_long_help()
+                    .or_else(|| c.get_after_help())
+                    .map(|s| s.to_string().contains("EXAMPLES"))
+                    .unwrap_or(false);
+                if !has {
+                    missing.push(c.get_name().to_string());
+                }
+            }
+            assert!(
+                missing.is_empty(),
+                "these visible commands lack an EXAMPLES block (add a const in \
+                 cli/help_text.rs and wire `#[command(after_long_help = …)]`): {missing:?}"
+            );
+        });
+    }
+
     /// The v0.738 porcelain (the hard cut): the EXACT visible surface,
     /// guarded in both directions. A dropped command fails ("a collapse
     /// removed it"); a new command fails too ("extend this list

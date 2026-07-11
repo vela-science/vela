@@ -122,6 +122,7 @@ pub(crate) enum Commands {
     /// Is the LOG intact: replay, signatures, hash parity (--strict is
     /// the bar CI and the hub hold a repo to). Checks the record, not
     /// the science — `vela reproduce` re-runs the verifiers themselves.
+    #[command(after_long_help = crate::cli::help_text::CHECK)]
     Check {
         /// Frontier JSON file, Vela repo, or proof packet
         source: Option<PathBuf>,
@@ -158,6 +159,7 @@ pub(crate) enum Commands {
         json: bool,
     },
     /// Diagnose first-user checkout, frontier, proof, and serve readiness.
+    #[command(after_long_help = crate::cli::help_text::DOCTOR)]
     Doctor {
         /// Frontier JSON file or Vela repo. Defaults to the release frontier
         /// when run from the repository root.
@@ -170,6 +172,7 @@ pub(crate) enum Commands {
         json: bool,
     },
     /// Export and validate a proof packet
+    #[command(after_long_help = crate::cli::help_text::PROOF)]
     Proof {
         /// Frontier JSON file or Vela repo
         frontier: PathBuf,
@@ -191,6 +194,7 @@ pub(crate) enum Commands {
     /// HTTP. Profiles gate what tools exist: read-only (default) ⊂
     /// draft ⊂ maintainer. The public hub serves the same read surface
     /// at hub.constellate.science/mcp with no clone at all.
+    #[command(after_long_help = crate::cli::help_text::SERVE)]
     Serve {
         /// Frontier JSON file or Vela repo
         #[arg(required_unless_present_any = ["frontiers", "setup"])]
@@ -226,6 +230,7 @@ pub(crate) enum Commands {
     /// v0.42: Show what's pending right now — the daily-driver
     /// equivalent of `git status`. One screen: counts, the inbox,
     /// the audit. Read in two seconds.
+    #[command(after_long_help = crate::cli::help_text::STATUS)]
     Status {
         frontier: Option<PathBuf>,
         /// Output stable JSON for programmatic callers.
@@ -234,6 +239,7 @@ pub(crate) enum Commands {
     },
     /// v0.42: Recent canonical events in human-readable form. The
     /// `git log` analogue. Default newest-first; cap on count.
+    #[command(after_long_help = crate::cli::help_text::LOG)]
     Log {
         frontier: Option<PathBuf>,
         /// A finding id (`vf_…`): show that finding's state-transition
@@ -258,6 +264,7 @@ pub(crate) enum Commands {
     /// verifier attachments and a surviving adversarial probe, never a
     /// self-reported "verified" string. See `vela_protocol::verifier_attachment`
     /// and `vela_edge::deliverable_grade`.
+    #[command(after_long_help = crate::cli::help_text::GATE)]
     Gate {
         #[command(subcommand)]
         action: GateAction,
@@ -267,6 +274,7 @@ pub(crate) enum Commands {
     /// leaves). `AGENTS.md`, `CLAUDE.md`, `.cursor/rules/vela.mdc`,
     /// `.github/copilot-instructions.md`, and `.mcp.json` regenerate from
     /// VELA.md; the deletion test holds (delete them, sync, they return).
+    #[command(after_long_help = crate::cli::help_text::AGENTS)]
     Agents {
         #[command(subcommand)]
         action: AgentsAction,
@@ -275,6 +283,7 @@ pub(crate) enum Commands {
     /// frozen exact verifiers, from scratch — same input, same answer,
     /// any machine. Complements `vela check`, which verifies the log
     /// rather than the results.
+    #[command(after_long_help = crate::cli::help_text::REPRODUCE)]
     Reproduce {
         /// A witness JSON file, or a directory (reproduces every
         /// `*.witness.json` under it, or a `witnesses/` subdir).
@@ -289,6 +298,7 @@ pub(crate) enum Commands {
     /// signatures + provenance — never signed, never authoritative, and it never
     /// invents an author. A machine holds no key, so it appears only as a
     /// contributor / originator, never as an author.
+    #[command(after_long_help = crate::cli::help_text::CREDIT)]
     Credit {
         /// The finding id (`vf_…`).
         finding_id: String,
@@ -303,6 +313,7 @@ pub(crate) enum Commands {
     /// run it through the exact-lane de-human-gate — produce -> frozen-verify
     /// -> auto-admit -> machine_verified, with no human and no key. Dry-run by
     /// default (previews the gate); `--apply` records the admission.
+    #[command(after_long_help = crate::cli::help_text::FOUNDRY)]
     Foundry {
         #[command(subcommand)]
         action: FoundryAction,
@@ -310,11 +321,13 @@ pub(crate) enum Commands {
     /// Your Vela identity: set up a key once, then land and sign
     /// with no `--key`/`--actor`/`--hub` flags. `vela id create` is the
     /// one-time onboarding step.
+    #[command(after_long_help = crate::cli::help_text::ID)]
     Id {
         #[command(subcommand)]
         action: IdAction,
     },
     /// Manage the frontier's registered actor identities (Phase M, v0.4)
+    #[command(after_long_help = crate::cli::help_text::ACTOR)]
     Actor {
         #[command(subcommand)]
         action: ActorAction,
@@ -322,6 +335,7 @@ pub(crate) enum Commands {
     /// Manage frontier-level metadata: cross-frontier dependencies (v0.8).
     /// Use `vela frontier add-dep` to declare a remote frontier this
     /// frontier links into via `vf_…@vfr_…` references.
+    #[command(after_long_help = crate::cli::help_text::FRONTIER)]
     Frontier {
         #[command(subcommand)]
         action: FrontierAction,
@@ -329,11 +343,13 @@ pub(crate) enum Commands {
     /// The index: bind a frontier's git remote once (register-git),
     /// then `git push` is publication. Verification verbs
     /// (witness-check, verify-chain, verify-log) hold hubs honest.
+    #[command(after_long_help = crate::cli::help_text::HUB)]
     Hub {
         #[command(subcommand)]
         action: HubAction,
     },
     /// Initialize a .vela frontier repo
+    #[command(after_long_help = crate::cli::help_text::INIT)]
     Init {
         #[arg(default_value = ".")]
         path: PathBuf,
@@ -355,6 +371,7 @@ pub(crate) enum Commands {
     /// delta the README quotes. The two-arg form
     /// (`vela diff <frontier_a> <frontier_b>`) keeps its existing
     /// behavior.
+    #[command(after_long_help = crate::cli::help_text::DIFF)]
     Diff {
         /// Frontier path A, a `vpr_*` proposal id for preview
         /// mode, or a `vfr_*` registry id (v0.140) resolved via
@@ -378,11 +395,13 @@ pub(crate) enum Commands {
         quiet: bool,
     },
     /// Inspect or apply proposal-first frontier writes
+    #[command(after_long_help = crate::cli::help_text::PROPOSALS)]
     Proposals {
         #[command(subcommand)]
         action: ProposalAction,
     },
     /// Manage finding bundles as the core frontier primitive
+    #[command(after_long_help = crate::cli::help_text::FINDING)]
     Finding {
         #[command(subcommand)]
         command: FindingCommands,
@@ -395,6 +414,7 @@ pub(crate) enum Commands {
     /// Inside a frontier: that frontier. Outside: every registered
     /// frontier, one session. Agents are refused (exit 4) — this verb
     /// IS the human boundary.
+    #[command(after_long_help = crate::cli::help_text::SIGN)]
     Sign {
         /// A proposal id to decide (with --yes), or a file path to
         /// sign detached. Omit for the interactive session.
@@ -433,6 +453,7 @@ pub(crate) enum Commands {
     /// THE offer: ranked open targets with the compounding payload
     /// pre-loaded (premises, banked routes, attempts, dead channels).
     /// `--json` is the agent contract. Take one with `vela work`.
+    #[command(after_long_help = crate::cli::help_text::NEXT)]
     Next {
         /// Frontier path. Optional: discovered upward.
         frontier: Option<PathBuf>,
@@ -444,6 +465,7 @@ pub(crate) enum Commands {
 
     /// Open a work session on a target: claim the lease, print the
     /// briefing, materialize the context bundle. Close with `vela land`.
+    #[command(after_long_help = crate::cli::help_text::WORK)]
     Work {
         /// The target (obligation id, e.g. erdos:617). Omit to list
         /// open sessions.
@@ -466,6 +488,7 @@ pub(crate) enum Commands {
     /// Permit admits canonically (the autonomy lane); Defer parks it in
     /// the human's sign queue; Deny lands nothing. The positional is a
     /// vela.receipt.v1 JSON — the portable contract ANY tool exports.
+    #[command(after_long_help = crate::cli::help_text::LAND)]
     Land {
         /// Path to a receipt JSON. Or use --claim/--artifact/--caveat.
         receipt: Option<PathBuf>,
@@ -490,6 +513,7 @@ pub(crate) enum Commands {
     /// Submit a frozen-verified witness in ONE step: verify it, land it, bind it
     /// to its finding, drive the exact lane to `machine_verified`, and
     /// materialize. The producer path — no scripts, no manual gate steps.
+    #[command(after_long_help = crate::cli::help_text::SUBMIT)]
     Submit {
         /// Path to the witness JSON.
         witness: PathBuf,
@@ -508,6 +532,7 @@ pub(crate) enum Commands {
     },
 
     /// Continuous-integration verbs for a frontier's GitHub Action.
+    #[command(after_long_help = crate::cli::help_text::CI)]
     Ci {
         #[command(subcommand)]
         action: CiAction,
@@ -517,6 +542,7 @@ pub(crate) enum Commands {
     /// the record (that is `vela policy`) or who you are (`vela id`).
     /// A closed, validated key set with visible origins; frontier scope
     /// is allowlisted and can only narrow, never widen.
+    #[command(after_long_help = crate::cli::help_text::CONFIG)]
     Config {
         #[command(subcommand)]
         action: ConfigAction,
@@ -526,6 +552,7 @@ pub(crate) enum Commands {
     /// policy you sign ONCE lets agents land whole classes of gated
     /// work with no per-item key ceremony; everything outside policy
     /// waits in `vela sign`. show / draft / test / sign / revoke / log.
+    #[command(after_long_help = crate::cli::help_text::POLICY)]
     Policy {
         #[command(subcommand)]
         action: PolicyAction,

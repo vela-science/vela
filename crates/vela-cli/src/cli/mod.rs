@@ -52,6 +52,7 @@ mod checks;
 mod frontier_audit;
 mod frontier_diff;
 mod governance;
+pub(crate) mod help_text;
 mod identity;
 mod json_edit;
 mod lifecycle;

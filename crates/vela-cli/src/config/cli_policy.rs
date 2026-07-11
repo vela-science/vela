@@ -1812,9 +1812,14 @@ pub(crate) fn run(args: &[String]) {
         i += 1;
     }
 
-    let usage = "usage: vela policy <show|suggest|draft <template>|test|evaluate-proposal <vpr_>|\
+    // `policy` is intercepted before clap, so its help is hand-rolled; fold
+    // in the same EXAMPLES block the clap verbs carry (Phase 1: both surfaces).
+    let usage = format!(
+        "usage: vela policy <show|suggest|draft <template>|test|evaluate-proposal <vpr_>|\
                  sign|revoke --reason <why>|log> [frontier] [--json] [--replace] [--from-suggest] \
-                 [--yes] [--key <path>]";
+                 [--yes] [--key <path>]\n\n{}",
+        crate::cli::help_text::POLICY
+    );
     match verb {
         "evaluate-proposal" => {
             ui::set_mode("policy", json);
@@ -1885,7 +1890,7 @@ pub(crate) fn run(args: &[String]) {
         }
         _ => {
             ui::set_mode("policy", json);
-            fail_with(ErrorKind::Usage, usage, None);
+            fail_with(ErrorKind::Usage, &usage, None);
         }
     }
 }
