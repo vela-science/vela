@@ -319,6 +319,16 @@ pub struct VerifierAttachment {
     /// cannot be an unconditional verification). Each entry is `"name : type"`.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub undischarged_hypotheses: Vec<String>,
+    /// Lineage couplings this run declares (optional; absent on legacy
+    /// records, so their ids are byte-unchanged). Namespaced tags naming a
+    /// shared failure domain: `model:<id>`, `code:<swhid>`, `data:<dvc>`,
+    /// `run:<parent-run>`. Two matched attachments sharing any tag are one
+    /// failure domain regardless of method/solver diversity — the G1-L
+    /// clause demotes them. Declared honestly by the producer; a missing
+    /// declaration is invisible here, which is why G1's positive
+    /// requirements (distinct method/solver + `independent_of`) remain.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub lineage_couplings: Vec<String>,
 }
 
 /// Fields a caller supplies; the id and schema are derived.
@@ -387,6 +397,7 @@ impl VerifierAttachment {
             verifier_actor: draft.verifier_actor,
             note: draft.note,
             implementation_id: String::new(),
+            lineage_couplings: Vec::new(),
             toolchain_hash: derive_toolchain_hash(&draft.verifier_method),
             undischarged_hypotheses: Vec::new(),
         };
@@ -425,6 +436,16 @@ impl VerifierAttachment {
     /// CONDITIONAL: `derive_gate_status` will not let it reach `Verified`.
     pub fn with_undischarged_hypotheses(mut self, hyps: Vec<String>) -> Result<Self, String> {
         self.undischarged_hypotheses = hyps;
+        self.id = self.derive_id()?;
+        Ok(self)
+    }
+
+    /// Record the lineage couplings this run declares and re-derive the id.
+    /// Part of the canonical body (like `method_integrity`), so it must be
+    /// set through this builder, not by field assignment, or the gate's G4
+    /// id-integrity check would exclude the attachment.
+    pub fn with_lineage_couplings(mut self, couplings: Vec<String>) -> Result<Self, String> {
+        self.lineage_couplings = couplings;
         self.id = self.derive_id()?;
         Ok(self)
     }

@@ -72,6 +72,31 @@ pub fn independence_from_attachments(
         ));
     }
 
+    // G1-L: matched attachments sharing a declared lineage coupling tag
+    // (`model:` / `code:` / `data:` / `run:`) are one failure domain
+    // regardless of method/solver diversity. Producer-declared, so a
+    // missing declaration is invisible here — G1's positive requirements
+    // below remain the floor.
+    let mut tag_owners: std::collections::BTreeMap<&str, usize> = std::collections::BTreeMap::new();
+    for a in &matched {
+        let unique: std::collections::BTreeSet<&str> =
+            a.lineage_couplings.iter().map(String::as_str).collect();
+        for t in unique {
+            *tag_owners.entry(t).or_insert(0) += 1;
+        }
+    }
+    let shared: Vec<&str> = tag_owners
+        .iter()
+        .filter(|(_, n)| **n >= 2)
+        .map(|(t, _)| *t)
+        .collect();
+    if !shared.is_empty() {
+        reasons.push(format!(
+            "G1-L: matched attachments share failure domain [{}]",
+            shared.join(", ")
+        ));
+    }
+
     // G1 independence: >=2 matched attachments by different method/solver,
     // with at least one declaring independence (one-directional; mutual is a
     // hash circularity over the content-addressed id).

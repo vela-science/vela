@@ -64,7 +64,7 @@ fn build_attachment(spec: &Value, claim: &str, prior_ids: &[String]) -> Verifier
         .iter()
         .map(|i| prior_ids[i.as_u64().unwrap() as usize].clone())
         .collect();
-    VerifierAttachment::build(AttachmentDraft {
+    let att = VerifierAttachment::build(AttachmentDraft {
         target: "vf_0123456789abcdef".to_string(),
         claim_digest: digest,
         verifier_method: method,
@@ -79,7 +79,19 @@ fn build_attachment(spec: &Value, claim: &str, prior_ids: &[String]) -> Verifier
         verifier_actor: "conformance".to_string(),
         note: String::new(),
     })
-    .expect("attachment builds")
+    .expect("attachment builds");
+    // Optional lineage couplings (the G1-L vectors); applied through the
+    // builder so the id still content-addresses the body.
+    match spec.get("couplings").and_then(|c| c.as_array()) {
+        Some(tags) => att
+            .with_lineage_couplings(
+                tags.iter()
+                    .map(|t| t.as_str().unwrap().to_string())
+                    .collect(),
+            )
+            .expect("couplings apply"),
+        None => att,
+    }
 }
 
 #[test]
