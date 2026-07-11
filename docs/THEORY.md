@@ -1917,7 +1917,7 @@ support/refute polynomial per claim, projected to κ, the product bilattice, and
 verification cost. The production substrate carries only the **Belnap corner** of
 that model: support/refute set-emptiness (`status_provenance.rs`, `BelnapStatus`)
 and a {0,1}-coordinate bottleneck blast radius (`frontier_graph.rs`,
-`blast_radius_graded`), surfaced by `vela claim state`. The graded interior is
+`blast_radius_graded`), surfaced by `vela state`. The graded interior is
 machine-checked at its corners in `lean/Vela/Protocol/Provenance.lean` and
 validated in full by the 25-check `frontier_calculus_kernel.py` (in the internal
 reference tree, not vendored here); the earlier graded Rust realization and the
@@ -3152,7 +3152,7 @@ The packet may also reference a `CircuitSemanticsReceipt` and an
 An `ObservationReplayReceipt` binds the evaluator implementation, version, inputs,
 roots, canonical output, and replay result. It is currently **spec-only** in Rust.
 
-`ObservationPacket` is **partial** in the current substrate. `vela claim state`
+`ObservationPacket` is **partial** in the current substrate. `vela state`
 already exposes derived readings, and the conformance fixtures bind roots and outputs,
 but the full packet is not yet the universal return type for every authoritative
 field.
@@ -3613,7 +3613,7 @@ already exist as Rust types.
 | `ScientificStateKernel` | Bundles accepted presentation, historical lineage, circuits, views, observations, and roots | **Spec-only** as one named object. The event log, reducer, provenance, and claim-state pieces are live or partial. | Yes as the architectural contract; not necessarily as one public struct yet. |
 | `PresentationMorphism` | Structure-preserving accepted extension between presentations | **Spec-only** | No immediate UI need. Required for explicit migration, federation, and conservative-extension proofs. |
 | `ViewPreorder` | Content-addressed ordering of active views and restriction maps | **Spec-only** | Yes for challenge, policy-epoch, and safety-view semantics. |
-| `ObservationPacket` | Proof-carrying authoritative read | **Partial**. `vela claim state` emits derived readings and conformance fixtures bind roots, but the packet is not yet universal. | Yes. This is the nearest-term product object. |
+| `ObservationPacket` | Proof-carrying authoritative read | **Partial**. `vela state` emits derived readings and conformance fixtures bind roots, but the packet is not yet universal. | Yes. This is the nearest-term product object. |
 | `ObservationReplayReceipt` | Records deterministic evaluator replay from packet inputs | **Spec-only** | Yes for the no-hidden-state law and third-party verification. |
 | `CircuitSemanticsReceipt` | Certifies that a canonical lineage circuit denotes the ranked lineage model | **Spec-only** | Required when composed-lineage circuits become the production representation. |
 | `SupportFunctionPacket` | Exposes minimal environments or an equivalent monotone support function | **Spec-only** in Rust; semantics exercised by the conformance fixture | Yes for correction, influence, and dependency inspection. |
@@ -4038,7 +4038,7 @@ today, so the live surface stays documented and the prior treatment's guarantees
 are not dropped.
 
 **What ships.** The production substrate carries the **Belnap corner** of the
-claim-local frontier calculus, and that corner is what `vela claim state` reads.
+claim-local frontier calculus, and that corner is what `vela state` reads.
 The graded interior (κ, the bilattice point, the discount) is the reference model
 of §17–38: machine-checked at its corners in Lean and validated in full by the
 non-vendored Python kernel, but not computed in the runtime.
@@ -4078,7 +4078,7 @@ cited there, not re-proved:
 
 | name | symbol | protocol object / Rust home | id / status |
 |---|---|---|---|
-| claim-state cell | cell | reducer fold, `vela claim state` | live |
+| claim-state cell | cell | reducer fold, `vela state` | live |
 | status | `(x,y)`; σ corners | Belnap in reducer; graded coords in the kernel | live (corners) / kernel (interior) |
 | support / refute provenance | `π_T, π_F` | `N[X]`, wired to reducer flags | live |
 | discount | κ | reference model (Lean `Provenance.lean` corners + non-vendored Python kernel) | reference-only |

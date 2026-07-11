@@ -1673,7 +1673,7 @@ the product words.
   support / refutation κ interior is a reference model, not computed in the
   runtime (THEORY.md §40)
 - Type: `status_provenance::BelnapStatus`
-- Surfaced on: `vela claim state`; the trust internals
+- Surfaced on: `vela state`; the trust internals
 - Authority: a pure function of the recorded support/refute monomials
   (Theorem 3). Never persisted. `Both` here is the formal join of support and
   refutation, which is *not* the same event as a Plane-2 `contested` review
@@ -1724,16 +1724,16 @@ proposition it carries).
   noun, used everywhere a person reads about the unit.
 - **claim** is retained ONLY where it is not a finding-synonym:
   1. the **formal claim-context cell** `z = (q, c)` and the **Claim-State Cell**
-     projection (`frontier_calculus`, `vela claim state`): a proposition under
+     projection (`frontier_calculus`, `vela state`): a proposition under
      a scope, a defined object distinct from a bundle;
-  2. the **verb "to claim"**: `vela claim <frontier> <obligation>` leases an open
-     obligation. You claim (lease) an obligation; you do not "find" one.
+  2. the **verb "to claim"**: `vela work <obligation> --as agent:<id>` leases an
+     open obligation. You claim a lease on work; you do not create a finding.
   3. `verifier_attachment::claim_digest`, the sha256 of an assertion string,
      byte-matched to Python's `canopus_trust.py::claim_digest`. Renaming it
      would break cross-implementation content-addressing.
 
-`vela finding` and `vela claim` are deliberately distinct CLI commands (the
-finding record vs. the lease verb / cell projection), not duplicates.
+`vela finding` mutates finding proposals, `vela work` leases an obligation, and
+`vela state` reads the claim-state projection.
 
 See `frontier_graph::FindingState` for Plane 2 and `frontier_calculus` for
 Plane 3.

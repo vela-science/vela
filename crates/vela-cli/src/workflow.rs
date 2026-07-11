@@ -28,9 +28,10 @@
 //! content addressing collapses byte-identical records, and an
 //! already-applied proposal is the caller's exit 5.
 
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use vela_protocol::acceptance_policy::PolicyContext;
 use vela_protocol::proposals::policy_accept::{self, PolicyAcceptOutcome, PolicyLaneRefusal};
@@ -38,7 +39,7 @@ use vela_protocol::repo;
 
 /// The portable receipt (see module doc). Field names deliberately
 /// match the vrc_ draft body (and `vela land`'s flag spellings).
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub(crate) struct Receipt {
     #[serde(default)]
     pub schema: String,
@@ -76,6 +77,10 @@ pub(crate) struct Receipt {
     /// minimal receipts, and absence never counts as clean lineage.
     #[serde(default)]
     pub lineage: Value,
+    /// Preserve extension fields so the review digest binds the complete
+    /// logical receipt rather than only the fields this CLI currently reads.
+    #[serde(default, flatten)]
+    pub extensions: BTreeMap<String, Value>,
 }
 
 fn default_type() -> String {
@@ -91,20 +96,22 @@ fn default_replayability() -> String {
 pub(crate) const REPLAYABILITY_CLASSES: &[&str] =
     &["exact", "bounded", "approximate", "unavailable", "unknown"];
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub(crate) struct ReceiptArtifact {
     pub path: String,
     #[serde(default)]
     pub kind: String,
+    #[serde(default, flatten)]
+    pub extensions: BTreeMap<String, Value>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub(crate) struct ReceiptVerifierRun {
     pub method: String,
     pub outcome: String,
     #[serde(default)]
     pub log: String,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "String::is_empty")]
     pub solver: String,
     /// The axioms a Lean kernel re-derivation observed (e.g. `propext`,
     /// `Classical.choice`, `Quot.sound`). Present on `verifier.lean_*` runs;
@@ -112,6 +119,8 @@ pub(crate) struct ReceiptVerifierRun {
     /// decide kernel-cleanliness for the Lean delegation lane.
     #[serde(default)]
     pub axioms: Vec<String>,
+    #[serde(default, flatten)]
+    pub extensions: BTreeMap<String, Value>,
 }
 
 /// True when this run is a Lean kernel re-derivation (its method names the
@@ -439,6 +448,7 @@ mod lean_lane_tests {
             log: String::new(),
             solver: String::new(),
             axioms: axioms.iter().map(|s| s.to_string()).collect(),
+            extensions: BTreeMap::new(),
         }
     }
 
@@ -454,6 +464,7 @@ mod lean_lane_tests {
             environment: serde_json::Value::Null,
             provenance: serde_json::Value::Null,
             lineage: serde_json::Value::Null,
+            extensions: BTreeMap::new(),
         }
     }
 

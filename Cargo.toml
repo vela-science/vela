@@ -24,15 +24,14 @@ members = [
 resolver = "3"
 
 [workspace.package]
-# Release numbering, not semver: `0.RRR.0` where RRR increments once per release
-# (0.700, 0.710, 0.720, ...). The patch field stays 0. The older `v0.X`
-# micro-version markers in comments/docs are historical provenance and do not
-# compare to this.
-version = "0.758.8"
+# Release numbering uses `0.RRR.P`, where RRR names the release train and P is
+# the compatible patch within that train. Older `v0.X` markers in comments and
+# research documents are historical proof-slice labels.
+version = "0.758.9"
 edition = "2024"
 license = "Apache-2.0 OR MIT"
-repository = "https://github.com/constellate-science/vela"
-homepage = "https://github.com/constellate-science/vela"
+repository = "https://github.com/vela-science/vela"
+homepage = "https://github.com/vela-science/vela"
 # Per-crate `publish` is set explicitly: `vela-protocol` and `vela-cli`
 # publish to crates.io; `vela-hub` stays unpublished (server-only hub).
 publish = false
@@ -72,9 +71,9 @@ tempfile = "3"
 
 # Internal crates. `version` is required so cargo publish can resolve
 # the dep against crates.io; `path` is used for in-workspace builds.
-vela-protocol = { path = "crates/vela-protocol", version = "0.758.8" }
-vela-protocol-core = { path = "crates/vela-protocol-core", version = "0.758.8" }
-vela-verify = { path = "crates/vela-verify", version = "0.758.8" }
+vela-protocol = { path = "crates/vela-protocol", version = "0.758.9" }
+vela-protocol-core = { path = "crates/vela-protocol-core", version = "0.758.9" }
+vela-verify = { path = "crates/vela-verify", version = "0.758.9" }
 
 [workspace.lints.rust]
 unsafe_code = "deny"

@@ -140,6 +140,12 @@ pub(crate) fn mint_record_for_land(
     let source_refs = source_env
         .map(|source| value_str_array(source.get("source_refs")))
         .unwrap_or_default();
+    let receipt_value = serde_json::to_value(receipt)
+        .map_err(|e| format!("serialize receipt for review binding: {e}"))?;
+    let receipt_bytes = vela_protocol::canonical::to_canonical_bytes(&receipt_value)
+        .map_err(|e| format!("canonicalize receipt for review binding: {e}"))?;
+    let receipt_digest = format!("sha256:{}", hex::encode(Sha256::digest(&receipt_bytes)));
+    let lineage = vela_protocol::receipt_v1::lineage_from_layer(&receipt.lineage);
     let draft = ActivityRecordDraft {
         frontier_id: project.frontier_id().to_string(),
         against_head: vela_protocol::events::event_log_hash(&project.events),
@@ -150,6 +156,8 @@ pub(crate) fn mint_record_for_land(
         caveats: receipt.caveats.clone(),
         source,
         source_refs,
+        receipt_digest,
+        lineage,
         emitted_by: executor.to_string(),
         emitted_at: chrono::Utc::now().to_rfc3339(),
     };

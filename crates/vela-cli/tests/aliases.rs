@@ -262,8 +262,22 @@ fn intercept_errors_use_house_prefix_and_honor_no_color() {
 #[test]
 fn prompts_refuse_piped_stdin() {
     use std::process::Stdio;
+    let home = tempfile::TempDir::new().expect("temporary Vela home");
+    let setup = Command::new(env!("CARGO_BIN_EXE_vela"))
+        .args(["id", "create", "--handle", "prompt-test"])
+        .env("HOME", home.path())
+        .env("VELA_NO_PUBLISH", "1")
+        .output()
+        .expect("create fixture identity");
+    assert!(
+        setup.status.success(),
+        "fixture identity setup failed: {}",
+        combined(&setup)
+    );
     let out = Command::new(env!("CARGO_BIN_EXE_vela"))
         .args(["id", "pin-binary"])
+        .env("HOME", home.path())
+        .env("VELA_NO_PUBLISH", "1")
         .stdin(Stdio::null()) // /dev/null is not a tty
         .output()
         .expect("run vela");

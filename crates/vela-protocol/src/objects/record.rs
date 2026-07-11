@@ -23,6 +23,8 @@
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
+use crate::receipt_v1::ReceiptLineage;
+
 pub const ACTIVITY_RECORD_SCHEMA: &str = "vela.activity-record.v0.1";
 
 /// One evidence artifact the claim rests on. `locator` is where the bytes
@@ -95,6 +97,14 @@ pub struct ActivityRecord {
     /// provenance and may include content-addressed artifact refs.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub source_refs: Vec<String>,
+    /// Canonical digest of the complete logical receipt supplied to `land`.
+    /// It binds review input but carries no acceptance authority.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub receipt_digest: String,
+    /// Producer-declared lineage copied from the receipt for review. The gate
+    /// may validate it; its presence never makes the claim accepted.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub lineage: Option<ReceiptLineage>,
     /// The `vrc_` id of the record revision this one supersedes (optional;
     /// absent on legacy records, so their ids are byte-unchanged). Records
     /// are content-addressed — a revision mints a new id — so continuity
@@ -127,6 +137,8 @@ pub struct ActivityRecordDraft {
     pub caveats: Vec<String>,
     pub source: Option<RecordSource>,
     pub source_refs: Vec<String>,
+    pub receipt_digest: String,
+    pub lineage: Option<ReceiptLineage>,
     pub emitted_by: String,
     pub emitted_at: String,
 }
@@ -178,6 +190,8 @@ impl ActivityRecord {
             caveats: draft.caveats,
             source: draft.source,
             source_refs: draft.source_refs,
+            receipt_digest: draft.receipt_digest,
+            lineage: draft.lineage,
             supersedes: None,
             emitted_by: draft.emitted_by,
             emitted_at: draft.emitted_at,
@@ -224,10 +238,15 @@ impl ActivityRecord {
         signed: bool,
     ) -> crate::state::FindingDraftOptions {
         let conditions = format!(
-            "Record {} ({}; {}). Caveats: {}. Artifacts: {} hash-verified at propose.",
+            "Record {} ({}; {}). Receipt: {}. Caveats: {}. Artifacts: {} hash-verified at propose.",
             self.id,
             if signed { "signed" } else { "unsigned" },
             staleness,
+            if self.receipt_digest.is_empty() {
+                "legacy-unbound"
+            } else {
+                self.receipt_digest.as_str()
+            },
             self.caveats.join(" | "),
             self.artifacts.len(),
         );
@@ -243,6 +262,22 @@ impl ActivityRecord {
             .map(|s| s.authors.clone())
             .filter(|authors| !authors.is_empty())
             .unwrap_or_else(|| vec![self.emitted_by.clone()]);
+        let mut source_refs = self.source_refs.clone();
+        source_refs.push(format!("record:{}", self.id));
+        if !self.receipt_digest.is_empty() {
+            source_refs.push(self.receipt_digest.clone());
+        }
+        if let Some(lineage) = &self.lineage {
+            source_refs.extend(
+                lineage
+                    .parents
+                    .iter()
+                    .map(|parent| format!("parent:{parent}")),
+            );
+            source_refs.extend(lineage.source_refs.iter().cloned());
+        }
+        source_refs.sort();
+        source_refs.dedup();
         crate::state::FindingDraftOptions {
             text: self.assertion.clone(),
             assertion_type: self.assertion_type.clone(),
@@ -255,7 +290,7 @@ impl ActivityRecord {
             year: None,
             url,
             source_authors,
-            source_refs: self.source_refs.clone(),
+            source_refs,
             conditions_text: Some(conditions),
             evidence_spans: vec![],
             gap: false,
@@ -322,6 +357,8 @@ mod tests {
             caveats: vec!["lower bound only; optimality not established".into()],
             source: None,
             source_refs: Vec::new(),
+            receipt_digest: String::new(),
+            lineage: None,
             emitted_by: "agent:claude".into(),
             emitted_at: "2026-07-01T00:00:00Z".into(),
         }
@@ -355,5 +392,29 @@ mod tests {
         let mut d = draft();
         d.caveats = vec!["".into()];
         assert!(ActivityRecord::build(d, None).is_err());
+    }
+
+    #[test]
+    fn receipt_binding_and_lineage_are_visible_to_review() {
+        let mut d = draft();
+        d.receipt_digest = format!("sha256:{}", "b".repeat(64));
+        d.lineage = Some(ReceiptLineage {
+            parents: vec!["vf_parent".into()],
+            source_refs: vec!["urn:sha256:source".into()],
+            ..ReceiptLineage::default()
+        });
+        let record = ActivityRecord::build(d, None).unwrap();
+        let finding = record.to_finding_draft("recorded against head", false);
+        assert!(finding.source_refs.contains(&record.receipt_digest));
+        assert!(
+            finding
+                .source_refs
+                .contains(&"parent:vf_parent".to_string())
+        );
+        assert!(
+            finding
+                .source_refs
+                .contains(&format!("record:{}", record.id))
+        );
     }
 }
