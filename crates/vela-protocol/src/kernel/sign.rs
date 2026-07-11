@@ -206,10 +206,34 @@ pub fn generate_keypair(output_dir: &Path) -> Result<String, String> {
 
     std::fs::write(&private_path, &private_hex)
         .map_err(|e| format!("Failed to write private key: {e}"))?;
+    // The private key is a plaintext seed; make it owner-read-only so a
+    // stray backup or shared machine cannot leak the signing authority.
+    // Best-effort and Unix-only (Windows ACLs are a separate concern).
+    harden_key_permissions(&private_path);
     std::fs::write(&public_path, &public_hex)
         .map_err(|e| format!("Failed to write public key: {e}"))?;
 
     Ok(public_hex)
+}
+
+/// Set 0600 on a private-key file where the platform supports it. Best
+/// effort: a failure to tighten permissions must not fail key generation,
+/// but the common case (Unix) gets a private key that is not world- or
+/// group-readable.
+pub fn harden_key_permissions(path: &Path) {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        if let Ok(meta) = std::fs::metadata(path) {
+            let mut perms = meta.permissions();
+            perms.set_mode(0o600);
+            let _ = std::fs::set_permissions(path, perms);
+        }
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = path;
+    }
 }
 
 // ── Signing and verification ─────────────────────────────────────────
@@ -481,6 +505,20 @@ mod tests {
     fn test_keypair() -> SigningKey {
         use rand::rngs::OsRng;
         SigningKey::generate(&mut OsRng)
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn generated_private_key_is_owner_only() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = tempfile::tempdir().unwrap();
+        generate_keypair(dir.path()).unwrap();
+        let mode = std::fs::metadata(dir.path().join("private.key"))
+            .unwrap()
+            .permissions()
+            .mode()
+            & 0o777;
+        assert_eq!(mode, 0o600, "private key must be owner-read/write only");
     }
 
     /// The deposit-endpoint signing contract: a deposit client (e.g. a producer

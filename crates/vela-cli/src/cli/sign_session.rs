@@ -214,8 +214,20 @@ pub(crate) fn cmd_sign_session(frontier: Option<PathBuf>, key: Option<PathBuf>, 
     let mut position = 0usize;
     for (dir, _project, items) in &queues {
         let mut state = load_session(dir);
+        // Set once the human chooses "accept all remaining" (capital A) on a
+        // Decision item: the rest of this frontier's decision items are marked
+        // accept without a per-item keystroke. The final summary still lists
+        // every planned verdict and the single confirm still gates, so the
+        // human sees the whole set before one key read — a batch decision over
+        // a shown set, not a blind one.
+        let mut bulk_accept = false;
         for item in items {
             if !item.signable || state.answers.contains_key(&item.id) {
+                continue;
+            }
+            if bulk_accept && matches!(item.lane, SignLane::Decision) {
+                state.answers.insert(item.id.clone(), "accept".into());
+                save_session(dir, &state);
                 continue;
             }
             position += 1;
@@ -254,14 +266,15 @@ pub(crate) fn cmd_sign_session(frontier: Option<PathBuf>, key: Option<PathBuf>, 
             }
             println!("    {}", style::dim(&item.id));
             let keys = match item.lane {
-                SignLane::Decision => "a/r/s/q",
+                SignLane::Decision => "a/A/r/s/q",
                 _ => "y/s/q",
             };
             loop {
                 let legend = match item.lane {
                     SignLane::Decision => format!(
-                        "{}ccept · {}eject · {}kip · {}uit",
+                        "{}ccept · {}ll-remaining · {}eject · {}kip · {}uit",
                         style::moss("a"),
+                        style::moss("A"),
                         style::madder("r"),
                         style::dim("s"),
                         style::dim("q")
@@ -283,6 +296,13 @@ pub(crate) fn cmd_sign_session(frontier: Option<PathBuf>, key: Option<PathBuf>, 
                     ("s", _) => break,
                     ("a", SignLane::Decision) => {
                         state.answers.insert(item.id.clone(), "accept".into());
+                        break;
+                    }
+                    ("A", SignLane::Decision) => {
+                        // Accept this item and every remaining decision item in
+                        // this frontier; the summary + one confirm still gate.
+                        state.answers.insert(item.id.clone(), "accept".into());
+                        bulk_accept = true;
                         break;
                     }
                     ("r", SignLane::Decision) => {
