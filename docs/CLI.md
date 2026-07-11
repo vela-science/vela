@@ -12,6 +12,11 @@ derives per-finding attribution, and the discovery plane nests under
 `foundry`. Every porcelain verb takes `--json` and emits a stable object
 with `ok` and `command` fields.
 
+The conventions this surface holds itself to — the output contract, colour
+discipline, `--json` universality, interactivity rules, the help/EXAMPLES
+pattern, and the grammar rule — are codified in
+[CLI_STYLE.md](CLI_STYLE.md), each backed by a test so it cannot regress.
+
 ## Setup (once)
 
 | Verb | What it does |
