@@ -724,7 +724,7 @@ pub async fn run_command() {
             if sk {
                 crate::ui::fail_with(
                     crate::ui::ErrorKind::Usage,
-                    "--sk (hardware touch-to-sign) is designed but not yet wired: FIDO2 signatures need the signature_sk envelope (see docs/THREAT_MODEL.md)",
+                    "--sk (hardware touch-to-sign) is designed but not yet wired: the recommended path is a PKCS#11/OpenPGP Ed25519 token (raw Ed25519, zero verifier change); see docs/HARDWARE_SIGNING_PROPOSAL.md",
                     Some(
                         "run the ceremony with your file key; pin the binary with `vela id pin-binary`",
                     ),
