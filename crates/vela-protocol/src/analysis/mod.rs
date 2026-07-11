@@ -9,6 +9,7 @@ pub mod diff;
 pub mod diff_pack_review;
 pub mod evidence_ci;
 pub mod evidence_diff;
+pub mod evidence_polarity;
 pub mod frontier_bound;
 pub mod frontier_graph;
 pub mod frontier_identification;

@@ -53,6 +53,11 @@ pub struct SignItem {
     /// hides the artifact is a rubber stamp with extra steps.
     #[serde(default)]
     pub preview: Vec<String>,
+    /// The pack-level semantic preview (state ops, polarity, gate matrix,
+    /// graded blast) when this item decides a whole released pack. Display
+    /// only; absent when no pack resolves or its file is unreadable.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pack_preview: Option<crate::sign_preview::PackSignPreview>,
 }
 
 #[derive(Debug, Clone, Serialize, Default)]
@@ -75,6 +80,7 @@ impl SignQueue {
                 why_here: why.to_string(),
                 signable: true,
                 pack: None,
+                pack_preview: None,
                 preview,
             },
         );
@@ -196,6 +202,10 @@ pub fn sign_queue(
     let now = chrono::Utc::now().to_rfc3339();
 
     // Lane 2 — decisions: pending proposals, policy-filtered, packs first.
+    let mut pack_previews: std::collections::BTreeMap<
+        String,
+        Option<crate::sign_preview::PackSignPreview>,
+    > = Default::default();
     let pack_of = |proposal_id: &str| -> Option<String> {
         project
             .released_diff_packs
@@ -232,13 +242,25 @@ pub fn sign_queue(
                 }
             }
         };
+        let pack = pack_of(&proposal.id);
+        // One semantic preview per pack, memoized: deciding one member
+        // decides the set, so every member shows the same set-level view.
+        let pack_preview = pack.as_ref().and_then(|pid| {
+            pack_previews
+                .entry(pid.clone())
+                .or_insert_with(|| {
+                    crate::sign_preview::pack_sign_preview(project, frontier_dir, pid)
+                })
+                .clone()
+        });
         queue.items.push(SignItem {
             lane: SignLane::Decision,
             id: proposal.id.clone(),
             title: proposal_headline(proposal),
             why_here: why,
             signable,
-            pack: pack_of(&proposal.id),
+            pack,
+            pack_preview,
             preview: proposal_preview(proposal),
         });
     }
@@ -261,6 +283,7 @@ pub fn sign_queue(
             why_here: "events predate signing; strict flags unsigned_registered_actor".to_string(),
             signable: true,
             pack: None,
+            pack_preview: None,
             preview: Vec::new(),
         });
     }
@@ -275,6 +298,7 @@ pub fn sign_queue(
             why_here: "a policy without a human signature carries no authority".into(),
             signable: true,
             pack: None,
+            pack_preview: None,
             preview: Vec::new(),
         });
     }

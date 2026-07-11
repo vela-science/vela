@@ -33,6 +33,49 @@ struct SessionState {
     answers: std::collections::BTreeMap<String, String>,
 }
 
+/// The pack-level semantic preview, rendered inside a hard budget so the
+/// ceremony stays scannable: 1 scope line, <=4 (already-capped) state ops,
+/// 1 polarity line, <=5 gate rows, 1 blast line, <=1 missing note —
+/// display only, no new prompts, the same one confirm and one key read.
+fn render_pack_preview(pp: &vela_edge::sign_preview::PackSignPreview) -> Vec<String> {
+    let mut out = Vec::new();
+    out.push(format!(
+        "pack      {} — deciding one decides the set",
+        pp.pack_id
+    ));
+    out.push(format!("scope     {}", pp.scope));
+    for op in &pp.state_ops {
+        out.push(format!("op        {op}"));
+    }
+    if !pp.polarity.is_empty() {
+        let line: Vec<String> = pp
+            .polarity
+            .iter()
+            .map(|(name, n)| format!("{name} {n}"))
+            .collect();
+        out.push(format!("polarity  {}", line.join(" · ")));
+    }
+    for row in pp.gate_matrix.iter().take(5) {
+        out.push(format!(
+            "gate      {} {} ({} reason{})",
+            row.finding_id,
+            row.status,
+            row.reason_count,
+            if row.reason_count == 1 { "" } else { "s" }
+        ));
+    }
+    if let Some(b) = &pp.blast {
+        out.push(format!(
+            "blast     {} weakened, {} support-killed of {} downstream",
+            b.weakened, b.support_killed, b.downstream_candidates
+        ));
+    }
+    if let Some(first) = pp.missing.first() {
+        out.push(format!("unshown   {first}"));
+    }
+    out
+}
+
 fn session_path(frontier: &Path) -> PathBuf {
     frontier.join(".vela").join("sign-session.json")
 }
@@ -195,11 +238,19 @@ pub(crate) fn cmd_sign_session(frontier: Option<PathBuf>, key: Option<PathBuf>, 
                 println!("    {}", style::dim(line));
             }
             println!("    {}", style::dim(&format!("why you: {}", item.why_here)));
-            if let Some(pack) = &item.pack {
-                println!(
-                    "    {}",
-                    style::dim(&format!("pack {pack} — deciding one decides the set"))
-                );
+            match (&item.pack_preview, &item.pack) {
+                (Some(pp), _) => {
+                    for line in render_pack_preview(pp) {
+                        println!("    {}", style::dim(&line));
+                    }
+                }
+                (None, Some(pack)) => {
+                    println!(
+                        "    {}",
+                        style::dim(&format!("pack {pack} — deciding one decides the set"))
+                    );
+                }
+                (None, None) => {}
             }
             println!("    {}", style::dim(&item.id));
             let keys = match item.lane {
