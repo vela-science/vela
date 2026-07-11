@@ -67,7 +67,6 @@ pub(crate) struct Receipt {
     /// consumers (hub, export, adapters); the landing path itself does not branch
     /// on them.
     #[serde(default)]
-    #[allow(dead_code)]
     pub environment: Value,
     #[serde(default)]
     #[allow(dead_code)]
@@ -76,7 +75,6 @@ pub(crate) struct Receipt {
     /// …}). Read-only input to the derived independence predicate; absent on
     /// minimal receipts, and absence never counts as clean lineage.
     #[serde(default)]
-    #[allow(dead_code)]
     pub lineage: Value,
 }
 
@@ -283,6 +281,27 @@ pub(crate) fn land(
         .verifier_runs
         .iter()
         .any(|r| r.outcome.eq_ignore_ascii_case("pass"));
+    // Independence is DERIVED from what the receipt carries (its verifier
+    // runs, its declared independence_basis, its lineage layer), never
+    // asserted. A minimal receipt derives false — the honest default this
+    // context used to hard-code.
+    let runs: Vec<vela_protocol::independence::ReceiptRunView> = receipt
+        .verifier_runs
+        .iter()
+        .map(|r| vela_protocol::independence::ReceiptRunView {
+            method: &r.method,
+            solver: &r.solver,
+            outcome: &r.outcome,
+        })
+        .collect();
+    let basis =
+        vela_protocol::receipt_v1::independence_basis_from_environment(&receipt.environment);
+    let lineage = vela_protocol::receipt_v1::lineage_from_layer(&receipt.lineage);
+    let independence = vela_protocol::independence::independence_from_receipt(
+        &runs,
+        basis.as_ref(),
+        lineage.as_ref(),
+    );
     let ctx = PolicyContext {
         claim_class: format!("receipt_{}", receipt.r#type),
         assurance_level: if has_pass { 2 } else { 0 },
@@ -292,7 +311,7 @@ pub(crate) fn land(
         assertion_text_mutated: true, // a new claim IS new text
         target_contested: false,
         governance_mutation: false,
-        independence_satisfied: false,
+        independence_satisfied: independence.satisfied,
         method_integrity_sound: has_pass,
         credential_valid: true,
         has_unknown_fields: false,

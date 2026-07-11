@@ -467,7 +467,7 @@ impl VerifierAttachment {
     /// Whether this attachment is well-formed *and* matches the given
     /// claim digest with `outcome = passed`, `match_to_claim`, and an
     /// integrity that is not `Compromised` (G5).
-    fn is_passing_match(&self, current_digest: &str) -> bool {
+    pub(crate) fn is_passing_match(&self, current_digest: &str) -> bool {
         self.is_base_match(current_digest) && self.method_integrity != MethodIntegrity::Compromised
     }
 
@@ -561,25 +561,14 @@ pub fn derive_gate_status(
         .filter(|a| a.is_passing_match(current_claim_digest))
         .collect();
 
-    // Monoculture observation: when the matched set agrees but every run
-    // names the SAME implementation, say so — N runs of one binary are
-    // replication, not implementation diversity. NB: pushing a reason here
-    // DOES demote (status is Verified iff `reasons` is empty), so a single-
-    // implementation matched set derives `NeedsVerification`.
-    {
-        let impls: std::collections::HashSet<&str> = matched
-            .iter()
-            .map(|a| a.implementation_id.as_str())
-            .filter(|s| !s.is_empty())
-            .collect();
-        if matched.len() >= 2 && impls.len() == 1 {
-            reasons.push(format!(
-                "monoculture: {} matched run(s) all from implementation '{}' — independent implementations would strengthen this",
-                matched.len(),
-                impls.iter().next().unwrap()
-            ));
-        }
-    }
+    // Independence (G1 + monoculture demotion): derived in one place,
+    // `analysis::independence`, shared with the policy layer. NB: pushing a
+    // reason here DOES demote (status is Verified iff `reasons` is empty),
+    // so a single-implementation matched set derives `NeedsVerification`.
+    reasons.extend(
+        super::independence::independence_from_attachments(current_claim_digest, attachments)
+            .reasons,
+    );
 
     // G5 method-integrity: an attachment that *would* match the claim but
     // ran with a compromised method (e.g. a forbidden Lean axiom such as
@@ -641,39 +630,6 @@ pub fn derive_gate_status(
             "G2: an attachment passed but is unmatched to the current claim (passed_but_unmatched)"
                 .to_string(),
         );
-    }
-
-    // G1 independence: ≥2 matched attachments by different method/solver,
-    // with at least one declaring independence (one-directional; mutual is a
-    // hash circularity over the content-addressed id).
-    if matched.len() < 2 {
-        reasons.push(format!(
-            "G1: need >=2 matched independent attachments, have {}",
-            matched.len()
-        ));
-    } else {
-        let distinct_methods: std::collections::BTreeSet<(VerifierMethod, &str)> = matched
-            .iter()
-            .map(|a| (a.verifier_method, a.solver_id.as_str()))
-            .collect();
-        if distinct_methods.len() < 2 {
-            reasons.push(
-                "G1: >=2 attachments but all share one method/solver (not independent)".to_string(),
-            );
-        } else {
-            let ids: std::collections::BTreeSet<&str> =
-                matched.iter().map(|a| a.id.as_str()).collect();
-            let declares_independence = matched.iter().any(|a| {
-                a.independent_of
-                    .iter()
-                    .any(|other| other != &a.id && ids.contains(other.as_str()))
-            });
-            if !declares_independence {
-                reasons.push(
-                    "G1: attachments do not declare independence (independent_of)".to_string(),
-                );
-            }
-        }
     }
 
     // G3 adversarial: a refuted probe is terminal; otherwise need >=1

@@ -449,6 +449,17 @@ pub(crate) fn gate_auto_admit_core(
                         .to_string(),
                 );
             }
+            // Independence via the derived predicate (G1 + monoculture over
+            // the matched attachments), not a bare count — a monoculture set
+            // that used to count as independent now defers. Tightening only:
+            // the policy can refuse an admit the old bool would have allowed,
+            // never the reverse.
+            let claim_digest_hex =
+                vela_protocol::verifier_attachment::claim_digest(&finding.assertion.text);
+            let independence = vela_protocol::independence::independence_from_attachments(
+                &claim_digest_hex,
+                &matched,
+            );
             let ctx = vela_protocol::acceptance_policy::PolicyContext {
                 claim_class: "exact".to_string(),
                 assurance_level: if floor_ok { 3 } else { 0 },
@@ -458,7 +469,7 @@ pub(crate) fn gate_auto_admit_core(
                 assertion_text_mutated: false,
                 target_contested: !open_contradictions.is_empty(),
                 governance_mutation: false,
-                independence_satisfied: matched.len() >= 2,
+                independence_satisfied: independence.satisfied,
                 method_integrity_sound: vouched_ok,
                 credential_valid: true,
                 has_unknown_fields: false,

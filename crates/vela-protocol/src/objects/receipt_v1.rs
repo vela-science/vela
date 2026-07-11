@@ -125,7 +125,12 @@ pub struct IndependenceBasis {
 /// layer is absent or not an object — an old or minimal receipt, which is
 /// legal; missing lineage must never be mistaken for clean lineage.
 pub fn lineage_from_receipt(receipt: &Value) -> Option<ReceiptLineage> {
-    let layer = receipt.get("lineage")?;
+    lineage_from_layer(receipt.get("lineage")?)
+}
+
+/// Read a value that IS the lineage layer (callers that hold the layer
+/// directly, e.g. the landing receipt's `lineage` field).
+pub fn lineage_from_layer(layer: &Value) -> Option<ReceiptLineage> {
     if !layer.is_object() {
         return None;
     }
