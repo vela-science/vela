@@ -329,6 +329,15 @@ pub struct VerifierAttachment {
     /// requirements (distinct method/solver + `independent_of`) remain.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub lineage_couplings: Vec<String>,
+    /// The `vva_` id of the attachment revision this one supersedes
+    /// (optional; absent on legacy records, so their ids are
+    /// byte-unchanged). Attachments are content-addressed — a revision
+    /// mints a new id — so continuity across revisions is a back-pointer
+    /// chain (`FindingBundle.previous_version` is the precedent). The
+    /// deliberate substitute for a stable-id + revision-digest pairing;
+    /// see docs/adr/0002.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub supersedes: Option<String>,
 }
 
 /// Fields a caller supplies; the id and schema are derived.
@@ -398,6 +407,7 @@ impl VerifierAttachment {
             note: draft.note,
             implementation_id: String::new(),
             lineage_couplings: Vec::new(),
+            supersedes: None,
             toolchain_hash: derive_toolchain_hash(&draft.verifier_method),
             undischarged_hypotheses: Vec::new(),
         };
@@ -446,6 +456,18 @@ impl VerifierAttachment {
     /// id-integrity check would exclude the attachment.
     pub fn with_lineage_couplings(mut self, couplings: Vec<String>) -> Result<Self, String> {
         self.lineage_couplings = couplings;
+        self.id = self.derive_id()?;
+        Ok(self)
+    }
+
+    /// Chain this attachment to the revision it supersedes and re-derive
+    /// the id. Part of the canonical body, so it must be set through this
+    /// builder, not by field assignment.
+    pub fn with_supersedes(mut self, prior: &str) -> Result<Self, String> {
+        if !prior.starts_with("vva_") {
+            return Err(format!("supersedes must name a vva_… id, got '{prior}'"));
+        }
+        self.supersedes = Some(prior.to_string());
         self.id = self.derive_id()?;
         Ok(self)
     }

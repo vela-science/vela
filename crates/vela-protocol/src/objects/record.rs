@@ -95,6 +95,15 @@ pub struct ActivityRecord {
     /// provenance and may include content-addressed artifact refs.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub source_refs: Vec<String>,
+    /// The `vrc_` id of the record revision this one supersedes (optional;
+    /// absent on legacy records, so their ids are byte-unchanged). Records
+    /// are content-addressed — a revision mints a new id — so continuity
+    /// across revisions is a back-pointer chain, the same affordance as
+    /// `FindingBundle.previous_version` and `ScientificDiffPack.parent_pack`.
+    /// Deliberate substitute for a stable-id + revision-digest pairing;
+    /// see docs/adr/0002.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub supersedes: Option<String>,
     /// Who emitted (agent:…, ci:…, reviewer:…). Agents welcome — emitting
     /// is proposing, never deciding.
     pub emitted_by: String,
@@ -169,6 +178,7 @@ impl ActivityRecord {
             caveats: draft.caveats,
             source: draft.source,
             source_refs: draft.source_refs,
+            supersedes: None,
             emitted_by: draft.emitted_by,
             emitted_at: draft.emitted_at,
             signature: String::new(),
