@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPO="constellate-science/vela"
+REPO="vela-science/vela"
 BINARY="vela"
 PREFIX="${VELA_INSTALL_PREFIX:-/usr/local}"
 BINDIR="${VELA_INSTALL_BINDIR:-$PREFIX/bin}"
@@ -73,7 +73,7 @@ echo "  4) proof:   vela proof frontier.json --out proof-packet"
 echo "  5) serve:   vela serve frontier.json"
 echo
 echo "To re-verify a reference frontier from scratch, clone the repo and run:"
-echo "  git clone https://github.com/constellate-science/vela.git"
+echo "  git clone https://github.com/vela-science/vela.git"
 echo "  cd vela"
 echo "  vela reproduce examples/sidon-sets        # 18/18 Sidon witnesses, every pairwise sum recomputed"
 echo "  vela reproduce examples/erdos-problems    # 32/32 Erdős certificates re-checked from the witness"
