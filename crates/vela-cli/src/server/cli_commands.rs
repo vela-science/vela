@@ -413,6 +413,11 @@ pub(crate) enum Commands {
         /// signs every row under one key read.
         #[arg(long)]
         batch: Option<PathBuf>,
+        /// Discard the saved interactive session (your in-progress
+        /// verdicts) and start clean. Use this if a resumed session shows
+        /// choices you want to redo.
+        #[arg(long)]
+        reset: bool,
         /// Hardware touch-to-sign. Accepted but intentionally NOT wired yet —
         /// the recommended path is an OpenPGP/PKCS#11 Ed25519 token (raw
         /// Ed25519, zero verifier change), not FIDO2; see

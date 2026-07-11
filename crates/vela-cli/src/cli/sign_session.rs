@@ -93,6 +93,10 @@ fn save_session(frontier: &Path, state: &SessionState) {
     }
 }
 
+fn clear_session(frontier: &Path) {
+    let _ = std::fs::remove_file(session_path(frontier));
+}
+
 /// The conservative context used to filter the queue: nothing proven.
 /// Richer per-proposal derivation (assurance from the gate) lands with
 /// `vela land`; until then the queue errs toward showing the human
@@ -132,7 +136,12 @@ fn read_line(prompt: &str) -> String {
 }
 
 /// The interactive session (the default form of `vela sign`).
-pub(crate) fn cmd_sign_session(frontier: Option<PathBuf>, key: Option<PathBuf>, json: bool) {
+pub(crate) fn cmd_sign_session(
+    frontier: Option<PathBuf>,
+    key: Option<PathBuf>,
+    json: bool,
+    reset: bool,
+) {
     let frontiers = session_frontiers(frontier);
     if frontiers.is_empty() {
         ui::fail_with(
@@ -140,6 +149,21 @@ pub(crate) fn cmd_sign_session(frontier: Option<PathBuf>, key: Option<PathBuf>, 
             "no frontier here and none registered",
             Some("run inside a frontier, or `vela init` one (init registers it)"),
         );
+    }
+
+    // `--reset`: discard saved verdicts and stop, so the next run starts
+    // clean. The escape hatch for a resumed session showing choices you
+    // want to redo (clig.dev: recover from interruption; never trap).
+    if reset {
+        let mut cleared = 0usize;
+        for dir in &frontiers {
+            if session_path(dir).exists() {
+                clear_session(dir);
+                cleared += 1;
+            }
+        }
+        println!("  cleared {cleared} saved session(s); re-run `vela sign` to decide fresh.");
+        return;
     }
 
     // Build every queue up front so the header can tell the whole story.
@@ -327,33 +351,89 @@ pub(crate) fn cmd_sign_session(frontier: Option<PathBuf>, key: Option<PathBuf>, 
         }
     }
 
-    // Summary + the ONE confirm.
-    let mut planned = 0usize;
-    println!("\n  ══════════════════════════════════════════════════");
-    for (dir, _, items) in &queues {
-        let state = load_session(dir);
-        for item in items {
-            if let Some(ans) = state.answers.get(&item.id) {
-                println!(
-                    "  {:>9}  {}  {}",
-                    ans.split(':').next().unwrap_or(ans),
-                    item.id,
-                    item.title
-                );
-                planned += 1;
+    // Summary + the ONE confirm — editable, so a mistake here never traps
+    // you (clig.dev: let users correct choices; show and change state). The
+    // loop re-renders after every edit; only `y` falls through to the key
+    // read, and `reject` verdicts show in red so an accidental accept stands
+    // out before you sign.
+    loop {
+        let mut answered: Vec<(PathBuf, String)> = Vec::new();
+        println!("\n  ══════════════════════════════════════════════════");
+        for (dir, _, items) in &queues {
+            let state = load_session(dir);
+            for item in items {
+                if let Some(ans) = state.answers.get(&item.id) {
+                    let verdict = ans.split(':').next().unwrap_or(ans);
+                    // Pad to width first, THEN color — ANSI codes would break
+                    // right-alignment if we formatted the colored string.
+                    let label = format!("{verdict:>9}");
+                    let shown = match verdict {
+                        "reject" => style::madder(&label).to_string(),
+                        "accept" | "yes" => style::moss(&label).to_string(),
+                        _ => label.clone(),
+                    };
+                    println!("  {shown}  {}  {}", item.id, item.title);
+                    answered.push((dir.clone(), item.id.clone()));
+                }
             }
         }
-    }
-    if planned == 0 {
-        println!("  nothing answered; nothing to sign.");
-        return;
-    }
-    let yn = read_line(&format!(
-        "\nSign {planned} item(s) as {actor} — one key read, self-publishes? [y/N] "
-    ));
-    if yn != "y" {
-        println!("not signed; answers saved. Re-run `vela sign` to finish.");
-        return;
+        let planned = answered.len();
+        if planned == 0 {
+            println!("  nothing answered; nothing to sign.");
+            return;
+        }
+        let choice = read_line(&format!(
+            "\nSign {planned} item(s) as {actor}?  [{}es · {}dit one · {}eset all · {}o] > ",
+            style::moss("y"),
+            style::brass("e"),
+            style::madder("r"),
+            style::dim("n"),
+        ));
+        match choice.as_str() {
+            "y" => break,
+            "e" => {
+                let id = read_line("  item id (or a prefix) to change: ");
+                match answered
+                    .iter()
+                    .find(|(_, iid)| *iid == id || iid.starts_with(&id))
+                {
+                    Some((dir, iid)) => {
+                        let v = read_line(
+                            "  new verdict — [a]ccept · [r]eject · [s]kip (leave pending): ",
+                        );
+                        let mut st = load_session(dir);
+                        match v.as_str() {
+                            "a" => {
+                                st.answers.insert(iid.clone(), "accept".into());
+                            }
+                            "r" => {
+                                let why = read_line("  reject reason: ");
+                                st.answers.insert(iid.clone(), format!("reject:{why}"));
+                            }
+                            "s" => {
+                                st.answers.remove(iid);
+                            }
+                            _ => println!("  unchanged (need a, r, or s)"),
+                        }
+                        save_session(dir, &st);
+                    }
+                    None => println!("  no answered item matches `{id}`"),
+                }
+            }
+            "r" => {
+                for dir in &frontiers {
+                    clear_session(dir);
+                }
+                println!("  reset — all verdicts cleared. Re-run `vela sign` to decide fresh.");
+                return;
+            }
+            _ => {
+                println!(
+                    "  not signed; answers saved. Re-run `vela sign` to finish, `e` to edit, or `vela sign --reset` to start over."
+                );
+                return;
+            }
+        }
     }
 
     // Apply, one publish per frontier.

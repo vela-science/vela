@@ -716,6 +716,7 @@ pub async fn run_command() {
             yes,
             reason,
             batch,
+            reset,
             sk,
             key,
             json,
@@ -747,7 +748,7 @@ pub async fn run_command() {
                     );
                 }
             } else {
-                sign_session::cmd_sign_session(frontier, key, json);
+                sign_session::cmd_sign_session(frontier, key, json, reset);
             }
         }
         Commands::Next {
