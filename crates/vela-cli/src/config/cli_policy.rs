@@ -1592,7 +1592,7 @@ pub(crate) fn best_sidon_bound_for_n(
 /// the sealed rules, confirms once, the key is read once, and the signature
 /// over the canonical bytes opens the lane: every matching permit rule is now
 /// live authority with no per-item key ceremony.
-pub(crate) fn cmd_policy_sign(frontier: &Path, key: Option<&Path>, yes: bool) {
+pub(crate) fn cmd_policy_sign(frontier: &Path, key: Option<&Path>, yes: bool, json: bool) {
     crate::cli::sign_session::ceremony_binary_gate(!yes);
     // Humans only: the whole point of the lane is that a HUMAN signed once.
     let actor = crate::cli_identity::resolve_decision_actor(None);
@@ -1613,20 +1613,26 @@ pub(crate) fn cmd_policy_sign(frontier: &Path, key: Option<&Path>, yes: bool) {
             &format!("{} is already signed — the lane is open", policy.id),
             Some("rotate deliberately: `vela policy revoke --reason <why>` then draft + sign"),
         ),
-        Err(e) => println!(
-            "  {} existing signature is broken ({e}) — re-signing replaces it",
-            style::warn("note")
-        ),
+        Err(e) => {
+            if !json {
+                println!(
+                    "  {} existing signature is broken ({e}) — re-signing replaces it",
+                    style::warn("note")
+                )
+            }
+        }
         Ok(None) => {}
     }
 
-    ui::header("POLICY", &policy.id, Some("sign — the lane opens"));
-    render_policy(&policy);
-    println!();
-    println!("  signing as {actor}");
-    println!("  a signature makes every permit rule above LIVE: agents land that class of");
-    println!("  gated work with no per-item ceremony, until expiry or `vela policy revoke`.");
-    println!();
+    if !json {
+        ui::header("POLICY", &policy.id, Some("sign — the lane opens"));
+        render_policy(&policy);
+        println!();
+        println!("  signing as {actor}");
+        println!("  a signature makes every permit rule above LIVE: agents land that class of");
+        println!("  gated work with no per-item ceremony, until expiry or `vela policy revoke`.");
+        println!();
+    }
     if !yes {
         ui::ensure_can_prompt("policy sign", "pass --yes to sign non-interactively");
         if !confirm(&format!("  sign {} and open the lane? [y/N] ", policy.id)) {
@@ -1642,6 +1648,20 @@ pub(crate) fn cmd_policy_sign(frontier: &Path, key: Option<&Path>, yes: bool) {
     let signing_key = crate::cli_identity::resolve_signing_key(key);
     let (policy, record) = sign_active_policy(frontier, &signing_key, &Utc::now().to_rfc3339())
         .unwrap_or_else(|e| e.fail());
+
+    if json {
+        println!(
+            "{}",
+            serde_json::json!({
+                "ok": true,
+                "command": "policy",
+                "policy_id": policy.id,
+                "epoch": policy.epoch,
+                "signer": record.signer_pubkey_hex,
+            })
+        );
+        return;
+    }
 
     println!();
     println!("  {} policy live — the lane is open", style::ok("signed"));
@@ -1667,7 +1687,7 @@ pub(crate) fn cmd_policy_sign(frontier: &Path, key: Option<&Path>, yes: bool) {
 /// `active.sig.json` pointer is deleted (authority gone) while the
 /// content-addressed snapshots stay, so every event the policy admitted
 /// keeps verifying on replay forever.
-pub(crate) fn cmd_policy_revoke(frontier: &Path, reason: &str, yes: bool) {
+pub(crate) fn cmd_policy_revoke(frontier: &Path, reason: &str, yes: bool, json: bool) {
     let actor = crate::cli_identity::resolve_decision_actor(None);
     if reason.trim().is_empty() {
         fail_with(
@@ -1686,11 +1706,13 @@ pub(crate) fn cmd_policy_revoke(frontier: &Path, reason: &str, yes: bool) {
         })
         .unwrap_or(0);
 
-    ui::header("POLICY", &policy.id, Some("revoke — closing the lane"));
-    println!("  epoch {} · admitted {admitted} event(s)", policy.epoch);
-    println!("  reason: {reason}");
-    println!("  snapshots stay under .vela/policies/ — past admissions keep verifying.");
-    println!();
+    if !json {
+        ui::header("POLICY", &policy.id, Some("revoke — closing the lane"));
+        println!("  epoch {} · admitted {admitted} event(s)", policy.epoch);
+        println!("  reason: {reason}");
+        println!("  snapshots stay under .vela/policies/ — past admissions keep verifying.");
+        println!();
+    }
     if !yes {
         ui::ensure_can_prompt("policy revoke", "pass --yes to revoke non-interactively");
         if !confirm(&format!("  close the lane for {}? [y/N] ", policy.id)) {
@@ -1704,6 +1726,19 @@ pub(crate) fn cmd_policy_revoke(frontier: &Path, reason: &str, yes: bool) {
 
     let vap = revoke_active_policy(frontier, &actor, reason, &Utc::now().to_rfc3339())
         .unwrap_or_else(|e| e.fail());
+    if json {
+        println!(
+            "{}",
+            serde_json::json!({
+                "ok": true,
+                "command": "policy",
+                "policy_id": vap,
+                "revoked": true,
+                "reason": reason,
+            })
+        );
+        return;
+    }
     println!();
     println!(
         "  {} lane closed — {vap} no longer admits anything",
@@ -1850,13 +1885,23 @@ pub(crate) fn run(args: &[String]) {
         }
         "show" | "test" | "log" | "sign" | "revoke" => {
             let interactive = matches!(verb, "sign" | "revoke");
-            ui::set_mode("policy", json && !interactive);
+            ui::set_mode("policy", json);
+            // JSON is non-interactive (clig.dev): a signing/revoking verb
+            // under --json must carry --yes, or it would try to prompt into
+            // a stream that must stay pure.
+            if json && interactive && !yes {
+                fail_with(
+                    ErrorKind::Usage,
+                    &format!("policy {verb} --json requires --yes (JSON mode is non-interactive)"),
+                    Some(&format!("vela policy {verb} … --yes --json")),
+                );
+            }
             let dir = ui::resolve_frontier(positionals.first().map(PathBuf::from));
             match verb {
                 "show" => cmd_policy_show(&dir, json),
                 "test" => cmd_policy_test(&dir, json),
                 "log" => cmd_policy_log(&dir, json),
-                "sign" => cmd_policy_sign(&dir, key.as_deref(), yes),
+                "sign" => cmd_policy_sign(&dir, key.as_deref(), yes, json),
                 "revoke" => {
                     let reason = reason.unwrap_or_else(|| {
                         fail_with(
@@ -1865,7 +1910,7 @@ pub(crate) fn run(args: &[String]) {
                             Some("vela policy revoke --reason \"rotating epochs\""),
                         )
                     });
-                    cmd_policy_revoke(&dir, &reason, yes);
+                    cmd_policy_revoke(&dir, &reason, yes, json);
                 }
                 _ => unreachable!(),
             }

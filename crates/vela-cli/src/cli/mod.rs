@@ -979,9 +979,13 @@ pub async fn run_command() {
                 crate::ui::set_mode("config", json);
                 crate::config::settings::cmd_config_set(&key, &value, frontier.as_deref(), json)
             }
-            ConfigAction::Unset { key, frontier } => {
-                crate::ui::set_mode("config", false);
-                crate::config::settings::cmd_config_unset(&key, frontier.as_deref())
+            ConfigAction::Unset {
+                key,
+                frontier,
+                json,
+            } => {
+                crate::ui::set_mode("config", json);
+                crate::config::settings::cmd_config_unset(&key, frontier.as_deref(), json)
             }
             ConfigAction::List { frontier, json } => {
                 crate::ui::set_mode("config", json);
@@ -1017,12 +1021,16 @@ pub async fn run_command() {
                     json,
                 )
             }
+            // NB: `policy` is intercepted before clap (cli_policy.rs owns the
+            // live dispatch); these arms are shadowed. `json=false` keeps them
+            // type-checking without pretending to route JSON they never see.
             PolicyAction::Sign { frontier, key, yes } => {
                 crate::ui::set_mode("policy", false);
                 crate::config::cli_policy::cmd_policy_sign(
                     &crate::ui::resolve_frontier(frontier),
                     key.as_deref(),
                     yes,
+                    false,
                 )
             }
             PolicyAction::Revoke {
@@ -1035,6 +1043,7 @@ pub async fn run_command() {
                     &crate::ui::resolve_frontier(frontier),
                     &reason,
                     yes,
+                    false,
                 )
             }
             PolicyAction::Log { frontier, json } => {

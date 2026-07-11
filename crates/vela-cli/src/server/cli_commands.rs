@@ -52,6 +52,8 @@ pub enum ConfigAction {
         key: String,
         #[arg(long)]
         frontier: Option<PathBuf>,
+        #[arg(long)]
+        json: bool,
     },
     /// Every key, its effective value, and where it came from.
     List {

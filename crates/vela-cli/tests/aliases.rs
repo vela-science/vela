@@ -278,3 +278,28 @@ fn prompts_refuse_piped_stdin() {
         "a refused prompt must not exit 0"
     );
 }
+
+/// The `docs/CLI.md` promise — every porcelain verb takes `--json` — was
+/// false for `config unset` and `policy sign/revoke`. Pin the two fixes:
+/// `--json` parses, and a signing verb under `--json` is non-interactive
+/// (requires `--yes`), never leaking a prompt into the stream.
+#[test]
+fn json_is_offered_where_the_contract_promises() {
+    let unset = vela(&["config", "unset", "some.unknown.key", "--json"]);
+    assert!(
+        !stderr(&unset).contains("unexpected argument"),
+        "`config unset --json` must parse, got: {}",
+        stderr(&unset)
+    );
+    let sign = vela(&["policy", "sign", "examples/sidon-sets", "--json"]);
+    assert!(
+        combined(&sign).contains("requires --yes"),
+        "`policy sign --json` must require --yes (JSON is non-interactive), got: {}",
+        combined(&sign)
+    );
+    assert_eq!(
+        sign.status.code(),
+        Some(2),
+        "the requires-yes refusal is a usage error"
+    );
+}

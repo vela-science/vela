@@ -409,9 +409,18 @@ pub(crate) fn cmd_config_set(key: &str, value: &str, frontier: Option<&Path>, js
     }
 }
 
-pub(crate) fn cmd_config_unset(key: &str, frontier: Option<&Path>) {
+pub(crate) fn cmd_config_unset(key: &str, frontier: Option<&Path>, json: bool) {
     match unset(key, frontier) {
-        Ok(()) => println!("  · {key} unset"),
+        Ok(()) => {
+            if json {
+                println!(
+                    "{}",
+                    serde_json::json!({"ok": true, "command": "config", "key": key, "unset": true})
+                );
+            } else {
+                println!("  · {key} unset");
+            }
+        }
         Err(e) => crate::ui::fail_with(crate::ui::ErrorKind::Usage, &e, None),
     }
 }
