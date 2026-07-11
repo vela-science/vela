@@ -36,7 +36,7 @@ pub use domains::{lean_verification, proof_verification, sidon_profile};
 mod objects;
 pub use objects::{
     activity, anchor, attempt, cli_style, frontier_template, identity, merkle, nanopub, provenance,
-    record, statement_attestation, verification_policy, verification_summary,
+    receipt_v1, record, statement_attestation, verification_policy, verification_summary,
 };
 
 pub mod proposals;

@@ -146,6 +146,26 @@ receipt schema does not churn as adapters arrive:
    but accepted frontier state requires the key ceremony (`vela sign`) or a
    human-signed policy admitting the lane.
 
+## Status vocabularies - three layers, not one enum
+
+Three status vocabularies coexist around a receipt, and they answer
+different questions. Collapsing them into one field is the single-green-badge
+failure; keep the projection explicit:
+
+| Layer | Vocabulary | Question it answers |
+|---|---|---|
+| Gate (`vva_` attachments) | `NeedsVerification` / `Verified` / `Refuted` | Did named checks, derived from immutable inputs, pass? |
+| Acceptance (`acceptance.acceptance_scope`) | `machine_verified` / `human_seen` / `locally_accepted` / `frontier_accepted` / `canon_accepted` / `hypothesis_only` / `retracted` / `superseded` | What standing did an accountable steward grant, and how far does it travel? |
+| Status events (`status.kind`) | the event ladder (`draft` … `accepted`, plus supersede/withdraw/revoke/challenge/deprecate/restore) | What happened to this receipt over time? |
+
+A receipt can be gate-`Verified` and only `locally_accepted`; a
+`frontier_accepted` claim can later carry a `revokes` status event without
+its historical gate result changing. Unifying these into one enum is
+deferred deliberately (the same wire-risk class as the EventKind
+unification): the Rust read layer is `vela-protocol`'s `objects::receipt_v1`
+(`AcceptanceScope`), and the gate vocabulary stays
+`analysis::verifier_attachment::GateStatus`.
+
 ## The layer above: verifier attachments (`vva_`)
 
 Gate status is derived from **verifier attachments**, a separate post-receipt

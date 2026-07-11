@@ -72,6 +72,12 @@ pub(crate) struct Receipt {
     #[serde(default)]
     #[allow(dead_code)]
     pub provenance: Value,
+    /// The Receipt-v1 `lineage` layer ({parents, derived_from, source_refs,
+    /// …}). Read-only input to the derived independence predicate; absent on
+    /// minimal receipts, and absence never counts as clean lineage.
+    #[serde(default)]
+    #[allow(dead_code)]
+    pub lineage: Value,
 }
 
 fn default_type() -> String {

@@ -10,6 +10,7 @@ pub mod identity;
 pub mod merkle;
 pub mod nanopub;
 pub mod provenance;
+pub mod receipt_v1;
 pub mod record;
 pub mod statement_attestation;
 #[path = "policy.rs"]
