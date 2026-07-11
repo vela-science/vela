@@ -88,7 +88,8 @@ impl CmdError {
 
 // ── The template ladder ────────────────────────────────────────────────
 
-const TEMPLATES: &str = "witness-rederivation, statement-drafts, search-witness, notes-threshold";
+const TEMPLATES: &str =
+    "witness-rederivation, lean-rederivation, statement-drafts, search-witness, notes-threshold";
 
 /// The hardcoded template ladder, ordered by how much a signature delegates.
 /// Every template defaults to `Defer` (never a permit default) and expires in
@@ -97,6 +98,10 @@ const TEMPLATES: &str = "witness-rederivation, statement-drafts, search-witness,
 ///
 ///   witness-rederivation  exact witnesses the frozen gate re-derived (A3,
 ///                         independent, method-sound, no claim-text change)
+///   lean-rederivation     kernel-clean, axiom-audited Lean re-derivations
+///                         (receipt_lean_kernel_clean, A2, method-sound).
+///                         Signing it delegates the statement-fidelity call
+///                         for the frontier; dirty/unlisted axioms defer.
 ///   statement-drafts      theoretical receipts from `vela land` (statement
 ///                         drafts land as receipt_theoretical) — drafts ARE
 ///                         text, so semantic text change is allowed, bounded
@@ -135,6 +140,47 @@ fn template_policy(name: &str) -> Option<(Vec<PolicyRule>, &'static str)> {
                 },
             }],
             "exact witnesses the frozen gate re-derived land themselves",
+        )),
+        "lean-rederivation" => Some((
+            vec![PolicyRule {
+                id: "lean-rederivation-v1".to_string(),
+                effect: Outcome::Permit,
+                // The class `vela land` stamps ONLY when a receipt's Lean runs
+                // are kernel-clean under the frozen TCB policy (no sorryAx, no
+                // compiler-trust axiom, nothing outside the allowlist). A Lean
+                // receipt with a forbidden axiom lands as receipt_theoretical
+                // and never matches this rule.
+                claim_classes: vec!["receipt_lean_kernel_clean".to_string()],
+                constraints: Constraints {
+                    max_changed_findings: 1,
+                    // A theorem attests exactly its own statement; nothing
+                    // hangs downstream of a fresh re-derivation.
+                    max_downstream_dependents: 0,
+                    // A2 = at least one passing Lean run at land; the kernel
+                    // re-derivation with an audited-clean axiom set is the
+                    // un-forgeable floor this lane stands on (the Lean analogue
+                    // of search-witness's frozen verifier).
+                    required_assurance_min: 2,
+                    // Every new receipt stamps assertion_text_mutated=true, so
+                    // this must be open or the lane never fires. The real guard
+                    // is require_method_integrity below — kernel-clean.
+                    allow_semantic_text_change: true,
+                    allow_contested: false,
+                    allow_governance_mutation: false,
+                    // Independence is a verdict-time property and single-relay
+                    // re-derivations stamp it false; the kernel + audited axioms
+                    // are the integrity this lane stands on.
+                    require_independence: false,
+                    require_method_integrity: true,
+                },
+            }],
+            // Signing THIS policy is the fidelity delegation: the maintainer
+            // decides, once and revocably, that for this frontier a kernel-clean
+            // axiom-audited Lean re-derivation faithfully formalizes the claim,
+            // so the per-item statement-fidelity call is delegated. Every
+            // auto-admit still stamps a decision certificate; anything not
+            // kernel-clean, or any dirty/unlisted axiom, defers to the human.
+            "kernel-clean axiom-audited Lean re-derivations land at A2 (signing delegates fidelity)",
         )),
         "statement-drafts" => Some((
             vec![PolicyRule {
@@ -1939,6 +1985,15 @@ mod tests {
         assert_eq!(n[0].constraints.max_changed_findings, 1);
         assert_eq!(n[0].constraints.max_downstream_dependents, 0);
 
+        let (l, _) = template_policy("lean-rederivation").unwrap();
+        assert_eq!(l[0].claim_classes, vec!["receipt_lean_kernel_clean"]);
+        assert_eq!(l[0].constraints.required_assurance_min, 2);
+        assert!(
+            l[0].constraints.require_method_integrity,
+            "kernel-clean is the floor this lane stands on"
+        );
+        assert_eq!(l[0].constraints.max_downstream_dependents, 0);
+
         assert!(template_policy("nonsense").is_none());
     }
 
@@ -2140,6 +2195,61 @@ mod tests {
             Outcome::Permit,
             "a landed statement draft must route through this lane: {:?}",
             d.reasons
+        );
+    }
+
+    /// The lean-rederivation lane: a kernel-clean Lean re-derivation
+    /// (class receipt_lean_kernel_clean, A2, method-sound) permits, but the
+    /// SAME class with method integrity NOT sound — a dirty/unlisted axiom
+    /// the land path refused to certify — must defer. Signing this policy
+    /// delegates fidelity; it never delegates a proof that used sorryAx.
+    #[test]
+    fn lean_rederivation_permits_kernel_clean_defers_dirty() {
+        let (rules, _) = template_policy("lean-rederivation").unwrap();
+        let mut policy = AcceptancePolicy {
+            schema: "vela.acceptance_policy.v0.1".to_string(),
+            id: String::new(),
+            frontier_id: "vfr_test".to_string(),
+            epoch: 1,
+            issued_by: vec!["reviewer:test".to_string()],
+            quorum: Quorum {
+                threshold: 1,
+                eligible_roles: vec!["steward".to_string()],
+            },
+            rules,
+            default: Outcome::Defer,
+            expires_at: "2099-12-31T23:59:59Z".to_string(),
+            revocation_ref: None,
+        };
+        policy.id = policy.content_address();
+
+        let ctx = |method_integrity_sound: bool| vela_protocol::acceptance_policy::PolicyContext {
+            claim_class: "receipt_lean_kernel_clean".to_string(),
+            assurance_level: 2,
+            impact_tier: 1,
+            changed_findings: 1,
+            downstream_dependents: 0,
+            assertion_text_mutated: true,
+            target_contested: false,
+            governance_mutation: false,
+            independence_satisfied: false,
+            method_integrity_sound,
+            credential_valid: true,
+            has_unknown_fields: false,
+            replayability: "exact".to_string(),
+        };
+        let clean = vela_protocol::acceptance_policy::evaluate(&policy, &ctx(true), AT);
+        assert_eq!(
+            clean.outcome,
+            Outcome::Permit,
+            "a kernel-clean Lean re-derivation must land through this lane: {:?}",
+            clean.reasons
+        );
+        let dirty = vela_protocol::acceptance_policy::evaluate(&policy, &ctx(false), AT);
+        assert_eq!(
+            dirty.outcome,
+            Outcome::Defer,
+            "no method integrity (a refused axiom set) must defer to the human"
         );
     }
 

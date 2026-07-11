@@ -106,6 +106,54 @@ pub(crate) struct ReceiptVerifierRun {
     pub log: String,
     #[serde(default)]
     pub solver: String,
+    /// The axioms a Lean kernel re-derivation observed (e.g. `propext`,
+    /// `Classical.choice`, `Quot.sound`). Present on `verifier.lean_*` runs;
+    /// absent (empty) on non-Lean runs and pre-axiom-audit receipts. Read to
+    /// decide kernel-cleanliness for the Lean delegation lane.
+    #[serde(default)]
+    pub axioms: Vec<String>,
+}
+
+/// True when this run is a Lean kernel re-derivation (its method names the
+/// Lean external-declaration / kernel verifier). The axiom audit only
+/// applies to these; a non-Lean run is judged by its own lane.
+pub(crate) fn is_lean_run(method: &str) -> bool {
+    let m = method.to_ascii_lowercase();
+    m.contains("lean_external") || m.contains("lean_kernel") || m.starts_with("verifier.lean")
+}
+
+/// Whether a receipt carries a passing, kernel-clean Lean re-derivation:
+/// at least one Lean run passed and every passing Lean run's axioms are
+/// `KernelClean` under the frozen TCB policy (no `sorryAx`, no
+/// compiler-trust axiom, nothing outside the allowlist). A Lean run that
+/// passed with a forbidden or unlisted axiom makes this false — the
+/// overclaim the gate exists to catch.
+pub(crate) fn receipt_lean_kernel_clean(receipt: &Receipt) -> bool {
+    use vela_protocol::tcb_policy::{AxiomVerdict, DEFAULT_ALLOWED_AXIOMS, FORBIDDEN_AXIOMS};
+    let classify = |axioms: &[String]| -> AxiomVerdict {
+        if axioms
+            .iter()
+            .any(|a| FORBIDDEN_AXIOMS.contains(&a.as_str()))
+        {
+            return AxiomVerdict::ForbiddenAxiom;
+        }
+        if axioms
+            .iter()
+            .any(|a| !DEFAULT_ALLOWED_AXIOMS.contains(&a.as_str()))
+        {
+            return AxiomVerdict::UnlistedAxiom;
+        }
+        AxiomVerdict::KernelClean
+    };
+    let lean_runs: Vec<&ReceiptVerifierRun> = receipt
+        .verifier_runs
+        .iter()
+        .filter(|r| is_lean_run(&r.method) && r.outcome.eq_ignore_ascii_case("pass"))
+        .collect();
+    !lean_runs.is_empty()
+        && lean_runs
+            .iter()
+            .all(|r| classify(&r.axioms) == AxiomVerdict::KernelClean)
 }
 
 pub(crate) const RECEIPT_SCHEMA: &str = "vela.receipt.v1";
@@ -302,8 +350,21 @@ pub(crate) fn land(
         basis.as_ref(),
         lineage.as_ref(),
     );
+    // A Lean receipt is method-integrity-sound only when its Lean runs are
+    // kernel-clean. A passing Lean run that used a forbidden axiom (sorryAx,
+    // compiler trust) must NOT read as sound — tightening only, so no
+    // non-Lean receipt changes. A distinct claim_class lets a signed policy
+    // scope a delegation lane to kernel-clean Lean precisely.
+    let has_lean_run = receipt.verifier_runs.iter().any(|r| is_lean_run(&r.method));
+    let lean_kernel_clean = receipt_lean_kernel_clean(receipt);
+    let method_integrity_sound = has_pass && (!has_lean_run || lean_kernel_clean);
+    let claim_class = if lean_kernel_clean {
+        "receipt_lean_kernel_clean".to_string()
+    } else {
+        format!("receipt_{}", receipt.r#type)
+    };
     let ctx = PolicyContext {
-        claim_class: format!("receipt_{}", receipt.r#type),
+        claim_class,
         assurance_level: if has_pass { 2 } else { 0 },
         impact_tier: 1,
         changed_findings: 1,
@@ -312,7 +373,7 @@ pub(crate) fn land(
         target_contested: false,
         governance_mutation: false,
         independence_satisfied: independence.satisfied,
-        method_integrity_sound: has_pass,
+        method_integrity_sound,
         credential_valid: true,
         has_unknown_fields: false,
         replayability: receipt.replayability.clone(),
@@ -364,5 +425,95 @@ pub(crate) fn land(
             })
         }
         Err(PolicyLaneRefusal::Error(e)) => Err(e),
+    }
+}
+
+#[cfg(test)]
+mod lean_lane_tests {
+    use super::*;
+
+    fn run(method: &str, outcome: &str, axioms: &[&str]) -> ReceiptVerifierRun {
+        ReceiptVerifierRun {
+            method: method.to_string(),
+            outcome: outcome.to_string(),
+            log: String::new(),
+            solver: String::new(),
+            axioms: axioms.iter().map(|s| s.to_string()).collect(),
+        }
+    }
+
+    fn receipt_with(runs: Vec<ReceiptVerifierRun>) -> Receipt {
+        Receipt {
+            schema: RECEIPT_SCHEMA.to_string(),
+            claim: "c".to_string(),
+            r#type: "theoretical".to_string(),
+            replayability: "exact".to_string(),
+            artifacts: vec![],
+            caveats: vec![],
+            verifier_runs: runs,
+            environment: serde_json::Value::Null,
+            provenance: serde_json::Value::Null,
+            lineage: serde_json::Value::Null,
+        }
+    }
+
+    #[test]
+    fn kernel_clean_lean_run_is_detected() {
+        let r = receipt_with(vec![run(
+            "verifier.lean_external_declaration.v1",
+            "pass",
+            &["propext", "Classical.choice", "Quot.sound"],
+        )]);
+        assert!(receipt_lean_kernel_clean(&r));
+    }
+
+    #[test]
+    fn sorry_axiom_is_not_kernel_clean() {
+        let r = receipt_with(vec![run(
+            "verifier.lean_external_declaration.v1",
+            "pass",
+            &["propext", "sorryAx"],
+        )]);
+        assert!(
+            !receipt_lean_kernel_clean(&r),
+            "a sorryAx proof is not clean"
+        );
+    }
+
+    #[test]
+    fn native_decide_compiler_trust_is_not_kernel_clean() {
+        let r = receipt_with(vec![run(
+            "verifier.lean_external_declaration.v1",
+            "pass",
+            &["propext", "Lean.ofReduceBool"],
+        )]);
+        assert!(!receipt_lean_kernel_clean(&r));
+    }
+
+    #[test]
+    fn unlisted_axiom_is_not_kernel_clean() {
+        let r = receipt_with(vec![run(
+            "verifier.lean_external_declaration.v1",
+            "pass",
+            &["propext", "MyCustomAxiom"],
+        )]);
+        assert!(!receipt_lean_kernel_clean(&r));
+    }
+
+    #[test]
+    fn failing_lean_run_is_not_kernel_clean() {
+        let r = receipt_with(vec![run(
+            "verifier.lean_external_declaration.v1",
+            "fail",
+            &["propext"],
+        )]);
+        assert!(!receipt_lean_kernel_clean(&r));
+    }
+
+    #[test]
+    fn non_lean_receipt_is_not_a_lean_lane() {
+        let r = receipt_with(vec![run("sidon_binary_vector_exact", "pass", &[])]);
+        assert!(!receipt_lean_kernel_clean(&r));
+        assert!(!is_lean_run("sidon_binary_vector_exact"));
     }
 }

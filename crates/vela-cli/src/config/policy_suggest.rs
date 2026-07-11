@@ -163,6 +163,7 @@ pub(crate) fn suggestions(rows: &[AskRow]) -> Vec<Suggestion> {
         // was reviewed once and its name is the ceremony's vocabulary.
         let template = [
             "witness-rederivation",
+            "lean-rederivation",
             "statement-drafts",
             "notes-threshold",
         ]
