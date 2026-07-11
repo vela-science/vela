@@ -13,7 +13,6 @@
 //! registered frontier's queue (the workspace registry), one session,
 //! one key read total — the morning ritual.
 
-use std::io::BufRead;
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
@@ -127,12 +126,7 @@ fn session_frontiers(explicit: Option<PathBuf>) -> Vec<PathBuf> {
 }
 
 fn read_line(prompt: &str) -> String {
-    use std::io::Write;
-    print!("{prompt}");
-    let _ = std::io::stdout().flush();
-    let mut line = String::new();
-    let _ = std::io::stdin().lock().read_line(&mut line);
-    line.trim().to_string()
+    crate::cli::prompt::read_line(prompt)
 }
 
 /// The interactive session (the default form of `vela sign`).
@@ -227,6 +221,15 @@ pub(crate) fn cmd_sign_session(
         println!("  · nothing awaits you — the policy lane is doing its job");
         return;
     }
+
+    // The session prompts per item; refuse cleanly on piped/CI stdin
+    // rather than spin the read loop on empty reads. Scripted decisions go
+    // through `sign <id> --yes` / `--batch` (separate dispatch arms) and
+    // never reach here.
+    ui::ensure_can_prompt(
+        "the sign session",
+        "decide one with `sign <vpr_id> --yes`, or many with `sign --batch <verdicts.json>`",
+    );
 
     // Accepts carry this bookkeeping note; the judgment IS the a/r
     // answer, so nothing prompts for it. (Rejects still ask for their

@@ -255,3 +255,26 @@ fn intercept_errors_use_house_prefix_and_honor_no_color() {
         "under NO_COLOR the intercept must emit no ANSI escape, got: {err:?}"
     );
 }
+
+/// Interactive prompts must refuse cleanly on non-terminal stdin (piped /
+/// CI) rather than hang on empty reads or silently assume "no" (gh/clig.dev).
+/// `id pin-binary` is the simplest guarded prompt (no binary-pin pre-gate).
+#[test]
+fn prompts_refuse_piped_stdin() {
+    use std::process::Stdio;
+    let out = Command::new(env!("CARGO_BIN_EXE_vela"))
+        .args(["id", "pin-binary"])
+        .stdin(Stdio::null()) // /dev/null is not a tty
+        .output()
+        .expect("run vela");
+    let err = stderr(&out);
+    assert!(
+        err.contains("not an interactive terminal"),
+        "piped `id pin-binary` must refuse to prompt, got: {err}"
+    );
+    assert_ne!(
+        out.status.code(),
+        Some(0),
+        "a refused prompt must not exit 0"
+    );
+}

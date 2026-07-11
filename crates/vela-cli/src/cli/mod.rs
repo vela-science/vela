@@ -59,6 +59,7 @@ mod lifecycle;
 mod links;
 mod output;
 pub(crate) mod progress;
+pub(crate) mod prompt;
 pub(crate) mod records;
 mod session;
 pub(crate) mod sign_session;

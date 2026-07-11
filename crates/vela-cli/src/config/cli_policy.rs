@@ -830,14 +830,7 @@ fn print_admission_rows(rows: &[&Admission]) {
 }
 
 fn confirm(prompt: &str) -> bool {
-    use std::io::{BufRead, Write};
-    print!("{prompt}");
-    let _ = std::io::stdout().flush();
-    let mut line = String::new();
-    if std::io::stdin().lock().read_line(&mut line).is_err() {
-        return false;
-    }
-    matches!(line.trim().to_lowercase().as_str(), "y" | "yes")
+    crate::cli::prompt::confirm(prompt)
 }
 
 // ── The six verbs ──────────────────────────────────────────────────────
@@ -1634,12 +1627,15 @@ pub(crate) fn cmd_policy_sign(frontier: &Path, key: Option<&Path>, yes: bool) {
     println!("  a signature makes every permit rule above LIVE: agents land that class of");
     println!("  gated work with no per-item ceremony, until expiry or `vela policy revoke`.");
     println!();
-    if !yes && !confirm(&format!("  sign {} and open the lane? [y/N] ", policy.id)) {
-        fail_with(
-            ErrorKind::Usage,
-            "not signed — no confirmation",
-            Some("re-run and answer y, or pass --yes"),
-        );
+    if !yes {
+        ui::ensure_can_prompt("policy sign", "pass --yes to sign non-interactively");
+        if !confirm(&format!("  sign {} and open the lane? [y/N] ", policy.id)) {
+            fail_with(
+                ErrorKind::Usage,
+                "not signed — no confirmation",
+                Some("re-run and answer y, or pass --yes"),
+            );
+        }
     }
 
     // ONE key read, after the human has seen and confirmed the exact rules.
@@ -1695,12 +1691,15 @@ pub(crate) fn cmd_policy_revoke(frontier: &Path, reason: &str, yes: bool) {
     println!("  reason: {reason}");
     println!("  snapshots stay under .vela/policies/ — past admissions keep verifying.");
     println!();
-    if !yes && !confirm(&format!("  close the lane for {}? [y/N] ", policy.id)) {
-        fail_with(
-            ErrorKind::Usage,
-            "not revoked — no confirmation",
-            Some("re-run and answer y, or pass --yes"),
-        );
+    if !yes {
+        ui::ensure_can_prompt("policy revoke", "pass --yes to revoke non-interactively");
+        if !confirm(&format!("  close the lane for {}? [y/N] ", policy.id)) {
+            fail_with(
+                ErrorKind::Usage,
+                "not revoked — no confirmation",
+                Some("re-run and answer y, or pass --yes"),
+            );
+        }
     }
 
     let vap = revoke_active_policy(frontier, &actor, reason, &Utc::now().to_rfc3339())

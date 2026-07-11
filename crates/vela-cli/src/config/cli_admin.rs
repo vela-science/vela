@@ -115,12 +115,13 @@ pub(crate) fn cmd_id(action: IdAction) {
             // A pin is a HUMAN act: agents may not move the trust anchor.
             let actor = crate::cli_identity::resolve_decision_actor(None);
             if !yes {
-                use std::io::{BufRead, Write};
-                print!("pin the running vela binary as {actor}'s ceremony anchor? [y/N] ");
-                let _ = std::io::stdout().flush();
-                let mut line = String::new();
-                let _ = std::io::stdin().lock().read_line(&mut line);
-                if line.trim() != "y" {
+                crate::ui::ensure_can_prompt(
+                    "the binary pin",
+                    "pass --yes to pin non-interactively",
+                );
+                if !crate::cli::prompt::confirm(&format!(
+                    "pin the running vela binary as {actor}'s ceremony anchor? [y/N] "
+                )) {
                     println!("not pinned.");
                     return;
                 }
