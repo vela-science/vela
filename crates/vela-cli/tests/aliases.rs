@@ -233,3 +233,25 @@ fn finding_verbs_are_nested_only() {
     let finding_help = combined(&vela(&["finding", "--help"]));
     assert!(finding_help.contains("note") && finding_help.contains("retract"));
 }
+
+/// The read-only intercepts in `lib.rs` (reproduce-external, conjecture /
+/// proof-packet verify) print before the main dispatcher initializes
+/// styling. They must still honor the house error prefix and NO_COLOR, or
+/// a piped/CI invocation leaks raw ANSI. Pins the Phase-0 fix.
+#[test]
+fn intercept_errors_use_house_prefix_and_honor_no_color() {
+    let out = std::process::Command::new(env!("CARGO_BIN_EXE_vela"))
+        .arg("reproduce-external") // too few args -> the usage error intercept
+        .env("NO_COLOR", "1")
+        .output()
+        .expect("run vela");
+    let err = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        err.contains("err ·"),
+        "intercept error must use the house `err ·` prefix, got: {err}"
+    );
+    assert!(
+        !err.contains('\u{1b}'),
+        "under NO_COLOR the intercept must emit no ANSI escape, got: {err:?}"
+    );
+}
