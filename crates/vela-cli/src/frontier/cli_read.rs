@@ -356,43 +356,31 @@ pub(crate) fn cmd_log(path: &Path, limit: usize, kind_filter: Option<&str>, json
         println!("  (no events)");
         return;
     }
-    // Columns fitted to the visible page, not fixed guesses: the kind
-    // and actor columns take their widest visible value (capped).
-    let kind_w = events
-        .iter()
-        .map(|e| e.kind.as_str().chars().count())
-        .max()
-        .unwrap_or(10)
-        .min(28);
-    let actor_w = events
-        .iter()
-        .map(|e| e.actor.id.chars().count())
-        .max()
-        .unwrap_or(6)
-        .min(24);
+    // The width-aware table computes column widths from content and, on a
+    // narrow terminal, truncates the widest column with `…`; piped output
+    // stays full-width and byte-stable (reason is the flexible last column,
+    // pre-capped so a novel-length reason can't blow up the row).
+    let clip = |s: &str, w: usize| -> String {
+        if s.chars().count() > w {
+            format!(
+                "{}…",
+                s.chars().take(w.saturating_sub(1)).collect::<String>()
+            )
+        } else {
+            s.to_string()
+        }
+    };
+    let mut table = crate::cli::table::Table::new();
     for e in &events {
-        let when = fmt_timestamp(&e.timestamp);
-        let clip = |s: &str, w: usize| -> String {
-            if s.chars().count() > w {
-                let cut: String = s.chars().take(w.saturating_sub(1)).collect();
-                format!("{cut}…")
-            } else {
-                s.to_string()
-            }
-        };
-        let target_short = clip(&e.target.id, 22);
-        let reason: String = e.reason.chars().take(60).collect();
-        println!(
-            "  {:<11}  {:<kw$}  {:<aw$}  {:<22}  {}",
-            when,
-            clip(e.kind.as_str(), kind_w),
-            clip(&e.actor.id, actor_w),
-            target_short,
-            reason,
-            kw = kind_w,
-            aw = actor_w,
-        );
+        table.row([
+            fmt_timestamp(&e.timestamp),
+            e.kind.as_str().to_string(),
+            clip(&e.actor.id, 24),
+            clip(&e.target.id, 22),
+            e.reason.chars().take(80).collect(),
+        ]);
     }
+    println!("{}", table.render());
     println!();
 }
 

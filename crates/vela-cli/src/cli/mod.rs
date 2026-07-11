@@ -64,6 +64,7 @@ pub(crate) mod records;
 mod session;
 pub(crate) mod sign_session;
 mod surface;
+pub(crate) mod table;
 #[cfg(test)]
 mod tests;
 pub(crate) use checks::*;
