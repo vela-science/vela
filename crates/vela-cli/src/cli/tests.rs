@@ -103,6 +103,7 @@ mod surface_tests {
     const V0738_VISIBLE: &[&str] = &[
         "actor",
         "agents",
+        "artifact",
         "check",
         "ci",
         "config",

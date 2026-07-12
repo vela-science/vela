@@ -134,6 +134,8 @@ Publish (git push IS publication):
 Nouns (run `vela <noun> --help`):
   finding       The core primitive: add/show/supersede/note/caveat/revise/
                 review/reject/retract/contribution/link
+  artifact      Content-addressed evidence lifecycle: retract drafts a
+                retirement for the human sign queue
   frontier      Repo-level: new/materialize/add-dep/list-deps/diff/release/audit
   proposals     The full proposal store: list/show/preview/import/validate/export/
                 accept/reject

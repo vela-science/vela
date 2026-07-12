@@ -986,6 +986,7 @@ pub fn ro_crate_metadata(frontier: &Project, files: &[String]) -> Value {
             "sha256": artifact.content_hash,
             "url": artifact.source_url.as_ref().or(artifact.locator.as_ref()),
             "license": artifact.license,
+            "retracted": artifact.retracted,
         })
     }));
 

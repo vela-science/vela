@@ -178,6 +178,9 @@ next -> work -> land -> sign
 - `vela land receipt.json --as agent:<you> --json` — the write edge. Artifacts
   are hashed at land time, a pending proposal lands, and the frontier's signed
   policy routes it.
+- `vela artifact retract <frontier> <va_id> --as agent:<you> --reason <why>
+  --json` — draft retirement of a malformed or obsolete artifact. It remains
+  pending; only the human ceremony may remove its active proof-readiness weight.
 - `vela sign` — the one human ceremony. Not yours: it refuses `agent:` actors
   (exit 4) by design.
 
@@ -243,6 +246,8 @@ in which an agent's proposal becomes accepted state without a human key.
   may check it, and only a key-holding human accepts a truth-bearing proposal.
 - Never pre-fill a verdict the human did not explicitly give. Presenting
   evidence is yours; the judgment is not.
+- Artifact retirement preserves the record and its historical audit issues. It
+  does not retract or judge the truth or quality of linked findings.
 - Never hand-edit accepted events or derived views (`frontier.json`, proof
   packets); regenerate with `vela frontier materialize`. Never bulk-move
   Vela-canonical paths (`examples/`, `projects/`, `lean/`, `.vela/`).

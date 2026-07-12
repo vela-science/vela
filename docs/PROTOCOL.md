@@ -138,6 +138,7 @@ An artifact is a durable byte or pointer commitment:
 | `source_url` | original upstream page or record |
 | `target_findings` | findings the artifact bears on |
 | `metadata` | adapter-specific structured fields |
+| `retracted` | historical artifact no longer active in proof readiness |
 | `access_tier` | public, restricted, or classified |
 
 `artifact.asserted` carries the full artifact inline. Replay reconstructs the
@@ -145,7 +146,10 @@ artifact table from events. `artifacts/artifacts.json`,
 `artifacts/artifact-audit.json`, and `artifacts/blob-map.json` are canonical
 proof packet files. When a license-compatible local artifact can be checked,
 `vela proof` copies the bytes into `artifacts/blobs/sha256/<hash>` and validates
-them against the recorded content hash.
+them against the recorded content hash. Retracted artifacts remain in
+`artifacts.json` and RO-Crate history, but their profile and blob issues move to
+the audit's deterministic `historical_issues` list and do not block a current
+proof packet.
 
 ### 2.4 reserved concepts
 
@@ -566,7 +570,9 @@ filtered by `--target <vf_id>`.
 
 Targets a `va_*` object and appends it to `Project.artifacts`.
 `artifact.reviewed` sets `review_state`; `artifact.retracted` sets
-`retracted: true`. `tier.set` may also target artifacts.
+`retracted: true`. `artifact.retract` is the human-gated proposal that emits
+that event. Agents may draft it with `vela artifact retract`; only `vela sign`
+may accept it. `tier.set` may also target artifacts.
 
 **CLI**: `vela artifact-add` records a local or remote artifact.
 `vela clinical-trial-import <frontier> <NCT_ID>` fetches a ClinicalTrials.gov v2
@@ -943,9 +949,11 @@ include:
 - artifact manifest, artifact audit, and checked local artifact blob map
 - proof trace
 
-`packet validate` checks packet integrity, artifact audit status, and packet
-local artifact blob hashes. Proof freshness relative to later accepted frontier
-writes is tracked in frontier state when proof state has been recorded.
+`packet validate` checks packet integrity, lifecycle-aware artifact counts,
+active artifact audit status, and active local artifact blob hashes. Historical
+issues must name retracted artifacts and remain visible without carrying
+current proof-readiness weight. Proof freshness relative to later accepted
+frontier writes is tracked in frontier state when proof state has been recorded.
 
 ## 9. derived signals
 

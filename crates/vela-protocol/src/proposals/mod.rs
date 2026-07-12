@@ -1662,6 +1662,25 @@ fn validate_proposal_shape(frontier: &Project, proposal: &StateProposal) -> Resu
                 ));
             }
         }
+        "artifact.retract" => {
+            if proposal.target.r#type != "artifact" {
+                return Err(format!(
+                    "artifact.retract proposal target.type must be 'artifact', got '{}'",
+                    proposal.target.r#type
+                ));
+            }
+            if proposal.reason.trim().is_empty() {
+                return Err("artifact.retract proposal reason must be non-empty".to_string());
+            }
+            let artifact = frontier
+                .artifacts
+                .iter()
+                .find(|artifact| artifact.id == proposal.target.id)
+                .ok_or_else(|| format!("Artifact not found: {}", proposal.target.id))?;
+            if artifact.retracted {
+                return Err(format!("Artifact {} is already retracted", artifact.id));
+            }
+        }
         "verifier.attach" => {
             if proposal.target.r#type != "finding" {
                 return Err(format!(
@@ -1830,10 +1849,10 @@ fn validate_standalone_proposal(
     }
     if !matches!(
         proposal.target.r#type.as_str(),
-        "finding" | "evidence_atom" | "frontier_observation"
+        "finding" | "artifact" | "evidence_atom" | "frontier_observation"
     ) {
         return Err(
-            "Only finding, evidence_atom, and frontier_observation proposals are supported in v0"
+            "Only finding, artifact, evidence_atom, and frontier_observation proposals are supported in v0"
                 .to_string(),
         );
     }
@@ -1902,6 +1921,14 @@ fn validate_standalone_proposal(
             }
         }
         "finding.reject" | "finding.retract" => {}
+        "artifact.retract" => {
+            if proposal.target.r#type != "artifact" {
+                return Err(format!(
+                    "artifact.retract target.type must be 'artifact', got '{}'",
+                    proposal.target.r#type
+                ));
+            }
+        }
         "finding.supersede" => {
             let new_finding_value = proposal
                 .payload
@@ -2883,6 +2910,9 @@ pub(crate) fn apply_proposal(
         }
         "finding.supersede" => apply_supersede(frontier, proposal, reviewer, decision_reason)?,
         "artifact.assert" => apply_artifact_assert(frontier, proposal, reviewer, decision_reason)?,
+        "artifact.retract" => {
+            apply_artifact_retract(frontier, proposal, reviewer, decision_reason)?
+        }
         "verifier.attach" => apply_verifier_attach(frontier, proposal, reviewer, decision_reason)?,
         // v0.56: mechanical evidence-atom locator repair.
         "evidence_atom.locator_repair" => {
@@ -3181,6 +3211,50 @@ fn apply_artifact_assert(
         payload: json!({
             "proposal_id": proposal.id,
             "artifact": artifact,
+        }),
+        caveats: proposal.caveats.clone(),
+        signature: None,
+        schema_artifact_id: None,
+    };
+    events::validate_event_payload(event.kind.as_str(), &event.payload)?;
+    event.id = events::compute_event_id(&event);
+    Ok(event)
+}
+
+fn apply_artifact_retract(
+    frontier: &mut Project,
+    proposal: &StateProposal,
+    reviewer: &str,
+    _decision_reason: &str,
+) -> Result<StateEvent, String> {
+    let artifact_id = proposal.target.id.as_str();
+    let artifact = frontier
+        .artifacts
+        .iter_mut()
+        .find(|artifact| artifact.id == artifact_id)
+        .ok_or_else(|| format!("Artifact not found: {artifact_id}"))?;
+    if artifact.retracted {
+        return Err(format!("Artifact {artifact_id} is already retracted"));
+    }
+    artifact.retracted = true;
+    let mut event = StateEvent {
+        schema: events::EVENT_SCHEMA.to_string(),
+        id: String::new(),
+        kind: events::EVENT_KIND_ARTIFACT_RETRACTED.into(),
+        target: StateTarget {
+            r#type: "artifact".to_string(),
+            id: artifact_id.to_string(),
+        },
+        actor: StateActor {
+            id: reviewer.to_string(),
+            r#type: events::actor_kind(reviewer).to_string(),
+        },
+        timestamp: Utc::now().to_rfc3339(),
+        reason: proposal.reason.clone(),
+        before_hash: NULL_HASH.to_string(),
+        after_hash: NULL_HASH.to_string(),
+        payload: json!({
+            "proposal_id": proposal.id,
         }),
         caveats: proposal.caveats.clone(),
         signature: None,

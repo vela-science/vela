@@ -1698,7 +1698,11 @@ fn packet_artifact_blob_files(
     source_path: Option<&Path>,
 ) -> Result<(Vec<PacketFile>, Vec<PacketArtifactBlob>), String> {
     let Some(root) = artifact_source_root(source_path) else {
-        if frontier.artifacts.iter().any(is_local_artifact) {
+        if frontier
+            .artifacts
+            .iter()
+            .any(|artifact| !artifact.retracted && is_local_artifact(artifact))
+        {
             return Err(
                 "Proof packet export needs a frontier directory to copy local artifact blobs"
                     .to_string(),
@@ -1714,7 +1718,7 @@ fn packet_artifact_blob_files(
     for artifact in frontier
         .artifacts
         .iter()
-        .filter(|artifact| is_local_artifact(artifact))
+        .filter(|artifact| !artifact.retracted && is_local_artifact(artifact))
     {
         let Some(hex) = artifact.content_hash.strip_prefix("sha256:") else {
             return Err(format!(

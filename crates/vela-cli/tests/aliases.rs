@@ -7,6 +7,9 @@
 //! unit tests can't.
 
 use std::process::{Command, Output};
+use tempfile::TempDir;
+use vela_protocol::access_tier::AccessTier;
+use vela_protocol::bundle::{Artifact, Extraction, Provenance};
 
 fn vela(args: &[&str]) -> Output {
     Command::new(env!("CARGO_BIN_EXE_vela"))
@@ -232,6 +235,137 @@ fn finding_verbs_are_nested_only() {
     }
     let finding_help = combined(&vela(&["finding", "--help"]));
     assert!(finding_help.contains("note") && finding_help.contains("retract"));
+}
+
+fn artifact_frontier() -> (TempDir, std::path::PathBuf) {
+    let tmp = TempDir::new().expect("temp frontier");
+    let path = tmp.path().join("frontier.json");
+    let mut frontier = vela_protocol::project::assemble("artifact-test", vec![], 0, 0, "test");
+    frontier.artifacts.push(Artifact {
+        id: "va_1111111111111111".to_string(),
+        kind: "code".to_string(),
+        name: "legacy pointer".to_string(),
+        content_hash: format!("sha256:{}", "a".repeat(64)),
+        size_bytes: None,
+        media_type: None,
+        storage_mode: "remote".to_string(),
+        locator: Some("https://example.test/proof.lean".to_string()),
+        source_url: Some("https://example.test/proof.lean".to_string()),
+        license: Some("MIT".to_string()),
+        target_findings: Vec::new(),
+        source_id: None,
+        provenance: Provenance {
+            source_type: "data_release".to_string(),
+            doi: None,
+            url: Some("https://example.test/proof.lean".to_string()),
+            title: "legacy pointer".to_string(),
+            authors: Vec::new(),
+            year: Some(2026),
+            license: Some("MIT".to_string()),
+            publisher: None,
+            funders: Vec::new(),
+            extraction: Extraction::default(),
+            review: None,
+            contributions: Vec::new(),
+        },
+        metadata: Default::default(),
+        review_state: None,
+        retracted: false,
+        access_tier: AccessTier::Public,
+        created: "2026-07-12T00:00:00Z".to_string(),
+    });
+    vela_protocol::repo::save_to_path(&path, &frontier).expect("save frontier");
+    (tmp, path)
+}
+
+#[test]
+fn artifact_retract_is_draft_only_json_porcelain() {
+    let (_tmp, path) = artifact_frontier();
+    let out = vela(&[
+        "artifact",
+        "retract",
+        path.to_str().unwrap(),
+        "va_1111111111111111",
+        "--reason",
+        "legacy source is not immutable",
+        "--as",
+        "agent:cleanup",
+        "--json",
+    ]);
+    assert!(out.status.success(), "{}", combined(&out));
+    assert!(
+        stderr(&out).is_empty(),
+        "JSON command leaked stderr: {}",
+        stderr(&out)
+    );
+    let value: serde_json::Value =
+        serde_json::from_slice(&out.stdout).expect("one JSON success object");
+    let keys = value
+        .as_object()
+        .unwrap()
+        .keys()
+        .cloned()
+        .collect::<std::collections::BTreeSet<_>>();
+    assert_eq!(
+        keys,
+        [
+            "artifact_id",
+            "command",
+            "ok",
+            "proposal_id",
+            "route",
+            "status"
+        ]
+        .into_iter()
+        .map(str::to_string)
+        .collect()
+    );
+    assert_eq!(value["command"], "artifact retract");
+    assert_eq!(value["status"], "pending_review");
+    assert_eq!(value["route"], "deferred");
+
+    let loaded = vela_protocol::repo::load_from_path(&path).expect("reload frontier");
+    assert!(!loaded.artifacts[0].retracted);
+    assert_eq!(loaded.events.len(), 1);
+    assert_eq!(loaded.proposals.len(), 1);
+}
+
+#[test]
+fn artifact_retract_has_typed_missing_and_no_apply_escape_hatch() {
+    let (_tmp, path) = artifact_frontier();
+    let missing = vela(&[
+        "artifact",
+        "retract",
+        path.to_str().unwrap(),
+        "va_2222222222222222",
+        "--reason",
+        "not present",
+        "--as",
+        "agent:cleanup",
+        "--json",
+    ]);
+    assert_eq!(missing.status.code(), Some(3));
+    assert!(stderr(&missing).is_empty());
+    let error: serde_json::Value =
+        serde_json::from_slice(&missing.stdout).expect("one JSON error object");
+    assert_eq!(error["ok"], false);
+
+    let apply = vela(&[
+        "artifact",
+        "retract",
+        path.to_str().unwrap(),
+        "va_1111111111111111",
+        "--reason",
+        "legacy",
+        "--as",
+        "agent:cleanup",
+        "--apply",
+    ]);
+    assert_eq!(apply.status.code(), Some(2));
+    assert!(combined(&apply).contains("--apply"));
+
+    let top = vela(&["retract", "--help"]);
+    assert!(combined(&top).contains("unknown or non-release command"));
 }
 
 /// The read-only intercepts in `lib.rs` (reproduce-external, conjecture /

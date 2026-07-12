@@ -637,14 +637,92 @@ fn validate_artifact_payloads(packet_dir: &Path) -> Result<(), String> {
         return Err("Artifact audit reports non-zero issues".to_string());
     }
 
-    let blob_by_artifact = blob_rows
+    let lifecycle_v2 = audit["schema"].as_str() == Some("vela.artifact_audit.v2");
+    if audit.get("schema").is_some() && !lifecycle_v2 {
+        return Err("Artifact audit has unsupported schema".to_string());
+    }
+    let active_ids = artifact_rows
         .iter()
-        .filter_map(|row| Some((row["artifact_id"].as_str()?, row)))
-        .collect::<std::collections::BTreeMap<_, _>>();
+        .filter(|artifact| !artifact["retracted"].as_bool().unwrap_or(false))
+        .filter_map(|artifact| artifact["id"].as_str())
+        .collect::<std::collections::BTreeSet<_>>();
+    let retracted_ids = artifact_rows
+        .iter()
+        .filter(|artifact| artifact["retracted"].as_bool().unwrap_or(false))
+        .filter_map(|artifact| artifact["id"].as_str())
+        .collect::<std::collections::BTreeSet<_>>();
+    let active_local_ids = artifact_rows
+        .iter()
+        .filter(|artifact| !artifact["retracted"].as_bool().unwrap_or(false))
+        .filter(|artifact| {
+            matches!(
+                artifact["storage_mode"].as_str(),
+                Some("local_blob" | "local_file")
+            )
+        })
+        .filter_map(|artifact| artifact["id"].as_str())
+        .collect::<std::collections::BTreeSet<_>>();
+    if lifecycle_v2 {
+        if audit["active_artifact_count"].as_u64() != Some(active_ids.len() as u64) {
+            return Err("Artifact audit active count does not match artifacts.json".to_string());
+        }
+        if audit["retracted_artifact_count"].as_u64() != Some(retracted_ids.len() as u64) {
+            return Err("Artifact audit retracted count does not match artifacts.json".to_string());
+        }
+        let issues = audit["issues"]
+            .as_array()
+            .ok_or("Artifact audit issues must be an array")?;
+        if audit["issue_count"].as_u64() != Some(issues.len() as u64) {
+            return Err("Artifact audit issue_count does not match issues".to_string());
+        }
+        if issues.iter().any(|issue| {
+            issue["id"]
+                .as_str()
+                .is_none_or(|id| !active_ids.contains(id))
+        }) {
+            return Err("Artifact audit active issue targets a non-active artifact".to_string());
+        }
+        let historical = audit["historical_issues"]
+            .as_array()
+            .ok_or("Artifact audit historical_issues must be an array")?;
+        if audit["historical_issue_count"].as_u64() != Some(historical.len() as u64) {
+            return Err(
+                "Artifact audit historical_issue_count does not match historical_issues"
+                    .to_string(),
+            );
+        }
+        if historical.iter().any(|issue| {
+            issue["id"]
+                .as_str()
+                .is_none_or(|id| !retracted_ids.contains(id))
+        }) {
+            return Err(
+                "Artifact audit historical issue targets a non-retracted artifact".to_string(),
+            );
+        }
+    }
+
+    let mut blob_by_artifact = std::collections::BTreeMap::new();
+    for row in blob_rows {
+        let id = row["artifact_id"]
+            .as_str()
+            .ok_or("Artifact blob map row missing artifact_id")?;
+        if blob_by_artifact.insert(id, row).is_some() {
+            return Err(format!("Duplicate artifact blob map row for {id}"));
+        }
+        if lifecycle_v2 && !active_local_ids.contains(id) {
+            return Err(format!(
+                "Artifact blob map targets unknown, remote, or retracted artifact {id}"
+            ));
+        }
+    }
     let mut local_artifact_count = 0u64;
 
     for artifact in artifact_rows {
         let id = artifact["id"].as_str().unwrap_or("<unknown>");
+        if lifecycle_v2 && artifact["retracted"].as_bool().unwrap_or(false) {
+            continue;
+        }
         let storage_mode = artifact["storage_mode"].as_str().unwrap_or_default();
         if storage_mode != "local_blob" && storage_mode != "local_file" {
             continue;
@@ -1079,5 +1157,59 @@ mod tests {
         .unwrap();
         let err = validate_artifact_payloads(tmp.path()).unwrap_err();
         assert!(err.contains("packet blob hash mismatch"));
+    }
+
+    #[test]
+    fn lifecycle_v2_accepts_historical_issues_without_retracted_blob() {
+        let tmp = TempDir::new().unwrap();
+        write_file(
+            tmp.path(),
+            "artifacts/artifacts.json",
+            serde_json::to_string(&serde_json::json!([
+                {
+                    "id": "va_retired_blob",
+                    "storage_mode": "local_blob",
+                    "content_hash": format!("sha256:{}", "a".repeat(64)),
+                    "retracted": true
+                }
+            ]))
+            .unwrap()
+            .as_bytes(),
+        );
+        write_file(
+            tmp.path(),
+            "artifacts/artifact-audit.json",
+            serde_json::to_string(&serde_json::json!({
+                "schema": "vela.artifact_audit.v2",
+                "ok": true,
+                "artifact_count": 1,
+                "active_artifact_count": 0,
+                "retracted_artifact_count": 1,
+                "checked_local_blobs": 0,
+                "issue_count": 0,
+                "issues": [],
+                "historical_issue_count": 1,
+                "historical_issues": [{
+                    "id": "va_retired_blob",
+                    "field": "locator",
+                    "message": "historical blob is unavailable"
+                }]
+            }))
+            .unwrap()
+            .as_bytes(),
+        );
+        write_file(tmp.path(), "artifacts/blob-map.json", b"[]");
+
+        validate_artifact_payloads(tmp.path()).unwrap();
+
+        let bad_map = serde_json::to_vec(&serde_json::json!([{
+            "artifact_id": "va_retired_blob",
+            "content_hash": format!("sha256:{}", "a".repeat(64)),
+            "packet_path": "artifacts/blobs/sha256/retired"
+        }]))
+        .unwrap();
+        fs::write(tmp.path().join("artifacts/blob-map.json"), bad_map).unwrap();
+        let err = validate_artifact_payloads(tmp.path()).unwrap_err();
+        assert!(err.contains("unknown, remote, or retracted"));
     }
 }

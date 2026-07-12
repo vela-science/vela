@@ -117,6 +117,7 @@ fn proposal_preview(p: &vela_protocol::proposals::StateProposal) -> Vec<String> 
         Some(t) => out.push(format!("type      {t} · {}", p.kind)),
         None => out.push(format!("kind      {}", p.kind)),
     }
+    out.push(format!("target    {} {}", p.target.r#type, p.target.id));
     out.push(format!("author    {}", p.actor.id));
     if let Some(cond) = nested
         .get("conditions")
@@ -304,4 +305,46 @@ pub fn sign_queue(
     }
 
     Ok(queue)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+    use vela_protocol::events::{StateActor, StateTarget};
+    use vela_protocol::proposals::{PROPOSAL_SCHEMA, StateProposal};
+
+    #[test]
+    fn artifact_retirement_preview_names_exact_target() {
+        let proposal = StateProposal {
+            schema: PROPOSAL_SCHEMA.to_string(),
+            id: "vpr_retire".to_string(),
+            kind: "artifact.retract".to_string(),
+            target: StateTarget {
+                r#type: "artifact".to_string(),
+                id: "va_417333a3e62df44a".to_string(),
+            },
+            actor: StateActor {
+                id: "agent:cleanup".to_string(),
+                r#type: "agent".to_string(),
+            },
+            created_at: "2026-07-12T00:00:00Z".to_string(),
+            drafted_at: None,
+            reason: "retire malformed legacy pointer".to_string(),
+            payload: json!({}),
+            source_refs: Vec::new(),
+            status: "pending_review".to_string(),
+            reviewed_by: None,
+            reviewed_at: None,
+            decision_reason: None,
+            applied_event_id: None,
+            caveats: Vec::new(),
+            agent_run: None,
+        };
+        assert!(
+            proposal_preview(&proposal)
+                .iter()
+                .any(|line| line == "target    artifact va_417333a3e62df44a")
+        );
+    }
 }

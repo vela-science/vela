@@ -1,7 +1,7 @@
 use super::*;
 use crate::bundle::{
-    Assertion, Conditions, Confidence, ConfidenceKind, ConfidenceMethod, Entity, Evidence,
-    Extraction, Flags, Provenance,
+    Artifact, Assertion, Conditions, Confidence, ConfidenceKind, ConfidenceMethod, Entity,
+    Evidence, Extraction, Flags, Provenance,
 };
 use crate::project;
 use tempfile::TempDir;
@@ -85,6 +85,128 @@ pub(crate) fn finding(id: &str) -> FindingBundle {
 
         access_tier: crate::access_tier::AccessTier::Public,
     }
+}
+
+fn artifact(id: &str) -> Artifact {
+    Artifact {
+        id: id.to_string(),
+        kind: "code".to_string(),
+        name: "Pinned proof source".to_string(),
+        content_hash: format!("sha256:{}", "a".repeat(64)),
+        size_bytes: None,
+        media_type: Some("text/plain".to_string()),
+        storage_mode: "remote".to_string(),
+        locator: Some("https://example.test/proof.lean".to_string()),
+        source_url: Some("https://example.test/proof.lean".to_string()),
+        license: Some("MIT".to_string()),
+        target_findings: vec!["vf_test".to_string()],
+        source_id: None,
+        provenance: Provenance {
+            source_type: "data_release".to_string(),
+            doi: None,
+            url: Some("https://example.test/proof.lean".to_string()),
+            title: "Pinned proof source".to_string(),
+            authors: Vec::new(),
+            year: Some(2026),
+            license: Some("MIT".to_string()),
+            publisher: None,
+            funders: Vec::new(),
+            extraction: Extraction::default(),
+            review: None,
+            contributions: Vec::new(),
+        },
+        metadata: std::collections::BTreeMap::from([("commit".to_string(), json!("b".repeat(40)))]),
+        review_state: None,
+        retracted: false,
+        access_tier: crate::access_tier::AccessTier::Public,
+        created: "2026-07-12T00:00:00Z".to_string(),
+    }
+}
+
+fn artifact_retract_proposal(actor: &str) -> StateProposal {
+    new_proposal(
+        "artifact.retract",
+        StateTarget {
+            r#type: "artifact".to_string(),
+            id: "va_1111111111111111".to_string(),
+        },
+        actor,
+        if actor.starts_with("agent:") {
+            "agent"
+        } else {
+            "human"
+        },
+        "Legacy pointer has no immutable source pin",
+        json!({}),
+        Vec::new(),
+        Vec::new(),
+    )
+}
+
+#[test]
+fn artifact_retract_stays_pending_until_human_acceptance() {
+    let tmp = TempDir::new().unwrap();
+    let path = tmp.path().join("frontier.json");
+    let mut frontier = project::assemble("test", vec![finding("vf_test")], 0, 0, "test");
+    frontier.artifacts.push(artifact("va_1111111111111111"));
+    repo::save_to_path(&path, &frontier).unwrap();
+
+    let result = create_or_apply(
+        &path,
+        artifact_retract_proposal("agent:legacy-cleanup"),
+        false,
+    )
+    .unwrap();
+    assert_eq!(result.status, "pending_review");
+    let loaded = repo::load_from_path(&path).unwrap();
+    assert!(!loaded.artifacts[0].retracted);
+    assert_eq!(loaded.events.len(), 1);
+}
+
+#[test]
+fn human_applied_artifact_retract_emits_existing_lifecycle_event() {
+    let tmp = TempDir::new().unwrap();
+    let path = tmp.path().join("frontier.json");
+    let mut frontier = project::assemble("test", vec![finding("vf_test")], 0, 0, "test");
+    frontier.artifacts.push(artifact("va_1111111111111111"));
+    repo::save_to_path(&path, &frontier).unwrap();
+
+    let result = create_or_apply(&path, artifact_retract_proposal("reviewer:human"), true).unwrap();
+    assert_eq!(result.status, "applied");
+    let loaded = repo::load_from_path(&path).unwrap();
+    assert!(loaded.artifacts[0].retracted);
+    assert_eq!(loaded.events.last().unwrap().kind, "artifact.retracted");
+    assert_eq!(
+        loaded.events.last().unwrap().target.id,
+        "va_1111111111111111"
+    );
+}
+
+#[test]
+fn artifact_retract_rejects_unknown_wrong_type_and_repeat() {
+    let mut frontier = project::assemble("test", vec![finding("vf_test")], 0, 0, "test");
+    frontier.artifacts.push(artifact("va_1111111111111111"));
+    let unknown = new_proposal(
+        "artifact.retract",
+        StateTarget {
+            r#type: "artifact".to_string(),
+            id: "va_2222222222222222".to_string(),
+        },
+        "agent:test",
+        "agent",
+        "retire unknown",
+        json!({}),
+        Vec::new(),
+        Vec::new(),
+    );
+    assert!(validate_new_proposal(&frontier, &unknown).is_err());
+
+    let mut wrong_type = artifact_retract_proposal("agent:test");
+    wrong_type.target.r#type = "finding".to_string();
+    assert!(validate_new_proposal(&frontier, &wrong_type).is_err());
+
+    frontier.artifacts[0].retracted = true;
+    assert!(validate_new_proposal(&frontier, &artifact_retract_proposal("agent:test")).is_err());
 }
 
 #[test]
@@ -245,6 +367,9 @@ fn replicator_accepts_verified_claim_only() {
         json!({"replication_attestation": full_replication_attestation()}),
     );
     assert!(enforce_trusted_agent_accept_policy(&destructive, "agent:replicator").is_err());
+
+    let artifact_retirement = artifact_retract_proposal("agent:replicator");
+    assert!(enforce_trusted_agent_accept_policy(&artifact_retirement, "agent:replicator").is_err());
 }
 
 #[test]

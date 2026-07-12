@@ -492,6 +492,42 @@ pub(crate) fn cmd_finding_retract(
     print_state_report(&report, json);
 }
 
+pub(crate) fn cmd_artifact_retract(
+    frontier: PathBuf,
+    artifact_id: String,
+    reason: String,
+    actor: String,
+    json: bool,
+) {
+    let project = repo::load_from_path(&frontier).unwrap_or_else(|e| fail_return(&e));
+    if !project
+        .artifacts
+        .iter()
+        .any(|artifact| artifact.id == artifact_id)
+    {
+        crate::cli::fail_not_found::<()>(
+            &format!("no artifact '{artifact_id}' in this frontier"),
+            "inspect the frontier with `vela status <frontier> --json`",
+        );
+    }
+    let report = vela_protocol::state::retract_artifact(&frontier, &artifact_id, &actor, &reason)
+        .unwrap_or_else(|e| fail_return(&e));
+    if json {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&report)
+                .expect("failed to serialize artifact lifecycle report")
+        );
+    } else {
+        println!("Artifact retirement proposal recorded");
+        println!("  frontier: {}", report.frontier);
+        println!("  artifact: {}", report.artifact_id);
+        println!("  proposal: {}", report.proposal_id);
+        println!("  status:   {}", report.status);
+        println!("  route:    {}", report.route);
+    }
+}
+
 /// A signed statement-faithfulness attestation (`vsa_`) — the human
 /// judgment that a FORMAL statement faithfully encodes an INFORMAL problem.
 /// Reserved for `reviewer:` actors by design: `StatementAttestation::build`

@@ -153,6 +153,12 @@ EXAMPLES
   vela finding show vf_6d4a…                    read one finding
   vela finding note vf_6d4a… \"…\"                annotate (does not decide)";
 
+pub const ARTIFACT: &str = "\
+EXAMPLES
+  vela artifact retract . va_417333a3e62df44a --reason \"legacy unpinned pointer\" --as agent:cleanup
+
+Retraction is draft-only here. `vela sign` is the human decision.";
+
 pub const POLICY: &str = "\
 EXAMPLES
   vela policy draft lean-rederivation projects/formal-conjectures-lean

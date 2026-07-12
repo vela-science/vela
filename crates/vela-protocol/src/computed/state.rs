@@ -34,6 +34,18 @@ pub struct StateCommandReport {
     pub message: String,
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub struct ArtifactLifecycleReport {
+    pub ok: bool,
+    pub command: String,
+    #[serde(skip)]
+    pub frontier: String,
+    pub artifact_id: String,
+    pub proposal_id: String,
+    pub status: String,
+    pub route: String,
+}
+
 #[derive(Debug, Clone)]
 pub struct FindingDraftOptions {
     pub text: String,
@@ -704,6 +716,53 @@ pub fn retract_finding(
         } else {
             "Retraction proposal recorded".to_string()
         },
+    })
+}
+
+pub fn retract_artifact(
+    path: &Path,
+    artifact_id: &str,
+    actor: &str,
+    reason: &str,
+) -> Result<ArtifactLifecycleReport, String> {
+    let frontier = repo::load_from_path(path)?;
+    if reason.trim().is_empty() {
+        return Err("artifact retirement reason must be non-empty".to_string());
+    }
+    let artifact = frontier
+        .artifacts
+        .iter()
+        .find(|artifact| artifact.id == artifact_id)
+        .ok_or_else(|| format!("Artifact not found: {artifact_id}"))?;
+    if artifact.retracted {
+        return Err(format!("Artifact {artifact_id} is already retracted"));
+    }
+    let actor_type = events::actor_kind(actor);
+    let proposal = proposals::new_proposal(
+        "artifact.retract",
+        events::StateTarget {
+            r#type: "artifact".to_string(),
+            id: artifact_id.to_string(),
+        },
+        actor,
+        actor_type,
+        reason,
+        json!({}),
+        Vec::new(),
+        vec![
+            "Retirement changes proof readiness, not the truth or quality of any linked finding."
+                .to_string(),
+        ],
+    );
+    let result = proposals::create_or_apply(path, proposal, false)?;
+    Ok(ArtifactLifecycleReport {
+        ok: true,
+        command: "artifact retract".to_string(),
+        frontier: frontier.project.name,
+        artifact_id: artifact_id.to_string(),
+        proposal_id: result.proposal_id,
+        status: result.status,
+        route: "deferred".to_string(),
     })
 }
 

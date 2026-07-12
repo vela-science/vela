@@ -713,6 +713,19 @@ pub async fn run_command() {
             FindingCommands::Link { action } => cmd_link(action),
         },
 
+        Commands::Artifact { command } => match command {
+            ArtifactCommands::Retract {
+                frontier,
+                artifact_id,
+                reason,
+                actor,
+                json,
+            } => {
+                crate::ui::set_mode("artifact.retract", json);
+                cmd_artifact_retract(frontier, artifact_id, reason, actor, json)
+            }
+        },
+
         Commands::Sign {
             target,
             frontier,

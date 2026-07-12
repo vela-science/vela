@@ -408,6 +408,12 @@ pub(crate) enum Commands {
         #[command(subcommand)]
         command: FindingCommands,
     },
+    /// Manage content-addressed artifacts without changing linked claims
+    #[command(after_long_help = crate::cli::help_text::ARTIFACT)]
+    Artifact {
+        #[command(subcommand)]
+        command: ArtifactCommands,
+    },
     /// THE human ceremony: one interactive session over everything
     /// that awaits your key — deferred decisions, re-sign hygiene,
     /// unsigned governance artifacts — one confirm, one key read,
@@ -2029,6 +2035,27 @@ pub(crate) enum FindingCommands {
     Link {
         #[command(subcommand)]
         action: LinkAction,
+    },
+}
+
+#[derive(Subcommand)]
+pub(crate) enum ArtifactCommands {
+    /// Propose retiring an accepted artifact. The proposal stays pending until
+    /// a human decides it through `vela sign`.
+    Retract {
+        /// Frontier JSON file or Vela repo
+        frontier: PathBuf,
+        /// Content-addressed artifact id (`va_<hex>`)
+        artifact_id: String,
+        /// Why this artifact should stop carrying active proof-readiness weight
+        #[arg(long)]
+        reason: String,
+        /// Acting identity. Agents may draft; only a human key may accept.
+        #[arg(long = "as")]
+        actor: String,
+        /// Output stable JSON
+        #[arg(long)]
+        json: bool,
     },
 }
 

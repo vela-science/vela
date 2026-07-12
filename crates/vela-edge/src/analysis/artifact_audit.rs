@@ -12,16 +12,26 @@ use vela_protocol::project::Project;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ArtifactAudit {
+    #[serde(default)]
+    pub schema: String,
     pub ok: bool,
     pub command: String,
     pub frontier: String,
     pub artifact_count: usize,
+    #[serde(default)]
+    pub active_artifact_count: usize,
+    #[serde(default)]
+    pub retracted_artifact_count: usize,
     pub checked_local_blobs: usize,
     pub local_blob_bytes: u64,
     pub by_kind: BTreeMap<String, usize>,
     pub by_storage_mode: BTreeMap<String, usize>,
     pub issue_count: usize,
     pub issues: Vec<ArtifactAuditIssue>,
+    #[serde(default)]
+    pub historical_issue_count: usize,
+    #[serde(default)]
+    pub historical_issues: Vec<ArtifactAuditIssue>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -39,45 +49,68 @@ pub fn audit_artifacts(source: &Path, project: &Project) -> ArtifactAudit {
         .map(|finding| finding.id.as_str())
         .collect::<HashSet<_>>();
     let mut issues = Vec::new();
+    let mut historical_issues = Vec::new();
     let mut by_kind = BTreeMap::new();
     let mut by_storage_mode = BTreeMap::new();
     let mut checked_local_blobs = 0usize;
     let mut local_blob_bytes = 0u64;
+    let mut active_artifact_count = 0usize;
+    let mut retracted_artifact_count = 0usize;
 
     for artifact in &project.artifacts {
         *by_kind.entry(artifact.kind.clone()).or_insert(0) += 1;
         *by_storage_mode
             .entry(artifact.storage_mode.clone())
             .or_insert(0) += 1;
-        audit_artifact_shape(artifact, &finding_ids, &mut issues);
-        if matches!(artifact.storage_mode.as_str(), "local_blob" | "local_file") {
+        let mut artifact_issues = Vec::new();
+        audit_artifact_shape(artifact, &finding_ids, &mut artifact_issues);
+        let local_stats = if matches!(artifact.storage_mode.as_str(), "local_blob" | "local_file") {
             if let Some(root) = root.as_deref() {
-                if let Some((checked, bytes)) = audit_local_blob(root, artifact, &mut issues) {
-                    checked_local_blobs += usize::from(checked);
-                    local_blob_bytes += bytes;
-                }
+                audit_local_blob(root, artifact, &mut artifact_issues)
             } else {
                 push_issue(
-                    &mut issues,
+                    &mut artifact_issues,
                     &artifact.id,
                     "locator",
                     "local artifact cannot be checked without a frontier directory",
                 );
+                None
             }
+        } else {
+            None
+        };
+        if artifact.retracted {
+            retracted_artifact_count += 1;
+            historical_issues.extend(artifact_issues);
+            continue;
+        }
+        active_artifact_count += 1;
+        issues.extend(artifact_issues);
+        if let Some((checked, bytes)) = local_stats {
+            checked_local_blobs += usize::from(checked);
+            local_blob_bytes += bytes;
         }
     }
 
     ArtifactAudit {
+        schema: "vela.artifact_audit.v2".to_string(),
         ok: issues.is_empty(),
         command: "artifact-audit".to_string(),
-        frontier: source.display().to_string(),
+        frontier: project
+            .frontier_id
+            .clone()
+            .unwrap_or_else(|| project.project.name.clone()),
         artifact_count: project.artifacts.len(),
+        active_artifact_count,
+        retracted_artifact_count,
         checked_local_blobs,
         local_blob_bytes,
         by_kind,
         by_storage_mode,
         issue_count: issues.len(),
         issues,
+        historical_issue_count: historical_issues.len(),
+        historical_issues,
     }
 }
 
@@ -455,6 +488,118 @@ mod tests {
                 .issues
                 .iter()
                 .any(|issue| issue.field == "metadata.commit")
+        );
+    }
+
+    #[test]
+    fn retracted_malformed_artifact_is_historical_not_blocking() {
+        let mut project = project_with_one_finding();
+        let target = project.findings[0].id.clone();
+        let mut artifact = Artifact::new(
+            "code",
+            "legacy unpinned proof pointer",
+            "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            None,
+            None,
+            "remote",
+            Some("github.com/example/proofs/blob/main/Proof.lean".to_string()),
+            Some("github.com/example/proofs/blob/main/Proof.lean".to_string()),
+            Some("public source locator".to_string()),
+            vec![target],
+            Provenance {
+                source_type: "model_output".to_string(),
+                doi: None,
+                title: "legacy proof".to_string(),
+                authors: vec![],
+                year: None,
+                url: Some("github.com/example/proofs/blob/main/Proof.lean".to_string()),
+                license: None,
+                publisher: None,
+                funders: vec![],
+                extraction: test_extraction(),
+                review: None,
+                contributions: Vec::new(),
+            },
+            BTreeMap::new(),
+            AccessTier::Public,
+        )
+        .expect("artifact");
+        artifact.retracted = true;
+        project.artifacts.push(artifact);
+
+        let audit = audit_artifacts(Path::new("/tmp/machine-a/frontier"), &project);
+        assert!(audit.ok);
+        assert_eq!(audit.schema, "vela.artifact_audit.v2");
+        assert_eq!(audit.active_artifact_count, 0);
+        assert_eq!(audit.retracted_artifact_count, 1);
+        assert_eq!(audit.issue_count, 0);
+        assert_eq!(audit.historical_issue_count, 3);
+        assert_eq!(
+            audit
+                .historical_issues
+                .iter()
+                .map(|issue| issue.field.as_str())
+                .collect::<std::collections::BTreeSet<_>>(),
+            ["metadata.commit", "provenance.url", "source_url"]
+                .into_iter()
+                .collect()
+        );
+
+        let other_root = audit_artifacts(Path::new("/private/tmp/machine-b/frontier"), &project);
+        assert_eq!(audit.frontier, other_root.frontier);
+        assert_eq!(
+            serde_json::to_vec(&audit).unwrap(),
+            serde_json::to_vec(&other_root).unwrap()
+        );
+    }
+
+    #[test]
+    fn retracted_missing_local_blob_remains_historical() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut project = project_with_one_finding();
+        let target = project.findings[0].id.clone();
+        let mut artifact = Artifact::new(
+            "code",
+            "retired local proof",
+            "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            None,
+            None,
+            "local_blob",
+            Some("artifacts/missing.lean".to_string()),
+            None,
+            Some("MIT".to_string()),
+            vec![target],
+            Provenance {
+                source_type: "data_release".to_string(),
+                doi: None,
+                title: "retired local proof".to_string(),
+                authors: vec![],
+                year: Some(2026),
+                url: None,
+                license: Some("MIT".to_string()),
+                publisher: None,
+                funders: vec![],
+                extraction: test_extraction(),
+                review: None,
+                contributions: Vec::new(),
+            },
+            BTreeMap::new(),
+            AccessTier::Public,
+        )
+        .expect("artifact");
+        artifact.retracted = true;
+        project.artifacts.push(artifact);
+
+        let audit = audit_artifacts(dir.path(), &project);
+        assert!(audit.ok);
+        assert_eq!(audit.issue_count, 0);
+        assert_eq!(audit.checked_local_blobs, 0);
+        assert_eq!(audit.local_blob_bytes, 0);
+        assert!(
+            audit
+                .historical_issues
+                .iter()
+                .any(|issue| issue.field == "locator" && issue.message.contains("missing"))
         );
     }
 

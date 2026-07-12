@@ -16,8 +16,8 @@ pub enum EvidencePolarity {
     /// Adds a claim or adds support for one (`finding.add`,
     /// `artifact.assert`, a passing `verifier.attach`).
     Supports,
-    /// Removes a claim or support (`finding.retract`, `finding.reject`,
-    /// a failing `verifier.attach`).
+    /// Removes a claim or support (`finding.retract`, `finding.reject`, a
+    /// failing `verifier.attach`). Artifact retirement is lifecycle-neutral.
     Refutes,
     /// Displaces prior state rather than arguing with it
     /// (`finding.supersede`).
@@ -46,6 +46,7 @@ pub fn classify_proposal_polarity(kind: &str, payload: &Value) -> EvidencePolari
     match kind {
         "finding.add" | "artifact.assert" => EvidencePolarity::Supports,
         "finding.retract" | "finding.reject" => EvidencePolarity::Refutes,
+        "artifact.retract" => EvidencePolarity::Neutral,
         "finding.supersede" => EvidencePolarity::Contradicts,
         "verifier.attach" => {
             // The attachment's outcome decides the direction; an absent or
@@ -79,6 +80,10 @@ mod tests {
         assert_eq!(
             classify_proposal_polarity("finding.retract", &json!({})),
             EvidencePolarity::Refutes
+        );
+        assert_eq!(
+            classify_proposal_polarity("artifact.retract", &json!({})),
+            EvidencePolarity::Neutral
         );
         assert_eq!(
             classify_proposal_polarity("finding.supersede", &json!({})),
