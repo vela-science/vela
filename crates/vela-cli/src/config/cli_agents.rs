@@ -249,13 +249,14 @@ in which an agent's proposal becomes accepted state without a human key.
 
 ## The gate
 
-Frontier repos carry a conformance gate (conventionally
-`./scripts/full-conformance.sh --mode=ci`); it must report 0 FAIL after every
-change, and it is the bar `git push` is held to. `vela check . --strict` is
-the same bar the hub's ingestor enforces. `vela reproduce <frontier>` re-runs
-the frozen verifiers over stored witnesses from scratch — run it before
-claiming a reproduction, and never silently break the reproduction of a
-banked result.
+Frontier repos carry a conformance gate. When the harness supports suites, run
+the suites selected from the affected paths and require 0 FAIL in each one.
+Trust-path changes and releases run the full union. A selected suite fails if a
+required verifier toolchain is absent; a non-selected suite is not a pass.
+`vela check . --strict` is the same frontier-state bar the hub's ingestor
+enforces. `vela reproduce <frontier>` re-runs the frozen verifiers over stored
+witnesses from scratch. Run it before claiming a reproduction, and never
+silently break the reproduction of a banked result.
 
 ## Reading state
 
