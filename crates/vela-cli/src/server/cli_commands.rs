@@ -1379,6 +1379,32 @@ pub(crate) enum LeanAction {
 
 #[derive(Subcommand)]
 pub(crate) enum AttemptAction {
+    /// Import a historical Attempt ledger into a frontier as signed
+    /// `attempt.deposited` events. The command is a dry-run unless `--apply`
+    /// is supplied. The mapping file is a `vela.attempt-import-map.v1`
+    /// exhaustive document (JSON or YAML) whose entries can override
+    /// `problem`/`frontier` or exclude a source record with an accountable
+    /// reason.
+    Import {
+        /// Path to an Attempt JSON or a ledger with a `records` array.
+        ledger: PathBuf,
+        /// Frontier directory or monolithic project JSON to receive deposits.
+        frontier: PathBuf,
+        /// Agent-grade actor that signs imported attempts and events.
+        #[arg(long)]
+        actor: String,
+        /// Versioned import mapping (`vela.attempt-import-map.v1`).
+        #[arg(long)]
+        mapping: PathBuf,
+        /// Pinned origin in `repo@commit:path` form.
+        #[arg(long)]
+        source_ref: String,
+        /// Append signed events. Without this flag the command only reconciles.
+        #[arg(long)]
+        apply: bool,
+        #[arg(long)]
+        json: bool,
+    },
     /// Verify a banked attempt file: a single `Attempt` JSON, or a
     /// CanopusAttemptLedger (`{"records": [...]}`, v1 or v2). Each record's
     /// `vat_` id must re-derive, its claim_digest must match, and its Ed25519

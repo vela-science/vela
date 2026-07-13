@@ -19,7 +19,7 @@ pub(crate) use write::{cli_claim, cli_finding, cli_write, review_work, solve_dif
 mod discovery;
 pub(crate) use discovery::{campaign, cli_campaign};
 mod tools;
-pub(crate) use tools::{cli_check, cli_lean, cli_log_verify, cli_proof};
+pub(crate) use tools::{cli_attempt, cli_check, cli_lean, cli_log_verify, cli_proof};
 mod config;
 pub(crate) use config::{cli_admin, cli_agents, cli_experiment, cli_identity, cli_policy};
 mod server;

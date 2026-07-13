@@ -645,6 +645,23 @@ fn axiom_status(
 pub(crate) fn cmd_attempt(action: AttemptAction) {
     use vela_protocol::attempt::Attempt;
     match action {
+        AttemptAction::Import {
+            ledger,
+            frontier,
+            actor,
+            mapping,
+            source_ref,
+            apply,
+            json,
+        } => crate::cli_attempt::cmd_attempt_import(
+            &ledger,
+            &frontier,
+            &actor,
+            &mapping,
+            &source_ref,
+            apply,
+            json,
+        ),
         AttemptAction::Verify { file, json } => {
             let body = std::fs::read_to_string(&file)
                 .unwrap_or_else(|e| fail_return(&format!("read {}: {e}", file.display())));
@@ -727,13 +744,16 @@ pub(crate) fn cmd_attempt(action: AttemptAction) {
                     continue;
                 }
                 let a = ev.payload.get("attempt").cloned().unwrap_or_default();
-                let p = a.get("problem").and_then(|v| v.as_u64());
+                // `Attempt.problem == 0` is skip-serialized by the stable wire
+                // schema. On read, the missing field is therefore the explicit
+                // domain-general identity rather than an unknown value.
+                let p = a.get("problem").and_then(|v| v.as_u64()).unwrap_or(0);
                 let k = a.get("kind").and_then(|v| v.as_str()).unwrap_or("");
                 let st = a
                     .get("claimed_status")
                     .and_then(|v| v.as_str())
                     .unwrap_or("");
-                if problem.is_some() && p != problem.map(u64::from) {
+                if problem.is_some() && Some(p) != problem.map(u64::from) {
                     continue;
                 }
                 if kind.as_deref().is_some_and(|kf| kf != k) {
