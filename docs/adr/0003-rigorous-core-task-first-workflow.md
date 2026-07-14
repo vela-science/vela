@@ -11,6 +11,17 @@
   target commit so exact publication never consults mutable worktree filters.
   Patch `0.759.3` keeps the full Vela release contract deterministic and scopes
   live or platform-pinned complementor checks to explicit compatibility runs.
+  Release `0.760.0` closes the one recognized pre-hardening policy format without
+  treating it as authority, makes its human-led replacement recoverable and
+  idempotent, carries pinned non-authorizing producer tasks through the existing
+  `next`/`work` path, routes task-first lease and attempt writes through the
+  shared recoverable frontier transaction, binds foundry deposits to a literal
+  agent identity without reading a profile decision key, adds a bounded testing
+  projection for AI-volume review pressure, and keeps the read-only doctor path
+  inside one async runtime. Older maintenance, metadata, and
+  authority-administration writers remain serialized operator operations; this
+  release does not claim that all legacy writers are concurrent. None of these
+  patches changes the event or Receipt narrow waist.
   The human-ceremony, independent-producer, and independent-consumer acceptance
   gates below remain open. This ADR is an engineering decision record, not a
   signed scientific event or a substitute for a Vela policy decision.

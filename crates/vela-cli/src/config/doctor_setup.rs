@@ -57,11 +57,11 @@ fn fail(name: &'static str, detail: impl Into<String>, next: impl Into<String>) 
 }
 
 /// Run every setup check. Pure reads plus one 2s network probe.
-pub(crate) fn run(frontier: Option<&Path>) -> Vec<SetupCheck> {
+pub(crate) async fn run(frontier: Option<&Path>) -> Vec<SetupCheck> {
     let mut out = Vec::new();
     out.push(identity_check());
     out.push(pin_check());
-    out.push(hub_check(frontier));
+    out.push(hub_check(frontier).await);
     if let Some(dir) = frontier {
         out.push(policy_check(dir));
         out.push(adapters_check(dir));
@@ -144,20 +144,25 @@ fn pin_check() -> SetupCheck {
 }
 
 /// Hub reachability: one GET /readyz with a short timeout.
-fn hub_check(frontier: Option<&Path>) -> SetupCheck {
+async fn hub_check(frontier: Option<&Path>) -> SetupCheck {
     let (url, _origin) = super::settings::resolve("hub.url", frontier);
+    hub_check_url(&url).await
+}
+
+async fn hub_check_url(url: &str) -> SetupCheck {
     let probe = format!("{}/readyz", url.trim_end_matches('/'));
-    let client = match reqwest::blocking::Client::builder()
+    let client = match reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(2))
         .build()
     {
         Ok(c) => c,
         Err(e) => return warn("hub", format!("probe client failed: {e}"), String::new()),
     };
-    match client.get(&probe).send() {
+    match client.get(&probe).send().await {
         Ok(resp) if resp.status().is_success() => {
             let version = resp
                 .json::<serde_json::Value>()
+                .await
                 .ok()
                 .and_then(|v| v.get("version").and_then(|s| s.as_str()).map(String::from))
                 .unwrap_or_else(|| "?".to_string());
@@ -178,18 +183,51 @@ fn hub_check(frontier: Option<&Path>) -> SetupCheck {
 
 /// Policy freshness for the cwd frontier: signed, and not about to expire.
 fn policy_check(dir: &Path) -> SetupCheck {
-    match vela_protocol::acceptance_policy::load_active_policy(dir) {
+    match vela_protocol::acceptance_policy::load_active_policy_snapshot(dir) {
         Err(e) => warn(
             "policy",
             format!("active policy unreadable: {e}"),
             String::new(),
         ),
-        Ok(None) => warn(
-            "policy",
-            "no signed policy — the lane is closed; every landing defers to you",
-            "vela policy suggest .",
-        ),
-        Ok(Some(vp)) => {
+        Ok(snapshot)
+            if snapshot.mode
+                == vela_protocol::acceptance_policy::ActivePolicyMode::LegacyUnboundClosed =>
+        {
+            let legacy = snapshot
+                .legacy_unbound
+                .expect("legacy mode carries its observation");
+            warn(
+                "policy",
+                format!(
+                    "legacy-unbound audit history is closed: stored {}, hardened {}",
+                    legacy.stored_policy_id, legacy.hardened_policy_id
+                ),
+                super::cli_policy::legacy_rotation_command(dir, &legacy.policy),
+            )
+        }
+        Ok(snapshot)
+            if snapshot.mode
+                == vela_protocol::acceptance_policy::ActivePolicyMode::StagedUnsigned =>
+        {
+            warn(
+                "policy",
+                "unsigned policy draft — the lane is closed; every landing defers to you",
+                "vela policy sign",
+            )
+        }
+        Ok(snapshot)
+            if snapshot.mode == vela_protocol::acceptance_policy::ActivePolicyMode::Absent =>
+        {
+            warn(
+                "policy",
+                "no signed policy — the lane is closed; every landing defers to you",
+                "vela policy suggest .",
+            )
+        }
+        Ok(snapshot) => {
+            let vp = snapshot
+                .verified
+                .expect("active policy mode carries VerifiedPolicy");
             let expires = chrono::DateTime::parse_from_rfc3339(&vp.policy.expires_at).ok();
             let days_left =
                 expires.map(|t| (t.with_timezone(&chrono::Utc) - chrono::Utc::now()).num_days());
@@ -215,7 +253,16 @@ fn policy_check(dir: &Path) -> SetupCheck {
 
 /// Adapter sync for the cwd frontier (`vela agents doctor` as one row).
 fn adapters_check(dir: &Path) -> SetupCheck {
-    let (in_sync, drifted, missing) = super::cli_agents::compare(dir);
+    let (in_sync, drifted, missing) = match super::cli_agents::try_compare(dir) {
+        Ok(comparison) => comparison,
+        Err(error) => {
+            return warn(
+                "adapters",
+                error,
+                format!("vela agents sync {}", dir.display()),
+            );
+        }
+    };
     if drifted.is_empty() && missing.is_empty() {
         ok("adapters", format!("{} adapter(s) in sync", in_sync.len()))
     } else {
@@ -286,5 +333,53 @@ mod tests {
     fn registry_and_identity_checks_never_panic() {
         let _ = registry_check();
         let _ = identity_check();
+    }
+
+    #[test]
+    fn malformed_unsigned_policy_is_reported_unreadable_not_staged() {
+        let temp = tempfile::tempdir().unwrap();
+        let policies = temp.path().join(".vela/policies");
+        std::fs::create_dir_all(&policies).unwrap();
+        std::fs::write(policies.join("active.json"), b"{not-json\n").unwrap();
+
+        let check = policy_check(temp.path());
+        assert_eq!(check.status, SetupStatus::Warn);
+        assert!(check.detail.contains("active policy unreadable"));
+        assert!(!check.detail.contains("unsigned policy draft"));
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn hub_probe_is_safe_inside_the_cli_runtime() {
+        use std::io::{Read, Write};
+
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut request = [0_u8; 1024];
+            let _ = stream.read(&mut request).unwrap();
+            let body = br#"{"version":"test"}"#;
+            write!(
+                stream,
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                body.len()
+            )
+            .unwrap();
+            stream.write_all(body).unwrap();
+        });
+
+        let check = hub_check_url(&format!("http://{address}")).await;
+        server.join().unwrap();
+        assert_eq!(check.status, SetupStatus::Ok);
+        assert!(check.detail.contains("ready (test)"), "{}", check.detail);
+    }
+
+    #[test]
+    fn missing_agent_charter_is_a_doctor_warning_not_a_process_exit() {
+        let temp = tempfile::tempdir().unwrap();
+        let check = adapters_check(temp.path());
+        assert_eq!(check.status, SetupStatus::Warn);
+        assert!(check.detail.contains("no VELA.md"), "{}", check.detail);
+        assert!(check.next.contains("vela agents sync"));
     }
 }

@@ -1231,6 +1231,185 @@ fn clean_clone_rebuilds_public_review_root_without_restricted_bytes() {
 }
 
 #[test]
+fn rich_campaign_target_is_consistent_across_next_and_prelease_work() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    init_git_frontier(tmp.path());
+    std::fs::write(
+        tmp.path().join("campaign.yaml"),
+        r#"
+batches:
+  - name: external reproduction
+    state: open
+    problems:
+      - 443
+      - id: seed:prepared-target
+        title: Reproduce the prepared declaration
+        why: Prepared external verifier exercise
+        task:
+          kind: external_lean_reproduction
+          source:
+            repo_url: https://github.com/example/prepared
+            commit: 0123456789abcdef0123456789abcdef01234567
+            declaration: prepared-target
+            source_path: Prepared.lean
+          verifier:
+            command: vela reproduce-external
+          fixed_base:
+            frontier_id: campaign-must-not-pin-state
+            event_log_root: sha256:campaign-must-not-pin-state
+          constraints:
+            - Use the exact pinned source.
+          allowed_actions:
+            - sign with a human key
+          authority_ceiling: campaign may accept results
+"#,
+    )
+    .unwrap();
+    let before = vela_protocol::repo::load_from_path(tmp.path()).unwrap();
+    let expected_base = format!(
+        "sha256:{}",
+        vela_protocol::events::event_log_hash(&before.events)
+    );
+    let expected_git_commit = git_stdout(tmp.path(), &["rev-parse", "HEAD"])
+        .trim()
+        .to_string();
+
+    let next = run(tmp.path(), &["next", ".", "--limit", "100", "--json"]);
+    assert_success(&next, "list rich campaign target");
+    let next = one_json_object(&next);
+    let targets = next["targets"].as_array().unwrap();
+    assert!(
+        targets
+            .iter()
+            .any(|target| target["id"] == "seed:443" && target.get("task").is_none()),
+        "legacy scalar seed changed shape: {next}"
+    );
+    let prepared = targets
+        .iter()
+        .find(|target| target["id"] == "seed:prepared-target")
+        .expect("rich target keeps its explicit id");
+    assert_eq!(prepared["next_command"], "vela work seed:prepared-target");
+    assert_eq!(
+        prepared["task"]["fixed_base"]["frontier_id"],
+        before.frontier_id()
+    );
+    assert_eq!(
+        prepared["task"]["fixed_base"]["event_log_root"],
+        expected_base
+    );
+    assert_eq!(
+        prepared["task"]["authority_ceiling"],
+        "Producer evidence only. The session can create a receipt and proposal; it cannot create human acceptance."
+    );
+    assert!(
+        prepared["task"].get("allowed_actions").is_none(),
+        "campaign metadata expanded the authority surface: {prepared}"
+    );
+    let offered_task = prepared["task"].clone();
+
+    let agent_key = "42".repeat(32);
+    let work = run_with_env(
+        tmp.path(),
+        &["work", "seed:prepared-target", "--as", "agent:t", "--json"],
+        &[("VELA_AGENT_KEY_HEX", agent_key.as_str())],
+    );
+    assert_success(&work, "open rich campaign work session");
+    let work = one_json_object(&work);
+    assert_eq!(work["briefing"]["task"], offered_task);
+    assert_eq!(work["session"]["base_event_log_root"], expected_base);
+    assert_eq!(work["claim"]["state_root_before"], expected_base);
+    assert_eq!(
+        work["session"]["base_event_log_root"],
+        work["claim"]["state_root_before"]
+    );
+    assert_eq!(
+        work["session"]["source_git_commit_oid"],
+        expected_git_commit
+    );
+    assert_eq!(
+        work["session"]["task_contract"]["authority_ceiling"],
+        "Producer evidence only. The session can create a receipt and proposal; it cannot create human acceptance."
+    );
+    assert!(
+        work["session"]["task_contract"]["forbidden_actions"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|item| item
+                .as_str()
+                .is_some_and(|text| text.contains("human signing key"))),
+        "restrictive Vela task contract was not retained: {work}"
+    );
+    let after = vela_protocol::repo::load_from_path(tmp.path()).unwrap();
+    assert_eq!(
+        work["claim"]["state_root_after"],
+        format!(
+            "sha256:{}",
+            vela_protocol::events::event_log_hash(&after.events)
+        )
+    );
+    assert_ne!(
+        format!(
+            "sha256:{}",
+            vela_protocol::events::event_log_hash(&after.events)
+        ),
+        expected_base,
+        "lease fixture did not add its coordination event"
+    );
+}
+
+#[test]
+fn invalid_campaign_bytes_targets_and_duplicates_fail_before_lease() {
+    let cases = [
+        (
+            "unsafe-id",
+            b"batches:\n  - problems:\n      - foo;id\n".to_vec(),
+            "invalid campaign target",
+        ),
+        (
+            "duplicate-id",
+            b"batches:\n  - problems:\n      - 443\n      - id: seed:443\n".to_vec(),
+            "duplicate resolved campaign target",
+        ),
+        (
+            "oversized-file",
+            vec![b' '; 1024 * 1024 + 1],
+            "exceeds the 1048576-byte limit",
+        ),
+    ];
+    for (label, campaign, expected_error) in cases {
+        let tmp = tempfile::TempDir::new().unwrap();
+        init_git_frontier(tmp.path());
+        std::fs::write(tmp.path().join("campaign.yaml"), campaign).unwrap();
+        let before = vela_protocol::repo::load_from_path(tmp.path()).unwrap();
+        let agent_key = "42".repeat(32);
+        let work = run_with_env(
+            tmp.path(),
+            &["work", "seed:probe", "--as", "agent:t", "--json"],
+            &[("VELA_AGENT_KEY_HEX", agent_key.as_str())],
+        );
+        assert!(
+            !work.status.success(),
+            "{label} unexpectedly claimed work: {}",
+            String::from_utf8_lossy(&work.stdout)
+        );
+        let output = format!(
+            "{}{}",
+            String::from_utf8_lossy(&work.stdout),
+            String::from_utf8_lossy(&work.stderr)
+        );
+        assert!(output.contains(expected_error), "{label}: {output}");
+        let after = vela_protocol::repo::load_from_path(tmp.path()).unwrap();
+        assert_eq!(after.attempt_claims, before.attempt_claims, "{label}");
+        assert_eq!(
+            vela_protocol::events::event_log_hash(&after.events),
+            vela_protocol::events::event_log_hash(&before.events),
+            "{label} changed the event log"
+        );
+    }
+}
+
+#[test]
 fn flag_authored_land_closes_only_its_exact_private_work_session() {
     let tmp = tempfile::TempDir::new().unwrap();
     init_git_frontier(tmp.path());
@@ -1431,6 +1610,10 @@ fn drop_records_a_signed_exact_release_before_removing_private_scratch() {
         .to_string();
     let session_record = std::path::PathBuf::from(opened["session_path"].as_str().unwrap());
     let before_wrong_owner = vela_protocol::repo::load_from_path(tmp.path()).unwrap();
+    let release_state_root_before = format!(
+        "sha256:{}",
+        vela_protocol::events::event_log_hash(&before_wrong_owner.events)
+    );
 
     let denied = run_with_env(
         tmp.path(),
@@ -1478,6 +1661,10 @@ fn drop_records_a_signed_exact_release_before_removing_private_scratch() {
         released["release"]["prior_claim_event_id"],
         first_claim_event_id
     );
+    assert_eq!(
+        released["release"]["state_root_before"],
+        release_state_root_before
+    );
     assert_eq!(released["release"]["ttl_seconds"], 0);
     assert!(
         !session_record.exists(),
@@ -1485,6 +1672,13 @@ fn drop_records_a_signed_exact_release_before_removing_private_scratch() {
     );
 
     let after_release = vela_protocol::repo::load_from_path(tmp.path()).unwrap();
+    assert_eq!(
+        released["release"]["state_root_after"],
+        format!(
+            "sha256:{}",
+            vela_protocol::events::event_log_hash(&after_release.events)
+        )
+    );
     let release_event = after_release
         .events
         .iter()

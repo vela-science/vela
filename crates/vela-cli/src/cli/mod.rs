@@ -150,7 +150,7 @@ pub async fn run_command() {
             frontier,
             port,
             json,
-        } => cmd_doctor(frontier.as_deref(), port, json),
+        } => cmd_doctor(frontier.as_deref(), port, json).await,
         Commands::Proof {
             frontier,
             out,
@@ -300,7 +300,7 @@ pub async fn run_command() {
         Commands::Id { action } => cmd_id(action),
         Commands::Actor { action } => cmd_actor(action),
         Commands::Frontier { action } => cmd_frontier(action),
-        Commands::Hub { action } => cmd_hub(action),
+        Commands::Hub { action } => cmd_hub(action).await,
         Commands::Publication { action } => match action {
             PublicationAction::Recover {
                 operation,
@@ -719,7 +719,7 @@ pub async fn run_command() {
                 apply,
                 json,
             } => cmd_finding_retract(source, finding_id, reason, reviewer, apply, json),
-            FindingCommands::Link { action } => cmd_link(action),
+            FindingCommands::Link { action } => cmd_link(action).await,
         },
 
         Commands::Artifact { command } => match command {
@@ -810,22 +810,20 @@ pub async fn run_command() {
                 },
             )
             .unwrap_or_else(|error| fail_return(&error.to_string()));
-            let targets = vela_edge::frontier_next::frontier_next(
+            let targets = vela_edge::frontier_next::try_frontier_next(
                 &project,
                 &review.items,
                 Some(&dir),
                 &review.observed_at,
                 limit,
-            );
+            )
+            .unwrap_or_else(|error| fail_return(&error));
             if json {
                 print_json(&serde_json::json!({
                     "ok": true, "command": "next",
                     "review_snapshot_root": review.snapshot_root,
                     "review_next_cursor": review.next_cursor,
-                    "targets": targets.iter().map(|t| serde_json::json!({
-                        "lane": t.lane, "id": t.id, "title": t.title,
-                        "why": t.why, "next_command": t.next_command,
-                    })).collect::<Vec<_>>(),
+                    "targets": targets,
                 }));
             } else {
                 let tg = if targets.len() == 1 {

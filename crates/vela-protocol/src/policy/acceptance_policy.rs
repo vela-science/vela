@@ -521,6 +521,7 @@ mod tests {
     use super::*;
     use ed25519_dalek::Signer;
     use serde_json::json;
+    use tempfile::TempDir;
 
     fn exact_sidon_policy() -> AcceptancePolicy {
         let mut p = AcceptancePolicy {
@@ -591,6 +592,65 @@ mod tests {
             serde_json::to_vec_pretty(policy).unwrap(),
             serde_json::to_vec_pretty(&record).unwrap(),
         )
+    }
+
+    fn formal_conjectures_legacy_policy() -> AcceptancePolicy {
+        AcceptancePolicy {
+            schema: ACCEPTANCE_POLICY_SCHEMA.to_string(),
+            id: "vap_382fe0c8c697be648f60342eba4c9185".to_string(),
+            frontier_id: "vfr_97d7d25957384f80".to_string(),
+            epoch: 2,
+            issued_by: vec!["reviewer:will-blair".to_string()],
+            quorum: Quorum {
+                threshold: 1,
+                eligible_roles: vec!["steward".to_string()],
+            },
+            rules: vec![PolicyRule {
+                id: "lean-rederivation-v1".to_string(),
+                effect: Outcome::Permit,
+                claim_classes: vec!["receipt_lean_kernel_clean".to_string()],
+                constraints: Constraints {
+                    max_changed_findings: 1,
+                    max_downstream_dependents: 0,
+                    required_assurance_min: 2,
+                    allow_semantic_text_change: true,
+                    allow_contested: false,
+                    allow_governance_mutation: false,
+                    require_independence: false,
+                    require_method_integrity: true,
+                },
+            }],
+            default: Outcome::Defer,
+            expires_at: "2026-10-09T04:48:14.068136+00:00".to_string(),
+            revocation_ref: None,
+        }
+    }
+
+    fn legacy_signed_policy_bytes(
+        policy: &AcceptancePolicy,
+        signed_at: &str,
+    ) -> (Vec<u8>, Vec<u8>) {
+        let key = ed25519_dalek::SigningKey::from_bytes(&[11u8; 32]);
+        let signature = key.sign(&crate::canonical::to_canonical_bytes(policy).unwrap());
+        let record = PolicySignatureRecord {
+            policy_id: policy.id.clone(),
+            signer_pubkey_hex: hex::encode(key.verifying_key().to_bytes()),
+            signature: hex::encode(signature.to_bytes()),
+            signed_at: signed_at.to_string(),
+        };
+        (
+            serde_json::to_vec_pretty(policy).unwrap(),
+            serde_json::to_vec_pretty(&record).unwrap(),
+        )
+    }
+
+    fn write_active_pair(policy_bytes: &[u8], signature_bytes: &[u8]) -> TempDir {
+        let temp = TempDir::new().unwrap();
+        let directory = temp.path().join(".vela/policies");
+        std::fs::create_dir_all(&directory).unwrap();
+        std::fs::write(directory.join("active.json"), policy_bytes).unwrap();
+        std::fs::write(directory.join("active.sig.json"), signature_bytes).unwrap();
+        temp
     }
 
     #[test]
@@ -994,6 +1054,115 @@ mod tests {
     }
 
     #[test]
+    fn exact_legacy_pair_is_audit_only_closed_and_never_verified_authority() {
+        let policy = formal_conjectures_legacy_policy();
+        assert_eq!(
+            legacy_unbound_policy_content_address(&policy).unwrap(),
+            policy.id
+        );
+        assert_eq!(
+            policy.content_address(),
+            "vap_218d3a47dd3cc91402522dce66634ba8"
+        );
+        let (policy_bytes, signature_bytes) = legacy_signed_policy_bytes(&policy, SIGNED_AT);
+        let temp = write_active_pair(&policy_bytes, &signature_bytes);
+
+        let snapshot = load_active_policy_snapshot(temp.path()).unwrap();
+        assert_eq!(snapshot.mode, ActivePolicyMode::LegacyUnboundClosed);
+        assert!(snapshot.verified.is_none());
+        let observation = snapshot.legacy_unbound.unwrap();
+        assert_eq!(observation.stored_policy_id, policy.id);
+        assert_eq!(observation.hardened_policy_id, policy.content_address());
+        assert!(!observation.signed_at_bound);
+
+        let error = load_active_policy(temp.path())
+            .expect_err("legacy audit history must not become VerifiedPolicy");
+        assert!(
+            error.contains("legacy_unbound_signature_cannot_authorize"),
+            "{error}"
+        );
+    }
+
+    #[test]
+    fn active_pair_classifier_has_no_cross_generation_signature_fallback() {
+        let modern = exact_sidon_policy();
+        let (modern_bytes, legacy_signature) = legacy_signed_policy_bytes(&modern, SIGNED_AT);
+        let error = match classify_active_policy_pair(
+            &modern_bytes,
+            &legacy_signature,
+            "test active policy",
+        ) {
+            Ok(_) => panic!("modern id with legacy signature must be rejected"),
+            Err(error) => error,
+        };
+        assert!(error.contains("signature does not verify"), "{error}");
+
+        let legacy = formal_conjectures_legacy_policy();
+        let (legacy_bytes, modern_signature) = signed_policy_bytes(&legacy, SIGNED_AT);
+        let error = match classify_active_policy_pair(
+            &legacy_bytes,
+            &modern_signature,
+            "test active policy",
+        ) {
+            Ok(_) => panic!("legacy id with modern signature must be rejected"),
+            Err(error) => error,
+        };
+        assert!(
+            error.contains("legacy signature does not verify"),
+            "{error}"
+        );
+    }
+
+    #[test]
+    fn malformed_legacy_candidates_are_hard_errors_not_closed_policy_modes() {
+        let policy = formal_conjectures_legacy_policy();
+        let (policy_bytes, signature_bytes) = legacy_signed_policy_bytes(&policy, SIGNED_AT);
+
+        let mut corrupt_signature: PolicySignatureRecord =
+            serde_json::from_slice(&signature_bytes).unwrap();
+        corrupt_signature.signature.replace_range(0..2, "00");
+        let temp = write_active_pair(
+            &policy_bytes,
+            &serde_json::to_vec(&corrupt_signature).unwrap(),
+        );
+        let error = load_active_policy_snapshot(temp.path())
+            .expect_err("an invalid legacy signature is corruption, not audit history");
+        assert!(
+            error.contains("legacy signature does not verify"),
+            "{error}"
+        );
+
+        let mut wrong_id = policy;
+        wrong_id.id = "vap_00000000000000000000000000000000".to_string();
+        let temp = write_active_pair(&serde_json::to_vec(&wrong_id).unwrap(), &signature_bytes);
+        let error = load_active_policy_snapshot(temp.path())
+            .expect_err("an arbitrary stale id must not enter legacy mode");
+        assert!(error.contains("id does not re-derive"), "{error}");
+    }
+
+    #[test]
+    fn malformed_or_stale_unsigned_policy_is_broken_not_staged() {
+        let temp = TempDir::new().unwrap();
+        let directory = temp.path().join(".vela/policies");
+        std::fs::create_dir_all(&directory).unwrap();
+        std::fs::write(directory.join("active.json"), b"{not-json\n").unwrap();
+        let error = load_active_policy_snapshot(temp.path())
+            .expect_err("malformed unsigned bytes must not become a staged policy");
+        assert!(error.contains("active policy parse"), "{error}");
+
+        let mut stale = exact_sidon_policy();
+        stale.id = "vap_00000000000000000000000000000000".to_string();
+        std::fs::write(
+            directory.join("active.json"),
+            serde_json::to_vec_pretty(&stale).unwrap(),
+        )
+        .unwrap();
+        let error = load_active_policy_snapshot(temp.path())
+            .expect_err("a stale unsigned id must not become a staged policy");
+        assert!(error.contains("id does not re-derive"), "{error}");
+    }
+
+    #[test]
     fn decision_certificate_binds_and_verifies() {
         let p = exact_sidon_policy();
         let d = evaluate(&p, &clean_exact_ctx(), NOW);
@@ -1053,6 +1222,44 @@ pub struct VerifiedPolicy {
     pub signed_at_bound: bool,
 }
 
+/// Audit-only observation of the one pre-hardening policy encoding Vela can
+/// recognize without treating it as authority. The historical signature is
+/// over the policy body alone, so `signed_at` is descriptive history rather
+/// than a bound authorization fact. This type is deliberately distinct from
+/// [`VerifiedPolicy`] and cannot enter the Permit path.
+#[derive(Debug, Clone)]
+pub struct LegacyUnboundPolicyObservation {
+    pub policy: AcceptancePolicy,
+    pub signer_pubkey_hex: String,
+    pub signed_at: String,
+    pub stored_policy_id: String,
+    pub hardened_policy_id: String,
+    pub signed_at_bound: bool,
+}
+
+/// Classification of the mutable active-policy pointer. Only `Active` carries
+/// a [`VerifiedPolicy`]; the legacy mode is a closed lane retained solely so a
+/// human can inspect and rotate the exact historical bytes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ActivePolicyMode {
+    Absent,
+    StagedUnsigned,
+    Active,
+    LegacyUnboundClosed,
+}
+
+impl ActivePolicyMode {
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Absent => "absent",
+            Self::StagedUnsigned => "staged_unsigned",
+            Self::Active => "active",
+            Self::LegacyUnboundClosed => "legacy_unbound_closed",
+        }
+    }
+}
+
 /// One read of both mutable active-policy paths while the caller owns its
 /// frontier recovery barrier. The exact bytes (or exact absence) are retained
 /// so callers can bind the same snapshot into a marker-time read set and copy
@@ -1062,6 +1269,8 @@ pub struct ActivePolicySnapshot {
     pub policy_bytes: Option<Vec<u8>>,
     pub signature_bytes: Option<Vec<u8>>,
     pub verified: Option<VerifiedPolicy>,
+    pub mode: ActivePolicyMode,
+    pub legacy_unbound: Option<LegacyUnboundPolicyObservation>,
 }
 
 // Governance files are deliberately much smaller than general repository
@@ -1535,7 +1744,14 @@ fn resolve_policy_authority_inner(
 pub fn load_active_policy(
     frontier_dir: &std::path::Path,
 ) -> Result<Option<VerifiedPolicy>, String> {
-    Ok(load_active_policy_snapshot(frontier_dir)?.verified)
+    let snapshot = load_active_policy_snapshot(frontier_dir)?;
+    if let Some(legacy) = snapshot.legacy_unbound.as_ref() {
+        return Err(format!(
+            "legacy_unbound_signature_cannot_authorize: stored policy {} hardens to {}; rotate the audit-only pair before signing or routing",
+            legacy.stored_policy_id, legacy.hardened_policy_id
+        ));
+    }
+    Ok(snapshot.verified)
 }
 
 /// Load the active policy paths exactly once, retaining the bytes that were
@@ -1554,24 +1770,149 @@ pub fn load_active_policy_snapshot(
         "active policy signature",
         POLICY_SIGNATURE_JSON_MAX_BYTES,
     )?;
-    let verified = match (&policy_bytes, &signature_bytes) {
-        (None, None) | (Some(_), None) => None,
+    let (mode, verified, legacy_unbound) = match (&policy_bytes, &signature_bytes) {
+        (None, None) => (ActivePolicyMode::Absent, None, None),
+        (Some(policy), None) => {
+            let policy = parse_supported_policy_bytes(policy, "active policy")?;
+            if !policy.id_is_valid() {
+                return Err(format!(
+                    "active policy id does not re-derive: stored {}, sealed {}",
+                    policy.id,
+                    policy.content_address()
+                ));
+            }
+            (ActivePolicyMode::StagedUnsigned, None, None)
+        }
         (None, Some(_)) => {
             return Err(
                 "active policy signature exists without .vela/policies/active.json".to_string(),
             );
         }
-        (Some(policy), Some(signature)) => Some(verify_policy_signature_bytes(
-            policy,
-            signature,
-            None,
-            "active policy",
-        )?),
+        (Some(policy), Some(signature)) => {
+            match classify_active_policy_pair(policy, signature, "active policy")? {
+                ClassifiedPolicyPair::Active(verified) => {
+                    (ActivePolicyMode::Active, Some(verified), None)
+                }
+                ClassifiedPolicyPair::LegacyUnbound(observation) => (
+                    ActivePolicyMode::LegacyUnboundClosed,
+                    None,
+                    Some(observation),
+                ),
+            }
+        }
     };
     Ok(ActivePolicySnapshot {
         policy_bytes,
         signature_bytes,
         verified,
+        mode,
+        legacy_unbound,
+    })
+}
+
+enum ClassifiedPolicyPair {
+    Active(VerifiedPolicy),
+    LegacyUnbound(LegacyUnboundPolicyObservation),
+}
+
+/// Classify one exact active pair without signature fallback. A policy whose
+/// stored id is already the hardened canonical id is checked only against the
+/// bound v1 signature preimage. A policy whose id is exactly the frozen legacy
+/// content address is checked only against the historical unbound preimage and
+/// returned as audit-only closed state. Every other id/signature combination is
+/// a hard error.
+fn classify_active_policy_pair(
+    policy_bytes: &[u8],
+    signature_bytes: &[u8],
+    label: &str,
+) -> Result<ClassifiedPolicyPair, String> {
+    let policy = parse_supported_policy_bytes(policy_bytes, label)?;
+    let hardened_policy_id = policy.content_address();
+    if policy.id == hardened_policy_id {
+        return verify_policy_signature_bytes(policy_bytes, signature_bytes, None, label)
+            .map(ClassifiedPolicyPair::Active);
+    }
+
+    let legacy_policy_id = legacy_unbound_policy_content_address(&policy)?;
+    if policy.id != legacy_policy_id {
+        return Err(format!(
+            "{label} id does not re-derive: stored {}, sealed {}, legacy {}",
+            policy.id, hardened_policy_id, legacy_policy_id
+        ));
+    }
+    verify_legacy_unbound_policy_pair(policy, signature_bytes, hardened_policy_id, label)
+        .map(ClassifiedPolicyPair::LegacyUnbound)
+}
+
+fn parse_supported_policy_bytes(
+    policy_bytes: &[u8],
+    label: &str,
+) -> Result<AcceptancePolicy, String> {
+    let policy: AcceptancePolicy = parse_bounded_governance_json(
+        policy_bytes,
+        GovernanceJsonLimits {
+            bytes: POLICY_JSON_MAX_BYTES,
+        },
+        label,
+    )?;
+    validate_supported_policy(&policy, label)?;
+    Ok(policy)
+}
+
+fn legacy_unbound_policy_content_address(policy: &AcceptancePolicy) -> Result<String, String> {
+    let mut body = policy.clone();
+    body.id.clear();
+    let bytes = serde_json::to_vec(&body)
+        .map_err(|error| format!("serialize legacy policy body: {error}"))?;
+    Ok(format!("vap_{}", &hex::encode(Sha256::digest(bytes))[..32]))
+}
+
+fn verify_legacy_unbound_policy_pair(
+    policy: AcceptancePolicy,
+    signature_bytes: &[u8],
+    hardened_policy_id: String,
+    label: &str,
+) -> Result<LegacyUnboundPolicyObservation, String> {
+    use ed25519_dalek::Verifier;
+
+    let signature_label = format!("{label} signature");
+    let signature: PolicySignatureRecord = parse_bounded_governance_json(
+        signature_bytes,
+        GovernanceJsonLimits {
+            bytes: POLICY_SIGNATURE_JSON_MAX_BYTES,
+        },
+        &signature_label,
+    )?;
+    validate_rfc3339("policy signed_at", &signature.signed_at)?;
+    if signature.policy_id != policy.id {
+        return Err(format!("{label} signature is for a different policy id"));
+    }
+    let public_key: [u8; 32] = hex::decode(&signature.signer_pubkey_hex)
+        .map_err(|error| format!("pubkey hex: {error}"))?
+        .try_into()
+        .map_err(|_| "pubkey must be 32 bytes".to_string())?;
+    let verifying_key =
+        ed25519_dalek::VerifyingKey::from_bytes(&public_key).map_err(|error| error.to_string())?;
+    let signature_bytes: [u8; 64] = hex::decode(&signature.signature)
+        .map_err(|error| format!("signature hex: {error}"))?
+        .try_into()
+        .map_err(|_| "signature must be 64 bytes".to_string())?;
+    let historical_preimage = crate::canonical::to_canonical_bytes(&policy)
+        .map_err(|error| format!("canonical legacy policy signature input: {error}"))?;
+    verifying_key
+        .verify(
+            &historical_preimage,
+            &ed25519_dalek::Signature::from_bytes(&signature_bytes),
+        )
+        .map_err(|_| format!("{label} legacy signature does not verify"))?;
+    let stored_policy_id = policy.id.clone();
+    Ok(LegacyUnboundPolicyObservation {
+        policy,
+        signer_pubkey_hex: signature.signer_pubkey_hex,
+        signed_at: signature.signed_at,
+        stored_policy_id,
+        hardened_policy_id,
+        signed_at_bound: false,
     })
 }
 

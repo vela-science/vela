@@ -1001,12 +1001,15 @@ fn build_review_item(
         Err(error) => {
             let error = error.to_string();
             build(vela_edge::decision_brief::ReviewRoute::unavailable(
-                if snapshot.verified.is_some() {
-                    "active"
-                } else if snapshot.policy_bytes.is_some() {
-                    "staged_unsigned"
-                } else {
-                    "closed"
+                match snapshot.mode {
+                    vela_protocol::acceptance_policy::ActivePolicyMode::Active => "active",
+                    vela_protocol::acceptance_policy::ActivePolicyMode::StagedUnsigned => {
+                        "staged_unsigned"
+                    }
+                    vela_protocol::acceptance_policy::ActivePolicyMode::LegacyUnboundClosed => {
+                        "legacy_unbound_closed"
+                    }
+                    vela_protocol::acceptance_policy::ActivePolicyMode::Absent => "closed",
                 },
                 &error,
             ))
@@ -1106,12 +1109,11 @@ fn policy_snapshot_marker(
 ) -> serde_json::Value {
     match snapshot {
         Ok(snapshot) => serde_json::json!({
-            "state": if snapshot.verified.is_some() {
-                "live"
-            } else if snapshot.policy_bytes.is_some() {
-                "staged_unsigned"
-            } else {
-                "closed"
+            "state": match snapshot.mode {
+                vela_protocol::acceptance_policy::ActivePolicyMode::Active => "live",
+                vela_protocol::acceptance_policy::ActivePolicyMode::StagedUnsigned => "staged_unsigned",
+                vela_protocol::acceptance_policy::ActivePolicyMode::LegacyUnboundClosed => "legacy_unbound_closed",
+                vela_protocol::acceptance_policy::ActivePolicyMode::Absent => "closed",
             },
             "policy_bytes_root": snapshot.policy_bytes.as_deref().map(bytes_root),
             "signature_bytes_root": snapshot.signature_bytes.as_deref().map(bytes_root),

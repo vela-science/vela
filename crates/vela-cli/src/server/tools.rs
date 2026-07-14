@@ -103,13 +103,14 @@ pub(crate) fn tool_orient(
             )
         }
     };
-    let targets = vela_edge::frontier_next::frontier_next(
+    let targets = vela_edge::frontier_next::try_frontier_next(
         project,
         &review_items,
         frontier_dir,
         &review_observed_at,
         limit,
-    );
+    )
+    .map_err(ToolError::classify)?;
 
     // Solvability ranking: OPEN findings ordered by accumulating structural
     // support (which is a verifier-run from done), with the popularity baseline
@@ -771,7 +772,7 @@ pub(crate) fn tool_work(args: &Value, source_path: Option<&Path>) -> ToolOutput 
         }
         Ok(actor)
     };
-    let result = match args.get("action").and_then(Value::as_str) {
+    match args.get("action").and_then(Value::as_str) {
         Some("claim") => {
             let actor = agent_actor("claim")?;
             let target = args
@@ -785,11 +786,13 @@ pub(crate) fn tool_work(args: &Value, source_path: Option<&Path>) -> ToolOutput 
                 .unwrap_or(86_400);
             let opened = crate::workflow::open_session(frontier_path, target, actor, ttl)
                 .map_err(ToolError::classify)?;
-            return Ok((opened, Vec::new()));
+            Ok((opened, Vec::new()))
         }
         Some("deposit") => {
-            agent_actor("deposit")?;
-            vela_edge::vela_agent_mcp::deposit_attempt(args)
+            let actor = agent_actor("deposit")?;
+            let deposited = crate::workflow::deposit_attempt(frontier_path, args, actor, None)
+                .map_err(ToolError::classify)?;
+            Ok((deposited, Vec::new()))
         }
         Some("land") => {
             let actor = agent_actor("land")?;
@@ -808,7 +811,7 @@ pub(crate) fn tool_work(args: &Value, source_path: Option<&Path>) -> ToolOutput 
             let outcome = crate::workflow::land(frontier, &receipt, actor, false)
                 .map_err(ToolError::classify)?;
             let (route, detail) = outcome.route.summary();
-            return Ok((
+            Ok((
                 json!({
                     "operation_id": outcome.operation_id,
                     "receipt_root": outcome.receipt_root,
@@ -820,7 +823,7 @@ pub(crate) fn tool_work(args: &Value, source_path: Option<&Path>) -> ToolOutput 
                     "publication": outcome.publication,
                 }),
                 Vec::new(),
-            ));
+            ))
         }
         Some("drop") => {
             let actor = agent_actor("drop")?;
@@ -841,14 +844,11 @@ pub(crate) fn tool_work(args: &Value, source_path: Option<&Path>) -> ToolOutput 
                     ToolError::classify(error)
                 }
             })?;
-            return Ok((released, Vec::new()));
+            Ok((released, Vec::new()))
         }
-        _ => {
-            return Err(ToolError::invalid("work requires `action`")
-                .with_hint("valid actions: claim, land, drop, deposit"));
-        }
-    };
-    Ok((parse_payload(result)?, Vec::new()))
+        _ => Err(ToolError::invalid("work requires `action`")
+            .with_hint("valid actions: claim, land, drop, deposit")),
+    }
 }
 
 /// `objects` — read the content-addressed agent objects on a frontier
@@ -2555,6 +2555,52 @@ mod work_scope_tests {
     }
 
     #[test]
+    fn orient_exposes_the_same_pinned_rich_campaign_task() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("rich-campaign");
+        let project = vela_protocol::project::assemble("rich-campaign", vec![], 0, 0, "test");
+        vela_protocol::repo::init_repo(&path, &project).unwrap();
+        std::fs::write(
+            path.join("campaign.yaml"),
+            r#"
+batches:
+  - name: prepared
+    state: open
+    problems:
+      - id: seed:prepared-target
+        title: Reproduce prepared declaration
+        task:
+          kind: external_lean_reproduction
+          constraints:
+            - Use the pinned source.
+          authority_ceiling: campaign decides
+"#,
+        )
+        .unwrap();
+        let project = vela_protocol::repo::load_from_path(&path).unwrap();
+
+        let (data, _) = tool_orient(&json!({"limit": 10}), &project, Some(&path)).unwrap();
+        let target = data["open_targets"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|target| target["id"] == "seed:prepared-target")
+            .expect("orient exposes rich campaign target");
+        assert_eq!(target["task"]["kind"], "external_lean_reproduction");
+        assert_eq!(
+            target["task"]["fixed_base"]["event_log_root"],
+            format!(
+                "sha256:{}",
+                vela_protocol::events::event_log_hash(&project.events)
+            )
+        );
+        assert_eq!(
+            target["task"]["authority_ceiling"],
+            "Producer evidence only. The session can create a receipt and proposal; it cannot create human acceptance."
+        );
+    }
+
+    #[test]
     fn work_refuses_a_frontier_other_than_the_served_checkout() {
         let temp = tempfile::tempdir().unwrap();
         let served = frontier_dir(temp.path(), "served");
@@ -2628,6 +2674,47 @@ mod work_scope_tests {
             .unwrap();
             assert_eq!(bound, served.canonicalize().unwrap());
         }
+    }
+
+    #[test]
+    fn mcp_deposit_routes_through_the_frontier_transaction_barrier() {
+        let temp = tempfile::tempdir().unwrap();
+        let served = temp.path().join("deposit-barrier");
+        let project = vela_protocol::project::assemble("deposit-barrier", Vec::new(), 0, 0, "test");
+        vela_protocol::repo::init_repo(&served, &project).unwrap();
+        let before = vela_protocol::repo::load_from_path(&served).unwrap();
+        let before_root = vela_protocol::events::event_log_hash(&before.events);
+        let journal_dir = crate::workflow::frontier_transaction_journal_dir(&served).unwrap();
+        let _barrier =
+            crate::frontier_txn::FrontierTxn::acquire_recovery_barrier(&served, &journal_dir)
+                .unwrap();
+
+        let error = tool_work(
+            &json!({
+                "frontier_path": served.display().to_string(),
+                "action": "deposit",
+                "agent_actor": "agent:mcp-deposit-barrier",
+                "problem": 647,
+                "kind": "negative",
+                "claim": "transaction barrier probe",
+                "claimed_status": "failed",
+                "target_obligation_id": "erdos:647",
+                "method_families": ["barrier-probe"]
+            }),
+            Some(&served),
+        )
+        .unwrap_err();
+        assert!(
+            error.message.contains("write lock") || error.message.contains("busy"),
+            "unexpected MCP deposit refusal: {}",
+            error.message
+        );
+        let loaded = vela_protocol::repo::load_from_path(&served).unwrap();
+        assert_eq!(
+            vela_protocol::events::event_log_hash(&loaded.events),
+            before_root
+        );
+        assert!(loaded.attempts.is_empty());
     }
 
     #[test]

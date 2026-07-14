@@ -823,6 +823,32 @@ v0 remains proposal/event/finding centered.
 This list tracks protocol-surface additions across recent releases.
 Earlier releases are documented inline in the sections above.
 
+- **v0.760.0**: exact pre-hardening policy pairs are now observable only as
+  audit-only `legacy_unbound_closed` state and can never enter a verified or
+  Permit path. Malformed unsigned policies fail closed, while a recoverable,
+  exact-retry-safe replacement preserves the historical pair and stages a
+  fresh unsigned template for a later human ceremony. Rich campaign targets
+  can carry non-authorizing source and verifier coordination through `next`,
+  `orient`, and `work`; Vela overwrites their fixed base and authority ceiling
+  from trusted state before display, and rejects oversized campaign bytes or
+  tasks, unsafe target IDs, and duplicate resolved IDs before offer or lease. A
+  testing-only derived backpressure
+  projection stress-checks more than 16,000 mixed review facts. `vela doctor`
+  now performs its hub probe on the ambient async runtime and reports missing
+  adapter inputs as rows instead of panicking or aborting. Task-first lease and
+  attempt writes now share the recoverable frontier transaction: claims bind
+  the exact pre-lease event root, attempt deposits preserve concurrent accepted
+  events, and foundry deposits use only the literal `agent:vela-foundry`
+  identity rather than consulting a profile decision key. The unsafe public
+  edge `claim_task` and `deposit_attempt` direct-save entry points are deprecated
+  and hard-disabled in favor of those transactional workflows. Older
+  maintenance, metadata, and authority-administration commands remain
+  serialized operator operations; this release does not claim to make every
+  legacy writer concurrent. No reducer, event, receipt, decision, or authority
+  schema changed.
+  The release starts a new train because the public `NextTarget` and
+  `ActivePolicySnapshot` Rust structs gained required inspection fields and
+  the direct-save edge API no longer mutates a frontier.
 - **v0.759.3**: generated agent guidance defines the full Vela release contract
   as the deterministic protocol, frontier, internal Lean, and external Lean
   suites. Live-network and platform-pinned Diderot checks remain explicit

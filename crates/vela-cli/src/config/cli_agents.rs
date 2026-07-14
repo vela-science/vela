@@ -170,7 +170,7 @@ next -> work -> land -> sign
 
 - `vela next --json` — the offer: ranked open targets with the compounding
   payload pre-loaded (premises to build on, banked routes, prior attempts,
-  dead channels). Returns `{targets: [{lane, id, title, why, next_command}]}`.
+  dead channels). Returns `{targets: [{lane, id, title, why, next_command, task?}]}`.
   Trust the ranking; it already encodes what the frontier knows.
 - `vela work <target> --as agent:<you> --json` — claim the lease, load the
   briefing, and write one typed private `session.json` under `.vela/work/`.
@@ -293,22 +293,23 @@ fn skill_adapter() -> String {
     format!("{SKILL_FRONTMATTER}\n{SKILL_NOTE}\n{SKILL_BODY}")
 }
 
-/// Build the full set of adapters from `<root>/VELA.md`. Fails loudly if VELA.md
-/// is absent or missing the sections the adapters derive from.
-fn build_adapters(root: &Path) -> Vec<Adapter> {
+/// Build the full set of adapters from `<root>/VELA.md` without exiting the
+/// process. Read-only callers such as `vela doctor` use this fallible core so
+/// a missing charter becomes a diagnostic row rather than aborting the report.
+fn try_build_adapters(root: &Path) -> Result<Vec<Adapter>, String> {
     let vela_md_path = root.join("VELA.md");
-    let md = std::fs::read_to_string(&vela_md_path).unwrap_or_else(|_| {
-        fail_return(&format!(
+    let md = std::fs::read_to_string(&vela_md_path).map_err(|_| {
+        format!(
             "no VELA.md at {} — author the canonical agent charter first (it is the one source the adapters generate from; see the memo \u{00a7}5)",
             vela_md_path.display()
-        ))
-    });
-    let rules = extract_section(&md, "## Agent rules").unwrap_or_else(|| {
-        fail_return("VELA.md is missing a `## Agent rules` section (the adapters derive from it)")
-    });
-    let commands = extract_section(&md, "## Fast commands").unwrap_or_else(|| {
-        fail_return("VELA.md is missing a `## Fast commands` section (the adapters derive from it)")
-    });
+        )
+    })?;
+    let rules = extract_section(&md, "## Agent rules").ok_or_else(|| {
+        "VELA.md is missing a `## Agent rules` section (the adapters derive from it)".to_string()
+    })?;
+    let commands = extract_section(&md, "## Fast commands").ok_or_else(|| {
+        "VELA.md is missing a `## Fast commands` section (the adapters derive from it)".to_string()
+    })?;
 
     TARGETS
         .iter()
@@ -329,14 +330,20 @@ fn build_adapters(root: &Path) -> Vec<Adapter> {
                 // string, two paths — a test pins the parity.
                 ".claude/skills/vela-frontier/SKILL.md"
                 | ".agents/skills/vela-frontier/SKILL.md" => skill_adapter(),
-                other => fail_return(&format!("unknown adapter target {other}")),
+                other => return Err(format!("unknown adapter target {other}")),
             };
-            Adapter {
+            Ok(Adapter {
                 path: path.to_string(),
                 content,
-            }
+            })
         })
         .collect()
+}
+
+/// Command-facing wrapper: mutating adapter verbs retain their established
+/// fail-fast CLI behavior while doctor can use [`try_build_adapters`].
+fn build_adapters(root: &Path) -> Vec<Adapter> {
+    try_build_adapters(root).unwrap_or_else(|error| fail_return(&error))
 }
 
 pub(crate) fn cmd_agents_sync(root: &Path, json_output: bool) {
@@ -381,7 +388,11 @@ pub(crate) fn cmd_agents_sync(root: &Path, json_output: bool) {
 /// Doctor / diff share the comparison core: which adapters are missing, drifted,
 /// or in-sync against what `sync` would produce.
 pub(crate) fn compare(root: &Path) -> (Vec<String>, Vec<String>, Vec<String>) {
-    let adapters = build_adapters(root);
+    try_compare(root).unwrap_or_else(|error| fail_return(&error))
+}
+
+pub(crate) fn try_compare(root: &Path) -> Result<(Vec<String>, Vec<String>, Vec<String>), String> {
+    let adapters = try_build_adapters(root)?;
     let (mut missing, mut drifted, mut in_sync) = (Vec::new(), Vec::new(), Vec::new());
     for a in &adapters {
         match std::fs::read_to_string(root.join(&a.path)) {
@@ -390,7 +401,7 @@ pub(crate) fn compare(root: &Path) -> (Vec<String>, Vec<String>, Vec<String>) {
             Ok(_) => drifted.push(a.path.clone()),
         }
     }
-    (in_sync, drifted, missing)
+    Ok((in_sync, drifted, missing))
 }
 
 pub(crate) fn cmd_agents_doctor(root: &Path, json_output: bool) {

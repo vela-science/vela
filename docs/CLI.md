@@ -121,7 +121,14 @@ next -> work -> land -> sign
 
 - `vela next` — the offer: ranked open targets with the compounding
   payload pre-loaded (premises you may build on, banked routes, prior
-  attempts, dead channels). `--json` is the agent contract.
+  attempts, dead channels). A frontier may add a rich campaign target with
+  campaign-declared source and verifier coordinates. Those coordinates are
+  advisory coordination, not a source-integrity or verifier verdict. Vela
+  replaces any supplied fixed base and authority-shaped fields with the live
+  frontier root and the producer-only ceiling before it reaches `next`, MCP
+  `orient`, or `work`. Checked surfaces reject oversized campaign bytes or
+  tasks, unsafe target IDs, and duplicate resolved IDs before offering or
+  claiming work. `--json` is the agent contract.
 - `vela work <target> --as agent:<you> --json` — claim the lease, return the
   briefing and task contract, and write one typed private `session.json` under
   `.vela/work/`. Do not edit or stage that record. Release without landing via

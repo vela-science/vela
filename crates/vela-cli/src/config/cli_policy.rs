@@ -27,8 +27,9 @@ use chrono::Utc;
 use ed25519_dalek::Signer;
 use serde_json::json;
 use vela_protocol::acceptance_policy::{
-    AcceptancePolicy, Constraints, EVALUATOR_VERSION, Outcome, PolicyRule, PolicySignatureRecord,
-    Quorum, evaluate, load_active_policy,
+    AcceptancePolicy, ActivePolicyMode, ActivePolicySnapshot, Constraints, EVALUATOR_VERSION,
+    Outcome, PolicyRule, PolicySignatureRecord, Quorum, evaluate, load_active_policy,
+    load_active_policy_snapshot,
 };
 use vela_protocol::cli_style as style;
 use vela_protocol::project::Project;
@@ -366,19 +367,116 @@ fn seal_policy(
     rules: Vec<PolicyRule>,
     replace: bool,
 ) -> Result<(AcceptancePolicy, bool), CmdError> {
+    let issued_by = crate::cli_identity::load_identity()
+        .map(|identity| vec![identity.actor_id])
+        .unwrap_or_default();
+    seal_policy_with_issued_by(frontier, rules, replace, issued_by)
+}
+
+fn seal_policy_with_issued_by(
+    frontier: &Path,
+    rules: Vec<PolicyRule>,
+    replace: bool,
+    issued_by: Vec<String>,
+) -> Result<(AcceptancePolicy, bool), CmdError> {
+    let journal_dir = policy_transaction_journal_dir(frontier)?;
+    let barrier = acquire_policy_draft_barrier(frontier, &journal_dir)?;
+    let observed_snapshot = load_active_policy_snapshot(frontier)
+        .map_err(|error| CmdError::new(ErrorKind::Domain, error))?;
+    let request_fingerprint = policy_draft_request_fingerprint(&rules, replace, &issued_by)?;
+    if observed_snapshot.mode == ActivePolicyMode::StagedUnsigned {
+        let staged = read_sealed_active(frontier)?;
+        let operation_id = policy_draft_operation_id(&staged.id);
+        if let Some(plan) = barrier
+            .completed_plan(&operation_id)
+            .map_err(transaction_error)?
+            && plan
+                .result
+                .get("schema")
+                .and_then(serde_json::Value::as_str)
+                == Some(POLICY_DRAFT_RESULT_SCHEMA)
+            && plan
+                .result
+                .get("replacement_policy_id")
+                .and_then(serde_json::Value::as_str)
+                == Some(staged.id.as_str())
+            && plan
+                .result
+                .get("request_fingerprint")
+                .and_then(serde_json::Value::as_str)
+                == Some(request_fingerprint.as_str())
+            && let Some(replaced_signed) = plan
+                .result
+                .get("replaced_signed")
+                .and_then(serde_json::Value::as_bool)
+        {
+            return Ok((staged, replaced_signed));
+        }
+    }
+    if replace && observed_snapshot.mode == ActivePolicyMode::StagedUnsigned {
+        let staged = read_sealed_active(frontier)?;
+        if staged.rules == rules {
+            let operation_id = legacy_rotation_operation_id(&staged.id);
+            if let Some(plan) = barrier
+                .completed_plan(&operation_id)
+                .map_err(transaction_error)?
+                && plan
+                    .result
+                    .get("schema")
+                    .and_then(serde_json::Value::as_str)
+                    == Some(LEGACY_POLICY_ROTATION_RESULT_SCHEMA)
+                && plan
+                    .result
+                    .get("replacement_policy_id")
+                    .and_then(serde_json::Value::as_str)
+                    == Some(staged.id.as_str())
+                && plan
+                    .result
+                    .get("request_fingerprint")
+                    .and_then(serde_json::Value::as_str)
+                    == Some(request_fingerprint.as_str())
+            {
+                return Ok((staged, true));
+            }
+        }
+    }
+    if observed_snapshot.mode == ActivePolicyMode::LegacyUnboundClosed {
+        let legacy = observed_snapshot
+            .legacy_unbound
+            .as_ref()
+            .expect("legacy mode carries its audit observation");
+        if !replace {
+            return Err(CmdError::hinted(
+                ErrorKind::Exists,
+                format!(
+                    "legacy-unbound policy {} is audit history only; refusing to overwrite its exact pair",
+                    legacy.stored_policy_id
+                ),
+                legacy_rotation_command(frontier, &legacy.policy),
+            ));
+        }
+        return replace_legacy_unbound_policy_transactional(
+            frontier,
+            barrier,
+            observed_snapshot,
+            rules,
+            issued_by,
+            request_fingerprint,
+        );
+    }
+
     let project =
         repo::load_from_path(frontier).map_err(|e| CmdError::new(ErrorKind::Domain, e))?;
 
-    let dir = policies_dir(frontier);
-    let active = active_path(frontier);
-    let sig = active_sig_path(frontier);
-    let prior: Option<AcceptancePolicy> = std::fs::read_to_string(&active)
-        .ok()
-        .and_then(|raw| serde_json::from_str(&raw).ok());
+    let prior = if observed_snapshot.policy_bytes.is_some() {
+        Some(read_sealed_active(frontier)?)
+    } else {
+        None
+    };
     let prior_epoch = prior.as_ref().map(|p| p.epoch).unwrap_or(0);
 
-    let mut replaced_signed = false;
-    if sig.exists() {
+    let replaced_signed = observed_snapshot.mode == ActivePolicyMode::Active;
+    if replaced_signed {
         let prior_id = prior
             .as_ref()
             .map(|p| p.id.clone())
@@ -393,33 +491,6 @@ fn seal_policy(
                 "pass --replace to rotate it (the lane closes until the new draft is signed)",
             ));
         }
-        // Snapshot the outgoing signed pair under its content address so the
-        // events it admitted stay verifiable forever, then drop the pointer's
-        // authority.
-        if let Some(old) = &prior {
-            let snap = dir.join(format!("{}.json", old.id));
-            let snap_sig = dir.join(format!("{}.sig.json", old.id));
-            if !snap.exists() {
-                std::fs::copy(&active, &snap).map_err(|e| {
-                    CmdError::new(
-                        ErrorKind::Domain,
-                        format!("snapshot {}: {e}", snap.display()),
-                    )
-                })?;
-            }
-            if !snap_sig.exists() {
-                std::fs::copy(&sig, &snap_sig).map_err(|e| {
-                    CmdError::new(
-                        ErrorKind::Domain,
-                        format!("snapshot {}: {e}", snap_sig.display()),
-                    )
-                })?;
-            }
-        }
-        std::fs::remove_file(&sig).map_err(|e| {
-            CmdError::new(ErrorKind::Domain, format!("remove {}: {e}", sig.display()))
-        })?;
-        replaced_signed = true;
     }
 
     // A rotation carries the standing grants forward: the new epoch is
@@ -456,10 +527,10 @@ fn seal_policy(
         schema: "vela.acceptance_policy.v0.1".to_string(),
         id: String::new(),
         frontier_id: project.frontier_id.clone().unwrap_or_default(),
-        epoch: prior_epoch + 1,
-        issued_by: crate::cli_identity::load_identity()
-            .map(|i| vec![i.actor_id])
-            .unwrap_or_default(),
+        epoch: prior_epoch
+            .checked_add(1)
+            .ok_or_else(|| transaction_error("policy epoch overflow"))?,
+        issued_by,
         quorum,
         rules,
         default: Outcome::Defer,
@@ -474,17 +545,459 @@ fn seal_policy(
         ));
     }
 
-    std::fs::create_dir_all(&dir)
-        .map_err(|e| CmdError::new(ErrorKind::Domain, format!("create {}: {e}", dir.display())))?;
-    let body = serde_json::to_string_pretty(&policy)
-        .map_err(|e| CmdError::new(ErrorKind::Domain, format!("serialize policy: {e}")))?;
-    std::fs::write(&active, format!("{body}\n")).map_err(|e| {
-        CmdError::new(
-            ErrorKind::Domain,
-            format!("write {}: {e}", active.display()),
-        )
-    })?;
+    install_policy_draft_transactional(
+        frontier,
+        barrier,
+        &project,
+        &observed_snapshot,
+        &policy,
+        &request_fingerprint,
+        replaced_signed,
+    )?;
     Ok((policy, replaced_signed))
+}
+
+/// Install an ordinary policy draft as an event-neutral frontier transaction.
+/// Policy pointers are part of completed-history verification: changing them
+/// with direct file I/O would make a prior signing or legacy-rotation journal
+/// look corrupt at the next recovery barrier. Recording the exact preimage ->
+/// postimage edge keeps those completed journals auditable and supersedable.
+fn install_policy_draft_transactional(
+    frontier: &Path,
+    barrier: crate::frontier_txn::FrontierRecoveryBarrier,
+    project: &Project,
+    observed: &ActivePolicySnapshot,
+    replacement: &AcceptancePolicy,
+    request_fingerprint: &crate::frontier_txn::ContentDigest,
+    replaced_signed: bool,
+) -> Result<(), CmdError> {
+    use crate::frontier_txn::{
+        ContentDigest, DeltaDraft, FrontierBinding, FrontierTxn, FrontierTxnPlan,
+        FrontierTxnPlanSpec, InputBinding, OperationKind, PlannedWrite, RepoPath, WriteClass,
+    };
+
+    let mut replacement_bytes =
+        serde_json::to_vec_pretty(replacement).map_err(transaction_error)?;
+    replacement_bytes.push(b'\n');
+
+    let mut writes = Vec::new();
+    if replaced_signed {
+        let prior = observed
+            .verified
+            .as_ref()
+            .ok_or_else(|| transaction_error("active snapshot has no verified policy"))?;
+        let policy_bytes = observed
+            .policy_bytes
+            .as_deref()
+            .ok_or_else(|| transaction_error("active snapshot has no policy bytes"))?;
+        let signature_bytes = observed
+            .signature_bytes
+            .as_deref()
+            .ok_or_else(|| transaction_error("active snapshot has no signature bytes"))?;
+        let policy_path = format!(".vela/policies/{}.json", prior.policy.id);
+        let signature_path = format!(".vela/policies/{}.sig.json", prior.policy.id);
+        require_exact_or_absent(frontier, &policy_path, policy_bytes)?;
+        require_exact_or_absent(frontier, &signature_path, signature_bytes)?;
+        writes.push(PlannedWrite::write(
+            RepoPath::parse(policy_path).map_err(transaction_error)?,
+            WriteClass::CanonicalEvidence,
+            policy_bytes.to_vec(),
+        ));
+        writes.push(PlannedWrite::write(
+            RepoPath::parse(signature_path).map_err(transaction_error)?,
+            WriteClass::Authority,
+            signature_bytes.to_vec(),
+        ));
+    }
+    writes.push(PlannedWrite::write(
+        RepoPath::parse(".vela/policies/active.json").map_err(transaction_error)?,
+        WriteClass::CanonicalEvidence,
+        replacement_bytes,
+    ));
+    if observed.signature_bytes.is_some() {
+        writes.push(PlannedWrite::delete(
+            RepoPath::parse(".vela/policies/active.sig.json").map_err(transaction_error)?,
+            WriteClass::Authority,
+        ));
+    }
+
+    let draft = DeltaDraft::prepare(frontier, writes).map_err(transaction_error)?;
+    let layout = vela_protocol::canonical::to_canonical_bytes(&json!({
+        "schema": "vela.frontier-layout.internal.v1",
+        "frontier_id": project.frontier_id(),
+        "paths": draft
+            .delta
+            .writes()
+            .iter()
+            .map(|write| write.path.as_str())
+            .collect::<Vec<_>>(),
+    }))
+    .map_err(transaction_error)?;
+    let policy_preimage = observed.policy_bytes.as_deref().map(ContentDigest::hash);
+    let signature_preimage = observed.signature_bytes.as_deref().map(ContentDigest::hash);
+    let intent = vela_protocol::canonical::to_canonical_bytes(&json!({
+        "schema": "vela.policy-draft-intent.internal.v1",
+        "frontier_id": project.frontier_id(),
+        "replacement_policy_id": replacement.id,
+        "request_fingerprint": request_fingerprint,
+        "policy_preimage": policy_preimage,
+        "signature_preimage": signature_preimage,
+    }))
+    .map_err(transaction_error)?;
+    let request_root = ContentDigest::hash(intent);
+    let operation_id = policy_draft_operation_id(&replacement.id);
+    let event_log_root = ContentDigest::parse(format!(
+        "sha256:{}",
+        vela_protocol::events::event_log_hash(&project.events)
+    ))
+    .map_err(transaction_error)?;
+    let mut resulting_event_ids = project
+        .events
+        .iter()
+        .map(|event| event.id.clone())
+        .collect::<Vec<_>>();
+    resulting_event_ids.sort();
+    let read_set = vec![
+        InputBinding::project_snapshot(project).map_err(transaction_error)?,
+        InputBinding::file_snapshot(
+            RepoPath::parse(".vela/policies/active.json").map_err(transaction_error)?,
+            observed.policy_bytes.as_deref(),
+        )
+        .map_err(transaction_error)?,
+        InputBinding::file_snapshot(
+            RepoPath::parse(".vela/policies/active.sig.json").map_err(transaction_error)?,
+            observed.signature_bytes.as_deref(),
+        )
+        .map_err(transaction_error)?,
+    ];
+    barrier
+        .verify_read_set(&read_set)
+        .map_err(transaction_error)?;
+    let plan = FrontierTxnPlan::new(
+        FrontierTxnPlanSpec {
+            kind: OperationKind::Maintenance,
+            operation_id,
+            request_root,
+            frontier: FrontierBinding::new(frontier, project.frontier_id(), &layout)
+                .map_err(transaction_error)?,
+            fixed_time: Utc::now().to_rfc3339(),
+            expected_event_log_root: event_log_root.clone(),
+            resulting_event_log_root: event_log_root,
+            resulting_event_ids,
+            read_set,
+            result: json!({
+                "schema": POLICY_DRAFT_RESULT_SCHEMA,
+                "state": "staged_unsigned",
+                "replacement_policy_id": replacement.id,
+                "request_fingerprint": request_fingerprint,
+                "replaced_signed": replaced_signed,
+            }),
+        },
+        draft.delta.clone(),
+    )
+    .map_err(transaction_error)?;
+    let mut transaction =
+        FrontierTxn::prepare_with_barrier(barrier, plan, draft).map_err(transaction_error)?;
+    transaction.mark_committed().map_err(transaction_error)?;
+    install_policy_draft(&mut transaction).map_err(transaction_error)?;
+    transaction.complete().map_err(transaction_error)?;
+
+    let installed = load_active_policy_snapshot(frontier).map_err(transaction_error)?;
+    if installed.mode != ActivePolicyMode::StagedUnsigned || active_sig_path(frontier).exists() {
+        return Err(transaction_error(
+            "completed policy draft did not leave one unsigned active draft",
+        ));
+    }
+    if read_sealed_active(frontier)? != *replacement {
+        return Err(transaction_error(
+            "completed policy draft installed a different replacement policy",
+        ));
+    }
+    Ok(())
+}
+
+const POLICY_DRAFT_RESULT_SCHEMA: &str = "vela.policy-draft-result.internal.v1";
+
+fn policy_draft_operation_id(replacement_policy_id: &str) -> crate::frontier_txn::OperationId {
+    crate::frontier_txn::OperationId::derive("policy-draft", replacement_policy_id.as_bytes())
+}
+
+fn policy_draft_request_fingerprint(
+    rules: &[PolicyRule],
+    replace: bool,
+    issued_by: &[String],
+) -> Result<crate::frontier_txn::ContentDigest, CmdError> {
+    let intent = vela_protocol::canonical::to_canonical_bytes(&json!({
+        "schema": "vela.policy-draft-request.internal.v1",
+        "rules": rules,
+        "replace": replace,
+        "issued_by": issued_by,
+    }))
+    .map_err(transaction_error)?;
+    Ok(crate::frontier_txn::ContentDigest::hash(intent))
+}
+
+#[cfg(test)]
+std::thread_local! {
+    static POLICY_DRAFT_INSTALL_FAILPOINT:
+        std::cell::Cell<Option<crate::frontier_txn::FrontierTxnStep>> = const {
+            std::cell::Cell::new(None)
+        };
+}
+
+#[cfg(test)]
+fn set_policy_draft_install_failpoint(step: Option<crate::frontier_txn::FrontierTxnStep>) {
+    POLICY_DRAFT_INSTALL_FAILPOINT.with(|failpoint| failpoint.set(step));
+}
+
+fn install_policy_draft(
+    transaction: &mut crate::frontier_txn::FrontierTxn,
+) -> Result<(), crate::frontier_txn::FrontierTxnError> {
+    #[cfg(test)]
+    if let Some(step) = POLICY_DRAFT_INSTALL_FAILPOINT.with(std::cell::Cell::take) {
+        return transaction.install_at_failpoint(step);
+    }
+    transaction.install()
+}
+
+/// Rotate the frozen pre-hardening active pair without ever promoting it to
+/// authority. The exact old bytes become audit snapshots, the mutable
+/// signature pointer is deleted, and a fresh canonical unsigned policy is
+/// built solely from the rules the operator selected. One frontier transaction
+/// makes the four path changes recoverable after a crash.
+fn replace_legacy_unbound_policy_transactional(
+    frontier: &Path,
+    barrier: crate::frontier_txn::FrontierRecoveryBarrier,
+    snapshot: ActivePolicySnapshot,
+    rules: Vec<PolicyRule>,
+    issued_by: Vec<String>,
+    request_fingerprint: crate::frontier_txn::ContentDigest,
+) -> Result<(AcceptancePolicy, bool), CmdError> {
+    use crate::frontier_txn::{
+        ContentDigest, DeltaDraft, FrontierBinding, FrontierTxn, FrontierTxnPlan,
+        FrontierTxnPlanSpec, InputBinding, OperationKind, PlannedWrite, RepoPath, WriteClass,
+    };
+
+    if snapshot.mode != ActivePolicyMode::LegacyUnboundClosed {
+        return Err(transaction_error(
+            "legacy active-policy pair changed before the rotation barrier",
+        ));
+    }
+    let legacy = snapshot
+        .legacy_unbound
+        .as_ref()
+        .expect("legacy mode carries its audit observation");
+    let old_policy_bytes = snapshot
+        .policy_bytes
+        .as_deref()
+        .expect("legacy mode carries policy bytes");
+    let old_signature_bytes = snapshot
+        .signature_bytes
+        .as_deref()
+        .expect("legacy mode carries signature bytes");
+    let project = repo::load_from_path(frontier).map_err(transaction_error)?;
+
+    let mut replacement = AcceptancePolicy {
+        schema: "vela.acceptance_policy.v0.1".to_string(),
+        id: String::new(),
+        frontier_id: project.frontier_id.clone().unwrap_or_default(),
+        epoch: legacy
+            .policy
+            .epoch
+            .checked_add(1)
+            .ok_or_else(|| transaction_error("legacy policy epoch overflow"))?,
+        issued_by,
+        quorum: Quorum {
+            threshold: 1,
+            eligible_roles: vec!["reviewer".to_string()],
+        },
+        rules,
+        default: Outcome::Defer,
+        expires_at: CAUSALLY_UNBOUNDED_POLICY_EXPIRY.to_string(),
+        revocation_ref: None,
+    };
+    replacement.id = replacement.content_address();
+    if !replacement.id_is_valid() {
+        return Err(transaction_error(
+            "fresh replacement policy id failed to rederive",
+        ));
+    }
+    let mut replacement_bytes = serde_json::to_vec_pretty(&replacement)
+        .map_err(|error| transaction_error(format!("serialize replacement policy: {error}")))?;
+    replacement_bytes.push(b'\n');
+
+    let old_policy_path = format!(".vela/policies/{}.json", legacy.stored_policy_id);
+    let old_signature_path = format!(".vela/policies/{}.sig.json", legacy.stored_policy_id);
+    require_exact_or_absent(frontier, &old_policy_path, old_policy_bytes)?;
+    require_exact_or_absent(frontier, &old_signature_path, old_signature_bytes)?;
+
+    let writes = vec![
+        PlannedWrite::write(
+            RepoPath::parse(old_policy_path.as_str()).map_err(transaction_error)?,
+            WriteClass::CanonicalEvidence,
+            old_policy_bytes.to_vec(),
+        ),
+        PlannedWrite::write(
+            RepoPath::parse(old_signature_path.as_str()).map_err(transaction_error)?,
+            // This historical signature is audit evidence, never authority.
+            WriteClass::CanonicalEvidence,
+            old_signature_bytes.to_vec(),
+        ),
+        PlannedWrite::write(
+            RepoPath::parse(".vela/policies/active.json").map_err(transaction_error)?,
+            WriteClass::CanonicalEvidence,
+            replacement_bytes,
+        ),
+        PlannedWrite::delete(
+            RepoPath::parse(".vela/policies/active.sig.json").map_err(transaction_error)?,
+            WriteClass::Authority,
+        ),
+    ];
+    let draft = DeltaDraft::prepare(frontier, writes).map_err(transaction_error)?;
+    let layout = vela_protocol::canonical::to_canonical_bytes(&json!({
+        "schema": "vela.frontier-layout.internal.v1",
+        "frontier_id": project.frontier_id(),
+        "paths": draft
+            .delta
+            .writes()
+            .iter()
+            .map(|write| write.path.as_str())
+            .collect::<Vec<_>>(),
+    }))
+    .map_err(transaction_error)?;
+    let intent = vela_protocol::canonical::to_canonical_bytes(&json!({
+        "schema": "vela.legacy-policy-rotation-intent.internal.v1",
+        "frontier_id": project.frontier_id(),
+        "stored_policy_id": legacy.stored_policy_id,
+        "hardened_policy_id": legacy.hardened_policy_id,
+        "replacement_policy_id": replacement.id,
+    }))
+    .map_err(transaction_error)?;
+    let request_root = ContentDigest::hash(intent);
+    let operation_id = legacy_rotation_operation_id(&replacement.id);
+    let event_log_root = ContentDigest::parse(format!(
+        "sha256:{}",
+        vela_protocol::events::event_log_hash(&project.events)
+    ))
+    .map_err(transaction_error)?;
+    let mut resulting_event_ids = project
+        .events
+        .iter()
+        .map(|event| event.id.clone())
+        .collect::<Vec<_>>();
+    resulting_event_ids.sort();
+    let read_set = vec![
+        InputBinding::project_snapshot(&project).map_err(transaction_error)?,
+        InputBinding::file_snapshot(
+            RepoPath::parse(".vela/policies/active.json").map_err(transaction_error)?,
+            Some(old_policy_bytes),
+        )
+        .map_err(transaction_error)?,
+        InputBinding::file_snapshot(
+            RepoPath::parse(".vela/policies/active.sig.json").map_err(transaction_error)?,
+            Some(old_signature_bytes),
+        )
+        .map_err(transaction_error)?,
+    ];
+    barrier
+        .verify_read_set(&read_set)
+        .map_err(transaction_error)?;
+    let plan = FrontierTxnPlan::new(
+        FrontierTxnPlanSpec {
+            kind: OperationKind::Maintenance,
+            operation_id,
+            request_root,
+            frontier: FrontierBinding::new(frontier, project.frontier_id(), &layout)
+                .map_err(transaction_error)?,
+            fixed_time: Utc::now().to_rfc3339(),
+            expected_event_log_root: event_log_root.clone(),
+            resulting_event_log_root: event_log_root,
+            resulting_event_ids,
+            read_set,
+            result: json!({
+                "schema": LEGACY_POLICY_ROTATION_RESULT_SCHEMA,
+                "state": "staged_unsigned",
+                "legacy_policy_id": legacy.stored_policy_id,
+                "replacement_policy_id": replacement.id,
+                "request_fingerprint": request_fingerprint,
+            }),
+        },
+        draft.delta.clone(),
+    )
+    .map_err(transaction_error)?;
+    let mut transaction =
+        FrontierTxn::prepare_with_barrier(barrier, plan, draft).map_err(transaction_error)?;
+    transaction.mark_committed().map_err(transaction_error)?;
+    install_legacy_policy_rotation(&mut transaction).map_err(transaction_error)?;
+    transaction.complete().map_err(transaction_error)?;
+
+    let installed = load_active_policy_snapshot(frontier).map_err(transaction_error)?;
+    if installed.mode != ActivePolicyMode::StagedUnsigned || active_sig_path(frontier).exists() {
+        return Err(transaction_error(
+            "completed legacy rotation did not leave one unsigned active draft",
+        ));
+    }
+    let installed_policy = read_sealed_active(frontier)?;
+    if installed_policy != replacement {
+        return Err(transaction_error(
+            "completed legacy rotation installed a different replacement policy",
+        ));
+    }
+    Ok((replacement, true))
+}
+
+#[cfg(test)]
+std::thread_local! {
+    static LEGACY_POLICY_ROTATION_INSTALL_FAILPOINT:
+        std::cell::Cell<Option<crate::frontier_txn::FrontierTxnStep>> = const {
+            std::cell::Cell::new(None)
+        };
+}
+
+#[cfg(test)]
+fn set_legacy_policy_rotation_install_failpoint(
+    step: Option<crate::frontier_txn::FrontierTxnStep>,
+) {
+    LEGACY_POLICY_ROTATION_INSTALL_FAILPOINT.with(|failpoint| failpoint.set(step));
+}
+
+fn install_legacy_policy_rotation(
+    transaction: &mut crate::frontier_txn::FrontierTxn,
+) -> Result<(), crate::frontier_txn::FrontierTxnError> {
+    #[cfg(test)]
+    if let Some(step) = LEGACY_POLICY_ROTATION_INSTALL_FAILPOINT.with(std::cell::Cell::take) {
+        return transaction.install_at_failpoint(step);
+    }
+    transaction.install()
+}
+
+const LEGACY_POLICY_ROTATION_RESULT_SCHEMA: &str = "vela.legacy-policy-rotation-result.internal.v1";
+
+fn legacy_rotation_operation_id(replacement_policy_id: &str) -> crate::frontier_txn::OperationId {
+    crate::frontier_txn::OperationId::derive(
+        "legacy-policy-rotation",
+        replacement_policy_id.as_bytes(),
+    )
+}
+
+fn require_exact_or_absent(
+    frontier: &Path,
+    relative: &str,
+    expected: &[u8],
+) -> Result<(), CmdError> {
+    let path = frontier.join(relative);
+    match std::fs::read(&path) {
+        Ok(existing) if existing == expected => Ok(()),
+        Ok(_) => Err(transaction_error(format!(
+            "audit snapshot {} already exists with different bytes",
+            path.display()
+        ))),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(error) => Err(transaction_error(format!(
+            "read audit snapshot {}: {error}",
+            path.display()
+        ))),
+    }
 }
 
 /// The signing core: Ed25519 over a domain-separated canonical envelope that
@@ -701,6 +1214,43 @@ fn transaction_error(error: impl std::fmt::Display) -> CmdError {
         ErrorKind::Domain,
         format!("policy-head transaction failed: {error}"),
     )
+}
+
+/// Reach one stable frontier barrier before inspecting or writing policy
+/// pointers. A committed operation is deterministic and therefore safe to
+/// finish; a marker-free prepared plan is aborted and replanned from current
+/// bytes. No policy draft may route around either state with direct file I/O.
+fn acquire_policy_draft_barrier(
+    frontier: &Path,
+    journal_dir: &Path,
+) -> Result<crate::frontier_txn::FrontierRecoveryBarrier, CmdError> {
+    use crate::frontier_txn::{FrontierTxn, FrontierTxnError, OperationId, RecoveryOutcome};
+
+    for _ in 0..3 {
+        match FrontierTxn::acquire_recovery_barrier(frontier, journal_dir) {
+            Ok(barrier) => return Ok(barrier),
+            Err(FrontierTxnError::RecoveryRequired { operation_id, .. }) => {
+                let operation_id = OperationId::parse(operation_id).map_err(transaction_error)?;
+                match FrontierTxn::recover(frontier, journal_dir, &operation_id)
+                    .map_err(transaction_error)?
+                {
+                    RecoveryOutcome::Prepared => {
+                        let mut transaction =
+                            FrontierTxn::open(frontier, journal_dir, &operation_id)
+                                .map_err(transaction_error)?;
+                        transaction.abort_prepared().map_err(transaction_error)?;
+                    }
+                    RecoveryOutcome::Aborted
+                    | RecoveryOutcome::Completed
+                    | RecoveryOutcome::AlreadyCompleted => {}
+                }
+            }
+            Err(error) => return Err(transaction_error(error)),
+        }
+    }
+    Err(transaction_error(
+        "frontier recovery did not reach a stable policy-draft barrier",
+    ))
 }
 
 fn policy_ceremony_identity(
@@ -1514,6 +2064,30 @@ fn policy_has_causal_auto_permit(policy: &AcceptancePolicy) -> bool {
     policy.expires_at == CAUSALLY_UNBOUNDED_POLICY_EXPIRY
 }
 
+fn matching_template(policy: &AcceptancePolicy) -> Option<&'static str> {
+    [
+        "witness-rederivation",
+        "lean-rederivation",
+        "statement-drafts",
+        "search-witness",
+        "notes-threshold",
+    ]
+    .into_iter()
+    .find(|template| {
+        template_policy(template)
+            .map(|(rules, _)| rules == policy.rules)
+            .unwrap_or(false)
+    })
+}
+
+pub(crate) fn legacy_rotation_command(frontier: &Path, policy: &AcceptancePolicy) -> String {
+    let template = matching_template(policy).unwrap_or("<template>");
+    format!(
+        "vela policy draft {template} {} --replace",
+        frontier.display()
+    )
+}
+
 // ── Rendering ──────────────────────────────────────────────────────────
 
 fn constraints_summary(c: &Constraints) -> String {
@@ -1629,23 +2203,19 @@ pub(crate) fn cmd_policy_show(frontier: &Path, json: bool) {
         return;
     }
 
-    let policy = read_sealed_active(frontier).unwrap_or_else(|e| e.fail());
-    let sig_present = active_sig_path(frontier).exists();
-    let signed = if sig_present {
-        // A present-but-broken governance pair must never render as healthy.
-        match load_active_policy(frontier) {
-            Ok(v) => v,
-            Err(e) => fail_with(
-                ErrorKind::Domain,
-                &format!("active policy pair is broken: {e}"),
-                Some(
-                    "revoke and re-draft: `vela policy revoke --reason <why>`, then `vela policy draft`",
-                ),
-            ),
-        }
-    } else {
-        None
-    };
+    let snapshot = load_active_policy_snapshot(frontier).unwrap_or_else(|e| {
+        fail_with(
+            ErrorKind::Domain,
+            &format!("active policy pair is broken: {e}"),
+            Some("inspect the exact active policy bytes; invalid governance never fails open"),
+        )
+    });
+    let legacy = snapshot.legacy_unbound.as_ref();
+    let policy = legacy
+        .map(|observation| observation.policy.clone())
+        .unwrap_or_else(|| read_sealed_active(frontier).unwrap_or_else(|e| e.fail()));
+    let sig_present = snapshot.signature_bytes.is_some();
+    let signed = snapshot.verified.clone();
     let record: Option<PolicySignatureRecord> = if sig_present {
         std::fs::read_to_string(active_sig_path(frontier))
             .ok()
@@ -1668,7 +2238,9 @@ pub(crate) fn cmd_policy_show(frontier: &Path, json: bool) {
         .collect();
     let last: Vec<&Admission> = mine.iter().rev().take(5).rev().copied().collect();
 
-    let state = if signed.is_some() {
+    let state = if legacy.is_some() {
+        "legacy_unbound_closed"
+    } else if signed.is_some() {
         "signed"
     } else if revoked {
         "revoked"
@@ -1682,11 +2254,18 @@ pub(crate) fn cmd_policy_show(frontier: &Path, json: bool) {
             "command": "policy.show",
             "state": state,
             "expired": expired,
-            "auto_permit_enabled": policy_has_causal_auto_permit(&policy),
+            "auto_permit_enabled": legacy.is_none() && policy_has_causal_auto_permit(&policy),
             "policy": serde_json::to_value(&policy).unwrap_or_default(),
             "signature": record.as_ref().map(|r| json!({
                 "signer_pubkey_hex": r.signer_pubkey_hex,
                 "signed_at": r.signed_at,
+                "signed_at_bound": legacy.is_none(),
+            })),
+            "legacy_rotation": legacy.map(|observation| json!({
+                "stored_policy_id": observation.stored_policy_id,
+                "hardened_policy_id": observation.hardened_policy_id,
+                "authority": false,
+                "next": legacy_rotation_command(frontier, &observation.policy),
             })),
             "admissions": {
                 "count": mine.len(),
@@ -1704,34 +2283,46 @@ pub(crate) fn cmd_policy_show(frontier: &Path, json: bool) {
     ui::header("POLICY", &frontier.display().to_string(), None);
     render_policy(&policy);
     println!();
-    match (&signed, revoked) {
-        (Some(v), _) => {
-            let signed_at = record.as_ref().map(|r| r.signed_at.as_str()).unwrap_or("");
-            if policy_has_causal_auto_permit(&policy) {
+    if let Some(observation) = legacy {
+        let next = legacy_rotation_command(frontier, &observation.policy);
+        println!(
+            "  {} LEGACY-UNBOUND — audit history only; the lane is CLOSED",
+            style::warn("state")
+        );
+        println!("  stored    {}", observation.stored_policy_id);
+        println!("  hardened  {}", observation.hardened_policy_id);
+        println!("  signed_at is not signature-bound and carries no authority");
+        println!("  replace: `{next}`");
+    } else {
+        match (&signed, revoked) {
+            (Some(v), _) => {
+                let signed_at = record.as_ref().map(|r| r.signed_at.as_str()).unwrap_or("");
+                if policy_has_causal_auto_permit(&policy) {
+                    println!(
+                        "  {} signed by {}… at {signed_at} — the lane is open",
+                        style::ok("state"),
+                        &v.signer_pubkey_hex[..16.min(v.signer_pubkey_hex.len())]
+                    );
+                } else {
+                    println!(
+                        "  {} signed by {}… at {signed_at} — Permit stays human-routed",
+                        style::ok("state"),
+                        &v.signer_pubkey_hex[..16.min(v.signer_pubkey_hex.len())]
+                    );
+                }
+            }
+            (None, true) => {
                 println!(
-                    "  {} signed by {}… at {signed_at} — the lane is open",
-                    style::ok("state"),
-                    &v.signer_pubkey_hex[..16.min(v.signer_pubkey_hex.len())]
-                );
-            } else {
-                println!(
-                    "  {} signed by {}… at {signed_at} — Permit stays human-routed",
-                    style::ok("state"),
-                    &v.signer_pubkey_hex[..16.min(v.signer_pubkey_hex.len())]
+                    "  {} REVOKED — the lane is closed; this policy is never re-signed",
+                    style::lost("state")
                 );
             }
-        }
-        (None, true) => {
-            println!(
-                "  {} REVOKED — the lane is closed; this policy is never re-signed",
-                style::lost("state")
-            );
-        }
-        (None, false) => {
-            println!(
-                "  {} SEALED-UNSIGNED — carries no authority; sign with `vela policy sign`",
-                style::warn("state")
-            );
+            (None, false) => {
+                println!(
+                    "  {} SEALED-UNSIGNED — carries no authority; sign with `vela policy sign`",
+                    style::warn("state")
+                );
+            }
         }
     }
     if expired {
@@ -2780,6 +3371,7 @@ pub(crate) fn run(args: &[String]) {
 mod tests {
     use super::*;
     use ed25519_dalek::SigningKey;
+    use sha2::{Digest, Sha256};
     use tempfile::TempDir;
     use vela_protocol::events::StateTarget;
     use vela_protocol::proposals::new_proposal;
@@ -2827,6 +3419,54 @@ mod tests {
         SigningKey::from_bytes(&[7u8; 32])
     }
 
+    fn install_legacy_unbound_policy(
+        dir: &Path,
+        template: &str,
+    ) -> (AcceptancePolicy, Vec<u8>, Vec<u8>) {
+        let (rules, _) = template_policy(template).unwrap();
+        let project = repo::load_from_path(dir).unwrap();
+        let mut policy = AcceptancePolicy {
+            schema: "vela.acceptance_policy.v0.1".to_string(),
+            id: String::new(),
+            frontier_id: project.frontier_id().to_string(),
+            epoch: 2,
+            issued_by: vec!["reviewer:legacy".to_string()],
+            quorum: Quorum {
+                threshold: 1,
+                eligible_roles: vec!["steward".to_string()],
+            },
+            rules,
+            default: Outcome::Defer,
+            expires_at: "2026-10-09T04:48:14.068136+00:00".to_string(),
+            revocation_ref: None,
+        };
+        let legacy_id = {
+            let mut body = policy.clone();
+            body.id.clear();
+            format!(
+                "vap_{}",
+                &hex::encode(Sha256::digest(serde_json::to_vec(&body).unwrap()))[..32]
+            )
+        };
+        policy.id = legacy_id;
+        let key = throwaway_key();
+        let signature = key.sign(&vela_protocol::canonical::to_canonical_bytes(&policy).unwrap());
+        let record = PolicySignatureRecord {
+            policy_id: policy.id.clone(),
+            signer_pubkey_hex: hex::encode(key.verifying_key().to_bytes()),
+            signature: hex::encode(signature.to_bytes()),
+            signed_at: AT.to_string(),
+        };
+        let mut policy_bytes = serde_json::to_vec_pretty(&policy).unwrap();
+        policy_bytes.push(b'\n');
+        let mut signature_bytes = serde_json::to_vec_pretty(&record).unwrap();
+        signature_bytes.push(b'\n');
+        std::fs::create_dir_all(policies_dir(dir)).unwrap();
+        std::fs::write(active_path(dir), &policy_bytes).unwrap();
+        std::fs::write(active_sig_path(dir), &signature_bytes).unwrap();
+        (policy, policy_bytes, signature_bytes)
+    }
+
     fn register_transaction_reviewer(dir: &Path) {
         let key = throwaway_key();
         let mut project = repo::load_from_path(dir).unwrap();
@@ -2842,6 +3482,19 @@ mod tests {
             revoked_reason: None,
         });
         repo::save_to_path(dir, &project).unwrap();
+    }
+
+    fn transactionally_sign_policy(dir: &Path, policy_id: &str, signed_at: &str) -> PolicyHead {
+        sign_active_policy_transactional(
+            dir,
+            "reviewer:test",
+            policy_id,
+            &[],
+            || signed_at.to_string(),
+            throwaway_key,
+        )
+        .unwrap()
+        .2
     }
 
     const AT: &str = "2026-07-03T00:00:00Z";
@@ -2924,6 +3577,195 @@ mod tests {
             policies_dir(&dir)
                 .join(format!("{}.sig.json", old.id))
                 .exists()
+        );
+    }
+
+    #[test]
+    fn legacy_replace_is_transactional_audit_preserving_and_template_fresh() {
+        let tmp = TempDir::new().unwrap();
+        let dir = init_frontier(&tmp);
+        let (legacy, old_policy_bytes, old_signature_bytes) =
+            install_legacy_unbound_policy(&dir, "lean-rederivation");
+        let observed = load_active_policy_snapshot(&dir).unwrap();
+        assert_eq!(observed.mode, ActivePolicyMode::LegacyUnboundClosed);
+
+        let (replacement, replaced) = draft_policy(&dir, "notes-threshold", true).unwrap();
+        assert!(replaced);
+        assert_eq!(replacement.epoch, legacy.epoch + 1);
+        assert_eq!(
+            replacement.rules,
+            template_policy("notes-threshold").unwrap().0,
+            "legacy rules must not carry into a fresh replacement"
+        );
+        assert_eq!(
+            replacement.quorum,
+            Quorum {
+                threshold: 1,
+                eligible_roles: vec!["reviewer".to_string()],
+            },
+            "legacy steward quorum must not carry into the replacement"
+        );
+        assert_eq!(replacement.default, Outcome::Defer);
+        assert_eq!(replacement.revocation_ref, None);
+        assert!(!active_sig_path(&dir).exists());
+        assert_eq!(
+            std::fs::read(policies_dir(&dir).join(format!("{}.json", legacy.id))).unwrap(),
+            old_policy_bytes
+        );
+        assert_eq!(
+            std::fs::read(policies_dir(&dir).join(format!("{}.sig.json", legacy.id))).unwrap(),
+            old_signature_bytes
+        );
+        let installed = load_active_policy_snapshot(&dir).unwrap();
+        assert_eq!(installed.mode, ActivePolicyMode::StagedUnsigned);
+        assert!(installed.verified.is_none());
+        assert!(installed.legacy_unbound.is_none());
+        assert_eq!(read_sealed_active(&dir).unwrap(), replacement);
+
+        let journals = std::fs::read_dir(dir.join(".vela/operation-journals/frontier"))
+            .unwrap()
+            .filter_map(Result::ok)
+            .filter(|entry| entry.path().extension().is_some_and(|ext| ext == "json"))
+            .filter_map(|entry| std::fs::read(entry.path()).ok())
+            .filter_map(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok())
+            .collect::<Vec<_>>();
+        assert!(
+            journals.iter().any(|journal| {
+                journal
+                    .pointer("/recovery/state")
+                    .and_then(serde_json::Value::as_str)
+                    == Some("completed")
+            }),
+            "legacy replacement must complete through a recoverable frontier journal"
+        );
+    }
+
+    #[test]
+    fn completed_legacy_replace_exact_retry_reuses_the_durable_policy() {
+        let tmp = TempDir::new().unwrap();
+        let dir = init_frontier(&tmp);
+        let (legacy, _, _) = install_legacy_unbound_policy(&dir, "lean-rederivation");
+
+        let (first, replaced) = draft_policy(&dir, "notes-threshold", true).unwrap();
+        assert!(replaced);
+        let first_bytes = std::fs::read(active_path(&dir)).unwrap();
+        let (retry, retry_replaced) = draft_policy(&dir, "notes-threshold", true).unwrap();
+
+        assert!(retry_replaced);
+        assert_eq!(retry, first);
+        assert_eq!(retry.epoch, legacy.epoch + 1);
+        assert_eq!(std::fs::read(active_path(&dir)).unwrap(), first_bytes);
+        assert!(!active_sig_path(&dir).exists());
+    }
+
+    #[test]
+    fn legacy_replace_does_not_reuse_another_issuers_completed_draft() {
+        let tmp = TempDir::new().unwrap();
+        let dir = init_frontier(&tmp);
+        let (legacy, _, _) = install_legacy_unbound_policy(&dir, "lean-rederivation");
+        let rules = template_policy("notes-threshold").unwrap().0;
+
+        let (first, first_replaced) = seal_policy_with_issued_by(
+            &dir,
+            rules.clone(),
+            true,
+            vec!["reviewer:first".to_string()],
+        )
+        .unwrap();
+        assert!(first_replaced);
+        assert_eq!(first.issued_by, vec!["reviewer:first"]);
+
+        let (second, second_replaced_signed) =
+            seal_policy_with_issued_by(&dir, rules, true, vec!["reviewer:second".to_string()])
+                .unwrap();
+        assert!(!second_replaced_signed);
+        assert_eq!(second.issued_by, vec!["reviewer:second"]);
+        assert_eq!(second.epoch, legacy.epoch + 2);
+        assert_ne!(second.id, first.id);
+        assert_eq!(read_sealed_active(&dir).unwrap(), second);
+    }
+
+    #[test]
+    fn legacy_replace_recovers_every_post_marker_install_boundary() {
+        use crate::frontier_txn::FrontierTxnStep;
+
+        for index in 0..4 {
+            let tmp = TempDir::new().unwrap();
+            let dir = init_frontier(&tmp);
+            let (legacy, old_policy_bytes, old_signature_bytes) =
+                install_legacy_unbound_policy(&dir, "lean-rederivation");
+            set_legacy_policy_rotation_install_failpoint(Some(
+                FrontierTxnStep::AfterInstallWrite { index },
+            ));
+
+            let error = draft_policy(&dir, "notes-threshold", true).unwrap_err();
+            assert!(
+                error
+                    .message
+                    .contains("injected frontier transaction failure"),
+                "install boundary {index}: {}",
+                error.message
+            );
+
+            // The same command first recovers the marker-bound delta, then
+            // recognizes its completed plan as an exact retry.
+            let (recovered, replaced) = draft_policy(&dir, "notes-threshold", true).unwrap();
+            assert!(replaced, "install boundary {index}");
+            assert_eq!(
+                recovered.epoch,
+                legacy.epoch + 1,
+                "install boundary {index}"
+            );
+            assert_eq!(
+                recovered.rules,
+                template_policy("notes-threshold").unwrap().0,
+                "install boundary {index}"
+            );
+            assert!(!active_sig_path(&dir).exists(), "install boundary {index}");
+            assert_eq!(
+                std::fs::read(policies_dir(&dir).join(format!("{}.json", legacy.id))).unwrap(),
+                old_policy_bytes,
+                "install boundary {index}"
+            );
+            assert_eq!(
+                std::fs::read(policies_dir(&dir).join(format!("{}.sig.json", legacy.id))).unwrap(),
+                old_signature_bytes,
+                "install boundary {index}"
+            );
+            assert_eq!(
+                load_active_policy_snapshot(&dir).unwrap().mode,
+                ActivePolicyMode::StagedUnsigned,
+                "install boundary {index}"
+            );
+        }
+    }
+
+    #[test]
+    fn legacy_replace_refuses_conflicting_audit_snapshot_without_touching_active_pair() {
+        let tmp = TempDir::new().unwrap();
+        let dir = init_frontier(&tmp);
+        let (legacy, old_policy_bytes, old_signature_bytes) =
+            install_legacy_unbound_policy(&dir, "lean-rederivation");
+        std::fs::write(
+            policies_dir(&dir).join(format!("{}.json", legacy.id)),
+            b"different historical bytes",
+        )
+        .unwrap();
+
+        let error = draft_policy(&dir, "notes-threshold", true).unwrap_err();
+        assert!(
+            error.message.contains("different bytes"),
+            "{}",
+            error.message
+        );
+        assert_eq!(std::fs::read(active_path(&dir)).unwrap(), old_policy_bytes);
+        assert_eq!(
+            std::fs::read(active_sig_path(&dir)).unwrap(),
+            old_signature_bytes
+        );
+        assert_eq!(
+            load_active_policy_snapshot(&dir).unwrap().mode,
+            ActivePolicyMode::LegacyUnboundClosed
         );
     }
 
@@ -3236,6 +4078,93 @@ mod tests {
     }
 
     #[test]
+    fn transactional_sign_replace_and_sign_preserves_the_completed_history_chain() {
+        let tmp = TempDir::new().unwrap();
+        let dir = init_frontier(&tmp);
+        register_transaction_reviewer(&dir);
+
+        let (first, _) = draft_policy(&dir, "witness-rederivation", false).unwrap();
+        let activated = transactionally_sign_policy(&dir, &first.id, "2099-03-01T00:00:00Z");
+        assert_eq!(activated.action, PolicyHeadAction::Activate);
+
+        let (second, replaced) = draft_policy(&dir, "notes-threshold", true).unwrap();
+        assert!(replaced);
+        assert!(!active_sig_path(&dir).exists());
+
+        // Acquiring the signing transaction's recovery barrier is the
+        // regression: the draft must supply the exact active.sig File->Absent
+        // edge rather than leave the completed signing journal looking corrupt.
+        let rotated = transactionally_sign_policy(&dir, &second.id, "2099-03-01T00:00:01Z");
+        assert_eq!(rotated.action, PolicyHeadAction::Rotate);
+        assert_eq!(rotated.epoch, activated.epoch + 1);
+        assert_eq!(rotated.policy_id.as_deref(), Some(second.id.as_str()));
+        assert_eq!(
+            load_active_policy(&dir).unwrap().unwrap().policy.id,
+            second.id
+        );
+    }
+
+    #[test]
+    fn committed_policy_draft_recovers_as_an_exact_retry_without_epoch_churn() {
+        use crate::frontier_txn::FrontierTxnStep;
+
+        let tmp = TempDir::new().unwrap();
+        let dir = init_frontier(&tmp);
+        register_transaction_reviewer(&dir);
+        let (first, _) = draft_policy(&dir, "witness-rederivation", false).unwrap();
+        transactionally_sign_policy(&dir, &first.id, "2099-03-01T01:00:00Z");
+
+        set_policy_draft_install_failpoint(Some(FrontierTxnStep::AfterInstallWrite { index: 0 }));
+        let error = draft_policy(&dir, "notes-threshold", true).unwrap_err();
+        assert!(
+            error
+                .message
+                .contains("injected frontier transaction failure"),
+            "{}",
+            error.message
+        );
+
+        // The same command first completes the marker-bound delta, then
+        // recognizes the completed result instead of drafting epoch + 1 again.
+        let (recovered, replaced) = draft_policy(&dir, "notes-threshold", true).unwrap();
+        assert!(replaced);
+        assert_eq!(recovered.epoch, first.epoch + 1);
+        let active_bytes = std::fs::read(active_path(&dir)).unwrap();
+        let (retry, retry_replaced) = draft_policy(&dir, "notes-threshold", true).unwrap();
+        assert!(retry_replaced);
+        assert_eq!(retry, recovered);
+        assert_eq!(std::fs::read(active_path(&dir)).unwrap(), active_bytes);
+        assert!(!active_sig_path(&dir).exists());
+    }
+
+    #[test]
+    fn legacy_rotation_redraft_and_sign_preserves_the_completed_history_chain() {
+        let tmp = TempDir::new().unwrap();
+        let dir = init_frontier(&tmp);
+        register_transaction_reviewer(&dir);
+        let (legacy, _, _) = install_legacy_unbound_policy(&dir, "lean-rederivation");
+
+        let (first_staged, replaced) = draft_policy(&dir, "notes-threshold", true).unwrap();
+        assert!(replaced);
+        assert_eq!(first_staged.epoch, legacy.epoch + 1);
+
+        let (redrafted, redraft_replaced_signed) =
+            draft_policy(&dir, "witness-rederivation", false).unwrap();
+        assert!(!redraft_replaced_signed);
+        assert_eq!(redrafted.epoch, first_staged.epoch + 1);
+        assert_ne!(redrafted.id, first_staged.id);
+
+        // The signing barrier verifies the legacy rotation's completed
+        // active.json postimage through the redraft transaction's exact edge.
+        let activated = transactionally_sign_policy(&dir, &redrafted.id, "2099-03-02T00:00:00Z");
+        assert_eq!(activated.action, PolicyHeadAction::Activate);
+        assert_eq!(
+            load_active_policy(&dir).unwrap().unwrap().policy.id,
+            redrafted.id
+        );
+    }
+
+    #[test]
     fn policy_ceremony_retries_pre_marker_and_post_marker_without_rereading_key() {
         use std::cell::Cell;
 
@@ -3537,10 +4466,9 @@ mod tests {
     fn replace_carries_the_prior_rules_forward() {
         let tmp = TempDir::new().unwrap();
         let dir = init_frontier(&tmp);
+        register_transaction_reviewer(&dir);
         let (first, _) = draft_policy(&dir, "witness-rederivation", false).unwrap();
-        // Rotation semantics trigger only on a SIGNED prior; the sig's
-        // content is irrelevant to draft's existence check.
-        std::fs::write(active_sig_path(&dir), "{}\n").unwrap();
+        transactionally_sign_policy(&dir, &first.id, "2099-04-01T00:00:00Z");
 
         let (second, replaced) = draft_policy(&dir, "statement-drafts", true).unwrap();
         assert!(replaced);
@@ -3558,7 +4486,7 @@ mod tests {
                 .exists()
         );
         // Re-drafting the SAME template supersedes, not duplicates.
-        std::fs::write(active_sig_path(&dir), "{}\n").unwrap();
+        transactionally_sign_policy(&dir, &second.id, "2099-04-01T00:00:01Z");
         let (third, _) = draft_policy(&dir, "statement-drafts", true).unwrap();
         let dup = third
             .rules

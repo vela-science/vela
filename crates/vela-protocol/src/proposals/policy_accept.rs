@@ -53,8 +53,8 @@ use crate::bundle::FindingBundle;
 use crate::events;
 use crate::independence::independence_from_attachments;
 use crate::policy::acceptance_policy::{
-    ActivePolicySnapshot, AuthorityMode, Decision, DecisionCertificate, Outcome, PolicyAuthority,
-    PolicyContext, VerifiedPolicy, evaluate, resolve_policy_authority,
+    ActivePolicyMode, ActivePolicySnapshot, AuthorityMode, Decision, DecisionCertificate, Outcome,
+    PolicyAuthority, PolicyContext, VerifiedPolicy, evaluate, resolve_policy_authority,
     verify_policy_signature_bytes,
 };
 use crate::project;
@@ -800,12 +800,11 @@ fn stage_policy_route_with_context_at(
 
     let engine_gate = super::preview_engine_verdict_in_frontier(frontier, path, proposal_id, true)
         .map_err(PolicyLaneRefusal::Error)?;
-    let policy_state = if snapshot.verified.is_some() {
-        "active"
-    } else if snapshot.policy_bytes.is_some() {
-        "staged_unsigned"
-    } else {
-        "closed"
+    let policy_state = match snapshot.mode {
+        ActivePolicyMode::Active => "active",
+        ActivePolicyMode::StagedUnsigned => "staged_unsigned",
+        ActivePolicyMode::LegacyUnboundClosed => "legacy_unbound_closed",
+        ActivePolicyMode::Absent => "closed",
     }
     .to_string();
     let verified = snapshot.verified.clone();
@@ -852,6 +851,19 @@ fn stage_policy_route_with_context_at(
                     }
                 }
             }
+        }
+        _ if snapshot.mode == ActivePolicyMode::LegacyUnboundClosed => {
+            let legacy = snapshot
+                .legacy_unbound
+                .as_ref()
+                .expect("legacy mode must carry its audit observation");
+            (
+                None,
+                Some(format!(
+                    "legacy_unbound_signature_cannot_authorize: stored policy {} hardens to {}; rotate this audit-only pair before policy routing",
+                    legacy.stored_policy_id, legacy.hardened_policy_id
+                )),
+            )
         }
         _ => (None, None),
     };
@@ -2528,7 +2540,7 @@ mod tests {
     }
 
     fn write_legacy_active_policy(dir: &Path, mut policy: AcceptancePolicy) {
-        policy.id = policy.content_address();
+        policy.id = legacy_policy_content_address(&policy).unwrap();
         let key = test_signing_key();
         let body = crate::canonical::to_canonical_bytes(&policy).unwrap();
         let sig = key.sign(&body);
@@ -4161,7 +4173,7 @@ mod tests {
     }
 
     #[test]
-    fn legacy_unbound_policy_timestamp_cannot_authorize_permit() {
+    fn legacy_unbound_policy_is_closed_pending_and_cannot_authorize_permit() {
         let tmp = TempDir::new().unwrap();
         let (dir, pid) = seeded_frontier(&tmp);
         let frontier = repo::load_from_path(&dir).unwrap();
@@ -4171,7 +4183,29 @@ mod tests {
         );
         let error = crate::policy::acceptance_policy::load_active_policy(&dir)
             .expect_err("legacy unbound signatures must fail closed");
-        assert!(error.contains("signature does not verify"), "{error}");
+        assert!(
+            error.contains("legacy_unbound_signature_cannot_authorize"),
+            "{error}"
+        );
+        let snapshot = load_active_policy_snapshot(&dir).unwrap();
+        assert_eq!(snapshot.mode, ActivePolicyMode::LegacyUnboundClosed);
+        assert!(snapshot.verified.is_none());
+        let staged = stage_policy_route_with_context_at(
+            &dir,
+            &frontier,
+            &pid,
+            permitting_ctx(),
+            DECISION_AT,
+            &snapshot,
+        )
+        .unwrap();
+        assert_eq!(staged.policy_state(), "legacy_unbound_closed");
+        assert!(staged.decision().is_none());
+        assert!(
+            staged
+                .authority_error()
+                .is_some_and(|error| error.contains("cannot_authorize"))
+        );
         let before =
             crate::canonical::to_canonical_bytes(&repo::load_from_path(&dir).unwrap()).unwrap();
         let refusal = accept_under_policy_at_path_at(
@@ -4182,7 +4216,7 @@ mod tests {
             DECISION_AT,
         )
         .expect_err("legacy signature cannot authorize Permit");
-        assert!(matches!(refusal, PolicyLaneRefusal::Error(_)), "{refusal}");
+        assert!(matches!(refusal, PolicyLaneRefusal::Closed), "{refusal}");
         assert_eq!(
             before,
             crate::canonical::to_canonical_bytes(&repo::load_from_path(&dir).unwrap()).unwrap()

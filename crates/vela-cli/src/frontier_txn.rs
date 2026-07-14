@@ -1940,7 +1940,10 @@ impl FrontierTxn {
     }
 
     #[cfg(test)]
-    fn install_at_failpoint(&mut self, step: FrontierTxnStep) -> Result<(), FrontierTxnError> {
+    pub(crate) fn install_at_failpoint(
+        &mut self,
+        step: FrontierTxnStep,
+    ) -> Result<(), FrontierTxnError> {
         self.install_with_failpoints(&mut FailAtFrontierTxnStep { target: step })
     }
 

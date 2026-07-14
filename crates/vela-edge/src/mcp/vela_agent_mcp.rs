@@ -635,17 +635,29 @@ pub fn submit_diff_pack(args: &Value) -> Result<String, String> {
     .unwrap_or_default())
 }
 
-/// `work` action=claim — lease an open obligation so other swarm agents route
-/// around it. Emits a signed `attempt.claimed` event (the agent's OWN key
-/// via VELA_AGENT_KEY_HEX; never a human's). One live lease per obligation;
-/// expiry = claimed_at + ttl, computed at read time. Coordination, not
-/// authority: a lease decides nothing.
-pub fn claim_task(args: &Value) -> Result<String, String> {
-    let frontier_path: PathBuf = args
-        .get("frontier_path")
-        .and_then(Value::as_str)
-        .ok_or("frontier_path required")?
-        .into();
+/// Removed direct-save lease entry point. Loading and saving a Project around
+/// this reducer is an unsound read-modify-write operation: it can overwrite a
+/// concurrently accepted event. Callers must use the transactional CLI/MCP
+/// workflow, which holds the frontier recovery barrier through installation.
+#[deprecated(
+    since = "0.760.0",
+    note = "direct edge lease writes are unsafe; use the transactional Vela work workflow"
+)]
+pub fn claim_task(_args: &Value) -> Result<String, String> {
+    Err(
+        "direct edge lease writes are disabled; use the transactional `vela work` workflow"
+            .to_string(),
+    )
+}
+
+/// Validate, sign, and reduce one coordination lease event against an already
+/// loaded Project. This function performs no filesystem write; the caller must
+/// install the resulting Project through Vela's recoverable frontier
+/// transaction rather than a load/save read-modify-write sequence.
+pub fn apply_claim_task_to_project(
+    args: &Value,
+    project: &mut vela_protocol::project::Project,
+) -> Result<Value, String> {
     let obligation = args
         .get("obligation_id")
         .and_then(Value::as_str)
@@ -663,18 +675,21 @@ pub fn claim_task(args: &Value) -> Result<String, String> {
         .and_then(Value::as_u64)
         .unwrap_or(86_400);
     let pubkey = hex::encode(key.verifying_key().to_bytes());
-    let mut project = vela_protocol::repo::load_from_path(&frontier_path)
-        .map_err(|e| format!("load frontier: {e}"))?;
+    let state_root_before = format!(
+        "sha256:{}",
+        vela_protocol::events::event_log_hash(&project.events)
+    );
     // An obligation is usually a finding (vf_…) but may be an EXTERNAL
     // work target (e.g. `erdos:443` — a problem with no finding yet).
     // External ids must be namespaced so a typo'd vf_ id can't slip.
     let is_finding = project.findings.iter().any(|f| f.id == obligation);
-    let is_external = obligation.contains(':')
-        && !obligation.starts_with("vf_")
-        && obligation
-            .chars()
-            .all(|c| c.is_ascii_alphanumeric() || matches!(c, ':' | '.' | '_' | '-'));
-    if !is_finding && !is_external {
+    let is_external = crate::frontier_next::validate_external_target_id(obligation).is_ok();
+    let is_exact_legacy_release = ttl == 0
+        && project
+            .attempt_claims
+            .iter()
+            .any(|claim| claim.obligation_id == obligation);
+    if !is_finding && !is_external && !is_exact_legacy_release {
         return Err(format!(
             "obligation {obligation} is neither a finding on this frontier nor a              namespaced external target (e.g. erdos:443)"
         ));
@@ -725,8 +740,8 @@ pub fn claim_task(args: &Value) -> Result<String, String> {
             "already_claimed_by": live.claimant_actor,
             "claimed_at": live.claimed_at,
             "ttl_seconds": live.lease_ttl_seconds,
-        })
-        .to_string());
+            "state_root_before": state_root_before,
+        }));
     }
     let prior_claim_event_id = if ttl == 0 {
         requested_prior.map(ToString::to_string)
@@ -765,10 +780,12 @@ pub fn claim_task(args: &Value) -> Result<String, String> {
     // crossed the exact signed-byte boundary. The reducer's lease checks are
     // pure and deterministic over those bytes.
     event.signature = Some(vela_protocol::sign::sign_event(&event, &key)?);
-    vela_protocol::reducer::apply_event(&mut project, &event)?;
+    vela_protocol::reducer::apply_event(project, &event)?;
     project.events.push(event.clone());
-    vela_protocol::repo::save_to_path(&frontier_path, &project)
-        .map_err(|e| format!("save: {e}"))?;
+    let state_root_after = format!(
+        "sha256:{}",
+        vela_protocol::events::event_log_hash(&project.events)
+    );
     Ok(serde_json::json!({
         "ok": true,
         "obligation": obligation,
@@ -779,8 +796,9 @@ pub fn claim_task(args: &Value) -> Result<String, String> {
         "claimant_pubkey": pubkey,
         "prior_claim_event_id": prior_claim_event_id,
         "release_reason": if ttl == 0 { Some(event_reason) } else { None },
-    })
-    .to_string())
+        "state_root_before": state_root_before,
+        "state_root_after": state_root_after,
+    }))
 }
 
 /// `verify` mode=strict — hold the LOCAL frontier to the one strict bar
@@ -1051,18 +1069,37 @@ fn is_failed_deposit(claimed_status: &str) -> bool {
     s.contains("fail") || s == "refuted"
 }
 
-/// `work` action=deposit — deposit a signed `vat_` attempt on the LOCAL
-/// frontier, folding duplicate failed searches. Before a FAILED attempt
-/// lands, the existing ledger is scanned for an attempt with the same
-/// derived search signature; when one exists and the new attempt adds no
-/// new information ([`folds_into`]), nothing is deposited and the existing
-/// `vat_` id returns with `"folded": true`. Success deposits, and failures
-/// that learned something new, always land. Signed under the agent's own
-/// auto-minted session key; `claimed_status` stays display-only.
-pub fn deposit_attempt(args: &Value) -> Result<String, String> {
+/// Removed direct-save attempt entry point. Loading and saving a Project around
+/// this reducer is an unsound read-modify-write operation: it can overwrite a
+/// concurrently accepted event. Callers must use the transactional CLI/MCP
+/// workflow, which holds the frontier recovery barrier through installation.
+#[deprecated(
+    since = "0.760.0",
+    note = "direct edge attempt writes are unsafe; use the transactional Vela work workflow"
+)]
+pub fn deposit_attempt(_args: &Value) -> Result<String, String> {
+    Err(
+        "direct edge attempt writes are disabled; use the transactional `vela work` workflow"
+            .to_string(),
+    )
+}
+
+/// Validate, sign, and reduce one `vat_` attempt against an already loaded
+/// Project, folding duplicate failed searches. The explicit key keeps this
+/// helper free of filesystem reads and writes; the caller must install a
+/// changed Project through Vela's recoverable frontier transaction.
+///
+/// A failed attempt that adds no information returns the already banked id
+/// with `folded=true` and leaves `project` byte-for-byte unchanged. Successes
+/// and informative failures append one signed `attempt.deposited` event.
+pub fn apply_deposit_attempt_to_project(
+    args: &Value,
+    project: &mut vela_protocol::project::Project,
+    key: &SigningKey,
+    deposit_reason: Option<&str>,
+) -> Result<Value, String> {
     use vela_protocol::attempt::{Attempt, AttemptDraft, ProducerRef};
 
-    let frontier_path = frontier_path_arg(args)?;
     let agent_actor = args
         .get("agent_actor")
         .and_then(Value::as_str)
@@ -1070,7 +1107,6 @@ pub fn deposit_attempt(args: &Value) -> Result<String, String> {
     if !agent_actor.starts_with("agent:") && !agent_actor.starts_with("ci:") {
         return Err("deposit_attempt is for agent:/ci: actors".to_string());
     }
-    let key = agent_signing_key(Some(agent_actor))?;
 
     let str_arg = |k: &str| -> String {
         args.get(k)
@@ -1090,9 +1126,6 @@ pub fn deposit_attempt(args: &Value) -> Result<String, String> {
             .unwrap_or_default()
     };
 
-    let mut project = vela_protocol::repo::load_from_path(&frontier_path)
-        .map_err(|e| format!("load frontier: {e}"))?;
-
     let mut frontier_label = str_arg("frontier");
     if frontier_label.is_empty() {
         frontier_label = project.frontier_id();
@@ -1106,8 +1139,11 @@ pub fn deposit_attempt(args: &Value) -> Result<String, String> {
             .to_string()
     };
     let claimed_status = str_arg("claimed_status");
+    let problem = args.get("problem").and_then(Value::as_u64).unwrap_or(0);
+    let problem = u32::try_from(problem)
+        .map_err(|_| "problem must fit in an unsigned 32-bit integer".to_string())?;
     let draft = AttemptDraft {
-        problem: args.get("problem").and_then(Value::as_u64).unwrap_or(0) as u32,
+        problem,
         frontier: frontier_label,
         kind: str_arg("kind"),
         claim: str_arg("claim"),
@@ -1128,7 +1164,11 @@ pub fn deposit_attempt(args: &Value) -> Result<String, String> {
         },
         ..Default::default()
     };
-    let attempt = Attempt::build(draft, &key)?;
+    let attempt = Attempt::build(draft, key)?;
+    let state_root_before = format!(
+        "sha256:{}",
+        vela_protocol::events::event_log_hash(&project.events)
+    );
 
     // Fold: a failed pass that re-ran a banked search and learned nothing
     // new returns the banked id instead of depositing ledger noise.
@@ -1141,27 +1181,40 @@ pub fn deposit_attempt(args: &Value) -> Result<String, String> {
             "folded": true,
             "search_signature": attempt_search_signature(&attempt),
             "note": "same search signature, no new information — banked attempt returned instead of a duplicate deposit",
-        })
-        .to_string());
+            "state_root_before": state_root_before,
+            "state_root_after": state_root_before,
+        }));
     }
 
+    let deposit_reason = deposit_reason
+        .filter(|reason| !reason.trim().is_empty())
+        .unwrap_or("attempt deposit via MCP (provenance, not a verdict)");
     let mut event = attempt.deposit_event(
         agent_actor,
         vela_protocol::events::actor_kind(agent_actor),
-        "attempt deposit via MCP (provenance, not a verdict)",
+        deposit_reason,
     );
-    vela_protocol::reducer::apply_event(&mut project, &event)?;
-    event.signature = Some(vela_protocol::sign::sign_event(&event, &key)?);
+    event.signature = Some(vela_protocol::sign::sign_event(&event, key)?);
+    vela_protocol::reducer::apply_event(project, &event)?;
     project.events.push(event);
-    vela_protocol::repo::save_to_path(&frontier_path, &project)
-        .map_err(|e| format!("save: {e}"))?;
+    let deposited_event = project
+        .events
+        .last()
+        .ok_or_else(|| "attempt reducer did not append its event".to_string())?;
+    let state_root_after = format!(
+        "sha256:{}",
+        vela_protocol::events::event_log_hash(&project.events)
+    );
     Ok(serde_json::json!({
         "ok": true,
         "attempt_id": attempt.attempt_id,
         "folded": false,
         "search_signature": attempt_search_signature(&attempt),
-    })
-    .to_string())
+        "deposit_event_id": deposited_event.id,
+        "deposited_at": deposited_event.timestamp,
+        "state_root_before": state_root_before,
+        "state_root_after": state_root_after,
+    }))
 }
 
 // Note: the write-side tools here mutate VELA_AGENT_KEY_HEX (the
@@ -1171,6 +1224,23 @@ pub fn deposit_attempt(args: &Value) -> Result<String, String> {
 // roundtrip is exercised end-to-end by the bash gate
 // `scripts/test-mcp-server.sh` instead, which spawns the server with
 // a controlled env.
+
+#[cfg(test)]
+mod lease_write_boundary_tests {
+    #[test]
+    #[allow(deprecated)]
+    fn direct_claim_task_is_hard_disabled() {
+        let error = super::claim_task(&serde_json::json!({})).unwrap_err();
+        assert!(error.contains("direct edge lease writes are disabled"));
+    }
+
+    #[test]
+    #[allow(deprecated)]
+    fn direct_deposit_attempt_is_hard_disabled() {
+        let error = super::deposit_attempt(&serde_json::json!({})).unwrap_err();
+        assert!(error.contains("direct edge attempt writes are disabled"));
+    }
+}
 
 #[cfg(test)]
 mod fold_tests {
@@ -1198,6 +1268,19 @@ mod fold_tests {
         Attempt::build(draft, &key()).unwrap()
     }
 
+    fn deposit_args(claim: &str) -> Value {
+        serde_json::json!({
+            "agent_actor": "agent:fold-fixture",
+            "problem": 647,
+            "kind": "negative",
+            "claim": claim,
+            "claimed_status": "failed",
+            "target_obligation_id": "erdos:647",
+            "method_families": ["sieve", "cp-sat"],
+            "named_obstructions": ["channel:erdos647:prime"],
+        })
+    }
+
     #[test]
     fn signature_is_order_independent_over_method_families() {
         let a = search_signature("erdos:647", "erdos647:prime", &["b".into(), "a".into()]);
@@ -1220,6 +1303,39 @@ mod fold_tests {
         let banked = failed("no route", vec!["channel:erdos647:prime"], vec![]);
         let rerun = failed("still no route", vec!["channel:erdos647:prime"], vec![]);
         assert!(folds_into(&rerun, &banked), "same search, nothing new");
+    }
+
+    #[test]
+    fn loaded_project_duplicate_fold_is_mutation_free() {
+        let mut project =
+            vela_protocol::project::assemble("deposit-fold-mutation", Vec::new(), 0, 0, "fixture");
+        let signing_key = key();
+        let deposited = apply_deposit_attempt_to_project(
+            &deposit_args("first failed pass"),
+            &mut project,
+            &signing_key,
+            None,
+        )
+        .unwrap();
+        assert_eq!(deposited["folded"], false);
+        let banked_id = deposited["attempt_id"].as_str().unwrap().to_string();
+        let snapshot = serde_json::to_value(&project).unwrap();
+
+        let folded = apply_deposit_attempt_to_project(
+            &deposit_args("same search, still no route"),
+            &mut project,
+            &signing_key,
+            None,
+        )
+        .unwrap();
+        assert_eq!(folded["folded"], true);
+        assert_eq!(folded["attempt_id"], banked_id);
+        assert_eq!(
+            serde_json::to_value(&project).unwrap(),
+            snapshot,
+            "a folded duplicate must not change any Project field"
+        );
+        assert_eq!(folded["state_root_before"], folded["state_root_after"]);
     }
 
     #[test]

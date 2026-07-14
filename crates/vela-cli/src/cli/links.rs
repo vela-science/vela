@@ -3,6 +3,39 @@
 
 use super::*;
 
+async fn cross_frontier_target_warning(
+    locator: &str,
+    target_vfr: &str,
+    target_vf: &str,
+) -> Option<String> {
+    // This helper runs inside the CLI's Tokio runtime. Use reqwest's native
+    // async client so its runtime lifecycle remains owned by the CLI.
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(15))
+        .build()
+        .ok()?;
+    let resp = client.get(locator).send().await.ok()?;
+    if !resp.status().is_success() {
+        return None;
+    }
+    let dep_project = resp.json::<vela_protocol::project::Project>().await.ok()?;
+    if let Some(target_finding) = dep_project.findings.iter().find(|f| f.id == target_vf) {
+        if target_finding.flags.superseded {
+            return Some(format!(
+                "warn · cross-frontier target '{target_vf}' in '{target_vfr}' has flags.superseded = true. \
+You may be linking to outdated wording. Inspect the supersedes chain to find the current finding. \
+Use --no-check-target to skip this check."
+            ));
+        }
+        None
+    } else {
+        Some(format!(
+            "warn · cross-frontier target '{target_vf}' not found in dep '{target_vfr}' (fetched from {locator}). \
+The target may have been removed or never existed in the pinned snapshot."
+        ))
+    }
+}
+
 /// v0.8: frontier-level metadata commands. Manages cross-frontier
 /// dependency declarations on a frontier file. The substrate enforces
 /// that any link target of the form `vf_…@vfr_…` references a declared
@@ -11,7 +44,7 @@ use super::*;
 /// was to hand-edit JSON; this command is the CLI on-ramp. Links go
 /// directly onto `findings[i].links` (links are not a state-changing
 /// proposal kind in v0).
-pub(crate) fn cmd_link(action: LinkAction) {
+pub(crate) async fn cmd_link(action: LinkAction) {
     use vela_protocol::bundle::{Link, LinkRef};
     match action {
         LinkAction::Add {
@@ -63,8 +96,7 @@ pub(crate) fn cmd_link(action: LinkAction) {
             // link-add time it's worth a one-shot fetch to warn the user
             // if their target has been superseded. Failure to fetch is
             // a hint, not a hard error — the link still records.
-            let mut target_warning: Option<String> = None;
-            if let LinkRef::Cross {
+            let target_warning = if let LinkRef::Cross {
                 vfr_id: target_vfr,
                 vf_id: target_vf,
             } = &parsed
@@ -73,33 +105,10 @@ pub(crate) fn cmd_link(action: LinkAction) {
                 && let Some(locator) = dep.locator.as_deref()
                 && (locator.starts_with("http://") || locator.starts_with("https://"))
             {
-                let client = reqwest::blocking::Client::builder()
-                    .timeout(std::time::Duration::from_secs(15))
-                    .build()
-                    .ok();
-                if let Some(client) = client
-                    && let Ok(resp) = client.get(locator).send()
-                    && resp.status().is_success()
-                    && let Ok(dep_project) = resp.json::<vela_protocol::project::Project>()
-                {
-                    if let Some(target_finding) =
-                        dep_project.findings.iter().find(|f| &f.id == target_vf)
-                    {
-                        if target_finding.flags.superseded {
-                            target_warning = Some(format!(
-                                "warn · cross-frontier target '{target_vf}' in '{target_vfr}' has flags.superseded = true. \
-You may be linking to outdated wording. Inspect the supersedes chain to find the current finding. \
-Use --no-check-target to skip this check."
-                            ));
-                        }
-                    } else {
-                        target_warning = Some(format!(
-                            "warn · cross-frontier target '{target_vf}' not found in dep '{target_vfr}' (fetched from {locator}). \
-The target may have been removed or never existed in the pinned snapshot."
-                        ));
-                    }
-                }
-            }
+                cross_frontier_target_warning(locator, target_vfr, target_vf).await
+            } else {
+                None
+            };
 
             let now = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
             let link = Link {
@@ -151,5 +160,44 @@ The target may have been removed or never existed in the pinned snapshot."
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::{Read, Write};
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn cross_frontier_check_is_safe_inside_the_cli_runtime() {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let remote = vela_protocol::project::assemble("remote", Vec::new(), 0, 0, "test");
+        let body = serde_json::to_vec(&remote).unwrap();
+        let server = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut request = [0_u8; 1024];
+            let _ = stream.read(&mut request).unwrap();
+            write!(
+                stream,
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                body.len()
+            )
+            .unwrap();
+            stream.write_all(&body).unwrap();
+        });
+
+        let warning = cross_frontier_target_warning(
+            &format!("http://{address}/frontier.json"),
+            "vfr_remote",
+            "vf_missing",
+        )
+        .await;
+
+        server.join().unwrap();
+        assert!(
+            warning.is_some_and(|message| message.contains("vf_missing")),
+            "missing remote finding should produce a warning"
+        );
     }
 }

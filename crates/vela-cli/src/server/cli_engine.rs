@@ -1783,6 +1783,93 @@ fn match_attempt_cell(
     }
 }
 
+const FOUNDRY_ATTEMPT_ACTOR: &str = "agent:vela-foundry";
+const FOUNDRY_ATTEMPT_REASON: &str = "foundry turn: banked attempt (provenance, not a verdict)";
+
+fn foundry_attempt_deposit_args(
+    frontier: &Path,
+    project: &vela_protocol::project::Project,
+    proposal: &vela_protocol::proposals::StateProposal,
+    kind: &str,
+    n: usize,
+    seed: u64,
+    restarts: u64,
+    admitted: bool,
+) -> Result<Value, String> {
+    let claim = proposal
+        .payload
+        .get("finding")
+        .and_then(|finding| finding.get("assertion"))
+        .and_then(|assertion| assertion.get("text"))
+        .and_then(Value::as_str)
+        .ok_or_else(|| "foundry candidate has no non-empty assertion text to bank".to_string())?;
+    if claim.trim().is_empty() {
+        return Err("foundry candidate has no non-empty assertion text to bank".to_string());
+    }
+    let frontier_label = project
+        .frontier_id
+        .clone()
+        .filter(|label| !label.trim().is_empty())
+        .or_else(|| {
+            frontier
+                .file_name()
+                .and_then(|name| name.to_str())
+                .filter(|label| !label.trim().is_empty())
+                .map(ToString::to_string)
+        })
+        .unwrap_or_else(|| "frontier".to_string());
+    Ok(json!({
+        "problem": 0,
+        "frontier": frontier_label,
+        "kind": kind,
+        "claim": claim,
+        "claimed_status": if admitted { "machine_verified" } else { "candidate" },
+        "method_families": [kind, "greedy-restart"],
+        "producer": {
+            "system": "vela-foundry",
+            "version": env!("CARGO_PKG_VERSION"),
+            "config_digest": format!("n={n};seed={seed};restarts={restarts}"),
+        },
+    }))
+}
+
+#[derive(Debug, Default, PartialEq, Eq)]
+struct FoundryAttemptDepositReport {
+    attempt_id: Option<String>,
+    folded: Option<bool>,
+    error: Option<String>,
+}
+
+fn foundry_attempt_deposit_report(result: Result<Value, String>) -> FoundryAttemptDepositReport {
+    match result {
+        Ok(value) => {
+            let attempt_id = value
+                .get("attempt_id")
+                .and_then(Value::as_str)
+                .map(ToString::to_string);
+            let folded = value.get("folded").and_then(Value::as_bool);
+            if attempt_id.is_none() || folded.is_none() {
+                FoundryAttemptDepositReport {
+                    error: Some(
+                        "attempt deposit returned an incomplete success payload".to_string(),
+                    ),
+                    ..Default::default()
+                }
+            } else {
+                FoundryAttemptDepositReport {
+                    attempt_id,
+                    folded,
+                    error: None,
+                }
+            }
+        }
+        Err(error) => FoundryAttemptDepositReport {
+            error: Some(error),
+            ..Default::default()
+        },
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 fn cmd_foundry_run(
     frontier: &Path,
@@ -2002,77 +2089,29 @@ fn cmd_foundry_run(
         }
     }
 
-    // 5c. DEPOSIT a durable vat_ attempt — the inherited memory of this turn, so
-    //     the next solver reads what was tried instead of re-searching it.
-    //     Best-effort and only when applying: a dry run or a keyless context
-    //     records nothing. An attempt is provenance (claimed_status is
-    //     DISPLAY-ONLY, never trusted), so an agent key is allowed — exactly like
-    //     the vac_ envelope the campaign already records. problem == 0 makes it a
-    //     domain-general attempt keyed on frontier + kind + claim.
-    let mut deposited_attempt: Option<String> = None;
-    if apply && let Some(signing_key) = crate::cli_identity::resolve_signing_key_opt(None) {
-        let claim = proposal
-            .payload
-            .get("finding")
-            .and_then(|f| f.get("assertion"))
-            .and_then(|a| a.get("text"))
-            .and_then(|t| t.as_str())
-            .unwrap_or_default()
-            .to_string();
-        let frontier_label = proj
-            .frontier_id
-            .clone()
-            .filter(|s| !s.trim().is_empty())
-            .unwrap_or_else(|| {
-                frontier
-                    .file_name()
-                    .and_then(|s| s.to_str())
-                    .unwrap_or("frontier")
-                    .to_string()
-            });
-        if !claim.trim().is_empty() && !frontier_label.trim().is_empty() {
-            let draft = vela_protocol::attempt::AttemptDraft {
-                problem: 0,
-                frontier: frontier_label,
-                kind: kind.to_string(),
-                claim,
-                claimed_status: if admitted {
-                    "machine_verified".to_string()
-                } else {
-                    "candidate".to_string()
-                },
-                method_families: vec![kind.to_string(), "greedy-restart".to_string()],
-                producer: vela_protocol::attempt::ProducerRef {
-                    system: "vela-foundry".to_string(),
-                    version: env!("CARGO_PKG_VERSION").to_string(),
-                    // n is part of the cell key so the failed-route dedup
-                    // distinguishes (kind, n, seed, restarts) cells.
-                    config_digest: format!("n={n};seed={seed};restarts={restarts}"),
-                },
-                ..Default::default()
-            };
-            if let Ok(att) = vela_protocol::attempt::Attempt::build(draft, &signing_key) {
-                // Reload: the auto-admit --apply subprocess may have appended
-                // events to the log since `proj` was read.
-                if let Ok(mut project2) = repo::load_from_path(frontier) {
-                    let mut ev = att.deposit_event(
-                        "agent:vela-foundry",
-                        "agent",
-                        "foundry turn: banked attempt (provenance, not a verdict)",
-                    );
-                    if vela_protocol::reducer::apply_event(&mut project2, &ev).is_ok()
-                        && let Ok(sig) = vela_protocol::sign::sign_event(&ev, &signing_key)
-                    {
-                        ev.signature = Some(sig);
-                        project2.events.push(ev);
-                        if repo::save_to_path(frontier, &project2).is_ok() {
-                            deposited_attempt = Some(att.attempt_id);
-                        }
-                    }
-                }
-            }
-        }
-    }
+    // 5c. DEPOSIT a durable vat_ attempt — the inherited memory of this turn,
+    //     so the next solver reads what was tried instead of re-searching it.
+    //     Best-effort and only when applying. The task-first workflow binds the
+    //     fixed foundry agent identity, uses the agent-key path, and installs
+    //     the event transactionally; it never consults a profile or human
+    //     decision key. A deposit failure is reported below but does not erase
+    //     the otherwise completed turn.
+    let attempt_deposit = if apply {
+        let result = foundry_attempt_deposit_args(
+            frontier, &proj, proposal, kind, n, seed, restarts, admitted,
+        )
+        .and_then(|args| {
+            crate::workflow::deposit_attempt(
+                frontier,
+                &args,
+                FOUNDRY_ATTEMPT_ACTOR,
+                Some(FOUNDRY_ATTEMPT_REASON),
+            )
+        });
+        foundry_attempt_deposit_report(result)
+    } else {
+        FoundryAttemptDepositReport::default()
+    };
 
     // 6. REPORT the turn.
     if json_out {
@@ -2086,7 +2125,9 @@ fn cmd_foundry_run(
                 "applied": apply,
                 "auto_admit": verdict,
                 "tier": if admitted && apply { "machine_verified" } else { "pending" },
-                "attempt_deposited": deposited_attempt,
+                "attempt_deposited": attempt_deposit.attempt_id,
+                "attempt_deposit_folded": attempt_deposit.folded,
+                "attempt_deposit_error": attempt_deposit.error,
             }))
             .unwrap()
         );
@@ -2116,8 +2157,15 @@ fn cmd_foundry_run(
         } else {
             println!("  => stays a candidate pending corroboration/review");
         }
-        if let Some(att_id) = &deposited_attempt {
-            println!("  banked attempt: {att_id} (durable inherited memory)");
+        if let Some(att_id) = &attempt_deposit.attempt_id {
+            if attempt_deposit.folded == Some(true) {
+                println!("  banked attempt: {att_id} (existing duplicate folded)");
+            } else {
+                println!("  banked attempt: {att_id} (durable inherited memory)");
+            }
+        }
+        if let Some(error) = &attempt_deposit.error {
+            println!("  banked attempt: FAILED (turn remains complete): {error}");
         }
     }
 }
@@ -3333,6 +3381,94 @@ pub(crate) fn cmd_evidence_ci(frontier: &Path, json: bool) {
 #[cfg(test)]
 mod foundry_targets_tests {
     use super::*;
+
+    fn foundry_proposal(assertion: &str) -> vela_protocol::proposals::StateProposal {
+        vela_protocol::proposals::new_proposal_at(
+            "finding.add",
+            vela_protocol::events::StateTarget {
+                r#type: "finding".to_string(),
+                id: "vf_foundry_deposit_fixture".to_string(),
+            },
+            FOUNDRY_ATTEMPT_ACTOR,
+            "agent",
+            "foundry fixture",
+            json!({
+                "finding": {
+                    "assertion": {"text": assertion}
+                }
+            }),
+            Vec::new(),
+            Vec::new(),
+            "2026-07-14T12:00:00Z",
+        )
+    }
+
+    #[test]
+    fn foundry_attempt_args_preserve_fields_and_assertion_bytes() {
+        let temp = tempfile::tempdir().unwrap();
+        let frontier = temp.path().join("foundry-attempt-fields");
+        let project =
+            vela_protocol::project::assemble("foundry-attempt-fields", Vec::new(), 0, 0, "fixture");
+        let proposal = foundry_proposal("  exact assertion bytes  ");
+        let args =
+            foundry_attempt_deposit_args(&frontier, &project, &proposal, "sidon", 40, 3, 200, true)
+                .unwrap();
+
+        assert_eq!(args["problem"], 0);
+        assert_eq!(args["frontier"], project.frontier_id());
+        assert_eq!(args["kind"], "sidon");
+        assert_eq!(args["claim"], "  exact assertion bytes  ");
+        assert_eq!(args["claimed_status"], "machine_verified");
+        assert_eq!(args["method_families"], json!(["sidon", "greedy-restart"]));
+        assert_eq!(args["producer"]["system"], "vela-foundry");
+        assert_eq!(args["producer"]["version"], env!("CARGO_PKG_VERSION"));
+        assert_eq!(
+            args["producer"]["config_digest"],
+            "n=40;seed=3;restarts=200"
+        );
+        assert!(
+            args.get("agent_actor").is_none(),
+            "the workflow, not producer data, binds the fixed actor"
+        );
+    }
+
+    #[test]
+    fn foundry_attempt_deposit_failure_is_reportable_and_nonfatal() {
+        let report = foundry_attempt_deposit_report(Err("frontier write busy".to_string()));
+        assert_eq!(
+            report,
+            FoundryAttemptDepositReport {
+                attempt_id: None,
+                folded: None,
+                error: Some("frontier write busy".to_string()),
+            }
+        );
+
+        let folded = foundry_attempt_deposit_report(Ok(json!({
+            "ok": true,
+            "attempt_id": "vat_banked",
+            "folded": true,
+        })));
+        assert_eq!(folded.attempt_id.as_deref(), Some("vat_banked"));
+        assert_eq!(folded.folded, Some(true));
+        assert!(folded.error.is_none());
+    }
+
+    #[test]
+    fn foundry_attempt_deposit_uses_only_the_fixed_agent_workflow() {
+        assert_eq!(FOUNDRY_ATTEMPT_ACTOR, "agent:vela-foundry");
+        assert_eq!(
+            FOUNDRY_ATTEMPT_REASON,
+            "foundry turn: banked attempt (provenance, not a verdict)"
+        );
+        let source = include_str!("cli_engine.rs");
+        let forbidden_profile_key_call = ["resolve_signing_key_opt", "(None)"].concat();
+        assert!(
+            !source.contains(&forbidden_profile_key_call),
+            "foundry must not inherit the active profile decision key"
+        );
+        assert!(source.contains("crate::workflow::deposit_attempt("));
+    }
 
     #[test]
     fn attempt_cell_match_is_exact_on_kind_and_digest() {

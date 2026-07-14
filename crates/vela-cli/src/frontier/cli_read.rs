@@ -140,16 +140,29 @@ pub(crate) fn cmd_status(path: &Path, json: bool) {
                 "proof": {
                     "status": project.proof_state.latest_packet.status,
                 },
-                "policy": match vela_protocol::acceptance_policy::load_active_policy(path) {
-                    Ok(Some(vp)) => json!({"id": vp.policy.id, "mode": "live"}),
-                    Ok(None) => {
-                        let staged = path.join(".vela/policies/active.json").exists();
-                        if staged {
-                            json!({"mode": "staged", "next": "scripts/sign-policy.sh (one signature activates it)"})
-                        } else {
+                "policy": match vela_protocol::acceptance_policy::load_active_policy_snapshot(path) {
+                    Ok(snapshot) => match snapshot.mode {
+                        vela_protocol::acceptance_policy::ActivePolicyMode::Active => {
+                            let vp = snapshot.verified.expect("active mode carries VerifiedPolicy");
+                            json!({"id": vp.policy.id, "mode": "live"})
+                        }
+                        vela_protocol::acceptance_policy::ActivePolicyMode::StagedUnsigned => {
+                            json!({"mode": "staged", "next": "vela policy sign"})
+                        }
+                        vela_protocol::acceptance_policy::ActivePolicyMode::Absent => {
                             json!({"mode": "shadow"})
                         }
-                    }
+                        vela_protocol::acceptance_policy::ActivePolicyMode::LegacyUnboundClosed => {
+                            let legacy = snapshot.legacy_unbound.expect("legacy mode carries observation");
+                            json!({
+                                "mode": "legacy_unbound_closed",
+                                "stored_policy_id": legacy.stored_policy_id,
+                                "hardened_policy_id": legacy.hardened_policy_id,
+                                "authority": false,
+                                "next": crate::config::cli_policy::legacy_rotation_command(path, &legacy.policy),
+                            })
+                        }
+                    },
                     Err(e) => json!({"mode": "BROKEN", "error": e}),
                 },
                 "events": project.events.len(),
@@ -256,15 +269,41 @@ pub(crate) fn cmd_status(path: &Path, json: bool) {
         pct(compounding.context_reuse_ratio),
     );
     println!();
-    match vela_protocol::acceptance_policy::load_active_policy(path) {
-        Ok(Some(vp)) => println!("  policy:      live ({})", vp.policy.id),
-        Ok(None) if path.join(".vela/policies/active.json").exists() => {
-            println!(
+    match vela_protocol::acceptance_policy::load_active_policy_snapshot(path) {
+        Ok(snapshot) => match snapshot.mode {
+            vela_protocol::acceptance_policy::ActivePolicyMode::Active => println!(
+                "  policy:      live ({})",
+                snapshot
+                    .verified
+                    .expect("active mode carries VerifiedPolicy")
+                    .policy
+                    .id
+            ),
+            vela_protocol::acceptance_policy::ActivePolicyMode::StagedUnsigned => println!(
                 "  policy:      {}",
                 style::warn("staged — one signature activates it")
-            );
-        }
-        _ => {}
+            ),
+            vela_protocol::acceptance_policy::ActivePolicyMode::LegacyUnboundClosed => {
+                let legacy = snapshot
+                    .legacy_unbound
+                    .expect("legacy mode carries observation");
+                println!(
+                    "  policy:      {}",
+                    style::warn("legacy-unbound — audit only; lane closed")
+                );
+                println!("               stored   {}", legacy.stored_policy_id);
+                println!("               hardened {}", legacy.hardened_policy_id);
+                println!(
+                    "               replace: {}",
+                    crate::config::cli_policy::legacy_rotation_command(path, &legacy.policy)
+                );
+            }
+            vela_protocol::acceptance_policy::ActivePolicyMode::Absent => {}
+        },
+        Err(error) => println!(
+            "  policy:      {}",
+            style::lost(&format!("BROKEN — {error}"))
+        ),
     }
     let unpublished = unpublished_store_files(path);
     if unpublished > 0 {
@@ -469,7 +508,7 @@ pub(crate) fn cmd_verify(path: &Path, json_output: bool) {
     }
 }
 
-pub(crate) fn cmd_doctor(frontier: Option<&Path>, port: u16, json_output: bool) {
+pub(crate) async fn cmd_doctor(frontier: Option<&Path>, port: u16, json_output: bool) {
     let report = doctor::run(frontier, port);
     // The setup/ceremony lane lives crate-side (identity, pin, hub,
     // policy freshness, adapters, registry) and merges into the report.
@@ -478,7 +517,7 @@ pub(crate) fn cmd_doctor(frontier: Option<&Path>, port: u16, json_output: bool) 
     } else {
         None
     };
-    let setup = crate::config::doctor_setup::run(frontier_dir.as_deref());
+    let setup = crate::config::doctor_setup::run(frontier_dir.as_deref()).await;
     if json_output {
         let mut merged = serde_json::to_value(&report).unwrap_or_default();
         if let Some(obj) = merged.as_object_mut() {

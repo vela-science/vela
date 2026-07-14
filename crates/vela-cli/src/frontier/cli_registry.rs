@@ -10,7 +10,7 @@ use vela_protocol::cli_style as style;
 /// The registry surface after the ADR 0001 Phase 2 transport cut: index
 /// reads, transparency-log verification, and the one owner-signed act —
 /// binding a frontier's git remote. Publication itself is `git push`.
-pub(crate) fn cmd_hub(action: HubAction) {
+pub(crate) async fn cmd_hub(action: HubAction) {
     match action {
         HubAction::VerifyLog {
             vfr_id,
@@ -180,10 +180,6 @@ pub(crate) fn cmd_hub(action: HubAction) {
             if hubs.len() < 2 {
                 fail("--hubs requires at least two hub URLs (comma-separated).");
             }
-            let client = reqwest::blocking::Client::builder()
-                .timeout(std::time::Duration::from_secs(30))
-                .build()
-                .unwrap_or_else(|e| fail_return(&format!("http client init: {e}")));
 
             #[derive(serde::Serialize)]
             struct HubResponse {
@@ -195,6 +191,12 @@ pub(crate) fn cmd_hub(action: HubAction) {
                 note: Option<String>,
             }
 
+            // This branch runs inside the CLI's Tokio runtime. Use the native
+            // async client: dropping reqwest's blocking client here panics.
+            let client = reqwest::Client::builder()
+                .timeout(std::time::Duration::from_secs(30))
+                .build()
+                .unwrap_or_else(|e| fail_return(&format!("http client init: {e}")));
             let mut responses: Vec<HubResponse> = Vec::new();
             let mut hash_counts: std::collections::BTreeMap<String, usize> =
                 std::collections::BTreeMap::new();
@@ -202,9 +204,9 @@ pub(crate) fn cmd_hub(action: HubAction) {
             for hub_url in &hubs {
                 let base = hub_url.trim_end_matches('/');
                 let url = format!("{base}/entries/{vfr_id}");
-                match client.get(&url).send() {
+                match client.get(&url).send().await {
                     Ok(resp) if resp.status().is_success() => {
-                        match resp.json::<serde_json::Value>() {
+                        match resp.json::<serde_json::Value>().await {
                             Ok(mut entry) => {
                                 // Compare the LOG, not the librarian's
                                 // stamp (the CT rule). `signed_publish_at`
@@ -312,5 +314,41 @@ pub(crate) fn cmd_hub(action: HubAction) {
                 std::process::exit(1);
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::{Read, Write};
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn witness_check_is_safe_inside_the_cli_runtime() {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = std::thread::spawn(move || {
+            for _ in 0..2 {
+                let (mut stream, _) = listener.accept().unwrap();
+                let mut request = [0_u8; 1024];
+                let _ = stream.read(&mut request).unwrap();
+                let body = br#"{"signed_publish_at":"hub-local","state":"same"}"#;
+                write!(
+                    stream,
+                    "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                    body.len()
+                )
+                .unwrap();
+                stream.write_all(body).unwrap();
+            }
+        });
+
+        cmd_hub(HubAction::WitnessCheck {
+            vfr_id: "vfr_runtime_regression".to_string(),
+            hubs: vec![format!("http://{address}"), format!("http://{address}")],
+            json: true,
+        })
+        .await;
+
+        server.join().unwrap();
     }
 }
