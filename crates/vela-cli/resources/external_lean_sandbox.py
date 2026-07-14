@@ -46,6 +46,11 @@ DEFAULT_LIMITS = {
     "single_file_bytes": 512 * 1024 * 1024,
 }
 
+# `/bin/ps` can fail briefly on a busy macOS host. Preserve fail-closed resource
+# accounting, but require a bounded continuous outage instead of treating one
+# exhausted sample burst as a verdict about the sandboxed process.
+MONITOR_UNAVAILABLE_GRACE_SECONDS = 0.25
+
 BLOCKED_CAPABILITIES = [
     "network",
     "inherited_environment",
@@ -719,6 +724,18 @@ def _process_metrics(process_group: int) -> tuple[int | None, int | None]:
     return count, rss_kib * 1024
 
 
+def _monitor_outage_state(
+    unavailable_since: float | None,
+    sample_started: float,
+    sample_finished: float,
+    metrics_available: bool,
+) -> tuple[float | None, bool]:
+    if metrics_available:
+        return None, False
+    since = sample_started if unavailable_since is None else unavailable_since
+    return since, sample_finished - since >= MONITOR_UNAVAILABLE_GRACE_SECONDS
+
+
 def execute(request: dict[str, Any]) -> dict[str, Any]:
     if request.get("schema") != SCHEMA_REQUEST:
         raise InvalidRequest(f"request schema must be {SCHEMA_REQUEST}")
@@ -851,6 +868,7 @@ def execute(request: dict[str, Any]) -> dict[str, Any]:
 
         started = time.monotonic()
         limit_hit: str | None = None
+        monitor_unavailable_since: float | None = None
         process = subprocess.Popen(
             sandbox_command,
             cwd=cwd,
@@ -862,14 +880,23 @@ def execute(request: dict[str, Any]) -> dict[str, Any]:
             preexec_fn=lambda: _preexec(limits),
         )
         while process.poll() is None:
-            elapsed = time.monotonic() - started
             output_bytes = os.fstat(stdout_descriptor).st_size + os.fstat(stderr_descriptor).st_size
             try:
                 disk_bytes = max(0, _directory_bytes(write_root, read_roots) - baseline_bytes)
             except InvalidRequest:
                 disk_bytes = 0
                 limit_hit = "monitor_unavailable"
+            metrics_sample_started = time.monotonic()
             processes, memory_bytes = _process_metrics(process.pid)
+            metrics_sample_finished = time.monotonic()
+            metrics_available = processes is not None and memory_bytes is not None
+            monitor_unavailable_since, monitor_outage_expired = _monitor_outage_state(
+                monitor_unavailable_since,
+                metrics_sample_started,
+                metrics_sample_finished,
+                metrics_available,
+            )
+            elapsed = metrics_sample_finished - started
             if elapsed > limits["wall_seconds"]:
                 limit_hit = "wall_seconds"
             elif output_bytes > limits["output_bytes"]:
@@ -878,16 +905,23 @@ def execute(request: dict[str, Any]) -> dict[str, Any]:
                 limit_hit = "disk_bytes"
             elif limit_hit == "monitor_unavailable":
                 pass
-            elif processes is None or memory_bytes is None:
-                limit_hit = "monitor_unavailable"
-            elif processes > limits["processes"]:
-                limit_hit = "processes"
-            elif memory_bytes > limits["memory_bytes"]:
-                limit_hit = "memory_bytes"
+            elif not metrics_available:
+                if monitor_outage_expired:
+                    limit_hit = "monitor_unavailable"
+            else:
+                assert processes is not None and memory_bytes is not None
+                if processes > limits["processes"]:
+                    limit_hit = "processes"
+                elif memory_bytes > limits["memory_bytes"]:
+                    limit_hit = "memory_bytes"
             if limit_hit:
                 _terminate_group(process)
                 break
             time.sleep(0.025)
+        # A process that exits during an unresolved outage never receives an
+        # unmeasured success. A later successful sample clears the outage above.
+        if limit_hit is None and monitor_unavailable_since is not None:
+            limit_hit = "monitor_unavailable"
         returncode = process.wait()
         # The leader may exit while descendants keep the process group alive.
         # End the whole group before reading outputs or measuring final roots.

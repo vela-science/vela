@@ -825,7 +825,8 @@ Earlier releases are documented inline in the sections above.
 
 - **v0.759.1**: sandbox process-group cleanup checks quiescence before signaling
   a post-wait PGID, absorbs macOS `EPERM` only as a bounded cleanup condition,
-  and still fails closed if descendants remain. No event, receipt, decision, or
+  and tolerates only a 250 ms continuous host-monitor outage before failing
+  closed. Descendants must still quiesce. No event, receipt, decision, or
   authority schema changed.
 - **v0.759.0**: new decisions bind an exact private Decision Plan root into the
   existing signed acceptance event while legacy events remain replayable;
