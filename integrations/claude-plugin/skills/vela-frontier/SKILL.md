@@ -116,9 +116,10 @@ in which an agent's proposal becomes accepted state without a human key.
 Frontier repos carry a conformance gate. When the harness supports suites, run
 the suites selected from the affected paths and require 0 FAIL in each one.
 Trust-path changes run every deterministic suite selected from their affected
-paths. Release certification runs the full union on a host that satisfies every
-registered environment contract. A selected suite fails if a required verifier
-toolchain is absent; a non-selected suite is not a pass.
+paths. Release certification runs the deterministic full Vela union. Live
+network and platform-pinned adapter checks stay explicit and cannot block an
+unrelated Vela release. A selected suite fails if a required verifier toolchain
+is absent; a non-selected suite is not a pass.
 `vela check . --strict` is the same frontier-state bar the hub's ingestor
 enforces. `vela reproduce <frontier>` re-runs the frozen verifiers over stored
 witnesses from scratch. Run it before claiming a reproduction, and never

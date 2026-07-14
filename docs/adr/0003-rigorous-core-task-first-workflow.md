@@ -9,6 +9,8 @@
   bundle self-contained in the public crate after public-clone CI exposed a
   parent-checkout dependency, and pins Git attribute resolution to the verified
   target commit so exact publication never consults mutable worktree filters.
+  Patch `0.759.3` keeps the full Vela release contract deterministic and scopes
+  live or platform-pinned complementor checks to explicit compatibility runs.
   The human-ceremony, independent-producer, and independent-consumer acceptance
   gates below remain open. This ADR is an engineering decision record, not a
   signed scientific event or a substitute for a Vela policy decision.
@@ -1523,9 +1525,14 @@ Decision Plan binding, and after the connected producer path. Repeated
 failure to understand a field or complete a step is a reason to simplify the
 scaffold before adding another surface.
 
-Each trust-path change runs the full conformance union. Existing frontiers must
-replay byte-identically. The optional signed decision-root reference is
-exercised by a new fixture; old fixture bytes and IDs do not change.
+Each trust-path change runs the deterministic conformance suites selected from
+its affected paths. The full Vela release union is deterministic. Live network
+and platform-pinned adapter checks are explicit compatibility evidence, not
+generic release prerequisites: making a complementor environment mandatory
+would turn replaceable scaffolding into an infrastructure dependency. Existing
+frontiers must replay byte-identically. The optional signed
+decision-root reference is exercised by a new fixture; old fixture bytes and
+IDs do not change.
 
 ### Implementation evidence, 2026-07-14
 

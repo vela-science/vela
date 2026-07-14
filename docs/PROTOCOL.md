@@ -823,6 +823,12 @@ v0 remains proposal/event/finding centered.
 This list tracks protocol-surface additions across recent releases.
 Earlier releases are documented inline in the sections above.
 
+- **v0.759.3**: generated agent guidance defines the full Vela release contract
+  as the deterministic protocol, frontier, internal Lean, and external Lean
+  suites. Live-network and platform-pinned Diderot checks remain explicit
+  integration certifications, so a replaceable complementor cannot become an
+  unrelated Vela release dependency. No event, receipt, decision, or authority
+  schema changed.
 - **v0.759.2**: the installed external-Lean verifier bundle is wholly contained
   in the publishable `vela-cli` crate. Public-clone and package checks prevent
   release builds from reaching into a parent campaign checkout. Git publication
