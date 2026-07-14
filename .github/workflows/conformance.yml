@@ -26,6 +26,13 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: format
         run: cargo fmt --all -- --check
+      - name: package contains installed verifier resources
+        run: |
+          cargo package -p vela-cli --list > /tmp/vela-cli-package-files
+          grep -Fx resources/external_lean_sandbox.py /tmp/vela-cli-package-files
+          grep -Fx resources/diderot_lean_verifier.py /tmp/vela-cli-package-files
+          grep -Fx resources/receipt_v1.py /tmp/vela-cli-package-files
+          grep -Fx resources/receipt_json.py /tmp/vela-cli-package-files
       - name: clippy (deny warnings)
         run: cargo clippy --workspace --all-targets -- -D warnings
       - name: build

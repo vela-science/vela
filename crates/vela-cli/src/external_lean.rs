@@ -19,10 +19,13 @@ use vela_protocol::receipt_v1::{
     ArtifactInput, ProducerReportedRun, ReceiptBuilder, ReceiptInput, ReceiptV1,
 };
 
+// Keep the complete installed verifier bundle inside this publishable crate.
+// Reaching into the parent campaign checkout makes an otherwise valid public
+// clone and crates.io package fail at compile time.
 const DRIVER: &[u8] = include_bytes!("../resources/external_lean_sandbox.py");
-const ONRAMP: &[u8] = include_bytes!("../../../../../scripts/diderot_lean_verifier.py");
-const RECEIPT_V1_PY: &[u8] = include_bytes!("../../../../../scripts/receipt_v1.py");
-const RECEIPT_JSON_PY: &[u8] = include_bytes!("../../../../../scripts/receipt_json.py");
+const ONRAMP: &[u8] = include_bytes!("../resources/diderot_lean_verifier.py");
+const RECEIPT_V1_PY: &[u8] = include_bytes!("../resources/receipt_v1.py");
+const RECEIPT_JSON_PY: &[u8] = include_bytes!("../resources/receipt_json.py");
 const MAX_RESULT_BYTES: usize = 1024 * 1024;
 const MAX_REQUEST_BYTES: usize = 64 * 1024;
 const MAX_ONRAMP_ARGUMENT_BYTES: usize = 16 * 1024;
@@ -1045,5 +1048,20 @@ mod tests {
         assert!(DRIVER.starts_with(b"#!/usr/bin/env python3\n"));
         assert_eq!(embedded_onramp_root().len(), 71);
         assert!(ONRAMP.starts_with(b"#!/usr/bin/env python3\n"));
+    }
+
+    #[test]
+    fn embedded_onramp_sources_are_crate_local_package_resources() {
+        let resources = Path::new(env!("CARGO_MANIFEST_DIR")).join("resources");
+        for (name, embedded) in [
+            ("external_lean_sandbox.py", DRIVER),
+            ("diderot_lean_verifier.py", ONRAMP),
+            ("receipt_v1.py", RECEIPT_V1_PY),
+            ("receipt_json.py", RECEIPT_JSON_PY),
+        ] {
+            let packaged = fs::read(resources.join(name))
+                .unwrap_or_else(|error| panic!("missing packaged resource {name}: {error}"));
+            assert_eq!(packaged, embedded, "packaged resource {name} drifted");
+        }
     }
 }

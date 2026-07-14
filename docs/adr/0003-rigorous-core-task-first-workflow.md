@@ -5,7 +5,9 @@
   projections.
 - Implementation state: The technical scaffold was implemented for Vela
   `0.759.0` on 2026-07-14 and its macOS verifier cleanup and monitoring were
-  hardened in patch `0.759.1`. The human-ceremony, independent-producer, and
+  hardened in patch `0.759.1`. Patch `0.759.2` makes the installed verifier
+  bundle self-contained in the public crate after public-clone CI exposed a
+  parent-checkout dependency. The human-ceremony, independent-producer, and
   independent-consumer acceptance gates below remain open. This ADR is an
   engineering decision record, not a signed scientific event or a substitute
   for a Vela policy decision.
@@ -1566,7 +1568,9 @@ The following program gates intentionally remain open:
 Accordingly, the `0.759` release train is the implementation release for the
 clerk layer, not a claim that the acceptance program or the outside-producer
 goal is complete. Patch `0.759.1` changes only fail-closed sandbox cleanup and
-host monitoring; it does not expand the authority surface.
+host monitoring. Patch `0.759.2` contains the installed verifier resources
+inside the publishable crate and adds a public-package regression. Neither
+patch expands the authority surface.
 
 ## Acceptance metrics
 

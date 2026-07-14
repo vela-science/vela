@@ -823,6 +823,10 @@ v0 remains proposal/event/finding centered.
 This list tracks protocol-surface additions across recent releases.
 Earlier releases are documented inline in the sections above.
 
+- **v0.759.2**: the installed external-Lean verifier bundle is wholly contained
+  in the publishable `vela-cli` crate. Public-clone and package checks prevent
+  release builds from reaching into a parent campaign checkout. No event,
+  receipt, decision, or authority schema changed.
 - **v0.759.1**: sandbox process-group cleanup checks quiescence before signaling
   a post-wait PGID, absorbs macOS `EPERM` only as a bounded cleanup condition,
   samples only the sandbox process group, and tolerates only a 250 ms continuous
