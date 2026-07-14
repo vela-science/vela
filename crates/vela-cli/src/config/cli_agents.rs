@@ -387,11 +387,13 @@ pub(crate) fn cmd_agents_sync(root: &Path, json_output: bool) {
 
 /// Doctor / diff share the comparison core: which adapters are missing, drifted,
 /// or in-sync against what `sync` would produce.
-pub(crate) fn compare(root: &Path) -> (Vec<String>, Vec<String>, Vec<String>) {
+type AdapterComparison = (Vec<String>, Vec<String>, Vec<String>);
+
+pub(crate) fn compare(root: &Path) -> AdapterComparison {
     try_compare(root).unwrap_or_else(|error| fail_return(&error))
 }
 
-pub(crate) fn try_compare(root: &Path) -> Result<(Vec<String>, Vec<String>, Vec<String>), String> {
+pub(crate) fn try_compare(root: &Path) -> Result<AdapterComparison, String> {
     let adapters = try_build_adapters(root)?;
     let (mut missing, mut drifted, mut in_sync) = (Vec::new(), Vec::new(), Vec::new());
     for a in &adapters {

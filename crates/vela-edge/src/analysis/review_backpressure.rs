@@ -584,15 +584,15 @@ mod tests {
             _ => 2,
         };
         let submitted = AS_OF - 100 - index as u64;
-        let (reviewed, correction_requested, corrected) = if index % 97 == 0 {
+        let (reviewed, correction_requested, corrected) = if index.is_multiple_of(97) {
             let reviewed = submitted + 10;
             let requested = submitted + 20;
             (
                 Some(reviewed),
                 Some(requested),
-                (index % 194 != 0).then_some(submitted + 40),
+                (!index.is_multiple_of(194)).then_some(submitted + 40),
             )
-        } else if index % 3 == 0 {
+        } else if index.is_multiple_of(3) {
             (None, None, None)
         } else {
             (Some(submitted + 10), None, None)
@@ -616,17 +616,17 @@ mod tests {
             independence_key: format!("producer_{work_boundary}_{}", group % 64),
             verifier_class,
             exact_work_root: format!("sha256:{group:064x}:{work_boundary}"),
-            evidence: if slot == 3 && group % 11 == 0 {
+            evidence: if slot == 3 && group.is_multiple_of(11) {
                 EvidenceDirection::ChallengesClaim
             } else {
                 EvidenceDirection::SupportsClaim
             },
-            value: if slot == 1 || (slot == 0 && group % 5 == 0) {
+            value: if slot == 1 || (slot == 0 && group.is_multiple_of(5)) {
                 WorkValue::LowValue
             } else {
                 WorkValue::Substantive
             },
-            priority: if index % 257 == 0 {
+            priority: if index.is_multiple_of(257) {
                 ReviewPriority::CriticalException
             } else {
                 ReviewPriority::Routine
@@ -636,7 +636,7 @@ mod tests {
             correction_requested_at_seconds: correction_requested,
             corrected_at_seconds: corrected,
             reviewer_minutes: 5 + (index % 45) as u32,
-            downstream_uses: if index % 7 == 0 {
+            downstream_uses: if index.is_multiple_of(7) {
                 1 + (index % 3) as u32
             } else {
                 0
