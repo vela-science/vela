@@ -696,7 +696,7 @@ def _process_metrics(process_group: int) -> tuple[int | None, int | None]:
     for attempt in range(3):
         try:
             sampled = subprocess.run(
-                ["/bin/ps", "-axo", "pgid=,rss="],
+                ["/bin/ps", "-o", "pgid=,rss=", "-g", str(process_group)],
                 check=False,
                 capture_output=True,
                 timeout=2,
@@ -706,6 +706,15 @@ def _process_metrics(process_group: int) -> tuple[int | None, int | None]:
         if sampled is not None and sampled.returncode == 0:
             result = sampled
             break
+        if (
+            sampled is not None
+            and sampled.returncode == 1
+            and sampled.stdout == b""
+            and sampled.stderr == b""
+        ):
+            # BSD ps reports an absent process group as status 1 with no text.
+            # That is a measured empty group, not a host-monitor outage.
+            return 0, 0
         if attempt < 2:
             time.sleep(0.01)
     if result is None:
