@@ -6080,6 +6080,19 @@ mod tests {
 
         let temporary = frontier();
         let path = temporary.path();
+        // Force one unchanged tracked entry into Git's racily-clean window.
+        // Reconciliation copies this stat data into its alternate index, so
+        // writing that index must verify the worktree bytes. Without a pinned
+        // attribute source, that implicit check would execute the hostile
+        // worktree filter below.
+        File::open(path.join(".vela/config.toml"))
+            .unwrap()
+            .set_modified(std::time::SystemTime::now() + std::time::Duration::from_secs(86_400))
+            .unwrap();
+        sh(
+            path,
+            &["update-index", "--refresh", "--", ".vela/config.toml"],
+        );
         let marker = path.join("EXACT_FILTER_EXECUTED");
         let script = path.join("exact-evil-filter.sh");
         fs::write(
