@@ -670,62 +670,36 @@ where
         .map_err(|error| error.to_string())?;
     after_barrier()?;
     let original = repo::load_from_path(frontier)?;
-    let (applied, bind_actor_registry) = match &authorization {
+    let observed_at = chrono::Utc::now().to_rfc3339();
+    let (verified_write, bind_actor_registry) = match &authorization {
         ProposalWriteAuthorization::RegisteredSignature {
             canonical_signature,
             apply_if_tier_permits,
-        } => {
-            let actor = original
-                .actors
-                .iter()
-                .find(|actor| actor.id == proposal.actor.id)
-                .ok_or_else(|| {
-                    format!(
-                        "actor '{}' is not registered in this frontier; register via `vela actor add` before writing",
-                        proposal.actor.id
-                    )
-                })?;
-            if actor.algorithm != "ed25519" {
-                return Err(format!(
-                    "actor '{}' uses unsupported signing algorithm '{}'",
-                    proposal.actor.id, actor.algorithm
-                ));
-            }
-            if actor.revoked_at.is_some() {
-                return Err(format!(
-                    "actor '{}' is revoked and may not create a new proposal",
-                    proposal.actor.id
-                ));
-            }
-            let tier_permits_apply =
-                vela_protocol::sign::actor_can_auto_apply(actor, &proposal.kind);
-            if *apply_if_tier_permits && !tier_permits_apply {
-                let tier_label = actor.tier.as_deref().unwrap_or("none");
-                return Err(format!(
-                    "actor '{}' tier '{tier_label}' does not permit auto-apply for {}",
-                    proposal.actor.id, proposal.kind
-                ));
-            }
-            if !vela_protocol::sign::verify_proposal_signature(
+        } => (
+            Some(vela_protocol::proposals::authorize_signed_proposal_write(
+                &original,
                 &proposal,
                 canonical_signature,
-                &actor.public_key,
-            )? {
-                return Err(format!(
-                    "Signature does not verify for actor '{}' on this proposal",
-                    proposal.actor.id
-                ));
-            }
-            (*apply_if_tier_permits && tier_permits_apply, true)
-        }
-        ProposalWriteAuthorization::LocalPendingDraft => (false, false),
+                *apply_if_tier_permits,
+                &observed_at,
+            )?),
+            true,
+        ),
+        ProposalWriteAuthorization::LocalPendingDraft => (None, false),
     };
 
     let mut candidate: vela_protocol::project::Project =
         serde_json::from_value(serde_json::to_value(&original).map_err(|error| error.to_string())?)
             .map_err(|error| error.to_string())?;
-    let result =
-        vela_protocol::proposals::create_or_apply_in_frontier(&mut candidate, proposal, applied)?;
+    let result = if let Some(authority) = verified_write.as_ref() {
+        vela_protocol::proposals::create_with_verified_proposal_write_in_frontier(
+            &mut candidate,
+            proposal,
+            authority,
+        )?
+    } else {
+        vela_protocol::proposals::create_or_apply_in_frontier(&mut candidate, proposal, false)?
+    };
     let result = json!({
         "proposal_id": result.proposal_id,
         "finding_id": result.finding_id,
@@ -774,7 +748,7 @@ where
     } else {
         Vec::new()
     };
-    let fixed_time = chrono::Utc::now().to_rfc3339();
+    let fixed_time = observed_at;
     let plan = FrontierTxnPlan::new(
         FrontierTxnPlanSpec {
             kind: OperationKind::Maintenance,

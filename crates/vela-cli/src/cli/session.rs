@@ -42,8 +42,8 @@ pub(crate) fn print_session_help() {
     println!("    work     = claim the lease, load the briefing, open a session");
     println!("    land     = cross activity into state (vela.receipt.v1), routed");
     println!("               by the signed policy: Permit admits, Defer waits");
-    println!("    sign     = the human ceremony — every deferred decision, one");
-    println!("               session, one confirm, one key read");
+    println!("    sign     = one frontier's deferred decisions, exact semantic set,");
+    println!("               one confirm, one key read, recoverable commit");
     println!("    check    = is the LOG intact (replay, signatures, parity)");
     println!("    reproduce= is the SCIENCE intact (re-run every frozen verifier)");
     println!();
@@ -60,7 +60,7 @@ pub(crate) fn print_session_help() {
     println!("    next              What to work on, ranked (--json = agent contract)");
     println!("    work <target>     Take one: lease + briefing into .vela/work/");
     println!("    land <receipt>    Land the result; policy routes it");
-    println!("    sign              Decide everything awaiting your key");
+    println!("    sign              Decide this frontier's pending proposals");
     println!("    policy            Standing rules: what agents land without you");
     println!();
     println!("  READ");

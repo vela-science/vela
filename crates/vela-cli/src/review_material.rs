@@ -416,6 +416,22 @@ pub(crate) struct ReviewPage {
     pub(crate) receipts_opened: usize,
 }
 
+/// Lock-neutral review material for an exact caller-selected proposal set.
+///
+/// The caller must already own the frontier recovery barrier and must pass the
+/// `Project` loaded while that barrier is held. This seam deliberately does
+/// not acquire a second (non-reentrant) barrier. It reuses the same bounded
+/// receipt, policy, Engine, and Decision Brief derivation as the paginated read
+/// projection, while preserving the caller's proposal order for a Decision
+/// Plan signing preimage.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct LockedReviewSelection {
+    pub(crate) event_log_root: String,
+    pub(crate) active_policy_snapshot_root: String,
+    pub(crate) engine_policy_observation_root: String,
+    pub(crate) items: Vec<vela_edge::decision_brief::ReviewSnapshot>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ReviewProjectionError {
     pub(crate) code: &'static str,
@@ -726,6 +742,154 @@ impl ReviewProjection {
             )
         })
     }
+
+    /// Render the first phase of a single-item scripted decision without
+    /// acquiring the recovery barrier. This path must remain strictly
+    /// read-only even when an earlier transaction is still Prepared. The
+    /// Decision Plan preview builder double-reads and compares the complete
+    /// input set, and confirmed execution later rederives under the barrier.
+    pub(crate) fn one_read_only(
+        frontier: &Path,
+        proposal_id: &str,
+    ) -> Result<vela_edge::decision_brief::ReviewSnapshot, ReviewProjectionError> {
+        let observed_at = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Nanos, true);
+        Self::one_at(frontier, proposal_id, &observed_at)
+    }
+
+    /// Rebuild one scripted confirmation preview at an explicitly echoed
+    /// observation instant. This keeps event timestamps and time-dependent
+    /// policy inputs inside the Decision Plan root without writing a private
+    /// preview ticket between processes.
+    pub(crate) fn one_at(
+        frontier: &Path,
+        proposal_id: &str,
+        observed_at: &str,
+    ) -> Result<vela_edge::decision_brief::ReviewSnapshot, ReviewProjectionError> {
+        let project = vela_protocol::repo::load_from_path(frontier)
+            .map_err(|error| ReviewProjectionError::new("frontier_invalid", error))?;
+        let mut selection = Self::selected_from_locked_project_at(
+            frontier,
+            &project,
+            &[proposal_id.to_string()],
+            observed_at,
+        )?;
+        selection.items.pop().ok_or_else(|| {
+            ReviewProjectionError::new(
+                "proposal_not_found",
+                format!("pending proposal {proposal_id} was not found"),
+            )
+        })
+    }
+
+    /// Rederive one or many exact proposal briefs from a caller-owned locked
+    /// Project snapshot, at a caller-bound observation/decision time.
+    ///
+    /// `proposal_ids` is ordered and duplicate-free. Every id must still name
+    /// a pending, unapplied proposal in `project`; missing or newly decided
+    /// proposals are typed stale input rather than silently skipped.
+    pub(crate) fn selected_from_locked_project_at(
+        frontier: &Path,
+        project: &Project,
+        proposal_ids: &[String],
+        observed_at: &str,
+    ) -> Result<LockedReviewSelection, ReviewProjectionError> {
+        chrono::DateTime::parse_from_rfc3339(observed_at).map_err(|error| {
+            ReviewProjectionError::new(
+                "decision_time_invalid",
+                format!("review observation time is invalid: {error}"),
+            )
+        })?;
+        if proposal_ids.is_empty() {
+            return Err(ReviewProjectionError::new(
+                "proposal_set_empty",
+                "a locked review selection requires at least one proposal",
+            ));
+        }
+        if proposal_ids.len() > REVIEW_PAGE_MAX {
+            return Err(ReviewProjectionError::new(
+                "proposal_set_too_large",
+                format!(
+                    "locked review selection has {} proposals; maximum is {REVIEW_PAGE_MAX}",
+                    proposal_ids.len()
+                ),
+            ));
+        }
+
+        let mut seen = std::collections::BTreeSet::new();
+        for proposal_id in proposal_ids {
+            if !seen.insert(proposal_id.as_str()) {
+                return Err(ReviewProjectionError::new(
+                    "duplicate_proposal_id",
+                    format!("proposal {proposal_id} appears more than once"),
+                ));
+            }
+        }
+
+        let replay_ok = vela_protocol::reducer::verify_replay(project).ok;
+        let policy_snapshot =
+            vela_protocol::acceptance_policy::load_active_policy_snapshot(frontier);
+        let engine_policy_observation =
+            vela_protocol::frontier_policy::engine_policy_summary_observation(frontier);
+        let active_policy_snapshot_root = policy_snapshot_marker_root(&policy_snapshot)?;
+        let event_log_root = format!(
+            "sha256:{}",
+            vela_protocol::events::event_log_hash(&project.events)
+        );
+
+        let mut receipts_opened = 0usize;
+        let mut items = Vec::with_capacity(proposal_ids.len());
+        for proposal_id in proposal_ids {
+            let proposal = project
+                .proposals
+                .iter()
+                .find(|proposal| proposal.id == *proposal_id)
+                .ok_or_else(|| {
+                    ReviewProjectionError::new(
+                        "proposal_not_found",
+                        format!("pending proposal {proposal_id} was not found"),
+                    )
+                })?;
+            if proposal.status != "pending_review" || proposal.applied_event_id.is_some() {
+                return Err(ReviewProjectionError::new(
+                    "proposal_no_longer_pending",
+                    format!("proposal {proposal_id} is no longer pending and unapplied"),
+                ));
+            }
+            let expected = vela_protocol::proposals::proposal_id(proposal);
+            if proposal.id != expected {
+                return Err(ReviewProjectionError::new(
+                    "proposal_id_mismatch",
+                    format!("stored proposal {} rederives as {expected}", proposal.id),
+                ));
+            }
+            let loaded = load_receipt_material(frontier, proposal, &mut receipts_opened);
+            items.push(build_review_item(
+                frontier,
+                project,
+                proposal,
+                &loaded,
+                &policy_snapshot,
+                observed_at,
+                replay_ok,
+            )?);
+        }
+
+        if vela_protocol::frontier_policy::engine_policy_summary_observation(frontier)
+            != engine_policy_observation
+        {
+            return Err(ReviewProjectionError::new(
+                "policy_changed_during_read",
+                "Engine policy inputs changed while the locked review set was being derived",
+            ));
+        }
+
+        Ok(LockedReviewSelection {
+            event_log_root,
+            active_policy_snapshot_root,
+            engine_policy_observation_root: engine_policy_observation.root,
+            items,
+        })
+    }
 }
 
 fn select_review_leaves<'a>(
@@ -957,6 +1121,21 @@ fn policy_snapshot_marker(
             "error_root": bytes_root(error.as_bytes()),
         }),
     }
+}
+
+fn policy_snapshot_marker_root(
+    snapshot: &Result<vela_protocol::acceptance_policy::ActivePolicySnapshot, String>,
+) -> Result<String, ReviewProjectionError> {
+    let marker = policy_snapshot_marker(snapshot);
+    let value = serde_json::json!({
+        "schema": "vela.active-policy-observation.internal.v1",
+        "marker": marker,
+    });
+    Ok(format!(
+        "sha256:{}",
+        vela_protocol::canonical::sha256_canonical(&value)
+            .map_err(|error| ReviewProjectionError::new("policy_snapshot_root_failed", error))?
+    ))
 }
 
 fn bytes_root(bytes: &[u8]) -> String {

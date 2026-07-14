@@ -72,6 +72,78 @@ fn init_git_frontier(dir: &Path) {
     assert_success(&git(dir, &["commit", "-qm", "baseline"]), "commit baseline");
 }
 
+fn register_deterministic_reviewer(dir: &Path, seed: u8) -> std::path::PathBuf {
+    use ed25519_dalek::SigningKey;
+    use vela_protocol::sign::ActorRecord;
+
+    let key = SigningKey::from_bytes(&[seed; 32]);
+    let public_key = hex::encode(key.verifying_key().to_bytes());
+    let identity_path = dir.join(".vela/identity.json");
+    let mut identity: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(&identity_path).unwrap()).unwrap();
+    let key_path = dir.join(".vela/keys/t/private.key");
+    std::fs::write(&key_path, hex::encode(key.to_bytes())).unwrap();
+    identity["actor_id"] = "reviewer:t".into();
+    identity["actor_type"] = "human".into();
+    identity["pubkey"] = public_key.clone().into();
+    identity["key_path"] = key_path.display().to_string().into();
+    std::fs::write(
+        &identity_path,
+        format!("{}\n", serde_json::to_string_pretty(&identity).unwrap()),
+    )
+    .unwrap();
+
+    let mut project = vela_protocol::repo::load_from_path(dir).unwrap();
+    project.actors.retain(|actor| actor.id != "reviewer:t");
+    project.actors.push(ActorRecord {
+        id: "reviewer:t".to_string(),
+        public_key,
+        algorithm: "ed25519".to_string(),
+        created_at: "2026-07-13T00:00:00Z".to_string(),
+        tier: None,
+        orcid: None,
+        access_clearance: None,
+        revoked_at: None,
+        revoked_reason: None,
+    });
+    vela_protocol::repo::save_to_path(dir, &project).unwrap();
+    key_path
+}
+
+fn add_rejectable_proposal(dir: &Path, suffix: &str) -> String {
+    let mut project = vela_protocol::repo::load_from_path(dir).unwrap();
+    let proposal = vela_protocol::proposals::new_proposal_at(
+        "finding.note",
+        vela_protocol::events::StateTarget {
+            r#type: "finding".to_string(),
+            id: format!("vf_decision_plan_{suffix}"),
+        },
+        "agent:fixture",
+        "agent",
+        format!("bounded Decision Plan rejection fixture {suffix}"),
+        serde_json::json!({
+            "note": format!("fixture note {suffix}"),
+            "vela_submission": {
+                "schema": "vela.submission-links.internal.v1",
+                "receipt_root": format!("sha256:{}", "3".repeat(64)),
+                "receipt_path": format!(
+                    "records/receipts/sha256/{}.json",
+                    "3".repeat(64)
+                ),
+                "record_id": format!("vrc_fixture_{suffix}"),
+                "operation_id": format!("vop_{}", "4".repeat(64)),
+            }
+        }),
+        Vec::new(),
+        vec!["fixture evidence is intentionally unavailable".to_string()],
+        "2026-07-13T01:00:00Z",
+    );
+    let proposal_id = proposal.id.clone();
+    project.proposals.push(proposal);
+    vela_protocol::repo::save_to_path(dir, &project).unwrap();
+    proposal_id
+}
+
 fn write_receipt(dir: &Path, filename: &str, claim: &str) {
     write_receipt_with_artifact(dir, filename, claim, "w.json", br#"{"witness":true}"#);
 }
@@ -347,6 +419,33 @@ fn snapshot_scientific_tree(dir: &Path) -> Vec<(String, Vec<u8>)> {
     out
 }
 
+fn snapshot_exact_tree(root: &Path) -> Vec<(String, Vec<u8>)> {
+    fn collect(root: &Path, path: &Path, out: &mut Vec<(String, Vec<u8>)>) {
+        let Ok(metadata) = std::fs::symlink_metadata(path) else {
+            return;
+        };
+        if metadata.is_dir() {
+            let mut entries = std::fs::read_dir(path)
+                .unwrap()
+                .map(|entry| entry.unwrap().path())
+                .collect::<Vec<_>>();
+            entries.sort();
+            for entry in entries {
+                collect(root, &entry, out);
+            }
+        } else {
+            out.push((
+                path.strip_prefix(root).unwrap().display().to_string(),
+                std::fs::read(path).unwrap(),
+            ));
+        }
+    }
+
+    let mut out = Vec::new();
+    collect(root, root, &mut out);
+    out
+}
+
 #[test]
 fn json_mode_writes_one_object_only() {
     let tmp = tempfile::TempDir::new().unwrap();
@@ -393,7 +492,6 @@ fn exact_receipt_retry_is_idempotent_across_frontier_and_git() {
         tmp.path(),
         &["status", "--porcelain=v1", "--untracked-files=all"],
     );
-
     let retry = run(
         tmp.path(),
         &["land", "receipt.json", "--as", "agent:t", "--json"],
@@ -2222,4 +2320,620 @@ fn ai_volume_preview_has_stable_bounded_keyset_pages_and_never_fetches_locators(
         Err(error) => panic!("inspect locator listener: {error}"),
     }
     assert_eq!(snapshot_scientific_tree(tmp.path()), before);
+}
+
+#[test]
+fn decision_plan_public_cli_reject_binds_the_rendered_root_and_human_signature() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    init_git_frontier(tmp.path());
+    let key_path = register_deterministic_reviewer(tmp.path(), 0x51);
+    let proposal_id = add_rejectable_proposal(tmp.path(), "reject");
+    assert_success(&git(tmp.path(), &["add", "-A"]), "stage decision fixture");
+    assert_success(
+        &git(tmp.path(), &["commit", "-qm", "decision fixture"]),
+        "commit decision fixture",
+    );
+    let before = vela_protocol::repo::load_from_path(tmp.path()).unwrap();
+    let frontier = tmp.path().to_str().unwrap();
+    let scientific_before = snapshot_scientific_tree(tmp.path());
+    let head_before = git_stdout(tmp.path(), &["rev-parse", "HEAD"]);
+    let status_before = git_stdout(
+        tmp.path(),
+        &["status", "--porcelain=v1", "--untracked-files=all"],
+    );
+    let journal_dir = tmp.path().join(".vela/operation-journals");
+    let journal_before = snapshot_exact_tree(&journal_dir);
+    let binary_pin = tmp.path().join(".vela/binary-pin.json");
+    let binary_pin_before = std::fs::read(&binary_pin).ok();
+    let missing_key = tmp.path().join("missing-preview.key");
+    let preview = run(
+        tmp.path(),
+        &[
+            "proposals",
+            "reject",
+            frontier,
+            &proposal_id,
+            "--as",
+            "reviewer:t",
+            "--reason",
+            "Reject intentionally incomplete fixture evidence",
+            "--yes",
+            "--key",
+            missing_key.to_str().unwrap(),
+            "--json",
+        ],
+    );
+    assert_success(&preview, "Decision Plan public reject preview");
+    let preview = one_json_object(&preview);
+    assert_eq!(preview["command"], "proposals.reject.preview");
+    assert_eq!(preview["signed"], false);
+    assert_eq!(preview["key_read"], false);
+    let decision_root = preview["decision"]["decision_root"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    let confirm_at = preview["confirm_at"].as_str().unwrap().to_string();
+    assert_eq!(preview["confirmation"]["root"], decision_root);
+    assert_eq!(preview["confirmation"]["at"], confirm_at);
+    assert!(
+        preview.get("next").is_none(),
+        "JSON preview must expose structured arguments, not a shell-interpolated command: {preview}"
+    );
+    assert_eq!(snapshot_scientific_tree(tmp.path()), scientific_before);
+    assert_eq!(snapshot_exact_tree(&journal_dir), journal_before);
+    assert_eq!(std::fs::read(&binary_pin).ok(), binary_pin_before);
+    assert_eq!(git_stdout(tmp.path(), &["rev-parse", "HEAD"]), head_before);
+    assert_eq!(
+        git_stdout(
+            tmp.path(),
+            &["status", "--porcelain=v1", "--untracked-files=all"]
+        ),
+        status_before
+    );
+
+    let mismatch = run(
+        tmp.path(),
+        &[
+            "proposals",
+            "reject",
+            frontier,
+            &proposal_id,
+            "--as",
+            "reviewer:t",
+            "--reason",
+            "Reject intentionally incomplete fixture evidence",
+            "--yes",
+            "--confirm-root",
+            &format!("sha256:{}", "f".repeat(64)),
+            "--confirm-at",
+            &confirm_at,
+            "--key",
+            missing_key.to_str().unwrap(),
+            "--json",
+        ],
+    );
+    assert!(!mismatch.status.success());
+    let mismatch = one_json_object(&mismatch);
+    assert_eq!(mismatch["ok"], false);
+    assert!(
+        mismatch["error"]["message"]
+            .as_str()
+            .is_some_and(|message| message.contains("does not match")),
+        "{mismatch}"
+    );
+    assert_eq!(snapshot_scientific_tree(tmp.path()), scientific_before);
+    assert_eq!(snapshot_exact_tree(&journal_dir), journal_before);
+    assert_eq!(std::fs::read(&binary_pin).ok(), binary_pin_before);
+    assert_eq!(git_stdout(tmp.path(), &["rev-parse", "HEAD"]), head_before);
+
+    std::thread::sleep(std::time::Duration::from_millis(25));
+    let output = run(
+        tmp.path(),
+        &[
+            "proposals",
+            "reject",
+            frontier,
+            &proposal_id,
+            "--as",
+            "reviewer:t",
+            "--reason",
+            "Reject intentionally incomplete fixture evidence",
+            "--yes",
+            "--confirm-root",
+            &decision_root,
+            "--confirm-at",
+            &confirm_at,
+            "--key",
+            key_path.to_str().unwrap(),
+            "--json",
+        ],
+    );
+    assert_success(&output, "Decision Plan public reject confirmation");
+    let output = one_json_object(&output);
+    let decision_root = output["decision"]["decision_root"].as_str().unwrap();
+    let event_id = output["event_ids"][0].as_str().unwrap();
+    let project = vela_protocol::repo::load_from_path(tmp.path()).unwrap();
+    assert_eq!(project.events.len(), before.events.len() + 1);
+    assert_eq!(
+        project
+            .proposals
+            .iter()
+            .find(|proposal| proposal.id == proposal_id)
+            .unwrap()
+            .status,
+        "rejected"
+    );
+    let event = project
+        .events
+        .iter()
+        .find(|event| event.id == event_id)
+        .unwrap();
+    let actor = project
+        .actors
+        .iter()
+        .find(|actor| actor.id == "reviewer:t")
+        .unwrap();
+    assert!(vela_protocol::sign::verify_event_signature(event, &actor.public_key).unwrap());
+    let provenance: vela_protocol::provenance::Provenance =
+        serde_json::from_value(event.payload["provenance"].clone()).unwrap();
+    assert_eq!(
+        provenance
+            .input_refs
+            .iter()
+            .filter(|reference| reference.starts_with("urn:vela:decision-root:"))
+            .cloned()
+            .collect::<Vec<_>>(),
+        vec![format!("urn:vela:decision-root:{decision_root}")]
+    );
+}
+
+#[test]
+fn decision_plan_direct_sign_accept_uses_the_same_two_phase_root_and_time_handshake() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    init_git_frontier(tmp.path());
+    let key_path = register_deterministic_reviewer(tmp.path(), 0x56);
+    assert_success(&git(tmp.path(), &["add", "-A"]), "stage direct sign actor");
+    assert_success(
+        &git(tmp.path(), &["commit", "-qm", "direct sign actor"]),
+        "commit direct sign actor",
+    );
+    write_receipt(
+        tmp.path(),
+        "direct-sign-receipt.json",
+        "a direct sign acceptance uses exact two-phase confirmation",
+    );
+    let landed = run(
+        tmp.path(),
+        &[
+            "land",
+            "direct-sign-receipt.json",
+            "--as",
+            "agent:t",
+            "--json",
+        ],
+    );
+    assert_success(&landed, "land direct sign fixture");
+    let landed = one_json_object(&landed);
+    let landed_proposal_id = landed["proposal_id"].as_str().unwrap().to_string();
+    let finding_id = landed["finding_id"].as_str().unwrap().to_string();
+    let signing_key = ed25519_dalek::SigningKey::from_bytes(&[0x56; 32]);
+    let decided_at = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Nanos, true);
+    let mut project = vela_protocol::repo::load_from_path(tmp.path()).unwrap();
+    let mut seed_accept = vela_protocol::proposals::prepare_proposal_accept_in_memory_at(
+        &mut project,
+        &landed_proposal_id,
+        "reviewer:t",
+        "seed the accepted finding used by this command-surface fixture",
+        None,
+        &decided_at,
+    )
+    .unwrap();
+    vela_protocol::proposals::bind_decision_root_to_prepared(
+        &mut project,
+        &mut seed_accept,
+        &format!("sha256:{}", "d".repeat(64)),
+    )
+    .unwrap();
+    vela_protocol::proposals::sign_prepared_decision_events(
+        &mut project,
+        &seed_accept,
+        "reviewer:t",
+        &signing_key,
+    )
+    .unwrap();
+    vela_protocol::project::recompute_stats(&mut project);
+    let note = vela_protocol::proposals::new_proposal_at(
+        "finding.note",
+        vela_protocol::events::StateTarget {
+            r#type: "finding".to_string(),
+            id: finding_id,
+        },
+        "agent:fixture",
+        "agent",
+        "record the bounded scope",
+        serde_json::json!({
+            "text": "This accepted observation applies only under the fixture conditions."
+        }),
+        Vec::new(),
+        Vec::new(),
+        &decided_at,
+    );
+    let proposal_id = note.id.clone();
+    project.proposals.push(note);
+    vela_protocol::repo::save_to_path(tmp.path(), &project).unwrap();
+    assert_success(
+        &git(tmp.path(), &["add", "-A"]),
+        "stage direct sign accepted-finding fixture",
+    );
+    assert_success(
+        &git(
+            tmp.path(),
+            &["commit", "-qm", "direct sign accepted-finding fixture"],
+        ),
+        "commit direct sign accepted-finding fixture",
+    );
+    let frontier = tmp.path().to_str().unwrap();
+    let reason = "Receipt, evidence, and scope checked";
+    let missing_key = tmp.path().join("direct-sign-preview-must-not-read.key");
+    let scientific_before = snapshot_scientific_tree(tmp.path());
+    let journal_dir = tmp.path().join(".vela/operation-journals");
+    let journal_before = snapshot_exact_tree(&journal_dir);
+    let head_before = git_stdout(tmp.path(), &["rev-parse", "HEAD"]);
+    let status_before = git_stdout(
+        tmp.path(),
+        &["status", "--porcelain=v1", "--untracked-files=all"],
+    );
+
+    let preview = run(
+        tmp.path(),
+        &[
+            "sign",
+            &proposal_id,
+            "--frontier",
+            frontier,
+            "--reason",
+            reason,
+            "--yes",
+            "--key",
+            missing_key.to_str().unwrap(),
+            "--json",
+        ],
+    );
+    assert_success(&preview, "direct sign preview");
+    let preview = one_json_object(&preview);
+    assert_eq!(preview["command"], "sign.preview");
+    assert_eq!(preview["signed"], false);
+    assert_eq!(preview["key_read"], false);
+    assert!(preview.get("next").is_none(), "{preview}");
+    let decision_root = preview["confirmation"]["root"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    let confirm_at = preview["confirmation"]["at"].as_str().unwrap().to_string();
+    assert_eq!(snapshot_scientific_tree(tmp.path()), scientific_before);
+    assert_eq!(snapshot_exact_tree(&journal_dir), journal_before);
+    assert_eq!(git_stdout(tmp.path(), &["rev-parse", "HEAD"]), head_before);
+    assert_eq!(
+        git_stdout(
+            tmp.path(),
+            &["status", "--porcelain=v1", "--untracked-files=all"]
+        ),
+        status_before
+    );
+
+    std::thread::sleep(std::time::Duration::from_millis(25));
+    let accepted = run(
+        tmp.path(),
+        &[
+            "sign",
+            &proposal_id,
+            "--frontier",
+            frontier,
+            "--reason",
+            reason,
+            "--yes",
+            "--confirm-root",
+            &decision_root,
+            "--confirm-at",
+            &confirm_at,
+            "--key",
+            key_path.to_str().unwrap(),
+            "--json",
+        ],
+    );
+    assert_success(&accepted, "direct sign exact confirmation");
+    let accepted = one_json_object(&accepted);
+    assert_eq!(accepted["command"], "sign");
+    assert_eq!(accepted["decision"]["decision_root"], decision_root);
+    let project = vela_protocol::repo::load_from_path(tmp.path()).unwrap();
+    assert_eq!(
+        project
+            .proposals
+            .iter()
+            .find(|proposal| proposal.id == proposal_id)
+            .unwrap()
+            .status,
+        "applied"
+    );
+    let actor = project
+        .actors
+        .iter()
+        .find(|actor| actor.id == "reviewer:t")
+        .unwrap();
+    for event_id in accepted["event_ids"].as_array().unwrap() {
+        let event = project
+            .events
+            .iter()
+            .find(|event| event.id == event_id.as_str().unwrap())
+            .unwrap();
+        assert!(vela_protocol::sign::verify_event_signature(event, &actor.public_key).unwrap());
+    }
+}
+
+#[test]
+fn decision_plan_scripted_stale_root_fails_before_key_with_zero_additional_delta() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    init_git_frontier(tmp.path());
+    let _key_path = register_deterministic_reviewer(tmp.path(), 0x53);
+    let proposal_id = add_rejectable_proposal(tmp.path(), "stale-root");
+    assert_success(&git(tmp.path(), &["add", "-A"]), "stage stale fixture");
+    assert_success(
+        &git(tmp.path(), &["commit", "-qm", "stale root fixture"]),
+        "commit stale fixture",
+    );
+    let frontier = tmp.path().to_str().unwrap();
+    let missing_key = tmp.path().join("must-not-be-read.key");
+    let preview = run(
+        tmp.path(),
+        &[
+            "proposals",
+            "reject",
+            frontier,
+            &proposal_id,
+            "--as",
+            "reviewer:t",
+            "--reason",
+            "Reject stale root fixture",
+            "--yes",
+            "--key",
+            missing_key.to_str().unwrap(),
+            "--json",
+        ],
+    );
+    assert_success(&preview, "stale-root preview");
+    let preview = one_json_object(&preview);
+    let decision_root = preview["decision"]["decision_root"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    let confirm_at = preview["confirm_at"].as_str().unwrap().to_string();
+
+    let replacement_key = ed25519_dalek::SigningKey::from_bytes(&[0x54; 32]);
+    let mut project = vela_protocol::repo::load_from_path(tmp.path()).unwrap();
+    project
+        .actors
+        .iter_mut()
+        .find(|actor| actor.id == "reviewer:t")
+        .unwrap()
+        .public_key = hex::encode(replacement_key.verifying_key().to_bytes());
+    vela_protocol::repo::save_to_path(tmp.path(), &project).unwrap();
+    let before = snapshot_scientific_tree(tmp.path());
+    let head_before = git_stdout(tmp.path(), &["rev-parse", "HEAD"]);
+    let status_before = git_stdout(
+        tmp.path(),
+        &["status", "--porcelain=v1", "--untracked-files=all"],
+    );
+
+    let stale = run(
+        tmp.path(),
+        &[
+            "proposals",
+            "reject",
+            frontier,
+            &proposal_id,
+            "--as",
+            "reviewer:t",
+            "--reason",
+            "Reject stale root fixture",
+            "--yes",
+            "--confirm-root",
+            &decision_root,
+            "--confirm-at",
+            &confirm_at,
+            "--key",
+            missing_key.to_str().unwrap(),
+            "--json",
+        ],
+    );
+    assert!(!stale.status.success());
+    let stale = one_json_object(&stale);
+    assert_eq!(stale["ok"], false);
+    assert!(
+        stale["error"]["message"]
+            .as_str()
+            .is_some_and(|message| message.contains("does not match")),
+        "{stale}"
+    );
+    assert_eq!(snapshot_scientific_tree(tmp.path()), before);
+    assert_eq!(git_stdout(tmp.path(), &["rev-parse", "HEAD"]), head_before);
+    assert_eq!(
+        git_stdout(
+            tmp.path(),
+            &["status", "--porcelain=v1", "--untracked-files=all"]
+        ),
+        status_before
+    );
+}
+
+#[test]
+fn decision_plan_scripted_confirmation_rejects_expired_and_future_times_key_free() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    init_git_frontier(tmp.path());
+    let _key_path = register_deterministic_reviewer(tmp.path(), 0x55);
+    let proposal_id = add_rejectable_proposal(tmp.path(), "confirmation-time");
+    let frontier = tmp.path().to_str().unwrap();
+    let missing_key = tmp.path().join("confirmation-time-must-not-read.key");
+    let root = format!("sha256:{}", "f".repeat(64));
+    let now = chrono::Utc::now();
+    let expired =
+        (now - chrono::Duration::minutes(16)).to_rfc3339_opts(chrono::SecondsFormat::Nanos, true);
+    let future =
+        (now + chrono::Duration::seconds(90)).to_rfc3339_opts(chrono::SecondsFormat::Nanos, true);
+    let scientific_before = snapshot_scientific_tree(tmp.path());
+    let journal_dir = tmp.path().join(".vela/operation-journals");
+    let journal_before = snapshot_exact_tree(&journal_dir);
+    let status_before = git_stdout(
+        tmp.path(),
+        &["status", "--porcelain=v1", "--untracked-files=all"],
+    );
+
+    for (label, confirm_at) in [("expired", expired.as_str()), ("future", future.as_str())] {
+        let output = run(
+            tmp.path(),
+            &[
+                "proposals",
+                "reject",
+                frontier,
+                &proposal_id,
+                "--as",
+                "reviewer:t",
+                "--reason",
+                "Reject confirmation time fixture",
+                "--yes",
+                "--confirm-root",
+                &root,
+                "--confirm-at",
+                confirm_at,
+                "--key",
+                missing_key.to_str().unwrap(),
+                "--json",
+            ],
+        );
+        assert!(!output.status.success(), "{label} confirmation must fail");
+        let output = one_json_object(&output);
+        assert!(
+            output["error"]["message"]
+                .as_str()
+                .is_some_and(|message| message.contains("confirmation_expired")),
+            "{label}: {output}"
+        );
+        assert_eq!(snapshot_scientific_tree(tmp.path()), scientific_before);
+        assert_eq!(snapshot_exact_tree(&journal_dir), journal_before);
+        assert_eq!(
+            git_stdout(
+                tmp.path(),
+                &["status", "--porcelain=v1", "--untracked-files=all"]
+            ),
+            status_before
+        );
+    }
+}
+
+#[test]
+fn decision_plan_confirm_root_flags_are_visible_on_every_scripted_surface() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    for args in [
+        vec!["sign", "--help"],
+        vec!["proposals", "accept", "--help"],
+        vec!["proposals", "reject", "--help"],
+    ] {
+        let output = run(tmp.path(), &args);
+        assert_success(&output, &format!("{} help", args.join(" ")));
+        let help = String::from_utf8(output.stdout).unwrap();
+        assert!(help.contains("--confirm-root"), "{help}");
+        assert!(help.contains("--confirm-at"), "{help}");
+    }
+}
+
+#[test]
+fn sign_recovery_public_cli_recognizes_the_completed_exact_publication_without_a_key() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    init_git_frontier(tmp.path());
+    let key_path = register_deterministic_reviewer(tmp.path(), 0x52);
+    let proposal_id = add_rejectable_proposal(tmp.path(), "recovery");
+    assert_success(&git(tmp.path(), &["add", "-A"]), "stage recovery fixture");
+    assert_success(
+        &git(tmp.path(), &["commit", "-qm", "recovery fixture"]),
+        "commit recovery fixture",
+    );
+    let frontier = tmp.path().to_str().unwrap();
+    let head_before = git_stdout(tmp.path(), &["rev-parse", "HEAD"]);
+    let missing_key = tmp.path().join("missing-recovery-preview.key");
+    let preview = run(
+        tmp.path(),
+        &[
+            "proposals",
+            "reject",
+            frontier,
+            &proposal_id,
+            "--as",
+            "reviewer:t",
+            "--reason",
+            "Reject recovery fixture",
+            "--yes",
+            "--key",
+            missing_key.to_str().unwrap(),
+            "--json",
+        ],
+    );
+    assert_success(&preview, "preview sign recovery fixture");
+    let preview = one_json_object(&preview);
+    let decision_root = preview["decision"]["decision_root"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    let confirm_at = preview["confirm_at"].as_str().unwrap().to_string();
+    assert_eq!(git_stdout(tmp.path(), &["rev-parse", "HEAD"]), head_before);
+    std::thread::sleep(std::time::Duration::from_millis(25));
+    let signed = run_with_env(
+        tmp.path(),
+        &[
+            "proposals",
+            "reject",
+            frontier,
+            &proposal_id,
+            "--as",
+            "reviewer:t",
+            "--reason",
+            "Reject recovery fixture",
+            "--yes",
+            "--confirm-root",
+            &decision_root,
+            "--confirm-at",
+            &confirm_at,
+            "--key",
+            key_path.to_str().unwrap(),
+            "--json",
+        ],
+        &[("VELA_NO_PUBLISH", "1")],
+    );
+    assert_success(&signed, "sign recovery fixture");
+    let signed = one_json_object(&signed);
+    assert_eq!(signed["publication"]["state"], "uncommitted");
+    assert_eq!(git_stdout(tmp.path(), &["rev-parse", "HEAD"]), head_before);
+    let operation_id = signed["operation_id"].as_str().unwrap();
+    let before = snapshot_scientific_tree(tmp.path());
+    std::fs::remove_file(&key_path).unwrap();
+
+    let recovered = run(
+        tmp.path(),
+        &[
+            "publication",
+            "recover",
+            "--operation",
+            operation_id,
+            "--frontier",
+            frontier,
+            "--json",
+        ],
+    );
+    assert_success(&recovered, "recover completed sign publication");
+    let recovered = one_json_object(&recovered);
+    let commit = recovered["publication"]["commit"].as_str().unwrap();
+    assert_eq!(snapshot_scientific_tree(tmp.path()), before);
+    assert_eq!(
+        git_stdout(tmp.path(), &["rev-parse", "HEAD"]).trim(),
+        commit
+    );
+    assert_ne!(commit, head_before.trim());
 }

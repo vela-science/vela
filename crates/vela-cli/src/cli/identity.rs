@@ -1,6 +1,5 @@
-//! Identity and signing helpers: `vela id` keygen, the re-sign engine
-//! (`cmd_id_sign`, now driven by the `vela sign` hygiene lane), and
-//! signing-key parsing. Moved verbatim from `cli/mod.rs`.
+//! Identity helpers: `vela id` key generation and signing-key parsing.
+//! Moved verbatim from `cli/mod.rs`.
 
 use super::*;
 
@@ -48,39 +47,6 @@ pub(crate) fn cmd_id_keygen(out: std::path::PathBuf, json: bool) {
             } else {
                 println!("{} keypair · {}", style::ok("generated"), out.display());
                 println!("  public key: {public_key}");
-            }
-        }
-    }
-}
-
-pub(crate) fn cmd_id_sign(
-    frontier: std::path::PathBuf,
-    key: Option<std::path::PathBuf>,
-    json: bool,
-) {
-    {
-        {
-            let key_path =
-                crate::cli_identity::resolve_key_path(key.as_deref()).unwrap_or_else(|| {
-                    fail_return("no signing key: pass --key <path> or run `vela id create` once")
-                });
-            let count = sign::sign_registered_events(&frontier, &key_path)
-                .unwrap_or_else(|e| fail_return(&e));
-            let payload = json!({
-                "ok": true,
-                "command": "id.sign",
-                "frontier": frontier.display().to_string(),
-                "private_key": key_path.display().to_string(),
-                "signed": count,
-            });
-            if json {
-                print_json(&payload);
-            } else {
-                println!(
-                    "{} {count} event(s) in {}",
-                    style::ok("signed"),
-                    frontier.display()
-                );
             }
         }
     }

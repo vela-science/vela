@@ -1,28 +1,29 @@
-//! `vela sign` — THE human ceremony. One interactive session over
-//! everything that awaits your key (the sign-queue projection), one
-//! summary, one confirm, one key read, one publish per frontier.
+//! `vela sign` — THE human proposal-decision ceremony. One frontier,
+//! one bounded review set, one summary, one confirm, one key read, and
+//! one recoverable frontier transaction. Detached bytes and fidelity
+//! attestations remain separate signing lanes.
 //!
 //! Custody: agent/ci actors exit 4 before anything renders. There is
 //! deliberately no `--all --yes` for the interactive session — a
 //! decision without eyes on the item is a rubber stamp. Scripted forms
-//! exist for single items (`sign <id> --yes`), pre-filled verdict
+//! exist for single items (`sign <id>` preview, then exact root/time echo), fidelity-attestation
 //! batches (`sign --batch file.json`), and detached artifact bytes
 //! (`sign <path>`).
-//!
-//! Run inside a frontier: that frontier's queue. Run outside: every
-//! registered frontier's queue (the workspace registry), one session,
-//! one key read total — the morning ritual.
 
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use vela_edge::sign_queue::{SignItem, SignLane, SignQueueInput, SupplementalSignItem, sign_queue};
-use vela_protocol::{detached, proposals, repo};
+use vela_edge::decision_brief::ReviewSnapshot;
+use vela_edge::sign_queue::{SignItem, SignLane, SignQueueInput, sign_queue};
+use vela_protocol::detached;
 
 use colored::Colorize;
 use vela_protocol::cli_style as style;
 
+use crate::decision_plan::{
+    DecisionAction, DecisionExecutionOutcome, DecisionPlanError, PreparedDecision, SavedAnswer,
+};
 use crate::ui::{self, ErrorKind};
 
 fn safe_inline(value: impl AsRef<str>) -> String {
@@ -50,11 +51,74 @@ fn session_command(input: &str, lane: SignLane) -> SessionCommand {
     }
 }
 
-/// Saved-as-you-go session state: answers survive `q` and crashes.
+/// A typed, resumable answer. Presentation roots invalidate the answer when
+/// any decision-critical brief fact changes; they are never signing inputs.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum StoredDecisionAction {
+    Accept,
+    Reject,
+}
+
+impl From<StoredDecisionAction> for DecisionAction {
+    fn from(action: StoredDecisionAction) -> Self {
+        match action {
+            StoredDecisionAction::Accept => Self::Accept,
+            StoredDecisionAction::Reject => Self::Reject,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+struct StoredAnswer {
+    proposal_id: String,
+    proposal_root: String,
+    seen_decision_facts_root: String,
+    action: StoredDecisionAction,
+    reason: String,
+}
+
+impl StoredAnswer {
+    fn from_item(item: &SignItem, action: StoredDecisionAction, reason: String) -> Option<Self> {
+        let review = item.review.as_ref()?;
+        Some(Self {
+            proposal_id: review.brief.audit.proposal_id.clone(),
+            proposal_root: review.decision_bindings.proposal_root.clone(),
+            seen_decision_facts_root: review.brief.audit.decision_facts_root.clone(),
+            action,
+            reason,
+        })
+    }
+
+    fn is_current_for(&self, item: &SignItem) -> bool {
+        let Some(review) = &item.review else {
+            return false;
+        };
+        self.proposal_id == item.id
+            && self.proposal_id == review.brief.audit.proposal_id
+            && self.proposal_root == review.decision_bindings.proposal_root
+            && self.seen_decision_facts_root == review.brief.audit.decision_facts_root
+    }
+
+    fn to_saved_answer(&self) -> SavedAnswer {
+        SavedAnswer {
+            proposal_id: self.proposal_id.clone(),
+            proposal_root: self.proposal_root.clone(),
+            seen_decision_facts_root: self.seen_decision_facts_root.clone(),
+            action: self.action.into(),
+            reason: self.reason.clone(),
+        }
+    }
+}
+
+/// Saved-as-you-go session state: exact answers survive `q` and crashes.
+/// Legacy string-only session files fail closed to an empty state.
 #[derive(Debug, Default, Serialize, Deserialize)]
 struct SessionState {
-    /// item id -> decision ("accept" | "reject" | reason-tagged forms)
-    answers: std::collections::BTreeMap<String, String>,
+    #[serde(default)]
+    answers: std::collections::BTreeMap<String, StoredAnswer>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    latest_decision_root: Option<String>,
 }
 
 struct FrontierQueue {
@@ -215,51 +279,216 @@ fn explain_blocked_action(item: &SignItem, action: &str) -> String {
         .unwrap_or_else(|| format!("{action} is unavailable for this item"))
 }
 
-fn supplemental_sign_items(
-    project: &vela_protocol::project::Project,
-    frontier: &Path,
-) -> (Vec<SupplementalSignItem>, Vec<SupplementalSignItem>) {
-    let registered = project
-        .actors
-        .iter()
-        .map(|actor| actor.id.as_str())
-        .collect::<std::collections::BTreeSet<_>>();
-    let mut unsigned_by_actor = std::collections::BTreeMap::<&str, usize>::new();
-    for event in &project.events {
-        if event.signature.is_none() && registered.contains(event.actor.id.as_str()) {
-            *unsigned_by_actor
-                .entry(event.actor.id.as_str())
-                .or_default() += 1;
-        }
+fn reconcile_session(state: &mut SessionState, items: &[SignItem]) -> usize {
+    let before = state.answers.len();
+    state.answers.retain(|proposal_id, answer| {
+        items
+            .iter()
+            .find(|item| item.id == *proposal_id)
+            .is_some_and(|item| answer.is_current_for(item))
+    });
+    let removed = before - state.answers.len();
+    if removed > 0 {
+        state.latest_decision_root = None;
     }
-    let hygiene = unsigned_by_actor
-        .into_iter()
-        .map(|(actor, count)| {
-            SupplementalSignItem::new(
-                format!("resign:{actor}"),
-                format!("re-sign {count} unsigned event(s) by {actor}"),
-                "events predate signing; strict verification flags a registered actor without signatures",
-                Vec::new(),
-            )
-        })
-        .collect();
+    removed
+}
 
-    let detached = vela_protocol::acceptance_policy::load_active_policy_snapshot(frontier)
-        .ok()
-        .filter(|snapshot| snapshot.policy_bytes.is_some() && snapshot.signature_bytes.is_none())
-        .map(|_| {
-            vec![SupplementalSignItem::new(
-                frontier
-                    .join(".vela/policies/active.json")
-                    .display()
-                    .to_string(),
-                "sealed policy awaits your signature (the lane is closed until then)",
-                "a policy without a human signature carries no authority",
-                Vec::new(),
-            )]
+pub(crate) fn saved_answer_from_review(
+    review: &ReviewSnapshot,
+    action: DecisionAction,
+    reason: impl Into<String>,
+) -> SavedAnswer {
+    SavedAnswer {
+        proposal_id: review.brief.audit.proposal_id.clone(),
+        proposal_root: review.decision_bindings.proposal_root.clone(),
+        seen_decision_facts_root: review.brief.audit.decision_facts_root.clone(),
+        action,
+        reason: reason.into(),
+    }
+}
+
+fn action_label(action: DecisionAction) -> &'static str {
+    match action {
+        DecisionAction::Accept => "accept",
+        DecisionAction::Reject => "reject",
+    }
+}
+
+/// Stable semantic summary used by both human output and JSON callers. Git
+/// publication controls are deliberately absent: they are operational state,
+/// not scientific authorization.
+pub(crate) fn final_decision_summary(
+    reviews: &[&ReviewSnapshot],
+    answers: &[SavedAnswer],
+    prepared: &PreparedDecision,
+) -> serde_json::Value {
+    let items = answers
+        .iter()
+        .map(|answer| {
+            let review = reviews
+                .iter()
+                .find(|review| review.brief.audit.proposal_id == answer.proposal_id)
+                .expect("every planned answer has a rendered review");
+            let warnings = review
+                .brief
+                .impact
+                .critical_warnings
+                .iter()
+                .map(|warning| {
+                    warning.reference.as_ref().map_or_else(
+                        || warning.code.clone(),
+                        |reference| format!("{} · {reference}", warning.code),
+                    )
+                })
+                .collect::<Vec<_>>();
+            serde_json::json!({
+                "proposal_id": answer.proposal_id,
+                "action": action_label(answer.action),
+                "reason": answer.reason,
+                "claim": review.brief.change.claim,
+                "semantic_effect": {
+                    "requested_action": review.brief.change.requested_action,
+                    "root": review.decision_bindings.semantic_effect_root,
+                },
+                "critical_warnings": warnings,
+                "decision_facts_root": review.brief.audit.decision_facts_root,
+            })
         })
-        .unwrap_or_default();
-    (hygiene, detached)
+        .collect::<Vec<_>>();
+    serde_json::json!({
+        "decision_root": prepared.plan.decision_root,
+        "expected_event_log_root": prepared.plan.expected_event_log_root,
+        "items": items,
+    })
+}
+
+pub(crate) fn render_final_decision_set(
+    reviews: &[&ReviewSnapshot],
+    answers: &[SavedAnswer],
+    prepared: &PreparedDecision,
+) {
+    println!();
+    println!("  {}", style::signal("FINAL DECISION SET"));
+    for answer in answers {
+        let review = reviews
+            .iter()
+            .find(|review| review.brief.audit.proposal_id == answer.proposal_id)
+            .expect("every planned answer has a rendered review");
+        println!();
+        println!(
+            "  {}  {}",
+            style::moss(action_label(answer.action)),
+            safe_inline(&answer.proposal_id)
+        );
+        println!("    reason    {}", safe_inline(&answer.reason));
+        println!("    claim     {}", safe_inline(&review.brief.change.claim));
+        println!(
+            "    effect    {} · {}",
+            safe_inline(&review.brief.change.requested_action),
+            safe_inline(&review.decision_bindings.semantic_effect_root)
+        );
+        if review.brief.impact.critical_warnings.is_empty() {
+            println!("    warning   none");
+        } else {
+            for warning in &review.brief.impact.critical_warnings {
+                println!(
+                    "    warning   {}{}",
+                    safe_inline(&warning.code),
+                    warning
+                        .reference
+                        .as_deref()
+                        .map(|reference| format!(" · {}", safe_inline(reference)))
+                        .unwrap_or_default()
+                );
+            }
+        }
+        println!(
+            "    facts     {}",
+            safe_inline(&review.brief.audit.decision_facts_root)
+        );
+    }
+    println!();
+    println!(
+        "  transaction  {}",
+        safe_inline(&prepared.plan.decision_root)
+    );
+    println!(
+        "  fixed base   {}",
+        safe_inline(&prepared.plan.expected_event_log_root)
+    );
+}
+
+pub(crate) fn execute_confirmed_decision(
+    frontier: &Path,
+    prepared: &PreparedDecision,
+    key: Option<&Path>,
+) -> Result<DecisionExecutionOutcome, DecisionPlanError> {
+    crate::decision_plan::execute_with_key_loader(frontier, prepared, || {
+        crate::cli_identity::resolve_signing_key_opt(key).ok_or_else(|| {
+            "no human signing key is configured; run `vela id create` or pass --key".to_string()
+        })
+    })
+}
+
+pub(crate) fn fail_decision(error: DecisionPlanError) -> ! {
+    let kind = match error.code {
+        "key_unavailable" | "key_mismatch" | "reviewer_unauthorized" | "signing_failed" => {
+            ErrorKind::Custody
+        }
+        _ => ErrorKind::Domain,
+    };
+    ui::fail_with(kind, &error.to_string(), None)
+}
+
+/// Publish only the immutable public delta committed by `FrontierTxn`.
+/// Publication is an operational follow-up: every failure is reported after
+/// the scientific decision remains durably installed, and never triggers a
+/// second key read or a broad worktree sweep.
+pub(crate) fn publish_exact_decision(
+    frontier: &Path,
+    summary: &str,
+    outcome: &DecisionExecutionOutcome,
+    opts: &crate::config::git_publish::PublishOptions,
+) -> crate::config::git_publish::PublicationOutcome {
+    use crate::config::git_publish::{PublicationOutcome, PublicationState};
+    let Some(delta) = &outcome.publication_delta else {
+        return PublicationOutcome {
+            state: PublicationState::Uncommitted {
+                candidate: None,
+                reason: "frontier transaction had no public Git delta".to_string(),
+            },
+            recovery_command: Some("git status --short".to_string()),
+        };
+    };
+    match crate::config::git_publish::exact_publication_resume_preflight(frontier, delta, opts) {
+        Ok(preflight) => match crate::config::git_publish::publish_exact_delta(
+            frontier,
+            summary,
+            &outcome.event_ids,
+            delta,
+            preflight,
+            opts,
+        ) {
+            Ok(publication) => publication,
+            Err(error) => PublicationOutcome {
+                state: PublicationState::Unknown {
+                    reason: error.to_string(),
+                },
+                recovery_command: Some("git status --short".to_string()),
+            },
+        },
+        Err(publication) => publication,
+    }
+}
+
+fn publication_recovery_command(
+    publication: &crate::config::git_publish::PublicationOutcome,
+) -> &str {
+    publication
+        .recovery_command
+        .as_deref()
+        .unwrap_or("vela status --json")
 }
 
 fn session_path(frontier: &Path) -> PathBuf {
@@ -283,8 +512,8 @@ fn clear_session(frontier: &Path) {
     let _ = std::fs::remove_file(session_path(frontier));
 }
 
-/// Which frontiers this session covers: cwd's frontier when inside one,
-/// else every live registered frontier.
+/// Discover candidate frontiers. The read-only preview may page several;
+/// the mutating ceremony requires this to resolve to exactly one.
 fn session_frontiers(explicit: Option<PathBuf>) -> Vec<PathBuf> {
     if let Some(f) = explicit {
         return vec![f];
@@ -410,6 +639,15 @@ pub(crate) fn cmd_sign_session(
             Some("run inside a frontier, or `vela init` one (init registers it)"),
         );
     }
+    if frontiers.len() != 1 {
+        ui::fail_with(
+            ErrorKind::Usage,
+            "a decision ceremony is scoped to exactly one frontier",
+            Some(
+                "run inside the frontier or pass `--frontier <path>`; each frontier commits independently",
+            ),
+        );
+    }
 
     // `--reset`: discard saved verdicts and stop, so the next run starts
     // clean. The escape hatch for a resumed session showing choices you
@@ -426,21 +664,12 @@ pub(crate) fn cmd_sign_session(
         return;
     }
 
-    // Build every queue up front so the header can tell the whole story.
+    // Build the one frontier's bounded decision queue up front. Detached
+    // bytes, fidelity attestations, and re-sign hygiene keep their own
+    // ceremonies so none can move key access ahead of locked rederivation.
     let mut queues = Vec::<FrontierQueue>::new();
     let mut total = 0usize;
     for dir in &frontiers {
-        let project = match repo::load_from_path(dir) {
-            Ok(p) => p,
-            Err(e) => {
-                eprintln!(
-                    "  skipping {}: {}",
-                    safe_inline(dir.display().to_string()),
-                    safe_inline(e)
-                );
-                continue;
-            }
-        };
         let page = match crate::review_material::ReviewProjection::page(
             dir,
             crate::review_material::ReviewRequest::default(),
@@ -458,12 +687,11 @@ pub(crate) fn cmd_sign_session(
         let review_total = page.total;
         let next_cursor = page.next_cursor.clone();
         let snapshot_root = page.snapshot_root.clone();
-        let (hygiene, detached) = supplemental_sign_items(&project, dir);
         let queue = sign_queue(SignQueueInput {
             judgments: Vec::new(),
             decisions: page.items,
-            hygiene,
-            detached,
+            hygiene: Vec::new(),
+            detached: Vec::new(),
         });
         total += queue
             .items
@@ -505,11 +733,6 @@ pub(crate) fn cmd_sign_session(
     let actor = crate::cli_identity::resolve_decision_actor(None);
     ceremony_binary_gate(true);
 
-    let fr = if queues.len() == 1 {
-        "frontier"
-    } else {
-        "frontiers"
-    };
     let it = if total == 1 {
         "item awaits"
     } else {
@@ -517,7 +740,7 @@ pub(crate) fn cmd_sign_session(
     };
     ui::header(
         "SIGN",
-        &format!("{} {fr}", queues.len()),
+        "1 frontier",
         Some(&format!("{total} {it} your key")),
     );
     if total == 0 {
@@ -541,23 +764,26 @@ pub(crate) fn cmd_sign_session(
 
     // The session prompts per item; refuse cleanly on piped/CI stdin
     // rather than spin the read loop on empty reads. Scripted decisions go
-    // through `sign <id> --yes` / `--batch` (separate dispatch arms) and
-    // never reach here.
+    // through `sign <id>`'s preview/root handshake; fidelity batches and detached signatures
+    // have separate dispatch arms and never reach here.
     ui::ensure_can_prompt(
         "the sign session",
-        "decide one with `sign <vpr_id> --yes`, or many with `sign --batch <verdicts.json>`",
+        "preview one with `sign <vpr_id>`, then echo its --confirm-root and --confirm-at values",
     );
 
-    // Accepts carry this bookkeeping note; the judgment IS the a/r
-    // answer, so nothing prompts for it. (Rejects still ask for their
-    // reason — that one is content.)
-    let session_reason = "accepted via sign session".to_string();
-
-    // The judgment loop: per frontier, per item; resume-safe.
+    // The judgment loop is resume-safe. A saved answer is reused only while
+    // both its proposal root and its seen decision-facts root still match.
     let total_signable = total;
     let mut position = 0usize;
     for queue in &queues {
         let mut state = load_session(&queue.dir);
+        let invalidated = reconcile_session(&mut state, &queue.items);
+        if invalidated > 0 {
+            println!(
+                "  · {invalidated} saved answer(s) invalidated by changed review facts; review them again"
+            );
+            save_session(&queue.dir, &state);
+        }
         for item in &queue.items {
             if !item_answerable(item) || state.answers.contains_key(&item.id) {
                 continue;
@@ -611,7 +837,14 @@ pub(crate) fn cmd_sign_session(
                     SessionCommand::Skip => break,
                     SessionCommand::Accept => {
                         if action_available(item, "accept") {
-                            state.answers.insert(item.id.clone(), "accept".into());
+                            let answer = StoredAnswer::from_item(
+                                item,
+                                StoredDecisionAction::Accept,
+                                "accepted via sign session".to_string(),
+                            )
+                            .expect("decision queue item has a review snapshot");
+                            state.answers.insert(item.id.clone(), answer);
+                            state.latest_decision_root = None;
                             break;
                         }
                         println!(
@@ -627,16 +860,21 @@ pub(crate) fn cmd_sign_session(
                             );
                             continue;
                         }
-                        let why = read_line("  reject reason: ");
-                        state
-                            .answers
-                            .insert(item.id.clone(), format!("reject:{why}"));
+                        let why = loop {
+                            let why = read_line("  reject reason: ");
+                            if !why.trim().is_empty() {
+                                break why;
+                            }
+                            println!("    a reject requires a non-empty reason");
+                        };
+                        let answer =
+                            StoredAnswer::from_item(item, StoredDecisionAction::Reject, why)
+                                .expect("decision queue item has a review snapshot");
+                        state.answers.insert(item.id.clone(), answer);
+                        state.latest_decision_root = None;
                         break;
                     }
-                    SessionCommand::Yes => {
-                        state.answers.insert(item.id.clone(), "yes".into());
-                        break;
-                    }
+                    SessionCommand::Yes => unreachable!("proposal queue has no yes-only lane"),
                     SessionCommand::Invalid => println!("    keys: {keys}"),
                 }
             }
@@ -644,107 +882,200 @@ pub(crate) fn cmd_sign_session(
         }
     }
 
-    // Summary + the ONE confirm — editable, so a mistake here never traps
-    // you (clig.dev: let users correct choices; show and change state). The
-    // loop re-renders after every edit; only `y` falls through to the key
-    // read, and `reject` verdicts show in red so an accidental accept stands
-    // out before you sign.
-    loop {
-        let mut answered: Vec<(PathBuf, String)> = Vec::new();
-        println!("\n  ══════════════════════════════════════════════════");
-        for queue in &queues {
-            let mut state = load_session(&queue.dir);
-            let mut removed_blocked = false;
-            for item in &queue.items {
-                if let Some(ans) = state.answers.get(&item.id).cloned() {
-                    let verdict = ans.split(':').next().unwrap_or(ans.as_str());
-                    let action_allowed = match (item.lane, verdict) {
-                        (SignLane::Decision, "accept") => action_available(item, "accept"),
-                        (SignLane::Decision, "reject") => action_available(item, "reject"),
-                        _ => true,
-                    };
-                    if !action_allowed {
-                        println!(
-                            "  {}  {}  {}",
-                            style::madder("blocked"),
-                            safe_inline(&item.id),
-                            safe_inline(explain_blocked_action(item, verdict))
-                        );
-                        state.answers.remove(&item.id);
-                        removed_blocked = true;
-                        continue;
-                    }
-                    // Pad to width first, THEN color — ANSI codes would break
-                    // right-alignment if we formatted the colored string.
-                    let label = format!("{verdict:>9}");
-                    let shown = match verdict {
-                        "reject" => style::madder(&label).to_string(),
-                        "accept" | "yes" => style::moss(&label).to_string(),
-                        _ => label.clone(),
-                    };
-                    println!(
-                        "  {shown}  {}  {}",
-                        safe_inline(&item.id),
-                        safe_inline(&item.title)
-                    );
-                    for line in render_item_review_lines(item) {
-                        println!("             {}", style::dim(&line));
-                    }
-                    answered.push((queue.dir.clone(), item.id.clone()));
-                }
-            }
-            if removed_blocked {
-                save_session(&queue.dir, &state);
+    let queue = &queues[0];
+    let decided_at = queue
+        .items
+        .iter()
+        .find_map(|item| {
+            item.review
+                .as_ref()
+                .map(|review| review.observed_at.clone())
+        })
+        .expect("non-empty decision queue has an observation time");
+    let provenance = crate::cli_identity::resolve_co_author_provenance(None, None);
+
+    // Build and render a complete semantic set before the sole confirmation.
+    // Edits rebuild the plan; stale roots erase saved answers before any key
+    // loader can be reached.
+    let confirmed = loop {
+        let mut state = load_session(&queue.dir);
+        if reconcile_session(&mut state, &queue.items) > 0 {
+            save_session(&queue.dir, &state);
+            println!("  review facts changed; invalidated answers must be reviewed again.");
+            return;
+        }
+
+        let mut removed_blocked = false;
+        for item in &queue.items {
+            let Some(answer) = state.answers.get(&item.id) else {
+                continue;
+            };
+            let action = match answer.action {
+                StoredDecisionAction::Accept => "accept",
+                StoredDecisionAction::Reject => "reject",
+            };
+            if !action_available(item, action) {
+                println!(
+                    "  {}  {}  {}",
+                    style::madder("blocked"),
+                    safe_inline(&item.id),
+                    safe_inline(explain_blocked_action(item, action))
+                );
+                state.answers.remove(&item.id);
+                state.latest_decision_root = None;
+                removed_blocked = true;
+                break;
             }
         }
-        let planned = answered.len();
-        if planned == 0 {
+        if removed_blocked {
+            save_session(&queue.dir, &state);
+            continue;
+        }
+
+        let answers = queue
+            .items
+            .iter()
+            .filter_map(|item| {
+                state
+                    .answers
+                    .get(&item.id)
+                    .map(StoredAnswer::to_saved_answer)
+            })
+            .collect::<Vec<_>>();
+        if answers.is_empty() {
             println!("  nothing answered; nothing to sign.");
             return;
         }
-        let choice = read_line(&format!(
-            "\nSign {planned} item(s) as {}?  [{}es · {}dit one · {}eset all · {}o] > ",
-            safe_inline(&actor),
-            style::moss("y"),
-            style::brass("e"),
-            style::madder("r"),
-            style::dim("n"),
-        ));
+        let reviews = queue
+            .items
+            .iter()
+            .filter_map(|item| item.review.as_ref())
+            .collect::<Vec<_>>();
+        for item in queue
+            .items
+            .iter()
+            .filter(|item| !state.answers.contains_key(&item.id))
+        {
+            println!(
+                "  {}  {} retained pending",
+                style::dim("skip"),
+                safe_inline(&item.id)
+            );
+        }
+
+        let prepared = match crate::decision_plan::build_unlocked(
+            &queue.dir,
+            &answers,
+            &actor,
+            &decided_at,
+            provenance.clone(),
+        ) {
+            Ok(prepared) => Some(prepared),
+            Err(error)
+                if matches!(
+                    error.code,
+                    "decision_stale" | "answer_invalidated" | "action_unavailable"
+                ) =>
+            {
+                state.answers.clear();
+                state.latest_decision_root = None;
+                save_session(&queue.dir, &state);
+                println!(
+                    "  {} review changed before confirmation: {}",
+                    style::warn("stale"),
+                    safe_inline(error.to_string())
+                );
+                println!("  no key was read; re-run `vela sign` to review the current facts.");
+                return;
+            }
+            Err(error) => {
+                println!(
+                    "  {} cannot form one coherent decision transaction: {}",
+                    style::warn("plan blocked"),
+                    safe_inline(error.to_string())
+                );
+                None
+            }
+        };
+        if let Some(prepared) = &prepared {
+            state.latest_decision_root = Some(prepared.plan.decision_root.clone());
+            save_session(&queue.dir, &state);
+            render_final_decision_set(&reviews, &answers, prepared);
+        }
+
+        let choice = if prepared.is_some() {
+            read_line(&format!(
+                "\nSign {} decision(s) as {}?  [{}es · {}dit one · {}eset all · {}o] > ",
+                answers.len(),
+                safe_inline(&actor),
+                style::moss("y"),
+                style::brass("e"),
+                style::madder("r"),
+                style::dim("n"),
+            ))
+        } else {
+            read_line(&format!(
+                "\nChoose a coherent subset: [{}dit one · {}eset all · {}o] > ",
+                style::brass("e"),
+                style::madder("r"),
+                style::dim("n"),
+            ))
+        };
         match choice.as_str() {
-            "y" => break,
+            "y" if prepared.is_some() => break prepared.expect("checked above"),
             "e" => {
                 let id = read_line("  item id (or a prefix) to change: ");
-                match answered
+                let Some(item) = queue
+                    .items
                     .iter()
-                    .find(|(_, iid)| *iid == id || iid.starts_with(&id))
-                {
-                    Some((dir, iid)) => {
-                        let v = read_line(
-                            "  new verdict — [a]ccept · [r]eject · [s]kip (leave pending): ",
-                        );
-                        let mut st = load_session(dir);
-                        match v.as_str() {
-                            "a" => {
-                                st.answers.insert(iid.clone(), "accept".into());
-                            }
-                            "r" => {
-                                let why = read_line("  reject reason: ");
-                                st.answers.insert(iid.clone(), format!("reject:{why}"));
-                            }
-                            "s" => {
-                                st.answers.remove(iid);
-                            }
-                            _ => println!("  unchanged (need a, r, or s)"),
-                        }
-                        save_session(dir, &st);
+                    .find(|item| item.id == id || item.id.starts_with(&id))
+                else {
+                    println!("  no item matches `{}`", safe_inline(id));
+                    continue;
+                };
+                let verdict =
+                    read_line("  new verdict — [a]ccept · [r]eject · [s]kip (leave pending): ");
+                match verdict.as_str() {
+                    "a" if action_available(item, "accept") => {
+                        let answer = StoredAnswer::from_item(
+                            item,
+                            StoredDecisionAction::Accept,
+                            "accepted via sign session".to_string(),
+                        )
+                        .expect("decision queue item has a review snapshot");
+                        state.answers.insert(item.id.clone(), answer);
                     }
-                    None => println!("  no answered item matches `{}`", safe_inline(id)),
+                    "r" if action_available(item, "reject") => {
+                        let reason = read_line("  reject reason: ");
+                        if reason.trim().is_empty() {
+                            println!("  unchanged (a reject requires a non-empty reason)");
+                            continue;
+                        }
+                        let answer =
+                            StoredAnswer::from_item(item, StoredDecisionAction::Reject, reason)
+                                .expect("decision queue item has a review snapshot");
+                        state.answers.insert(item.id.clone(), answer);
+                    }
+                    "s" => {
+                        state.answers.remove(&item.id);
+                    }
+                    "a" | "r" => {
+                        println!(
+                            "  unchanged ({})",
+                            safe_inline(explain_blocked_action(item, &verdict))
+                        );
+                        continue;
+                    }
+                    _ => {
+                        println!("  unchanged (need a, r, or s)");
+                        continue;
+                    }
                 }
+                state.latest_decision_root = None;
+                save_session(&queue.dir, &state);
             }
             "r" => {
-                for dir in &frontiers {
-                    clear_session(dir);
-                }
+                clear_session(&queue.dir);
                 println!("  reset — all verdicts cleared. Re-run `vela sign` to decide fresh.");
                 return;
             }
@@ -755,217 +1086,35 @@ pub(crate) fn cmd_sign_session(
                 return;
             }
         }
-    }
+    };
 
-    // Apply, one publish per frontier.
-    let apply_spin = crate::cli::progress::Spinner::start("applying your decisions");
-    // One key read for the whole session: the reviewer's identity key,
-    // resolved once and threaded into every accept/reject. A key-registered
-    // reviewer whose key is absent fails the custody check in the engine —
-    // and that failure is surfaced below, never swallowed.
-    let signing_key = crate::cli_identity::resolve_signing_key_opt(key.as_deref());
-    let mut total_persisted = 0usize;
-    let mut failures: Vec<(String, String)> = Vec::new();
-    let mut publication_reports: Vec<(
-        String,
-        String,
-        crate::config::git_publish::PublicationOutcome,
-    )> = Vec::new();
-    for queue in &queues {
-        let dir = &queue.dir;
-        let publish_opts = crate::config::git_publish::PublishOptions::new(false, false);
-        let publication_preflight =
-            crate::config::git_publish::publication_preflight(dir, &publish_opts);
-        if let Err(outcome) = &publication_preflight
-            && crate::config::git_publish::publication_is_busy(outcome)
-        {
-            failures.push((
-                dir.display().to_string(),
-                "another Vela write/publication owns this repository; no decision was persisted here — retry after it completes"
-                    .to_string(),
-            ));
-            continue;
-        }
-        let mut state = load_session(dir);
-        let mut accepted: Vec<String> = Vec::new();
-        let mut event_ids: Vec<String> = Vec::new();
-        let mut frontier_failed = false;
-        for item in &queue.items {
-            let Some(ans) = state.answers.get(&item.id).cloned() else {
-                continue;
-            };
-            match (item.lane, ans.as_str()) {
-                (SignLane::Decision, "accept") => accepted.push(item.id.clone()),
-                (SignLane::Decision, a) if a.starts_with("reject:") => {
-                    let reason = a.trim_start_matches("reject:");
-                    // Reject emits its signed review event inside the engine,
-                    // under the same session key; the publish below sweeps the
-                    // store change. A custody/validation failure is recorded,
-                    // not swallowed.
-                    match proposals::reject_at_path_signed(
-                        dir,
-                        &item.id,
-                        &actor,
-                        if reason.is_empty() {
-                            "rejected via sign session"
-                        } else {
-                            reason
-                        },
-                        signing_key.as_ref(),
-                    ) {
-                        Ok(()) => event_ids.push(format!("reject:{}", item.id)),
-                        Err(e) => {
-                            failures.push((item.id.clone(), e));
-                            frontier_failed = true;
-                        }
-                    }
-                }
-                (SignLane::Hygiene, "yes") => {
-                    // The re-sign ceremony, absorbed: same machinery as
-                    // the old `vela id sign` / resign-frontier.sh.
-                    crate::cli::identity::cmd_id_sign(dir.clone(), key.clone(), false);
-                }
-                (SignLane::Detached, "yes") => {
-                    apply_detached_sign(Path::new(&item.id), key.as_deref());
-                }
-                _ => {}
-            }
-        }
-        if !accepted.is_empty() {
-            match proposals::accept_batch_at_path(
-                dir,
-                &accepted,
-                &actor,
-                &session_reason,
-                proposals::AcceptOptions {
-                    strict: false,
-                    force: false,
-                    signing_key: signing_key.clone(),
-                    custody_verified: false,
-                    provenance: crate::cli_identity::resolve_co_author_provenance(None, None),
-                },
-                false,
-            ) {
-                Ok(report) => {
-                    if report.gated {
-                        eprintln!(
-                            "  engine gate blocked the batch in {}: nothing persisted there",
-                            safe_inline(dir.display().to_string())
-                        );
-                        frontier_failed = true;
-                    }
-                    // A per-proposal custody/validation error is reported by
-                    // the engine but does NOT abort the batch. Surface every
-                    // one — a failed accept must never masquerade as signed.
-                    for (pid, err) in &report.failed {
-                        failures.push((pid.clone(), err.clone()));
-                        frontier_failed = true;
-                    }
-                    event_ids.extend(report.event_ids.clone());
-                }
-                Err(e) => {
-                    failures.push((dir.display().to_string(), e));
-                    frontier_failed = true;
-                }
-            }
-        }
-        if !event_ids.is_empty() {
-            let publication = match publication_preflight {
-                Ok(preflight) => {
-                    let publish_opts = publish_opts.with_preflight(preflight);
-                    crate::config::git_publish::publish_decision(
-                        dir,
-                        "sign",
-                        &event_ids,
-                        &publish_opts,
-                    )
-                }
-                Err(outcome) => outcome,
-            };
-            let planning_identity = event_ids.join("\0");
-            let operation_id = crate::operation_journal::operation_id(
-                "sign-session-publication",
-                planning_identity.as_bytes(),
-            );
-            publication_reports.push((dir.display().to_string(), operation_id, publication));
-            total_persisted += event_ids.len();
-        }
-        // Consume the session only when every decision applied. A failure
-        // leaves the answers on disk so `vela sign` resumes and retries them.
-        if !frontier_failed {
-            state.answers.clear();
-            let _ = std::fs::remove_file(session_path(dir));
-        }
-    }
-    // Honesty gate: the ceremony reports "signed" only when a decision
-    // durably persisted. If nothing did, say so and exit non-zero — a false
-    // "signed" is the one failure a trust ceremony cannot have.
-    if total_persisted == 0 {
-        apply_spin.finish("nothing signed");
-        println!();
-        for (id, err) in &failures {
-            eprintln!(
-                "  {} {}: {}",
-                style::madder("failed"),
-                crate::cli::safe_text::inline(id),
-                crate::cli::safe_text::inline(err)
-            );
-        }
-        ui::fail_with(
-            ErrorKind::Custody,
-            "no decision was signed — nothing changed. Fix the error above and re-run `vela sign`.",
-            Some(
-                "a reviewer registered with a key signs with that key; run `vela sign` at a \
-                 terminal (or pass --key) so the identity key is read",
-            ),
-        );
-    }
+    let apply_spin = crate::cli::progress::Spinner::start("applying exact decision set");
+    let outcome = execute_confirmed_decision(&queue.dir, &confirmed, key.as_deref())
+        .unwrap_or_else(|error| fail_decision(error));
+    clear_session(&queue.dir);
+    let publish_opts = crate::config::git_publish::PublishOptions::new(false, false);
+    let publication = publish_exact_decision(&queue.dir, "sign", &outcome, &publish_opts);
     apply_spin.finish("applied");
-    println!("\n  · signed. `vela log` shows the lane on every event.");
-    for (frontier, operation_id, publication) in &publication_reports {
-        println!(
-            "  · publication {} · {} · retained {}",
-            crate::cli::safe_text::inline(frontier),
-            crate::cli::safe_text::inline(
-                &serde_json::to_string(publication).unwrap_or_else(|_| "unknown".to_string())
-            ),
-            crate::cli::safe_text::inline(operation_id)
-        );
-        println!(
-            "    next: {}",
-            crate::cli::safe_text::inline(
-                publication
-                    .recovery_command
-                    .as_deref()
-                    .unwrap_or("vela status --json")
-            )
-        );
-    }
-    if !failures.is_empty() {
-        for (id, err) in &failures {
-            eprintln!(
-                "  {} {}: {}",
-                style::madder("failed"),
-                crate::cli::safe_text::inline(id),
-                crate::cli::safe_text::inline(err)
-            );
-        }
-        eprintln!(
-            "  {} some items did not sign — re-run `vela sign` to retry them",
-            style::warn("partial")
-        );
-    }
+    println!(
+        "\n  · signed {} event(s) · decision {}",
+        outcome.event_ids.len(),
+        safe_inline(&outcome.decision_root)
+    );
+    println!(
+        "  · publication {} · retained {}",
+        safe_inline(serde_json::to_string(&publication).unwrap_or_else(|_| "unknown".to_string())),
+        safe_inline(&outcome.operation_id)
+    );
+    println!(
+        "  · next {}",
+        safe_inline(publication_recovery_command(&publication))
+    );
 
-    // The self-shrinking step: if what you just signed keeps recurring,
-    // say so once — the rule that absorbs the class is one command away.
-    for queue in &queues {
-        if let Some(hint) = crate::config::cli_policy::suggest_hint(&queue.dir) {
-            println!(
-                "  {}",
-                vela_protocol::cli_style::dim(&crate::cli::safe_text::inline(&hint))
-            );
-            break;
-        }
+    if let Some(hint) = crate::config::cli_policy::suggest_hint(&queue.dir) {
+        println!(
+            "  {}",
+            vela_protocol::cli_style::dim(&crate::cli::safe_text::inline(&hint))
+        );
     }
 }
 
@@ -1079,104 +1228,163 @@ fn record_pin_or_warn() {
     }
 }
 
-/// `vela sign <vpr_id> --yes` — the scripted single accept.
+/// `vela sign <vpr_id>` — scripted preview first, then an exact-root accept.
 pub(crate) fn cmd_sign_one(
     frontier: Option<PathBuf>,
     id: &str,
     reason: Option<String>,
     key: Option<PathBuf>,
+    yes: bool,
+    confirm_root: Option<&str>,
+    confirm_at: Option<&str>,
     json: bool,
 ) {
-    let actor = crate::cli_identity::resolve_decision_actor(None);
-    ceremony_binary_gate(false);
-    let dir = crate::ui::resolve_frontier(frontier);
-    let signing_key = crate::cli_identity::resolve_signing_key_opt(key.as_deref());
-    let reason = reason.unwrap_or_else(|| "accepted via sign".to_string());
-    let publish_opts = crate::config::git_publish::PublishOptions::new(false, false);
-    let publication_preflight =
-        crate::config::git_publish::publication_preflight(&dir, &publish_opts);
-    if let Err(outcome) = &publication_preflight
-        && crate::config::git_publish::publication_is_busy(outcome)
-    {
+    if confirm_root.is_some() != confirm_at.is_some() {
         ui::fail_with(
-            ErrorKind::Domain,
-            "another Vela write/publication owns this repository; the decision was not persisted",
-            Some("retry the same `vela sign` command after the active operation completes"),
+            ErrorKind::Usage,
+            "scripted confirmation requires both --confirm-root and --confirm-at from the same preview",
+            Some("rerun without either flag to render a fresh key-free preview"),
         );
     }
-    match proposals::accept_at_path_engine(
-        &dir,
-        id,
-        &actor,
-        &reason,
-        proposals::AcceptOptions {
-            strict: false,
-            force: false,
-            signing_key,
-            custody_verified: false,
-            provenance: crate::cli_identity::resolve_co_author_provenance(None, None),
-        },
-    ) {
-        Ok(outcome) => {
-            let publication = match publication_preflight {
-                Ok(preflight) => {
-                    let publish_opts = publish_opts.with_preflight(preflight);
-                    crate::config::git_publish::publish_decision(
-                        &dir,
-                        "sign",
-                        &[outcome.event_id.clone()],
-                        &publish_opts,
-                    )
-                }
-                Err(publication) => publication,
-            };
-            let operation_id =
-                crate::operation_journal::operation_id("sign-command", outcome.event_id.as_bytes());
-            if json {
-                println!(
-                    "{}",
-                    serde_json::json!({
-                        "ok": true,
-                        "command": "sign",
-                        "operation_id": operation_id,
-                        "event_id": outcome.event_id,
-                        "publication": publication,
-                    })
-                );
-            } else {
-                println!(
-                    "  · signed {} -> {}",
-                    crate::cli::safe_text::inline(id),
-                    crate::cli::safe_text::inline(&outcome.event_id)
-                );
-                println!(
-                    "  · publication {}",
-                    crate::cli::safe_text::inline(
-                        &serde_json::to_string(&publication)
-                            .unwrap_or_else(|_| "unknown".to_string())
-                    )
-                );
-                println!(
-                    "  · retained {}",
-                    crate::cli::safe_text::inline(&operation_id)
-                );
-                println!(
-                    "  · next {}",
-                    crate::cli::safe_text::inline(
-                        publication
-                            .recovery_command
-                            .as_deref()
-                            .unwrap_or("vela status --json")
-                    )
-                );
-            }
+    if confirm_root.is_some() && !yes {
+        ui::fail_with(
+            ErrorKind::Usage,
+            "--confirm-root does not mutate by itself; scripted decisions require --yes, --confirm-root, and --confirm-at",
+            Some("rerun the same command with --yes after reviewing the rendered root"),
+        );
+    }
+    let actor = crate::cli_identity::resolve_decision_actor(None);
+    let dir = crate::ui::resolve_frontier(frontier);
+    let reason = reason.unwrap_or_else(|| "accepted via sign".to_string());
+    if let Some(confirm_at) = confirm_at {
+        crate::decision_plan::validate_scripted_confirmation_time(confirm_at)
+            .unwrap_or_else(|error| fail_decision(error));
+    }
+    let review = match confirm_at {
+        Some(observed_at) => {
+            crate::review_material::ReviewProjection::one_at(&dir, id, observed_at)
         }
-        Err(e) if e.contains("already applied") || e.contains("is applied") => ui::fail_with(
-            ErrorKind::Exists,
-            &format!("{id} is already decided"),
-            Some("`vela log` shows the decision"),
-        ),
-        Err(e) => ui::fail_with(ErrorKind::Domain, &e, None),
+        None => crate::review_material::ReviewProjection::one_read_only(&dir, id),
+    }
+    .unwrap_or_else(|error| ui::fail_with(ErrorKind::Domain, &error.to_string(), None));
+    if !review.brief.accept_ready() {
+        let explanation = review
+            .brief
+            .action("accept")
+            .map(|action| action.reasons.join("; "))
+            .filter(|reason| !reason.is_empty())
+            .unwrap_or_else(|| "accept is unavailable for this proposal".to_string());
+        ui::fail_with(ErrorKind::Domain, &explanation, None);
+    }
+    let answer = saved_answer_from_review(&review, DecisionAction::Accept, reason);
+    let decided_at = review.observed_at.clone();
+    let provenance = crate::cli_identity::resolve_co_author_provenance(None, None);
+    let prepared = crate::decision_plan::build_read_only_preview(
+        &dir,
+        std::slice::from_ref(&answer),
+        &actor,
+        &decided_at,
+        provenance,
+    )
+    .unwrap_or_else(|error| fail_decision(error));
+    let summary = final_decision_summary(&[&review], std::slice::from_ref(&answer), &prepared);
+    let Some(confirmed_root) = confirm_root else {
+        if json {
+            println!(
+                "{}",
+                serde_json::json!({
+                    "ok": true,
+                    "command": "sign.preview",
+                    "frontier": dir.display().to_string(),
+                    "proposal_id": id,
+                    "reviewer": actor,
+                    "decision": summary,
+                    "confirm_at": review.observed_at,
+                    "confirmation": {
+                        "root": prepared.plan.decision_root,
+                        "at": review.observed_at,
+                        "arguments": [
+                            "--yes",
+                            "--confirm-root",
+                            prepared.plan.decision_root,
+                            "--confirm-at",
+                            review.observed_at,
+                        ],
+                    },
+                    "signed": false,
+                    "key_read": false,
+                })
+            );
+        } else {
+            render_final_decision_set(&[&review], std::slice::from_ref(&answer), &prepared);
+            println!("  · preview only; no key was read and nothing changed");
+            println!(
+                "  · rerun with --yes --confirm-root {} --confirm-at {} after reviewing this exact set",
+                safe_inline(&prepared.plan.decision_root),
+                safe_inline(&review.observed_at),
+            );
+        }
+        return;
+    };
+    if confirmed_root != prepared.plan.decision_root {
+        ui::fail_with(
+            ErrorKind::Domain,
+            &format!(
+                "confirmed decision root {confirmed_root} does not match the current exact root {}; review the current semantic set before signing",
+                prepared.plan.decision_root
+            ),
+            Some("rerun without --confirm-root to render a fresh key-free preview"),
+        );
+    }
+    ceremony_binary_gate(false);
+    if !json {
+        render_final_decision_set(&[&review], std::slice::from_ref(&answer), &prepared);
+        println!("  · exact prior root confirmed; entering the one-key decision edge");
+    }
+
+    let outcome = execute_confirmed_decision(&dir, &prepared, key.as_deref())
+        .unwrap_or_else(|error| fail_decision(error));
+    let publish_opts = crate::config::git_publish::PublishOptions::new(false, false);
+    let publication = publish_exact_decision(&dir, "sign", &outcome, &publish_opts);
+    if json {
+        println!(
+            "{}",
+            serde_json::json!({
+                "ok": true,
+                "command": "sign",
+                "operation_id": outcome.operation_id,
+                "decision": summary,
+                "event_id": outcome.event_ids.first(),
+                "event_ids": outcome.event_ids,
+                "aggregate_engine": outcome.aggregate_engine,
+                "publication": publication,
+            })
+        );
+    } else {
+        println!(
+            "  · signed {} -> {} event(s)",
+            crate::cli::safe_text::inline(id),
+            outcome.event_ids.len()
+        );
+        println!(
+            "  · publication {}",
+            crate::cli::safe_text::inline(
+                &serde_json::to_string(&publication).unwrap_or_else(|_| "unknown".to_string())
+            )
+        );
+        println!(
+            "  · retained {}",
+            crate::cli::safe_text::inline(&outcome.operation_id)
+        );
+        println!(
+            "  · next {}",
+            crate::cli::safe_text::inline(
+                publication
+                    .recovery_command
+                    .as_deref()
+                    .unwrap_or("vela status --json")
+            )
+        );
     }
 }
 
@@ -1251,6 +1459,37 @@ mod tests {
             session_command("a", SignLane::Decision),
             SessionCommand::Accept
         );
+    }
+
+    #[test]
+    fn typed_saved_answer_round_trips_exact_review_roots() {
+        let state = SessionState {
+            answers: std::collections::BTreeMap::from([(
+                "vpr_exact".to_string(),
+                StoredAnswer {
+                    proposal_id: "vpr_exact".to_string(),
+                    proposal_root: "sha256:proposal".to_string(),
+                    seen_decision_facts_root: "sha256:facts".to_string(),
+                    action: StoredDecisionAction::Reject,
+                    reason: "evidence does not support the claim".to_string(),
+                },
+            )]),
+            latest_decision_root: Some("sha256:decision".to_string()),
+        };
+        let bytes = serde_json::to_vec(&state).unwrap();
+        let decoded: SessionState = serde_json::from_slice(&bytes).unwrap();
+        assert_eq!(decoded.answers, state.answers);
+        assert_eq!(decoded.latest_decision_root, state.latest_decision_root);
+        let saved = decoded.answers["vpr_exact"].to_saved_answer();
+        assert_eq!(saved.proposal_root, "sha256:proposal");
+        assert_eq!(saved.seen_decision_facts_root, "sha256:facts");
+        assert_eq!(saved.action, DecisionAction::Reject);
+    }
+
+    #[test]
+    fn legacy_string_answers_fail_closed_instead_of_becoming_verdicts() {
+        let legacy = r#"{"answers":{"vpr_old":"accept"}}"#;
+        assert!(serde_json::from_str::<SessionState>(legacy).is_err());
     }
 
     #[test]

@@ -23,6 +23,35 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+/// Typed reference prefix for the decision digest consumed by a human review.
+///
+/// The reference deliberately uses the existing generic `input_refs` lane. It
+/// is not a new object, manifest, or source of authority: the enclosing event
+/// and its human signature remain authoritative. The prefix only lets a
+/// verifier identify and zero this audit-reference slot when reconstructing a
+/// decision preimage without confusing it with other `sha256:` inputs.
+pub const DECISION_ROOT_INPUT_REF_PREFIX: &str = "urn:vela:decision-root:";
+
+/// Validate and type a canonical decision root for `Provenance.input_refs`.
+///
+/// Decision roots use the protocol's ordinary `sha256:<64 lowercase hex>`
+/// spelling. Returning the complete typed reference in one place prevents
+/// callers from inventing ambiguous or differently-cased aliases.
+pub fn decision_root_input_ref(decision_root: &str) -> Result<String, String> {
+    let Some(digest) = decision_root.strip_prefix("sha256:") else {
+        return Err("decision_root must be sha256:<64 lowercase hex>".to_string());
+    };
+    if digest.len() != 64
+        || !digest
+            .as_bytes()
+            .iter()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(byte))
+    {
+        return Err("decision_root must be sha256:<64 lowercase hex>".to_string());
+    }
+    Ok(format!("{DECISION_ROOT_INPUT_REF_PREFIX}{decision_root}"))
+}
+
 /// Co-authorship attribution attached to an event payload or a `vsa_`
 /// statement attestation. Every named id is NON-HUMAN; the accountable human is
 /// the outer signer.
@@ -146,6 +175,21 @@ impl Provenance {
                 ));
             }
         }
+        Ok(())
+    }
+
+    /// Bind exactly one decision root through the ordinary signed input-ref
+    /// lane. Rebinding replaces the previous decision-root slot while
+    /// preserving every unrelated input in its original order.
+    ///
+    /// Call this before deriving the event id or signature. The event signing
+    /// preimage covers `payload.provenance.input_refs`, so changing this root
+    /// changes the event id and invalidates an existing signature.
+    pub fn bind_decision_root(&mut self, decision_root: &str) -> Result<(), String> {
+        let reference = decision_root_input_ref(decision_root)?;
+        self.input_refs
+            .retain(|item| !item.starts_with(DECISION_ROOT_INPUT_REF_PREFIX));
+        self.input_refs.push(reference);
         Ok(())
     }
 }
@@ -294,5 +338,31 @@ mod tests {
         // defaulted Provenance is the empty object and adds nothing to a body.
         let v = serde_json::to_value(Provenance::default()).unwrap();
         assert_eq!(v, json!({}));
+    }
+
+    #[test]
+    fn decision_root_binding_is_typed_validated_and_replaceable() {
+        let first = format!("sha256:{}", "a".repeat(64));
+        let second = format!("sha256:{}", "b".repeat(64));
+        let mut p = Provenance {
+            input_refs: vec!["sha256:ordinary-input".to_string()],
+            ..Default::default()
+        };
+
+        p.bind_decision_root(&first).unwrap();
+        p.bind_decision_root(&second).unwrap();
+
+        assert_eq!(
+            p.input_refs,
+            vec![
+                "sha256:ordinary-input".to_string(),
+                format!("{DECISION_ROOT_INPUT_REF_PREFIX}{second}"),
+            ]
+        );
+        assert!(
+            p.bind_decision_root(&format!("sha256:{}", "A".repeat(64)))
+                .is_err()
+        );
+        assert!(p.bind_decision_root("sha256:short").is_err());
     }
 }

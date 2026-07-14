@@ -150,7 +150,7 @@ fn proof_record_proof_state_updates_frontier() {
 }
 
 #[test]
-fn note_is_proposal_backed_by_default_and_applies_with_flag() {
+fn note_is_proposal_backed_and_legacy_apply_is_atomic_refusal() {
     let tmp = TempDir::new().unwrap();
     let Some(frontier) = copy_bbb_frontier(&tmp) else {
         eprintln!("skip: bbb-alzheimer.json fixture absent (internal-only)");
@@ -198,7 +198,8 @@ fn note_is_proposal_backed_by_default_and_applies_with_flag() {
     assert_eq!(pending_proposals.len(), 1, "exactly one pending proposal");
     assert_eq!(pending_proposals[0]["kind"], "finding.note");
 
-    let applied = run_json(&[
+    let before_apply = fs::read(&frontier).unwrap();
+    let refusal = run_expect_failure(&[
         "note",
         frontier.to_str().unwrap(),
         &finding_id,
@@ -209,21 +210,9 @@ fn note_is_proposal_backed_by_default_and_applies_with_flag() {
         "--apply",
         "--json",
     ]);
-    assert_eq!(applied["proposal_status"], "applied");
-    assert!(applied["applied_event_id"].as_str().is_some());
-
-    let after_applied: Value = serde_json::from_slice(&fs::read(&frontier).unwrap()).unwrap();
-    assert_eq!(
-        after_applied["findings"][0]["annotations"]
-            .as_array()
-            .map(Vec::len)
-            .unwrap_or(0),
-        initial_annotations + 1
-    );
-    assert_eq!(
-        after_applied["events"].as_array().unwrap().last().unwrap()["kind"],
-        "finding.noted"
-    );
+    assert!(refusal.contains("custody_refused"));
+    assert!(refusal.contains("vela sign"));
+    assert_eq!(fs::read(&frontier).unwrap(), before_apply);
 }
 
 #[test]

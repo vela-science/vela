@@ -185,8 +185,9 @@ pub(crate) fn resolve_signing_key(flag: Option<&Path>) -> SigningKey {
     }
 }
 
-/// Resolve the signing key if one is configured, else `None`. Use for
-/// commands where signing is optional (keyless bootstrap still allowed).
+/// Resolve the signing key if one is configured, else `None`. Callers may use
+/// this only for process writes whose protocol boundary explicitly permits an
+/// unsigned record; truth-bearing decisions have no keyless bootstrap.
 pub(crate) fn resolve_signing_key_opt(flag: Option<&Path>) -> Option<SigningKey> {
     let path = resolve_key_path(flag)?;
     let hex = std::fs::read_to_string(&path)

@@ -119,6 +119,47 @@ fn atom_locator(state: &Project, atom_id: &str) -> Option<String> {
         .and_then(|atom| atom.locator.clone())
 }
 
+fn accept_pending_via_decision_plan(path: &std::path::Path, proposal_id: &str) {
+    const REVIEWER: &str = "reviewer:repair-fixture";
+    let key = ed25519_dalek::SigningKey::from_bytes(&[46_u8; 32]);
+    let mut frontier = repo::load_from_path(path).unwrap();
+    frontier.actors.push(vela_protocol::sign::ActorRecord {
+        id: REVIEWER.to_string(),
+        public_key: vela_protocol::sign::pubkey_hex(&key),
+        algorithm: "ed25519".to_string(),
+        created_at: "2020-01-01T00:00:00Z".to_string(),
+        tier: None,
+        orcid: None,
+        access_clearance: None,
+        revoked_at: None,
+        revoked_reason: None,
+    });
+    let decided_at = chrono::Utc::now().to_rfc3339();
+    let mut prepared = vela_protocol::proposals::prepare_proposal_accept_in_memory_at(
+        &mut frontier,
+        proposal_id,
+        REVIEWER,
+        "repair fixture Decision Plan",
+        None,
+        &decided_at,
+    )
+    .unwrap();
+    vela_protocol::proposals::bind_decision_root_to_prepared(
+        &mut frontier,
+        &mut prepared,
+        &format!("sha256:{}", "1".repeat(64)),
+    )
+    .unwrap();
+    vela_protocol::proposals::sign_prepared_decision_events(
+        &mut frontier,
+        &prepared,
+        REVIEWER,
+        &key,
+    )
+    .unwrap();
+    repo::save_to_path(path, &frontier).unwrap();
+}
+
 #[test]
 fn locator_repair_apply_sets_locator_and_emits_event() {
     let dir = tempfile::tempdir().expect("tempdir");
@@ -132,13 +173,14 @@ fn locator_repair_apply_sets_locator_and_emits_event() {
         None,
         "agent:vela-curation-bot-test",
         "Mechanical repair from parent source",
-        true,
+        false,
     )
-    .expect("repair applies");
+    .expect("repair proposal recorded");
 
     assert_eq!(report.command, "locator-repair");
-    assert_eq!(report.proposal_status, "applied");
-    assert!(report.applied_event_id.is_some());
+    assert_eq!(report.proposal_status, "pending_review");
+    assert!(report.applied_event_id.is_none());
+    accept_pending_via_decision_plan(&path, &report.proposal_id);
 
     let reloaded = repo::load_from_path(&path).expect("reload");
     assert_eq!(
@@ -192,6 +234,27 @@ fn locator_repair_pending_does_not_set_locator() {
 }
 
 #[test]
+fn locator_repair_legacy_apply_is_atomic_refusal() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let path = dir.path().join("frontier.json");
+    let frontier = frontier_with_one_atom_missing_locator();
+    repo::save_to_path(&path, &frontier).expect("save frontier");
+    let before = std::fs::read(&path).unwrap();
+
+    let error = state::repair_evidence_atom_locator(
+        &path,
+        "vea_locator_fixture_atom",
+        None,
+        "agent:vela-curation-bot-test",
+        "legacy apply probe",
+        true,
+    )
+    .unwrap_err();
+    assert!(error.contains("retired"), "unexpected error: {error}");
+    assert_eq!(std::fs::read(&path).unwrap(), before);
+}
+
+#[test]
 fn locator_repair_refuses_when_atom_already_has_locator() {
     let dir = tempfile::tempdir().expect("tempdir");
     let path = dir.path().join("frontier.json");
@@ -210,7 +273,7 @@ fn locator_repair_refuses_when_atom_already_has_locator() {
         None,
         "agent:vela-curation-bot-test",
         "noop attempt",
-        true,
+        false,
     );
     assert!(result.is_err());
     let err = result.unwrap_err();
@@ -230,7 +293,7 @@ fn locator_repair_refuses_when_atom_missing_from_frontier() {
         Some("doi:10.1/test"),
         "agent:vela-curation-bot-test",
         "missing atom",
-        true,
+        false,
     );
     assert!(result.is_err());
 }

@@ -71,6 +71,49 @@ fn run_ok(args: &[&str]) {
     );
 }
 
+fn accept_pending_via_decision_plan(frontier: &std::path::Path, proposal_id: &str) {
+    const REVIEWER: &str = "reviewer:integration-fixture";
+    let key = ed25519_dalek::SigningKey::from_bytes(&[45_u8; 32]);
+    let mut project = vela_protocol::repo::load_from_path(frontier).unwrap();
+    if !project.actors.iter().any(|actor| actor.id == REVIEWER) {
+        project.actors.push(vela_protocol::sign::ActorRecord {
+            id: REVIEWER.to_string(),
+            public_key: vela_protocol::sign::pubkey_hex(&key),
+            algorithm: "ed25519".to_string(),
+            created_at: "2020-01-01T00:00:00Z".to_string(),
+            tier: None,
+            orcid: None,
+            access_clearance: None,
+            revoked_at: None,
+            revoked_reason: None,
+        });
+    }
+    let decided_at = chrono::Utc::now().to_rfc3339();
+    let mut prepared = vela_protocol::proposals::prepare_proposal_accept_in_memory_at(
+        &mut project,
+        proposal_id,
+        REVIEWER,
+        "integration fixture Decision Plan",
+        None,
+        &decided_at,
+    )
+    .unwrap();
+    vela_protocol::proposals::bind_decision_root_to_prepared(
+        &mut project,
+        &mut prepared,
+        &format!("sha256:{}", "f".repeat(64)),
+    )
+    .unwrap();
+    vela_protocol::proposals::sign_prepared_decision_events(
+        &mut project,
+        &prepared,
+        REVIEWER,
+        &key,
+    )
+    .unwrap();
+    vela_protocol::repo::save_to_path(frontier, &project).unwrap();
+}
+
 #[test]
 fn cross_frontier_dep_and_link_survive_materialize_cycle() {
     let tmp = TempDir::new().expect("tempdir");
@@ -104,9 +147,12 @@ fn cross_frontier_dep_and_link_survive_materialize_cycle() {
         "expert_assertion",
         "--author",
         "reviewer:test",
-        "--apply",
         "--json",
     ]);
+    let proposal_id = finding_payload["proposal_id"]
+        .as_str()
+        .expect("proposal_id present in payload");
+    accept_pending_via_decision_plan(&frontier, proposal_id);
     let local_finding_id = finding_payload["finding_id"]
         .as_str()
         .expect("finding_id present in payload")
@@ -206,9 +252,12 @@ fn cross_frontier_dep_and_link_survive_materialize_cycle() {
         "expert_assertion",
         "--author",
         "reviewer:test",
-        "--apply",
         "--json",
     ]);
+    let proposal_id = second_finding_payload["proposal_id"]
+        .as_str()
+        .expect("second proposal_id present");
+    accept_pending_via_decision_plan(&frontier, proposal_id);
     let second_finding_id = second_finding_payload["finding_id"]
         .as_str()
         .expect("second finding_id present")

@@ -295,7 +295,23 @@ pub async fn run_command() {
                     crate::config::git_publish::PublishOptions::new(false, false)
                 };
                 let publication =
-                    crate::config::git_publish::recover_publication(&dir, &operation, &opts);
+                    match crate::decision_plan::recover_decision_operation(&dir, &operation) {
+                        Ok(Some(outcome)) => crate::cli::sign_session::publish_exact_decision(
+                            &dir,
+                            &format!("recover decision: {operation}"),
+                            &outcome,
+                            &opts,
+                        ),
+                        Ok(None) => {
+                            crate::config::git_publish::recover_publication(&dir, &operation, &opts)
+                        }
+                        Err(error) => crate::config::git_publish::PublicationOutcome {
+                            state: crate::config::git_publish::PublicationState::Unknown {
+                                reason: error.to_string(),
+                            },
+                            recovery_command: None,
+                        },
+                    };
                 let ok = matches!(
                     &publication.state,
                     crate::config::git_publish::PublicationState::CommittedLocal { .. }
@@ -467,6 +483,7 @@ pub async fn run_command() {
                 apply,
                 replication_attestation,
             } => {
+                refuse_legacy_finding_apply(apply, json);
                 validate_enum_arg("--type", &r#type, bundle::VALID_ASSERTION_TYPES);
                 let replication_attestation = if let Some(p) = replication_attestation {
                     let raw = std::fs::read_to_string(&p).unwrap_or_else(|e| {
@@ -549,6 +566,7 @@ pub async fn run_command() {
                 json,
                 apply,
             } => {
+                refuse_legacy_finding_apply(apply, json);
                 validate_enum_arg("--type", &r#type, bundle::VALID_ASSERTION_TYPES);
                 validate_enum_arg(
                     "--evidence-type",
@@ -700,6 +718,8 @@ pub async fn run_command() {
             target,
             frontier,
             yes,
+            confirm_root,
+            confirm_at,
             reason,
             batch,
             reset,
@@ -728,14 +748,24 @@ pub async fn run_command() {
             } else if let Some(target) = target {
                 let as_path = std::path::Path::new(&target);
                 if as_path.exists() {
+                    if confirm_root.is_some() || confirm_at.is_some() {
+                        crate::ui::fail_with(
+                            crate::ui::ErrorKind::Usage,
+                            "--confirm-root applies only to proposal decisions, not detached file signatures",
+                            None,
+                        );
+                    }
                     sign_session::cmd_sign_detached(as_path, key.as_deref(), json);
-                } else if yes {
-                    sign_session::cmd_sign_one(frontier, &target, reason, key, json);
                 } else {
-                    crate::ui::fail_with(
-                        crate::ui::ErrorKind::Usage,
-                        &format!("`vela sign {target}` needs --yes for a scripted decision"),
-                        Some("or run bare `vela sign` for the interactive session"),
+                    sign_session::cmd_sign_one(
+                        frontier,
+                        &target,
+                        reason,
+                        key,
+                        yes,
+                        confirm_root.as_deref(),
+                        confirm_at.as_deref(),
+                        json,
                     );
                 }
             } else {

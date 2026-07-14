@@ -13,6 +13,8 @@ use vela_protocol::cli_style as style;
 mod atlas;
 pub(crate) use atlas::{atlas_adapters, cli_atlas};
 mod bounded_file;
+#[allow(dead_code)]
+pub(crate) mod decision_plan;
 mod frontier;
 pub(crate) use frontier::{cli_frontier, cli_read, cli_registry};
 mod write;

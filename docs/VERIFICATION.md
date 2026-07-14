@@ -116,12 +116,13 @@ stored flag) by `FindingState::derive`:
    `witnesses/<file>` when the blob lives in object storage); the gate still
    needs a second independent attachment to derive `Verified`.
 
-2. **A human review verdict.** A reviewer accepts the finding with their key:
-   `vela finding review <vf> --status accepted --as reviewer:<you> --apply`.
-   That emits a `finding.reviewed` event setting `review_state = Accepted`. An
-   accepted finding is `Established` when its confidence clears the fragile
-   floor (`0.6`), and `Fragile` below it; pass `--confidence 0.9` on the same
-   command to lift it in one step.
+2. **A human review verdict.** Draft the review proposal with
+   `vela finding review <frontier> <vf> --status accepted --as reviewer:<you>`;
+   then decide the exact pending proposal through `vela sign`. The signed
+   decision emits a `finding.reviewed` event setting `review_state = Accepted`.
+   An accepted finding is `Established` when its confidence clears the fragile
+   floor (`0.6`), and `Fragile` below it; draft `--confidence 0.9` with the
+   review when that lift is intended.
 
 The producer path for a fresh result is `land` (record an activity receipt,
 routed by the signed policy) then `sign` (the human ceremony that admits a

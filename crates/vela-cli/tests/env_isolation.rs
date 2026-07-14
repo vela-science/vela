@@ -418,9 +418,18 @@ fn frontier_env_cannot_mute_advice() {
     init_frontier(tmp.path());
     std::fs::write(tmp.path().join(".env"), "VELA_ADVICE=0\n").unwrap();
 
-    // A scripted sign without --yes prints a usage error WITH the
-    // corrective hint (and fires before any identity lookup).
-    let out = run_scrubbed(tmp.path(), &["sign", "vpr_x"]);
+    // A partial scripted-confirmation token prints a usage error WITH the
+    // corrective hint and fires before any identity lookup. A bare proposal
+    // id is now a valid key-free preview, so it is not a usage error.
+    let out = run_scrubbed(
+        tmp.path(),
+        &[
+            "sign",
+            "vpr_x",
+            "--confirm-root",
+            "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        ],
+    );
     let stderr = String::from_utf8_lossy(&out.stderr);
     assert!(
         stderr.contains("hint:"),

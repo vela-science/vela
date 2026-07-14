@@ -525,6 +525,9 @@ pub(crate) struct InputBinding {
 
 const FRONTIER_FILE_INPUT_PREFIX: &str = "frontier_file:";
 const FRONTIER_FILE_INPUT_SCHEMA: &str = "vela.frontier-file-input.internal.v1";
+const FRONTIER_PROJECT_INPUT_NAME: &str = "frontier_project:vela.project-snapshot.internal.v1";
+const ENGINE_POLICY_INPUT_NAME: &str =
+    "frontier_observation:vela.engine-policy-summary-observation.v1";
 
 #[derive(Serialize)]
 struct FrontierFileInputCommitment<'a> {
@@ -534,6 +537,20 @@ struct FrontierFileInputCommitment<'a> {
 }
 
 impl InputBinding {
+    /// Bind either the exact current file state or its exact absence.
+    ///
+    /// This is the read-set counterpart to a bounded caller read: it does not
+    /// assume that a decision-critical receipt or policy path exists, and the
+    /// marker check rejects creation, deletion, byte drift, or mode drift.
+    pub(crate) fn current_file(
+        frontier_root: &Path,
+        path: RepoPath,
+    ) -> Result<Self, FrontierTxnError> {
+        let root = canonical_frontier_root(frontier_root)?;
+        let state = inspect_file_state(&root, &path)?;
+        Self::from_frontier_state(path, state)
+    }
+
     /// Bind a regular frontier file as a mutable planning input. The path tag
     /// is encoded in the existing `name` field so old digest-only journal
     /// records remain wire-compatible and continue to deserialize unchanged.
@@ -588,6 +605,36 @@ impl InputBinding {
         Self::from_frontier_state(path, state)
     }
 
+    /// Bind the complete typed Project loaded under the recovery barrier.
+    /// Event-log binding alone is insufficient: proposal answers, actor
+    /// authority/revocation, and derived verifier state can change without
+    /// changing the accepted event head.
+    pub(crate) fn project_snapshot(
+        project: &vela_protocol::project::Project,
+    ) -> Result<Self, FrontierTxnError> {
+        let bytes = vela_protocol::canonical::to_canonical_bytes(&serde_json::json!({
+            "schema": "vela.project-snapshot.internal.v1",
+            "project": project,
+        }))
+        .map_err(FrontierTxnError::Canonicalize)?;
+        Ok(Self {
+            name: FRONTIER_PROJECT_INPUT_NAME.to_string(),
+            digest: ContentDigest::hash(bytes),
+        })
+    }
+
+    /// Bind the exact present/absent/invalid Engine-policy observation used
+    /// during Decision Plan derivation. Marker-time verification re-runs the
+    /// same bounded observation, closing the post-key/pre-marker policy race.
+    pub(crate) fn engine_policy_observation(
+        observation_root: &str,
+    ) -> Result<Self, FrontierTxnError> {
+        Ok(Self {
+            name: ENGINE_POLICY_INPUT_NAME.to_string(),
+            digest: ContentDigest::parse(observation_root.to_string())?,
+        })
+    }
+
     fn from_frontier_state(path: RepoPath, state: FileState) -> Result<Self, FrontierTxnError> {
         Ok(Self {
             name: format!("{FRONTIER_FILE_INPUT_PREFIX}{}", path.as_str()),
@@ -614,6 +661,33 @@ impl InputBinding {
     }
 
     fn verify_current(&self, root: &Path) -> Result<(), FrontierTxnError> {
+        if self.name == FRONTIER_PROJECT_INPUT_NAME {
+            let project = vela_protocol::repo::load_from_path(root).map_err(|error| {
+                FrontierTxnError::Io(format!("reload bound Project snapshot: {error}"))
+            })?;
+            let actual = Self::project_snapshot(&project)?.digest;
+            if actual != self.digest {
+                return Err(FrontierTxnError::StaleSnapshot {
+                    name: self.name.clone(),
+                    expected: self.digest.clone(),
+                    actual,
+                });
+            }
+            return Ok(());
+        }
+        if self.name == ENGINE_POLICY_INPUT_NAME {
+            let actual = ContentDigest::parse(
+                vela_protocol::frontier_policy::engine_policy_summary_root(root),
+            )?;
+            if actual != self.digest {
+                return Err(FrontierTxnError::StaleSnapshot {
+                    name: self.name.clone(),
+                    expected: self.digest.clone(),
+                    actual,
+                });
+            }
+            return Ok(());
+        }
         let Some(path) = self.frontier_path()? else {
             return Ok(());
         };
@@ -936,6 +1010,45 @@ pub(crate) struct FrontierRecoveryBarrier {
     root: PathBuf,
     journal_dir: PathBuf,
     lock: FrontierWriteLock,
+}
+
+impl FrontierRecoveryBarrier {
+    /// Re-verify a caller's complete bound read set while retaining the
+    /// frontier write lock. The lock coordinates Vela writers; it is advisory
+    /// with respect to arbitrary filesystem processes, so this is a pre-key
+    /// early-abort check rather than the authority boundary. Marker-time
+    /// verification in [`FrontierTxn::mark_committed`] remains authoritative.
+    pub(crate) fn verify_read_set(
+        &self,
+        read_set: &[InputBinding],
+    ) -> Result<(), FrontierTxnError> {
+        for binding in read_set {
+            binding.verify_current(&self.root)?;
+        }
+        Ok(())
+    }
+
+    /// Return the already-verified completed plan for one operation while this
+    /// barrier owns the frontier lock. This closes the race where another
+    /// process completes the same operation between an unlocked exact-retry
+    /// lookup and barrier acquisition; callers can return the durable result
+    /// without rederiving stale applied proposals or touching a private key.
+    pub(crate) fn completed_plan(
+        &self,
+        operation_id: &OperationId,
+    ) -> Result<Option<FrontierTxnPlan>, FrontierTxnError> {
+        let journals = frontier_journals(&self.root, &self.journal_dir)?;
+        for (paths, journal) in journals {
+            if journal.plan.operation_id != *operation_id {
+                continue;
+            }
+            if matches!(journal.recovery, RecoveryState::Completed) {
+                verify_completed_marker_and_blobs(&paths, &journal)?;
+                return Ok(Some(journal.plan));
+            }
+        }
+        Ok(None)
+    }
 }
 
 fn frontier_journals(
@@ -2100,6 +2213,11 @@ pub(crate) enum FrontierTxnError {
         expected: ContentDigest,
         actual: ContentDigest,
     },
+    StaleSnapshot {
+        name: String,
+        expected: ContentDigest,
+        actual: ContentDigest,
+    },
     StaleEventLog {
         expected: ContentDigest,
         actual: ContentDigest,
@@ -2174,6 +2292,9 @@ impl fmt::Display for FrontierTxnError {
                 "frontier input {name} changed before commit at {}",
                 path.as_str()
             ),
+            Self::StaleSnapshot { name, .. } => {
+                write!(formatter, "frontier snapshot {name} changed before commit")
+            }
             Self::StaleEventLog { expected, actual } => write!(
                 formatter,
                 "event log changed before commit: expected {}, found {}",

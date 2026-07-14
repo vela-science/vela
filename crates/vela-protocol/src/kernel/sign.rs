@@ -103,13 +103,20 @@ impl ActorRecord {
     /// event timestamp. An event signed before `revoked_at` remains
     /// valid (the substrate does not retroactively invalidate
     /// historical signatures); an event signed at-or-after the
-    /// revocation is rejected. Lexicographic RFC 3339 comparison
-    /// matches chronological order.
+    /// revocation is rejected. Both timestamps are parsed as RFC 3339
+    /// instants so equivalent offsets compare correctly. Invalid
+    /// timestamps fail closed and are treated as revoked.
     pub fn is_revoked_at(&self, event_timestamp: &str) -> bool {
-        match self.revoked_at.as_deref() {
-            None => false,
-            Some(rev_at) => event_timestamp >= rev_at,
-        }
+        let Ok(event_time) = chrono::DateTime::parse_from_rfc3339(event_timestamp) else {
+            return true;
+        };
+        let Some(revoked_at) = self.revoked_at.as_deref() else {
+            return false;
+        };
+        let Ok(revoked_time) = chrono::DateTime::parse_from_rfc3339(revoked_at) else {
+            return true;
+        };
+        event_time >= revoked_time
     }
 }
 
@@ -505,6 +512,37 @@ mod tests {
     fn test_keypair() -> SigningKey {
         use rand::rngs::OsRng;
         SigningKey::generate(&mut OsRng)
+    }
+
+    fn actor_with_revocation(revoked_at: Option<&str>) -> ActorRecord {
+        ActorRecord {
+            id: "reviewer:test".to_string(),
+            public_key: "00".repeat(32),
+            algorithm: "ed25519".to_string(),
+            created_at: "2026-05-01T00:00:00Z".to_string(),
+            tier: None,
+            orcid: None,
+            access_clearance: None,
+            revoked_at: revoked_at.map(ToString::to_string),
+            revoked_reason: None,
+        }
+    }
+
+    #[test]
+    fn actor_revocation_compares_rfc3339_instants_across_offsets() {
+        let actor = actor_with_revocation(Some("2026-05-28T20:00:00-04:00"));
+
+        assert!(actor.is_revoked_at("2026-05-29T00:00:00Z"));
+        assert!(!actor.is_revoked_at("2026-05-28T23:59:59Z"));
+    }
+
+    #[test]
+    fn actor_revocation_fails_closed_on_invalid_timestamps() {
+        let actor = actor_with_revocation(Some("not-a-timestamp"));
+        assert!(actor.is_revoked_at("2026-05-29T00:00:00Z"));
+
+        let active_actor = actor_with_revocation(None);
+        assert!(active_actor.is_revoked_at("not-a-timestamp"));
     }
 
     #[cfg(unix)]

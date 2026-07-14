@@ -44,14 +44,23 @@ The one-step producer path: verify, land, bind, drive the exact lane.";
 
 pub const SIGN: &str = "\
 EXAMPLES
-  vela sign                       decide everything awaiting your key
-  vela sign vpr_8b49… --yes       scripted single accept (no session)
-  vela sign --batch verdicts.json one key read over many verdicts
+  vela sign                       decide one frontier's pending proposals
+  vela sign vpr_8b49… --json      render root + observation time; read no key
+  vela sign vpr_8b49… --yes --confirm-root sha256:… --confirm-at 2026-07-14T12:00:00Z
+                                  accept only that exact rendered set
+  vela sign --batch fidelity.json separate fidelity-attestation lane
   vela sign --reset               discard a saved session and start clean
 
-In the interactive session: a accept · r reject · s skip · then one
-confirm. The final summary is editable (edit one · reset all) before the
-single key read.
+In the interactive session: a accept · r reject · s skip. Vela then builds
+and shows the exact semantic set and transaction root before one confirm and
+one key read. Run inside a frontier or pass --frontier; frontiers commit
+independently.
+
+Scripted decisions are two-step: the first invocation only renders the set,
+root, and exact RFC3339 observation time. Mutation requires --yes plus both
+echoed --confirm-root and --confirm-at values. Mismatch or drift stops pre-key.
+The echoed time is valid for 15 minutes (with 60 seconds of future clock skew);
+after that, render a fresh preview.
 
 SEE ALSO
   vela proposals accept · reject   the store-level plumbing sign drives";
@@ -151,16 +160,29 @@ signs or changes scientific authority.";
 
 pub const PROPOSALS: &str = "\
 EXAMPLES
-  vela proposals accept vpr_8b49… --frontier .   the plumbing `vela sign` drives
-  vela proposals reject vpr_ed84… --frontier . --reason \"superseded\"
+  vela proposals accept . vpr_8b49… --reason \"supported\" --json
+  vela proposals accept . vpr_8b49… --reason \"supported\" --yes --confirm-root sha256:… --confirm-at 2026-07-14T12:00:00Z
+  vela proposals reject . vpr_ed84… --reason \"superseded\" --yes --confirm-root sha256:… --confirm-at 2026-07-14T12:00:00Z
+  vela proposals import . pending.json     import pending records only
 
-Prefer `vela sign` — the human ceremony over everything awaiting your key.";
+An interactive terminal renders the exact semantic set and asks once.
+Scripted and JSON use first preview key-free, then require --yes plus the exact
+--confirm-root and --confirm-at pair within the 15-minute review window.
+Prefer `vela sign` for the resumable proposal ceremony. Import never trusts
+decision status fields; decided records
+need a separately verified signed-authority/event importer.";
 
 pub const FINDING: &str = "\
 EXAMPLES
-  vela finding add --author \"A. Researcher\" …   propose a new finding
-  vela finding show vf_6d4a…                    read one finding
-  vela finding note vf_6d4a… \"…\"                annotate (does not decide)";
+  vela finding add . --assertion \"…\" --author \"A. Researcher\"
+                                                propose a new finding
+  vela finding show . vf_6d4a…                 read one finding
+  vela finding note . vf_6d4a… --text \"…\" --author agent:notes
+                                                propose an annotation
+
+Finding mutations create pending proposals. The legacy --apply flag is kept
+only for parser compatibility and is always refused; humans decide with
+`vela sign`.";
 
 pub const ARTIFACT: &str = "\
 EXAMPLES

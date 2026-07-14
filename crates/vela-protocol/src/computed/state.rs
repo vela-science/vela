@@ -76,12 +76,9 @@ pub struct FindingDraftOptions {
     pub evidence_spans: Vec<Value>,
     pub gap: bool,
     pub negative_space: bool,
-    /// v0.339: optional replication attestation for verified circuit-claim
-    /// findings. When present it is attached to the finding.add proposal
-    /// payload as a sibling of `finding`, where the trusted-reviewer-agent
-    /// gate (proposals.rs) reads it: an `agent:replicator` author may
-    /// auto-accept the finding iff this attestation passes the deterministic
-    /// predicate. None for ordinary human-curated findings.
+    /// Optional replication evidence for a circuit-claim proposal. It remains
+    /// review material only: recording an attestation never grants its author
+    /// acceptance authority or bypasses the Decision Plan.
     pub replication_attestation: Option<Value>,
 }
 
@@ -766,13 +763,13 @@ pub fn retract_artifact(
     })
 }
 
-/// v0.38: Set or revise a finding's `causal_claim` and (optionally)
-/// `causal_evidence_grade`. Appends an `assertion.reinterpreted_causal`
-/// event capturing the prior reading, the new reading, and the actor.
-/// Bypasses the proposal flow because (a) the mutation is local and
-/// reversible by another call, and (b) the schema layer ships ahead of
-/// the reasoning surface — the next milestone will route this through
-/// proposals once the do-calculus layer needs it.
+/// Legacy direct causal reinterpretation entrypoint.
+///
+/// Causal interpretation changes the assertion itself and is therefore
+/// truth-bearing. The historical implementation wrote an applied event from a
+/// typed actor name with no pending proposal, signed authority, or Decision
+/// Plan. The signature is retained for source compatibility, but new writes
+/// fail closed before the frontier is read or mutated.
 pub fn set_causal(
     path: &Path,
     finding_id: &str,
@@ -781,92 +778,11 @@ pub fn set_causal(
     actor: &str,
     reason: &str,
 ) -> Result<StateCommandReport, String> {
-    use crate::bundle::{CausalClaim, CausalEvidenceGrade};
-
-    let mut frontier: Project = repo::load_from_path(path)?;
-    let idx = frontier
-        .findings
-        .iter()
-        .position(|f| f.id == finding_id)
-        .ok_or_else(|| format!("Finding not found: {finding_id}"))?;
-
-    // Capture the prior reading for the event payload.
-    let before = json!({
-        "claim": frontier.findings[idx].assertion.causal_claim,
-        "grade": frontier.findings[idx].assertion.causal_evidence_grade,
-    });
-
-    let parsed_claim = match new_claim {
-        "correlation" => CausalClaim::Correlation,
-        "mediation" => CausalClaim::Mediation,
-        "intervention" => CausalClaim::Intervention,
-        other => return Err(format!("invalid causal claim '{other}'")),
-    };
-    let parsed_grade = match new_grade {
-        None => None,
-        Some("rct") => Some(CausalEvidenceGrade::Rct),
-        Some("quasi_experimental") => Some(CausalEvidenceGrade::QuasiExperimental),
-        Some("observational") => Some(CausalEvidenceGrade::Observational),
-        Some("theoretical") => Some(CausalEvidenceGrade::Theoretical),
-        Some(other) => return Err(format!("invalid causal evidence grade '{other}'")),
-    };
-
-    let before_hash = events::finding_hash(&frontier.findings[idx]);
-    frontier.findings[idx].assertion.causal_claim = Some(parsed_claim);
-    if let Some(g) = parsed_grade {
-        frontier.findings[idx].assertion.causal_evidence_grade = Some(g);
-    }
-    let after_hash = events::finding_hash(&frontier.findings[idx]);
-
-    let after = json!({
-        "claim": new_claim,
-        "grade": new_grade,
-    });
-
-    // Synthesize a deterministic proposal_id over the mutation.
-    let proposal_id = format!(
-        "vpr_{}",
-        &hex::encode(Sha256::digest(
-            format!(
-                "{finding_id}|{actor}|{before_hash}|{after_hash}|{}",
-                Utc::now().to_rfc3339()
-            )
-            .as_bytes()
-        ))[..16]
-    );
-
-    let event = events::new_finding_event(events::FindingEventInput {
-        kind: "assertion.reinterpreted_causal",
-        finding_id,
-        actor_id: actor,
-        actor_type: events::actor_kind(actor),
-        reason,
-        before_hash: &before_hash,
-        after_hash: &after_hash,
-        payload: json!({
-            "proposal_id": proposal_id,
-            "before": before,
-            "after": after,
-        }),
-        caveats: Vec::new(),
-        timestamp: None,
-    });
-    let event_id = event.id.clone();
-    frontier.events.push(event);
-
-    repo::save_to_path(path, &frontier)?;
-
-    Ok(StateCommandReport {
-        ok: true,
-        command: "causal_set".to_string(),
-        frontier: frontier.project.name,
-        finding_id: finding_id.to_string(),
-        proposal_id,
-        proposal_status: "applied".to_string(),
-        applied_event_id: Some(event_id),
-        wrote_to: path.display().to_string(),
-        message: format!("Causal claim set to {new_claim}"),
-    })
+    let _ = (path, finding_id, new_claim, new_grade, actor, reason);
+    Err(
+        "set_causal is retired for direct canonical mutation; causal reinterpretation must first be represented as a pending proposal and then executed through the decision-root-bound Decision Plan ceremony (`vela sign`)"
+            .to_string(),
+    )
 }
 
 /// Deposit a generic content-addressed artifact and emit an
@@ -1443,14 +1359,15 @@ pub fn build_add_finding_proposal_at(
         assertion, evidence, conditions, confidence, provenance, flags,
     );
     let finding_id = finding.id.clone();
-    // An agent author (e.g. `agent:replicator`) registers as an agent actor.
+    // An agent author remains visibly typed as an agent proposal originator;
+    // proposal authorship never grants decision authority.
     let actor_type = if options.author.starts_with("agent:") {
         "agent"
     } else {
         "human"
     };
-    // v0.339: a replication attestation rides as a sibling of `finding` so the
-    // accept gate can verify it without changing the finding.add shape.
+    // Replication evidence rides beside `finding` without changing its frozen
+    // shape. Reviewers may inspect it, but it cannot authorize acceptance.
     let payload = match options.replication_attestation {
         Some(att) => json!({"finding": finding, "replication_attestation": att}),
         None => json!({"finding": finding}),
@@ -1617,7 +1534,6 @@ mod v0_11_finding_tests {
 #[cfg(test)]
 mod v0_38_causal_tests {
     use super::*;
-    use crate::bundle::{CausalClaim, CausalEvidenceGrade};
     use tempfile::tempdir;
 
     fn seed_frontier(dir: &Path) -> std::path::PathBuf {
@@ -1649,14 +1565,53 @@ mod v0_38_causal_tests {
         path
     }
 
+    fn accept_pending_via_decision_plan(path: &Path, proposal_id: &str) {
+        const REVIEWER: &str = "reviewer:test-fixture";
+        const DECIDED_AT: &str = "2099-07-14T12:34:56Z";
+        let key = ed25519_dalek::SigningKey::from_bytes(&[43_u8; 32]);
+        let mut frontier = repo::load_from_path(path).unwrap();
+        if !frontier.actors.iter().any(|actor| actor.id == REVIEWER) {
+            frontier.actors.push(crate::sign::ActorRecord {
+                id: REVIEWER.to_string(),
+                public_key: crate::sign::pubkey_hex(&key),
+                algorithm: "ed25519".to_string(),
+                created_at: "2020-01-01T00:00:00Z".to_string(),
+                tier: None,
+                orcid: None,
+                access_clearance: None,
+                revoked_at: None,
+                revoked_reason: None,
+            });
+        }
+        let mut prepared = crate::proposals::prepare_proposal_accept_in_memory_at(
+            &mut frontier,
+            proposal_id,
+            REVIEWER,
+            "test Decision Plan",
+            None,
+            DECIDED_AT,
+        )
+        .unwrap();
+        crate::proposals::bind_decision_root_to_prepared(
+            &mut frontier,
+            &mut prepared,
+            &format!("sha256:{}", "e".repeat(64)),
+        )
+        .unwrap();
+        crate::proposals::sign_prepared_decision_events(&mut frontier, &prepared, REVIEWER, &key)
+            .unwrap();
+        repo::save_to_path(path, &frontier).unwrap();
+    }
+
     #[test]
-    fn set_causal_writes_fields_and_appends_event() {
+    fn set_causal_is_retired_before_any_frontier_delta() {
         let dir = tempdir().unwrap();
         let path = seed_frontier(dir.path());
         let project = repo::load_from_path(&path).unwrap();
         let finding_id = project.findings[0].id.clone();
+        let before = std::fs::read(&path).unwrap();
 
-        let report = set_causal(
+        let error = set_causal(
             &path,
             &finding_id,
             "intervention",
@@ -1664,33 +1619,21 @@ mod v0_38_causal_tests {
             "reviewer:test",
             "phase 3 RCT supports do(X=x) reading",
         )
-        .unwrap();
-        assert!(report.applied_event_id.is_some());
-
-        let after = repo::load_from_path(&path).unwrap();
-        let f = &after.findings[0];
-        assert_eq!(f.assertion.causal_claim, Some(CausalClaim::Intervention));
-        assert_eq!(
-            f.assertion.causal_evidence_grade,
-            Some(CausalEvidenceGrade::Rct)
-        );
-
-        let last_event = after.events.last().expect("an event was appended");
-        assert_eq!(last_event.kind, "assertion.reinterpreted_causal");
-        assert_eq!(last_event.target.id, finding_id);
-        assert_eq!(last_event.payload["after"]["claim"], "intervention");
-        assert_eq!(last_event.payload["after"]["grade"], "rct");
+        .unwrap_err();
+        assert!(error.contains("pending proposal"));
+        assert!(error.contains("vela sign"));
+        assert_eq!(std::fs::read(&path).unwrap(), before);
     }
 
     #[test]
-    fn set_causal_rejects_invalid_claim() {
+    fn set_causal_refuses_before_parsing_or_opening_the_frontier() {
         let dir = tempdir().unwrap();
         let path = seed_frontier(dir.path());
-        let project = repo::load_from_path(&path).unwrap();
-        let finding_id = project.findings[0].id.clone();
-        let err =
-            set_causal(&path, &finding_id, "magic", None, "reviewer:test", "test").unwrap_err();
-        assert!(err.contains("invalid causal claim"));
+        let before = std::fs::read(&path).unwrap();
+        let error =
+            set_causal(&path, "vf_missing", "magic", None, "reviewer:test", "test").unwrap_err();
+        assert!(error.contains("retired"));
+        assert_eq!(std::fs::read(&path).unwrap(), before);
     }
 
     #[test]
@@ -1710,10 +1653,21 @@ mod v0_38_causal_tests {
                 reviewer: "reviewer:test".to_string(),
                 confidence: None,
             },
-            true,
+            false,
         )
         .unwrap();
-        assert!(report.applied_event_id.is_some());
+        assert!(report.applied_event_id.is_none());
+        let pending = repo::load_from_path(&path)
+            .unwrap()
+            .proposals
+            .into_iter()
+            .filter(|proposal| proposal.status == "pending_review")
+            .map(|proposal| proposal.id)
+            .collect::<Vec<_>>();
+        assert!(pending.contains(&report.proposal_id));
+        for proposal_id in pending {
+            accept_pending_via_decision_plan(&path, &proposal_id);
+        }
 
         let after = repo::load_from_path(&path).unwrap();
         let f = &after.findings[0];
@@ -1726,9 +1680,35 @@ mod v0_38_causal_tests {
             matches!(state, FindingState::Established | FindingState::Fragile),
             "review-accept should establish the finding, got {state:?}"
         );
-        let last = after.events.last().expect("an event was appended");
-        assert_eq!(last.kind, "finding.reviewed");
-        assert_eq!(last.payload["status"], "accepted");
+        let review = after
+            .events
+            .iter()
+            .find(|event| event.kind == "finding.reviewed")
+            .expect("a finding.reviewed event was appended");
+        assert_eq!(review.payload["status"], "accepted");
+    }
+
+    #[test]
+    fn review_legacy_apply_refuses_before_companion_confidence_write() {
+        let dir = tempdir().unwrap();
+        let path = seed_frontier(dir.path());
+        let finding_id = repo::load_from_path(&path).unwrap().findings[0].id.clone();
+        let before = std::fs::read(&path).unwrap();
+
+        let error = review_finding(
+            &path,
+            &finding_id,
+            ReviewOptions {
+                status: "accepted".to_string(),
+                reason: "legacy apply probe".to_string(),
+                reviewer: "reviewer:test".to_string(),
+                confidence: Some(0.9),
+            },
+            true,
+        )
+        .unwrap_err();
+        assert!(error.contains("retired"), "unexpected error: {error}");
+        assert_eq!(std::fs::read(&path).unwrap(), before);
     }
 
     #[test]
@@ -1739,7 +1719,7 @@ mod v0_38_causal_tests {
         let path = seed_frontier(dir.path()); // seeds a finding at confidence 0.5
         let finding_id = repo::load_from_path(&path).unwrap().findings[0].id.clone();
 
-        review_finding(
+        let report = review_finding(
             &path,
             &finding_id,
             ReviewOptions {
@@ -1748,9 +1728,20 @@ mod v0_38_causal_tests {
                 reviewer: "reviewer:test".to_string(),
                 confidence: Some(0.9),
             },
-            true,
+            false,
         )
         .unwrap();
+        let pending = repo::load_from_path(&path)
+            .unwrap()
+            .proposals
+            .into_iter()
+            .filter(|proposal| proposal.status == "pending_review")
+            .map(|proposal| proposal.id)
+            .collect::<Vec<_>>();
+        assert!(pending.contains(&report.proposal_id));
+        for proposal_id in pending {
+            accept_pending_via_decision_plan(&path, &proposal_id);
+        }
 
         let after = repo::load_from_path(&path).unwrap();
         let f = &after.findings[0];
@@ -1766,49 +1757,6 @@ mod v0_38_causal_tests {
             FindingState::derive(&f.flags, f.confidence.score, None),
             FindingState::Established
         );
-    }
-
-    #[test]
-    fn set_causal_preserves_grade_when_only_claim_changes() {
-        let dir = tempdir().unwrap();
-        let path = seed_frontier(dir.path());
-        let project = repo::load_from_path(&path).unwrap();
-        let finding_id = project.findings[0].id.clone();
-
-        // First set both.
-        set_causal(
-            &path,
-            &finding_id,
-            "correlation",
-            Some("observational"),
-            "reviewer:test",
-            "initial reading",
-        )
-        .unwrap();
-        // Then revise just the claim. Grade should persist.
-        set_causal(
-            &path,
-            &finding_id,
-            "mediation",
-            None,
-            "reviewer:test",
-            "refined reading",
-        )
-        .unwrap();
-        let after = repo::load_from_path(&path).unwrap();
-        let f = &after.findings[0];
-        assert_eq!(f.assertion.causal_claim, Some(CausalClaim::Mediation));
-        assert_eq!(
-            f.assertion.causal_evidence_grade,
-            Some(CausalEvidenceGrade::Observational)
-        );
-        // Two events appended (one per call).
-        let causal_events: usize = after
-            .events
-            .iter()
-            .filter(|e| e.kind == "assertion.reinterpreted_causal")
-            .count();
-        assert_eq!(causal_events, 2);
     }
 
     fn model_contribution(unit: &str) -> crate::bundle::Contribution {
@@ -1835,17 +1783,22 @@ mod v0_38_causal_tests {
             &finding_id,
             model_contribution("lemma-1"),
             "agent:drafter",
-            true,
+            false,
         )
         .unwrap();
-        assert!(report.applied_event_id.is_some());
+        assert!(report.applied_event_id.is_none());
+        accept_pending_via_decision_plan(&path, &report.proposal_id);
 
         let after = repo::load_from_path(&path).unwrap();
         let f = &after.findings[0];
         assert_eq!(f.provenance.contributions.len(), 1);
         assert_eq!(f.provenance.contributions[0].agent_id, "openai/o5");
-        let last = after.events.last().expect("an event was appended");
-        assert_eq!(last.kind, "finding.contribution.recorded");
+        assert!(
+            after
+                .events
+                .iter()
+                .any(|event| event.kind == "finding.contribution.recorded")
+        );
 
         // The credit projection discloses the model as an originating agent but
         // never lifts it into author_of_record (no key, no accountable authorship).
@@ -1869,20 +1822,21 @@ mod v0_38_causal_tests {
         let path = seed_frontier(dir.path());
         let finding_id = repo::load_from_path(&path).unwrap().findings[0].id.clone();
 
-        record_contribution(
+        let report = record_contribution(
             &path,
             &finding_id,
             model_contribution("lemma-1"),
             "agent:d",
-            true,
+            false,
         )
         .unwrap();
+        accept_pending_via_decision_plan(&path, &report.proposal_id);
         record_contribution(
             &path,
             &finding_id,
             model_contribution("lemma-1"),
             "agent:d",
-            true,
+            false,
         )
         .unwrap();
 

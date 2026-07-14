@@ -213,9 +213,9 @@ pub fn sign_queue(input: SignQueueInput) -> SignQueue {
 mod tests {
     use super::*;
     use crate::decision_brief::{
-        ClaimState, CorrectionPath, DecisionAudit, DecisionBasis, DecisionBrief, DecisionChange,
-        DecisionCheckState, DecisionFacets, DecisionImpact, DecisionSubject, DownstreamEffect,
-        FixedBase, FrontierReference, ReviewSortKey,
+        ClaimState, CorrectionPath, DecisionAudit, DecisionBasis, DecisionBindingFacts,
+        DecisionBrief, DecisionChange, DecisionCheckState, DecisionFacets, DecisionImpact,
+        DecisionSubject, DownstreamEffect, FixedBase, FrontierReference, ReviewSortKey,
     };
 
     fn snapshot(
@@ -321,6 +321,19 @@ mod tests {
                 },
                 missing: Vec::new(),
                 facets: DecisionFacets::default(),
+            },
+            decision_bindings: DecisionBindingFacts {
+                proposal_root: format!("sha256:{proposal_id}"),
+                receipt_observation_root: "sha256:receipt-observation".to_string(),
+                receipt_root: None,
+                evidence_or_reference_root: "sha256:evidence".to_string(),
+                evidence_availability: "missing".to_string(),
+                verifier_snapshot_root: "sha256:verifiers".to_string(),
+                policy_input_root: "sha256:policy-input".to_string(),
+                policy_result_root: "sha256:policy-result".to_string(),
+                engine_gate_root: "sha256:engine-gate".to_string(),
+                semantic_effect_root: "sha256:semantic-effect".to_string(),
+                downstream_impact_root: "sha256:downstream-impact".to_string(),
             },
         }
     }

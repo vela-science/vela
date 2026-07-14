@@ -4336,16 +4336,11 @@ async fn get_entry_events(
     }
 }
 
-// ─── Public-write boundary (v0.128) ───────────────────────────────────
+// ─── Read-only live event stream ──────────────────────────────────────────
 //
-// Two endpoints close the gap publish_entry leaves open. POST
-// /proposals mirrors publish_entry: open submission, the
-// signature is the bind. POST /proposals/.../accept is the
-// access-controlled reviewer write — the signer MUST resolve to a
-// registered, non-revoked actor on the frontier carrying reviewer
-// authority. Both carry the signature in headers (so the body stays the
-// canonical preimage bytes), both are rate-limited and body-size-capped,
-// and the accept runs the strict Engine gate with force HARD-WIRED off.
+// The hub deliberately has no proposal-create or proposal-accept route.
+// Truth-bearing decisions are signed and landed through the git-native
+// frontier workflow; this endpoint only streams the resulting verified log.
 
 async fn get_entry_events_stream(
     State(state): State<AppState>,
@@ -4848,6 +4843,44 @@ mod protocol_surface_tests {
         let (status, body) = get_json("/".to_string()).await;
         assert_eq!(status, 200);
         assert_eq!(body, root_json());
+    }
+
+    /// The hub is a read-only index. In particular, ADR 0003's
+    /// decision-bound acceptance preimage does not justify restoring the old
+    /// detached HTTP accept path: human decisions are landed through the
+    /// git-native frontier workflow. Missing, malformed, and plausibly
+    /// decision-bound request shapes must all remain unroutable here.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn truth_bearing_accept_route_remains_absent() {
+        let state = test_state().await;
+        seed_entry(&state, "vfr_fix1").await;
+        let (base, client) = serve(state).await;
+        let endpoint = format!("{base}/entries/vfr_fix1/proposals/vpr_fixture/accept");
+        let roots = [
+            None,
+            Some(format!("sha256:{}", "a".repeat(64))),
+            Some(format!("sha256:{}", "b".repeat(64))),
+        ];
+
+        for decision_root in roots {
+            let mut body = json!({"reason": "Evidence and caveats checked"});
+            if let Some(root) = decision_root {
+                body["decision_root"] = Value::String(root);
+            }
+            let response = client
+                .post(&endpoint)
+                .header("X-Vela-Signer-Pubkey", "00".repeat(32))
+                .header("X-Vela-Signature", "00".repeat(64))
+                .json(&body)
+                .send()
+                .await
+                .expect("accept probe");
+            assert_eq!(
+                response.status(),
+                StatusCode::NOT_FOUND,
+                "the read-only hub must not create an accept path for any request shape"
+            );
+        }
     }
 
     /// `/.well-known/vela` carries `peers` from VELA_HUB_PEERS (empty

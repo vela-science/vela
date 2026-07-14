@@ -7,6 +7,116 @@ use vela_protocol::cli_style as style;
 use vela_protocol::proposals;
 use vela_protocol::repo;
 
+fn confirm_proposal_decision_interactively() -> bool {
+    crate::ui::ensure_can_prompt(
+        "the proposal decision",
+        "render first, then rerun with --yes --confirm-root <exact-root>",
+    );
+    crate::cli::prompt::read_line("\nSign this exact decision set? [y/N] > ") == "y"
+}
+
+fn render_scripted_proposal_preview(
+    command: &str,
+    frontier: &Path,
+    proposal_id: &str,
+    reviewer: &str,
+    review: &vela_edge::decision_brief::ReviewSnapshot,
+    answer: &crate::decision_plan::SavedAnswer,
+    prepared: &crate::decision_plan::PreparedDecision,
+    json: bool,
+) {
+    let summary = crate::cli::sign_session::final_decision_summary(
+        &[review],
+        std::slice::from_ref(answer),
+        prepared,
+    );
+    if json {
+        print_json(&serde_json::json!({
+            "ok": true,
+            "command": format!("{command}.preview"),
+            "frontier": frontier.display().to_string(),
+            "proposal_id": proposal_id,
+            "reviewer": reviewer,
+            "decision": summary,
+            "confirm_at": review.observed_at,
+            "confirmation": {
+                "root": prepared.plan.decision_root,
+                "at": review.observed_at,
+                "arguments": [
+                    "--yes",
+                    "--confirm-root",
+                    prepared.plan.decision_root,
+                    "--confirm-at",
+                    review.observed_at,
+                ],
+            },
+            "signed": false,
+            "key_read": false,
+        }));
+    } else {
+        crate::cli::sign_session::render_final_decision_set(
+            &[review],
+            std::slice::from_ref(answer),
+            prepared,
+        );
+        println!("  preview only; no key was read and nothing changed.");
+        println!(
+            "  rerun with --yes --confirm-root {} --confirm-at {} after reviewing this exact set.",
+            crate::cli::safe_text::inline(&prepared.plan.decision_root),
+            crate::cli::safe_text::inline(&review.observed_at),
+        );
+    }
+}
+
+fn validate_scripted_confirmation_shape(
+    yes: bool,
+    confirm_root: Option<&str>,
+    confirm_at: Option<&str>,
+) {
+    if confirm_root.is_some() != confirm_at.is_some() {
+        crate::ui::fail_with(
+            crate::ui::ErrorKind::Usage,
+            "scripted confirmation requires both --confirm-root and --confirm-at from the same preview",
+            Some("rerun without either flag to render a fresh key-free preview"),
+        );
+    }
+    if confirm_root.is_some() && !yes {
+        crate::ui::fail_with(
+            crate::ui::ErrorKind::Usage,
+            "--confirm-root does not mutate by itself; scripted decisions require --yes, --confirm-root, and --confirm-at",
+            Some("rerun the same command with --yes after reviewing the rendered root"),
+        );
+    }
+}
+
+fn require_exact_scripted_root(confirmed_root: &str, current_root: &str) {
+    if confirmed_root != current_root {
+        crate::ui::fail_with(
+            crate::ui::ErrorKind::Domain,
+            &format!(
+                "confirmed decision root {confirmed_root} does not match the current exact root {current_root}; review the current semantic set before signing"
+            ),
+            Some("rerun without --confirm-root to render a fresh key-free preview"),
+        );
+    }
+}
+
+/// Keep the legacy `--apply` spelling parseable while closing its historical
+/// keyless finalization path. Every finding mutation is proposal-only now; the
+/// sole human decision edge is the Decision Plan ceremony driven by `vela
+/// sign`.
+pub(crate) fn refuse_legacy_finding_apply(apply: bool, json: bool) {
+    if !apply {
+        return;
+    }
+    crate::ui::set_mode("finding", json);
+    crate::ui::fail_with(
+        crate::ui::ErrorKind::Custody,
+        "`--apply` cannot finalize a finding proposal",
+        Some("rerun without `--apply` to create a pending proposal, then run `vela sign`"),
+    );
+}
+
 pub(crate) fn cmd_proposals(action: ProposalAction) {
     match action {
         ProposalAction::List {
@@ -173,52 +283,125 @@ pub(crate) fn cmd_proposals(action: ProposalAction) {
             reviewer,
             reason,
             key,
+            yes,
+            confirm_root,
+            confirm_at,
             json,
         } => {
+            crate::ui::set_mode("proposals.accept", json);
             let reviewer = crate::cli_identity::resolve_decision_actor(reviewer.as_deref());
-            let signing_key = crate::cli_identity::resolve_signing_key_opt(key.as_deref());
-            let publish_opts = crate::config::git_publish::PublishOptions::new(false, false);
-            let publication_preflight =
-                crate::config::git_publish::publication_preflight(&frontier, &publish_opts);
-            if let Err(outcome) = &publication_preflight
-                && crate::config::git_publish::publication_is_busy(outcome)
-            {
-                crate::ui::fail_with(
-                    crate::ui::ErrorKind::Domain,
-                    "another Vela write/publication owns this repository; the proposal was not accepted",
-                    Some("retry after the active operation completes"),
+            validate_scripted_confirmation_shape(
+                yes,
+                confirm_root.as_deref(),
+                confirm_at.as_deref(),
+            );
+            if let Some(confirm_at) = confirm_at.as_deref() {
+                crate::decision_plan::validate_scripted_confirmation_time(confirm_at)
+                    .unwrap_or_else(|error| crate::cli::sign_session::fail_decision(error));
+            }
+            let review = match confirm_at.as_deref() {
+                Some(observed_at) => crate::review_material::ReviewProjection::one_at(
+                    &frontier,
+                    &proposal_id,
+                    observed_at,
+                ),
+                None => {
+                    crate::review_material::ReviewProjection::one_read_only(&frontier, &proposal_id)
+                }
+            }
+            .unwrap_or_else(|error| {
+                crate::ui::fail_with(crate::ui::ErrorKind::Domain, &error.to_string(), None)
+            });
+            if !review.brief.accept_ready() {
+                let explanation = review
+                    .brief
+                    .action("accept")
+                    .map(|action| action.reasons.join("; "))
+                    .filter(|reason| !reason.is_empty())
+                    .unwrap_or_else(|| "accept is unavailable for this proposal".to_string());
+                crate::ui::fail_with(crate::ui::ErrorKind::Domain, &explanation, None);
+            }
+            let answer = crate::cli::sign_session::saved_answer_from_review(
+                &review,
+                crate::decision_plan::DecisionAction::Accept,
+                reason,
+            );
+            let decided_at = review.observed_at.clone();
+            let provenance = crate::cli_identity::resolve_co_author_provenance(None, None);
+            let prepared = crate::decision_plan::build_read_only_preview(
+                &frontier,
+                std::slice::from_ref(&answer),
+                &reviewer,
+                &decided_at,
+                provenance,
+            )
+            .unwrap_or_else(|error| crate::cli::sign_session::fail_decision(error));
+            let scripted = json
+                || yes
+                || confirm_root.is_some()
+                || confirm_at.is_some()
+                || !crate::ui::is_interactive();
+            if scripted {
+                let Some(confirmed_root) = confirm_root.as_deref() else {
+                    render_scripted_proposal_preview(
+                        "proposals.accept",
+                        &frontier,
+                        &proposal_id,
+                        &reviewer,
+                        &review,
+                        &answer,
+                        &prepared,
+                        json,
+                    );
+                    return;
+                };
+                require_exact_scripted_root(confirmed_root, &prepared.plan.decision_root);
+            }
+            if !json {
+                crate::cli::sign_session::render_final_decision_set(
+                    &[&review],
+                    std::slice::from_ref(&answer),
+                    &prepared,
                 );
             }
-            let event_id = proposals::accept_at_path_signed(
-                &frontier,
-                &proposal_id,
-                &reviewer,
-                &reason,
-                signing_key.as_ref(),
-            )
-            .unwrap_or_else(|e| fail_return(&e));
-            let publication = match publication_preflight {
-                Ok(preflight) => {
-                    let publish_opts = publish_opts.with_preflight(preflight);
-                    crate::config::git_publish::publish_decision(
-                        &frontier,
-                        &format!("accept: {proposal_id}"),
-                        std::slice::from_ref(&event_id),
-                        &publish_opts,
-                    )
+            if scripted {
+                crate::cli::sign_session::ceremony_binary_gate(false);
+            } else {
+                crate::cli::sign_session::ceremony_binary_gate(true);
+                if !confirm_proposal_decision_interactively() {
+                    println!("  not signed; no key was read and nothing changed.");
+                    return;
                 }
-                Err(outcome) => outcome,
-            };
-            let operation_id =
-                crate::operation_journal::operation_id("proposal-accept", event_id.as_bytes());
+            }
+            let outcome = crate::cli::sign_session::execute_confirmed_decision(
+                &frontier,
+                &prepared,
+                key.as_deref(),
+            )
+            .unwrap_or_else(|error| crate::cli::sign_session::fail_decision(error));
+            let publish_opts = crate::config::git_publish::PublishOptions::new(false, false);
+            let publication = crate::cli::sign_session::publish_exact_decision(
+                &frontier,
+                &format!("accept: {proposal_id}"),
+                &outcome,
+                &publish_opts,
+            );
+            let summary = crate::cli::sign_session::final_decision_summary(
+                &[&review],
+                std::slice::from_ref(&answer),
+                &prepared,
+            );
             let payload = json!({
                 "ok": true,
                 "command": "proposals.accept",
-                "operation_id": operation_id,
+                "operation_id": outcome.operation_id,
                 "frontier": frontier.display().to_string(),
                 "proposal_id": proposal_id,
                 "reviewer": reviewer,
-                "applied_event_id": event_id,
+                "decision": summary,
+                "applied_event_id": outcome.event_ids.first(),
+                "event_ids": outcome.event_ids,
+                "aggregate_engine": outcome.aggregate_engine,
                 "publication": publication,
             });
             if json {
@@ -229,7 +412,15 @@ pub(crate) fn cmd_proposals(action: ProposalAction) {
                     style::ok("ok"),
                     crate::cli::safe_text::inline(&proposal_id)
                 );
-                println!("  event: {}", crate::cli::safe_text::inline(&event_id));
+                println!(
+                    "  events: {}",
+                    outcome
+                        .event_ids
+                        .iter()
+                        .map(|event_id| crate::cli::safe_text::inline(event_id))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                );
                 println!(
                     "  publication: {}",
                     crate::cli::safe_text::inline(
@@ -239,7 +430,7 @@ pub(crate) fn cmd_proposals(action: ProposalAction) {
                 );
                 println!(
                     "  retained: {}",
-                    crate::cli::safe_text::inline(&operation_id)
+                    crate::cli::safe_text::inline(&outcome.operation_id)
                 );
                 println!(
                     "  next: {}",
@@ -260,67 +451,135 @@ pub(crate) fn cmd_proposals(action: ProposalAction) {
             reviewer,
             reason,
             key,
+            yes,
+            confirm_root,
+            confirm_at,
             json,
         } => {
+            crate::ui::set_mode("proposals.reject", json);
             let reviewer = crate::cli_identity::resolve_decision_actor(reviewer.as_deref());
-            let signing_key = crate::cli_identity::resolve_signing_key_opt(key.as_deref());
-            let publish_opts = crate::config::git_publish::PublishOptions::new(no_commit, no_push);
-            let publication_preflight =
-                crate::config::git_publish::publication_preflight(&frontier, &publish_opts);
-            if let Err(outcome) = &publication_preflight
-                && crate::config::git_publish::publication_is_busy(outcome)
-            {
-                crate::ui::fail_with(
-                    crate::ui::ErrorKind::Domain,
-                    "another Vela write/publication owns this repository; the proposal was not rejected",
-                    Some("retry after the active operation completes"),
+            validate_scripted_confirmation_shape(
+                yes,
+                confirm_root.as_deref(),
+                confirm_at.as_deref(),
+            );
+            if let Some(confirm_at) = confirm_at.as_deref() {
+                crate::decision_plan::validate_scripted_confirmation_time(confirm_at)
+                    .unwrap_or_else(|error| crate::cli::sign_session::fail_decision(error));
+            }
+            let review = match confirm_at.as_deref() {
+                Some(observed_at) => crate::review_material::ReviewProjection::one_at(
+                    &frontier,
+                    &proposal_id,
+                    observed_at,
+                ),
+                None => {
+                    crate::review_material::ReviewProjection::one_read_only(&frontier, &proposal_id)
+                }
+            }
+            .unwrap_or_else(|error| {
+                crate::ui::fail_with(crate::ui::ErrorKind::Domain, &error.to_string(), None)
+            });
+            if !review.brief.reject_ready() {
+                let explanation = review
+                    .brief
+                    .action("reject")
+                    .map(|action| action.reasons.join("; "))
+                    .filter(|reason| !reason.is_empty())
+                    .unwrap_or_else(|| "reject is unavailable for this proposal".to_string());
+                crate::ui::fail_with(crate::ui::ErrorKind::Domain, &explanation, None);
+            }
+            let answer = crate::cli::sign_session::saved_answer_from_review(
+                &review,
+                crate::decision_plan::DecisionAction::Reject,
+                reason,
+            );
+            let decided_at = review.observed_at.clone();
+            let provenance = crate::cli_identity::resolve_co_author_provenance(None, None);
+            let prepared = crate::decision_plan::build_read_only_preview(
+                &frontier,
+                std::slice::from_ref(&answer),
+                &reviewer,
+                &decided_at,
+                provenance,
+            )
+            .unwrap_or_else(|error| crate::cli::sign_session::fail_decision(error));
+            let scripted = json
+                || yes
+                || confirm_root.is_some()
+                || confirm_at.is_some()
+                || !crate::ui::is_interactive();
+            if scripted {
+                let Some(confirmed_root) = confirm_root.as_deref() else {
+                    render_scripted_proposal_preview(
+                        "proposals.reject",
+                        &frontier,
+                        &proposal_id,
+                        &reviewer,
+                        &review,
+                        &answer,
+                        &prepared,
+                        json,
+                    );
+                    return;
+                };
+                require_exact_scripted_root(confirmed_root, &prepared.plan.decision_root);
+            }
+            if !json {
+                crate::cli::sign_session::render_final_decision_set(
+                    &[&review],
+                    std::slice::from_ref(&answer),
+                    &prepared,
                 );
             }
-            proposals::reject_at_path_signed(
-                &frontier,
-                &proposal_id,
-                &reviewer,
-                &reason,
-                signing_key.as_ref(),
-            )
-            .unwrap_or_else(|e| fail_return(&e));
-            let publication = match publication_preflight {
-                Ok(preflight) => {
-                    let publish_opts = publish_opts.with_preflight(preflight);
-                    crate::config::git_publish::publish_decision(
-                        &frontier,
-                        &format!("reject: {proposal_id}"),
-                        &[],
-                        &publish_opts,
-                    )
+            if scripted {
+                crate::cli::sign_session::ceremony_binary_gate(false);
+            } else {
+                crate::cli::sign_session::ceremony_binary_gate(true);
+                if !confirm_proposal_decision_interactively() {
+                    println!("  not signed; no key was read and nothing changed.");
+                    return;
                 }
-                Err(outcome) => outcome,
-            };
-            let operation_id =
-                crate::operation_journal::operation_id("proposal-reject", proposal_id.as_bytes());
+            }
+            let outcome = crate::cli::sign_session::execute_confirmed_decision(
+                &frontier,
+                &prepared,
+                key.as_deref(),
+            )
+            .unwrap_or_else(|error| crate::cli::sign_session::fail_decision(error));
+            let publish_opts = crate::config::git_publish::PublishOptions::new(no_commit, no_push);
+            let publication = crate::cli::sign_session::publish_exact_decision(
+                &frontier,
+                &format!("reject: {proposal_id}"),
+                &outcome,
+                &publish_opts,
+            );
+            let summary = crate::cli::sign_session::final_decision_summary(
+                &[&review],
+                std::slice::from_ref(&answer),
+                &prepared,
+            );
             let payload = json!({
                 "ok": true,
                 "command": "proposals.reject",
-                "operation_id": operation_id,
+                "operation_id": outcome.operation_id,
                 "frontier": frontier.display().to_string(),
                 "proposal_id": proposal_id,
                 "reviewer": reviewer,
+                "decision": summary,
+                "event_ids": outcome.event_ids,
+                "aggregate_engine": outcome.aggregate_engine,
                 "status": "rejected",
-                "signed": signing_key.is_some(),
+                "signed": true,
                 "publication": publication,
             });
             if json {
                 print_json(&payload);
             } else {
                 println!(
-                    "{} rejected proposal {}{}",
+                    "{} rejected proposal {} (signed review.rejected event)",
                     style::warn("rejected"),
                     crate::cli::safe_text::inline(&proposal_id),
-                    if signing_key.is_some() {
-                        " (signed review.rejected event)"
-                    } else {
-                        ""
-                    }
                 );
                 println!(
                     "  publication: {}",
@@ -331,7 +590,7 @@ pub(crate) fn cmd_proposals(action: ProposalAction) {
                 );
                 println!(
                     "  retained: {}",
-                    crate::cli::safe_text::inline(&operation_id)
+                    crate::cli::safe_text::inline(&outcome.operation_id)
                 );
                 println!(
                     "  next: {}",
@@ -347,9 +606,9 @@ pub(crate) fn cmd_proposals(action: ProposalAction) {
     }
 }
 
-// ── Finding-verb handlers (shared by the top-level alias + `vela finding`) ──
-// Extracted so `vela note …` (hidden top-level) and `vela finding note …`
-// (canonical) dispatch to one body.
+// ── Finding-verb handlers ──
+// Kept behind one edge so every nested finding mutation shares the same
+// proposal-only custody guard.
 
 pub(crate) fn cmd_finding_note(
     frontier: PathBuf,
@@ -359,6 +618,7 @@ pub(crate) fn cmd_finding_note(
     apply: bool,
     json: bool,
 ) {
+    refuse_legacy_finding_apply(apply, json);
     let report = vela_protocol::state::add_note(&frontier, &finding_id, &text, &author, apply)
         .unwrap_or_else(|e| fail_return(&e));
     print_state_report(&report, json);
@@ -372,6 +632,7 @@ pub(crate) fn cmd_finding_caveat(
     apply: bool,
     json: bool,
 ) {
+    refuse_legacy_finding_apply(apply, json);
     let report =
         vela_protocol::state::caveat_finding(&frontier, &finding_id, &text, &author, apply)
             .unwrap_or_else(|e| fail_return(&e));
@@ -387,6 +648,7 @@ pub(crate) fn cmd_finding_revise(
     apply: bool,
     json: bool,
 ) {
+    refuse_legacy_finding_apply(apply, json);
     let report = vela_protocol::state::revise_confidence(
         &frontier,
         &finding_id,
@@ -409,17 +671,16 @@ pub(crate) fn cmd_finding_reject(
     apply: bool,
     json: bool,
 ) {
+    refuse_legacy_finding_apply(apply, json);
     let report =
         vela_protocol::state::reject_finding(&frontier, &finding_id, &reviewer, &reason, apply)
             .unwrap_or_else(|e| fail_return(&e));
     print_state_report(&report, json);
 }
 
-/// Record a review verdict on a finding. An accept (the default status) emits a
-/// human-keyed `finding.reviewed` event, setting `review_state = Accepted` so
-/// the derived frontier state becomes `Established`. This is the porcelain over
-/// `state::review_finding`; the finding must already exist (assert it first with
-/// `land`). The custody line is unchanged: only a human key applies it.
+/// Draft a review-verdict proposal for an existing finding. This command never
+/// emits the truth-bearing `finding.reviewed` event; a key-holding human may
+/// later decide the pending proposal through `vela sign`.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn cmd_finding_review(
     frontier: PathBuf,
@@ -431,6 +692,7 @@ pub(crate) fn cmd_finding_review(
     apply: bool,
     json: bool,
 ) {
+    refuse_legacy_finding_apply(apply, json);
     let report = vela_protocol::state::review_finding(
         &frontier,
         &finding_id,
@@ -465,6 +727,7 @@ pub(crate) fn cmd_finding_contribution(
     apply: bool,
     json_out: bool,
 ) {
+    refuse_legacy_finding_apply(apply, json_out);
     use vela_protocol::bundle::{AgentKind, Contribution, ContributionRole, ContributionUnitType};
     let unit_type: ContributionUnitType =
         serde_json::from_value(json!(unit_type)).unwrap_or_else(|_| {
@@ -551,6 +814,7 @@ pub(crate) fn cmd_finding_retract(
     apply: bool,
     json: bool,
 ) {
+    refuse_legacy_finding_apply(apply, json);
     let report =
         vela_protocol::state::retract_finding(&source, &finding_id, &reviewer, &reason, apply)
             .unwrap_or_else(|e| fail_return(&e));

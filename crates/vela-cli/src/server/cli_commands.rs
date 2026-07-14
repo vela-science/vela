@@ -26,6 +26,7 @@ use std::path::PathBuf;
 pub(crate) const HELP_KEY: &str = "Path to an Ed25519 private key (hex seed file). Optional: defaults to your `vela id` identity key";
 pub(crate) const HELP_AS: &str = "Acting identity for this write (reviewer:<you> or agent:<name>). Optional: defaults to your `vela id`";
 pub(crate) const HELP_AS_OF: &str = "Answer as of this RFC3339 instant, e.g. 2026-07-02T16:00:00Z";
+pub(crate) const HELP_LEGACY_FINDING_APPLY: &str = "Deprecated compatibility flag; always refused. Omit it to create a pending proposal, then use `vela sign`";
 
 #[derive(Subcommand, Debug)]
 pub enum ConfigAction {
@@ -423,26 +424,33 @@ pub(crate) enum Commands {
         #[command(subcommand)]
         command: ArtifactCommands,
     },
-    /// THE human ceremony: one interactive session over everything
-    /// that awaits your key — deferred decisions, re-sign hygiene,
-    /// unsigned governance artifacts — one confirm, one key read,
-    /// self-publishes. Scripted forms: `sign <vpr_id> --yes`,
-    /// `sign --batch <verdicts.json>`, `sign <file>` (detached bytes).
-    /// Inside a frontier: that frontier. Outside: every registered
-    /// frontier, one session. Agents are refused (exit 4) — this verb
-    /// IS the human boundary.
+    /// THE human proposal-decision ceremony: one frontier, one exact
+    /// semantic set, one confirm, one key read, then an exact Git
+    /// publication attempt. Scripted forms first render a root, then mutate
+    /// only with `sign <vpr_id> --yes --confirm-root <sha256:...>
+    /// --confirm-at <RFC3339>`;
+    /// separate lanes remain `sign --batch <fidelity.json>` and
+    /// `sign <file>` (detached bytes). Agents are refused (exit 4).
     #[command(after_long_help = crate::cli::help_text::SIGN)]
     Sign {
-        /// A proposal id to decide (with --yes), or a file path to
+        /// A proposal id to preview/decide, or a file path to
         /// sign detached. Omit for the interactive session.
         target: Option<String>,
-        /// Frontier path. Optional: discovered upward, or all
-        /// registered frontiers when outside one.
+        /// Frontier path. Optional when exactly one frontier is discoverable.
         #[arg(long)]
         frontier: Option<PathBuf>,
-        /// Scripted single-item accept (no session).
+        /// Confirm a scripted single-item decision. Mutation also requires
+        /// --confirm-root matching the root rendered by a prior invocation.
         #[arg(long)]
         yes: bool,
+        /// Exact Decision Plan root rendered by the prior scripted preview.
+        #[arg(long, requires = "target", conflicts_with_all = ["batch", "preview", "reset"])]
+        confirm_root: Option<String>,
+        /// Exact RFC3339 observation instant echoed by the prior scripted
+        /// preview; required with --confirm-root to reproduce timestamped bytes.
+        /// The pair expires after the documented 15-minute review window.
+        #[arg(long, requires = "target", conflicts_with_all = ["batch", "preview", "reset"])]
+        confirm_at: Option<String>,
         /// Decision reason for scripted accepts.
         #[arg(long)]
         reason: Option<String>,
@@ -458,7 +466,7 @@ pub(crate) enum Commands {
         /// Read-only Decision Brief page. Never resolves or reads a key.
         #[arg(
             long,
-            conflicts_with_all = ["target", "yes", "reason", "batch", "reset", "sk", "key"]
+            conflicts_with_all = ["target", "yes", "confirm_root", "confirm_at", "reason", "batch", "reset", "sk", "key"]
         )]
         preview: bool,
         /// Opaque continuation returned by a prior --preview --json page.
@@ -1899,14 +1907,14 @@ pub(crate) enum FindingCommands {
         /// Output stable JSON
         #[arg(long)]
         json: bool,
-        /// Immediately accept and apply the proposal locally
-        #[arg(long)]
+        /// Deprecated compatibility flag. Finding writes are proposal-only;
+        /// humans decide the pending proposal through `vela sign`.
+        #[arg(long, help = HELP_LEGACY_FINDING_APPLY)]
         apply: bool,
         /// v0.339: path to a replication_attestation JSON (e.g. emitted by
         /// the mechinterp harness for a verified circuit claim). When set,
-        /// it rides in the finding.add payload as a sibling of `finding`;
-        /// with `--author agent:replicator --apply` the accept gate
-        /// auto-accepts the finding iff the attestation passes.
+        /// it rides in the pending finding.add payload as a sibling of
+        /// `finding`; it does not grant this legacy command decision authority.
         #[arg(long)]
         replication_attestation: Option<PathBuf>,
     },
@@ -1923,12 +1931,11 @@ pub(crate) enum FindingCommands {
         #[arg(long)]
         json: bool,
     },
-    /// v0.14: Supersede an existing finding with a new content-addressed
-    /// claim. The new finding gets its own `vf_…` id; an auto-injected
-    /// `supersedes` link points back at the old id; the old finding is
-    /// flagged `superseded`. Both remain queryable. Real corrections
-    /// (Phase 4 follow-up data, retraction, refined wording) belong here
-    /// rather than as caveats stacked on top of an immutable claim.
+    /// v0.14: Propose superseding an existing finding with a new
+    /// content-addressed claim. If the pending proposal is later signed, the
+    /// new finding gets its own `vf_…` id, an auto-injected `supersedes`
+    /// link points back at the old id, and the old finding is flagged
+    /// `superseded`. Both remain queryable.
     Supersede {
         /// Frontier JSON file or Vela repo
         frontier: PathBuf,
@@ -1973,12 +1980,13 @@ pub(crate) enum FindingCommands {
         /// Conditions/scope text
         #[arg(long)]
         conditions_text: Option<String>,
-        json: bool,
-        /// Immediately accept and apply the proposal locally
         #[arg(long)]
+        json: bool,
+        /// Deprecated compatibility flag. Always refused.
+        #[arg(long, help = HELP_LEGACY_FINDING_APPLY)]
         apply: bool,
     },
-    /// Attach a lightweight note to a finding.
+    /// Propose attaching a lightweight note to a finding.
     Note {
         frontier: PathBuf,
         finding_id: String,
@@ -1986,12 +1994,12 @@ pub(crate) enum FindingCommands {
         text: String,
         #[arg(long)]
         author: String,
-        #[arg(long)]
+        #[arg(long, help = HELP_LEGACY_FINDING_APPLY)]
         apply: bool,
         #[arg(long)]
         json: bool,
     },
-    /// Attach an explicit caveat to a finding.
+    /// Propose attaching an explicit caveat to a finding.
     Caveat {
         frontier: PathBuf,
         finding_id: String,
@@ -1999,12 +2007,12 @@ pub(crate) enum FindingCommands {
         text: String,
         #[arg(long)]
         author: String,
-        #[arg(long)]
+        #[arg(long, help = HELP_LEGACY_FINDING_APPLY)]
         apply: bool,
         #[arg(long)]
         json: bool,
     },
-    /// Revise a finding's confidence interpretation.
+    /// Propose revising a finding's confidence interpretation.
     Revise {
         frontier: PathBuf,
         finding_id: String,
@@ -2014,12 +2022,12 @@ pub(crate) enum FindingCommands {
         reason: String,
         #[arg(long = "as")]
         reviewer: String,
-        #[arg(long)]
+        #[arg(long, help = HELP_LEGACY_FINDING_APPLY)]
         apply: bool,
         #[arg(long)]
         json: bool,
     },
-    /// Mark a finding rejected without deleting it.
+    /// Propose marking a finding rejected without deleting it.
     Reject {
         frontier: PathBuf,
         finding_id: String,
@@ -2027,19 +2035,18 @@ pub(crate) enum FindingCommands {
         reason: String,
         #[arg(long = "as")]
         reviewer: String,
-        #[arg(long)]
+        #[arg(long, help = HELP_LEGACY_FINDING_APPLY)]
         apply: bool,
         #[arg(long)]
         json: bool,
     },
-    /// Record a review verdict on a finding. `--status accepted` (the default)
-    /// establishes it: it emits a `finding.reviewed` event, and a human
-    /// reviewer's accept sets `review_state = Accepted`, which the frontier
-    /// state derives to `Established`. Accepts carry no required reason.
+    /// Propose a review verdict on a finding. `--status accepted` (the
+    /// default) does not establish it here; a human later decides the pending
+    /// proposal through `vela sign`.
     Review {
         frontier: PathBuf,
         finding_id: String,
-        /// Verdict: accepted (default) | contested | needs_revision.
+        /// Proposed verdict: accepted (default) | contested | needs_revision.
         #[arg(long, default_value = "accepted")]
         status: String,
         /// Optional note (accepts default silently; only a downgrade needs one).
@@ -2051,15 +2058,14 @@ pub(crate) enum FindingCommands {
         confidence: Option<f64>,
         #[arg(long = "as")]
         reviewer: String,
-        #[arg(long)]
+        #[arg(long, help = HELP_LEGACY_FINDING_APPLY)]
         apply: bool,
         #[arg(long)]
         json: bool,
     },
-    /// Record a claim-granularity attribution: which actor originated / derived /
-    /// formalized which unit of a finding. Descriptive provenance only — never
-    /// touches confidence, review state, or the gate. An agent may draft it; the
-    /// one rule is that `--role vouched` must be a human.
+    /// Propose a claim-granularity attribution: which actor originated,
+    /// derived, or formalized which unit of a finding. Descriptive provenance
+    /// only; it never changes confidence, review state, or the gate.
     Contribution {
         frontier: PathBuf,
         finding_id: String,
@@ -2087,12 +2093,12 @@ pub(crate) enum FindingCommands {
         basis: String,
         #[arg(long = "as")]
         actor: String,
-        #[arg(long)]
+        #[arg(long, help = HELP_LEGACY_FINDING_APPLY)]
         apply: bool,
         #[arg(long)]
         json: bool,
     },
-    /// Retract a finding.
+    /// Propose retracting a finding.
     Retract {
         source: PathBuf,
         finding_id: String,
@@ -2100,7 +2106,7 @@ pub(crate) enum FindingCommands {
         reason: String,
         #[arg(long = "as")]
         reviewer: String,
-        #[arg(long)]
+        #[arg(long, help = HELP_LEGACY_FINDING_APPLY)]
         apply: bool,
         #[arg(long)]
         json: bool,
@@ -2159,7 +2165,8 @@ pub(crate) enum ProposalAction {
         #[arg(long)]
         json: bool,
     },
-    /// Import proposal files into a frontier
+    /// Import pending proposal files into a frontier. Decided records require
+    /// a separately verified signed-authority/event import and are refused here.
     Import {
         frontier: PathBuf,
         source: PathBuf,
@@ -2194,6 +2201,17 @@ pub(crate) enum ProposalAction {
         /// your configured identity's key.
         #[arg(long, help = HELP_KEY)]
         key: Option<PathBuf>,
+        /// Confirm the exact semantic set after Vela renders it. Required for
+        /// mutation together with --confirm-root.
+        #[arg(long)]
+        yes: bool,
+        /// Exact Decision Plan root rendered by the prior scripted preview.
+        #[arg(long)]
+        confirm_root: Option<String>,
+        /// Exact RFC3339 observation instant echoed by the prior preview;
+        /// expires after the documented 15-minute review window.
+        #[arg(long)]
+        confirm_at: Option<String>,
         #[arg(long)]
         json: bool,
     },
@@ -2217,6 +2235,17 @@ pub(crate) enum ProposalAction {
         /// event, so key custody is its authority just as for accept.
         #[arg(long, help = HELP_KEY)]
         key: Option<PathBuf>,
+        /// Confirm the exact semantic set after Vela renders it. Required for
+        /// mutation together with --confirm-root.
+        #[arg(long)]
+        yes: bool,
+        /// Exact Decision Plan root rendered by the prior scripted preview.
+        #[arg(long)]
+        confirm_root: Option<String>,
+        /// Exact RFC3339 observation instant echoed by the prior preview;
+        /// expires after the documented 15-minute review window.
+        #[arg(long)]
+        confirm_at: Option<String>,
         #[arg(long)]
         json: bool,
     },

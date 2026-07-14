@@ -60,6 +60,22 @@ pub fn signing_input(version: SigVersion, payload_type: &str, body: &[u8]) -> Ve
     }
 }
 
+/// Canonical body version for new human decision acceptance preimages.
+///
+/// This is distinct from [`SigVersion`]: the body version defines which facts
+/// an acceptance commits to, while `SigVersion::V1` defines the DSSE/PAE byte
+/// framing. Historical accepts omit this marker and continue to use the raw v0
+/// body byte-for-byte.
+pub const ACCEPTANCE_DECISION_PREIMAGE_V1: &str = "vela.acceptance-decision.v1";
+
+/// Frame a canonical v1 decision-acceptance body under the existing accept
+/// media type. Kept here so every producer uses the same signing-input version
+/// for new decision-bound accepts while legacy builders remain on v0.
+#[must_use]
+pub fn decision_acceptance_signing_input(body: &[u8]) -> Vec<u8> {
+    signing_input(SigVersion::V1, payload_type::ACCEPT, body)
+}
+
 /// Versioned Vela media types, one per signed object. The type is authenticated
 /// under v1 (it enters the PAE frame) but never enters an id or log-hash
 /// preimage, so historical ids are untouched by the facade.
@@ -109,6 +125,19 @@ mod tests {
         assert_ne!(
             signing_input(SigVersion::V0, payload_type::EVENT, body),
             signing_input(SigVersion::V1, payload_type::EVENT, body)
+        );
+    }
+
+    #[test]
+    fn decision_acceptance_uses_v1_framing_only() {
+        let body = br#"{"decision_preimage_version":"vela.acceptance-decision.v1"}"#;
+        assert_eq!(
+            decision_acceptance_signing_input(body),
+            signing_input(SigVersion::V1, payload_type::ACCEPT, body)
+        );
+        assert_ne!(
+            decision_acceptance_signing_input(body),
+            signing_input(SigVersion::V0, payload_type::ACCEPT, body)
         );
     }
 }

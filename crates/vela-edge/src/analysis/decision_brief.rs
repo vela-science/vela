@@ -315,6 +315,26 @@ pub struct ReviewSnapshot {
     pub event_log_root: String,
     pub sort_key: ReviewSortKey,
     pub brief: DecisionBrief,
+    /// Exact typed source roots available to the private DecisionPlan. These
+    /// are intentionally omitted from the testing JSON projection: they bind
+    /// stale-state rederivation, not presentation or a new public manifest.
+    #[serde(skip)]
+    pub decision_bindings: DecisionBindingFacts,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DecisionBindingFacts {
+    pub proposal_root: String,
+    pub receipt_observation_root: String,
+    pub receipt_root: Option<String>,
+    pub evidence_or_reference_root: String,
+    pub evidence_availability: String,
+    pub verifier_snapshot_root: String,
+    pub policy_input_root: String,
+    pub policy_result_root: String,
+    pub engine_gate_root: String,
+    pub semantic_effect_root: String,
+    pub downstream_impact_root: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize)]
@@ -592,11 +612,14 @@ pub fn build_review_snapshot(
         proposal_id: proposal.id.clone(),
     };
     let facts = DecisionFacts::build(project, input)?;
+    let event_log_root = facts.change.fixed_base.event_log_root.clone();
+    let decision_bindings = facts.decision_bindings()?;
     Ok(ReviewSnapshot {
         observed_at: input.observed_at.to_string(),
-        event_log_root: facts.change.fixed_base.event_log_root.clone(),
+        event_log_root,
         sort_key,
         brief: facts.into_brief()?,
+        decision_bindings,
     })
 }
 
@@ -631,6 +654,7 @@ struct AuditFacts {
     missing_root: String,
     missing_truncated: usize,
     truncations: Vec<TruncationFact>,
+    receipt_availability: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -1151,6 +1175,13 @@ impl DecisionFacts {
             missing_root,
             missing_truncated,
             truncations,
+            receipt_availability: match input.receipt.source {
+                ReceiptMaterialSource::Present(_) => "available_bound",
+                ReceiptMaterialSource::Legacy(_) => "available_legacy_unbound",
+                ReceiptMaterialSource::Missing { .. } => "missing",
+                ReceiptMaterialSource::Invalid { .. } => "invalid",
+            }
+            .to_string(),
         };
 
         let known = known_facts(&change, &basis, &impact, &authority, &audit, &facets)?;
@@ -1177,6 +1208,38 @@ impl DecisionFacts {
         digest.update([0]);
         digest.update(bytes);
         Ok(format!("sha256:{}", hex::encode(digest.finalize())))
+    }
+
+    fn decision_bindings(&self) -> Result<DecisionBindingFacts, String> {
+        let receipt_observation_root = typed_root(&json!({
+            "availability": self.audit.receipt_availability,
+            "receipt_root": self.audit.receipt_root,
+            "declared_receipt_root": self.audit.declared_receipt_root,
+            "missing_root": self.audit.missing_root,
+        }))?;
+        let evidence_or_reference_root = typed_root(&json!({
+            "availability": self.audit.receipt_availability,
+            "artifact_root": self.audit.artifact_root,
+            "raw_references_root": self.audit.raw_references_root,
+            "missing_root": self.audit.missing_root,
+        }))?;
+        Ok(DecisionBindingFacts {
+            proposal_root: self.audit.proposal_root.clone(),
+            receipt_observation_root,
+            receipt_root: self.audit.receipt_root.clone(),
+            evidence_or_reference_root,
+            evidence_availability: self.audit.receipt_availability.clone(),
+            verifier_snapshot_root: self
+                .basis
+                .check_state
+                .durable_verifier_snapshot_root
+                .clone(),
+            policy_input_root: self.audit.policy_input_root.clone(),
+            policy_result_root: self.audit.policy_result_root.clone(),
+            engine_gate_root: self.audit.engine_gate_root.clone(),
+            semantic_effect_root: self.audit.semantic_effect_root.clone(),
+            downstream_impact_root: typed_root(&self.impact.downstream_effect)?,
+        })
     }
 
     fn into_brief(self) -> Result<DecisionBrief, String> {

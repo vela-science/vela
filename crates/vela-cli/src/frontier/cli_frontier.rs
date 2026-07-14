@@ -79,9 +79,10 @@ pub(crate) fn cmd_frontier(action: FrontierAction) {
                 "schema": project::VELA_SCHEMA_URL,
                 "vela_version": env!("CARGO_PKG_VERSION"),
                 "next_steps": [
-                    "vela finding add <path> --assertion '...' --author 'reviewer:you' --apply",
-                    "vela sign generate-keypair --out keys",
+                    "vela id keygen --out keys",
                     "vela actor add <path> reviewer:you --pubkey \"$(cat keys/public.key)\"",
+                    "vela finding add <path> --assertion '...' --author 'reviewer:you'",
+                    "vela sign --frontier <path>",
                     "git push   # publication; bind once with: vela hub register-git <vfr> --remote <url>",
                 ],
             });
@@ -94,17 +95,18 @@ pub(crate) fn cmd_frontier(action: FrontierAction) {
                     path.display()
                 );
                 println!("  next steps:");
+                println!("    1. vela id keygen --out keys");
                 println!(
-                    "    1. vela finding add {} --assertion '...' --author 'reviewer:you' --apply",
-                    path.display()
-                );
-                println!("    2. vela id keygen --out keys");
-                println!(
-                    "    3. vela actor add {} reviewer:you --pubkey \"$(cat keys/public.key)\"",
+                    "    2. vela actor add {} reviewer:you --pubkey \"$(cat keys/public.key)\"",
                     path.display()
                 );
                 println!(
-                    "    4. git push   # publication; bind once with: vela hub register-git <vfr> --remote <url>"
+                    "    3. vela finding add {} --assertion '...' --author 'reviewer:you'",
+                    path.display()
+                );
+                println!("    4. vela sign --frontier {}", path.display());
+                println!(
+                    "    5. git push   # publication; bind once with: vela hub register-git <vfr> --remote <url>"
                 );
             }
         }

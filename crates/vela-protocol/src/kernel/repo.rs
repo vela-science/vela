@@ -949,20 +949,48 @@ mod tests {
         );
         init_repo(&dir, &original).unwrap();
         let fid = original.findings[0].id.clone();
+        let key = ed25519_dalek::SigningKey::from_bytes(&[44_u8; 32]);
         let proposal = proposals::new_proposal(
             "finding.note",
             crate::events::StateTarget {
                 r#type: "finding".to_string(),
                 id: fid,
             },
-            "reviewer:skew-test",
-            "human",
+            "agent:skew-test",
+            "agent",
             "note for the skew regression",
             serde_json::json!({"text": "the annotation and its event must share one clock read"}),
             vec![],
             vec![],
         );
-        proposals::create_or_apply(&dir, proposal, true).unwrap();
+        let mut frontier = load_from_path(&dir).unwrap();
+        frontier.actors.push(crate::sign::ActorRecord {
+            id: "agent:skew-test".to_string(),
+            public_key: crate::sign::pubkey_hex(&key),
+            algorithm: "ed25519".to_string(),
+            created_at: "2020-01-01T00:00:00Z".to_string(),
+            tier: Some("auto-notes".to_string()),
+            orcid: None,
+            access_clearance: None,
+            revoked_at: None,
+            revoked_reason: None,
+        });
+        let signature = crate::sign::sign_proposal(&proposal, &key).unwrap();
+        let authority = proposals::authorize_signed_proposal_write(
+            &frontier,
+            &proposal,
+            &signature,
+            true,
+            "2026-07-14T12:34:56Z",
+        )
+        .unwrap();
+        proposals::create_with_verified_proposal_write_in_frontier(
+            &mut frontier,
+            proposal,
+            &authority,
+        )
+        .unwrap();
+        save_to_path(&dir, &frontier).unwrap();
         let loaded = load(&VelaSource::VelaRepo(dir)).unwrap();
         let v = crate::reducer::verify_replay(&loaded);
         assert!(v.ok, "replay diverged after a note: {:?}", v.diffs);

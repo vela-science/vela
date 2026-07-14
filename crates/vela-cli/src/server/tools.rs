@@ -2055,7 +2055,7 @@ pub(crate) fn build_task_packet(
         "attempts": {"count": attempts.len(), "items": attempts},
         "submission": {
             "witness": "write the artifact as <frontier>/witnesses/<name>.witness.json and run `vela reproduce <frontier>` — the frozen verifier must pass",
-            "finding": "propose via `vela note`/`vela finding add` WITHOUT --apply; a keyed reviewer accepts with --key (key custody is the accept authority)",
+            "finding": "propose via `vela finding note`/`vela finding add` without --apply; a keyed reviewer decides the pending proposal through `vela sign`",
             "attempt": "deposit a signed vat_ attempt; failed passes are ledger entries, not noise",
         },
         "caveat": "Allowed outputs are the only state-changing submissions; strategy prose without an artifact does not move the frontier.",

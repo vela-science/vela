@@ -146,6 +146,66 @@ fn artifact_retract_proposal(actor: &str) -> StateProposal {
     )
 }
 
+/// Domain tests exercise accepted mutations through the same structural seam
+/// as `vela sign`: pending insertion, fixed-time Decision Plan preparation,
+/// decision-root binding, and signatures from a registered human key. This is
+/// intentionally test-only; no Boolean or typed reviewer name can create a
+/// decision in production.
+fn create_and_accept_via_decision_plan(
+    path: &std::path::Path,
+    proposal: StateProposal,
+) -> Result<CreateProposalResult, String> {
+    const REVIEWER: &str = "reviewer:test-fixture";
+    const DECIDED_AT: &str = "2099-07-14T12:34:56Z";
+    let key = ed25519_dalek::SigningKey::from_bytes(&[41_u8; 32]);
+    let mut frontier = repo::load_from_path(path)?;
+    if !frontier.actors.iter().any(|actor| actor.id == REVIEWER) {
+        frontier.actors.push(crate::sign::ActorRecord {
+            id: REVIEWER.to_string(),
+            public_key: crate::sign::pubkey_hex(&key),
+            algorithm: "ed25519".to_string(),
+            created_at: "2020-01-01T00:00:00Z".to_string(),
+            tier: None,
+            orcid: None,
+            access_clearance: None,
+            revoked_at: None,
+            revoked_reason: None,
+        });
+    }
+    let inserted = create_or_apply_in_frontier(&mut frontier, proposal, false)?;
+    if inserted.status == "applied" {
+        return Ok(inserted);
+    }
+    let mut prepared = prepare_proposal_accept_in_memory_at(
+        &mut frontier,
+        &inserted.proposal_id,
+        REVIEWER,
+        "test Decision Plan",
+        None,
+        DECIDED_AT,
+    )?;
+    bind_decision_root_to_prepared(
+        &mut frontier,
+        &mut prepared,
+        &format!("sha256:{}", "d".repeat(64)),
+    )?;
+    sign_prepared_decision_events(&mut frontier, &prepared, REVIEWER, &key)?;
+    project::recompute_stats(&mut frontier);
+    let applied = frontier
+        .proposals
+        .iter()
+        .find(|candidate| candidate.id == inserted.proposal_id)
+        .ok_or_else(|| "accepted proposal disappeared".to_string())?;
+    let result = CreateProposalResult {
+        proposal_id: applied.id.clone(),
+        finding_id: applied.target.id.clone(),
+        status: applied.status.clone(),
+        applied_event_id: applied.applied_event_id.clone(),
+    };
+    repo::save_to_path(path, &frontier)?;
+    Ok(result)
+}
+
 #[test]
 fn artifact_retract_stays_pending_until_human_acceptance() {
     let tmp = TempDir::new().unwrap();
@@ -174,15 +234,19 @@ fn human_applied_artifact_retract_emits_existing_lifecycle_event() {
     frontier.artifacts.push(artifact("va_1111111111111111"));
     repo::save_to_path(&path, &frontier).unwrap();
 
-    let result = create_or_apply(&path, artifact_retract_proposal("reviewer:human"), true).unwrap();
+    let result =
+        create_and_accept_via_decision_plan(&path, artifact_retract_proposal("reviewer:human"))
+            .unwrap();
     assert_eq!(result.status, "applied");
     let loaded = repo::load_from_path(&path).unwrap();
     assert!(loaded.artifacts[0].retracted);
-    assert_eq!(loaded.events.last().unwrap().kind, "artifact.retracted");
-    assert_eq!(
-        loaded.events.last().unwrap().target.id,
-        "va_1111111111111111"
-    );
+    let retracted = loaded
+        .events
+        .iter()
+        .find(|event| event.kind == "artifact.retracted")
+        .unwrap();
+    assert_eq!(retracted.kind, "artifact.retracted");
+    assert_eq!(retracted.target.id, "va_1111111111111111");
 }
 
 #[test]
@@ -266,15 +330,15 @@ fn applied_proposal_emits_event_and_stales_proof() {
         Vec::new(),
         Vec::new(),
     );
-    create_or_apply(&path, proposal, true).unwrap();
+    create_and_accept_via_decision_plan(&path, proposal).unwrap();
     let loaded = repo::load_from_path(&path).unwrap();
-    assert_eq!(loaded.events.len(), 2); // genesis + applied
+    assert_eq!(loaded.events.len(), 3); // genesis + domain + review.accepted
     assert!(loaded.findings[0].flags.contested);
     assert_eq!(loaded.proposals[0].status, "applied");
     assert_eq!(loaded.proof_state.latest_packet.status, "stale");
 }
 
-// ── v0.339: bounded trusted-reviewer-agent accept policy ──────────
+// ── fail-closed legacy and typed process authority boundaries ─────
 
 fn full_replication_attestation() -> Value {
     json!({
@@ -287,125 +351,13 @@ fn full_replication_attestation() -> Value {
     })
 }
 
-fn agent_proposal(reviewer_actor: &str, kind: &str, payload: Value) -> StateProposal {
-    new_proposal(
-        kind,
-        StateTarget {
-            r#type: "finding".to_string(),
-            id: "vf_claim".to_string(),
-        },
-        reviewer_actor,
-        "agent",
-        "from experiment fleet",
-        payload,
-        Vec::new(),
-        Vec::new(),
-    )
-}
-
 #[test]
-fn replication_attestation_passes_only_when_fully_verified() {
-    assert!(replication_attestation_passes(
-        &json!({"replication_attestation": full_replication_attestation()})
-    ));
-    // absent entirely
-    assert!(!replication_attestation_passes(&json!({})));
-    // too few independent replications
-    let mut att = full_replication_attestation();
-    att["independent_replications"] = json!(2);
-    assert!(!replication_attestation_passes(
-        &json!({"replication_attestation": att})
-    ));
-    // a replication failed
-    let mut att = full_replication_attestation();
-    att["all_replications_passed"] = json!(false);
-    assert!(!replication_attestation_passes(
-        &json!({"replication_attestation": att})
-    ));
-    // only confirmed on one model
-    let mut att = full_replication_attestation();
-    att["second_model_confirmed"] = json!(false);
-    assert!(!replication_attestation_passes(
-        &json!({"replication_attestation": att})
-    ));
-    // never CPU-verified (MPS can be silently wrong)
-    let mut att = full_replication_attestation();
-    att["cpu_verified"] = json!(false);
-    assert!(!replication_attestation_passes(
-        &json!({"replication_attestation": att})
-    ));
-    // marginal effect under threshold
-    let mut att = full_replication_attestation();
-    att["min_effect_size"] = json!(0.10);
-    assert!(!replication_attestation_passes(
-        &json!({"replication_attestation": att})
-    ));
-}
-
-#[test]
-fn human_reviewer_is_unaffected_by_agent_policy() {
-    // The gate is a strict no-op for non-agent reviewers, even for a
-    // destructive kind carrying no attestation.
-    let p = agent_proposal("reviewer:will-blair", "finding.retract", json!({}));
-    assert!(enforce_trusted_agent_accept_policy(&p, "reviewer:will-blair").is_ok());
-}
-
-#[test]
-fn replicator_accepts_verified_claim_only() {
-    let verified = agent_proposal(
-        "agent:replicator",
-        "finding.add",
-        json!({"replication_attestation": full_replication_attestation()}),
-    );
-    assert!(enforce_trusted_agent_accept_policy(&verified, "agent:replicator").is_ok());
-
-    // same role, no attestation -> denied
-    let unverified = agent_proposal("agent:replicator", "finding.add", json!({}));
-    assert!(enforce_trusted_agent_accept_policy(&unverified, "agent:replicator").is_err());
-
-    // verified but destructive/lifecycle kind -> denied (needs a human)
-    let destructive = agent_proposal(
-        "agent:replicator",
-        "finding.retract",
-        json!({"replication_attestation": full_replication_attestation()}),
-    );
-    assert!(enforce_trusted_agent_accept_policy(&destructive, "agent:replicator").is_err());
-
-    let artifact_retirement = artifact_retract_proposal("agent:replicator");
-    assert!(enforce_trusted_agent_accept_policy(&artifact_retirement, "agent:replicator").is_err());
-}
-
-#[test]
-fn repair_agent_accepts_only_mechanical_kinds() {
-    let span = agent_proposal("agent:repair", "finding.span_repair", json!({}));
-    assert!(enforce_trusted_agent_accept_policy(&span, "agent:repair").is_ok());
-    let locator = agent_proposal("agent:repair", "evidence_atom.locator_repair", json!({}));
-    assert!(enforce_trusted_agent_accept_policy(&locator, "agent:repair").is_ok());
-    // a claim is not a mechanical repair -> denied
-    let claim = agent_proposal(
-        "agent:repair",
-        "finding.add",
-        json!({"replication_attestation": full_replication_attestation()}),
-    );
-    assert!(enforce_trusted_agent_accept_policy(&claim, "agent:repair").is_err());
-}
-
-#[test]
-fn untrusted_agent_reviewer_cannot_accept_even_verified_work() {
-    let p = agent_proposal(
-        "agent:literature-scout",
-        "finding.add",
-        json!({"replication_attestation": full_replication_attestation()}),
-    );
-    assert!(enforce_trusted_agent_accept_policy(&p, "agent:literature-scout").is_err());
-}
-
-#[test]
-fn replicator_can_apply_verified_review_end_to_end() {
+fn legacy_apply_refuses_even_fully_attested_replicator_without_delta() {
     let tmp = TempDir::new().unwrap();
     let path = tmp.path().join("frontier.json");
     let frontier = project::assemble("test", vec![finding("vf_test")], 0, 0, "test");
     repo::save_to_path(&path, &frontier).unwrap();
+    let before = std::fs::read(&path).unwrap();
     let proposal = new_proposal(
         "finding.review",
         StateTarget {
@@ -419,45 +371,63 @@ fn replicator_can_apply_verified_review_end_to_end() {
         Vec::new(),
         Vec::new(),
     );
-    // apply = true accepts under the proposal actor (agent:replicator).
-    create_or_apply(&path, proposal, true).unwrap();
-    let loaded = repo::load_from_path(&path).unwrap();
-    assert_eq!(loaded.proposals[0].status, "applied");
-    assert_eq!(
-        loaded.proposals[0].reviewed_by.as_deref(),
-        Some("agent:replicator")
-    );
+    let error = create_or_apply(&path, proposal, true).unwrap_err();
+    assert!(error.contains("retired"), "unexpected error: {error}");
+    assert_eq!(std::fs::read(&path).unwrap(), before);
 }
 
 #[test]
-fn replicator_cannot_apply_unverified_review_end_to_end() {
-    let tmp = TempDir::new().unwrap();
-    let path = tmp.path().join("frontier.json");
-    let frontier = project::assemble("test", vec![finding("vf_test")], 0, 0, "test");
-    repo::save_to_path(&path, &frontier).unwrap();
+fn signed_auto_notes_capability_applies_only_a_note() {
+    const OBSERVED_AT: &str = "2026-07-14T12:34:56Z";
+    let key = ed25519_dalek::SigningKey::from_bytes(&[42_u8; 32]);
+    let mut frontier = project::assemble("test", vec![finding("vf_test")], 0, 0, "test");
+    let mut actor = accept_actor("agent:notes", &crate::sign::pubkey_hex(&key));
+    actor.created_at = "2020-01-01T00:00:00Z".to_string();
+    actor.tier = Some("auto-notes".to_string());
+    frontier.actors.push(actor);
     let proposal = new_proposal(
+        "finding.note",
+        StateTarget {
+            r#type: "finding".to_string(),
+            id: "vf_test".to_string(),
+        },
+        "agent:notes",
+        "agent",
+        "record bounded process context",
+        json!({"text": "mouse-only"}),
+        Vec::new(),
+        Vec::new(),
+    );
+    let signature = crate::sign::sign_proposal(&proposal, &key).unwrap();
+    let authority =
+        authorize_signed_proposal_write(&frontier, &proposal, &signature, true, OBSERVED_AT)
+            .unwrap();
+    let result =
+        create_with_verified_proposal_write_in_frontier(&mut frontier, proposal, &authority)
+            .unwrap();
+    assert_eq!(result.status, "applied");
+    assert_eq!(frontier.findings[0].annotations.len(), 1);
+
+    let truth = new_proposal(
         "finding.review",
         StateTarget {
             r#type: "finding".to_string(),
             id: "vf_test".to_string(),
         },
-        "agent:replicator",
+        "agent:notes",
         "agent",
-        "no replication evidence",
-        json!({"status": "accepted"}),
+        "truth-bearing review",
+        json!({"status": "contested"}),
         Vec::new(),
         Vec::new(),
     );
-    let result = create_or_apply(&path, proposal, true);
-    assert!(
-        result.is_err(),
-        "agent:replicator must not auto-apply a claim without a passing attestation"
-    );
-    // Fail-closed and atomic: the apply errors before the frontier is
-    // saved, so nothing is persisted at all.
-    let loaded = repo::load_from_path(&path).unwrap();
-    assert!(loaded.proposals.is_empty());
-    assert!(!loaded.findings[0].flags.contested);
+    let truth_signature = crate::sign::sign_proposal(&truth, &key).unwrap();
+    let before = serde_json::to_value(&frontier).unwrap();
+    let error =
+        authorize_signed_proposal_write(&frontier, &truth, &truth_signature, true, OBSERVED_AT)
+            .unwrap_err();
+    assert!(error.contains("does not permit auto-apply"));
+    assert_eq!(serde_json::to_value(&frontier).unwrap(), before);
 }
 
 #[test]
@@ -554,9 +524,9 @@ fn applied_note_emits_noted_event_and_stales_proof() {
         Vec::new(),
         Vec::new(),
     );
-    let result = create_or_apply(&path, proposal, true).unwrap();
+    let result = create_and_accept_via_decision_plan(&path, proposal).unwrap();
     let loaded = repo::load_from_path(&path).unwrap();
-    assert_eq!(loaded.events.len(), 2); // genesis + finding.noted
+    assert_eq!(loaded.events.len(), 3); // genesis + finding.noted + review.accepted
     assert_eq!(loaded.events[1].kind, "finding.noted");
     assert_eq!(loaded.findings[0].annotations.len(), 1);
     assert_eq!(loaded.proposals[0].status, "applied");
@@ -604,16 +574,17 @@ fn retract_emits_per_dependent_cascade_events() {
         Vec::new(),
         Vec::new(),
     );
-    create_or_apply(&path, proposal, true).unwrap();
+    create_and_accept_via_decision_plan(&path, proposal).unwrap();
     let loaded = repo::load_from_path(&path).unwrap();
 
-    // genesis + 1 source retract + 2 cascade events = 4 total.
-    assert_eq!(loaded.events.len(), 4, "{:?}", loaded.events);
+    // genesis + source retract + 2 cascade events + review.accepted.
+    assert_eq!(loaded.events.len(), 5, "{:?}", loaded.events);
     let kinds: Vec<&str> = loaded.events.iter().map(|e| e.kind.as_str()).collect();
     assert_eq!(kinds[0], "frontier.created");
     assert_eq!(kinds[1], "finding.retracted");
     assert_eq!(kinds[2], "finding.dependency_invalidated");
     assert_eq!(kinds[3], "finding.dependency_invalidated");
+    assert_eq!(kinds[4], "review.accepted");
 
     let source_event_id = loaded.events[1].id.clone();
     let dep1_event = &loaded.events[2];
@@ -707,8 +678,8 @@ fn create_or_apply_is_idempotent_under_repeated_calls() {
         )
     };
 
-    let first = create_or_apply(&path, make(), true).unwrap();
-    let second = create_or_apply(&path, make(), true).unwrap();
+    let first = create_and_accept_via_decision_plan(&path, make()).unwrap();
+    let second = create_and_accept_via_decision_plan(&path, make()).unwrap();
 
     assert_eq!(first.proposal_id, second.proposal_id);
     assert_eq!(first.applied_event_id, second.applied_event_id);
@@ -719,10 +690,10 @@ fn create_or_apply_is_idempotent_under_repeated_calls() {
         1,
         "second create_or_apply must not insert a duplicate proposal"
     );
-    // genesis + 1 applied review event = 2; not 3.
+    // genesis + one domain event + one review.accepted event; no retry event.
     assert_eq!(
         loaded.events.len(),
-        2,
+        3,
         "second create_or_apply must not emit a duplicate event"
     );
 }
@@ -746,11 +717,18 @@ fn accepting_applied_proposal_is_idempotent() {
         Vec::new(),
         Vec::new(),
     );
-    let created = create_or_apply(&path, proposal, true).unwrap();
+    let created = create_and_accept_via_decision_plan(&path, proposal).unwrap();
     let first_event = created.applied_event_id.clone().unwrap();
-    let second_event =
-        accept_at_path(&path, &created.proposal_id, "reviewer:test", "same").unwrap();
-    assert_eq!(first_event, second_event);
+    let before = std::fs::read(&path).unwrap();
+    let error = accept_at_path(&path, &created.proposal_id, "reviewer:test", "same").unwrap_err();
+    assert!(error.contains("retired"));
+    assert_eq!(std::fs::read(&path).unwrap(), before);
+    assert_eq!(
+        repo::load_from_path(&path).unwrap().proposals[0]
+            .applied_event_id
+            .as_deref(),
+        Some(first_event.as_str())
+    );
 }
 
 #[test]
@@ -806,7 +784,7 @@ fn verifier_attach_accepts_and_derives_verified() {
             Vec::new(),
             Vec::new(),
         );
-        create_or_apply(&path, proposal, true).unwrap();
+        create_and_accept_via_decision_plan(&path, proposal).unwrap();
     }
     let reloaded = repo::load_from_path(&path).unwrap();
     assert_eq!(
@@ -1158,7 +1136,7 @@ fn emit_policy_auto_admitted_is_idempotent_and_promotes_tier() {
 }
 
 #[test]
-fn engine_gate_warns_then_strict_blocks_then_force_applies() {
+fn legacy_engine_accept_refuses_force_without_delta() {
     let tmp = TempDir::new().unwrap();
     let path = tmp.path().join("frontier.json");
     let frontier = project::assemble("test", vec![], 0, 0, "test");
@@ -1188,35 +1166,8 @@ fn engine_gate_warns_then_strict_blocks_then_force_applies() {
     assert_eq!(preview.status, "warn");
     assert!(!preview.new_warnings.is_empty());
 
-    // Strict + no force: the new warning now gates. Nothing persists.
-    let blocked = accept_at_path_engine(
-        &path,
-        &vpr,
-        "reviewer:test",
-        "strict",
-        AcceptOptions {
-            strict: true,
-            force: false,
-            signing_key: None,
-            custody_verified: false,
-            provenance: None,
-        },
-    );
-    assert!(blocked.is_err(), "strict accept should be gated");
-    let reloaded = repo::load_from_path(&path).unwrap();
-    assert_eq!(
-        reloaded
-            .proposals
-            .iter()
-            .find(|p| p.id == vpr)
-            .unwrap()
-            .status,
-        "pending_review",
-        "a blocked accept must not change canonical state"
-    );
-
-    // Strict + force: applies, records the override, verdict is `forced`.
-    let outcome = accept_at_path_engine(
+    let before = std::fs::read(&path).unwrap();
+    let error = accept_at_path_engine(
         &path,
         &vpr,
         "reviewer:test",
@@ -1225,24 +1176,13 @@ fn engine_gate_warns_then_strict_blocks_then_force_applies() {
             strict: true,
             force: true,
             signing_key: None,
-            custody_verified: false,
+            verified_authority: None,
             provenance: None,
         },
     )
-    .unwrap();
-    assert_eq!(outcome.verdict.status, "forced");
-    assert!(outcome.verdict.forced);
-    let after = repo::load_from_path(&path).unwrap();
-    let applied = after.proposals.iter().find(|p| p.id == vpr).unwrap();
-    assert_eq!(applied.status, "applied");
-    assert!(
-        applied
-            .decision_reason
-            .as_deref()
-            .unwrap_or("")
-            .contains("--force"),
-        "the override must be recorded in the decision reason"
-    );
+    .unwrap_err();
+    assert!(error.contains("retired"), "unexpected error: {error}");
+    assert_eq!(std::fs::read(&path).unwrap(), before);
 }
 
 // Build a frontier on disk seeded with `n` pending `finding.add`
@@ -1275,9 +1215,10 @@ fn frontier_with_pending_adds(n: usize) -> (TempDir, std::path::PathBuf, Vec<Str
 }
 
 #[test]
-fn accept_batch_applies_all_in_one_pass() {
+fn legacy_non_dry_batch_refuses_without_delta() {
     let (_tmp, path, ids) = frontier_with_pending_adds(3);
-    let report = accept_batch_at_path(
+    let before = std::fs::read(&path).unwrap();
+    let error = accept_batch_at_path(
         &path,
         &ids,
         "reviewer:test",
@@ -1285,20 +1226,9 @@ fn accept_batch_applies_all_in_one_pass() {
         AcceptOptions::default(),
         false,
     )
-    .unwrap();
-
-    // Non-strict: sparse-finding warnings do not block; the batch lands.
-    assert!(!report.gated);
-    assert_eq!(report.accepted_proposal_ids.len(), 3);
-    assert_eq!(report.event_ids.len(), 3);
-    assert_eq!(report.failed.len(), 0);
-
-    let loaded = repo::load_from_path(&path).unwrap();
-    assert_eq!(loaded.findings.len(), 3, "all three findings materialized");
-    assert!(
-        loaded.proposals.iter().all(|p| p.status == "applied"),
-        "every selected proposal is applied"
-    );
+    .unwrap_err();
+    assert!(error.contains("retired"), "unexpected error: {error}");
+    assert_eq!(std::fs::read(&path).unwrap(), before);
 }
 
 #[test]
@@ -1333,39 +1263,10 @@ fn accept_batch_dry_run_persists_nothing() {
 }
 
 #[test]
-fn accept_batch_strict_gate_blocks_whole_batch() {
+fn legacy_batch_force_cannot_bypass_decision_plan() {
     let (_tmp, path, ids) = frontier_with_pending_adds(3);
-    // Strict: the new review warnings now gate the aggregate. The batch
-    // is refused as a whole and nothing is persisted.
-    let report = accept_batch_at_path(
-        &path,
-        &ids,
-        "reviewer:test",
-        "strict batch",
-        AcceptOptions {
-            strict: true,
-            force: false,
-            signing_key: None,
-            custody_verified: false,
-            provenance: None,
-        },
-        false,
-    )
-    .unwrap();
-    assert!(report.gated, "strict batch with new warnings must be gated");
-    assert_eq!(report.verdict.status, "blocked");
-
-    let loaded = repo::load_from_path(&path).unwrap();
-    assert_eq!(loaded.findings.len(), 0, "a blocked batch persists nothing");
-    assert!(
-        loaded
-            .proposals
-            .iter()
-            .all(|p| p.status == "pending_review")
-    );
-
-    // Strict + force: the same batch now applies in one pass, audited.
-    let forced = accept_batch_at_path(
+    let before = std::fs::read(&path).unwrap();
+    let error = accept_batch_at_path(
         &path,
         &ids,
         "reviewer:test",
@@ -1374,99 +1275,44 @@ fn accept_batch_strict_gate_blocks_whole_batch() {
             strict: true,
             force: true,
             signing_key: None,
-            custody_verified: false,
+            verified_authority: None,
             provenance: None,
         },
         false,
     )
-    .unwrap();
-    assert!(!forced.gated);
-    assert_eq!(forced.verdict.status, "forced");
-    let after = repo::load_from_path(&path).unwrap();
-    assert_eq!(after.findings.len(), 3);
-    assert!(after.proposals.iter().all(|p| {
-        p.decision_reason
-            .as_deref()
-            .unwrap_or("")
-            .contains("--force")
-    }));
+    .unwrap_err();
+    assert!(error.contains("retired"), "unexpected error: {error}");
+    assert_eq!(std::fs::read(&path).unwrap(), before);
 }
 
-/// Regression: the interactive `vela sign` session runs its accepts through
-/// `accept_batch_at_path`. When the reviewer is registered with a key, the
-/// batch MUST honor `opts.signing_key` and persist a signed accept — and MUST
-/// refuse (into `report.failed`, persisting nothing) when the key is absent.
-/// Before the fix the batch was unconditionally keyless: a key-registered
-/// reviewer's accept failed silently, `report.failed` was ignored by the
-/// session, and the ceremony printed a false "signed" while nothing landed.
 #[test]
-fn accept_batch_honors_registered_reviewer_key() {
+fn direct_key_does_not_authorize_legacy_batch() {
     let key = accept_keypair();
     let pubkey = crate::sign::pubkey_hex(&key);
-
-    // A key is REQUIRED but absent -> the accept lands in `failed`, nothing persists.
-    {
-        let (_tmp, path, ids) = frontier_with_pending_adds(1);
-        let mut fr = repo::load_from_path(&path).unwrap();
-        fr.actors.push(accept_actor("reviewer:will-blair", &pubkey));
-        repo::save_to_path(&path, &fr).unwrap();
-
-        let report = accept_batch_at_path(
-            &path,
-            &ids,
-            "reviewer:will-blair",
-            "keyless attempt",
-            AcceptOptions::default(), // signing_key: None
-            false,
-        )
-        .unwrap();
-
-        assert_eq!(report.event_ids.len(), 0, "no event without the key");
-        assert_eq!(report.accepted_proposal_ids.len(), 0);
-        assert_eq!(report.failed.len(), 1, "the custody refusal is REPORTED");
-        assert!(report.failed[0].1.contains("registered with a key"));
-
-        let loaded = repo::load_from_path(&path).unwrap();
-        assert_eq!(loaded.findings.len(), 0, "keyless accept persists nothing");
-        assert!(
-            loaded
-                .proposals
-                .iter()
-                .all(|p| p.status == "pending_review")
-        );
-    }
-
-    // The correct key is supplied -> the accept persists, signed.
-    {
-        let (_tmp, path, ids) = frontier_with_pending_adds(1);
-        let mut fr = repo::load_from_path(&path).unwrap();
-        fr.actors.push(accept_actor("reviewer:will-blair", &pubkey));
-        repo::save_to_path(&path, &fr).unwrap();
-
-        let report = accept_batch_at_path(
-            &path,
-            &ids,
-            "reviewer:will-blair",
-            "keyed accept",
-            AcceptOptions {
-                strict: false,
-                force: false,
-                signing_key: Some(key.clone()),
-                custody_verified: false,
-                provenance: None,
-            },
-            false,
-        )
-        .unwrap();
-
-        assert!(!report.gated);
-        assert_eq!(report.failed.len(), 0, "the keyed accept does not fail");
-        assert_eq!(report.event_ids.len(), 1, "one signed accept event");
-
-        let loaded = repo::load_from_path(&path).unwrap();
-        assert_eq!(loaded.findings.len(), 1, "the finding materialized");
-        assert!(loaded.proposals.iter().all(|p| p.status == "applied"));
-    }
+    let (_tmp, path, ids) = frontier_with_pending_adds(1);
+    let mut frontier = repo::load_from_path(&path).unwrap();
+    frontier
+        .actors
+        .push(accept_actor("reviewer:will-blair", &pubkey));
+    repo::save_to_path(&path, &frontier).unwrap();
+    let before = std::fs::read(&path).unwrap();
+    let error = accept_batch_at_path(
+        &path,
+        &ids,
+        "reviewer:will-blair",
+        "unbound keyed accept",
+        AcceptOptions {
+            strict: false,
+            force: false,
+            signing_key: Some(key),
+            verified_authority: None,
+            provenance: None,
+        },
+        false,
+    )
+    .unwrap_err();
+    assert!(error.contains("retired"), "unexpected error: {error}");
+    assert_eq!(std::fs::read(&path).unwrap(), before);
 }
 
 #[test]
@@ -1551,7 +1397,7 @@ fn v0_13_apply_materializes_source_records_inline() {
         Vec::new(),
         Vec::new(),
     );
-    create_or_apply(&path, proposal, true).unwrap();
+    create_and_accept_via_decision_plan(&path, proposal).unwrap();
     let loaded = repo::load_from_path(&path).unwrap();
     // Source records, evidence atoms, and condition records should all
     // be materialized — without any explicit normalize call.
@@ -1609,7 +1455,7 @@ fn v0_14_supersede_creates_new_finding_and_marks_old() {
         Vec::new(),
         Vec::new(),
     );
-    let result = create_or_apply(&path, proposal, true).unwrap();
+    let result = create_and_accept_via_decision_plan(&path, proposal).unwrap();
     assert!(result.applied_event_id.is_some());
     let loaded = repo::load_from_path(&path).unwrap();
     // Old finding now flagged superseded.
@@ -1668,7 +1514,7 @@ fn v0_14_supersede_refuses_already_superseded() {
         Vec::new(),
         Vec::new(),
     );
-    let result = create_or_apply(&path, proposal, true);
+    let result = create_and_accept_via_decision_plan(&path, proposal);
     assert!(
         result.is_err(),
         "double-supersede should be refused; got {result:?}"
@@ -1697,7 +1543,7 @@ fn v0_14_supersede_refuses_same_content_address() {
         Vec::new(),
         Vec::new(),
     );
-    let result = create_or_apply(&path, proposal, true);
+    let result = create_and_accept_via_decision_plan(&path, proposal);
     assert!(
         result.is_err(),
         "supersede with same content address should be refused; got {result:?}"
@@ -1941,6 +1787,7 @@ fn accept_actor(id: &str, pubkey_hex: &str) -> ActorRecord {
 fn frontier_with_proposal(actors: Vec<ActorRecord>) -> (Project, StateProposal) {
     let mut project =
         project::assemble("accept-gate", vec![finding("vf_target0000000")], 0, 0, "t");
+    project.frontier_id = Some(VFR.to_string());
     let proposal = new_proposal(
         "finding.review",
         StateTarget {
@@ -1996,7 +1843,7 @@ fn authorize_accept_valid_reviewer_passes() {
 
     let auth =
         authorize_proposal_accept(&project, VFR, &pubkey, &sig, &proposal, reason, NOW).unwrap();
-    assert_eq!(auth.actor.id, "reviewer:will-blair");
+    assert_eq!(auth.actor().id, "reviewer:will-blair");
 }
 
 #[test]
@@ -2298,66 +2145,28 @@ fn authorize_accept_resolves_pubkey_case_insensitively() {
         &sig, &proposal, reason, NOW,
     )
     .unwrap();
-    assert_eq!(auth.actor.id, "reviewer:will-blair");
+    assert_eq!(auth.actor().id, "reviewer:will-blair");
 }
 
 // ── Signed review events + decision parity ────────────────────────
 
-fn review_events_for<'a>(project: &'a Project, proposal_id: &str) -> Vec<&'a StateEvent> {
-    project
-        .events
-        .iter()
-        .filter(|e| {
-            e.target.r#type == "proposal"
-                && e.target.id == proposal_id
-                && e.kind.as_str().starts_with("review.")
-        })
-        .collect()
-}
-
 #[test]
-fn reject_emits_signed_review_event_and_parity_holds() {
+fn legacy_reject_refuses_even_matching_registered_key_without_delta() {
     let key = accept_keypair();
     let pubkey = hex::encode(key.verifying_key().to_bytes());
     let (mut project, proposal) =
         frontier_with_proposal(vec![accept_actor("reviewer:will", &pubkey)]);
-    reject_proposal_in_frontier_signed(
+    let before = serde_json::to_value(&project).unwrap();
+    let error = reject_proposal_in_frontier_signed(
         &mut project,
         &proposal.id,
         "reviewer:will",
         "automated draft, not adjudicated",
         Some(&key),
-        false,
     )
-    .unwrap();
-
-    // The decision is now a signed, log-resident event — the thing a
-    // reject used to lack entirely.
-    let reviews = review_events_for(&project, &proposal.id);
-    assert_eq!(reviews.len(), 1, "exactly one review event");
-    let ev = reviews[0];
-    assert_eq!(ev.kind, events::EVENT_KIND_REVIEW_REJECTED);
-    assert_eq!(ev.target.r#type, "proposal");
-    assert!(ev.signature.is_some(), "review.rejected must be signed");
-    assert!(
-        crate::sign::verify_event_signature(ev, &pubkey).unwrap(),
-        "signature must verify under the reviewer's registered key"
-    );
-    // Side-table: chain-transparent.
-    assert_eq!(ev.before_hash, NULL_HASH);
-    assert_eq!(ev.after_hash, NULL_HASH);
-    // Stored status agrees with the log.
-    let stored = &project
-        .proposals
-        .iter()
-        .find(|p| p.id == proposal.id)
-        .unwrap()
-        .status;
-    assert_eq!(stored, "rejected");
-    assert!(
-        verify_proposal_decision_parity(&project).is_empty(),
-        "parity must hold after a signed reject"
-    );
+    .unwrap_err();
+    assert!(error.contains("retired"), "unexpected error: {error}");
+    assert_eq!(serde_json::to_value(&project).unwrap(), before);
 }
 
 #[test]
@@ -2366,68 +2175,49 @@ fn reject_requires_key_for_keyed_reviewer() {
     let pubkey = hex::encode(key.verifying_key().to_bytes());
     let (mut project, proposal) =
         frontier_with_proposal(vec![accept_actor("reviewer:will", &pubkey)]);
-    // No key supplied → an agent cannot reject under a keyed identity.
+    let before = serde_json::to_value(&project).unwrap();
     let err = reject_proposal_in_frontier_signed(
         &mut project,
         &proposal.id,
         "reviewer:will",
         "no key here",
         None,
-        false,
     )
     .unwrap_err();
-    assert!(
-        err.contains("require") && err.contains("key"),
-        "expected key-custody error, got: {err}"
-    );
-    // And nothing was recorded.
-    assert!(review_events_for(&project, &proposal.id).is_empty());
+    assert!(err.contains("retired"), "unexpected error: {err}");
+    assert_eq!(serde_json::to_value(&project).unwrap(), before);
 }
 
 #[test]
-fn reject_keyless_ok_for_unregistered_reviewer() {
-    // Bootstrap: a reviewer with no registered key can still reject
-    // (a brand-new frontier must be usable before any keys exist).
+fn reject_keyless_bootstrap_is_retired() {
     let (mut project, proposal) = frontier_with_proposal(vec![]);
-    reject_proposal_in_frontier_signed(
+    let before = serde_json::to_value(&project).unwrap();
+    let error = reject_proposal_in_frontier_signed(
         &mut project,
         &proposal.id,
         "reviewer:bootstrap",
         "legacy reject",
         None,
-        false,
     )
-    .unwrap();
-    let reviews = review_events_for(&project, &proposal.id);
-    assert_eq!(reviews.len(), 1);
-    assert!(reviews[0].signature.is_none(), "keyless reject is unsigned");
-    assert!(verify_proposal_decision_parity(&project).is_empty());
+    .unwrap_err();
+    assert!(error.contains("retired"), "unexpected error: {error}");
+    assert_eq!(serde_json::to_value(&project).unwrap(), before);
 }
 
 #[test]
 fn reject_refuses_agent_and_ci_actors() {
-    // The keyless bootstrap above must never admit an agent: a reject is a
-    // truth-bearing review verdict with no agent carve-out (burying a
-    // proposal is as much a decision as applying one). Found live: an agent
-    // driving the CLI with VELA_ACTOR_ID=agent:... could reject through the
-    // unregistered-reviewer bootstrap path.
     let (mut project, proposal) = frontier_with_proposal(vec![]);
+    let before = serde_json::to_value(&project).unwrap();
     for actor in ["agent:claude", "ci:github-actions"] {
-        let err = reject_proposal_in_frontier_signed(
-            &mut project,
-            &proposal.id,
-            actor,
-            "probe",
-            None,
-            false,
-        )
-        .unwrap_err();
+        let err =
+            reject_proposal_in_frontier_signed(&mut project, &proposal.id, actor, "probe", None)
+                .unwrap_err();
         assert!(
-            err.contains("may not reject"),
+            err.contains("retired"),
             "expected the agent refusal for {actor}, got: {err}"
         );
     }
-    assert!(review_events_for(&project, &proposal.id).is_empty());
+    assert_eq!(serde_json::to_value(&project).unwrap(), before);
 }
 
 #[test]
@@ -2448,29 +2238,19 @@ fn parity_flags_status_with_no_backing_event() {
 }
 
 #[test]
-fn accept_decision_is_recognized_by_its_domain_event() {
-    // An accept's trace is the domain event it produces; parity must
-    // recognize that without requiring a separate review.accepted.
+fn legacy_in_memory_accept_is_retired_without_delta() {
     let (mut project, proposal) = frontier_with_proposal(vec![]);
-    let event_id = accept_proposal_in_frontier_signed(
+    let before = serde_json::to_value(&project).unwrap();
+    let error = accept_proposal_in_frontier_signed(
         &mut project,
         &proposal.id,
         "reviewer:test",
         "looks right",
         None,
     )
-    .unwrap();
-    let stored = project
-        .proposals
-        .iter()
-        .find(|p| p.id == proposal.id)
-        .unwrap();
-    assert_eq!(stored.status, "applied");
-    assert_eq!(stored.applied_event_id.as_deref(), Some(event_id.as_str()));
-    assert!(
-        verify_proposal_decision_parity(&project).is_empty(),
-        "an applied proposal backed by its domain event satisfies parity"
-    );
+    .unwrap_err();
+    assert!(error.contains("retired"), "unexpected error: {error}");
+    assert_eq!(serde_json::to_value(&project).unwrap(), before);
 }
 
 #[test]
@@ -2491,5 +2271,662 @@ fn review_event_targeting_missing_proposal_is_flagged() {
     assert!(
         conflicts.iter().any(|c| c.contains("does not exist")),
         "an orphan review event must be flagged: {conflicts:?}"
+    );
+}
+
+// -- ADR 0003 Slice 4: exact decision binding -----------------------------
+
+#[test]
+fn decision_acceptance_v1_vector_and_legacy_bytes_are_stable() {
+    let parent = "1".repeat(64);
+    let root = format!("sha256:{}", "2".repeat(64));
+    let legacy = accept_preimage_bytes(
+        "vfr_decision_fixture",
+        "vpr_0123456789abcdef",
+        "reviewer:alice",
+        "Evidence and caveats checked",
+        &parent,
+    )
+    .unwrap();
+    assert_eq!(
+        String::from_utf8(legacy).unwrap(),
+        format!(
+            "{{\"action\":\"proposal.accept\",\"parent_event_log_hash\":\"{parent}\",\"proposal_id\":\"vpr_0123456789abcdef\",\"reason\":\"Evidence and caveats checked\",\"reviewer_id\":\"reviewer:alice\",\"vfr_id\":\"vfr_decision_fixture\"}}"
+        )
+    );
+
+    let v1 = accept_preimage_bytes_v1(
+        "vfr_decision_fixture",
+        "vpr_0123456789abcdef",
+        "reviewer:alice",
+        "Evidence and caveats checked",
+        &parent,
+        &root,
+    )
+    .unwrap();
+    let expected_body = format!(
+        "{{\"action\":\"proposal.accept\",\"decision_preimage_version\":\"vela.acceptance-decision.v1\",\"decision_root\":\"{root}\",\"parent_event_log_hash\":\"{parent}\",\"proposal_id\":\"vpr_0123456789abcdef\",\"reason\":\"Evidence and caveats checked\",\"reviewer_id\":\"reviewer:alice\",\"vfr_id\":\"vfr_decision_fixture\"}}"
+    );
+    assert_eq!(
+        String::from_utf8(v1.clone()).unwrap(),
+        format!(
+            "DSSEv1 32 application/vnd.vela.accept+json {} {expected_body}",
+            expected_body.len()
+        )
+    );
+    assert_eq!(
+        hex::encode(Sha256::digest(&v1)),
+        "90f2e3dc2375748f5f6aa9a3e240c22406b069b02a219ccd4421dd96cf38c888"
+    );
+}
+
+#[test]
+fn authorize_accept_v1_binds_the_exact_decision_root() {
+    let key = SigningKey::from_bytes(&[7_u8; 32]);
+    let pubkey = crate::sign::pubkey_hex(&key);
+    let (project, proposal) = frontier_with_proposal(vec![accept_actor("reviewer:will", &pubkey)]);
+    let reason = "Checked the exact shown decision";
+    let root_a = format!("sha256:{}", "a".repeat(64));
+    let root_b = format!("sha256:{}", "b".repeat(64));
+    let parent = crate::events::event_log_hash(&project.events);
+    let bytes =
+        accept_preimage_bytes_v1(VFR, &proposal.id, "reviewer:will", reason, &parent, &root_a)
+            .unwrap();
+    let signature = hex::encode(crate::sign::sign_bytes(&key, &bytes));
+
+    authorize_proposal_accept_v1(
+        &project, VFR, &pubkey, &signature, &proposal, reason, &root_a, NOW,
+    )
+    .unwrap();
+    let error = authorize_proposal_accept_v1(
+        &project, VFR, &pubkey, &signature, &proposal, reason, &root_b, NOW,
+    )
+    .unwrap_err();
+    assert!(
+        error.contains("does not verify"),
+        "unexpected error: {error}"
+    );
+}
+
+fn fixed_decision_fixture() -> (Project, StateProposal, SigningKey) {
+    let key = SigningKey::from_bytes(&[11_u8; 32]);
+    let pubkey = crate::sign::pubkey_hex(&key);
+    let (project, proposal) = frontier_with_proposal(vec![accept_actor("reviewer:will", &pubkey)]);
+    (project, proposal, key)
+}
+
+fn clone_project_for_decision(project: &Project) -> Project {
+    serde_json::from_value(serde_json::to_value(project).unwrap()).unwrap()
+}
+
+#[test]
+fn prepared_accept_is_fixed_time_root_bound_and_exactly_signed() {
+    const DECIDED_AT: &str = "2026-07-14T12:34:56Z";
+    let root_a = format!("sha256:{}", "a".repeat(64));
+    let root_b = format!("sha256:{}", "b".repeat(64));
+    let (base, proposal, key) = fixed_decision_fixture();
+    let pubkey = crate::sign::pubkey_hex(&key);
+
+    let mut first = clone_project_for_decision(&base);
+    let mut prepared = prepare_proposal_accept_in_memory_at(
+        &mut first,
+        &proposal.id,
+        "reviewer:will",
+        "Evidence and caveats checked",
+        None,
+        DECIDED_AT,
+    )
+    .unwrap();
+    assert_eq!(prepared.appended_event_ids.len(), 2);
+    assert_ne!(prepared.primary_event_id, prepared.decision_event_id);
+    assert!(prepared.appended_event_ids.iter().all(|id| {
+        first
+            .events
+            .iter()
+            .find(|event| &event.id == id)
+            .unwrap()
+            .timestamp
+            == DECIDED_AT
+    }));
+    let domain_event_id = prepared.primary_event_id.clone();
+    assert_eq!(
+        first
+            .proposals
+            .iter()
+            .find(|candidate| candidate.id == proposal.id)
+            .unwrap()
+            .applied_event_id
+            .as_deref(),
+        Some(domain_event_id.as_str())
+    );
+
+    bind_decision_root_to_prepared(&mut first, &mut prepared, &root_a).unwrap();
+    let bound_review_id = prepared.decision_event_id.clone();
+    assert_eq!(prepared.primary_event_id, domain_event_id);
+    assert_eq!(
+        first
+            .proposals
+            .iter()
+            .find(|candidate| candidate.id == proposal.id)
+            .unwrap()
+            .applied_event_id
+            .as_deref(),
+        Some(domain_event_id.as_str()),
+        "ordinary accepts keep the domain event as applied_event_id"
+    );
+    bind_decision_root_to_prepared(&mut first, &mut prepared, &root_a).unwrap();
+    assert_eq!(
+        prepared.decision_event_id, bound_review_id,
+        "rebinding the same root is idempotent"
+    );
+
+    let mut same = clone_project_for_decision(&base);
+    let mut same_prepared = prepare_proposal_accept_in_memory_at(
+        &mut same,
+        &proposal.id,
+        "reviewer:will",
+        "Evidence and caveats checked",
+        None,
+        DECIDED_AT,
+    )
+    .unwrap();
+    bind_decision_root_to_prepared(&mut same, &mut same_prepared, &root_a).unwrap();
+    assert_eq!(prepared, same_prepared);
+    let first_events = first
+        .events
+        .iter()
+        .filter(|event| prepared.appended_event_ids.contains(&event.id))
+        .map(|event| serde_json::to_value(event).unwrap())
+        .collect::<Vec<_>>();
+    let same_events = same
+        .events
+        .iter()
+        .filter(|event| same_prepared.appended_event_ids.contains(&event.id))
+        .map(|event| serde_json::to_value(event).unwrap())
+        .collect::<Vec<_>>();
+    assert_eq!(first_events, same_events);
+
+    let mut different = base;
+    let mut different_prepared = prepare_proposal_accept_in_memory_at(
+        &mut different,
+        &proposal.id,
+        "reviewer:will",
+        "Evidence and caveats checked",
+        None,
+        DECIDED_AT,
+    )
+    .unwrap();
+    bind_decision_root_to_prepared(&mut different, &mut different_prepared, &root_b).unwrap();
+    assert_eq!(different_prepared.primary_event_id, domain_event_id);
+    assert_ne!(
+        different_prepared.decision_event_id,
+        prepared.decision_event_id
+    );
+
+    sign_prepared_decision_events(&mut first, &prepared, "reviewer:will", &key).unwrap();
+    for event_id in &prepared.appended_event_ids {
+        let event = first
+            .events
+            .iter()
+            .find(|event| &event.id == event_id)
+            .unwrap();
+        assert!(event.signature.is_some());
+        assert!(crate::sign::verify_event_signature(event, &pubkey).unwrap());
+    }
+    assert!(verify_proposal_decision_parity(&first).is_empty());
+
+    let decision = first
+        .events
+        .iter_mut()
+        .find(|event| event.id == prepared.decision_event_id)
+        .unwrap();
+    decision.payload["provenance"]["input_refs"][0] =
+        json!(format!("urn:vela:decision-root:{root_b}"));
+    decision.id = events::compute_event_id(decision);
+    assert!(
+        !crate::sign::verify_event_signature(decision, &pubkey).unwrap(),
+        "changing the signed decision-root reference must invalidate the signature"
+    );
+}
+
+#[test]
+fn prepared_reject_is_fixed_time_root_bound_and_exactly_signed() {
+    const DECIDED_AT: &str = "2026-07-14T12:34:56Z";
+    let root = format!("sha256:{}", "c".repeat(64));
+    let (mut project, proposal, key) = fixed_decision_fixture();
+    let pubkey = crate::sign::pubkey_hex(&key);
+    let mut prepared = prepare_proposal_reject_in_memory_at(
+        &mut project,
+        &proposal.id,
+        "reviewer:will",
+        "Evidence is insufficient",
+        None,
+        DECIDED_AT,
+    )
+    .unwrap();
+    assert_eq!(prepared.appended_event_ids.len(), 1);
+    assert_eq!(prepared.primary_event_id, prepared.decision_event_id);
+    bind_decision_root_to_prepared(&mut project, &mut prepared, &root).unwrap();
+    assert_eq!(prepared.primary_event_id, prepared.decision_event_id);
+    let event = project
+        .events
+        .iter()
+        .find(|event| event.id == prepared.decision_event_id)
+        .unwrap();
+    assert_eq!(event.timestamp, DECIDED_AT);
+    sign_prepared_decision_events(&mut project, &prepared, "reviewer:will", &key).unwrap();
+    let event = project
+        .events
+        .iter()
+        .find(|event| event.id == prepared.decision_event_id)
+        .unwrap();
+    assert!(crate::sign::verify_event_signature(event, &pubkey).unwrap());
+    assert!(verify_proposal_decision_parity(&project).is_empty());
+}
+
+#[test]
+fn prepared_accept_error_is_atomic_even_after_candidate_mutation() {
+    let (mut project, proposal, _key) = fixed_decision_fixture();
+    let before = serde_json::to_value(&project).unwrap();
+    let invalid_provenance = crate::provenance::Provenance {
+        machine_contributions: vec![crate::provenance::MachineContribution {
+            id: "reviewer:smuggled-human".to_string(),
+            authority: "none".to_string(),
+            ..Default::default()
+        }],
+        ..Default::default()
+    };
+
+    let error = prepare_proposal_accept_in_memory_at(
+        &mut project,
+        &proposal.id,
+        "reviewer:will",
+        "would mutate the candidate before provenance attachment",
+        Some(&invalid_provenance),
+        NOW,
+    )
+    .unwrap_err();
+    assert!(error.contains("may not name a human"));
+    assert_eq!(
+        serde_json::to_value(&project).unwrap(),
+        before,
+        "a failed preparation must leave the caller's canonical input untouched"
+    );
+}
+
+#[test]
+fn prepared_signing_rejects_unbound_and_structurally_forged_handles() {
+    let (base, proposal, key) = fixed_decision_fixture();
+    let mut unbound_project = clone_project_for_decision(&base);
+    let unbound = prepare_proposal_accept_in_memory_at(
+        &mut unbound_project,
+        &proposal.id,
+        "reviewer:will",
+        "checked",
+        None,
+        NOW,
+    )
+    .unwrap();
+    let error =
+        sign_prepared_decision_events(&mut unbound_project, &unbound, "reviewer:will", &key)
+            .unwrap_err();
+    assert!(error.contains("must be decision-root bound"));
+    assert!(unbound_project.events.iter().all(|event| {
+        !unbound.appended_event_ids().contains(&event.id) || event.signature.is_none()
+    }));
+
+    let mut forged_project = clone_project_for_decision(&base);
+    let mut forged = prepare_proposal_accept_in_memory_at(
+        &mut forged_project,
+        &proposal.id,
+        "reviewer:will",
+        "checked",
+        None,
+        NOW,
+    )
+    .unwrap();
+    bind_decision_root_to_prepared(
+        &mut forged_project,
+        &mut forged,
+        &format!("sha256:{}", "e".repeat(64)),
+    )
+    .unwrap();
+    forged.appended_event_ids.reverse();
+    let error = sign_prepared_decision_events(&mut forged_project, &forged, "reviewer:will", &key)
+        .unwrap_err();
+    assert!(error.contains("contiguous event range"));
+    assert!(
+        forged_project
+            .events
+            .iter()
+            .all(|event| event.signature.is_none())
+    );
+
+    let mut duplicate_root_project = clone_project_for_decision(&base);
+    let mut duplicate_root = prepare_proposal_accept_in_memory_at(
+        &mut duplicate_root_project,
+        &proposal.id,
+        "reviewer:will",
+        "checked",
+        None,
+        NOW,
+    )
+    .unwrap();
+    bind_decision_root_to_prepared(
+        &mut duplicate_root_project,
+        &mut duplicate_root,
+        &format!("sha256:{}", "f".repeat(64)),
+    )
+    .unwrap();
+    let old_id = duplicate_root.decision_event_id.clone();
+    let event = duplicate_root_project
+        .events
+        .iter_mut()
+        .find(|event| event.id == old_id)
+        .unwrap();
+    event.payload["provenance"]["input_refs"]
+        .as_array_mut()
+        .unwrap()
+        .push(json!(format!(
+            "urn:vela:decision-root:sha256:{}",
+            "1".repeat(64)
+        )));
+    event.id = events::compute_event_id(event);
+    let new_id = event.id.clone();
+    duplicate_root
+        .appended_event_ids
+        .iter_mut()
+        .filter(|id| **id == old_id)
+        .for_each(|id| *id = new_id.clone());
+    duplicate_root.decision_event_id = new_id;
+    let error = sign_prepared_decision_events(
+        &mut duplicate_root_project,
+        &duplicate_root,
+        "reviewer:will",
+        &key,
+    )
+    .unwrap_err();
+    assert!(error.contains("exactly one canonical decision-root"));
+    assert!(
+        duplicate_root_project
+            .events
+            .iter()
+            .all(|event| event.signature.is_none())
+    );
+}
+
+#[test]
+fn prepared_decisions_fix_nested_state_and_fanout_times() {
+    const DECIDED_AT: &str = "2026-07-14T12:34:56Z";
+    let key = SigningKey::from_bytes(&[13_u8; 32]);
+    let actor = accept_actor("reviewer:will", &crate::sign::pubkey_hex(&key));
+
+    let mut note_project = project::assemble("fixed-note", vec![finding("vf_note")], 0, 0, "t");
+    note_project.actors = vec![actor.clone()];
+    let note = new_proposal_at(
+        "finding.note",
+        StateTarget {
+            r#type: "finding".into(),
+            id: "vf_note".into(),
+        },
+        "agent:drafter",
+        "agent",
+        "record scope",
+        json!({"text": "mouse-only"}),
+        Vec::new(),
+        Vec::new(),
+        "2026-07-14T00:00:00Z",
+    );
+    note_project.proposals.push(note.clone());
+    let note_prepared = prepare_proposal_accept_in_memory_at(
+        &mut note_project,
+        &note.id,
+        "reviewer:will",
+        "Scoped correctly",
+        None,
+        DECIDED_AT,
+    )
+    .unwrap();
+    assert_eq!(
+        note_project.findings[0].annotations[0].timestamp,
+        DECIDED_AT
+    );
+    assert!(note_prepared.appended_event_ids.iter().all(|id| {
+        note_project
+            .events
+            .iter()
+            .find(|event| &event.id == id)
+            .unwrap()
+            .timestamp
+            == DECIDED_AT
+    }));
+
+    let mut supersede_project =
+        project::assemble("fixed-supersede", vec![finding("vf_old")], 0, 0, "t");
+    supersede_project.actors = vec![actor.clone()];
+    let (_, payload) = make_supersede_payload("vf_old", "Corrected claim");
+    let supersede = new_proposal_at(
+        "finding.supersede",
+        StateTarget {
+            r#type: "finding".into(),
+            id: "vf_old".into(),
+        },
+        "agent:drafter",
+        "agent",
+        "correct wording",
+        payload,
+        Vec::new(),
+        Vec::new(),
+        "2026-07-14T00:00:00Z",
+    );
+    supersede_project.proposals.push(supersede.clone());
+    let supersede_prepared = prepare_proposal_accept_in_memory_at(
+        &mut supersede_project,
+        &supersede.id,
+        "reviewer:will",
+        "Correction checked",
+        None,
+        DECIDED_AT,
+    )
+    .unwrap();
+    let new_finding = supersede_project
+        .findings
+        .iter()
+        .find(|candidate| candidate.id != "vf_old")
+        .unwrap();
+    assert_eq!(new_finding.links[0].created_at, DECIDED_AT);
+    assert!(supersede_prepared.appended_event_ids.iter().all(|id| {
+        supersede_project
+            .events
+            .iter()
+            .find(|event| &event.id == id)
+            .unwrap()
+            .timestamp
+            == DECIDED_AT
+    }));
+
+    let mut confidence_project =
+        project::assemble("fixed-confidence", vec![finding("vf_conf")], 0, 0, "t");
+    confidence_project.actors = vec![actor];
+    let revise = new_proposal_at(
+        "finding.confidence_revise",
+        StateTarget {
+            r#type: "finding".into(),
+            id: "vf_conf".into(),
+        },
+        "agent:drafter",
+        "agent",
+        "new bound",
+        json!({"confidence": 0.4}),
+        Vec::new(),
+        Vec::new(),
+        "2026-07-14T00:00:00Z",
+    );
+    confidence_project.proposals.push(revise.clone());
+    let confidence_prepared = prepare_proposal_accept_in_memory_at(
+        &mut confidence_project,
+        &revise.id,
+        "reviewer:will",
+        "Bound checked",
+        None,
+        DECIDED_AT,
+    )
+    .unwrap();
+    assert_eq!(
+        confidence_project.findings[0].updated.as_deref(),
+        Some(DECIDED_AT)
+    );
+    assert!(confidence_prepared.appended_event_ids.iter().all(|id| {
+        confidence_project
+            .events
+            .iter()
+            .find(|event| &event.id == id)
+            .unwrap()
+            .timestamp
+            == DECIDED_AT
+    }));
+}
+
+#[test]
+fn prepared_decision_authority_is_registered_active_and_role_bound() {
+    let key = SigningKey::from_bytes(&[17_u8; 32]);
+    let pubkey = crate::sign::pubkey_hex(&key);
+    let (mut project, proposal) = frontier_with_proposal(Vec::new());
+    let error = prepare_proposal_accept_in_memory_at(
+        &mut project,
+        &proposal.id,
+        "reviewer:missing",
+        "check",
+        None,
+        NOW,
+    )
+    .unwrap_err();
+    assert!(error.contains("not registered"));
+
+    let mut wrong_role = accept_actor("operator:writer", &pubkey);
+    wrong_role.tier = Some("auto-notes".to_string());
+    project.actors = vec![wrong_role];
+    let error = prepare_proposal_accept_in_memory_at(
+        &mut project,
+        &proposal.id,
+        "operator:writer",
+        "check",
+        None,
+        NOW,
+    )
+    .unwrap_err();
+    assert!(error.contains("does not carry"));
+
+    project.actors = vec![
+        accept_actor("reviewer:will", &pubkey),
+        accept_actor("reviewer:will", &pubkey),
+    ];
+    let error = validate_human_reviewer_authority_at(&project, "reviewer:will", NOW).unwrap_err();
+    assert!(error.contains("ambiguously"));
+
+    let mut not_yet_registered = accept_actor("reviewer:will", &pubkey);
+    not_yet_registered.created_at = "2026-05-30T00:00:00Z".to_string();
+    project.actors = vec![not_yet_registered];
+    let error = validate_human_reviewer_authority_at(&project, "reviewer:will", NOW).unwrap_err();
+    assert!(error.contains("not yet registered"));
+
+    let mut future_revocation = accept_actor("reviewer:will", &pubkey);
+    future_revocation.revoked_at = Some("2026-05-29T00:00:01Z".to_string());
+    project.actors = vec![future_revocation];
+    validate_human_reviewer_authority_at(&project, "reviewer:will", NOW).unwrap();
+
+    let mut equivalent_offset_revocation = accept_actor("reviewer:will", &pubkey);
+    equivalent_offset_revocation.revoked_at = Some("2026-05-28T20:00:00-04:00".to_string());
+    project.actors = vec![equivalent_offset_revocation];
+    let error = validate_human_reviewer_authority_at(&project, "reviewer:will", NOW).unwrap_err();
+    assert!(error.contains("revoked"));
+
+    let mut revoked = accept_actor("reviewer:will", &pubkey);
+    revoked.revoked_at = Some("2026-05-10T00:00:00Z".to_string());
+    project.actors = vec![revoked];
+    let error = prepare_proposal_accept_in_memory_at(
+        &mut project,
+        &proposal.id,
+        "reviewer:will",
+        "check",
+        None,
+        NOW,
+    )
+    .unwrap_err();
+    assert!(error.contains("revoked"));
+}
+
+#[test]
+fn policy_head_preparation_allows_future_revocation_and_updates_primary_cache() {
+    let key = SigningKey::from_bytes(&[19_u8; 32]);
+    let pubkey = crate::sign::pubkey_hex(&key);
+    let mut actor = accept_actor("reviewer:will", &pubkey);
+    actor.revoked_at = Some("2026-06-01T00:00:00Z".to_string());
+    let mut project = project::assemble("policy", vec![finding("vf_policy")], 0, 0, "t");
+    project.frontier_id = Some("vfr_policy_fixture".to_string());
+    project.actors = vec![actor];
+    project.events[0].timestamp = "2026-05-10T00:00:00Z".to_string();
+    project.events[0].id = events::compute_event_id(&project.events[0]);
+    let parent_event_ids = project
+        .events
+        .iter()
+        .map(|event| event.id.clone())
+        .collect::<std::collections::BTreeSet<_>>()
+        .into_iter()
+        .collect::<Vec<_>>();
+    let payload = policy_accept::PolicyHeadPayload {
+        schema: policy_accept::POLICY_HEAD_SCHEMA.to_string(),
+        action: policy_accept::PolicyHeadAction::Activate,
+        policy_id: Some("vap_policy_fixture".to_string()),
+        prior_head_event_id: None,
+        expected_parent_event_log_root: format!(
+            "sha256:{}",
+            events::event_log_hash(&project.events)
+        ),
+        parent_event_ids,
+        epoch: 1,
+    };
+    let proposal = new_proposal_at(
+        policy_accept::POLICY_HEAD_PROPOSAL_KIND,
+        StateTarget {
+            r#type: "governance".to_string(),
+            id: "vfr_policy_fixture".to_string(),
+        },
+        "agent:policy-drafter",
+        "agent",
+        "activate the reviewed policy",
+        serde_json::to_value(payload).unwrap(),
+        Vec::new(),
+        Vec::new(),
+        "2026-05-20T00:00:00Z",
+    );
+    project.proposals.push(proposal.clone());
+    let mut prepared = prepare_proposal_accept_in_memory_at(
+        &mut project,
+        &proposal.id,
+        "reviewer:will",
+        "activate policy",
+        None,
+        NOW,
+    )
+    .unwrap();
+    let unbound_id = prepared.decision_event_id().to_string();
+    bind_decision_root_to_prepared(
+        &mut project,
+        &mut prepared,
+        &format!("sha256:{}", "d".repeat(64)),
+    )
+    .unwrap();
+    assert_ne!(prepared.decision_event_id(), unbound_id);
+    assert_eq!(prepared.primary_event_id(), prepared.decision_event_id());
+    assert_eq!(
+        project
+            .proposals
+            .iter()
+            .find(|candidate| candidate.id == proposal.id)
+            .unwrap()
+            .applied_event_id
+            .as_deref(),
+        Some(prepared.decision_event_id())
     );
 }

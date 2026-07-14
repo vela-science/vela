@@ -141,9 +141,58 @@ pub const PROPOSAL_ACCEPT_ACTION: &str = "proposal.accept";
 /// honest.
 #[derive(Debug, Clone)]
 pub struct AcceptAuthorization {
-    /// The registered reviewer whose key signed the decision. Borrow
-    /// `actor.id` as the reviewer for the canonical accept path.
-    pub actor: crate::sign::ActorRecord,
+    actor: crate::sign::ActorRecord,
+    frontier_id: String,
+    proposal_id: String,
+    reason: String,
+    parent_event_log_hash: String,
+    decision_root: Option<String>,
+}
+
+impl AcceptAuthorization {
+    /// The registry-canonical reviewer whose key signed this exact decision.
+    #[must_use]
+    pub fn actor(&self) -> &crate::sign::ActorRecord {
+        &self.actor
+    }
+
+    fn validate_binding(
+        &self,
+        project: &Project,
+        proposal_id: &str,
+        reviewer: &str,
+        reason: &str,
+    ) -> Result<(), String> {
+        if project.frontier_id() != self.frontier_id
+            || proposal_id != self.proposal_id
+            || reviewer != self.actor.id
+            || reason != self.reason
+            || crate::events::event_log_hash(&project.events) != self.parent_event_log_hash
+        {
+            return Err(
+                "verified accept authority is stale or bound to different decision bytes"
+                    .to_string(),
+            );
+        }
+        let current = validate_human_reviewer_authority_at(
+            project,
+            reviewer,
+            &chrono::Utc::now().to_rfc3339(),
+        )?;
+        if !current
+            .public_key
+            .eq_ignore_ascii_case(&self.actor.public_key)
+        {
+            return Err("verified accept authority actor binding changed".to_string());
+        }
+        Ok(())
+    }
+
+    /// Decision root committed by a v1 detached authority, when present.
+    #[must_use]
+    pub fn decision_root(&self) -> Option<&str> {
+        self.decision_root.as_deref()
+    }
 }
 
 /// v0.128: true iff an actor carries *reviewer* authority for the public
@@ -195,6 +244,39 @@ pub fn accept_preimage_bytes(
     Ok(crate::signing_input::signing_input(
         crate::signing_input::SigVersion::V0,
         crate::signing_input::payload_type::ACCEPT,
+        &body,
+    ))
+}
+
+/// Canonical signing bytes for a new decision-bound detached acceptance.
+///
+/// This is additive to [`accept_preimage_bytes`], whose historical raw-v0
+/// bytes remain unchanged. The v1 body binds the same exact accept facts plus
+/// the private Decision Plan's `decision_root`, declares its body version, and
+/// uses the shared DSSE/PAE v1 signing input. A root is a protocol-standard
+/// `sha256:<64 lowercase hex>` digest; validation is shared with the signed
+/// provenance input-ref lane used by local review events.
+pub fn accept_preimage_bytes_v1(
+    vfr_id: &str,
+    proposal_id: &str,
+    reviewer_id: &str,
+    reason: &str,
+    parent_event_log_hash: &str,
+    decision_root: &str,
+) -> Result<Vec<u8>, String> {
+    crate::provenance::decision_root_input_ref(decision_root)?;
+    let preimage = json!({
+        "decision_preimage_version": crate::signing_input::ACCEPTANCE_DECISION_PREIMAGE_V1,
+        "action": PROPOSAL_ACCEPT_ACTION,
+        "vfr_id": vfr_id,
+        "proposal_id": proposal_id,
+        "reviewer_id": reviewer_id,
+        "reason": reason,
+        "parent_event_log_hash": parent_event_log_hash,
+        "decision_root": decision_root,
+    });
+    let body = canonical::to_canonical_bytes(&preimage)?;
+    Ok(crate::signing_input::decision_acceptance_signing_input(
         &body,
     ))
 }
@@ -255,6 +337,13 @@ pub fn authorize_proposal_accept(
         return Err("Decision reason must be non-empty".to_string());
     }
 
+    if project.frontier_id() != vfr_id {
+        return Err(format!(
+            "accept frontier binding mismatch: signed for {vfr_id}, loaded {}",
+            project.frontier_id()
+        ));
+    }
+
     // 2. AUTHORITY: resolve the signer pubkey to a registered actor.
     let actor = project
         .actors
@@ -308,7 +397,87 @@ pub fn authorize_proposal_accept(
         ));
     }
 
-    Ok(AcceptAuthorization { actor })
+    Ok(AcceptAuthorization {
+        actor,
+        frontier_id: vfr_id.to_string(),
+        proposal_id: proposal.id.clone(),
+        reason: reason.to_string(),
+        parent_event_log_hash,
+        decision_root: None,
+    })
+}
+
+/// Decision-bound variant of [`authorize_proposal_accept`].
+///
+/// It runs the same authority, revocation, reviewer-role, and exact-head gates,
+/// but verifies the additive v1 acceptance preimage that also commits to
+/// `decision_root`. Callers creating new Decision Plan accepts use this seam;
+/// historical callers keep the legacy function and remain byte-valid.
+#[allow(clippy::too_many_arguments)]
+pub fn authorize_proposal_accept_v1(
+    project: &Project,
+    vfr_id: &str,
+    signer_pubkey_hex: &str,
+    signature_hex: &str,
+    proposal: &StateProposal,
+    reason: &str,
+    decision_root: &str,
+    now: &str,
+) -> Result<AcceptAuthorization, String> {
+    if reason.trim().is_empty() {
+        return Err("Decision reason must be non-empty".to_string());
+    }
+
+    if project.frontier_id() != vfr_id {
+        return Err(format!(
+            "accept frontier binding mismatch: signed for {vfr_id}, loaded {}",
+            project.frontier_id()
+        ));
+    }
+
+    let mut matching_keys = project
+        .actors
+        .iter()
+        .filter(|actor| actor.public_key.eq_ignore_ascii_case(signer_pubkey_hex));
+    let actor_id = matching_keys
+        .next()
+        .map(|actor| actor.id.clone())
+        .ok_or_else(|| {
+            format!("signer pubkey {signer_pubkey_hex} is not a registered actor on this frontier")
+        })?;
+    if matching_keys.next().is_some() {
+        return Err(format!(
+            "signer pubkey {signer_pubkey_hex} resolves ambiguously on this frontier"
+        ));
+    }
+    let actor = validate_human_reviewer_authority_at(project, &actor_id, now)?;
+
+    let parent_event_log_hash = crate::events::event_log_hash(&project.events);
+    let preimage = accept_preimage_bytes_v1(
+        vfr_id,
+        &proposal.id,
+        &actor.id,
+        reason,
+        &parent_event_log_hash,
+        decision_root,
+    )?;
+    let verified =
+        crate::sign::verify_action_signature(&preimage, signature_hex, &actor.public_key)?;
+    if !verified {
+        return Err(format!(
+            "decision-bound accept signature does not verify for actor '{}' over the canonical v1 accept preimage",
+            actor.id
+        ));
+    }
+
+    Ok(AcceptAuthorization {
+        actor,
+        frontier_id: vfr_id.to_string(),
+        proposal_id: proposal.id.clone(),
+        reason: reason.to_string(),
+        parent_event_log_hash,
+        decision_root: Some(decision_root.to_string()),
+    })
 }
 
 pub fn summary(frontier: &Project) -> ProposalSummary {
@@ -369,14 +538,159 @@ pub fn proposals_for_finding<'a>(
         .collect()
 }
 
+/// Opaque proof that one exact signed proposal write was authorized against
+/// one exact frontier registry snapshot. The fields are private so a caller
+/// cannot turn a Boolean into authority; construction and use both verify the
+/// registered Ed25519 signature and the bounded auto-apply tier.
+#[derive(Debug, Clone)]
+pub struct VerifiedProposalWrite {
+    frontier_id: String,
+    proposal_id: String,
+    actor_id: String,
+    actor_pubkey: String,
+    proposal_signature: String,
+    disposition: VerifiedProposalDisposition,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum VerifiedProposalDisposition {
+    Pending,
+    AutoApplyNote,
+}
+
+/// Verify a detached proposal signature and mint a proposal-scoped write
+/// capability. Auto-apply is deliberately limited to the historical
+/// `auto-notes` process lane; a truth-bearing proposal can only be inserted as
+/// pending and must later cross the human Decision Plan boundary.
+pub fn authorize_signed_proposal_write(
+    frontier: &Project,
+    proposal: &StateProposal,
+    signature_hex: &str,
+    request_auto_apply: bool,
+    observed_at: &str,
+) -> Result<VerifiedProposalWrite, String> {
+    chrono::DateTime::parse_from_rfc3339(observed_at)
+        .map_err(|error| format!("proposal-write observation time is invalid: {error}"))?;
+    let signature = hex::decode(signature_hex)
+        .map_err(|error| format!("invalid proposal signature hex: {error}"))?;
+    if signature.len() != 64 {
+        return Err("proposal signature must be 64 bytes".to_string());
+    }
+    let mut actors = frontier
+        .actors
+        .iter()
+        .filter(|actor| actor.id == proposal.actor.id);
+    let actor = actors.next().ok_or_else(|| {
+        format!(
+            "actor '{}' is not registered in this frontier; register it before writing",
+            proposal.actor.id
+        )
+    })?;
+    if actors.next().is_some() {
+        return Err(format!(
+            "actor '{}' is registered ambiguously (duplicate actor ids)",
+            proposal.actor.id
+        ));
+    }
+    if actor.algorithm != "ed25519"
+        || hex::decode(&actor.public_key).map_or(true, |bytes| bytes.len() != 32)
+    {
+        return Err(format!(
+            "actor '{}' must have one registered Ed25519 write key",
+            actor.id
+        ));
+    }
+    if actor.is_revoked_at(observed_at) {
+        return Err(format!(
+            "actor '{}' is revoked as of {observed_at} and may not create a proposal",
+            actor.id
+        ));
+    }
+    let canonical_signature = hex::encode(signature);
+    if !crate::sign::verify_proposal_signature(proposal, &canonical_signature, &actor.public_key)? {
+        return Err(format!(
+            "signature does not verify for actor '{}' on proposal {}",
+            actor.id, proposal.id
+        ));
+    }
+    let disposition = if request_auto_apply {
+        if !crate::sign::actor_can_auto_apply(actor, &proposal.kind) {
+            let tier = actor.tier.as_deref().unwrap_or("none");
+            return Err(format!(
+                "actor '{}' tier '{tier}' does not permit auto-applying {}",
+                actor.id, proposal.kind
+            ));
+        }
+        if proposal.kind != "finding.note" {
+            return Err(format!(
+                "signed proposal auto-apply is process-only; '{}' must remain pending for `vela sign`",
+                proposal.kind
+            ));
+        }
+        VerifiedProposalDisposition::AutoApplyNote
+    } else {
+        VerifiedProposalDisposition::Pending
+    };
+    Ok(VerifiedProposalWrite {
+        frontier_id: frontier.frontier_id(),
+        proposal_id: proposal.id.clone(),
+        actor_id: actor.id.clone(),
+        actor_pubkey: actor.public_key.clone(),
+        proposal_signature: canonical_signature,
+        disposition,
+    })
+}
+
+fn revalidate_signed_proposal_write(
+    frontier: &Project,
+    proposal: &StateProposal,
+    authority: &VerifiedProposalWrite,
+) -> Result<(), String> {
+    if frontier.frontier_id() != authority.frontier_id
+        || proposal.id != authority.proposal_id
+        || proposal.actor.id != authority.actor_id
+    {
+        return Err("verified proposal-write authority is bound to different bytes".to_string());
+    }
+    let mut actors = frontier
+        .actors
+        .iter()
+        .filter(|actor| actor.id == authority.actor_id);
+    let actor = actors
+        .next()
+        .ok_or_else(|| "verified proposal-write actor is no longer registered".to_string())?;
+    if actors.next().is_some()
+        || !actor
+            .public_key
+            .eq_ignore_ascii_case(&authority.actor_pubkey)
+    {
+        return Err("verified proposal-write actor registry binding changed".to_string());
+    }
+    if actor.revoked_at.is_some() {
+        return Err("verified proposal-write actor is revoked".to_string());
+    }
+    if !crate::sign::verify_proposal_signature(
+        proposal,
+        &authority.proposal_signature,
+        &actor.public_key,
+    )? {
+        return Err("verified proposal-write signature no longer matches".to_string());
+    }
+    if authority.disposition == VerifiedProposalDisposition::AutoApplyNote
+        && (!crate::sign::actor_can_auto_apply(actor, &proposal.kind)
+            || proposal.kind != "finding.note")
+    {
+        return Err("verified proposal-write auto-apply scope changed".to_string());
+    }
+    Ok(())
+}
+
 /// Phase P (v0.5): upsert by content address. If a proposal with the same
 /// `vpr_…` already exists in the frontier, return the existing record instead
 /// of inserting a duplicate. Combined with the `created_at`-free preimage,
 /// this makes agent retries idempotent at the substrate level.
 ///
-/// `apply` semantics are also idempotent: if the same proposal+reviewer pair
-/// has already been applied (proposal.applied_event_id is set), return the
-/// existing event_id rather than emitting a duplicate canonical event.
+/// Decision creation is intentionally absent from this insertion primitive.
 pub fn insert_pending_in_frontier(
     frontier: &mut Project,
     proposal: StateProposal,
@@ -412,6 +726,12 @@ pub fn create_or_apply(
     proposal: StateProposal,
     apply: bool,
 ) -> Result<CreateProposalResult, String> {
+    if apply {
+        return Err(
+            "legacy create_or_apply(apply=true) is retired; insert the pending proposal, then use a Decision Plan or verified signed authority"
+                .to_string(),
+        );
+    }
     let mut frontier = repo::load_from_path(path)?;
     let result = create_or_apply_in_frontier(&mut frontier, proposal, apply)?;
     repo::save_to_path(path, &frontier)?;
@@ -428,11 +748,26 @@ pub fn create_or_apply_in_frontier(
     proposal: StateProposal,
     apply: bool,
 ) -> Result<CreateProposalResult, String> {
+    if apply {
+        return Err(
+            "legacy create_or_apply_in_frontier(apply=true) is retired; use a typed verified write authority or a Decision Plan"
+                .to_string(),
+        );
+    }
+    insert_pending_in_frontier(frontier, proposal)
+}
+
+/// Insert one cryptographically verified proposal and, only when the opaque
+/// authority carries the bounded `auto-notes` capability, apply that
+/// non-truth-bearing note. No Boolean crosses this trust edge.
+pub fn create_with_verified_proposal_write_in_frontier(
+    frontier: &mut Project,
+    proposal: StateProposal,
+    authority: &VerifiedProposalWrite,
+) -> Result<CreateProposalResult, String> {
+    revalidate_signed_proposal_write(frontier, &proposal, authority)?;
     let finding_id = proposal.target.id.clone();
     let proposal_id = proposal.id.clone();
-
-    // Idempotent insert: if a proposal with this content-addressed id already
-    // exists, skip insertion and treat the existing record as authoritative.
     let existing_idx = frontier
         .proposals
         .iter()
@@ -440,54 +775,60 @@ pub fn create_or_apply_in_frontier(
     if existing_idx.is_none() {
         insert_pending_in_frontier(frontier, proposal)?;
     }
-
-    let applied_event_id = if apply {
-        // Idempotent apply: if the existing record was already applied, return
-        // its event_id rather than emitting a duplicate event.
-        if let Some(idx) = existing_idx
-            && let Some(existing_event) = frontier.proposals[idx].applied_event_id.clone()
-        {
-            Some(existing_event)
-        } else {
-            let reviewer = frontier
+    if authority.disposition == VerifiedProposalDisposition::Pending {
+        return Ok(CreateProposalResult {
+            proposal_id,
+            finding_id,
+            status: frontier
                 .proposals
                 .iter()
-                .find(|proposal| proposal.id == proposal_id)
-                .map(|proposal| proposal.actor.id.clone())
-                .ok_or_else(|| format!("Proposal not found after insertion: {proposal_id}"))?;
-            Some(accept_proposal_in_frontier(
-                frontier,
-                &proposal_id,
-                &reviewer,
-                "Applied locally from proposal creation",
-            )?)
-        }
-    } else {
-        existing_idx.and_then(|idx| frontier.proposals[idx].applied_event_id.clone())
-    };
-
-    // v0.13: materialize source/evidence/condition projections after every
-    // applied proposal so the lint surface stops emitting `missing_source_record`
-    // for findings whose provenance derives a SourceRecord that wasn't yet in
-    // `frontier.sources`. Pre-v0.13, `vela normalize --write` was the only path
-    // to populate these — but normalize refuses on event-ful frontiers, so any
-    // frontier built via CLI proposals could never reach proof-ready state.
-    // Materializing inline at apply time keeps source_records in lockstep with
-    // findings; when no finding state changed (caveat/note/review on existing
-    // findings) the projection is idempotent and bytes don't churn.
-    if applied_event_id.is_some() {
-        crate::sources::materialize_project(frontier);
-    } else {
-        project::recompute_stats(frontier);
+                .find(|proposal| proposal.id == authority.proposal_id)
+                .map(|proposal| proposal.status.clone())
+                .unwrap_or_else(|| "pending_review".to_string()),
+            applied_event_id: existing_idx
+                .and_then(|index| frontier.proposals[index].applied_event_id.clone()),
+        });
     }
+    if let Some(index) = existing_idx
+        && let Some(event_id) = frontier.proposals[index].applied_event_id.clone()
+    {
+        return Ok(CreateProposalResult {
+            proposal_id,
+            finding_id,
+            status: "applied".to_string(),
+            applied_event_id: Some(event_id),
+        });
+    }
+    let event_id = apply_verified_process_proposal_in_frontier(frontier, authority)?;
+    crate::sources::materialize_project(frontier);
     Ok(CreateProposalResult {
         proposal_id,
         finding_id,
-        status: applied_event_id
-            .as_ref()
-            .map_or_else(|| "pending_review".to_string(), |_| "applied".to_string()),
-        applied_event_id,
+        status: "applied".to_string(),
+        applied_event_id: Some(event_id),
     })
+}
+
+fn apply_verified_process_proposal_in_frontier(
+    frontier: &mut Project,
+    authority: &VerifiedProposalWrite,
+) -> Result<String, String> {
+    let proposal = frontier
+        .proposals
+        .iter()
+        .find(|proposal| proposal.id == authority.proposal_id)
+        .cloned()
+        .ok_or_else(|| format!("Proposal not found: {}", authority.proposal_id))?;
+    accept_proposal_in_frontier_with_authority_at(
+        frontier,
+        &proposal.id,
+        &authority.actor_id,
+        &proposal.reason,
+        DecisionAuthority::VerifiedProcess(authority),
+        None,
+        None,
+        false,
+    )
 }
 
 pub fn list(frontier: &Project, status: Option<&str>) -> Vec<StateProposal> {
@@ -695,8 +1036,28 @@ fn changed_artifact_ids(
 }
 
 pub fn import_from_path(path: &Path, source: &Path) -> Result<ImportProposalReport, String> {
-    let mut frontier = repo::load_from_path(path)?;
     let proposals = load_proposals(source)?;
+    // A proposal record is not a decision certificate. In particular,
+    // `status`, `reviewed_by`, and `applied_event_id` are ordinary imported
+    // bytes and cannot substitute for a verified signed event or policy
+    // authority. This importer therefore accepts only pristine pending
+    // records. A future decided-state importer must verify and replay the
+    // corresponding authority/event chain as a separate protocol operation.
+    for proposal in &proposals {
+        let carries_decision_state = proposal.status != "pending_review"
+            || proposal.reviewed_by.is_some()
+            || proposal.reviewed_at.is_some()
+            || proposal.decision_reason.is_some()
+            || proposal.applied_event_id.is_some();
+        if carries_decision_state {
+            return Err(format!(
+                "Proposal {} cannot be imported: `vela proposals import` accepts pristine pending_review records only; decided records require a separately verified signed-authority/event import",
+                proposal.id
+            ));
+        }
+    }
+
+    let mut frontier = repo::load_from_path(path)?;
     let wrote_to = path.display().to_string();
     let mut report = ImportProposalReport {
         wrote_to,
@@ -712,42 +1073,8 @@ pub fn import_from_path(path: &Path, source: &Path) -> Result<ImportProposalRepo
             continue;
         }
         validate_new_proposal(&frontier, &proposal)?;
-        frontier.proposals.push(proposal.clone());
+        frontier.proposals.push(proposal);
         report.imported += 1;
-        match proposal.status.as_str() {
-            "accepted" => {
-                let reviewer = proposal
-                    .reviewed_by
-                    .as_deref()
-                    .ok_or_else(|| {
-                        format!("Accepted proposal {} missing reviewed_by", proposal.id)
-                    })?
-                    .to_string();
-                let reason = proposal
-                    .decision_reason
-                    .clone()
-                    .unwrap_or_else(|| "Imported accepted proposal".to_string());
-                let _ =
-                    accept_proposal_in_frontier(&mut frontier, &proposal.id, &reviewer, &reason)?;
-                report.applied += 1;
-            }
-            "applied" => {
-                let reviewer = proposal
-                    .reviewed_by
-                    .as_deref()
-                    .ok_or_else(|| format!("Applied proposal {} missing reviewed_by", proposal.id))?
-                    .to_string();
-                let reason = proposal
-                    .decision_reason
-                    .clone()
-                    .unwrap_or_else(|| "Imported applied proposal".to_string());
-                let _ =
-                    accept_proposal_in_frontier(&mut frontier, &proposal.id, &reviewer, &reason)?;
-                report.applied += 1;
-            }
-            "rejected" => report.rejected += 1,
-            _ => {}
-        }
     }
     project::recompute_stats(&mut frontier);
     repo::save_to_path(path, &frontier)?;
@@ -801,6 +1128,12 @@ pub fn export_to_path(
     Ok(proposals.len())
 }
 
+fn ensure_legacy_decision_creation_disabled(surface: &str) -> Result<(), String> {
+    Err(format!(
+        "{surface} is retired for new decisions; use the decision-root-bound Decision Plan ceremony (`vela sign`)"
+    ))
+}
+
 pub fn accept_at_path(
     path: &Path,
     proposal_id: &str,
@@ -817,6 +1150,7 @@ pub fn accept_at_path_signed(
     reason: &str,
     signing_key: Option<&ed25519_dalek::SigningKey>,
 ) -> Result<String, String> {
+    ensure_legacy_decision_creation_disabled("accept_at_path_signed")?;
     let mut frontier = repo::load_from_path(path)?;
     let event_id = accept_proposal_in_frontier_signed(
         &mut frontier,
@@ -845,11 +1179,11 @@ pub struct AcceptOptions {
     /// registered with a public key (key custody is the accept
     /// authority); the accept event is signed with it.
     pub signing_key: Option<ed25519_dalek::SigningKey>,
-    /// Set by a boundary that has ALREADY proven key possession another
-    /// way — the hub verifies a detached Ed25519 signature over the
-    /// canonical accept request against the registered key before it
-    /// ever reaches this path. Never set this from a local CLI flow.
-    pub custody_verified: bool,
+    /// Opaque, exact-head authority minted by
+    /// [`authorize_proposal_accept`]. A detached boundary may use this
+    /// instead of passing a private key; callers cannot construct it from a
+    /// Boolean or reviewer string.
+    pub verified_authority: Option<AcceptAuthorization>,
     /// Co-authorship attribution for the signed decision event: the non-human
     /// (AI / CI) that contributed. The reviewer remains the accountable signer;
     /// this is signed-over data with no authority. `None` keeps the event
@@ -887,13 +1221,81 @@ pub struct AcceptOutcome {
     pub verdict: EngineVerdict,
 }
 
+fn authority_from_accept_options(
+    opts: &AcceptOptions,
+    preview_only: bool,
+) -> Result<DecisionAuthority<'_>, String> {
+    match (&opts.signing_key, &opts.verified_authority) {
+        (Some(_), Some(_)) => Err(
+            "accept options must carry exactly one authority: local key or verified detached proof"
+                .to_string(),
+        ),
+        (Some(key), None) => Ok(DecisionAuthority::LocalKey(key)),
+        (None, Some(verified)) => Ok(DecisionAuthority::DetachedAccept(verified)),
+        (None, None) if preview_only => Ok(DecisionAuthority::Preview),
+        (None, None) => Err(
+            "accept requires a registered human key, verified detached authority, or the Decision Plan ceremony"
+                .to_string(),
+        ),
+    }
+}
+
 /// A proposal kind is truth-bearing when accepting it changes what the
 /// frontier asserts about the world. Process/provenance records and
 /// mechanical repairs are not — this mirrors the bounded safe set the
 /// agent self-accept policy already trusts, keeping the Engine gate and
 /// that policy consistent.
-fn is_truth_bearing_kind(kind: &str) -> bool {
-    !(AGENT_SELF_APPLIABLE_PROCESS_KINDS.contains(&kind) || TRUSTED_REPAIR_KINDS.contains(&kind))
+pub fn is_truth_bearing_kind(kind: &str) -> bool {
+    !(PROCESS_PROVENANCE_KINDS.contains(&kind) || MECHANICAL_REPAIR_KINDS.contains(&kind))
+}
+
+/// Evaluate one already-prepared candidate transaction under the strict Engine
+/// gate without applying proposals again.
+///
+/// Evidence CI is computed exactly once before and once after. New release
+/// failures or review warnings block only when at least one accepted proposal
+/// kind is truth-bearing; rejects and mechanical/process accepts remain visible
+/// in the counts but cannot turn Evidence CI into a truth oracle. The function
+/// mutates nothing and performs no path access beyond Evidence CI's bounded
+/// verifier observations.
+pub fn strict_engine_verdict_for_candidate(
+    original: &Project,
+    candidate: &Project,
+    frontier_path: &Path,
+    accepted_kinds: &[String],
+) -> EngineVerdict {
+    let before = crate::evidence_ci::run_project(original, frontier_path);
+    let after = crate::evidence_ci::run_project(candidate, frontier_path);
+    let before_blocking = crate::evidence_ci::release_blocking_failures(&before);
+    let before_warnings = crate::evidence_ci::review_warnings(&before);
+    let new_blocking = crate::evidence_ci::release_blocking_failures(&after)
+        .difference(&before_blocking)
+        .cloned()
+        .collect::<Vec<_>>();
+    let new_warnings = crate::evidence_ci::review_warnings(&after)
+        .difference(&before_warnings)
+        .cloned()
+        .collect::<Vec<_>>();
+    let gates = accepted_kinds
+        .iter()
+        .any(|kind| is_truth_bearing_kind(kind));
+    let status = if gates && (!new_blocking.is_empty() || !new_warnings.is_empty()) {
+        "blocked"
+    } else if !new_warnings.is_empty() {
+        "warn"
+    } else {
+        "pass"
+    }
+    .to_string();
+    EngineVerdict {
+        status,
+        new_blocking,
+        new_warnings,
+        forced: false,
+        strict: true,
+        release_blocking_failed: after.summary.release_blocking_failed,
+        warnings: after.summary.warnings,
+    }
 }
 
 /// Accept a proposal under the Engine: run Evidence CI on the current and
@@ -910,6 +1312,7 @@ pub fn accept_at_path_engine(
     reason: &str,
     opts: AcceptOptions,
 ) -> Result<AcceptOutcome, String> {
+    ensure_legacy_decision_creation_disabled("accept_at_path_engine")?;
     let mut frontier = repo::load_from_path(path)?;
 
     // The kind decides whether the gate applies; read it before the apply
@@ -926,14 +1329,16 @@ pub fn accept_at_path_engine(
     let before_warn = crate::evidence_ci::review_warnings(&before);
 
     // Apply via the sole canonical path; this mutates `frontier` in memory.
-    let event_id = accept_proposal_in_frontier_with_custody(
+    let authority = authority_from_accept_options(&opts, false)?;
+    let event_id = accept_proposal_in_frontier_with_authority_at(
         &mut frontier,
         proposal_id,
         reviewer,
         reason,
-        opts.signing_key.as_ref(),
-        opts.custody_verified,
+        authority,
         opts.provenance.as_ref(),
+        None,
+        false,
     )?;
 
     let after = crate::evidence_ci::run_project(&frontier, path);
@@ -1085,6 +1490,9 @@ pub fn accept_batch_at_path(
     opts: AcceptOptions,
     dry_run: bool,
 ) -> Result<BatchAcceptReport, String> {
+    if !dry_run {
+        ensure_legacy_decision_creation_disabled("accept_batch_at_path")?;
+    }
     let mut frontier = repo::load_from_path(path)?;
 
     // CI once, before any apply.
@@ -1114,14 +1522,22 @@ pub fn accept_batch_at_path(
         // A key-registered reviewer whose key is absent still fails the
         // custody check inside — keyless bulk acceptance under a typed name
         // is exactly what key custody exists to prevent.
-        match accept_proposal_in_frontier_with_custody(
+        let authority = match authority_from_accept_options(&opts, dry_run) {
+            Ok(authority) => authority,
+            Err(error) => {
+                failed.push((pid.clone(), error));
+                continue;
+            }
+        };
+        match accept_proposal_in_frontier_with_authority_at(
             &mut frontier,
             pid,
             reviewer,
             reason,
-            opts.signing_key.as_ref(),
-            opts.custody_verified,
+            authority,
             opts.provenance.as_ref(),
+            None,
+            false,
         ) {
             Ok(event_id) => {
                 if was_applied {
@@ -1271,6 +1687,8 @@ pub fn accept_in_frontier_engine(
     reason: &str,
     opts: AcceptOptions,
 ) -> Result<AcceptOutcome, AcceptEngineError> {
+    ensure_legacy_decision_creation_disabled("accept_in_frontier_engine")
+        .map_err(AcceptEngineError::Failed)?;
     let kind = frontier
         .proposals
         .iter()
@@ -1288,14 +1706,17 @@ pub fn accept_in_frontier_engine(
     // re-accept is a no-op that returns the original event id (the
     // before/after Evidence CI delta is empty, the gate passes, and the
     // caller re-persists deterministically).
-    let event_id = accept_proposal_in_frontier_with_custody(
+    let authority =
+        authority_from_accept_options(&opts, false).map_err(AcceptEngineError::Failed)?;
+    let event_id = accept_proposal_in_frontier_with_authority_at(
         frontier,
         proposal_id,
         reviewer,
         reason,
-        opts.signing_key.as_ref(),
-        opts.custody_verified,
+        authority,
         opts.provenance.as_ref(),
+        None,
+        false,
     )
     .map_err(AcceptEngineError::Failed)?;
 
@@ -1431,11 +1852,15 @@ pub fn preview_engine_verdict_in_frontier(
     let encoded = serde_json::to_value(frontier).map_err(|error| error.to_string())?;
     let mut candidate: Project =
         serde_json::from_value(encoded).map_err(|error| error.to_string())?;
-    accept_proposal_in_frontier(
+    accept_proposal_in_frontier_with_authority_at(
         &mut candidate,
         proposal_id,
         "reviewer:engine-preview",
         "engine ci preview",
+        DecisionAuthority::Preview,
+        None,
+        None,
+        false,
     )?;
 
     let after = crate::evidence_ci::run_project(&candidate, path);
@@ -1489,15 +1914,9 @@ pub fn reject_at_path_signed(
     reason: &str,
     signing_key: Option<&ed25519_dalek::SigningKey>,
 ) -> Result<(), String> {
+    ensure_legacy_decision_creation_disabled("reject_at_path_signed")?;
     let mut frontier = repo::load_from_path(path)?;
-    reject_proposal_in_frontier_signed(
-        &mut frontier,
-        proposal_id,
-        reviewer,
-        reason,
-        signing_key,
-        false,
-    )?;
+    reject_proposal_in_frontier_signed(&mut frontier, proposal_id, reviewer, reason, signing_key)?;
     project::recompute_stats(&mut frontier);
     repo::save_to_path(path, &frontier)?;
     Ok(())
@@ -1833,8 +2252,8 @@ fn validate_proposal_shape(frontier: &Project, proposal: &StateProposal) -> Resu
         // evidence atom by id; payload carries the resolved locator
         // string and the parent source id it was derived from. The
         // proposal is mechanical: the locator is already present on
-        // `frontier.sources[atom.source_id].locator`. Reviewer accepts
-        // (or auto-accepts) and the canonical event lands the locator
+        // `frontier.sources[atom.source_id].locator`. A Decision Plan accepts
+        // it and the canonical event lands the locator
         // on the atom while preserving the derivation in the payload.
         "evidence_atom.locator_repair" => {
             if proposal.target.r#type != "evidence_atom" {
@@ -2338,58 +2757,17 @@ fn require_existing_finding(frontier: &Project, finding_id: &str) -> Result<usiz
         .ok_or_else(|| format!("Finding not found: {finding_id}"))
 }
 
-// ── v0.339: the bounded trusted-reviewer-agent accept policy ──────────
-//
-// `accept_proposal_in_frontier` is the *sole* path that mutates canonical
-// frontier state. Prior to v0.339 it accepted under any non-placeholder
-// reviewer id — including an `agent:*` actor accepting its own proposal
-// via `create_or_apply(apply = true)`. The "agents cannot auto-accept
-// truth" rule therefore lived only in doctrine and maintainer habit, not
-// in code. v0.339 closes that hole and opens a narrow, machine-checkable
-// set of self-appliable work so a fleet can promote *verified* and
-// *non-truth-bearing* work without a human in the inner loop, while every
-// truth-bearing claim stays human-gated:
-//
-//   • Any agent may self-apply non-truth-bearing PROCESS/PROVENANCE kinds
-//     (trajectories, content-addressed artifacts) and mechanical,
-//     truth-preserving REPAIR kinds (span/locator repair). These record
-//     process, store content, or attach provenance — they assert no claim
-//     about the world. Gated by kind, not by a privileged actor.
-//   • `agent:replicator` (and only it) may accept a claim-asserting proposal
-//     (`finding.add` / `finding.review`) IFF its payload carries a
-//     `replication_attestation` that passes `replication_attestation_passes`.
-//     The gate trusts the recorded replication numbers, not the agent —
-//     two reviewers computing the predicate get the same answer. This is
-//     the computational accept gate for the mechanistic-interpretability
-//     flagship (adversarial replication as the verifier).
-//
-// Every other agent acceptance — a truth-bearing claim without a passing
-// attestation, or by a non-replicator agent — is rejected: the reviewer
-// must be a named human. The gate is a no-op for non-agent reviewers, so
-// existing human-authored flows are unaffected. Fail-closed by construction.
+// Proposal-kind classification is deliberately separate from authority.
+// These lists tell policy and presentation code which records are mechanical
+// or process-only; they do not mint a decision capability. A caller still
+// needs a Decision Plan or the narrow, signed `VerifiedProposalWrite` token.
 
-/// Minimum independent replications an `agent:replicator` attestation must
-/// record before the substrate will let an agent promote a claim.
-const MIN_INDEPENDENT_REPLICATIONS: u64 = 3;
+/// Mechanical, truth-preserving repair kinds. This is classification only;
+/// it does not let an agent apply the proposal without decision authority.
+const MECHANICAL_REPAIR_KINDS: &[&str] = &["finding.span_repair", "evidence_atom.locator_repair"];
 
-/// Minimum surviving effect size (e.g. induction score, patched-logit
-/// delta) across the replication set. Matches the breadth-sweep cutoff the
-/// flagship harness uses so that what survives to accept is non-marginal.
-const MIN_REPLICATION_EFFECT: f64 = 0.30;
-
-/// Claim-asserting kinds an `agent:replicator` is allowed to auto-accept.
-/// Deliberately excludes destructive/lifecycle kinds (retract, supersede,
-/// confidence_revise, reject) — those always need a human.
-const TRUSTED_REPLICATOR_KINDS: &[&str] = &["finding.add", "finding.review"];
-
-/// Mechanical, truth-preserving repair kinds any agent may auto-accept.
-/// These attach resolved provenance pointers (a source locator, an evidence
-/// span) without changing what a finding asserts, so they are gated by kind
-/// rather than by a privileged actor.
-const TRUSTED_REPAIR_KINDS: &[&str] = &["finding.span_repair", "evidence_atom.locator_repair"];
-
-/// Non-truth-bearing provenance kinds any agent may self-apply: content-addressed
-/// artifact registration, and claim-granularity attribution
+/// Non-truth-bearing provenance kinds: content-addressed artifact registration
+/// and claim-granularity attribution
 /// (`finding.contribution.recorded`). These assert no scientific claim about the
 /// world — an artifact stores bytes, and a contribution records *who produced
 /// what*, disclosed and never conferring trust (the reducer ignores it, the gate
@@ -2397,54 +2775,11 @@ const TRUSTED_REPAIR_KINDS: &[&str] = &["finding.span_repair", "evidence_atom.lo
 /// regardless). They fall outside the human-gated truth boundary, so a fleet need
 /// not block on a human. Anything truth-bearing (a claim about the world,
 /// including a null result) stays gated.
-const AGENT_SELF_APPLIABLE_PROCESS_KINDS: &[&str] = &[
+const PROCESS_PROVENANCE_KINDS: &[&str] = &[
     "artifact.assert",
     "artifact.add",
     "finding.contribution.recorded",
 ];
-
-/// Pure, deterministic check over a proposal payload's
-/// `replication_attestation` object. Returns true only when the recorded
-/// evidence shows the claim survived independent adversarial replication:
-/// enough independent runs, all passing, on held-out prompts, confirmed on
-/// a second model, with at least one CPU-verified run (MPS can be silently
-/// wrong), and a non-marginal minimum effect. Trust is in the numbers, not
-/// the agent, so the predicate is reproducible by any reviewer.
-fn replication_attestation_passes(payload: &Value) -> bool {
-    let Some(att) = payload.get("replication_attestation") else {
-        return false;
-    };
-    let reps = att
-        .get("independent_replications")
-        .and_then(Value::as_u64)
-        .unwrap_or(0);
-    let all_passed = att
-        .get("all_replications_passed")
-        .and_then(Value::as_bool)
-        .unwrap_or(false);
-    let held_out = att
-        .get("held_out_prompts")
-        .and_then(Value::as_bool)
-        .unwrap_or(false);
-    let second_model = att
-        .get("second_model_confirmed")
-        .and_then(Value::as_bool)
-        .unwrap_or(false);
-    let cpu_verified = att
-        .get("cpu_verified")
-        .and_then(Value::as_bool)
-        .unwrap_or(false);
-    let min_effect = att
-        .get("min_effect_size")
-        .and_then(Value::as_f64)
-        .unwrap_or(0.0);
-    reps >= MIN_INDEPENDENT_REPLICATIONS
-        && all_passed
-        && held_out
-        && second_model
-        && cpu_verified
-        && min_effect >= MIN_REPLICATION_EFFECT
-}
 
 /// Proposal-level guards for exact-lane auto-admission (Phase 1A, the
 /// de-human-gate). Returns `(admit, reasons)`; `reasons` is non-empty exactly
@@ -2733,125 +3068,214 @@ pub fn emit_policy_auto_admitted(
     Ok((id, true))
 }
 
-/// The bounded trusted-reviewer-agent gate. A no-op for non-agent
-/// reviewers; for agent reviewers it permits the kind-gated low-risk set
-/// (process/provenance + mechanical repairs) and replication-verified
-/// finding claims, and is fail-closed for everything else truth-bearing.
-fn enforce_trusted_agent_accept_policy(
-    proposal: &StateProposal,
-    reviewer: &str,
-) -> Result<(), String> {
-    let reviewer = reviewer.trim();
-    if !reviewer.to_ascii_lowercase().starts_with("agent:") {
-        // Human / named-reviewer authority: unchanged. The gate never
-        // tightens the human path.
-        return Ok(());
-    }
-    let kind = proposal.kind.as_str();
-    // The bounded low-risk set any agent may self-apply: non-truth-bearing
-    // provenance (a content-addressed artifact stores what the agent
-    // produced, not a claim about the world) and mechanical,
-    // truth-preserving repairs (a span/locator repair attaches provenance
-    // without changing what the finding asserts). Repairs are gated by KIND,
-    // not by a privileged actor — the named `agent:repair` role is one
-    // convention, not a requirement.
-    if AGENT_SELF_APPLIABLE_PROCESS_KINDS.contains(&kind) || TRUSTED_REPAIR_KINDS.contains(&kind) {
-        return Ok(());
-    }
-    // The one truth-bearing exception: `agent:replicator` may auto-accept a
-    // finding claim, and only when it carries a passing replication_attestation.
-    if reviewer == "agent:replicator" && TRUSTED_REPLICATOR_KINDS.contains(&kind) {
-        return if replication_attestation_passes(&proposal.payload) {
-            Ok(())
-        } else {
-            Err(format!(
-                "agent:replicator may only auto-accept a claim carrying a passing \
-                 replication_attestation (>= {MIN_INDEPENDENT_REPLICATIONS} independent \
-                 replications, all passed, held-out prompts, second-model confirmation, a \
-                 CPU-verified run, and min_effect_size >= {MIN_REPLICATION_EFFECT}); \
-                 proposal {} does not qualify",
-                proposal.id
-            ))
-        };
-    }
-    Err(format!(
-        "agent reviewer '{reviewer}' may not auto-accept proposal {} (kind '{kind}'): \
-         truth-bearing claims require a named human reviewer. Agents may self-apply only \
-         process/provenance kinds, mechanical repairs, or — as agent:replicator — a finding \
-         claim carrying a passing replication_attestation.",
-        proposal.id
-    ))
+/// Result of a fixed-time, in-memory decision preparation.
+///
+/// This is transaction plumbing, not a serialized protocol object. The
+/// prepared events are unsigned. A human-key caller may pass this exact set to
+/// [`sign_prepared_decision_events`] only after rederiving and confirming its
+/// Decision Plan under the frontier lock.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PreparedDecisionMutation {
+    /// The domain event produced by an accept, or the review event for a
+    /// reject/policy-head accept.
+    primary_event_id: String,
+    /// Every event appended by this one decision, in canonical order.
+    appended_event_ids: Vec<String>,
+    /// The `review.accepted` / `review.rejected` event that binds the decision
+    /// provenance, including the decision-root input reference when supplied.
+    decision_event_id: String,
+    proposal_id: String,
+    reviewer: String,
+    first_event: usize,
+    event_count_after: usize,
+    binding: PreparedDecisionBinding,
 }
 
-/// Key custody for a reviewer decision (accept / reject / request-revision).
-///
-/// If the named reviewer is registered in the frontier's actor table WITH
-/// a public key, the decision REQUIRES the matching private key: the typed
-/// reviewer string is not authority, possession of the key is. Reviewers
-/// without a registered key keep the keyless bootstrap behavior (a new
-/// frontier must be usable before any keys exist). `custody_verified`
-/// short-circuits the check when possession was already proved out of band
-/// (the hub verifies a detached signature before calling in).
-///
-/// This is the mechanization of "an AI never signs a decision": an agent
-/// can type any reviewer name, but it cannot produce a signature with a key
-/// it does not hold — and now that applies symmetrically to rejects, not
-/// just accepts.
-fn enforce_reviewer_key_custody(
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum PreparedDecisionBinding {
+    Unbound,
+    Bound { decision_root: String },
+}
+
+impl PreparedDecisionMutation {
+    #[must_use]
+    pub fn primary_event_id(&self) -> &str {
+        &self.primary_event_id
+    }
+
+    #[must_use]
+    pub fn appended_event_ids(&self) -> &[String] {
+        &self.appended_event_ids
+    }
+
+    #[must_use]
+    pub fn decision_event_id(&self) -> &str {
+        &self.decision_event_id
+    }
+
+    #[must_use]
+    pub fn proposal_id(&self) -> &str {
+        &self.proposal_id
+    }
+
+    #[must_use]
+    pub fn reviewer(&self) -> &str {
+        &self.reviewer
+    }
+
+    #[must_use]
+    pub fn decision_root(&self) -> Option<&str> {
+        match &self.binding {
+            PreparedDecisionBinding::Unbound => None,
+            PreparedDecisionBinding::Bound { decision_root } => Some(decision_root),
+        }
+    }
+
+    #[must_use]
+    pub fn is_bound(&self) -> bool {
+        self.decision_root().is_some()
+    }
+}
+
+/// Check decision-time reviewer facts without reading or receiving a private
+/// key. New Decision Plan reviews require a registered, active Ed25519 actor;
+/// agent and CI identities can never enter this human seam. Legacy decision
+/// creation APIs fail closed; there is no keyless bootstrap decision path.
+pub fn validate_human_reviewer_authority_at(
     frontier: &Project,
     reviewer: &str,
-    signing_key: Option<&ed25519_dalek::SigningKey>,
-    custody_verified: bool,
-) -> Result<(), String> {
-    let registered_pubkey = frontier
-        .actors
-        .iter()
-        .find(|a| a.id == reviewer && !a.public_key.trim().is_empty())
-        .map(|a| a.public_key.clone());
-    if let Some(expected) = &registered_pubkey
-        && !custody_verified
+    decided_at: &str,
+) -> Result<crate::sign::ActorRecord, String> {
+    validate_reviewer_identity(reviewer)?;
+    let decision_at = chrono::DateTime::parse_from_rfc3339(decided_at)
+        .map_err(|error| format!("decision time is invalid: {error}"))?;
+    if reviewer.starts_with("agent:") || reviewer.starts_with("ci:") {
+        return Err(format!(
+            "reviewer '{reviewer}' may not enter a human Decision Plan"
+        ));
+    }
+    let mut actors = frontier.actors.iter().filter(|actor| actor.id == reviewer);
+    let actor = actors
+        .next()
+        .cloned()
+        .ok_or_else(|| format!("reviewer '{reviewer}' is not registered on this frontier"))?;
+    if actors.next().is_some() {
+        return Err(format!(
+            "reviewer '{reviewer}' is registered ambiguously (duplicate actor ids)"
+        ));
+    }
+    if actor.algorithm != "ed25519"
+        || hex::decode(&actor.public_key).map_or(true, |bytes| bytes.len() != 32)
     {
-        let Some(key) = signing_key else {
+        return Err(format!(
+            "reviewer '{}' must have a registered Ed25519 decision key",
+            actor.id
+        ));
+    }
+    if !actor_has_reviewer_authority(&actor)
+        && !(actor.id.starts_with("steward:") && !is_placeholder_reviewer(&actor.id))
+    {
+        return Err(format!(
+            "actor '{}' does not carry reviewer or steward decision authority",
+            actor.id
+        ));
+    }
+    let created_at = chrono::DateTime::parse_from_rfc3339(&actor.created_at)
+        .map_err(|error| format!("reviewer '{}' creation time is invalid: {error}", actor.id))?;
+    if created_at > decision_at {
+        return Err(format!(
+            "reviewer '{}' is not yet registered at {decided_at}",
+            actor.id
+        ));
+    }
+    if let Some(revoked_at) = actor.revoked_at.as_deref() {
+        let revoked_at = chrono::DateTime::parse_from_rfc3339(revoked_at).map_err(|error| {
+            format!(
+                "reviewer '{}' revocation time is invalid: {error}",
+                actor.id
+            )
+        })?;
+        if decision_at >= revoked_at {
             return Err(format!(
-                "reviewer {reviewer} is registered with a key ({}…); decisions under this identity require --key <path-to-private-key> — key custody, not the typed name, is the review authority",
-                &expected[..expected.len().min(12)]
-            ));
-        };
-        let derived = hex::encode(key.verifying_key().to_bytes());
-        if &derived != expected {
-            return Err(format!(
-                "the supplied key derives pubkey {}…, which does not match {reviewer}'s registered key {}…",
-                &derived[..12],
-                &expected[..expected.len().min(12)]
+                "reviewer key for actor '{}' is revoked as of {decided_at}",
+                actor.id
             ));
         }
     }
-    Ok(())
+    Ok(actor)
 }
 
-fn accept_proposal_in_frontier(
-    frontier: &mut Project,
-    proposal_id: &str,
+enum DecisionAuthority<'a> {
+    LocalKey(&'a ed25519_dalek::SigningKey),
+    DetachedAccept(&'a AcceptAuthorization),
+    PlanPreparation,
+    Preview,
+    VerifiedProcess(&'a VerifiedProposalWrite),
+}
+
+impl<'a> DecisionAuthority<'a> {
+    fn signing_key(&self) -> Option<&'a ed25519_dalek::SigningKey> {
+        match self {
+            Self::LocalKey(key) => Some(*key),
+            _ => None,
+        }
+    }
+}
+
+fn enforce_decision_authority(
+    frontier: &Project,
+    proposal: &StateProposal,
     reviewer: &str,
     reason: &str,
-) -> Result<String, String> {
-    accept_proposal_in_frontier_signed(frontier, proposal_id, reviewer, reason, None)
+    decided_at: &str,
+    authority: &DecisionAuthority<'_>,
+) -> Result<(), String> {
+    match authority {
+        DecisionAuthority::LocalKey(key) => {
+            let actor = validate_human_reviewer_authority_at(frontier, reviewer, decided_at)?;
+            let derived = hex::encode(key.verifying_key().to_bytes());
+            if !derived.eq_ignore_ascii_case(&actor.public_key) {
+                return Err(format!(
+                    "the supplied key derives pubkey {}…, which does not match {reviewer}'s registered decision key {}…",
+                    &derived[..12],
+                    &actor.public_key[..actor.public_key.len().min(12)]
+                ));
+            }
+            Ok(())
+        }
+        DecisionAuthority::DetachedAccept(verified) => {
+            if verified.decision_root().is_some() {
+                return Err(
+                    "decision-bound detached authority must be executed through a Decision Plan"
+                        .to_string(),
+                );
+            }
+            verified.validate_binding(frontier, &proposal.id, reviewer, reason)
+        }
+        DecisionAuthority::PlanPreparation => {
+            validate_human_reviewer_authority_at(frontier, reviewer, decided_at).map(|_| ())
+        }
+        DecisionAuthority::Preview => validate_reviewer_identity(reviewer),
+        DecisionAuthority::VerifiedProcess(verified) => {
+            if reviewer != verified.actor_id || proposal.kind != "finding.note" {
+                return Err(
+                    "verified process authority cannot create a truth-bearing decision".to_string(),
+                );
+            }
+            revalidate_signed_proposal_write(frontier, proposal, verified)?;
+            if verified.disposition != VerifiedProposalDisposition::AutoApplyNote {
+                return Err("verified proposal write carries pending-only authority".to_string());
+            }
+            Ok(())
+        }
+    }
 }
 
 /// The one canonical accept path, with key-custody enforcement.
 ///
-/// If the named reviewer is registered in the frontier's actor table
-/// WITH a public key, the accept REQUIRES the matching private key: the
-/// typed reviewer string is not authority, possession of the key is.
-/// The resulting canonical event is signed with that key, so the accept
-/// is non-repudiable. Reviewers without a registered key keep the
-/// keyless bootstrap behavior (a brand-new frontier must be usable
-/// before any keys exist); `vela check --strict` flags unsigned accepts
-/// once keys are registered.
-///
-/// This is the mechanization of "an AI never signs an accept": an agent
-/// can type any reviewer name, but it cannot produce a signature with a
-/// key it does not hold.
+/// New accepts require a registered human reviewer and its matching private
+/// key. `None` is retained only for source compatibility and always refuses;
+/// there is no keyless bootstrap decision path.
 pub fn accept_proposal_in_frontier_signed(
     frontier: &mut Project,
     proposal_id: &str,
@@ -2859,35 +3283,43 @@ pub fn accept_proposal_in_frontier_signed(
     reason: &str,
     signing_key: Option<&ed25519_dalek::SigningKey>,
 ) -> Result<String, String> {
-    accept_proposal_in_frontier_with_custody(
+    ensure_legacy_decision_creation_disabled("accept_proposal_in_frontier_signed")?;
+    let key = signing_key.ok_or_else(|| {
+        "accept requires a registered human decision key; use a Decision Plan or verified detached authority"
+            .to_string()
+    })?;
+    accept_proposal_in_frontier_with_authority_at(
         frontier,
         proposal_id,
         reviewer,
         reason,
-        signing_key,
-        false,
+        DecisionAuthority::LocalKey(key),
         None,
+        None,
+        false,
     )
 }
 
-pub fn accept_proposal_in_frontier_with_custody(
+/// Apply one detached accept only after [`authorize_proposal_accept`] minted
+/// this opaque, proposal/head/reason-bound authority proof.
+pub fn accept_proposal_in_frontier_with_authority(
     frontier: &mut Project,
     proposal_id: &str,
     reviewer: &str,
     reason: &str,
-    signing_key: Option<&ed25519_dalek::SigningKey>,
-    custody_verified: bool,
+    authority: &AcceptAuthorization,
     provenance: Option<&crate::provenance::Provenance>,
 ) -> Result<String, String> {
-    accept_proposal_in_frontier_with_custody_at(
+    ensure_legacy_decision_creation_disabled("accept_proposal_in_frontier_with_authority")?;
+    accept_proposal_in_frontier_with_authority_at(
         frontier,
         proposal_id,
         reviewer,
         reason,
-        signing_key,
-        custody_verified,
+        DecisionAuthority::DetachedAccept(authority),
         provenance,
         None,
+        false,
     )
 }
 
@@ -2915,36 +3347,33 @@ pub fn accept_policy_head_proposal_in_frontier_at(
     if proposal.kind != policy_accept::POLICY_HEAD_PROPOSAL_KIND {
         return Err("fixed-time policy-head acceptance cannot accept another proposal kind".into());
     }
-    accept_proposal_in_frontier_with_custody_at(
+    accept_proposal_in_frontier_with_authority_at(
         frontier,
         proposal_id,
         reviewer,
         reason,
-        Some(signing_key),
-        false,
+        DecisionAuthority::LocalKey(signing_key),
         None,
         Some(decided_at),
+        false,
     )
 }
 
 #[allow(clippy::too_many_arguments)]
-fn accept_proposal_in_frontier_with_custody_at(
+fn accept_proposal_in_frontier_with_authority_at(
     frontier: &mut Project,
     proposal_id: &str,
     reviewer: &str,
     reason: &str,
-    signing_key: Option<&ed25519_dalek::SigningKey>,
-    custody_verified: bool,
+    authority: DecisionAuthority<'_>,
     provenance: Option<&crate::provenance::Provenance>,
     fixed_decided_at: Option<&str>,
+    record_review_event: bool,
 ) -> Result<String, String> {
     validate_reviewer_identity(reviewer)?;
     if reason.trim().is_empty() {
         return Err("Decision reason must be non-empty".to_string());
     }
-    // Key custody: a reviewer registered with a pubkey must prove
-    // possession. Derive the pubkey from the supplied key and compare.
-    enforce_reviewer_key_custody(frontier, reviewer, signing_key, custody_verified)?;
     let index = frontier
         .proposals
         .iter()
@@ -2955,6 +3384,18 @@ fn accept_proposal_in_frontier_with_custody_at(
         return Err(format!("Cannot accept rejected proposal {}", proposal_id));
     }
     if status == "applied" {
+        let proposal = frontier.proposals[index].clone();
+        let decided_at = fixed_decided_at
+            .map(ToString::to_string)
+            .unwrap_or_else(|| Utc::now().to_rfc3339());
+        enforce_decision_authority(
+            frontier,
+            &proposal,
+            reviewer,
+            reason,
+            &decided_at,
+            &authority,
+        )?;
         return frontier.proposals[index]
             .applied_event_id
             .clone()
@@ -2962,37 +3403,39 @@ fn accept_proposal_in_frontier_with_custody_at(
     }
     let proposal = frontier.proposals[index].clone();
     validate_proposal_shape(frontier, &proposal)?;
-    // v0.339: the only place agent self-acceptance is allowed, and only for
-    // verified work. Runs after shape validation, before any mutation.
-    enforce_trusted_agent_accept_policy(&proposal, reviewer)?;
+    let decided_at = fixed_decided_at
+        .map(ToString::to_string)
+        .unwrap_or_else(|| Utc::now().to_rfc3339());
+    enforce_decision_authority(
+        frontier,
+        &proposal,
+        reviewer,
+        reason,
+        &decided_at,
+        &authority,
+    )?;
+    let signing_key = authority.signing_key();
     if proposal.kind == policy_accept::POLICY_HEAD_PROPOSAL_KIND {
-        let key = signing_key.ok_or_else(|| {
-            "policy-head acceptance requires a real human event signature; custody-only or keyless review cannot activate authority"
-                .to_string()
-        })?;
+        if signing_key.is_none() && !record_review_event {
+            return Err(
+                "policy-head acceptance requires a real human event signature; custody-only or keyless review cannot activate authority"
+                    .to_string(),
+            );
+        }
         if !(reviewer.starts_with("reviewer:") || reviewer.starts_with("steward:")) {
             return Err("policy-head acceptance requires a reviewer:/steward: actor".to_string());
         }
-        let actor = frontier
-            .actors
-            .iter()
-            .find(|actor| {
-                actor.id == reviewer
-                    && actor.algorithm == "ed25519"
-                    && actor
-                        .public_key
-                        .eq_ignore_ascii_case(&hex::encode(key.verifying_key().to_bytes()))
-            })
-            .ok_or_else(|| {
-                "policy-head signer must be exactly registered in the frontier actor table"
-                    .to_string()
-            })?;
-        if actor.revoked_at.is_some() {
-            return Err("revoked actor cannot sign a policy-head transition".to_string());
+        let decided_at = decided_at.clone();
+        let actor = validate_human_reviewer_authority_at(frontier, reviewer, &decided_at)?;
+        if signing_key.is_some_and(|key| {
+            !actor
+                .public_key
+                .eq_ignore_ascii_case(&hex::encode(key.verifying_key().to_bytes()))
+        }) {
+            return Err(
+                "policy-head signer key does not match the resolved frontier actor".to_string(),
+            );
         }
-        let decided_at = fixed_decided_at
-            .map(ToString::to_string)
-            .unwrap_or_else(|| Utc::now().to_rfc3339());
         let review_time = chrono::DateTime::parse_from_rfc3339(&decided_at)
             .map_err(|error| format!("policy-head decision time is invalid: {error}"))?;
         for parent in &frontier.events {
@@ -3016,7 +3459,15 @@ fn accept_proposal_in_frontier_with_custody_at(
             reason,
             Some(&decided_at),
         )?;
-        event.signature = Some(crate::sign::sign_event(&event, key)?);
+        if let Some(provenance) = provenance
+            && !provenance.is_empty()
+        {
+            crate::provenance::attach_to_payload(&mut event.payload, provenance)?;
+            event.id = events::compute_event_id(&event);
+        }
+        if let Some(key) = signing_key {
+            event.signature = Some(crate::sign::sign_event(&event, key)?);
+        }
         let event_id = event.id.clone();
         frontier.events.push(event);
         frontier.proposals[index].status = "applied".to_string();
@@ -3032,13 +3483,21 @@ fn accept_proposal_in_frontier_with_custody_at(
     }
     frontier.proposals[index].status = "accepted".to_string();
     frontier.proposals[index].reviewed_by = Some(reviewer.to_string());
-    frontier.proposals[index].reviewed_at = Some(
-        fixed_decided_at
-            .map(ToString::to_string)
-            .unwrap_or_else(|| Utc::now().to_rfc3339()),
-    );
+    frontier.proposals[index].reviewed_at = Some(decided_at.clone());
     frontier.proposals[index].decision_reason = Some(reason.to_string());
-    let event_id = apply_proposal(frontier, &proposal, reviewer, reason, provenance)?;
+    let domain_provenance = if record_review_event {
+        None
+    } else {
+        provenance
+    };
+    let event_id = apply_proposal_at(
+        frontier,
+        &proposal,
+        reviewer,
+        reason,
+        domain_provenance,
+        fixed_decided_at,
+    )?;
     frontier.proposals[index].status = "applied".to_string();
     frontier.proposals[index].applied_event_id = Some(event_id.clone());
     // Sign the accept event under the reviewer's key: the signature is
@@ -3049,6 +3508,23 @@ fn accept_proposal_in_frontier_with_custody_at(
         && let Some(ev) = frontier.events.iter_mut().find(|e| e.id == event_id)
     {
         ev.signature = Some(crate::sign::sign_event(ev, key)?);
+    }
+    if record_review_event {
+        let decided_at = fixed_decided_at.ok_or_else(|| {
+            "prepared acceptance requires a caller-bound decision time".to_string()
+        })?;
+        push_signed_review_event(
+            frontier,
+            &proposal.id,
+            &proposal.kind,
+            "accepted",
+            Some(event_id.clone()),
+            reviewer,
+            reason,
+            decided_at,
+            signing_key,
+            provenance,
+        )?;
     }
     Ok(event_id)
 }
@@ -3061,6 +3537,7 @@ fn accept_proposal_in_frontier_with_custody_at(
 /// unsigned shape, so signing never changes it. `decided_at` is reused for
 /// both the event timestamp and the proposal's `reviewed_at`, so the two
 /// never diverge by a second clock read.
+#[allow(clippy::too_many_arguments)]
 fn push_signed_review_event(
     frontier: &mut Project,
     proposal_id: &str,
@@ -3071,7 +3548,8 @@ fn push_signed_review_event(
     reason: &str,
     decided_at: &str,
     signing_key: Option<&ed25519_dalek::SigningKey>,
-) -> Result<(), String> {
+    provenance: Option<&crate::provenance::Provenance>,
+) -> Result<String, String> {
     let mut event = events::new_review_decision_event(
         proposal_id,
         proposal_kind,
@@ -3081,15 +3559,22 @@ fn push_signed_review_event(
         reason,
         Some(decided_at),
     )?;
+    if let Some(provenance) = provenance
+        && !provenance.is_empty()
+    {
+        crate::provenance::attach_to_payload(&mut event.payload, provenance)?;
+        event.id = events::compute_event_id(&event);
+    }
     if let Some(key) = signing_key {
         event.signature = Some(crate::sign::sign_event(&event, key)?);
     }
+    let event_id = event.id.clone();
     frontier.events.push(event);
     mark_proof_stale(
         frontier,
         format!("Recorded review decision on proposal {proposal_id} after latest proof export"),
     );
-    Ok(())
+    Ok(event_id)
 }
 
 /// Reject a proposal, recording a signed `review.rejected` event. This is
@@ -3102,14 +3587,37 @@ pub fn reject_proposal_in_frontier_signed(
     reviewer: &str,
     reason: &str,
     signing_key: Option<&ed25519_dalek::SigningKey>,
-    custody_verified: bool,
+) -> Result<(), String> {
+    ensure_legacy_decision_creation_disabled("reject_proposal_in_frontier_signed")?;
+    let key = signing_key.ok_or_else(|| {
+        "reject requires a registered human decision key or the Decision Plan ceremony".to_string()
+    })?;
+    let decided_at = Utc::now().to_rfc3339();
+    reject_proposal_in_frontier_signed_at(
+        frontier,
+        proposal_id,
+        reviewer,
+        reason,
+        DecisionAuthority::LocalKey(key),
+        None,
+        &decided_at,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn reject_proposal_in_frontier_signed_at(
+    frontier: &mut Project,
+    proposal_id: &str,
+    reviewer: &str,
+    reason: &str,
+    authority: DecisionAuthority<'_>,
+    provenance: Option<&crate::provenance::Provenance>,
+    decided_at: &str,
 ) -> Result<(), String> {
     validate_reviewer_identity(reviewer)?;
-    // A reject is a truth-bearing review verdict with NO agent carve-out
-    // (accept's process/replicator exceptions do not apply: burying a
-    // proposal is as much a decision as applying one). Reserved for named
-    // human reviewers by design — and the keyless-bootstrap custody path
-    // below must never admit an unregistered agent actor.
+    // A reject is a truth-bearing review verdict with no process exception:
+    // burying a proposal is as much a decision as applying one. It is
+    // reserved for a registered human reviewer executing a Decision Plan.
     if reviewer.starts_with("agent:") || reviewer.starts_with("ci:") {
         return Err(format!(
             "reviewer '{reviewer}' may not reject proposals: review decisions are \
@@ -3120,7 +3628,8 @@ pub fn reject_proposal_in_frontier_signed(
     if reason.trim().is_empty() {
         return Err("Decision reason must be non-empty".to_string());
     }
-    enforce_reviewer_key_custody(frontier, reviewer, signing_key, custody_verified)?;
+    chrono::DateTime::parse_from_rfc3339(decided_at)
+        .map_err(|error| format!("decision time is invalid: {error}"))?;
     let index = frontier
         .proposals
         .iter()
@@ -3138,11 +3647,21 @@ pub fn reject_proposal_in_frontier_signed(
             return Err(format!("Unsupported proposal status '{}'", other));
         }
     }
-    let decided_at = Utc::now().to_rfc3339();
     let proposal_kind = frontier.proposals[index].kind.clone();
+    let proposal = frontier.proposals[index].clone();
+    enforce_decision_authority(
+        frontier, &proposal, reviewer, reason, decided_at, &authority,
+    )?;
+    if matches!(authority, DecisionAuthority::DetachedAccept(_)) {
+        return Err("accept authority cannot authorize a rejection".to_string());
+    }
+    if matches!(authority, DecisionAuthority::VerifiedProcess(_)) {
+        return Err("process write authority cannot authorize a rejection".to_string());
+    }
+    let signing_key = authority.signing_key();
     frontier.proposals[index].status = "rejected".to_string();
     frontier.proposals[index].reviewed_by = Some(reviewer.to_string());
-    frontier.proposals[index].reviewed_at = Some(decided_at.clone());
+    frontier.proposals[index].reviewed_at = Some(decided_at.to_string());
     frontier.proposals[index].decision_reason = Some(reason.to_string());
     push_signed_review_event(
         frontier,
@@ -3152,9 +3671,569 @@ pub fn reject_proposal_in_frontier_signed(
         None,
         reviewer,
         reason,
-        &decided_at,
+        decided_at,
         signing_key,
+        provenance,
     )?;
+    Ok(())
+}
+
+fn prepared_decision_mutation(
+    frontier: &Project,
+    first_event: usize,
+    primary_event_id: String,
+    proposal_id: &str,
+    reviewer: &str,
+) -> Result<PreparedDecisionMutation, String> {
+    let appended = frontier
+        .events
+        .get(first_event..)
+        .ok_or_else(|| "prepared decision event range is invalid".to_string())?;
+    let appended_event_ids = appended
+        .iter()
+        .map(|event| event.id.clone())
+        .collect::<Vec<_>>();
+    let decision_event_id = appended
+        .iter()
+        .rev()
+        .find(|event| {
+            event.target.r#type == "proposal"
+                && event.target.id == proposal_id
+                && matches!(
+                    event.kind.as_str(),
+                    events::EVENT_KIND_REVIEW_ACCEPTED | events::EVENT_KIND_REVIEW_REJECTED
+                )
+        })
+        .map(|event| event.id.clone())
+        .ok_or_else(|| "prepared decision did not append a review decision event".to_string())?;
+    let prepared = PreparedDecisionMutation {
+        primary_event_id,
+        appended_event_ids,
+        decision_event_id,
+        proposal_id: proposal_id.to_string(),
+        reviewer: reviewer.to_string(),
+        first_event,
+        event_count_after: frontier.events.len(),
+        binding: PreparedDecisionBinding::Unbound,
+    };
+    validate_prepared_decision_invariants(frontier, &prepared, true)?;
+    Ok(prepared)
+}
+
+fn clone_project(project: &Project) -> Result<Project, String> {
+    serde_json::from_value(serde_json::to_value(project).map_err(|error| error.to_string())?)
+        .map_err(|error| error.to_string())
+}
+
+fn decision_root_refs(event: &StateEvent) -> Result<Vec<String>, String> {
+    let Some(provenance) = event.payload.get("provenance") else {
+        return Ok(Vec::new());
+    };
+    let object = provenance
+        .as_object()
+        .ok_or_else(|| format!("event {} provenance must be an object", event.id))?;
+    let Some(input_refs) = object.get("input_refs") else {
+        return Ok(Vec::new());
+    };
+    let input_refs = input_refs
+        .as_array()
+        .ok_or_else(|| format!("event {} provenance.input_refs must be an array", event.id))?;
+    let mut refs = Vec::new();
+    for value in input_refs {
+        let value = value.as_str().ok_or_else(|| {
+            format!(
+                "event {} provenance.input_refs must contain only strings",
+                event.id
+            )
+        })?;
+        if value.starts_with(crate::provenance::DECISION_ROOT_INPUT_REF_PREFIX) {
+            refs.push(value.to_string());
+        }
+    }
+    Ok(refs)
+}
+
+fn validate_prepared_decision_invariants(
+    frontier: &Project,
+    prepared: &PreparedDecisionMutation,
+    require_unsigned: bool,
+) -> Result<(), String> {
+    if prepared.appended_event_ids.is_empty() {
+        return Err("prepared decision has no appended events".to_string());
+    }
+    if prepared.first_event + prepared.appended_event_ids.len() != prepared.event_count_after
+        || prepared.event_count_after > frontier.events.len()
+    {
+        return Err("prepared decision event range is not contiguous".to_string());
+    }
+    let events = &frontier.events[prepared.first_event..prepared.event_count_after];
+    let exact_ids = events
+        .iter()
+        .map(|event| event.id.as_str())
+        .collect::<Vec<_>>();
+    if exact_ids
+        != prepared
+            .appended_event_ids
+            .iter()
+            .map(String::as_str)
+            .collect::<Vec<_>>()
+    {
+        return Err("prepared decision ids do not match their contiguous event range".to_string());
+    }
+    let unique_ids = prepared.appended_event_ids.iter().collect::<BTreeSet<_>>();
+    if unique_ids.len() != prepared.appended_event_ids.len() {
+        return Err("prepared decision contains duplicate event ids".to_string());
+    }
+    if !unique_ids.contains(&prepared.primary_event_id)
+        || !unique_ids.contains(&prepared.decision_event_id)
+    {
+        return Err(
+            "prepared primary and decision events must belong to the exact event set".to_string(),
+        );
+    }
+    for event_id in &prepared.appended_event_ids {
+        if frontier
+            .events
+            .iter()
+            .filter(|event| event.id == *event_id)
+            .count()
+            != 1
+        {
+            return Err(format!(
+                "prepared decision event id is not globally unique: {event_id}"
+            ));
+        }
+    }
+
+    let proposals = frontier
+        .proposals
+        .iter()
+        .filter(|proposal| proposal.id == prepared.proposal_id)
+        .collect::<Vec<_>>();
+    if proposals.len() != 1 {
+        return Err(format!(
+            "prepared proposal {} is missing or duplicated",
+            prepared.proposal_id
+        ));
+    }
+    let proposal = proposals[0];
+    let mut decision_events = 0_usize;
+    for event in events {
+        if event.id != events::compute_event_id(event) {
+            return Err(format!("prepared event {} id does not rederive", event.id));
+        }
+        if event.actor.id != prepared.reviewer
+            || event.actor.r#type != events::actor_kind(&prepared.reviewer)
+        {
+            return Err(format!(
+                "prepared event {} actor does not match reviewer {}",
+                event.id, prepared.reviewer
+            ));
+        }
+        if event.payload.get("proposal_id").and_then(Value::as_str)
+            != Some(prepared.proposal_id.as_str())
+        {
+            return Err(format!(
+                "prepared event {} does not bind proposal {}",
+                event.id, prepared.proposal_id
+            ));
+        }
+        if require_unsigned && event.signature.is_some() {
+            return Err(format!("prepared event {} is already signed", event.id));
+        }
+        let refs = decision_root_refs(event)?;
+        let is_review_decision = event.target.r#type == "proposal"
+            && event.target.id == prepared.proposal_id
+            && matches!(
+                event.kind.as_str(),
+                events::EVENT_KIND_REVIEW_ACCEPTED | events::EVENT_KIND_REVIEW_REJECTED
+            );
+        if is_review_decision {
+            decision_events += 1;
+            if event.id != prepared.decision_event_id {
+                return Err("prepared set contains an untracked review decision event".to_string());
+            }
+        }
+        if event.id == prepared.decision_event_id {
+            if !is_review_decision {
+                return Err("prepared decision event has inconsistent target or kind".to_string());
+            }
+            match &prepared.binding {
+                PreparedDecisionBinding::Unbound if !refs.is_empty() => {
+                    return Err(
+                        "unbound prepared decision already carries a decision-root reference"
+                            .to_string(),
+                    );
+                }
+                PreparedDecisionBinding::Unbound => {}
+                PreparedDecisionBinding::Bound { decision_root } => {
+                    let expected = crate::provenance::decision_root_input_ref(decision_root)?;
+                    if refs != [expected] {
+                        return Err(
+                            "bound prepared decision must carry exactly one canonical decision-root reference"
+                                .to_string(),
+                        );
+                    }
+                }
+            }
+        } else if !refs.is_empty() {
+            return Err(format!(
+                "non-decision event {} carries a decision-root reference",
+                event.id
+            ));
+        }
+    }
+    if decision_events != 1 {
+        return Err("prepared decision must contain exactly one review decision event".to_string());
+    }
+    let decision_event = events
+        .iter()
+        .find(|event| event.id == prepared.decision_event_id)
+        .expect("membership checked above");
+    if decision_event
+        .payload
+        .get("proposal_kind")
+        .and_then(Value::as_str)
+        != Some(proposal.kind.as_str())
+    {
+        return Err("prepared decision event proposal kind is inconsistent".to_string());
+    }
+    if proposal.reviewed_by.as_deref() != Some(prepared.reviewer.as_str())
+        || proposal.reviewed_at.as_deref() != Some(decision_event.timestamp.as_str())
+    {
+        return Err(
+            "prepared proposal review metadata does not match its decision event".to_string(),
+        );
+    }
+    match proposal.status.as_str() {
+        "applied"
+            if proposal.applied_event_id.as_deref() == Some(prepared.primary_event_id.as_str())
+                && decision_event.kind == events::EVENT_KIND_REVIEW_ACCEPTED => {}
+        "rejected"
+            if proposal.applied_event_id.is_none()
+                && decision_event.kind == events::EVENT_KIND_REVIEW_REJECTED => {}
+        _ => {
+            return Err(
+                "prepared proposal status/applied_event_id is inconsistent with its primary event"
+                    .to_string(),
+            );
+        }
+    }
+    Ok(())
+}
+
+/// Apply one exact accept to an in-memory project without receiving or reading
+/// a private key. The caller supplies the sole timestamp used by the proposal
+/// status, every semantic state timestamp, and every appended event.
+///
+/// This mutates only the provided `Project`. It always appends an unsigned
+/// `review.accepted` event in addition to any domain events. After the final
+/// plan root is known, bind it with [`bind_decision_root_to_prepared`]; then,
+/// after a locked rederivation, sign exactly the returned event set with
+/// [`sign_prepared_decision_events`].
+pub fn prepare_proposal_accept_in_memory_at(
+    frontier: &mut Project,
+    proposal_id: &str,
+    reviewer: &str,
+    reason: &str,
+    provenance: Option<&crate::provenance::Provenance>,
+    decided_at: &str,
+) -> Result<PreparedDecisionMutation, String> {
+    let mut candidate = clone_project(frontier)?;
+    let prepared = prepare_proposal_accept_on_candidate(
+        &mut candidate,
+        proposal_id,
+        reviewer,
+        reason,
+        provenance,
+        decided_at,
+    )?;
+    *frontier = candidate;
+    Ok(prepared)
+}
+
+fn prepare_proposal_accept_on_candidate(
+    frontier: &mut Project,
+    proposal_id: &str,
+    reviewer: &str,
+    reason: &str,
+    provenance: Option<&crate::provenance::Provenance>,
+    decided_at: &str,
+) -> Result<PreparedDecisionMutation, String> {
+    validate_human_reviewer_authority_at(frontier, reviewer, decided_at)?;
+    let first_event = frontier.events.len();
+    let primary_event_id = accept_proposal_in_frontier_with_authority_at(
+        frontier,
+        proposal_id,
+        reviewer,
+        reason,
+        DecisionAuthority::PlanPreparation,
+        provenance,
+        Some(decided_at),
+        true,
+    )?;
+    crate::sources::materialize_project(frontier);
+    prepared_decision_mutation(
+        frontier,
+        first_event,
+        primary_event_id,
+        proposal_id,
+        reviewer,
+    )
+}
+
+/// Clone-only convenience wrapper for the first item in a Decision Plan.
+/// Callers can chain later items by applying the mutating in-memory seam to the
+/// returned candidate; the input project is never changed.
+pub fn prepare_proposal_accept_candidate_at(
+    frontier: &Project,
+    proposal_id: &str,
+    reviewer: &str,
+    reason: &str,
+    provenance: Option<&crate::provenance::Provenance>,
+    decided_at: &str,
+) -> Result<(Project, PreparedDecisionMutation), String> {
+    let mut candidate = clone_project(frontier)?;
+    let prepared = prepare_proposal_accept_on_candidate(
+        &mut candidate,
+        proposal_id,
+        reviewer,
+        reason,
+        provenance,
+        decided_at,
+    )?;
+    Ok((candidate, prepared))
+}
+
+/// Apply one exact reject to an in-memory project without receiving or reading
+/// a private key. The result is an unsigned, fixed-time `review.rejected`
+/// event, optionally carrying a decision-root provenance input reference.
+pub fn prepare_proposal_reject_in_memory_at(
+    frontier: &mut Project,
+    proposal_id: &str,
+    reviewer: &str,
+    reason: &str,
+    provenance: Option<&crate::provenance::Provenance>,
+    decided_at: &str,
+) -> Result<PreparedDecisionMutation, String> {
+    let mut candidate = clone_project(frontier)?;
+    let prepared = prepare_proposal_reject_on_candidate(
+        &mut candidate,
+        proposal_id,
+        reviewer,
+        reason,
+        provenance,
+        decided_at,
+    )?;
+    *frontier = candidate;
+    Ok(prepared)
+}
+
+fn prepare_proposal_reject_on_candidate(
+    frontier: &mut Project,
+    proposal_id: &str,
+    reviewer: &str,
+    reason: &str,
+    provenance: Option<&crate::provenance::Provenance>,
+    decided_at: &str,
+) -> Result<PreparedDecisionMutation, String> {
+    validate_human_reviewer_authority_at(frontier, reviewer, decided_at)?;
+    let first_event = frontier.events.len();
+    reject_proposal_in_frontier_signed_at(
+        frontier,
+        proposal_id,
+        reviewer,
+        reason,
+        DecisionAuthority::PlanPreparation,
+        provenance,
+        decided_at,
+    )?;
+    let primary_event_id = frontier
+        .events
+        .get(first_event)
+        .map(|event| event.id.clone())
+        .ok_or_else(|| "prepared reject appended no event".to_string())?;
+    prepared_decision_mutation(
+        frontier,
+        first_event,
+        primary_event_id,
+        proposal_id,
+        reviewer,
+    )
+}
+
+/// Clone-only reject counterpart to
+/// [`prepare_proposal_accept_candidate_at`].
+pub fn prepare_proposal_reject_candidate_at(
+    frontier: &Project,
+    proposal_id: &str,
+    reviewer: &str,
+    reason: &str,
+    provenance: Option<&crate::provenance::Provenance>,
+    decided_at: &str,
+) -> Result<(Project, PreparedDecisionMutation), String> {
+    let mut candidate = clone_project(frontier)?;
+    let prepared = prepare_proposal_reject_on_candidate(
+        &mut candidate,
+        proposal_id,
+        reviewer,
+        reason,
+        provenance,
+        decided_at,
+    )?;
+    Ok((candidate, prepared))
+}
+
+/// Insert the final decision root into the prepared review event and rederive
+/// its content address before any signature is made.
+///
+/// Only the dedicated `review.*` event carries this input reference. Domain and
+/// fanout event IDs therefore remain stable, including the
+/// `review.accepted.payload.applied_event_id` pointer, and the Decision Plan has
+/// no hash cycle. Policy-head acceptance uses its review event as the primary
+/// event, so this helper also updates the proposal's cached applied-event id.
+pub fn bind_decision_root_to_prepared(
+    frontier: &mut Project,
+    prepared: &mut PreparedDecisionMutation,
+    decision_root: &str,
+) -> Result<(), String> {
+    crate::provenance::decision_root_input_ref(decision_root)?;
+    match prepared.decision_root() {
+        Some(existing) if existing == decision_root => {
+            return validate_prepared_decision_invariants(frontier, prepared, true);
+        }
+        Some(_) => {
+            return Err(
+                "prepared decision is already bound; rebuild it before changing the root"
+                    .to_string(),
+            );
+        }
+        None => {}
+    }
+    let mut candidate = clone_project(frontier)?;
+    let mut candidate_prepared = prepared.clone();
+    bind_decision_root_to_prepared_inner(&mut candidate, &mut candidate_prepared, decision_root)?;
+    validate_prepared_decision_invariants(&candidate, &candidate_prepared, true)?;
+    *frontier = candidate;
+    *prepared = candidate_prepared;
+    Ok(())
+}
+
+fn bind_decision_root_to_prepared_inner(
+    frontier: &mut Project,
+    prepared: &mut PreparedDecisionMutation,
+    decision_root: &str,
+) -> Result<(), String> {
+    validate_prepared_decision_invariants(frontier, prepared, true)?;
+    let old_event_id = prepared.decision_event_id.clone();
+    let index = frontier
+        .events
+        .iter()
+        .position(|event| event.id == old_event_id)
+        .ok_or_else(|| format!("prepared decision event not found: {old_event_id}"))?;
+    let event = &frontier.events[index];
+    if event.signature.is_some() {
+        return Err("cannot bind a decision root after the decision event is signed".to_string());
+    }
+    if !matches!(
+        event.kind.as_str(),
+        events::EVENT_KIND_REVIEW_ACCEPTED | events::EVENT_KIND_REVIEW_REJECTED
+    ) {
+        return Err(format!(
+            "prepared decision event {} has non-review kind '{}'",
+            event.id, event.kind
+        ));
+    }
+    let mut candidate_event: StateEvent =
+        serde_json::from_value(serde_json::to_value(event).map_err(|error| error.to_string())?)
+            .map_err(|error| error.to_string())?;
+    let mut provenance = candidate_event
+        .payload
+        .get("provenance")
+        .cloned()
+        .map(serde_json::from_value::<crate::provenance::Provenance>)
+        .transpose()
+        .map_err(|error| format!("prepared decision provenance is invalid: {error}"))?
+        .unwrap_or_default();
+    provenance.bind_decision_root(decision_root)?;
+    crate::provenance::attach_to_payload(&mut candidate_event.payload, &provenance)?;
+    candidate_event.id = events::compute_event_id(&candidate_event);
+    let new_event_id = candidate_event.id.clone();
+
+    if frontier
+        .events
+        .iter()
+        .enumerate()
+        .any(|(other_index, other)| other_index != index && other.id == new_event_id)
+    {
+        return Err(format!(
+            "decision-root binding collides with existing event {new_event_id}"
+        ));
+    }
+    frontier.events[index] = candidate_event;
+    for proposal in &mut frontier.proposals {
+        if proposal.applied_event_id.as_deref() == Some(old_event_id.as_str()) {
+            proposal.applied_event_id = Some(new_event_id.clone());
+        }
+    }
+    for event_id in &mut prepared.appended_event_ids {
+        if *event_id == old_event_id {
+            *event_id = new_event_id.clone();
+        }
+    }
+    if prepared.primary_event_id == old_event_id {
+        prepared.primary_event_id = new_event_id.clone();
+    }
+    prepared.decision_event_id = new_event_id;
+    prepared.binding = PreparedDecisionBinding::Bound {
+        decision_root: decision_root.to_string(),
+    };
+    Ok(())
+}
+
+/// Sign the exact unsigned events returned by a prepared decision mutation.
+///
+/// Every event is validated before any signature is written, so a malformed or
+/// stale set produces zero signature delta. This function performs no I/O and
+/// no clock read; key resolution and human confirmation remain CLI concerns.
+pub fn sign_prepared_decision_events(
+    frontier: &mut Project,
+    prepared: &PreparedDecisionMutation,
+    reviewer: &str,
+    signing_key: &ed25519_dalek::SigningKey,
+) -> Result<(), String> {
+    if reviewer != prepared.reviewer {
+        return Err(format!(
+            "prepared reviewer '{}' does not match signing reviewer '{reviewer}'",
+            prepared.reviewer
+        ));
+    }
+    if !prepared.is_bound() {
+        return Err("prepared decision must be decision-root bound before signing".to_string());
+    }
+    validate_prepared_decision_invariants(frontier, prepared, true)?;
+    let decision_event = &frontier.events[prepared.first_event
+        + prepared
+            .appended_event_ids
+            .iter()
+            .position(|event_id| event_id == &prepared.decision_event_id)
+            .expect("prepared invariant checks decision-event membership")];
+    let actor =
+        validate_human_reviewer_authority_at(frontier, reviewer, &decision_event.timestamp)?;
+    let derived = hex::encode(signing_key.verifying_key().to_bytes());
+    if !derived.eq_ignore_ascii_case(&actor.public_key) {
+        return Err(format!(
+            "the supplied key does not match {reviewer}'s registered decision key"
+        ));
+    }
+    let indexes = (prepared.first_event..prepared.event_count_after).collect::<Vec<_>>();
+    let signatures = indexes
+        .iter()
+        .map(|index| crate::sign::sign_event(&frontier.events[*index], signing_key))
+        .collect::<Result<Vec<_>, _>>()?;
+    for (index, signature) in indexes.into_iter().zip(signatures) {
+        frontier.events[index].signature = Some(signature);
+    }
     Ok(())
 }
 
@@ -3165,12 +4244,36 @@ pub(crate) fn apply_proposal(
     decision_reason: &str,
     provenance: Option<&crate::provenance::Provenance>,
 ) -> Result<String, String> {
+    apply_proposal_at(
+        frontier,
+        proposal,
+        reviewer,
+        decision_reason,
+        provenance,
+        None,
+    )
+}
+
+fn apply_proposal_at(
+    frontier: &mut Project,
+    proposal: &StateProposal,
+    reviewer: &str,
+    decision_reason: &str,
+    provenance: Option<&crate::provenance::Provenance>,
+    fixed_decided_at: Option<&str>,
+) -> Result<String, String> {
     // Phase L: retraction emits a fan of events — one for the source
     // and one `finding.dependency_invalidated` per dependent in BFS
     // order. apply_retract is responsible for pushing all of them in
     // sequence; this branch only assigns the primary event ID.
     if proposal.kind.as_str() == "finding.retract" {
-        let events = apply_retract(frontier, proposal, reviewer, decision_reason)?;
+        let events = apply_retract(
+            frontier,
+            proposal,
+            reviewer,
+            decision_reason,
+            fixed_decided_at,
+        )?;
         let primary_id = events
             .first()
             .map(|event| event.id.clone())
@@ -3188,7 +4291,13 @@ pub(crate) fn apply_proposal(
     // score crosses below the 0.5 propagation threshold. Same fan-out
     // pattern as retract.
     if proposal.kind.as_str() == "finding.confidence_revise" {
-        let events = apply_confidence_revise(frontier, proposal, reviewer, decision_reason)?;
+        let events = apply_confidence_revise(
+            frontier,
+            proposal,
+            reviewer,
+            decision_reason,
+            fixed_decided_at,
+        )?;
         let primary_id = events
             .first()
             .map(|event| event.id.clone())
@@ -3208,13 +4317,31 @@ pub(crate) fn apply_proposal(
         "research_trace.review" | "correction_return.review" => {
             apply_frontier_observation_review(proposal, reviewer, decision_reason)?
         }
-        "finding.caveat" => apply_caveat(frontier, proposal, reviewer, decision_reason)?,
-        "finding.note" => apply_note(frontier, proposal, reviewer, decision_reason)?,
+        "finding.caveat" => apply_caveat(
+            frontier,
+            proposal,
+            reviewer,
+            decision_reason,
+            fixed_decided_at,
+        )?,
+        "finding.note" => apply_note(
+            frontier,
+            proposal,
+            reviewer,
+            decision_reason,
+            fixed_decided_at,
+        )?,
         "finding.reject" => apply_reject(frontier, proposal, reviewer, decision_reason)?,
         "finding.contribution.recorded" => {
             apply_contribution(frontier, proposal, reviewer, decision_reason)?
         }
-        "finding.supersede" => apply_supersede(frontier, proposal, reviewer, decision_reason)?,
+        "finding.supersede" => apply_supersede(
+            frontier,
+            proposal,
+            reviewer,
+            decision_reason,
+            fixed_decided_at,
+        )?,
         "artifact.assert" => apply_artifact_assert(frontier, proposal, reviewer, decision_reason)?,
         "artifact.retract" => {
             apply_artifact_retract(frontier, proposal, reviewer, decision_reason)?
@@ -3230,6 +4357,10 @@ pub(crate) fn apply_proposal(
         }
         other => return Err(format!("Unsupported proposal kind '{other}'")),
     };
+    if let Some(decided_at) = fixed_decided_at {
+        event.timestamp = decided_at.to_string();
+        event.id = events::compute_event_id(&event);
+    }
     // Co-authorship: when a non-human (an AI that drafted, CI that attested)
     // contributed, record it as signed-over attribution on this single decision
     // event. The reviewer stays the accountable signer; the provenance carries
@@ -3319,6 +4450,7 @@ fn apply_supersede(
     proposal: &StateProposal,
     reviewer: &str,
     _decision_reason: &str,
+    fixed_decided_at: Option<&str>,
 ) -> Result<StateEvent, String> {
     use crate::bundle::Link;
 
@@ -3369,7 +4501,9 @@ fn apply_supersede(
                 proposal.id
             ),
             inferred_by: "reviewer".to_string(),
-            created_at: Utc::now().to_rfc3339(),
+            created_at: fixed_decided_at
+                .map(ToString::to_string)
+                .unwrap_or_else(|| Utc::now().to_rfc3339()),
             mechanism: None,
         });
     }
@@ -3392,7 +4526,7 @@ fn apply_supersede(
             "new_finding_id": new_finding_id,
         }),
         caveats: proposal.caveats.clone(),
-        timestamp: None,
+        timestamp: fixed_decided_at,
     }))
 }
 
@@ -3731,11 +4865,14 @@ fn apply_caveat(
     proposal: &StateProposal,
     reviewer: &str,
     _decision_reason: &str,
+    fixed_decided_at: Option<&str>,
 ) -> Result<StateEvent, String> {
     let finding_id = proposal.target.id.as_str();
     let idx = find_finding_index(frontier, finding_id)?;
     let before_hash = events::finding_hash(&frontier.findings[idx]);
-    let now = Utc::now().to_rfc3339();
+    let now = fixed_decided_at
+        .map(ToString::to_string)
+        .unwrap_or_else(|| Utc::now().to_rfc3339());
     let text = proposal
         .payload
         .get("text")
@@ -3778,11 +4915,14 @@ fn apply_note(
     proposal: &StateProposal,
     reviewer: &str,
     _decision_reason: &str,
+    fixed_decided_at: Option<&str>,
 ) -> Result<StateEvent, String> {
     let finding_id = proposal.target.id.as_str();
     let idx = find_finding_index(frontier, finding_id)?;
     let before_hash = events::finding_hash(&frontier.findings[idx]);
-    let now = Utc::now().to_rfc3339();
+    let now = fixed_decided_at
+        .map(ToString::to_string)
+        .unwrap_or_else(|| Utc::now().to_rfc3339());
     let text = proposal
         .payload
         .get("text")
@@ -3975,10 +5115,13 @@ fn apply_confidence_revise(
     proposal: &StateProposal,
     reviewer: &str,
     _decision_reason: &str,
+    fixed_decided_at: Option<&str>,
 ) -> Result<Vec<StateEvent>, String> {
     let finding_id = proposal.target.id.as_str();
     let idx = find_finding_index(frontier, finding_id)?;
-    let now = Utc::now().to_rfc3339();
+    let now = fixed_decided_at
+        .map(ToString::to_string)
+        .unwrap_or_else(|| Utc::now().to_rfc3339());
     let previous = frontier.findings[idx].confidence.score;
     let new_score = proposal
         .payload
@@ -4084,7 +5227,7 @@ fn apply_confidence_revise(
                         "proposal_id": proposal.id,
                     }),
                     caveats: vec![],
-                    timestamp: None,
+                    timestamp: fixed_decided_at,
                 }));
             }
         }
@@ -4126,6 +5269,7 @@ fn apply_retract(
     proposal: &StateProposal,
     reviewer: &str,
     _decision_reason: &str,
+    fixed_decided_at: Option<&str>,
 ) -> Result<Vec<StateEvent>, String> {
     let finding_id = proposal.target.id.as_str();
     let idx = find_finding_index(frontier, finding_id)?;
@@ -4160,7 +5304,7 @@ fn apply_retract(
             "cascade": cascade.cascade,
         }),
         caveats: vec!["Retraction impact is simulated over declared dependency links.".to_string()],
-        timestamp: None,
+        timestamp: fixed_decided_at,
     });
     let source_event_id = source_event.id.clone();
 
@@ -4193,7 +5337,7 @@ fn apply_retract(
                     "proposal_id": proposal.id,
                 }),
                 caveats: vec![],
-                timestamp: None,
+                timestamp: fixed_decided_at,
             }));
         }
     }
