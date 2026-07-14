@@ -64,51 +64,26 @@ pub(crate) fn cmd_proposals(action: ProposalAction) {
         ProposalAction::Preview {
             frontier,
             proposal_id,
-            reviewer,
+            reviewer: _,
             json,
         } => {
-            let preview = proposals::preview_at_path(&frontier, &proposal_id, &reviewer)
-                .unwrap_or_else(|e| fail_return(&e));
+            let review = crate::review_material::ReviewProjection::one(&frontier, &proposal_id)
+                .unwrap_or_else(|error| fail_return(&error.to_string()));
             let payload = json!({
                 "ok": true,
                 "command": "proposals.preview",
                 "frontier": frontier.display().to_string(),
-                "preview": preview,
+                "review": review,
             });
             if json {
                 print_json(&payload);
             } else {
                 println!("vela proposals preview");
                 println!("  proposal: {}", proposal_id);
-                println!("  kind: {}", preview.kind);
-                println!(
-                    "  findings: {} -> {}",
-                    preview.findings_before, preview.findings_after
-                );
-                println!(
-                    "  artifacts: {} -> {}",
-                    preview.artifacts_before, preview.artifacts_after
-                );
-                println!(
-                    "  events: {} -> {}",
-                    preview.events_before, preview.events_after
-                );
-                if !preview.changed_findings.is_empty() {
-                    println!(
-                        "  findings changed: {}",
-                        preview.changed_findings.join(", ")
-                    );
+                println!("  claim: {}", review.brief.change.claim);
+                for line in crate::cli::sign_session::render_decision_brief_lines(&review.brief) {
+                    println!("    {line}");
                 }
-                if !preview.changed_artifacts.is_empty() {
-                    println!(
-                        "  artifacts changed: {}",
-                        preview.changed_artifacts.join(", ")
-                    );
-                }
-                if !preview.event_kinds.is_empty() {
-                    println!("  event kinds: {}", preview.event_kinds.join(", "));
-                }
-                println!("  event: {}", preview.applied_event_id);
             }
         }
         ProposalAction::Import {

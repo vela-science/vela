@@ -1,0 +1,130 @@
+{
+  "audit": {
+    "artifact_root": null,
+    "decision_facts_root": "sha256:9bc7756fab626c05d6fbddfd5c4efee63586c71ab5e1bb6c95dd2c34c25d66c5",
+    "declared_receipt_root": null,
+    "missing_root": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "missing_truncated": 0,
+    "observed_at": "2026-07-13T13:00:00Z",
+    "policy_input_root": "sha256:f3371d8d94bbaa5ea71641b087beeb048006fa0958e3454a8a715c027c110819",
+    "policy_result_root": "sha256:b942b663a6b5e9a45ed74632796b7fc38c28f0ad188529697571e5b1a40903df",
+    "proposal_id": "vpr_08ddd7b2246761a2",
+    "proposal_root": "sha256:3ac3ac55c490d847709de5c008d77cc9073a186bcf9f78e74b29ba283ba08a23",
+    "publication_root": null,
+    "raw_references": [
+      "urn:source:ordinary"
+    ],
+    "raw_references_root": "sha256:fef35354a51ab21594e042b5c45b99fc4e1d722d2799318e80378083772b194b",
+    "raw_references_truncated": 0,
+    "receipt_root": null,
+    "truncations": []
+  },
+  "authority": {
+    "actions": [
+      {
+        "action": "accept",
+        "eligibility": "available",
+        "reasons": []
+      },
+      {
+        "action": "reject",
+        "eligibility": "available",
+        "reasons": []
+      }
+    ],
+    "frontier": {
+      "id": "vfr_ecf5e36bd1a7f4f9",
+      "name": "Decision brief ordinary fixture"
+    },
+    "route": "defer",
+    "scope": "frontier_review",
+    "why_human": [
+      "this proposal kind is intentionally reviewed by a human"
+    ]
+  },
+  "basis": {
+    "attributed_interpretation": null,
+    "check_state": {
+      "durable_verifier_count": 0,
+      "durable_verifier_snapshot_root": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "engine_new_blocking": [],
+      "engine_new_warnings": [],
+      "engine_status": null,
+      "gate_reasons": [
+        "G1: need >=2 matched independent attachments, have 0",
+        "G3: no surviving adversarial probe attached (need >=1)"
+      ],
+      "gate_status": "needs_verification",
+      "producer_reported": []
+    },
+    "main_caveat": "The note is scoped to the declared bounded case.",
+    "primary_evidence_roots": [
+      {
+        "kind": "durable_verifier_snapshot",
+        "root": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      }
+    ]
+  },
+  "change": {
+    "after": {
+      "id": "vf_decision_brief_ordinary",
+      "text": "A bounded computational note is ready for human review.",
+      "type": "computational"
+    },
+    "before": null,
+    "claim": "A bounded computational note is ready for human review.",
+    "fixed_base": {
+      "event_log_root": "sha256:476054199d8a5da8f7dc1df11870cbea12c1c18a6077ad57d565e3df75575c14",
+      "receipt_event_log_root": null
+    },
+    "requested_action": "finding.note",
+    "subject": {
+      "id": "vf_decision_brief_ordinary",
+      "type": "finding"
+    }
+  },
+  "facets": {
+    "gate_matrix": {
+      "critical": false,
+      "data": {
+        "durable_gate": {
+          "attachment_count": 0,
+          "reasons": [
+            "G1: need >=2 matched independent attachments, have 0",
+            "G3: no surviving adversarial probe attached (need >=1)"
+          ],
+          "snapshot_root": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "status": "needs_verification"
+        },
+        "engine": {
+          "new_blocking": [],
+          "new_warnings": [],
+          "status": null
+        }
+      },
+      "full_root": "sha256:d09681400d4b521cd2567687b0d2b8d3d8c27c584fc3d29788bd2056a7b77a88",
+      "schema": "vela.decision-brief.facet.gate-matrix.testing.v1",
+      "truncated": false
+    }
+  },
+  "impact": {
+    "correction_path": {
+      "after_acceptance": [
+        "finding.retract",
+        "finding.supersede"
+      ],
+      "while_pending": [
+        "reject"
+      ]
+    },
+    "critical_warnings": [],
+    "downstream_effect": {
+      "changed_findings": 1,
+      "downstream_dependents": 0,
+      "impact_tier": 3
+    }
+  },
+  "missing": [],
+  "schema": "vela.decision-brief.testing.v1",
+  "stability": "testing"
+}

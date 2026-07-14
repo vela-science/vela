@@ -11,19 +11,20 @@ use vela_protocol::project::Project;
 
 pub(crate) const HUMAN_DECISIONS_SHOWN: usize = 20;
 
-/// One row awaiting a human key. Mirrors `vela_edge::sign_queue::SignItem`
-/// narrowed to the two lanes the review surface reports (judgment,
-/// decision), so the fallback path — no frontier checkout on this hub
-/// machine — can build the same rows straight from `Project.proposals`.
+/// One row awaiting a human key. The hub mirrors replay state but does not own
+/// the CLI's bounded receipt/policy read transaction, so it must not claim an
+/// action is signable. It reports that eligibility was not evaluated and
+/// leaves the authoritative Decision Brief to a frontier-local read.
 pub(crate) struct ReviewQueueRow {
     pub lane: &'static str,
     pub id: String,
     pub title: String,
     pub why_here: String,
-    /// False for policy-Denied items: shown, never signable.
-    pub signable: bool,
-    /// Pack id when the item decides a whole changeset.
-    pub pack: Option<String>,
+    pub accept_eligibility: &'static str,
+    pub reject_eligibility: &'static str,
+    /// Proposal-scoped pack context. Membership never expands the decision
+    /// from this proposal to the rest of a pack.
+    pub pack_memberships: vela_edge::sign_preview::PackMembershipProjection,
 }
 
 pub(crate) struct ReviewQueueView {
@@ -36,49 +37,10 @@ pub(crate) struct ReviewQueueView {
     pub policy_filtered: bool,
 }
 
-/// Narrow the CLI's sign-queue projection to the review surface's lanes.
-/// Hygiene and Detached are operator ceremonies on the frontier's own
-/// machine — not decisions a reader of this surface can weigh.
-pub(crate) fn review_queue_from_sign_queue(q: vela_edge::sign_queue::SignQueue) -> ReviewQueueView {
-    use vela_edge::sign_queue::SignLane;
-    let rows = q
-        .items
-        .into_iter()
-        .filter_map(|item| {
-            let lane = match item.lane {
-                SignLane::Judgment => "judgment",
-                SignLane::Decision => "decision",
-                SignLane::Hygiene | SignLane::Detached => return None,
-            };
-            Some(ReviewQueueRow {
-                lane,
-                id: item.id,
-                title: item.title,
-                why_here: item.why_here,
-                signable: item.signable,
-                pack: item.pack,
-            })
-        })
-        .collect();
-    ReviewQueueView {
-        rows,
-        policy_active: q.policy_active,
-        policy_id: q.policy_id,
-        policy_filtered: true,
-    }
-}
-
-/// The checkout-less fallback: every pending proposal, unfiltered. Same
-/// row shape and the same pack resolution the sign queue uses, so the
-/// surface degrades honestly instead of vanishing.
+/// Every pending proposal, explicitly unfiltered. The hub does not duplicate
+/// ReviewProjection filesystem reads or policy derivation, so the surface
+/// degrades honestly instead of manufacturing a verdict from partial state.
 pub(crate) fn pending_review_fallback(project: &Project) -> ReviewQueueView {
-    let pack_of = |proposal_id: &str| -> Option<String> {
-        project
-            .released_diff_packs
-            .iter()
-            .find(|p| p.verdict.is_none() && p.member_proposals.iter().any(|m| m == proposal_id))
-            .map(|p| p.pack_id.clone())
-    };
     let rows = project
         .proposals
         .iter()
@@ -89,8 +51,9 @@ pub(crate) fn pending_review_fallback(project: &Project) -> ReviewQueueView {
             title: format!("{} · {}", p.kind, p.reason),
             why_here: "awaits a key-custody decision (policy routing not evaluated on this hub)"
                 .to_string(),
-            signable: true,
-            pack: pack_of(&p.id),
+            accept_eligibility: "not_evaluated",
+            reject_eligibility: "not_evaluated",
+            pack_memberships: vela_edge::sign_preview::proposal_pack_memberships(project, &p.id),
         })
         .collect();
     ReviewQueueView {
@@ -248,7 +211,9 @@ mod review_projection_tests {
         assert_eq!(queue.rows.len(), 1, "one pending proposal in the queue");
         assert_eq!(queue.rows[0].id, "vpr_pending1");
         assert_eq!(queue.rows[0].lane, "decision");
-        assert!(queue.rows[0].signable);
+        assert_eq!(queue.rows[0].accept_eligibility, "not_evaluated");
+        assert_eq!(queue.rows[0].reject_eligibility, "not_evaluated");
+        assert_eq!(queue.rows[0].pack_memberships.total, 0);
         assert!(
             !queue.policy_filtered,
             "fallback declares itself unfiltered"

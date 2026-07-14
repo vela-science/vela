@@ -48,6 +48,27 @@ pub(crate) fn cmd_status(path: &Path, json: bool) {
             *pending_by_kind.entry(p.kind.clone()).or_insert(0) += 1;
         }
     }
+    let review_page = crate::review_material::ReviewProjection::page(
+        path,
+        crate::review_material::ReviewRequest {
+            limit: Some(5),
+            ..crate::review_material::ReviewRequest::default()
+        },
+    );
+    let review_projection = match &review_page {
+        Ok(page) => json!({
+            "snapshot_root": page.snapshot_root,
+            "event_log_root": page.event_log_root,
+            "observed_at": page.observed_at,
+            "total": page.total,
+            "returned": page.returned,
+            "items": page.items,
+            "next_cursor": page.next_cursor,
+        }),
+        Err(error) => json!({
+            "error": {"code": error.code, "message": error.message},
+        }),
+    };
 
     // The memo's epistemic vector: never collapse into one green check.
     // claimed / evidence-attached / contested / refuted / retracted / stale
@@ -144,6 +165,7 @@ pub(crate) fn cmd_status(path: &Path, json: bool) {
                 "inbox": {
                     "pending_total": pending_total,
                     "pending_by_kind": pending_by_kind,
+                    "review": review_projection,
                 },
                 "unpublished_store_files": unpublished_store_files(path),
                 "next": if pending_total > 0 {
@@ -259,6 +281,41 @@ pub(crate) fn cmd_status(path: &Path, json: bool) {
         );
         for (k, n) in &pending_by_kind {
             println!("    · {n:>3}  {k}");
+        }
+        match &review_page {
+            Ok(page) => {
+                for item in &page.items {
+                    let accept = item
+                        .brief
+                        .action("accept")
+                        .map(|action| action.eligibility.as_str())
+                        .unwrap_or("unavailable");
+                    let reject = item
+                        .brief
+                        .action("reject")
+                        .map(|action| action.eligibility.as_str())
+                        .unwrap_or("unavailable");
+                    println!(
+                        "    · {}  {}",
+                        item.brief.audit.proposal_id,
+                        crate::cli::safe_text::inline(&item.brief.change.claim)
+                    );
+                    println!(
+                        "      {} · accept {accept} · reject {reject} · facts {}",
+                        item.brief.authority.route, item.brief.audit.decision_facts_root
+                    );
+                }
+                if page.next_cursor.is_some() {
+                    println!(
+                        "    … {} more available through `vela sign`",
+                        page.total - page.returned
+                    );
+                }
+            }
+            Err(error) => println!(
+                "    · review projection unavailable: {}",
+                crate::cli::safe_text::inline(&error.to_string())
+            ),
         }
         println!();
         println!("  next:  vela sign   (one session, one confirm, one key read)");

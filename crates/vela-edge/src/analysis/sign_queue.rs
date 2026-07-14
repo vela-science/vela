@@ -1,30 +1,27 @@
-//! The sign queue: everything in a frontier that awaits a HUMAN key,
-//! as one derived projection (never a store). This is the data model
-//! behind `vela sign` — the one ceremony verb. Four lanes, fixed order:
+//! Pure adapter for the human sign-session queue.
 //!
-//! 1. `judgment` — products only a human can produce (statement-
-//!    fidelity verdicts owed, role attestations). These can never be
-//!    policied away: they are the product. Domain surfaces (the CLI's
-//!    sign session) inject these via [`SignQueue::push_judgment`] until
-//!    the generic verdict-owed detection lands with the draft-class
-//!    policy work.
-//! 2. `decision` — pending proposals/packs the active policy DEFERRED
-//!    (or everything pending when no policy is signed: a closed lane
-//!    defers all). Items the policy would Permit never appear here —
-//!    they auto-land at landing time. Deny items appear dimmed
-//!    (`signable: false`): a human should SEE prohibitions, not sign
-//!    around them.
-//! 3. `hygiene` — the operator's own unsigned events under a
-//!    now-registered key (the old resign-frontier.sh ceremony), with
-//!    the before-count the script used to compute by hand.
-//! 4. `detached` — sealed-but-unsigned governance artifacts (policies
-//!    awaiting their signature).
-
-use std::path::Path;
+//! Decision items arrive as already-built [`ReviewSnapshot`] values. This
+//! module does not read a frontier, inspect policy files, evaluate policy,
+//! preview packs, or derive another view of the evidence. Judgment, hygiene,
+//! and detached-artifact work are separate caller-supplied lanes because their
+//! discovery belongs at the filesystem or domain boundary.
+//!
+//! The queue preserves one fixed presentation order:
+//!
+//! 1. judgment products only a human can produce;
+//! 2. proposal-scoped decisions;
+//! 3. unsigned-event hygiene;
+//! 4. detached governance artifacts.
+//!
+//! Accept and Reject eligibility remain action-specific facts in the embedded
+//! Decision Brief. Skip is intentionally absent from [`SignDecisionAction`]:
+//! it is session navigation, not a scientific decision. A review snapshot is
+//! proposal-scoped; this adapter never infers that acting on one pack member
+//! acts on any other member.
 
 use serde::Serialize;
-use vela_protocol::acceptance_policy::{Outcome, PolicyContext, evaluate, load_active_policy};
-use vela_protocol::project::Project;
+
+use super::decision_brief::{DecisionAction, ReviewSnapshot};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -35,316 +32,385 @@ pub enum SignLane {
     Detached,
 }
 
-#[derive(Debug, Clone, Serialize)]
-pub struct SignItem {
-    pub lane: SignLane,
-    /// Object id (vpr_/vsd_/vsa-request/actor id/file path).
+/// The only decision actions exposed by the queue adapter.
+///
+/// Whether either action is currently available is read independently from
+/// the item's Decision Brief. In particular, a blocked Accept does not imply a
+/// blocked Reject.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SignDecisionAction {
+    Accept,
+    Reject,
+}
+
+impl SignDecisionAction {
+    const fn as_str(self) -> &'static str {
+        match self {
+            Self::Accept => "accept",
+            Self::Reject => "reject",
+        }
+    }
+}
+
+/// Caller-supplied work for a non-decision lane.
+///
+/// Discovery of these items may require domain or filesystem knowledge. The
+/// edge adapter receives only the completed display material and never tries
+/// to rediscover it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct SupplementalSignItem {
     pub id: String,
     pub title: String,
-    /// Why this needs a human — the deferring rule's reasons, the
-    /// signal counts, or "judgment product".
     pub why_here: String,
-    /// False for policy-Denied items: shown, never signable.
-    pub signable: bool,
-    /// Pack id when the item decides a whole changeset.
-    pub pack: Option<String>,
-    /// The content being decided, as renderable lines: the claim, its
-    /// artifacts with hashes, its caveats. A judgment surface that
-    /// hides the artifact is a rubber stamp with extra steps.
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub preview: Vec<String>,
-    /// The pack-level semantic preview (state ops, polarity, gate matrix,
-    /// graded blast) when this item decides a whole released pack. Display
-    /// only; absent when no pack resolves or its file is unreadable.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub pack_preview: Option<crate::sign_preview::PackSignPreview>,
 }
 
-#[derive(Debug, Clone, Serialize, Default)]
+impl SupplementalSignItem {
+    #[must_use]
+    pub fn new(
+        id: impl Into<String>,
+        title: impl Into<String>,
+        why_here: impl Into<String>,
+        preview: Vec<String>,
+    ) -> Self {
+        Self {
+            id: id.into(),
+            title: title.into(),
+            why_here: why_here.into(),
+            preview,
+        }
+    }
+}
+
+/// One queue row.
+///
+/// Decision rows retain the complete, already-derived review snapshot. The
+/// summary fields are presentation indexes over that snapshot, not a second
+/// policy or evidence evaluation. Supplemental rows have no `review` and are
+/// copied unchanged from their explicitly supplied lane.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct SignItem {
+    pub lane: SignLane,
+    pub id: String,
+    pub title: String,
+    pub why_here: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub preview: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub review: Option<ReviewSnapshot>,
+}
+
+impl SignItem {
+    fn supplemental(lane: SignLane, item: SupplementalSignItem) -> Self {
+        debug_assert!(lane != SignLane::Decision);
+        Self {
+            lane,
+            id: item.id,
+            title: item.title,
+            why_here: item.why_here,
+            preview: item.preview,
+            review: None,
+        }
+    }
+
+    fn decision(review: ReviewSnapshot) -> Self {
+        let id = review.brief.audit.proposal_id.clone();
+        let title = review.brief.change.claim.clone();
+        let why_here = if review.brief.authority.why_human.is_empty() {
+            review.brief.authority.route.clone()
+        } else {
+            review.brief.authority.why_human.join("; ")
+        };
+        Self {
+            lane: SignLane::Decision,
+            id,
+            title,
+            why_here,
+            preview: Vec::new(),
+            review: Some(review),
+        }
+    }
+
+    /// Return the existing Decision Brief entry for one explicit action.
+    ///
+    /// There is deliberately no aggregate `signable` answer: Accept and
+    /// Reject can have different eligibility. Supplemental lanes return
+    /// `None` because their ceremony is not a proposal decision.
+    #[must_use]
+    pub fn decision_action(&self, action: SignDecisionAction) -> Option<&DecisionAction> {
+        self.review
+            .as_ref()?
+            .brief
+            .authority
+            .actions
+            .iter()
+            .find(|candidate| candidate.action == action.as_str())
+    }
+
+    #[must_use]
+    pub fn accept_action(&self) -> Option<&DecisionAction> {
+        self.decision_action(SignDecisionAction::Accept)
+    }
+
+    #[must_use]
+    pub fn reject_action(&self) -> Option<&DecisionAction> {
+        self.decision_action(SignDecisionAction::Reject)
+    }
+}
+
+/// Completed inputs from the read-side boundary.
+///
+/// The four vectors are intentionally separate. This makes lane ownership
+/// explicit and prevents the pure adapter from reaching back into a frontier
+/// to discover hygiene or detached-signature work.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct SignQueueInput {
+    pub judgments: Vec<SupplementalSignItem>,
+    pub decisions: Vec<ReviewSnapshot>,
+    pub hygiene: Vec<SupplementalSignItem>,
+    pub detached: Vec<SupplementalSignItem>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
 pub struct SignQueue {
     pub items: Vec<SignItem>,
-    /// True when a signed policy filtered this queue (autonomy is ON);
-    /// false = lane closed, everything pending defers to the human.
-    pub policy_active: bool,
-    pub policy_id: Option<String>,
 }
 
-impl SignQueue {
-    pub fn push_judgment(&mut self, id: &str, title: &str, why: &str, preview: Vec<String>) {
-        self.items.insert(
-            0,
-            SignItem {
-                lane: SignLane::Judgment,
-                id: id.to_string(),
-                title: title.to_string(),
-                why_here: why.to_string(),
-                signable: true,
-                pack: None,
-                pack_preview: None,
-                preview,
-            },
-        );
-    }
-}
-
-/// The headline of a proposal is its CLAIM, never its kind string.
-fn proposal_headline(p: &vela_protocol::proposals::StateProposal) -> String {
-    // finding.add nests the claim at payload.finding.assertion.text;
-    // review/note kinds carry it flatter. Walk the known shapes.
-    let flat = &p.payload;
-    let nested = flat.get("finding").unwrap_or(flat);
-    nested
-        .get("assertion")
-        .and_then(|a| a.get("text"))
-        .and_then(|t| t.as_str())
-        .or_else(|| flat.get("text").and_then(|t| t.as_str()))
-        .or_else(|| flat.get("status").and_then(|s| s.as_str()))
-        .unwrap_or(&p.reason)
-        .to_string()
-}
-
-/// The content a human must SEE before deciding: type, artifacts with
-/// hashes, verifier runs, caveats, author.
-fn proposal_preview(p: &vela_protocol::proposals::StateProposal) -> Vec<String> {
-    let mut out = Vec::new();
-    let nested = p.payload.get("finding").unwrap_or(&p.payload);
-    let atype = nested
-        .get("assertion")
-        .and_then(|a| a.get("type"))
-        .and_then(|v| v.as_str())
-        .or_else(|| p.payload.get("assertion_type").and_then(|v| v.as_str()));
-    match atype {
-        Some(t) => out.push(format!("type      {t} · {}", p.kind)),
-        None => out.push(format!("kind      {}", p.kind)),
-    }
-    out.push(format!("target    {} {}", p.target.r#type, p.target.id));
-    out.push(format!("author    {}", p.actor.id));
-    if let Some(cond) = nested
-        .get("conditions")
-        .and_then(|c| c.get("text"))
-        .and_then(|v| v.as_str())
-    {
-        out.push(format!("evidence  {}", &cond[..cond.len().min(90)]));
-    }
-    if let Some(score) = nested
-        .get("confidence")
-        .and_then(|c| c.get("score"))
-        .and_then(|v| v.as_f64())
-    {
-        out.push(format!("prior     {score:.2} (review required)"));
-    }
-    if let Some(arts) = p
-        .payload
-        .get("evidence_atoms")
-        .or_else(|| p.payload.get("artifacts"))
-        .and_then(|a| a.as_array())
-    {
-        for a in arts.iter().take(4) {
-            let loc = a
-                .get("locator")
-                .or_else(|| a.get("path"))
-                .and_then(|v| v.as_str())
-                .unwrap_or("?");
-            let sha = a.get("sha256").and_then(|v| v.as_str()).unwrap_or("");
-            out.push(format!("artifact  {loc}  {}", &sha[..sha.len().min(12)]));
-        }
-    }
-    if let Some(runs) = p.payload.get("verifier_runs").and_then(|a| a.as_array()) {
-        for r in runs.iter().take(3) {
-            out.push(format!(
-                "verified  {} -> {}",
-                r.get("method").and_then(|v| v.as_str()).unwrap_or("?"),
-                r.get("outcome").and_then(|v| v.as_str()).unwrap_or("?"),
-            ));
-        }
-    }
-    if let Some(caveats) = p.payload.get("caveats").and_then(|c| c.as_array()) {
-        for c in caveats.iter().filter_map(|v| v.as_str()).take(3) {
-            out.push(format!("caveat    {c}"));
-        }
-    }
-    for c in p.caveats.iter().take(2) {
-        out.push(format!("caveat    {c}"));
-    }
-    out
-}
-
-/// Reason codes become sentences. A bare rule id at a judgment prompt
-/// is developer debris.
-fn humanize_reasons(reasons: &[String]) -> String {
-    let mapped: Vec<String> = reasons
-        .iter()
-        .map(|r| match r.as_str() {
-            "default_defer" => "no policy rule covers this — the default is to ask you".to_string(),
-            "assurance_below_minimum" => {
-                "the evidence hasn't cleared the rule's assurance bar".to_string()
-            }
-            "no_matching_rule" => "no policy rule matches this claim class".to_string(),
-            other => other.replace('_', " "),
-        })
-        .collect();
-    mapped.join("; ")
-}
-
-/// Build the queue for one frontier. `ctx_for` derives the policy
-/// context for a pending proposal — the SAME derivation the landing
-/// path uses (assurance from the gate, never self-asserted); pass the
-/// conservative default when no richer derivation exists yet.
-pub fn sign_queue(
-    project: &Project,
-    frontier_dir: &Path,
-    ctx_for: impl Fn(&Project, &str) -> PolicyContext,
-) -> Result<SignQueue, String> {
-    let mut queue = SignQueue::default();
-
-    let policy = load_active_policy(frontier_dir)?;
-    queue.policy_active = policy.is_some();
-    queue.policy_id = policy.as_ref().map(|p| p.policy.id.clone());
-    let now = chrono::Utc::now().to_rfc3339();
-
-    // Lane 2 — decisions: pending proposals, policy-filtered, packs first.
-    let mut pack_previews: std::collections::BTreeMap<
-        String,
-        Option<crate::sign_preview::PackSignPreview>,
-    > = Default::default();
-    let pack_of = |proposal_id: &str| -> Option<String> {
-        project
-            .released_diff_packs
-            .iter()
-            .find(|p| p.verdict.is_none() && p.member_proposals.iter().any(|m| m == proposal_id))
-            .map(|p| p.pack_id.clone())
-    };
-    for proposal in project
-        .proposals
-        .iter()
-        .filter(|p| p.status == "pending_review")
-    {
-        let (why, signable) = match &policy {
-            None => (
-                "no standing policy covers this frontier — every decision is yours".to_string(),
-                true,
-            ),
-            Some(vp) => {
-                let ctx = ctx_for(project, &proposal.id);
-                let decision = evaluate(&vp.policy, &ctx, &now);
-                match decision.outcome {
-                    // Permit-able items are NOT the human's job: the
-                    // landing path admits them. Showing them here would
-                    // re-create the per-item ceremony the lane removed.
-                    Outcome::Permit => continue,
-                    Outcome::Defer => (humanize_reasons(&decision.reasons), true),
-                    Outcome::Deny => (
-                        format!(
-                            "policy prohibits this: {}",
-                            humanize_reasons(&decision.reasons)
-                        ),
-                        false,
-                    ),
-                }
-            }
-        };
-        let pack = pack_of(&proposal.id);
-        // One semantic preview per pack, memoized: deciding one member
-        // decides the set, so every member shows the same set-level view.
-        let pack_preview = pack.as_ref().and_then(|pid| {
-            pack_previews
-                .entry(pid.clone())
-                .or_insert_with(|| {
-                    crate::sign_preview::pack_sign_preview(project, frontier_dir, pid)
-                })
-                .clone()
-        });
-        queue.items.push(SignItem {
-            lane: SignLane::Decision,
-            id: proposal.id.clone(),
-            title: proposal_headline(proposal),
-            why_here: why,
-            signable,
-            pack,
-            pack_preview,
-            preview: proposal_preview(proposal),
-        });
-    }
-
-    // Lane 3 — hygiene: unsigned events by registered actors (the
-    // re-sign ceremony), grouped per actor with the signal count.
-    let registered: std::collections::BTreeSet<&str> =
-        project.actors.iter().map(|a| a.id.as_str()).collect();
-    let mut unsigned_by_actor: std::collections::BTreeMap<&str, usize> = Default::default();
-    for ev in &project.events {
-        if ev.signature.is_none() && registered.contains(ev.actor.id.as_str()) {
-            *unsigned_by_actor.entry(ev.actor.id.as_str()).or_default() += 1;
-        }
-    }
-    for (actor, count) in unsigned_by_actor {
-        queue.items.push(SignItem {
-            lane: SignLane::Hygiene,
-            id: format!("resign:{actor}"),
-            title: format!("re-sign {count} unsigned event(s) by {actor}"),
-            why_here: "events predate signing; strict flags unsigned_registered_actor".to_string(),
-            signable: true,
-            pack: None,
-            pack_preview: None,
-            preview: Vec::new(),
-        });
-    }
-
-    // Lane 4 — detached: sealed-but-unsigned policies.
-    let pol_dir = frontier_dir.join(".vela").join("policies");
-    if pol_dir.join("active.json").exists() && !pol_dir.join("active.sig.json").exists() {
-        queue.items.push(SignItem {
-            lane: SignLane::Detached,
-            id: pol_dir.join("active.json").display().to_string(),
-            title: "sealed policy awaits your signature (the lane is closed until then)".into(),
-            why_here: "a policy without a human signature carries no authority".into(),
-            signable: true,
-            pack: None,
-            pack_preview: None,
-            preview: Vec::new(),
-        });
-    }
-
-    Ok(queue)
+/// Assemble a queue without I/O, evaluation, filtering, or mutation.
+///
+/// Decision order is the caller's already-selected ReviewSnapshot order. The
+/// adapter changes only lane placement and transfers ownership of each item.
+#[must_use]
+pub fn sign_queue(input: SignQueueInput) -> SignQueue {
+    let capacity =
+        input.judgments.len() + input.decisions.len() + input.hygiene.len() + input.detached.len();
+    let mut items = Vec::with_capacity(capacity);
+    items.extend(
+        input
+            .judgments
+            .into_iter()
+            .map(|item| SignItem::supplemental(SignLane::Judgment, item)),
+    );
+    items.extend(input.decisions.into_iter().map(SignItem::decision));
+    items.extend(
+        input
+            .hygiene
+            .into_iter()
+            .map(|item| SignItem::supplemental(SignLane::Hygiene, item)),
+    );
+    items.extend(
+        input
+            .detached
+            .into_iter()
+            .map(|item| SignItem::supplemental(SignLane::Detached, item)),
+    );
+    SignQueue { items }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::json;
-    use vela_protocol::events::{StateActor, StateTarget};
-    use vela_protocol::proposals::{PROPOSAL_SCHEMA, StateProposal};
+    use crate::decision_brief::{
+        ClaimState, CorrectionPath, DecisionAudit, DecisionBasis, DecisionBrief, DecisionChange,
+        DecisionCheckState, DecisionFacets, DecisionImpact, DecisionSubject, DownstreamEffect,
+        FixedBase, FrontierReference, ReviewSortKey,
+    };
+
+    fn snapshot(
+        proposal_id: &str,
+        claim: &str,
+        accept_eligibility: &str,
+        accept_reasons: Vec<&str>,
+    ) -> ReviewSnapshot {
+        let root = format!("sha256:{proposal_id}");
+        ReviewSnapshot {
+            observed_at: "2026-07-14T12:00:00Z".to_string(),
+            event_log_root: "sha256:event-log".to_string(),
+            sort_key: ReviewSortKey {
+                created_at: "2026-07-14T11:00:00Z".to_string(),
+                proposal_id: proposal_id.to_string(),
+            },
+            brief: DecisionBrief {
+                schema: "vela.decision-brief.testing.v1".to_string(),
+                stability: "testing".to_string(),
+                change: DecisionChange {
+                    subject: DecisionSubject {
+                        subject_type: "finding".to_string(),
+                        id: "vf_test".to_string(),
+                    },
+                    fixed_base: FixedBase {
+                        event_log_root: "sha256:event-log".to_string(),
+                        receipt_event_log_root: Some("sha256:event-log".to_string()),
+                    },
+                    claim: claim.to_string(),
+                    before: None,
+                    after: Some(ClaimState {
+                        id: "vf_test".to_string(),
+                        claim_type: "computational".to_string(),
+                        text: claim.to_string(),
+                    }),
+                    requested_action: "finding.add".to_string(),
+                },
+                basis: DecisionBasis {
+                    primary_evidence_roots: Vec::new(),
+                    check_state: DecisionCheckState {
+                        gate_status: "needs_verification".to_string(),
+                        gate_reasons: vec!["no_durable_verifier".to_string()],
+                        durable_verifier_count: 0,
+                        durable_verifier_snapshot_root: "sha256:verifiers".to_string(),
+                        engine_status: Some("pass".to_string()),
+                        engine_new_blocking: Vec::new(),
+                        engine_new_warnings: Vec::new(),
+                        producer_reported: Vec::new(),
+                    },
+                    main_caveat: Some("bounded case only".to_string()),
+                    attributed_interpretation: None,
+                },
+                impact: DecisionImpact {
+                    downstream_effect: DownstreamEffect {
+                        changed_findings: 1,
+                        downstream_dependents: 0,
+                        impact_tier: 1,
+                    },
+                    correction_path: CorrectionPath {
+                        while_pending: vec!["withdraw proposal".to_string()],
+                        after_acceptance: vec!["retract finding".to_string()],
+                    },
+                    critical_warnings: Vec::new(),
+                },
+                authority: crate::decision_brief::DecisionAuthority {
+                    frontier: FrontierReference {
+                        id: Some("vfr_test".to_string()),
+                        name: "Test frontier".to_string(),
+                    },
+                    route: "defer".to_string(),
+                    scope: "hypothesis_only".to_string(),
+                    why_human: vec!["human_scientific_judgment".to_string()],
+                    actions: vec![
+                        DecisionAction {
+                            action: "accept".to_string(),
+                            eligibility: accept_eligibility.to_string(),
+                            reasons: accept_reasons.into_iter().map(str::to_string).collect(),
+                        },
+                        DecisionAction {
+                            action: "reject".to_string(),
+                            eligibility: "available".to_string(),
+                            reasons: Vec::new(),
+                        },
+                    ],
+                },
+                audit: DecisionAudit {
+                    observed_at: "2026-07-14T12:00:00Z".to_string(),
+                    proposal_id: proposal_id.to_string(),
+                    proposal_root: root,
+                    decision_facts_root: "sha256:decision-facts".to_string(),
+                    receipt_root: None,
+                    declared_receipt_root: None,
+                    artifact_root: None,
+                    policy_input_root: "sha256:policy-input".to_string(),
+                    policy_result_root: "sha256:policy-result".to_string(),
+                    publication_root: None,
+                    raw_references_root: "sha256:references".to_string(),
+                    raw_references: Vec::new(),
+                    raw_references_truncated: 0,
+                    missing_root: "sha256:missing".to_string(),
+                    missing_truncated: 0,
+                    truncations: Vec::new(),
+                },
+                missing: Vec::new(),
+                facets: DecisionFacets::default(),
+            },
+        }
+    }
+
+    fn supplemental(id: &str) -> SupplementalSignItem {
+        SupplementalSignItem::new(
+            id,
+            format!("title for {id}"),
+            format!("reason for {id}"),
+            vec![format!("preview for {id}")],
+        )
+    }
 
     #[test]
-    fn artifact_retirement_preview_names_exact_target() {
-        let proposal = StateProposal {
-            schema: PROPOSAL_SCHEMA.to_string(),
-            id: "vpr_retire".to_string(),
-            kind: "artifact.retract".to_string(),
-            target: StateTarget {
-                r#type: "artifact".to_string(),
-                id: "va_417333a3e62df44a".to_string(),
-            },
-            actor: StateActor {
-                id: "agent:cleanup".to_string(),
-                r#type: "agent".to_string(),
-            },
-            created_at: "2026-07-12T00:00:00Z".to_string(),
-            drafted_at: None,
-            reason: "retire malformed legacy pointer".to_string(),
-            payload: json!({}),
-            source_refs: Vec::new(),
-            status: "pending_review".to_string(),
-            reviewed_by: None,
-            reviewed_at: None,
-            decision_reason: None,
-            applied_event_id: None,
-            caveats: Vec::new(),
-            agent_run: None,
-        };
-        assert!(
-            proposal_preview(&proposal)
-                .iter()
-                .any(|line| line == "target    artifact va_417333a3e62df44a")
+    fn assembles_fixed_lanes_without_reordering_decisions() {
+        let queue = sign_queue(SignQueueInput {
+            judgments: vec![supplemental("judgment")],
+            decisions: vec![
+                snapshot("vpr_second", "Second supplied review", "available", vec![]),
+                snapshot("vpr_first", "First supplied review", "available", vec![]),
+            ],
+            hygiene: vec![supplemental("hygiene")],
+            detached: vec![supplemental("detached")],
+        });
+
+        assert_eq!(
+            queue.items.iter().map(|item| item.lane).collect::<Vec<_>>(),
+            [
+                SignLane::Judgment,
+                SignLane::Decision,
+                SignLane::Decision,
+                SignLane::Hygiene,
+                SignLane::Detached,
+            ]
         );
+        assert_eq!(queue.items[1].id, "vpr_second");
+        assert_eq!(queue.items[2].id, "vpr_first");
+        assert!(queue.items[0].review.is_none());
+        assert!(queue.items[1].review.is_some());
+        assert_eq!(queue.items[4].preview, ["preview for detached"]);
+    }
+
+    #[test]
+    fn accept_and_reject_eligibility_are_independent() {
+        let queue = sign_queue(SignQueueInput {
+            decisions: vec![snapshot(
+                "vpr_blocked_accept",
+                "A claim that can still be rejected",
+                "blocked",
+                vec!["policy_denied"],
+            )],
+            ..SignQueueInput::default()
+        });
+        let item = &queue.items[0];
+
+        let accept = item.accept_action().expect("accept action is explicit");
+        assert_eq!(accept.eligibility, "blocked");
+        assert_eq!(accept.reasons, ["policy_denied"]);
+        let reject = item.reject_action().expect("reject action is explicit");
+        assert_eq!(reject.eligibility, "available");
+        assert!(reject.reasons.is_empty());
+
+        let json = serde_json::to_value(item).unwrap();
+        assert_eq!(
+            json["review"]["brief"]["authority"]["actions"][0]["action"],
+            "accept"
+        );
+        assert_eq!(
+            json["review"]["brief"]["authority"]["actions"][1]["action"],
+            "reject"
+        );
+        assert!(!json.to_string().contains("\"skip\""));
+        assert!(json.get("signable").is_none());
+    }
+
+    #[test]
+    fn decision_rows_remain_proposal_scoped() {
+        let queue = sign_queue(SignQueueInput {
+            decisions: vec![snapshot(
+                "vpr_pack_member",
+                "One proposal in a larger transport grouping",
+                "available",
+                vec![],
+            )],
+            ..SignQueueInput::default()
+        });
+        let json = serde_json::to_value(&queue.items[0]).unwrap();
+
+        assert_eq!(json["id"], "vpr_pack_member");
+        assert!(json.get("pack").is_none());
+        assert!(json.get("pack_preview").is_none());
     }
 }

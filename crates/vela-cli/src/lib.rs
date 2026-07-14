@@ -12,6 +12,7 @@ use vela_protocol::cli_style as style;
 // `vela_protocol::*`.
 mod atlas;
 pub(crate) use atlas::{atlas_adapters, cli_atlas};
+mod bounded_file;
 mod frontier;
 pub(crate) use frontier::{cli_frontier, cli_read, cli_registry};
 mod write;

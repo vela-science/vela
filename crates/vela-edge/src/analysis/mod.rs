@@ -3,6 +3,7 @@
 
 pub mod artifact_audit;
 pub mod channel_map;
+pub mod decision_brief;
 pub mod frontier_health;
 pub mod frontier_next;
 pub mod provenance_compute;

@@ -48,6 +48,12 @@ pub fn all_tools() -> Vec<ToolDefinition> {
                         "minimum": 1,
                         "maximum": 100,
                         "description": "Cap for open targets, gaps, and the recent-event tail (default 12)."
+                    },
+                    "review_cursor": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 16384,
+                        "description": "Opaque continuation returned as pending_review.next_cursor. Pass it back unchanged with the same limit."
                     }
                 }
             }),
@@ -630,6 +636,7 @@ pub fn tool_output_schema(name: &str) -> Option<Value> {
             "description": "Situational awareness for the served frontier.",
             "properties": {
                 "frontier": {"type": "object"},
+                "pending_review": {"type": ["object", "null"]},
                 "open_targets": {"type": "array"},
                 "gaps": {"type": "array"},
                 "recent_events": {"type": "array"},

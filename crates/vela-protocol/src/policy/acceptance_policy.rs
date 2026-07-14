@@ -1547,8 +1547,13 @@ pub fn load_active_policy_snapshot(
     let dir = frontier_dir.join(".vela").join("policies");
     let policy_path = dir.join("active.json");
     let sig_path = dir.join("active.sig.json");
-    let policy_bytes = read_optional_regular_file(&policy_path, "active policy")?;
-    let signature_bytes = read_optional_regular_file(&sig_path, "active policy signature")?;
+    let policy_bytes =
+        read_optional_regular_file(&policy_path, "active policy", POLICY_JSON_MAX_BYTES)?;
+    let signature_bytes = read_optional_regular_file(
+        &sig_path,
+        "active policy signature",
+        POLICY_SIGNATURE_JSON_MAX_BYTES,
+    )?;
     let verified = match (&policy_bytes, &signature_bytes) {
         (None, None) | (Some(_), None) => None,
         (None, Some(_)) => {
@@ -1573,9 +1578,16 @@ pub fn load_active_policy_snapshot(
 fn read_optional_regular_file(
     path: &std::path::Path,
     label: &str,
+    max_bytes: usize,
 ) -> Result<Option<Vec<u8>>, String> {
     match std::fs::symlink_metadata(path) {
         Ok(metadata) if metadata.file_type().is_file() && !metadata.file_type().is_symlink() => {
+            if metadata.len() > max_bytes as u64 {
+                return Err(format!(
+                    "{label} exceeds the {max_bytes}-byte input limit: {}",
+                    path.display()
+                ));
+            }
             std::fs::read(path)
                 .map(Some)
                 .map_err(|error| format!("read {label} {}: {error}", path.display()))

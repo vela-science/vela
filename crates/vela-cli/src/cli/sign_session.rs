@@ -17,7 +17,7 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use vela_edge::sign_queue::{SignItem, SignLane, sign_queue};
+use vela_edge::sign_queue::{SignItem, SignLane, SignQueueInput, SupplementalSignItem, sign_queue};
 use vela_protocol::{detached, proposals, repo};
 
 use colored::Colorize;
@@ -57,47 +57,103 @@ struct SessionState {
     answers: std::collections::BTreeMap<String, String>,
 }
 
-/// The pack-level semantic preview, rendered inside a hard budget so the
-/// ceremony stays scannable: 1 scope line, <=4 (already-capped) state ops,
-/// 1 polarity line, <=5 gate rows, 1 blast line, <=1 missing note —
-/// display only, no new prompts, the same one confirm and one key read.
-fn render_pack_preview(pp: &vela_edge::sign_preview::PackSignPreview) -> Vec<String> {
-    let mut out = Vec::new();
-    out.push(format!(
-        "pack      {} — deciding one decides the set",
-        pp.pack_id
+struct FrontierQueue {
+    dir: PathBuf,
+    items: Vec<SignItem>,
+    review_total: usize,
+    next_cursor: Option<String>,
+    snapshot_root: String,
+}
+
+/// Shared bounded human rendering for diff, preview, and the ceremony.
+pub(crate) fn render_decision_brief_lines(
+    brief: &vela_edge::decision_brief::DecisionBrief,
+) -> Vec<String> {
+    let mut lines = Vec::new();
+    lines.push(format!(
+        "change    {} {} · {}",
+        brief.change.subject.subject_type, brief.change.subject.id, brief.change.requested_action
     ));
-    out.push(format!("scope     {}", pp.scope));
-    for op in &pp.state_ops {
-        out.push(format!("op        {op}"));
+    lines.push(format!(
+        "base      {}",
+        brief.change.fixed_base.event_log_root
+    ));
+    if let Some(before) = &brief.change.before {
+        lines.push(format!("before    {}", before.text));
     }
-    if !pp.polarity.is_empty() {
-        let line: Vec<String> = pp
-            .polarity
-            .iter()
-            .map(|(name, n)| format!("{name} {n}"))
-            .collect();
-        out.push(format!("polarity  {}", line.join(" · ")));
+    if let Some(after) = &brief.change.after {
+        lines.push(format!("after     {}", after.text));
     }
-    for row in pp.gate_matrix.iter().take(5) {
-        out.push(format!(
-            "gate      {} {} ({} reason{})",
-            row.finding_id,
-            row.status,
-            row.reason_count,
-            if row.reason_count == 1 { "" } else { "s" }
+    let evidence = brief
+        .basis
+        .primary_evidence_roots
+        .iter()
+        .map(|root| format!("{} {}", root.kind, root.root))
+        .collect::<Vec<_>>()
+        .join(" · ");
+    lines.push(format!(
+        "basis     {} · {}",
+        brief.basis.check_state.gate_status, evidence
+    ));
+    if let Some(caveat) = &brief.basis.main_caveat {
+        lines.push(format!("caveat    {caveat}"));
+    }
+    lines.push(format!(
+        "impact    {} changed · {} downstream · tier {}",
+        brief.impact.downstream_effect.changed_findings,
+        brief.impact.downstream_effect.downstream_dependents,
+        brief.impact.downstream_effect.impact_tier
+    ));
+    for warning in &brief.impact.critical_warnings {
+        lines.push(format!(
+            "warning   {}{}",
+            warning.code,
+            warning
+                .reference
+                .as_deref()
+                .map(|reference| format!(" · {reference}"))
+                .unwrap_or_default()
         ));
     }
-    if let Some(b) = &pp.blast {
-        out.push(format!(
-            "blast     {} weakened, {} support-killed of {} downstream",
-            b.weakened, b.support_killed, b.downstream_candidates
+    lines.push(format!(
+        "authority {} · {}",
+        brief.authority.route, brief.authority.scope
+    ));
+    for action in &brief.authority.actions {
+        let reasons = if action.reasons.is_empty() {
+            String::new()
+        } else {
+            format!(" · {}", action.reasons.join("; "))
+        };
+        lines.push(format!(
+            "{} {:<7} {}{}",
+            "action", action.action, action.eligibility, reasons
         ));
     }
-    if let Some(first) = pp.missing.first() {
-        out.push(format!("unshown   {first}"));
+    for (name, facet) in brief.facets.iter().filter(|(_, facet)| facet.critical) {
+        lines.push(format!(
+            "facet     {} · {} · {}",
+            name,
+            facet.full_root,
+            serde_json::to_string(&facet.data).unwrap_or_else(|_| "unavailable".to_string())
+        ));
     }
-    out
+    if !brief.missing.is_empty() {
+        lines.push(format!(
+            "missing   {}",
+            brief
+                .missing
+                .iter()
+                .map(|fact| format!("{} ({})", fact.field, fact.reason))
+                .collect::<Vec<_>>()
+                .join("; ")
+        ));
+    }
+    lines.push(format!(
+        "audit     {} · facts {}",
+        brief.audit.proposal_root, brief.audit.decision_facts_root
+    ));
+    lines.into_iter().map(safe_inline).collect()
 }
 
 /// The complete bounded material shown for one sign item both when it is
@@ -107,12 +163,18 @@ fn render_pack_preview(pp: &vela_edge::sign_preview::PackSignPreview) -> Vec<Str
 fn render_item_review_lines(item: &SignItem) -> Vec<String> {
     const PREVIEW_LINE_BUDGET: usize = 8;
 
-    let mut lines = item
-        .preview
-        .iter()
-        .take(PREVIEW_LINE_BUDGET)
-        .map(safe_inline)
-        .collect::<Vec<_>>();
+    let mut lines = if let Some(review) = &item.review {
+        render_decision_brief_lines(&review.brief)
+    } else {
+        let mut lines = Vec::new();
+        lines.extend(
+            item.preview
+                .iter()
+                .take(PREVIEW_LINE_BUDGET)
+                .map(safe_inline),
+        );
+        lines
+    };
     if item.preview.len() > PREVIEW_LINE_BUDGET {
         let mut hasher = Sha256::new();
         for line in &item.preview {
@@ -126,18 +188,78 @@ fn render_item_review_lines(item: &SignItem) -> Vec<String> {
         ));
     }
     lines.push(format!("why you: {}", safe_inline(&item.why_here)));
-    match (&item.pack_preview, &item.pack) {
-        (Some(preview), _) => {
-            lines.extend(render_pack_preview(preview).into_iter().map(safe_inline));
-        }
-        (None, Some(pack)) => lines.push(format!(
-            "pack {} — deciding one decides the set",
-            safe_inline(pack)
-        )),
-        (None, None) => {}
-    }
     lines.push(safe_inline(&item.id));
-    lines
+    lines.into_iter().map(safe_inline).collect()
+}
+
+fn action_available(item: &SignItem, action: &str) -> bool {
+    item.review
+        .as_ref()
+        .and_then(|review| review.brief.action(action))
+        .is_some_and(vela_edge::decision_brief::DecisionAction::is_available)
+}
+
+fn item_answerable(item: &SignItem) -> bool {
+    match item.lane {
+        SignLane::Decision => action_available(item, "accept") || action_available(item, "reject"),
+        SignLane::Judgment | SignLane::Hygiene | SignLane::Detached => true,
+    }
+}
+
+fn explain_blocked_action(item: &SignItem, action: &str) -> String {
+    item.review
+        .as_ref()
+        .and_then(|review| review.brief.action(action))
+        .map(|entry| entry.reasons.join("; "))
+        .filter(|reasons| !reasons.is_empty())
+        .unwrap_or_else(|| format!("{action} is unavailable for this item"))
+}
+
+fn supplemental_sign_items(
+    project: &vela_protocol::project::Project,
+    frontier: &Path,
+) -> (Vec<SupplementalSignItem>, Vec<SupplementalSignItem>) {
+    let registered = project
+        .actors
+        .iter()
+        .map(|actor| actor.id.as_str())
+        .collect::<std::collections::BTreeSet<_>>();
+    let mut unsigned_by_actor = std::collections::BTreeMap::<&str, usize>::new();
+    for event in &project.events {
+        if event.signature.is_none() && registered.contains(event.actor.id.as_str()) {
+            *unsigned_by_actor
+                .entry(event.actor.id.as_str())
+                .or_default() += 1;
+        }
+    }
+    let hygiene = unsigned_by_actor
+        .into_iter()
+        .map(|(actor, count)| {
+            SupplementalSignItem::new(
+                format!("resign:{actor}"),
+                format!("re-sign {count} unsigned event(s) by {actor}"),
+                "events predate signing; strict verification flags a registered actor without signatures",
+                Vec::new(),
+            )
+        })
+        .collect();
+
+    let detached = vela_protocol::acceptance_policy::load_active_policy_snapshot(frontier)
+        .ok()
+        .filter(|snapshot| snapshot.policy_bytes.is_some() && snapshot.signature_bytes.is_none())
+        .map(|_| {
+            vec![SupplementalSignItem::new(
+                frontier
+                    .join(".vela/policies/active.json")
+                    .display()
+                    .to_string(),
+                "sealed policy awaits your signature (the lane is closed until then)",
+                "a policy without a human signature carries no authority",
+                Vec::new(),
+            )]
+        })
+        .unwrap_or_default();
+    (hygiene, detached)
 }
 
 fn session_path(frontier: &Path) -> PathBuf {
@@ -186,6 +308,93 @@ fn read_line(prompt: &str) -> String {
     crate::cli::prompt::read_line(prompt)
 }
 
+/// Read-only convenience over the same page and bytes used by ordinary sign.
+/// This path never resolves an actor, opens a key, or creates session state.
+pub(crate) fn cmd_sign_preview(
+    frontier: Option<PathBuf>,
+    cursor: Option<String>,
+    limit: Option<usize>,
+    json: bool,
+) {
+    if limit.is_some_and(|limit| !(1..=crate::review_material::REVIEW_PAGE_MAX).contains(&limit)) {
+        ui::fail_with(
+            ErrorKind::Usage,
+            "sign preview limit must be between 1 and 100",
+            None,
+        );
+    }
+    let frontiers = session_frontiers(frontier);
+    if frontiers.is_empty() {
+        ui::fail_with(
+            ErrorKind::NotFound,
+            "no frontier here and none registered",
+            Some("run inside a frontier, or pass --frontier"),
+        );
+    }
+    if cursor.is_some() && frontiers.len() != 1 {
+        ui::fail_with(
+            ErrorKind::Usage,
+            "a review cursor is scoped to exactly one frontier",
+            Some("pass --frontier with the cursor returned for that frontier"),
+        );
+    }
+    let mut pages = Vec::new();
+    for dir in frontiers {
+        let page = crate::review_material::ReviewProjection::page(
+            &dir,
+            crate::review_material::ReviewRequest {
+                limit,
+                cursor: cursor.clone(),
+                proposal_id: None,
+            },
+        )
+        .unwrap_or_else(|error| ui::fail_with(ErrorKind::Domain, &error.to_string(), None));
+        pages.push((dir, page));
+    }
+    if json {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&serde_json::json!({
+                "ok": true,
+                "command": "sign.preview",
+                "frontiers": pages.iter().map(|(dir, page)| serde_json::json!({
+                    "frontier": dir.display().to_string(),
+                    "snapshot_root": page.snapshot_root,
+                    "event_log_root": page.event_log_root,
+                    "observed_at": page.observed_at,
+                    "total": page.total,
+                    "returned": page.returned,
+                    "items": page.items,
+                    "next_cursor": page.next_cursor,
+                })).collect::<Vec<_>>(),
+            }))
+            .expect("serialize sign preview")
+        );
+        return;
+    }
+    for (dir, page) in pages {
+        ui::header(
+            "SIGN PREVIEW",
+            &safe_inline(dir.display().to_string()),
+            Some(&format!("{} of {} pending", page.returned, page.total)),
+        );
+        for item in &page.items {
+            println!();
+            println!("  {}", safe_inline(&item.brief.change.claim).bold());
+            for line in render_decision_brief_lines(&item.brief) {
+                println!("    {}", style::dim(&line));
+            }
+        }
+        if page.next_cursor.is_some() {
+            println!();
+            println!(
+                "  · more pending; use `vela sign --preview --json` to continue with the opaque cursor"
+            );
+        }
+        println!();
+    }
+}
+
 /// The interactive session (the default form of `vela sign`).
 pub(crate) fn cmd_sign_session(
     frontier: Option<PathBuf>,
@@ -218,7 +427,7 @@ pub(crate) fn cmd_sign_session(
     }
 
     // Build every queue up front so the header can tell the whole story.
-    let mut queues: Vec<(PathBuf, vela_protocol::project::Project, Vec<SignItem>)> = Vec::new();
+    let mut queues = Vec::<FrontierQueue>::new();
     let mut total = 0usize;
     for dir in &frontiers {
         let project = match repo::load_from_path(dir) {
@@ -232,30 +441,42 @@ pub(crate) fn cmd_sign_session(
                 continue;
             }
         };
-        match sign_queue(&project, dir, |project, id| {
-            let receipt = project
-                .proposals
-                .iter()
-                .find(|proposal| proposal.id == id)
-                .and_then(|proposal| {
-                    crate::review_material::frontier_receipt_for_proposal(dir, proposal)
-                });
-            crate::review_material::derive_existing_proposal_policy_context(
-                project,
-                id,
-                receipt.as_ref(),
-            )
-        }) {
-            Ok(q) => {
-                total += q.items.iter().filter(|i| i.signable).count();
-                queues.push((dir.clone(), project, q.items));
+        let page = match crate::review_material::ReviewProjection::page(
+            dir,
+            crate::review_material::ReviewRequest::default(),
+        ) {
+            Ok(page) => page,
+            Err(error) => {
+                eprintln!(
+                    "  skipping {}: {}",
+                    safe_inline(dir.display().to_string()),
+                    safe_inline(error.to_string())
+                );
+                continue;
             }
-            Err(e) => eprintln!(
-                "  skipping {}: {}",
-                safe_inline(dir.display().to_string()),
-                safe_inline(e)
-            ),
-        }
+        };
+        let review_total = page.total;
+        let next_cursor = page.next_cursor.clone();
+        let snapshot_root = page.snapshot_root.clone();
+        let (hygiene, detached) = supplemental_sign_items(&project, dir);
+        let queue = sign_queue(SignQueueInput {
+            judgments: Vec::new(),
+            decisions: page.items,
+            hygiene,
+            detached,
+        });
+        total += queue
+            .items
+            .iter()
+            .filter(|item| item_answerable(item))
+            .count();
+        queues.push(FrontierQueue {
+            dir: dir.clone(),
+            items: queue.items,
+            review_total,
+            next_cursor,
+            snapshot_root,
+        });
     }
 
     if json {
@@ -263,11 +484,15 @@ pub(crate) fn cmd_sign_session(
         let out = serde_json::json!({
             "ok": true,
             "command": "sign",
-            "frontiers": queues.iter().map(|(d, _, items)| serde_json::json!({
-                "frontier": d.display().to_string(),
-                "items": items,
+            "frontiers": queues.iter().map(|queue| serde_json::json!({
+                "frontier": queue.dir.display().to_string(),
+                "review_snapshot_root": queue.snapshot_root,
+                "pending_total": queue.review_total,
+                "next_cursor": queue.next_cursor,
+                "items": queue.items,
             })).collect::<Vec<_>>(),
             "signable_total": total,
+            "answerable_total": total,
         });
         println!("{}", serde_json::to_string_pretty(&out).unwrap());
         return;
@@ -299,6 +524,20 @@ pub(crate) fn cmd_sign_session(
         println!("  · nothing awaits you — the policy lane is doing its job");
         return;
     }
+    for queue in &queues {
+        let shown = queue
+            .items
+            .iter()
+            .filter(|item| item.lane == SignLane::Decision)
+            .count();
+        if queue.next_cursor.is_some() {
+            println!(
+                "  · {} shows {shown} of {} pending decisions; finish this page, then rerun `vela sign`",
+                safe_inline(queue.dir.display().to_string()),
+                queue.review_total,
+            );
+        }
+    }
 
     // The session prompts per item; refuse cleanly on piped/CI stdin
     // rather than spin the read loop on empty reads. Scripted decisions go
@@ -317,10 +556,10 @@ pub(crate) fn cmd_sign_session(
     // The judgment loop: per frontier, per item; resume-safe.
     let total_signable = total;
     let mut position = 0usize;
-    for (dir, _project, items) in &queues {
-        let mut state = load_session(dir);
-        for item in items {
-            if !item.signable || state.answers.contains_key(&item.id) {
+    for queue in &queues {
+        let mut state = load_session(&queue.dir);
+        for item in &queue.items {
+            if !item_answerable(item) || state.answers.contains_key(&item.id) {
                 continue;
             }
             position += 1;
@@ -365,16 +604,29 @@ pub(crate) fn cmd_sign_session(
                 let ans = read_line(&format!("  {legend}  > "));
                 match session_command(&ans, item.lane) {
                     SessionCommand::Quit => {
-                        save_session(dir, &state);
+                        save_session(&queue.dir, &state);
                         println!("  saved; re-run `vela sign` to resume.");
                         return;
                     }
                     SessionCommand::Skip => break,
                     SessionCommand::Accept => {
-                        state.answers.insert(item.id.clone(), "accept".into());
-                        break;
+                        if action_available(item, "accept") {
+                            state.answers.insert(item.id.clone(), "accept".into());
+                            break;
+                        }
+                        println!(
+                            "    {}",
+                            safe_inline(explain_blocked_action(item, "accept"))
+                        );
                     }
                     SessionCommand::Reject => {
+                        if !action_available(item, "reject") {
+                            println!(
+                                "    {}",
+                                safe_inline(explain_blocked_action(item, "reject"))
+                            );
+                            continue;
+                        }
                         let why = read_line("  reject reason: ");
                         state
                             .answers
@@ -388,7 +640,7 @@ pub(crate) fn cmd_sign_session(
                     SessionCommand::Invalid => println!("    keys: {keys}"),
                 }
             }
-            save_session(dir, &state);
+            save_session(&queue.dir, &state);
         }
     }
 
@@ -400,11 +652,28 @@ pub(crate) fn cmd_sign_session(
     loop {
         let mut answered: Vec<(PathBuf, String)> = Vec::new();
         println!("\n  ══════════════════════════════════════════════════");
-        for (dir, _, items) in &queues {
-            let state = load_session(dir);
-            for item in items {
-                if let Some(ans) = state.answers.get(&item.id) {
-                    let verdict = ans.split(':').next().unwrap_or(ans);
+        for queue in &queues {
+            let mut state = load_session(&queue.dir);
+            let mut removed_blocked = false;
+            for item in &queue.items {
+                if let Some(ans) = state.answers.get(&item.id).cloned() {
+                    let verdict = ans.split(':').next().unwrap_or(ans.as_str());
+                    let action_allowed = match (item.lane, verdict) {
+                        (SignLane::Decision, "accept") => action_available(item, "accept"),
+                        (SignLane::Decision, "reject") => action_available(item, "reject"),
+                        _ => true,
+                    };
+                    if !action_allowed {
+                        println!(
+                            "  {}  {}  {}",
+                            style::madder("blocked"),
+                            safe_inline(&item.id),
+                            safe_inline(explain_blocked_action(item, verdict))
+                        );
+                        state.answers.remove(&item.id);
+                        removed_blocked = true;
+                        continue;
+                    }
                     // Pad to width first, THEN color — ANSI codes would break
                     // right-alignment if we formatted the colored string.
                     let label = format!("{verdict:>9}");
@@ -421,8 +690,11 @@ pub(crate) fn cmd_sign_session(
                     for line in render_item_review_lines(item) {
                         println!("             {}", style::dim(&line));
                     }
-                    answered.push((dir.clone(), item.id.clone()));
+                    answered.push((queue.dir.clone(), item.id.clone()));
                 }
+            }
+            if removed_blocked {
+                save_session(&queue.dir, &state);
             }
         }
         let planned = answered.len();
@@ -499,7 +771,8 @@ pub(crate) fn cmd_sign_session(
         String,
         crate::config::git_publish::PublicationOutcome,
     )> = Vec::new();
-    for (dir, _, items) in &queues {
+    for queue in &queues {
+        let dir = &queue.dir;
         let publish_opts = crate::config::git_publish::PublishOptions::new(false, false);
         let publication_preflight =
             crate::config::git_publish::publication_preflight(dir, &publish_opts);
@@ -517,7 +790,7 @@ pub(crate) fn cmd_sign_session(
         let mut accepted: Vec<String> = Vec::new();
         let mut event_ids: Vec<String> = Vec::new();
         let mut frontier_failed = false;
-        for item in items {
+        for item in &queue.items {
             let Some(ans) = state.answers.get(&item.id).cloned() else {
                 continue;
             };
@@ -685,8 +958,8 @@ pub(crate) fn cmd_sign_session(
 
     // The self-shrinking step: if what you just signed keeps recurring,
     // say so once — the rule that absorbs the class is one command away.
-    for (dir, _, _) in &queues {
-        if let Some(hint) = crate::config::cli_policy::suggest_hint(dir) {
+    for queue in &queues {
+        if let Some(hint) = crate::config::cli_policy::suggest_hint(&queue.dir) {
             println!(
                 "  {}",
                 vela_protocol::cli_style::dim(&crate::cli::safe_text::inline(&hint))
@@ -963,10 +1236,8 @@ mod tests {
             id: id.to_string(),
             title: format!("claim {id}"),
             why_here: "policy deferred this claim".to_string(),
-            signable: true,
-            pack: None,
             preview,
-            pack_preview: None,
+            review: None,
         }
     }
 

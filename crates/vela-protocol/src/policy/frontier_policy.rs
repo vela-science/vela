@@ -6,9 +6,17 @@
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
-use std::path::{Path, PathBuf};
+use std::io::Read;
+use std::path::{Component, Path, PathBuf};
 
 use crate::{canonical, repo};
+
+pub const ENGINE_POLICY_MANIFEST_MAX_BYTES: usize = 256 * 1024;
+pub const ENGINE_POLICY_DOCUMENT_MAX_BYTES: usize = 256 * 1024;
+pub const ENGINE_POLICY_SUMMARY_OBSERVATION_SCHEMA: &str =
+    "vela.engine-policy-summary-observation.v1";
+const ENGINE_POLICY_SUMMARY_ROOT_DOMAIN: &str = "vela.engine-policy-summary-root.v1";
+const ENGINE_POLICY_ERROR_ROOT_DOMAIN: &str = "vela.engine-policy-error-root.v1";
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 #[serde(rename_all = "snake_case")]
@@ -69,6 +77,90 @@ pub struct FrontierPolicySummary {
     pub canonical_json_sha256: String,
 }
 
+/// Read-only, bounded observation of the policy inputs consumed by Engine
+/// preview. It never contains an absolute path or raw parser/filesystem error.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum EnginePolicySummaryState {
+    Present,
+    Absent,
+    Invalid,
+}
+
+impl EnginePolicySummaryState {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Present => "present",
+            Self::Absent => "absent",
+            Self::Invalid => "invalid",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct EnginePolicySummaryObservation {
+    pub schema: String,
+    pub state: EnginePolicySummaryState,
+    pub root: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub summary_root: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub error_code: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub error_root: Option<String>,
+}
+
+#[derive(Debug)]
+struct PolicyLoadError {
+    code: &'static str,
+    reference: String,
+    input_root: Option<String>,
+    message: String,
+}
+
+impl PolicyLoadError {
+    fn new(
+        code: &'static str,
+        reference: impl Into<String>,
+        input_root: Option<String>,
+        message: impl Into<String>,
+    ) -> Self {
+        Self {
+            code,
+            reference: reference.into(),
+            input_root,
+            message: message.into(),
+        }
+    }
+
+    fn io(code: &'static str, reference: &str, error: &std::io::Error) -> Self {
+        let kind = format!("{:?}", error.kind()).to_ascii_lowercase();
+        Self::new(
+            code,
+            reference,
+            Some(text_root(&kind)),
+            format!("{reference}: filesystem operation failed ({kind})"),
+        )
+    }
+
+    fn stable_root(&self) -> String {
+        domain_hash(
+            ENGINE_POLICY_ERROR_ROOT_DOMAIN,
+            &[
+                Some(self.code),
+                Some(&self.reference),
+                self.input_root.as_deref(),
+            ],
+        )
+    }
+}
+
+impl std::fmt::Display for PolicyLoadError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(formatter, "[{}] {}", self.code, self.message)
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct OperationReviewRequirement {
     pub review_class: String,
@@ -84,17 +176,79 @@ pub struct OperationReviewRequirement {
 }
 
 pub fn load_policy_summary(frontier_path: &Path) -> Result<FrontierPolicySummary, String> {
-    let root = frontier_root(frontier_path);
-    let manifest_path = root.join("frontier.yaml");
-    let manifest = std::fs::read_to_string(&manifest_path)
-        .ok()
-        .and_then(|body| serde_yaml::from_str::<serde_yaml::Value>(&body).ok());
+    load_policy_summary_inner(frontier_path, true).map_err(|error| error.to_string())
+}
+
+/// Observe the exact bounded policy inputs that Engine preview would read.
+/// Invalid inputs remain cursor-bindable without exposing raw error text.
+#[must_use]
+pub fn engine_policy_summary_observation(frontier_path: &Path) -> EnginePolicySummaryObservation {
+    match load_policy_summary_inner(frontier_path, false) {
+        Ok(summary) => {
+            let state = if summary.documents.is_empty() {
+                EnginePolicySummaryState::Absent
+            } else {
+                EnginePolicySummaryState::Present
+            };
+            let summary_root = Some(summary.canonical_json_sha256);
+            let root = observation_root(state, summary_root.as_deref(), None, None);
+            EnginePolicySummaryObservation {
+                schema: ENGINE_POLICY_SUMMARY_OBSERVATION_SCHEMA.to_string(),
+                state,
+                root,
+                summary_root,
+                error_code: None,
+                error_root: None,
+            }
+        }
+        Err(error) => {
+            let error_root = error.stable_root();
+            let root = observation_root(
+                EnginePolicySummaryState::Invalid,
+                None,
+                Some(error.code),
+                Some(&error_root),
+            );
+            EnginePolicySummaryObservation {
+                schema: ENGINE_POLICY_SUMMARY_OBSERVATION_SCHEMA.to_string(),
+                state: EnginePolicySummaryState::Invalid,
+                root,
+                summary_root: None,
+                error_code: Some(error.code.to_string()),
+                error_root: Some(error_root),
+            }
+        }
+    }
+}
+
+/// Convenience root for callers that only need to bind the observation into a
+/// larger read snapshot. Prefer [`engine_policy_summary_observation`] when the
+/// present/absent/invalid state must also be displayed.
+#[must_use]
+pub fn engine_policy_summary_root(frontier_path: &Path) -> String {
+    engine_policy_summary_observation(frontier_path).root
+}
+
+fn load_policy_summary_inner(
+    frontier_path: &Path,
+    allow_frontier_id_fallback: bool,
+) -> Result<FrontierPolicySummary, PolicyLoadError> {
+    let resolved = resolve_frontier_root(frontier_path)?;
+    let manifest_bytes = read_frontier_regular_file(
+        resolved.canonical.as_deref(),
+        Path::new("frontier.yaml"),
+        ENGINE_POLICY_MANIFEST_MAX_BYTES,
+        "frontier_manifest",
+    )?;
+    let manifest = manifest_bytes.as_deref().map(parse_manifest).transpose()?;
     let frontier_id = manifest
         .as_ref()
         .and_then(|m| yaml_string_at(m, &["frontier_id"]))
         .or_else(|| {
-            repo::load_from_path(frontier_path)
-                .ok()
+            allow_frontier_id_fallback
+                .then_some(resolved.canonical.as_deref())
+                .flatten()
+                .and_then(|root| repo::load_from_path(root).ok())
                 .and_then(|project| project.frontier_id)
         });
 
@@ -108,40 +262,53 @@ pub fn load_policy_summary(frontier_path: &Path) -> Result<FrontierPolicySummary
 
     for kind in PolicyDocumentKind::all() {
         let manifest_ref = manifest_refs.get(&kind);
-        let declared_path = manifest_ref.map(|p| root.join(p));
-        let default_path = root.join(".vela").join("policy").join(kind.filename());
-        let chosen = declared_path
-            .as_ref()
-            .filter(|p| p.is_file())
-            .cloned()
-            .or_else(|| {
-                if default_path.is_file() {
-                    used_default_path = true;
-                    Some(default_path.clone())
-                } else {
-                    None
-                }
-            });
+        let default_path = PathBuf::from(".vela").join("policy").join(kind.filename());
+        let reference = format!("policy: {}", kind.as_str());
+        let declared = if let Some(path) = manifest_ref {
+            read_frontier_regular_file(
+                resolved.canonical.as_deref(),
+                path,
+                ENGINE_POLICY_DOCUMENT_MAX_BYTES,
+                &reference,
+            )?
+            .map(|bytes| (path.clone(), bytes, true))
+        } else {
+            None
+        };
+        let chosen = if declared.is_some() {
+            declared
+        } else {
+            used_default_path = true;
+            read_frontier_regular_file(
+                resolved.canonical.as_deref(),
+                &default_path,
+                ENGINE_POLICY_DOCUMENT_MAX_BYTES,
+                &reference,
+            )?
+            .map(|bytes| (default_path, bytes, false))
+        };
 
-        if let Some(path) = chosen {
-            let body = std::fs::read_to_string(&path)
-                .map_err(|e| format!("read policy {}: {e}", path.display()))?;
-            let (front_matter, title) = parse_front_matter(&body, kind);
+        if let Some((path, bytes, declared_in_manifest)) = chosen {
+            let body = std::str::from_utf8(&bytes).map_err(|_| {
+                PolicyLoadError::new(
+                    "document_invalid_utf8",
+                    &reference,
+                    Some(bytes_root(&bytes)),
+                    format!("{reference}: policy document must be UTF-8"),
+                )
+            })?;
+            let (front_matter, title) = parse_front_matter(body, kind);
             documents.push(PolicyDocumentSummary {
                 kind,
-                path: display_path(&root, &path),
+                path: normalized_path_string(&path),
                 title,
                 body_sha256: format!("sha256:{}", hex::encode(Sha256::digest(body.as_bytes()))),
                 bytes: body.len(),
-                declared_in_manifest: manifest_ref.is_some()
-                    && declared_path.as_ref().is_some_and(|p| p == &path),
+                declared_in_manifest,
                 front_matter,
             });
         } else {
             missing_required.push(kind.as_str().to_string());
-            if manifest_ref.is_none() {
-                used_default_path = true;
-            }
         }
     }
 
@@ -150,13 +317,20 @@ pub fn load_policy_summary(frontier_path: &Path) -> Result<FrontierPolicySummary
     let mut summary = FrontierPolicySummary {
         ok: missing_required.is_empty(),
         frontier_id,
-        frontier_path: root.display().to_string(),
+        frontier_path: resolved.display.display().to_string(),
         documents,
         missing_required,
         defaults_used: used_default_path,
         canonical_json_sha256: String::new(),
     };
-    summary.canonical_json_sha256 = summary_hash(&summary)?;
+    summary.canonical_json_sha256 = summary_hash(&summary).map_err(|error| {
+        PolicyLoadError::new(
+            "summary_hash_failed",
+            "policy_summary",
+            None,
+            format!("policy_summary: canonical hashing failed ({error})"),
+        )
+    })?;
     Ok(summary)
 }
 
@@ -217,14 +391,300 @@ pub fn review_requirement_for_operation(
         policy_sources: policy_sources.into_iter().collect(),
     }
 }
-fn frontier_root(path: &Path) -> PathBuf {
-    if path.is_dir() {
-        path.to_path_buf()
-    } else {
-        path.parent()
-            .map(Path::to_path_buf)
-            .unwrap_or_else(|| PathBuf::from("."))
+struct ResolvedFrontierRoot {
+    display: PathBuf,
+    canonical: Option<PathBuf>,
+}
+
+fn resolve_frontier_root(path: &Path) -> Result<ResolvedFrontierRoot, PolicyLoadError> {
+    match std::fs::symlink_metadata(path) {
+        Ok(_) => {
+            let canonical = path.canonicalize().map_err(|error| {
+                PolicyLoadError::io("frontier_root_unavailable", "frontier_root", &error)
+            })?;
+            let metadata = std::fs::metadata(&canonical).map_err(|error| {
+                PolicyLoadError::io("frontier_root_unavailable", "frontier_root", &error)
+            })?;
+            let root = if metadata.is_dir() {
+                canonical
+            } else if metadata.is_file() {
+                canonical.parent().map(Path::to_path_buf).ok_or_else(|| {
+                    PolicyLoadError::new(
+                        "frontier_root_invalid",
+                        "frontier_root",
+                        None,
+                        "frontier_root: file has no parent directory",
+                    )
+                })?
+            } else {
+                return Err(PolicyLoadError::new(
+                    "frontier_root_invalid",
+                    "frontier_root",
+                    None,
+                    "frontier_root: expected a directory or regular file",
+                ));
+            };
+            Ok(ResolvedFrontierRoot {
+                display: root.clone(),
+                canonical: Some(root),
+            })
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(ResolvedFrontierRoot {
+            display: path.to_path_buf(),
+            canonical: None,
+        }),
+        Err(error) => Err(PolicyLoadError::io(
+            "frontier_root_unavailable",
+            "frontier_root",
+            &error,
+        )),
     }
+}
+
+fn parse_manifest(bytes: &[u8]) -> Result<serde_yaml::Value, PolicyLoadError> {
+    let body = std::str::from_utf8(bytes).map_err(|_| {
+        PolicyLoadError::new(
+            "manifest_invalid_utf8",
+            "frontier_manifest",
+            Some(bytes_root(bytes)),
+            "frontier_manifest: manifest must be UTF-8",
+        )
+    })?;
+    serde_yaml::from_str(body).map_err(|_| {
+        PolicyLoadError::new(
+            "manifest_invalid_yaml",
+            "frontier_manifest",
+            Some(bytes_root(bytes)),
+            "frontier_manifest: manifest YAML is invalid",
+        )
+    })
+}
+
+fn read_frontier_regular_file(
+    root: Option<&Path>,
+    relative: &Path,
+    max_bytes: usize,
+    reference: &str,
+) -> Result<Option<Vec<u8>>, PolicyLoadError> {
+    if relative.as_os_str().is_empty()
+        || relative.is_absolute()
+        || !relative
+            .components()
+            .all(|component| matches!(component, Component::Normal(_)))
+    {
+        return Err(PolicyLoadError::new(
+            "path_not_normalized",
+            reference,
+            Some(text_root(&relative.to_string_lossy())),
+            format!("{reference}: path must be normalized and frontier-relative"),
+        ));
+    }
+    let Some(root) = root else {
+        return Ok(None);
+    };
+    let components = relative.components().collect::<Vec<_>>();
+    let mut current = root.to_path_buf();
+    for (index, component) in components.iter().enumerate() {
+        let Component::Normal(component) = component else {
+            unreachable!("relative path was normalized above")
+        };
+        current.push(component);
+        let metadata = match std::fs::symlink_metadata(&current) {
+            Ok(metadata) => metadata,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+            Err(error) => {
+                return Err(PolicyLoadError::io(
+                    "path_inspection_failed",
+                    reference,
+                    &error,
+                ));
+            }
+        };
+        if metadata.file_type().is_symlink() {
+            return Err(PolicyLoadError::new(
+                "path_symlink",
+                reference,
+                None,
+                format!("{reference}: path must not traverse a symlink"),
+            ));
+        }
+        let is_leaf = index + 1 == components.len();
+        if is_leaf {
+            if !metadata.is_file() {
+                return Err(PolicyLoadError::new(
+                    "path_not_regular_file",
+                    reference,
+                    None,
+                    format!("{reference}: path must name a regular file"),
+                ));
+            }
+            if metadata.len() > max_bytes as u64 {
+                return Err(file_too_large(reference, metadata.len(), max_bytes));
+            }
+        } else if !metadata.is_dir() {
+            return Err(PolicyLoadError::new(
+                "path_ancestor_not_directory",
+                reference,
+                None,
+                format!("{reference}: path ancestor must be a directory"),
+            ));
+        }
+    }
+
+    let file = std::fs::File::open(&current)
+        .map_err(|error| PolicyLoadError::io("file_open_failed", reference, &error))?;
+    let opened = file
+        .metadata()
+        .map_err(|error| PolicyLoadError::io("file_inspection_failed", reference, &error))?;
+    if !opened.is_file() {
+        return Err(PolicyLoadError::new(
+            "path_not_regular_file",
+            reference,
+            None,
+            format!("{reference}: opened descriptor is not a regular file"),
+        ));
+    }
+    if opened.len() > max_bytes as u64 {
+        return Err(file_too_large(reference, opened.len(), max_bytes));
+    }
+    let opened_identity = descriptor_identity(&file, reference)?;
+
+    let linked = std::fs::symlink_metadata(&current)
+        .map_err(|error| PolicyLoadError::io("path_reinspection_failed", reference, &error))?;
+    if linked.file_type().is_symlink() || !linked.is_file() {
+        return Err(PolicyLoadError::new(
+            "path_changed",
+            reference,
+            None,
+            format!("{reference}: path changed while being opened"),
+        ));
+    }
+    let canonical = current
+        .canonicalize()
+        .map_err(|error| PolicyLoadError::io("path_canonicalize_failed", reference, &error))?;
+    if !canonical.starts_with(root) {
+        return Err(PolicyLoadError::new(
+            "path_outside_frontier",
+            reference,
+            None,
+            format!("{reference}: path resolved outside the frontier"),
+        ));
+    }
+    let named = std::fs::File::open(&current)
+        .map_err(|error| PolicyLoadError::io("file_reopen_failed", reference, &error))?;
+    if descriptor_identity(&named, reference)? != opened_identity {
+        return Err(PolicyLoadError::new(
+            "path_changed",
+            reference,
+            None,
+            format!("{reference}: descriptor identity changed while being opened"),
+        ));
+    }
+    let final_linked = std::fs::symlink_metadata(&current)
+        .map_err(|error| PolicyLoadError::io("path_reinspection_failed", reference, &error))?;
+    if final_linked.file_type().is_symlink() || !final_linked.is_file() {
+        return Err(PolicyLoadError::new(
+            "path_changed",
+            reference,
+            None,
+            format!("{reference}: path did not remain a non-symlink regular file"),
+        ));
+    }
+
+    let mut bytes = Vec::new();
+    file.take(max_bytes.saturating_add(1) as u64)
+        .read_to_end(&mut bytes)
+        .map_err(|error| PolicyLoadError::io("file_read_failed", reference, &error))?;
+    if bytes.len() > max_bytes {
+        return Err(file_too_large(reference, bytes.len() as u64, max_bytes));
+    }
+    Ok(Some(bytes))
+}
+
+fn file_too_large(reference: &str, bytes: u64, max_bytes: usize) -> PolicyLoadError {
+    PolicyLoadError::new(
+        "file_too_large",
+        reference,
+        Some(text_root(&bytes.to_string())),
+        format!("{reference}: file exceeds the {max_bytes}-byte input limit"),
+    )
+}
+
+fn descriptor_identity(
+    file: &std::fs::File,
+    reference: &str,
+) -> Result<(u64, u64), PolicyLoadError> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        let metadata = file
+            .metadata()
+            .map_err(|error| PolicyLoadError::io("file_identity_failed", reference, &error))?;
+        Ok((metadata.dev(), metadata.ino()))
+    }
+    #[cfg(windows)]
+    {
+        windows_descriptor_identity(file)
+            .map_err(|error| PolicyLoadError::io("file_identity_failed", reference, &error))
+    }
+    #[cfg(not(any(unix, windows)))]
+    {
+        let _ = file;
+        Err(PolicyLoadError::new(
+            "file_identity_unsupported",
+            reference,
+            None,
+            format!("{reference}: descriptor identity is unsupported on this platform"),
+        ))
+    }
+}
+
+#[cfg(windows)]
+fn windows_descriptor_identity(file: &std::fs::File) -> Result<(u64, u64), std::io::Error> {
+    use std::ffi::c_void;
+    use std::mem::MaybeUninit;
+    use std::os::windows::io::AsRawHandle;
+
+    #[repr(C)]
+    struct FileTime {
+        low: u32,
+        high: u32,
+    }
+    #[repr(C)]
+    struct ByHandleFileInformation {
+        attributes: u32,
+        creation_time: FileTime,
+        last_access_time: FileTime,
+        last_write_time: FileTime,
+        volume_serial_number: u32,
+        file_size_high: u32,
+        file_size_low: u32,
+        number_of_links: u32,
+        file_index_high: u32,
+        file_index_low: u32,
+    }
+    #[link(name = "kernel32")]
+    unsafe extern "system" {
+        fn GetFileInformationByHandle(
+            handle: *mut c_void,
+            information: *mut ByHandleFileInformation,
+        ) -> i32;
+    }
+
+    let mut information = MaybeUninit::<ByHandleFileInformation>::uninit();
+    // SAFETY: the raw handle is owned by `file`, remains valid for this call,
+    // and Windows initializes the output structure when it reports success.
+    let ok = unsafe {
+        GetFileInformationByHandle(file.as_raw_handle().cast(), information.as_mut_ptr())
+    };
+    if ok == 0 {
+        return Err(std::io::Error::last_os_error());
+    }
+    // SAFETY: a non-zero return guarantees the structure was initialized.
+    let information = unsafe { information.assume_init() };
+    let index =
+        (u64::from(information.file_index_high) << 32) | u64::from(information.file_index_low);
+    Ok((u64::from(information.volume_serial_number), index))
 }
 
 fn policy_refs_from_manifest(
@@ -368,20 +828,67 @@ fn yaml_string_at(value: &serde_yaml::Value, path: &[&str]) -> Option<String> {
     cur.as_str().map(ToString::to_string)
 }
 
-fn display_path(root: &Path, path: &Path) -> String {
-    path.strip_prefix(root)
-        .unwrap_or(path)
-        .to_string_lossy()
-        .to_string()
+fn normalized_path_string(path: &Path) -> String {
+    path.components()
+        .filter_map(|component| match component {
+            Component::Normal(component) => Some(component.to_string_lossy()),
+            _ => None,
+        })
+        .collect::<Vec<_>>()
+        .join("/")
 }
 
 fn summary_hash(summary: &FrontierPolicySummary) -> Result<String, String> {
     let mut value = serde_json::to_value(summary).map_err(|e| format!("serialize policy: {e}"))?;
     if let Some(obj) = value.as_object_mut() {
         obj.remove("canonical_json_sha256");
+        obj.remove("frontier_path");
+        obj.remove("frontier_id");
     }
     let bytes = canonical::to_canonical_bytes(&value)?;
     Ok(format!("sha256:{}", hex::encode(Sha256::digest(bytes))))
+}
+
+fn observation_root(
+    state: EnginePolicySummaryState,
+    summary_root: Option<&str>,
+    error_code: Option<&str>,
+    error_root: Option<&str>,
+) -> String {
+    domain_hash(
+        ENGINE_POLICY_SUMMARY_ROOT_DOMAIN,
+        &[
+            Some(ENGINE_POLICY_SUMMARY_OBSERVATION_SCHEMA),
+            Some(state.as_str()),
+            summary_root,
+            error_code,
+            error_root,
+        ],
+    )
+}
+
+fn bytes_root(bytes: &[u8]) -> String {
+    format!("sha256:{}", hex::encode(Sha256::digest(bytes)))
+}
+
+fn text_root(text: &str) -> String {
+    domain_hash("vela.engine-policy-text.v1", &[Some(text)])
+}
+
+fn domain_hash(domain: &str, parts: &[Option<&str>]) -> String {
+    let mut digest = Sha256::new();
+    digest.update(domain.as_bytes());
+    digest.update([0]);
+    for part in parts {
+        match part {
+            Some(part) => {
+                digest.update((part.len() as u64).to_be_bytes());
+                digest.update(part.as_bytes());
+            }
+            None => digest.update(u64::MAX.to_be_bytes()),
+        }
+    }
+    format!("sha256:{}", hex::encode(digest.finalize()))
 }
 
 #[cfg(test)]
@@ -409,6 +916,16 @@ mod tests {
             );
         }
         tmp
+    }
+
+    fn write_manifest(root: &Path, policies: &str) {
+        std::fs::write(
+            root.join("frontier.yaml"),
+            format!(
+                "schema: vela.frontier_manifest.v0.1\nfrontier_id: vfr_policy_test\npolicies:\n{policies}"
+            ),
+        )
+        .unwrap();
     }
 
     #[test]
@@ -490,6 +1007,118 @@ mod tests {
         // Recomputing the hash over the summary (which the field excludes)
         // reproduces the stored value.
         assert_eq!(summary_hash(&a).unwrap(), a.canonical_json_sha256);
+    }
+
+    #[test]
+    fn engine_policy_observation_is_clone_stable_and_content_bound() {
+        let first = complete_frontier();
+        let second = complete_frontier();
+        let first_observation = engine_policy_summary_observation(first.path());
+        let second_observation = engine_policy_summary_observation(second.path());
+        assert_eq!(first_observation.state, EnginePolicySummaryState::Present);
+        assert_eq!(first_observation.root, second_observation.root);
+        assert!(
+            !first_observation
+                .root
+                .contains(&first.path().display().to_string())
+        );
+
+        write_default_policy(
+            second.path(),
+            PolicyDocumentKind::Review,
+            "changed review policy",
+        );
+        let changed = engine_policy_summary_observation(second.path());
+        assert_ne!(first_observation.root, changed.root);
+    }
+
+    #[test]
+    fn manifest_traversal_is_invalid_and_never_read() {
+        let tmp = TempDir::new().unwrap();
+        let outside = TempDir::new().unwrap();
+        std::fs::write(outside.path().join("outside.md"), "must not be read").unwrap();
+        write_manifest(tmp.path(), "  evidence: ../outside.md\n");
+
+        let error = load_policy_summary(tmp.path()).unwrap_err();
+        assert!(error.contains("path_not_normalized"), "{error}");
+        let observation = engine_policy_summary_observation(tmp.path());
+        assert_eq!(observation.state, EnginePolicySummaryState::Invalid);
+        assert_eq!(
+            observation.error_code.as_deref(),
+            Some("path_not_normalized")
+        );
+        assert!(observation.error_root.is_some());
+        assert!(
+            !serde_json::to_string(&observation)
+                .unwrap()
+                .contains(&outside.path().display().to_string())
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn manifest_selected_symlink_leaf_and_ancestor_are_invalid() {
+        use std::os::unix::fs::symlink;
+
+        let outside = TempDir::new().unwrap();
+        std::fs::write(outside.path().join("review.md"), "outside review").unwrap();
+
+        let leaf = TempDir::new().unwrap();
+        std::fs::create_dir_all(leaf.path().join("policy")).unwrap();
+        symlink(
+            outside.path().join("review.md"),
+            leaf.path().join("policy/review.md"),
+        )
+        .unwrap();
+        write_manifest(leaf.path(), "  review: policy/review.md\n");
+        let leaf_observation = engine_policy_summary_observation(leaf.path());
+        assert_eq!(leaf_observation.state, EnginePolicySummaryState::Invalid);
+        assert_eq!(leaf_observation.error_code.as_deref(), Some("path_symlink"));
+
+        let ancestor = TempDir::new().unwrap();
+        symlink(outside.path(), ancestor.path().join("linked")).unwrap();
+        write_manifest(ancestor.path(), "  review: linked/review.md\n");
+        let ancestor_observation = engine_policy_summary_observation(ancestor.path());
+        assert_eq!(
+            ancestor_observation.state,
+            EnginePolicySummaryState::Invalid
+        );
+        assert_eq!(
+            ancestor_observation.error_code.as_deref(),
+            Some("path_symlink")
+        );
+    }
+
+    #[test]
+    fn manifest_and_policy_documents_are_pre_read_bounded() {
+        let policy = TempDir::new().unwrap();
+        write_default_policy(
+            policy.path(),
+            PolicyDocumentKind::Evidence,
+            &"x".repeat(ENGINE_POLICY_DOCUMENT_MAX_BYTES + 1),
+        );
+        let policy_observation = engine_policy_summary_observation(policy.path());
+        assert_eq!(policy_observation.state, EnginePolicySummaryState::Invalid);
+        assert_eq!(
+            policy_observation.error_code.as_deref(),
+            Some("file_too_large")
+        );
+
+        let manifest = TempDir::new().unwrap();
+        std::fs::write(
+            manifest.path().join("frontier.yaml"),
+            vec![b'x'; ENGINE_POLICY_MANIFEST_MAX_BYTES + 1],
+        )
+        .unwrap();
+        let manifest_observation = engine_policy_summary_observation(manifest.path());
+        assert_eq!(
+            manifest_observation.state,
+            EnginePolicySummaryState::Invalid
+        );
+        assert_eq!(
+            manifest_observation.error_code.as_deref(),
+            Some("file_too_large")
+        );
     }
 
     #[test]

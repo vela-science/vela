@@ -34,9 +34,7 @@ use std::path::Path;
 use serde_json::{Value, json};
 use vela_protocol::bundle::FindingBundle;
 use vela_protocol::events::actor_kind;
-use vela_protocol::evidence_diff::{
-    claim_state_delta, find_priority_registration, matched_attachments, state_cell,
-};
+use vela_protocol::evidence_diff::{find_priority_registration, matched_attachments, state_cell};
 use vela_protocol::project::Project;
 use vela_protocol::repo;
 use vela_protocol::verifier_attachment::{AttachmentOutcome, claim_digest, derive_gate_status};
@@ -67,11 +65,17 @@ pub(crate) fn run(args: &[String]) {
         let proposal_id = positionals.get(1).copied().unwrap_or_else(|| {
             fail_usage("usage: vela state diff <frontier> <proposal_id> [--json]")
         });
-        let delta = derive_evidence_diff(Path::new(frontier), proposal_id);
+        let review = derive_evidence_diff(Path::new(frontier), proposal_id);
         if json {
-            print_json(&delta);
+            print_json(
+                &serde_json::to_value(&review).unwrap_or_else(|error| fail(&error.to_string())),
+            );
         } else {
-            print_diff_human(&delta);
+            println!("evidence diff  {}", review.brief.audit.proposal_id);
+            println!("  {}", review.brief.change.claim);
+            for line in crate::cli::sign_session::render_decision_brief_lines(&review.brief) {
+                println!("    {line}");
+            }
         }
         return;
     }
@@ -378,27 +382,13 @@ pub(crate) fn run_anchor(args: &[String]) {
     }
 }
 
-/// Compute the Evidence Diff for a proposal and merge in the Engine
-/// verdict. `claim_state_delta` is path-free (before/after/downstream);
-/// the CLI holds the frontier path, so it can additionally run
-/// `preview_engine_verdict` ("what would CI say if accepted?") and graft
-/// the result over the placeholder `engine` field.
-fn derive_evidence_diff(path: &Path, proposal_id: &str) -> Value {
-    let project = repo::load_from_path(path).unwrap_or_else(|e| fail(&e));
-    let mut delta = claim_state_delta(&project, proposal_id, "reviewer:evidence-diff-preview")
-        .unwrap_or_else(|e| fail(&e));
-    // Best-effort engine verdict; a hiccup here must never break the diff.
-    if let Ok(verdict) = vela_protocol::proposals::preview_engine_verdict(path, proposal_id) {
-        delta["engine"] = json!({
-            "available": true,
-            "status": verdict.status,
-            "new_blocking": verdict.new_blocking,
-            "new_warnings": verdict.new_warnings,
-            "release_blocking_failed": verdict.release_blocking_failed,
-            "warnings": verdict.warnings,
-        });
-    }
-    delta
+/// Compatibility spelling over the one Decision Brief projection.
+fn derive_evidence_diff(
+    path: &Path,
+    proposal_id: &str,
+) -> vela_edge::decision_brief::ReviewSnapshot {
+    crate::review_material::ReviewProjection::one(path, proposal_id)
+        .unwrap_or_else(|error| fail(&error.to_string()))
 }
 
 /// Derive the Trust Vector as a projection over EXISTING objects.
@@ -658,52 +648,6 @@ fn print_state_human(cell: &Value) {
     };
     println!("  priority: {prio}");
     println!("  (run with --json for the full cell)");
-}
-
-fn print_diff_human(delta: &Value) {
-    println!(
-        "evidence diff  {}  →  {}",
-        delta["proposal_id"].as_str().unwrap_or(""),
-        delta["target"].as_str().unwrap_or("")
-    );
-    println!("  kind: {}", delta["kind"].as_str().unwrap_or(""));
-    let sc = &delta["status_change"];
-    println!(
-        "  status: {} → {}{}",
-        sc["before"].as_str().unwrap_or("?"),
-        sc["after"].as_str().unwrap_or("?"),
-        if sc["changed"].as_bool().unwrap_or(false) {
-            "  [CHANGED]"
-        } else {
-            ""
-        }
-    );
-    if let Some(d) = delta["downstream"].as_array() {
-        println!("  downstream affected: {}", d.len());
-        for item in d {
-            println!(
-                "    {} {} → {}  ({})",
-                item["id"].as_str().unwrap_or(""),
-                item["before"].as_str().unwrap_or("?"),
-                item["after"].as_str().unwrap_or("?"),
-                item["reason"].as_str().unwrap_or("")
-            );
-        }
-    }
-    let engine = &delta["engine"];
-    if engine["available"].as_bool().unwrap_or(false) {
-        let nb = engine["new_blocking"].as_array().map_or(0, Vec::len);
-        let nw = engine["new_warnings"].as_array().map_or(0, Vec::len);
-        println!(
-            "  engine: {} ({} new blocking, {} new warnings)",
-            engine["status"].as_str().unwrap_or("?"),
-            nb,
-            nw
-        );
-    } else {
-        println!("  engine: absent (run locally or attempt the accept to see the gate verdict)");
-    }
-    println!("  (run with --json for the full before/after cells)");
 }
 
 fn print_trust_human(vector: &Value) {

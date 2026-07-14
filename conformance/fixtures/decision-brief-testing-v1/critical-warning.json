@@ -1,0 +1,155 @@
+{
+  "audit": {
+    "artifact_root": null,
+    "decision_facts_root": "sha256:7671f9929c92454461aceec3c812a6f8ea41f5755de2c93615440fdf64d9df53",
+    "declared_receipt_root": null,
+    "missing_root": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "missing_truncated": 0,
+    "observed_at": "2026-07-13T13:00:00Z",
+    "policy_input_root": "sha256:d8fccee62867bc163def79903e2b34791756694708bed944f8eac53afeae0b74",
+    "policy_result_root": "sha256:53fbc49c2dd72cdb3245cfec8367222abb249e43a91b00f6662c9c2109487a5f",
+    "proposal_id": "vpr_b2d7279f3a341d2f",
+    "proposal_root": "sha256:03d87e89d345af70827662fecf971969dd3d5a9433405f007213ac972a21727b",
+    "publication_root": null,
+    "raw_references": [
+      "urn:source:contested-review"
+    ],
+    "raw_references_root": "sha256:4bbbb33eabfe01659c6ce839f5e1a565a8f4478fac150553ab26e6f2c3eb19fc",
+    "raw_references_truncated": 0,
+    "receipt_root": null,
+    "truncations": []
+  },
+  "authority": {
+    "actions": [
+      {
+        "action": "accept",
+        "eligibility": "available",
+        "reasons": []
+      },
+      {
+        "action": "reject",
+        "eligibility": "available",
+        "reasons": []
+      }
+    ],
+    "frontier": {
+      "id": "vfr_6a37e5e81bae0baf",
+      "name": "Decision brief critical warning fixture"
+    },
+    "route": "defer",
+    "scope": "frontier_review",
+    "why_human": [
+      "the active challenge requires an explicit human decision"
+    ]
+  },
+  "basis": {
+    "attributed_interpretation": null,
+    "check_state": {
+      "durable_verifier_count": 0,
+      "durable_verifier_snapshot_root": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "engine_new_blocking": [],
+      "engine_new_warnings": [],
+      "engine_status": null,
+      "gate_reasons": [
+        "G1: need >=2 matched independent attachments, have 0",
+        "G3: no surviving adversarial probe attached (need >=1)"
+      ],
+      "gate_status": "needs_verification",
+      "producer_reported": []
+    },
+    "main_caveat": "An active challenge must be resolved by the reviewer.",
+    "primary_evidence_roots": [
+      {
+        "kind": "durable_verifier_snapshot",
+        "root": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      }
+    ]
+  },
+  "change": {
+    "after": {
+      "id": "vf_decision_brief_contested",
+      "text": "The contested claim should remain visible during review.",
+      "type": "computational"
+    },
+    "before": {
+      "id": "vf_decision_brief_contested",
+      "text": "Finding vf_decision_brief_contested",
+      "type": "computational"
+    },
+    "claim": "The contested claim should remain visible during review.",
+    "fixed_base": {
+      "event_log_root": "sha256:e417a863c97f2f2a6e28c0caccedad0096ab009a104970cd622d2a610a87c1a1",
+      "receipt_event_log_root": null
+    },
+    "requested_action": "finding.note",
+    "subject": {
+      "id": "vf_decision_brief_contested",
+      "type": "finding"
+    }
+  },
+  "facets": {
+    "challenge": {
+      "critical": true,
+      "data": {
+        "open_contradictions": [],
+        "supersedes": [],
+        "target_contested": true,
+        "target_superseded": false
+      },
+      "full_root": "sha256:487891dce16e0b5db94781aef9d1e717c4d85be2358ae141780da68a5c00cbf6",
+      "schema": "vela.decision-brief.facet.challenge.testing.v1",
+      "truncated": false
+    },
+    "gate_matrix": {
+      "critical": false,
+      "data": {
+        "durable_gate": {
+          "attachment_count": 0,
+          "reasons": [
+            "G1: need >=2 matched independent attachments, have 0",
+            "G3: no surviving adversarial probe attached (need >=1)"
+          ],
+          "snapshot_root": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "status": "needs_verification"
+        },
+        "engine": {
+          "new_blocking": [],
+          "new_warnings": [],
+          "status": null
+        }
+      },
+      "full_root": "sha256:d09681400d4b521cd2567687b0d2b8d3d8c27c584fc3d29788bd2056a7b77a88",
+      "schema": "vela.decision-brief.facet.gate-matrix.testing.v1",
+      "truncated": false
+    }
+  },
+  "impact": {
+    "correction_path": {
+      "after_acceptance": [
+        "finding.retract",
+        "finding.supersede"
+      ],
+      "while_pending": [
+        "reject"
+      ]
+    },
+    "critical_warnings": [
+      {
+        "code": "active_challenge",
+        "reference": "vf_decision_brief_contested"
+      },
+      {
+        "code": "target_contested",
+        "reference": "vf_decision_brief_contested"
+      }
+    ],
+    "downstream_effect": {
+      "changed_findings": 1,
+      "downstream_dependents": 0,
+      "impact_tier": 3
+    }
+  },
+  "missing": [],
+  "schema": "vela.decision-brief.testing.v1",
+  "stability": "testing"
+}

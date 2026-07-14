@@ -3531,8 +3531,11 @@ async fn get_entry_review(
                 "id": r.id,
                 "title": r.title,
                 "why_here": r.why_here,
-                "signable": r.signable,
-                "pack": r.pack,
+                "actions": {
+                    "accept": r.accept_eligibility,
+                    "reject": r.reject_eligibility,
+                },
+                "pack_memberships": r.pack_memberships,
             })).collect::<Vec<_>>(),
             "policy_admitted": {
                 "by_policy": by_policy,
@@ -3557,39 +3560,16 @@ async fn get_entry_review(
         .into_response()
 }
 
-/// Build the awaiting-judgment view for the review page. The policy
-/// evaluation needs a real frontier directory (`.vela/policies/` under
-/// this machine's git-ingest checkout — the hub has no `~/.vela` of its
-/// own); when no checkout exists here, fall back to the raw pending
-/// proposals and let the page say so. The context passed is the
-/// conservative default (nothing proven), so the hub can only ever show
-/// MORE deferred items than the CLI's landing-path derivation — never
-/// hide a decision behind a permit it did not re-derive.
-async fn build_review_queue(state: &AppState, vfr_id: &str, project: &Project) -> ReviewQueueView {
-    use vela_protocol::acceptance_policy::PolicyContext;
-    let subdir = match state.db.git_ingest_targets().await {
-        Ok(rows) => rows.into_iter().find(|r| r.0 == vfr_id).map(|r| r.3),
-        Err(_) => None,
-    };
-    let Some(subdir) = subdir else {
-        return pending_review_fallback(project);
-    };
-    let mut dir = vela_hub::git_ingest::GitIngestConfig::from_env()
-        .scratch_dir
-        .join(vfr_id);
-    if !subdir.is_empty() {
-        dir = dir.join(subdir);
-    }
-    if !dir.join(".vela").is_dir() {
-        return pending_review_fallback(project);
-    }
-    match vela_edge::sign_queue::sign_queue(project, &dir, |_, _| PolicyContext::default()) {
-        Ok(q) => review_queue_from_sign_queue(q),
-        Err(e) => {
-            tracing::warn!(%vfr_id, error = %e, "review page: sign-queue projection failed; serving unfiltered pending proposals");
-            pending_review_fallback(project)
-        }
-    }
+/// Build the hub's replay-only awaiting view. The filesystem-aware Decision
+/// Brief transaction lives in the CLI; reproducing only part of it here would
+/// create a second trust interpretation. The hub therefore exposes every
+/// pending proposal and labels action eligibility as not evaluated.
+async fn build_review_queue(
+    _state: &AppState,
+    _vfr_id: &str,
+    project: &Project,
+) -> ReviewQueueView {
+    pending_review_fallback(project)
 }
 
 /// `GET /entries/{vfr_id}/findings/{vf_id}/context`

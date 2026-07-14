@@ -1,0 +1,175 @@
+{
+  "audit": {
+    "artifact_root": null,
+    "decision_facts_root": "sha256:c7740f86773cef7e121ea3a58d0327a90b17ed515b762c3a938ed3b6a3baea6c",
+    "declared_receipt_root": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+    "missing_root": "sha256:056f44f2d20ae936f910933be1832ee52480c4a07539f5d7746c2ee4eb4f29d5",
+    "missing_truncated": 0,
+    "observed_at": "2026-07-13T13:00:00Z",
+    "policy_input_root": "sha256:036f19a833ac53ca2c462f2ca406dd129a1c0bcc421a01c8bc0412ceb306246b",
+    "policy_result_root": "sha256:e84cbe00cec8a66d49096020781510c7d4e0abfb7869b061e487acc5906732ac",
+    "proposal_id": "vpr_5d7aed1e9bfa9723",
+    "proposal_root": "sha256:f7d0baaa5da3e83239416b72e526a9ea9bd13ecfc6879ac6bc9cb63801f38b6b",
+    "publication_root": null,
+    "raw_references": [
+      "records/receipts/sha256/6666666666666666666666666666666666666666666666666666666666666666.json",
+      "restricted://review-vault/safe-descriptor/bounded-segment-bounded-segment-bounded-segment-bounded-segment-bounded-segment-bounded-segment-bounded-segment-bounded-segment-bounded-segment-bounded-segment-bounded-segment-bounded-segment-bounded-segment-bounded-segment-bounded-segment-bounded-segment-bounded-segment-bounded-segment-bounded-segment-bounded-segment-bounded-segment-bounded-segment-bounded-segment-bounded-segment-bounded-segment-bounded-segment-bounded-segment-bounded-segment-bounded-segment-bounde…"
+    ],
+    "raw_references_root": "sha256:15fc00f8145f3773670eb30773c01c0925dfff064f84a1184da015ba9aca1109",
+    "raw_references_truncated": 0,
+    "receipt_root": null,
+    "truncations": [
+      {
+        "field": "audit.raw_references[1]",
+        "full_root": "sha256:f9f747ff5be4ac59c5a0d20833fd2b0debc07464a538c3b2e924d16de90d8dc6",
+        "omitted_bytes": 170
+      }
+    ]
+  },
+  "authority": {
+    "actions": [
+      {
+        "action": "accept",
+        "eligibility": "blocked",
+        "reasons": [
+          "receipt_material_unavailable_or_invalid"
+        ]
+      },
+      {
+        "action": "reject",
+        "eligibility": "available",
+        "reasons": []
+      }
+    ],
+    "frontier": {
+      "id": "vfr_568713b7cf8afed3",
+      "name": "Decision brief restricted evidence fixture"
+    },
+    "route": "defer",
+    "scope": "frontier_review",
+    "why_human": [
+      "restricted evidence requires an authorized human review"
+    ]
+  },
+  "basis": {
+    "attributed_interpretation": null,
+    "check_state": {
+      "durable_verifier_count": 0,
+      "durable_verifier_snapshot_root": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "engine_new_blocking": [],
+      "engine_new_warnings": [],
+      "engine_status": null,
+      "gate_reasons": [
+        "G1: need >=2 matched independent attachments, have 0",
+        "G3: no surviving adversarial probe attached (need >=1)"
+      ],
+      "gate_status": "needs_verification",
+      "producer_reported": []
+    },
+    "main_caveat": "Evidence access is restricted; no evidentiary authority is inferred.",
+    "primary_evidence_roots": [
+      {
+        "kind": "declared_receipt_unavailable",
+        "root": "sha256:6666666666666666666666666666666666666666666666666666666666666666"
+      },
+      {
+        "kind": "durable_verifier_snapshot",
+        "root": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      }
+    ]
+  },
+  "change": {
+    "after": {
+      "id": "vf_decision_brief_restricted",
+      "text": "A theoretical claim depends on evidence unavailable in this review context.",
+      "type": "theoretical"
+    },
+    "before": null,
+    "claim": "A theoretical claim depends on evidence unavailable in this review context.",
+    "fixed_base": {
+      "event_log_root": "sha256:4cfbe5ccd49b96869e80c6d28f5a957fcb39b32c1e24acbb718a6aaff0141ccf",
+      "receipt_event_log_root": null
+    },
+    "requested_action": "finding.add",
+    "subject": {
+      "id": "vf_decision_brief_restricted",
+      "type": "finding"
+    }
+  },
+  "facets": {
+    "formal_fidelity": {
+      "critical": true,
+      "data": {
+        "claim_type": "theoretical",
+        "statement_attestations": []
+      },
+      "full_root": "sha256:08b68317d944a97294cc86fb493fb0747286137982e813f95af73cbf77cd2968",
+      "schema": "vela.decision-brief.facet.formal-fidelity.testing.v1",
+      "truncated": false
+    },
+    "gate_matrix": {
+      "critical": false,
+      "data": {
+        "durable_gate": {
+          "attachment_count": 0,
+          "reasons": [
+            "G1: need >=2 matched independent attachments, have 0",
+            "G3: no surviving adversarial probe attached (need >=1)"
+          ],
+          "snapshot_root": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "status": "needs_verification"
+        },
+        "engine": {
+          "new_blocking": [],
+          "new_warnings": [],
+          "status": null
+        }
+      },
+      "full_root": "sha256:d09681400d4b521cd2567687b0d2b8d3d8c27c584fc3d29788bd2056a7b77a88",
+      "schema": "vela.decision-brief.facet.gate-matrix.testing.v1",
+      "truncated": false
+    }
+  },
+  "impact": {
+    "correction_path": {
+      "after_acceptance": [
+        "finding.retract",
+        "finding.supersede"
+      ],
+      "while_pending": [
+        "reject"
+      ]
+    },
+    "critical_warnings": [
+      {
+        "code": "receipt_material_unavailable_or_invalid",
+        "reference": "vpr_5d7aed1e9bfa9723"
+      }
+    ],
+    "downstream_effect": {
+      "changed_findings": 1,
+      "downstream_dependents": 0,
+      "impact_tier": 3
+    }
+  },
+  "missing": [
+    {
+      "field": "audit.receipt_root",
+      "reason": "canonical_receipt_unavailable"
+    },
+    {
+      "field": "authority.scope",
+      "reason": "acceptance_scope_unavailable"
+    },
+    {
+      "field": "basis.attributed_interpretation",
+      "reason": "producer_interpretation_unavailable"
+    },
+    {
+      "field": "basis.receipt",
+      "reason": "restricted_evidence_not_available_to_reviewer"
+    }
+  ],
+  "schema": "vela.decision-brief.testing.v1",
+  "stability": "testing"
+}

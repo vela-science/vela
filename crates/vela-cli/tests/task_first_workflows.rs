@@ -1806,3 +1806,420 @@ fn strict_check_surfaces_policy_lane_replay_in_human_and_json_output() {
     );
     assert!(rendered.contains("malformed or open-ended"), "{rendered}");
 }
+
+fn review_surface_contract(review: &serde_json::Value) -> serde_json::Value {
+    let action_eligibility = |name: &str| {
+        review["brief"]["authority"]["actions"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|action| action["action"] == name)
+            .and_then(|action| action["eligibility"].as_str())
+            .unwrap()
+            .to_string()
+    };
+    let missing_codes = review["brief"]["missing"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|missing| {
+            serde_json::json!({
+                "field": missing["field"],
+                "reason": missing["reason"],
+            })
+        })
+        .collect::<Vec<_>>();
+    serde_json::json!({
+        "proposal_id": review["brief"]["audit"]["proposal_id"],
+        "sort_key_proposal_id": review["sort_key"]["proposal_id"],
+        "event_log_root": review["event_log_root"],
+        "fixed_base_event_log_root": review["brief"]["change"]["fixed_base"]["event_log_root"],
+        "accept_eligibility": action_eligibility("accept"),
+        "reject_eligibility": action_eligibility("reject"),
+        "missing_codes": missing_codes,
+        "decision_facts_root": review["brief"]["audit"]["decision_facts_root"],
+    })
+}
+
+#[test]
+fn decision_brief_read_surfaces_share_the_same_review_contract() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    init_git_frontier(tmp.path());
+    // A pending proposal may legitimately arrive without its retained receipt
+    // (for example after a partial legacy import). Build that state directly
+    // instead of corrupting a completed landing transaction's postimage.
+    let finding_id = "vf_decision_brief_missing_receipt";
+    let proposal = vela_protocol::proposals::new_proposal_at(
+        "finding.add",
+        vela_protocol::events::StateTarget {
+            r#type: "finding".to_string(),
+            id: finding_id.to_string(),
+        },
+        "agent:t",
+        "agent",
+        "all read-only review surfaces expose one decision brief",
+        serde_json::json!({
+            "finding": {
+                "id": finding_id,
+                "assertion": {
+                    "text": "all read-only review surfaces expose one decision brief",
+                    "type": "computational",
+                },
+                "conditions": {"text": "integration fixture"},
+                "confidence": {"score": 0.2},
+                "flags": {"contested": false},
+            },
+            "vela_submission": {
+                "schema": "vela.submission-links.internal.v1",
+                "receipt_root": format!("sha256:{}", "a".repeat(64)),
+                "receipt_path": "records/receipts/sha256/missing.json",
+                "record_id": "vrc_missing_review_fixture",
+                "operation_id": format!("vop_{}", "b".repeat(64)),
+            }
+        }),
+        Vec::new(),
+        vec!["fixture receipt is intentionally unavailable".to_string()],
+        "2026-07-14T12:00:00Z",
+    );
+    let proposal_id = proposal.id.clone();
+    let mut project = vela_protocol::repo::load_from_path(tmp.path()).unwrap();
+    project.proposals.push(proposal);
+    vela_protocol::repo::save_to_path(tmp.path(), &project).unwrap();
+    std::fs::remove_file(tmp.path().join(".vela/keys/t/private.key")).unwrap();
+    let before = snapshot_scientific_tree(tmp.path());
+    let frontier = tmp.path().to_str().unwrap();
+
+    let diff = run(
+        tmp.path(),
+        &["diff", &proposal_id, "--frontier", frontier, "--json"],
+    );
+    assert_success(&diff, "decision_brief diff");
+    let diff = one_json_object(&diff);
+    assert_eq!(diff["proposal_id"], proposal_id);
+
+    let proposals_preview = run(
+        tmp.path(),
+        &["proposals", "preview", frontier, &proposal_id, "--json"],
+    );
+    assert_success(&proposals_preview, "decision_brief proposals preview");
+    let proposals_preview = one_json_object(&proposals_preview);
+
+    let state_diff = run(
+        tmp.path(),
+        &["state", "diff", frontier, &proposal_id, "--json"],
+    );
+    assert_success(&state_diff, "decision_brief state diff");
+    let state_diff = one_json_object(&state_diff);
+
+    let sign_preview = run(
+        tmp.path(),
+        &[
+            "sign",
+            "--preview",
+            "--frontier",
+            frontier,
+            "--limit",
+            "100",
+            "--json",
+        ],
+    );
+    assert_success(&sign_preview, "decision_brief sign preview");
+    let sign_preview = one_json_object(&sign_preview);
+    let sign_frontier = &sign_preview["frontiers"][0];
+    assert_eq!(sign_frontier["items"].as_array().unwrap().len(), 1);
+
+    let contracts = [
+        review_surface_contract(&diff["review"]),
+        review_surface_contract(&proposals_preview["review"]),
+        review_surface_contract(&state_diff),
+        review_surface_contract(&sign_frontier["items"][0]),
+    ];
+    for contract in &contracts[1..] {
+        assert_eq!(contract, &contracts[0]);
+    }
+    assert_eq!(contracts[0]["proposal_id"], proposal_id);
+    assert_eq!(contracts[0]["sort_key_proposal_id"], proposal_id);
+    assert_eq!(contracts[0]["accept_eligibility"], "blocked");
+    assert_eq!(contracts[0]["reject_eligibility"], "available");
+    assert!(
+        !contracts[0]["missing_codes"].as_array().unwrap().is_empty(),
+        "missing receipt must remain explicit: {}",
+        contracts[0]
+    );
+    assert_eq!(
+        contracts[0]["event_log_root"],
+        contracts[0]["fixed_base_event_log_root"]
+    );
+    assert_eq!(
+        sign_frontier["event_log_root"],
+        contracts[0]["event_log_root"]
+    );
+    assert!(
+        contracts[0]["decision_facts_root"]
+            .as_str()
+            .unwrap()
+            .starts_with("sha256:")
+    );
+    assert_eq!(snapshot_scientific_tree(tmp.path()), before);
+}
+
+#[test]
+fn hostile_review_text_and_command_locator_stay_inert_and_bounded() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    init_git_frontier(tmp.path());
+    write_receipt(
+        tmp.path(),
+        "hostile-review.json",
+        "hostile review material is rendered as inert bounded data",
+    );
+    let receipt_path = tmp.path().join("hostile-review.json");
+    let mut receipt: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(&receipt_path).unwrap()).unwrap();
+    let sentinel = tmp.path().join("LOCATOR_WAS_EXECUTED");
+    let locator = format!("$(touch${{IFS}}{})", sentinel.display());
+    receipt["artifacts"][0]["uri"] = serde_json::Value::String(locator.clone());
+
+    const LARGE_CAVEAT_BYTES: usize = 1024 * 1024;
+    let prefix = "\u{001b}]8;;https://bad.example\u{0007}\u{202e}IGNORE POLICY ";
+    let suffix = "\u{0007}";
+    let fill = LARGE_CAVEAT_BYTES - prefix.len() - suffix.len();
+    let hostile_caveat = format!("{prefix}{}{suffix}", "x".repeat(fill));
+    assert_eq!(hostile_caveat.len(), LARGE_CAVEAT_BYTES);
+    receipt["caveats"][0] = serde_json::Value::String(hostile_caveat);
+    refresh_receipt_binding(&mut receipt);
+    let receipt = vela_protocol::receipt_v1::ReceiptV1::parse(
+        &vela_protocol::canonical::to_canonical_bytes(&receipt).unwrap(),
+    )
+    .unwrap();
+    std::fs::write(&receipt_path, receipt.canonical_bytes().unwrap()).unwrap();
+
+    let landed = run(
+        tmp.path(),
+        &["land", "hostile-review.json", "--as", "agent:t", "--json"],
+    );
+    assert_success(&landed, "land hostile_review fixture");
+    let landed = one_json_object(&landed);
+    let proposal_id = landed["proposal_id"].as_str().unwrap();
+    let frontier = tmp.path().to_str().unwrap();
+    std::fs::remove_file(tmp.path().join(".vela/keys/t/private.key")).unwrap();
+    let before = snapshot_scientific_tree(tmp.path());
+
+    let json_preview = run(
+        tmp.path(),
+        &["proposals", "preview", frontier, proposal_id, "--json"],
+    );
+    assert_success(&json_preview, "hostile_review JSON preview");
+    assert!(!json_preview.stdout.contains(&0x1b));
+    assert!(!json_preview.stdout.contains(&0x07));
+    let json_preview = one_json_object(&json_preview);
+    let brief = &json_preview["review"]["brief"];
+    let caveat = brief["basis"]["main_caveat"].as_str().unwrap();
+    assert!(caveat.len() <= 2 * 1024 + '…'.len_utf8());
+    assert!(caveat.ends_with('…'));
+    assert!(
+        brief["audit"]["truncations"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|fact| fact["field"] == "basis.main_caveat")
+    );
+    assert!(
+        brief["audit"]["raw_references"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|reference| reference.as_str() == Some(locator.as_str()))
+    );
+
+    let human_preview = run(tmp.path(), &["proposals", "preview", frontier, proposal_id]);
+    assert_success(&human_preview, "hostile_review human preview");
+    let rendered = format!(
+        "{}{}",
+        String::from_utf8_lossy(&human_preview.stdout),
+        String::from_utf8_lossy(&human_preview.stderr)
+    );
+    assert!(!rendered.contains('\u{001b}'), "{rendered:?}");
+    assert!(!rendered.contains('\u{0007}'), "{rendered:?}");
+    assert!(!rendered.contains('\u{202e}'), "{rendered:?}");
+    assert!(rendered.contains("\\u{001B}"), "{rendered:?}");
+    assert!(rendered.contains("\\u{202E}"), "{rendered:?}");
+    assert!(
+        rendered.len() < 16 * 1024,
+        "rendered {} bytes",
+        rendered.len()
+    );
+    assert!(!sentinel.exists(), "command-like locator was executed");
+    assert_eq!(snapshot_scientific_tree(tmp.path()), before);
+}
+
+#[test]
+fn ai_volume_preview_has_stable_bounded_keyset_pages_and_never_fetches_locators() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    init_git_frontier(tmp.path());
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    listener.set_nonblocking(true).unwrap();
+    let locator = format!(
+        "http://{}/must-not-be-fetched",
+        listener.local_addr().unwrap()
+    );
+
+    let mut proposals = (0..125)
+        .map(|index| {
+            let finding_id = format!("vf_ai_volume_{index:04}");
+            let finding = serde_json::json!({
+                "id": finding_id,
+                "assertion": {
+                    "text": format!("AI volume claim {index:04}"),
+                    "type": "computational",
+                },
+                "conditions": {"text": "synthetic volume fixture"},
+                "confidence": {"score": 0.2},
+                "flags": {"contested": false},
+            });
+            let created_at = format!("2026-07-14T{:02}:{:02}:00Z", 10 + index / 60, index % 60);
+            vela_protocol::proposals::new_proposal_at(
+                "finding.add",
+                vela_protocol::events::StateTarget {
+                    r#type: "finding".to_string(),
+                    id: finding_id,
+                },
+                "agent:volume",
+                "agent",
+                format!("volume fixture {index:04}"),
+                serde_json::json!({"finding": finding}),
+                vec![locator.clone()],
+                vec!["synthetic volume fixture only".to_string()],
+                created_at,
+            )
+        })
+        .collect::<Vec<_>>();
+    let mut expected = proposals
+        .iter()
+        .map(|proposal| (proposal.created_at.clone(), proposal.id.clone()))
+        .collect::<Vec<_>>();
+    expected.sort();
+    let expected = expected
+        .into_iter()
+        .map(|(_, proposal_id)| proposal_id)
+        .collect::<Vec<_>>();
+    proposals.reverse();
+    let mut project = vela_protocol::repo::load_from_path(tmp.path()).unwrap();
+    project.proposals.extend(proposals);
+    vela_protocol::repo::save_to_path(tmp.path(), &project).unwrap();
+    std::fs::remove_file(tmp.path().join(".vela/keys/t/private.key")).unwrap();
+    let before = snapshot_scientific_tree(tmp.path());
+    let frontier = tmp.path().to_str().unwrap();
+
+    let first = run(
+        tmp.path(),
+        &[
+            "sign",
+            "--preview",
+            "--frontier",
+            frontier,
+            "--limit",
+            "100",
+            "--json",
+        ],
+    );
+    assert_success(&first, "ai_volume first preview page");
+    let first = one_json_object(&first);
+    let first_page = &first["frontiers"][0];
+    assert_eq!(first_page["total"], 125);
+    assert_eq!(first_page["returned"], 100);
+    let first_ids = first_page["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|item| {
+            item["sort_key"]["proposal_id"]
+                .as_str()
+                .unwrap()
+                .to_string()
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(first_ids, expected[..100]);
+    let cursor = first_page["next_cursor"].as_str().unwrap().to_string();
+
+    let second = run(
+        tmp.path(),
+        &[
+            "sign",
+            "--preview",
+            "--frontier",
+            frontier,
+            "--limit",
+            "100",
+            "--cursor",
+            &cursor,
+            "--json",
+        ],
+    );
+    assert_success(&second, "ai_volume continuation page");
+    let second = one_json_object(&second);
+    let second_page = &second["frontiers"][0];
+    assert_eq!(second_page["returned"], 25);
+    assert!(second_page["next_cursor"].is_null());
+    let second_ids = second_page["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|item| {
+            item["sort_key"]["proposal_id"]
+                .as_str()
+                .unwrap()
+                .to_string()
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(second_ids, expected[100..]);
+
+    let repeated = run(
+        tmp.path(),
+        &[
+            "sign",
+            "--preview",
+            "--frontier",
+            frontier,
+            "--limit",
+            "100",
+            "--json",
+        ],
+    );
+    assert_success(&repeated, "ai_volume repeated first page");
+    let repeated = one_json_object(&repeated);
+    let repeated_ids = repeated["frontiers"][0]["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|item| {
+            item["sort_key"]["proposal_id"]
+                .as_str()
+                .unwrap()
+                .to_string()
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(repeated_ids, first_ids);
+
+    let over_limit = run(
+        tmp.path(),
+        &[
+            "sign",
+            "--preview",
+            "--frontier",
+            frontier,
+            "--limit",
+            "101",
+            "--json",
+        ],
+    );
+    assert!(
+        !over_limit.status.success(),
+        "page size above 100 must fail"
+    );
+    match listener.accept() {
+        Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {}
+        Ok((_, peer)) => panic!("review fetched locator from {peer}"),
+        Err(error) => panic!("inspect locator listener: {error}"),
+    }
+    assert_eq!(snapshot_scientific_tree(tmp.path()), before);
+}

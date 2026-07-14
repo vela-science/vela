@@ -349,7 +349,7 @@ pub async fn run_command() {
             target,
             frontier_b,
             frontier,
-            reviewer,
+            reviewer: _reviewer,
             json,
             quiet,
         } => {
@@ -378,46 +378,18 @@ pub async fn run_command() {
                         }
                     })
                     .unwrap_or_else(|| std::path::PathBuf::from("."));
-                let preview = proposals::preview_at_path(&frontier_root, &target, &reviewer)
-                    .unwrap_or_else(|e| fail_return(&e));
-                // The Engine's prospective read: what Evidence CI would say if
-                // this proposal were accepted. Best-effort — a hiccup here must
-                // never break the diff itself.
-                let verdict = proposals::preview_engine_verdict(&frontier_root, &target).ok();
-                let engine_json = verdict.as_ref().map(|v| {
-                    json!({
-                        "verdict": v.status,
-                        "new_blocking": v.new_blocking,
-                        "new_warnings": v.new_warnings,
-                        "release_blocking_failed": v.release_blocking_failed,
-                        "warnings": v.warnings,
-                    })
-                });
+                let review = crate::review_material::ReviewProjection::one(&frontier_root, &target)
+                    .unwrap_or_else(|error| fail_return(&error.to_string()));
                 let payload = json!({
                     "ok": true,
                     "command": "diff.proposal",
                     "frontier": frontier_root.display().to_string(),
                     "proposal_id": target,
-                    "preview": preview,
-                    "engine": engine_json,
+                    "review": review,
                 });
                 if json {
                     print_json(&payload);
                 } else {
-                    // The reviewer's one-screen answer to "what would this
-                    // change, and what does it actually SAY": the proposal's
-                    // own text, the shape delta, the engine's prospective
-                    // verdict with the warnings NAMED, and the decision verb.
-                    let proposal = repo::load_from_path(&frontier_root).ok().and_then(|proj| {
-                        let found = proj.proposals.iter().find(|p| p.id == target).cloned();
-                        let pack = proj
-                            .released_diff_packs
-                            .iter()
-                            .filter(|r| r.verdict.is_none())
-                            .find(|r| r.member_proposals.iter().any(|m| m == &target))
-                            .map(|r| r.pack_id.clone());
-                        found.map(|p| (p, pack))
-                    });
                     println!();
                     println!(
                         "  {}",
@@ -426,90 +398,12 @@ pub async fn run_command() {
                             .dimmed()
                     );
                     println!("  {}", vela_protocol::cli_style::tick_row(60));
-                    let pack_id = match &proposal {
-                        Some((p, pack)) => {
-                            println!(
-                                "  kind:      {}   by {}",
-                                safe_text::inline(&p.kind),
-                                safe_text::inline(&p.actor.id)
-                            );
-                            let reason = safe_text::inline(&p.reason);
-                            if !reason.is_empty() {
-                                println!("  reason:    {reason}");
-                            }
-                            if let Some(text) = p
-                                .payload
-                                .pointer("/finding/assertion/text")
-                                .and_then(serde_json::Value::as_str)
-                            {
-                                println!(
-                                    "  proposes:  {}",
-                                    wrap_line(&safe_text::inline(text), 78)
-                                );
-                            }
-                            pack.clone()
-                        }
-                        None => {
-                            println!("  kind:      {}", safe_text::inline(&preview.kind));
-                            None
-                        }
-                    };
-                    println!(
-                        "  shape:     findings {} -> {} · events {} -> {} · artifacts {} -> {}",
-                        preview.findings_before,
-                        preview.findings_after,
-                        preview.events_before,
-                        preview.events_after,
-                        preview.artifacts_before,
-                        preview.artifacts_after,
-                    );
-                    if !preview.changed_findings.is_empty() {
-                        println!(
-                            "  changes:   {}",
-                            safe_text::inline(&preview.changed_findings.join(", "))
-                        );
-                    }
-                    if let Some(v) = &verdict {
-                        match v.status.as_str() {
-                            "pass" => println!("  engine:    evidence-ci clean if accepted"),
-                            "warn" => {
-                                println!(
-                                    "  engine:    {} new review warning(s) if accepted",
-                                    v.new_warnings.len()
-                                );
-                                for w in v.new_warnings.iter().take(5) {
-                                    println!("    · {}", safe_text::inline(w));
-                                }
-                                if v.new_warnings.len() > 5 {
-                                    println!("    … +{} more", v.new_warnings.len() - 5);
-                                }
-                            }
-                            "blocked" => {
-                                println!(
-                                    "  engine:    WOULD BLOCK — {} new release-blocking failure(s)",
-                                    v.new_blocking.len()
-                                );
-                                for b in v.new_blocking.iter().take(5) {
-                                    println!("    · {}", safe_text::inline(b));
-                                }
-                            }
-                            other => println!("  engine:    {}", safe_text::inline(other)),
-                        }
+                    println!("  {}", safe_text::inline(&review.brief.change.claim).bold());
+                    for line in sign_session::render_decision_brief_lines(&review.brief) {
+                        println!("    {}", vela_protocol::cli_style::dim(&line));
                     }
                     println!();
-                    match pack_id {
-                        Some(pack) => {
-                            println!(
-                                "  decide:    vela sign    (this proposal rides pack {})",
-                                safe_text::inline(&pack)
-                            )
-                        }
-                        None => println!(
-                            "  decide:    vela sign {} --yes    (or: vela proposals reject . {} --reason \"…\")",
-                            safe_text::inline(&target),
-                            safe_text::inline(&target)
-                        ),
-                    }
+                    println!("  decide:    vela sign");
                     println!();
                 }
             } else {
@@ -809,6 +703,9 @@ pub async fn run_command() {
             reason,
             batch,
             reset,
+            preview,
+            cursor,
+            limit,
             sk,
             key,
             json,
@@ -823,7 +720,9 @@ pub async fn run_command() {
                     ),
                 );
             }
-            if let Some(batch) = batch {
+            if preview {
+                sign_session::cmd_sign_preview(frontier, cursor, limit, json);
+            } else if let Some(batch) = batch {
                 let dir = crate::ui::resolve_frontier(frontier);
                 cmd_review_fidelity_batch(dir, batch, None, key, json);
             } else if let Some(target) = target {
@@ -852,10 +751,26 @@ pub async fn run_command() {
             let dir = crate::ui::resolve_frontier(frontier);
             let project =
                 vela_protocol::repo::load_from_path(&dir).unwrap_or_else(|e| fail_return(&e));
-            let targets = vela_edge::frontier_next::frontier_next(&project, Some(&dir), limit);
+            let review = crate::review_material::ReviewProjection::page(
+                &dir,
+                crate::review_material::ReviewRequest {
+                    limit: Some(limit.min(crate::review_material::REVIEW_PAGE_MAX)),
+                    ..crate::review_material::ReviewRequest::default()
+                },
+            )
+            .unwrap_or_else(|error| fail_return(&error.to_string()));
+            let targets = vela_edge::frontier_next::frontier_next(
+                &project,
+                &review.items,
+                Some(&dir),
+                &review.observed_at,
+                limit,
+            );
             if json {
                 print_json(&serde_json::json!({
                     "ok": true, "command": "next",
+                    "review_snapshot_root": review.snapshot_root,
+                    "review_next_cursor": review.next_cursor,
                     "targets": targets.iter().map(|t| serde_json::json!({
                         "lane": t.lane, "id": t.id, "title": t.title,
                         "why": t.why, "next_command": t.next_command,

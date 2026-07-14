@@ -229,6 +229,21 @@ pub struct StagedPolicyRoute {
 
 impl StagedPolicyRoute {
     #[must_use]
+    pub fn proposal_id(&self) -> &str {
+        &self.proposal_id
+    }
+
+    #[must_use]
+    pub fn decision_time(&self) -> &str {
+        &self.decision_time
+    }
+
+    #[must_use]
+    pub fn state_root_before(&self) -> &str {
+        &self.state_root_before
+    }
+
+    #[must_use]
     pub fn context(&self) -> &PolicyContext {
         &self.context
     }

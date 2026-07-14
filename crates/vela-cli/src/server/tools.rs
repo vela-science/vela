@@ -37,7 +37,13 @@ pub(crate) fn tool_orient(
 
     let stats = parse_payload(tool_frontier_stats(project))?;
 
-    let targets = vela_edge::frontier_next::frontier_next(project, source_path, limit);
+    let frontier_dir = source_path.map(|path| {
+        if path.is_file() {
+            path.parent().unwrap_or(path)
+        } else {
+            path
+        }
+    });
     if source_path.is_none() {
         notes.push(
             "campaign-seed lane skipped: this transport serves no frontier directory \
@@ -45,6 +51,65 @@ pub(crate) fn tool_orient(
                 .to_string(),
         );
     }
+    let (pending_review, review_items, review_observed_at) = match frontier_dir {
+        Some(frontier) => {
+            match crate::review_material::ReviewProjection::page(
+                frontier,
+                crate::review_material::ReviewRequest {
+                    limit: Some(limit),
+                    cursor: args
+                        .get("review_cursor")
+                        .and_then(Value::as_str)
+                        .map(ToString::to_string),
+                    proposal_id: None,
+                },
+            ) {
+                Ok(page) => {
+                    let items = page.items.clone();
+                    let observed_at = page.observed_at.clone();
+                    (
+                        json!({
+                            "snapshot_root": page.snapshot_root,
+                            "event_log_root": page.event_log_root,
+                            "observed_at": page.observed_at,
+                            "total": page.total,
+                            "returned": page.returned,
+                            "items": page.items,
+                            "next_cursor": page.next_cursor,
+                        }),
+                        items,
+                        observed_at,
+                    )
+                }
+                Err(error) => {
+                    notes.push(format!("pending review unavailable: {error}"));
+                    (
+                        json!({"error": {"code": error.code, "message": error.message}}),
+                        Vec::new(),
+                        chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Nanos, true),
+                    )
+                }
+            }
+        }
+        None => {
+            notes.push(
+                "pending review omitted: this transport has no retained frontier directory"
+                    .to_string(),
+            );
+            (
+                Value::Null,
+                Vec::new(),
+                chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Nanos, true),
+            )
+        }
+    };
+    let targets = vela_edge::frontier_next::frontier_next(
+        project,
+        &review_items,
+        frontier_dir,
+        &review_observed_at,
+        limit,
+    );
 
     // Solvability ranking: OPEN findings ordered by accumulating structural
     // support (which is a verifier-run from done), with the popularity baseline
@@ -156,6 +221,7 @@ pub(crate) fn tool_orient(
             "proposals": stats.get("proposals"),
         },
         "signals": stats.get("signals"),
+        "pending_review": pending_review,
         "open_targets": targets,
         "solvable": {"total": solvable_total, "items": solvable, "contested": contested},
         "gaps": {"total": gap_total, "items": gaps},

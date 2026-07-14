@@ -1099,11 +1099,12 @@ async fn execute_tool(
 ) -> (ToolOutput, Option<Project>) {
     match name {
         "orient" => {
-            let project = frontier.lock().await;
-            (
-                tool_orient(args, &project, source_path),
-                Some(clone_project(&project)),
-            )
+            let project = {
+                let cached = frontier.lock().await;
+                clone_project(&cached)
+            };
+            let output = tool_orient(args, &project, source_path);
+            (output, Some(clone_project(&project)))
         }
         "finding" => {
             let project = frontier.lock().await;

@@ -25,6 +25,8 @@ use serde::Serialize;
 use vela_protocol::project::Project;
 use vela_protocol::verifier_attachment::{GateStatus, claim_digest, derive_gate_status};
 
+use super::decision_brief::ReviewSnapshot;
+
 #[derive(Debug, Clone, Serialize)]
 pub struct NextTarget {
     /// "review" | "attack" | "verify"
@@ -55,10 +57,17 @@ pub fn pack_awaits_decision(
 }
 
 /// Is this lease still live at `now` (RFC3339 comparison via chrono)?
-fn lease_live(claimed_at: &str, ttl_seconds: u64) -> bool {
+fn lease_live_at(
+    claimed_at: &str,
+    ttl_seconds: u64,
+    observed_at: Option<&chrono::DateTime<chrono::Utc>>,
+) -> bool {
+    let Some(observed_at) = observed_at else {
+        return true;
+    };
     chrono::DateTime::parse_from_rfc3339(claimed_at)
-        .map(|t| t + chrono::Duration::seconds(ttl_seconds as i64) > chrono::Utc::now())
-        .unwrap_or(false)
+        .map(|claimed| claimed + chrono::Duration::seconds(ttl_seconds as i64) > *observed_at)
+        .unwrap_or(true)
 }
 
 /// Does any assertion reference seed `n` as a `#n` token
@@ -148,47 +157,40 @@ fn lease_namespace(project: &Project) -> String {
 
 pub fn frontier_next(
     project: &Project,
+    reviews: &[ReviewSnapshot],
     frontier_dir: Option<&Path>,
+    observed_at: &str,
     limit: usize,
 ) -> Vec<NextTarget> {
-    let mut targets = Vec::new();
+    let observed_at = chrono::DateTime::parse_from_rfc3339(observed_at)
+        .ok()
+        .map(|time| time.to_utc());
+    let mut review_targets = Vec::new();
+    let mut actionable_targets = Vec::new();
 
-    // ── review: undecided packs, then loose pending proposals ─────────
-    let mut packs: Vec<_> = project
-        .released_diff_packs
-        .iter()
-        .filter(|r| pack_awaits_decision(r, project))
-        .collect();
-    packs.sort_by(|a, b| a.summary.cmp(&b.summary));
-    let in_pack: std::collections::BTreeSet<&str> = packs
-        .iter()
-        .flat_map(|r| r.member_proposals.iter().map(String::as_str))
-        .collect();
-    for r in &packs {
-        targets.push(NextTarget {
+    // ── review: the same selected Decision Briefs used everywhere else ──
+    for review in reviews {
+        review_targets.push(NextTarget {
             lane: "review".into(),
-            id: r.pack_id.clone(),
-            title: r.summary.chars().take(80).collect(),
+            id: review.brief.audit.proposal_id.clone(),
+            title: review.brief.change.claim.chars().take(80).collect(),
             why: format!(
-                "{} member proposal(s) blocked on one key-custody decision",
-                r.member_proposals.len()
+                "{} · accept {} · reject {} · facts {}",
+                review.brief.authority.route,
+                review
+                    .brief
+                    .action("accept")
+                    .map(|action| action.eligibility.as_str())
+                    .unwrap_or("unavailable"),
+                review
+                    .brief
+                    .action("reject")
+                    .map(|action| action.eligibility.as_str())
+                    .unwrap_or("unavailable"),
+                review.brief.audit.decision_facts_root,
             ),
-            next_command: "vela sign".to_string(),
+            next_command: format!("vela diff {}", review.brief.audit.proposal_id),
         });
-    }
-    for p in &project.proposals {
-        if p.status == "pending_review"
-            && p.applied_event_id.is_none()
-            && !in_pack.contains(p.id.as_str())
-        {
-            targets.push(NextTarget {
-                lane: "review".into(),
-                id: p.id.clone(),
-                title: p.reason.chars().take(80).collect(),
-                why: format!("pending {} awaiting a human key", p.kind),
-                next_command: format!("vela diff {}", p.id),
-            });
-        }
     }
 
     // ── attack: open campaign seeds, unleased and unlanded ─────────────
@@ -197,7 +199,13 @@ pub fn frontier_next(
         let live_leases: std::collections::BTreeSet<String> = project
             .attempt_claims
             .iter()
-            .filter(|l| lease_live(&l.claimed_at, l.lease_ttl_seconds))
+            .filter(|lease| {
+                lease_live_at(
+                    &lease.claimed_at,
+                    lease.lease_ttl_seconds,
+                    observed_at.as_ref(),
+                )
+            })
             .map(|l| l.obligation_id.clone())
             .collect();
         for (batch, seed) in campaign_seeds(dir) {
@@ -211,7 +219,7 @@ pub fn frontier_next(
             ) {
                 continue;
             }
-            targets.push(NextTarget {
+            actionable_targets.push(NextTarget {
                 lane: "attack".into(),
                 id: obligation.clone(),
                 title: format!("{batch} seed {seed}"),
@@ -276,8 +284,29 @@ pub fn frontier_next(
     // Closest to the bar first (more attachments = one run from verified), then
     // highest structural leverage (unblocks the most downstream work), then id.
     verify.sort_by(|a, b| b.0.cmp(&a.0).then(b.1.cmp(&a.1)).then(a.2.id.cmp(&b.2.id)));
-    targets.extend(verify.into_iter().map(|(_, _, t)| t));
+    actionable_targets.extend(verify.into_iter().map(|(_, _, target)| target));
 
+    if limit == 0 {
+        return Vec::new();
+    }
+    if actionable_targets.is_empty() {
+        review_targets.truncate(limit);
+        return review_targets;
+    }
+    if limit == 1 {
+        return actionable_targets.into_iter().take(1).collect();
+    }
+    let mut targets = Vec::with_capacity(limit);
+    if let Some(review) = review_targets.first().cloned() {
+        targets.push(review);
+        review_targets.remove(0);
+    }
+    if let Some(actionable) = actionable_targets.first().cloned() {
+        targets.push(actionable);
+        actionable_targets.remove(0);
+    }
+    targets.extend(review_targets);
+    targets.extend(actionable_targets);
     targets.truncate(limit);
     targets
 }
@@ -296,6 +325,9 @@ mod tests {
 
     #[test]
     fn expired_lease_is_not_live() {
-        assert!(!lease_live("2020-01-01T00:00:00+00:00", 60));
+        let now = chrono::DateTime::parse_from_rfc3339("2026-07-13T00:00:00Z")
+            .unwrap()
+            .to_utc();
+        assert!(!lease_live_at("2020-01-01T00:00:00+00:00", 60, Some(&now)));
     }
 }

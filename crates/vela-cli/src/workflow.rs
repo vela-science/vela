@@ -470,7 +470,7 @@ fn active_work_session_close(
 /// scientific state must remain usable when publication is unavailable or a
 /// frontier was deliberately initialized without Git. These bytes are ignored
 /// scratch, never replay or authority state.
-fn frontier_transaction_journal_dir(frontier: &Path) -> Result<PathBuf, String> {
+pub(crate) fn frontier_transaction_journal_dir(frontier: &Path) -> Result<PathBuf, String> {
     let root = frontier
         .canonicalize()
         .map_err(|error| format!("resolve frontier transaction root: {error}"))?;
@@ -1856,8 +1856,13 @@ fn durable_land_result_from_public_state(
             "public submission receipt path {receipt_path} does not match its content root"
         ));
     }
-    let stored_bytes = std::fs::read(frontier.join(receipt_path))
-        .map_err(|error| format!("read durable public receipt {receipt_path}: {error}"))?;
+    let stored_bytes = crate::bounded_file::read_bounded_frontier_file(
+        frontier,
+        Path::new(receipt_path),
+        crate::bounded_file::RECEIPT_MAX_BYTES,
+        "durable public receipt",
+    )
+    .map_err(|error| error.to_string())?;
     let stored = ReceiptV1::parse(&stored_bytes).map_err(|error| error.to_string())?;
     if stored.canonical_root().map_err(|error| error.to_string())? != expected_receipt_root
         || stored

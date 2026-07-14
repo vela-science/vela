@@ -168,36 +168,58 @@ pub(crate) fn run_session() {
             style::warn("unpublished")
         );
     }
-    // The sign queue: what awaits the human key (policy-filtered — a
-    // Permit-able item never appears; that's the autonomy working).
-    if let Ok(queue) = vela_edge::sign_queue::sign_queue(&project, &repo_path, |project, id| {
-        let receipt = project
-            .proposals
+    // The sign queue consumes the same bounded Decision Brief projection as
+    // diff, status, MCP, and the ceremony. This dashboard never re-evaluates
+    // policy or receipt facts independently.
+    if let Ok(page) = crate::review_material::ReviewProjection::page(
+        &repo_path,
+        crate::review_material::ReviewRequest {
+            limit: Some(3),
+            ..crate::review_material::ReviewRequest::default()
+        },
+    ) {
+        let queue = vela_edge::sign_queue::sign_queue(vela_edge::sign_queue::SignQueueInput {
+            decisions: page.items,
+            ..vela_edge::sign_queue::SignQueueInput::default()
+        });
+        let answerable = queue
+            .items
             .iter()
-            .find(|proposal| proposal.id == id)
-            .and_then(|proposal| {
-                crate::review_material::frontier_receipt_for_proposal(&repo_path, proposal)
-            });
-        crate::review_material::derive_existing_proposal_policy_context(
-            project,
-            id,
-            receipt.as_ref(),
-        )
-    }) {
-        let signable = queue.items.iter().filter(|i| i.signable).count();
-        if signable > 0 {
+            .filter(|item| {
+                item.accept_action()
+                    .is_some_and(vela_edge::decision_brief::DecisionAction::is_available)
+                    || item
+                        .reject_action()
+                        .is_some_and(vela_edge::decision_brief::DecisionAction::is_available)
+            })
+            .count();
+        if answerable > 0 {
             println!(
-                "  {}  {signable} item(s) await your key — `vela sign`{}",
+                "  {}  {answerable} of {} pending item(s) shown — `vela sign`",
                 style::warn("sign queue"),
-                if queue.policy_active {
-                    ""
-                } else {
-                    "  (no signed policy: everything defers to you — `vela policy draft`)"
-                }
+                page.total,
             );
         }
     }
-    let targets = vela_edge::frontier_next::frontier_next(&project, Some(&repo_path), 3);
+    let next_review = crate::review_material::ReviewProjection::page(
+        &repo_path,
+        crate::review_material::ReviewRequest {
+            limit: Some(3),
+            ..crate::review_material::ReviewRequest::default()
+        },
+    );
+    let targets = next_review
+        .as_ref()
+        .map(|review| {
+            vela_edge::frontier_next::frontier_next(
+                &project,
+                &review.items,
+                Some(&repo_path),
+                &review.observed_at,
+                3,
+            )
+        })
+        .unwrap_or_default();
     if !targets.is_empty() {
         println!();
         println!("  {}", "next, ranked (vela next for more):".dimmed());

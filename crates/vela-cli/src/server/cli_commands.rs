@@ -455,6 +455,18 @@ pub(crate) enum Commands {
         /// choices you want to redo.
         #[arg(long)]
         reset: bool,
+        /// Read-only Decision Brief page. Never resolves or reads a key.
+        #[arg(
+            long,
+            conflicts_with_all = ["target", "yes", "reason", "batch", "reset", "sk", "key"]
+        )]
+        preview: bool,
+        /// Opaque continuation returned by a prior --preview --json page.
+        #[arg(long, requires = "preview")]
+        cursor: Option<String>,
+        /// Decision Brief page size (default 25, maximum 100).
+        #[arg(long, requires = "preview")]
+        limit: Option<usize>,
         /// Hardware touch-to-sign. Accepted but intentionally NOT wired yet —
         /// the recommended path is an OpenPGP/PKCS#11 Ed25519 token (raw
         /// Ed25519, zero verifier change), not FIDO2; see
