@@ -5,9 +5,18 @@ not a verdict. It is a content-addressed, claim-aware evidence packet that
 `vela land` turns into a pending proposal, which a signed policy or a human then
 routes into frontier state.
 
+```text
+source activity -> Receipt v1 bytes (sha256:<64>)
+                -> compatibility ActivityRecord (vrc_) + proposal
+                -> policy route -> Deny | Defer | signed-policy Permit
+                -> one recoverable frontier transaction -> derived state
 ```
-source activity → receipt (vrc_) → proposal → policy/gate → signed event → frontier state
-```
+
+The raw Receipt v1 root and the `vrc_` identifier are deliberately different.
+The former is the full canonical Receipt byte root and names
+`records/receipts/sha256/<digest>.json`; the latter identifies the compatibility
+ActivityRecord that points at those bytes. Consumers must not substitute one
+identity for the other.
 
 Everything before the receipt is production of evidence (an agent run, a
 workflow, an eval, a proof). Everything after it is coordination over accepted,
@@ -27,6 +36,13 @@ External producers should validate against that file before handing a receipt to
 [`tools/receipt-v0`](../tools/receipt-v0) is the reference cold-start tool for
 strangers: copy it outside this repo and run `python3 -m vela_receipt_v0`.
 
+Receipt v1 keeps the released validity set. The schema has 15,458 bytes and
+SHA-256
+`369eed995d8a430a7d7b37e1431f04b01301b1c2789d541b3f4a32221088bf93`.
+`scripts/check-receipt-schema-sync.sh` compares every bundled schema copy with
+those exact bytes. Parsers reject duplicate object names before schema
+validation, including escaped names and names in the decoded DSSE payload.
+
 ```jsonc
 {
   "schema": "vela.receipt.v1",
@@ -45,15 +61,22 @@ strangers: copy it outside this repo and run `python3 -m vela_receipt_v0`.
 }
 ```
 
-- **claim** - the exact assertion. Landing dedups by `(claim, type)`: a
-  byte-identical re-land is a retry (exit 5), never a fork.
+- **claim** - the exact assertion. Retry identity is the client operation ID
+  plus the normalized Receipt root. Reusing the same operation ID with changed
+  input is an error. The same claim and type with different evidence is a new
+  retained receipt, related to the earlier finding rather than erased as a
+  duplicate.
 - **type** - classifies the finding itself (`computational`, `theoretical`,
   `negative`, …), and drives the policy `claim_class` (`receipt_<type>`).
 - **caveats** - the honesty requirement. An empty list is rejected. State what
   the evidence does not establish so the receipt cannot over-claim.
-- **artifacts** - hashed (sha256) at land time. `kind` defaults to `witness`.
-- **verifier_runs** - evidence from a source-system verifier. A single `pass`
-  raises the landing's assurance signal; it does not, alone, verify the claim.
+- **artifacts** - public local bytes are copied to a content-addressed canonical
+  path. A remote public artifact needs an immutable locator, digest, and size.
+  Restricted material is represented by a `custodian:` or `opaque:` reference
+  and must not publish an equality-revealing digest or payload bytes.
+- **verifier_runs** - mechanical provenance reported by the producer. A
+  reported `pass` remains A0 and cannot raise durable assurance. Only separate
+  retained verifier attachments, evaluated by the gate, can do that.
 - **replayability** - see below.
 - **conditions / verification_requirements / state_diff** - the Carina-facing
   typed handoff fields. They state what assumptions travel with the receipt,
@@ -64,6 +87,46 @@ strangers: copy it outside this repo and run `python3 -m vela_receipt_v0`.
   `authority: producer`. `landed_pending`, `accepted`, `rejected`, and
   `superseded` are Vela-side or human-key statuses and must not be forged by an
   emitter.
+
+A producer-reported verifier run remains `producer_reported`. The producer
+receipt uses `acceptance_scope: hypothesis_only`, leaves artifact and claim
+assessment `not_assessed`, and names no acceptor. A later verifier or policy
+decision can add authority through its own signed object.
+
+## Whole-receipt binding
+
+New emitters compute canonical JSON for the complete top-level receipt without
+`attestation`. They place its lowercase SHA-256 digest at
+`attestation.statement.predicate["vela:receipt_body"].sha256`. Consumers check
+that root and compare the statement's subject, machine, acceptance,
+distillation, lineage, contributors, signature identities, and provenance with
+the receipt body.
+
+The read path classifies an older Receipt v1 without `vela:receipt_body` as
+`legacy_unbound`. A binding field that exists but has the wrong shape, digest,
+or body projection fails validation. Consumers must not upgrade a legacy
+unbound receipt to an authoritative claim.
+
+## Landing is one write edge
+
+CLI flags, file import, MCP, and adapters converge on the same strict Receipt
+v1 parser and landing service. The service prepares the Receipt bytes, safe
+artifact projection, compatibility record, proposal, exact `PolicyContext`,
+gate result, policy route, and materialized views before it crosses the commit
+marker.
+
+- **Deny** returns before the marker and leaves no canonical Vela or Git delta.
+- **Defer** installs the pending proposal. This is the ordinary producer
+  outcome and is success, not a failed or half-accepted submission.
+- **Permit** installs accepted state only through a verified certificate from a
+  previously human-signed policy. A producer or MCP caller cannot create that
+  authority.
+
+The operation journal is private recovery state, not a protocol object. Before
+its marker, failure is discardable. After the marker, recovery installs the
+exact stored bytes idempotently. Git publication is a separate exact-path
+transaction after the scientific transaction; a failed push cannot change the
+route or authorization bytes.
 
 ## Reference emitter and validator
 
@@ -98,7 +161,7 @@ must say so rather than pretend. The field is a closed set:
 | `exact` | same bytes, same frozen verifier - deterministically re-runnable |
 | `bounded` | deterministic code path; the external service version is only partly pinned |
 | `approximate` | same prompt/model label can be re-run, but provider behavior may vary |
-| `unavailable` | cannot be re-run, but the payloads are hash-bound and auditable |
+| `unavailable` | cannot be re-run; retained public bytes or immutable locators remain auditable, while restricted material may expose only an opaque custodian reference |
 | `unknown` | insufficient replay metadata (the default for a receipt that omits the field) |
 
 A value outside this set is rejected at land time. Absence defaults to `unknown`,
@@ -132,14 +195,17 @@ receipt schema does not churn as adapters arrive:
 
 ## Invariants
 
-1. **Content identity** - artifacts are content-addressed (sha256) or bound to a
-   durable external id (DOI, SWHID, OCI digest).
-2. **Claim awareness** - bound to a claim (for dedup) and, via the attachment
-   layer, to a claim digest (for verifier binding).
+1. **Content identity** - public artifacts are content-addressed (sha256) or
+   bound to a durable external id (DOI, SWHID, OCI digest). Restricted,
+   low-entropy material may instead use an opaque custodian reference.
+2. **Claim awareness** - bound to a claim for relation and review, not text
+   deduplication, and via the attachment layer to a claim digest for verifier
+   binding.
 3. **Replay disclosure** - the receipt states honestly what can be re-run.
-4. **Redaction honesty** - sensitive payloads are hash-bound and governed by
-   access tiers (`Public` | `Restricted` | `Classified`); the public shell
-   carries only safe fields.
+4. **Redaction honesty** - sensitive payloads, equality-revealing digests, and
+   commitment openings stay outside public Git. The public shell carries a
+   safe digest, sealed commitment, or opaque custodian reference according to
+   disclosure risk and access tier (`Public` | `Restricted` | `Classified`).
 5. **Verifier separation** - receipts suggest verifier attachments; they do not
    set gate status.
 6. **Human-acceptance separation** - an agent or system can produce a receipt,

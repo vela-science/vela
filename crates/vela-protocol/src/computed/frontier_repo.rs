@@ -281,6 +281,17 @@ struct ProofWrite {
     replay_trace: String,
 }
 
+/// Exact bytes written by [`write_visible_repo_files`], keyed by normalized
+/// frontier-relative path. Rendering is read-only: callers can bind these
+/// bytes into a transaction before changing the frontier.
+pub type VisibleRepoFiles = BTreeMap<String, Vec<u8>>;
+
+#[derive(Debug, Clone)]
+struct RenderedProof {
+    files: VisibleRepoFiles,
+    proof: ProofWrite,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RepoLayoutIssue {
     pub rule_id: String,
@@ -391,7 +402,7 @@ fn write_git_native_scaffold(path: &Path, name: &str) -> Result<(), String> {
          \n\
          # Producer-local scratch (not replayable truth).\n\
          /packets/\n/activity/\n/exports/\n\
-         /.vela/tasks/\n/.vela/work/\n/.vela/workspaces/\n/.vela/source-inbox/\n/.vela/artifact-blobs/\n\
+         /.vela/agents/\n/.vela/keys/\n/.vela/operation-journals/\n/.vela/tasks/\n/.vela/work/\n/.vela/workspaces/\n/.vela/source-inbox/\n/.vela/artifact-blobs/\n\
          \n\
          # Tooling scratch\n\
          /target/\n__pycache__/\n*.pyc\n.venv/\n.pytest_cache/\n.DS_Store\n"
@@ -539,21 +550,55 @@ pub fn materialize(path: &Path) -> Result<serde_json::Value, String> {
 }
 
 pub fn write_visible_repo_files(path: &Path, project: &Project) -> Result<(), String> {
+    let files = render_visible_repo_files(path, project)?;
+    for (relative_path, bytes) in files {
+        let destination = path.join(&relative_path);
+        if let Some(parent) = destination.parent() {
+            fs::create_dir_all(parent)
+                .map_err(|e| format!("Failed to create {}: {e}", parent.display()))?;
+        }
+        fs::write(&destination, bytes)
+            .map_err(|e| format!("Failed to write {}: {e}", destination.display()))?;
+    }
+    Ok(())
+}
+
+/// Render the complete set of bytes that [`write_visible_repo_files`] would
+/// write, without mutating the frontier. Existing user-owned manifest fields
+/// and proof-side files are treated as read-only inputs, matching the legacy
+/// writer's preservation behavior.
+pub fn render_visible_repo_files(
+    path: &Path,
+    project: &Project,
+) -> Result<VisibleRepoFiles, String> {
     let generated_at = materialization_generated_at(path, project);
-    write_visible_state(path, project, &generated_at)?;
-    if !path.join("frontier.yaml").is_file() {
-        write_manifest(path, project)?;
+    let mut files = VisibleRepoFiles::new();
+    files.insert(
+        "frontier.json".to_string(),
+        render_visible_state(project, &generated_at)?,
+    );
+    let manifest = if !path.join("frontier.yaml").is_file() {
+        render_manifest(path, project)?
     } else {
         // v0.59: keep the structured cross-frontier deps in the
         // existing yaml in sync with `Project.dependencies`. We
         // intentionally only touch the `dependencies.frontiers_v2`
         // field; other user-edited fields (scope, maintainers,
         // policies) are preserved.
-        sync_manifest_deps(path, &project.project.dependencies)?;
-    }
-    let proof = write_proof(path, project, &generated_at)?;
-    write_lock(path, project, &proof, &generated_at)?;
-    Ok(())
+        render_synced_manifest(path, &project.project.dependencies)?
+    };
+    files.insert("frontier.yaml".to_string(), manifest);
+
+    let rendered_proof = render_proof(path, project, &generated_at)?;
+    files.extend(
+        rendered_proof
+            .files
+            .into_iter()
+            .map(|(relative_path, bytes)| (format!("proof/{relative_path}"), bytes)),
+    );
+    let (_, lock_bytes) = render_lock(path, project, &rendered_proof.proof, &generated_at)?;
+    files.insert("vela.lock".to_string(), lock_bytes);
+    Ok(files)
 }
 
 pub fn read_manifest(path: &Path) -> Result<Option<FrontierManifest>, String> {
@@ -904,6 +949,12 @@ fn empty_project(name: &str, description: &str, compiled_at: &str) -> Project {
 }
 
 fn write_visible_state(path: &Path, project: &Project, generated_at: &str) -> Result<(), String> {
+    let bytes = render_visible_state(project, generated_at)?;
+    fs::write(path.join("frontier.json"), bytes)
+        .map_err(|e| format!("Failed to write frontier.json: {e}"))
+}
+
+fn render_visible_state(project: &Project, generated_at: &str) -> Result<Vec<u8>, String> {
     let visible = project_with_frontier_id(project)?;
     let snapshot_hash = prefixed(events::snapshot_hash(&visible));
     let event_log_hash = prefixed(events::event_log_hash(&visible.events));
@@ -934,33 +985,27 @@ fn write_visible_state(path: &Path, project: &Project, generated_at: &str) -> Re
             }),
         );
     }
-    let json = serde_json::to_string_pretty(&value)
-        .map_err(|e| format!("Failed to serialize frontier.json: {e}"))?;
-    fs::write(path.join("frontier.json"), json)
-        .map_err(|e| format!("Failed to write frontier.json: {e}"))
+    serde_json::to_vec_pretty(&value).map_err(|e| format!("Failed to serialize frontier.json: {e}"))
 }
 
-/// v0.59: read the existing frontier.yaml, replace its
-/// `dependencies.frontiers_v2` field with the project's live
-/// dependencies, and write it back. Preserves every other field
-/// the user may have customized (scope.question, maintainers,
-/// policies, license). No-op if no manifest exists yet.
-fn sync_manifest_deps(path: &Path, deps: &[ProjectDependency]) -> Result<(), String> {
-    let manifest_path = path.join("frontier.yaml");
-    if !manifest_path.is_file() {
-        return Ok(());
-    }
+fn render_synced_manifest(path: &Path, deps: &[ProjectDependency]) -> Result<Vec<u8>, String> {
     let mut manifest = match read_manifest(path)? {
         Some(m) => m,
-        None => return Ok(()),
+        None => return Err("frontier.yaml disappeared while rendering visible files".to_string()),
     };
     manifest.dependencies.frontiers_v2 = deps.to_vec();
-    let yaml = serde_yaml::to_string(&manifest)
-        .map_err(|e| format!("Failed to serialize frontier.yaml: {e}"))?;
-    fs::write(&manifest_path, yaml).map_err(|e| format!("Failed to write frontier.yaml: {e}"))
+    serde_yaml::to_string(&manifest)
+        .map(String::into_bytes)
+        .map_err(|e| format!("Failed to serialize frontier.yaml: {e}"))
 }
 
 fn write_manifest(path: &Path, project: &Project) -> Result<(), String> {
+    let yaml = render_manifest(path, project)?;
+    fs::write(path.join("frontier.yaml"), yaml)
+        .map_err(|e| format!("Failed to write frontier.yaml: {e}"))
+}
+
+fn render_manifest(path: &Path, project: &Project) -> Result<Vec<u8>, String> {
     let existing = read_manifest(path).ok().flatten();
     let existing_dependencies = existing
         .as_ref()
@@ -1022,10 +1067,9 @@ fn write_manifest(path: &Path, project: &Project) -> Result<(), String> {
             .map(|manifest| manifest.templates.clone())
             .unwrap_or_default(),
     };
-    let yaml = serde_yaml::to_string(&manifest)
-        .map_err(|e| format!("Failed to serialize frontier.yaml: {e}"))?;
-    fs::write(path.join("frontier.yaml"), yaml)
-        .map_err(|e| format!("Failed to write frontier.yaml: {e}"))
+    serde_yaml::to_string(&manifest)
+        .map(String::into_bytes)
+        .map_err(|e| format!("Failed to serialize frontier.yaml: {e}"))
 }
 
 fn write_lock(
@@ -1034,6 +1078,18 @@ fn write_lock(
     proof: &ProofWrite,
     generated_at: &str,
 ) -> Result<FrontierLock, String> {
+    let (lock, bytes) = render_lock(path, project, proof, generated_at)?;
+    fs::write(path.join("vela.lock"), bytes)
+        .map_err(|e| format!("Failed to write vela.lock: {e}"))?;
+    Ok(lock)
+}
+
+fn render_lock(
+    path: &Path,
+    project: &Project,
+    proof: &ProofWrite,
+    generated_at: &str,
+) -> Result<(FrontierLock, Vec<u8>), String> {
     let locked = project_with_frontier_id(project)?;
     let reducer_package = format!("vela@{}", env!("CARGO_PKG_VERSION"));
     let verifier_package = format!("vela-verify@{}", env!("CARGO_PKG_VERSION"));
@@ -1093,11 +1149,10 @@ fn write_lock(
             })
             .collect(),
     };
-    let yaml =
-        serde_yaml::to_string(&lock).map_err(|e| format!("Failed to serialize vela.lock: {e}"))?;
-    fs::write(path.join("vela.lock"), yaml)
-        .map_err(|e| format!("Failed to write vela.lock: {e}"))?;
-    Ok(lock)
+    let yaml = serde_yaml::to_string(&lock)
+        .map(String::into_bytes)
+        .map_err(|e| format!("Failed to serialize vela.lock: {e}"))?;
+    Ok((lock, yaml))
 }
 
 /// Collect the sorted, unique verifier `kind`s this frontier's witnesses
@@ -1196,9 +1251,23 @@ fn write_scope(path: &Path, name: &str) -> Result<(), String> {
 }
 
 fn write_proof(path: &Path, project: &Project, generated_at: &str) -> Result<ProofWrite, String> {
-    let locked = project_with_frontier_id(project)?;
+    let rendered = render_proof(path, project, generated_at)?;
     let proof_dir = path.join("proof");
     fs::create_dir_all(&proof_dir).map_err(|e| format!("Failed to create proof/: {e}"))?;
+    for (relative_path, bytes) in &rendered.files {
+        fs::write(proof_dir.join(relative_path), bytes)
+            .map_err(|e| format!("Failed to write proof/{relative_path}: {e}"))?;
+    }
+    Ok(rendered.proof)
+}
+
+fn render_proof(
+    path: &Path,
+    project: &Project,
+    generated_at: &str,
+) -> Result<RenderedProof, String> {
+    let locked = project_with_frontier_id(project)?;
+    let proof_dir = path.join("proof");
 
     // Freshness skip (safe, deterministic): the proof packet is a pure function
     // of (event log, reducer version). If the recorded proof already pins this
@@ -1211,12 +1280,15 @@ fn write_proof(path: &Path, project: &Project, generated_at: &str) -> Result<Pro
     let event_log_hash = prefixed(events::event_log_hash(&locked.events));
     let snapshot_hash = prefixed(events::snapshot_hash(&locked));
     if proof_is_current(&proof_dir, &event_log_hash, &snapshot_hash) {
-        return Ok(ProofWrite {
-            digest: directory_hash(&proof_dir),
-            freshness: "fresh".to_string(),
-            latest: "proof/latest.json".to_string(),
-            events_manifest: "proof/events.manifest.jsonl".to_string(),
-            replay_trace: "proof/replay.trace.jsonl".to_string(),
+        return Ok(RenderedProof {
+            files: VisibleRepoFiles::new(),
+            proof: ProofWrite {
+                digest: directory_hash(&proof_dir),
+                freshness: "fresh".to_string(),
+                latest: "proof/latest.json".to_string(),
+                events_manifest: "proof/events.manifest.jsonl".to_string(),
+                replay_trace: "proof/replay.trace.jsonl".to_string(),
+            },
         });
     }
     let proposal_state_hash = proposal_state_hash(&locked.proposals);
@@ -1250,12 +1322,12 @@ fn write_proof(path: &Path, project: &Project, generated_at: &str) -> Result<Pro
         },
         "warning": "Do not edit frontier.json directly. Use Vela commands to propose, accept, reject, materialize, and prove frontier state."
     });
-    fs::write(
-        proof_dir.join("latest.json"),
-        serde_json::to_string_pretty(&latest)
+    let mut files = VisibleRepoFiles::new();
+    files.insert(
+        "latest.json".to_string(),
+        serde_json::to_vec_pretty(&latest)
             .map_err(|e| format!("Failed to serialize proof/latest.json: {e}"))?,
-    )
-    .map_err(|e| format!("Failed to write proof/latest.json: {e}"))?;
+    );
 
     let mut manifest_lines = String::new();
     let mut trace_lines = String::new();
@@ -1311,19 +1383,19 @@ fn write_proof(path: &Path, project: &Project, generated_at: &str) -> Result<Pro
         );
         trace_lines.push('\n');
     }
-    fs::write(proof_dir.join("events.manifest.jsonl"), manifest_lines)
-        .map_err(|e| format!("Failed to write proof/events.manifest.jsonl: {e}"))?;
-    fs::write(proof_dir.join("replay.trace.jsonl"), trace_lines)
-        .map_err(|e| format!("Failed to write proof/replay.trace.jsonl: {e}"))?;
-
-    fs::write(
-        proof_dir.join("freshness.md"),
+    files.insert(
+        "events.manifest.jsonl".to_string(),
+        manifest_lines.into_bytes(),
+    );
+    files.insert("replay.trace.jsonl".to_string(), trace_lines.into_bytes());
+    files.insert(
+        "freshness.md".to_string(),
         format!(
             "# Freshness\n\nCurrent proof status: fresh\n\n`frontier.json` was materialized from `.vela/events/` at {generated_at}.\n\nAccepted events: {}\nEvent log hash: `{event_log_hash}`\nSnapshot hash: `{snapshot_hash}`\n\nRun:\n\n```bash\nvela check . --strict --json\nvela integrity . --json\n```\n",
             locked.events.len()
-        ),
-    )
-    .map_err(|e| format!("Failed to write proof/freshness.md: {e}"))?;
+        )
+        .into_bytes(),
+    );
 
     let hashes = json!({
         "schema": "vela.frontier_repo_hashes.v0.1",
@@ -1335,19 +1407,22 @@ fn write_proof(path: &Path, project: &Project, generated_at: &str) -> Result<Pro
         "artifacts_hash": directory_hash(&path.join("artifacts")),
         "review_hash": directory_hash(&path.join("review")),
     });
-    fs::write(
-        proof_dir.join("hashes.json"),
-        serde_json::to_string_pretty(&hashes)
+    files.insert(
+        "hashes.json".to_string(),
+        serde_json::to_vec_pretty(&hashes)
             .map_err(|e| format!("Failed to serialize proof/hashes.json: {e}"))?,
-    )
-    .map_err(|e| format!("Failed to write proof/hashes.json: {e}"))?;
+    );
+    let digest = directory_hash_with_replacements(&proof_dir, &files);
 
-    Ok(ProofWrite {
-        digest: directory_hash(&proof_dir),
-        freshness: "fresh".to_string(),
-        latest: "proof/latest.json".to_string(),
-        events_manifest: "proof/events.manifest.jsonl".to_string(),
-        replay_trace: "proof/replay.trace.jsonl".to_string(),
+    Ok(RenderedProof {
+        files,
+        proof: ProofWrite {
+            digest,
+            freshness: "fresh".to_string(),
+            latest: "proof/latest.json".to_string(),
+            events_manifest: "proof/events.manifest.jsonl".to_string(),
+            replay_trace: "proof/replay.trace.jsonl".to_string(),
+        },
     })
 }
 
@@ -1385,6 +1460,23 @@ fn directory_hash(path: &Path) -> String {
         collect_file_entries(path, path, &mut entries);
     }
     entries.sort_by(|a, b| a.0.cmp(&b.0));
+    let bytes = crate::canonical::to_canonical_bytes(&entries).unwrap_or_default();
+    prefixed(hex::encode(Sha256::digest(bytes)))
+}
+
+fn directory_hash_with_replacements(path: &Path, replacements: &VisibleRepoFiles) -> String {
+    let mut entries = Vec::new();
+    if path.is_dir() {
+        collect_file_entries(path, path, &mut entries);
+    }
+    let mut entries = entries.into_iter().collect::<BTreeMap<_, _>>();
+    for (relative_path, bytes) in replacements {
+        entries.insert(
+            relative_path.clone(),
+            prefixed(hex::encode(Sha256::digest(bytes))),
+        );
+    }
+    let entries = entries.into_iter().collect::<Vec<_>>();
     let bytes = crate::canonical::to_canonical_bytes(&entries).unwrap_or_default();
     prefixed(hex::encode(Sha256::digest(bytes)))
 }
@@ -1452,6 +1544,45 @@ fn default_visibility() -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn visible_repo_render_is_read_only_and_byte_equivalent_to_write() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        initialize(
+            tmp.path(),
+            InitOptions {
+                name: "Rendered frontier",
+                template: "default",
+                initialize_git: false,
+            },
+        )
+        .expect("initialize frontier");
+        let source = crate::repo::VelaSource::VelaRepo(tmp.path().to_path_buf());
+        let mut project = crate::repo::load(&source).expect("load frontier");
+        project.project.description = "rendered without a frontier write".to_string();
+        let original_frontier = fs::read(tmp.path().join("frontier.json")).unwrap();
+
+        let rendered = render_visible_repo_files(tmp.path(), &project).expect("render files");
+
+        assert_eq!(
+            fs::read(tmp.path().join("frontier.json")).unwrap(),
+            original_frontier,
+            "rendering must not modify the frontier"
+        );
+        assert!(rendered.contains_key("frontier.json"));
+        assert!(rendered.contains_key("frontier.yaml"));
+        assert!(rendered.contains_key("proof/latest.json"));
+        assert!(rendered.contains_key("vela.lock"));
+
+        write_visible_repo_files(tmp.path(), &project).expect("write rendered files");
+        for (relative_path, expected) in rendered {
+            assert_eq!(
+                fs::read(tmp.path().join(&relative_path)).unwrap(),
+                expected,
+                "rendered bytes differ for {relative_path}"
+            );
+        }
+    }
 
     #[test]
     fn initialize_writes_unfiltered_frontier_gate_for_every_public_root() {
@@ -1530,6 +1661,9 @@ mod tests {
         assert!(attributes.contains("witnesses/** filter=lfs diff=lfs merge=lfs -text"));
         let ignore =
             fs::read_to_string(tmp.path().join(".gitignore")).expect("read generated ignore rules");
+        assert!(ignore.contains("/.vela/agents/"));
+        assert!(ignore.contains("/.vela/keys/"));
+        assert!(ignore.contains("/.vela/operation-journals/"));
         assert!(ignore.contains("/.vela/work/"));
         assert!(ignore.contains("/.vela/artifact-blobs/"));
         assert!(ignore.contains("/exports/"));

@@ -121,6 +121,32 @@ pub(crate) fn cmd_check(
         for conflict in parity_conflicts.iter().take(20) {
             println!("  - {conflict}");
         }
+        let policy_lane_errors = if strict {
+            let frontier_dir = if src.is_dir() {
+                src
+            } else {
+                src.parent().unwrap_or_else(|| Path::new("."))
+            };
+            vela_protocol::proposals::policy_accept::verify_policy_lane_events(
+                &frontier,
+                frontier_dir,
+            )
+        } else {
+            Vec::new()
+        };
+        if strict {
+            println!(
+                "policy-lane replay: {}",
+                if policy_lane_errors.is_empty() {
+                    "ok".to_string()
+                } else {
+                    format!("{} conflict(s)", policy_lane_errors.len())
+                }
+            );
+            for conflict in policy_lane_errors.iter().take(20) {
+                println!("  - {conflict}");
+            }
+        }
         // Activity/state boundary: no activity-plane id (vac_/vrr_) may appear
         // in a lineage-bearing position of accepted state (a finding's
         // dependency link, a verifier gate's target/independence). Activity is
@@ -189,6 +215,7 @@ pub(crate) fn cmd_check(
         if !replay_report.ok
             || !replay_verification.ok
             || !parity_conflicts.is_empty()
+            || !policy_lane_errors.is_empty()
             || !activity_leaks.is_empty()
             || (strict
                 && (!signal_report.review_queue.is_empty()

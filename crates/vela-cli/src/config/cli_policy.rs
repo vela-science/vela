@@ -9,29 +9,35 @@
 //!   draft   seal a policy from a template (no authority until signed)
 //!   test    dry-run the policy over every pending proposal (never mutates)
 //!   sign    THE ceremony: review, one confirm, one key read — the lane opens
-//!   revoke  the pointer loses authority; snapshots keep past events verifiable
+//!   revoke  sign a causal head close; snapshots keep past events verifiable
 //!   log     every policy-lane admission across all policies
 //!
 //! Custody doctrine is unchanged: agents draft, the evaluator routes, only a
 //! human key opens a lane (`resolve_decision_actor` refuses `agent:`/`ci:` with
-//! exit 4), and revocation is a file deletion a human performs — never a model
-//! output. The signature verified here is byte-for-byte the one
-//! [`load_active_policy`] checks before any policy-lane accept.
+//! exit 4), and revocation is a real signed human review — never a model
+//! output. One recoverable frontier transaction binds that review to the
+//! signature-pointer change and retained snapshots. The signature verified
+//! here is byte-for-byte the one [`load_active_policy`] checks before any
+//! policy-lane accept.
 
+use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
 use chrono::Utc;
 use ed25519_dalek::Signer;
 use serde_json::json;
 use vela_protocol::acceptance_policy::{
-    AcceptancePolicy, Constraints, EVALUATOR_VERSION, Outcome, PolicyContext, PolicyRule,
-    PolicySignatureRecord, Quorum, evaluate, load_active_policy,
+    AcceptancePolicy, Constraints, EVALUATOR_VERSION, Outcome, PolicyRule, PolicySignatureRecord,
+    Quorum, evaluate, load_active_policy,
 };
-use vela_protocol::canonical;
 use vela_protocol::cli_style as style;
 use vela_protocol::project::Project;
 use vela_protocol::proposals::StateProposal;
-use vela_protocol::proposals::policy_accept::{POLICY_LANE_PAYLOAD_KEY, verify_policy_lane_events};
+use vela_protocol::proposals::policy_accept::{
+    CAUSALLY_UNBOUNDED_POLICY_EXPIRY, POLICY_HEAD_PROPOSAL_KIND, POLICY_HEAD_SCHEMA,
+    POLICY_LANE_PAYLOAD_KEY, PolicyHead, PolicyHeadAction, PolicyHeadPayload, current_policy_head,
+    derive_policy_head_chain, verify_historical_policy_lane_event, verify_policy_lane_events,
+};
 use vela_protocol::repo;
 
 use crate::cli::print_json;
@@ -92,9 +98,10 @@ const TEMPLATES: &str =
     "witness-rederivation, lean-rederivation, statement-drafts, search-witness, notes-threshold";
 
 /// The hardcoded template ladder, ordered by how much a signature delegates.
-/// Every template defaults to `Defer` (never a permit default) and expires in
-/// 90 days — the compound interest comes from re-signing a proven policy, not
-/// from an eternal one.
+/// Every template defaults to `Defer` (never a permit default) and uses signed
+/// causal rotation/revocation as its validity boundary. An unsigned event
+/// cannot prove it occurred inside a wall-clock expiry window, so generated
+/// policies do not pretend a finite timestamp can authorize auto-Permit.
 ///
 ///   witness-rederivation  exact witnesses the frozen gate re-derived (A3,
 ///                         independent, method-sound, no claim-text change)
@@ -327,8 +334,9 @@ fn read_sealed_active(frontier: &Path) -> Result<AcceptancePolicy, CmdError> {
 /// Seal a policy from a template into `.vela/policies/active.json`.
 ///
 /// The id is the content address of the body (tamper-evident), the epoch is
-/// the prior active policy's epoch + 1, expiry is +90 days, and the default
-/// outcome is `Defer`. Sealing grants NO authority — that is the signature's
+/// the prior active policy's epoch + 1, validity is bounded by the signed
+/// policy-head chain, and the default outcome is `Defer`. Sealing grants NO
+/// authority — that is the signature's
 /// job. Refuses to overwrite an existing SIGNED active policy unless
 /// `replace` is set; replacing snapshots the outgoing pair content-addressed
 /// (past admissions keep verifying) and closes the lane until the new draft
@@ -351,7 +359,7 @@ fn draft_policy(
 
 /// The sealing core, decoupled from the template ladder so suggested
 /// rules and templates share one path. Same contract as before the
-/// split: content-addressed id, epoch+1, Defer default, +90d expiry,
+/// split: content-addressed id, epoch+1, Defer default, causal validity,
 /// rotation carries prior rules and quorum forward.
 fn seal_policy(
     frontier: &Path,
@@ -437,10 +445,13 @@ fn seal_policy(
         .map(|p| p.quorum.clone())
         .unwrap_or(Quorum {
             threshold: 1,
-            eligible_roles: vec!["steward".to_string()],
+            // Proposal acceptance authority is registered under the
+            // reviewer namespace. A steward-only policy must be an explicit
+            // governance choice backed by a registered `steward:` actor; it
+            // must never be accidentally satisfied by a reviewer signer.
+            eligible_roles: vec!["reviewer".to_string()],
         });
 
-    let now = Utc::now();
     let mut policy = AcceptancePolicy {
         schema: "vela.acceptance_policy.v0.1".to_string(),
         id: String::new(),
@@ -452,7 +463,7 @@ fn seal_policy(
         quorum,
         rules,
         default: Outcome::Defer,
-        expires_at: (now + chrono::Duration::days(90)).to_rfc3339(),
+        expires_at: CAUSALLY_UNBOUNDED_POLICY_EXPIRY.to_string(),
         revocation_ref: None,
     };
     policy.id = policy.content_address();
@@ -476,14 +487,15 @@ fn seal_policy(
     Ok((policy, replaced_signed))
 }
 
-/// The signing core: Ed25519 over the sealed policy's canonical bytes —
-/// byte-for-byte the body [`load_active_policy`] verifies (it re-serializes
-/// the parsed struct through `canonical::to_canonical_bytes`, so file
-/// formatting never drifts the signature). Writes `active.sig.json` as a
+/// The signing core: Ed25519 over a domain-separated canonical envelope that
+/// binds the sealed policy and `signed_at`. Writes `active.sig.json` as a
 /// [`PolicySignatureRecord`] plus the content-addressed snapshot pair
 /// `<vap_id>.json` / `<vap_id>.sig.json`, then round-trips the loader to
 /// prove the lane actually opened. Refuses a revoked policy (revocation is
 /// not undone by re-signing) and is idempotent on an already-open lane.
+/// Test-only frozen file-format fixture: production must use the transactional
+/// ceremony below so no callable file-direct authority bypass exists.
+#[cfg(test)]
 fn sign_active_policy(
     frontier: &Path,
     key: &ed25519_dalek::SigningKey,
@@ -508,7 +520,7 @@ fn sign_active_policy(
         ));
     }
 
-    let body = canonical::to_canonical_bytes(&policy)
+    let body = vela_protocol::acceptance_policy::policy_signature_preimage(&policy, signed_at)
         .map_err(|e| CmdError::new(ErrorKind::Domain, format!("canonical: {e}")))?;
     let sig = key.sign(&body);
     let record = PolicySignatureRecord {
@@ -567,6 +579,9 @@ fn sign_active_policy(
 /// policy admitted keeps verifying on replay. Writes a
 /// `revoked-<vap_id>.json` marker that `sign` honors — re-signing never
 /// resurrects a revoked policy. Returns the revoked `vap_` id.
+/// Test-only frozen file-format fixture; production revocation is the keyed,
+/// recoverable policy-head transaction below.
+#[cfg(test)]
 fn revoke_active_policy(
     frontier: &Path,
     actor: &str,
@@ -632,6 +647,725 @@ fn revoke_active_policy(
     Ok(policy.id)
 }
 
+/// Worktree-private journal used by the same recoverable frontier transaction
+/// barrier as receipt landing and proposal creation. Policy ceremony journals
+/// contain public postimages only; private key bytes never enter them.
+fn policy_transaction_journal_dir(frontier: &Path) -> Result<PathBuf, CmdError> {
+    let root = frontier
+        .canonicalize()
+        .map_err(|error| CmdError::new(ErrorKind::Domain, format!("resolve frontier: {error}")))?;
+    let vela = root.join(".vela");
+    let metadata = std::fs::symlink_metadata(&vela).map_err(|error| {
+        CmdError::new(
+            ErrorKind::Domain,
+            format!(
+                "inspect private frontier directory {}: {error}",
+                vela.display()
+            ),
+        )
+    })?;
+    if metadata.file_type().is_symlink() || !metadata.is_dir() {
+        return Err(CmdError::new(
+            ErrorKind::Domain,
+            format!(
+                "private frontier directory must be a real directory: {}",
+                vela.display()
+            ),
+        ));
+    }
+    let journal = vela.join("operation-journals");
+    match std::fs::symlink_metadata(&journal) {
+        Ok(metadata) if metadata.file_type().is_symlink() || !metadata.is_dir() => {
+            Err(CmdError::new(
+                ErrorKind::Domain,
+                format!(
+                    "frontier transaction journal must be a real directory: {}",
+                    journal.display()
+                ),
+            ))
+        }
+        Ok(_) => Ok(journal),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(journal),
+        Err(error) => Err(CmdError::new(
+            ErrorKind::Domain,
+            format!(
+                "inspect frontier transaction journal {}: {error}",
+                journal.display()
+            ),
+        )),
+    }
+}
+
+fn transaction_error(error: impl std::fmt::Display) -> CmdError {
+    CmdError::new(
+        ErrorKind::Domain,
+        format!("policy-head transaction failed: {error}"),
+    )
+}
+
+fn policy_ceremony_identity(
+    frontier_id: &str,
+    verb: &str,
+    expected_policy_id: &str,
+    actor: &str,
+    reason: &str,
+    legacy_checkpoint_event_ids: &[String],
+) -> Result<
+    (
+        crate::frontier_txn::ContentDigest,
+        crate::frontier_txn::OperationId,
+    ),
+    CmdError,
+> {
+    use crate::frontier_txn::{ContentDigest, OperationId};
+    let intent = json!({
+        "schema": "vela.policy-head-ceremony-intent.internal.v1",
+        "frontier_id": frontier_id,
+        "verb": verb,
+        "expected_policy_id": expected_policy_id,
+        "actor": actor,
+        "reason": reason,
+        "legacy_checkpoint_event_ids": legacy_checkpoint_event_ids,
+    });
+    let bytes = vela_protocol::canonical::to_canonical_bytes(&intent).map_err(transaction_error)?;
+    let request_root = ContentDigest::hash(bytes);
+    let operation_id = OperationId::derive("policy-head", request_root.as_str().as_bytes());
+    Ok((request_root, operation_id))
+}
+
+fn resume_policy_ceremony(
+    frontier: &Path,
+    journal_dir: &Path,
+    operation_id: &crate::frontier_txn::OperationId,
+    request_root: &crate::frontier_txn::ContentDigest,
+) -> Result<Option<serde_json::Value>, CmdError> {
+    use crate::frontier_txn::{FrontierTxn, RecoveryState};
+    let Some(mut transaction) = FrontierTxn::open_if_present(frontier, journal_dir, operation_id)
+        .map_err(transaction_error)?
+    else {
+        return Ok(None);
+    };
+    if transaction.plan().request_root != *request_root {
+        return Err(transaction_error(format!(
+            "operation {} is bound to a different policy ceremony intent",
+            operation_id.as_str()
+        )));
+    }
+    if matches!(transaction.recovery_state(), RecoveryState::Aborted) {
+        return Ok(None);
+    }
+    let result = transaction.plan().result.clone();
+    if !matches!(transaction.recovery_state(), RecoveryState::Completed) {
+        transaction.mark_committed().map_err(transaction_error)?;
+        transaction.install().map_err(transaction_error)?;
+        transaction.complete().map_err(transaction_error)?;
+    }
+    Ok(Some(result))
+}
+
+fn policy_head_from_transaction_result(
+    frontier: &Path,
+    result: &serde_json::Value,
+) -> Result<PolicyHead, CmdError> {
+    let event_id = result
+        .get("head_event_id")
+        .and_then(serde_json::Value::as_str)
+        .ok_or_else(|| transaction_error("policy ceremony result has no head_event_id"))?;
+    vela_protocol::proposals::policy_accept::derive_policy_head_chain(
+        &repo::load_from_path(frontier).map_err(transaction_error)?,
+    )
+    .map_err(transaction_error)?
+    .into_iter()
+    .find(|head| head.event_id == event_id)
+    .ok_or_else(|| transaction_error("recovered policy-head event is outside the signed chain"))
+}
+
+#[cfg(test)]
+std::thread_local! {
+    /// 1 = after Prepared journal, before marker; 2 = after durable marker.
+    static POLICY_CEREMONY_FAILPOINT: std::cell::Cell<u8> = const { std::cell::Cell::new(0) };
+}
+
+#[cfg(test)]
+fn set_policy_ceremony_failpoint(value: u8) {
+    POLICY_CEREMONY_FAILPOINT.with(|failpoint| failpoint.set(value));
+}
+
+#[cfg(test)]
+fn hit_policy_ceremony_failpoint(value: u8) -> Result<(), CmdError> {
+    if POLICY_CEREMONY_FAILPOINT.with(|failpoint| failpoint.get()) == value {
+        return Err(transaction_error(format!(
+            "injected policy ceremony failure {value}"
+        )));
+    }
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+fn commit_policy_head_transaction(
+    frontier: &Path,
+    barrier: crate::frontier_txn::FrontierRecoveryBarrier,
+    original: &Project,
+    actor: &str,
+    key: &ed25519_dalek::SigningKey,
+    reason: &str,
+    fixed_at: &str,
+    action: PolicyHeadAction,
+    policy_id: Option<String>,
+    request_root: crate::frontier_txn::ContentDigest,
+    operation_id: crate::frontier_txn::OperationId,
+    extra_writes: Vec<crate::frontier_txn::PlannedWrite>,
+    read_set: Vec<crate::frontier_txn::InputBinding>,
+) -> Result<PolicyHead, CmdError> {
+    use crate::frontier_txn::{
+        ContentDigest, DeltaDraft, FrontierBinding, FrontierTxn, FrontierTxnPlan,
+        FrontierTxnPlanSpec, OperationKind, PlannedWrite,
+    };
+
+    let current = current_policy_head(original).map_err(transaction_error)?;
+    let (epoch, prior_head_event_id) = match (action, current.as_ref()) {
+        (PolicyHeadAction::Activate, None) => (1, None),
+        (PolicyHeadAction::Rotate | PolicyHeadAction::Revoke, Some(head)) => (
+            head.epoch
+                .checked_add(1)
+                .ok_or_else(|| transaction_error("policy-head epoch overflow"))?,
+            Some(head.event_id.clone()),
+        ),
+        _ => {
+            return Err(transaction_error(
+                "policy-head action does not extend the current signed head",
+            ));
+        }
+    };
+    if action == PolicyHeadAction::Rotate
+        && current.as_ref().and_then(|head| head.policy_id.as_ref()) == policy_id.as_ref()
+    {
+        return Err(transaction_error(
+            "policy-head rotation must name a different policy",
+        ));
+    }
+    if action == PolicyHeadAction::Revoke {
+        let Some(head) = current.as_ref() else {
+            return Err(transaction_error(
+                "cannot revoke without an active policy-head",
+            ));
+        };
+        if head.action == PolicyHeadAction::Revoke || head.policy_id.is_none() {
+            return Err(transaction_error(
+                "the signed policy-head is already revoked",
+            ));
+        }
+    }
+
+    let parent_event_ids = original
+        .events
+        .iter()
+        .map(|event| event.id.clone())
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect::<Vec<_>>();
+    let expected_parent_event_log_root = format!(
+        "sha256:{}",
+        vela_protocol::events::event_log_hash(&original.events)
+    );
+    let proposal = vela_protocol::proposals::new_proposal_at(
+        POLICY_HEAD_PROPOSAL_KIND,
+        vela_protocol::events::StateTarget {
+            r#type: "governance".to_string(),
+            id: original.frontier_id().to_string(),
+        },
+        actor,
+        "human",
+        reason,
+        serde_json::to_value(PolicyHeadPayload {
+            schema: POLICY_HEAD_SCHEMA.to_string(),
+            action,
+            policy_id: policy_id.clone(),
+            prior_head_event_id,
+            expected_parent_event_log_root,
+            parent_event_ids,
+            epoch,
+        })
+        .map_err(transaction_error)?,
+        Vec::new(),
+        Vec::new(),
+        fixed_at,
+    );
+    let proposal_id = proposal.id.clone();
+    let mut candidate: Project =
+        serde_json::from_value(serde_json::to_value(original).map_err(transaction_error)?)
+            .map_err(transaction_error)?;
+    vela_protocol::proposals::create_or_apply_in_frontier(&mut candidate, proposal, false)
+        .map_err(transaction_error)?;
+    let head_event_id = vela_protocol::proposals::accept_policy_head_proposal_in_frontier_at(
+        &mut candidate,
+        &proposal_id,
+        actor,
+        reason,
+        key,
+        fixed_at,
+    )
+    .map_err(transaction_error)?;
+    vela_protocol::project::recompute_stats(&mut candidate);
+    let head = current_policy_head(&candidate)
+        .map_err(transaction_error)?
+        .ok_or_else(|| transaction_error("signed review did not derive a policy-head"))?;
+    if head.event_id != head_event_id || head.action != action || head.policy_id != policy_id {
+        return Err(transaction_error(
+            "signed policy-head postimage does not match the ceremony intent",
+        ));
+    }
+
+    let mut writes = PlannedWrite::from_managed_files(
+        repo::render_vela_repo_files(frontier, &candidate).map_err(transaction_error)?,
+    )
+    .map_err(transaction_error)?;
+    writes.extend(extra_writes);
+    let draft = DeltaDraft::prepare(frontier, writes).map_err(transaction_error)?;
+    let layout = vela_protocol::canonical::to_canonical_bytes(&json!({
+        "schema": "vela.frontier-layout.internal.v1",
+        "frontier_id": original.frontier_id(),
+        "paths": draft
+            .delta
+            .writes()
+            .iter()
+            .map(|write| write.path.as_str())
+            .collect::<Vec<_>>(),
+    }))
+    .map_err(transaction_error)?;
+    let expected_event_log_root = ContentDigest::parse(format!(
+        "sha256:{}",
+        vela_protocol::events::event_log_hash(&original.events)
+    ))
+    .map_err(transaction_error)?;
+    let resulting_event_log_root = ContentDigest::parse(format!(
+        "sha256:{}",
+        vela_protocol::events::event_log_hash(&candidate.events)
+    ))
+    .map_err(transaction_error)?;
+    let mut resulting_event_ids = candidate
+        .events
+        .iter()
+        .map(|event| event.id.clone())
+        .collect::<Vec<_>>();
+    resulting_event_ids.sort();
+    let result = json!({
+        "policy_id": head.policy_id,
+        "head_event_id": head.event_id,
+        "head_epoch": head.epoch,
+        "action": head.action,
+    });
+    let plan = FrontierTxnPlan::new(
+        FrontierTxnPlanSpec {
+            kind: OperationKind::Decision,
+            operation_id,
+            request_root,
+            frontier: FrontierBinding::new(frontier, original.frontier_id(), &layout)
+                .map_err(transaction_error)?,
+            fixed_time: fixed_at.to_string(),
+            expected_event_log_root,
+            resulting_event_log_root,
+            resulting_event_ids,
+            read_set,
+            result,
+        },
+        draft.delta.clone(),
+    )
+    .map_err(transaction_error)?;
+    let mut transaction =
+        FrontierTxn::prepare_with_barrier(barrier, plan, draft).map_err(transaction_error)?;
+    #[cfg(test)]
+    hit_policy_ceremony_failpoint(1)?;
+    transaction.mark_committed().map_err(transaction_error)?;
+    #[cfg(test)]
+    hit_policy_ceremony_failpoint(2)?;
+    transaction.install().map_err(transaction_error)?;
+    transaction.complete().map_err(transaction_error)?;
+    Ok(head)
+}
+
+/// One key read, one fixed instant, one recoverable transaction: the human
+/// signs the policy envelope and the causal `review.accepted` head event with
+/// the same in-memory key. `active.json` remains only the selected draft.
+fn sign_active_policy_transactional<C, K>(
+    frontier: &Path,
+    actor: &str,
+    expected_policy_id: &str,
+    expected_legacy_checkpoint_event_ids: &[String],
+    clock: C,
+    load_key: K,
+) -> Result<(AcceptancePolicy, PolicySignatureRecord, PolicyHead), CmdError>
+where
+    C: FnOnce() -> String,
+    K: FnOnce() -> ed25519_dalek::SigningKey,
+{
+    use crate::frontier_txn::{FrontierTxn, InputBinding, PlannedWrite, RepoPath, WriteClass};
+
+    const REASON: &str = "activate signed acceptance policy";
+    let journal_dir = policy_transaction_journal_dir(frontier)?;
+    let observed = repo::load_from_path(frontier).map_err(transaction_error)?;
+    let observed_legacy_checkpoint_event_ids =
+        policy_sign_legacy_checkpoint_event_ids(&observed, frontier, expected_policy_id)?;
+    if observed_legacy_checkpoint_event_ids != expected_legacy_checkpoint_event_ids {
+        return Err(transaction_error(
+            "displayed legacy checkpoint set changed before the signing ceremony",
+        ));
+    }
+    let (request_root, operation_id) = policy_ceremony_identity(
+        &observed.frontier_id(),
+        "sign",
+        expected_policy_id,
+        actor,
+        REASON,
+        expected_legacy_checkpoint_event_ids,
+    )?;
+    if let Some(result) =
+        resume_policy_ceremony(frontier, &journal_dir, &operation_id, &request_root)?
+    {
+        let policy = read_sealed_active(frontier)?;
+        if policy.id != expected_policy_id {
+            return Err(transaction_error(
+                "recovered signing ceremony no longer matches the selected policy",
+            ));
+        }
+        if revoked_marker_path(frontier, &policy.id).exists() {
+            return Err(CmdError::hinted(
+                ErrorKind::Custody,
+                format!(
+                    "{} was revoked — a completed old signing ceremony cannot resurrect it",
+                    policy.id
+                ),
+                "draft and sign a new policy epoch",
+            ));
+        }
+        let record: PolicySignatureRecord = serde_json::from_slice(
+            &std::fs::read(active_sig_path(frontier)).map_err(transaction_error)?,
+        )
+        .map_err(transaction_error)?;
+        let head = policy_head_from_transaction_result(frontier, &result)?;
+        return Ok((policy, record, head));
+    }
+    let barrier =
+        FrontierTxn::acquire_recovery_barrier(frontier, &journal_dir).map_err(transaction_error)?;
+    let original = repo::load_from_path(frontier).map_err(transaction_error)?;
+    if policy_sign_legacy_checkpoint_event_ids(&original, frontier, expected_policy_id)?
+        != expected_legacy_checkpoint_event_ids
+    {
+        return Err(transaction_error(
+            "legacy checkpoint set changed before the signing barrier",
+        ));
+    }
+    let policy = read_sealed_active(frontier)?;
+    if policy.id != expected_policy_id {
+        return Err(transaction_error(format!(
+            "displayed policy {expected_policy_id} changed to {} before the signing barrier",
+            policy.id
+        )));
+    }
+    if revoked_marker_path(frontier, &policy.id).exists() {
+        return Err(CmdError::hinted(
+            ErrorKind::Custody,
+            format!(
+                "{} was revoked — a revoked policy is never re-signed",
+                policy.id
+            ),
+            "draft a new epoch: `vela policy draft <template>`",
+        ));
+    }
+    let current = current_policy_head(&original).map_err(transaction_error)?;
+    if let Some(verified) = load_active_policy(frontier).map_err(transaction_error)? {
+        if verified.policy.id == policy.id
+            && let Some(head) = current.as_ref()
+            && head.action != PolicyHeadAction::Revoke
+            && head.policy_id.as_ref() == Some(&policy.id)
+        {
+            let record: PolicySignatureRecord = serde_json::from_slice(
+                &std::fs::read(active_sig_path(frontier)).map_err(transaction_error)?,
+            )
+            .map_err(transaction_error)?;
+            return Ok((policy, record, head.clone()));
+        }
+        return Err(transaction_error(
+            "active policy signature and signed policy-head do not select the same policy",
+        ));
+    }
+    if current.as_ref().is_some_and(|head| {
+        head.action != PolicyHeadAction::Revoke && head.policy_id.as_ref() == Some(&policy.id)
+    }) {
+        return Err(transaction_error(
+            "selected policy already has an active signed head but its active signature is missing",
+        ));
+    }
+    let action = if current.is_none() {
+        PolicyHeadAction::Activate
+    } else {
+        PolicyHeadAction::Rotate
+    };
+    let signed_at = clock();
+    chrono::DateTime::parse_from_rfc3339(&signed_at)
+        .map_err(|error| transaction_error(format!("policy signing clock is invalid: {error}")))?;
+    // The recovery barrier is held and every mutable authority input above is
+    // reloaded before this single key-loader call. The same in-memory key then
+    // signs both the policy envelope and the causal review event below.
+    let key = load_key();
+    let body = vela_protocol::acceptance_policy::policy_signature_preimage(&policy, &signed_at)
+        .map_err(transaction_error)?;
+    let signature = key.sign(&body);
+    let record = PolicySignatureRecord {
+        policy_id: policy.id.clone(),
+        signer_pubkey_hex: hex::encode(key.verifying_key().to_bytes()),
+        signature: hex::encode(signature.to_bytes()),
+        signed_at: signed_at.clone(),
+    };
+    let active_bytes = std::fs::read(active_path(frontier)).map_err(transaction_error)?;
+    let mut signature_bytes = serde_json::to_vec_pretty(&record).map_err(transaction_error)?;
+    signature_bytes.push(b'\n');
+    let policy_path = format!(".vela/policies/{}.json", policy.id);
+    let signature_path = format!(".vela/policies/{}.sig.json", policy.id);
+    let writes = vec![
+        PlannedWrite::write(
+            RepoPath::parse(".vela/policies/active.sig.json").map_err(transaction_error)?,
+            WriteClass::Authority,
+            signature_bytes.clone(),
+        ),
+        PlannedWrite::write(
+            RepoPath::parse(policy_path).map_err(transaction_error)?,
+            WriteClass::CanonicalEvidence,
+            active_bytes,
+        ),
+        PlannedWrite::write(
+            RepoPath::parse(signature_path).map_err(transaction_error)?,
+            WriteClass::Authority,
+            signature_bytes,
+        ),
+    ];
+    let read_set = vec![
+        InputBinding::existing_file(
+            frontier,
+            RepoPath::parse(".vela/policies/active.json").map_err(transaction_error)?,
+        )
+        .map_err(transaction_error)?,
+        InputBinding::existing_file(
+            frontier,
+            RepoPath::parse(".vela/actors.json").map_err(transaction_error)?,
+        )
+        .map_err(transaction_error)?,
+    ];
+    let head = commit_policy_head_transaction(
+        frontier,
+        barrier,
+        &original,
+        actor,
+        &key,
+        REASON,
+        &signed_at,
+        action,
+        Some(policy.id.clone()),
+        request_root,
+        operation_id,
+        writes,
+        read_set,
+    )?;
+    let verified = load_active_policy(frontier)
+        .map_err(transaction_error)?
+        .ok_or_else(|| transaction_error("completed ceremony did not open the policy loader"))?;
+    if verified.policy.id != policy.id {
+        return Err(transaction_error(
+            "completed ceremony opened a different active policy",
+        ));
+    }
+    Ok((policy, record, head))
+}
+
+fn revoke_active_policy_transactional<C, K>(
+    frontier: &Path,
+    actor: &str,
+    expected_policy_id: &str,
+    clock: C,
+    load_key: K,
+    reason: &str,
+) -> Result<(String, PolicyHead), CmdError>
+where
+    C: FnOnce() -> String,
+    K: FnOnce() -> ed25519_dalek::SigningKey,
+{
+    use crate::frontier_txn::{FrontierTxn, InputBinding, PlannedWrite, RepoPath, WriteClass};
+
+    let journal_dir = policy_transaction_journal_dir(frontier)?;
+    let observed = repo::load_from_path(frontier).map_err(transaction_error)?;
+    let (request_root, operation_id) = policy_ceremony_identity(
+        &observed.frontier_id(),
+        "revoke",
+        expected_policy_id,
+        actor,
+        reason,
+        &[],
+    )?;
+    if let Some(result) =
+        resume_policy_ceremony(frontier, &journal_dir, &operation_id, &request_root)?
+    {
+        let policy = read_sealed_active(frontier)?;
+        if policy.id != expected_policy_id {
+            return Err(transaction_error(
+                "recovered revocation no longer matches the selected policy",
+            ));
+        }
+        let head = policy_head_from_transaction_result(frontier, &result)?;
+        let marker: serde_json::Value = serde_json::from_slice(
+            &std::fs::read(revoked_marker_path(frontier, &policy.id)).map_err(transaction_error)?,
+        )
+        .map_err(transaction_error)?;
+        if marker.get("revoked_by").and_then(serde_json::Value::as_str) != Some(actor)
+            || marker.get("reason").and_then(serde_json::Value::as_str) != Some(reason)
+        {
+            return Err(transaction_error(
+                "recovered revocation marker does not match this actor/reason intent",
+            ));
+        }
+        return Ok((policy.id, head));
+    }
+    let barrier =
+        FrontierTxn::acquire_recovery_barrier(frontier, &journal_dir).map_err(transaction_error)?;
+    let original = repo::load_from_path(frontier).map_err(transaction_error)?;
+    let policy = read_sealed_active(frontier)?;
+    if policy.id != expected_policy_id {
+        return Err(transaction_error(format!(
+            "displayed policy {expected_policy_id} changed to {} before the revocation barrier",
+            policy.id
+        )));
+    }
+    let current = current_policy_head(&original).map_err(transaction_error)?;
+    if let Some(head) = current.as_ref()
+        && head.action == PolicyHeadAction::Revoke
+    {
+        let marker_path = revoked_marker_path(frontier, &policy.id);
+        let marker: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&marker_path).map_err(|error| {
+                transaction_error(format!(
+                    "signed revoke head has no marker {}: {error}",
+                    marker_path.display()
+                ))
+            })?)
+            .map_err(transaction_error)?;
+        if marker.get("policy_id").and_then(serde_json::Value::as_str) == Some(policy.id.as_str())
+            && marker.get("revoked_by").and_then(serde_json::Value::as_str) == Some(actor)
+            && marker.get("reason").and_then(serde_json::Value::as_str) == Some(reason)
+        {
+            return Ok((policy.id, head.clone()));
+        }
+        return Err(transaction_error(
+            "existing signed revocation does not match this actor/reason intent",
+        ));
+    }
+    let verified = load_active_policy(frontier)
+        .map_err(transaction_error)?
+        .ok_or_else(|| {
+            CmdError::new(
+                ErrorKind::Exists,
+                format!(
+                    "the lane is already closed — {} carries no signature",
+                    policy.id
+                ),
+            )
+        })?;
+    if verified.policy.id != policy.id {
+        return Err(transaction_error(
+            "selected policy and verified active policy do not match",
+        ));
+    }
+    if !current.as_ref().is_some_and(|head| {
+        head.action != PolicyHeadAction::Revoke && head.policy_id.as_ref() == Some(&policy.id)
+    }) {
+        return Err(transaction_error(
+            "active policy is not authorized by the current signed policy-head",
+        ));
+    }
+    let revoked_at = clock();
+    chrono::DateTime::parse_from_rfc3339(&revoked_at).map_err(|error| {
+        transaction_error(format!("policy revocation clock is invalid: {error}"))
+    })?;
+    // Revocation is now a real keyed decision. Resolve the key exactly once,
+    // only after the barrier and authority revalidation above.
+    let key = load_key();
+    let active_bytes = std::fs::read(active_path(frontier)).map_err(transaction_error)?;
+    let signature_bytes = std::fs::read(active_sig_path(frontier)).map_err(transaction_error)?;
+    let marker = json!({
+        "schema": "vela.policy_revocation.v0.1",
+        "policy_id": policy.id,
+        "revoked_at": &revoked_at,
+        "revoked_by": actor,
+        "reason": reason,
+    });
+    let mut marker_bytes = serde_json::to_vec_pretty(&marker).map_err(transaction_error)?;
+    marker_bytes.push(b'\n');
+    let writes = vec![
+        PlannedWrite::write(
+            RepoPath::parse(format!(".vela/policies/{}.json", policy.id))
+                .map_err(transaction_error)?,
+            WriteClass::CanonicalEvidence,
+            active_bytes,
+        ),
+        PlannedWrite::write(
+            RepoPath::parse(format!(".vela/policies/{}.sig.json", policy.id))
+                .map_err(transaction_error)?,
+            WriteClass::Authority,
+            signature_bytes,
+        ),
+        PlannedWrite::delete(
+            RepoPath::parse(".vela/policies/active.sig.json").map_err(transaction_error)?,
+            WriteClass::Authority,
+        ),
+        PlannedWrite::write(
+            RepoPath::parse(format!(".vela/policies/revoked-{}.json", policy.id))
+                .map_err(transaction_error)?,
+            WriteClass::Authority,
+            marker_bytes,
+        ),
+    ];
+    let read_set = vec![
+        InputBinding::existing_file(
+            frontier,
+            RepoPath::parse(".vela/policies/active.json").map_err(transaction_error)?,
+        )
+        .map_err(transaction_error)?,
+        InputBinding::existing_file(
+            frontier,
+            RepoPath::parse(".vela/policies/active.sig.json").map_err(transaction_error)?,
+        )
+        .map_err(transaction_error)?,
+        InputBinding::existing_file(
+            frontier,
+            RepoPath::parse(".vela/actors.json").map_err(transaction_error)?,
+        )
+        .map_err(transaction_error)?,
+    ];
+    let policy_id = policy.id.clone();
+    let head = commit_policy_head_transaction(
+        frontier,
+        barrier,
+        &original,
+        actor,
+        &key,
+        reason,
+        &revoked_at,
+        PolicyHeadAction::Revoke,
+        None,
+        request_root,
+        operation_id,
+        writes,
+        read_set,
+    )?;
+    if load_active_policy(frontier)
+        .map_err(transaction_error)?
+        .is_some()
+    {
+        return Err(transaction_error(
+            "completed revocation still exposes an active policy",
+        ));
+    }
+    Ok((policy_id, head))
+}
+
 /// One shadow decision from the dry-run.
 struct ShadowRow {
     proposal: String,
@@ -642,23 +1376,29 @@ struct ShadowRow {
     reasons: Vec<String>,
 }
 
-/// Dry-run the policy over every pending proposal under the CONSERVATIVE
-/// default [`PolicyContext`] (everything unproven, every escalation trigger
-/// set) — so the preview can never promise a permit the landing path would
-/// not grant. Only the claim class is derived (from the proposal's kind and
-/// payload text); richer context derivation — gate-derived assurance,
-/// impact tiers, dependency counts — lands with `vela land`, which builds
-/// the context the accept lane actually evaluates. Pure: never mutates.
-fn evaluate_pending(project: &Project, policy: &AcceptancePolicy, now: &str) -> Vec<ShadowRow> {
+/// Dry-run the policy over every pending proposal using the shared review-fact
+/// derivation. When retained Receipt v1 bytes are unavailable, that derivation
+/// fails closed rather than reconstructing optimistic facts. Pure: never
+/// mutates.
+fn evaluate_pending(
+    project: &Project,
+    policy: &AcceptancePolicy,
+    now: &str,
+    frontier: Option<&Path>,
+) -> Vec<ShadowRow> {
     project
         .proposals
         .iter()
         .filter(|p| p.status == "pending_review")
         .map(|p| {
-            let ctx = PolicyContext {
-                claim_class: proposal_claim_class(p),
-                ..PolicyContext::default()
-            };
+            let receipt = frontier.and_then(|frontier| {
+                crate::review_material::frontier_receipt_for_proposal(frontier, p)
+            });
+            let ctx = crate::review_material::derive_existing_proposal_policy_context(
+                project,
+                &p.id,
+                receipt.as_ref(),
+            );
             let d = evaluate(policy, &ctx, now);
             ShadowRow {
                 proposal: p.id.clone(),
@@ -670,40 +1410,6 @@ fn evaluate_pending(project: &Project, policy: &AcceptancePolicy, now: &str) -> 
             }
         })
         .collect()
-}
-
-/// Classify a proposal into a structural claim class: the kind wins for
-/// note-shaped work, then the assertion text. Conservative — an
-/// unrecognized proposal is "unknown", and the engine then defers, never
-/// permits.
-pub(crate) fn proposal_claim_class(p: &StateProposal) -> String {
-    if p.kind == "finding.note" {
-        return "finding_note".to_string();
-    }
-    let text = p
-        .payload
-        .get("assertion")
-        .and_then(|a| a.get("text"))
-        .and_then(|t| t.as_str())
-        .or_else(|| p.payload.get("text").and_then(|t| t.as_str()))
-        .unwrap_or_default();
-    classify(text).to_string()
-}
-
-/// Classify a claim into a structural class from its assertion text.
-fn classify(text: &str) -> &'static str {
-    let t = text.to_lowercase();
-    if t.contains("a309370") || t.contains("sidon") {
-        "sidon_lower_bound"
-    } else if t.contains("lean") || t.contains("formaliz") || t.contains("theorem") {
-        "formal_theorem"
-    } else if t.contains("oeis ") || t.contains("oeis:") {
-        "oeis_sequence"
-    } else if t.contains("erdős problem") || t.contains("erdos problem") {
-        "erdos_problem"
-    } else {
-        "unknown"
-    }
 }
 
 /// One policy-lane admission read back out of the event log.
@@ -752,6 +1458,62 @@ fn lane_admissions(project: &Project) -> Vec<Admission> {
         .collect()
 }
 
+/// Exact schema-less policy lanes a first signed activation will retain as
+/// audit-only migration history. The set is shown before confirmation and
+/// rederived under the transaction barrier before the key is read. After a
+/// completed first activation, derive the same set from that head's frozen
+/// parent prefix so crash recovery keeps the same ceremony identity.
+fn policy_sign_legacy_checkpoint_event_ids(
+    project: &Project,
+    frontier: &Path,
+    selected_policy_id: &str,
+) -> Result<Vec<String>, CmdError> {
+    let chain = derive_policy_head_chain(project).map_err(transaction_error)?;
+    let checkpoint_parent_ids = match chain.last() {
+        None => None,
+        Some(head)
+            if head.action == PolicyHeadAction::Activate
+                && head.policy_id.as_deref() == Some(selected_policy_id) =>
+        {
+            Some(
+                head.parent_event_ids
+                    .iter()
+                    .cloned()
+                    .collect::<BTreeSet<_>>(),
+            )
+        }
+        Some(_) => return Ok(Vec::new()),
+    };
+    let mut event_ids = Vec::new();
+    for event in &project.events {
+        if checkpoint_parent_ids
+            .as_ref()
+            .is_some_and(|parents| !parents.contains(&event.id))
+        {
+            continue;
+        }
+        let Some(lane) = event.payload.get(POLICY_LANE_PAYLOAD_KEY) else {
+            continue;
+        };
+        if lane.get("schema").is_some() {
+            continue;
+        }
+        verify_historical_policy_lane_event(frontier, event, lane).map_err(|error| {
+            transaction_error(format!(
+                "legacy policy lane {} cannot be checkpointed: {error}",
+                event.id
+            ))
+        })?;
+        event_ids.push(event.id.clone());
+    }
+    event_ids.sort();
+    Ok(event_ids)
+}
+
+fn policy_has_causal_auto_permit(policy: &AcceptancePolicy) -> bool {
+    policy.expires_at == CAUSALLY_UNBOUNDED_POLICY_EXPIRY
+}
+
 // ── Rendering ──────────────────────────────────────────────────────────
 
 fn constraints_summary(c: &Constraints) -> String {
@@ -788,11 +1550,18 @@ fn render_policy(p: &AcceptancePolicy) {
     if !p.issued_by.is_empty() {
         println!("  issued by {}", p.issued_by.join(", "));
     }
-    println!(
-        "  default   {} · expires {}",
-        p.default.as_str(),
-        p.expires_at
-    );
+    if policy_has_causal_auto_permit(p) {
+        println!(
+            "  default   {} · valid until signed rotation or revocation",
+            p.default.as_str()
+        );
+    } else {
+        println!(
+            "  default   {} · expires {} · Permit remains human-routed",
+            p.default.as_str(),
+            p.expires_at
+        );
+    }
     println!();
     println!("  rules");
     for r in &p.rules {
@@ -913,6 +1682,7 @@ pub(crate) fn cmd_policy_show(frontier: &Path, json: bool) {
             "command": "policy.show",
             "state": state,
             "expired": expired,
+            "auto_permit_enabled": policy_has_causal_auto_permit(&policy),
             "policy": serde_json::to_value(&policy).unwrap_or_default(),
             "signature": record.as_ref().map(|r| json!({
                 "signer_pubkey_hex": r.signer_pubkey_hex,
@@ -937,11 +1707,19 @@ pub(crate) fn cmd_policy_show(frontier: &Path, json: bool) {
     match (&signed, revoked) {
         (Some(v), _) => {
             let signed_at = record.as_ref().map(|r| r.signed_at.as_str()).unwrap_or("");
-            println!(
-                "  {} signed by {}… at {signed_at} — the lane is open",
-                style::ok("state"),
-                &v.signer_pubkey_hex[..16.min(v.signer_pubkey_hex.len())]
-            );
+            if policy_has_causal_auto_permit(&policy) {
+                println!(
+                    "  {} signed by {}… at {signed_at} — the lane is open",
+                    style::ok("state"),
+                    &v.signer_pubkey_hex[..16.min(v.signer_pubkey_hex.len())]
+                );
+            } else {
+                println!(
+                    "  {} signed by {}… at {signed_at} — Permit stays human-routed",
+                    style::ok("state"),
+                    &v.signer_pubkey_hex[..16.min(v.signer_pubkey_hex.len())]
+                );
+            }
         }
         (None, true) => {
             println!(
@@ -1123,6 +1901,7 @@ pub(crate) fn cmd_policy_draft(frontier: &Path, template: &str, replace: bool, j
             "epoch": policy.epoch,
             "frontier_id": policy.frontier_id,
             "expires_at": policy.expires_at,
+            "auto_permit_enabled": policy_has_causal_auto_permit(&policy),
             "replaced_signed": replaced,
             "signed": false,
             "policy": serde_json::to_value(&policy).unwrap_or_default(),
@@ -1147,9 +1926,8 @@ pub(crate) fn cmd_policy_draft(frontier: &Path, template: &str, replace: bool, j
 }
 
 /// `vela policy test` — dry-run the active (or still-sealed) policy over
-/// every pending proposal. Uses the conservative default [`PolicyContext`]
-/// (see [`evaluate_pending`]) so the preview under-promises; richer context
-/// derivation lands with `vela land`. Never mutates anything.
+/// every pending proposal using the same retained review facts as the sign
+/// queue. Missing receipt or verifier facts remain conservative. Never mutates.
 pub(crate) fn cmd_policy_test(frontier: &Path, json: bool) {
     let spin = (!json).then(|| {
         crate::cli::progress::Spinner::start("dry-running the policy over every pending proposal")
@@ -1159,7 +1937,7 @@ pub(crate) fn cmd_policy_test(frontier: &Path, json: bool) {
     let project =
         repo::load_from_path(frontier).unwrap_or_else(|e| fail_with(ErrorKind::Domain, &e, None));
     let now = Utc::now().to_rfc3339();
-    let rows = evaluate_pending(&project, &policy, &now);
+    let rows = evaluate_pending(&project, &policy, &now, Some(frontier));
 
     let permit = rows.iter().filter(|r| r.outcome == Outcome::Permit).count();
     let defer = rows.iter().filter(|r| r.outcome == Outcome::Defer).count();
@@ -1214,9 +1992,9 @@ pub(crate) fn cmd_policy_test(frontier: &Path, json: bool) {
         println!("  … {} more (use --json for all)", rows.len() - 20);
     }
     println!();
-    println!("  dry-run under the maximally-cautious context — nothing applied.");
+    println!("  dry-run from retained proposal, receipt, gate, and graph facts — nothing applied.");
     println!(
-        "  the landing path derives the real context (gate assurance, impact) at accept time."
+        "  missing receipt or verifier facts remain conservative and cannot manufacture a permit."
     );
     if !lane_open {
         println!(
@@ -1597,6 +2375,16 @@ pub(crate) fn cmd_policy_sign(frontier: &Path, key: Option<&Path>, yes: bool, js
     // Humans only: the whole point of the lane is that a HUMAN signed once.
     let actor = crate::cli_identity::resolve_decision_actor(None);
     let policy = read_sealed_active(frontier).unwrap_or_else(|e| e.fail());
+    let project = repo::load_from_path(frontier).unwrap_or_else(|e| {
+        CmdError::new(
+            ErrorKind::Domain,
+            format!("load frontier for policy review: {e}"),
+        )
+        .fail()
+    });
+    let legacy_checkpoint_event_ids =
+        policy_sign_legacy_checkpoint_event_ids(&project, frontier, &policy.id)
+            .unwrap_or_else(|e| e.fail());
     if revoked_marker_path(frontier, &policy.id).exists() {
         fail_with(
             ErrorKind::Custody,
@@ -1607,21 +2395,13 @@ pub(crate) fn cmd_policy_sign(frontier: &Path, key: Option<&Path>, yes: bool, js
             Some("draft a new epoch: `vela policy draft <template>`"),
         );
     }
-    match load_active_policy(frontier) {
-        Ok(Some(_)) => fail_with(
-            ErrorKind::Exists,
-            &format!("{} is already signed — the lane is open", policy.id),
-            Some("rotate deliberately: `vela policy revoke --reason <why>` then draft + sign"),
-        ),
-        Err(e) => {
-            if !json {
-                println!(
-                    "  {} existing signature is broken ({e}) — re-signing replaces it",
-                    style::warn("note")
-                )
-            }
-        }
-        Ok(None) => {}
+    if let Err(e) = load_active_policy(frontier)
+        && !json
+    {
+        println!(
+            "  {} existing signature is broken ({e}) — re-signing replaces it",
+            style::warn("note")
+        )
     }
 
     if !json {
@@ -1629,8 +2409,29 @@ pub(crate) fn cmd_policy_sign(frontier: &Path, key: Option<&Path>, yes: bool, js
         render_policy(&policy);
         println!();
         println!("  signing as {actor}");
-        println!("  a signature makes every permit rule above LIVE: agents land that class of");
-        println!("  gated work with no per-item ceremony, until expiry or `vela policy revoke`.");
+        if policy_has_causal_auto_permit(&policy) {
+            println!("  a signature makes every permit rule above LIVE: agents land that class of");
+            println!("  gated work until a signed `policy rotate` or `policy revoke` closes it.");
+        } else {
+            println!("  this finite wall-clock policy can route Defer/Deny, but Permit remains");
+            println!(
+                "  human-routed because an unsigned event cannot prove it occurred before expiry."
+            );
+        }
+        if !legacy_checkpoint_event_ids.is_empty() {
+            println!();
+            println!(
+                "  {} first activation retains {} schema-less lane(s) as audit-only history:",
+                style::warn("migration checkpoint"),
+                legacy_checkpoint_event_ids.len()
+            );
+            for event_id in &legacy_checkpoint_event_ids {
+                println!("    {event_id}");
+            }
+            println!(
+                "  these exact events gain no live Permit path; malformed legacy lanes refuse signing."
+            );
+        }
         println!();
     }
     if !yes {
@@ -1644,10 +2445,15 @@ pub(crate) fn cmd_policy_sign(frontier: &Path, key: Option<&Path>, yes: bool, js
         }
     }
 
-    // ONE key read, after the human has seen and confirmed the exact rules.
-    let signing_key = crate::cli_identity::resolve_signing_key(key);
-    let (policy, record) = sign_active_policy(frontier, &signing_key, &Utc::now().to_rfc3339())
-        .unwrap_or_else(|e| e.fail());
+    let (policy, record, head) = sign_active_policy_transactional(
+        frontier,
+        &actor,
+        &policy.id,
+        &legacy_checkpoint_event_ids,
+        || Utc::now().to_rfc3339(),
+        || crate::cli_identity::resolve_signing_key(key),
+    )
+    .unwrap_or_else(|e| e.fail());
 
     if json {
         println!(
@@ -1658,13 +2464,24 @@ pub(crate) fn cmd_policy_sign(frontier: &Path, key: Option<&Path>, yes: bool, js
                 "policy_id": policy.id,
                 "epoch": policy.epoch,
                 "signer": record.signer_pubkey_hex,
+                "policy_head_event_id": head.event_id,
+                "policy_head_epoch": head.epoch,
+                "auto_permit_enabled": policy_has_causal_auto_permit(&policy),
+                "legacy_checkpoint_event_ids": legacy_checkpoint_event_ids,
             })
         );
         return;
     }
 
     println!();
-    println!("  {} policy live — the lane is open", style::ok("signed"));
+    if policy_has_causal_auto_permit(&policy) {
+        println!("  {} policy live — the lane is open", style::ok("signed"));
+    } else {
+        println!(
+            "  {} policy signed — finite-window Permit remains human-routed",
+            style::ok("signed")
+        );
+    }
     println!(
         "  {} · epoch {} · signer {}…",
         policy.id,
@@ -1672,22 +2489,31 @@ pub(crate) fn cmd_policy_sign(frontier: &Path, key: Option<&Path>, yes: bool, js
         &record.signer_pubkey_hex[..16.min(record.signer_pubkey_hex.len())]
     );
     println!();
-    for r in policy.rules.iter().filter(|r| r.effect == Outcome::Permit) {
-        println!(
-            "  auto-lands: {}  ({})",
-            r.claim_classes.join(", "),
-            constraints_summary(&r.constraints)
-        );
+    if policy_has_causal_auto_permit(&policy) {
+        for r in policy.rules.iter().filter(|r| r.effect == Outcome::Permit) {
+            println!(
+                "  auto-lands: {}  ({})",
+                r.claim_classes.join(", "),
+                constraints_summary(&r.constraints)
+            );
+        }
     }
     println!("  everything else defers to `vela sign` — the queue, not silence.");
     println!("  close the lane anytime: `vela policy revoke --reason <why>`");
 }
 
-/// `vela policy revoke --reason <why>` — a human closes the lane. The
-/// `active.sig.json` pointer is deleted (authority gone) while the
-/// content-addressed snapshots stay, so every event the policy admitted
-/// keeps verifying on replay forever.
-pub(crate) fn cmd_policy_revoke(frontier: &Path, reason: &str, yes: bool, json: bool) {
+/// `vela policy revoke --reason <why>` — a human signs a causal Revoke head.
+/// The same recoverable transaction deletes `active.sig.json` while retaining
+/// content-addressed snapshots, so old admissions keep verifying and no
+/// pointer-only state can contradict the signed close.
+pub(crate) fn cmd_policy_revoke(
+    frontier: &Path,
+    key: Option<&Path>,
+    reason: &str,
+    yes: bool,
+    json: bool,
+) {
+    crate::cli::sign_session::ceremony_binary_gate(!yes);
     let actor = crate::cli_identity::resolve_decision_actor(None);
     if reason.trim().is_empty() {
         fail_with(
@@ -1724,8 +2550,15 @@ pub(crate) fn cmd_policy_revoke(frontier: &Path, reason: &str, yes: bool, json: 
         }
     }
 
-    let vap = revoke_active_policy(frontier, &actor, reason, &Utc::now().to_rfc3339())
-        .unwrap_or_else(|e| e.fail());
+    let (vap, head) = revoke_active_policy_transactional(
+        frontier,
+        &actor,
+        &policy.id,
+        || Utc::now().to_rfc3339(),
+        || crate::cli_identity::resolve_signing_key(key),
+        reason,
+    )
+    .unwrap_or_else(|e| e.fail());
     if json {
         println!(
             "{}",
@@ -1735,6 +2568,8 @@ pub(crate) fn cmd_policy_revoke(frontier: &Path, reason: &str, yes: bool, json: 
                 "policy_id": vap,
                 "revoked": true,
                 "reason": reason,
+                "policy_head_event_id": head.event_id,
+                "policy_head_epoch": head.epoch,
             })
         );
         return;
@@ -1910,7 +2745,7 @@ pub(crate) fn run(args: &[String]) {
                             Some("vela policy revoke --reason \"rotating epochs\""),
                         )
                     });
-                    cmd_policy_revoke(&dir, &reason, yes, json);
+                    cmd_policy_revoke(&dir, key.as_deref(), &reason, yes, json);
                 }
                 _ => unreachable!(),
             }
@@ -1992,6 +2827,23 @@ mod tests {
         SigningKey::from_bytes(&[7u8; 32])
     }
 
+    fn register_transaction_reviewer(dir: &Path) {
+        let key = throwaway_key();
+        let mut project = repo::load_from_path(dir).unwrap();
+        project.actors.push(vela_protocol::sign::ActorRecord {
+            id: "reviewer:test".to_string(),
+            public_key: hex::encode(key.verifying_key().to_bytes()),
+            algorithm: "ed25519".to_string(),
+            created_at: "2026-01-01T00:00:00Z".to_string(),
+            tier: None,
+            orcid: None,
+            access_clearance: None,
+            revoked_at: None,
+            revoked_reason: None,
+        });
+        repo::save_to_path(dir, &project).unwrap();
+    }
+
     const AT: &str = "2026-07-03T00:00:00Z";
 
     #[test]
@@ -2004,6 +2856,8 @@ mod tests {
         assert!(policy.id_is_valid());
         assert_eq!(policy.epoch, 1);
         assert_eq!(policy.default, Outcome::Defer);
+        assert_eq!(policy.expires_at, CAUSALLY_UNBOUNDED_POLICY_EXPIRY);
+        assert!(policy_has_causal_auto_permit(&policy));
         // The sealed file on disk re-derives its own id.
         let raw = std::fs::read_to_string(active_path(&dir)).unwrap();
         let on_disk: AcceptancePolicy = serde_json::from_str(&raw).unwrap();
@@ -2088,6 +2942,7 @@ mod tests {
         let verified = load_active_policy(&dir).unwrap().expect("lane open");
         assert_eq!(verified.policy.id, policy.id);
         assert_eq!(verified.signer_pubkey_hex, record.signer_pubkey_hex);
+        assert!(verified.signed_at_bound);
 
         // Content-addressed snapshots survive future rotation.
         assert!(
@@ -2135,6 +2990,316 @@ mod tests {
         // Revoking again is the idempotent no-op, not a crash.
         let err = revoke_active_policy(&dir, "reviewer:test", "again", AT).unwrap_err();
         assert_eq!(err.kind, ErrorKind::Exists);
+    }
+
+    #[test]
+    fn transactional_policy_ceremony_activates_revokes_and_reopens_once_per_key_load() {
+        use std::cell::Cell;
+
+        const ACTIVATE_AT: &str = "2099-01-01T00:00:00Z";
+        const REVOKE_AT: &str = "2099-01-01T00:00:01Z";
+        const REOPEN_AT: &str = "2099-01-01T00:00:02Z";
+
+        let tmp = TempDir::new().unwrap();
+        let dir = init_frontier(&tmp);
+        register_transaction_reviewer(&dir);
+        let (first_policy, _) = draft_policy(&dir, "witness-rederivation", false).unwrap();
+
+        let drift_clock = Cell::new(0);
+        let drift_key_loads = Cell::new(0);
+        let drift = sign_active_policy_transactional(
+            &dir,
+            "reviewer:test",
+            "vap_displayed_before_swap",
+            &[],
+            || {
+                drift_clock.set(drift_clock.get() + 1);
+                ACTIVATE_AT.to_string()
+            },
+            || {
+                drift_key_loads.set(drift_key_loads.get() + 1);
+                throwaway_key()
+            },
+        )
+        .unwrap_err();
+        assert!(
+            drift.message.contains("displayed policy"),
+            "{}",
+            drift.message
+        );
+        assert_eq!(drift_clock.get(), 0);
+        assert_eq!(drift_key_loads.get(), 0);
+        assert!(
+            current_policy_head(&repo::load_from_path(&dir).unwrap())
+                .unwrap()
+                .is_none()
+        );
+
+        let checkpoint_clock = Cell::new(0);
+        let checkpoint_key_loads = Cell::new(0);
+        let checkpoint_drift = sign_active_policy_transactional(
+            &dir,
+            "reviewer:test",
+            &first_policy.id,
+            &["vev_unreviewed_legacy_lane".to_string()],
+            || {
+                checkpoint_clock.set(checkpoint_clock.get() + 1);
+                ACTIVATE_AT.to_string()
+            },
+            || {
+                checkpoint_key_loads.set(checkpoint_key_loads.get() + 1);
+                throwaway_key()
+            },
+        )
+        .unwrap_err();
+        assert!(checkpoint_drift.message.contains("legacy checkpoint set"));
+        assert_eq!(checkpoint_clock.get(), 0);
+        assert_eq!(checkpoint_key_loads.get(), 0);
+
+        let sign_loads = Cell::new(0);
+        let (_, _, activated) = sign_active_policy_transactional(
+            &dir,
+            "reviewer:test",
+            &first_policy.id,
+            &[],
+            || ACTIVATE_AT.to_string(),
+            || {
+                sign_loads.set(sign_loads.get() + 1);
+                throwaway_key()
+            },
+        )
+        .unwrap();
+        assert_eq!(sign_loads.get(), 1);
+        assert_eq!(activated.action, PolicyHeadAction::Activate);
+        assert_eq!(
+            activated.policy_id.as_deref(),
+            Some(first_policy.id.as_str())
+        );
+        assert_eq!(activated.epoch, 1);
+        let loaded = repo::load_from_path(&dir).unwrap();
+        let activate_event = loaded
+            .events
+            .iter()
+            .find(|event| event.id == activated.event_id)
+            .unwrap();
+        assert!(activate_event.signature.is_some());
+        assert!(
+            vela_protocol::sign::verify_event_signature(
+                activate_event,
+                &hex::encode(throwaway_key().verifying_key().to_bytes())
+            )
+            .unwrap()
+        );
+        let retry_clock = Cell::new(0);
+        let retry_key_loads = Cell::new(0);
+        let (_, _, activated_retry) = sign_active_policy_transactional(
+            &dir,
+            "reviewer:test",
+            &first_policy.id,
+            &[],
+            || {
+                retry_clock.set(retry_clock.get() + 1);
+                "never sampled".to_string()
+            },
+            || {
+                retry_key_loads.set(retry_key_loads.get() + 1);
+                throwaway_key()
+            },
+        )
+        .unwrap();
+        assert_eq!(activated_retry, activated);
+        assert_eq!(retry_clock.get(), 0);
+        assert_eq!(retry_key_loads.get(), 0);
+
+        let revoke_drift_clock = Cell::new(0);
+        let revoke_drift_key_loads = Cell::new(0);
+        let drift = revoke_active_policy_transactional(
+            &dir,
+            "reviewer:test",
+            "vap_displayed_before_revoke_swap",
+            || {
+                revoke_drift_clock.set(revoke_drift_clock.get() + 1);
+                REVOKE_AT.to_string()
+            },
+            || {
+                revoke_drift_key_loads.set(revoke_drift_key_loads.get() + 1);
+                throwaway_key()
+            },
+            "close the lane",
+        )
+        .unwrap_err();
+        assert!(
+            drift.message.contains("displayed policy"),
+            "{}",
+            drift.message
+        );
+        assert_eq!(revoke_drift_clock.get(), 0);
+        assert_eq!(revoke_drift_key_loads.get(), 0);
+        assert_eq!(
+            current_policy_head(&repo::load_from_path(&dir).unwrap())
+                .unwrap()
+                .unwrap(),
+            activated
+        );
+
+        let revoke_loads = Cell::new(0);
+        let (revoked_id, revoked) = revoke_active_policy_transactional(
+            &dir,
+            "reviewer:test",
+            &first_policy.id,
+            || REVOKE_AT.to_string(),
+            || {
+                revoke_loads.set(revoke_loads.get() + 1);
+                throwaway_key()
+            },
+            "close the lane",
+        )
+        .unwrap();
+        assert_eq!(revoke_loads.get(), 1);
+        assert_eq!(revoked_id, first_policy.id);
+        assert_eq!(revoked.action, PolicyHeadAction::Revoke);
+        assert_eq!(revoked.epoch, 2);
+        assert!(load_active_policy(&dir).unwrap().is_none());
+        let retry_clock = Cell::new(0);
+        let retry_key_loads = Cell::new(0);
+        let (retried_id, revoked_retry) = revoke_active_policy_transactional(
+            &dir,
+            "reviewer:test",
+            &first_policy.id,
+            || {
+                retry_clock.set(retry_clock.get() + 1);
+                "never sampled".to_string()
+            },
+            || {
+                retry_key_loads.set(retry_key_loads.get() + 1);
+                throwaway_key()
+            },
+            "close the lane",
+        )
+        .unwrap();
+        assert_eq!(retried_id, revoked_id);
+        assert_eq!(revoked_retry, revoked);
+        assert_eq!(retry_clock.get(), 0);
+        assert_eq!(retry_key_loads.get(), 0);
+
+        let resurrect_clock = Cell::new(0);
+        let resurrect_key_loads = Cell::new(0);
+        let resurrection = sign_active_policy_transactional(
+            &dir,
+            "reviewer:test",
+            &first_policy.id,
+            &[],
+            || {
+                resurrect_clock.set(resurrect_clock.get() + 1);
+                "never sampled".to_string()
+            },
+            || {
+                resurrect_key_loads.set(resurrect_key_loads.get() + 1);
+                throwaway_key()
+            },
+        )
+        .unwrap_err();
+        assert_eq!(resurrection.kind, ErrorKind::Custody);
+        assert!(resurrection.message.contains("cannot resurrect"));
+        assert_eq!(resurrect_clock.get(), 0);
+        assert_eq!(resurrect_key_loads.get(), 0);
+
+        let (second_policy, _) = draft_policy(&dir, "notes-threshold", false).unwrap();
+        assert_ne!(second_policy.id, first_policy.id);
+        let reopen_loads = Cell::new(0);
+        let (_, _, reopened) = sign_active_policy_transactional(
+            &dir,
+            "reviewer:test",
+            &second_policy.id,
+            &[],
+            || REOPEN_AT.to_string(),
+            || {
+                reopen_loads.set(reopen_loads.get() + 1);
+                throwaway_key()
+            },
+        )
+        .unwrap();
+        assert_eq!(reopen_loads.get(), 1);
+        assert_eq!(reopened.action, PolicyHeadAction::Rotate);
+        assert_eq!(
+            reopened.policy_id.as_deref(),
+            Some(second_policy.id.as_str())
+        );
+        assert_eq!(reopened.epoch, 3);
+        let final_project = repo::load_from_path(&dir).unwrap();
+        let chain = current_policy_head(&final_project).unwrap().unwrap();
+        assert_eq!(chain, reopened);
+        assert_eq!(
+            load_active_policy(&dir).unwrap().unwrap().policy.id,
+            second_policy.id
+        );
+    }
+
+    #[test]
+    fn policy_ceremony_retries_pre_marker_and_post_marker_without_rereading_key() {
+        use std::cell::Cell;
+
+        for failpoint in [1, 2] {
+            let tmp = TempDir::new().unwrap();
+            let dir = init_frontier(&tmp);
+            register_transaction_reviewer(&dir);
+            let (policy, _) = draft_policy(&dir, "witness-rederivation", false).unwrap();
+            let before =
+                vela_protocol::canonical::to_canonical_bytes(&repo::load_from_path(&dir).unwrap())
+                    .unwrap();
+            let first_key_loads = Cell::new(0);
+            set_policy_ceremony_failpoint(failpoint);
+            let error = sign_active_policy_transactional(
+                &dir,
+                "reviewer:test",
+                &policy.id,
+                &[],
+                || "2099-02-01T00:00:00Z".to_string(),
+                || {
+                    first_key_loads.set(first_key_loads.get() + 1);
+                    throwaway_key()
+                },
+            )
+            .unwrap_err();
+            set_policy_ceremony_failpoint(0);
+            assert!(error.message.contains("injected policy ceremony failure"));
+            assert_eq!(first_key_loads.get(), 1);
+            assert_eq!(
+                vela_protocol::canonical::to_canonical_bytes(&repo::load_from_path(&dir).unwrap())
+                    .unwrap(),
+                before,
+                "failpoint {failpoint} changed canonical state before install"
+            );
+            assert!(!active_sig_path(&dir).exists());
+
+            let retry_clock = Cell::new(0);
+            let retry_key_loads = Cell::new(0);
+            let (recovered_policy, _, head) = sign_active_policy_transactional(
+                &dir,
+                "reviewer:test",
+                &policy.id,
+                &[],
+                || {
+                    retry_clock.set(retry_clock.get() + 1);
+                    "never sampled".to_string()
+                },
+                || {
+                    retry_key_loads.set(retry_key_loads.get() + 1);
+                    throwaway_key()
+                },
+            )
+            .unwrap();
+            assert_eq!(recovered_policy.id, policy.id);
+            assert_eq!(head.action, PolicyHeadAction::Activate);
+            assert_eq!(retry_clock.get(), 0);
+            assert_eq!(retry_key_loads.get(), 0);
+            assert_eq!(
+                current_policy_head(&repo::load_from_path(&dir).unwrap())
+                    .unwrap()
+                    .unwrap(),
+                head
+            );
+        }
     }
 
     #[test]
@@ -2186,7 +3351,7 @@ mod tests {
         };
         policy.id = policy.content_address();
 
-        let rows = evaluate_pending(&project, &policy, AT);
+        let rows = evaluate_pending(&project, &policy, AT, None);
         assert_eq!(rows.len(), 2);
         assert!(
             rows.iter().all(|r| r.outcome != Outcome::Permit),

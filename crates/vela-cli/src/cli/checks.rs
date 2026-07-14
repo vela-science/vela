@@ -164,6 +164,37 @@ pub(crate) fn check_json_payload(src: &Path, schema_only: bool, strict: bool) ->
             })
         }));
     }
+    let policy_lane_errors = if strict && !schema_only {
+        loaded
+            .as_ref()
+            .map(|frontier| {
+                let frontier_dir = if src.is_dir() {
+                    src
+                } else {
+                    src.parent().unwrap_or_else(|| Path::new("."))
+                };
+                vela_protocol::proposals::policy_accept::verify_policy_lane_events(
+                    frontier,
+                    frontier_dir,
+                )
+            })
+            .unwrap_or_default()
+    } else {
+        Vec::new()
+    };
+    diagnostics.extend(policy_lane_errors.iter().map(|conflict| {
+        json!({
+            "severity": "error",
+            "rule_id": "policy_lane_replay",
+            "check": "policy_lane",
+            "finding_id": null,
+            "field_path": "events[].payload.policy_lane",
+            "message": conflict,
+            "suggestion": "Restore the exact retained receipt, review material, signed policy snapshot, and causal policy-lane event; do not hand-edit accepted state.",
+            "fixable": false,
+            "normalize_action": null,
+        })
+    }));
     // Activity/state boundary: an activity-plane id (vac_/vrr_) in a
     // lineage-bearing position of accepted state is a soundness break (activity
     // is non-authoritative). Counted as a hard error, strict or not.
@@ -192,7 +223,8 @@ pub(crate) fn check_json_payload(src: &Path, schema_only: bool, strict: bool) ->
     let event_errors = replay_report
         .as_ref()
         .map_or(0, |replay| usize::from(!replay.ok))
-        + usize::from(!parity_conflicts.is_empty());
+        + usize::from(!parity_conflicts.is_empty())
+        + policy_lane_errors.len();
     let state_integrity_errors = state_integrity_report
         .as_ref()
         .map_or(0, |report| report.structural_errors.len());
@@ -408,6 +440,16 @@ pub(crate) fn check_json_payload(src: &Path, schema_only: bool, strict: bool) ->
                 "checked": state_integrity_report.as_ref().map_or(0, |report| report.summary.get("events").copied().unwrap_or_default()),
                 "failed": state_integrity_errors,
                 "skipped": schema_only || loaded.is_none(),
+            },
+            {
+                "id": "policy_lane",
+                "status": if policy_lane_errors.is_empty() { "pass" } else { "fail" },
+                "checked": loaded.as_ref().map_or(0, |frontier| frontier.events.iter()
+                    .filter(|event| event.payload.get(vela_protocol::proposals::policy_accept::POLICY_LANE_PAYLOAD_KEY).is_some())
+                    .count()),
+                "failed": policy_lane_errors.len(),
+                "errors": policy_lane_errors,
+                "skipped": !strict || schema_only || loaded.is_none(),
             }
         ],
         "event_log": replay_report.as_ref().map(|replay| &replay.event_log),

@@ -1,6 +1,7 @@
 //! Git-native VelaRepo abstraction — load/save projects from either monolithic JSON
 //! or a `.vela/` directory of individual finding files.
 
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
@@ -608,7 +609,166 @@ fn save_project_file(path: &Path, project: &Project) -> Result<(), String> {
         .map_err(|e| format!("Failed to write project file '{}': {e}", path.display()))
 }
 
+/// Exact generated-file postimages for a split Vela repository.
+///
+/// `writes` is keyed by normalized frontier-relative path. `deletes` contains
+/// only stale files in Vela-owned collections; user-owned and unknown files are
+/// never inferred as deletions. Rendering is read-only so a transaction can
+/// bind every preimage before installing any state.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ManagedFileSet {
+    pub writes: BTreeMap<String, Vec<u8>>,
+    pub deletes: BTreeSet<String>,
+}
+
+impl ManagedFileSet {
+    fn insert(&mut self, path: String, bytes: Vec<u8>) -> Result<(), String> {
+        if self.writes.insert(path.clone(), bytes).is_some() {
+            return Err(format!("duplicate generated Vela path: {path}"));
+        }
+        self.deletes.remove(&path);
+        Ok(())
+    }
+}
+
+/// Render all files owned by `save_vela_repo`, including visible derived
+/// views, without mutating `dir`.
+pub fn render_vela_repo_files(dir: &Path, project: &Project) -> Result<ManagedFileSet, String> {
+    let mut managed = ManagedFileSet::default();
+    let config = RepoConfig {
+        project: RepoProjectMeta {
+            name: project.project.name.clone(),
+            frontier_id: Some(project.frontier_id()),
+            compiled_at: project.project.compiled_at.clone(),
+            description: project.project.description.clone(),
+            compiler: project.project.compiler.clone(),
+            papers_processed: project.project.papers_processed,
+        },
+    };
+    managed.insert(
+        ".vela/config.toml".to_string(),
+        toml::to_string_pretty(&config)
+            .map_err(|e| format!("Failed to serialize config.toml: {e}"))?
+            .into_bytes(),
+    )?;
+
+    for finding in &project.findings {
+        let path = managed_object_path("findings", &finding.id)?;
+        managed.insert(
+            path,
+            serde_json::to_vec_pretty(finding)
+                .map_err(|e| format!("Failed to serialize finding {}: {e}", finding.id))?,
+        )?;
+    }
+    for event in &project.events {
+        let path = managed_object_path("events", &event.id)?;
+        managed.insert(
+            path,
+            serde_json::to_vec_pretty(event)
+                .map_err(|e| format!("Failed to serialize state event {}: {e}", event.id))?,
+        )?;
+    }
+    for proposal in &project.proposals {
+        let path = managed_object_path("proposals", &proposal.id)?;
+        managed.insert(
+            path,
+            serde_json::to_vec_pretty(proposal)
+                .map_err(|e| format!("Failed to serialize proposal {}: {e}", proposal.id))?,
+        )?;
+    }
+    for artifact in &project.artifacts {
+        let path = managed_object_path("artifacts", &artifact.id)?;
+        managed.insert(
+            path,
+            serde_json::to_vec_pretty(artifact)
+                .map_err(|e| format!("Failed to serialize artifact {}: {e}", artifact.id))?,
+        )?;
+    }
+
+    managed.insert(
+        ".vela/proof-state.json".to_string(),
+        serde_json::to_vec_pretty(&project.proof_state)
+            .map_err(|e| format!("Failed to serialize proof state: {e}"))?,
+    )?;
+    managed.insert(
+        ".vela/actors.json".to_string(),
+        serde_json::to_vec_pretty(&project.actors)
+            .map_err(|e| format!("Failed to serialize actors: {e}"))?,
+    )?;
+    if project.signatures.is_empty() {
+        if dir.join(".vela/signatures.json").is_file() {
+            managed.deletes.insert(".vela/signatures.json".to_string());
+        }
+    } else {
+        managed.insert(
+            ".vela/signatures.json".to_string(),
+            serde_json::to_vec_pretty(&project.signatures)
+                .map_err(|e| format!("Failed to serialize signatures: {e}"))?,
+        )?;
+    }
+
+    for collection in ["findings", "events", "proposals", "artifacts"] {
+        collect_stale_managed_objects(dir, collection, &managed.writes, &mut managed.deletes)?;
+    }
+
+    for (path, bytes) in crate::frontier_repo::render_visible_repo_files(dir, project)? {
+        managed.insert(path, bytes)?;
+    }
+    Ok(managed)
+}
+
+fn managed_object_path(collection: &str, id: &str) -> Result<String, String> {
+    if id.is_empty()
+        || id == "."
+        || id == ".."
+        || id.contains('/')
+        || id.contains('\\')
+        || id.chars().any(char::is_control)
+    {
+        return Err(format!(
+            "invalid {collection} id for split-repository storage: {id:?}"
+        ));
+    }
+    Ok(format!(".vela/{collection}/{id}.json"))
+}
+
+fn collect_stale_managed_objects(
+    dir: &Path,
+    collection: &str,
+    desired: &BTreeMap<String, Vec<u8>>,
+    deletes: &mut BTreeSet<String>,
+) -> Result<(), String> {
+    let collection_dir = dir.join(".vela").join(collection);
+    if !collection_dir.is_dir() {
+        return Ok(());
+    }
+    let entries = std::fs::read_dir(&collection_dir)
+        .map_err(|e| format!("Failed to read {}: {e}", collection_dir.display()))?;
+    for entry in entries {
+        let entry =
+            entry.map_err(|e| format!("Failed to read {} entry: {e}", collection_dir.display()))?;
+        let file_type = entry
+            .file_type()
+            .map_err(|e| format!("Failed to inspect {}: {e}", entry.path().display()))?;
+        if !file_type.is_file() {
+            continue;
+        }
+        let Some(filename) = entry.file_name().to_str().map(str::to_string) else {
+            continue;
+        };
+        if !filename.ends_with(".json") {
+            continue;
+        }
+        let relative = format!(".vela/{collection}/{filename}");
+        if !desired.contains_key(&relative) {
+            deletes.insert(relative);
+        }
+    }
+    Ok(())
+}
+
 fn save_vela_repo(dir: &Path, project: &Project) -> Result<(), String> {
+    let managed = render_vela_repo_files(dir, project)?;
     let vela_dir = dir.join(".vela");
     let findings_dir = vela_dir.join("findings");
     let events_dir = vela_dir.join("events");
@@ -633,80 +793,28 @@ fn save_vela_repo(dir: &Path, project: &Project) -> Result<(), String> {
             .map_err(|e| format!("Failed to create directory {}: {e}", d.display()))?;
     }
 
-    // Write config.toml
-    let config = RepoConfig {
-        project: RepoProjectMeta {
-            name: project.project.name.clone(),
-            frontier_id: Some(project.frontier_id()),
-            compiled_at: project.project.compiled_at.clone(),
-            description: project.project.description.clone(),
-            compiler: project.project.compiler.clone(),
-            papers_processed: project.project.papers_processed,
-        },
-    };
-    let toml_str = toml::to_string_pretty(&config)
-        .map_err(|e| format!("Failed to serialize config.toml: {e}"))?;
-    std::fs::write(vela_dir.join("config.toml"), toml_str)
-        .map_err(|e| format!("Failed to write config.toml: {e}"))?;
-
-    // Write each finding as findings/{id}.json. Links remain embedded in the
-    // finding bundle.
-    for finding in &project.findings {
-        let json = serde_json::to_string_pretty(finding)
-            .map_err(|e| format!("Failed to serialize finding {}: {e}", finding.id))?;
-        let filename = format!("{}.json", finding.id);
-        std::fs::write(findings_dir.join(&filename), json)
-            .map_err(|e| format!("Failed to write {}: {e}", filename))?;
-    }
-
-    for event in &project.events {
-        let json = serde_json::to_string_pretty(event)
-            .map_err(|e| format!("Failed to serialize state event {}: {e}", event.id))?;
-        let filename = format!("{}.json", event.id);
-        std::fs::write(events_dir.join(&filename), json)
-            .map_err(|e| format!("Failed to write event {}: {e}", filename))?;
-    }
-
-    for proposal in &project.proposals {
-        let json = serde_json::to_string_pretty(proposal)
-            .map_err(|e| format!("Failed to serialize proposal {}: {e}", proposal.id))?;
-        let filename = format!("{}.json", proposal.id);
-        std::fs::write(proposals_dir.join(&filename), json)
-            .map_err(|e| format!("Failed to write proposal {}: {e}", filename))?;
-    }
-
-    let proof_state_json = serde_json::to_string_pretty(&project.proof_state)
-        .map_err(|e| format!("Failed to serialize proof state: {e}"))?;
-    std::fs::write(vela_dir.join("proof-state.json"), proof_state_json)
-        .map_err(|e| format!("Failed to write proof-state.json: {e}"))?;
-
-    for artifact in &project.artifacts {
-        let json = serde_json::to_string_pretty(artifact)
-            .map_err(|e| format!("Failed to serialize artifact {}: {e}", artifact.id))?;
-        let filename = format!("{}.json", artifact.id);
-        std::fs::write(artifacts_dir.join(&filename), json)
-            .map_err(|e| format!("Failed to write artifact {}: {e}", filename))?;
-    }
-
-    let actors_path = vela_dir.join("actors.json");
-    let json = serde_json::to_string_pretty(&project.actors)
-        .map_err(|e| format!("Failed to serialize actors: {e}"))?;
-    std::fs::write(&actors_path, json).map_err(|e| format!("Failed to write actors.json: {e}"))?;
-
-    let signatures_path = vela_dir.join("signatures.json");
-    if project.signatures.is_empty() {
-        if signatures_path.is_file() {
-            std::fs::remove_file(&signatures_path)
-                .map_err(|e| format!("Failed to remove stale signatures.json: {e}"))?;
+    for relative in &managed.deletes {
+        let path = dir.join(relative);
+        match std::fs::remove_file(&path) {
+            Ok(()) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => {
+                return Err(format!(
+                    "Failed to remove stale {}: {error}",
+                    path.display()
+                ));
+            }
         }
-    } else {
-        let json = serde_json::to_string_pretty(&project.signatures)
-            .map_err(|e| format!("Failed to serialize signatures: {e}"))?;
-        std::fs::write(&signatures_path, json)
-            .map_err(|e| format!("Failed to write signatures.json: {e}"))?;
     }
-
-    crate::frontier_repo::write_visible_repo_files(dir, project)?;
+    for (relative, bytes) in managed.writes {
+        let path = dir.join(&relative);
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent)
+                .map_err(|e| format!("Failed to create directory {}: {e}", parent.display()))?;
+        }
+        std::fs::write(&path, bytes)
+            .map_err(|e| format!("Failed to write {}: {e}", path.display()))?;
+    }
 
     Ok(())
 }
@@ -764,6 +872,65 @@ mod tests {
     use tempfile::TempDir;
 
     use crate::test_support::{make_finding, make_project};
+
+    #[test]
+    fn managed_repo_render_is_read_only_byte_equivalent_and_enumerates_stale_files() {
+        let tmp = TempDir::new().unwrap();
+        let dir = tmp.path().join("managed-render");
+        let original = make_project(
+            "managed-render",
+            vec![make_finding("vf_live", 0.8, "theoretical")],
+        );
+        init_repo(&dir, &original).unwrap();
+        for relative in [
+            ".vela/findings/vf_stale.json",
+            ".vela/events/vev_stale.json",
+            ".vela/proposals/vpr_stale.json",
+            ".vela/artifacts/va_stale.json",
+            ".vela/signatures.json",
+        ] {
+            std::fs::write(dir.join(relative), b"stale").unwrap();
+        }
+        let mut next = original;
+        next.project.description = "new managed render".to_string();
+        let before = std::fs::read(dir.join("frontier.json")).unwrap();
+
+        let rendered = render_vela_repo_files(&dir, &next).unwrap();
+
+        assert_eq!(std::fs::read(dir.join("frontier.json")).unwrap(), before);
+        for relative in [
+            ".vela/findings/vf_stale.json",
+            ".vela/events/vev_stale.json",
+            ".vela/proposals/vpr_stale.json",
+            ".vela/artifacts/va_stale.json",
+            ".vela/signatures.json",
+        ] {
+            assert!(
+                rendered.deletes.contains(relative),
+                "missing stale generated path {relative}"
+            );
+            assert!(dir.join(relative).exists(), "render mutated {relative}");
+        }
+        assert!(rendered.writes.contains_key(".vela/config.toml"));
+        assert!(rendered.writes.contains_key(".vela/findings/vf_live.json"));
+        assert!(rendered.writes.contains_key("frontier.json"));
+        assert!(rendered.writes.contains_key("proof/latest.json"));
+
+        save_vela_repo(&dir, &next).unwrap();
+        for (relative, bytes) in &rendered.writes {
+            assert_eq!(
+                std::fs::read(dir.join(relative)).unwrap(),
+                *bytes,
+                "rendered bytes differ for {relative}"
+            );
+        }
+        for relative in &rendered.deletes {
+            assert!(
+                !dir.join(relative).exists(),
+                "stale path survived {relative}"
+            );
+        }
+    }
 
     /// The microsecond-skew regression: a writer that stamps a clock into
     /// the FINDING (annotation timestamp) and lets the event constructor

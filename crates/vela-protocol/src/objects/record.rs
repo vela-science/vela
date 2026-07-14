@@ -23,6 +23,7 @@
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
+use crate::bundle::{ArtifactAvailability, ArtifactDisclosure, LocatorIntegrity};
 use crate::receipt_v1::ReceiptLineage;
 
 pub const ACTIVITY_RECORD_SCHEMA: &str = "vela.activity-record.v0.1";
@@ -36,8 +37,21 @@ pub struct RecordArtifact {
     /// `proof`, `analysis` — free-form, one word.
     pub kind: String,
     pub locator: String,
-    /// sha256 (hex) of the artifact's exact bytes.
+    /// sha256 (hex) of public artifact bytes. Empty for a restricted opaque
+    /// custodian reference; restricted low-entropy bytes never get a public
+    /// equality digest merely to satisfy this compatibility index.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
     pub sha256: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub size_bytes: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub media_type: Option<String>,
+    #[serde(default, skip_serializing_if = "ArtifactDisclosure::is_unknown")]
+    pub disclosure: ArtifactDisclosure,
+    #[serde(default, skip_serializing_if = "LocatorIntegrity::is_unknown")]
+    pub locator_integrity: LocatorIntegrity,
+    #[serde(default, skip_serializing_if = "ArtifactAvailability::is_unknown")]
+    pub availability: ArtifactAvailability,
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub note: String,
 }
@@ -101,6 +115,15 @@ pub struct ActivityRecord {
     /// It binds review input but carries no acceptance authority.
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub receipt_digest: String,
+    /// Frontier-relative locator of the canonical, lossless Receipt v1 bytes.
+    /// New records use this pointer as their evidence source of truth; the
+    /// older flattened fields remain a deterministic compatibility index.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub receipt_path: String,
+    /// Client operation identity that made the record durable. This separates
+    /// an exact retry from a same-claim receipt carrying independent evidence.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub operation_id: String,
     /// Producer-declared lineage copied from the receipt for review. The gate
     /// may validate it; its presence never makes the claim accepted.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -138,6 +161,8 @@ pub struct ActivityRecordDraft {
     pub source: Option<RecordSource>,
     pub source_refs: Vec<String>,
     pub receipt_digest: String,
+    pub receipt_path: String,
+    pub operation_id: String,
     pub lineage: Option<ReceiptLineage>,
     pub emitted_by: String,
     pub emitted_at: String,
@@ -162,11 +187,36 @@ impl ActivityRecord {
             return Err("a record with no artifacts is a slogan; attach at least one".to_string());
         }
         for atom in &draft.artifacts {
-            if atom.sha256.len() != 64 || hex::decode(&atom.sha256).is_err() {
-                return Err(format!(
-                    "evidence '{}' sha256 must be 32 bytes of hex",
-                    atom.locator
-                ));
+            match atom.disclosure {
+                ArtifactDisclosure::Restricted => {
+                    if !atom.sha256.is_empty() {
+                        return Err(format!(
+                            "restricted evidence '{}' must not expose a public equality digest",
+                            atom.locator
+                        ));
+                    }
+                    if !(atom.locator.starts_with("custodian:")
+                        || atom.locator.starts_with("opaque:"))
+                    {
+                        return Err(format!(
+                            "restricted evidence '{}' needs an opaque custodian: or opaque: locator",
+                            atom.locator
+                        ));
+                    }
+                }
+                ArtifactDisclosure::Public | ArtifactDisclosure::Unknown => {
+                    if atom.sha256.len() != 64
+                        || !atom
+                            .sha256
+                            .bytes()
+                            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+                    {
+                        return Err(format!(
+                            "evidence '{}' sha256 must be 32 bytes of lowercase hex",
+                            atom.locator
+                        ));
+                    }
+                }
             }
         }
         if draft.caveats.iter().all(|c| c.trim().is_empty()) {
@@ -177,6 +227,47 @@ impl ActivityRecord {
         }
         if draft.emitted_by.trim().is_empty() {
             return Err("emitted_by is required (agent:…, ci:…, or reviewer:…)".to_string());
+        }
+        if !draft.receipt_digest.is_empty()
+            && !draft
+                .receipt_digest
+                .strip_prefix("sha256:")
+                .is_some_and(|digest| {
+                    digest.len() == 64
+                        && digest
+                            .bytes()
+                            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+                })
+        {
+            return Err("receipt_digest must be sha256:<64 lowercase hex>".to_string());
+        }
+        if !draft.operation_id.is_empty()
+            && !draft
+                .operation_id
+                .strip_prefix("vop_")
+                .is_some_and(|digest| {
+                    digest.len() == 64
+                        && digest
+                            .bytes()
+                            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+                })
+        {
+            return Err("operation_id must be vop_<64 lowercase hex>".to_string());
+        }
+        if !draft.receipt_path.is_empty() {
+            let path = std::path::Path::new(&draft.receipt_path);
+            if path.is_absolute()
+                || path.components().any(|component| {
+                    matches!(
+                        component,
+                        std::path::Component::ParentDir
+                            | std::path::Component::RootDir
+                            | std::path::Component::Prefix(_)
+                    )
+                })
+            {
+                return Err("receipt_path must be a normalized frontier-relative path".to_string());
+            }
         }
         let mut rc = ActivityRecord {
             schema: ACTIVITY_RECORD_SCHEMA.to_string(),
@@ -191,6 +282,8 @@ impl ActivityRecord {
             source: draft.source,
             source_refs: draft.source_refs,
             receipt_digest: draft.receipt_digest,
+            receipt_path: draft.receipt_path,
+            operation_id: draft.operation_id,
             lineage: draft.lineage,
             supersedes: None,
             emitted_by: draft.emitted_by,
@@ -299,6 +392,51 @@ impl ActivityRecord {
         }
     }
 
+    /// Build the pending finding proposal that indexes this record while
+    /// retaining the canonical receipt as the evidence source of truth.
+    ///
+    /// The `vela_submission` block carries typed roots and relations only; it
+    /// does not flatten a second receipt body into the proposal. The injected
+    /// timestamp lets a transaction stage deterministic bytes before its
+    /// durable marker.
+    pub fn to_finding_proposal_at(
+        &self,
+        staleness: &str,
+        signed: bool,
+        at: &str,
+    ) -> Result<crate::proposals::StateProposal, String> {
+        let mut proposal = crate::state::build_add_finding_proposal_at(
+            self.to_finding_draft(staleness, signed),
+            at,
+        )?;
+        let payload = proposal
+            .payload
+            .as_object_mut()
+            .ok_or_else(|| "finding proposal payload must be an object".to_string())?;
+        payload.insert(
+            "vela_submission".to_string(),
+            serde_json::json!({
+                "schema": "vela.submission-links.internal.v1",
+                "receipt_root": self.receipt_digest,
+                "receipt_path": self.receipt_path,
+                "record_id": self.id,
+                "operation_id": self.operation_id,
+            }),
+        );
+        if !self.receipt_path.is_empty()
+            && !proposal
+                .source_refs
+                .iter()
+                .any(|item| item == &self.receipt_path)
+        {
+            proposal.source_refs.push(self.receipt_path.clone());
+            proposal.source_refs.sort();
+            proposal.source_refs.dedup();
+        }
+        proposal.id = crate::proposals::proposal_id(&proposal);
+        Ok(proposal)
+    }
+
     /// Full integrity check: schema, id re-derivation, namespace, and —
     /// when a signature is present — verification under the embedded
     /// pubkey. Returns whether the receipt is signed.
@@ -351,6 +489,11 @@ mod tests {
                 kind: "witness".into(),
                 locator: "witnesses/a17.json".into(),
                 sha256: "a".repeat(64),
+                size_bytes: None,
+                media_type: None,
+                disclosure: ArtifactDisclosure::Unknown,
+                locator_integrity: LocatorIntegrity::Unknown,
+                availability: ArtifactAvailability::Unknown,
                 note: String::new(),
             }],
             verifier_runs: vec![],
@@ -358,6 +501,8 @@ mod tests {
             source: None,
             source_refs: Vec::new(),
             receipt_digest: String::new(),
+            receipt_path: String::new(),
+            operation_id: String::new(),
             lineage: None,
             emitted_by: "agent:claude".into(),
             emitted_at: "2026-07-01T00:00:00Z".into(),
@@ -373,6 +518,40 @@ mod tests {
         let r = ActivityRecord::build(draft(), None).unwrap();
         assert!(r.id.starts_with("vrc_"));
         assert!(!r.verify().unwrap());
+    }
+
+    #[test]
+    fn receipt_pointer_and_operation_identity_are_bound_into_the_record() {
+        let mut input = draft();
+        input.receipt_digest = format!("sha256:{}", "b".repeat(64));
+        input.receipt_path = "records/receipts/sha256/b.json".to_string();
+        input.operation_id = format!("vop_{}", "c".repeat(64));
+        let record = ActivityRecord::build(input, None).unwrap();
+        assert_eq!(record.receipt_path, "records/receipts/sha256/b.json");
+        assert!(record.operation_id.starts_with("vop_"));
+
+        let mut tampered = record.clone();
+        tampered.operation_id = format!("vop_{}", "d".repeat(64));
+        assert!(tampered.verify().is_err());
+
+        let proposal = record
+            .to_finding_proposal_at("current head", false, "2026-07-13T00:00:00Z")
+            .unwrap();
+        let links = proposal.payload.get("vela_submission").unwrap();
+        assert_eq!(links["receipt_root"], record.receipt_digest);
+        assert_eq!(links["record_id"], record.id);
+        assert!(!proposal.payload.to_string().contains("verifier_runs"));
+    }
+
+    #[test]
+    fn receipt_pointer_rejects_escape_and_untyped_operation_ids() {
+        let mut escaped = draft();
+        escaped.receipt_path = "../secret.json".to_string();
+        assert!(ActivityRecord::build(escaped, None).is_err());
+
+        let mut invalid_operation = draft();
+        invalid_operation.operation_id = "vop_request".to_string();
+        assert!(ActivityRecord::build(invalid_operation, None).is_err());
     }
 
     #[test]

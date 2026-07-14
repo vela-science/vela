@@ -1337,8 +1337,21 @@ pub fn supersede_finding(
     })
 }
 
-fn build_add_finding_proposal(options: FindingDraftOptions) -> Result<StateProposal, String> {
-    let now = Utc::now().to_rfc3339();
+/// Build a pending `finding.add` proposal without persisting it.
+///
+/// This is the pure half of [`add_finding`]. Transactional submission paths
+/// inject one fixed timestamp with [`build_add_finding_proposal_at`] and stage
+/// the result alongside the receipt and record before any write occurs.
+pub fn build_add_finding_proposal(options: FindingDraftOptions) -> Result<StateProposal, String> {
+    build_add_finding_proposal_at(options, &Utc::now().to_rfc3339())
+}
+
+pub fn build_add_finding_proposal_at(
+    options: FindingDraftOptions,
+    now: &str,
+) -> Result<StateProposal, String> {
+    chrono::DateTime::parse_from_rfc3339(now)
+        .map_err(|e| format!("finding proposal timestamp must be RFC3339: {e}"))?;
     let assertion = Assertion {
         text: options.text.clone(),
         assertion_type: options.assertion_type.clone(),
@@ -1410,7 +1423,7 @@ fn build_add_finding_proposal(options: FindingDraftOptions) -> Result<StatePropo
             method: "manual_curation".to_string(),
             model: None,
             model_version: None,
-            extracted_at: now.clone(),
+            extracted_at: now.to_string(),
             extractor_version: project::VELA_COMPILER_VERSION.to_string(),
         },
         review: Some(Review {
@@ -1442,7 +1455,7 @@ fn build_add_finding_proposal(options: FindingDraftOptions) -> Result<StatePropo
         Some(att) => json!({"finding": finding, "replication_attestation": att}),
         None => json!({"finding": finding}),
     };
-    Ok(proposals::new_proposal(
+    Ok(proposals::new_proposal_at(
         "finding.add",
         events::StateTarget {
             r#type: "finding".to_string(),
@@ -1454,6 +1467,7 @@ fn build_add_finding_proposal(options: FindingDraftOptions) -> Result<StatePropo
         payload,
         options.source_refs,
         vec!["Manual findings require evidence review before scientific use.".to_string()],
+        now,
     ))
 }
 

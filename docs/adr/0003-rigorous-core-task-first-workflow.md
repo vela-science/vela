@@ -6,6 +6,9 @@
 - Implementation state: Approved for execution. This ADR is an engineering
   decision record, not a signed scientific event or a substitute for a Vela
   policy decision.
+- Amendment: 2026-07-14 records the provisional causal policy-head contract
+  required to make the existing signed Permit lane replay-safe across policy
+  activation, rotation, and revocation.
 
 ## Executive decision
 
@@ -24,8 +27,12 @@ job.
 Vela's stable narrow waist remains content-addressed evidence, proposed
 transitions, and authority-bearing events. ADR 0003 adds no authority object,
 no scientific event kind, no second receipt format, and no new artifact
-family. Decision views, staging plans, work sessions, transaction journals,
-and adapters are replaceable implementation above or below that waist.
+family. The causal policy-head amendment adds one versioned governance
+proposal contract over the existing `StateProposal` and signed
+`review.accepted` primitives; it does not add a policy-head object, signature
+family, or event kind. Decision views, staging plans, work sessions,
+transaction journals, and adapters are replaceable implementation above or
+below that waist.
 
 The ecosystem unit is a bounded frontier loop, not a monolithic science
 platform: accepted root, ranked target, private search, selected verification,
@@ -369,7 +376,7 @@ success metrics.
 
 | Category | ADR 0003 budget |
 | --- | --- |
-| New truth-bearing primitive or authority kind | Zero |
+| New truth-bearing primitive or authority kind | Zero new object, event kind, or signature family. The causal policy-head amendment below is a versioned relation over existing `StateProposal` and `review.accepted` primitives and is not yet a stable ecosystem primitive. |
 | New scientific or coordination event kind | Zero |
 | Receipt wire formats | One: backward-compatible Receipt v1 |
 | New artifact family | Zero: extend or reference existing artifacts |
@@ -384,6 +391,155 @@ A future stable public primitive must satisfy all five tests:
 3. It belongs in replay, authority, or the interoperability waist.
 4. Its canonical semantics can evolve backward-compatibly.
 5. It removes more concepts than it adds.
+
+### Amendment: causally select the policy allowed to Permit
+
+The signed policy file was necessary but not sufficient authority for an
+unsigned policy-lane event. An `AcceptancePolicy` and its signature prove that
+a human authorized those exact policy bytes. They do not prove which signed
+policy was active at a particular causal point in the frontier, whether a
+newer policy superseded it, or whether it had been revoked before a later event
+was appended. The mutable `.vela/policies/active.json` selector cannot supply
+that missing fact: copying an old signed policy into that path, or choosing an
+earlier self-asserted event timestamp, must not reopen a retired Permit lane.
+
+Git order, file modification time, the event's unsigned timestamp, and the
+policy signature cannot prove the missing fact. Git remains transport rather
+than scientific authority, and an unsigned policy-lane event can be fully
+readdressed after changing its own timestamp and payload. A new
+`policy.activated` event or policy-head object would duplicate primitives Vela
+already has. The smallest sufficient addition is a closed, typed governance
+proposal whose human acceptance has canonical signature, identity,
+content-addressing, and replay semantics.
+
+`governance.policy_head` is a `StateProposal` targeting this frontier with
+`target.type = "governance"` and payload schema `vela.policy-head.v1`. The
+payload contains:
+
+- `action`: `activate`, `rotate`, or `revoke`;
+- `policy_id`: the selected `vap_` policy for activate or rotate, and absent
+  for revoke;
+- `prior_head_event_id`: absent only for the first activation and otherwise
+  the exact preceding head event;
+- `expected_parent_event_log_root` and sorted, unique `parent_event_ids`, which
+  together commit the exact canonical replay prefix preceding the decision;
+  and
+- a strictly increasing head-chain `epoch`.
+
+The head-chain epoch counts governance transitions. It is independent of
+`AcceptancePolicy.epoch`, which versions the policy's own rule lineage. Vela
+does not require those two numbers to match and does not infer causal
+activation from the policy's internal epoch.
+
+The proposal does not become authority by existing. Acceptance requires a
+registered, non-revoked `reviewer:` or `steward:` Ed25519 actor and a real
+human event signature. It emits the existing signed
+`review.accepted` event targeting the proposal. That review event is the
+proposal's applied event; no second domain event and no new event kind are
+emitted. Agent, CI, MCP, keyless, and custody-only paths cannot accept a policy
+head. A head also does not validate or embed policy rules: every Permit still
+requires the retained policy bytes, content address, human policy signature,
+signer authority, and deterministic evaluation to verify.
+
+The supported `vela policy sign` and `vela policy revoke` ceremonies use the
+existing single-frontier `FrontierTxn` write edge. After the recovery barrier,
+the command reloads the selected policy, actor registry, and current head,
+rejects drift from the policy shown to the reviewer, samples one fixed time,
+then invokes the key loader exactly once. That one in-memory key signs the
+policy envelope when opening and the existing `review.accepted` head event;
+revocation is likewise a real keyed review. Policy snapshots, active signature
+creation or deletion, the revocation marker, proposal, and review event share
+one recoverable plan. A stable intent ID resumes a prepared or committed plan
+from its public journal bytes without reading the key or clock again. Private
+key bytes are never journaled.
+
+Replay derives one linear head chain and fails closed on any ambiguity:
+
+1. Epoch 1 is `activate`, names one `vap_` policy, and has no prior head.
+2. When epoch n selects a policy, epoch n+1 is `rotate` or `revoke`, names
+   epoch n's exact signed head event, and includes that event in its exact
+   causal prefix. Rotate must select a different signed `vap_` policy. Revoke
+   carries no policy ID and closes the Permit lane while that Revoke remains
+   the current head.
+3. Revoke is not permanently terminal. Its only valid successor is a causally
+   linked epoch n+1 `rotate` with a new signed policy ID that the chain has
+   never revoked. The Rotate must parent the Revoke and cannot resurrect the
+   `vap_` policy that Revoke closed.
+4. Every head proposal commits every event in the canonical replay prefix
+   before its signed review event, excluding the review itself. The sorted ID
+   list proves exact membership; `expected_parent_event_log_root` commits the
+   same event contents in the protocol's stable event-ID order. Canonical
+   `(timestamp, id)` replay order separately defines which events precede the
+   review. Missing or extra parents, a stale root, a parent after the review,
+   duplicate IDs, a fork, a gap, a repeated epoch, or an invalid reviewer
+   signature invalidates the chain. Filesystem enumeration and incidental
+   in-memory vector order define neither the prefix nor its root.
+5. Every new `vela.policy-lane.v2` event names and causally parents the exact
+   head event and epoch whose policy it used. The head must select the same
+   policy, precede the lane, and still be the current non-revoked head when the
+   event is staged.
+6. Rotation or revocation preserves only old-lane events already present in
+   the successor head's exact causal prefix. A backdated or fully readdressed
+   old-policy event appended after supersession is not grandfathered and fails
+   strict replay.
+
+Historical schema-less policy-lane bytes are a compatibility case, not a way
+to create new Permit authority. Only the first signed Activate head is the
+migration checkpoint: it may retain an exact historical event already present
+in its causal prefix. Strict replay may then recognize that exact immutable
+event under a typed historical audit result, but that path exposes no live
+verified policy and cannot stage or apply a new Permit. A later Rotate or
+Revoke cannot retroactively bless schema-less bytes appended after the first
+checkpoint, even though its exact prefix necessarily contains them.
+
+Before the first Activate confirmation, the reference ceremony enumerates the
+exact schema-less lane event IDs that would enter this audit-only checkpoint.
+It validates each frozen lane, binds the sorted ID set into the private
+recoverable ceremony intent, and rederives the same set under the frontier
+transaction barrier before reading the clock or key. A malformed lane or any
+display-to-sign set drift refuses the ceremony. Subsequent Rotate and Revoke
+ceremonies checkpoint no schema-less lanes.
+
+For new policy-lane events, every later use in this ADR of “signed Permit
+policy” is shorthand for the conjunction of two proofs: the policy snapshot
+and policy signature verify, and the same policy is selected by the current
+valid signed policy head. Neither proof substitutes for the other. The files
+`.vela/policies/active.json` and `active.sig.json` remain local inputs.
+`active.json` selects candidate policy bytes, while the signature record helps
+prove that a human signed those bytes. Neither file proves causal activation,
+rotation, or revocation. Changing them without a matching signed head cannot
+create a Permit; a missing, mismatched, forked, or revoked head closes the
+lane. A valid successor Rotate after Revoke reopens it only for the new,
+never-revoked policy named by that Rotate.
+
+The policy head supplies causal selection, not trustworthy wall-clock time.
+This amendment does not by itself enable finite-expiry policies to emit
+unsigned Permit events; that requires a separately reviewed, authority-signed
+causal time design. Reference-generated policies therefore use the explicit
+`9999-12-31T23:59:59Z` sentinel and remain valid only while selected by the
+signed head chain: a signed Rotate or Revoke is their operational validity
+boundary. An imported or hand-authored finite policy remains valid for
+Defer/Deny and human routing, but the CLI labels its Permit rules as
+human-routed rather than claiming the lane can auto-admit them.
+
+#### Producers, consumers, and maturity
+
+| Role | Current implementation |
+| --- | --- |
+| Producer | The reference proposal path constructs `governance.policy_head`; the existing terminal human acceptance path emits its signed `review.accepted`. This is one first-party producer. |
+| Permit consumer | Policy-route staging and application require the verified active policy ID and head-chain epoch to match the current non-revoked signed head. The policy's internal epoch remains a separate rule-version field. |
+| Replay consumer | Strict replay derives the chain and verifies every new policy-lane event, plus exact historical checkpoint membership. |
+| Operational consumer | Status and policy-selection porcelain may read `active.json`, but only to explain or select bytes; it cannot derive authority from that file. |
+
+These are useful separate code paths, but they are not independent ecosystem
+implementations. The two-independent-producer and two-independent-consumer
+criterion is not met as of this amendment. `vela.policy-head.v1` is therefore
+a protocol-local security and compatibility contract for the already existing
+Permit lane, not a promoted stable ecosystem primitive. Once accepted v1 bytes
+exist, their replay meaning is permanent: later evolution must use a new
+schema and preserve v1 verification. Any broader public abstraction, alternate
+producer, or generalized governance API remains blocked until the ADR's
+producer-and-consumer evidence threshold is satisfied.
 
 Open infrastructure also requires non-code work. Before any hosted Vela
 service becomes relied upon, the project will publish an honest POSI
@@ -1480,6 +1636,18 @@ The program is complete only when all of these hold:
   dependency.
 - Core, frontier, trust-invariant, cross-implementation, and selected formal
   suites report zero failures.
+- Every new `vela.policy-lane.v2` Permit names the matching current signed
+  policy-head event and epoch. Strict replay rejects a missing or mismatched
+  head, fork, gap, stale causal prefix, pre-activation lane, and old-policy
+  event appended after rotation or revocation. An exact historical lane passes
+  only when the first signed Activate checkpoint already contains its event ID;
+  `active.json` alone never authorizes a write. A current Revoke closes Permit;
+  only its causally linked successor Rotate with a new, never-revoked policy ID
+  may reopen the lane.
+- The first activation displays and transaction-binds every schema-less lane
+  it retains for audit compatibility; malformed or changed checkpoint sets
+  refuse before clock or key access. Generated Permit policies use causal
+  Rotate/Revoke validity rather than a misleading finite wall-clock window.
 - Any new Permit rule first passes historical replay and shadow mode, begins
   with complete audit, has sentinel cases and a kill switch, and reports false
   Permit, false Defer, semantic-fidelity error, reviewer minutes, and
@@ -1527,6 +1695,8 @@ Revisit this decision if:
   weakening offline availability of decision-critical bytes;
 - a consumer needs cross-revision proposal identity that ADR 0002 chains cannot
   provide;
+- two independent policy-governance producers and two independent consumers
+  need a stable policy-head interoperability contract;
 - a hardware signer requires a new signature envelope rather than raw Ed25519;
 - a site or plugin can demonstrate the same exact display-to-sign binding
   without placing a browser or model in key custody.

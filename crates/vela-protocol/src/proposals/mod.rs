@@ -29,7 +29,36 @@ pub fn new_proposal(
     source_refs: Vec<String>,
     caveats: Vec<String>,
 ) -> StateProposal {
-    let created_at = Utc::now().to_rfc3339();
+    new_proposal_at(
+        kind,
+        target,
+        actor_id,
+        actor_type,
+        reason,
+        payload,
+        source_refs,
+        caveats,
+        Utc::now().to_rfc3339(),
+    )
+}
+
+/// Build a content-addressed proposal with an injected timestamp.
+///
+/// Transactional writers use one fixed instant for every staged object so a
+/// retry or post-marker recovery never consults the wall clock again. The
+/// timestamp remains non-canonical proposal metadata; the logical proposal ID
+/// is derived by [`proposal_id`] exactly as before.
+pub fn new_proposal_at(
+    kind: impl Into<String>,
+    target: StateTarget,
+    actor_id: impl Into<String>,
+    actor_type: impl Into<String>,
+    reason: impl Into<String>,
+    payload: Value,
+    source_refs: Vec<String>,
+    caveats: Vec<String>,
+    created_at: impl Into<String>,
+) -> StateProposal {
     let mut proposal = StateProposal {
         schema: PROPOSAL_SCHEMA.to_string(),
         id: String::new(),
@@ -39,7 +68,7 @@ pub fn new_proposal(
             id: actor_id.into(),
             r#type: actor_type.into(),
         },
-        created_at,
+        created_at: created_at.into(),
         drafted_at: None,
         reason: reason.into(),
         payload,
@@ -348,12 +377,57 @@ pub fn proposals_for_finding<'a>(
 /// `apply` semantics are also idempotent: if the same proposal+reviewer pair
 /// has already been applied (proposal.applied_event_id is set), return the
 /// existing event_id rather than emitting a duplicate canonical event.
+pub fn insert_pending_in_frontier(
+    frontier: &mut Project,
+    proposal: StateProposal,
+) -> Result<CreateProposalResult, String> {
+    let finding_id = proposal.target.id.clone();
+    let proposal_id = proposal.id.clone();
+    if let Some(existing) = frontier
+        .proposals
+        .iter()
+        .find(|existing| existing.id == proposal_id)
+    {
+        return Ok(CreateProposalResult {
+            proposal_id,
+            finding_id,
+            status: existing.status.clone(),
+            applied_event_id: existing.applied_event_id.clone(),
+        });
+    }
+
+    validate_new_proposal(frontier, &proposal)?;
+    frontier.proposals.push(proposal);
+    project::recompute_stats(frontier);
+    Ok(CreateProposalResult {
+        proposal_id,
+        finding_id,
+        status: "pending_review".to_string(),
+        applied_event_id: None,
+    })
+}
+
 pub fn create_or_apply(
     path: &Path,
     proposal: StateProposal,
     apply: bool,
 ) -> Result<CreateProposalResult, String> {
     let mut frontier = repo::load_from_path(path)?;
+    let result = create_or_apply_in_frontier(&mut frontier, proposal, apply)?;
+    repo::save_to_path(path, &frontier)?;
+    Ok(result)
+}
+
+/// Apply the proposal mutation to an already loaded frontier without
+/// persisting it. Transactional callers use this pure in-memory edge while
+/// holding their repository-wide write barrier, then install the rendered
+/// bytes through their durable transaction mechanism. The path wrapper above
+/// remains for legacy single-writer CLI surfaces.
+pub fn create_or_apply_in_frontier(
+    frontier: &mut Project,
+    proposal: StateProposal,
+    apply: bool,
+) -> Result<CreateProposalResult, String> {
     let finding_id = proposal.target.id.clone();
     let proposal_id = proposal.id.clone();
 
@@ -364,8 +438,7 @@ pub fn create_or_apply(
         .iter()
         .position(|existing| existing.id == proposal_id);
     if existing_idx.is_none() {
-        validate_new_proposal(&frontier, &proposal)?;
-        frontier.proposals.push(proposal);
+        insert_pending_in_frontier(frontier, proposal)?;
     }
 
     let applied_event_id = if apply {
@@ -383,7 +456,7 @@ pub fn create_or_apply(
                 .map(|proposal| proposal.actor.id.clone())
                 .ok_or_else(|| format!("Proposal not found after insertion: {proposal_id}"))?;
             Some(accept_proposal_in_frontier(
-                &mut frontier,
+                frontier,
                 &proposal_id,
                 &reviewer,
                 "Applied locally from proposal creation",
@@ -403,11 +476,10 @@ pub fn create_or_apply(
     // findings; when no finding state changed (caveat/note/review on existing
     // findings) the projection is idempotent and bytes don't churn.
     if applied_event_id.is_some() {
-        crate::sources::materialize_project(&mut frontier);
+        crate::sources::materialize_project(frontier);
     } else {
-        project::recompute_stats(&mut frontier);
+        project::recompute_stats(frontier);
     }
-    repo::save_to_path(path, &frontier)?;
     Ok(CreateProposalResult {
         proposal_id,
         finding_id,
@@ -789,7 +861,7 @@ pub struct AcceptOptions {
 /// state the change would produce. Recomputable at any time from
 /// `evidence_ci::run_project`; this captures the *delta* a single
 /// acceptance introduces, which is what a reviewer (or the gate) acts on.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct EngineVerdict {
     /// `pass` (clean), `warn` (new review warnings), `blocked` (would be
     /// gated; only seen on the preview/error path), or `forced` (gated but
@@ -1328,7 +1400,22 @@ impl std::error::Error for AcceptEngineError {}
 /// without persisting anything. Drives the review-time preview ("what
 /// would CI say if I accept this?") on the CLI and the Workbench.
 pub fn preview_engine_verdict(path: &Path, proposal_id: &str) -> Result<EngineVerdict, String> {
-    let mut frontier = repo::load_from_path(path)?;
+    let frontier = repo::load_from_path(path)?;
+    preview_engine_verdict_in_frontier(&frontier, path, proposal_id, false)
+}
+
+/// Pure Engine preview over an already staged frontier projection.
+///
+/// Submission uses this before policy routing so the exact gate result can be
+/// committed to its private transaction plan even when the proposal has not
+/// yet been installed on disk. The clone is serialized rather than relying on
+/// a partial hand-maintained projection of [`Project`].
+pub fn preview_engine_verdict_in_frontier(
+    frontier: &Project,
+    path: &Path,
+    proposal_id: &str,
+    strict: bool,
+) -> Result<EngineVerdict, String> {
     let kind = frontier
         .proposals
         .iter()
@@ -1336,19 +1423,22 @@ pub fn preview_engine_verdict(path: &Path, proposal_id: &str) -> Result<EngineVe
         .map(|p| p.kind.clone())
         .ok_or_else(|| format!("Proposal not found: {proposal_id}"))?;
 
-    let before = crate::evidence_ci::run_project(&frontier, path);
+    let before = crate::evidence_ci::run_project(frontier, path);
     let before_blocking = crate::evidence_ci::release_blocking_failures(&before);
     let before_warn = crate::evidence_ci::review_warnings(&before);
 
     // Apply on this in-memory copy under a synthetic reviewer; never saved.
+    let encoded = serde_json::to_value(frontier).map_err(|error| error.to_string())?;
+    let mut candidate: Project =
+        serde_json::from_value(encoded).map_err(|error| error.to_string())?;
     accept_proposal_in_frontier(
-        &mut frontier,
+        &mut candidate,
         proposal_id,
         "reviewer:engine-preview",
         "engine ci preview",
     )?;
 
-    let after = crate::evidence_ci::run_project(&frontier, path);
+    let after = crate::evidence_ci::run_project(&candidate, path);
     let new_blocking: Vec<String> = crate::evidence_ci::release_blocking_failures(&after)
         .difference(&before_blocking)
         .cloned()
@@ -1358,7 +1448,9 @@ pub fn preview_engine_verdict(path: &Path, proposal_id: &str) -> Result<EngineVe
         .cloned()
         .collect();
 
-    let status = if is_truth_bearing_kind(&kind) && !new_blocking.is_empty() {
+    let status = if is_truth_bearing_kind(&kind)
+        && (!new_blocking.is_empty() || (strict && !new_warnings.is_empty()))
+    {
         "blocked"
     } else if !new_warnings.is_empty() {
         "warn"
@@ -1372,7 +1464,7 @@ pub fn preview_engine_verdict(path: &Path, proposal_id: &str) -> Result<EngineVe
         new_blocking,
         new_warnings,
         forced: false,
-        strict: false,
+        strict,
         release_blocking_failed: after.summary.release_blocking_failed,
         warnings: after.summary.warnings,
     })
@@ -1492,10 +1584,10 @@ fn validate_proposal_shape(frontier: &Project, proposal: &StateProposal) -> Resu
     // enforces that target.type matches the kind family.
     if !matches!(
         proposal.target.r#type.as_str(),
-        "finding" | "artifact" | "evidence_atom" | "frontier_observation"
+        "finding" | "artifact" | "evidence_atom" | "frontier_observation" | "governance"
     ) {
         return Err(format!(
-            "Unsupported proposal target type '{}'; valid: finding, artifact, evidence_atom, frontier_observation",
+            "Unsupported proposal target type '{}'; valid: finding, artifact, evidence_atom, frontier_observation, governance",
             proposal.target.r#type
         ));
     }
@@ -1509,6 +1601,9 @@ fn validate_proposal_shape(frontier: &Project, proposal: &StateProposal) -> Resu
         return Err(format!("Unsupported proposal status '{}'", proposal.status));
     }
     match proposal.kind.as_str() {
+        policy_accept::POLICY_HEAD_PROPOSAL_KIND => {
+            policy_accept::validate_policy_head_proposal(frontier, proposal)?;
+        }
         "finding.add" => {
             let finding_value = proposal
                 .payload
@@ -1532,6 +1627,9 @@ fn validate_proposal_shape(frontier: &Project, proposal: &StateProposal) -> Resu
                     "Refusing to add duplicate finding with existing finding ID {}",
                     proposal.target.id
                 ));
+            }
+            if let Some(submission) = proposal.payload.get("vela_submission") {
+                validate_submission_links(submission)?;
             }
         }
         "finding.review" => {
@@ -1812,6 +1910,80 @@ fn validate_proposal_shape(frontier: &Project, proposal: &StateProposal) -> Resu
     Ok(())
 }
 
+fn validate_submission_links(value: &Value) -> Result<(), String> {
+    let object = value
+        .as_object()
+        .ok_or("finding.add payload.vela_submission must be an object")?;
+    if object.get("schema").and_then(Value::as_str) != Some("vela.submission-links.internal.v1") {
+        return Err("finding.add payload.vela_submission has an unsupported schema".to_string());
+    }
+    let valid_prefixed_digest = |field: &str, prefix: &str| -> Result<(), String> {
+        let value = object
+            .get(field)
+            .and_then(Value::as_str)
+            .ok_or_else(|| format!("vela_submission.{field} must be a string"))?;
+        let digest = value
+            .strip_prefix(prefix)
+            .ok_or_else(|| format!("vela_submission.{field} must start with {prefix}"))?;
+        if digest.len() != 64
+            || !digest
+                .bytes()
+                .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+        {
+            return Err(format!(
+                "vela_submission.{field} must contain 64 lowercase hex characters"
+            ));
+        }
+        Ok(())
+    };
+    valid_prefixed_digest("receipt_root", "sha256:")?;
+    valid_prefixed_digest("operation_id", "vop_")?;
+    let record_id = object
+        .get("record_id")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    if !record_id.strip_prefix("vrc_").is_some_and(|id| {
+        id.len() == 16
+            && id
+                .bytes()
+                .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+    }) {
+        return Err("vela_submission.record_id must be vrc_<16 lowercase hex>".to_string());
+    }
+    let receipt_path = object
+        .get("receipt_path")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    let path = std::path::Path::new(receipt_path);
+    if receipt_path.is_empty()
+        || path.is_absolute()
+        || path.components().any(|component| {
+            matches!(
+                component,
+                std::path::Component::ParentDir
+                    | std::path::Component::RootDir
+                    | std::path::Component::Prefix(_)
+            )
+        })
+    {
+        return Err("vela_submission.receipt_path must be frontier-relative".to_string());
+    }
+    if let Some(review_path) = object.get("review_material_path").and_then(Value::as_str) {
+        let receipt_digest = object
+            .get("receipt_root")
+            .and_then(Value::as_str)
+            .and_then(|root| root.strip_prefix("sha256:"))
+            .unwrap_or_default();
+        let expected = format!("records/review/sha256/{receipt_digest}.json");
+        if review_path != expected {
+            return Err(format!(
+                "vela_submission.review_material_path must be {expected}"
+            ));
+        }
+    }
+    Ok(())
+}
+
 fn validate_decision_state(proposal: &StateProposal) -> Result<(), String> {
     match proposal.status.as_str() {
         "pending_review" => Ok(()),
@@ -1849,10 +2021,10 @@ fn validate_standalone_proposal(
     }
     if !matches!(
         proposal.target.r#type.as_str(),
-        "finding" | "artifact" | "evidence_atom" | "frontier_observation"
+        "finding" | "artifact" | "evidence_atom" | "frontier_observation" | "governance"
     ) {
         return Err(
-            "Only finding, artifact, evidence_atom, and frontier_observation proposals are supported in v0"
+            "Only finding, artifact, evidence_atom, frontier_observation, and governance proposals are supported in v0"
                 .to_string(),
         );
     }
@@ -1860,6 +2032,12 @@ fn validate_standalone_proposal(
         return Err("Proposal reason must be non-empty".to_string());
     }
     match proposal.kind.as_str() {
+        policy_accept::POLICY_HEAD_PROPOSAL_KIND => {
+            if proposal.target.r#type != "governance" {
+                return Err("policy-head proposal target.type must be governance".to_string());
+            }
+            policy_accept::parse_policy_head_payload(proposal)?;
+        }
         "finding.add" => {
             let finding_value = proposal
                 .payload
@@ -2701,6 +2879,65 @@ pub fn accept_proposal_in_frontier_with_custody(
     custody_verified: bool,
     provenance: Option<&crate::provenance::Provenance>,
 ) -> Result<String, String> {
+    accept_proposal_in_frontier_with_custody_at(
+        frontier,
+        proposal_id,
+        reviewer,
+        reason,
+        signing_key,
+        custody_verified,
+        provenance,
+        None,
+    )
+}
+
+/// Accept exactly one policy-head proposal at a caller-bound instant.
+///
+/// This is the transaction planner seam used by the human policy ceremony:
+/// the CLI reads the key once, fixes one timestamp, signs both the policy and
+/// the existing `review.accepted` authority event, then journals their public
+/// postimages together. It cannot be used for ordinary proposal kinds.
+pub fn accept_policy_head_proposal_in_frontier_at(
+    frontier: &mut Project,
+    proposal_id: &str,
+    reviewer: &str,
+    reason: &str,
+    signing_key: &ed25519_dalek::SigningKey,
+    decided_at: &str,
+) -> Result<String, String> {
+    chrono::DateTime::parse_from_rfc3339(decided_at)
+        .map_err(|error| format!("policy-head decision time is invalid: {error}"))?;
+    let proposal = frontier
+        .proposals
+        .iter()
+        .find(|proposal| proposal.id == proposal_id)
+        .ok_or_else(|| format!("Proposal not found: {proposal_id}"))?;
+    if proposal.kind != policy_accept::POLICY_HEAD_PROPOSAL_KIND {
+        return Err("fixed-time policy-head acceptance cannot accept another proposal kind".into());
+    }
+    accept_proposal_in_frontier_with_custody_at(
+        frontier,
+        proposal_id,
+        reviewer,
+        reason,
+        Some(signing_key),
+        false,
+        None,
+        Some(decided_at),
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn accept_proposal_in_frontier_with_custody_at(
+    frontier: &mut Project,
+    proposal_id: &str,
+    reviewer: &str,
+    reason: &str,
+    signing_key: Option<&ed25519_dalek::SigningKey>,
+    custody_verified: bool,
+    provenance: Option<&crate::provenance::Provenance>,
+    fixed_decided_at: Option<&str>,
+) -> Result<String, String> {
     validate_reviewer_identity(reviewer)?;
     if reason.trim().is_empty() {
         return Err("Decision reason must be non-empty".to_string());
@@ -2728,9 +2965,78 @@ pub fn accept_proposal_in_frontier_with_custody(
     // v0.339: the only place agent self-acceptance is allowed, and only for
     // verified work. Runs after shape validation, before any mutation.
     enforce_trusted_agent_accept_policy(&proposal, reviewer)?;
+    if proposal.kind == policy_accept::POLICY_HEAD_PROPOSAL_KIND {
+        let key = signing_key.ok_or_else(|| {
+            "policy-head acceptance requires a real human event signature; custody-only or keyless review cannot activate authority"
+                .to_string()
+        })?;
+        if !(reviewer.starts_with("reviewer:") || reviewer.starts_with("steward:")) {
+            return Err("policy-head acceptance requires a reviewer:/steward: actor".to_string());
+        }
+        let actor = frontier
+            .actors
+            .iter()
+            .find(|actor| {
+                actor.id == reviewer
+                    && actor.algorithm == "ed25519"
+                    && actor
+                        .public_key
+                        .eq_ignore_ascii_case(&hex::encode(key.verifying_key().to_bytes()))
+            })
+            .ok_or_else(|| {
+                "policy-head signer must be exactly registered in the frontier actor table"
+                    .to_string()
+            })?;
+        if actor.revoked_at.is_some() {
+            return Err("revoked actor cannot sign a policy-head transition".to_string());
+        }
+        let decided_at = fixed_decided_at
+            .map(ToString::to_string)
+            .unwrap_or_else(|| Utc::now().to_rfc3339());
+        let review_time = chrono::DateTime::parse_from_rfc3339(&decided_at)
+            .map_err(|error| format!("policy-head decision time is invalid: {error}"))?;
+        for parent in &frontier.events {
+            let parent_time =
+                chrono::DateTime::parse_from_rfc3339(&parent.timestamp).map_err(|error| {
+                    format!("policy-head parent {} time is invalid: {error}", parent.id)
+                })?;
+            if parent_time >= review_time {
+                return Err(format!(
+                    "policy-head review must occur after causal parent {}",
+                    parent.id
+                ));
+            }
+        }
+        let mut event = events::new_review_decision_event(
+            &proposal.id,
+            &proposal.kind,
+            "accepted",
+            None,
+            reviewer,
+            reason,
+            Some(&decided_at),
+        )?;
+        event.signature = Some(crate::sign::sign_event(&event, key)?);
+        let event_id = event.id.clone();
+        frontier.events.push(event);
+        frontier.proposals[index].status = "applied".to_string();
+        frontier.proposals[index].reviewed_by = Some(reviewer.to_string());
+        frontier.proposals[index].reviewed_at = Some(decided_at);
+        frontier.proposals[index].decision_reason = Some(reason.to_string());
+        frontier.proposals[index].applied_event_id = Some(event_id.clone());
+        mark_proof_stale(
+            frontier,
+            format!("Accepted policy-head proposal {}", proposal.id),
+        );
+        return Ok(event_id);
+    }
     frontier.proposals[index].status = "accepted".to_string();
     frontier.proposals[index].reviewed_by = Some(reviewer.to_string());
-    frontier.proposals[index].reviewed_at = Some(Utc::now().to_rfc3339());
+    frontier.proposals[index].reviewed_at = Some(
+        fixed_decided_at
+            .map(ToString::to_string)
+            .unwrap_or_else(|| Utc::now().to_rfc3339()),
+    );
     frontier.proposals[index].decision_reason = Some(reason.to_string());
     let event_id = apply_proposal(frontier, &proposal, reviewer, reason, provenance)?;
     frontier.proposals[index].status = "applied".to_string();

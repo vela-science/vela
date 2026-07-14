@@ -427,6 +427,51 @@ impl CodeArtifact {
 /// objects such as `Dataset` and `CodeArtifact` still exist because they
 /// carry stronger domain-specific fields. `Artifact` gives every byte or
 /// pointer the same minimum durability contract.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ArtifactDisclosure {
+    Public,
+    Restricted,
+    #[default]
+    Unknown,
+}
+
+impl ArtifactDisclosure {
+    pub(crate) fn is_unknown(value: &Self) -> bool {
+        *value == Self::Unknown
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum LocatorIntegrity {
+    Immutable,
+    Mutable,
+    #[default]
+    Unknown,
+}
+
+impl LocatorIntegrity {
+    pub(crate) fn is_unknown(value: &Self) -> bool {
+        *value == Self::Unknown
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ArtifactAvailability {
+    Available,
+    Unavailable,
+    #[default]
+    Unknown,
+}
+
+impl ArtifactAvailability {
+    pub(crate) fn is_unknown(value: &Self) -> bool {
+        *value == Self::Unknown
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Artifact {
     /// `va_<16hex>`, content-addressed over kind, name, hash, source, and
@@ -446,6 +491,16 @@ pub struct Artifact {
     pub media_type: Option<String>,
     /// `local_blob`, `local_file`, `remote`, or `pointer`.
     pub storage_mode: String,
+    /// Independent disclosure axis. Missing on legacy artifacts means
+    /// `unknown`, never silently `public`.
+    #[serde(default, skip_serializing_if = "ArtifactDisclosure::is_unknown")]
+    pub disclosure: ArtifactDisclosure,
+    /// Locator mutability is independent from storage and disclosure.
+    #[serde(default, skip_serializing_if = "LocatorIntegrity::is_unknown")]
+    pub locator_integrity: LocatorIntegrity,
+    /// Observed availability is independent from locator integrity.
+    #[serde(default, skip_serializing_if = "ArtifactAvailability::is_unknown")]
+    pub availability: ArtifactAvailability,
     /// Local relative path, file path, HTTPS URL, S3 URL, or registry locator.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub locator: Option<String>,
@@ -500,6 +555,90 @@ impl Artifact {
         format!("va_{}", &hex::encode(hash)[..16])
     }
 
+    /// Content-address a descriptor that opts into the independent reference
+    /// axes. The all-unknown shape deliberately delegates to the legacy
+    /// preimage so existing artifact IDs remain stable.
+    #[allow(clippy::too_many_arguments)]
+    pub fn content_address_with_axes(
+        kind: &str,
+        name: &str,
+        content_hash: &str,
+        source_url: Option<&str>,
+        locator: Option<&str>,
+        disclosure: ArtifactDisclosure,
+        locator_integrity: LocatorIntegrity,
+        availability: ArtifactAvailability,
+    ) -> String {
+        if disclosure == ArtifactDisclosure::Unknown
+            && locator_integrity == LocatorIntegrity::Unknown
+            && availability == ArtifactAvailability::Unknown
+        {
+            return Self::content_address(kind, name, content_hash, source_url, locator);
+        }
+        let preimage = crate::canonical::to_canonical_bytes(&serde_json::json!({
+            "schema": "vela.artifact-reference-axes.v1",
+            "kind": kind,
+            "name": name,
+            "content_hash": content_hash,
+            "source_url": source_url,
+            "locator": locator,
+            "disclosure": disclosure,
+            "locator_integrity": locator_integrity,
+            "availability": availability,
+        }))
+        .unwrap_or_default();
+        let hash = Sha256::digest(preimage);
+        format!("va_{}", &hex::encode(hash)[..16])
+    }
+
+    /// Fail-closed validation for descriptors crossing the receipt write edge.
+    /// Restricted bytes use an opaque custodian locator in the first safe
+    /// implementation; no public equality digest is emitted until a separately
+    /// reviewed sealed-commitment scheme exists.
+    pub fn validate_reference_axes(&self) -> Result<(), String> {
+        match self.disclosure {
+            ArtifactDisclosure::Public => {
+                let digest = self.content_hash.strip_prefix("sha256:").ok_or_else(|| {
+                    "public artifact content_hash must be sha256:<64 lowercase hex>".to_string()
+                })?;
+                if digest.len() != 64
+                    || !digest
+                        .bytes()
+                        .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+                {
+                    return Err(
+                        "public artifact content_hash must be sha256:<64 lowercase hex>"
+                            .to_string(),
+                    );
+                }
+            }
+            ArtifactDisclosure::Restricted => {
+                if !self.content_hash.is_empty() {
+                    return Err(
+                        "restricted artifact must use an opaque custodian reference; public digest disclosure requires a separately reviewed commitment scheme"
+                            .to_string(),
+                    );
+                }
+                let locator = self.locator.as_deref().unwrap_or_default();
+                if locator.trim().is_empty()
+                    || !(locator.starts_with("custodian:") || locator.starts_with("opaque:"))
+                {
+                    return Err(
+                        "restricted artifact requires an opaque custodian: or opaque: locator"
+                            .to_string(),
+                    );
+                }
+            }
+            ArtifactDisclosure::Unknown => {}
+        }
+        if self.storage_mode == "local_blob"
+            && self.availability == ArtifactAvailability::Unavailable
+        {
+            return Err("local_blob artifact cannot be declared unavailable".to_string());
+        }
+        Ok(())
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         kind: impl Into<String>,
@@ -552,6 +691,9 @@ impl Artifact {
             size_bytes,
             media_type,
             storage_mode,
+            disclosure: ArtifactDisclosure::Unknown,
+            locator_integrity: LocatorIntegrity::Unknown,
+            availability: ArtifactAvailability::Unknown,
             locator,
             source_url,
             license,
@@ -2206,5 +2348,77 @@ mod tests {
             "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
         );
         assert_eq!(artifact.kind, "clinical_trial_record");
+    }
+
+    #[test]
+    fn artifact_reference_axes_are_independent_and_content_bound() {
+        let hash = format!("sha256:{}", "a".repeat(64));
+        let legacy = Artifact::content_address(
+            "dataset",
+            "public data",
+            &hash,
+            None,
+            Some("https://example.test/data"),
+        );
+        let all_unknown = Artifact::content_address_with_axes(
+            "dataset",
+            "public data",
+            &hash,
+            None,
+            Some("https://example.test/data"),
+            ArtifactDisclosure::Unknown,
+            LocatorIntegrity::Unknown,
+            ArtifactAvailability::Unknown,
+        );
+        assert_eq!(legacy, all_unknown);
+
+        let immutable = Artifact::content_address_with_axes(
+            "dataset",
+            "public data",
+            &hash,
+            None,
+            Some("https://example.test/data"),
+            ArtifactDisclosure::Public,
+            LocatorIntegrity::Immutable,
+            ArtifactAvailability::Available,
+        );
+        let mutable = Artifact::content_address_with_axes(
+            "dataset",
+            "public data",
+            &hash,
+            None,
+            Some("https://example.test/data"),
+            ArtifactDisclosure::Public,
+            LocatorIntegrity::Mutable,
+            ArtifactAvailability::Available,
+        );
+        assert_ne!(immutable, mutable);
+    }
+
+    #[test]
+    fn restricted_reference_refuses_public_equality_digest() {
+        let mut artifact = Artifact::new(
+            "dataset",
+            "restricted data",
+            "a".repeat(64),
+            None,
+            None,
+            "pointer",
+            Some("custodian:lab-vault/item-7".to_string()),
+            None,
+            None,
+            vec![],
+            sample_provenance(),
+            BTreeMap::new(),
+            crate::access_tier::AccessTier::Restricted,
+        )
+        .unwrap();
+        artifact.disclosure = ArtifactDisclosure::Restricted;
+        artifact.locator_integrity = LocatorIntegrity::Immutable;
+        artifact.availability = ArtifactAvailability::Unknown;
+        assert!(artifact.validate_reference_axes().is_err());
+
+        artifact.content_hash.clear();
+        assert!(artifact.validate_reference_axes().is_ok());
     }
 }

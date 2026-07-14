@@ -164,9 +164,8 @@ pub(crate) fn cmd_gate(action: GateAction) {
             // Default the reviewer authority from the configured identity
             // (`vela id`), like `publish` resolves owner/key/hub. An explicit
             // --reviewer still overrides; with no flag and no identity the
-            // resolver exits with the setup hint. Trust model is unchanged:
-            // the agent-vs-human guard inside cmd_gate_backfill fires on the
-            // resolved id (an `agent:` id still only drafts pending).
+            // resolver exits with the setup hint. This identity is proposal
+            // attribution only; the command always drafts pending.
             let reviewer = crate::cli_identity::resolve_actor(reviewer.as_deref());
             cmd_gate_backfill(&frontier, &reviewer, dry_run, json)
         }
@@ -196,9 +195,9 @@ pub(crate) fn cmd_gate(action: GateAction) {
 /// parsed into an `eval_harness` [`VerifierAttachment`] bound to the finding's
 /// claim digest (G2). It is deliberately `method_integrity: Unattested` — an
 /// eval harness is evidence, not a frozen verifier — so it can never auto-admit
-/// and a lone one fails the gate's G1. The agent-drafts / human-applies boundary
-/// is the same as `gate backfill`: an `agent:` reviewer creates the proposal
-/// PENDING; a named human applies inline.
+/// and a lone one fails the gate's G1. This command only drafts a pending
+/// proposal. The key-custody human decision remains a separate `vela sign`
+/// ceremony.
 fn cmd_gate_attach(
     frontier: &Path,
     finding: &str,
@@ -255,7 +254,6 @@ fn cmd_gate_attach(
     } else {
         "human"
     };
-    let apply = actor_type == "human";
     let proposal = proposals::new_proposal(
         "verifier.attach",
         StateTarget {
@@ -269,10 +267,15 @@ fn cmd_gate_attach(
         Vec::new(),
         Vec::new(),
     );
-    let (proposal_id, status) = match proposals::create_or_apply(frontier, proposal, apply) {
-        Ok(res) if res.applied_event_id.is_some() => (res.proposal_id, "applied"),
-        Ok(res) => (res.proposal_id, "pending"),
-        Err(e) => fail_return(&e),
+    let result = crate::workflow::transact_pending_proposal(frontier, proposal)
+        .unwrap_or_else(|error| fail_return(&error));
+    let proposal_id = result["proposal_id"]
+        .as_str()
+        .unwrap_or_else(|| fail_return("transactional proposal result omitted proposal_id"));
+    let status = if result["applied_event_id"].is_null() {
+        "pending"
+    } else {
+        "applied"
     };
 
     if json_output {
@@ -439,47 +442,29 @@ pub(crate) fn gate_auto_admit_core(
     let mut policy_verdict: Option<String> = None;
     match vela_protocol::acceptance_policy::load_active_policy(frontier) {
         Ok(Some(vp)) => {
-            let signer_registered = proj.actors.iter().any(|a| {
-                a.public_key.eq_ignore_ascii_case(&vp.signer_pubkey_hex)
-                    && a.id.starts_with("reviewer:")
-            });
-            if !signer_registered {
-                return Err(
-                    "active policy signer is not a registered reviewer on this frontier"
-                        .to_string(),
-                );
-            }
-            // Independence via the derived predicate (G1 + monoculture over
-            // the matched attachments), not a bare count — a monoculture set
-            // that used to count as independent now defers. Tightening only:
-            // the policy can refuse an admit the old bool would have allowed,
-            // never the reverse.
-            let claim_digest_hex =
-                vela_protocol::verifier_attachment::claim_digest(&finding.assertion.text);
-            let independence = vela_protocol::independence::independence_from_attachments(
-                &claim_digest_hex,
-                &matched,
+            let now = chrono::Utc::now().to_rfc3339();
+            vela_protocol::acceptance_policy::resolve_policy_authority(&proj, &vp, &now)
+                .map_err(|error| format!("active policy authority: {error}"))?;
+            // This legacy audit lane has no Receipt v1 body binding or
+            // frontier-resolved producer credential. Feed those unknowns to
+            // the shared conservative builder instead of manufacturing the
+            // old `credential_valid=true`/`has_unknown_fields=false` pair.
+            // The frozen floor may still drive its non-authoritative audit
+            // event when no signed policy is active; it cannot satisfy a live
+            // policy with facts this path does not possess.
+            let ctx = crate::review_material::derive_policy_context(
+                crate::review_material::PolicyContextInputs {
+                    proposal: &proposal,
+                    finding: &finding,
+                    attachments: &proj.verifier_attachments,
+                    replayability: None,
+                    receipt_is_body_bound: false,
+                    credential_valid: false,
+                    target_contested: !open_contradictions.is_empty(),
+                    downstream_dependents: 0,
+                },
             );
-            let ctx = vela_protocol::acceptance_policy::PolicyContext {
-                claim_class: "exact".to_string(),
-                assurance_level: if floor_ok { 3 } else { 0 },
-                impact_tier: 1,
-                changed_findings: 1,
-                downstream_dependents: 0,
-                assertion_text_mutated: false,
-                target_contested: !open_contradictions.is_empty(),
-                governance_mutation: false,
-                independence_satisfied: independence.satisfied,
-                method_integrity_sound: vouched_ok,
-                credential_valid: true,
-                has_unknown_fields: false,
-                replayability: "unknown".to_string(),
-            };
-            let decision = vela_protocol::acceptance_policy::evaluate(
-                &vp.policy,
-                &ctx,
-                &chrono::Utc::now().to_rfc3339(),
-            );
+            let decision = vela_protocol::acceptance_policy::evaluate(&vp.policy, &ctx, &now);
             policy_verdict = Some(format!("{:?}", decision.outcome));
             let permitted = format!("{:?}", decision.outcome) == "Permit";
             would_admit = would_admit && permitted;
@@ -1465,9 +1450,9 @@ fn null_lean_turn_with(json: bool, decl: &str, reason: &str, detail: &str, vlv: 
     }
 }
 
-/// Draft a `verifier.attach` (PENDING for an agent reviewer, applied for a
-/// human) binding the kernel-clean `vlv_` to the open finding it closes. Returns
-/// `(proposal_id, status)`. Reuses the gate-backfill attachment shape.
+/// Draft a pending `verifier.attach` binding the kernel-clean `vlv_` to the
+/// open finding it closes. Returns `(proposal_id, status)`. Reuses the
+/// gate-backfill attachment shape; applying remains a separate human ceremony.
 fn draft_lean_attachment(
     frontier: &Path,
     finding: &str,
@@ -1532,7 +1517,6 @@ fn draft_lean_attachment(
     } else {
         "human"
     };
-    let apply = actor_type == "human";
     let proposal = proposals::new_proposal(
         "verifier.attach",
         StateTarget {
@@ -1546,10 +1530,16 @@ fn draft_lean_attachment(
         Vec::new(),
         Vec::new(),
     );
-    match proposals::create_or_apply(frontier, proposal, apply) {
-        Ok(res) if res.applied_event_id.is_some() => (Some(res.proposal_id), "applied"),
-        Ok(res) => (Some(res.proposal_id), "pending"),
-        Err(e) => (Some(e), "error"),
+    match crate::workflow::transact_pending_proposal(frontier, proposal) {
+        Ok(result) => {
+            let proposal_id = result["proposal_id"].as_str().map(ToString::to_string);
+            if result["applied_event_id"].is_null() {
+                (proposal_id, "pending")
+            } else {
+                (proposal_id, "applied")
+            }
+        }
+        Err(error) => (Some(error), "error"),
     }
 }
 
@@ -2422,7 +2412,7 @@ fn reproduce_finding_witness(
 
 /// Backfill frozen-verifier attachments over a frontier's witness artifacts.
 /// For each artifact that carries a `verifier` tag and parses as a `vela-verify`
-/// Witness, re-run the frozen verifier and, on pass, land a signed
+/// Witness, re-run the frozen verifier and, on pass, land a pending
 /// `verifier.attach` (ComputationalSearch / vela-verify / Sound) bound to each
 /// target finding's claim. Records the machine re-check; the gate still needs
 /// >=2 independent attachments for `verified`. Local-first: inspect with
@@ -2451,11 +2441,8 @@ fn cmd_gate_backfill(frontier: &Path, reviewer: &str, dry_run: bool, json_output
         .map(|f| (f.id.clone(), f.assertion.text.clone()))
         .collect();
 
-    // An agent may draft (create pending) but not self-apply a truth-bearing
-    // `verifier.attach`; a human reviewer applies inline. (The substrate's
-    // accept gate enforces this independently — this just avoids drafting then
-    // failing to self-accept.)
-    let apply = !reviewer.trim().to_ascii_lowercase().starts_with("agent:");
+    // This evidence command only drafts. A reviewer identity here is
+    // attribution, not an implicit decision or authority envelope.
 
     // (finding, witness kind, claim_digest) for each landed / pending / planned check.
     let mut done: Vec<(String, String, String)> = Vec::new();
@@ -2570,18 +2557,14 @@ fn cmd_gate_backfill(frontier: &Path, reviewer: &str, dry_run: bool, json_output
                 Vec::new(),
                 Vec::new(),
             );
-            // The trust boundary, enforced here: an agent reviewer may DRAFT a
-            // `verifier.attach` (it ran the frozen verifier) but may not
-            // self-apply it — that is a truth-bearing acceptance reserved for a
-            // named human with key custody. So for agents we create the
-            // proposal as PENDING; a maintainer decides it in `vela sign`.
-            // A human reviewer applies inline (subject to key custody).
-            match proposals::create_or_apply(frontier, proposal, apply) {
-                Ok(res) if res.applied_event_id.is_some() => {
+            // The write is recoverable and shares the receipt-landing barrier,
+            // but remains PENDING until the separate human ceremony decides it.
+            match crate::workflow::transact_pending_proposal(frontier, proposal) {
+                Ok(result) if !result["applied_event_id"].is_null() => {
                     done.push((tf.clone(), kind.clone(), digest))
                 }
                 Ok(_) => pending.push((tf.clone(), kind.clone(), digest)),
-                Err(e) => failed.push((tf.clone(), e)),
+                Err(error) => failed.push((tf.clone(), error)),
             }
         }
     }
@@ -2675,7 +2658,7 @@ fn cmd_gate_backfill(frontier: &Path, reviewer: &str, dry_run: bool, json_output
 /// behavior. The deposit rides under `deposited_by` (an agent identity for
 /// machine deposits) as an `artifact.asserted` event: it is a *data* deposit of
 /// a machine-checkable witness, not a trust verdict (the verdict is the
-/// signed `verifier.attach`, which the attach loop types by actor).
+/// pending `verifier.attach`, which the attach loop types by actor).
 ///
 /// Returns `(registered, witnesses_without_target)`.
 ///
@@ -2742,8 +2725,16 @@ pub(crate) fn register_witness_artifact(
         review: None,
         contributions: Vec::new(),
     };
-    let id =
-        bundle::Artifact::content_address("dataset", &name, &content_hash, None, Some(&blob_rel));
+    let id = bundle::Artifact::content_address_with_axes(
+        "dataset",
+        &name,
+        &content_hash,
+        None,
+        Some(&blob_rel),
+        bundle::ArtifactDisclosure::Public,
+        bundle::LocatorIntegrity::Immutable,
+        bundle::ArtifactAvailability::Available,
+    );
     let artifact = bundle::Artifact {
         id,
         kind: "dataset".into(),
@@ -2752,6 +2743,9 @@ pub(crate) fn register_witness_artifact(
         size_bytes: Some(witness_bytes.len() as u64),
         media_type: Some("application/json".to_string()),
         storage_mode: "local_blob".to_string(),
+        disclosure: bundle::ArtifactDisclosure::Public,
+        locator_integrity: bundle::LocatorIntegrity::Immutable,
+        availability: bundle::ArtifactAvailability::Available,
         locator: Some(blob_rel),
         source_url: None,
         license: Some("CC-BY-4.0".to_string()),
@@ -2764,6 +2758,7 @@ pub(crate) fn register_witness_artifact(
         access_tier: vela_protocol::access_tier::AccessTier::default(),
         created: chrono::Utc::now().to_rfc3339(),
     };
+    artifact.validate_reference_axes()?;
     match vela_protocol::state::add_artifact(
         frontier,
         artifact,
@@ -2848,6 +2843,100 @@ pub(crate) fn register_canonical_witnesses(
 /// materialize the derived views LAST so `vela.lock` is never stale, and publish
 /// once (only with `--push`). Replaces the bespoke producer scripts: one command,
 /// no hand-run gate steps, no consent map.
+fn build_submit_receipt(
+    frontier: &Path,
+    witness_path: &Path,
+    bytes: &[u8],
+    claim: &str,
+    kind: &str,
+    actor: &str,
+) -> Result<vela_protocol::receipt_v1::ReceiptV1, String> {
+    use sha2::{Digest, Sha256};
+    use vela_protocol::identity::{ActorClass, IdentityBinding, IdentityBindingDraft};
+    use vela_protocol::receipt_v1::{
+        ArtifactInput, ProducerReportedRun, ReceiptBuilder, ReceiptInput,
+    };
+
+    if !(actor.starts_with("agent:") || actor.starts_with("ci:")) {
+        return Err("submit receipt authoring requires an agent:/ci: actor".to_string());
+    }
+    let root = frontier
+        .canonicalize()
+        .map_err(|error| format!("canonicalize frontier: {error}"))?;
+    let witness = witness_path
+        .canonicalize()
+        .map_err(|error| format!("canonicalize witness: {error}"))?;
+    let relative = witness.strip_prefix(&root).map_err(|_| {
+        "submit witness must be inside the frontier so the transaction can bind and publish it"
+            .to_string()
+    })?;
+    let relative = relative
+        .to_str()
+        .ok_or_else(|| "submit witness path is not UTF-8".to_string())?;
+    let digest = hex::encode(Sha256::digest(bytes));
+    let project = vela_protocol::repo::load_from_path(frontier)?;
+    let event_root = format!(
+        "sha256:{}",
+        vela_protocol::events::event_log_hash(&project.events)
+    );
+    let policy_ref = vela_protocol::acceptance_policy::load_active_policy(frontier)?
+        .map(|verified| verified.policy.id)
+        .unwrap_or_else(|| "urn:vela:policy:none".to_string());
+    let emitted_at = std::fs::metadata(&witness)
+        .and_then(|metadata| metadata.modified())
+        .map(chrono::DateTime::<chrono::Utc>::from)
+        .map_err(|error| format!("witness modified time: {error}"))?
+        .to_rfc3339();
+    let operation_bytes = vela_protocol::canonical::to_canonical_bytes(&json!({
+        "schema": "vela.submit-receipt.internal.v1",
+        "frontier_id": project.frontier_id(),
+        "actor": actor,
+        "claim": claim,
+        "kind": kind,
+        "witness_sha256": digest,
+        "policy_ref": policy_ref,
+    }))?;
+    let operation_id = crate::operation_journal::operation_id("submit-land", &operation_bytes);
+    let key = vela_edge::vela_agent_mcp::agent_signing_key(Some(actor))?;
+    let identity = IdentityBinding::build(
+        IdentityBindingDraft {
+            actor_id: actor.to_string(),
+            actor_class: ActorClass::Agent,
+            created_at: emitted_at.clone(),
+        },
+        &key,
+    )?;
+    let input = ReceiptInput::new(
+        claim.to_string(),
+        "computational".to_string(),
+        "exact".to_string(),
+        vec![ArtifactInput::new(
+            relative.to_string(),
+            kind.to_string(),
+            Some(digest),
+            None,
+        )
+        .map_err(|error| error.to_string())?],
+        vec![
+            "Frozen verification establishes only the bounded witness claim; scientific acceptance remains policy- or human-owned."
+                .to_string(),
+        ],
+        vec![ProducerReportedRun::producer_reported(
+            format!("vela-verify:{kind}"),
+            "pass".to_string(),
+        )
+        .map_err(|error| error.to_string())?],
+        actor.to_string(),
+        emitted_at,
+        event_root,
+        relative.to_string(),
+        operation_id,
+        policy_ref,
+    )
+    .map_err(|error| error.to_string())?;
+    ReceiptBuilder::build(input, &identity).map_err(|error| error.to_string())
+}
+
 pub(crate) fn cmd_submit(
     frontier: &Path,
     witness_path: &Path,
@@ -2903,21 +2992,6 @@ pub(crate) fn cmd_submit(
         _ => (None, true),
     };
 
-    let witness_name = {
-        let base = witness_path
-            .file_name()
-            .and_then(|s| s.to_str())
-            .unwrap_or("witness.json");
-        if base.ends_with(".witness.json") {
-            base.to_string()
-        } else {
-            format!(
-                "{kind}-a{}-{}.witness.json",
-                n.unwrap_or(0),
-                size.unwrap_or(0)
-            )
-        }
-    };
     let witness_sha = {
         use sha2::{Digest, Sha256};
         format!("sha256:{}", hex::encode(Sha256::digest(&bytes)))
@@ -2928,7 +3002,7 @@ pub(crate) fn cmd_submit(
             (Some(_), Some(b)) if !is_beat => format!("NOT a beat (current best >= {b})"),
             (Some(_), Some(b)) => format!("beats the current best {b}"),
             (Some(_), None) => "new cell — first bound on the record for this n".to_string(),
-            _ => "will land + attempt exact-lane machine_verified".to_string(),
+            _ => "will land as one receipt transaction".to_string(),
         };
         if json_output {
             println!(
@@ -2937,7 +3011,9 @@ pub(crate) fn cmd_submit(
                     "ok": true, "command": "submit", "dry_run": true,
                     "claim": claim, "kind": kind, "n": n, "size": size,
                     "beats": {"previous_best": best, "is_beat": is_beat},
-                    "witness_sha256": witness_sha, "applied": false,
+                    "witness_sha256": witness_sha,
+                    "verifier": {"outcome": "pass", "message": vr.message},
+                    "applied": false,
                 }))
                 .unwrap()
             );
@@ -2949,9 +3025,8 @@ pub(crate) fn cmd_submit(
             );
             println!("  claim        {}", crate::cli::safe_text::inline(&claim));
             println!("  beat check   {}", crate::cli::safe_text::inline(&verdict));
-            println!(
-                "  would        land -> register witness -> exact-lane auto-admit -> materialize"
-            );
+            println!("  would        build Receipt v1 -> one recoverable land transaction");
+            println!("  route        signed policy Permit, otherwise Defer to `vela sign`");
             println!(
                 "  publish      {}",
                 if push {
@@ -2964,90 +3039,19 @@ pub(crate) fn cmd_submit(
         return;
     }
 
-    let frontier_abs = frontier
-        .canonicalize()
-        .unwrap_or_else(|_| frontier.to_path_buf());
-    let preflight_inputs = witness_path
-        .canonicalize()
-        .ok()
-        .filter(|path| path.starts_with(&frontier_abs))
-        .into_iter()
-        .collect();
-    let publish_opts = if push {
-        crate::config::git_publish::PublishOptions::pushing()
-    } else {
-        crate::config::git_publish::PublishOptions::new(false, false)
-    }
-    .with_preflight_inputs(preflight_inputs);
-    let publication_preflight =
-        crate::config::git_publish::publication_preflight(frontier, &publish_opts);
-    if let Err(outcome) = &publication_preflight
-        && crate::config::git_publish::publication_is_busy(outcome)
-    {
-        crate::ui::fail_with(
-            crate::ui::ErrorKind::Domain,
-            "another Vela write/publication owns this repository; submit changed no scientific state",
-            Some("retry the same `vela submit` command after the active operation completes"),
-        );
-    }
-
-    // 2. Land (local; the transaction publishes ONCE at the end, not per step).
-    let receipt: crate::workflow::Receipt = serde_json::from_value(json!({
-        "schema": crate::workflow::RECEIPT_SCHEMA,
-        "claim": claim,
-        "artifacts": [{"path": witness_path.display().to_string(), "kind": kind}],
-        "caveats": ["Admission to the log is machine_verified by the frozen verifier, not a human accept."],
-    }))
-    .unwrap_or_else(|e| fail_return(&format!("receipt build: {e}")));
-
-    let outcome = crate::workflow::land(frontier, &receipt, actor)
+    // 2. One write edge. Receipt, content-addressed witness copy, compatibility
+    // record, proposal, policy route, materialized views, and exact Git
+    // publication are all owned by `workflow::land`. This surface must never
+    // append a second event or run a legacy publication pass afterward.
+    let receipt = build_submit_receipt(frontier, witness_path, &bytes, &claim, &kind, actor)
+        .unwrap_or_else(|e| fail_return(&format!("receipt build: {e}")));
+    let outcome = crate::workflow::land(frontier, &receipt, actor, push)
         .unwrap_or_else(|e| fail_return(&format!("land: {e}")));
     let vpr = outcome.proposal_id.clone();
-    let vf = match &outcome.route {
-        crate::workflow::LandRoute::AlreadyLanded { finding_id } => finding_id.clone(),
-        _ => {
-            let pp = frontier
-                .join(".vela")
-                .join("proposals")
-                .join(format!("{vpr}.json"));
-            let pj: Value = std::fs::read_to_string(&pp)
-                .ok()
-                .and_then(|s| serde_json::from_str(&s).ok())
-                .unwrap_or(Value::Null);
-            pj.get("target")
-                .and_then(|t| t.get("id"))
-                .and_then(|i| i.as_str())
-                .unwrap_or_else(|| fail_return(&format!("proposal {vpr} has no target finding")))
-                .to_string()
-        }
-    };
-
-    // 3. Store the witness ONCE as a content-addressed, verifier-tagged artifact
-    //    bound to the finding (no targets.json, no loose witnesses/ file). The
-    //    exact-lane floor and `vela reproduce` both read it from the blob store.
-    register_witness_artifact(frontier, &bytes, &kind, &witness_name, &vf, actor)
-        .unwrap_or_else(|e| fail_return(&format!("register witness: {e}")));
-
-    // 4. Fire the exact lane (frozen re-run + claim<->witness bind). No publish here.
-    let verdict = gate_auto_admit_core(frontier, &vf, true)
-        .unwrap_or_else(|e| fail_return(&format!("auto-admit: {e}")));
-
-    // 5. Materialize LAST (derived views reflect the full log), then publish ONCE.
-    vela_protocol::frontier_repo::materialize(frontier)
-        .unwrap_or_else(|e| fail_return(&format!("materialize: {e}")));
-    let publication = match publication_preflight {
-        Ok(preflight) => {
-            let publish_opts = publish_opts.with_preflight(preflight);
-            crate::config::git_publish::publish_decision(
-                frontier,
-                "submit",
-                &[vpr.clone()],
-                &publish_opts,
-            )
-        }
-        Err(outcome) => outcome,
-    };
-    let operation_id = crate::operation_journal::operation_id("submit-command", vpr.as_bytes());
+    let vf = outcome.finding_id.clone();
+    let (route, detail) = outcome.route.summary();
+    let operation_id = outcome.operation_id.clone();
+    let publication = outcome.publication;
     let pushed = matches!(
         &publication.state,
         crate::config::git_publish::PublicationState::Pushed { .. }
@@ -3057,18 +3061,25 @@ pub(crate) fn cmd_submit(
         .clone()
         .unwrap_or_else(|| "vela status --json".to_string());
 
-    // 6. Receipt.
-    let machine_verified = verdict.would_admit;
+    // A local frozen-verifier pass is producer-side provenance. It does not
+    // become a durable independent verifier attachment or raise assurance by
+    // implication; the signed policy route above is the only admission fact.
     if json_output {
         println!(
             "{}",
             serde_json::to_string_pretty(&json!({
                 "ok": true, "command": "submit",
-                "claim": verdict.canonical_claim.clone().unwrap_or(claim),
+                "claim": claim,
                 "kind": kind, "n": n, "size": size,
                 "finding_id": vf, "proposal_id": vpr,
                 "operation_id": operation_id,
-                "machine_verified": machine_verified,
+                "receipt_root": outcome.receipt_root,
+                "record_id": outcome.record_id,
+                "route": route,
+                "detail": detail,
+                "verifier": {"outcome": "pass", "message": vr.message},
+                "machine_verified": false,
+                "machine_verified_reason": "producer-side verifier provenance does not create durable independent assurance",
                 "beats": {"previous_best": best, "is_beat": is_beat},
                 "witness_sha256": witness_sha,
                 "published": pushed,
@@ -3085,16 +3096,13 @@ pub(crate) fn cmd_submit(
             crate::cli::safe_text::inline(&vpr),
             crate::cli::safe_text::inline(actor)
         );
-        if let Some(c) = &verdict.canonical_claim {
-            println!("  verified     {}", crate::cli::safe_text::inline(c));
-        }
         println!(
-            "  machine_verified: {}",
-            if machine_verified {
-                "YES (frozen verifier)"
-            } else {
-                "NO — held; a maintainer reviews"
-            }
+            "  verifier     pass (producer provenance; assurance unchanged): {}",
+            crate::cli::safe_text::inline(&vr.message)
+        );
+        println!(
+            "  route        {route}: {}",
+            crate::cli::safe_text::inline(&detail)
         );
         match (n, best) {
             (Some(_), Some(b)) if is_beat => println!("  beats the current best {b}"),
@@ -3116,9 +3124,6 @@ pub(crate) fn cmd_submit(
             "  next          {}",
             crate::cli::safe_text::inline(&publication_next)
         );
-    }
-    if !machine_verified {
-        std::process::exit(1);
     }
 }
 

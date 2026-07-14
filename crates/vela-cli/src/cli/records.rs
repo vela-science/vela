@@ -55,7 +55,7 @@ fn collect_witness_files_into(dir: &Path, out: &mut Vec<PathBuf>) {
     }
 }
 
-// ── land adapters (the workflow engine's record path) ────────────────
+// ── land adapters (the workflow engine's pure compatibility index) ──
 
 fn value_str(value: Option<&Value>) -> Option<String> {
     value
@@ -77,48 +77,79 @@ fn value_str_array(value: Option<&Value>) -> Vec<String> {
         .unwrap_or_default()
 }
 
-/// Mint a signed activity record from a Receipt, for `vela land`.
-/// Artifacts are hashed NOW (land time), the head is pinned NOW, and
-/// the record signs under the executor's agent session key (agents) or
-/// lands unsigned-honest for humans (their accept carries the key).
-pub(crate) fn mint_record_for_land(
-    frontier: &std::path::Path,
-    receipt: &crate::workflow::Receipt,
+/// Derive the compatibility activity-record index from one validated Receipt
+/// v1 without writing anything. The canonical receipt remains the evidence
+/// source of truth; every copied field here is a deterministic read-only index
+/// that is bound back to `receipt_digest` and `receipt_path`.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn build_record_for_land(
+    receipt: &vela_protocol::receipt_v1::ReceiptV1,
+    frontier_id: &str,
+    against_head: &str,
+    receipt_digest: &str,
+    receipt_path: &str,
+    operation_id: &str,
     executor: &str,
-) -> Result<serde_json::Value, String> {
-    use sha2::{Digest, Sha256};
+    emitted_at: &str,
+    artifacts: Vec<vela_protocol::record::RecordArtifact>,
+    key: Option<&ed25519_dalek::SigningKey>,
+) -> Result<vela_protocol::record::ActivityRecord, String> {
     use vela_protocol::record::{
-        ActivityRecord, ActivityRecordDraft, RecordArtifact, RecordSource, RecordVerifierRun,
+        ActivityRecord, ActivityRecordDraft, RecordSource, RecordVerifierRun,
     };
 
-    let project = repo::load_from_path(frontier)?;
-    let mut artifacts = Vec::new();
-    for a in &receipt.artifacts {
-        let path = frontier.join(&a.path);
-        let bytes =
-            std::fs::read(&path).map_err(|e| format!("artifact {}: {e}", path.display()))?;
-        artifacts.push(RecordArtifact {
-            locator: a.path.clone(),
-            kind: if a.kind.is_empty() {
-                "witness".to_string()
-            } else {
-                a.kind.clone()
-            },
-            sha256: hex::encode(Sha256::digest(&bytes)),
-            note: String::new(),
-        });
-    }
-    let verifier_runs = receipt
-        .verifier_runs
+    let value = receipt.as_value();
+    let claim = value
+        .get("claim")
+        .and_then(Value::as_str)
+        .ok_or_else(|| "validated receipt is missing claim".to_string())?;
+    let claim_type = value
+        .get("type")
+        .and_then(Value::as_str)
+        .ok_or_else(|| "validated receipt is missing type".to_string())?;
+    let caveats = value
+        .get("caveats")
+        .and_then(Value::as_array)
+        .ok_or_else(|| "validated receipt is missing caveats".to_string())?
         .iter()
-        .map(|r| RecordVerifierRun {
-            method: r.method.clone(),
-            outcome: r.outcome.clone(),
-            output_hash: r.log.clone(),
-            solver: r.solver.clone(),
+        .map(|item| {
+            item.as_str()
+                .map(ToString::to_string)
+                .ok_or_else(|| "validated receipt caveat is not text".to_string())
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    let verifier_runs = value
+        .get("verifier_runs")
+        .and_then(Value::as_array)
+        .ok_or_else(|| "validated receipt is missing verifier_runs".to_string())?
+        .iter()
+        .map(|run| RecordVerifierRun {
+            method: run
+                .get("method")
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+                .to_string(),
+            outcome: run
+                .get("outcome")
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+                .to_string(),
+            output_hash: run
+                .get("output_hash")
+                .or_else(|| run.get("log_digest"))
+                .or_else(|| run.get("log"))
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+                .to_string(),
+            solver: run
+                .get("solver")
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+                .to_string(),
         })
         .collect();
-    let source_env = receipt.environment.get("source").and_then(Value::as_object);
+    let environment = value.get("environment").unwrap_or(&Value::Null);
+    let source_env = environment.get("source").and_then(Value::as_object);
     let source = source_env.map(|source| {
         let name = value_str(source.get("name"))
             .or_else(|| value_str(source.get("project")))
@@ -140,67 +171,32 @@ pub(crate) fn mint_record_for_land(
     let source_refs = source_env
         .map(|source| value_str_array(source.get("source_refs")))
         .unwrap_or_default();
-    let receipt_value = serde_json::to_value(receipt)
-        .map_err(|e| format!("serialize receipt for review binding: {e}"))?;
-    let receipt_bytes = vela_protocol::canonical::to_canonical_bytes(&receipt_value)
-        .map_err(|e| format!("canonicalize receipt for review binding: {e}"))?;
-    let receipt_digest = format!("sha256:{}", hex::encode(Sha256::digest(&receipt_bytes)));
-    let lineage = vela_protocol::receipt_v1::lineage_from_layer(&receipt.lineage);
+    let lineage = vela_protocol::receipt_v1::lineage_from_receipt(value);
     let draft = ActivityRecordDraft {
-        frontier_id: project.frontier_id().to_string(),
-        against_head: vela_protocol::events::event_log_hash(&project.events),
-        assertion: receipt.claim.clone(),
-        assertion_type: receipt.r#type.clone(),
+        frontier_id: frontier_id.to_string(),
+        against_head: against_head.to_string(),
+        assertion: claim.to_string(),
+        assertion_type: claim_type.to_string(),
         artifacts,
         verifier_runs,
-        caveats: receipt.caveats.clone(),
+        caveats,
         source,
         source_refs,
-        receipt_digest,
+        receipt_digest: receipt_digest.to_string(),
+        receipt_path: receipt_path.to_string(),
+        operation_id: operation_id.to_string(),
         lineage,
         emitted_by: executor.to_string(),
-        emitted_at: chrono::Utc::now().to_rfc3339(),
+        emitted_at: emitted_at.to_string(),
     };
-    let key = if executor.starts_with("agent:") || executor.starts_with("ci:") {
-        Some(vela_edge::vela_agent_mcp::agent_signing_key(Some(
-            executor,
-        ))?)
-    } else {
-        None
-    };
-    let record = ActivityRecord::build(draft, key.as_ref())?;
-    // Persist next to the frontier's other records so locators resolve.
-    let records_dir = frontier.join("records");
-    std::fs::create_dir_all(&records_dir).map_err(|e| e.to_string())?;
-    let body = serde_json::to_value(&record).map_err(|e| e.to_string())?;
-    std::fs::write(
-        records_dir.join(format!("{}.json", record.id)),
-        format!(
-            "{}\n",
-            serde_json::to_string_pretty(&body).map_err(|e| e.to_string())?
-        ),
-    )
-    .map_err(|e| e.to_string())?;
-    Ok(body)
+    ActivityRecord::build(draft, key)
 }
 
-/// Land a minted record as a PENDING finding proposal (never applies —
-/// deciding is the policy's or the human's job). Returns the vpr_ id.
-pub(crate) fn propose_record_for_land(
-    frontier: &std::path::Path,
-    record_json: &serde_json::Value,
-) -> Result<String, String> {
-    use vela_protocol::record::ActivityRecord;
-    let rc: ActivityRecord =
-        serde_json::from_value(record_json.clone()).map_err(|e| format!("record parse: {e}"))?;
-    let signed = rc.verify()?;
-    let report = state::add_finding(
-        frontier,
-        rc.to_finding_draft("recorded against the current head", signed),
-        false,
-    )?;
-    if report.proposal_id.is_empty() {
-        return Err("record landed no proposal".to_string());
-    }
-    Ok(report.proposal_id)
+/// Derive the pending finding proposal without applying or persisting it.
+pub(crate) fn proposal_for_record_land(
+    record: &vela_protocol::record::ActivityRecord,
+    at: &str,
+) -> Result<vela_protocol::proposals::StateProposal, String> {
+    let signed = record.verify()?;
+    record.to_finding_proposal_at("recorded against the current head", signed, at)
 }

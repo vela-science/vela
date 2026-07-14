@@ -10,6 +10,11 @@
 
 use std::process::Command;
 
+use ed25519_dalek::SigningKey;
+use sha2::{Digest, Sha256};
+use vela_protocol::identity::{ActorClass, IdentityBinding, IdentityBindingDraft};
+use vela_protocol::receipt_v1::{ArtifactInput, ReceiptBuilder, ReceiptInput};
+
 fn vela_bin() -> &'static str {
     env!("CARGO_BIN_EXE_vela")
 }
@@ -47,6 +52,58 @@ fn run_in(dir: &std::path::Path, args: &[&str]) -> std::process::Output {
         .args(args)
         .output()
         .expect("spawn vela")
+}
+
+fn write_current_receipt(dir: &std::path::Path, filename: &str, claim: &str, replayability: &str) {
+    let artifact_path = "witnesses/w.json";
+    let artifact = std::fs::read(dir.join(artifact_path)).unwrap();
+    let artifact_digest = hex::encode(Sha256::digest(&artifact));
+    let project = vela_protocol::repo::load_from_path(dir).unwrap();
+    let event_root = format!(
+        "sha256:{}",
+        vela_protocol::events::event_log_hash(&project.events)
+    );
+    let operation_id = format!(
+        "vop_{}",
+        hex::encode(Sha256::digest(
+            format!("{claim}\0{replayability}\0{artifact_digest}").as_bytes()
+        ))
+    );
+    let emitted_at = "2026-07-13T12:00:00Z";
+    let identity = IdentityBinding::build(
+        IdentityBindingDraft {
+            actor_id: "agent:t".to_string(),
+            actor_class: ActorClass::Agent,
+            created_at: emitted_at.to_string(),
+        },
+        &SigningKey::from_bytes(&[0x51; 32]),
+    )
+    .unwrap();
+    let input = ReceiptInput::new(
+        claim.to_string(),
+        "computational".to_string(),
+        replayability.to_string(),
+        vec![
+            ArtifactInput::new(
+                artifact_path.to_string(),
+                "witness".to_string(),
+                Some(artifact_digest),
+                None,
+            )
+            .unwrap(),
+        ],
+        vec!["fixture evidence only".to_string()],
+        Vec::new(),
+        "agent:t".to_string(),
+        emitted_at.to_string(),
+        event_root,
+        ".".to_string(),
+        operation_id,
+        "urn:vela:policy:none".to_string(),
+    )
+    .unwrap();
+    let receipt = ReceiptBuilder::build(input, &identity).unwrap();
+    std::fs::write(dir.join(filename), receipt.canonical_bytes().unwrap()).unwrap();
 }
 
 /// Malformed invocations across the command families must be exit 2
@@ -113,7 +170,8 @@ fn state_honors_the_exit_code_contract() {
     );
 }
 
-/// Landing a byte-identical receipt is a retry, not a new finding. The
+/// Landing the same operation identity and normalized receipt is a retry, not
+/// a new finding. The
 /// second land must be exit 5 (already_exists) and must NOT fork a twin
 /// into the sign queue.
 #[test]
@@ -127,13 +185,12 @@ fn land_is_idempotent_on_the_claim() {
     );
     std::fs::create_dir_all(tmp.path().join("witnesses")).unwrap();
     std::fs::write(tmp.path().join("witnesses/w.json"), "{\"k\":\"d\"}").unwrap();
-    std::fs::write(
-        tmp.path().join("r.json"),
-        r#"{"schema":"vela.receipt.v1","claim":"idempotency regression claim",
-            "type":"computational","artifacts":[{"path":"witnesses/w.json","kind":"witness"}],
-            "caveats":["test"],"verifier_runs":[{"method":"d","outcome":"pass","log":"ok"}]}"#,
-    )
-    .unwrap();
+    write_current_receipt(
+        tmp.path(),
+        "r.json",
+        "idempotency regression claim",
+        "exact",
+    );
 
     let first = run_in(tmp.path(), &["land", "r.json", "--as", "agent:t", "--json"]);
     assert!(
@@ -141,11 +198,12 @@ fn land_is_idempotent_on_the_claim() {
         "first land should succeed: {first:?}"
     );
     let second = run_in(tmp.path(), &["land", "r.json", "--as", "agent:t", "--json"]);
-    assert_eq!(
-        second.status.code(),
-        Some(5),
-        "a re-landed identical claim must be exit 5: {second:?}"
+    assert!(
+        second.status.success(),
+        "an exact operation retry must reuse its durable result: {second:?}"
     );
+    let second_json: serde_json::Value = serde_json::from_slice(&second.stdout).unwrap();
+    assert_eq!(second_json["route"], "exact_retry");
 
     // Exactly one item in the sign queue — no twin.
     let q = run_in(tmp.path(), &["sign", "--json"]);
@@ -156,9 +214,8 @@ fn land_is_idempotent_on_the_claim() {
     );
 }
 
-/// The v0.748 receipt replayability class: an explicit honest value lands; a
-/// value outside the closed set is rejected; and a receipt without the field
-/// still lands (defaults to `unknown`) — additive, backward-compatible.
+/// The Receipt v1 replayability class: an explicit honest value lands and a
+/// value outside the frozen closed set is rejected.
 #[test]
 fn land_honors_the_replayability_class() {
     let tmp = tempfile::TempDir::new().unwrap();
@@ -172,14 +229,12 @@ fn land_honors_the_replayability_class() {
     std::fs::write(tmp.path().join("witnesses/w.json"), "{\"k\":\"d\"}").unwrap();
 
     // A valid, honest replayability value lands.
-    std::fs::write(
-        tmp.path().join("ok.json"),
-        r#"{"schema":"vela.receipt.v1","claim":"an approximately-replayable hosted-model run",
-            "type":"computational","replayability":"approximate",
-            "artifacts":[{"path":"witnesses/w.json","kind":"witness"}],
-            "caveats":["a hosted model call may not rerun byte-for-byte"]}"#,
-    )
-    .unwrap();
+    write_current_receipt(
+        tmp.path(),
+        "ok.json",
+        "an approximately-replayable hosted-model run",
+        "approximate",
+    );
     let ok = run_in(
         tmp.path(),
         &["land", "ok.json", "--as", "agent:t", "--json"],
@@ -190,11 +245,14 @@ fn land_honors_the_replayability_class() {
     );
 
     // A value outside the closed set is rejected on the usage contract (exit 2).
+    write_current_receipt(tmp.path(), "bad.json", "a mislabeled run", "exact");
+    let mut bad_receipt: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(tmp.path().join("bad.json")).unwrap()).unwrap();
+    bad_receipt["replayability"] =
+        serde_json::Value::String("totally-reproducible-trust-me".to_string());
     std::fs::write(
         tmp.path().join("bad.json"),
-        r#"{"schema":"vela.receipt.v1","claim":"a mislabeled run","type":"computational",
-            "replayability":"totally-reproducible-trust-me",
-            "artifacts":[{"path":"witnesses/w.json","kind":"witness"}],"caveats":["x"]}"#,
+        serde_json::to_vec(&bad_receipt).unwrap(),
     )
     .unwrap();
     let bad = run_in(
@@ -211,8 +269,8 @@ fn land_honors_the_replayability_class() {
         String::from_utf8_lossy(&bad.stderr)
     );
     assert!(
-        text.contains("replayability"),
-        "the rejection should name the offending field: {text}"
+        text.contains("replayability") || text.contains("totally-reproducible-trust-me"),
+        "the rejection should identify the offending replayability value: {text}"
     );
 }
 

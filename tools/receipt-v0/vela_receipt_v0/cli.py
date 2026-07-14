@@ -1,11 +1,16 @@
 from __future__ import annotations
 
 import argparse
-import json
 import sys
 from pathlib import Path
 
-from .core import dump_json, emit_receipt, load_json, validate_receipt
+from .core import (
+    dump_json,
+    emit_receipt,
+    load_json,
+    strict_json_loads,
+    validate_receipt,
+)
 
 
 def _verifier_run(spec: str) -> dict[str, str]:
@@ -80,7 +85,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     try:
         if args.command == "emit":
-            state_diff = json.loads(args.state_diff_json) if args.state_diff_json else {}
+            state_diff = strict_json_loads(args.state_diff_json) if args.state_diff_json else {}
             receipt = emit_receipt(
                 claim=args.claim,
                 artifacts=args.artifact,

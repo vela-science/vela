@@ -22,7 +22,12 @@ mod tools;
 pub(crate) use tools::{cli_attempt, cli_check, cli_lean, cli_log_verify, cli_proof};
 mod config;
 pub(crate) use config::{cli_admin, cli_agents, cli_experiment, cli_identity, cli_policy};
+// The full durability seam intentionally lands before every legacy writer is
+// migrated, so some caller-facing pieces remain unused inside this slice.
+#[allow(dead_code)]
+pub(crate) mod frontier_txn;
 mod operation_journal;
+pub(crate) mod review_material;
 mod server;
 pub(crate) mod ui;
 pub(crate) mod workflow;

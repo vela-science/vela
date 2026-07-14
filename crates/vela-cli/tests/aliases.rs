@@ -9,7 +9,9 @@
 use std::process::{Command, Output};
 use tempfile::TempDir;
 use vela_protocol::access_tier::AccessTier;
-use vela_protocol::bundle::{Artifact, Extraction, Provenance};
+use vela_protocol::bundle::{
+    Artifact, ArtifactAvailability, ArtifactDisclosure, Extraction, LocatorIntegrity, Provenance,
+};
 
 fn vela(args: &[&str]) -> Output {
     Command::new(env!("CARGO_BIN_EXE_vela"))
@@ -249,6 +251,9 @@ fn artifact_frontier() -> (TempDir, std::path::PathBuf) {
         size_bytes: None,
         media_type: None,
         storage_mode: "remote".to_string(),
+        disclosure: ArtifactDisclosure::Unknown,
+        locator_integrity: LocatorIntegrity::Unknown,
+        availability: ArtifactAvailability::Unknown,
         locator: Some("https://example.test/proof.lean".to_string()),
         source_url: Some("https://example.test/proof.lean".to_string()),
         license: Some("MIT".to_string()),

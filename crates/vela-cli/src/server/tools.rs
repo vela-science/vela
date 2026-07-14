@@ -18,7 +18,9 @@ use vela_protocol::project::Project;
 use vela_protocol::sources;
 use vela_protocol::state;
 
-use super::serve::{ToolError, ToolOutput, clamp_limit, decode_cursor, parse_payload};
+use super::serve::{
+    ToolError, ToolOutput, clamp_limit, decode_cursor, parse_payload, reload_served_project,
+};
 
 /// `orient` — one-call situational awareness: stats, verification posture,
 /// ranked open targets, gap-flagged findings, the recent event tail, the
@@ -623,9 +625,9 @@ pub(crate) async fn tool_propose(
             )
             .await
         }
-        // apply_note: propose-and-apply in one signed call, gated on the
-        // actor's `tier="auto-notes"` registration. Tiers permit
-        // review-context kinds only; never state-changing kinds.
+        // Backward-compatible alias for note. A proposal signature proves who
+        // drafted the note; it is not a signed human decision envelope. Keep
+        // this honestly pending until the separate custody ceremony decides.
         "apply_note" => {
             write_tool_propose(
                 &legacy,
@@ -633,7 +635,7 @@ pub(crate) async fn tool_propose(
                 source_path,
                 "finding.note",
                 |args| build_note_payload(args, "propose kind=apply_note"),
-                true,
+                false,
             )
             .await
         }
@@ -651,7 +653,7 @@ pub(crate) async fn tool_propose(
                     if !(0.0..=1.0).contains(&new_score) {
                         return Err(format!("new_score {new_score} out of [0.0, 1.0]"));
                     }
-                    Ok(json!({"new_score": new_score}))
+                    Ok(json!({"confidence": new_score}))
                 },
                 false,
             )
@@ -714,72 +716,31 @@ pub(crate) fn tool_work(args: &Value, source_path: Option<&Path>) -> ToolOutput 
         }
         Some("land") => {
             let actor = agent_actor("land")?;
-            let receipt_value = args.get("receipt").cloned().ok_or_else(|| {
-                ToolError::invalid("work action=land requires `receipt` (a vela.receipt.v1 object)")
+            let receipt_json = args.get("receipt").and_then(Value::as_str).ok_or_else(|| {
+                ToolError::invalid(
+                    "work action=land requires `receipt` as raw vela.receipt.v1 JSON text",
+                )
             })?;
-            let receipt: crate::workflow::Receipt = serde_json::from_value(receipt_value)
-                .map_err(|e| ToolError::invalid(format!("receipt parse: {e}")))?;
+            // Keep the producer wire text intact until ReceiptV1's bounded,
+            // duplicate-rejecting parser sees it. Parsing MCP `receipt` as a
+            // Value and reserializing here would erase duplicate object names
+            // before the protocol boundary could reject them.
+            let receipt = vela_protocol::receipt_v1::ReceiptV1::parse(receipt_json.as_bytes())
+                .map_err(|e| ToolError::invalid(e.to_string()))?;
             let frontier = frontier_path;
-            let frontier_abs = frontier
-                .canonicalize()
-                .unwrap_or_else(|_| frontier.to_path_buf());
-            let preflight_inputs = receipt
-                .artifacts
-                .iter()
-                .filter_map(|artifact| {
-                    let path = std::path::PathBuf::from(&artifact.path);
-                    let candidate = if path.is_absolute() {
-                        path
-                    } else {
-                        frontier.join(path)
-                    };
-                    candidate
-                        .canonicalize()
-                        .ok()
-                        .filter(|path| path.starts_with(&frontier_abs))
-                })
-                .collect();
-            let publish_opts = crate::config::git_publish::PublishOptions::new(false, false)
-                .with_preflight_inputs(preflight_inputs);
-            let publication_preflight =
-                crate::config::git_publish::publication_preflight(frontier, &publish_opts);
-            if let Err(outcome) = &publication_preflight
-                && crate::config::git_publish::publication_is_busy(outcome)
-            {
-                return Err(
-                    ToolError::new(
-                        crate::serve::ToolErrorKind::PermissionDenied,
-                        "another Vela write/publication owns the served frontier; work action=land changed no scientific state",
-                    )
-                    .with_hint("retry the same land request after the active operation completes"),
-                );
-            }
-            let outcome =
-                crate::workflow::land(frontier, &receipt, actor).map_err(ToolError::classify)?;
+            let outcome = crate::workflow::land(frontier, &receipt, actor, false)
+                .map_err(ToolError::classify)?;
             let (route, detail) = outcome.route.summary();
-            let publication = match publication_preflight {
-                Ok(preflight) => {
-                    let publish_opts = publish_opts.with_preflight(preflight);
-                    crate::config::git_publish::publish_decision(
-                        frontier,
-                        "mcp work land",
-                        &[outcome.proposal_id.clone()],
-                        &publish_opts,
-                    )
-                }
-                Err(outcome) => outcome,
-            };
-            let operation_id = crate::operation_journal::operation_id(
-                "mcp-work-land",
-                outcome.proposal_id.as_bytes(),
-            );
             return Ok((
                 json!({
-                    "operation_id": operation_id,
+                    "operation_id": outcome.operation_id,
+                    "receipt_root": outcome.receipt_root,
+                    "record_id": outcome.record_id,
                     "proposal_id": outcome.proposal_id,
+                    "finding_id": outcome.finding_id,
                     "route": route,
                     "detail": detail,
-                    "publication": publication,
+                    "publication": outcome.publication,
                 }),
                 Vec::new(),
             ));
@@ -1177,33 +1138,10 @@ where
         .unwrap_or_else(|| chrono::Utc::now().to_rfc3339());
     let payload = payload_builder(args)?;
 
-    // Look up the actor's registered pubkey AND tier (Phase α).
-    let (pubkey, tier_permits_apply) = {
-        let project = frontier.lock().await;
-        let actor = project
-            .actors
-            .iter()
-            .find(|actor| actor.id == actor_id)
-            .ok_or_else(|| {
-                format!(
-                    "actor '{actor_id}' is not registered in this frontier; register via `vela actor add` before writing"
-                )
-            })?;
-        let tier_permits = vela_protocol::sign::actor_can_auto_apply(actor, kind);
-        // If the caller asked to auto-apply but the actor's tier doesn't
-        // permit this kind, reject before signature verification — the
-        // capability gate is independent of signing correctness.
-        if apply_if_tier_permits && !tier_permits {
-            let tier_label = actor.tier.as_deref().unwrap_or("none");
-            return Err(format!(
-                "actor '{actor_id}' tier '{tier_label}' does not permit auto-apply for {kind}"
-            ));
-        }
-        (actor.public_key.clone(), tier_permits)
-    };
-
-    // Build the proposal exactly as the CLI would, then verify the signature
-    // against the registered pubkey before persisting.
+    // Build the proposal exactly as the CLI would. The transactional writer
+    // re-loads the actor registry, re-checks its tier, and verifies this
+    // signature while holding the frontier-wide recovery barrier; the MCP
+    // service's cached Project is never a write precondition.
     let mut proposal = vela_protocol::proposals::new_proposal(
         kind,
         vela_protocol::events::StateTarget {
@@ -1220,33 +1158,21 @@ where
     proposal.created_at = created_at;
     proposal.id = vela_protocol::proposals::proposal_id(&proposal);
 
-    let valid = vela_protocol::sign::verify_proposal_signature(&proposal, signature_hex, &pubkey)?;
-    if !valid {
-        return Err(format!(
-            "Signature does not verify for actor '{actor_id}' on this proposal"
-        ));
-    }
+    let result = crate::workflow::transact_signed_proposal(
+        path,
+        proposal,
+        signature_hex,
+        apply_if_tier_permits,
+    )
+    .map_err(|error| format!("transactional proposal failed: {error}"))?;
 
-    // Persist. Phase α: apply iff caller asked AND tier permits (already
-    // enforced above). Phase P guarantees `create_or_apply` is idempotent
-    // either way.
-    let apply = apply_if_tier_permits && tier_permits_apply;
-    let result = vela_protocol::proposals::create_or_apply(path, proposal, apply)
-        .map_err(|e| format!("create_or_apply failed: {e}"))?;
+    // Acquire the cache lock before loading disk. An earlier writer's delayed
+    // refresh must never overwrite a later writer's newer served snapshot.
+    reload_served_project(frontier, path)
+        .await
+        .map_err(|error| format!("reload after write failed: {error}"))?;
 
-    // Refresh the in-memory state from disk so subsequent reads see the write.
-    let fresh = vela_protocol::repo::load_from_path(path)
-        .map_err(|e| format!("reload after write failed: {e}"))?;
-    let mut project = frontier.lock().await;
-    *project = fresh;
-
-    serde_json::to_string(&json!({
-        "proposal_id": result.proposal_id,
-        "finding_id": result.finding_id,
-        "status": result.status,
-        "applied_event_id": result.applied_event_id,
-    }))
-    .map_err(|e| format!("serialize write result: {e}"))
+    serde_json::to_string(&result).map_err(|e| format!("serialize write result: {e}"))
 }
 
 pub(crate) fn tool_search_findings(args: &Value, frontier: &Project) -> Result<String, String> {

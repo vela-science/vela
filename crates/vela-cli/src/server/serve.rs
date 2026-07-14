@@ -1070,6 +1070,25 @@ pub(crate) fn decode_cursor(args: &Value) -> Result<usize, ToolError> {
     }
 }
 
+/// Reload the served read snapshot after a successful path-bound write.
+///
+/// The cache lock is acquired *before* reading disk. Otherwise an earlier
+/// writer can read its old postimage, pause, and overwrite the cache after a
+/// later writer has already installed a newer snapshot. Holding the lock over
+/// reload makes cache installation follow disk observation monotonically,
+/// while the durable frontier transaction remains the write authority.
+pub(crate) async fn reload_served_project(
+    frontier: &Arc<Mutex<Project>>,
+    path: &Path,
+) -> Result<Project, String> {
+    let mut cached = frontier.lock().await;
+    let mut fresh = repo::load_from_path(path)?;
+    sources::materialize_project(&mut fresh);
+    let snapshot = clone_project(&fresh);
+    *cached = fresh;
+    Ok(snapshot)
+}
+
 async fn execute_tool(
     name: &str,
     args: &Value,
@@ -1120,13 +1139,8 @@ async fn execute_tool(
                             None,
                         );
                     };
-                    match repo::load_from_path(path) {
-                        Ok(mut fresh) => {
-                            sources::materialize_project(&mut fresh);
-                            let snapshot = clone_project(&fresh);
-                            *frontier.lock().await = fresh;
-                            (Ok((data, notes)), Some(snapshot))
-                        }
+                    match reload_served_project(frontier, path).await {
+                        Ok(snapshot) => (Ok((data, notes)), Some(snapshot)),
                         Err(error) => {
                             // Preserve the successful write result (including
                             // its operation/publication identifiers) while
@@ -1366,6 +1380,145 @@ mod mcp_service_tests {
         assert_eq!(data["dropped"], "scope:probe");
         assert!(notes.is_empty(), "reload should succeed: {notes:?}");
         assert!(snapshot.is_some(), "successful work must refresh MCP reads");
+    }
+
+    #[tokio::test]
+    async fn delayed_earlier_refresh_cannot_overwrite_a_later_disk_state() {
+        use vela_protocol::sign::ActorRecord;
+
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("cache-race");
+        let mut initial = project::assemble("cache-race", vec![], 0, 0, "initial");
+        initial.project.description = "earlier write".to_string();
+        repo::init_repo(&path, &initial).unwrap();
+
+        let frontier = Arc::new(Mutex::new(initial));
+        // Hold the cache lock so the refresh belonging to the earlier write is
+        // delayed until after a later state has reached disk. The old
+        // load-then-lock sequence could have captured this actor-free snapshot
+        // here and installed it last.
+        let cache_guard = frontier.lock().await;
+        let (started_tx, started_rx) = tokio::sync::oneshot::channel();
+        let early_frontier = Arc::clone(&frontier);
+        let early_path = path.clone();
+        let early_refresh = tokio::spawn(async move {
+            started_tx.send(()).unwrap();
+            reload_served_project(&early_frontier, &early_path).await
+        });
+        started_rx.await.unwrap();
+        tokio::task::yield_now().await;
+
+        let mut later = repo::load_from_path(&path).unwrap();
+        later.actors.push(ActorRecord {
+            id: "agent:later-write".to_string(),
+            public_key: "11".repeat(32),
+            algorithm: "ed25519".to_string(),
+            created_at: "2026-07-14T00:00:00Z".to_string(),
+            tier: None,
+            orcid: None,
+            access_clearance: None,
+            revoked_at: None,
+            revoked_reason: None,
+        });
+        repo::save_to_path(&path, &later).unwrap();
+        let late_frontier = Arc::clone(&frontier);
+        let late_path = path.clone();
+        let late_refresh =
+            tokio::spawn(async move { reload_served_project(&late_frontier, &late_path).await });
+
+        drop(cache_guard);
+        let early_snapshot = early_refresh.await.unwrap().unwrap();
+        let late_snapshot = late_refresh.await.unwrap().unwrap();
+        let has_later_write = |project: &Project| {
+            project
+                .actors
+                .iter()
+                .any(|actor| actor.id == "agent:later-write")
+        };
+        assert!(has_later_write(&early_snapshot));
+        assert!(has_later_write(&late_snapshot));
+        assert!(has_later_write(&*frontier.lock().await));
+    }
+
+    #[tokio::test]
+    async fn registered_auto_notes_actor_gets_an_intentional_pending_result() {
+        use ed25519_dalek::SigningKey;
+        use vela_protocol::events::StateTarget;
+        use vela_protocol::sign::ActorRecord;
+
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("pending-auto-note");
+        let exemplar = repo::load_from_path(&fixture()).unwrap().findings[0].clone();
+        let target = exemplar.id.clone();
+        let key = SigningKey::from_bytes(&[0x5a; 32]);
+        let actor_id = "reviewer:auto-note-fixture";
+        let mut project = project::assemble("pending-auto-note", vec![exemplar], 0, 0, "test");
+        project.actors.push(ActorRecord {
+            id: actor_id.to_string(),
+            public_key: hex::encode(key.verifying_key().to_bytes()),
+            algorithm: "ed25519".to_string(),
+            created_at: "2026-07-14T00:00:00Z".to_string(),
+            tier: Some("auto-notes".to_string()),
+            orcid: None,
+            access_clearance: None,
+            revoked_at: None,
+            revoked_reason: None,
+        });
+        repo::init_repo(&path, &project).unwrap();
+        let frontier = Arc::new(Mutex::new(repo::load_from_path(&path).unwrap()));
+
+        let created_at = "2026-07-14T01:00:00Z";
+        let reason = "record review context without deciding it";
+        let text = "this note must wait for the human ceremony";
+        let proposal = vela_protocol::proposals::new_proposal_at(
+            "finding.note",
+            StateTarget {
+                r#type: "finding".to_string(),
+                id: target.clone(),
+            },
+            actor_id,
+            "human",
+            reason,
+            json!({"text": text}),
+            Vec::new(),
+            Vec::new(),
+            created_at,
+        );
+        let signature = vela_protocol::sign::sign_proposal(&proposal, &key).unwrap();
+        let (data, notes) = tool_propose(
+            &json!({
+                "kind": "apply_note",
+                "target": target,
+                "actor_id": actor_id,
+                "reason": reason,
+                "text": text,
+                "created_at": created_at,
+                "signature": signature,
+            }),
+            &frontier,
+            Some(&path),
+        )
+        .await
+        .unwrap();
+        assert!(notes.is_empty());
+        assert_eq!(data["status"], "pending_review");
+        assert!(data["applied_event_id"].is_null());
+
+        let stored = repo::load_from_path(&path).unwrap();
+        let stored_proposal = stored
+            .proposals
+            .iter()
+            .find(|candidate| candidate.id == proposal.id)
+            .expect("signed note proposal persisted");
+        assert_eq!(stored_proposal.status, "pending_review");
+        assert!(stored_proposal.applied_event_id.is_none());
+        assert!(
+            !stored
+                .events
+                .iter()
+                .any(|event| event.kind == "finding.noted"),
+            "a proposal signature must never become an unsigned note decision"
+        );
     }
 
     #[tokio::test]

@@ -1,8 +1,9 @@
 //! Small, private, fsync-backed operation journals.
 //!
-//! These records are recovery plumbing. They are deliberately stored below
-//! Git's private directory rather than in the frontier, so they can never be
-//! mistaken for scientific state or swept into a publication commit.
+//! These records are recovery plumbing. Git publication stores them below the
+//! Git directory; frontier transactions store them below the ignored private
+//! `.vela/operation-journals` directory. Neither location is scientific state
+//! or part of the publication path set.
 
 use std::fs::{self, File};
 use std::io::Write;
@@ -35,8 +36,7 @@ pub(crate) fn write_json<T: Serialize>(path: &Path, value: &T) -> Result<(), Str
     let parent = path
         .parent()
         .ok_or_else(|| format!("journal path has no parent: {}", path.display()))?;
-    fs::create_dir_all(parent)
-        .map_err(|error| format!("create journal directory {}: {error}", parent.display()))?;
+    ensure_durable_directory(parent)?;
 
     let bytes = serde_json::to_vec_pretty(value)
         .map_err(|error| format!("serialize operation journal: {error}"))?;
@@ -57,6 +57,73 @@ pub(crate) fn write_json<T: Serialize>(path: &Path, value: &T) -> Result<(), Str
             error.error
         )
     })?;
+    sync_directory(parent)
+}
+
+/// Create a journal directory one component at a time and durably link every
+/// newly created component from its parent before it can contain a commit
+/// marker. `create_dir_all` alone is insufficient here: after a power loss the
+/// journal file may have been fsynced while one of its newly-created ancestor
+/// directory entries was not.
+///
+/// Existing symlink or non-directory components fail closed. Callers still
+/// hold their higher-level operation lock; this function additionally checks
+/// each component after creation so a path substitution cannot be silently
+/// accepted as a journal directory.
+fn ensure_durable_directory(path: &Path) -> Result<(), String> {
+    match fs::symlink_metadata(path) {
+        Ok(metadata) => {
+            if metadata.file_type().is_symlink() || !metadata.is_dir() {
+                return Err(format!(
+                    "journal directory component must be a real directory: {}",
+                    path.display()
+                ));
+            }
+            return Ok(());
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => {
+            return Err(format!(
+                "inspect journal directory component {}: {error}",
+                path.display()
+            ));
+        }
+    }
+
+    let parent = path.parent().ok_or_else(|| {
+        format!(
+            "missing journal directory component has no parent: {}",
+            path.display()
+        )
+    })?;
+    ensure_durable_directory(parent)?;
+
+    match fs::create_dir(path) {
+        Ok(()) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {}
+        Err(error) => {
+            return Err(format!(
+                "create journal directory component {}: {error}",
+                path.display()
+            ));
+        }
+    }
+    let metadata = fs::symlink_metadata(path).map_err(|error| {
+        format!(
+            "inspect created journal directory component {}: {error}",
+            path.display()
+        )
+    })?;
+    if metadata.file_type().is_symlink() || !metadata.is_dir() {
+        return Err(format!(
+            "journal directory component must be a real directory: {}",
+            path.display()
+        ));
+    }
+
+    // The new directory's own metadata and the parent entry naming it are
+    // independent durability boundaries on Unix filesystems.
+    sync_directory(path)?;
     sync_directory(parent)
 }
 
@@ -160,5 +227,46 @@ mod tests {
         remove(&journal).unwrap();
         remove(&journal).unwrap();
         assert!(!journal.exists());
+    }
+
+    #[test]
+    fn first_write_durably_creates_each_nested_directory() {
+        let temporary = tempfile::tempdir().unwrap();
+        let nested = temporary
+            .path()
+            .join("frontier")
+            .join("committed")
+            .join("blobs");
+        let journal = nested.join("vop_test.json");
+        let fixture = Fixture {
+            schema: JOURNAL_SCHEMA.to_string(),
+            value: 11,
+        };
+
+        write_json(&journal, &fixture).unwrap();
+
+        assert!(nested.is_dir());
+        assert_eq!(read_json::<Fixture>(&journal).unwrap(), fixture);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn nested_journal_creation_rejects_a_symlink_component() {
+        use std::os::unix::fs::symlink;
+
+        let temporary = tempfile::tempdir().unwrap();
+        let outside = temporary.path().join("outside");
+        fs::create_dir(&outside).unwrap();
+        let linked = temporary.path().join("linked");
+        symlink(&outside, &linked).unwrap();
+        let journal = linked.join("committed").join("vop_test.json");
+        let fixture = Fixture {
+            schema: JOURNAL_SCHEMA.to_string(),
+            value: 13,
+        };
+
+        let error = write_json(&journal, &fixture).unwrap_err();
+        assert!(error.contains("must be a real directory"), "{error}");
+        assert!(!outside.join("committed").exists());
     }
 }

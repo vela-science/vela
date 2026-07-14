@@ -21,7 +21,7 @@ use std::path::Path;
 
 use serde::Serialize;
 use vela_protocol::acceptance_policy::{
-    Constraints, Outcome, PolicyContext, PolicyRule, evaluate, load_active_policy,
+    Constraints, Outcome, PolicyRule, evaluate, load_active_policy,
 };
 use vela_protocol::project::Project;
 use vela_protocol::proposals::StateProposal;
@@ -58,15 +58,7 @@ pub(crate) struct Suggestion {
 /// this class actually fires on the next landing. Everything else falls
 /// back to the text classifier the dry-run uses.
 fn future_claim_class(p: &StateProposal) -> String {
-    let nested = p.payload.get("finding").unwrap_or(&p.payload);
-    if let Some(t @ ("computational" | "theoretical" | "empirical" | "negative")) = nested
-        .get("assertion")
-        .and_then(|a| a.get("type"))
-        .and_then(|v| v.as_str())
-    {
-        return format!("receipt_{t}");
-    }
-    super::cli_policy::proposal_claim_class(p)
+    crate::review_material::proposal_claim_class(p)
 }
 
 /// Fold a frontier's asks into (claim_class, reason) rows, most frequent
@@ -93,14 +85,17 @@ pub(crate) fn ask_histogram(project: &Project, frontier: &Path) -> Result<Vec<As
         match p.status.as_str() {
             // Asks waiting right now.
             "pending_review" => {
-                let class = future_claim_class(p);
                 match &policy {
-                    None => bump(class, "no_signed_policy".to_string(), &p.id),
+                    None => bump(future_claim_class(p), "no_signed_policy".to_string(), &p.id),
                     Some(vp) => {
-                        let ctx = PolicyContext {
-                            claim_class: class.clone(),
-                            ..PolicyContext::default()
-                        };
+                        let receipt =
+                            crate::review_material::frontier_receipt_for_proposal(frontier, p);
+                        let ctx = crate::review_material::derive_existing_proposal_policy_context(
+                            project,
+                            &p.id,
+                            receipt.as_ref(),
+                        );
+                        let class = ctx.claim_class.clone();
                         let d = evaluate(&vp.policy, &ctx, &now);
                         match d.outcome {
                             Outcome::Permit => {}

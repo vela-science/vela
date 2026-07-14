@@ -19,8 +19,13 @@
 //! it decides and certifies but does not change the canonical accept path (no new
 //! event kind, no wire change), so the autonomy can be proven before it is granted.
 
-use serde::{Deserialize, Serialize};
+use serde::{
+    Deserialize, Serialize,
+    de::{self, DeserializeOwned, DeserializeSeed, MapAccess, SeqAccess, Visitor},
+};
+use serde_json::{Map, Value};
 use sha2::{Digest, Sha256};
+use std::{collections::HashSet, fmt};
 
 /// The three routing outcomes. `defer` is the safe default and carries the reason
 /// the transition needs a named human; `deny` is a structural/authority/explicit
@@ -109,9 +114,24 @@ impl Default for PolicyContext {
     }
 }
 
+impl PolicyContext {
+    /// Canonical digest of the complete input surface consumed by the live
+    /// policy language.
+    ///
+    /// Keep this helper beside [`PolicyContext`]: callers must not maintain a
+    /// second hand-picked projection that can drift when the evaluator gains a
+    /// field. The digest is evidence about which facts were evaluated; it is
+    /// not an authority token and cannot turn a producer assertion into a
+    /// verified fact.
+    pub fn policy_language_digest(&self) -> Result<String, String> {
+        crate::canonical::sha256_canonical(self).map(|digest| format!("sha256:{digest}"))
+    }
+}
+
 /// The constraints a `permit` rule places on the transition. A `permit` fires only
 /// if ALL hold; otherwise the rule does not match and routing falls through.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Constraints {
     pub max_changed_findings: u32,
     pub max_downstream_dependents: u32,
@@ -149,6 +169,7 @@ impl Default for Constraints {
 
 /// One rule: an effect plus the claim classes and constraints it applies to.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct PolicyRule {
     pub id: String,
     pub effect: Outcome,
@@ -167,6 +188,7 @@ impl PolicyRule {
 
 /// The quorum that must have signed the policy for it to carry authority.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Quorum {
     pub threshold: u32,
     #[serde(default)]
@@ -178,8 +200,8 @@ pub struct Quorum {
 /// revocation shape with registry governance; this governs ordinary scientific
 /// state transitions, not owner rotation.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct AcceptancePolicy {
-    #[serde(default = "default_schema")]
     pub schema: String,
     pub id: String,
     pub frontier_id: String,
@@ -195,9 +217,7 @@ pub struct AcceptancePolicy {
     pub revocation_ref: Option<String>,
 }
 
-fn default_schema() -> String {
-    "vela.acceptance_policy.v0.1".to_string()
-}
+const ACCEPTANCE_POLICY_SCHEMA: &str = "vela.acceptance_policy.v0.1";
 
 /// The evaluator version, bound into every decision for replay.
 pub const EVALUATOR_VERSION: &str = "vela-policy@0.1.0";
@@ -207,9 +227,13 @@ impl AcceptancePolicy {
     /// the id is reproducible and a tampered policy fails to verify. `vap_` prefix.
     #[must_use]
     pub fn content_address(&self) -> String {
-        let mut probe = self.clone();
-        probe.id = String::new();
-        let bytes = serde_json::to_vec(&probe).unwrap_or_default();
+        let mut body = self.clone();
+        body.id.clear();
+        // AcceptancePolicy contains only the canonical JSON data model. Keep
+        // its content address on the same canonical bytes used by signatures;
+        // never collapse a serialization failure to the hash of empty bytes.
+        let bytes = crate::canonical::to_canonical_bytes(&body)
+            .expect("AcceptancePolicy must serialize as canonical JSON");
         let mut h = Sha256::new();
         h.update(&bytes);
         format!("vap_{}", hex16(&h.finalize()))
@@ -221,15 +245,18 @@ impl AcceptancePolicy {
         self.id == self.content_address()
     }
 
-    /// Is the policy expired at `now` (RFC3339 lexical compare — RFC3339 UTC
-    /// strings sort chronologically)? Conservative: an unparseable/empty
-    /// `expires_at` is treated as expired.
+    /// Is the policy expired at `now`? Both values are parsed as RFC3339
+    /// instants before comparison, so equivalent offsets compare correctly.
+    /// Malformed lifecycle data fails closed and is treated as expired.
     #[must_use]
     pub fn is_expired(&self, now_rfc3339: &str) -> bool {
-        if self.expires_at.is_empty() {
+        let Ok(expires_at) = chrono::DateTime::parse_from_rfc3339(&self.expires_at) else {
             return true;
-        }
-        now_rfc3339 >= self.expires_at.as_str()
+        };
+        let Ok(now) = chrono::DateTime::parse_from_rfc3339(now_rfc3339) else {
+            return true;
+        };
+        now >= expires_at
     }
 }
 
@@ -270,6 +297,13 @@ pub fn evaluate(policy: &AcceptancePolicy, ctx: &PolicyContext, now_rfc3339: &st
     };
 
     // (0) Policy integrity + lifecycle: structural DENY.
+    if policy.schema != ACCEPTANCE_POLICY_SCHEMA {
+        return mk(
+            Outcome::Deny,
+            vec![],
+            vec!["policy_schema_unsupported".into()],
+        );
+    }
     if !policy.id_is_valid() {
         return mk(Outcome::Deny, vec![], vec!["policy_id_mismatch".into()]);
     }
@@ -485,10 +519,12 @@ impl DecisionCertificate {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ed25519_dalek::Signer;
+    use serde_json::json;
 
     fn exact_sidon_policy() -> AcceptancePolicy {
         let mut p = AcceptancePolicy {
-            schema: default_schema(),
+            schema: ACCEPTANCE_POLICY_SCHEMA.to_string(),
             id: String::new(),
             frontier_id: "vfr_test".into(),
             epoch: 1,
@@ -539,6 +575,23 @@ mod tests {
     }
 
     const NOW: &str = "2026-06-23T00:00:00Z";
+    const SIGNED_AT: &str = "2026-06-22T00:00:00Z";
+
+    fn signed_policy_bytes(policy: &AcceptancePolicy, signed_at: &str) -> (Vec<u8>, Vec<u8>) {
+        let key = ed25519_dalek::SigningKey::from_bytes(&[11u8; 32]);
+        let preimage = policy_signature_preimage(policy, signed_at).unwrap();
+        let signature = key.sign(&preimage);
+        let record = PolicySignatureRecord {
+            policy_id: policy.id.clone(),
+            signer_pubkey_hex: hex::encode(key.verifying_key().to_bytes()),
+            signature: hex::encode(signature.to_bytes()),
+            signed_at: signed_at.to_string(),
+        };
+        (
+            serde_json::to_vec_pretty(policy).unwrap(),
+            serde_json::to_vec_pretty(&record).unwrap(),
+        )
+    }
 
     #[test]
     fn exact_clean_witness_permits() {
@@ -603,6 +656,34 @@ mod tests {
     }
 
     #[test]
+    fn expiry_compares_rfc3339_instants_and_malformed_values_fail_closed() {
+        let mut policy = exact_sidon_policy();
+        policy.expires_at = "2026-06-23T00:00:00Z".to_string();
+
+        assert!(!policy.is_expired("2026-06-23T01:59:59+02:00"));
+        assert!(policy.is_expired("2026-06-22T20:00:00-04:00"));
+        assert!(policy.is_expired("not-rfc3339"));
+
+        policy.id = policy.content_address();
+        let decision = evaluate(&policy, &clean_exact_ctx(), "not-rfc3339");
+        assert_eq!(decision.outcome, Outcome::Deny);
+        assert_eq!(decision.reasons, vec!["policy_expired"]);
+
+        policy.expires_at = "also-not-rfc3339".to_string();
+        assert!(policy.is_expired(NOW));
+    }
+
+    #[test]
+    fn unsupported_policy_schema_denies_even_with_a_matching_id() {
+        let mut policy = exact_sidon_policy();
+        policy.schema = "vela.acceptance_policy.v999".to_string();
+        policy.id = policy.content_address();
+        let decision = evaluate(&policy, &clean_exact_ctx(), NOW);
+        assert_eq!(decision.outcome, Outcome::Deny);
+        assert_eq!(decision.reasons, vec!["policy_schema_unsupported"]);
+    }
+
+    #[test]
     fn tampered_policy_id_denies() {
         let mut p = exact_sidon_policy();
         p.rules[0].constraints.required_assurance_min = 0; // change body, keep old id
@@ -636,10 +717,280 @@ mod tests {
     }
 
     #[test]
+    fn policy_context_digest_is_canonical_and_binds_every_live_field() {
+        let baseline = clean_exact_ctx();
+        let digest = baseline.policy_language_digest().unwrap();
+        assert!(digest.starts_with("sha256:"));
+        assert_eq!(digest, baseline.policy_language_digest().unwrap());
+
+        let mut variants = Vec::new();
+        let mut value = baseline.clone();
+        value.claim_class.push_str("_changed");
+        variants.push(value);
+        let mut value = baseline.clone();
+        value.assurance_level += 1;
+        variants.push(value);
+        let mut value = baseline.clone();
+        value.impact_tier += 1;
+        variants.push(value);
+        let mut value = baseline.clone();
+        value.changed_findings += 1;
+        variants.push(value);
+        let mut value = baseline.clone();
+        value.downstream_dependents += 1;
+        variants.push(value);
+        let mut value = baseline.clone();
+        value.assertion_text_mutated = !value.assertion_text_mutated;
+        variants.push(value);
+        let mut value = baseline.clone();
+        value.target_contested = !value.target_contested;
+        variants.push(value);
+        let mut value = baseline.clone();
+        value.governance_mutation = !value.governance_mutation;
+        variants.push(value);
+        let mut value = baseline.clone();
+        value.independence_satisfied = !value.independence_satisfied;
+        variants.push(value);
+        let mut value = baseline.clone();
+        value.method_integrity_sound = !value.method_integrity_sound;
+        variants.push(value);
+        let mut value = baseline.clone();
+        value.credential_valid = !value.credential_valid;
+        variants.push(value);
+        let mut value = baseline.clone();
+        value.has_unknown_fields = !value.has_unknown_fields;
+        variants.push(value);
+        let mut value = baseline.clone();
+        value.replayability = "exact".to_string();
+        variants.push(value);
+
+        for variant in variants {
+            assert_ne!(digest, variant.policy_language_digest().unwrap());
+        }
+    }
+
+    #[test]
     fn content_address_is_stable_and_prefixed() {
         let p = exact_sidon_policy();
         assert!(p.id.starts_with("vap_"));
         assert!(p.id_is_valid());
+
+        let mut body = p.clone();
+        body.id.clear();
+        let canonical = crate::canonical::to_canonical_bytes(&body).unwrap();
+        let mut digest = Sha256::new();
+        digest.update(canonical);
+        assert_eq!(p.id, format!("vap_{}", hex16(&digest.finalize())));
+    }
+
+    #[test]
+    fn bounded_closed_parser_accepts_only_the_supported_policy_shape() {
+        let policy = exact_sidon_policy();
+        let (policy_bytes, signature_bytes) = signed_policy_bytes(&policy, SIGNED_AT);
+        let verified = verify_policy_signature_bytes(
+            &policy_bytes,
+            &signature_bytes,
+            Some(&policy.id),
+            "test policy",
+        )
+        .unwrap();
+        assert_eq!(verified.policy, policy);
+        assert!(verified.signed_at_bound);
+
+        let mut cases = Vec::new();
+        let mut value = serde_json::to_value(&policy).unwrap();
+        value["unexpected"] = json!(true);
+        cases.push(value);
+        let mut value = serde_json::to_value(&policy).unwrap();
+        value["quorum"]["unexpected"] = json!(true);
+        cases.push(value);
+        let mut value = serde_json::to_value(&policy).unwrap();
+        value["rules"][0]["unexpected"] = json!(true);
+        cases.push(value);
+        let mut value = serde_json::to_value(&policy).unwrap();
+        value["rules"][0]["constraints"]["unexpected"] = json!(true);
+        cases.push(value);
+
+        for value in cases {
+            let error = verify_policy_signature_bytes(
+                &serde_json::to_vec(&value).unwrap(),
+                &signature_bytes,
+                None,
+                "test policy",
+            )
+            .unwrap_err();
+            assert!(error.contains("unknown field `unexpected`"), "{error}");
+        }
+
+        let mut missing_schema = serde_json::to_value(&policy).unwrap();
+        missing_schema.as_object_mut().unwrap().remove("schema");
+        let error = verify_policy_signature_bytes(
+            &serde_json::to_vec(&missing_schema).unwrap(),
+            &signature_bytes,
+            None,
+            "test policy",
+        )
+        .unwrap_err();
+        assert!(error.contains("missing field `schema`"), "{error}");
+
+        let mut unsupported_schema = serde_json::to_value(&policy).unwrap();
+        unsupported_schema["schema"] = json!("vela.acceptance_policy.v999");
+        let error = verify_policy_signature_bytes(
+            &serde_json::to_vec(&unsupported_schema).unwrap(),
+            &signature_bytes,
+            None,
+            "test policy",
+        )
+        .unwrap_err();
+        assert!(error.contains("schema must be"), "{error}");
+
+        let mut bad_expiry = serde_json::to_value(&policy).unwrap();
+        bad_expiry["expires_at"] = json!("not-rfc3339");
+        let error = verify_policy_signature_bytes(
+            &serde_json::to_vec(&bad_expiry).unwrap(),
+            &signature_bytes,
+            None,
+            "test policy",
+        )
+        .unwrap_err();
+        assert!(error.contains("expires_at must be RFC3339"), "{error}");
+
+        let mut signature_value: Value = serde_json::from_slice(&signature_bytes).unwrap();
+        signature_value["unexpected"] = json!(true);
+        let error = verify_policy_signature_bytes(
+            &policy_bytes,
+            &serde_json::to_vec(&signature_value).unwrap(),
+            None,
+            "test policy",
+        )
+        .unwrap_err();
+        assert!(error.contains("unknown field `unexpected`"), "{error}");
+    }
+
+    #[test]
+    fn duplicate_names_are_rejected_in_policy_and_signature_envelopes() {
+        let policy = exact_sidon_policy();
+        let (policy_bytes, signature_bytes) = signed_policy_bytes(&policy, SIGNED_AT);
+        let policy_json = String::from_utf8(policy_bytes).unwrap();
+        for malicious in [
+            policy_json.replacen("\"epoch\": 1", "\"epoch\": 1,\n  \"epoch\": 2", 1),
+            policy_json.replacen("\"epoch\": 1", "\"epoch\": 1,\n  \"e\\u0070och\": 2", 1),
+            policy_json.replacen(
+                "\"threshold\": 1",
+                "\"threshold\": 1,\n    \"threshold\": 2",
+                1,
+            ),
+        ] {
+            let error = verify_policy_signature_bytes(
+                malicious.as_bytes(),
+                &signature_bytes,
+                None,
+                "test policy",
+            )
+            .unwrap_err();
+            assert!(error.contains("duplicate object name"), "{error}");
+        }
+
+        let signature_json = String::from_utf8(signature_bytes).unwrap();
+        let malicious = signature_json.replacen(
+            &format!("\"signed_at\": \"{SIGNED_AT}\""),
+            &format!("\"signed_at\": \"{SIGNED_AT}\",\n  \"signed_at\": \"2099-01-01T00:00:00Z\""),
+            1,
+        );
+        let policy_bytes = serde_json::to_vec(&policy).unwrap();
+        let error =
+            verify_policy_signature_bytes(&policy_bytes, malicious.as_bytes(), None, "test policy")
+                .unwrap_err();
+        assert!(error.contains("duplicate object name"), "{error}");
+    }
+
+    #[test]
+    fn parser_budgets_reject_oversized_and_excessively_deep_governance_json() {
+        let policy = exact_sidon_policy();
+        let (_, signature_bytes) = signed_policy_bytes(&policy, SIGNED_AT);
+        let oversized = vec![b' '; POLICY_JSON_MAX_BYTES + 1];
+        let error =
+            verify_policy_signature_bytes(&oversized, &signature_bytes, None, "test policy")
+                .unwrap_err();
+        assert!(error.contains("limit is 65536 bytes"), "{error}");
+
+        let deep = format!(
+            "{}0{}",
+            "{\"nested\":".repeat(GOVERNANCE_JSON_MAX_DEPTH + 1),
+            "}".repeat(GOVERNANCE_JSON_MAX_DEPTH + 1)
+        );
+        let error =
+            verify_policy_signature_bytes(deep.as_bytes(), &signature_bytes, None, "test policy")
+                .unwrap_err();
+        assert!(error.contains("JSON depth"), "{error}");
+
+        let policy_bytes = serde_json::to_vec(&policy).unwrap();
+        let oversized_signature = vec![b' '; POLICY_SIGNATURE_JSON_MAX_BYTES + 1];
+        let error =
+            verify_policy_signature_bytes(&policy_bytes, &oversized_signature, None, "test policy")
+                .unwrap_err();
+        assert!(error.contains("limit is 8192 bytes"), "{error}");
+    }
+
+    #[test]
+    fn signatures_bind_supported_policy_and_signed_at_without_legacy_fallback() {
+        let policy = exact_sidon_policy();
+        let (policy_bytes, signature_bytes) = signed_policy_bytes(&policy, SIGNED_AT);
+
+        let mut rewritten: PolicySignatureRecord =
+            serde_json::from_slice(&signature_bytes).unwrap();
+        rewritten.signed_at = "2026-06-22T00:00:01Z".to_string();
+        let error = verify_policy_signature_bytes(
+            &policy_bytes,
+            &serde_json::to_vec(&rewritten).unwrap(),
+            None,
+            "test policy",
+        )
+        .unwrap_err();
+        assert!(error.contains("signature does not verify"), "{error}");
+
+        rewritten.signed_at = "not-rfc3339".to_string();
+        let error = verify_policy_signature_bytes(
+            &policy_bytes,
+            &serde_json::to_vec(&rewritten).unwrap(),
+            None,
+            "test policy",
+        )
+        .unwrap_err();
+        assert!(error.contains("signed_at must be RFC3339"), "{error}");
+        assert!(policy_signature_preimage(&policy, "not-rfc3339").is_err());
+
+        let key = ed25519_dalek::SigningKey::from_bytes(&[11u8; 32]);
+        let legacy_signature = key.sign(&crate::canonical::to_canonical_bytes(&policy).unwrap());
+        let legacy_record = PolicySignatureRecord {
+            policy_id: policy.id.clone(),
+            signer_pubkey_hex: hex::encode(key.verifying_key().to_bytes()),
+            signature: hex::encode(legacy_signature.to_bytes()),
+            signed_at: SIGNED_AT.to_string(),
+        };
+        let error = verify_policy_signature_bytes(
+            &policy_bytes,
+            &serde_json::to_vec(&legacy_record).unwrap(),
+            None,
+            "test policy",
+        )
+        .unwrap_err();
+        assert!(error.contains("signature does not verify"), "{error}");
+
+        let mut changed = policy.clone();
+        changed.expires_at = "2098-12-31T23:59:59Z".to_string();
+        changed.id = changed.content_address();
+        let mut stale_record: PolicySignatureRecord =
+            serde_json::from_slice(&signature_bytes).unwrap();
+        stale_record.policy_id = changed.id.clone();
+        let error = verify_policy_signature_bytes(
+            &serde_json::to_vec(&changed).unwrap(),
+            &serde_json::to_vec(&stale_record).unwrap(),
+            None,
+            "test policy",
+        )
+        .unwrap_err();
+        assert!(error.contains("signature does not verify"), "{error}");
     }
 
     #[test]
@@ -676,8 +1027,11 @@ mod tests {
 }
 
 /// The signature envelope over a SEALED policy: the one governance act.
-/// `signature` is Ed25519 over the sealed policy's canonical bytes.
+///
+/// Signatures are Ed25519 over [`policy_signature_preimage`], which binds both
+/// the sealed policy and `signed_at`. Unbound legacy signatures are rejected.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct PolicySignatureRecord {
     pub policy_id: String,
     pub signer_pubkey_hex: String,
@@ -689,9 +1043,490 @@ pub struct PolicySignatureRecord {
 /// signature verifies over the sealed bytes. AUTHORITY still requires the
 /// caller to check the signer is a registered human reviewer on the
 /// frontier — the file system is not an actor table.
+#[derive(Debug, Clone)]
 pub struct VerifiedPolicy {
     pub policy: AcceptancePolicy,
     pub signer_pubkey_hex: String,
+    pub signed_at: String,
+    /// Always true for values returned by the current verifier. Retained as an
+    /// explicit binding fact for certificates and snapshot consistency checks.
+    pub signed_at_bound: bool,
+}
+
+/// One read of both mutable active-policy paths while the caller owns its
+/// frontier recovery barrier. The exact bytes (or exact absence) are retained
+/// so callers can bind the same snapshot into a marker-time read set and copy
+/// the same bytes into a content-addressed policy snapshot.
+#[derive(Debug, Clone)]
+pub struct ActivePolicySnapshot {
+    pub policy_bytes: Option<Vec<u8>>,
+    pub signature_bytes: Option<Vec<u8>>,
+    pub verified: Option<VerifiedPolicy>,
+}
+
+// Governance files are deliberately much smaller than general repository
+// objects. The byte ceiling is the first bound; the structural budgets prevent
+// a compact adversarial document from spending unbounded parser work.
+const POLICY_JSON_MAX_BYTES: usize = 64 * 1024;
+const POLICY_SIGNATURE_JSON_MAX_BYTES: usize = 8 * 1024;
+const GOVERNANCE_JSON_MAX_DEPTH: usize = 16;
+const GOVERNANCE_JSON_MAX_NODES: usize = 4_096;
+const GOVERNANCE_JSON_MAX_OBJECT_FIELDS: usize = 2_048;
+const GOVERNANCE_JSON_MAX_ARRAY_ELEMENTS: usize = 2_048;
+const GOVERNANCE_JSON_MAX_STRING_BYTES: usize = 16 * 1024;
+
+#[derive(Debug, Clone, Copy)]
+struct GovernanceJsonLimits {
+    bytes: usize,
+}
+
+#[derive(Debug)]
+struct GovernanceJsonState {
+    nodes: usize,
+    object_fields: usize,
+    array_elements: usize,
+}
+
+impl GovernanceJsonState {
+    fn bump_node<E: de::Error>(&mut self, path: &str) -> Result<(), E> {
+        self.nodes = self.nodes.saturating_add(1);
+        if self.nodes > GOVERNANCE_JSON_MAX_NODES {
+            return Err(E::custom(format!(
+                "{path}: JSON node budget exceeds {GOVERNANCE_JSON_MAX_NODES}"
+            )));
+        }
+        Ok(())
+    }
+
+    fn bump_object_field<E: de::Error>(&mut self, path: &str) -> Result<(), E> {
+        self.object_fields = self.object_fields.saturating_add(1);
+        if self.object_fields > GOVERNANCE_JSON_MAX_OBJECT_FIELDS {
+            return Err(E::custom(format!(
+                "{path}: object-field budget exceeds {GOVERNANCE_JSON_MAX_OBJECT_FIELDS}"
+            )));
+        }
+        Ok(())
+    }
+
+    fn bump_array_element<E: de::Error>(&mut self, path: &str) -> Result<(), E> {
+        self.array_elements = self.array_elements.saturating_add(1);
+        if self.array_elements > GOVERNANCE_JSON_MAX_ARRAY_ELEMENTS {
+            return Err(E::custom(format!(
+                "{path}: array-element budget exceeds {GOVERNANCE_JSON_MAX_ARRAY_ELEMENTS}"
+            )));
+        }
+        Ok(())
+    }
+
+    fn check_depth<E: de::Error>(&self, path: &str, depth: usize) -> Result<(), E> {
+        if depth > GOVERNANCE_JSON_MAX_DEPTH {
+            return Err(E::custom(format!(
+                "{path}: JSON depth is {depth}; limit is {GOVERNANCE_JSON_MAX_DEPTH}"
+            )));
+        }
+        Ok(())
+    }
+
+    fn check_string<E: de::Error>(&self, path: &str, value: &str) -> Result<(), E> {
+        if value.len() > GOVERNANCE_JSON_MAX_STRING_BYTES {
+            return Err(E::custom(format!(
+                "{path}: string is {} bytes; limit is {GOVERNANCE_JSON_MAX_STRING_BYTES} bytes",
+                value.len()
+            )));
+        }
+        Ok(())
+    }
+}
+
+struct GovernanceValueSeed<'a> {
+    state: &'a mut GovernanceJsonState,
+    parent_depth: usize,
+    path: String,
+}
+
+impl<'de> DeserializeSeed<'de> for GovernanceValueSeed<'_> {
+    type Value = Value;
+
+    fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+    where
+        D: de::Deserializer<'de>,
+    {
+        self.state.bump_node::<D::Error>(&self.path)?;
+        deserializer.deserialize_any(GovernanceValueVisitor {
+            state: self.state,
+            parent_depth: self.parent_depth,
+            path: self.path,
+        })
+    }
+}
+
+struct GovernanceValueVisitor<'a> {
+    state: &'a mut GovernanceJsonState,
+    parent_depth: usize,
+    path: String,
+}
+
+impl<'de> Visitor<'de> for GovernanceValueVisitor<'_> {
+    type Value = Value;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("bounded JSON without duplicate object names")
+    }
+
+    fn visit_bool<E>(self, value: bool) -> Result<Self::Value, E> {
+        Ok(Value::Bool(value))
+    }
+
+    fn visit_i64<E>(self, value: i64) -> Result<Self::Value, E> {
+        Ok(Value::Number(value.into()))
+    }
+
+    fn visit_u64<E>(self, value: u64) -> Result<Self::Value, E> {
+        Ok(Value::Number(value.into()))
+    }
+
+    fn visit_f64<E>(self, value: f64) -> Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
+        serde_json::Number::from_f64(value)
+            .map(Value::Number)
+            .ok_or_else(|| E::custom(format!("{}: non-finite number", self.path)))
+    }
+
+    fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
+        self.state.check_string::<E>(&self.path, value)?;
+        Ok(Value::String(value.to_string()))
+    }
+
+    fn visit_borrowed_str<E>(self, value: &'de str) -> Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
+        self.visit_str(value)
+    }
+
+    fn visit_string<E>(self, value: String) -> Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
+        self.state.check_string::<E>(&self.path, &value)?;
+        Ok(Value::String(value))
+    }
+
+    fn visit_none<E>(self) -> Result<Self::Value, E> {
+        Ok(Value::Null)
+    }
+
+    fn visit_unit<E>(self) -> Result<Self::Value, E> {
+        Ok(Value::Null)
+    }
+
+    fn visit_seq<A>(self, mut sequence: A) -> Result<Self::Value, A::Error>
+    where
+        A: SeqAccess<'de>,
+    {
+        let depth = self.parent_depth.saturating_add(1);
+        self.state.check_depth::<A::Error>(&self.path, depth)?;
+        let mut values = Vec::with_capacity(sequence.size_hint().unwrap_or(0).min(256));
+        let mut index = 0usize;
+        loop {
+            let child_path = format!("{}[{index}]", self.path);
+            let seed = GovernanceValueSeed {
+                state: self.state,
+                parent_depth: depth,
+                path: child_path.clone(),
+            };
+            let Some(value) = sequence.next_element_seed(seed)? else {
+                break;
+            };
+            self.state.bump_array_element::<A::Error>(&child_path)?;
+            values.push(value);
+            index = index.saturating_add(1);
+        }
+        Ok(Value::Array(values))
+    }
+
+    fn visit_map<A>(self, mut entries: A) -> Result<Self::Value, A::Error>
+    where
+        A: MapAccess<'de>,
+    {
+        let depth = self.parent_depth.saturating_add(1);
+        self.state.check_depth::<A::Error>(&self.path, depth)?;
+        let mut value = Map::new();
+        let mut names = HashSet::new();
+        while let Some(key) = entries.next_key::<String>()? {
+            self.state.check_string::<A::Error>(&self.path, &key)?;
+            let child_path = format!("{}.{}", self.path, key);
+            self.state.bump_object_field::<A::Error>(&child_path)?;
+            if !names.insert(key.clone()) {
+                return Err(<A::Error as de::Error>::custom(format!(
+                    "{child_path}: duplicate object name `{key}`"
+                )));
+            }
+            let item = entries.next_value_seed(GovernanceValueSeed {
+                state: self.state,
+                parent_depth: depth,
+                path: child_path,
+            })?;
+            value.insert(key, item);
+        }
+        Ok(Value::Object(value))
+    }
+}
+
+fn parse_bounded_governance_json<T: DeserializeOwned>(
+    bytes: &[u8],
+    limits: GovernanceJsonLimits,
+    label: &str,
+) -> Result<T, String> {
+    if bytes.len() > limits.bytes {
+        return Err(format!(
+            "{label} parse: encoded JSON is {} bytes; limit is {} bytes",
+            bytes.len(),
+            limits.bytes
+        ));
+    }
+    let mut state = GovernanceJsonState {
+        nodes: 0,
+        object_fields: 0,
+        array_elements: 0,
+    };
+    let mut deserializer = serde_json::Deserializer::from_slice(bytes);
+    let value = GovernanceValueSeed {
+        state: &mut state,
+        parent_depth: 0,
+        path: "$".to_string(),
+    }
+    .deserialize(&mut deserializer)
+    .map_err(|error| format!("{label} parse: {error}"))?;
+    deserializer
+        .end()
+        .map_err(|error| format!("{label} parse: {error}"))?;
+    serde_json::from_value(value).map_err(|error| format!("{label} parse: {error}"))
+}
+
+fn validate_rfc3339(label: &str, value: &str) -> Result<(), String> {
+    chrono::DateTime::parse_from_rfc3339(value)
+        .map(|_| ())
+        .map_err(|error| format!("{label} must be RFC3339: {error}"))
+}
+
+fn validate_supported_policy(policy: &AcceptancePolicy, label: &str) -> Result<(), String> {
+    if policy.schema != ACCEPTANCE_POLICY_SCHEMA {
+        return Err(format!(
+            "{label} schema must be {ACCEPTANCE_POLICY_SCHEMA}, got {}",
+            policy.schema
+        ));
+    }
+    validate_rfc3339(&format!("{label} expires_at"), &policy.expires_at)
+}
+
+const POLICY_SIGNATURE_INPUT_SCHEMA: &str = "vela.policy-signature-input.v1";
+
+#[derive(Serialize)]
+struct PolicySignatureInput<'a> {
+    schema: &'static str,
+    policy: &'a AcceptancePolicy,
+    signed_at: &'a str,
+}
+
+/// Domain-separated bytes signed by every newly issued policy signature.
+/// Binding `signed_at` prevents an attacker from rewriting policy chronology
+/// while retaining a valid signature over the policy body.
+pub fn policy_signature_preimage(
+    policy: &AcceptancePolicy,
+    signed_at: &str,
+) -> Result<Vec<u8>, String> {
+    validate_supported_policy(policy, "policy signature input")?;
+    validate_rfc3339("policy signed_at", signed_at)?;
+    crate::canonical::to_canonical_bytes(&PolicySignatureInput {
+        schema: POLICY_SIGNATURE_INPUT_SCHEMA,
+        policy,
+        signed_at,
+    })
+    .map_err(|error| format!("canonical policy signature input: {error}"))
+}
+
+/// Frontier-scoped authority resolved from a verified singular policy
+/// signature. Actor ids, rather than public keys, are the durable human
+/// authorizers carried into decision certificates.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PolicyAuthority {
+    pub human_authorizers: Vec<String>,
+}
+
+/// Resolve the human authority behind a cryptographically valid policy.
+///
+/// Loading first proves a closed, supported policy shape and a signature that
+/// binds its timestamp. This frontier-scoped predicate then proves lifecycle
+/// and actor authority for both live Permit and strict replay. The current
+/// signature envelope contains one signature, so it can satisfy only a
+/// one-person quorum whose eligible roles admit a reviewer or steward.
+pub fn resolve_policy_authority(
+    project: &crate::project::Project,
+    verified: &VerifiedPolicy,
+    decision_time: &str,
+) -> Result<PolicyAuthority, String> {
+    resolve_policy_authority_inner(project, verified, decision_time)
+}
+
+fn resolve_policy_authority_inner(
+    project: &crate::project::Project,
+    verified: &VerifiedPolicy,
+    decision_time: &str,
+) -> Result<PolicyAuthority, String> {
+    if !verified.signed_at_bound {
+        return Err(format!(
+            "policy {} uses a legacy signature that does not bind signed_at and cannot authorize Permit",
+            verified.policy.id
+        ));
+    }
+    validate_supported_policy(&verified.policy, "verified policy")?;
+    if !verified.policy.id_is_valid() {
+        return Err(format!(
+            "verified policy {} id does not re-derive",
+            verified.policy.id
+        ));
+    }
+    validate_rfc3339("policy decision time", decision_time)?;
+    if verified.policy.is_expired(decision_time) {
+        return Err(format!(
+            "policy {} is expired at decision time",
+            verified.policy.id
+        ));
+    }
+    if verified.policy.revocation_ref.is_some() {
+        return Err(format!("policy {} is revoked", verified.policy.id));
+    }
+    let frontier_id = project
+        .frontier_id
+        .as_deref()
+        .ok_or_else(|| "policy authority requires a frontier id".to_string())?;
+    if verified.policy.frontier_id != frontier_id {
+        return Err(format!(
+            "policy frontier mismatch: policy {} targets {}, current frontier is {frontier_id}",
+            verified.policy.id, verified.policy.frontier_id
+        ));
+    }
+
+    if verified.policy.quorum.threshold != 1 {
+        return Err(format!(
+            "singular policy signature cannot satisfy quorum threshold {} (must be exactly 1)",
+            verified.policy.quorum.threshold
+        ));
+    }
+    let eligible_roles = verified
+        .policy
+        .quorum
+        .eligible_roles
+        .iter()
+        .map(|role| role.trim().to_ascii_lowercase())
+        .collect::<std::collections::BTreeSet<_>>();
+    if !eligible_roles
+        .iter()
+        .any(|role| matches!(role.as_str(), "reviewer" | "steward"))
+    {
+        return Err("policy quorum eligible_roles must admit a reviewer or steward".to_string());
+    }
+
+    let matching = project
+        .actors
+        .iter()
+        .filter(|actor| {
+            actor
+                .public_key
+                .eq_ignore_ascii_case(&verified.signer_pubkey_hex)
+        })
+        .collect::<Vec<_>>();
+    let actor = match matching.as_slice() {
+        [] => {
+            return Err(format!(
+                "policy signer pubkey {} is not a registered actor on this frontier",
+                verified.signer_pubkey_hex
+            ));
+        }
+        [actor] => *actor,
+        _ => {
+            return Err(format!(
+                "policy signer pubkey {} resolves ambiguously to {} actors on this frontier",
+                verified.signer_pubkey_hex,
+                matching.len()
+            ));
+        }
+    };
+    let actor_role = actor
+        .id
+        .split_once(':')
+        .map(|(role, _)| role.trim().to_ascii_lowercase())
+        .unwrap_or_default();
+    let registered_human_role = matches!(actor_role.as_str(), "reviewer" | "steward")
+        && !crate::proposals::is_placeholder_reviewer(&actor.id);
+    if !registered_human_role {
+        return Err(format!(
+            "policy signer actor '{}' is not a registered reviewer or steward human",
+            actor.id
+        ));
+    }
+    if !eligible_roles.contains(&actor_role) {
+        return Err(format!(
+            "policy signer actor '{}' has registered role '{}', which is not in eligible_roles",
+            actor.id, actor_role
+        ));
+    }
+    if !verified
+        .policy
+        .issued_by
+        .iter()
+        .any(|issuer| issuer == &actor.id)
+    {
+        return Err(format!(
+            "policy signer actor '{}' is not named in issued_by",
+            actor.id
+        ));
+    }
+
+    let parse_time = |label: &str, value: &str| {
+        chrono::DateTime::parse_from_rfc3339(value)
+            .map_err(|error| format!("{label} must be RFC3339: {error}"))
+    };
+    let actor_created_at = parse_time("actor created_at", &actor.created_at)?;
+    let signed_at = parse_time("policy signed_at", &verified.signed_at)?;
+    let decision_at = parse_time("policy decision time", decision_time)?;
+    if actor_created_at >= signed_at {
+        return Err(format!(
+            "policy signer actor '{}' was not registered before policy signing",
+            actor.id
+        ));
+    }
+    if signed_at > decision_at {
+        return Err(format!(
+            "policy {} was signed after the decision time",
+            verified.policy.id
+        ));
+    }
+    if let Some(revoked_at) = actor.revoked_at.as_deref() {
+        let revoked_at = parse_time("actor revoked_at", revoked_at)?;
+        if revoked_at <= signed_at {
+            return Err(format!(
+                "policy signer actor '{}' was revoked at policy signing",
+                actor.id
+            ));
+        }
+        if revoked_at <= decision_at {
+            return Err(format!(
+                "policy signer actor '{}' is revoked at decision time",
+                actor.id
+            ));
+        }
+    }
+
+    Ok(PolicyAuthority {
+        human_authorizers: vec![actor.id.clone()],
+    })
 }
 
 /// Load `.vela/policies/active.json` + `active.sig.json` from a frontier
@@ -700,40 +1535,97 @@ pub struct VerifiedPolicy {
 pub fn load_active_policy(
     frontier_dir: &std::path::Path,
 ) -> Result<Option<VerifiedPolicy>, String> {
-    use ed25519_dalek::Verifier;
+    Ok(load_active_policy_snapshot(frontier_dir)?.verified)
+}
+
+/// Load the active policy paths exactly once, retaining the bytes that were
+/// verified. A present policy without a signature is a staged, closed lane;
+/// an orphan signature is corruption and never fails open.
+pub fn load_active_policy_snapshot(
+    frontier_dir: &std::path::Path,
+) -> Result<ActivePolicySnapshot, String> {
     let dir = frontier_dir.join(".vela").join("policies");
     let policy_path = dir.join("active.json");
     let sig_path = dir.join("active.sig.json");
-    if !policy_path.exists() {
-        return Ok(None);
+    let policy_bytes = read_optional_regular_file(&policy_path, "active policy")?;
+    let signature_bytes = read_optional_regular_file(&sig_path, "active policy signature")?;
+    let verified = match (&policy_bytes, &signature_bytes) {
+        (None, None) | (Some(_), None) => None,
+        (None, Some(_)) => {
+            return Err(
+                "active policy signature exists without .vela/policies/active.json".to_string(),
+            );
+        }
+        (Some(policy), Some(signature)) => Some(verify_policy_signature_bytes(
+            policy,
+            signature,
+            None,
+            "active policy",
+        )?),
+    };
+    Ok(ActivePolicySnapshot {
+        policy_bytes,
+        signature_bytes,
+        verified,
+    })
+}
+
+fn read_optional_regular_file(
+    path: &std::path::Path,
+    label: &str,
+) -> Result<Option<Vec<u8>>, String> {
+    match std::fs::symlink_metadata(path) {
+        Ok(metadata) if metadata.file_type().is_file() && !metadata.file_type().is_symlink() => {
+            std::fs::read(path)
+                .map(Some)
+                .map_err(|error| format!("read {label} {}: {error}", path.display()))
+        }
+        Ok(_) => Err(format!(
+            "{label} must be a regular non-symlink file: {}",
+            path.display()
+        )),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(error) => Err(format!("inspect {label} {}: {error}", path.display())),
     }
-    if !sig_path.exists() {
-        // Sealed but not yet signed: STAGED. No authority — the gate treats
-        // this exactly like no policy; the status surface shows it staged.
-        return Ok(None);
-    }
-    let raw = std::fs::read_to_string(&policy_path).map_err(|e| e.to_string())?;
-    let policy: AcceptancePolicy =
-        serde_json::from_str(&raw).map_err(|e| format!("active policy parse: {e}"))?;
-    if !policy.id_is_valid() {
+}
+
+/// Verify an exact policy/signature byte pair. `expected_policy_id` binds
+/// content-addressed historical snapshots to their path name.
+pub fn verify_policy_signature_bytes(
+    policy_bytes: &[u8],
+    signature_bytes: &[u8],
+    expected_policy_id: Option<&str>,
+    label: &str,
+) -> Result<VerifiedPolicy, String> {
+    use ed25519_dalek::Verifier;
+
+    let policy: AcceptancePolicy = parse_bounded_governance_json(
+        policy_bytes,
+        GovernanceJsonLimits {
+            bytes: POLICY_JSON_MAX_BYTES,
+        },
+        label,
+    )?;
+    validate_supported_policy(&policy, label)?;
+    if expected_policy_id.is_some_and(|expected| expected != policy.id) || !policy.id_is_valid() {
         return Err(format!(
-            "active policy id does not re-derive: stored {}, sealed {}",
+            "{label} id does not re-derive: stored {}, sealed {}",
             policy.id,
             policy.content_address()
         ));
     }
-    let sig_raw = std::fs::read_to_string(&sig_path).map_err(|e| e.to_string())?;
-    let sig: PolicySignatureRecord =
-        serde_json::from_str(&sig_raw).map_err(|e| format!("policy sig parse: {e}"))?;
+    let signature_label = format!("{label} signature");
+    let sig: PolicySignatureRecord = parse_bounded_governance_json(
+        signature_bytes,
+        GovernanceJsonLimits {
+            bytes: POLICY_SIGNATURE_JSON_MAX_BYTES,
+        },
+        &signature_label,
+    )?;
+    validate_rfc3339("policy signed_at", &sig.signed_at)?;
     if sig.policy_id != policy.id {
-        return Err("policy signature is for a different policy id".to_string());
+        return Err(format!("{label} signature is for a different policy id"));
     }
-    // The signed bytes: the sealed policy's canonical body with id set —
-    // exactly the file a human read and signed.
-    let mut sealed = policy.clone();
-    sealed.id = policy.id.clone();
-    let body =
-        crate::canonical::to_canonical_bytes(&sealed).map_err(|e| format!("canonical: {e}"))?;
     let pk_bytes: [u8; 32] = hex::decode(&sig.signer_pubkey_hex)
         .map_err(|e| format!("pubkey hex: {e}"))?
         .try_into()
@@ -743,10 +1635,14 @@ pub fn load_active_policy(
         .map_err(|e| format!("signature hex: {e}"))?
         .try_into()
         .map_err(|_| "signature must be 64 bytes".to_string())?;
-    vk.verify(&body, &ed25519_dalek::Signature::from_bytes(&sig_bytes))
-        .map_err(|_| "active policy signature does not verify".to_string())?;
-    Ok(Some(VerifiedPolicy {
+    let signature = ed25519_dalek::Signature::from_bytes(&sig_bytes);
+    let bound_body = policy_signature_preimage(&policy, &sig.signed_at)?;
+    vk.verify(&bound_body, &signature)
+        .map_err(|_| format!("{label} signature does not verify"))?;
+    Ok(VerifiedPolicy {
         policy,
         signer_pubkey_hex: sig.signer_pubkey_hex,
-    }))
+        signed_at: sig.signed_at,
+        signed_at_bound: true,
+    })
 }

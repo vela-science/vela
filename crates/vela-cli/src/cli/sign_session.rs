@@ -18,7 +18,6 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use vela_edge::sign_queue::{SignItem, SignLane, sign_queue};
-use vela_protocol::acceptance_policy::PolicyContext;
 use vela_protocol::{detached, proposals, repo};
 
 use colored::Colorize;
@@ -162,14 +161,6 @@ fn clear_session(frontier: &Path) {
     let _ = std::fs::remove_file(session_path(frontier));
 }
 
-/// The conservative context used to filter the queue: nothing proven.
-/// Richer per-proposal derivation (assurance from the gate) lands with
-/// `vela land`; until then the queue errs toward showing the human
-/// MORE, never less.
-fn conservative_ctx(_project: &vela_protocol::project::Project, _id: &str) -> PolicyContext {
-    PolicyContext::default()
-}
-
 /// Which frontiers this session covers: cwd's frontier when inside one,
 /// else every live registered frontier.
 fn session_frontiers(explicit: Option<PathBuf>) -> Vec<PathBuf> {
@@ -241,7 +232,20 @@ pub(crate) fn cmd_sign_session(
                 continue;
             }
         };
-        match sign_queue(&project, dir, conservative_ctx) {
+        match sign_queue(&project, dir, |project, id| {
+            let receipt = project
+                .proposals
+                .iter()
+                .find(|proposal| proposal.id == id)
+                .and_then(|proposal| {
+                    crate::review_material::frontier_receipt_for_proposal(dir, proposal)
+                });
+            crate::review_material::derive_existing_proposal_policy_context(
+                project,
+                id,
+                receipt.as_ref(),
+            )
+        }) {
             Ok(q) => {
                 total += q.items.iter().filter(|i| i.signable).count();
                 queues.push((dir.clone(), project, q.items));

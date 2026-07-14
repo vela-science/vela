@@ -101,13 +101,15 @@ pub enum PolicyAction {
         #[arg(long)]
         yes: bool,
     },
-    /// Close the lane: the active signature loses authority; snapshots
-    /// stay for replay verification of past admissions.
+    /// Close the lane with one signed causal review; the active signature
+    /// loses authority while snapshots retain past admissions.
     Revoke {
         /// Why (recorded next to the revocation).
         #[arg(long)]
         reason: String,
         frontier: Option<PathBuf>,
+        #[arg(long, help = HELP_KEY)]
+        key: Option<PathBuf>,
         #[arg(long)]
         yes: bool,
     },
@@ -511,6 +513,13 @@ pub(crate) enum Commands {
         frontier: Option<PathBuf>,
         #[arg(long)]
         claim: Option<String>,
+        /// Scientific claim type. Required for flag authoring unless an active
+        /// work session supplies it unambiguously.
+        #[arg(long = "type")]
+        claim_type: Option<String>,
+        /// Re-execution class: exact, bounded, approximate, unavailable, or unknown.
+        #[arg(long)]
+        replayability: Option<String>,
         #[arg(long)]
         artifact: Vec<String>,
         #[arg(long)]
@@ -1128,7 +1137,7 @@ pub(crate) enum GateAction {
     },
     /// Backfill frozen-verifier attachments. For each witness artifact in the
     /// frontier, re-run the matching frozen verifier (vela-verify) and, on
-    /// pass, land a signed `verifier.attach` recording the check
+    /// pass, land a pending `verifier.attach` recording the check
     /// (ComputationalSearch / vela-verify / Sound). Makes the frozen verifier
     /// legible per finding; the gate still needs >=2 independent attachments to
     /// derive `verified`, so this records the check, it does not flip the gate.
@@ -1137,7 +1146,7 @@ pub(crate) enum GateAction {
         frontier: PathBuf,
         /// Reviewer authority landing the attachments (e.g.
         /// `reviewer:will-blair`). Optional: defaults to your configured
-        /// identity (`vela id`). A signing key is required to apply.
+        /// identity (`vela id`). This attributes the draft; it does not apply.
         #[arg(long = "as", help = HELP_AS)]
         reviewer: Option<String>,
         /// Report the plan without writing.
@@ -1191,9 +1200,9 @@ pub(crate) enum GateAction {
         /// Headline-metric floor for a passing attachment (exact-match = 1.0).
         #[arg(long, default_value_t = 1.0)]
         threshold: f64,
-        /// Reviewer authority landing the attachment. Optional: defaults to your
-        /// configured identity (`vela id`). An `agent:` id drafts pending; a
-        /// human applies inline (subject to key custody).
+        /// Actor attributed on the pending attachment proposal. Optional:
+        /// defaults to your configured identity (`vela id`). Applying remains
+        /// a separate key-custody ceremony.
         #[arg(long = "as", help = HELP_AS)]
         reviewer: Option<String>,
         #[arg(long)]
@@ -1213,9 +1222,9 @@ pub(crate) enum ActorAction {
         /// your configured identity's public key — you should never type it.
         #[arg(long)]
         pubkey: Option<String>,
-        /// Optional trust tier (Phase α, v0.6). Currently recognized:
-        /// "auto-notes" — permits one-call propose_and_apply_note.
-        /// Unknown tier strings load fine but never grant auto-apply.
+        /// Optional legacy trust-tier metadata. `auto-notes` remains readable
+        /// for compatibility, but current proposal writers always land notes
+        /// pending; a proposal signature is not a human decision signature.
         #[arg(long)]
         tier: Option<String>,
         /// v0.43: Optional ORCID identifier for cross-system identity.

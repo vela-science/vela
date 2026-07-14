@@ -987,6 +987,8 @@ pub async fn run_command() {
             receipt,
             frontier,
             claim,
+            claim_type,
+            replayability,
             artifact,
             caveat,
             r#as,
@@ -996,147 +998,94 @@ pub async fn run_command() {
             crate::ui::set_mode("land", json);
             let dir = crate::ui::resolve_frontier(frontier);
             let actor = crate::cli_identity::resolve_actor(r#as.as_deref());
-            let receipt: crate::workflow::Receipt = if let Some(path) = receipt {
-                let raw = std::fs::read_to_string(&path)
-                    .unwrap_or_else(|e| fail_return(&format!("read {}: {e}", path.display())));
-                serde_json::from_str(&raw)
-                    .unwrap_or_else(|e| fail_return(&format!("receipt parse: {e}")))
+            let preflight_identity =
+                vela_protocol::canonical::to_canonical_bytes(&serde_json::json!({
+                    "schema": "vela.land-preflight.internal.v1",
+                    "frontier": dir.display().to_string(),
+                    "actor": actor,
+                    "receipt": receipt.as_ref().map(|path| path.display().to_string()),
+                    "claim": claim,
+                    "claim_type": claim_type,
+                    "replayability": replayability,
+                    "artifacts": artifact,
+                    "caveats": caveat,
+                    "push": push,
+                }))
+                .unwrap_or_default();
+            let preflight_id =
+                crate::operation_journal::operation_id("land-preflight", &preflight_identity);
+            let fail_preflight = |kind, message: String| -> ! {
+                crate::ui::fail_unchanged(kind, &message, &preflight_id, "vela land --help")
+            };
+            let receipt = if let Some(path) = receipt {
+                let raw = std::fs::read(&path).unwrap_or_else(|error| {
+                    fail_preflight(
+                        crate::ui::ErrorKind::NotFound,
+                        format!("read {}: {error}", path.display()),
+                    )
+                });
+                vela_protocol::receipt_v1::ReceiptV1::parse(&raw).unwrap_or_else(|error| {
+                    fail_preflight(crate::ui::ErrorKind::Domain, error.to_string())
+                })
             } else {
                 let Some(claim) = claim else {
-                    crate::ui::fail_with(
+                    crate::ui::fail_unchanged(
                         crate::ui::ErrorKind::Usage,
                         "land needs a receipt file or --claim",
-                        Some(
-                            "vela land receipt.json · or: vela land --claim '…' --artifact w.json --caveat '…'",
-                        ),
+                        &preflight_id,
+                        "vela land --help",
                     );
                 };
-                serde_json::from_value(serde_json::json!({
-                    "schema": crate::workflow::RECEIPT_SCHEMA,
-                    "claim": claim,
-                    "artifacts": artifact.iter().map(|a| {
-                        let (path, kind) = a.split_once(':').unwrap_or((a.as_str(), "witness"));
-                        serde_json::json!({"path": path, "kind": kind})
-                    }).collect::<Vec<_>>(),
-                    "caveats": caveat,
-                }))
-                .unwrap_or_else(|e| fail_return(&format!("receipt build: {e}")))
-            };
-            let request_preimage = serde_json::json!({
-                "actor": actor,
-                "receipt": receipt,
-            });
-            let request_bytes = vela_protocol::canonical::to_canonical_bytes(&request_preimage)
-                .unwrap_or_else(|e| fail_return(&format!("canonicalize land request: {e}")));
-            let request_operation_id =
-                crate::operation_journal::operation_id("land-request", &request_bytes);
-
-            // Artifact readability is an input check, not a scientific write.
-            // Fail here so human output can truthfully promise zero canonical
-            // and Git delta. FrontierTxn will bind the same inputs atomically in
-            // Slice 2; this early check remains useful repair guidance.
-            for artifact in &receipt.artifacts {
-                let path = dir.join(&artifact.path);
-                match std::fs::metadata(&path) {
-                    Ok(metadata) if metadata.is_file() => {}
-                    Ok(_) => crate::ui::fail_unchanged(
+                let claim_type = claim_type.unwrap_or_else(|| {
+                    fail_preflight(
+                        crate::ui::ErrorKind::Usage,
+                        "flag authoring needs --type (computational, theoretical, empirical, negative, or contradiction)".to_string(),
+                    )
+                });
+                let replayability = replayability.unwrap_or_else(|| {
+                    fail_preflight(
+                        crate::ui::ErrorKind::Usage,
+                        "flag authoring needs --replayability (exact, bounded, approximate, unavailable, or unknown)".to_string(),
+                    )
+                });
+                crate::workflow::author_receipt(
+                    &dir,
+                    &actor,
+                    claim,
+                    claim_type,
+                    replayability,
+                    &artifact,
+                    caveat,
+                )
+                .unwrap_or_else(|error| {
+                    fail_preflight(
                         crate::ui::ErrorKind::Domain,
-                        &format!("artifact {} is not a regular file", path.display()),
-                        &request_operation_id,
-                        "vela land --help",
-                    ),
-                    Err(error) => crate::ui::fail_unchanged(
-                        crate::ui::ErrorKind::Domain,
-                        &format!("artifact {}: {error}", path.display()),
-                        &request_operation_id,
-                        "vela land --help",
-                    ),
-                }
-            }
-            // Snapshot the Git/Vela boundary before the scientific mutation.
-            // A failed preflight never blocks landing; it only prevents the
-            // new result from sweeping pre-existing frontier edits into Git.
-            let frontier_abs = dir.canonicalize().unwrap_or_else(|_| dir.clone());
-            let preflight_inputs = receipt
-                .artifacts
-                .iter()
-                .filter_map(|artifact| {
-                    let path = std::path::PathBuf::from(&artifact.path);
-                    let candidate = if path.is_absolute() {
-                        path
-                    } else {
-                        dir.join(path)
-                    };
-                    candidate
-                        .canonicalize()
-                        .ok()
-                        .filter(|path| path.starts_with(&frontier_abs))
+                        format!("receipt build: {error}"),
+                    )
                 })
-                .collect();
-            let publish_opts = if push {
-                crate::config::git_publish::PublishOptions::pushing()
-            } else {
-                crate::config::git_publish::PublishOptions::new(false, false)
-            }
-            .with_preflight_inputs(preflight_inputs);
-            let publication_preflight =
-                crate::config::git_publish::publication_preflight(&dir, &publish_opts);
-            if let Err(outcome) = &publication_preflight
-                && crate::config::git_publish::publication_is_busy(outcome)
-            {
-                crate::ui::fail_unchanged(
-                    crate::ui::ErrorKind::Domain,
-                    "another Vela write/publication owns this repository; scientific state was not changed",
-                    &request_operation_id,
-                    "vela status --json",
-                );
-            }
-            match crate::workflow::land(&dir, &receipt, &actor) {
+            };
+            match crate::workflow::land(&dir, &receipt, &actor, push) {
                 Ok(outcome) => {
                     let (route, detail) = outcome.route.summary();
-                    // A re-land of an existing claim changed nothing: report
-                    // it idempotently (exit 5), publish nothing.
-                    if let crate::workflow::LandRoute::AlreadyLanded { .. } = outcome.route {
-                        crate::ui::fail_with(
-                            crate::ui::ErrorKind::Exists,
-                            &format!("already landed: {detail}"),
-                            Some("this exact claim is already in the frontier; nothing to do"),
-                        );
-                    }
-                    // Publication: the store changed either way. Commit locally;
-                    // push only with --push (explicit publish).
-                    let publication = match publication_preflight {
-                        Ok(preflight) => {
-                            let publish_opts = publish_opts.with_preflight(preflight);
-                            crate::config::git_publish::publish_decision(
-                                &dir,
-                                "land",
-                                &[outcome.proposal_id.clone()],
-                                &publish_opts,
-                            )
-                        }
-                        Err(outcome) => outcome,
-                    };
-                    let operation_id = crate::operation_journal::operation_id(
-                        "land-command",
-                        outcome.proposal_id.as_bytes(),
-                    );
                     if json {
                         print_json(&serde_json::json!({
                             "ok": true, "command": "land",
-                            "request_id": operation_id,
-                            "operation_id": operation_id,
+                            "request_id": outcome.operation_id,
+                            "operation_id": outcome.operation_id,
+                            "receipt_root": outcome.receipt_root,
+                            "record_id": outcome.record_id,
                             "proposal_id": outcome.proposal_id,
+                            "finding_id": outcome.finding_id,
                             "route": route, "detail": detail,
-                            "publication": publication,
+                            "publication": outcome.publication,
                         }));
                     } else {
                         render_land_outcome(
                             &outcome.proposal_id,
                             route,
                             &detail,
-                            &operation_id,
-                            &publication,
+                            &outcome.operation_id,
+                            &outcome.publication,
                         );
                     }
                 }
@@ -1217,12 +1166,14 @@ pub async fn run_command() {
             }
             PolicyAction::Revoke {
                 frontier,
+                key,
                 reason,
                 yes,
             } => {
                 crate::ui::set_mode("policy", false);
                 crate::config::cli_policy::cmd_policy_revoke(
                     &crate::ui::resolve_frontier(frontier),
+                    key.as_deref(),
                     &reason,
                     yes,
                     false,

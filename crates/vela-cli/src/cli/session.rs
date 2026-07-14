@@ -170,8 +170,19 @@ pub(crate) fn run_session() {
     }
     // The sign queue: what awaits the human key (policy-filtered — a
     // Permit-able item never appears; that's the autonomy working).
-    if let Ok(queue) = vela_edge::sign_queue::sign_queue(&project, &repo_path, |_, _| {
-        vela_protocol::acceptance_policy::PolicyContext::default()
+    if let Ok(queue) = vela_edge::sign_queue::sign_queue(&project, &repo_path, |project, id| {
+        let receipt = project
+            .proposals
+            .iter()
+            .find(|proposal| proposal.id == id)
+            .and_then(|proposal| {
+                crate::review_material::frontier_receipt_for_proposal(&repo_path, proposal)
+            });
+        crate::review_material::derive_existing_proposal_policy_context(
+            project,
+            id,
+            receipt.as_ref(),
+        )
     }) {
         let signable = queue.items.iter().filter(|i| i.signable).count();
         if signable > 0 {

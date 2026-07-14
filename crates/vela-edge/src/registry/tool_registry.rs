@@ -224,8 +224,8 @@ pub fn all_tools() -> Vec<ToolDefinition> {
             "propose",
             "Draft a signed proposal against a finding; it lands pending_review, and only a \
              key-custody human accept changes state. `kind` selects the shape: review \
-             (requires status), note (requires text; optional provenance), apply_note (a note \
-             that auto-applies, only for actors registered with tier=auto-notes), \
+             (requires status), note (requires text; optional provenance), apply_note (a \
+             backward-compatible note alias that also remains pending), \
              revise_confidence (requires new_score in [0,1]), retract. Requires a registered \
              actor_id and an Ed25519 signature over the canonical proposal preimage. Human \
              finalization is not exposed through MCP; use the terminal `vela sign` ceremony. \
@@ -301,7 +301,7 @@ pub fn all_tools() -> Vec<ToolDefinition> {
             true,
             vec![
                 "actor_id must be registered in frontier.actors (`vela actor add`) before writes verify.",
-                "Proposals stay pending_review until a key-custody human accepts; apply_note additionally requires actor tier=auto-notes, and notes never change finding state.",
+                "Every proposal, including apply_note, stays pending_review until a key-custody human accepts; a proposal signature never doubles as a decision signature.",
             ],
         ),
         tool(
@@ -349,8 +349,9 @@ pub fn all_tools() -> Vec<ToolDefinition> {
                         "description": "claim: lease TTL (default 86400)."
                     },
                     "receipt": {
-                        "type": "object",
-                        "description": "land: the vela.receipt.v1 object — claim, type, artifacts (paths hashed at land time), caveats (at least one), verifier_runs, environment, provenance."
+                        "type": "string",
+                        "minLength": 2,
+                        "description": "land: raw vela.receipt.v1 JSON text. Pass the receipt file's text without parsing it into an object so Vela can reject duplicate object names before normalization."
                     },
                     "problem": {
                         "type": "integer",
@@ -851,6 +852,20 @@ mod profile_tests {
                 tool.name
             );
         }
+    }
+
+    #[test]
+    fn work_land_exposes_receipt_as_raw_json_text() {
+        let work = get_tool("work").unwrap();
+        let receipt = &work.parameters["properties"]["receipt"];
+        assert_eq!(receipt["type"], "string");
+        assert!(
+            receipt["description"]
+                .as_str()
+                .unwrap()
+                .contains("without parsing it into an object"),
+            "the MCP contract must preserve the producer wire text until ReceiptV1::parse"
+        );
     }
 
     #[test]
