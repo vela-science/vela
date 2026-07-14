@@ -81,11 +81,12 @@ opening the repo gets the read-only profile:
     "args": ["serve", ".", "--profile", "read-only"] } } }
 ```
 
-Profiles nest: `read-only` ⊂ `draft` ⊂ `maintainer`. Read-only exposes no
-mutating tool (a unit test enforces this); `draft` adds `propose` and
-`work`; `decide` lives only in `maintainer`, behind a human session.
+The `read-only` profile exposes no mutating tool (a unit test enforces this);
+`draft` adds only the nonfinalizing `propose` and `work` tools. The deprecated
+`maintainer` name is a warning alias for `draft` and adds no capability.
+Human decisions remain terminal-only through `vela sign`.
 
-The surface is ten tools; each one answers an agent question:
+The surface is nine tools; each one answers an agent question:
 
 | Question | Tool |
 |---|---|
@@ -94,8 +95,7 @@ The surface is ten tools; each one answers an agent question:
 | Where is X discussed? | `search` — findings, sources, evidence atoms; cursor-paginated |
 | What is contested / what breaks if X falls? | `graph` — mode=contradictions, mode=impact (blast radius + retraction cascade), mode=traverse |
 | Does the frontier pass the gate / do witnesses reproduce? | `verify` — mode=strict (the same bundle the hub's ingestor enforces), mode=witness (frozen-verifier re-check) |
-| How do I submit work? | `propose` (draft profile) — kind=review/note/apply_note/revise_confidence/retract, always pending; `work` — action=claim/record/pack |
-| Who decides? | `decide` (maintainer only) — accept/reject, a key-custody human act |
+| How do I submit work? | `propose` (draft profile) — kind=review/note/apply_note/revise_confidence/retract, always pending; `work` — action=claim/land/drop/deposit |
 | What agent objects exist here? | `objects` — packs, attestations, evaluations, conflicts, tool descriptors |
 | Is this novel / shareable? | `external` — service=pubmed prior-art count, service=nanopub export |
 

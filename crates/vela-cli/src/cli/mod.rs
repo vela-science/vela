@@ -61,6 +61,7 @@ mod output;
 pub(crate) mod progress;
 pub(crate) mod prompt;
 pub(crate) mod records;
+pub(crate) mod safe_text;
 mod session;
 pub(crate) mod sign_session;
 mod surface;
@@ -279,6 +280,64 @@ pub async fn run_command() {
         Commands::Actor { action } => cmd_actor(action),
         Commands::Frontier { action } => cmd_frontier(action),
         Commands::Hub { action } => cmd_hub(action),
+        Commands::Publication { action } => match action {
+            PublicationAction::Recover {
+                operation,
+                frontier,
+                push,
+                json,
+            } => {
+                crate::ui::set_mode("publication recover", json);
+                let dir = crate::ui::resolve_frontier(frontier);
+                let opts = if push {
+                    crate::config::git_publish::PublishOptions::pushing()
+                } else {
+                    crate::config::git_publish::PublishOptions::new(false, false)
+                };
+                let publication =
+                    crate::config::git_publish::recover_publication(&dir, &operation, &opts);
+                let ok = matches!(
+                    &publication.state,
+                    crate::config::git_publish::PublicationState::CommittedLocal { .. }
+                        | crate::config::git_publish::PublicationState::Pushed { .. }
+                );
+                if json {
+                    print_json(&serde_json::json!({
+                        "ok": ok,
+                        "command": "publication.recover",
+                        "operation_id": operation,
+                        "publication": publication,
+                    }));
+                } else {
+                    crate::ui::header(
+                        "PUBLICATION RECOVER",
+                        &operation,
+                        Some(if ok { "recovered" } else { "not recovered" }),
+                    );
+                    println!(
+                        "  {:<16} {}",
+                        style::dim("publication"),
+                        safe_text::inline(
+                            &serde_json::to_string(&publication)
+                                .unwrap_or_else(|_| "unknown".to_string())
+                        )
+                    );
+                    println!(
+                        "  {:<16} {}",
+                        style::dim("next"),
+                        safe_text::inline(
+                            publication
+                                .recovery_command
+                                .as_deref()
+                                .unwrap_or("git status --short")
+                        )
+                    );
+                }
+                if !ok {
+                    std::process::exit(1);
+                }
+            }
+        },
         Commands::Init {
             path,
             name,
@@ -362,13 +421,19 @@ pub async fn run_command() {
                     println!();
                     println!(
                         "  {}",
-                        format!("VELA · DIFF · {target}").to_uppercase().dimmed()
+                        format!("VELA · DIFF · {}", safe_text::inline(&target))
+                            .to_uppercase()
+                            .dimmed()
                     );
                     println!("  {}", vela_protocol::cli_style::tick_row(60));
                     let pack_id = match &proposal {
                         Some((p, pack)) => {
-                            println!("  kind:      {}   by {}", p.kind, p.actor.id);
-                            let reason: String = p.reason.chars().take(90).collect();
+                            println!(
+                                "  kind:      {}   by {}",
+                                safe_text::inline(&p.kind),
+                                safe_text::inline(&p.actor.id)
+                            );
+                            let reason = safe_text::inline(&p.reason);
                             if !reason.is_empty() {
                                 println!("  reason:    {reason}");
                             }
@@ -377,12 +442,15 @@ pub async fn run_command() {
                                 .pointer("/finding/assertion/text")
                                 .and_then(serde_json::Value::as_str)
                             {
-                                println!("  proposes:  {}", wrap_line(text, 78));
+                                println!(
+                                    "  proposes:  {}",
+                                    wrap_line(&safe_text::inline(text), 78)
+                                );
                             }
                             pack.clone()
                         }
                         None => {
-                            println!("  kind:      {}", preview.kind);
+                            println!("  kind:      {}", safe_text::inline(&preview.kind));
                             None
                         }
                     };
@@ -396,7 +464,10 @@ pub async fn run_command() {
                         preview.artifacts_after,
                     );
                     if !preview.changed_findings.is_empty() {
-                        println!("  changes:   {}", preview.changed_findings.join(", "));
+                        println!(
+                            "  changes:   {}",
+                            safe_text::inline(&preview.changed_findings.join(", "))
+                        );
                     }
                     if let Some(v) = &verdict {
                         match v.status.as_str() {
@@ -407,7 +478,7 @@ pub async fn run_command() {
                                     v.new_warnings.len()
                                 );
                                 for w in v.new_warnings.iter().take(5) {
-                                    println!("    · {w}");
+                                    println!("    · {}", safe_text::inline(w));
                                 }
                                 if v.new_warnings.len() > 5 {
                                     println!("    … +{} more", v.new_warnings.len() - 5);
@@ -419,19 +490,24 @@ pub async fn run_command() {
                                     v.new_blocking.len()
                                 );
                                 for b in v.new_blocking.iter().take(5) {
-                                    println!("    · {b}");
+                                    println!("    · {}", safe_text::inline(b));
                                 }
                             }
-                            other => println!("  engine:    {other}"),
+                            other => println!("  engine:    {}", safe_text::inline(other)),
                         }
                     }
                     println!();
                     match pack_id {
                         Some(pack) => {
-                            println!("  decide:    vela sign    (this proposal rides pack {pack})")
+                            println!(
+                                "  decide:    vela sign    (this proposal rides pack {})",
+                                safe_text::inline(&pack)
+                            )
                         }
                         None => println!(
-                            "  decide:    vela sign {target} --yes    (or: vela proposals reject . {target} --reason \"…\")"
+                            "  decide:    vela sign {} --yes    (or: vela proposals reject . {} --reason \"…\")",
+                            safe_text::inline(&target),
+                            safe_text::inline(&target)
                         ),
                     }
                     println!();
@@ -796,14 +872,20 @@ pub async fn run_command() {
                     let chip = match t.lane.as_str() {
                         "attack" => vela_protocol::cli_style::brass("attack"),
                         "verify" => vela_protocol::cli_style::moss("verify"),
-                        other => vela_protocol::cli_style::dim(other),
+                        other => vela_protocol::cli_style::dim(&safe_text::inline(other)),
                     };
-                    println!("  {chip}  {}", t.title.chars().take(64).collect::<String>());
+                    println!("  {chip}  {}", safe_text::inline(&t.title));
                     println!(
                         "      {}",
-                        vela_protocol::cli_style::dim(&format!("{} · {}", t.id, t.why))
+                        vela_protocol::cli_style::dim(&safe_text::inline(&format!(
+                            "{} · {}",
+                            t.id, t.why
+                        )))
                     );
-                    println!("      {}", vela_protocol::cli_style::dim(&t.next_command));
+                    println!(
+                        "      {}",
+                        vela_protocol::cli_style::dim(&safe_text::inline(&t.next_command))
+                    );
                 }
                 if targets.is_empty() {
                     println!("  · nothing open — the frontier is waiting on new seeds");
@@ -833,7 +915,10 @@ pub async fn run_command() {
             if drop_it {
                 let sdir = crate::workflow::session_dir(&dir, &target);
                 let _ = std::fs::remove_dir_all(&sdir);
-                println!("  · dropped session {target} (lease expires by TTL)");
+                println!(
+                    "  · dropped session {} (lease expires by TTL)",
+                    safe_text::inline(&target)
+                );
                 return;
             }
             let ttl = ttl.unwrap_or_else(|| {
@@ -863,7 +948,7 @@ pub async fn run_command() {
                         crate::ui::header("WORK", &target, Some("lease claimed, briefing loaded"));
                         let b = briefing.get("briefing").unwrap_or(&briefing);
                         if let Some(s) = b.get("statement").and_then(|v| v.as_str()) {
-                            println!("  {}", s);
+                            println!("  {}", safe_text::multiline(s));
                         }
                         for (label, key) in [
                             ("gate", "gate"),
@@ -879,7 +964,7 @@ pub async fn run_command() {
                                     println!(
                                         "  {:<14} {}",
                                         vela_protocol::cli_style::dim(label),
-                                        vs
+                                        safe_text::inline(&vs)
                                     );
                                 }
                             }
@@ -887,7 +972,7 @@ pub async fn run_command() {
                         println!(
                             "  {:<14} {}",
                             vela_protocol::cli_style::dim("full offer"),
-                            sdir.join("offer.json").display()
+                            safe_text::inline(&sdir.join("offer.json").display().to_string())
                         );
                         println!(
                             "  {:<14} vela land <receipt.json>",
@@ -937,6 +1022,75 @@ pub async fn run_command() {
                 }))
                 .unwrap_or_else(|e| fail_return(&format!("receipt build: {e}")))
             };
+            let request_preimage = serde_json::json!({
+                "actor": actor,
+                "receipt": receipt,
+            });
+            let request_bytes = vela_protocol::canonical::to_canonical_bytes(&request_preimage)
+                .unwrap_or_else(|e| fail_return(&format!("canonicalize land request: {e}")));
+            let request_operation_id =
+                crate::operation_journal::operation_id("land-request", &request_bytes);
+
+            // Artifact readability is an input check, not a scientific write.
+            // Fail here so human output can truthfully promise zero canonical
+            // and Git delta. FrontierTxn will bind the same inputs atomically in
+            // Slice 2; this early check remains useful repair guidance.
+            for artifact in &receipt.artifacts {
+                let path = dir.join(&artifact.path);
+                match std::fs::metadata(&path) {
+                    Ok(metadata) if metadata.is_file() => {}
+                    Ok(_) => crate::ui::fail_unchanged(
+                        crate::ui::ErrorKind::Domain,
+                        &format!("artifact {} is not a regular file", path.display()),
+                        &request_operation_id,
+                        "vela land --help",
+                    ),
+                    Err(error) => crate::ui::fail_unchanged(
+                        crate::ui::ErrorKind::Domain,
+                        &format!("artifact {}: {error}", path.display()),
+                        &request_operation_id,
+                        "vela land --help",
+                    ),
+                }
+            }
+            // Snapshot the Git/Vela boundary before the scientific mutation.
+            // A failed preflight never blocks landing; it only prevents the
+            // new result from sweeping pre-existing frontier edits into Git.
+            let frontier_abs = dir.canonicalize().unwrap_or_else(|_| dir.clone());
+            let preflight_inputs = receipt
+                .artifacts
+                .iter()
+                .filter_map(|artifact| {
+                    let path = std::path::PathBuf::from(&artifact.path);
+                    let candidate = if path.is_absolute() {
+                        path
+                    } else {
+                        dir.join(path)
+                    };
+                    candidate
+                        .canonicalize()
+                        .ok()
+                        .filter(|path| path.starts_with(&frontier_abs))
+                })
+                .collect();
+            let publish_opts = if push {
+                crate::config::git_publish::PublishOptions::pushing()
+            } else {
+                crate::config::git_publish::PublishOptions::new(false, false)
+            }
+            .with_preflight_inputs(preflight_inputs);
+            let publication_preflight =
+                crate::config::git_publish::publication_preflight(&dir, &publish_opts);
+            if let Err(outcome) = &publication_preflight
+                && crate::config::git_publish::publication_is_busy(outcome)
+            {
+                crate::ui::fail_unchanged(
+                    crate::ui::ErrorKind::Domain,
+                    "another Vela write/publication owns this repository; scientific state was not changed",
+                    &request_operation_id,
+                    "vela status --json",
+                );
+            }
             match crate::workflow::land(&dir, &receipt, &actor) {
                 Ok(outcome) => {
                     let (route, detail) = outcome.route.summary();
@@ -951,25 +1105,39 @@ pub async fn run_command() {
                     }
                     // Publication: the store changed either way. Commit locally;
                     // push only with --push (explicit publish).
-                    let opts = if push {
-                        crate::config::git_publish::PublishOptions::pushing()
-                    } else {
-                        crate::config::git_publish::PublishOptions::new(false, false)
+                    let publication = match publication_preflight {
+                        Ok(preflight) => {
+                            let publish_opts = publish_opts.with_preflight(preflight);
+                            crate::config::git_publish::publish_decision(
+                                &dir,
+                                "land",
+                                &[outcome.proposal_id.clone()],
+                                &publish_opts,
+                            )
+                        }
+                        Err(outcome) => outcome,
                     };
-                    crate::config::git_publish::publish_decision(
-                        &dir,
-                        "land",
-                        &[outcome.proposal_id.clone()],
-                        &opts,
+                    let operation_id = crate::operation_journal::operation_id(
+                        "land-command",
+                        outcome.proposal_id.as_bytes(),
                     );
                     if json {
                         print_json(&serde_json::json!({
                             "ok": true, "command": "land",
+                            "request_id": operation_id,
+                            "operation_id": operation_id,
                             "proposal_id": outcome.proposal_id,
                             "route": route, "detail": detail,
+                            "publication": publication,
                         }));
                     } else {
-                        println!("  · landed {} — {route}: {detail}", outcome.proposal_id);
+                        render_land_outcome(
+                            &outcome.proposal_id,
+                            route,
+                            &detail,
+                            &operation_id,
+                            &publication,
+                        );
                     }
                 }
                 Err(e) => fail(&e),
@@ -1069,6 +1237,111 @@ pub async fn run_command() {
             }
         },
     }
+}
+
+fn render_land_outcome(
+    proposal_id: &str,
+    route: &str,
+    detail: &str,
+    operation_id: &str,
+    publication: &crate::config::git_publish::PublicationOutcome,
+) {
+    use crate::config::git_publish::PublicationState;
+
+    let (state, retained, changed_git, unchanged, remote, fallback_next) = match &publication.state
+    {
+        PublicationState::Uncommitted { candidate, reason } => (
+            format!("uncommitted: {reason}"),
+            candidate
+                .as_ref()
+                .map(|oid| format!("candidate {oid} is not on the target ref"))
+                .unwrap_or_else(|| "no publication commit on the target ref".to_string()),
+            "no Git ref moved".to_string(),
+            "unrelated index/worktree entries".to_string(),
+            "not contacted by this publication attempt".to_string(),
+            "git status --short".to_string(),
+        ),
+        PublicationState::Stale {
+            candidate,
+            expected,
+            actual,
+        } => (
+            format!("stale: candidate {candidate} planned from {expected}; target is now {actual}"),
+            format!("candidate {candidate} was not installed on the target ref"),
+            "the competing Git ref update won; Vela did not merge or overwrite it".to_string(),
+            "caller index/worktree entries".to_string(),
+            "not contacted by this publication attempt".to_string(),
+            "git status --short".to_string(),
+        ),
+        PublicationState::CommittedLocal { commit } => (
+            "committed_local".to_string(),
+            format!("local commit {commit}"),
+            format!("local Git ref now retains commit {commit}"),
+            "unrelated index/worktree entries".to_string(),
+            "unverified; only the local commit is proven".to_string(),
+            "git push".to_string(),
+        ),
+        PublicationState::Pushed { commit, remote } => (
+            format!("pushed to {remote}"),
+            format!("commit {commit}"),
+            format!("commit {commit} is verified on {remote}"),
+            "unrelated index/worktree entries".to_string(),
+            format!("verified on {remote}"),
+            "vela status --json".to_string(),
+        ),
+        PublicationState::Unknown { reason } => (
+            format!("unknown: {reason}"),
+            "publication state is not proven; inspect the recovery result".to_string(),
+            "publication could not be proven".to_string(),
+            "unrelated index/worktree entries".to_string(),
+            "unverified".to_string(),
+            "git status --short".to_string(),
+        ),
+    };
+    let next = publication
+        .recovery_command
+        .as_deref()
+        .unwrap_or(&fallback_next);
+
+    crate::ui::header("LAND", proposal_id, Some(route));
+    println!(
+        "  {:<16} proposal {} routed {} ({})",
+        style::dim("changed"),
+        safe_text::inline(proposal_id),
+        safe_text::inline(route),
+        safe_text::inline(detail)
+    );
+    println!(
+        "  {:<16} {}",
+        style::dim("git"),
+        safe_text::inline(&changed_git)
+    );
+    println!(
+        "  {:<16} {}",
+        style::dim("unchanged"),
+        safe_text::inline(&unchanged)
+    );
+    println!(
+        "  {:<16} {}",
+        style::dim("remote"),
+        safe_text::inline(&remote)
+    );
+    println!(
+        "  {:<16} {}",
+        style::dim("publication"),
+        safe_text::inline(&state)
+    );
+    println!(
+        "  {:<16} {}",
+        style::dim("request"),
+        safe_text::inline(operation_id)
+    );
+    println!(
+        "  {:<16} {}",
+        style::dim("retained"),
+        safe_text::inline(&retained)
+    );
+    println!("  {:<16} {}", style::dim("next"), safe_text::inline(next));
 }
 
 pub(crate) fn parse_evidence_spans(inputs: &[String]) -> Vec<Value> {

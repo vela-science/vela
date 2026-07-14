@@ -536,7 +536,43 @@ pub(crate) fn gate_auto_admit_core(
 /// publish the audit event if one was emitted, and exit nonzero when the finding
 /// does not auto-admit.
 fn cmd_gate_auto_admit(frontier: &Path, finding_id: &str, apply: bool, json_output: bool) {
+    let publish_opts = crate::config::git_publish::PublishOptions::new(false, false);
+    let publication_preflight =
+        apply.then(|| crate::config::git_publish::publication_preflight(frontier, &publish_opts));
+    if let Some(Err(outcome)) = &publication_preflight
+        && crate::config::git_publish::publication_is_busy(outcome)
+    {
+        crate::ui::fail_with(
+            crate::ui::ErrorKind::Domain,
+            "another Vela write/publication owns this repository; no auto-admit event was emitted",
+            Some("retry after the active operation completes"),
+        );
+    }
     let v = gate_auto_admit_core(frontier, finding_id, apply).unwrap_or_else(|e| fail_return(&e));
+    // Mechanical-lane CD: the signed policy is the standing human
+    // authorization. Capture publication before rendering so JSON is one
+    // truthful object and the human surface reports the retained outcome.
+    let (operation_id, publication) = match &v.emitted {
+        Some((id, true)) => {
+            let operation_id =
+                crate::operation_journal::operation_id("gate-auto-admit", id.as_bytes());
+            let outcome =
+                match publication_preflight.expect("apply=true captured a publication preflight") {
+                    Ok(preflight) => {
+                        let publish_opts = publish_opts.with_preflight(preflight);
+                        crate::config::git_publish::publish_decision(
+                            frontier,
+                            &format!("policy auto-admit: {finding_id}"),
+                            std::slice::from_ref(id),
+                            &publish_opts,
+                        )
+                    }
+                    Err(outcome) => outcome,
+                };
+            (Some(operation_id), Some(outcome))
+        }
+        _ => (None, None),
+    };
 
     if json_output {
         let out = json!({
@@ -558,6 +594,8 @@ fn cmd_gate_auto_admit(frontier: &Path, finding_id: &str, apply: bool, json_outp
             "applied": apply,
             "event_id": v.emitted.as_ref().map(|(id, _)| id.clone()),
             "newly_emitted": v.emitted.as_ref().map(|(_, n)| *n),
+            "operation_id": operation_id,
+            "publication": publication,
             "tier": v.emitted.as_ref().map(|_| "machine_verified"),
             "note": if apply {
                 "policy.auto_admitted is unsigned + idempotent; machine_verified is distinct from human accepted and is NOT landed in canonical findings (docs/VERIFICATION.md)."
@@ -567,11 +605,14 @@ fn cmd_gate_auto_admit(frontier: &Path, finding_id: &str, apply: bool, json_outp
         });
         println!("{}", serde_json::to_string_pretty(&out).unwrap());
     } else {
-        println!("exact-lane auto-admit for {}", v.finding_id);
+        println!(
+            "exact-lane auto-admit for {}",
+            crate::cli::safe_text::inline(&v.finding_id)
+        );
         println!(
             "  floor 1 (witness reproduces, frozen): {} {}",
             if v.witness_ok { "PASS" } else { "FAIL" },
-            v.witness_msg
+            crate::cli::safe_text::inline(&v.witness_msg)
         );
         match v.faithful_ok {
             Some(faithful) => println!(
@@ -580,7 +621,10 @@ fn cmd_gate_auto_admit(frontier: &Path, finding_id: &str, apply: bool, json_outp
                 if v.faithful_reasons.is_empty() {
                     String::new()
                 } else {
-                    format!(" — {}", v.faithful_reasons.join("; "))
+                    format!(
+                        " — {}",
+                        crate::cli::safe_text::inline(&v.faithful_reasons.join("; "))
+                    )
                 }
             ),
             None => println!("  floor 2 (claim<->witness faithful): SKIP (no witness)"),
@@ -591,7 +635,10 @@ fn cmd_gate_auto_admit(frontier: &Path, finding_id: &str, apply: bool, json_outp
             if v.wrapper_reasons.is_empty() {
                 String::new()
             } else {
-                format!(" — {}", v.wrapper_reasons.join("; "))
+                format!(
+                    " — {}",
+                    crate::cli::safe_text::inline(&v.wrapper_reasons.join("; "))
+                )
             }
         );
         println!(
@@ -600,39 +647,57 @@ fn cmd_gate_auto_admit(frontier: &Path, finding_id: &str, apply: bool, json_outp
             if v.vouch_reason.is_empty() {
                 String::new()
             } else {
-                format!(" — {}", v.vouch_reason)
+                format!(" — {}", crate::cli::safe_text::inline(&v.vouch_reason))
             }
         );
         if let Some(c) = &v.canonical_claim {
-            println!("  verified claim (witness-derived, not prose): {c}");
+            println!(
+                "  verified claim (witness-derived, not prose): {}",
+                crate::cli::safe_text::inline(c)
+            );
         }
         println!(
             "  => auto-admit to machine_verified: {}",
             if v.would_admit { "YES" } else { "NO" }
         );
         match &v.emitted {
-            Some((id, true)) => println!("  recorded policy.auto_admitted {id} (machine_verified)"),
+            Some((id, true)) => println!(
+                "  recorded policy.auto_admitted {} (machine_verified)",
+                crate::cli::safe_text::inline(id)
+            ),
             Some((id, false)) => {
-                println!("  already admitted: policy.auto_admitted {id} (idempotent no-op)")
+                println!(
+                    "  already admitted: policy.auto_admitted {} (idempotent no-op)",
+                    crate::cli::safe_text::inline(id)
+                )
             }
             None if apply => {} // would_admit false; the exit below reports it
             None => println!(
                 "  (read-only preview; pass --apply to record the unsigned, idempotent \
-                 policy.auto_admitted event when the verdict is YES — docs/VERIFICATION.md)"
+                policy.auto_admitted event when the verdict is YES — docs/VERIFICATION.md)"
             ),
         }
-    }
-    // Mechanical-lane CD: the signed policy IS the standing human
-    // authorization; requiring a human to come commit its output would
-    // contradict the point of the lane. Emitted = publish (commit locally;
-    // push only if config opts in — explicit-publish default is off).
-    if let Some((id, true)) = &v.emitted {
-        crate::config::git_publish::publish_decision(
-            frontier,
-            &format!("policy auto-admit: {finding_id}"),
-            std::slice::from_ref(id),
-            &crate::config::git_publish::PublishOptions::new(false, false),
-        );
+        if let (Some(operation_id), Some(publication)) = (&operation_id, &publication) {
+            println!(
+                "  publication: {}",
+                crate::cli::safe_text::inline(
+                    &serde_json::to_string(publication).unwrap_or_else(|_| "unknown".to_string())
+                )
+            );
+            println!(
+                "  retained: {}",
+                crate::cli::safe_text::inline(operation_id)
+            );
+            println!(
+                "  next: {}",
+                crate::cli::safe_text::inline(
+                    publication
+                        .recovery_command
+                        .as_deref()
+                        .unwrap_or("vela status --json")
+                )
+            );
+        }
     }
     if !v.would_admit {
         std::process::exit(1);
@@ -2878,9 +2943,12 @@ pub(crate) fn cmd_submit(
             );
         } else {
             crate::ui::header("SUBMIT", "--dry-run: writing nothing", None);
-            println!("  witness      ok (frozen verifier: {})", vr.message);
-            println!("  claim        {claim}");
-            println!("  beat check   {verdict}");
+            println!(
+                "  witness      ok (frozen verifier: {})",
+                crate::cli::safe_text::inline(&vr.message)
+            );
+            println!("  claim        {}", crate::cli::safe_text::inline(&claim));
+            println!("  beat check   {}", crate::cli::safe_text::inline(&verdict));
             println!(
                 "  would        land -> register witness -> exact-lane auto-admit -> materialize"
             );
@@ -2894,6 +2962,33 @@ pub(crate) fn cmd_submit(
             );
         }
         return;
+    }
+
+    let frontier_abs = frontier
+        .canonicalize()
+        .unwrap_or_else(|_| frontier.to_path_buf());
+    let preflight_inputs = witness_path
+        .canonicalize()
+        .ok()
+        .filter(|path| path.starts_with(&frontier_abs))
+        .into_iter()
+        .collect();
+    let publish_opts = if push {
+        crate::config::git_publish::PublishOptions::pushing()
+    } else {
+        crate::config::git_publish::PublishOptions::new(false, false)
+    }
+    .with_preflight_inputs(preflight_inputs);
+    let publication_preflight =
+        crate::config::git_publish::publication_preflight(frontier, &publish_opts);
+    if let Err(outcome) = &publication_preflight
+        && crate::config::git_publish::publication_is_busy(outcome)
+    {
+        crate::ui::fail_with(
+            crate::ui::ErrorKind::Domain,
+            "another Vela write/publication owns this repository; submit changed no scientific state",
+            Some("retry the same `vela submit` command after the active operation completes"),
+        );
     }
 
     // 2. Land (local; the transaction publishes ONCE at the end, not per step).
@@ -2940,12 +3035,27 @@ pub(crate) fn cmd_submit(
     // 5. Materialize LAST (derived views reflect the full log), then publish ONCE.
     vela_protocol::frontier_repo::materialize(frontier)
         .unwrap_or_else(|e| fail_return(&format!("materialize: {e}")));
-    let opts = if push {
-        crate::config::git_publish::PublishOptions::pushing()
-    } else {
-        crate::config::git_publish::PublishOptions::new(false, false)
+    let publication = match publication_preflight {
+        Ok(preflight) => {
+            let publish_opts = publish_opts.with_preflight(preflight);
+            crate::config::git_publish::publish_decision(
+                frontier,
+                "submit",
+                &[vpr.clone()],
+                &publish_opts,
+            )
+        }
+        Err(outcome) => outcome,
     };
-    crate::config::git_publish::publish_decision(frontier, "submit", &[vpr.clone()], &opts);
+    let operation_id = crate::operation_journal::operation_id("submit-command", vpr.as_bytes());
+    let pushed = matches!(
+        &publication.state,
+        crate::config::git_publish::PublicationState::Pushed { .. }
+    );
+    let publication_next = publication
+        .recovery_command
+        .clone()
+        .unwrap_or_else(|| "vela status --json".to_string());
 
     // 6. Receipt.
     let machine_verified = verdict.would_admit;
@@ -2957,19 +3067,26 @@ pub(crate) fn cmd_submit(
                 "claim": verdict.canonical_claim.clone().unwrap_or(claim),
                 "kind": kind, "n": n, "size": size,
                 "finding_id": vf, "proposal_id": vpr,
+                "operation_id": operation_id,
                 "machine_verified": machine_verified,
                 "beats": {"previous_best": best, "is_beat": is_beat},
                 "witness_sha256": witness_sha,
-                "published": push,
-                "next": if push { "published — open a PR" } else { "git push (or re-run with --push) to publish, then open a PR" },
+                "published": pushed,
+                "publication": publication,
+                "next": publication_next,
             }))
             .unwrap()
         );
     } else {
         crate::ui::header("SUBMIT", &vf, None);
-        println!("  landed       {vf} (proposal {vpr}, as {actor})");
+        println!(
+            "  landed       {} (proposal {}, as {})",
+            crate::cli::safe_text::inline(&vf),
+            crate::cli::safe_text::inline(&vpr),
+            crate::cli::safe_text::inline(actor)
+        );
         if let Some(c) = &verdict.canonical_claim {
-            println!("  verified     {c}");
+            println!("  verified     {}", crate::cli::safe_text::inline(c));
         }
         println!(
             "  machine_verified: {}",
@@ -2986,12 +3103,18 @@ pub(crate) fn cmd_submit(
             _ => {}
         }
         println!(
-            "  {}",
-            if push {
-                "published (pushed) — open a PR"
-            } else {
-                "committed locally — git push (or --push) to publish, then open a PR"
-            }
+            "  operation     {}",
+            crate::cli::safe_text::inline(&operation_id)
+        );
+        println!(
+            "  publication   {}",
+            crate::cli::safe_text::inline(
+                &serde_json::to_string(&publication).unwrap_or_else(|_| "unknown".to_string())
+            )
+        );
+        println!(
+            "  next          {}",
+            crate::cli::safe_text::inline(&publication_next)
         );
     }
     if !machine_verified {

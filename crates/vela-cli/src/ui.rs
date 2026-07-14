@@ -149,12 +149,63 @@ pub fn fail_with(kind: ErrorKind, message: &str, hint: Option<&str>) -> ! {
             serde_json::to_string_pretty(&payload).unwrap_or_else(|_| "{}".into())
         );
     } else {
+        let message = crate::cli::safe_text::multiline(message);
         eprintln!("{} {message}", style::err_prefix());
         if let Some(hint) = hint
             && advice_enabled()
         {
-            eprintln!("  hint: {hint}");
+            eprintln!("  hint: {}", crate::cli::safe_text::inline(hint));
         }
+    }
+    std::process::exit(kind.exit_code());
+}
+
+/// Terminate a mutating request that was rejected before its first durable
+/// write. Unlike [`fail_with`], this contract may state zero delta because the
+/// caller has already proved that no canonical or Git mutation was attempted.
+/// The retained operation id lets a human correlate the repaired retry without
+/// implying that a transaction marker or scientific result exists.
+pub fn fail_unchanged(kind: ErrorKind, message: &str, operation_id: &str, next_command: &str) -> ! {
+    let (command, json) = mode();
+    if json {
+        let payload = json!({
+            "ok": false,
+            "command": if command.is_empty() { serde_json::Value::Null } else { json!(command) },
+            "request_id": operation_id,
+            "operation_id": operation_id,
+            "changed": false,
+            "retained": {
+                "request_id": operation_id,
+                "transaction_marker": false,
+            },
+            "next": next_command,
+            "error": {
+                "kind": kind.as_str(),
+                "message": message,
+                "hint": next_command,
+            },
+        });
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&payload).unwrap_or_else(|_| "{}".into())
+        );
+    } else {
+        let message = crate::cli::safe_text::multiline(message);
+        eprintln!("{} {message}", style::err_prefix());
+        eprintln!(
+            "  {:<16} canonical Vela state, Git refs, index, and worktree",
+            style::dim("unchanged")
+        );
+        eprintln!(
+            "  {:<16} {} (request only; no transaction marker)",
+            style::dim("retained"),
+            crate::cli::safe_text::inline(operation_id)
+        );
+        eprintln!(
+            "  {:<16} {}",
+            style::dim("next"),
+            crate::cli::safe_text::inline(next_command)
+        );
     }
     std::process::exit(kind.exit_code());
 }
@@ -164,12 +215,14 @@ pub fn fail_with(kind: ErrorKind, message: &str, hint: Option<&str>) -> ! {
 /// can drift into its own dialect again.
 pub fn header(command: &str, subject: &str, note: Option<&str>) {
     println!();
+    let command = crate::cli::safe_text::inline(command);
+    let subject = crate::cli::safe_text::inline(subject);
     let mut line = format!("VELA · {command}");
     if !subject.is_empty() {
         line.push_str(&format!(" · {subject}"));
     }
     if let Some(note) = note {
-        line.push_str(&format!("  ({note})"));
+        line.push_str(&format!("  ({})", crate::cli::safe_text::inline(note)));
     }
     println!("  {}", line.to_uppercase().dimmed());
     println!("  {}", style::tick_row(60));

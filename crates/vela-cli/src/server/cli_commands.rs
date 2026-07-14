@@ -193,9 +193,10 @@ pub(crate) enum Commands {
     },
     /// Make this frontier queryable by AI agents: an MCP server any
     /// client (Claude Code, Cursor, …) can attach to, over stdio or
-    /// HTTP. Profiles gate what tools exist: read-only (default) ⊂
-    /// draft ⊂ maintainer. The public hub serves the same read surface
-    /// at hub.constellate.science/mcp with no clone at all.
+    /// HTTP. Profiles gate what tools exist: read-only (default), or draft
+    /// for nonfinalizing writes. `maintainer` is a deprecated alias for
+    /// draft and grants no extra capability. The public hub serves the same
+    /// read surface at hub.constellate.science/mcp with no clone at all.
     #[command(after_long_help = crate::cli::help_text::SERVE)]
     Serve {
         /// Frontier JSON file or Vela repo
@@ -219,10 +220,9 @@ pub(crate) enum Commands {
         /// Include first external frontier adoption guidance in --check-tools output
         #[arg(long)]
         adoption: bool,
-        /// MCP exposure profile (memo §9.1): `read-only` (default), `draft`
-        /// (adds the propose/draft write tools), or `maintainer` (all tools).
-        /// Scopes which tools are listed AND executable. Agents should get
-        /// read-only unless a human starts a scoped session.
+        /// MCP exposure profile: `read-only` (default) or `draft` (adds only
+        /// nonfinalizing propose/work tools). `maintainer` is a deprecated
+        /// warning alias for `draft`; human finalization is terminal-only.
         #[arg(long, default_value = "read-only")]
         profile: String,
         /// Output stable JSON for --check-tools
@@ -349,6 +349,13 @@ pub(crate) enum Commands {
     Hub {
         #[command(subcommand)]
         action: HubAction,
+    },
+    /// Recover an interrupted Git publication transaction. This is private
+    /// operational plumbing: it never signs or changes scientific authority.
+    #[command(after_long_help = crate::cli::help_text::PUBLICATION)]
+    Publication {
+        #[command(subcommand)]
+        action: PublicationAction,
     },
     /// Initialize a .vela frontier repo
     #[command(after_long_help = crate::cli::help_text::INIT)]
@@ -494,7 +501,7 @@ pub(crate) enum Commands {
 
     /// Land a result: record -> propose -> route by the signed policy.
     /// Permit admits canonically (the autonomy lane); Defer parks it in
-    /// the human's sign queue; Deny lands nothing. The positional is a
+    /// the human's sign queue; Deny refuses canonical admission. The positional is a
     /// vela.receipt.v1 JSON — the portable contract ANY tool exports.
     #[command(after_long_help = crate::cli::help_text::LAND)]
     Land {
@@ -571,6 +578,26 @@ pub(crate) enum Commands {
     Completions {
         /// bash | zsh | fish
         shell: String,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+pub(crate) enum PublicationAction {
+    /// Resume one journaled path-exact Git publication after verifying the
+    /// frontier, checkout, caller index, worktree bytes, and target ref.
+    Recover {
+        /// Private vop_ operation identifier printed by the interrupted command.
+        #[arg(long)]
+        operation: String,
+        /// Frontier root; defaults to discovery from the current directory.
+        #[arg(long)]
+        frontier: Option<PathBuf>,
+        /// Push after local ref/index recovery and verify the remote ref.
+        #[arg(long)]
+        push: bool,
+        /// Output one structured JSON object.
+        #[arg(long)]
+        json: bool,
     },
 }
 

@@ -62,8 +62,9 @@ drafting writes — `propose` (signed proposals that land pending review) and
 `work` (claim a target, land a receipt, bank an attempt). Every landing
 routes through the frontier's signed policy: Permit admits mechanically,
 Defer parks it in the human's sign queue. Nothing on this surface finalizes —
-the `decide` tier is excluded by profile, and a truth-bearing accept remains
-a key-custody human act off the MCP surface entirely.
+the finalizing `decide` tool is absent from the registry and every profile, and
+a truth-bearing accept remains a key-custody human act off the MCP surface
+entirely.
 
 ## Session brief
 

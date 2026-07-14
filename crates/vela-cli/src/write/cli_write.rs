@@ -202,6 +202,18 @@ pub(crate) fn cmd_proposals(action: ProposalAction) {
         } => {
             let reviewer = crate::cli_identity::resolve_decision_actor(reviewer.as_deref());
             let signing_key = crate::cli_identity::resolve_signing_key_opt(key.as_deref());
+            let publish_opts = crate::config::git_publish::PublishOptions::new(false, false);
+            let publication_preflight =
+                crate::config::git_publish::publication_preflight(&frontier, &publish_opts);
+            if let Err(outcome) = &publication_preflight
+                && crate::config::git_publish::publication_is_busy(outcome)
+            {
+                crate::ui::fail_with(
+                    crate::ui::ErrorKind::Domain,
+                    "another Vela write/publication owns this repository; the proposal was not accepted",
+                    Some("retry after the active operation completes"),
+                );
+            }
             let event_id = proposals::accept_at_path_signed(
                 &frontier,
                 &proposal_id,
@@ -210,13 +222,29 @@ pub(crate) fn cmd_proposals(action: ProposalAction) {
                 signing_key.as_ref(),
             )
             .unwrap_or_else(|e| fail_return(&e));
+            let publication = match publication_preflight {
+                Ok(preflight) => {
+                    let publish_opts = publish_opts.with_preflight(preflight);
+                    crate::config::git_publish::publish_decision(
+                        &frontier,
+                        &format!("accept: {proposal_id}"),
+                        std::slice::from_ref(&event_id),
+                        &publish_opts,
+                    )
+                }
+                Err(outcome) => outcome,
+            };
+            let operation_id =
+                crate::operation_journal::operation_id("proposal-accept", event_id.as_bytes());
             let payload = json!({
                 "ok": true,
                 "command": "proposals.accept",
+                "operation_id": operation_id,
                 "frontier": frontier.display().to_string(),
                 "proposal_id": proposal_id,
                 "reviewer": reviewer,
                 "applied_event_id": event_id,
+                "publication": publication,
             });
             if json {
                 print_json(&payload);
@@ -224,9 +252,29 @@ pub(crate) fn cmd_proposals(action: ProposalAction) {
                 println!(
                     "{} accepted and applied proposal {}",
                     style::ok("ok"),
-                    proposal_id
+                    crate::cli::safe_text::inline(&proposal_id)
                 );
-                println!("  event: {}", event_id);
+                println!("  event: {}", crate::cli::safe_text::inline(&event_id));
+                println!(
+                    "  publication: {}",
+                    crate::cli::safe_text::inline(
+                        &serde_json::to_string(&publication)
+                            .unwrap_or_else(|_| "unknown".to_string())
+                    )
+                );
+                println!(
+                    "  retained: {}",
+                    crate::cli::safe_text::inline(&operation_id)
+                );
+                println!(
+                    "  next: {}",
+                    crate::cli::safe_text::inline(
+                        publication
+                            .recovery_command
+                            .as_deref()
+                            .unwrap_or("vela status --json")
+                    )
+                );
             }
         }
         ProposalAction::Reject {
@@ -241,6 +289,18 @@ pub(crate) fn cmd_proposals(action: ProposalAction) {
         } => {
             let reviewer = crate::cli_identity::resolve_decision_actor(reviewer.as_deref());
             let signing_key = crate::cli_identity::resolve_signing_key_opt(key.as_deref());
+            let publish_opts = crate::config::git_publish::PublishOptions::new(no_commit, no_push);
+            let publication_preflight =
+                crate::config::git_publish::publication_preflight(&frontier, &publish_opts);
+            if let Err(outcome) = &publication_preflight
+                && crate::config::git_publish::publication_is_busy(outcome)
+            {
+                crate::ui::fail_with(
+                    crate::ui::ErrorKind::Domain,
+                    "another Vela write/publication owns this repository; the proposal was not rejected",
+                    Some("retry after the active operation completes"),
+                );
+            }
             proposals::reject_at_path_signed(
                 &frontier,
                 &proposal_id,
@@ -249,14 +309,30 @@ pub(crate) fn cmd_proposals(action: ProposalAction) {
                 signing_key.as_ref(),
             )
             .unwrap_or_else(|e| fail_return(&e));
+            let publication = match publication_preflight {
+                Ok(preflight) => {
+                    let publish_opts = publish_opts.with_preflight(preflight);
+                    crate::config::git_publish::publish_decision(
+                        &frontier,
+                        &format!("reject: {proposal_id}"),
+                        &[],
+                        &publish_opts,
+                    )
+                }
+                Err(outcome) => outcome,
+            };
+            let operation_id =
+                crate::operation_journal::operation_id("proposal-reject", proposal_id.as_bytes());
             let payload = json!({
                 "ok": true,
                 "command": "proposals.reject",
+                "operation_id": operation_id,
                 "frontier": frontier.display().to_string(),
                 "proposal_id": proposal_id,
                 "reviewer": reviewer,
                 "status": "rejected",
                 "signed": signing_key.is_some(),
+                "publication": publication,
             });
             if json {
                 print_json(&payload);
@@ -264,20 +340,34 @@ pub(crate) fn cmd_proposals(action: ProposalAction) {
                 println!(
                     "{} rejected proposal {}{}",
                     style::warn("rejected"),
-                    proposal_id,
+                    crate::cli::safe_text::inline(&proposal_id),
                     if signing_key.is_some() {
                         " (signed review.rejected event)"
                     } else {
                         ""
                     }
                 );
+                println!(
+                    "  publication: {}",
+                    crate::cli::safe_text::inline(
+                        &serde_json::to_string(&publication)
+                            .unwrap_or_else(|_| "unknown".to_string())
+                    )
+                );
+                println!(
+                    "  retained: {}",
+                    crate::cli::safe_text::inline(&operation_id)
+                );
+                println!(
+                    "  next: {}",
+                    crate::cli::safe_text::inline(
+                        publication
+                            .recovery_command
+                            .as_deref()
+                            .unwrap_or("vela status --json")
+                    )
+                );
             }
-            crate::config::git_publish::publish_decision(
-                &frontier,
-                &format!("reject: {proposal_id}"),
-                &[],
-                &crate::config::git_publish::PublishOptions::new(no_commit, no_push),
-            );
         }
     }
 }

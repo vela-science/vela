@@ -1,9 +1,9 @@
 //! Tool registry — tools defined as data, separate from execution.
 //! Borrowed from Codex (MIT) tool-as-data pattern.
 //!
-//! The surface is exactly ten tools. Each one owns a concept (orientation,
-//! one finding, search, the graph, verification, drafting, deciding, agent
-//! work, agent objects, external services); the dispatch in
+//! The surface is exactly nine tools. Each one owns a concept (orientation,
+//! one finding, search, the graph, verification, drafting, agent work, agent
+//! objects, external services); the dispatch in
 //! `vela-cli/src/server/serve.rs` maps each onto the underlying analysis
 //! functions. Schemas are strict: closed sets are enums, actor ids carry
 //! patterns, required text carries minLength, lists carry limit bounds and
@@ -192,8 +192,8 @@ pub fn all_tools() -> Vec<ToolDefinition> {
         ),
         tool(
             "verify",
-            "Run the frozen verifiers against a frontier checkout on this machine's \
-             filesystem. mode=strict holds the frontier to the strict bar (content-address \
+            "Run the frozen verifiers against the one frontier checkout bound to this MCP \
+             server. mode=strict holds the frontier to the strict bar (content-address \
              validation, strict reducer replay, signature signals — the same bundle the hub's \
              git ingestor enforces); mode=witness re-verifies every stored \
              witnesses/*.witness.json from scratch with the frozen exact verifiers. Read-only \
@@ -207,7 +207,7 @@ pub fn all_tools() -> Vec<ToolDefinition> {
                     "frontier_path": {
                         "type": "string",
                         "minLength": 1,
-                        "description": "Path to the frontier repo (for witness mode, a witness file or directory also works)."
+                        "description": "The exact frontier checkout bound to this MCP server; direct files and other local paths are refused."
                     },
                     "mode": {
                         "type": "string",
@@ -227,8 +227,9 @@ pub fn all_tools() -> Vec<ToolDefinition> {
              (requires status), note (requires text; optional provenance), apply_note (a note \
              that auto-applies, only for actors registered with tier=auto-notes), \
              revise_confidence (requires new_score in [0,1]), retract. Requires a registered \
-             actor_id and an Ed25519 signature over the canonical proposal preimage; use \
-             `decide` (maintainer lane) to finalize. Example: {\"kind\": \"note\", \"target\": \
+             actor_id and an Ed25519 signature over the canonical proposal preimage. Human \
+             finalization is not exposed through MCP; use the terminal `vela sign` ceremony. \
+             Example: {\"kind\": \"note\", \"target\": \
              \"vf_3f9a\", \"actor_id\": \"agent:x\", \"text\": \"…\", \"reason\": \"…\", \
              \"signature\": \"<hex>\"}.",
             json!({
@@ -304,61 +305,6 @@ pub fn all_tools() -> Vec<ToolDefinition> {
             ],
         ),
         tool(
-            "decide",
-            "Accept or reject a pending proposal as the named reviewer — the key-custody human \
-             lane; agent sessions are refused by profile. The signature is over {action, \
-             proposal_id, reviewer_id, reason, timestamp} canonicalized, and the reviewer must \
-             be a registered actor. Use `propose` to create submissions instead of finalizing \
-             them. Example: {\"proposal_id\": \"vpr_ab12cd34\", \"action\": \"accept\", \
-             \"reviewer_id\": \"reviewer:will-blair\", \"reason\": \"verified\", \
-             \"signature\": \"<hex>\"}.",
-            json!({
-                "type": "object",
-                "additionalProperties": false,
-                "required": ["proposal_id", "action", "reason", "reviewer_id", "signature"],
-                "properties": {
-                    "proposal_id": {
-                        "type": "string",
-                        "minLength": 5,
-                        "pattern": "^vpr_",
-                        "description": "The pending vpr_ proposal to decide."
-                    },
-                    "action": {
-                        "type": "string",
-                        "enum": ["accept", "reject"],
-                        "description": "accept applies the proposal as a canonical event; reject records the decision without emitting one."
-                    },
-                    "reason": {
-                        "type": "string",
-                        "minLength": 1,
-                        "description": "Why; recorded with the decision."
-                    },
-                    "reviewer_id": {
-                        "type": "string",
-                        "minLength": 3,
-                        "pattern": "^[A-Za-z][A-Za-z0-9_.-]*:[A-Za-z0-9_.:-]+$",
-                        "description": "Registered reviewer actor id whose key signed the decision."
-                    },
-                    "signature": {
-                        "type": "string",
-                        "minLength": 1,
-                        "description": "Hex Ed25519 signature by reviewer_id over the canonical decision preimage."
-                    },
-                    "timestamp": {
-                        "type": "string",
-                        "minLength": 1,
-                        "description": "RFC-3339 timestamp in the signed preimage (defaults to now; must match what was signed)."
-                    }
-                }
-            }),
-            PermissionLevel::Write,
-            true,
-            vec![
-                "Committing a proposal into accepted state is a key-custody human act; an AI never signs an accept.",
-                "Accepting an already-applied proposal returns its existing event_id; no duplicate event is emitted.",
-            ],
-        ),
-        tool(
             "work",
             "The compounding loop against a local frontier checkout. action=claim leases an \
              open target so other agents route around it, signed with the agent's auto-minted \
@@ -379,7 +325,7 @@ pub fn all_tools() -> Vec<ToolDefinition> {
                     "frontier_path": {
                         "type": "string",
                         "minLength": 1,
-                        "description": "Path to the frontier repo on this machine."
+                        "description": "The exact frontier checkout bound to this MCP server."
                     },
                     "action": {
                         "type": "string",
@@ -395,7 +341,7 @@ pub fn all_tools() -> Vec<ToolDefinition> {
                         "type": "string",
                         "minLength": 4,
                         "pattern": "^(agent:|ci:)",
-                        "description": "claim/land/deposit: the agent identity doing the work (agent:<name> or ci:<name>)."
+                        "description": "claim/land/drop/deposit: the agent identity doing the work (agent:<name> or ci:<name>); drop is allowed only for the exact lease owner."
                     },
                     "ttl_seconds": {
                         "type": "integer",
@@ -497,7 +443,7 @@ pub fn all_tools() -> Vec<ToolDefinition> {
                     "frontier_path": {
                         "type": "string",
                         "minLength": 1,
-                        "description": "Path to the frontier repo on this machine."
+                        "description": "The exact frontier checkout bound to this MCP server."
                     },
                     "type": {
                         "type": "string",
@@ -586,16 +532,10 @@ pub fn tool_caveats(name: &str) -> Vec<String> {
     get_tool(name).map(|tool| tool.caveats).unwrap_or_default()
 }
 
-/// Tools that COMMIT a pending proposal into accepted state. Reserved for the
-/// maintainer profile regardless of their (coarser) `permission_level`. Keep
-/// in sync with the substrate accept gate: these are the truth-bearing
-/// finalize actions an agent must never reach through a draft session.
-const FINALIZING_TOOLS: &[&str] = &["decide"];
-
 /// MCP exposure profile (memo §9.1). A served frontier scopes which tools an
 /// agent can see and call. `MCP exposes tools; Vela governs state` — even the
-/// maintainer profile only drafts proposals; accepted public state still
-/// requires a key-custody human accept off the MCP surface.
+/// deprecated maintainer alias only drafts proposals. Human finalization is
+/// available only through the terminal `vela sign` ceremony.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum McpProfile {
     /// Inspect state, graph, provenance, tasks, schemas. The default.
@@ -603,7 +543,7 @@ pub enum McpProfile {
     /// Read + non-finalizing writes: runs, observations, draft findings,
     /// draft submissions (`propose` and `work`).
     Draft,
-    /// Everything the server exposes, including the finalizing tier.
+    /// Deprecated compatibility alias for `Draft`; it grants no extra tools.
     Maintainer,
 }
 
@@ -627,23 +567,27 @@ impl McpProfile {
         }
     }
 
+    /// A warning callers should surface when accepting a legacy profile name.
+    pub fn deprecation_warning(self) -> Option<&'static str> {
+        match self {
+            Self::Maintainer => Some(
+                "MCP profile `maintainer` is deprecated and is now an alias for `draft`; \
+                 human finalization is available only through terminal `vela sign`",
+            ),
+            Self::ReadOnly | Self::Draft => None,
+        }
+    }
+
     /// Whether this profile may expose AND execute `tool`. Read-only admits
-    /// only non-mutating reads; draft admits the drafting writes but NOT
-    /// the finalizing tools (`decide`, which commits accepted state) nor the
-    /// `Dangerous` tier; maintainer admits all.
-    ///
-    /// Finalizing is a profile policy, not a property of `permission_level`:
-    /// `decide` is a plain `Write`, but committing a pending proposal into
-    /// accepted state is a maintainer act. The draft tier creates
-    /// submissions; it does not finalize them.
+    /// only non-mutating reads. Draft admits non-dangerous drafting writes.
+    /// Maintainer is a deprecated alias with exactly the same capabilities as
+    /// Draft. No MCP profile exposes human finalization.
     pub fn allows(self, tool: &ToolDefinition) -> bool {
         match self {
             Self::ReadOnly => matches!(tool.permission_level, PermissionLevel::ReadOnly),
-            Self::Draft => {
+            Self::Draft | Self::Maintainer => {
                 !matches!(tool.permission_level, PermissionLevel::Dangerous)
-                    && !FINALIZING_TOOLS.contains(&tool.name.as_str())
             }
-            Self::Maintainer => true,
         }
     }
 }
@@ -658,16 +602,16 @@ pub fn tools_for_profile(profile: McpProfile) -> Vec<ToolDefinition> {
 /// The MCP-standard tool annotations, derived from the tool's own
 /// permission level and scope. Claude Code reads `readOnlyHint` to run
 /// read tools concurrently, so exposing these speeds a swarm's inspection
-/// calls. `destructiveHint` is false for every tool because Vela's event
-/// log is append-only — no tool deletes state (even `decide` appends the
-/// accept event). `openWorldHint` is true only for `external`, which
+/// calls. `destructiveHint` is true for `work` because action=drop removes the
+/// caller-owned private session directory (never truth-bearing state).
+/// `openWorldHint` is true only for `external`, which
 /// reaches outside the frontier (PubMed / nanopublications).
 fn tool_annotations(tool: &ToolDefinition) -> Value {
     let read_only = matches!(tool.permission_level, PermissionLevel::ReadOnly);
     json!({
         "title": tool.name,
         "readOnlyHint": read_only,
-        "destructiveHint": false,
+        "destructiveHint": tool.name == "work",
         "idempotentHint": read_only,
         "openWorldHint": tool.name == "external",
     })
@@ -717,12 +661,14 @@ pub fn tool_output_schema(name: &str) -> Option<Value> {
             "description": "The lease/land outcome for a work action.",
             "properties": {
                 "action": {"type": "string"},
+                "operation_id": {"type": ["string", "null"]},
                 "proposal_id": {"type": ["string", "null"]},
                 "route": {
                     "type": ["string", "null"],
                     "description": "policy_admitted | deferred (for land)"
                 },
-                "detail": {"type": ["string", "null"]}
+                "detail": {"type": ["string", "null"]},
+                "publication": {"type": ["object", "null"]}
             }
         }),
         _ => return None,
@@ -785,16 +731,45 @@ fn tool(
 mod profile_tests {
     use super::*;
 
-    /// The whole surface, by contract: exactly these ten names.
-    const THE_TEN: [&str; 10] = [
-        "orient", "finding", "search", "graph", "verify", "propose", "decide", "work", "objects",
-        "external",
+    /// The whole MCP surface, by contract: exactly these nine names.
+    const THE_NINE: [&str; 9] = [
+        "orient", "finding", "search", "graph", "verify", "propose", "work", "objects", "external",
     ];
+    const REMOVED_FINALIZERS: [&str; 1] = ["decide"];
 
     #[test]
-    fn the_surface_is_exactly_ten_tools() {
+    fn the_surface_is_exactly_nine_and_finalization_is_absent() {
         let names: Vec<String> = all_tools().into_iter().map(|t| t.name).collect();
-        assert_eq!(names, THE_TEN.to_vec(), "the ten-tool contract");
+        assert_eq!(names, THE_NINE.to_vec(), "the nine-tool contract");
+
+        for removed in REMOVED_FINALIZERS {
+            assert!(
+                get_tool(removed).is_none(),
+                "{removed} must not be registered"
+            );
+            for profile in [
+                McpProfile::ReadOnly,
+                McpProfile::Draft,
+                McpProfile::Maintainer,
+            ] {
+                assert!(
+                    !tools_for_profile(profile)
+                        .iter()
+                        .any(|tool| tool.name == removed),
+                    "{removed} must be absent from {} discovery",
+                    profile.as_str()
+                );
+                assert!(
+                    !mcp_tools_json_for_profile(profile)
+                        .as_array()
+                        .unwrap()
+                        .iter()
+                        .any(|tool| tool["name"] == removed),
+                    "{removed} must have no MCP schema in {}",
+                    profile.as_str()
+                );
+            }
+        }
     }
 
     #[test]
@@ -802,20 +777,15 @@ mod profile_tests {
         let ro = tools_for_profile(McpProfile::ReadOnly);
         let draft = tools_for_profile(McpProfile::Draft);
         let maint = tools_for_profile(McpProfile::Maintainer);
-        // read-only ⊆ draft ⊆ maintainer
+        // read-only is a strict subset; maintainer is only a deprecated
+        // spelling of draft and grants no additional capability.
         assert!(
             ro.len() < draft.len(),
             "read-only must be a strict subset of draft"
         );
-        assert!(
-            draft.len() < maint.len(),
-            "draft must be a strict subset of maintainer"
-        );
-        assert_eq!(
-            maint.len(),
-            all_tools().len(),
-            "maintainer exposes every tool"
-        );
+        let draft_names: Vec<&str> = draft.iter().map(|t| t.name.as_str()).collect();
+        let maint_names: Vec<&str> = maint.iter().map(|t| t.name.as_str()).collect();
+        assert_eq!(maint_names, draft_names, "maintainer must alias draft");
         // read-only = the seven inspection tools, and no mutating tool.
         let ro_names: Vec<&str> = ro.iter().map(|t| t.name.as_str()).collect();
         assert_eq!(
@@ -830,21 +800,19 @@ mod profile_tests {
             "read-only must expose no mutating tool"
         );
         // draft adds the drafting writes, never the finalizing tier.
-        let draft_names: Vec<&str> = draft.iter().map(|t| t.name.as_str()).collect();
         assert!(
             draft_names.contains(&"propose") && draft_names.contains(&"work"),
             "draft exposes the drafting writes"
         );
-        for finalize in FINALIZING_TOOLS {
-            assert!(
-                !draft.iter().any(|t| &t.name == finalize),
-                "draft must not expose finalizing tool {finalize}"
-            );
-            assert!(
-                maint.iter().any(|t| &t.name == finalize),
-                "maintainer must expose finalizing tool {finalize}"
-            );
-        }
+        assert_eq!(
+            draft
+                .iter()
+                .filter(|tool| tool.mutating)
+                .map(|tool| tool.name.as_str())
+                .collect::<Vec<_>>(),
+            vec!["propose", "work"],
+            "MCP writes are limited to non-finalizing draft/work tools"
+        );
     }
 
     #[test]
@@ -900,6 +868,13 @@ mod profile_tests {
             McpProfile::parse("maintainer").unwrap(),
             McpProfile::Maintainer
         );
+        assert!(McpProfile::Draft.deprecation_warning().is_none());
+        assert!(
+            McpProfile::Maintainer
+                .deprecation_warning()
+                .unwrap()
+                .contains("alias for `draft`")
+        );
         assert!(McpProfile::parse("god-mode").is_err());
     }
 
@@ -925,15 +900,12 @@ mod profile_tests {
                 "{name} is frontier-scoped"
             );
         }
-        // Write tools: not read-only, still non-destructive.
-        for name in ["propose", "decide", "work"] {
+        // Draft proposal writes append. Work is coarse-marked destructive
+        // because its drop action removes a private, actor-owned session.
+        for name in ["propose", "work"] {
             let a = &by_name[name]["annotations"];
             assert_eq!(a["readOnlyHint"], json!(false), "{name} writes");
-            assert_eq!(
-                a["destructiveHint"],
-                json!(false),
-                "{name} appends, never deletes"
-            );
+            assert_eq!(a["destructiveHint"], json!(name == "work"), "{name}");
         }
         // external reaches outside the frontier.
         assert_eq!(

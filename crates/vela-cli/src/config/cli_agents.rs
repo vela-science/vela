@@ -229,7 +229,8 @@ Landing routes by the frontier's signed policy:
   authority arrived earlier, once, as the policy signature; the event carries
   the certificate and replay verifies it.
 - **Defer** — parked in the human's sign queue for `vela sign`.
-- **Deny** — nothing lands.
+- **Deny** — refuses canonical admission. The returned structured result states
+  what, if anything, was retained; zero-delta Deny is not assumed by clients.
 
 Truth-bearing claims stay human-keyed in every mode. There is no configuration
 in which an agent's proposal becomes accepted state without a human key.

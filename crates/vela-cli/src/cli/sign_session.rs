@@ -16,6 +16,7 @@
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use vela_edge::sign_queue::{SignItem, SignLane, sign_queue};
 use vela_protocol::acceptance_policy::PolicyContext;
 use vela_protocol::{detached, proposals, repo};
@@ -24,6 +25,31 @@ use colored::Colorize;
 use vela_protocol::cli_style as style;
 
 use crate::ui::{self, ErrorKind};
+
+fn safe_inline(value: impl AsRef<str>) -> String {
+    crate::cli::safe_text::inline(value.as_ref())
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SessionCommand {
+    Quit,
+    Skip,
+    Accept,
+    Reject,
+    Yes,
+    Invalid,
+}
+
+fn session_command(input: &str, lane: SignLane) -> SessionCommand {
+    match (input, lane) {
+        ("q", _) => SessionCommand::Quit,
+        ("s", _) => SessionCommand::Skip,
+        ("a", SignLane::Decision) => SessionCommand::Accept,
+        ("r", SignLane::Decision) => SessionCommand::Reject,
+        ("y", SignLane::Judgment | SignLane::Hygiene | SignLane::Detached) => SessionCommand::Yes,
+        _ => SessionCommand::Invalid,
+    }
+}
 
 /// Saved-as-you-go session state: answers survive `q` and crashes.
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -73,6 +99,46 @@ fn render_pack_preview(pp: &vela_edge::sign_preview::PackSignPreview) -> Vec<Str
         out.push(format!("unshown   {first}"));
     }
     out
+}
+
+/// The complete bounded material shown for one sign item both when it is
+/// answered and again in the final summary. Re-rendering it immediately before
+/// the sole confirmation makes resumed sessions reviewable and prevents an
+/// accepted item from reaching the key through an id/title-only summary.
+fn render_item_review_lines(item: &SignItem) -> Vec<String> {
+    const PREVIEW_LINE_BUDGET: usize = 8;
+
+    let mut lines = item
+        .preview
+        .iter()
+        .take(PREVIEW_LINE_BUDGET)
+        .map(safe_inline)
+        .collect::<Vec<_>>();
+    if item.preview.len() > PREVIEW_LINE_BUDGET {
+        let mut hasher = Sha256::new();
+        for line in &item.preview {
+            hasher.update((line.len() as u64).to_be_bytes());
+            hasher.update(line.as_bytes());
+        }
+        lines.push(format!(
+            "… {} preview line(s) omitted; sha256:{}",
+            item.preview.len() - PREVIEW_LINE_BUDGET,
+            hex::encode(hasher.finalize())
+        ));
+    }
+    lines.push(format!("why you: {}", safe_inline(&item.why_here)));
+    match (&item.pack_preview, &item.pack) {
+        (Some(preview), _) => {
+            lines.extend(render_pack_preview(preview).into_iter().map(safe_inline));
+        }
+        (None, Some(pack)) => lines.push(format!(
+            "pack {} — deciding one decides the set",
+            safe_inline(pack)
+        )),
+        (None, None) => {}
+    }
+    lines.push(safe_inline(&item.id));
+    lines
 }
 
 fn session_path(frontier: &Path) -> PathBuf {
@@ -167,7 +233,11 @@ pub(crate) fn cmd_sign_session(
         let project = match repo::load_from_path(dir) {
             Ok(p) => p,
             Err(e) => {
-                eprintln!("  skipping {}: {e}", dir.display());
+                eprintln!(
+                    "  skipping {}: {}",
+                    safe_inline(dir.display().to_string()),
+                    safe_inline(e)
+                );
                 continue;
             }
         };
@@ -176,7 +246,11 @@ pub(crate) fn cmd_sign_session(
                 total += q.items.iter().filter(|i| i.signable).count();
                 queues.push((dir.clone(), project, q.items));
             }
-            Err(e) => eprintln!("  skipping {}: {e}", dir.display()),
+            Err(e) => eprintln!(
+                "  skipping {}: {}",
+                safe_inline(dir.display().to_string()),
+                safe_inline(e)
+            ),
         }
     }
 
@@ -241,20 +315,8 @@ pub(crate) fn cmd_sign_session(
     let mut position = 0usize;
     for (dir, _project, items) in &queues {
         let mut state = load_session(dir);
-        // Set once the human chooses "accept all remaining" (capital A) on a
-        // Decision item: the rest of this frontier's decision items are marked
-        // accept without a per-item keystroke. The final summary still lists
-        // every planned verdict and the single confirm still gates, so the
-        // human sees the whole set before one key read — a batch decision over
-        // a shown set, not a blind one.
-        let mut bulk_accept = false;
         for item in items {
             if !item.signable || state.answers.contains_key(&item.id) {
-                continue;
-            }
-            if bulk_accept && matches!(item.lane, SignLane::Decision) {
-                state.answers.insert(item.id.clone(), "accept".into());
-                save_session(dir, &state);
                 continue;
             }
             position += 1;
@@ -272,36 +334,19 @@ pub(crate) fn cmd_sign_session(
             );
             // The CLAIM is the headline — bold, full width, the thing
             // being judged.
-            println!("  {}", item.title.bold());
-            for line in &item.preview {
-                println!("    {}", style::dim(line));
+            println!("  {}", safe_inline(&item.title).bold());
+            for line in render_item_review_lines(item) {
+                println!("    {}", style::dim(&line));
             }
-            println!("    {}", style::dim(&format!("why you: {}", item.why_here)));
-            match (&item.pack_preview, &item.pack) {
-                (Some(pp), _) => {
-                    for line in render_pack_preview(pp) {
-                        println!("    {}", style::dim(&line));
-                    }
-                }
-                (None, Some(pack)) => {
-                    println!(
-                        "    {}",
-                        style::dim(&format!("pack {pack} — deciding one decides the set"))
-                    );
-                }
-                (None, None) => {}
-            }
-            println!("    {}", style::dim(&item.id));
             let keys = match item.lane {
-                SignLane::Decision => "a/A/r/s/q",
+                SignLane::Decision => "a/r/s/q",
                 _ => "y/s/q",
             };
             loop {
                 let legend = match item.lane {
                     SignLane::Decision => format!(
-                        "{}ccept · {}ll-remaining · {}eject · {}kip · {}uit",
+                        "{}ccept · {}eject · {}kip · {}uit",
                         style::moss("a"),
-                        style::moss("A"),
                         style::madder("r"),
                         style::dim("s"),
                         style::dim("q")
@@ -314,40 +359,29 @@ pub(crate) fn cmd_sign_session(
                     ),
                 };
                 let ans = read_line(&format!("  {legend}  > "));
-                match (ans.as_str(), item.lane) {
-                    ("q", _) => {
+                match session_command(&ans, item.lane) {
+                    SessionCommand::Quit => {
                         save_session(dir, &state);
                         println!("  saved; re-run `vela sign` to resume.");
                         return;
                     }
-                    ("s", _) => break,
-                    ("a", SignLane::Decision) => {
+                    SessionCommand::Skip => break,
+                    SessionCommand::Accept => {
                         state.answers.insert(item.id.clone(), "accept".into());
                         break;
                     }
-                    ("A", SignLane::Decision) => {
-                        // Accept this item and every remaining decision item in
-                        // this frontier; the summary + one confirm still gate.
-                        state.answers.insert(item.id.clone(), "accept".into());
-                        bulk_accept = true;
-                        break;
-                    }
-                    ("r", SignLane::Decision) => {
+                    SessionCommand::Reject => {
                         let why = read_line("  reject reason: ");
                         state
                             .answers
                             .insert(item.id.clone(), format!("reject:{why}"));
                         break;
                     }
-                    ("y", SignLane::Hygiene) | ("y", SignLane::Detached) => {
+                    SessionCommand::Yes => {
                         state.answers.insert(item.id.clone(), "yes".into());
                         break;
                     }
-                    ("y", SignLane::Judgment) => {
-                        state.answers.insert(item.id.clone(), "yes".into());
-                        break;
-                    }
-                    _ => println!("    keys: {keys}"),
+                    SessionCommand::Invalid => println!("    keys: {keys}"),
                 }
             }
             save_session(dir, &state);
@@ -375,7 +409,14 @@ pub(crate) fn cmd_sign_session(
                         "accept" | "yes" => style::moss(&label).to_string(),
                         _ => label.clone(),
                     };
-                    println!("  {shown}  {}  {}", item.id, item.title);
+                    println!(
+                        "  {shown}  {}  {}",
+                        safe_inline(&item.id),
+                        safe_inline(&item.title)
+                    );
+                    for line in render_item_review_lines(item) {
+                        println!("             {}", style::dim(&line));
+                    }
                     answered.push((dir.clone(), item.id.clone()));
                 }
             }
@@ -386,7 +427,8 @@ pub(crate) fn cmd_sign_session(
             return;
         }
         let choice = read_line(&format!(
-            "\nSign {planned} item(s) as {actor}?  [{}es · {}dit one · {}eset all · {}o] > ",
+            "\nSign {planned} item(s) as {}?  [{}es · {}dit one · {}eset all · {}o] > ",
+            safe_inline(&actor),
             style::moss("y"),
             style::brass("e"),
             style::madder("r"),
@@ -420,7 +462,7 @@ pub(crate) fn cmd_sign_session(
                         }
                         save_session(dir, &st);
                     }
-                    None => println!("  no answered item matches `{id}`"),
+                    None => println!("  no answered item matches `{}`", safe_inline(id)),
                 }
             }
             "r" => {
@@ -448,7 +490,25 @@ pub(crate) fn cmd_sign_session(
     let signing_key = crate::cli_identity::resolve_signing_key_opt(key.as_deref());
     let mut total_persisted = 0usize;
     let mut failures: Vec<(String, String)> = Vec::new();
+    let mut publication_reports: Vec<(
+        String,
+        String,
+        crate::config::git_publish::PublicationOutcome,
+    )> = Vec::new();
     for (dir, _, items) in &queues {
+        let publish_opts = crate::config::git_publish::PublishOptions::new(false, false);
+        let publication_preflight =
+            crate::config::git_publish::publication_preflight(dir, &publish_opts);
+        if let Err(outcome) = &publication_preflight
+            && crate::config::git_publish::publication_is_busy(outcome)
+        {
+            failures.push((
+                dir.display().to_string(),
+                "another Vela write/publication owns this repository; no decision was persisted here — retry after it completes"
+                    .to_string(),
+            ));
+            continue;
+        }
         let mut state = load_session(dir);
         let mut accepted: Vec<String> = Vec::new();
         let mut event_ids: Vec<String> = Vec::new();
@@ -513,7 +573,7 @@ pub(crate) fn cmd_sign_session(
                     if report.gated {
                         eprintln!(
                             "  engine gate blocked the batch in {}: nothing persisted there",
-                            dir.display()
+                            safe_inline(dir.display().to_string())
                         );
                         frontier_failed = true;
                     }
@@ -533,8 +593,24 @@ pub(crate) fn cmd_sign_session(
             }
         }
         if !event_ids.is_empty() {
-            let opts = crate::config::git_publish::PublishOptions::new(false, false);
-            crate::config::git_publish::publish_decision(dir, "sign", &event_ids, &opts);
+            let publication = match publication_preflight {
+                Ok(preflight) => {
+                    let publish_opts = publish_opts.with_preflight(preflight);
+                    crate::config::git_publish::publish_decision(
+                        dir,
+                        "sign",
+                        &event_ids,
+                        &publish_opts,
+                    )
+                }
+                Err(outcome) => outcome,
+            };
+            let planning_identity = event_ids.join("\0");
+            let operation_id = crate::operation_journal::operation_id(
+                "sign-session-publication",
+                planning_identity.as_bytes(),
+            );
+            publication_reports.push((dir.display().to_string(), operation_id, publication));
             total_persisted += event_ids.len();
         }
         // Consume the session only when every decision applied. A failure
@@ -551,7 +627,12 @@ pub(crate) fn cmd_sign_session(
         apply_spin.finish("nothing signed");
         println!();
         for (id, err) in &failures {
-            eprintln!("  {} {id}: {err}", style::madder("failed"));
+            eprintln!(
+                "  {} {}: {}",
+                style::madder("failed"),
+                crate::cli::safe_text::inline(id),
+                crate::cli::safe_text::inline(err)
+            );
         }
         ui::fail_with(
             ErrorKind::Custody,
@@ -564,9 +645,33 @@ pub(crate) fn cmd_sign_session(
     }
     apply_spin.finish("applied");
     println!("\n  · signed. `vela log` shows the lane on every event.");
+    for (frontier, operation_id, publication) in &publication_reports {
+        println!(
+            "  · publication {} · {} · retained {}",
+            crate::cli::safe_text::inline(frontier),
+            crate::cli::safe_text::inline(
+                &serde_json::to_string(publication).unwrap_or_else(|_| "unknown".to_string())
+            ),
+            crate::cli::safe_text::inline(operation_id)
+        );
+        println!(
+            "    next: {}",
+            crate::cli::safe_text::inline(
+                publication
+                    .recovery_command
+                    .as_deref()
+                    .unwrap_or("vela status --json")
+            )
+        );
+    }
     if !failures.is_empty() {
         for (id, err) in &failures {
-            eprintln!("  {} {id}: {err}", style::madder("failed"));
+            eprintln!(
+                "  {} {}: {}",
+                style::madder("failed"),
+                crate::cli::safe_text::inline(id),
+                crate::cli::safe_text::inline(err)
+            );
         }
         eprintln!(
             "  {} some items did not sign — re-run `vela sign` to retry them",
@@ -578,7 +683,10 @@ pub(crate) fn cmd_sign_session(
     // say so once — the rule that absorbs the class is one command away.
     for (dir, _, _) in &queues {
         if let Some(hint) = crate::config::cli_policy::suggest_hint(dir) {
-            println!("  {}", vela_protocol::cli_style::dim(&hint));
+            println!(
+                "  {}",
+                vela_protocol::cli_style::dim(&crate::cli::safe_text::inline(&hint))
+            );
             break;
         }
     }
@@ -641,15 +749,15 @@ pub(crate) fn ceremony_binary_gate(interactive_form: bool) {
                 "the vela binary changed since you pinned it:\n    \
                  pinned  {}  (v{}, {})\n    now     {}  (v{})  {}",
                 &pinned.sha256[..16],
-                pinned.version,
-                &pinned.pinned_at[..pinned.pinned_at.len().min(10)],
+                safe_inline(&pinned.version),
+                safe_inline(&pinned.pinned_at[..pinned.pinned_at.len().min(10)]),
                 &current_sha[..16],
-                current_version,
-                current_path.display()
+                safe_inline(current_version),
+                safe_inline(current_path.display().to_string())
             );
             eprintln!("  {}", vela_protocol::cli_style::warn("binary changed"));
             for line in render.lines() {
-                eprintln!("  {line}");
+                eprintln!("  {}", safe_inline(line));
             }
             let ans = read_line(
                 "  re-pin this binary and continue signing? [y/N]  (only if you upgraded it) > ",
@@ -678,7 +786,7 @@ fn record_pin_or_warn() {
             println!(
                 "  · pinned {} (v{}) — ceremonies verify the binary first",
                 &pin.sha256[..16],
-                pin.version
+                safe_inline(pin.version)
             );
             if binary_pin::is_dev_build_path(std::path::Path::new(&pin.binary_path)) {
                 eprintln!(
@@ -707,6 +815,18 @@ pub(crate) fn cmd_sign_one(
     let dir = crate::ui::resolve_frontier(frontier);
     let signing_key = crate::cli_identity::resolve_signing_key_opt(key.as_deref());
     let reason = reason.unwrap_or_else(|| "accepted via sign".to_string());
+    let publish_opts = crate::config::git_publish::PublishOptions::new(false, false);
+    let publication_preflight =
+        crate::config::git_publish::publication_preflight(&dir, &publish_opts);
+    if let Err(outcome) = &publication_preflight
+        && crate::config::git_publish::publication_is_busy(outcome)
+    {
+        ui::fail_with(
+            ErrorKind::Domain,
+            "another Vela write/publication owns this repository; the decision was not persisted",
+            Some("retry the same `vela sign` command after the active operation completes"),
+        );
+    }
     match proposals::accept_at_path_engine(
         &dir,
         id,
@@ -721,20 +841,57 @@ pub(crate) fn cmd_sign_one(
         },
     ) {
         Ok(outcome) => {
-            let opts = crate::config::git_publish::PublishOptions::new(false, false);
-            crate::config::git_publish::publish_decision(
-                &dir,
-                "sign",
-                &[outcome.event_id.clone()],
-                &opts,
-            );
+            let publication = match publication_preflight {
+                Ok(preflight) => {
+                    let publish_opts = publish_opts.with_preflight(preflight);
+                    crate::config::git_publish::publish_decision(
+                        &dir,
+                        "sign",
+                        &[outcome.event_id.clone()],
+                        &publish_opts,
+                    )
+                }
+                Err(publication) => publication,
+            };
+            let operation_id =
+                crate::operation_journal::operation_id("sign-command", outcome.event_id.as_bytes());
             if json {
                 println!(
                     "{}",
-                    serde_json::json!({"ok": true, "command": "sign", "event_id": outcome.event_id})
+                    serde_json::json!({
+                        "ok": true,
+                        "command": "sign",
+                        "operation_id": operation_id,
+                        "event_id": outcome.event_id,
+                        "publication": publication,
+                    })
                 );
             } else {
-                println!("  · signed {id} -> {}", outcome.event_id);
+                println!(
+                    "  · signed {} -> {}",
+                    crate::cli::safe_text::inline(id),
+                    crate::cli::safe_text::inline(&outcome.event_id)
+                );
+                println!(
+                    "  · publication {}",
+                    crate::cli::safe_text::inline(
+                        &serde_json::to_string(&publication)
+                            .unwrap_or_else(|_| "unknown".to_string())
+                    )
+                );
+                println!(
+                    "  · retained {}",
+                    crate::cli::safe_text::inline(&operation_id)
+                );
+                println!(
+                    "  · next {}",
+                    crate::cli::safe_text::inline(
+                        publication
+                            .recovery_command
+                            .as_deref()
+                            .unwrap_or("vela status --json")
+                    )
+                );
             }
         }
         Err(e) if e.contains("already applied") || e.contains("is applied") => ui::fail_with(
@@ -786,8 +943,62 @@ fn apply_detached_sign(path: &Path, key: Option<&Path>) {
     .unwrap_or_else(|e| ui::fail_with(ErrorKind::Domain, &format!("write sig: {e}"), None));
     println!(
         "  · signed {} -> {} (sha256 {})",
-        path.display(),
-        sig_path.display(),
+        safe_inline(path.display().to_string()),
+        safe_inline(sig_path.display().to_string()),
         &record.subject_sha256[..16]
     );
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn decision_item(id: &str, preview: Vec<String>) -> SignItem {
+        SignItem {
+            lane: SignLane::Decision,
+            id: id.to_string(),
+            title: format!("claim {id}"),
+            why_here: "policy deferred this claim".to_string(),
+            signable: true,
+            pack: None,
+            preview,
+            pack_preview: None,
+        }
+    }
+
+    #[test]
+    fn uppercase_a_cannot_accept_unrendered_items() {
+        assert_eq!(
+            session_command("A", SignLane::Decision),
+            SessionCommand::Invalid
+        );
+        assert_eq!(
+            session_command("a", SignLane::Decision),
+            SessionCommand::Accept
+        );
+    }
+
+    #[test]
+    fn final_summary_material_is_complete_bounded_and_terminal_safe() {
+        let item = decision_item(
+            "vpr_review",
+            (0..10)
+                .map(|index| {
+                    if index == 1 {
+                        "artifact\u{1b}]8;;https://bad.example\u{7}link".to_string()
+                    } else {
+                        format!("preview {index}")
+                    }
+                })
+                .collect(),
+        );
+        let lines = render_item_review_lines(&item);
+        let transcript = lines.join("\n");
+        assert!(transcript.contains("preview 0"));
+        assert!(transcript.contains("\\u{001B}"));
+        assert!(!transcript.contains('\u{1b}'));
+        assert!(transcript.contains("2 preview line(s) omitted; sha256:"));
+        assert!(transcript.contains("why you: policy deferred this claim"));
+        assert!(transcript.contains("vpr_review"));
+    }
 }

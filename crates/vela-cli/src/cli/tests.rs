@@ -123,6 +123,7 @@ mod surface_tests {
         "policy",
         "proof",
         "proposals",
+        "publication",
         "reproduce",
         "serve",
         "sign",

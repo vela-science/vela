@@ -865,8 +865,10 @@ Lifecycle: `vela land <frontier> --claim …` (or `vela land <receipt.json>`)
 hashes the artifacts, pins the head, validates (schema, id re-derivation,
 signature, every artifact hash), and lands a `finding.add` proposal — then
 routes it by the signed policy: Permit admits, Defer parks it in the sign
-queue, Deny lands nothing. Landing NEVER accepts; a deferred decision stays
-a human-keyed act at `vela sign`. `git push` publishes and the hub
+queue, and Deny refuses canonical admission. Until the transactional write
+edge lands, clients must inspect the structured result for any retained draft
+state rather than assume a zero-delta Deny. Landing NEVER accepts; a deferred
+decision stays a human-keyed act at `vela sign`. `git push` publishes and the hub
 re-derives its index.
 
 ## 7. storage layout

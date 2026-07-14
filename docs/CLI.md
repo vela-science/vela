@@ -45,7 +45,7 @@ the agent, and the pen belongs to you.
 |---|---|
 | `next` | The offer: ranked open targets with the compounding payload pre-loaded (premises, banked routes, prior attempts, dead channels). `--json` is the agent contract. |
 | `work` | Claim the lease on a target and load its briefing into `.vela/work/<target>/`. Close with `land`. |
-| `land` | Land a result (`vela.receipt.v1`): record, propose, then route by the signed policy. Permit admits, Defer parks it in the sign queue, Deny lands nothing. Commits locally; `--push` publishes. |
+| `land` | Land a result (`vela.receipt.v1`): record, propose, then route by the signed policy. Permit admits, Defer parks it in the sign queue, and Deny refuses canonical admission. Inspect the structured result for retained draft state. Commits locally; `--push` publishes. |
 | `submit` | The producer path in one verb: frozen-verify a witness, land it, bind it to its finding, drive the exact lane to `machine_verified`, materialize. `--dry-run` previews; commits locally, `--push` publishes. Replaces bespoke submit scripts. |
 | `sign` | The one human ceremony: every deferred decision, one session, one confirm, one key read. |
 | `status` | One-screen frontier state: findings by status, verdicts, replay integrity, sign-queue count, policy mode, and a `next` hint. |
@@ -77,7 +77,7 @@ the agent, and the pen belongs to you.
 | `frontier` | Repo-level: new/materialize/add-dep/list-deps/diff/release/releases/audit/rank. `rank` orders OPEN findings by accumulating structural support (which is a verifier-run from done) with the popularity baseline + inspectable evidence — a solvability projection, advice not authority. |
 | `actor` | Frontier-registered identities: add/list/rotate. |
 | `agents` | `VELA.md` charter adapters: sync/doctor/diff (AGENTS.md, CLAUDE.md, .mcp.json are generated, never hand-edited). |
-| `serve` | The frontier as an MCP server (stateless streamable HTTP or stdio) with ten agent-first tools; profiles nest `read-only` (7) ⊂ `draft` (9) ⊂ `maintainer` (10). Tools carry MCP annotations (`readOnlyHint` lets a client run the read tools in parallel; every tool is `destructiveHint:false` — the log is append-only) and the high-traffic tools declare an `outputSchema` and return `structuredContent`, so a typed client reads a validated object instead of parsing JSON from text. The hub hosts the clone-free subset at `hub.constellate.science/mcp`. |
+| `serve` | The frontier as an MCP server (stateless streamable HTTP or stdio) with nine agent-first tools: `read-only` exposes seven and `draft` adds only the two nonfinalizing write tools. `maintainer` is a deprecated warning alias for `draft`. Tools carry MCP annotations (`readOnlyHint` lets a client run the read tools in parallel; `work` is conservatively `destructiveHint:true` because its owner-checked `drop` action removes private session scratch, never truth-bearing state) and the high-traffic tools declare an `outputSchema` and return `structuredContent`, so a typed client reads a validated object instead of parsing JSON from text. Human decisions are terminal-only through `vela sign`. The hub hosts the clone-free subset at `hub.constellate.science/mcp`. |
 | `doctor` | First-user diagnosis of checkout/frontier/proof/serve. |
 | `foundry` | The discovery plane: `campaign`, `lean-*`, `attempt`, `transfer`, `experiment`. Search proposes; the frozen verifier is the gate. |
 
@@ -145,14 +145,17 @@ next -> work -> land -> sign
   **Permit** admits canonically with no key ceremony (the human's
   authority arrived once, as the policy signature; the event carries
   the certificate, replay-verified); **Defer** parks it in the sign
-  queue; **Deny** lands nothing.
+  queue; **Deny** refuses canonical admission. Until the transactional write
+  edge lands, clients inspect the structured result rather than assuming a
+  zero-delta Deny.
 - `vela sign` — the one human ceremony: everything exceeding policy,
   one session, one confirm, one key read.
 
 Coming from Claude Code or Codex: what those tools call *permissions*
 (which tools an agent may call, auto-accept, bypass) maps to Vela's
-**MCP profiles** — `read-only` / `draft` / `maintainer`, enforced by the
-server, no ceremony. `vela policy` is the other trust level: a signed,
+**MCP profiles** — `read-only` or nonfinalizing `draft`, enforced by the
+server, no ceremony (`maintainer` is a deprecated alias for `draft`). `vela
+policy` is the other trust level: a signed,
 expiring, content-addressed rule about what may become CANONICAL STATE
 without your key — branch protection, except auditable in the log
 forever. Profiles gate activity; policies gate state. Two words because

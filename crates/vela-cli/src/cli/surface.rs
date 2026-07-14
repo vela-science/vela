@@ -88,7 +88,7 @@ The loop:
                 .vela/work/<target>/. Close with `vela land`.
   land          Land a result (vela.receipt.v1): record -> propose ->
                 routed by the signed policy. Permit admits; Defer parks
-                it in the sign queue; Deny lands nothing.
+                it in the sign queue; Deny refuses canonical admission.
   submit        One-command producer path: frozen-verify a witness, land it,
                 bind it to its finding, drive the exact lane to
                 machine_verified, materialize. Commits locally; --push to publish.
@@ -122,7 +122,8 @@ Setup (once):
                 --key/--as flags
   config        Plain settings (get/set/list, closed key set, origins
                 shown). Never touches identity, custody, or the record.
-  serve         MCP + HTTP read surface (profiles: read-only/draft/maintainer)
+  serve         MCP + HTTP surface: read-only or nonfinalizing draft;
+                maintainer is a deprecated alias for draft
   foundry       The discovery/prover plane: run/targets/ablate, campaign,
                 lean, attempt, transfer, experiment
   doctor        First-user diagnosis of checkout/frontier/proof/serve
@@ -130,6 +131,8 @@ Setup (once):
 Publish (git push IS publication):
   hub           The index: register-git (bind repo->vfr once), witness-check,
                 verify-chain, verify-log
+  publication   Recover one interrupted path-exact Git publication by its
+                private operation id; never signs or changes authority
 
 Nouns (run `vela <noun> --help`):
   finding       The core primitive: add/show/supersede/note/caveat/revise/

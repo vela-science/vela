@@ -29,8 +29,8 @@ use super::http::{
     http_health, http_mcp, http_mcp_get,
 };
 use super::tools::{
-    tool_decide, tool_external, tool_finding, tool_graph, tool_nanopublication, tool_objects,
-    tool_orient, tool_propose, tool_search, tool_verify, tool_work,
+    tool_external, tool_finding, tool_graph, tool_nanopublication, tool_objects, tool_orient,
+    tool_propose, tool_search, tool_verify, tool_work,
 };
 pub enum ProjectSource {
     Single(PathBuf),
@@ -304,11 +304,18 @@ fn merge_projects(frontiers: Vec<(String, Project)>) -> Project {
     project
 }
 
+fn warn_if_deprecated_mcp_profile(profile: tool_registry::McpProfile) {
+    if let Some(warning) = profile.deprecation_warning() {
+        eprintln!("  warning: {warning}");
+    }
+}
+
 pub async fn run(
     source: ProjectSource,
     _backend: Option<&str>,
     profile: tool_registry::McpProfile,
 ) {
+    warn_if_deprecated_mcp_profile(profile);
     // No working-tree .env: serve runs inside cloned frontier checkouts
     // (see run_command's note on the injection class).
     let (frontier, project_infos) = load_projects(&source);
@@ -512,6 +519,11 @@ impl McpService {
         exclude: &[String],
     ) -> Result<(Self, Vec<String>), String> {
         let profile = tool_registry::McpProfile::parse(profile_str)?;
+        let warnings = profile
+            .deprecation_warning()
+            .into_iter()
+            .map(str::to_string)
+            .collect();
         if entries.is_empty() {
             return Err("no frontier projects to serve".to_string());
         }
@@ -542,7 +554,7 @@ impl McpService {
                 },
                 excluded: exclude.iter().cloned().collect(),
             },
-            Vec::new(),
+            warnings,
         ))
     }
 
@@ -581,6 +593,7 @@ pub async fn run_http(
     port: u16,
     profile: tool_registry::McpProfile,
 ) {
+    warn_if_deprecated_mcp_profile(profile);
     let _ = backend;
     // No working-tree .env: serve runs inside cloned frontier checkouts
     // (see run_command's note on the injection class).
@@ -823,8 +836,6 @@ pub(crate) enum ToolErrorKind {
     InvalidArg,
     #[serde(rename = "PERMISSION_DENIED")]
     PermissionDenied,
-    #[serde(rename = "CUSTODY_REFUSED")]
-    CustodyRefused,
     #[serde(rename = "INTERNAL")]
     Internal,
 }
@@ -989,31 +1000,21 @@ fn profile_gate(name: &str, profile: tool_registry::McpProfile) -> Option<ToolEr
     if profile.allows(&tool) {
         return None;
     }
-    // A non-maintainer session reaching for `decide` is the custody boundary
-    // itself — an agent lane asking to finalize. Everything else is a plain
-    // profile mismatch.
-    let kind = if name == "decide" {
-        ToolErrorKind::CustodyRefused
+    let hint = if tool_registry::McpProfile::Draft.allows(&tool) {
+        "restart `vela serve` with `--profile draft` for non-finalizing draft/work capabilities; human finalization is unavailable through MCP and remains terminal-only (`vela sign`)"
     } else {
-        ToolErrorKind::PermissionDenied
-    };
-    let needed = if tool_registry::McpProfile::Draft.allows(&tool) {
-        "draft"
-    } else {
-        "maintainer"
+        "this capability is unavailable through MCP"
     };
     Some(
         ToolError::new(
-            kind,
+            ToolErrorKind::PermissionDenied,
             format!(
                 "tool `{name}` ({}) is not available in the `{}` MCP profile",
                 tool.permission_level,
                 profile.as_str()
             ),
         )
-        .with_hint(format!(
-            "restart `vela serve` with `--profile {needed}` for a scoped session; MCP exposes tools, accepted public state still requires a key-custody human accept"
-        )),
+        .with_hint(hint),
     )
 }
 
@@ -1097,19 +1098,50 @@ async fn execute_tool(
             let project = frontier.lock().await;
             (tool_graph(args, &project), Some(clone_project(&project)))
         }
-        "verify" => (tool_verify(args), None),
+        "verify" => (tool_verify(args, source_path), None),
         "propose" => {
             let result = tool_propose(args, frontier, source_path).await;
             let snapshot = Some(clone_project(&*frontier.lock().await));
             (result, snapshot)
         }
-        "decide" => {
-            let result = tool_decide(args, frontier, source_path).await;
-            let snapshot = Some(clone_project(&*frontier.lock().await));
-            (result, snapshot)
+        "work" => {
+            let result = tool_work(args, source_path);
+            match result {
+                Ok((data, mut notes)) => {
+                    let Some(path) = source_path else {
+                        // `tool_work` rejects this mode before writing; keep a
+                        // defensive guard here so a future action cannot make
+                        // a merged service writable by accident.
+                        return (
+                            Err(ToolError::new(
+                                ToolErrorKind::PermissionDenied,
+                                "work writes are unavailable without one configured frontier",
+                            )),
+                            None,
+                        );
+                    };
+                    match repo::load_from_path(path) {
+                        Ok(mut fresh) => {
+                            sources::materialize_project(&mut fresh);
+                            let snapshot = clone_project(&fresh);
+                            *frontier.lock().await = fresh;
+                            (Ok((data, notes)), Some(snapshot))
+                        }
+                        Err(error) => {
+                            // Preserve the successful write result (including
+                            // its operation/publication identifiers) while
+                            // making the stale read surface explicit.
+                            notes.push(format!(
+                                "write completed, but the MCP snapshot reload failed; reconnect before reading: {error}"
+                            ));
+                            (Ok((data, notes)), None)
+                        }
+                    }
+                }
+                Err(error) => (Err(error), None),
+            }
         }
-        "work" => (tool_work(args), None),
-        "objects" => (tool_objects(args), None),
+        "objects" => (tool_objects(args, source_path), None),
         "external" => {
             let project = frontier.lock().await;
             (
@@ -1177,6 +1209,36 @@ mod mcp_service_tests {
 
     fn fixture() -> PathBuf {
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../examples/erdos-formalization")
+    }
+
+    fn work_fixture(root: &Path) -> PathBuf {
+        let path = root.join("work-frontier");
+        let mut project = vela_protocol::project::assemble("scope", vec![], 0, 0, "test");
+        let event =
+            vela_protocol::events::new_finding_event(vela_protocol::events::FindingEventInput {
+                kind: "attempt.claimed",
+                finding_id: "scope:probe",
+                actor_id: "agent:owner",
+                actor_type: "agent",
+                reason: "scope test",
+                before_hash: "sha256:null",
+                after_hash: "sha256:null",
+                payload: json!({
+                    "obligation_id": "scope:probe",
+                    "lease_ttl_seconds": 60,
+                    "claimant_actor": "agent:owner",
+                    "claimant_pubkey": "test"
+                }),
+                caveats: Vec::new(),
+                timestamp: Some("2026-07-13T00:00:00Z"),
+            });
+        vela_protocol::reducer::apply_event(&mut project, &event).unwrap();
+        project.events.push(event);
+        vela_protocol::repo::init_repo(&path, &project).unwrap();
+        let session = crate::workflow::session_dir(&path, "scope:probe");
+        std::fs::create_dir_all(&session).unwrap();
+        std::fs::write(session.join("offer.json"), "{}\n").unwrap();
+        path
     }
 
     fn service() -> McpService {
@@ -1272,8 +1334,7 @@ mod mcp_service_tests {
         assert_eq!(envelope["ok"], false);
         assert_eq!(envelope["error"]["kind"], "NOT_FOUND");
 
-        // A write tool on a read-only profile → PERMISSION_DENIED; the
-        // finalizing tool → CUSTODY_REFUSED (the human lane).
+        // A write tool on a read-only profile → PERMISSION_DENIED.
         let (_, body) = svc
             .handle_http(
                 r#"{"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"propose","arguments":{}}}"#,
@@ -1285,18 +1346,74 @@ mod mcp_service_tests {
             .to_string();
         let envelope: Value = serde_json::from_str(&text).unwrap();
         assert_eq!(envelope["error"]["kind"], "PERMISSION_DENIED");
+    }
 
-        let (_, body) = svc
-            .handle_http(
-                r#"{"jsonrpc":"2.0","id":7,"method":"tools/call","params":{"name":"decide","arguments":{}}}"#,
-            )
-            .await;
-        let text = body.unwrap()["result"]["content"][0]["text"]
-            .as_str()
-            .unwrap()
-            .to_string();
-        let envelope: Value = serde_json::from_str(&text).unwrap();
-        assert_eq!(envelope["error"]["kind"], "CUSTODY_REFUSED");
+    #[tokio::test]
+    async fn in_scope_work_refreshes_the_served_snapshot() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = work_fixture(temp.path()).canonicalize().unwrap();
+        let project = repo::load_from_path(&path).unwrap();
+        let frontier = Arc::new(Mutex::new(project));
+        let args = json!({
+            "frontier_path": path.display().to_string(),
+            "action": "drop",
+            "obligation_id": "scope:probe",
+            "agent_actor": "agent:owner"
+        });
+        let (result, snapshot) =
+            execute_tool("work", &args, &frontier, &Client::new(), &[], Some(&path)).await;
+        let (data, notes) = result.unwrap();
+        assert_eq!(data["dropped"], "scope:probe");
+        assert!(notes.is_empty(), "reload should succeed: {notes:?}");
+        assert!(snapshot.is_some(), "successful work must refresh MCP reads");
+    }
+
+    #[tokio::test]
+    async fn finalization_is_absent_and_unroutable_in_every_profile() {
+        for profile in ["read-only", "draft", "maintainer"] {
+            let entries = vec![("erdos-formalization".to_string(), fixture())];
+            let (svc, warnings) = McpService::from_named_paths(&entries, profile, &[])
+                .expect("fixture frontier loads");
+            if profile == "maintainer" {
+                assert_eq!(warnings.len(), 1, "legacy alias must emit a warning");
+                assert!(warnings[0].contains("alias for `draft`"));
+            } else {
+                assert!(warnings.is_empty(), "unexpected warnings: {warnings:?}");
+            }
+
+            let (_, listed) = svc
+                .handle_http(r#"{"jsonrpc":"2.0","id":7,"method":"tools/list"}"#)
+                .await;
+            assert!(
+                !listed.unwrap()["result"]["tools"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|tool| tool["name"] == "decide"),
+                "decide leaked into {profile} discovery"
+            );
+
+            let before = serde_json::to_value(&*svc.state.project.lock().await).unwrap();
+            let (_, body) = svc
+                .handle_http(
+                    r#"{"jsonrpc":"2.0","id":8,"method":"tools/call","params":{"name":"decide","arguments":{"proposal_id":"vpr_removed","action":"accept","reason":"must never route","reviewer_id":"reviewer:test","signature":"00"}}}"#,
+                )
+                .await;
+            let text = body.unwrap()["result"]["content"][0]["text"]
+                .as_str()
+                .unwrap()
+                .to_string();
+            let envelope: Value = serde_json::from_str(&text).unwrap();
+            assert_eq!(
+                envelope["error"]["kind"], "NOT_FOUND",
+                "removed finalizer must not reach a schema, profile gate, key lookup, or state handler in {profile}"
+            );
+            let after = serde_json::to_value(&*svc.state.project.lock().await).unwrap();
+            assert_eq!(
+                after, before,
+                "removed finalizer mutated state in {profile}"
+            );
+        }
     }
 
     /// Fetch one orient envelope and strip the per-build noise: the

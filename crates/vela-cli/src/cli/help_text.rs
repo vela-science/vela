@@ -140,6 +140,15 @@ EXAMPLES
   vela hub register-git <vfr> <git-url>   register a frontier's canonical repo
   vela hub witness-check <vfr>            do the mirrors agree on the bytes?";
 
+pub const PUBLICATION: &str = "\
+EXAMPLES
+  vela publication recover --operation vop_8b49…
+  vela publication recover --operation vop_8b49… --push
+
+Resumes one retained, path-exact Git transaction after rechecking the
+frontier, checkout, caller index, worktree bytes, and target ref. It never
+signs or changes scientific authority.";
+
 pub const PROPOSALS: &str = "\
 EXAMPLES
   vela proposals accept vpr_8b49… --frontier .   the plumbing `vela sign` drives

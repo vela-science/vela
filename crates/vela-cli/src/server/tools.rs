@@ -1,5 +1,5 @@
-//! The MCP tool-handler bodies: the ten released tools (`orient`,
-//! `finding`, `search`, `graph`, `verify`, `propose`, `decide`, `work`,
+//! The MCP tool-handler bodies: the nine released tools (`orient`,
+//! `finding`, `search`, `graph`, `verify`, `propose`, `work`,
 //! `objects`, `external`) and the underlying per-concept tool functions
 //! they compose. Moved verbatim from `server/serve.rs`; the dispatch,
 //! envelope, and profile gate stay there.
@@ -509,18 +509,56 @@ pub(crate) fn tool_graph(args: &Value, project: &Project) -> ToolOutput {
     }
 }
 
-/// `verify` — the frozen verifiers over a local frontier checkout.
-pub(crate) fn tool_verify(args: &Value) -> ToolOutput {
-    if args
+fn bind_frontier_args(
+    args: &Value,
+    source_path: Option<&Path>,
+    tool_name: &str,
+) -> Result<(Value, std::path::PathBuf), ToolError> {
+    let requested_path = args
         .get("frontier_path")
         .and_then(Value::as_str)
-        .is_none_or(str::is_empty)
-    {
-        return Err(ToolError::invalid("verify requires `frontier_path`"));
+        .filter(|path| !path.is_empty())
+        .ok_or_else(|| ToolError::invalid(format!("{tool_name} requires `frontier_path`")))?;
+    let served_path = source_path.ok_or_else(|| {
+        ToolError::new(
+            crate::serve::ToolErrorKind::PermissionDenied,
+            format!(
+                "{tool_name} requires a server configured for one frontier; path-bound tools are unavailable in merged --frontiers mode"
+            ),
+        )
+    })?;
+    if !served_path.is_dir() || !served_path.join(".vela").is_dir() {
+        return Err(ToolError::new(
+            crate::serve::ToolErrorKind::PermissionDenied,
+            format!("{tool_name} requires the served source to be a Vela repository checkout"),
+        ));
     }
-    let payload = match args.get("mode").and_then(Value::as_str) {
-        Some("strict") => parse_payload(vela_edge::vela_agent_mcp::check_run(args))?,
-        Some("witness") => parse_payload(vela_edge::vela_agent_mcp::reproduce_run(args))?,
+    let served_frontier = served_path.canonicalize().map_err(|e| {
+        ToolError::internal(format!("canonicalize configured frontier failed: {e}"))
+    })?;
+    let requested_frontier = Path::new(requested_path).canonicalize().map_err(|e| {
+        ToolError::invalid(format!(
+            "canonicalize {tool_name} frontier_path failed: {e}"
+        ))
+    })?;
+    if requested_frontier != served_frontier {
+        return Err(ToolError::new(
+            crate::serve::ToolErrorKind::PermissionDenied,
+            format!("{tool_name} frontier_path is outside the frontier bound to this MCP server"),
+        )
+        .with_hint("use the exact frontier served by this MCP connection"));
+    }
+    let mut bound_args = args.clone();
+    bound_args["frontier_path"] = json!(served_frontier.display().to_string());
+    Ok((bound_args, served_frontier))
+}
+
+/// `verify` — the frozen verifiers over the checkout bound to this MCP server.
+pub(crate) fn tool_verify(args: &Value, source_path: Option<&Path>) -> ToolOutput {
+    let (bound_args, _) = bind_frontier_args(args, source_path, "verify")?;
+    let payload = match bound_args.get("mode").and_then(Value::as_str) {
+        Some("strict") => parse_payload(vela_edge::vela_agent_mcp::check_run(&bound_args))?,
+        Some("witness") => parse_payload(vela_edge::vela_agent_mcp::reproduce_run(&bound_args))?,
         _ => {
             return Err(ToolError::invalid("verify requires `mode`")
                 .with_hint("strict = validation + reducer replay + signature signals; witness = re-verify stored witnesses"));
@@ -640,55 +678,19 @@ pub(crate) async fn tool_propose(
     Ok((parse_payload(result)?, Vec::new()))
 }
 
-/// `decide` — accept/reject a pending proposal as the named (registered,
-/// key-holding) reviewer. Maintainer-profile only; the profile gate refuses
-/// everyone else before this runs.
-pub(crate) async fn tool_decide(
-    args: &Value,
-    frontier: &Arc<Mutex<Project>>,
-    source_path: Option<&Path>,
-) -> ToolOutput {
-    let action = match args.get("action").and_then(Value::as_str) {
-        Some("accept") => "accept",
-        Some("reject") => "reject",
-        _ => {
-            return Err(ToolError::invalid(
-                "decide requires `action` (accept or reject)",
-            ));
-        }
-    };
-    if args
-        .get("proposal_id")
-        .and_then(Value::as_str)
-        .is_none_or(|p| !p.starts_with("vpr_"))
-    {
-        return Err(ToolError::invalid(
-            "decide requires `proposal_id` (a vpr_… id)",
-        ));
-    }
-    if args
-        .get("reason")
-        .and_then(Value::as_str)
-        .is_none_or(|r| r.trim().is_empty())
-    {
-        return Err(ToolError::invalid("decide requires a non-empty `reason`"));
-    }
-    let result = write_tool_decision(args, frontier, source_path, action).await;
-    Ok((parse_payload(result)?, Vec::new()))
-}
-
 /// `work` — the compounding loop for agents: claim a lease, land a
 /// receipt (routed by the signed policy), drop a session, or deposit a
 /// failed/partial attempt. Everything signs under the agent's own
 /// auto-minted session key; nothing here is a human decision — a landing
 /// either rides a policy the human already signed, or defers to the
 /// human's sign queue.
-pub(crate) fn tool_work(args: &Value) -> ToolOutput {
-    let frontier_path = args
-        .get("frontier_path")
-        .and_then(Value::as_str)
-        .filter(|p| !p.is_empty())
-        .ok_or_else(|| ToolError::invalid("work requires `frontier_path`"))?;
+pub(crate) fn tool_work(args: &Value, source_path: Option<&Path>) -> ToolOutput {
+    let (bound_args, served_frontier) = bind_frontier_args(args, source_path, "work")?;
+    // Downstream helpers receive the canonical server-owned path, never the
+    // caller's spelling (which could otherwise be swapped through a symlink
+    // after this check).
+    let args = &bound_args;
+    let frontier_path = served_frontier.as_path();
     let agent_actor = |action: &str| -> Result<&str, ToolError> {
         let actor = args
             .get("agent_actor")
@@ -717,25 +719,91 @@ pub(crate) fn tool_work(args: &Value) -> ToolOutput {
             })?;
             let receipt: crate::workflow::Receipt = serde_json::from_value(receipt_value)
                 .map_err(|e| ToolError::invalid(format!("receipt parse: {e}")))?;
-            let outcome = crate::workflow::land(Path::new(frontier_path), &receipt, actor)
-                .map_err(ToolError::classify)?;
+            let frontier = frontier_path;
+            let frontier_abs = frontier
+                .canonicalize()
+                .unwrap_or_else(|_| frontier.to_path_buf());
+            let preflight_inputs = receipt
+                .artifacts
+                .iter()
+                .filter_map(|artifact| {
+                    let path = std::path::PathBuf::from(&artifact.path);
+                    let candidate = if path.is_absolute() {
+                        path
+                    } else {
+                        frontier.join(path)
+                    };
+                    candidate
+                        .canonicalize()
+                        .ok()
+                        .filter(|path| path.starts_with(&frontier_abs))
+                })
+                .collect();
+            let publish_opts = crate::config::git_publish::PublishOptions::new(false, false)
+                .with_preflight_inputs(preflight_inputs);
+            let publication_preflight =
+                crate::config::git_publish::publication_preflight(frontier, &publish_opts);
+            if let Err(outcome) = &publication_preflight
+                && crate::config::git_publish::publication_is_busy(outcome)
+            {
+                return Err(
+                    ToolError::new(
+                        crate::serve::ToolErrorKind::PermissionDenied,
+                        "another Vela write/publication owns the served frontier; work action=land changed no scientific state",
+                    )
+                    .with_hint("retry the same land request after the active operation completes"),
+                );
+            }
+            let outcome =
+                crate::workflow::land(frontier, &receipt, actor).map_err(ToolError::classify)?;
             let (route, detail) = outcome.route.summary();
+            let publication = match publication_preflight {
+                Ok(preflight) => {
+                    let publish_opts = publish_opts.with_preflight(preflight);
+                    crate::config::git_publish::publish_decision(
+                        frontier,
+                        "mcp work land",
+                        &[outcome.proposal_id.clone()],
+                        &publish_opts,
+                    )
+                }
+                Err(outcome) => outcome,
+            };
+            let operation_id = crate::operation_journal::operation_id(
+                "mcp-work-land",
+                outcome.proposal_id.as_bytes(),
+            );
             return Ok((
                 json!({
+                    "operation_id": operation_id,
                     "proposal_id": outcome.proposal_id,
                     "route": route,
                     "detail": detail,
+                    "publication": publication,
                 }),
                 Vec::new(),
             ));
         }
         Some("drop") => {
+            let actor = agent_actor("drop")?;
             let target = args
                 .get("obligation_id")
                 .and_then(Value::as_str)
                 .filter(|t| !t.is_empty())
                 .ok_or_else(|| ToolError::invalid("work action=drop requires `obligation_id`"))?;
-            let session = crate::workflow::session_dir(Path::new(frontier_path), target);
+            let project =
+                vela_protocol::repo::load_from_path(frontier_path).map_err(ToolError::classify)?;
+            let owns_session = project
+                .attempt_claims
+                .iter()
+                .any(|claim| claim.obligation_id == target && claim.claimant_actor == actor);
+            if !owns_session {
+                return Err(ToolError::new(
+                    crate::serve::ToolErrorKind::PermissionDenied,
+                    format!("work action=drop requires {actor} to own the exact {target} lease"),
+                ));
+            }
+            let session = crate::workflow::session_dir(frontier_path, target);
             let removed = std::fs::remove_dir_all(&session).is_ok();
             return Ok((
                 json!({
@@ -756,12 +824,12 @@ pub(crate) fn tool_work(args: &Value) -> ToolOutput {
 
 /// `objects` — read the content-addressed agent objects on a frontier
 /// checkout's `.vela/` tree: one by id, or a cursor-paginated listing.
-pub(crate) fn tool_objects(args: &Value) -> ToolOutput {
-    let frontier_path = args
-        .get("frontier_path")
-        .and_then(Value::as_str)
-        .filter(|p| !p.is_empty())
-        .ok_or_else(|| ToolError::invalid("objects requires `frontier_path`"))?;
+pub(crate) fn tool_objects(args: &Value, source_path: Option<&Path>) -> ToolOutput {
+    let (bound_args, _) = bind_frontier_args(args, source_path, "objects")?;
+    let args = &bound_args;
+    let frontier_path = args["frontier_path"]
+        .as_str()
+        .expect("bound path is a string");
     let ty = args.get("type").and_then(Value::as_str).ok_or_else(|| {
         ToolError::invalid("objects requires `type`")
             .with_hint("valid types: pack, attestation, evaluation, conflict, tool_descriptor")
@@ -1179,101 +1247,6 @@ where
         "applied_event_id": result.applied_event_id,
     }))
     .map_err(|e| format!("serialize write result: {e}"))
-}
-
-/// Phase Q-w (v0.5): shared body for the `decide` accept/reject actions.
-/// The signing preimage is `{action, proposal_id, reviewer_id, reason, timestamp}`
-/// canonicalized; the reviewer must be a registered actor.
-async fn write_tool_decision(
-    args: &Value,
-    frontier: &Arc<Mutex<Project>>,
-    source_path: Option<&Path>,
-    action: &str,
-) -> Result<String, String> {
-    let path = source_path.ok_or_else(|| {
-        "Write tools require a single-file frontier (--frontier <PATH>); rejected in --frontiers <DIR> mode".to_string()
-    })?;
-    let proposal_id = args
-        .get("proposal_id")
-        .and_then(Value::as_str)
-        .ok_or("decision tool requires `proposal_id`")?;
-    let reviewer_id = args
-        .get("reviewer_id")
-        .and_then(Value::as_str)
-        .ok_or("decision tool requires `reviewer_id`")?;
-    let reason = args
-        .get("reason")
-        .and_then(Value::as_str)
-        .ok_or("decision tool requires `reason`")?;
-    let signature_hex = args
-        .get("signature")
-        .and_then(Value::as_str)
-        .ok_or("decision tool requires `signature`")?;
-    let timestamp = args
-        .get("timestamp")
-        .and_then(Value::as_str)
-        .map(String::from)
-        .unwrap_or_else(|| chrono::Utc::now().to_rfc3339());
-
-    // Canonical preimage for the decision action.
-    let preimage = json!({
-        "action": action,
-        "proposal_id": proposal_id,
-        "reviewer_id": reviewer_id,
-        "reason": reason,
-        "timestamp": timestamp,
-    });
-    let signing_bytes = vela_protocol::canonical::to_canonical_bytes(&preimage)?;
-
-    // Look up the reviewer's registered pubkey.
-    let pubkey = {
-        let project = frontier.lock().await;
-        project
-            .actors
-            .iter()
-            .find(|actor| actor.id == reviewer_id)
-            .map(|actor| actor.public_key.clone())
-            .ok_or_else(|| format!("reviewer '{reviewer_id}' is not registered"))?
-    };
-
-    let valid =
-        vela_protocol::sign::verify_action_signature(&signing_bytes, signature_hex, &pubkey)?;
-    if !valid {
-        return Err(format!(
-            "Signature does not verify for reviewer '{reviewer_id}' on {action} of {proposal_id}"
-        ));
-    }
-
-    let outcome = match action {
-        "accept" => {
-            let event_id =
-                vela_protocol::proposals::accept_at_path(path, proposal_id, reviewer_id, reason)
-                    .map_err(|e| format!("accept failed: {e}"))?;
-            json!({
-                "proposal_id": proposal_id,
-                "applied_event_id": event_id,
-                "status": "applied",
-            })
-        }
-        "reject" => {
-            vela_protocol::proposals::reject_at_path(path, proposal_id, reviewer_id, reason)
-                .map_err(|e| format!("reject failed: {e}"))?;
-            json!({
-                "proposal_id": proposal_id,
-                "applied_event_id": Value::Null,
-                "status": "rejected",
-            })
-        }
-        other => return Err(format!("unsupported decision action '{other}'")),
-    };
-
-    // Refresh in-memory state.
-    let fresh = vela_protocol::repo::load_from_path(path)
-        .map_err(|e| format!("reload after write failed: {e}"))?;
-    let mut project = frontier.lock().await;
-    *project = fresh;
-
-    serde_json::to_string(&outcome).map_err(|e| format!("serialize decision: {e}"))
 }
 
 pub(crate) fn tool_search_findings(args: &Value, frontier: &Project) -> Result<String, String> {
@@ -2544,6 +2517,179 @@ fn trunc(s: &str, max: usize) -> String {
         end -= 1;
     }
     format!("{}...", &s[..end])
+}
+
+#[cfg(test)]
+mod work_scope_tests {
+    use super::*;
+    use crate::serve::ToolErrorKind;
+
+    fn frontier_dir(root: &Path, name: &str) -> std::path::PathBuf {
+        let path = root.join(name);
+        std::fs::create_dir_all(path.join(".vela")).unwrap();
+        path
+    }
+
+    fn owned_session_frontier(root: &Path) -> std::path::PathBuf {
+        let path = root.join("owned");
+        let mut project = vela_protocol::project::assemble("scope", vec![], 0, 0, "test");
+        let event =
+            vela_protocol::events::new_finding_event(vela_protocol::events::FindingEventInput {
+                kind: "attempt.claimed",
+                finding_id: "scope:probe",
+                actor_id: "agent:owner",
+                actor_type: "agent",
+                reason: "scope test",
+                before_hash: "sha256:null",
+                after_hash: "sha256:null",
+                payload: json!({
+                    "obligation_id": "scope:probe",
+                    "lease_ttl_seconds": 60,
+                    "claimant_actor": "agent:owner",
+                    "claimant_pubkey": "test"
+                }),
+                caveats: Vec::new(),
+                timestamp: Some("2026-07-13T00:00:00Z"),
+            });
+        vela_protocol::reducer::apply_event(&mut project, &event).unwrap();
+        project.events.push(event);
+        vela_protocol::repo::init_repo(&path, &project).unwrap();
+        let session = crate::workflow::session_dir(&path, "scope:probe");
+        std::fs::create_dir_all(&session).unwrap();
+        std::fs::write(session.join("offer.json"), "{}\n").unwrap();
+        path
+    }
+
+    #[test]
+    fn work_refuses_a_frontier_other_than_the_served_checkout() {
+        let temp = tempfile::tempdir().unwrap();
+        let served = frontier_dir(temp.path(), "served");
+        let other = frontier_dir(temp.path(), "other");
+        let escaped = served.join("..").join("other");
+
+        let work_error = tool_work(
+            &json!({
+                "frontier_path": escaped,
+                "action": "drop",
+                "obligation_id": "vf_out_of_scope"
+            }),
+            Some(&served),
+        )
+        .unwrap_err();
+        assert_eq!(work_error.kind, ToolErrorKind::PermissionDenied);
+        assert!(work_error.message.contains("outside the frontier bound"));
+
+        let verify_error = tool_verify(
+            &json!({"frontier_path": other.display().to_string(), "mode": "strict"}),
+            Some(&served),
+        )
+        .unwrap_err();
+        assert_eq!(verify_error.kind, ToolErrorKind::PermissionDenied);
+
+        let objects_error = tool_objects(
+            &json!({"frontier_path": other.display().to_string(), "type": "pack"}),
+            Some(&served),
+        )
+        .unwrap_err();
+        assert_eq!(objects_error.kind, ToolErrorKind::PermissionDenied);
+    }
+
+    #[test]
+    fn work_is_unavailable_for_a_merged_service() {
+        let temp = tempfile::tempdir().unwrap();
+        let requested = frontier_dir(temp.path(), "requested");
+        let result = tool_work(
+            &json!({
+                "frontier_path": requested.display().to_string(),
+                "action": "drop",
+                "obligation_id": "vf_out_of_scope"
+            }),
+            None,
+        )
+        .unwrap_err();
+        assert_eq!(result.kind, ToolErrorKind::PermissionDenied);
+        assert!(result.message.contains("merged --frontiers mode"));
+
+        for tool in ["verify", "objects"] {
+            let error = bind_frontier_args(
+                &json!({"frontier_path": requested.display().to_string()}),
+                None,
+                tool,
+            )
+            .unwrap_err();
+            assert_eq!(error.kind, ToolErrorKind::PermissionDenied);
+        }
+    }
+
+    #[test]
+    fn work_uses_the_canonical_served_checkout() {
+        let temp = tempfile::tempdir().unwrap();
+        let served = frontier_dir(temp.path(), "served");
+        for tool in ["work", "verify", "objects"] {
+            let (_, bound) = bind_frontier_args(
+                &json!({"frontier_path": served.join(".")}),
+                Some(&served),
+                tool,
+            )
+            .unwrap();
+            assert_eq!(bound, served.canonicalize().unwrap());
+        }
+    }
+
+    #[test]
+    fn drop_is_destructive_only_for_the_exact_lease_owner() {
+        let temp = tempfile::tempdir().unwrap();
+        let served = owned_session_frontier(temp.path());
+        let session = crate::workflow::session_dir(&served, "scope:probe");
+
+        let denied = tool_work(
+            &json!({
+                "frontier_path": served.display().to_string(),
+                "action": "drop",
+                "obligation_id": "scope:probe",
+                "agent_actor": "agent:other"
+            }),
+            Some(&served),
+        )
+        .unwrap_err();
+        assert_eq!(denied.kind, ToolErrorKind::PermissionDenied);
+        assert!(session.is_dir(), "non-owner must not remove the session");
+
+        let (data, _) = tool_work(
+            &json!({
+                "frontier_path": served.display().to_string(),
+                "action": "drop",
+                "obligation_id": "scope:probe",
+                "agent_actor": "agent:owner"
+            }),
+            Some(&served),
+        )
+        .unwrap();
+        assert_eq!(data["dropped"], "scope:probe");
+        assert!(!session.exists(), "owner drop removes only private scratch");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn path_bound_tools_refuse_a_symlink_to_a_sibling_frontier() {
+        use std::os::unix::fs::symlink;
+
+        let temp = tempfile::tempdir().unwrap();
+        let served = frontier_dir(temp.path(), "served");
+        let other = frontier_dir(temp.path(), "other");
+        let link = temp.path().join("other-link");
+        symlink(&other, &link).unwrap();
+
+        for tool in ["work", "verify", "objects"] {
+            let error = bind_frontier_args(
+                &json!({"frontier_path": link.display().to_string()}),
+                Some(&served),
+                tool,
+            )
+            .unwrap_err();
+            assert_eq!(error.kind, ToolErrorKind::PermissionDenied);
+        }
+    }
 }
 
 #[cfg(test)]
