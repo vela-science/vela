@@ -19,6 +19,7 @@ find and verify state. It does not make the science true.
 - Checksum verification
 - Hub mirror
 - Optional dataset-style mirror
+- Offline Git bundle and exit
 - Citation
 - License
 - Release gate
@@ -72,6 +73,10 @@ checksum manifest. The minimum set:
 
 Use a GitHub release when you want a citable frozen package. Upload
 the files as release assets for the matching tag.
+
+The proof packet's `decisions/decision-view.json` is a derived aid for offline
+review. Verify its embedded events against `events/events.json`; the packet
+view is not authority and does not replace the signed event log.
 
 ## Checksum verification
 
@@ -134,6 +139,25 @@ dataset card to:
 - Preserve the license fields from the frontier manifest.
 - State that hub mirrors are transport, not authority.
 
+## Offline Git bundle and exit
+
+Git bundles are the offline transport for the complete repository history. Do
+not invent a Vela-specific archive or treat a bundle as acceptance:
+
+```bash
+git bundle create frontier.bundle --all
+git bundle verify frontier.bundle
+git clone frontier.bundle frontier-offline
+```
+
+After cloning, run `git fsck --full`, materialize, reproduce, strictly check,
+and validate the proof packet. Incremental bundles name their prerequisite
+commits and must fail explicitly when the recipient lacks one. The executable
+procedure, restricted-data boundary, and successor limitations are documented
+in [`EXIT_AND_EXPORT_DRILL.md`](EXIT_AND_EXPORT_DRILL.md). Interoperability
+contracts and their stability classes are documented in
+[`INTEROPERABILITY.md`](INTEROPERABILITY.md).
+
 ## Citation
 
 For software metadata, start with `CITATION.cff`. For a frontier
@@ -188,6 +212,11 @@ vela reproduce examples/sidon-a309370
 The gate is intentionally boring: replay, conformance, strict checks.
 If any step fails, the packaged artifacts may still be useful for
 review, but the release is not certified.
+
+Before an outside group relies on a hosted service, also review the current
+[`POSI_SELF_ASSESSMENT.md`](POSI_SELF_ASSESSMENT.md). A passing software gate
+does not close its governance, succession, preservation, reserve, or patent
+gaps.
 
 ## Verify Vela yourself (5 minutes, no trust required)
 

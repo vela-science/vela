@@ -13,6 +13,7 @@ use crate::signals;
 use vela_protocol::bundle::{Artifact, FindingBundle};
 use vela_protocol::events;
 use vela_protocol::project::Project;
+use vela_protocol::receipt_v1::{ReceiptV1, acceptance_scope_from_receipt};
 use vela_protocol::repo;
 use vela_protocol::sources;
 use vela_protocol::state;
@@ -570,6 +571,67 @@ struct PacketProofTrace {
 }
 
 #[derive(Debug, Clone, Serialize)]
+struct PacketDecisionView {
+    schema: String,
+    derived: bool,
+    authority_statement: String,
+    authoritative_source: String,
+    frontier_id: Option<String>,
+    event_log_hash: String,
+    reducer_version: String,
+    replay_command: String,
+    decisions: Vec<PacketDecisionRecord>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct PacketDecisionRecord {
+    authoritative_event: vela_protocol::events::StateEvent,
+    proposal_id: String,
+    proposal_kind: Option<String>,
+    verdict: Option<String>,
+    decision_root: Option<String>,
+    decision_root_status: String,
+    authority_role: String,
+    policy_certificate: Option<serde_json::Value>,
+    claim: Option<String>,
+    receipt_root: Option<String>,
+    evidence_root: Option<String>,
+    caveat_root: String,
+    content_roots: Vec<String>,
+    acceptance_scope: Option<String>,
+    semantic_effect: Option<PacketSemanticEffect>,
+    relations: Vec<PacketDecisionRelation>,
+    operational_publication_proof: Option<serde_json::Value>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct PacketSemanticEffect {
+    event_id: String,
+    kind: String,
+    target_type: String,
+    target_id: String,
+    before_hash: String,
+    after_hash: String,
+    event_root: String,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq, PartialOrd, Ord)]
+struct PacketDecisionRelation {
+    relation: String,
+    target: String,
+}
+
+#[derive(Debug, Clone)]
+struct PacketReceiptDecisionFacts {
+    claim: Option<String>,
+    receipt_root: String,
+    evidence_root: String,
+    caveat_root: String,
+    content_roots: Vec<String>,
+    acceptance_scope: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
 struct PacketLock {
     lock_format: String,
     generated_at: String,
@@ -1118,6 +1180,8 @@ pub fn export_packet_with_source(
         caveats: caveats.clone(),
         status: "ok".to_string(),
     };
+    let decision_view =
+        build_packet_decision_view(frontier, source_path, replay_report.event_log_hash.clone())?;
 
     let readme = export_packet_readme(
         frontier,
@@ -1173,6 +1237,7 @@ pub fn export_packet_with_source(
         PacketFile::json("state-transitions.json", &state_transitions)?,
         PacketFile::json("events/events.json", &frontier.events)?,
         PacketFile::json("events/replay-report.json", &replay_report)?,
+        PacketFile::json("decisions/decision-view.json", &decision_view)?,
         PacketFile::json("proposals/proposals.json", &frontier.proposals)?,
         PacketFile::json("ro-crate-metadata.jsonld", &ro_crate)?,
         PacketFile::json("candidate-tensions.json", &contradictions)?,
@@ -1783,6 +1848,367 @@ fn resolve_artifact_locator(root: &Path, locator: &str) -> PathBuf {
     }
 }
 
+fn packet_value_root<T: Serialize>(value: &T) -> Result<String, String> {
+    let bytes = vela_protocol::canonical::to_canonical_bytes(value)
+        .map_err(|error| format!("canonicalize packet decision fact: {error}"))?;
+    Ok(format!("sha256:{}", hex::encode(Sha256::digest(bytes))))
+}
+
+fn build_packet_decision_view(
+    frontier: &Project,
+    source_path: Option<&Path>,
+    event_log_hash: String,
+) -> Result<PacketDecisionView, String> {
+    let mut decisions = Vec::new();
+    for event in &frontier.events {
+        if !matches!(
+            event.kind.as_str(),
+            events::EVENT_KIND_REVIEW_ACCEPTED
+                | events::EVENT_KIND_REVIEW_REJECTED
+                | events::EVENT_KIND_REVIEW_REVISION_REQUESTED
+        ) {
+            continue;
+        }
+        let proposal_id = event
+            .payload
+            .get("proposal_id")
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or(&event.target.id)
+            .to_string();
+        let proposal = frontier
+            .proposals
+            .iter()
+            .find(|candidate| candidate.id == proposal_id);
+        let receipt = proposal
+            .map(|proposal| packet_receipt_decision_facts(proposal, source_path))
+            .transpose()?
+            .flatten();
+        let applied_event_id = event
+            .payload
+            .get("applied_event_id")
+            .and_then(serde_json::Value::as_str)
+            .or_else(|| proposal.and_then(|proposal| proposal.applied_event_id.as_deref()));
+        let applied_event = applied_event_id
+            .and_then(|event_id| frontier.events.iter().find(|item| item.id == event_id));
+        let semantic_effect = applied_event
+            .map(|applied| {
+                Ok::<PacketSemanticEffect, String>(PacketSemanticEffect {
+                    event_id: applied.id.clone(),
+                    kind: applied.kind.to_string(),
+                    target_type: applied.target.r#type.clone(),
+                    target_id: applied.target.id.clone(),
+                    before_hash: applied.before_hash.clone(),
+                    after_hash: applied.after_hash.clone(),
+                    event_root: packet_value_root(applied)?,
+                })
+            })
+            .transpose()?;
+        let decision_root = packet_decision_root(event)?;
+        let fallback_claim = proposal.and_then(packet_proposal_claim);
+        let fallback_evidence_root = proposal
+            .map(|proposal| {
+                packet_value_root(&serde_json::json!({
+                    "evidence": proposal.payload.pointer("/finding/evidence"),
+                    "source_refs": proposal.source_refs,
+                }))
+            })
+            .transpose()?;
+        let caveat_root = match &receipt {
+            Some(receipt) => receipt.caveat_root.clone(),
+            None => packet_value_root(&serde_json::json!({
+                "proposal": proposal.map(|proposal| &proposal.caveats),
+                "decision_event": event.caveats,
+            }))?,
+        };
+        let mut content_roots = receipt
+            .as_ref()
+            .map(|receipt| receipt.content_roots.clone())
+            .unwrap_or_default();
+        if let Some(proposal) = proposal {
+            content_roots.extend(
+                proposal
+                    .source_refs
+                    .iter()
+                    .filter(|reference| reference.starts_with("sha256:"))
+                    .cloned(),
+            );
+        }
+        content_roots.sort();
+        content_roots.dedup();
+        let policy_certificate = event
+            .payload
+            .pointer("/policy_lane/certificate")
+            .or_else(|| {
+                applied_event
+                    .and_then(|applied| applied.payload.pointer("/policy_lane/certificate"))
+            })
+            .cloned();
+        let authority_role = if policy_certificate.is_some() {
+            "signed_policy"
+        } else {
+            event.actor.r#type.as_str()
+        };
+        decisions.push(PacketDecisionRecord {
+            authoritative_event: event.clone(),
+            proposal_id,
+            proposal_kind: event
+                .payload
+                .get("proposal_kind")
+                .and_then(serde_json::Value::as_str)
+                .map(str::to_string)
+                .or_else(|| proposal.map(|proposal| proposal.kind.clone())),
+            verdict: event
+                .payload
+                .get("verdict")
+                .and_then(serde_json::Value::as_str)
+                .map(str::to_string),
+            decision_root: decision_root.clone(),
+            decision_root_status: if decision_root.is_some() {
+                "bound".to_string()
+            } else {
+                "unavailable_legacy_event".to_string()
+            },
+            authority_role: authority_role.to_string(),
+            policy_certificate,
+            claim: receipt
+                .as_ref()
+                .and_then(|receipt| receipt.claim.clone())
+                .or(fallback_claim),
+            receipt_root: receipt.as_ref().map(|receipt| receipt.receipt_root.clone()),
+            evidence_root: receipt
+                .as_ref()
+                .map(|receipt| receipt.evidence_root.clone())
+                .or(fallback_evidence_root),
+            caveat_root,
+            content_roots,
+            acceptance_scope: receipt.and_then(|receipt| receipt.acceptance_scope),
+            semantic_effect,
+            relations: proposal.map(packet_decision_relations).unwrap_or_default(),
+            operational_publication_proof: None,
+        });
+    }
+    Ok(PacketDecisionView {
+        schema: "vela.packet-decision-view.v1".to_string(),
+        derived: true,
+        authority_statement:
+            "This file is a derived offline view. The signed event or policy certificate in the canonical event log is authority."
+                .to_string(),
+        authoritative_source: "events/events.json".to_string(),
+        frontier_id: frontier.frontier_id.clone(),
+        event_log_hash,
+        reducer_version: frontier.vela_version.clone(),
+        replay_command: "vela frontier materialize <frontier>".to_string(),
+        decisions,
+    })
+}
+
+fn packet_decision_root(
+    event: &vela_protocol::events::StateEvent,
+) -> Result<Option<String>, String> {
+    let roots = event
+        .payload
+        .pointer("/provenance/input_refs")
+        .and_then(serde_json::Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(serde_json::Value::as_str)
+        .filter_map(|reference| {
+            reference.strip_prefix(vela_protocol::provenance::DECISION_ROOT_INPUT_REF_PREFIX)
+        })
+        .map(str::to_string)
+        .collect::<Vec<_>>();
+    match roots.as_slice() {
+        [] => Ok(None),
+        [root]
+            if root.strip_prefix("sha256:").is_some_and(|digest| {
+                digest.len() == 64
+                    && digest
+                        .bytes()
+                        .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+            }) =>
+        {
+            Ok(Some(root.clone()))
+        }
+        [_] => Err(format!(
+            "decision event {} carries an invalid decision root",
+            event.id
+        )),
+        _ => Err(format!(
+            "decision event {} carries multiple decision roots",
+            event.id
+        )),
+    }
+}
+
+fn packet_receipt_decision_facts(
+    proposal: &vela_protocol::proposals::StateProposal,
+    source_path: Option<&Path>,
+) -> Result<Option<PacketReceiptDecisionFacts>, String> {
+    let Some(submission) = proposal.payload.get("vela_submission") else {
+        return Ok(None);
+    };
+    let Some(receipt_root) = submission
+        .get("receipt_root")
+        .and_then(serde_json::Value::as_str)
+    else {
+        return Ok(None);
+    };
+    let Some(receipt_path) = submission
+        .get("receipt_path")
+        .and_then(serde_json::Value::as_str)
+    else {
+        return Ok(None);
+    };
+    let Some(frontier_dir) = frontier_dir_from_source_path(source_path) else {
+        return Ok(Some(PacketReceiptDecisionFacts {
+            claim: packet_proposal_claim(proposal),
+            receipt_root: receipt_root.to_string(),
+            evidence_root: packet_value_root(&serde_json::json!({
+                "evidence": proposal.payload.pointer("/finding/evidence"),
+                "source_refs": proposal.source_refs,
+            }))?,
+            caveat_root: packet_value_root(&proposal.caveats)?,
+            content_roots: vec![receipt_root.to_string()],
+            acceptance_scope: None,
+        }));
+    };
+    let relative = Path::new(receipt_path);
+    if !receipt_path.starts_with("records/receipts/sha256/")
+        || relative.is_absolute()
+        || relative
+            .components()
+            .any(|component| !matches!(component, std::path::Component::Normal(_)))
+    {
+        return Err(format!(
+            "proposal {} has an unsafe receipt path",
+            proposal.id
+        ));
+    }
+    let absolute = frontier_dir.join(relative);
+    let mut cursor = frontier_dir;
+    for component in relative.components() {
+        let std::path::Component::Normal(component) = component else {
+            unreachable!("components were checked above")
+        };
+        cursor.push(component);
+        let metadata = std::fs::symlink_metadata(&cursor)
+            .map_err(|error| format!("read packet receipt {}: {error}", cursor.display()))?;
+        if metadata.file_type().is_symlink() {
+            return Err(format!(
+                "packet receipt path crosses a symlink: {}",
+                cursor.display()
+            ));
+        }
+    }
+    let bytes = std::fs::read(&absolute)
+        .map_err(|error| format!("read packet receipt {}: {error}", absolute.display()))?;
+    let receipt = ReceiptV1::parse(&bytes)
+        .map_err(|error| format!("parse packet receipt {}: {error}", absolute.display()))?;
+    let actual_root = receipt
+        .canonical_root()
+        .map_err(|error| format!("hash packet receipt {}: {error}", absolute.display()))?;
+    if actual_root != receipt_root {
+        return Err(format!(
+            "proposal {} receipt root mismatch: declared {}, actual {}",
+            proposal.id, receipt_root, actual_root
+        ));
+    }
+    let value = receipt.as_value();
+    let evidence_root = packet_value_root(&serde_json::json!({
+        "artifacts": value.get("artifacts"),
+        "verifier_runs": value.get("verifier_runs"),
+        "machine_verification": value.pointer("/machine/verification"),
+    }))?;
+    let caveat_root = packet_value_root(&value.get("caveats"))?;
+    let mut content_roots = vec![receipt_root.to_string()];
+    if let Some(artifacts) = value.get("artifacts").and_then(serde_json::Value::as_array) {
+        for artifact in artifacts {
+            if let Some(digest) = artifact.get("sha256").and_then(serde_json::Value::as_str) {
+                content_roots.push(format!("sha256:{digest}"));
+            }
+        }
+    }
+    content_roots.sort();
+    content_roots.dedup();
+    Ok(Some(PacketReceiptDecisionFacts {
+        claim: value
+            .get("claim")
+            .and_then(serde_json::Value::as_str)
+            .map(str::to_string),
+        receipt_root: receipt_root.to_string(),
+        evidence_root,
+        caveat_root,
+        content_roots,
+        acceptance_scope: acceptance_scope_from_receipt(value)
+            .map(|scope| scope.as_str().to_string()),
+    }))
+}
+
+fn packet_proposal_claim(proposal: &vela_protocol::proposals::StateProposal) -> Option<String> {
+    proposal
+        .payload
+        .pointer("/finding/assertion/text")
+        .or_else(|| proposal.payload.get("claim"))
+        .and_then(serde_json::Value::as_str)
+        .map(str::to_string)
+}
+
+fn packet_decision_relations(
+    proposal: &vela_protocol::proposals::StateProposal,
+) -> Vec<PacketDecisionRelation> {
+    let mut relations = Vec::new();
+    if let Some(links) = proposal
+        .payload
+        .pointer("/finding/links")
+        .and_then(serde_json::Value::as_array)
+    {
+        for link in links {
+            let relation = link
+                .get("link_type")
+                .or_else(|| link.get("type"))
+                .and_then(serde_json::Value::as_str);
+            let target = link.get("target").and_then(serde_json::Value::as_str);
+            if let (Some(relation), Some(target)) = (relation, target)
+                && matches!(
+                    relation,
+                    "challenges"
+                        | "challenged_by"
+                        | "corrects"
+                        | "corrected_by"
+                        | "supersedes"
+                        | "superseded_by"
+                        | "contradicts"
+                        | "disputes"
+                )
+            {
+                relations.push(PacketDecisionRelation {
+                    relation: relation.to_string(),
+                    target: target.to_string(),
+                });
+            }
+        }
+    }
+    for (field, relation) in [
+        ("challenge_of", "challenges"),
+        ("correction_of", "corrects"),
+        ("supersedes", "supersedes"),
+    ] {
+        if let Some(target) = proposal
+            .payload
+            .get(field)
+            .and_then(serde_json::Value::as_str)
+        {
+            relations.push(PacketDecisionRelation {
+                relation: relation.to_string(),
+                target: target.to_string(),
+            });
+        }
+    }
+    relations.sort();
+    relations.dedup();
+    relations
+}
+
 fn export_packet_readme(
     frontier: &Project,
     generated_at: &str,
@@ -1822,6 +2248,7 @@ fn export_packet_readme(
     );
     out.push_str("- `source-integrity/source-debt.json`: derived queue of missing source locators, evidence locators, and content hashes\n");
     out.push_str("- `reviewer/`: reviewer sections for source debt, trace provenance, graph navigation, score ledger, correction returns, freshness, and `reviewer/replay-manifest.json`\n");
+    out.push_str("- `decisions/decision-view.json` — derived offline decision view; canonical signed events remain authority\n");
     out.push_str("- `findings/gaps.json` — gap-tagged findings\n");
     out.push_str("- `findings/contested.json` — contested findings\n");
     out.push_str("- `findings/bridges.json` — entities spanning multiple assertion categories\n");
@@ -1867,14 +2294,15 @@ fn export_reviewer_guide(frontier: &Project) -> String {
     out.push_str(
         "3. Review `reviewer/source-debt.json` and `reviewer/research-trace-provenance.json` before treating packet wording as trusted state.\n",
     );
+    out.push_str("4. Read `decisions/decision-view.json` for compact decision context, then verify each embedded event against `events/events.json`; the derived view is not authority.\n");
     out.push_str(
-        "4. Inspect candidate tensions against the full finding bundles in `findings/full.json`.\n",
+        "5. Inspect candidate tensions against the full finding bundles in `findings/full.json`.\n",
     );
     out.push_str(
-        "5. Treat candidate gaps and bridges as leads requiring review, not as settled claims.\n",
+        "6. Treat candidate gaps and bridges as leads requiring review, not as settled claims.\n",
     );
-    out.push_str("6. Use `mcp-session.json` to replay the conservative MCP investigation loop.\n");
-    out.push_str("7. Verify checksums with `manifest.json` and `packet.lock.json` before comparing packet diffs.\n\n");
+    out.push_str("7. Use `mcp-session.json` to replay the conservative MCP investigation loop.\n");
+    out.push_str("8. Verify checksums with `manifest.json` and `packet.lock.json` before comparing packet diffs.\n\n");
     out.push_str("## Caveats\n\n");
     for caveat in packet_caveats() {
         out.push_str(&format!("- {caveat}\n"));
@@ -2383,6 +2811,7 @@ mod tests {
         assert!(dir.join("state-transitions.json").exists());
         assert!(dir.join("events/events.json").exists());
         assert!(dir.join("events/replay-report.json").exists());
+        assert!(dir.join("decisions/decision-view.json").exists());
         assert!(dir.join("ro-crate-metadata.jsonld").exists());
         assert!(dir.join("proof-trace.json").exists());
         assert!(dir.join("packet.lock.json").exists());
@@ -2413,8 +2842,16 @@ mod tests {
         assert_eq!(manifest["stats"]["evidence_atoms"], 1);
         assert_eq!(manifest["stats"]["condition_records"], 1);
         // Packet file set grew as the format added source-integrity and
-        // claim-boundary files; 49 is the current complete set for this fixture.
-        assert_eq!(manifest["included_files"].as_array().unwrap().len(), 49);
+        // claim-boundary and derived decision files; 50 is the current complete set.
+        assert_eq!(manifest["included_files"].as_array().unwrap().len(), 50);
+
+        let decision_view: serde_json::Value = serde_json::from_str(
+            &std::fs::read_to_string(dir.join("decisions/decision-view.json")).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(decision_view["schema"], "vela.packet-decision-view.v1");
+        assert_eq!(decision_view["derived"], true);
+        assert_eq!(decision_view["authoritative_source"], "events/events.json");
 
         let source_debt: serde_json::Value = serde_json::from_str(
             &std::fs::read_to_string(dir.join("source-integrity/source-debt.json")).unwrap(),

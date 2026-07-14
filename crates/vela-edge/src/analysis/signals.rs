@@ -964,6 +964,7 @@ pub fn ro_crate_metadata(frontier: &Project, files: &[String]) -> Value {
         json!({
             "@id": "ro-crate-metadata.jsonld",
             "@type": "CreativeWork",
+            "conformsTo": {"@id": "https://w3id.org/ro/crate/1.2"},
             "about": {"@id": "./"}
         }),
         json!({

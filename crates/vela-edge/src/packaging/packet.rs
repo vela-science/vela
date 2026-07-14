@@ -1,5 +1,6 @@
 //! Packet inspection and validation utilities.
 
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
 use serde::{Deserialize, Serialize};
@@ -59,6 +60,7 @@ pub const DERIVED_PACKET_ARTIFACTS: &[&str] = &[
     "reviewer/guided-tours.json",
     "reviewer/frontier-freshness-plan.json",
     "reviewer/replay-manifest.json",
+    "decisions/decision-view.json",
     "signals.json",
     "review-queue.json",
     "quality-table.json",
@@ -97,6 +99,7 @@ pub const REQUIRED_PACKET_FILES: &[&str] = &[
     "reviewer/guided-tours.json",
     "reviewer/frontier-freshness-plan.json",
     "reviewer/replay-manifest.json",
+    "decisions/decision-view.json",
     "events/events.json",
     "events/replay-report.json",
     "proposals/proposals.json",
@@ -216,6 +219,7 @@ pub fn validate(path: &Path) -> Result<String, String> {
 
     validate_packet_lock(path)?;
     validate_replay_report(path)?;
+    validate_decision_view(path)?;
     validate_source_evidence(path)?;
     crate::research_trace::validate_packet_traces(path)?;
     validate_conditions(path)?;
@@ -387,6 +391,176 @@ fn validate_replay_report(packet_dir: &Path) -> Result<(), String> {
     let status = replay["status"].as_str().unwrap_or_default();
     if status != "ok" && status != "no_events" {
         return Err(format!("Replay report has unsupported status: {status}"));
+    }
+    Ok(())
+}
+
+fn validate_decision_view(packet_dir: &Path) -> Result<(), String> {
+    let events_path = packet_dir.join("events/events.json");
+    let events_data = std::fs::read(&events_path)
+        .map_err(|error| format!("Failed to read canonical events: {error}"))?;
+    let events: Vec<serde_json::Value> = serde_json::from_slice(&events_data)
+        .map_err(|error| format!("Failed to parse canonical events: {error}"))?;
+    let events_by_id = events
+        .iter()
+        .filter_map(|event| {
+            event
+                .get("id")
+                .and_then(serde_json::Value::as_str)
+                .map(|id| (id.to_string(), event))
+        })
+        .collect::<BTreeMap<_, _>>();
+    let expected_decisions = events
+        .iter()
+        .filter(|event| {
+            matches!(
+                event.get("kind").and_then(serde_json::Value::as_str),
+                Some("review.accepted" | "review.rejected" | "review.revision_requested")
+            )
+        })
+        .filter_map(|event| event.get("id").and_then(serde_json::Value::as_str))
+        .collect::<BTreeSet<_>>();
+
+    let view_path = packet_dir.join("decisions/decision-view.json");
+    let view_data = std::fs::read(&view_path)
+        .map_err(|error| format!("Failed to read packet decision view: {error}"))?;
+    let view: serde_json::Value = serde_json::from_slice(&view_data)
+        .map_err(|error| format!("Failed to parse packet decision view: {error}"))?;
+    if view.get("schema").and_then(serde_json::Value::as_str)
+        != Some("vela.packet-decision-view.v1")
+        || view.get("derived").and_then(serde_json::Value::as_bool) != Some(true)
+        || view
+            .get("authoritative_source")
+            .and_then(serde_json::Value::as_str)
+            != Some("events/events.json")
+    {
+        return Err(
+            "Packet decision view must be typed, derived, and point to canonical events"
+                .to_string(),
+        );
+    }
+    let authority_statement = view
+        .get("authority_statement")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or_default()
+        .to_ascii_lowercase();
+    if !authority_statement.contains("event") || !authority_statement.contains("authority") {
+        return Err("Packet decision view obscures its authority boundary".to_string());
+    }
+    let decisions = view
+        .get("decisions")
+        .and_then(serde_json::Value::as_array)
+        .ok_or_else(|| "Packet decision view decisions must be an array".to_string())?;
+    let mut actual_decisions = BTreeSet::new();
+    for decision in decisions {
+        let authoritative_event = decision
+            .get("authoritative_event")
+            .ok_or_else(|| "Packet decision record omits authoritative_event".to_string())?;
+        let event_id = authoritative_event
+            .get("id")
+            .and_then(serde_json::Value::as_str)
+            .ok_or_else(|| "Packet decision authoritative event omits id".to_string())?;
+        let canonical_event = events_by_id
+            .get(event_id)
+            .ok_or_else(|| format!("Packet decision references unknown event {event_id}"))?;
+        if *canonical_event != authoritative_event {
+            return Err(format!(
+                "Packet decision authoritative event differs from events/events.json: {event_id}"
+            ));
+        }
+        if !expected_decisions.contains(event_id) {
+            return Err(format!(
+                "Packet decision record references non-decision event {event_id}"
+            ));
+        }
+        if !actual_decisions.insert(event_id) {
+            return Err(format!("Packet decision event is duplicated: {event_id}"));
+        }
+        let decision_root = decision.get("decision_root");
+        let root_status = decision
+            .get("decision_root_status")
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or_default();
+        let event_refs = authoritative_event
+            .pointer("/payload/provenance/input_refs")
+            .and_then(serde_json::Value::as_array)
+            .into_iter()
+            .flatten()
+            .filter_map(serde_json::Value::as_str)
+            .filter_map(|reference| reference.strip_prefix("urn:vela:decision-root:"))
+            .collect::<Vec<_>>();
+        match (
+            root_status,
+            decision_root.and_then(serde_json::Value::as_str),
+        ) {
+            ("bound", Some(root))
+                if root.strip_prefix("sha256:").is_some_and(|digest| {
+                    digest.len() == 64
+                        && digest
+                            .bytes()
+                            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+                }) && event_refs == [root] => {}
+            ("unavailable_legacy_event", None) if event_refs.is_empty() => {}
+            _ => {
+                return Err(format!(
+                    "Packet decision root binding is inconsistent for {event_id}"
+                ));
+            }
+        }
+        let policy_certificate = decision.get("policy_certificate");
+        let semantic_event = decision
+            .pointer("/semantic_effect/event_id")
+            .and_then(serde_json::Value::as_str)
+            .and_then(|id| events_by_id.get(id).copied());
+        let canonical_certificate = authoritative_event
+            .pointer("/payload/policy_lane/certificate")
+            .or_else(|| {
+                semantic_event.and_then(|event| event.pointer("/payload/policy_lane/certificate"))
+            });
+        let certificate_present = policy_certificate.is_some_and(|value| !value.is_null());
+        if certificate_present != canonical_certificate.is_some()
+            || (certificate_present && policy_certificate != canonical_certificate)
+        {
+            return Err(format!(
+                "Packet decision policy certificate is inconsistent for {event_id}"
+            ));
+        }
+        let authority_role = decision
+            .get("authority_role")
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or_default();
+        if (certificate_present && authority_role != "signed_policy")
+            || (!certificate_present && authority_role == "signed_policy")
+        {
+            return Err(format!(
+                "Packet decision authority role is false for {event_id}"
+            ));
+        }
+        if let Some(effect) = decision
+            .get("semantic_effect")
+            .filter(|value| !value.is_null())
+        {
+            let effect_id = effect
+                .get("event_id")
+                .and_then(serde_json::Value::as_str)
+                .ok_or_else(|| "Packet semantic effect omits event_id".to_string())?;
+            let effect_event = events_by_id
+                .get(effect_id)
+                .ok_or_else(|| format!("Packet semantic effect event is missing: {effect_id}"))?;
+            let bytes = vela_protocol::canonical::to_canonical_bytes(*effect_event)
+                .map_err(|error| format!("Canonicalize packet semantic event: {error}"))?;
+            let expected_root = format!("sha256:{}", hex::encode(Sha256::digest(bytes)));
+            if effect.get("event_root").and_then(serde_json::Value::as_str)
+                != Some(expected_root.as_str())
+            {
+                return Err(format!(
+                    "Packet semantic effect root is stale for {effect_id}"
+                ));
+            }
+        }
+    }
+    if actual_decisions != expected_decisions {
+        return Err("Packet decision view omits or invents canonical decisions".to_string());
     }
     Ok(())
 }
@@ -907,6 +1081,7 @@ mod tests {
             write_file(root, "reviewer/guided-tours.json", br#"{"schema":"vela.frontier_guided_tours.v0.1","frontier":"test","summary":{"tours":0,"steps":0},"tours":[],"claim_boundary":{"tours_are_review_material":true,"claims_external_validation":false,"claims_target_validation":false,"claims_treatment_advice":false,"tracked_frontier_mutated":false}}"#),
             write_file(root, "reviewer/frontier-freshness-plan.json", br#"{"schema":"vela.frontier_freshness_plan.v0.1","frontier":"test","summary":{"channels":0,"review_entry_paths":0},"channels":[],"claim_boundary":{"fresh_inputs_are_source_material":true,"claims_external_validation":false,"claims_target_validation":false,"claims_treatment_advice":false,"tracked_frontier_mutated":false}}"#),
             write_file(root, "reviewer/replay-manifest.json", br#"{"schema":"vela.packet_reviewer_replay_manifest.v0.1","frontier":"test","reviewer_inputs":{"source_debt":"reviewer/source-debt.json","research_trace_provenance":"reviewer/research-trace-provenance.json","score_ledger":"reviewer/score-ledger.json","correction_returns":"reviewer/correction-returns.json","outsider_handoff":"review/outsider-handoff.v1.json"},"commands":[],"artifact_hashes":[],"claim_boundary":{"replay_manifest_is_review_material":true,"claims_external_validation":false,"claims_target_validation":false,"tracked_frontier_mutated":false}}"#),
+            write_file(root, "decisions/decision-view.json", br#"{"schema":"vela.packet-decision-view.v1","derived":true,"authority_statement":"The canonical event log is authority.","authoritative_source":"events/events.json","frontier_id":"vfr_test","event_log_hash":"sha256:0000000000000000000000000000000000000000000000000000000000000000","reducer_version":"0.0.0","replay_command":"vela frontier materialize <frontier>","decisions":[]}"#),
             write_file(root, "candidate-tensions.json", br#"[]"#),
             write_file(root, "candidate-gaps.json", br#"[]"#),
             write_file(root, "candidate-bridges.json", br#"[]"#),
@@ -1046,6 +1221,118 @@ mod tests {
 
         let result = validate(tmp.path()).unwrap();
         assert!(result.contains("status: ok"));
+    }
+
+    fn install_decision_fixture(
+        root: &Path,
+        event: serde_json::Value,
+        decision: serde_json::Value,
+    ) {
+        let events = serde_json::to_vec_pretty(&serde_json::json!([event])).unwrap();
+        fs::write(root.join("events/events.json"), &events).unwrap();
+        refresh_packet_entry(root, "events/events.json", &events);
+        let view = serde_json::to_vec_pretty(&serde_json::json!({
+            "schema": "vela.packet-decision-view.v1",
+            "derived": true,
+            "authority_statement": "This derived view is not authority; the canonical event is authority.",
+            "authoritative_source": "events/events.json",
+            "frontier_id": "vfr_test",
+            "event_log_hash": format!("sha256:{}", "0".repeat(64)),
+            "reducer_version": "0.759.0",
+            "replay_command": "vela frontier materialize <frontier>",
+            "decisions": [decision]
+        }))
+        .unwrap();
+        fs::write(root.join("decisions/decision-view.json"), &view).unwrap();
+        refresh_packet_entry(root, "decisions/decision-view.json", &view);
+    }
+
+    #[test]
+    fn validates_bound_human_decision_and_rejects_omission() {
+        let tmp = TempDir::new().unwrap();
+        write_valid_packet(tmp.path());
+        write_valid_trace(tmp.path());
+        let root = format!("sha256:{}", "a".repeat(64));
+        let event = serde_json::json!({
+            "id": "vev_human",
+            "kind": "review.accepted",
+            "actor": {"id": "reviewer:alice", "type": "reviewer"},
+            "target": {"type": "proposal", "id": "vpr_human"},
+            "payload": {
+                "proposal_id": "vpr_human",
+                "proposal_kind": "finding.add",
+                "verdict": "accepted",
+                "provenance": {"input_refs": [format!("urn:vela:decision-root:{root}")]}
+            },
+            "signature": "ed25519:test"
+        });
+        let decision = serde_json::json!({
+            "authoritative_event": event.clone(),
+            "proposal_id": "vpr_human",
+            "decision_root": root,
+            "decision_root_status": "bound",
+            "authority_role": "reviewer",
+            "policy_certificate": null,
+            "semantic_effect": null
+        });
+        install_decision_fixture(tmp.path(), event, decision);
+        validate(tmp.path()).unwrap();
+
+        let path = tmp.path().join("decisions/decision-view.json");
+        let mut view: serde_json::Value =
+            serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+        view["decisions"] = serde_json::json!([]);
+        let bytes = serde_json::to_vec_pretty(&view).unwrap();
+        fs::write(&path, &bytes).unwrap();
+        refresh_packet_entry(tmp.path(), "decisions/decision-view.json", &bytes);
+        let error = validate(tmp.path()).unwrap_err();
+        assert!(error.contains("omits or invents"), "{error}");
+    }
+
+    #[test]
+    fn validates_policy_certificate_and_rejects_false_authority() {
+        let tmp = TempDir::new().unwrap();
+        write_valid_packet(tmp.path());
+        write_valid_trace(tmp.path());
+        let certificate = serde_json::json!({
+            "schema": "vela.decision_certificate.v1",
+            "id": "vdc_test",
+            "outcome": "permit"
+        });
+        let event = serde_json::json!({
+            "id": "vev_policy",
+            "kind": "review.accepted",
+            "actor": {"id": "policy:test", "type": "policy"},
+            "target": {"type": "proposal", "id": "vpr_policy"},
+            "payload": {
+                "proposal_id": "vpr_policy",
+                "proposal_kind": "finding.add",
+                "verdict": "accepted",
+                "policy_lane": {"certificate": certificate.clone()}
+            },
+            "signature": null
+        });
+        let decision = serde_json::json!({
+            "authoritative_event": event.clone(),
+            "proposal_id": "vpr_policy",
+            "decision_root": null,
+            "decision_root_status": "unavailable_legacy_event",
+            "authority_role": "signed_policy",
+            "policy_certificate": certificate,
+            "semantic_effect": null
+        });
+        install_decision_fixture(tmp.path(), event, decision);
+        validate(tmp.path()).unwrap();
+
+        let path = tmp.path().join("decisions/decision-view.json");
+        let mut view: serde_json::Value =
+            serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+        view["decisions"][0]["policy_certificate"] = serde_json::Value::Null;
+        let bytes = serde_json::to_vec_pretty(&view).unwrap();
+        fs::write(&path, &bytes).unwrap();
+        refresh_packet_entry(tmp.path(), "decisions/decision-view.json", &bytes);
+        let error = validate(tmp.path()).unwrap_err();
+        assert!(error.contains("policy certificate"), "{error}");
     }
 
     #[test]

@@ -823,6 +823,13 @@ v0 remains proposal/event/finding centered.
 This list tracks protocol-surface additions across recent releases.
 Earlier releases are documented inline in the sections above.
 
+- **v0.759.0**: new decisions bind an exact private Decision Plan root into the
+  existing signed acceptance event while legacy events remain replayable;
+  Receipt v1 producer context may carry a namespaced task-contract root; the
+  task-first CLI uses one ignored typed work session, shared receipt landing,
+  and signed zero-TTL lease release; the installed external-Lean command and
+  derived packet decision view ship with conformance fixtures. Decision Brief
+  and packet-view schemas remain testing contracts, not authority objects.
 - **v0.67**: `bridge.reviewed` event (§6.5); `StateProposal.drafted_at` optional field (§6.7).
 - **v0.68**: internal hardening; no new event kinds or schema fields.
 - **v0.69**: internal hardening; no new event kinds or schema fields.
@@ -947,6 +954,8 @@ include:
 - condition records and condition matrix
 - candidate gaps, bridges, tensions, review queue, and signals
 - canonical events and replay report
+- a derived decision view containing the exact authority event or policy
+  certificate, roots, scope, relations, and replay command
 - proposals
 - artifact manifest, artifact audit, and checked local artifact blob map
 - proof trace
@@ -956,6 +965,12 @@ active artifact audit status, and active local artifact blob hashes. Historical
 issues must name retracted artifacts and remain visible without carrying
 current proof-readiness weight. Proof freshness relative to later accepted
 frontier writes is tracked in frontier state when proof state has been recorded.
+
+`decisions/decision-view.json` is derived and validated against
+`events/events.json`. It is not a second decision object. The signed event or
+policy certificate remains authority, and legacy events report an unavailable
+decision root rather than receiving a synthetic one. See
+[`INTEROPERABILITY.md`](INTEROPERABILITY.md).
 
 ## 9. derived signals
 
