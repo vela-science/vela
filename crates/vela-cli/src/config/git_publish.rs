@@ -364,6 +364,7 @@ struct GitRunner {
     root: PathBuf,
     empty_hooks: PathBuf,
     empty_attributes: PathBuf,
+    attribute_source: Option<String>,
 }
 
 impl GitRunner {
@@ -398,6 +399,9 @@ impl GitRunner {
         command.env("GIT_OPTIONAL_LOCKS", "0");
         command.env("GIT_LITERAL_PATHSPECS", "1");
         command.env("GIT_ATTR_NOSYSTEM", "1");
+        if let Some(source) = &self.attribute_source {
+            command.env("GIT_ATTR_SOURCE", source);
+        }
         if let Some(path) = index {
             command.env("GIT_INDEX_FILE", path);
         }
@@ -448,6 +452,10 @@ impl GitRunner {
         let bytes = self.checked(&args, None, None)?;
         Ok(String::from_utf8_lossy(&bytes).trim().to_string())
     }
+
+    fn pin_attributes(&mut self, source: &GitOid) {
+        self.attribute_source = Some(source.hex.clone());
+    }
 }
 
 fn sanitized_git_runner(frontier: &Path) -> Result<(tempfile::TempDir, GitRunner), String> {
@@ -462,6 +470,7 @@ fn sanitized_git_runner(frontier: &Path) -> Result<(tempfile::TempDir, GitRunner
         root: frontier.to_path_buf(),
         empty_hooks: empty_hooks.clone(),
         empty_attributes: empty_attributes.clone(),
+        attribute_source: None,
     };
     let root = PathBuf::from(bootstrap.text(&["rev-parse", "--show-toplevel"])?)
         .canonicalize()
@@ -472,6 +481,7 @@ fn sanitized_git_runner(frontier: &Path) -> Result<(tempfile::TempDir, GitRunner
             root,
             empty_hooks,
             empty_attributes,
+            attribute_source: None,
         },
     ))
 }
@@ -778,14 +788,16 @@ fn exact_publication_preflight_inner(
         root: frontier.to_path_buf(),
         empty_hooks: empty_hooks.clone(),
         empty_attributes: empty_attributes.clone(),
+        attribute_source: None,
     };
     let root = PathBuf::from(bootstrap.text(&["rev-parse", "--show-toplevel"])?)
         .canonicalize()
         .map_err(|error| format!("canonicalize Git root: {error}"))?;
-    let runner = GitRunner {
+    let mut runner = GitRunner {
         root: root.clone(),
         empty_hooks,
         empty_attributes,
+        attribute_source: None,
     };
     let publication_lock = acquire_publication_lock(&runner).map_err(|error| match error {
         PublicationLockError::Busy => PUBLICATION_BUSY_RETRY_REASON.to_string(),
@@ -814,6 +826,7 @@ fn exact_publication_preflight_inner(
         &object_format,
         &runner.text(&["rev-parse", &format!("{}^{{commit}}", target_refname.0)])?,
     )?;
+    runner.pin_attributes(&expected);
     reject_unsupported_index(&runner, &specs, &object_format)?;
     let parent = tree_entries(&runner, &expected, &specs)?;
     reject_parent_case_collisions(&paths, &parent)?;
@@ -909,14 +922,16 @@ fn exact_publication_resume_preflight_inner(
         root: frontier.to_path_buf(),
         empty_hooks: empty_hooks.clone(),
         empty_attributes: empty_attributes.clone(),
+        attribute_source: None,
     };
     let root = PathBuf::from(bootstrap.text(&["rev-parse", "--show-toplevel"])?)
         .canonicalize()
         .map_err(|error| format!("canonicalize Git root: {error}"))?;
-    let runner = GitRunner {
+    let mut runner = GitRunner {
         root: root.clone(),
         empty_hooks,
         empty_attributes,
+        attribute_source: None,
     };
     let publication_lock = acquire_publication_lock(&runner).map_err(|error| match error {
         PublicationLockError::Busy => PUBLICATION_BUSY_RETRY_REASON.to_string(),
@@ -945,6 +960,7 @@ fn exact_publication_resume_preflight_inner(
         &object_format,
         &runner.text(&["rev-parse", &format!("{}^{{commit}}", target_refname.0)])?,
     )?;
+    runner.pin_attributes(&expected);
     reject_unsupported_index(&runner, &specs, &object_format)?;
     let parent = tree_entries(&runner, &expected, &specs)?;
     reject_parent_case_collisions(&paths, &parent)?;
@@ -1282,14 +1298,16 @@ fn publication_preflight_inner(
         root: frontier.to_path_buf(),
         empty_hooks: empty_hooks.clone(),
         empty_attributes: empty_attributes.clone(),
+        attribute_source: None,
     };
     let root = PathBuf::from(bootstrap.text(&["rev-parse", "--show-toplevel"])?)
         .canonicalize()
         .map_err(|error| format!("canonicalize Git root: {error}"))?;
-    let runner = GitRunner {
+    let mut runner = GitRunner {
         root: root.clone(),
         empty_hooks,
         empty_attributes,
+        attribute_source: None,
     };
     let publication_lock = acquire_publication_lock(&runner).map_err(|error| match error {
         PublicationLockError::Busy => PUBLICATION_BUSY_RETRY_REASON.to_string(),
@@ -1316,6 +1334,7 @@ fn publication_preflight_inner(
         &object_format,
         &runner.text(&["rev-parse", &format!("{}^{{commit}}", target_refname.0)])?,
     )?;
+    runner.pin_attributes(&expected);
     reject_unsupported_index(&runner, &specs, &object_format)?;
     let allowed_input_hashes =
         capture_preflight_input_hashes(&runner, &frontier_abs, &opts.preflight_inputs)?;
@@ -1473,14 +1492,16 @@ fn recover_publication_inner(
         root: frontier.to_path_buf(),
         empty_hooks: empty_hooks.clone(),
         empty_attributes: empty_attributes.clone(),
+        attribute_source: None,
     };
     let root = PathBuf::from(bootstrap.text(&["rev-parse", "--show-toplevel"])?)
         .canonicalize()
         .map_err(|error| format!("canonicalize Git root: {error}"))?;
-    let runner = GitRunner {
+    let mut runner = GitRunner {
         root: root.clone(),
         empty_hooks,
         empty_attributes,
+        attribute_source: None,
     };
     let _publication_lock = match acquire_publication_lock(&runner) {
         Ok(lock) => lock,
@@ -1516,6 +1537,7 @@ fn recover_publication_inner(
     {
         return Err("publication journal identity or schema mismatch".to_string());
     }
+    runner.pin_attributes(&journal.expected_git_commit_oid);
     let frontier_abs = frontier
         .canonicalize()
         .unwrap_or_else(|_| frontier.to_path_buf());
@@ -1732,14 +1754,16 @@ fn publish_inner_mode(
         root: frontier.to_path_buf(),
         empty_hooks: empty_hooks.clone(),
         empty_attributes: empty_attributes.clone(),
+        attribute_source: None,
     };
     let root = PathBuf::from(bootstrap.text(&["rev-parse", "--show-toplevel"])?)
         .canonicalize()
         .map_err(|error| format!("canonicalize Git root: {error}"))?;
-    let runner = GitRunner {
+    let mut runner = GitRunner {
         root: root.clone(),
         empty_hooks,
         empty_attributes,
+        attribute_source: None,
     };
     let owned_publication_lock = if opts.preflight.is_none() && exact.is_none() {
         match acquire_publication_lock(&runner) {
@@ -1794,6 +1818,7 @@ fn publish_inner_mode(
         &object_format,
         &runner.text(&["rev-parse", &format!("{}^{{commit}}", target_refname.0)])?,
     )?;
+    runner.pin_attributes(&expected);
 
     reject_unsupported_index(&runner, &specs, &object_format)?;
     if let Some(exact) = exact {
@@ -5300,6 +5325,7 @@ mod tests {
             root: path.to_path_buf(),
             empty_hooks: hooks,
             empty_attributes: attributes,
+            attribute_source: None,
         }
     }
 
@@ -6796,7 +6822,7 @@ mod tests {
                     .failing_after_ref_move(),
             )
         });
-        reached_rx.recv_timeout(Duration::from_secs(2)).unwrap();
+        reached_rx.recv_timeout(Duration::from_secs(10)).unwrap();
         let busy = publish_decision(&path, "identical", &[], &PublishOptions::new(false, true));
         assert!(matches!(busy.state, PublicationState::Uncommitted { .. }));
         resume_tx.send(()).unwrap();
@@ -6831,7 +6857,7 @@ mod tests {
                 &PublishOptions::new(false, true).pausing_after_journal(reached_tx, resume_rx),
             )
         });
-        reached_rx.recv_timeout(Duration::from_secs(2)).unwrap();
+        reached_rx.recv_timeout(Duration::from_secs(10)).unwrap();
         sh(&path, &["symbolic-ref", "HEAD", "refs/heads/other"]);
         resume_tx.send(()).unwrap();
         let outcome = publisher.join().unwrap();

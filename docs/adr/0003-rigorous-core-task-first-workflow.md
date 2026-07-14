@@ -7,10 +7,11 @@
   `0.759.0` on 2026-07-14 and its macOS verifier cleanup and monitoring were
   hardened in patch `0.759.1`. Patch `0.759.2` makes the installed verifier
   bundle self-contained in the public crate after public-clone CI exposed a
-  parent-checkout dependency. The human-ceremony, independent-producer, and
-  independent-consumer acceptance gates below remain open. This ADR is an
-  engineering decision record, not a signed scientific event or a substitute
-  for a Vela policy decision.
+  parent-checkout dependency, and pins Git attribute resolution to the verified
+  target commit so exact publication never consults mutable worktree filters.
+  The human-ceremony, independent-producer, and independent-consumer acceptance
+  gates below remain open. This ADR is an engineering decision record, not a
+  signed scientific event or a substitute for a Vela policy decision.
 - Amendment: 2026-07-14 records the provisional causal policy-head contract
   required to make the existing signed Permit lane replay-safe across policy
   activation, rotation, and revocation.
