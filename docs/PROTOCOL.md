@@ -823,6 +823,10 @@ v0 remains proposal/event/finding centered.
 This list tracks protocol-surface additions across recent releases.
 Earlier releases are documented inline in the sections above.
 
+- **v0.759.1**: sandbox process-group cleanup checks quiescence before signaling
+  a post-wait PGID, absorbs macOS `EPERM` only as a bounded cleanup condition,
+  and still fails closed if descendants remain. No event, receipt, decision, or
+  authority schema changed.
 - **v0.759.0**: new decisions bind an exact private Decision Plan root into the
   existing signed acceptance event while legacy events remain replayable;
   Receipt v1 producer context may carry a namespaced task-contract root; the

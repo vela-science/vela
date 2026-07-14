@@ -1238,7 +1238,7 @@ mod tests {
             "authoritative_source": "events/events.json",
             "frontier_id": "vfr_test",
             "event_log_hash": format!("sha256:{}", "0".repeat(64)),
-            "reducer_version": "0.759.0",
+            "reducer_version": env!("CARGO_PKG_VERSION"),
             "replay_command": "vela frontier materialize <frontier>",
             "decisions": [decision]
         }))

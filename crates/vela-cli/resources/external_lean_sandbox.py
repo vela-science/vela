@@ -651,40 +651,59 @@ def _read_control_file(descriptor: int, limit: int) -> bytes:
     return os.pread(descriptor, limit, 0)
 
 
-def _terminate_group(process: subprocess.Popen[bytes]) -> None:
+def _terminate_group(process: subprocess.Popen[bytes]) -> bool:
     try:
         os.killpg(process.pid, signal.SIGKILL)
     except ProcessLookupError:
-        pass
+        return True
+    except PermissionError:
+        # The leader may already have been reaped and its numeric PGID reused
+        # by a process group we do not own. Never let that host race escape as
+        # an untyped verifier error; the bounded metrics loop below decides
+        # whether the original group is actually quiescent.
+        return False
+    return True
 
 
 def _quiesce_group(process_group: int, timeout: float = 2.0) -> bool:
     """Kill and reap-visible poll a child process group before inspecting results."""
     deadline = time.monotonic() + timeout
     while True:
+        processes, _memory_bytes = _process_metrics(process_group)
+        if processes == 0:
+            return True
         try:
             os.killpg(process_group, signal.SIGKILL)
         except ProcessLookupError:
             return True
-        processes, _memory_bytes = _process_metrics(process_group)
-        if processes == 0:
-            return True
+        except PermissionError:
+            # EPERM is not proof of quiescence. Keep polling until the group
+            # disappears; if it remains, the caller fails closed with the
+            # typed process_group_not_quiescent result.
+            pass
         if time.monotonic() >= deadline:
             return False
         time.sleep(0.01)
 
 
 def _process_metrics(process_group: int) -> tuple[int | None, int | None]:
-    try:
-        result = subprocess.run(
-            ["/bin/ps", "-axo", "pgid=,rss="],
-            check=False,
-            capture_output=True,
-            timeout=2,
-        )
-    except (OSError, subprocess.TimeoutExpired):
-        return None, None
-    if result.returncode != 0:
+    result: subprocess.CompletedProcess[bytes] | None = None
+    for attempt in range(3):
+        try:
+            sampled = subprocess.run(
+                ["/bin/ps", "-axo", "pgid=,rss="],
+                check=False,
+                capture_output=True,
+                timeout=2,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            sampled = None
+        if sampled is not None and sampled.returncode == 0:
+            result = sampled
+            break
+        if attempt < 2:
+            time.sleep(0.01)
+    if result is None:
         return None, None
     count = 0
     rss_kib = 0
@@ -872,7 +891,8 @@ def execute(request: dict[str, Any]) -> dict[str, Any]:
         returncode = process.wait()
         # The leader may exit while descendants keep the process group alive.
         # End the whole group before reading outputs or measuring final roots.
-        _terminate_group(process)
+        # Do not signal blindly after wait(): once the original group is gone,
+        # the numeric PGID may be reused by an unrelated process.
         process_group_quiescent = _quiesce_group(process.pid)
         if not process_group_quiescent and limit_hit is None:
             limit_hit = "process_group_not_quiescent"
@@ -957,13 +977,16 @@ def execute(request: dict[str, Any]) -> dict[str, Any]:
         return result
     finally:
         if process is not None:
-            _terminate_group(process)
             if process.poll() is None:
+                _terminate_group(process)
                 try:
                     process.wait(timeout=5)
                 except subprocess.TimeoutExpired:
-                    process.kill()
-                    process.wait()
+                    try:
+                        process.kill()
+                        process.wait()
+                    except (OSError, subprocess.SubprocessError):
+                        pass
             _quiesce_group(process.pid)
         for descriptor in (profile_descriptor, stdout_descriptor, stderr_descriptor):
             if descriptor is not None:
