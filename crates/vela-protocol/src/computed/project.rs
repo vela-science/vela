@@ -1053,6 +1053,13 @@ pub struct AttemptClaim {
     pub claimant_pubkey: String,
     pub claimed_at: String,
     pub lease_ttl_seconds: u64,
+    /// The exact signed `attempt.claimed` event that established this
+    /// derived lease.  Older serialized projections did not retain the event
+    /// identity, so they continue to deserialize with `None`; replay of the
+    /// canonical event log fills it mechanically.  Refresh and zero-TTL
+    /// release updates use this as their compare-and-swap predecessor.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub claim_event_id: Option<String>,
 }
 
 /// A registered statement hash: the priority timestamp primitive.

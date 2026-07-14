@@ -122,11 +122,603 @@ pub(crate) fn briefing(frontier: &Path, target: &str) -> Result<Value, String> {
 
 /// The session directory for a target within a frontier.
 pub(crate) fn session_dir(frontier: &Path, target: &str) -> PathBuf {
-    let safe: String = target
+    let mut safe: String = target
         .chars()
-        .map(|c| if c.is_alphanumeric() { c } else { '-' })
+        .take(48)
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || matches!(c, '-' | '_') {
+                c
+            } else {
+                '-'
+            }
+        })
         .collect();
-    frontier.join(".vela").join("work").join(safe)
+    while safe.contains("--") {
+        safe = safe.replace("--", "-");
+    }
+    let safe = safe.trim_matches('-');
+    let safe = if safe.is_empty() { "target" } else { safe };
+    let target_root = hex::encode(Sha256::digest(target.as_bytes()));
+    frontier
+        .join(".vela")
+        .join("work")
+        .join(format!("{safe}--{target_root}"))
+}
+
+const WORK_SESSION_SCHEMA: &str = "vela.work-session.internal.v1";
+const TASK_CONTRACT_SCHEMA: &str = "vela.task-contract.internal.v1";
+
+/// One private, ignored producer session. It is coordination and authoring
+/// context, never canonical scientific state or an authority object.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub(crate) struct WorkSession {
+    pub schema: String,
+    pub session_id: String,
+    pub target: String,
+    pub frontier_id: String,
+    pub base_event_log_root: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_git_commit_oid: Option<String>,
+    pub source_git_state: String,
+    pub actor: String,
+    pub created_at: String,
+    pub lease: WorkSessionLease,
+    pub task_contract: TaskContract,
+    pub task_contract_root: String,
+    pub receipt_builder: ReceiptBuilderSessionFacts,
+    pub briefing: Value,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub(crate) struct WorkSessionLease {
+    pub claim_event_id: String,
+    pub claimant_pubkey: String,
+    pub claimed_at: String,
+    pub lease_ttl_seconds: u64,
+    pub expires_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub(crate) struct TaskContract {
+    pub schema: String,
+    pub objective: String,
+    pub completion_condition: String,
+    pub allowed_actions: Vec<String>,
+    pub forbidden_actions: Vec<String>,
+    pub required_outputs: Vec<String>,
+    pub required_checks: Vec<String>,
+    pub escalation_path: String,
+    pub authority_ceiling: String,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub(crate) struct ReceiptBuilderSessionFacts {
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub artifact_refs: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub verifier_results: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub source_refs: Vec<String>,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct ResolvedWorkSession {
+    pub record: WorkSession,
+    pub relative_dir: String,
+}
+
+fn task_contract(briefing: &Value, target: &str) -> TaskContract {
+    let body = briefing.get("briefing").unwrap_or(briefing);
+    let objective = body
+        .get("statement")
+        .and_then(Value::as_str)
+        .map(|statement| format!("Produce decision-relevant evidence for: {statement}"))
+        .unwrap_or_else(|| format!("Produce decision-relevant evidence for target {target}."));
+    let mut required_outputs = body
+        .get("allowed_outputs")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(|output| output.get("type").and_then(Value::as_str))
+        .map(ToString::to_string)
+        .collect::<Vec<_>>();
+    if required_outputs.is_empty() {
+        required_outputs.push(
+            "one evidence artifact or one deliberately informative negative result".to_string(),
+        );
+    }
+    required_outputs.sort();
+    required_outputs.dedup();
+    TaskContract {
+        schema: TASK_CONTRACT_SCHEMA.to_string(),
+        objective,
+        completion_condition:
+            "Land one valid Receipt v1 whose evidence and caveats address this target."
+                .to_string(),
+        allowed_actions: vec![
+            "inspect the pinned frontier and task briefing".to_string(),
+            "run frozen verifiers and private search or experiment loops".to_string(),
+            "create evidence artifacts and land a Receipt v1".to_string(),
+            "deposit an informative failed or partial attempt".to_string(),
+        ],
+        forbidden_actions: vec![
+            "accept, reject, apply, finalize, or sign a truth-bearing proposal".to_string(),
+            "read or use a human signing key".to_string(),
+            "hand-edit accepted events or derived frontier views".to_string(),
+            "treat producer or model output as a verifier or authority verdict".to_string(),
+        ],
+        required_outputs,
+        required_checks: vec![
+            "run every verifier claimed by the receipt and report its actual outcome".to_string(),
+            "state at least one caveat; if no material limitation is known, say so explicitly"
+                .to_string(),
+            "keep artifacts frontier-relative, bounded, and content-addressed at landing"
+                .to_string(),
+        ],
+        escalation_path:
+            "Land outside signed Permit scope as Defer; a key-custody human decides it in `vela sign`."
+                .to_string(),
+        authority_ceiling:
+            "Producer evidence only. The session can create a receipt and proposal; it cannot create human acceptance."
+                .to_string(),
+    }
+}
+
+fn sha256_root(value: &impl Serialize) -> Result<String, String> {
+    Ok(format!(
+        "sha256:{}",
+        vela_protocol::canonical::sha256_canonical(value)?
+    ))
+}
+
+fn source_git_commit(frontier: &Path) -> (Option<String>, String) {
+    let mut command = std::process::Command::new("git");
+    command.arg("-C").arg(frontier).args([
+        "--no-replace-objects",
+        "-c",
+        "core.hooksPath=/dev/null",
+        "-c",
+        "fetch.fsckObjects=true",
+        "rev-parse",
+        "--verify",
+        "HEAD^{commit}",
+    ]);
+    for name in [
+        "GIT_DIR",
+        "GIT_WORK_TREE",
+        "GIT_INDEX_FILE",
+        "GIT_OBJECT_DIRECTORY",
+        "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+        "GIT_REPLACE_REF_BASE",
+        "GIT_CONFIG_GLOBAL",
+        "GIT_CONFIG_SYSTEM",
+    ] {
+        command.env_remove(name);
+    }
+    command
+        .env("GIT_CONFIG_NOSYSTEM", "1")
+        .env("GIT_TERMINAL_PROMPT", "0")
+        .env("GIT_OPTIONAL_LOCKS", "0");
+    match command.output() {
+        Ok(output) if output.status.success() => {
+            let oid = String::from_utf8_lossy(&output.stdout).trim().to_string();
+            if (40..=64).contains(&oid.len())
+                && oid
+                    .bytes()
+                    .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+            {
+                (Some(oid), "pinned".to_string())
+            } else {
+                (None, "unavailable_invalid_git_oid".to_string())
+            }
+        }
+        Ok(_) => (None, "unavailable_not_a_git_commit".to_string()),
+        Err(_) => (None, "unavailable_git_not_installed".to_string()),
+    }
+}
+
+fn write_work_session(frontier: &Path, session: &WorkSession) -> Result<PathBuf, String> {
+    use std::io::Write;
+
+    let vela = frontier.join(".vela");
+    let metadata = std::fs::symlink_metadata(&vela).map_err(|error| {
+        format!(
+            "inspect frontier private directory {}: {error}",
+            vela.display()
+        )
+    })?;
+    if metadata.file_type().is_symlink() || !metadata.is_dir() {
+        return Err(format!(
+            "frontier private directory must be a real directory: {}",
+            vela.display()
+        ));
+    }
+    let work = vela.join("work");
+    match std::fs::symlink_metadata(&work) {
+        Ok(metadata) if metadata.file_type().is_symlink() || !metadata.is_dir() => {
+            return Err(format!(
+                "work-session root must be a real directory: {}",
+                work.display()
+            ));
+        }
+        Ok(_) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            std::fs::create_dir(&work)
+                .map_err(|error| format!("create work-session root {}: {error}", work.display()))?;
+        }
+        Err(error) => {
+            return Err(format!(
+                "inspect work-session root {}: {error}",
+                work.display()
+            ));
+        }
+    }
+    let directory = session_dir(frontier, &session.target);
+    match std::fs::symlink_metadata(&directory) {
+        Ok(metadata) if metadata.file_type().is_symlink() || !metadata.is_dir() => {
+            return Err(format!(
+                "work session must be a real directory: {}",
+                directory.display()
+            ));
+        }
+        Ok(_) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            std::fs::create_dir(&directory)
+                .map_err(|error| format!("create work session {}: {error}", directory.display()))?;
+        }
+        Err(error) => {
+            return Err(format!(
+                "inspect work session {}: {error}",
+                directory.display()
+            ));
+        }
+    }
+    let path = directory.join("session.json");
+    if let Ok(metadata) = std::fs::symlink_metadata(&path)
+        && (metadata.file_type().is_symlink() || !metadata.is_file())
+    {
+        return Err(format!(
+            "work-session record must be a regular non-symlink file: {}",
+            path.display()
+        ));
+    }
+    let temporary = directory.join(format!(
+        ".session-{}-{}.tmp",
+        std::process::id(),
+        &session.session_id[4..20]
+    ));
+    let mut options = std::fs::OpenOptions::new();
+    options.write(true).create_new(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.mode(0o600);
+    }
+    let result = (|| {
+        let mut file = options
+            .open(&temporary)
+            .map_err(|error| format!("create work-session record: {error}"))?;
+        let mut bytes = serde_json::to_vec_pretty(session)
+            .map_err(|error| format!("encode work-session record: {error}"))?;
+        bytes.push(b'\n');
+        file.write_all(&bytes)
+            .map_err(|error| format!("write work-session record: {error}"))?;
+        file.sync_all()
+            .map_err(|error| format!("persist work-session record: {error}"))?;
+        std::fs::rename(&temporary, &path)
+            .map_err(|error| format!("install work-session record: {error}"))?;
+        Ok(path.clone())
+    })();
+    if result.is_err() {
+        let _ = std::fs::remove_file(&temporary);
+    }
+    result
+}
+
+fn parse_work_session(path: &Path) -> Result<WorkSession, String> {
+    let metadata = std::fs::symlink_metadata(path)
+        .map_err(|error| format!("inspect work session {}: {error}", path.display()))?;
+    if metadata.file_type().is_symlink() || !metadata.is_file() {
+        return Err(format!(
+            "work-session record must be a regular non-symlink file: {}",
+            path.display()
+        ));
+    }
+    if metadata.len() > 2 * 1024 * 1024 {
+        return Err(format!(
+            "work-session record is too large: {}",
+            path.display()
+        ));
+    }
+    let bytes = std::fs::read(path)
+        .map_err(|error| format!("read work session {}: {error}", path.display()))?;
+    let session: WorkSession = serde_json::from_slice(&bytes)
+        .map_err(|error| format!("parse work session {}: {error}", path.display()))?;
+    if session.schema != WORK_SESSION_SCHEMA {
+        return Err(format!(
+            "unsupported work-session schema {} in {}",
+            session.schema,
+            path.display()
+        ));
+    }
+    if session.task_contract.schema != TASK_CONTRACT_SCHEMA
+        || sha256_root(&session.task_contract)? != session.task_contract_root
+    {
+        return Err(format!(
+            "work-session task contract does not match its content root: {}",
+            path.display()
+        ));
+    }
+    Ok(session)
+}
+
+fn validate_active_session(
+    frontier: &Path,
+    actor: &str,
+    session: &WorkSession,
+) -> Result<(), String> {
+    if session.actor != actor {
+        return Err(format!(
+            "work session {} belongs to {}, not {actor}",
+            session.target, session.actor
+        ));
+    }
+    let project = repo::load_from_path(frontier)?;
+    if session.frontier_id != project.frontier_id() {
+        return Err(format!(
+            "work session {} belongs to a different frontier",
+            session.target
+        ));
+    }
+    let current = project
+        .attempt_claims
+        .iter()
+        .find(|claim| claim.obligation_id == session.target)
+        .ok_or_else(|| format!("work target {} has no frontier lease", session.target))?;
+    if current.claimant_actor != actor
+        || current.claimant_pubkey != session.lease.claimant_pubkey
+        || current.claim_event_id.as_deref() != Some(session.lease.claim_event_id.as_str())
+    {
+        return Err(format!(
+            "work session {} no longer owns the exact frontier lease",
+            session.target
+        ));
+    }
+    let expires = chrono::DateTime::parse_from_rfc3339(&current.claimed_at)
+        .map_err(|error| format!("work lease timestamp: {error}"))?
+        + chrono::Duration::seconds(current.lease_ttl_seconds as i64);
+    if expires <= chrono::Utc::now() {
+        return Err(format!("work session {} lease has expired", session.target));
+    }
+    Ok(())
+}
+
+/// Resolve an explicit target or infer the one active session owned by this
+/// actor. Other actors' sessions never create ambiguity.
+pub(crate) fn resolve_work_session(
+    frontier: &Path,
+    actor: &str,
+    requested_target: Option<&str>,
+) -> Result<ResolvedWorkSession, String> {
+    if let Some(target) = requested_target {
+        let directory = session_dir(frontier, target);
+        let record = parse_work_session(&directory.join("session.json"))?;
+        if record.target != target {
+            return Err(format!(
+                "work-session target {} does not match requested target {target}",
+                record.target
+            ));
+        }
+        validate_active_session(frontier, actor, &record)?;
+        let relative_dir = directory
+            .strip_prefix(frontier)
+            .map_err(|_| "work session escaped the frontier".to_string())?
+            .to_string_lossy()
+            .replace('\\', "/");
+        return Ok(ResolvedWorkSession {
+            record,
+            relative_dir,
+        });
+    }
+
+    let root = frontier.join(".vela").join("work");
+    let entries = std::fs::read_dir(&root)
+        .map_err(|_| "no active work session; run `vela work <target>` first".to_string())?;
+    let mut candidates = Vec::new();
+    for entry in entries {
+        let entry = entry.map_err(|error| format!("enumerate work sessions: {error}"))?;
+        let path = entry.path().join("session.json");
+        if !path.exists() {
+            continue;
+        }
+        let record = parse_work_session(&path)?;
+        if record.actor != actor {
+            continue;
+        }
+        if validate_active_session(frontier, actor, &record).is_err() {
+            continue;
+        }
+        let relative_dir = entry
+            .path()
+            .strip_prefix(frontier)
+            .map_err(|_| "work session escaped the frontier".to_string())?
+            .to_string_lossy()
+            .replace('\\', "/");
+        candidates.push(ResolvedWorkSession {
+            record,
+            relative_dir,
+        });
+    }
+    candidates.sort_by(|left, right| left.record.target.cmp(&right.record.target));
+    match candidates.len() {
+        1 => Ok(candidates.remove(0)),
+        0 => Err(format!(
+            "no active work session for {actor}; run `vela work <target> --as {actor}` first"
+        )),
+        count => Err(format!(
+            "{actor} has {count} active work sessions ({}); select one with `vela land --work <target>`",
+            candidates
+                .iter()
+                .map(|session| session.record.target.as_str())
+                .collect::<Vec<_>>()
+                .join(", ")
+        )),
+    }
+}
+
+/// Claim/refresh a lease and install the single typed ignored session record.
+/// CLI and MCP both call this function.
+pub(crate) fn open_session(
+    frontier: &Path,
+    target: &str,
+    actor: &str,
+    ttl_seconds: u64,
+) -> Result<Value, String> {
+    if ttl_seconds == 0 {
+        return Err("work lease TTL must be greater than zero".to_string());
+    }
+    let claim = claim(frontier, target, actor, Some(ttl_seconds))?;
+    if claim.get("ok").and_then(Value::as_bool) != Some(true) {
+        let owner = claim
+            .get("already_claimed_by")
+            .and_then(Value::as_str)
+            .unwrap_or("another actor");
+        return Err(format!("work target {target} is already leased by {owner}"));
+    }
+    let briefing = briefing(frontier, target)?;
+    let project = repo::load_from_path(frontier)?;
+    let base_event_log_root = format!(
+        "sha256:{}",
+        vela_protocol::events::event_log_hash(&project.events)
+    );
+    let contract = task_contract(&briefing, target);
+    let task_contract_root = sha256_root(&contract)?;
+    let claim_event_id = claim
+        .get("claim_event_id")
+        .and_then(Value::as_str)
+        .ok_or_else(|| "lease claim did not return its event identity".to_string())?
+        .to_string();
+    let claimant_pubkey = claim
+        .get("claimant_pubkey")
+        .and_then(Value::as_str)
+        .ok_or_else(|| "lease claim did not return its claimant key".to_string())?
+        .to_string();
+    let claimed_at = claim
+        .get("claimed_at")
+        .and_then(Value::as_str)
+        .ok_or_else(|| "lease claim did not return its timestamp".to_string())?
+        .to_string();
+    let expires_at = (chrono::DateTime::parse_from_rfc3339(&claimed_at)
+        .map_err(|error| format!("lease timestamp: {error}"))?
+        + chrono::Duration::seconds(ttl_seconds as i64))
+    .to_rfc3339();
+    let (source_git_commit_oid, source_git_state) = source_git_commit(frontier);
+    let session_preimage = json!({
+        "schema": WORK_SESSION_SCHEMA,
+        "frontier_id": project.frontier_id(),
+        "target": target,
+        "actor": actor,
+        "claim_event_id": claim_event_id,
+        "task_contract_root": task_contract_root,
+    });
+    let session_id = format!(
+        "vws_{}",
+        vela_protocol::canonical::sha256_canonical(&session_preimage)?
+    );
+    let session = WorkSession {
+        schema: WORK_SESSION_SCHEMA.to_string(),
+        session_id,
+        target: target.to_string(),
+        frontier_id: project.frontier_id().to_string(),
+        base_event_log_root,
+        source_git_commit_oid,
+        source_git_state,
+        actor: actor.to_string(),
+        created_at: claimed_at.clone(),
+        lease: WorkSessionLease {
+            claim_event_id,
+            claimant_pubkey,
+            claimed_at,
+            lease_ttl_seconds: ttl_seconds,
+            expires_at,
+        },
+        task_contract: contract,
+        task_contract_root,
+        receipt_builder: ReceiptBuilderSessionFacts::default(),
+        briefing: briefing.clone(),
+    };
+    let path = write_work_session(frontier, &session)?;
+    Ok(json!({
+        "ok": true,
+        "target": target,
+        "claim": claim,
+        "briefing": briefing,
+        "session": session,
+        "session_path": path.display().to_string(),
+    }))
+}
+
+/// Release the exact current lease with a signed zero-TTL update, then remove
+/// producer scratch. Failure before the event is saved preserves the session.
+pub(crate) fn release_session(
+    frontier: &Path,
+    target: &str,
+    actor: &str,
+    reason: &str,
+) -> Result<Value, String> {
+    let reason = reason.trim();
+    if reason.is_empty() {
+        return Err("work --drop requires a non-empty release reason".to_string());
+    }
+    let project = repo::load_from_path(frontier)?;
+    let lease = project
+        .attempt_claims
+        .iter()
+        .find(|claim| claim.obligation_id == target)
+        .ok_or_else(|| format!("work target {target} has no frontier lease"))?;
+    if lease.claimant_actor != actor {
+        return Err(format!(
+            "work target {target} is leased by {}, not {actor}",
+            lease.claimant_actor
+        ));
+    }
+    let claimed_at = chrono::DateTime::parse_from_rfc3339(&lease.claimed_at)
+        .map_err(|error| format!("work lease timestamp: {error}"))?;
+    let expires_at = claimed_at + chrono::Duration::seconds(lease.lease_ttl_seconds as i64);
+    if lease.lease_ttl_seconds == 0 || expires_at <= chrono::Utc::now() {
+        return Err(format!("work target {target} has no current live lease"));
+    }
+    let prior = lease
+        .claim_event_id
+        .as_deref()
+        .ok_or_else(|| format!("work target {target} lease identity is unavailable"))?;
+    let args = json!({
+        "frontier_path": frontier.display().to_string(),
+        "obligation_id": target,
+        "agent_actor": actor,
+        "ttl_seconds": 0,
+        "prior_claim_event_id": prior,
+        "release_reason": reason,
+    });
+    let raw = vela_edge::vela_agent_mcp::claim_task(&args)?;
+    let release: Value =
+        serde_json::from_str(&raw).map_err(|error| format!("release response: {error}"))?;
+    if release.get("ok").and_then(Value::as_bool) != Some(true) {
+        return Err(format!("work target {target} lease was not released"));
+    }
+    let directory = session_dir(frontier, target);
+    let session_dir_removed = match std::fs::symlink_metadata(&directory) {
+        Ok(metadata) if metadata.file_type().is_symlink() || !metadata.is_dir() => false,
+        Ok(_) => std::fs::remove_dir_all(&directory).is_ok(),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => true,
+        Err(_) => false,
+    };
+    Ok(json!({
+        "ok": true,
+        "target": target,
+        "release": release,
+        "session_dir_removed": session_dir_removed,
+    }))
 }
 
 /// Expand the small task-first flag surface into the same complete Receipt v1
@@ -136,6 +728,7 @@ pub(crate) fn session_dir(frontier: &Path, target: &str) -> PathBuf {
 pub(crate) fn author_receipt(
     frontier: &Path,
     actor: &str,
+    requested_work: Option<&str>,
     claim: String,
     claim_type: String,
     replayability: String,
@@ -151,7 +744,9 @@ pub(crate) fn author_receipt(
                 .to_string(),
         );
     }
-    let (work_target, work_started_at) = unique_work_context(frontier)?;
+    let work = resolve_work_session(frontier, actor, requested_work)?;
+    let work_target = work.record.target.clone();
+    let work_started_at = work.record.created_at.clone();
     let canonical_frontier = frontier
         .canonicalize()
         .map_err(|error| format!("canonicalize frontier: {error}"))?;
@@ -206,10 +801,7 @@ pub(crate) fn author_receipt(
         normalized_artifacts.push(json!({"path": path, "kind": kind, "sha256": digest}));
     }
     let project = repo::load_from_path(frontier)?;
-    let event_root = format!(
-        "sha256:{}",
-        vela_protocol::events::event_log_hash(&project.events)
-    );
+    let event_root = work.record.base_event_log_root.clone();
     let policy_ref = vela_protocol::acceptance_policy::load_active_policy(frontier)?
         .map(|policy| policy.policy.id)
         .unwrap_or_else(|| "urn:vela:policy:none".to_string());
@@ -218,6 +810,8 @@ pub(crate) fn author_receipt(
         "frontier_id": project.frontier_id(),
         "actor": actor,
         "work_target": work_target,
+        "work_session_id": &work.record.session_id,
+        "task_contract_root": &work.record.task_contract_root,
         "claim": claim,
         "claim_type": claim_type,
         "replayability": replayability,
@@ -245,66 +839,31 @@ pub(crate) fn author_receipt(
         actor.to_string(),
         work_started_at,
         event_root,
-        format!(".vela/work/{work_target}"),
+        work.relative_dir,
         operation_id,
         policy_ref,
     )
+    .and_then(|input| input.with_task_contract_root(work.record.task_contract_root.clone()))
     .map_err(|error| error.to_string())?;
     ReceiptBuilder::build(input, &identity).map_err(|error| error.to_string())
 }
 
-fn unique_work_context(frontier: &Path) -> Result<(String, String), String> {
-    let root = frontier.join(".vela").join("work");
-    let entries = std::fs::read_dir(&root)
-        .map_err(|_| "no active work session; run `vela work <target>` first".to_string())?;
-    let mut offers = entries
-        .filter_map(Result::ok)
-        .filter_map(|entry| {
-            let offer = entry.path().join("offer.json");
-            offer.is_file().then_some((entry.file_name(), offer))
-        })
-        .collect::<Vec<_>>();
-    offers.sort_by(|left, right| left.0.cmp(&right.0));
-    if offers.len() != 1 {
-        return Err(format!(
-            "flag authoring needs exactly one active work session, found {}; run `vela work <target>` or use a Receipt v1 file",
-            offers.len()
-        ));
-    }
-    let (target, offer) = offers.remove(0);
-    let target = target
-        .to_str()
-        .ok_or_else(|| "active work target is not UTF-8".to_string())?
-        .to_string();
-    let started = std::fs::metadata(&offer)
-        .and_then(|metadata| metadata.modified())
-        .map_err(|error| format!("inspect {}: {error}", offer.display()))?;
-    let started = chrono::DateTime::<chrono::Utc>::from(started).to_rfc3339();
-    Ok((target, started))
-}
-
 /// Resolve the private coordination files that may be closed by this landing.
 ///
-/// A receipt is allowed to retire an `offer.json` only when it proves that it
+/// A receipt is allowed to retire a `session.json` only when it proves that it
 /// came from that exact work session: the receipt producer, producer key,
-/// operation id, pinned frontier, pinned event root, offer target, and current
+/// operation id, task-contract root, pinned frontier, pinned event root, target,
+/// and current
 /// target lease must all agree. Receipts produced outside `.vela/work/` do not
 /// touch coordination state. A malformed claim to an internal session fails
-/// closed instead of silently deleting another producer's offer.
+/// closed instead of silently deleting another producer's session.
 fn active_work_session_close(
     frontier: &Path,
     project: &vela_protocol::project::Project,
     receipt: &ReceiptV1,
     executor: &str,
     operation_id: &str,
-) -> Result<
-    Option<(
-        crate::frontier_txn::RepoPath,
-        crate::frontier_txn::RepoPath,
-        String,
-    )>,
-    String,
-> {
+) -> Result<Option<crate::frontier_txn::RepoPath>, String> {
     use crate::frontier_txn::RepoPath;
 
     let Some(context) = receipt
@@ -337,7 +896,7 @@ fn active_work_session_close(
             "receipt claims malformed internal work session {base_path}"
         ));
     }
-    let session = components[2];
+    let session_name = components[2];
     let actor = context
         .get("actor")
         .and_then(Value::as_str)
@@ -360,10 +919,8 @@ fn active_work_session_close(
         return Err("work session receipt provenance does not match its producer".to_string());
     }
 
-    let offer_path =
-        RepoPath::parse(format!("{base_path}/offer.json")).map_err(|error| error.to_string())?;
-    let completed_path =
-        RepoPath::parse(format!("{base_path}/landed.json")).map_err(|error| error.to_string())?;
+    let session_path =
+        RepoPath::parse(format!("{base_path}/session.json")).map_err(|error| error.to_string())?;
     let session_directory = frontier.join(base_path);
     let session_metadata = std::fs::symlink_metadata(&session_directory).map_err(|error| {
         format!(
@@ -377,80 +934,56 @@ fn active_work_session_close(
             session_directory.display()
         ));
     }
-    let offer_file = frontier.join(offer_path.as_str());
-    let offer_metadata = std::fs::symlink_metadata(&offer_file)
-        .map_err(|error| format!("inspect work offer {}: {error}", offer_file.display()))?;
-    if offer_metadata.file_type().is_symlink() || !offer_metadata.is_file() {
+    let session = parse_work_session(&frontier.join(session_path.as_str()))?;
+    let expected_directory = session_dir(frontier, &session.target);
+    if expected_directory
+        .file_name()
+        .and_then(|name| name.to_str())
+        != Some(session_name)
+    {
         return Err(format!(
-            "work offer must be a regular non-symlink file: {}",
-            offer_file.display()
+            "work-session target {} does not match its collision-safe directory",
+            session.target
         ));
     }
-    if let Ok(metadata) = std::fs::symlink_metadata(frontier.join(completed_path.as_str())) {
-        return Err(if metadata.file_type().is_symlink() {
-            "work session completion marker must not be a symlink".to_string()
-        } else {
-            "work session already has a completion marker".to_string()
-        });
-    }
-
-    let offer_bytes = std::fs::read(&offer_file)
-        .map_err(|error| format!("read work offer {}: {error}", offer_file.display()))?;
-    let offer: Value = serde_json::from_slice(&offer_bytes)
-        .map_err(|error| format!("parse work offer {}: {error}", offer_file.display()))?;
-    if offer.get("schema").and_then(Value::as_str) != Some("vela.next_offer.v0.1") {
-        return Err("work offer has an unsupported schema".to_string());
-    }
-    let target = offer
-        .get("target")
-        .and_then(Value::as_str)
-        .filter(|target| !target.is_empty())
-        .ok_or_else(|| "work offer has no target".to_string())?;
-    let expected_session: String = target
-        .chars()
-        .map(|character| {
-            if character.is_alphanumeric() {
-                character
-            } else {
-                '-'
-            }
-        })
-        .collect();
-    if expected_session != session {
+    if session.actor != executor {
         return Err(format!(
-            "work offer target {target} does not match session {session}"
+            "work session producer {} does not match landing actor {executor}",
+            session.actor
         ));
     }
-    let pinned = offer
-        .get("pinned_state")
-        .and_then(Value::as_object)
-        .ok_or_else(|| "work offer has no pinned_state".to_string())?;
     let frontier_id = project.frontier_id();
-    if pinned.get("frontier_id").and_then(Value::as_str) != Some(frontier_id.as_str()) {
-        return Err("work offer belongs to a different frontier".to_string());
+    if session.frontier_id != frontier_id {
+        return Err("work session belongs to a different frontier".to_string());
     }
-    let pinned_event_hash = pinned
-        .get("event_log_hash")
-        .and_then(Value::as_str)
-        .ok_or_else(|| "work offer has no pinned event log hash".to_string())?;
     let receipt_event_root = context
         .get("event_log_root")
         .and_then(Value::as_str)
         .ok_or_else(|| "work session receipt has no event log root".to_string())?;
-    if receipt_event_root != format!("sha256:{pinned_event_hash}") {
-        return Err("work session receipt is not bound to its offered frontier state".to_string());
+    if receipt_event_root != session.base_event_log_root {
+        return Err("work session receipt is not bound to its pinned frontier state".to_string());
+    }
+    let receipt_task_root = context
+        .get("task_contract_root")
+        .and_then(Value::as_str)
+        .ok_or_else(|| "work session receipt has no task-contract root".to_string())?;
+    if receipt_task_root != session.task_contract_root {
+        return Err("work session receipt is not bound to its task contract".to_string());
     }
 
     let lease = project
         .attempt_claims
         .iter()
-        .find(|claim| claim.obligation_id == target)
-        .ok_or_else(|| format!("work target {target} has no frontier lease"))?;
+        .find(|claim| claim.obligation_id == session.target)
+        .ok_or_else(|| format!("work target {} has no frontier lease", session.target))?;
     if lease.claimant_actor != executor {
         return Err(format!(
-            "work target {target} is leased by {}, not {executor}",
-            lease.claimant_actor
+            "work target {} is leased by {}, not {executor}",
+            session.target, lease.claimant_actor
         ));
+    }
+    if lease.claim_event_id.as_deref() != Some(session.lease.claim_event_id.as_str()) {
+        return Err("work session does not name the current lease event".to_string());
     }
     let producer_key = context
         .get("identity_binding")
@@ -461,7 +994,7 @@ fn active_work_session_close(
         return Err("work session receipt key does not match the target lease key".to_string());
     }
 
-    Ok(Some((offer_path, completed_path, target.to_string())))
+    Ok(Some(session_path))
 }
 
 /// Worktree-private recovery storage for scientific frontier transactions.
@@ -1235,24 +1768,10 @@ pub(crate) fn land(
         WriteClass::PublicReview,
         pretty_json_bytes(&review_material)?,
     ));
-    if let Some((offer_path, completed_path, target)) = work_session_close {
+    if let Some(session_path) = work_session_close {
         writes.push(PlannedWrite::delete(
-            offer_path,
+            session_path,
             WriteClass::PrivateCoordination,
-        ));
-        writes.push(PlannedWrite::write(
-            completed_path,
-            WriteClass::PrivateCoordination,
-            pretty_json_bytes(&json!({
-                "schema": "vela.work-session-completed.internal.v1",
-                "target": target,
-                "closed_at": &fixed_time,
-                "operation_id": operation_id.as_str(),
-                "receipt_root": &receipt_root,
-                "record_id": &record.id,
-                "proposal_id": &proposal_id,
-                "route": &route,
-            }))?,
         ));
     }
     writes.extend(artifact_writes);

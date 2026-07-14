@@ -1252,7 +1252,7 @@ mod mcp_service_tests {
         vela_protocol::repo::init_repo(&path, &project).unwrap();
         let session = crate::workflow::session_dir(&path, "scope:probe");
         std::fs::create_dir_all(&session).unwrap();
-        std::fs::write(session.join("offer.json"), "{}\n").unwrap();
+        std::fs::write(session.join("producer-scratch.txt"), "fixture\n").unwrap();
         path
     }
 
@@ -1364,7 +1364,7 @@ mod mcp_service_tests {
     }
 
     #[tokio::test]
-    async fn in_scope_work_refreshes_the_served_snapshot() {
+    async fn failed_in_scope_work_does_not_refresh_the_served_snapshot() {
         let temp = tempfile::tempdir().unwrap();
         let path = work_fixture(temp.path()).canonicalize().unwrap();
         let project = repo::load_from_path(&path).unwrap();
@@ -1373,14 +1373,13 @@ mod mcp_service_tests {
             "frontier_path": path.display().to_string(),
             "action": "drop",
             "obligation_id": "scope:probe",
-            "agent_actor": "agent:owner"
+            "agent_actor": "agent:other"
         });
         let (result, snapshot) =
             execute_tool("work", &args, &frontier, &Client::new(), &[], Some(&path)).await;
-        let (data, notes) = result.unwrap();
-        assert_eq!(data["dropped"], "scope:probe");
-        assert!(notes.is_empty(), "reload should succeed: {notes:?}");
-        assert!(snapshot.is_some(), "successful work must refresh MCP reads");
+        let error = result.unwrap_err();
+        assert_eq!(error.kind, ToolErrorKind::PermissionDenied);
+        assert!(snapshot.is_none(), "failed work must not refresh MCP reads");
     }
 
     #[tokio::test]

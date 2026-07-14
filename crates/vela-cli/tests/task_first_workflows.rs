@@ -1250,19 +1250,38 @@ fn flag_authored_land_closes_only_its_exact_private_work_session() {
     );
     assert_success(&work, "open work session");
     let work = one_json_object(&work);
-    let session = tmp.path().join(".vela/work/erdos-session-close");
-    let offer = session.join("offer.json");
-    let completed = session.join("landed.json");
     assert_eq!(work["target"], "erdos:session-close", "{work}");
-    assert!(offer.is_file());
+    let session_record = std::path::PathBuf::from(work["session_path"].as_str().unwrap());
+    let session = session_record.parent().unwrap();
+    assert!(session_record.is_file());
+    assert_eq!(work["session"]["schema"], "vela.work-session.internal.v1");
+    assert_eq!(work["session"]["target"], "erdos:session-close");
+    assert_eq!(work["session"]["actor"], "agent:t");
+    assert!(
+        work["session"]["session_id"]
+            .as_str()
+            .is_some_and(|id| id.starts_with("vws_") && id.len() == 68)
+    );
+    let task_contract_root = work["session"]["task_contract_root"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    assert!(task_contract_root.starts_with("sha256:"));
+    assert_eq!(
+        session.file_name().unwrap().to_string_lossy().len(),
+        "erdos-session-close".len() + 2 + 64,
+        "session directory must retain a collision-safe full target digest"
+    );
     std::fs::write(session.join("producer-notes.txt"), "keep this scratch\n").unwrap();
 
     let land = run_with_env(
         tmp.path(),
         &[
             "land",
+            "--work",
+            "erdos:session-close",
             "--claim",
-            "the exact work-session receipt closes its private offer",
+            "the exact work-session receipt closes its private session",
             "--type",
             "computational",
             "--replayability",
@@ -1279,26 +1298,33 @@ fn flag_authored_land_closes_only_its_exact_private_work_session() {
     );
     assert_success(&land, "land flag-authored work-session receipt");
     let land = one_json_object(&land);
-    assert!(!offer.exists(), "the exact completed offer must be retired");
     assert!(
-        completed.is_file(),
-        "completion metadata must remain private"
+        !session_record.exists(),
+        "the typed session must close only after the landing installs"
     );
     assert_eq!(
         std::fs::read_to_string(session.join("producer-notes.txt")).unwrap(),
         "keep this scratch\n",
         "landing must preserve unrelated producer scratch"
     );
-    let completed: serde_json::Value =
-        serde_json::from_slice(&std::fs::read(completed).unwrap()).unwrap();
+    let receipt_hex = land["receipt_root"]
+        .as_str()
+        .unwrap()
+        .strip_prefix("sha256:")
+        .unwrap();
+    let receipt: serde_json::Value = serde_json::from_slice(
+        &std::fs::read(
+            tmp.path()
+                .join("records/receipts/sha256")
+                .join(format!("{receipt_hex}.json")),
+        )
+        .unwrap(),
+    )
+    .unwrap();
     assert_eq!(
-        completed["schema"],
-        "vela.work-session-completed.internal.v1"
+        receipt["environment"]["vela:producer_context"]["task_contract_root"], task_contract_root,
+        "portable receipt provenance must bind the private task contract"
     );
-    assert_eq!(completed["target"], "erdos:session-close");
-    for key in ["operation_id", "receipt_root", "record_id", "proposal_id"] {
-        assert_eq!(completed[key], land[key], "completion changed {key}");
-    }
 
     let committed_paths = git_stdout(
         tmp.path(),
@@ -1324,8 +1350,16 @@ fn receipt_with_a_different_key_cannot_close_an_agents_work_session() {
         &env,
     );
     assert_success(&work, "open protected work session");
-    one_json_object(&work);
-    let offer = tmp.path().join(".vela/work/erdos-session-owner/offer.json");
+    let work = one_json_object(&work);
+    let session_record = std::path::PathBuf::from(work["session_path"].as_str().unwrap());
+    let session_relative = session_record
+        .parent()
+        .unwrap()
+        .strip_prefix(tmp.path().canonicalize().unwrap())
+        .unwrap()
+        .to_string_lossy()
+        .replace('\\', "/");
+    let task_contract_root = work["session"]["task_contract_root"].clone();
 
     write_receipt_with_artifact_as(
         tmp.path(),
@@ -1340,7 +1374,8 @@ fn receipt_with_a_different_key_cannot_close_an_agents_work_session() {
     let mut receipt: serde_json::Value =
         serde_json::from_slice(&std::fs::read(&receipt_path).unwrap()).unwrap();
     receipt["environment"]["vela:producer_context"]["base_path"] =
-        serde_json::json!(".vela/work/erdos-session-owner");
+        serde_json::json!(session_relative);
+    receipt["environment"]["vela:producer_context"]["task_contract_root"] = task_contract_root;
     refresh_receipt_binding(&mut receipt);
     std::fs::write(
         &receipt_path,
@@ -1364,11 +1399,290 @@ fn receipt_with_a_different_key_cannot_close_an_agents_work_session() {
         "{output}"
     );
     assert!(
-        offer.is_file(),
-        "failed close must preserve the active offer"
+        session_record.is_file(),
+        "failed close must preserve the active session"
     );
     assert_eq!(snapshot_scientific_tree(tmp.path()), before);
     assert_eq!(git_stdout(tmp.path(), &["rev-parse", "HEAD"]), head_before);
+}
+
+#[test]
+fn drop_records_a_signed_exact_release_before_removing_private_scratch() {
+    use ed25519_dalek::SigningKey;
+
+    let tmp = tempfile::TempDir::new().unwrap();
+    init_git_frontier(tmp.path());
+    let owner_key = "42".repeat(32);
+    let other_key = "43".repeat(32);
+    let owner_env = [("VELA_AGENT_KEY_HEX", owner_key.as_str())];
+    let other_env = [("VELA_AGENT_KEY_HEX", other_key.as_str())];
+    let target = "erdos:signed-drop";
+
+    let opened = run_with_env(
+        tmp.path(),
+        &["work", target, "--as", "agent:owner", "--json"],
+        &owner_env,
+    );
+    assert_success(&opened, "open lease for signed drop");
+    let opened = one_json_object(&opened);
+    let first_claim_event_id = opened["claim"]["claim_event_id"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    let session_record = std::path::PathBuf::from(opened["session_path"].as_str().unwrap());
+    let before_wrong_owner = vela_protocol::repo::load_from_path(tmp.path()).unwrap();
+
+    let denied = run_with_env(
+        tmp.path(),
+        &[
+            "work",
+            target,
+            "--drop",
+            "--reason",
+            "not my lease",
+            "--as",
+            "agent:other",
+            "--json",
+        ],
+        &other_env,
+    );
+    assert!(!denied.status.success(), "a non-owner released the lease");
+    assert!(session_record.is_file(), "failed release removed scratch");
+    assert_eq!(
+        vela_protocol::repo::load_from_path(tmp.path())
+            .unwrap()
+            .events
+            .len(),
+        before_wrong_owner.events.len(),
+        "failed release appended a frontier event"
+    );
+
+    let released = run_with_env(
+        tmp.path(),
+        &[
+            "work",
+            target,
+            "--drop",
+            "--reason",
+            "switching to a better route",
+            "--as",
+            "agent:owner",
+            "--json",
+        ],
+        &owner_env,
+    );
+    assert_success(&released, "owner signed exact release");
+    let released = one_json_object(&released);
+    let release_event_id = released["release"]["claim_event_id"].as_str().unwrap();
+    assert_eq!(
+        released["release"]["prior_claim_event_id"],
+        first_claim_event_id
+    );
+    assert_eq!(released["release"]["ttl_seconds"], 0);
+    assert!(
+        !session_record.exists(),
+        "scratch was not removed after the signed release committed"
+    );
+
+    let after_release = vela_protocol::repo::load_from_path(tmp.path()).unwrap();
+    let release_event = after_release
+        .events
+        .iter()
+        .find(|event| event.id == release_event_id)
+        .unwrap();
+    assert_eq!(release_event.kind, "attempt.claimed");
+    assert_eq!(
+        release_event.payload["prior_claim_event_id"],
+        first_claim_event_id
+    );
+    assert_eq!(
+        release_event.payload["release_reason"],
+        "switching to a better route"
+    );
+    let owner_signing_key = SigningKey::from_bytes(&[0x42; 32]);
+    let owner_pubkey = hex::encode(owner_signing_key.verifying_key().to_bytes());
+    assert!(vela_protocol::sign::verify_event_signature(release_event, &owner_pubkey).unwrap());
+    let released_lease = after_release
+        .attempt_claims
+        .iter()
+        .find(|claim| claim.obligation_id == target)
+        .unwrap();
+    assert_eq!(released_lease.lease_ttl_seconds, 0);
+    assert_eq!(
+        released_lease.claim_event_id.as_deref(),
+        Some(release_event_id)
+    );
+
+    let reclaimed = run_with_env(
+        tmp.path(),
+        &["work", target, "--as", "agent:other", "--json"],
+        &other_env,
+    );
+    assert_success(&reclaimed, "immediate reclaim after signed release");
+    let reclaimed = one_json_object(&reclaimed);
+    assert_eq!(reclaimed["claim"]["claimed_by"], "agent:other");
+}
+
+#[test]
+fn land_inference_filters_by_actor_and_requires_exactly_one_owned_session() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    init_git_frontier(tmp.path());
+    std::fs::create_dir_all(tmp.path().join("artifacts")).unwrap();
+    std::fs::write(
+        tmp.path().join("artifacts/inference.json"),
+        br#"{"actor_filtered":true}"#,
+    )
+    .unwrap();
+    let owner_key = "42".repeat(32);
+    let other_key = "43".repeat(32);
+    let owner_env = [("VELA_AGENT_KEY_HEX", owner_key.as_str())];
+    let other_env = [("VELA_AGENT_KEY_HEX", other_key.as_str())];
+
+    let mut owner_sessions = Vec::new();
+    for target in ["erdos:owned-one", "erdos:owned-two"] {
+        let opened = run_with_env(
+            tmp.path(),
+            &["work", target, "--as", "agent:owner", "--json"],
+            &owner_env,
+        );
+        assert_success(&opened, "open owner session");
+        owner_sessions.push(std::path::PathBuf::from(
+            one_json_object(&opened)["session_path"].as_str().unwrap(),
+        ));
+    }
+    let other = run_with_env(
+        tmp.path(),
+        &["work", "erdos:other-actor", "--as", "agent:other", "--json"],
+        &other_env,
+    );
+    assert_success(&other, "open other actor session");
+    let other_session =
+        std::path::PathBuf::from(one_json_object(&other)["session_path"].as_str().unwrap());
+
+    let ambiguous = run_with_env(
+        tmp.path(),
+        &[
+            "land",
+            "--claim",
+            "actor-filtered inference must still be exact",
+            "--type",
+            "computational",
+            "--replayability",
+            "exact",
+            "--artifact",
+            "artifacts/inference.json:witness",
+            "--caveat",
+            "fixture evidence only",
+            "--as",
+            "agent:owner",
+            "--json",
+        ],
+        &owner_env,
+    );
+    assert!(
+        !ambiguous.status.success(),
+        "ambiguous actor sessions inferred one"
+    );
+    let ambiguous = one_json_object(&ambiguous);
+    let message = ambiguous["error"]["message"].as_str().unwrap();
+    assert!(
+        message.contains("agent:owner has 2 active work sessions"),
+        "{ambiguous}"
+    );
+    assert!(message.contains("--work <target>"), "{ambiguous}");
+    assert!(owner_sessions.iter().all(|path| path.is_file()));
+    assert!(other_session.is_file());
+
+    let explicit = run_with_env(
+        tmp.path(),
+        &[
+            "land",
+            "--work",
+            "erdos:owned-one",
+            "--claim",
+            "explicit selection closes exactly one owned session",
+            "--type",
+            "computational",
+            "--replayability",
+            "exact",
+            "--artifact",
+            "artifacts/inference.json:witness",
+            "--caveat",
+            "fixture evidence only",
+            "--as",
+            "agent:owner",
+            "--json",
+        ],
+        &owner_env,
+    );
+    assert_success(&explicit, "explicit actor-owned session landing");
+    assert!(!owner_sessions[0].exists());
+    assert!(owner_sessions[1].is_file());
+    assert!(other_session.is_file());
+}
+
+#[test]
+fn denied_work_landing_preserves_the_exact_session_and_all_durable_state() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    init_git_frontier(tmp.path());
+    std::fs::create_dir_all(tmp.path().join("artifacts")).unwrap();
+    std::fs::write(
+        tmp.path().join("artifacts/denied-session.json"),
+        br#"{"deny":true}"#,
+    )
+    .unwrap();
+    let agent_key = "42".repeat(32);
+    let env = [("VELA_AGENT_KEY_HEX", agent_key.as_str())];
+    let opened = run_with_env(
+        tmp.path(),
+        &["work", "erdos:deny-session", "--as", "agent:t", "--json"],
+        &env,
+    );
+    assert_success(&opened, "open deny-route session");
+    let session_record =
+        std::path::PathBuf::from(one_json_object(&opened)["session_path"].as_str().unwrap());
+    write_active_deny_policy(tmp.path());
+    let scientific_before = snapshot_scientific_tree(tmp.path());
+    let head_before = git_stdout(tmp.path(), &["rev-parse", "HEAD"]);
+    let index_before = git_stdout(tmp.path(), &["write-tree"]);
+
+    let denied = run_with_env(
+        tmp.path(),
+        &[
+            "land",
+            "--work",
+            "erdos:deny-session",
+            "--claim",
+            "a denied work result cannot consume its authoring session",
+            "--type",
+            "computational",
+            "--replayability",
+            "exact",
+            "--artifact",
+            "artifacts/denied-session.json:witness",
+            "--caveat",
+            "fixture evidence only",
+            "--as",
+            "agent:t",
+            "--json",
+        ],
+        &env,
+    );
+    assert!(!denied.status.success(), "Deny consumed a work result");
+    let denied = one_json_object(&denied);
+    assert!(
+        denied["error"]["message"]
+            .as_str()
+            .is_some_and(|message| message.contains("policy denies")),
+        "{denied}"
+    );
+    assert!(
+        session_record.is_file(),
+        "Deny retired the authoring session"
+    );
+    assert_eq!(snapshot_scientific_tree(tmp.path()), scientific_before);
+    assert_eq!(git_stdout(tmp.path(), &["rev-parse", "HEAD"]), head_before);
+    assert_eq!(git_stdout(tmp.path(), &["write-tree"]), index_before);
 }
 
 #[test]

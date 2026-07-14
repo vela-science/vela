@@ -125,6 +125,7 @@ mod surface_tests {
         "proposals",
         "publication",
         "reproduce",
+        "reproduce-external",
         "serve",
         "sign",
         "status",

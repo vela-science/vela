@@ -58,8 +58,8 @@ pub(crate) fn print_session_help() {
     println!();
     println!("  THE LOOP");
     println!("    next              What to work on, ranked (--json = agent contract)");
-    println!("    work <target>     Take one: lease + briefing into .vela/work/");
-    println!("    land <receipt>    Land the result; policy routes it");
+    println!("    work <target>     Take one: lease + typed private session");
+    println!("    land --work <t>   Build + land the session result; policy routes it");
     println!("    sign              Decide this frontier's pending proposals");
     println!("    policy            Standing rules: what agents land without you");
     println!();

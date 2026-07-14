@@ -1750,14 +1750,49 @@ pub fn validate_event_payload(kind: &str, payload: &Value) -> Result<(), String>
             if obligation_id.trim().is_empty() {
                 return Err("payload.obligation_id must be non-empty".to_string());
             }
-            if !object
+            let ttl = object
                 .get("lease_ttl_seconds")
-                .is_some_and(|v| v.as_u64().is_some())
+                .and_then(Value::as_u64)
+                .ok_or_else(|| {
+                    "attempt.claimed payload.lease_ttl_seconds must be a non-negative integer"
+                        .to_string()
+                })?;
+            for field in ["claimant_actor", "claimant_pubkey", "prior_claim_event_id"] {
+                if let Some(value) = object.get(field)
+                    && !value.is_string()
+                {
+                    return Err(format!(
+                        "attempt.claimed payload.{field} must be a string when present"
+                    ));
+                }
+            }
+            if let Some(value) = object.get("release_reason")
+                && !value.is_string()
             {
                 return Err(
-                    "attempt.claimed payload.lease_ttl_seconds must be a non-negative integer"
+                    "attempt.claimed payload.release_reason must be a string when present"
                         .to_string(),
                 );
+            }
+            if ttl == 0 {
+                let prior = require_str("prior_claim_event_id")?;
+                if !prior.strip_prefix("vev_").is_some_and(|hex| {
+                    hex.len() == 16
+                        && hex
+                            .bytes()
+                            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+                }) {
+                    return Err(
+                        "zero-TTL attempt.claimed payload.prior_claim_event_id must be a vev_ event id"
+                            .to_string(),
+                    );
+                }
+                if require_str("release_reason")?.trim().is_empty() {
+                    return Err(
+                        "zero-TTL attempt.claimed payload.release_reason must be non-empty"
+                            .to_string(),
+                    );
+                }
             }
         }
         EVENT_KIND_STATEMENT_REGISTERED => {

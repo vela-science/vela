@@ -1882,6 +1882,22 @@ fn validate_embedded_producer_identity(
             "must be sha256: followed by 64 lowercase hexadecimal characters",
         ));
     }
+    if let Some(task_contract_root) = context.get("task_contract_root") {
+        let task_contract_root = text(
+            task_contract_root,
+            "$.environment.vela:producer_context.task_contract_root",
+            false,
+        )?;
+        if !task_contract_root
+            .strip_prefix("sha256:")
+            .is_some_and(|hex| is_lower_hex_length(hex, 64))
+        {
+            return Err(error(
+                "$.environment.vela:producer_context.task_contract_root",
+                "must be sha256: followed by 64 lowercase hexadecimal characters",
+            ));
+        }
+    }
     let operation_id = text(
         required(
             context,
@@ -2346,6 +2362,7 @@ mod authoring {
         emitted_at: String,
         base_path: String,
         operation_id: String,
+        task_contract_root: Option<String>,
     }
 
     impl ProducerContext {
@@ -2400,6 +2417,7 @@ mod authoring {
                 emitted_at: emitted_at.to_string(),
                 base_path: base_path.to_string(),
                 operation_id: operation_id.to_string(),
+                task_contract_root: None,
             })
         }
     }
@@ -2523,6 +2541,7 @@ mod authoring {
         base_path: String,
         operation_id: String,
         policy_ref: String,
+        task_contract_root: Option<String>,
     }
 
     impl NeutralReceiptInput {
@@ -2554,9 +2573,26 @@ mod authoring {
                 base_path,
                 operation_id,
                 policy_ref,
+                task_contract_root: None,
             };
             validate_neutral_input(&input)?;
             Ok(input)
+        }
+
+        /// Bind the private work-session task contract into portable receipt
+        /// provenance without promoting it to an authority or protocol object.
+        pub fn with_task_contract_root(
+            mut self,
+            task_contract_root: String,
+        ) -> Result<Self, ReceiptV1Error> {
+            if !is_sha256_ref(&task_contract_root) {
+                return Err(error(
+                    "$.environment.vela:producer_context.task_contract_root",
+                    "must be sha256: followed by 64 lowercase hexadecimal characters",
+                ));
+            }
+            self.task_contract_root = Some(task_contract_root);
+            Ok(self)
         }
     }
 
@@ -2616,6 +2652,7 @@ mod authoring {
                 &input.operation_id,
                 &input.policy_ref,
             )?;
+            let task_contract_root = input.task_contract_root.clone();
             let NeutralReceiptInput {
                 claim,
                 claim_type,
@@ -2625,7 +2662,7 @@ mod authoring {
                 verifier_runs,
                 ..
             } = input;
-            Self::build_validated(ReceiptInput::new(
+            let mut validated = ReceiptInput::new(
                 claim,
                 claim_type,
                 replayability,
@@ -2633,7 +2670,9 @@ mod authoring {
                 caveats,
                 verifier_runs,
                 producer,
-            )?)
+            )?;
+            validated.producer.task_contract_root = task_contract_root;
+            Self::build_validated(validated)
         }
 
         fn build_validated(input: ReceiptInput) -> Result<ReceiptV1, ReceiptV1Error> {
@@ -2771,6 +2810,10 @@ mod authoring {
                 "contributors": contributors,
                 "signature_identities": identities,
             });
+            if let Some(task_contract_root) = input.producer.task_contract_root {
+                receipt["environment"]["vela:producer_context"]["task_contract_root"] =
+                    json!(task_contract_root);
+            }
             let statement = statement_projection(object(&receipt, "$")?)?;
             let payload = canonical_receipt_bytes(&statement)
                 .map_err(|cause| error("$.attestation.statement", cause.to_string()))?;
@@ -2818,6 +2861,16 @@ mod authoring {
             return Err(error(
                 "$.environment.vela:producer_context.operation_id",
                 "must be vop_ followed by 64 lowercase hexadecimal characters",
+            ));
+        }
+        if input
+            .task_contract_root
+            .as_deref()
+            .is_some_and(|root| !is_sha256_ref(root))
+        {
+            return Err(error(
+                "$.environment.vela:producer_context.task_contract_root",
+                "must be sha256: followed by 64 lowercase hexadecimal characters",
             ));
         }
         validate_policy_ref(&input.policy_ref)?;
@@ -3190,6 +3243,41 @@ mod tests {
         assert_eq!(
             receipt.as_value()["acceptance"]["acceptance_scope"],
             "hypothesis_only"
+        );
+    }
+
+    #[test]
+    fn task_contract_root_extension_is_validated_and_bound_on_import() {
+        let root = format!("sha256:{}", "e".repeat(64));
+        let receipt = ReceiptBuilder::build(
+            input(Vec::new())
+                .with_task_contract_root(root.clone())
+                .unwrap(),
+            &identity("agent:receipt-test"),
+        )
+        .unwrap();
+        assert_eq!(
+            receipt.as_value()["environment"]["vela:producer_context"]["task_contract_root"],
+            root
+        );
+        ReceiptV1::parse(&receipt.canonical_bytes().unwrap()).unwrap();
+
+        assert_eq!(
+            input(Vec::new())
+                .with_task_contract_root("sha256:not-a-root".to_string())
+                .unwrap_err()
+                .path(),
+            "$.environment.vela:producer_context.task_contract_root"
+        );
+
+        let mut malformed = receipt.into_value();
+        malformed["environment"]["vela:producer_context"]["task_contract_root"] =
+            json!("sha256:NOT-CANONICAL");
+        refresh_bound_attestation(&mut malformed);
+        let failure = ReceiptV1::parse(&serde_json::to_vec(&malformed).unwrap()).unwrap_err();
+        assert_eq!(
+            failure.path(),
+            "$.environment.vela:producer_context.task_contract_root"
         );
     }
 

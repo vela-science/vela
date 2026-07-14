@@ -84,11 +84,12 @@ Usage:
 The loop:
   next          THE offer: ranked open targets, compounding payload
                 pre-loaded; --json is the agent contract.
-  work          Open a session: claim the lease, load the briefing into
-                .vela/work/<target>/. Close with `vela land`.
+  work          Open a session: claim the lease and write one private typed
+                session.json under .vela/work/. --drop signs the release first.
   land          Land a result (vela.receipt.v1): record -> propose ->
                 routed by the signed policy. Permit admits; Defer parks
                 it in the sign queue; Deny refuses canonical admission.
+                Use --work <target> when this actor has several sessions.
   submit        One-command producer path: frozen-verify a witness, land it,
                 bind it to its finding, drive the exact lane to
                 machine_verified, materialize. Commits locally; --push to publish.

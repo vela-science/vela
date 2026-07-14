@@ -317,8 +317,8 @@ pub fn all_tools() -> Vec<ToolDefinition> {
              session key; action=land crosses a result from activity into state — a \
              vela.receipt.v1 is recorded (artifacts hashed, head pinned), proposed, and routed \
              by the frontier's signed policy (Permit admits mechanically, Defer parks it in \
-             the human's sign queue); action=drop releases a session (the lease expires by \
-             TTL); action=deposit banks a failed or partial attempt so the channel map \
+             the human's sign queue); action=drop commits a signed same-owner zero-TTL \
+             lease update and then removes private scratch; action=deposit banks a failed or partial attempt so the channel map \
              compounds. Nothing here is a human decision — a landing either rides a policy a \
              human already signed, or waits for their key. Example: {\"frontier_path\": \
              \".\", \"action\": \"claim\", \"obligation_id\": \"vf_3f9a\", \"agent_actor\": \
@@ -353,6 +353,11 @@ pub fn all_tools() -> Vec<ToolDefinition> {
                         "type": "integer",
                         "minimum": 1,
                         "description": "claim: lease TTL (default 86400)."
+                    },
+                    "release_reason": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "drop: why the exact current owner is releasing the lease without landing."
                     },
                     "receipt": {
                         "type": "string",

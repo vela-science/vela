@@ -297,6 +297,37 @@ pub(crate) enum Commands {
         #[arg(long)]
         json: bool,
     },
+    /// Reproduce one commit-pinned external Lean declaration through the
+    /// installed, fail-closed producer. `--out` emits a Receipt v1 without
+    /// landing it; `--land-work` routes the same receipt through `vela land`.
+    #[command(after_long_help = crate::cli::help_text::REPRODUCE_EXTERNAL)]
+    ReproduceExternal {
+        /// Canonical public GitHub repository URL.
+        repo_url: String,
+        /// Full source commit to fetch and retain.
+        commit: String,
+        /// Fully-qualified Lean declaration name.
+        declaration: String,
+        /// Optional repository-relative Lean source path disambiguator.
+        #[arg(long)]
+        source_path: Option<String>,
+        /// Emit a Receipt v1 file only. This never changes frontier state.
+        #[arg(long, conflicts_with = "land_work")]
+        out: Option<PathBuf>,
+        /// Land into this already-active `vela work` target through the shared
+        /// pending/policy-routed write edge.
+        #[arg(long, conflicts_with = "out")]
+        land_work: Option<String>,
+        /// Frontier holding the active work target. Used only with --land-work.
+        #[arg(long)]
+        frontier: Option<PathBuf>,
+        /// Agent/CI producer identity used for Receipt origin binding.
+        #[arg(long, help = HELP_AS)]
+        r#as: Option<String>,
+        /// Output one stable JSON object.
+        #[arg(long)]
+        json: bool,
+    },
     /// The derived credit view for a finding: the accountable human author(s) of
     /// record (valid signers only), the disclosed contributors (machines
     /// included), and which agent originated which unit. A pure projection over
@@ -515,6 +546,10 @@ pub(crate) enum Commands {
         /// Release the lease/session instead of opening one.
         #[arg(long)]
         drop: bool,
+        /// Why this lease is being released without landing. With --drop a
+        /// truthful default is used when omitted.
+        #[arg(long)]
+        reason: Option<String>,
         #[arg(long, help = HELP_AS)]
         r#as: Option<String>,
         #[arg(long)]
@@ -544,6 +579,10 @@ pub(crate) enum Commands {
         artifact: Vec<String>,
         #[arg(long)]
         caveat: Vec<String>,
+        /// Select the active work target explicitly. Required when this actor
+        /// owns more than one active session.
+        #[arg(long)]
+        work: Option<String>,
         #[arg(long, help = HELP_AS)]
         r#as: Option<String>,
         /// Publish now: commit locally AND push. Without it, land commits

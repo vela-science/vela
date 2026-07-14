@@ -3,13 +3,13 @@
   "event_log": [
     {
       "actor": {
-        "id": "reviewer:lease-fixture",
-        "type": "human"
+        "id": "agent:fixture",
+        "type": "agent"
       },
       "after_hash": "sha256:null",
       "before_hash": "sha256:null",
       "caveats": [],
-      "id": "vev_2a91abf71025a01e",
+      "id": "vev_2981fef67599c4a5",
       "kind": "attempt.claimed",
       "payload": {
         "claimant_actor": "agent:fixture",

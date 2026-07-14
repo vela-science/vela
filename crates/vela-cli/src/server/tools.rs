@@ -773,8 +773,19 @@ pub(crate) fn tool_work(args: &Value, source_path: Option<&Path>) -> ToolOutput 
     };
     let result = match args.get("action").and_then(Value::as_str) {
         Some("claim") => {
-            agent_actor("claim")?;
-            vela_edge::vela_agent_mcp::claim_task(args)
+            let actor = agent_actor("claim")?;
+            let target = args
+                .get("obligation_id")
+                .and_then(Value::as_str)
+                .filter(|target| !target.is_empty())
+                .ok_or_else(|| ToolError::invalid("work action=claim requires `obligation_id`"))?;
+            let ttl = args
+                .get("ttl_seconds")
+                .and_then(Value::as_u64)
+                .unwrap_or(86_400);
+            let opened = crate::workflow::open_session(frontier_path, target, actor, ttl)
+                .map_err(ToolError::classify)?;
+            return Ok((opened, Vec::new()));
         }
         Some("deposit") => {
             agent_actor("deposit")?;
@@ -818,28 +829,19 @@ pub(crate) fn tool_work(args: &Value, source_path: Option<&Path>) -> ToolOutput 
                 .and_then(Value::as_str)
                 .filter(|t| !t.is_empty())
                 .ok_or_else(|| ToolError::invalid("work action=drop requires `obligation_id`"))?;
-            let project =
-                vela_protocol::repo::load_from_path(frontier_path).map_err(ToolError::classify)?;
-            let owns_session = project
-                .attempt_claims
-                .iter()
-                .any(|claim| claim.obligation_id == target && claim.claimant_actor == actor);
-            if !owns_session {
-                return Err(ToolError::new(
-                    crate::serve::ToolErrorKind::PermissionDenied,
-                    format!("work action=drop requires {actor} to own the exact {target} lease"),
-                ));
-            }
-            let session = crate::workflow::session_dir(frontier_path, target);
-            let removed = std::fs::remove_dir_all(&session).is_ok();
-            return Ok((
-                json!({
-                    "dropped": target,
-                    "session_dir_removed": removed,
-                    "note": "the lease expires by TTL; no state was written",
-                }),
-                Vec::new(),
-            ));
+            let reason = args
+                .get("release_reason")
+                .and_then(Value::as_str)
+                .unwrap_or("producer released the MCP work session without landing a receipt");
+            let released = crate::workflow::release_session(frontier_path, target, actor, reason)
+                .map_err(|error| {
+                if error.contains("leased by") || error.contains("key does not match") {
+                    ToolError::new(crate::serve::ToolErrorKind::PermissionDenied, error)
+                } else {
+                    ToolError::classify(error)
+                }
+            })?;
+            return Ok((released, Vec::new()));
         }
         _ => {
             return Err(ToolError::invalid("work requires `action`")
@@ -2548,7 +2550,7 @@ mod work_scope_tests {
         vela_protocol::repo::init_repo(&path, &project).unwrap();
         let session = crate::workflow::session_dir(&path, "scope:probe");
         std::fs::create_dir_all(&session).unwrap();
-        std::fs::write(session.join("offer.json"), "{}\n").unwrap();
+        std::fs::write(session.join("producer-scratch.txt"), "fixture\n").unwrap();
         path
     }
 
@@ -2629,7 +2631,7 @@ mod work_scope_tests {
     }
 
     #[test]
-    fn drop_is_destructive_only_for_the_exact_lease_owner() {
+    fn drop_refuses_a_non_owner_without_removing_private_scratch() {
         let temp = tempfile::tempdir().unwrap();
         let served = owned_session_frontier(temp.path());
         let session = crate::workflow::session_dir(&served, "scope:probe");
@@ -2646,19 +2648,6 @@ mod work_scope_tests {
         .unwrap_err();
         assert_eq!(denied.kind, ToolErrorKind::PermissionDenied);
         assert!(session.is_dir(), "non-owner must not remove the session");
-
-        let (data, _) = tool_work(
-            &json!({
-                "frontier_path": served.display().to_string(),
-                "action": "drop",
-                "obligation_id": "scope:probe",
-                "agent_actor": "agent:owner"
-            }),
-            Some(&served),
-        )
-        .unwrap();
-        assert_eq!(data["dropped"], "scope:probe");
-        assert!(!session.exists(), "owner drop removes only private scratch");
     }
 
     #[cfg(unix)]

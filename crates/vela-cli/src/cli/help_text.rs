@@ -20,17 +20,25 @@ SEE ALSO
 
 pub const WORK: &str = "\
 EXAMPLES
-  vela work erdos:443           claim the lease and load the briefing
-  vela work erdos:443 --drop    release the lease without landing
+  vela work erdos:443 --as agent:demo --json
+                                claim the lease and write one private session.json
+  vela work erdos:443 --drop --reason \"switching approaches\" --as agent:demo
+                                sign the exact lease release, then remove scratch
 
 SEE ALSO
-  vela next   the ranked offer this claims from";
+  vela next   the ranked offer this claims from
+  vela land   land the result; use --work when more than one is open";
 
 pub const LAND: &str = "\
 EXAMPLES
   vela land receipt.json                       record → propose → route by policy
-  vela land --claim \"a(7) >= 22\" --artifact w.json   land without a receipt file
+  vela land --work erdos:443 --claim \"a(7) >= 22\" --artifact w.json:witness
+                                               build from the selected work session
   vela land receipt.json --push                commit locally AND publish now
+
+With one active session for this actor, --work is inferred. With several,
+select one explicitly. A committed Permit or Defer closes session.json; Deny
+or invalid input leaves it available for repair.
 
 SEE ALSO
   vela sign   decide what the policy deferred to you";
@@ -89,6 +97,19 @@ EXAMPLES
   vela reproduce examples/sidon-sets   re-verify every witness from scratch
 
 No trust required: the frozen verifiers re-derive each stored witness.";
+
+pub const REPRODUCE_EXTERNAL: &str = "\
+EXAMPLES
+  vela reproduce-external https://github.com/owner/repo.git <full-commit> Namespace.theorem \\
+    --source-path Path/File.lean --out receipt.json --as agent:demo --json
+                                             verify and emit Receipt v1 only
+  vela reproduce-external https://github.com/owner/repo.git <full-commit> Namespace.theorem \\
+    --source-path Path/File.lean --land-work erdos:443 --frontier . \\
+    --as agent:demo --json                 verify, build, and land from the session
+
+The installed adapter pins the source before fail-closed sandbox execution.
+Lean checking is evidence about the formal declaration, not acceptance or a
+claim that the translation is faithful or significant.";
 
 pub const PROOF: &str = "\
 EXAMPLES

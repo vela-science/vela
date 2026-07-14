@@ -44,8 +44,8 @@ the agent, and the pen belongs to you.
 | Verb | What it does |
 |---|---|
 | `next` | The offer: ranked open targets with the compounding payload pre-loaded (premises, banked routes, prior attempts, dead channels). `--json` is the agent contract. |
-| `work` | Claim the lease on a target and load its briefing into `.vela/work/<target>/`. Close with `land`. |
-| `land` | Land a result (`vela.receipt.v1`): record, propose, then route by the signed policy. Permit admits, Defer parks it in the sign queue, and Deny refuses canonical admission. Inspect the structured result for retained draft state. Commits locally; `--push` publishes. |
+| `work` | Claim a target and write one typed, ignored `session.json` under `.vela/work/`. `--drop --reason <why>` signs an exact zero-TTL lease release before removing scratch. |
+| `land` | Land a result (`vela.receipt.v1`): record, propose, then route by the signed policy. Permit admits, Defer parks it in the sign queue, and Deny refuses canonical admission. `--work <target>` selects a session; it is inferred only when this actor owns exactly one. A committed Permit or Defer closes `session.json`; Deny or invalid input keeps it for repair. Commits locally; `--push` publishes. |
 | `submit` | The producer path in one verb: frozen-verify a witness, land it, bind it to its finding, drive the exact lane to `machine_verified`, materialize. `--dry-run` previews; commits locally, `--push` publishes. Replaces bespoke submit scripts. |
 | `sign` | The one human ceremony: every deferred decision, one session, one confirm, one key read. |
 | `status` | One-screen frontier state: findings by status, verdicts, replay integrity, sign-queue count, policy mode, and a `next` hint. |
@@ -77,7 +77,7 @@ the agent, and the pen belongs to you.
 | `frontier` | Repo-level: new/materialize/add-dep/list-deps/diff/release/releases/audit/rank. `rank` orders OPEN findings by accumulating structural support (which is a verifier-run from done) with the popularity baseline + inspectable evidence — a solvability projection, advice not authority. |
 | `actor` | Frontier-registered identities: add/list/rotate. |
 | `agents` | `VELA.md` charter adapters: sync/doctor/diff (AGENTS.md, CLAUDE.md, .mcp.json are generated, never hand-edited). |
-| `serve` | The frontier as an MCP server (stateless streamable HTTP or stdio) with nine agent-first tools: `read-only` exposes seven and `draft` adds only the two nonfinalizing write tools. `maintainer` is a deprecated warning alias for `draft`. Tools carry MCP annotations (`readOnlyHint` lets a client run the read tools in parallel; `work` is conservatively `destructiveHint:true` because its owner-checked `drop` action removes private session scratch, never truth-bearing state) and the high-traffic tools declare an `outputSchema` and return `structuredContent`, so a typed client reads a validated object instead of parsing JSON from text. Human decisions are terminal-only through `vela sign`. The hub hosts the clone-free subset at `hub.constellate.science/mcp`. |
+| `serve` | The frontier as an MCP server (stateless streamable HTTP or stdio) with nine agent-first tools: `read-only` exposes seven and `draft` adds only the two nonfinalizing write tools. `maintainer` is a deprecated warning alias for `draft`. Tools carry MCP annotations (`readOnlyHint` lets a client run the read tools in parallel; `work` is conservatively `destructiveHint:true` because its owner-checked `drop` action signs a coordination-only release and then removes private session scratch) and the high-traffic tools declare an `outputSchema` and return `structuredContent`, so a typed client reads a validated object instead of parsing JSON from text. Human decisions are terminal-only through `vela sign`. The hub hosts the clone-free subset at `hub.constellate.science/mcp`. |
 | `doctor` | First-user diagnosis of checkout/frontier/proof/serve. |
 | `foundry` | The discovery plane: `campaign`, `lean-*`, `attempt`, `transfer`, `experiment`. Search proposes; the frozen verifier is the gate. |
 
@@ -122,12 +122,18 @@ next -> work -> land -> sign
 - `vela next` — the offer: ranked open targets with the compounding
   payload pre-loaded (premises you may build on, banked routes, prior
   attempts, dead channels). `--json` is the agent contract.
-- `vela work <target>` — claim the lease, load the briefing into
-  `.vela/work/<target>/` (offer.json). Sessions are cheap; drop with
-  `--drop`.
-- `vela land <receipt.json>` — the write edge. A **Vela Receipt**
+- `vela work <target> --as agent:<you> --json` — claim the lease, return the
+  briefing and task contract, and write one typed private `session.json` under
+  `.vela/work/`. Do not edit or stage that record. Release without landing via
+  `vela work <target> --drop --reason <why> --as agent:<you>`; Vela commits the
+  signed lease release before deleting scratch.
+- `vela land --work <target> --claim <result> --artifact <path>:<kind>
+  --caveat <limit> --as agent:<you> --json` — build and land the existing
+  **Vela Receipt** from the selected session. `--work` may be omitted only when
+  this actor has exactly one active session. A **Vela Receipt**
   (`vela.receipt.v1`) is the portable JSON ANY tool exports — a Claude
-  Science artifact, a notebook, a Codex run, a foundry search:
+  Science artifact, a notebook, a Codex run, a foundry search. Stateless and
+  foreign producers may still pass `vela land <receipt.json>`:
 
   ```json
   {
@@ -249,11 +255,12 @@ key-custody human acts.
 ```bash
 # the agent's session (VELA_ACTOR_ID=agent:demo)
 vela next examples/sidon-sets --json   # ranked targets, payload pre-loaded
-vela work sidon:a17                     # claim the lease, load the briefing
-vela land . \
+vela work sidon:a17 --as agent:demo     # claim the lease, load the briefing
+vela land --work sidon:a17 \
   --claim "a(17) >= 292 for the Sidon frontier" \
-  --artifact witnesses/a17.json \
-  --caveat "lower bound only; optimality not established"
+  --artifact witnesses/a17.json:witness \
+  --caveat "lower bound only; optimality not established" \
+  --as agent:demo
                                 # records, proposes, routes by the signed
                                 # policy; a gate-clean witness auto-admits,
                                 # otherwise it defers to the sign queue

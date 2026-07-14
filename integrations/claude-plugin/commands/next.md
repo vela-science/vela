@@ -25,11 +25,21 @@ Present the frontier's offer and open a work session on the target the user pick
 
    Use `$VELA_ACTOR_ID` as the identity if it is set; otherwise `agent:claude`.
    Agent writes always carry an explicit `agent:` identity.
-5. Summarize the briefing: the claimed target and lease, the session directory
-   (`.vela/work/<target>/`, with `offer.json` holding the full briefing), and
-   the payload highlights — premises available to build on, banked routes,
-   prior attempts, dead channels to avoid. Close with the shape of what comes
-   next: do the work, then `/vela:land` to write the receipt and cross it into
-   state. If the lease is already held, report whose it is and offer
-   `vela work <target> --drop` only if the user says the session is theirs to
-   release.
+5. Summarize the returned briefing and task contract: target, exact lease,
+   premises, banked routes, prior attempts, dead channels, required checks, and
+   authority ceiling. Report the returned `session_path`. Vela stores one typed
+   private `session.json` under a collision-safe `.vela/work/` directory. Do
+   not ask the user or agent to edit or stage it.
+6. Close with the next action: do the work, run the selected verifier, then use
+   `/vela:land <target>`. The land command builds Receipt v1 from flags and the
+   exact session; the producer does not author protocol JSON.
+7. If another actor holds the lease, report its actor and expiry. Do not release
+   it. An owner who abandons work uses a signed release with a truthful reason:
+
+   ```
+   vela work <target> --drop --reason "<why work stopped>" \
+     --as agent:<name> --json
+   ```
+
+   Vela commits the same-owner zero-TTL lease update before removing scratch.
+   Deleting the private directory does not release the lease.

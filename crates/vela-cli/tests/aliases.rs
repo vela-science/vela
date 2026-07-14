@@ -373,21 +373,20 @@ fn artifact_retract_has_typed_missing_and_no_apply_escape_hatch() {
     assert!(combined(&top).contains("unknown or non-release command"));
 }
 
-/// The read-only intercepts in `lib.rs` (reproduce-external, conjecture /
-/// proof-packet verify) print before the main dispatcher initializes
-/// styling. They must still honor the house error prefix and NO_COLOR, or
-/// a piped/CI invocation leaks raw ANSI. Pins the Phase-0 fix.
+/// `reproduce-external` is a normal parsed command. Missing positionals must
+/// therefore use Clap's bounded usage failure, and NO_COLOR must remain clean.
 #[test]
-fn intercept_errors_use_house_prefix_and_honor_no_color() {
+fn parsed_external_reproduction_has_bounded_colorless_usage_errors() {
     let out = std::process::Command::new(env!("CARGO_BIN_EXE_vela"))
-        .arg("reproduce-external") // too few args -> the usage error intercept
+        .arg("reproduce-external")
         .env("NO_COLOR", "1")
         .output()
         .expect("run vela");
     let err = String::from_utf8_lossy(&out.stderr);
     assert!(
-        err.contains("err ·"),
-        "intercept error must use the house `err ·` prefix, got: {err}"
+        err.contains("the following required arguments were not provided")
+            && err.contains("Usage: vela reproduce-external"),
+        "parsed usage error is incomplete: {err}"
     );
     assert!(
         !err.contains('\u{1b}'),

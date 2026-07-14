@@ -679,16 +679,47 @@ pub fn claim_task(args: &Value) -> Result<String, String> {
             "obligation {obligation} is neither a finding on this frontier nor a              namespaced external target (e.g. erdos:443)"
         ));
     }
-    // Refuse a live competing lease (route-around, not fight).
-    let now = chrono::Utc::now().to_rfc3339();
-    if let Some(live) = project.attempt_claims.iter().find(|c| {
-        c.obligation_id == obligation
-            && chrono::DateTime::parse_from_rfc3339(&c.claimed_at)
-                .map(|t| {
-                    (t + chrono::Duration::seconds(c.lease_ttl_seconds as i64)).to_rfc3339() > now
+    // A competing owner is routed around. The exact same actor/key is allowed
+    // to refresh its lease, and a zero-TTL same-owner update is allowed to
+    // reach the reducer as the signed release compare-and-swap.
+    let now = chrono::Utc::now();
+    let live = project.attempt_claims.iter().find(|claim| {
+        claim.obligation_id == obligation
+            && chrono::DateTime::parse_from_rfc3339(&claim.claimed_at)
+                .map(|claimed| {
+                    claimed + chrono::Duration::seconds(claim.lease_ttl_seconds as i64) > now
                 })
                 .unwrap_or(false)
-    }) {
+    });
+    let requested_prior = args.get("prior_claim_event_id").and_then(Value::as_str);
+    let release_reason = args.get("release_reason").and_then(Value::as_str);
+    if ttl == 0 {
+        let live = live
+            .ok_or_else(|| format!("cannot release {obligation}: no current live lease exists"))?;
+        if live.claimant_actor != agent_actor {
+            return Err(format!(
+                "cannot release {obligation}: leased by {}, not {agent_actor}",
+                live.claimant_actor
+            ));
+        }
+        if live.claimant_pubkey != pubkey {
+            return Err(format!(
+                "cannot release {obligation}: the active agent key does not match the lease key"
+            ));
+        }
+        if requested_prior != live.claim_event_id.as_deref() {
+            return Err(format!(
+                "cannot release {obligation}: prior lease identity does not match"
+            ));
+        }
+        if release_reason.is_none_or(|reason| reason.trim().is_empty()) {
+            return Err(format!(
+                "cannot release {obligation}: a non-empty release_reason is required"
+            ));
+        }
+    } else if let Some(live) = live
+        && (live.claimant_actor != agent_actor || live.claimant_pubkey != pubkey)
+    {
         return Ok(serde_json::json!({
             "ok": false,
             "already_claimed_by": live.claimant_actor,
@@ -697,27 +728,45 @@ pub fn claim_task(args: &Value) -> Result<String, String> {
         })
         .to_string());
     }
+    let prior_claim_event_id = if ttl == 0 {
+        requested_prior.map(ToString::to_string)
+    } else {
+        live.and_then(|claim| claim.claim_event_id.clone())
+    };
+    let event_reason = release_reason
+        .filter(|reason| !reason.trim().is_empty())
+        .unwrap_or("obligation lease (swarm coordination)");
+    let mut payload = serde_json::json!({
+        "obligation_id": obligation,
+        "lease_ttl_seconds": ttl,
+        "claimant_actor": agent_actor,
+        "claimant_pubkey": pubkey,
+    });
+    if let Some(prior) = prior_claim_event_id.as_deref() {
+        payload["prior_claim_event_id"] = serde_json::json!(prior);
+    }
+    if ttl == 0 {
+        payload["release_reason"] = serde_json::json!(event_reason);
+    }
     let mut event =
         vela_protocol::events::new_finding_event(vela_protocol::events::FindingEventInput {
             kind: "attempt.claimed",
             finding_id: obligation,
             actor_id: agent_actor,
             actor_type: vela_protocol::events::actor_kind(agent_actor),
-            reason: "obligation lease (swarm coordination)",
+            reason: event_reason,
             before_hash: "sha256:null",
             after_hash: "sha256:null",
-            payload: serde_json::json!({
-                "obligation_id": obligation,
-                "lease_ttl_seconds": ttl,
-                "claimant_actor": agent_actor,
-                "claimant_pubkey": pubkey,
-            }),
+            payload,
             caveats: Vec::new(),
             timestamp: None,
         });
-    vela_protocol::reducer::apply_event(&mut project, &event)?;
+    // Sign before reducer application so every persisted event has already
+    // crossed the exact signed-byte boundary. The reducer's lease checks are
+    // pure and deterministic over those bytes.
     event.signature = Some(vela_protocol::sign::sign_event(&event, &key)?);
-    project.events.push(event);
+    vela_protocol::reducer::apply_event(&mut project, &event)?;
+    project.events.push(event.clone());
     vela_protocol::repo::save_to_path(&frontier_path, &project)
         .map_err(|e| format!("save: {e}"))?;
     Ok(serde_json::json!({
@@ -725,6 +774,11 @@ pub fn claim_task(args: &Value) -> Result<String, String> {
         "obligation": obligation,
         "claimed_by": agent_actor,
         "ttl_seconds": ttl,
+        "claim_event_id": event.id,
+        "claimed_at": event.timestamp,
+        "claimant_pubkey": pubkey,
+        "prior_claim_event_id": prior_claim_event_id,
+        "release_reason": if ttl == 0 { Some(event_reason) } else { None },
     })
     .to_string())
 }

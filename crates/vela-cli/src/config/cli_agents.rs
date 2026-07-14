@@ -173,11 +173,17 @@ next -> work -> land -> sign
   dead channels). Returns `{targets: [{lane, id, title, why, next_command}]}`.
   Trust the ranking; it already encodes what the frontier knows.
 - `vela work <target> --as agent:<you> --json` — claim the lease, load the
-  briefing into `.vela/work/<target>/` (`offer.json`). Read the briefing
-  before working: dead channels listed there are dead — do not respend them.
-- `vela land receipt.json --as agent:<you> --json` — the write edge. Artifacts
-  are hashed at land time, a pending proposal lands, and the frontier's signed
-  policy routes it.
+  briefing, and write one typed private `session.json` under `.vela/work/`.
+  Read the returned briefing before working; do not edit the session record.
+- `vela land --work <target> --claim <result> --artifact <path>:<kind>
+  --caveat <limit> --as agent:<you> --json` — build Receipt v1 from the exact
+  session and use the shared write edge. With exactly one active session for
+  this actor, `--work` is inferred. A committed Permit or Defer closes only
+  `session.json`; Deny or invalid input keeps it for repair. Foreign producers
+  may still use `vela land receipt.json`.
+- `vela work <target> --drop --reason <why> --as agent:<you> --json` — sign a
+  same-owner zero-TTL lease update, then remove private scratch. Deleting files
+  by hand does not release a lease.
 - `vela artifact retract <frontier> <va_id> --as agent:<you> --reason <why>
   --json` — draft retirement of a malformed or obsolete artifact. It remains
   pending; only the human ceremony may remove its active proof-readiness weight.

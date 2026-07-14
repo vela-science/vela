@@ -1145,9 +1145,16 @@ fn build_claim_and_register_log(
             r#type: "finding".to_string(),
             id: findings[0].id.clone(),
         },
-        actor: StateActor {
-            id: "reviewer:lease-fixture".to_string(),
-            r#type: "human".to_string(),
+        actor: if kind == events::EVENT_KIND_ATTEMPT_CLAIMED {
+            StateActor {
+                id: "agent:fixture".to_string(),
+                r#type: "agent".to_string(),
+            }
+        } else {
+            StateActor {
+                id: "reviewer:lease-fixture".to_string(),
+                r#type: "human".to_string(),
+            }
         },
         timestamp: fixture_timestamp(frontier_idx, ts_idx),
         reason: "fixture".to_string(),

@@ -240,6 +240,27 @@ pub async fn run_command() {
         }
 
         Commands::Reproduce { path, json } => cmd_reproduce(&path, json),
+        Commands::ReproduceExternal {
+            repo_url,
+            commit,
+            declaration,
+            source_path,
+            out,
+            land_work,
+            frontier,
+            r#as,
+            json,
+        } => crate::external_lean::cmd_reproduce_external(
+            repo_url,
+            commit,
+            declaration,
+            source_path,
+            out,
+            land_work,
+            frontier,
+            r#as,
+            json,
+        ),
         Commands::Submit {
             witness,
             frontier,
@@ -842,29 +863,65 @@ pub async fn run_command() {
             frontier,
             ttl,
             drop: drop_it,
+            reason,
             r#as,
             json,
         } => {
             crate::ui::set_mode("work", json);
             let dir = crate::ui::resolve_frontier(frontier);
             let Some(target) = target else {
-                let base = crate::workflow::session_dir(&dir, "");
-                let sessions = base
-                    .parent()
-                    .map(|p| std::fs::read_dir(p).map(|d| d.count()).unwrap_or(0))
-                    .unwrap_or(0);
-                println!("  {} open session dir(s) under .vela/work/", sessions);
+                let root = dir.join(".vela/work");
+                let mut sessions = std::fs::read_dir(&root)
+                    .into_iter()
+                    .flatten()
+                    .filter_map(Result::ok)
+                    .filter_map(|entry| {
+                        entry
+                            .path()
+                            .join("session.json")
+                            .is_file()
+                            .then_some(entry.path())
+                    })
+                    .collect::<Vec<_>>();
+                sessions.sort();
+                if json {
+                    print_json(&serde_json::json!({
+                        "ok": true,
+                        "command": "work",
+                        "sessions": sessions.iter().map(|path| path.display().to_string()).collect::<Vec<_>>(),
+                    }));
+                } else {
+                    println!("  {} open session(s) under .vela/work/", sessions.len());
+                    for session in sessions {
+                        println!("  · {}", safe_text::inline(&session.display().to_string()));
+                    }
+                }
                 return;
             };
             let actor = crate::cli_identity::resolve_actor(r#as.as_deref());
             if drop_it {
-                let sdir = crate::workflow::session_dir(&dir, &target);
-                let _ = std::fs::remove_dir_all(&sdir);
-                println!(
-                    "  · dropped session {} (lease expires by TTL)",
-                    safe_text::inline(&target)
-                );
+                let reason = reason
+                    .as_deref()
+                    .unwrap_or("producer released the work session without landing a receipt");
+                let result = crate::workflow::release_session(&dir, &target, &actor, reason)
+                    .unwrap_or_else(|error| fail_return(&error));
+                if json {
+                    let mut result = result;
+                    result["command"] = serde_json::json!("work.drop");
+                    print_json(&result);
+                } else {
+                    crate::ui::header("WORK", &target, Some("lease released"));
+                    println!("  reason        {}", safe_text::inline(reason));
+                    println!("  another agent may claim this target immediately");
+                }
                 return;
+            }
+            if reason.is_some() {
+                crate::ui::fail_with(
+                    crate::ui::ErrorKind::Usage,
+                    "--reason is valid only with work --drop",
+                    Some("remove --reason or add --drop"),
+                );
             }
             let ttl = ttl.unwrap_or_else(|| {
                 crate::config::settings::resolve("work.lease_ttl_seconds", Some(&dir))
@@ -872,26 +929,15 @@ pub async fn run_command() {
                     .parse()
                     .unwrap_or(86400)
             });
-            match crate::workflow::claim(&dir, &target, &actor, Some(ttl)) {
-                Ok(claim) => {
-                    let briefing = crate::workflow::briefing(&dir, &target)
-                        .unwrap_or_else(|e| fail_return(&e));
-                    let sdir = crate::workflow::session_dir(&dir, &target);
-                    std::fs::create_dir_all(&sdir).ok();
-                    std::fs::write(
-                        sdir.join("offer.json"),
-                        serde_json::to_string_pretty(&briefing).unwrap_or_default(),
-                    )
-                    .ok();
+            match crate::workflow::open_session(&dir, &target, &actor, ttl) {
+                Ok(mut opened) => {
                     if json {
-                        print_json(&serde_json::json!({
-                            "ok": true, "command": "work", "target": target,
-                            "claim": claim, "briefing": briefing,
-                            "session_dir": sdir.display().to_string(),
-                        }));
+                        opened["command"] = serde_json::json!("work");
+                        print_json(&opened);
                     } else {
                         crate::ui::header("WORK", &target, Some("lease claimed, briefing loaded"));
-                        let b = briefing.get("briefing").unwrap_or(&briefing);
+                        let briefing = opened.get("briefing").unwrap_or(&opened);
+                        let b = briefing.get("briefing").unwrap_or(briefing);
                         if let Some(s) = b.get("statement").and_then(|v| v.as_str()) {
                             println!("  {}", safe_text::multiline(s));
                         }
@@ -916,12 +962,18 @@ pub async fn run_command() {
                         }
                         println!(
                             "  {:<14} {}",
-                            vela_protocol::cli_style::dim("full offer"),
-                            safe_text::inline(&sdir.join("offer.json").display().to_string())
+                            vela_protocol::cli_style::dim("session"),
+                            safe_text::inline(
+                                opened
+                                    .get("session_path")
+                                    .and_then(|value| value.as_str())
+                                    .unwrap_or(".vela/work/<slug>--<target-sha256>/session.json")
+                            )
                         );
                         println!(
-                            "  {:<14} vela land <receipt.json>",
-                            vela_protocol::cli_style::dim("when done")
+                            "  {:<14} vela land --work {} --claim ...",
+                            vela_protocol::cli_style::dim("when done"),
+                            safe_text::inline(&target),
                         );
                     }
                 }
@@ -936,6 +988,7 @@ pub async fn run_command() {
             replayability,
             artifact,
             caveat,
+            work,
             r#as,
             push,
             json,
@@ -954,6 +1007,7 @@ pub async fn run_command() {
                     "replayability": replayability,
                     "artifacts": artifact,
                     "caveats": caveat,
+                    "work": work,
                     "push": push,
                 }))
                 .unwrap_or_default();
@@ -963,6 +1017,12 @@ pub async fn run_command() {
                 crate::ui::fail_unchanged(kind, &message, &preflight_id, "vela land --help")
             };
             let receipt = if let Some(path) = receipt {
+                if work.is_some() {
+                    fail_preflight(
+                        crate::ui::ErrorKind::Usage,
+                        "--work selects the private flag-authoring path and cannot be combined with a foreign Receipt v1 file".to_string(),
+                    );
+                }
                 let raw = std::fs::read(&path).unwrap_or_else(|error| {
                     fail_preflight(
                         crate::ui::ErrorKind::NotFound,
@@ -996,6 +1056,7 @@ pub async fn run_command() {
                 crate::workflow::author_receipt(
                     &dir,
                     &actor,
+                    work.as_deref(),
                     claim,
                     claim_type,
                     replayability,

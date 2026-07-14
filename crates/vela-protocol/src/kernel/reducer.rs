@@ -1378,7 +1378,9 @@ fn upsert_by<T>(vec: &mut Vec<T>, item: T, same: impl Fn(&T, &T) -> bool) {
 /// determinism rule: a prior lease is "expired" relative to THIS
 /// event's timestamp (parse both RFC3339 instants; if claimed_at + ttl
 /// <= new event's timestamp, the old lease is dead and the claim
-/// succeeds). Same claimant refreshing their own live lease is allowed.
+/// succeeds). Same claimant refreshing their own live lease is allowed only
+/// under the same key. A zero-TTL update is an immediate release and must
+/// compare-and-swap the exact current claim event with the same actor and key.
 fn apply_attempt_claimed(state: &mut Project, event: &StateEvent) -> Result<(), String> {
     let p = &event.payload;
     let obligation_id = p
@@ -1399,22 +1401,102 @@ fn apply_attempt_claimed(state: &mut Project, event: &StateEvent) -> Result<(), 
         .and_then(Value::as_str)
         .unwrap_or("")
         .to_string();
-    let parse = |t: &str| chrono::DateTime::parse_from_rfc3339(t).map(|d| d.timestamp());
-    let now_s = parse(&event.timestamp)
+    if claimant_actor != event.actor.id {
+        return Err(format!(
+            "attempt.claimed payload claimant {claimant_actor} does not match event actor {}",
+            event.actor.id
+        ));
+    }
+    if event.target.id != obligation_id {
+        return Err(format!(
+            "attempt.claimed target {} does not match obligation {obligation_id}",
+            event.target.id
+        ));
+    }
+    let prior_claim_event_id = p.get("prior_claim_event_id").and_then(Value::as_str);
+    let release_reason = p.get("release_reason").and_then(Value::as_str);
+    let parse = chrono::DateTime::parse_from_rfc3339;
+    let event_at = parse(&event.timestamp)
         .map_err(|e| format!("attempt.claimed: bad event timestamp: {e}"))?;
-    if let Some(existing) = state
+    let live_at_event = |claimed_at: &chrono::DateTime<chrono::FixedOffset>, lease_ttl: u64| {
+        let Ok(seconds) = i64::try_from(lease_ttl) else {
+            return true;
+        };
+        let Some(duration) = chrono::Duration::try_seconds(seconds) else {
+            return true;
+        };
+        claimed_at
+            .checked_add_signed(duration)
+            .is_none_or(|expires_at| expires_at > event_at)
+    };
+    let existing = state
         .attempt_claims
         .iter()
         .find(|c| c.obligation_id == obligation_id)
-    {
-        let exp = parse(&existing.claimed_at)
-            .map(|t| t + existing.lease_ttl_seconds as i64)
-            .unwrap_or(i64::MIN);
-        let live = exp > now_s;
+        .cloned();
+    if ttl == 0 {
+        let existing = existing.as_ref().ok_or_else(|| {
+            format!("cannot release obligation {obligation_id}: no current lease exists")
+        })?;
+        let claimed_at = parse(&existing.claimed_at)
+            .map_err(|e| format!("attempt.claimed: bad prior claim timestamp: {e}"))?;
+        if !live_at_event(&claimed_at, existing.lease_ttl_seconds) {
+            return Err(format!(
+                "cannot release obligation {obligation_id}: the current lease is not live"
+            ));
+        }
+        if event_at < claimed_at {
+            return Err(format!(
+                "cannot release obligation {obligation_id}: release timestamp predates the prior claim"
+            ));
+        }
+        if existing.claimant_actor != claimant_actor {
+            return Err(format!(
+                "cannot release obligation {obligation_id}: leased by {}, not {claimant_actor}",
+                existing.claimant_actor
+            ));
+        }
+        if existing.claimant_pubkey != claimant_pubkey {
+            return Err(format!(
+                "cannot release obligation {obligation_id}: claimant key does not match the current lease"
+            ));
+        }
+        let expected_prior = existing.claim_event_id.as_deref().ok_or_else(|| {
+            format!(
+                "cannot release obligation {obligation_id}: prior lease identity is unavailable"
+            )
+        })?;
+        if prior_claim_event_id != Some(expected_prior) {
+            return Err(format!(
+                "cannot release obligation {obligation_id}: prior lease identity does not match"
+            ));
+        }
+        if release_reason.is_none_or(|reason| reason.trim().is_empty()) {
+            return Err(format!(
+                "cannot release obligation {obligation_id}: release reason is required"
+            ));
+        }
+    } else if let Some(existing) = existing.as_ref() {
+        let live = parse(&existing.claimed_at)
+            .map(|claimed_at| live_at_event(&claimed_at, existing.lease_ttl_seconds))
+            .unwrap_or(false);
         if live && existing.claimant_actor != claimant_actor {
             return Err(format!(
                 "obligation {obligation_id} is leased by {} until +{}s; route around it or wait for expiry",
                 existing.claimant_actor, existing.lease_ttl_seconds
+            ));
+        }
+        if live && existing.claimant_pubkey != claimant_pubkey {
+            return Err(format!(
+                "obligation {obligation_id} is leased by {claimant_actor} under a different key; use the original session key or wait for expiry"
+            ));
+        }
+        if live
+            && prior_claim_event_id.is_some()
+            && prior_claim_event_id != existing.claim_event_id.as_deref()
+        {
+            return Err(format!(
+                "obligation {obligation_id} refresh names a stale prior lease"
             ));
         }
     }
@@ -1427,6 +1509,7 @@ fn apply_attempt_claimed(state: &mut Project, event: &StateEvent) -> Result<(), 
         claimant_pubkey,
         claimed_at: event.timestamp.clone(),
         lease_ttl_seconds: ttl,
+        claim_event_id: Some(event.id.clone()),
     });
     Ok(())
 }
@@ -1721,6 +1804,160 @@ mod tests {
     use crate::events::{FindingEventInput, NULL_HASH, StateActor, StateTarget};
     use chrono::Utc;
     use serde_json::json;
+
+    fn lease_event(
+        actor: &str,
+        pubkey: &str,
+        at: &str,
+        ttl: u64,
+        prior: Option<&str>,
+        reason: Option<&str>,
+    ) -> StateEvent {
+        let mut payload = json!({
+            "obligation_id": "scope:lease-cas",
+            "lease_ttl_seconds": ttl,
+            "claimant_actor": actor,
+            "claimant_pubkey": pubkey,
+        });
+        if let Some(prior) = prior {
+            payload["prior_claim_event_id"] = json!(prior);
+        }
+        if let Some(reason) = reason {
+            payload["release_reason"] = json!(reason);
+        }
+        crate::events::new_finding_event(FindingEventInput {
+            kind: crate::events::EVENT_KIND_ATTEMPT_CLAIMED,
+            finding_id: "scope:lease-cas",
+            actor_id: actor,
+            actor_type: "agent",
+            reason: reason.unwrap_or("claim fixture"),
+            before_hash: NULL_HASH,
+            after_hash: NULL_HASH,
+            payload,
+            caveats: Vec::new(),
+            timestamp: Some(at),
+        })
+    }
+
+    fn state_with_claim(claim: &StateEvent) -> crate::project::Project {
+        let mut state = crate::project::assemble("lease", Vec::new(), 0, 0, "test");
+        apply_event(&mut state, claim).unwrap();
+        state
+    }
+
+    #[test]
+    fn zero_ttl_lease_release_is_an_exact_same_owner_compare_and_swap() {
+        let claim = lease_event(
+            "agent:owner",
+            &"11".repeat(32),
+            "2026-07-14T12:00:00.500Z",
+            3_600,
+            None,
+            None,
+        );
+        let initial = state_with_claim(&claim);
+        assert_eq!(
+            initial.attempt_claims[0].claim_event_id.as_deref(),
+            Some(claim.id.as_str())
+        );
+
+        for (label, release, expected) in [
+            (
+                "different actor",
+                lease_event(
+                    "agent:other",
+                    &"11".repeat(32),
+                    "2026-07-14T12:01:00Z",
+                    0,
+                    Some(&claim.id),
+                    Some("not mine"),
+                ),
+                "leased by agent:owner",
+            ),
+            (
+                "different key",
+                lease_event(
+                    "agent:owner",
+                    &"22".repeat(32),
+                    "2026-07-14T12:01:00Z",
+                    0,
+                    Some(&claim.id),
+                    Some("wrong key"),
+                ),
+                "key does not match",
+            ),
+            (
+                "stale predecessor",
+                lease_event(
+                    "agent:owner",
+                    &"11".repeat(32),
+                    "2026-07-14T12:01:00Z",
+                    0,
+                    Some("vev_0000000000000000"),
+                    Some("stale"),
+                ),
+                "prior lease identity does not match",
+            ),
+            (
+                "backdated",
+                lease_event(
+                    "agent:owner",
+                    &"11".repeat(32),
+                    "2026-07-14T12:00:00.499Z",
+                    0,
+                    Some(&claim.id),
+                    Some("backdated"),
+                ),
+                "predates the prior claim",
+            ),
+        ] {
+            let mut state = state_with_claim(&claim);
+            let error = apply_event(&mut state, &release).unwrap_err();
+            assert!(error.contains(expected), "{label}: {error}");
+            assert_eq!(state.attempt_claims, initial.attempt_claims, "{label}");
+        }
+
+        let mut state = initial;
+        let release = lease_event(
+            "agent:owner",
+            &"11".repeat(32),
+            "2026-07-14T12:01:00Z",
+            0,
+            Some(&claim.id),
+            Some("switching approaches"),
+        );
+        apply_event(&mut state, &release).unwrap();
+        assert_eq!(state.attempt_claims.len(), 1);
+        assert_eq!(state.attempt_claims[0].lease_ttl_seconds, 0);
+        assert_eq!(
+            state.attempt_claims[0].claim_event_id.as_deref(),
+            Some(release.id.as_str())
+        );
+    }
+
+    #[test]
+    fn live_lease_refresh_requires_the_same_actor_key() {
+        let mut state = crate::project::assemble("lease", Vec::new(), 0, 0, "test");
+        let claim = lease_event(
+            "agent:owner",
+            &"11".repeat(32),
+            "2026-07-14T12:00:00Z",
+            3_600,
+            None,
+            None,
+        );
+        apply_event(&mut state, &claim).unwrap();
+        let refresh = lease_event(
+            "agent:owner",
+            &"22".repeat(32),
+            "2026-07-14T12:01:00Z",
+            3_600,
+            Some(&claim.id),
+            None,
+        );
+        let error = apply_event(&mut state, &refresh).unwrap_err();
+        assert!(error.contains("different key"), "{error}");
+    }
 
     fn finding(id: &str) -> crate::bundle::FindingBundle {
         crate::bundle::FindingBundle::new(

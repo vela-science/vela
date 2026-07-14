@@ -2,10 +2,10 @@
 
 Vela is built to be driven by agents the way git is driven by hands:
 **agents propose, verifiers reproduce, humans accept, git publishes.**
-This is the whole on-ramp. Every agent-drafted truth claim flows through
-the same reviewer-gated discipline as every other proposal; no agent has a
-privileged write path, and the engine refuses agent actors on every
-decision verb.
+Every agent-drafted result crosses the same Receipt v1 and proposal boundary.
+A human-signed policy may Permit a bounded class; otherwise Vela defers the
+proposal to a human decision. The engine refuses agent actors on human
+decision verbs.
 
 ## The rules (engine-enforced; also your instructions)
 
@@ -13,21 +13,31 @@ Agents may:
 
 - inspect state: `vela status . --json`, `vela next . --json`, `vela log .`,
   `vela check . --strict`, `vela state <dir> <vf_>`, `vela diff <vpr_>`
-- land results: `vela land receipt.json` (vela.receipt.v1) or
-  `vela land --claim … --artifact … --caveat …`
+- claim work: `vela work <target> --as agent:<name> --json`; Vela writes one
+  typed private `session.json` under `.vela/work/`. Do not edit or stage it.
+- land session results with flags: `vela land --work <target> --claim …
+  --type … --replayability … --artifact <path>:<kind> --caveat …
+  --as agent:<name> --json`. Omit `--work` only when this actor owns exactly
+  one active session.
+- import `vela land receipt.json` only for canonical Receipt v1 emitted by a
+  foreign or stateless producer
 - everything lands through `vela land` — records, drafts, verifier
   evidence; the signed policy routes each landing (Permit admits
   mechanically, Defer waits in the human's sign queue)
+- abandon work with `vela work <target> --drop --reason <why>
+  --as agent:<name> --json`; Vela signs the exact lease release before removing
+  private scratch
 - run the frozen verifiers: `vela reproduce .`
 - rebuild derived views: `vela frontier materialize .`
 
 Agents may not — the engine refuses these for `agent:`/`ci:` actors:
 
-- `vela sign` and `vela policy sign` — key-custody human ceremonies,
-  every decision path leads there
+- run `vela sign`, `vela policy sign`, or direct accept/reject commands. These
+  are key-custody human ceremonies and decisions.
 - sign anything with a human's key (an agent-actor `record` never
   auto-resolves the configured human key; it signs only with a key passed
   explicitly, or stays honestly unsigned)
+- delete private session files as a substitute for a signed lease release
 
 Always export `VELA_ACTOR_ID=agent:<your-name>` and pass
 `--as agent:<your-name>` on writes. Never run bare decision verbs.
@@ -47,23 +57,33 @@ export VELA_ACTOR_ID=agent:demo
 vela status . --json      # where the frontier stands: findings by status,
                           # verdict distribution, replay integrity, inbox,
                           # and a `next` hint
-vela land \
+vela next . --json        # ranked targets and their compounding context
+vela work sidon:a17 --as agent:demo --json
+                          # exact lease + briefing + typed private session
+vela land --work sidon:a17 \
   --claim "a(17) >= 292 for the Sidon frontier" \
-  --artifact witnesses/a17.json \
-  --caveat "lower bound only; optimality not established"
+  --type computational \
+  --replayability exact \
+  --artifact witnesses/a17.json:witness \
+  --caveat "lower bound only; optimality not established" \
+  --as agent:demo \
+  --json
                           # -> records/vrc_<id>.json (content-addressed,
                           #    head-pinned, artifact-hashed) -> pending
                           #    proposal -> routed by the signed policy:
-                          #    Permit admits, Defer waits for `vela sign`
+                          #    Permit admits, Defer waits for `vela sign`;
+                          #    both installed routes close session.json
 vela check . --strict     # the full trust gate, locally
 git push                  # publication: CI re-derives the frontier and the
                           # hub re-indexes from the repo
 ```
 
-A human then runs `vela sign` (their key) over everything awaiting a
-decision — and the signed decision publishes itself: materialize, commit,
-push, hub re-index, in the one act. That boundary is the product, not a
-limitation.
+Do not ask a human to confirm the agent-authored receipt before this landing.
+Receipt authoring carries producer authority. A human runs `vela sign` only for
+the proposals Vela reports as `deferred`; the ceremony re-renders the exact
+decision before key access. `policy_admitted` means a prior human-signed policy
+authorized the bounded route. Deny or input error preserves the private session
+for repair.
 
 ## MCP: the same loop for tool-calling agents
 
@@ -122,22 +142,26 @@ transfers, Lean anchoring, and experiment receipts are
 
 The loop scales by composition, not new machinery:
 
-1. **Claim before long work**: `work` action=claim (MCP, draft profile)
+1. **Claim before long work**: `vela work <target> --as agent:<name> --json`
+   or MCP `work` action=claim
    leases an obligation under your OWN agent key — minted automatically
    at `~/.vela/agents/<actor>/` from your `VELA_ACTOR_ID` the first time
    you claim, no key step needed (`VELA_AGENT_KEY_HEX` overrides). A
    live competing lease returns `already_claimed_by` — route around it.
-   A lease coordinates; it never decides. Lifecycle: the `attempt.claimed` event carries a TTL
-   (default 24h); an expired lease is simply ignored by the next claimer,
-   and landing your pack is what closes the work — there is no unclaim
-   ceremony. Obligation ids may be frontier-external and namespaced
+   A lease coordinates; it never decides. Vela writes one typed private
+   session bound to the exact lease and task contract. A committed Permit or
+   Defer closes `session.json`; Deny and error retain it. Abandoned work uses
+   `work --drop --reason <why>`, which appends a signed same-owner zero-TTL
+   `attempt.claimed` update before removing scratch. An expired lease is
+   ignored by the next claimer. Obligation ids may be frontier-external and namespaced
    (`erdos:443`); strict replay treats such leases as coordination, not
    orphaned targets.
 2. **Watch, don't poll blind**: `GET /entries/{vfr}/events/stream?cursor=<event_id>`
    (SSE, cursor-resumable) streams what changed.
-3. **One receipt per result**: land your session's work as a single
-   `vela.receipt.v1` — `vela land receipt.json` — so the human judges your
-   claim, artifacts, and verifier runs as one unit at `vela sign`.
+3. **One receipt per result**: use `vela land --work <target> --claim …
+   --type … --replayability … --artifact <path>:<kind> --caveat …`.
+   Vela builds one Receipt v1 from the typed session. Use file import for a
+   receipt emitted by another producer, not for hand-authored plugin scratch.
 4. **Policy-bound lanes**: when the frontier carries a signed acceptance
    policy (`vela status . --json → .policy.mode == "live"`), mechanical
    kinds (repairs, artifact provenance) auto-admit under the sealed
@@ -153,12 +177,12 @@ above for writes.
 
 ## Doctrine, one paragraph
 
-Activity is not state. A model run, a notebook, a record, a search hit —
-all of it is source material until a proposal passes review and a human
-key signs the accept. The log is trustworthy by construction; a claim
-becomes trusted state only through the gate. Your job as an agent is to
-make the reviewer's decision easy: hash-bound artifacts, honest caveats,
-reproducible verifier runs — and never to make the decision yourself.
+Activity is not state. A model run, notebook, record, or search hit remains
+source material until it crosses the Receipt and proposal boundary. Accepted
+state needs replayable human-key authority: either a prior signed policy
+certificate or a direct human decision. Your job as an agent is to provide
+hash-bound artifacts, honest caveats, and reproducible verifier runs. You do
+not make the decision.
 
 See also: [PROTOCOL.md](PROTOCOL.md) (the object model and record spec),
 [VERIFICATION.md](VERIFICATION.md) (the gate), [HUB.md](HUB.md)

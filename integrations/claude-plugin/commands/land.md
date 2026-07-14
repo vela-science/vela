@@ -1,61 +1,82 @@
 ---
-description: Author a Vela receipt from the work in context, confirm it, land it
-argument-hint: "[receipt path]"
+description: Build and land Receipt v1 from an exact private work session
+argument-hint: "[target id | foreign receipt path]"
 ---
 
 # /vela:land
 
-Cross the work in this session from activity into state. A landing is only as
-good as its receipt — write the receipt as if a skeptical reviewer will read
-nothing else.
+Cross one selected result from private work into the shared frontier. The
+agent authors producer evidence. A signed policy may admit a narrow class;
+otherwise the result waits for a human decision. Do not run `vela sign`, ask
+for a human key, or present receipt authoring as a human trust ceremony.
 
-1. From the conversation and workspace, draft a `vela.receipt.v1`:
+1. Select the work session.
 
-   ```json
-   {
-     "schema": "vela.receipt.v1",
-     "claim": "what is now known / bounded / refuted",
-     "type": "computational | theoretical | empirical | negative",
-     "artifacts": [{"path": "witness.json", "kind": "witness"}],
-     "caveats": ["what this does NOT establish"],
-     "verifier_runs": [{"method": "…", "outcome": "pass", "log": "…"}]
-   }
-   ```
+   - Treat a target id in `$ARGUMENTS` as the explicit `--work <target>`.
+   - With no target argument, let `vela land` infer the session only when this
+     actor owns exactly one active lease.
+   - If the CLI reports several owned sessions, present those target ids and
+     ask which work result to land. Selection prevents ambiguity; it grants no
+     scientific authority.
 
-   - `claim` — one sentence, concrete and scoped. This is what a human will
-     eventually sign against; no reach beyond what the artifacts support.
-   - `type` — computational, theoretical, empirical, or negative. Negative
-     results (a channel exhausted, a bound not improved) are landable state.
-   - `artifacts` — every file the claim leans on: witnesses, logs, proofs.
-     Paths must exist; they are hashed at land time.
-   - `caveats` — what the work does not establish. Write at least one unless
-     the claim is genuinely unconditional; a missing caveat is the classic
-     failure mode.
-   - `verifier_runs` — only runs that actually happened (`vela reproduce`,
-     `vela-verify`, test suites), with honest outcomes. Never invent a run.
+2. Derive the receipt facts from the completed work and files in the frontier:
 
-2. SHOW the receipt JSON in chat and confirm with the user before writing
-   anything (AskUserQuestion or a plain question). Apply their edits.
-3. Write it to `receipt.json` (or the path in `$ARGUMENTS`, or one the user
-   prefers).
-4. Land it. Prefer the MCP `work` tool when the vela-local server is attached
-   (the plugin's `.mcp.json` serves the draft profile, which exposes it):
-   call `work` with `action: "land"`, the receipt path, and the agent
-   identity. If the MCP tool is unavailable, shell out:
+   - `claim`: one concrete, bounded sentence supported by the artifacts;
+   - `type`: `computational`, `theoretical`, `empirical`, `negative`, or
+     `contradiction`;
+   - `replayability`: `exact`, `bounded`, `approximate`, `unavailable`, or
+     `unknown`;
+   - one or more existing frontier-relative artifacts with an honest kind; and
+   - at least one caveat that states the claim's limit. If no material limit is
+     known, say that rather than omitting the field.
+
+   Include only verifier outcomes that ran. Run a required verifier before
+   landing; never invent a pass. Ask a factual question only when the workspace
+   does not contain enough information to state the result. Do not ask a human
+   to approve or confirm an agent-authored receipt before landing it.
+
+3. Use flag authoring. Do not write or edit `receipt.json` on this path.
 
    ```
-   vela land receipt.json --as agent:<name> --json
+   vela land --work <target> \
+     --claim "<bounded result>" \
+     --type <claim-type> \
+     --replayability <class> \
+     --artifact <path>:<kind> \
+     --caveat "<limit>" \
+     --as agent:<name> \
+     --json
    ```
 
-   Identity: `$VELA_ACTOR_ID` if set, else `agent:claude`. Agent writes always
-   carry an explicit `agent:` identity — never land bare. Both paths are the
-   same write edge: the receipt is hashed, a pending record lands, and the
-   frontier's signed policy routes it.
-5. Report the route from the JSON result:
-   - **policy_admitted** — the signed policy ruled; the record is canonical
-     state with no ceremony needed. Name the policy id if the output carries
-     one.
-   - **deferred** — parked in the human's sign queue. Point at `/vela:review`
-     to triage and `vela sign` (theirs to run, not yours) to finish.
-   - **denied or error** — report exactly what the CLI said, including
-     `error.hint`. Exit codes: 1 domain failure, 4 custody refused.
+   Use `$VELA_ACTOR_ID` when set; otherwise use `agent:claude`. Omit `--work`
+   only for exact-one inference. Repeat `--artifact` and `--caveat` as needed.
+   Vela builds canonical Receipt v1 from the typed private session, hashes the
+   artifacts, lands the proposal, and routes it through the signed policy.
+
+4. Reserve file import for a canonical Receipt v1 emitted by a foreign or
+   stateless producer. When `$ARGUMENTS` is an explicit receipt path supplied
+   for that purpose, run:
+
+   ```
+   vela land <receipt.json> --as agent:<name> --json
+   ```
+
+   Do not combine a receipt file with `--work`. Do not convert the normal plugin
+   path into hand-authored JSON.
+
+5. Report the JSON route and session state:
+
+   - `policy_admitted`: the named signed policy authorized admission. Report
+     its policy and event ids. The installed transaction closes only the typed
+     `session.json`; unrelated scratch remains.
+   - `deferred`: the proposal is in the human sign queue. The installed
+     transaction closes only `session.json`. `/vela:review` may prepare the
+     queue; `vela sign` belongs to the human.
+   - `exact_retry`: Vela reused the recorded durable result. Report the original
+     route and publication status.
+   - Deny or error: report the exact message and repair action. The session and
+     lease remain available for correction; do not delete or rewrite them.
+
+An abandoned session uses `vela work <target> --drop --reason "<why>"` under
+the owning agent identity. That command signs the exact lease release before
+removing private scratch.
