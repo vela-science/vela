@@ -22,7 +22,7 @@ next -> work -> land -> sign
 
 - `vela next --json` — the offer: ranked open targets with the compounding
   payload pre-loaded (premises to build on, banked routes, prior attempts,
-  dead channels). Returns `{targets: [{lane, id, title, why, next_command}]}`.
+  dead channels). Returns `{targets: [{lane, id, title, why, next_command, task?}]}`.
   Trust the ranking; it already encodes what the frontier knows.
 - `vela work <target> --as agent:<you> --json` — claim the lease, load the
   briefing, and write one typed private `session.json` under `.vela/work/`.
