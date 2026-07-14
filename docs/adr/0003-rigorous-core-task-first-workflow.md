@@ -3,9 +3,11 @@
 - Status: Accepted 2026-07-13. Approved by the user for implementation.
 - Scope: Vela substrate CLI, protocol plumbing, MCP exposure, and derived review
   projections.
-- Implementation state: Approved for execution. This ADR is an engineering
-  decision record, not a signed scientific event or a substitute for a Vela
-  policy decision.
+- Implementation state: The technical scaffold was implemented for Vela
+  `0.759.0` on 2026-07-14. The human-ceremony, independent-producer, and
+  independent-consumer acceptance gates below remain open. This ADR is an
+  engineering decision record, not a signed scientific event or a substitute
+  for a Vela policy decision.
 - Amendment: 2026-07-14 records the provisional causal policy-head contract
   required to make the existing signed Permit lane replay-safe across policy
   activation, rotation, and revocation.
@@ -1520,6 +1522,48 @@ scaffold before adding another surface.
 Each trust-path change runs the full conformance union. Existing frontiers must
 replay byte-identically. The optional signed decision-root reference is
 exercised by a new fixture; old fixture bytes and IDs do not change.
+
+### Implementation evidence, 2026-07-14
+
+The six slices above now have a release-shaped technical scaffold. The work was
+landed incrementally so each trust-boundary change remains reviewable:
+
+- `53e69c1` closes JSON-output and key-custody boundary leaks.
+- `453c6a5` makes receipt landing one recoverable, single-frontier write.
+- `c89db89` derives one bounded Decision Brief from canonical decision facts.
+- `a51c8a5` binds the displayed decision to exact event bytes and stale-state
+  checks.
+- `93a575c` connects task-first work sessions to installed verification and
+  signed lease release.
+- `e193edc` proves portable review consumption, Git-native exit, and removable
+  derived consumers without adding authority to those consumers.
+
+Release verification covers the complete Rust workspace and lint surface; the
+Python, JavaScript, Rust, and decision-binding cross-implementation vectors;
+hostile and installed external-Lean fixtures; clean-clone and offline Git-bundle
+replay; the Diderot relay fixtures; the Atlas derived consumer; documentation
+and voice checks; and the registered 70-gate conformance union. These checks
+establish compatibility, replay, bounded rendering, safe retries, custody
+separation, and portable consumption. They do not establish scientific
+acceptance or ecosystem adoption.
+
+The following program gates intentionally remain open:
+
+- No real human key ceremony was performed as part of implementation or
+  release. Test ceremonies use fixture keys only.
+- The Decision Brief contract remains `testing` until two independent
+  producers and two independent consumers provide conformance evidence.
+- The recorded producer path is an isolated engineering fixture, not a cold
+  outside-producer usability trial.
+- The substantive-child and correction-watcher exercises prove the interfaces,
+  but do not yet satisfy the criterion that a different independent producer
+  consume a human-accepted outside result.
+- The POSI governance, institutional stewardship, sustainability, and hosted
+  service commitments remain organizational work even where export, archive,
+  and fork mechanics are implemented.
+
+Accordingly, `0.759.0` is the implementation release for the clerk layer, not a
+claim that the acceptance program or the outside-producer goal is complete.
 
 ## Acceptance metrics
 

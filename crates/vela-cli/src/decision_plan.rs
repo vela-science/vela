@@ -1599,6 +1599,12 @@ mod tests {
         const COMPILED_AT: &str = "2026-07-13T00:00:00Z";
         const PROPOSAL_AT: &str = "2026-07-13T01:00:00Z";
         const REASON: &str = "Scope and evidence checked";
+        // This compiler string is part of the published cross-implementation
+        // vector. Keep it fixed across releases: the production assembler and
+        // manual-curation provenance use CARGO_PKG_VERSION, but a conformance
+        // preimage must not acquire new roots merely because the test binary
+        // was rebuilt.
+        const FIXTURE_COMPILER: &str = "vela/0.758.11";
 
         let temp = tempfile::tempdir().unwrap();
         std::fs::create_dir(temp.path().join(".vela")).unwrap();
@@ -1627,6 +1633,8 @@ mod tests {
         )
         .unwrap();
         finding_proposal.payload["finding"]["created"] = COMPILED_AT.into();
+        finding_proposal.payload["finding"]["provenance"]["extraction"]["extractor_version"] =
+            FIXTURE_COMPILER.into();
         let finding: vela_protocol::bundle::FindingBundle =
             serde_json::from_value(finding_proposal.payload["finding"].clone()).unwrap();
         let finding_id = finding.id.clone();
@@ -1639,9 +1647,12 @@ mod tests {
             "Deterministic production Decision Plan fixture",
         );
         project.project.compiled_at = COMPILED_AT.to_string();
+        project.project.compiler = FIXTURE_COMPILER.to_string();
         let genesis = project.events.first_mut().unwrap();
         genesis.timestamp = COMPILED_AT.to_string();
+        genesis.actor.id = FIXTURE_COMPILER.to_string();
         genesis.payload["compiled_at"] = COMPILED_AT.into();
+        genesis.payload["creator"] = FIXTURE_COMPILER.into();
         genesis.id = vela_protocol::events::compute_event_id(genesis);
         project.frontier_id = vela_protocol::project::frontier_id_from_genesis(&project.events);
 
@@ -1702,9 +1713,9 @@ mod tests {
             decision["canonical"].as_str().unwrap()
         );
         let (_frontier, production) = deterministic_production_accept_fixture();
+        let production_bytes = decision_plan_preimage_bytes(&production.plan).unwrap();
         assert_eq!(
-            decision_plan_preimage_bytes(&production.plan).unwrap(),
-            canonical,
+            production_bytes, canonical,
             "the fixture must be emitted by the real production builder and typed serializer"
         );
         assert_eq!(
