@@ -611,7 +611,7 @@ mod tests {
                     },
                     "agent:seed",
                     "agent",
-                    &format!("ordering seed {nonce}"),
+                    format!("ordering seed {nonce}"),
                     serde_json::to_value(&payload).unwrap(),
                     Vec::new(),
                     vec!["ordering-only test fixture".to_string()],

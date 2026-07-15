@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.800.8 — 2026-07-15 — Release lint closure
+
+- Removed the needless test-only borrow caught by the hosted all-targets Clippy
+  gate for `v0.800.7`. Runtime behavior, transaction bytes, schemas, and
+  authority boundaries are unchanged.
+- Retains the `v0.800.7` canonical proposal-ordering fix and its exact
+  prepare-materialize-recovery regression as the release candidate used for
+  frontier migration.
+
 ## v0.800.7 — 2026-07-15 — Canonical proposal transaction postimages
 
 - Kept every in-memory pending-proposal insertion in the same proposal-ID

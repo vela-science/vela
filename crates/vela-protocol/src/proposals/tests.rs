@@ -1470,7 +1470,7 @@ fn pending_insertion_matches_split_repository_proposal_id_order() {
                 },
                 "agent:literature-scout",
                 "agent",
-                &format!("Canonical ordering fixture {nonce}"),
+                format!("Canonical ordering fixture {nonce}"),
                 json!({"status": "contested"}),
                 Vec::new(),
                 Vec::new(),
