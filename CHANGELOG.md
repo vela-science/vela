@@ -7,6 +7,8 @@
   checkout without requiring ripgrep.
 - Made agent-adapter generation use the tracked frontier manifest instead of
   ignored local state, and refreshed the generated task-first skills.
+- Made cross-workspace CLI contract tests honor the suite's explicit
+  `VELA_BIN`, so a clean parent checkout reuses the binary it already built.
 - Moved the broad historical Lean model build to an explicit manual workflow,
   documented its custom assumptions honestly, and removed optional external
   Lean packaging assertions from routine core CI.

@@ -4,6 +4,9 @@ use std::process::Command;
 use tempfile::TempDir;
 
 fn vela_bin() -> PathBuf {
+    if let Ok(env_path) = std::env::var("VELA_BIN") {
+        return PathBuf::from(env_path);
+    }
     if let Ok(env_path) = std::env::var("CARGO_BIN_EXE_vela") {
         return PathBuf::from(env_path);
     }
