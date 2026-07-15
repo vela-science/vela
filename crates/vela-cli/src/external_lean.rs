@@ -843,6 +843,31 @@ fn emit_failure(json_output: bool, message: &str) -> ! {
     std::process::exit(1)
 }
 
+fn landed_receipt_value(
+    target: &str,
+    task_contract_root: &str,
+    outcome: crate::workflow::LandOutcome,
+) -> Value {
+    let (route, detail) = outcome.route.summary();
+    let accepted_event_delta = outcome.accepted_event_delta();
+    json!({
+        "content_address": outcome.receipt_root,
+        "work_target": target,
+        "task_contract_root": task_contract_root,
+        "record_id": outcome.record_id,
+        "proposal_id": outcome.proposal_id,
+        "finding_id": outcome.finding_id,
+        "accepted_event_count_before": outcome.accepted_event_count_before,
+        "accepted_event_count_after": outcome.accepted_event_count_after,
+        "accepted_event_delta": accepted_event_delta,
+        "landed": true,
+        "route": route,
+        "detail": detail,
+        "operation_id": outcome.operation_id,
+        "publication": outcome.publication,
+    })
+}
+
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn cmd_reproduce_external(
     repo_url: String,
@@ -963,6 +988,10 @@ pub(crate) fn cmd_reproduce_external(
                 .expect("actor resolved for land-work"),
         )
         .unwrap_or_else(|error| emit_failure(json_output, &error));
+        let task_contract_root = context
+            .task_contract_root
+            .clone()
+            .expect("active work context has a task contract root");
         let result_key = response
             .get("result_key")
             .and_then(Value::as_str)
@@ -992,18 +1021,7 @@ pub(crate) fn cmd_reproduce_external(
             false,
         )
         .unwrap_or_else(|error| emit_failure(json_output, &error));
-        let (route, detail) = outcome.route.summary();
-        response["receipt"] = json!({
-            "content_address": outcome.receipt_root,
-            "record_id": outcome.record_id,
-            "proposal_id": outcome.proposal_id,
-            "finding_id": outcome.finding_id,
-            "landed": true,
-            "route": route,
-            "detail": detail,
-            "operation_id": outcome.operation_id,
-            "publication": outcome.publication,
-        });
+        response["receipt"] = landed_receipt_value(&target, &task_contract_root, outcome);
     }
 
     if json_output {
@@ -1039,6 +1057,8 @@ pub fn embedded_onramp_root() -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::git_publish::{PublicationOutcome, PublicationState};
+    use crate::workflow::{LandOutcome, LandRoute};
 
     #[test]
     fn embedded_driver_has_stable_content_identity() {
@@ -1063,5 +1083,39 @@ mod tests {
                 .unwrap_or_else(|error| panic!("missing packaged resource {name}: {error}"));
             assert_eq!(packaged, embedded, "packaged resource {name} drifted");
         }
+    }
+
+    #[test]
+    fn landed_external_work_reports_target_base_and_exact_event_delta() {
+        let value = landed_receipt_value(
+            "external-lean:fixture",
+            "sha256:task-contract",
+            LandOutcome {
+                operation_id: "vop_fixture".to_string(),
+                receipt_root: "sha256:receipt".to_string(),
+                record_id: "vrc_fixture".to_string(),
+                proposal_id: "vpr_fixture".to_string(),
+                finding_id: "vf_fixture".to_string(),
+                accepted_event_count_before: Some(12),
+                accepted_event_count_after: Some(12),
+                route: LandRoute::Deferred {
+                    reasons: vec!["human decision required".to_string()],
+                },
+                publication: PublicationOutcome {
+                    state: PublicationState::CommittedLocal {
+                        commit: "0123456789abcdef".to_string(),
+                    },
+                    recovery_command: Some("git push origin producer/fixture".to_string()),
+                },
+            },
+        );
+
+        assert_eq!(value["work_target"], "external-lean:fixture");
+        assert_eq!(value["task_contract_root"], "sha256:task-contract");
+        assert_eq!(value["accepted_event_count_before"], 12);
+        assert_eq!(value["accepted_event_count_after"], 12);
+        assert_eq!(value["accepted_event_delta"], 0);
+        assert_eq!(value["route"], "deferred");
+        assert_eq!(value["publication"]["state"], "committed_local");
     }
 }

@@ -60,8 +60,24 @@ pub(crate) struct LandOutcome {
     pub record_id: String,
     pub proposal_id: String,
     pub finding_id: String,
+    /// Canonical event count observed under the frontier-wide recovery
+    /// barrier before this landing was planned. New landings always populate
+    /// this. A journal-free retry of older public state may report `None`
+    /// because inventing a historical count would be misleading.
+    pub accepted_event_count_before: Option<usize>,
+    /// Canonical event count in the transaction postimage. Defer leaves this
+    /// unchanged; a policy-admitted landing increments it by one.
+    pub accepted_event_count_after: Option<usize>,
     pub route: LandRoute,
     pub publication: crate::config::git_publish::PublicationOutcome,
+}
+
+impl LandOutcome {
+    pub(crate) fn accepted_event_delta(&self) -> Option<i64> {
+        let before = i64::try_from(self.accepted_event_count_before?).ok()?;
+        let after = i64::try_from(self.accepted_event_count_after?).ok()?;
+        Some(after - before)
+    }
 }
 
 impl LandRoute {
@@ -1583,6 +1599,10 @@ struct DurableLandResult {
     record_id: String,
     proposal_id: String,
     finding_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    accepted_event_count_before: Option<usize>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    accepted_event_count_after: Option<usize>,
     route: LandRoute,
     /// Decision-critical facts bound into the private transaction plan. Permit
     /// also stamps its policy context and certificate into the accepted event;
@@ -2290,6 +2310,8 @@ pub(crate) fn land(
         record_id: record.id.clone(),
         proposal_id: proposal_id.clone(),
         finding_id: finding_id.clone(),
+        accepted_event_count_before: Some(original.events.len()),
+        accepted_event_count_after: Some(candidate.events.len()),
         route: route.clone(),
         review_route: Some(staged_review_route),
     };
@@ -2961,6 +2983,11 @@ fn durable_land_result_from_public_state(
         record_id,
         proposal_id: proposal.id.clone(),
         finding_id,
+        // Public state proves the route but does not retain the historical
+        // before/after counts for pre-existing submissions. Returning None is
+        // preferable to deriving a false count from a later frontier head.
+        accepted_event_count_before: None,
+        accepted_event_count_after: None,
         route,
         review_route: None,
     }))
@@ -2977,6 +3004,8 @@ fn outcome_from_durable(
         record_id: durable.record_id,
         proposal_id: durable.proposal_id,
         finding_id: durable.finding_id,
+        accepted_event_count_before: durable.accepted_event_count_before,
+        accepted_event_count_after: durable.accepted_event_count_after,
         route,
         publication,
     }

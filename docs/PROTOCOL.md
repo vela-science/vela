@@ -823,6 +823,16 @@ v0 remains proposal/event/finding centered.
 This list tracks protocol-surface additions across recent releases.
 Earlier releases are documented inline in the sections above.
 
+- **v0.760.1**: task-first landing results now report the canonical accepted
+  event counts before and after the transaction plus their exact delta. The
+  external-Lean `--land-work` result also repeats the selected target and task
+  contract root, so a producer can verify that the receipt crossed the intended
+  work boundary. The public GitHub Action and generated frontier workflow
+  install the release named by `vela.lock`, fail on version disagreement, and
+  make strict checking blocking by default. The producer quickstart documents
+  one current nonfinalizing path from target selection through Git publication.
+  This patch changes observability and producer safeguards, not the event or
+  Receipt schemas and not the human-key custody boundary.
 - **v0.760.0**: exact pre-hardening policy pairs are now observable only as
   audit-only `legacy_unbound_closed` state and can never enter a verified or
   Permit path. Malformed unsigned policies fail closed, while a recoverable,

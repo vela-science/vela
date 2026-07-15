@@ -466,6 +466,11 @@ fn json_mode_writes_one_object_only() {
     assert_eq!(value["command"], "land");
     assert!(value["operation_id"].as_str().is_some(), "{value}");
     assert!(value.get("publication").is_some(), "{value}");
+    assert_eq!(
+        value["accepted_event_count_before"], value["accepted_event_count_after"],
+        "a deferred landing must not append an accepted event: {value}"
+    );
+    assert_eq!(value["accepted_event_delta"], 0, "{value}");
 }
 
 #[test]
@@ -485,6 +490,7 @@ fn exact_receipt_retry_is_idempotent_across_frontier_and_git() {
     assert_success(&first, "first exact landing");
     let first = one_json_object(&first);
     assert_eq!(first["route"], "deferred", "{first}");
+    assert_eq!(first["accepted_event_delta"], 0, "{first}");
 
     let frontier_before = snapshot_scientific_tree(tmp.path());
     let head_before = git_stdout(tmp.path(), &["rev-parse", "HEAD"]);
@@ -499,6 +505,15 @@ fn exact_receipt_retry_is_idempotent_across_frontier_and_git() {
     assert_success(&retry, "exact retry");
     let retry = one_json_object(&retry);
     assert_eq!(retry["route"], "exact_retry", "{retry}");
+    assert_eq!(
+        retry["accepted_event_count_before"], first["accepted_event_count_before"],
+        "exact retry changed the recorded transaction preimage count"
+    );
+    assert_eq!(
+        retry["accepted_event_count_after"], first["accepted_event_count_after"],
+        "exact retry changed the recorded transaction postimage count"
+    );
+    assert_eq!(retry["accepted_event_delta"], 0, "{retry}");
     for key in [
         "operation_id",
         "receipt_root",

@@ -1071,6 +1071,7 @@ pub async fn run_command() {
             match crate::workflow::land(&dir, &receipt, &actor, push) {
                 Ok(outcome) => {
                     let (route, detail) = outcome.route.summary();
+                    let accepted_event_delta = outcome.accepted_event_delta();
                     if json {
                         print_json(&serde_json::json!({
                             "ok": true, "command": "land",
@@ -1080,6 +1081,9 @@ pub async fn run_command() {
                             "record_id": outcome.record_id,
                             "proposal_id": outcome.proposal_id,
                             "finding_id": outcome.finding_id,
+                            "accepted_event_count_before": outcome.accepted_event_count_before,
+                            "accepted_event_count_after": outcome.accepted_event_count_after,
+                            "accepted_event_delta": accepted_event_delta,
                             "route": route, "detail": detail,
                             "publication": outcome.publication,
                         }));

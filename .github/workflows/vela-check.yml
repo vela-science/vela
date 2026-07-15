@@ -32,5 +32,7 @@ jobs:
         with:
           # A frontier repo points this at its own frontier directory.
           frontier: auto   # discover + gate every frontiers/*/ with a vela.lock
-          # Pin to a release in production; empty tracks latest.
+          # Empty pins to the selected locks; an explicit release must match.
           vela-version: ""
+          # Blocking by default; false is an explicit, temporary custody-debt escape.
+          strict: "true"

@@ -38,9 +38,8 @@ it were later approved into [OEIS A309370](https://oeis.org/A309370) by an
 outside editor: the first external adoption of frontier state from this
 substrate.
 
-This repository is the open core of the [Constellate](https://constellate.science)
-ecosystem: the protocol, the reference reducer, the CLI, the hub, and the
-conformance suite. Dual-licensed under Apache-2.0 OR MIT.
+This repository contains the open Vela protocol, reference reducer, CLI, hub,
+and conformance suite. It is dual-licensed under Apache-2.0 OR MIT.
 
 ## The verification gate
 
@@ -88,7 +87,7 @@ confidence. A finding can be reviewer-accepted and still gate
 | `bindings/` | Python HTTP SDK: a client for `vela serve --http` (read endpoints + signed write tools). Not a reducer. |
 | `conformance/` | The cross-implementation test-vector suite (reducer fixtures + gate reject-vectors). |
 | `examples/sidon-a309370` | A worked, re-verifiable reference: the OEIS A309370 Sidon records you can re-check with `vela reproduce`. |
-| `frontiers/sidon-sets` | The external-producer on-ramp: poll `bounds.json` for the current best Sidon bound per n, beat one, and `python3 submit.py witness.json` lands it and reaches `machine_verified` via the frozen verifier. Producers fork [`constellate-science/sidon-frontier`](https://github.com/constellate-science/sidon-frontier), where CI auto-merges a gate-clean beat; see its `README.md`. |
+| `frontiers/sidon-sets` | A worked external-producer frontier with frozen witness verification. |
 | `lean/` | Machine-checked proofs of the governance-soundness theorems, plus `SidonCertificate.lean` (a kernel-checked vcert). |
 | `schema/` | Carina kernel schemas. |
 
@@ -104,20 +103,22 @@ Or install a prebuilt binary (macOS and Linux x86_64; falls back to building
 from source for other platforms):
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/constellate-science/vela/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/vela-science/vela/main/install.sh | bash
 ```
 
 ## The working loop
 
-The full porcelain reference, with a worked
-next → work → land → sign example, is [docs/CLI.md](docs/CLI.md).
+The full porcelain reference is [docs/CLI.md](docs/CLI.md). If you are
+submitting one bounded result to a frontier you do not maintain, start with
+the [producer quickstart](docs/PRODUCER_QUICKSTART.md).
 
 ```sh
-vela next <frontier> --json     # ranked open targets, compounding payload pre-loaded
-vela work <target>              # claim the lease, load the briefing
-vela land <receipt.json>        # record + propose + route by the signed policy
-vela reproduce <frontier>       # frozen verifiers re-check every witness
-vela sign                       # the human ceremony: one session, one confirm, one key
+vela next <frontier> --json
+vela work <target> --as agent:<you> --json
+vela land --work <target> --claim <result> --artifact <path>:<kind> \
+  --caveat <limit> --as agent:<you> --json
+vela reproduce <frontier>
+vela sign                       # key-holding human only
 ```
 
 An agent may land; only a key-holding human signs. Failures are
@@ -128,31 +129,28 @@ track it against the conformance vectors in `conformance/`.
 
 ## Contribute to a live frontier
 
-Anyone with a keypair can land a signed transition on a public frontier
-in one command:
+Producers do not need a human key. They claim a prepared target and land a
+receipt under an `agent:` identity:
 
 ```sh
-vela id create --handle your-handle    # key + identity, once
-vela finding add . --assertion "..." --author reviewer:your-handle
-git push                               # publication; the hub re-derives its index
+vela next . --json
+vela work <target> --as agent:<your-handle> --json
+# Run the verifier named by the work briefing, then:
+vela land --work <target> --claim <result> --artifact <path>:<kind> \
+  --caveat <limit> --as agent:<your-handle> --json
 ```
 
-Want the frictionless path? A live frontier carries a one-command submit script:
-fork [`constellate-science/sidon-frontier`](https://github.com/constellate-science/sidon-frontier),
-run `python3 submit.py witness.json` (see [`frontiers/sidon-sets`](frontiers/sidon-sets)),
-and a gate-clean beat reaches `machine_verified` and auto-merges in about five
-minutes, no maintainer in the loop.
+The frontier's signed policy routes the receipt. Permit can admit a narrowly
+pre-authorized class; Defer leaves the proposal for a key-holding human. A
+producer cannot sign, accept, reject, or finalize it. See the
+[producer quickstart](docs/PRODUCER_QUICKSTART.md) for the exact workflow,
+result classes, Git publication check, and offline path.
 
-A proposal is admitted to the *log* on the strength of its signature over
-content-addressed bytes, never on claimed identity. Admission to the log is not
-verification: the claim still has to earn `verified` at the gate above before it
-counts as state a field holds to be true.
+## Project links
 
-## Live
-
-- Specification: https://constellate.science/specification
-- Platform: https://app.constellate.science
-- Hub / API: https://hub.constellate.science
+- Repository: https://github.com/vela-science/vela
+- Releases: https://github.com/vela-science/vela/releases
+- Protocol: [docs/PROTOCOL.md](docs/PROTOCOL.md)
 
 ## License
 

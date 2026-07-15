@@ -7,6 +7,9 @@ A human-signed policy may Permit a bounded class; otherwise Vela defers the
 proposal to a human decision. The engine refuses agent actors on human
 decision verbs.
 
+For the shorter outside-producer path, see
+[Producer quickstart](PRODUCER_QUICKSTART.md).
+
 ## The rules (engine-enforced; also your instructions)
 
 Agents may:

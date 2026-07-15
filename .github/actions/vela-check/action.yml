@@ -17,9 +17,9 @@
 #                     state (the ADR 0a/0b property: the hashes are load-path
 #                     independent and materialize is deterministic, so a green
 #                     check means what merges is what verifies).
-#   4. check --strict runs NON-blocking: it surfaces the owner's proof-readiness
-#                     / unsigned-reviewer debt, which is a key-custody item for
-#                     the frontier owner, never a producer's PR to fix.
+#   4. check --strict is blocking by default. A frontier owner may explicitly
+#                     set strict: "false" only while acknowledging temporary
+#                     key-custody debt; the action still reports that debt.
 #
 # It NEVER signs anything: the human-key accept stays the reviewer's signed
 # event committed in the PR. This action only re-derives and reports.
@@ -34,8 +34,18 @@ inputs:
       discover and gate every `frontiers/*/` directory that has a vela.lock.
     required: false
     default: auto
+  strict:
+    description: >-
+      When "true" (default), `vela check --strict` is a blocking gate. Set
+      "false" only for acknowledged owner key-custody debt; strict findings
+      remain visible as non-blocking notices.
+    required: false
+    default: "true"
   vela-version:
-    description: Pinned vela release tag to install (e.g. v0.710.0). Empty installs the latest release.
+    description: >-
+      Pinned Vela release tag to install (e.g. v0.760.1). Empty pins to the
+      selected frontier lock. All selected locks and any explicit value must
+      agree on exactly one release.
     required: false
     default: ""
 
@@ -44,30 +54,82 @@ runs:
   steps:
     - name: Install vela (pinned binary, no from-source build)
       shell: bash
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+        FRONTIER: ${{ inputs.frontier }}
+        VELA_VERSION_INPUT: ${{ inputs.vela-version }}
       run: |
         set -euo pipefail
-        ver="${{ inputs.vela-version }}"
+        if [ "$FRONTIER" = "auto" ]; then
+          mapfile -t frontiers < <(for d in frontiers/*/; do [ -f "${d}vela.lock" ] && echo "${d%/}"; done)
+        else
+          frontiers=("$FRONTIER")
+        fi
+        if [ "${#frontiers[@]}" -eq 0 ]; then
+          echo "::error::no git-backed frontiers found (a frontiers/<name>/ dir with vela.lock)"
+          exit 1
+        fi
+        lock_version=""
+        for frontier in "${frontiers[@]}"; do
+          lock="$frontier/vela.lock"
+          if [ ! -f "$lock" ]; then
+            echo "::error::$lock not found — cannot select the lock-matching Vela release"
+            exit 1
+          fi
+          candidate="$(awk '/^vela_version:/{print $2}' "$lock")"
+          candidate="${candidate#v}"
+          if [ -z "$candidate" ]; then
+            echo "::error::$lock has no vela_version — materialize it with a pinned Vela release"
+            exit 1
+          fi
+          if [ -n "$lock_version" ] && [ "$candidate" != "$lock_version" ]; then
+            echo "::error::selected frontier locks require multiple Vela releases ($lock_version and $candidate); gate them in separate jobs"
+            exit 1
+          fi
+          lock_version="$candidate"
+        done
+        requested="${VELA_VERSION_INPUT#v}"
+        if [ -n "$requested" ] && [ "$requested" != "$lock_version" ]; then
+          echo "::error::requested Vela $requested does not match selected locks' vela_version $lock_version"
+          exit 1
+        fi
+        release="v$lock_version"
         # install.sh fetches the right platform asset from the GitHub release
         # and verifies its sha256 before placing the binary on PATH. It uses
         # bash features (set -o pipefail), so run it with bash, never `sh`
         # (dash on ubuntu-latest rejects pipefail).
-        if [ -x "./install.sh" ]; then
-          VELA_VERSION="$ver" bash ./install.sh
+        local_installer="$ACTION_PATH/../../../install.sh"
+        if [ -f "$local_installer" ]; then
+          VELA_VERSION="$release" bash "$local_installer"
         else
-          curl -fsSL https://raw.githubusercontent.com/constellate-science/vela/main/install.sh | VELA_VERSION="$ver" bash
+          curl -fsSL "https://raw.githubusercontent.com/vela-science/vela/$release/install.sh" \
+            | VELA_VERSION="$release" bash
         fi
-        vela --version
+        version_output="$(vela --version)"
+        installed="${version_output##* }"
+        installed="${installed#v}"
+        if [ "$installed" != "$lock_version" ]; then
+          echo "::error::installed Vela $installed does not match selected locks' vela_version $lock_version"
+          exit 1
+        fi
+        echo "$version_output (matches ${#frontiers[@]} selected lock(s))"
 
     - name: re-derive (reproduce + check + hash-parity, per frontier)
       shell: bash
+      env:
+        FRONTIER: ${{ inputs.frontier }}
+        STRICT: ${{ inputs.strict }}
       run: |
         set -uo pipefail
-        sel='${{ inputs.frontier }}'
-        if [ "$sel" = "auto" ]; then
+        case "$STRICT" in
+          true|false) ;;
+          *) echo "::error::strict must be exactly \"true\" or \"false\""; exit 2 ;;
+        esac
+        if [ "$FRONTIER" = "auto" ]; then
           # every git-backed frontier = a frontiers/<name>/ dir with a vela.lock
           mapfile -t fs < <(for d in frontiers/*/; do [ -f "${d}vela.lock" ] && echo "${d%/}"; done)
         else
-          fs=("$sel")
+          fs=("$FRONTIER")
         fi
         if [ "${#fs[@]}" -eq 0 ]; then
           echo "::error::no git-backed frontiers found (a frontiers/<name>/ dir with vela.lock)"
@@ -103,8 +165,16 @@ runs:
           else
             echo "$f: hash-parity OK"
           fi
-          # 4. strict trust signal (non-blocking; owner key-custody item)
-          vela check "$f" --strict || echo "::notice::$f has strict proof-readiness debt (non-blocking until the owner signs the reviewer events)"
+          # 4. strict trust gate (blocking unless the owner explicitly acknowledges debt)
+          if [ "$STRICT" = "true" ]; then
+            if ! vela check "$f" --strict; then
+              echo "::error::$f: strict proof-readiness or state-integrity debt is blocking"
+              fail=1
+            fi
+          else
+            vela check "$f" --strict \
+              || echo "::notice::$f has strict proof-readiness debt (non-blocking; strict: false explicitly acknowledges owner key-custody debt)"
+          fi
           echo "::endgroup::"
         done
         if [ "$fail" -ne 0 ]; then

@@ -3,7 +3,7 @@
 # Consume from any frontier repo:
 #
 #   - uses: actions/checkout@v5
-#   - uses: constellate-science/vela@main
+#   - uses: vela-science/vela@v0.760.1
 #
 # It replays the signed event log from the clean checkout and proves the
 # committed materialized state (frontier.json / vela.lock / proof/) reproduces:
@@ -37,10 +37,10 @@ inputs:
     default: "true"
   vela-version:
     description: >-
-      Vela release tag to install (e.g. v0.720.0). Empty (default) pins to the
-      `vela_version` recorded in the frontier's vela.lock, so the binary that
-      gates is the binary that materialized the committed state; if no lock is
-      present, the latest release is installed.
+      Vela release tag to install (e.g. v0.760.1). Empty (default) pins to the
+      `vela_version` recorded in the frontier's vela.lock. An explicit value
+      must match that lock, so the binary that gates is always the binary that
+      materialized the committed state.
     required: false
     default: ""
 
@@ -55,21 +55,40 @@ runs:
         ACTION_PATH: ${{ github.action_path }}
       run: |
         set -euo pipefail
-        ver="$VELA_VERSION_INPUT"
-        if [ -z "$ver" ] && [ -f "$FRONTIER/vela.lock" ]; then
-          ver="$(awk '/^vela_version:/{print $2}' "$FRONTIER/vela.lock")"
-          [ -n "$ver" ] && ver="v${ver#v}"
+        lock="$FRONTIER/vela.lock"
+        if [ ! -f "$lock" ]; then
+          echo "::error::$lock not found — cannot select the lock-matching Vela release"
+          exit 1
         fi
+        lock_version="$(awk '/^vela_version:/{print $2}' "$lock")"
+        lock_version="${lock_version#v}"
+        if [ -z "$lock_version" ]; then
+          echo "::error::$lock has no vela_version — materialize it with a pinned Vela release"
+          exit 1
+        fi
+        requested="${VELA_VERSION_INPUT#v}"
+        if [ -n "$requested" ] && [ "$requested" != "$lock_version" ]; then
+          echo "::error::requested Vela $requested does not match $lock's vela_version $lock_version"
+          exit 1
+        fi
+        release="v$lock_version"
         # install.sh ships with this action (the repo root). It fetches the
         # platform asset from the GitHub release and verifies its sha256.
         # Run it with bash, never `sh` (it uses pipefail; dash rejects it).
         if [ -f "$ACTION_PATH/install.sh" ]; then
-          VELA_VERSION="$ver" bash "$ACTION_PATH/install.sh"
+          VELA_VERSION="$release" bash "$ACTION_PATH/install.sh"
         else
-          curl -fsSL https://raw.githubusercontent.com/constellate-science/vela/main/install.sh \
-            | VELA_VERSION="$ver" bash
+          curl -fsSL "https://raw.githubusercontent.com/vela-science/vela/$release/install.sh" \
+            | VELA_VERSION="$release" bash
         fi
-        vela --version
+        version_output="$(vela --version)"
+        installed="${version_output##* }"
+        installed="${installed#v}"
+        if [ "$installed" != "$lock_version" ]; then
+          echo "::error::installed Vela $installed does not match $lock's vela_version $lock_version"
+          exit 1
+        fi
+        echo "$version_output (matches $lock)"
 
     - name: Replay + verify signatures (structural gate)
       shell: bash
@@ -119,12 +138,19 @@ runs:
         STRICT: ${{ inputs.strict }}
       run: |
         set -uo pipefail
-        if [ "$STRICT" = "true" ]; then
-          if ! vela check "$FRONTIER" --strict; then
-            echo "::error::vela check --strict failed — proof-readiness or state-integrity debt is blocking. If this is acknowledged owner key-custody debt, set the action input strict: \"false\" until the owner signs."
-            exit 1
-          fi
-        else
-          vela check "$FRONTIER" --strict \
-            || echo "::notice::strict proof-readiness debt (non-blocking; resolved when the owner signs the pending reviewer events)"
-        fi
+        case "$STRICT" in
+          true)
+            if ! vela check "$FRONTIER" --strict; then
+              echo "::error::vela check --strict failed — proof-readiness or state-integrity debt is blocking. If this is acknowledged owner key-custody debt, set the action input strict: \"false\" until the owner signs."
+              exit 1
+            fi
+            ;;
+          false)
+            vela check "$FRONTIER" --strict \
+              || echo "::notice::strict proof-readiness debt (non-blocking; resolved when the owner signs the pending reviewer events)"
+            ;;
+          *)
+            echo "::error::strict must be exactly \"true\" or \"false\""
+            exit 2
+            ;;
+        esac

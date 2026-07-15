@@ -4,6 +4,9 @@ Version control for scientific state. One sentence holds the whole
 surface: **agents propose, verifiers reproduce, humans accept, git
 publishes.**
 
+Submitting one result to a frontier you do not maintain? Use the
+[producer quickstart](PRODUCER_QUICKSTART.md) before this full reference.
+
 The porcelain is 25 visible verbs, pinned by a both-directions test
 (`crates/vela-cli/src/cli/tests.rs`): a verb cannot appear or disappear
 without the baseline changing on purpose. Three read-only projections

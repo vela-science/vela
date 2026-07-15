@@ -1,12 +1,12 @@
 {
   "name": "vela",
-  "version": "0.759.1",
-  "description": "Trusted scientific state \u2014 drive frontiers with your agent; humans sign judgments.",
+  "version": "0.760.1",
+  "description": "Trusted scientific state for agent-driven frontiers with human-held judgment keys.",
   "author": {
-    "name": "Constellate",
-    "url": "https://github.com/constellate-science/vela"
+    "name": "Vela",
+    "url": "https://github.com/vela-science/vela"
   },
-  "homepage": "https://constellate.science",
+  "homepage": "https://github.com/vela-science/vela",
   "license": "MIT OR Apache-2.0",
   "keywords": [
     "science",

@@ -18,7 +18,10 @@
   shared recoverable frontier transaction, binds foundry deposits to a literal
   agent identity without reading a profile decision key, adds a bounded testing
   projection for AI-volume review pressure, and keeps the read-only doctor path
-  inside one async runtime. Older maintenance, metadata, and
+  inside one async runtime. Patch `0.760.1` exposes exact accepted-event deltas
+  and work bindings on landing results, pins public verification to the
+  frontier lock, blocks strict trust debt by default, and adds the concise
+  outside-producer guide. Older maintenance, metadata, and
   authority-administration writers remain serialized operator operations; this
   release does not claim that all legacy writers are concurrent. None of these
   patches changes the event or Receipt narrow waist.

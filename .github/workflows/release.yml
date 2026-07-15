@@ -50,13 +50,24 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
+      - name: Verify tag matches workspace version
+        shell: bash
+        run: |
+          set -euo pipefail
+          workspace_version="$(awk '$1 == "version" && $2 == "=" {gsub(/\"/, "", $3); print $3; exit}' Cargo.toml)"
+          expected_tag="v${workspace_version}"
+          if [ "$GITHUB_REF_NAME" != "$expected_tag" ]; then
+            echo "tag $GITHUB_REF_NAME does not match workspace version $workspace_version" >&2
+            exit 1
+          fi
+
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
         with:
           key: ${{ matrix.target }}
 
       - name: Build vela (release)
-        run: cargo build --release --bin vela --target ${{ matrix.target }}
+        run: cargo build --locked --release --bin vela --target ${{ matrix.target }}
 
       - name: Stage asset + checksum
         shell: bash
@@ -75,7 +86,7 @@ jobs:
 
       # SLSA build provenance, recorded in the Sigstore transparency log,
       # on the EXACT bytes users download. Verify before trusting:
-      #   gh attestation verify <file> --repo constellate-science/vela
+      #   gh attestation verify <file> --repo vela-science/vela
       - name: Attest build provenance
         uses: actions/attest-build-provenance@v1
         with:

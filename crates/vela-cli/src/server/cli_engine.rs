@@ -3098,6 +3098,7 @@ pub(crate) fn cmd_submit(
     let vpr = outcome.proposal_id.clone();
     let vf = outcome.finding_id.clone();
     let (route, detail) = outcome.route.summary();
+    let accepted_event_delta = outcome.accepted_event_delta();
     let operation_id = outcome.operation_id.clone();
     let publication = outcome.publication;
     let pushed = matches!(
@@ -3123,6 +3124,9 @@ pub(crate) fn cmd_submit(
                 "operation_id": operation_id,
                 "receipt_root": outcome.receipt_root,
                 "record_id": outcome.record_id,
+                "accepted_event_count_before": outcome.accepted_event_count_before,
+                "accepted_event_count_after": outcome.accepted_event_count_after,
+                "accepted_event_delta": accepted_event_delta,
                 "route": route,
                 "detail": detail,
                 "verifier": {"outcome": "pass", "message": vr.message},

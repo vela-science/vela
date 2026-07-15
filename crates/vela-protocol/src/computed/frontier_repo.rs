@@ -26,6 +26,11 @@ pub const FRONTIER_REPO_STATUS_SCHEMA: &str = "vela.frontier_repo_status.v0.1";
 pub const FRONTIER_REPO_DOCTOR_SCHEMA: &str = "vela.frontier_repo_doctor.v0.1";
 pub const FRONTIER_PROOF_VERIFY_SCHEMA: &str = "vela.frontier_proof_verify.v0.1";
 pub const DEFAULT_CARINA_KERNEL: &str = "carina@0.1.0";
+const VELA_ACTION_REPOSITORY: &str = "vela-science/vela";
+
+fn current_vela_release() -> String {
+    format!("v{}", env!("CARGO_PKG_VERSION"))
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct FrontierManifest {
@@ -439,9 +444,9 @@ fn write_git_native_scaffold(path: &Path, name: &str) -> Result<(), String> {
             .to_string(),
     )?;
 
-    write(
-        ".github/workflows/vela-frontier.yml",
-        r#"name: Verify the signed frontier
+    let vela_release = current_vela_release();
+    let vela_action_ref = format!("{VELA_ACTION_REPOSITORY}@{vela_release}");
+    let workflow = r#"name: Verify the signed frontier
 
 # The git-native gate: every main push and every pull request runs the shared
 # vela-check action. This is deliberately unfiltered: public canonical roots
@@ -463,10 +468,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: constellate-science/vela@main
+      - uses: __VELA_ACTION_REF__
+        with:
+          vela-version: __VELA_RELEASE__
+          strict: "true"
 "#
-        .to_string(),
-    )?;
+    .replace("__VELA_ACTION_REF__", &vela_action_ref)
+    .replace("__VELA_RELEASE__", &vela_release);
+    write(".github/workflows/vela-frontier.yml", workflow)?;
 
     write(
         "VELA.md",
@@ -1607,6 +1616,15 @@ mod tests {
         assert!(triggers.contains("  push:\n    branches: [main]"));
         assert!(triggers.contains("  pull_request: {}"));
         assert!(triggers.contains("  workflow_dispatch: {}"));
+        let expected_release = current_vela_release();
+        assert!(workflow.contains(&format!(
+            "      - uses: {VELA_ACTION_REPOSITORY}@{expected_release}"
+        )));
+        assert!(workflow.contains(&format!("          vela-version: {expected_release}")));
+        assert!(workflow.contains("          strict: \"true\""));
+        assert!(!workflow.contains("@main"));
+        assert!(!workflow.contains("constellate-science/vela"));
+        assert!(!workflow.contains("vela sign"));
 
         let has_path_filter = triggers.lines().any(|line| {
             let line = line.trim_start();
