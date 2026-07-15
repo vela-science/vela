@@ -174,6 +174,17 @@ for pattern in "${forbidden_code[@]}"; do
   fi
 done
 
+# The first external-Lean experiment carried a producer-specific replay-packet
+# lane. Current Vela exposes only the generic commit-pinned pull boundary; old
+# packet compatibility and producer names must not return inside the installed
+# verifier resource.
+external_lean_surface=crates/vela-cli/resources/external_lean_verifier.py
+retired_external_lean_packet_pattern='[Dd]iderot|KrafftSieve|EXTERNAL_LEAN_REPLAY_SCHEMA|packet_execution_index|controlled_lakefile|--packet|--bundle-root|--print-environment-contract-candidate'
+if grep -nE -- "$retired_external_lean_packet_pattern" "$external_lean_surface" >/dev/null; then
+  grep -nE -- "$retired_external_lean_packet_pattern" "$external_lean_surface" >&2
+  fail "retired external-Lean packet compatibility returned"
+fi
+
 current_finding_schemas=(schema/finding-bundle.v*.json)
 [[ ${#current_finding_schemas[@]} -eq 1 ]] \
   || fail "expected exactly one finding-bundle schema"

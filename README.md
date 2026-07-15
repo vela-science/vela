@@ -103,8 +103,8 @@ Or install a prebuilt binary on Apple Silicon macOS or Linux x86_64. Other
 platforms must build from source:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.800.1/install.sh \
-  | VELA_VERSION=v0.800.1 bash
+curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.800.2/install.sh \
+  | VELA_VERSION=v0.800.2 bash
 ```
 
 ## The working loop

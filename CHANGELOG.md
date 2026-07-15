@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.800.2 — 2026-07-15 — External Lean boundary consolidation
+
+- Removed the unlaunched replay-packet compatibility mode, its packet lineage
+  and sealed-environment contract machinery, and the last producer-specific
+  Lakefile helper from the installed external Lean verifier.
+- Kept one generic external boundary: a full GitHub repository URL, commit,
+  and Lean declaration are reconstructed in a Vela-controlled project and
+  produce a typed draft result without gaining acceptance authority.
+- Added a prelaunch regression guard so packet flags and producer-specific
+  Diderot or Krafft assumptions cannot return to the installed verifier.
+- Preserved historical Diderot corpus bytes as explicitly inert provenance.
+  Diderot remains an early exploratory project, not a Vela partner,
+  dependency, verifier, compatibility target, or release gate.
+- No protocol schema, Receipt, accepted event, or materialized-frontier bytes
+  changed.
+
 ## v0.800.1 — 2026-07-15 — Portable prelaunch maintenance
 
 - Made the one-writer-path regression guard depend only on standard Unix
