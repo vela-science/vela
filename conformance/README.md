@@ -45,6 +45,10 @@ vectors, then runs the TypeScript reducer when Node supports native TypeScript.
 - `canonical-hashing.json` pins `vela.canonical-json/v1` bytes and digests.
 - `attempt-id.json` pins deterministic attempt identifiers.
 - `decision-binding.json` pins decision preimages and their consumed roots.
+- `pre-adr-0003-replay.json` freezes every canonical `.vela` byte from one
+  pre-ADR 0003 frontier plus its strict replay roots and counts. The focused
+  CLI integration test replays a temporary copy; it performs no signing,
+  network access, external Lean invocation, or scientific decision.
 - `spec-surface.v1.json` lists the narrow public schema and command surface.
 - `vela_v09_sidon_kernel_fixture.py` and its JSON fixture exercise append,
   restrict, and observe on a small Sidon instance.

@@ -1,0 +1,356 @@
+{
+  "acceptance": {
+    "acceptance_scope": "hypothesis_only",
+    "acceptor": null,
+    "artifact_verification": {
+      "authority": "producer",
+      "status": "not_assessed"
+    },
+    "claim_acceptance": {
+      "accepted_by": null,
+      "authority": "producer",
+      "status": "not_assessed"
+    },
+    "distillation_acceptance": {
+      "accepted_by": null,
+      "status": "not_assessed"
+    },
+    "evidenceLevel": null,
+    "evidenceRefs": [],
+    "mechanism": "accountable_scientific_steward_signoff",
+    "policyRef": "urn:vela:policy:none",
+    "profile": "producer.emission.v1"
+  },
+  "artifacts": [
+    {
+      "kind": "witness",
+      "path": "witnesses/rich-distillation.json",
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    {
+      "kind": "distillation",
+      "path": "distillations/reviewer-note.md",
+      "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    }
+  ],
+  "attestation": {
+    "dsse_envelope": {
+      "payload": "eyJfdHlwZSI6Imh0dHBzOi8vaW4tdG90by5pby9TdGF0ZW1lbnQvdjEiLCJwcmVkaWNhdGUiOnsiYWNjZXB0YW5jZSI6eyJhY2NlcHRhbmNlX3Njb3BlIjoiaHlwb3RoZXNpc19vbmx5IiwiYWNjZXB0b3IiOm51bGwsImFydGlmYWN0X3ZlcmlmaWNhdGlvbiI6eyJhdXRob3JpdHkiOiJwcm9kdWNlciIsInN0YXR1cyI6Im5vdF9hc3Nlc3NlZCJ9LCJjbGFpbV9hY2NlcHRhbmNlIjp7ImFjY2VwdGVkX2J5IjpudWxsLCJhdXRob3JpdHkiOiJwcm9kdWNlciIsInN0YXR1cyI6Im5vdF9hc3Nlc3NlZCJ9LCJkaXN0aWxsYXRpb25fYWNjZXB0YW5jZSI6eyJhY2NlcHRlZF9ieSI6bnVsbCwic3RhdHVzIjoibm90X2Fzc2Vzc2VkIn0sImV2aWRlbmNlTGV2ZWwiOm51bGwsImV2aWRlbmNlUmVmcyI6W10sIm1lY2hhbmlzbSI6ImFjY291bnRhYmxlX3NjaWVudGlmaWNfc3Rld2FyZF9zaWdub2ZmIiwicG9saWN5UmVmIjoidXJuOnZlbGE6cG9saWN5Om5vbmUiLCJwcm9maWxlIjoicHJvZHVjZXIuZW1pc3Npb24udjEifSwiY29udHJpYnV0b3JzIjpbeyJhdXRob3IiOmZhbHNlLCJjcmVkaXRfdGF4b25vbXkiOiJDUmVkaVQrVmVsYSIsImlkIjoiYWdlbnQ6Zm9yZWlnbi1yZWNlaXB0LWZpeHR1cmUiLCJub3RlIjoiT3JpZ2luIGlkZW50aXR5IG9ubHk7IG5vdCBzY2llbnRpZmljIGFjY2VwdGFuY2UuIiwicm9sZXMiOlsibWFjaGluZV9wcm9kdWNlciIsInNvZnR3YXJlIl19LHsiYXV0aG9yIjp0cnVlLCJjcmVkaXRfdGF4b25vbXkiOiJDUmVkaVQrVmVsYSIsImlkIjoicmVzZWFyY2hlcjpmaXh0dXJlLWRpc3RpbGxlciIsIm5vdGUiOiJBdXRob3JlZCB0aGUgZHJhZnQgZGlzdGlsbGF0aW9uOyBkaWQgbm90IGFjY2VwdCB0aGUgc2NpZW50aWZpYyBjbGFpbS4iLCJyb2xlcyI6WyJodW1hbl9kaXN0aWxsZXIiLCJ3cml0aW5nX29yaWdpbmFsX2RyYWZ0Il19XSwiZGlzdGlsbGF0aW9uIjp7ImFjY2VwdGVkX2J5IjpudWxsLCJhdWRpZW5jZSI6ImZyb250aWVyIHJldmlld2VyIiwiY29tcHJlaGVuc2lvbl9idWRnZXQiOiJvbmUgcGFnZSIsImRpZ2VzdCI6eyJzaGEyNTYiOiJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiIn0sImluaGVyaXRhbmNlX25vdGUiOiJDb25zdW1lcnMgaW5oZXJpdCB0aGUgcG9pbnRlciBhbmQgZGlnZXN0LCBub3QgaW5saW5lIHByb3NlLiIsImtub3duX2dhcHMiOlsiSW5kZXBlbmRlbnQgcmVwbGF5IGhhcyBub3QgeWV0IGJlZW4gYXR0YWNoZWQuIl0sImxldmVsIjoicmV2aWV3IG5vdGUiLCJydWJyaWMiOiJzdGF0ZW1lbnQgZmFpdGhmdWwsIGNhdmVhdGVkLCByZXBsYXkgY29tbWFuZCBwcmVzZW50Iiwic2lnbmF0dXJlX3JlZnMiOltdLCJzdGF0dXMiOiJkcmFmdCIsInVyaSI6ImRpc3RpbGxhdGlvbnMvcmV2aWV3ZXItbm90ZS5tZCJ9LCJsaW5lYWdlIjp7ImRlcml2ZWRfZnJvbSI6W10sInBhcmVudHMiOltdLCJzb3VyY2VfcmVmcyI6WyJ1cm46c291cmNlOnJpY2gtZGlzdGlsbGF0aW9uIl0sInN1cGVyc2VkZXMiOltdfSwibWFjaGluZSI6eyJjbGFpbSI6eyJpZCI6InZmX2RlY2lzaW9uX2JyaWVmX3JpY2hfZGlzdGlsbGF0aW9uIiwidGV4dCI6IkEgcmVwbGF5YWJsZSBkZXJpdmF0aW9uIGlzIGFjY29tcGFuaWVkIGJ5IGEgcmV2aWV3ZXItb3JpZW50ZWQgZGlzdGlsbGF0aW9uLiIsInR5cGUiOiJjb21wdXRhdGlvbmFsIn0sInN1YmplY3QiOlt7ImRpZ2VzdCI6eyJzaGEyNTYiOiJhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhIn0sIm5hbWUiOiJ3aXRuZXNzZXMvcmljaC1kaXN0aWxsYXRpb24uanNvbiJ9LHsiZGlnZXN0Ijp7InNoYTI1NiI6ImJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmIifSwibmFtZSI6ImRpc3RpbGxhdGlvbnMvcmV2aWV3ZXItbm90ZS5tZCJ9XSwidmVyaWZpY2F0aW9uIjp7ImRlcGVuZGVuY3lfbG9jayI6e30sInN0YXR1cyI6Im5vdF9hc3Nlc3NlZCIsInRydXN0X2Jhc2UiOnsiYXV0aG9yaXR5IjoicHJvZHVjZXIiLCJraW5kIjoicHJvZHVjZXJfcmVwb3J0ZWQifSwidmVyaWZpZXJfcnVucyI6W119fSwicHJvdmVuYW5jZSI6eyJlbWl0dGVkX2F0IjoiMjAyNi0wNy0xM1QxMjozNDo1NloiLCJnZW5lcmF0ZWRfYnkiOiJ2ZWxhLWRlY2lzaW9uLWJyaWVmLWZvcmVpZ24tZml4dHVyZSIsInN1Ym1pdHRlciI6eyJhY3RvciI6ImFnZW50OmZvcmVpZ24tcmVjZWlwdC1maXh0dXJlIn19LCJyb19jcmF0ZSI6bnVsbCwic2NoZW1hIjoidmVsYS5yZWNlaXB0LnByZWRpY2F0ZS52MSIsInNpZ25hdHVyZV9pZGVudGl0aWVzIjp7InByb2R1Y2VyIjp7Im1lY2hhbmlzbSI6InNpZ3N0b3JlX2tleWxlc3Nfb2lkYyIsIm5vdGUiOiJQcm9kdWNlciBpZGVudGl0eSBkZWNsYXJhdGlvbiBvbmx5OyBubyBzaWduYXR1cmUgb3IgYWNjZXB0YW5jZSBhdXRob3JpdHkgaXMgaW5mZXJyZWQuIiwicm9sZSI6InByb2R1Y2VyIiwic2lnbmF0dXJlUmVmIjpudWxsLCJzdWJqZWN0IjoiYWdlbnQ6Zm9yZWlnbi1yZWNlaXB0LWZpeHR1cmUifX0sInZlbGE6cmVjZWlwdF9ib2R5Ijp7InNoYTI1NiI6IjY3ZGFlMWZkNmQwYTA4YzIxZGM5MWFiZTQxNmJiYjY2MmQ3ZDNiZTEzOGE0ZWE0NGQ0N2U2ZmYwZDc1MjcwMjkifX0sInByZWRpY2F0ZVR5cGUiOiJodHRwczovL3ZlbGEuc2NpZW5jZS9yZWNlaXB0L3YxIiwic3ViamVjdCI6W3siZGlnZXN0Ijp7InNoYTI1NiI6ImFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWEifSwibmFtZSI6IndpdG5lc3Nlcy9yaWNoLWRpc3RpbGxhdGlvbi5qc29uIn0seyJkaWdlc3QiOnsic2hhMjU2IjoiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYiJ9LCJuYW1lIjoiZGlzdGlsbGF0aW9ucy9yZXZpZXdlci1ub3RlLm1kIn1dfQ==",
+      "payloadType": "application/vnd.in-toto+json",
+      "signatures": []
+    },
+    "format": "in-toto-statement",
+    "prov": {
+      "activity": {
+        "activity:vf_decision_brief_rich_distillation": {
+          "prov:startedAtTime": "2026-07-13T12:34:56Z",
+          "prov:type": "vela:receipt-v1-emission"
+        }
+      },
+      "agent": {
+        "agent:agent:foreign-receipt-fixture": {
+          "prov:type": "prov:SoftwareAgent"
+        }
+      },
+      "entity": {
+        "artifact:distillations/reviewer-note.md": {
+          "prov:type": "vela:artifact",
+          "vela:kind": "distillation",
+          "vela:sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        },
+        "artifact:witnesses/rich-distillation.json": {
+          "prov:type": "vela:artifact",
+          "vela:kind": "witness",
+          "vela:sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "claim": {
+          "prov:type": "vela:claim",
+          "vela:claim": "A replayable derivation is accompanied by a reviewer-oriented distillation."
+        },
+        "distillation": {
+          "prov:location": "distillations/reviewer-note.md",
+          "prov:type": "vela:distillation",
+          "vela:sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        }
+      },
+      "prefix": {
+        "prov": "http://www.w3.org/ns/prov#",
+        "vela": "https://vela.science/ns#"
+      },
+      "wasAssociatedWith": {
+        "_:assoc0": {
+          "prov:activity": "activity:vf_decision_brief_rich_distillation",
+          "prov:agent": "agent:agent:foreign-receipt-fixture"
+        }
+      },
+      "wasGeneratedBy": {
+        "_:gen0": {
+          "prov:activity": "activity:vf_decision_brief_rich_distillation",
+          "prov:entity": "claim"
+        }
+      }
+    },
+    "ro_crate": null,
+    "statement": {
+      "_type": "https://in-toto.io/Statement/v1",
+      "predicate": {
+        "acceptance": {
+          "acceptance_scope": "hypothesis_only",
+          "acceptor": null,
+          "artifact_verification": {
+            "authority": "producer",
+            "status": "not_assessed"
+          },
+          "claim_acceptance": {
+            "accepted_by": null,
+            "authority": "producer",
+            "status": "not_assessed"
+          },
+          "distillation_acceptance": {
+            "accepted_by": null,
+            "status": "not_assessed"
+          },
+          "evidenceLevel": null,
+          "evidenceRefs": [],
+          "mechanism": "accountable_scientific_steward_signoff",
+          "policyRef": "urn:vela:policy:none",
+          "profile": "producer.emission.v1"
+        },
+        "contributors": [
+          {
+            "author": false,
+            "credit_taxonomy": "CRediT+Vela",
+            "id": "agent:foreign-receipt-fixture",
+            "note": "Origin identity only; not scientific acceptance.",
+            "roles": [
+              "machine_producer",
+              "software"
+            ]
+          },
+          {
+            "author": true,
+            "credit_taxonomy": "CRediT+Vela",
+            "id": "researcher:fixture-distiller",
+            "note": "Authored the draft distillation; did not accept the scientific claim.",
+            "roles": [
+              "human_distiller",
+              "writing_original_draft"
+            ]
+          }
+        ],
+        "distillation": {
+          "accepted_by": null,
+          "audience": "frontier reviewer",
+          "comprehension_budget": "one page",
+          "digest": {
+            "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          },
+          "inheritance_note": "Consumers inherit the pointer and digest, not inline prose.",
+          "known_gaps": [
+            "Independent replay has not yet been attached."
+          ],
+          "level": "review note",
+          "rubric": "statement faithful, caveated, replay command present",
+          "signature_refs": [],
+          "status": "draft",
+          "uri": "distillations/reviewer-note.md"
+        },
+        "lineage": {
+          "derived_from": [],
+          "parents": [],
+          "source_refs": [
+            "urn:source:rich-distillation"
+          ],
+          "supersedes": []
+        },
+        "machine": {
+          "claim": {
+            "id": "vf_decision_brief_rich_distillation",
+            "text": "A replayable derivation is accompanied by a reviewer-oriented distillation.",
+            "type": "computational"
+          },
+          "subject": [
+            {
+              "digest": {
+                "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+              },
+              "name": "witnesses/rich-distillation.json"
+            },
+            {
+              "digest": {
+                "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+              },
+              "name": "distillations/reviewer-note.md"
+            }
+          ],
+          "verification": {
+            "dependency_lock": {},
+            "status": "not_assessed",
+            "trust_base": {
+              "authority": "producer",
+              "kind": "producer_reported"
+            },
+            "verifier_runs": []
+          }
+        },
+        "provenance": {
+          "emitted_at": "2026-07-13T12:34:56Z",
+          "generated_by": "vela-decision-brief-foreign-fixture",
+          "submitter": {
+            "actor": "agent:foreign-receipt-fixture"
+          }
+        },
+        "ro_crate": null,
+        "schema": "vela.receipt.predicate.v1",
+        "signature_identities": {
+          "producer": {
+            "mechanism": "sigstore_keyless_oidc",
+            "note": "Producer identity declaration only; no signature or acceptance authority is inferred.",
+            "role": "producer",
+            "signatureRef": null,
+            "subject": "agent:foreign-receipt-fixture"
+          }
+        },
+        "vela:receipt_body": {
+          "sha256": "67dae1fd6d0a08c21dc91abe416bbb662d7d3be138a4ea44d47e6ff0d7527029"
+        }
+      },
+      "predicateType": "https://vela.science/receipt/v1",
+      "subject": [
+        {
+          "digest": {
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          "name": "witnesses/rich-distillation.json"
+        },
+        {
+          "digest": {
+            "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          },
+          "name": "distillations/reviewer-note.md"
+        }
+      ]
+    }
+  },
+  "caveats": [
+    "The distillation remains a draft and does not confer scientific acceptance."
+  ],
+  "claim": "A replayable derivation is accompanied by a reviewer-oriented distillation.",
+  "claim_id": "vf_decision_brief_rich_distillation",
+  "conditions": [],
+  "contributors": [
+    {
+      "author": false,
+      "credit_taxonomy": "CRediT+Vela",
+      "id": "agent:foreign-receipt-fixture",
+      "note": "Origin identity only; not scientific acceptance.",
+      "roles": [
+        "machine_producer",
+        "software"
+      ]
+    },
+    {
+      "author": true,
+      "credit_taxonomy": "CRediT+Vela",
+      "id": "researcher:fixture-distiller",
+      "note": "Authored the draft distillation; did not accept the scientific claim.",
+      "roles": [
+        "human_distiller",
+        "writing_original_draft"
+      ]
+    }
+  ],
+  "distillation": {
+    "accepted_by": null,
+    "audience": "frontier reviewer",
+    "comprehension_budget": "one page",
+    "digest": {
+      "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    },
+    "inheritance_note": "Consumers inherit the pointer and digest, not inline prose.",
+    "known_gaps": [
+      "Independent replay has not yet been attached."
+    ],
+    "level": "review note",
+    "rubric": "statement faithful, caveated, replay command present",
+    "signature_refs": [],
+    "status": "draft",
+    "uri": "distillations/reviewer-note.md"
+  },
+  "environment": {
+    "runtime": {
+      "name": "foreign-receipt-fixture",
+      "version": "1"
+    }
+  },
+  "lineage": {
+    "derived_from": [],
+    "parents": [],
+    "source_refs": [
+      "urn:source:rich-distillation"
+    ],
+    "supersedes": []
+  },
+  "machine": {
+    "claim": {
+      "id": "vf_decision_brief_rich_distillation",
+      "text": "A replayable derivation is accompanied by a reviewer-oriented distillation.",
+      "type": "computational"
+    },
+    "subject": [
+      {
+        "digest": {
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "name": "witnesses/rich-distillation.json"
+      },
+      {
+        "digest": {
+          "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        },
+        "name": "distillations/reviewer-note.md"
+      }
+    ],
+    "verification": {
+      "dependency_lock": {},
+      "status": "not_assessed",
+      "trust_base": {
+        "authority": "producer",
+        "kind": "producer_reported"
+      },
+      "verifier_runs": []
+    }
+  },
+  "provenance": {
+    "emitted_at": "2026-07-13T12:34:56Z",
+    "generated_by": "vela-decision-brief-foreign-fixture",
+    "submitter": {
+      "actor": "agent:foreign-receipt-fixture"
+    }
+  },
+  "replayability": "exact",
+  "schema": "vela.receipt.v1",
+  "signature_identities": {
+    "producer": {
+      "mechanism": "sigstore_keyless_oidc",
+      "note": "Producer identity declaration only; no signature or acceptance authority is inferred.",
+      "role": "producer",
+      "signatureRef": null,
+      "subject": "agent:foreign-receipt-fixture"
+    }
+  },
+  "state_diff": {},
+  "status": {
+    "authority": "producer",
+    "evidence_status": "proposed",
+    "kind": "emitted",
+    "note": "Receipt-v1 separates machine verification, human acceptance, and distillation acceptance.",
+    "scope": {
+      "acceptance_scope": "hypothesis_only",
+      "accepted_by": null
+    }
+  },
+  "type": "computational",
+  "verification_requirements": [],
+  "verifier_runs": []
+}

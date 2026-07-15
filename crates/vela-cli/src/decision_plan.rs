@@ -2811,6 +2811,33 @@ mod tests {
     }
 
     #[test]
+    fn after_key_read_before_marker_leaves_no_decision_or_journal_delta() {
+        let (temp, key, answer) = decision_fixture();
+        let confirmed =
+            build_unlocked(temp.path(), &[answer], "reviewer:test", DECIDED_AT, None).unwrap();
+        let managed_before = managed_projection(temp.path());
+        let journal_dir = crate::workflow::frontier_transaction_journal_dir(temp.path()).unwrap();
+        let journals_before = snapshot_file_tree(&journal_dir);
+        let key_reads = Cell::new(0usize);
+
+        set_executor_failpoint(Some(DecisionExecutorStep::AfterKeyRead));
+        let error = execute_with_key_loader(temp.path(), &confirmed, || {
+            key_reads.set(key_reads.get() + 1);
+            Ok(key.clone())
+        })
+        .unwrap_err();
+        set_executor_failpoint(None);
+
+        assert_eq!(error.code, "injected_failure");
+        assert_eq!(key_reads.get(), 1);
+        assert_eq!(managed_projection(temp.path()), managed_before);
+        assert_eq!(snapshot_file_tree(&journal_dir), journals_before);
+        let project = vela_protocol::repo::load_from_path(temp.path()).unwrap();
+        assert!(project.events.is_empty());
+        assert_eq!(project.proposals[0].status, "pending_review");
+    }
+
+    #[test]
     fn read_only_preview_leaves_an_outstanding_prepared_journal_byte_exact() {
         let (temp, key, answer) = decision_fixture();
         let confirmed = build_unlocked(

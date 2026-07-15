@@ -6,15 +6,24 @@ use vela_edge::decision_brief::{
     DecisionBrief, DecisionBriefInput, ReceiptMaterial, ReviewPolicyFacts, ReviewRoute,
     build_decision_brief,
 };
+use vela_protocol::bundle::Link;
+use vela_protocol::contradiction::Contradiction;
 use vela_protocol::events::{self, StateTarget};
+use vela_protocol::identity::{ActorClass, IdentityBinding};
 use vela_protocol::project::{self, Project};
 use vela_protocol::proposals;
 use vela_protocol::proposals::policy_accept::{PermitReadiness, PolicyState};
+use vela_protocol::receipt_v1::{
+    ArtifactInput, ProducerReportedRun, ReceiptBuilder, ReceiptInput, ReceiptV1,
+};
 use vela_protocol::test_support::{make_finding, make_project};
 
 const OBSERVED_AT: &str = "2026-07-13T13:00:00Z";
 const CREATED_AT: &str = "2026-07-13T12:35:00Z";
 const FIXTURE_ACTOR: &str = "agent:decision-brief-fixture";
+const RECEIPT_ACTOR: &str = "agent:decision-brief-test";
+const RECEIPT_OPERATION_ID: &str =
+    "vop_cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc";
 
 fn absent_policy_facts() -> ReviewPolicyFacts<'static> {
     ReviewPolicyFacts::new(PolicyState::Absent, PermitReadiness::HumanOnly, &[], None)
@@ -71,6 +80,127 @@ fn install_proposal(
     let id = proposal.id.clone();
     project.proposals.push(proposal);
     id
+}
+
+fn frozen_receipt_identity() -> IdentityBinding {
+    // Public test vector copied from the protocol's Receipt builder tests.
+    // The Decision Brief builder receives only the validated Receipt; no key
+    // or signing capability is present on its review path.
+    IdentityBinding {
+        schema: "vela.identity_binding.v0.1".to_string(),
+        binding_id: "vib_7067542ae284b71a".to_string(),
+        actor_id: RECEIPT_ACTOR.to_string(),
+        actor_class: ActorClass::Agent,
+        public_key_hex: "fd1724385aa0c75b64fb78cd602fa1d991fdebf76b13c58ed702eac835e9f618"
+            .to_string(),
+        created_at: "2026-07-13T12:00:00Z".to_string(),
+        signature: "cb5dda1a80e38de6b023f1ddc9346d77dc112d1fa38c61512b10057822432908a076bd08509e965b927dd6a0d04f83e9f952a78cf5a5b762bacc574b06bf2b05"
+            .to_string(),
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn receipt_bound_brief(
+    mut project: Project,
+    proposal_kind: &str,
+    target: &str,
+    claim: &str,
+    claim_type: &str,
+    replayability: &str,
+    artifacts: Vec<ArtifactInput>,
+    caveats: Vec<String>,
+    producer_runs: Vec<ProducerReportedRun>,
+    route_code: &str,
+    route_detail: &str,
+) -> DecisionBrief {
+    let event_log_root = format!(
+        "sha256:{}",
+        vela_protocol::events::event_log_hash(&project.events)
+    );
+    let receipt = ReceiptBuilder::build(
+        ReceiptInput::new(
+            claim.to_string(),
+            claim_type.to_string(),
+            replayability.to_string(),
+            artifacts,
+            caveats.clone(),
+            producer_runs,
+            RECEIPT_ACTOR.to_string(),
+            "2026-07-13T12:34:56Z".to_string(),
+            event_log_root,
+            ".".to_string(),
+            RECEIPT_OPERATION_ID.to_string(),
+            "urn:vela:policy:none".to_string(),
+        )
+        .unwrap(),
+        &frozen_receipt_identity(),
+    )
+    .unwrap();
+    receipt_bound_brief_from_receipt(
+        &mut project,
+        proposal_kind,
+        target,
+        claim,
+        claim_type,
+        caveats,
+        receipt,
+        route_code,
+        route_detail,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn receipt_bound_brief_from_receipt(
+    project: &mut Project,
+    proposal_kind: &str,
+    target: &str,
+    claim: &str,
+    claim_type: &str,
+    caveats: Vec<String>,
+    receipt: ReceiptV1,
+    route_code: &str,
+    route_detail: &str,
+) -> DecisionBrief {
+    let receipt_root = receipt.canonical_root().unwrap();
+    let receipt_digest = receipt_root.strip_prefix("sha256:").unwrap();
+    let proposal = proposals::new_proposal_at(
+        proposal_kind,
+        StateTarget {
+            r#type: "finding".to_string(),
+            id: target.to_string(),
+        },
+        RECEIPT_ACTOR,
+        "agent",
+        "route adversarial evidence to a human reviewer",
+        json!({
+            "finding": finding_value(target, claim_type, claim),
+            "vela_submission": {
+                "schema": "vela.submission-links.internal.v1",
+                "receipt_root": receipt_root,
+                "receipt_path": format!("records/receipts/sha256/{receipt_digest}.json"),
+                "record_id": format!("vrc_{receipt_digest}"),
+                "operation_id": RECEIPT_OPERATION_ID,
+            }
+        }),
+        vec!["urn:source:adversarial-review".to_string()],
+        caveats,
+        CREATED_AT,
+    );
+    let proposal_id = proposal.id.clone();
+    project.proposals.push(proposal);
+
+    build_decision_brief(
+        project,
+        DecisionBriefInput {
+            proposal_id: &proposal_id,
+            receipt: ReceiptMaterial::from_receipt(&receipt),
+            route: ReviewRoute::human_only(absent_policy_facts(), route_code, route_detail),
+            observed_at: OBSERVED_AT,
+            replay_ok: true,
+            publication: None,
+        },
+    )
+    .unwrap()
 }
 
 fn ordinary_brief() -> DecisionBrief {
@@ -230,12 +360,235 @@ fn restricted_evidence_brief() -> DecisionBrief {
     .unwrap()
 }
 
-fn generated_cases() -> [(&'static str, DecisionBrief); 4] {
-    [
+fn build_statement_fidelity_brief() -> DecisionBrief {
+    let target = "vf_decision_brief_build_statement_fidelity";
+    let claim = "The Lean theorem faithfully formalizes the intended informal statement.";
+    receipt_bound_brief(
+        fixed_project("Decision brief build versus statement fixture", vec![]),
+        "finding.note",
+        target,
+        claim,
+        "theoretical",
+        "exact",
+        vec![
+            ArtifactInput::new(
+                "proofs/fidelity.olean".to_string(),
+                "proof".to_string(),
+                Some("8".repeat(64)),
+                None,
+            )
+            .unwrap(),
+        ],
+        vec![
+            "A passing kernel build establishes type checking, not fidelity to the intended informal statement."
+                .to_string(),
+        ],
+        vec![
+            ProducerReportedRun::producer_reported(
+                "lean build --frozen".to_string(),
+                "pass".to_string(),
+            )
+            .unwrap(),
+        ],
+        "statement_fidelity_requires_human_review",
+        "theoretical statement fidelity has no independent attestation",
+    )
+}
+
+fn vacuity_tautology_brief() -> DecisionBrief {
+    let target = "vf_decision_brief_vacuity";
+    let formalization_ref = "vlv_vacuity_probe";
+    let claim = "The formal theorem establishes the intended conditional claim.";
+    let mut existing = make_finding(target, 0.3, "theoretical");
+    existing.assertion.text = claim.to_string();
+    let mut project = fixed_project("Decision brief vacuity fixture", vec![existing]);
+    project
+        .contradictions
+        .push(Contradiction::from_misformalization(
+            project.frontier_id.as_deref().unwrap(),
+            target,
+            formalization_ref,
+            "The adversarial probe proved only x = x and used none of the intended hypotheses.",
+        ));
+
+    receipt_bound_brief(
+        project,
+        "finding.note",
+        target,
+        claim,
+        "theoretical",
+        "exact",
+        vec![
+            ArtifactInput::new(
+                "proofs/vacuity.olean".to_string(),
+                "proof".to_string(),
+                Some("9".repeat(64)),
+                None,
+            )
+            .unwrap(),
+        ],
+        vec![
+            "The current proof closes x = x without using the hypotheses of the intended theorem."
+                .to_string(),
+        ],
+        vec![
+            ProducerReportedRun::producer_reported(
+                "lean build --frozen".to_string(),
+                "pass".to_string(),
+            )
+            .unwrap(),
+        ],
+        "misformalization_candidate_requires_human_review",
+        "a vacuity probe raised an unadjudicated formalism-fidelity contradiction",
+    )
+}
+
+fn producer_trusting_partial_verifier_brief() -> DecisionBrief {
+    let target = "vf_decision_brief_partial_verifier";
+    let claim = "The submitted result has been independently recomputed.";
+    receipt_bound_brief(
+        fixed_project("Decision brief partial verifier fixture", vec![]),
+        "finding.note",
+        target,
+        claim,
+        "computational",
+        "bounded",
+        vec![
+            ArtifactInput::new(
+                "witnesses/partial-check.json".to_string(),
+                "witness".to_string(),
+                Some("a".repeat(64)),
+                None,
+            )
+            .unwrap(),
+        ],
+        vec![
+            "The producer check trusts producer-supplied inputs and does not independently recompute the result."
+                .to_string(),
+        ],
+        vec![
+            ProducerReportedRun::producer_reported(
+                "producer.partial-check --trust-inputs".to_string(),
+                "pass".to_string(),
+            )
+            .unwrap(),
+        ],
+        "independent_verification_requires_human_review",
+        "producer-reported partial verification is not a durable independent verifier attachment",
+    )
+}
+
+fn contradiction_blast_radius_brief() -> DecisionBrief {
+    let target = "vf_decision_brief_blast_target";
+    let counter = "vf_decision_brief_blast_counter";
+    let claim = "The target claim should remain active while its contradiction is reviewed.";
+    let mut target_finding = make_finding(target, 0.3, "computational");
+    target_finding.assertion.text = claim.to_string();
+    let mut counter_finding = make_finding(counter, 0.3, "computational");
+    counter_finding.assertion.text =
+        "A reproducible counterexample refutes the target claim.".to_string();
+    let dependent = |id: &str| {
+        let mut finding = make_finding(id, 0.3, "computational");
+        finding.links.push(Link {
+            target: target.to_string(),
+            link_type: "depends".to_string(),
+            note: "This result inherits the target claim.".to_string(),
+            inferred_by: "vela/decision-brief-fixture.v1".to_string(),
+            created_at: CREATED_AT.to_string(),
+            mechanism: None,
+        });
+        finding
+    };
+    let mut project = fixed_project(
+        "Decision brief contradiction blast-radius fixture",
+        vec![
+            target_finding,
+            counter_finding,
+            dependent("vf_decision_brief_dependent_one"),
+            dependent("vf_decision_brief_dependent_two"),
+        ],
+    );
+    project.contradictions.push(Contradiction::candidate(
+        project.frontier_id.as_deref().unwrap(),
+        target,
+        counter,
+        "The counter-finding reports a reproducible result incompatible with the target.",
+    ));
+    let proposal_id = install_proposal(
+        &mut project,
+        "finding.note",
+        target,
+        json!({"finding": finding_value(target, "computational", claim)}),
+        vec!["urn:source:counterexample".to_string()],
+        vec!["The contradiction remains unadjudicated.".to_string()],
+        "record the unresolved contradiction and its downstream exposure",
+    );
+
+    build_decision_brief(
+        &project,
+        DecisionBriefInput {
+            proposal_id: &proposal_id,
+            receipt: ReceiptMaterial::missing("receipt_not_applicable"),
+            route: ReviewRoute::human_only(
+                absent_policy_facts(),
+                "open_contradiction_requires_human_review",
+                "the contradiction and downstream blast radius require explicit review",
+            ),
+            observed_at: OBSERVED_AT,
+            replay_ok: true,
+            publication: None,
+        },
+    )
+    .unwrap()
+}
+
+fn rich_distillation_contributors_brief() -> DecisionBrief {
+    let target = "vf_decision_brief_rich_distillation";
+    let claim = "A replayable derivation is accompanied by a reviewer-oriented distillation.";
+    let input_path = fixture_dir()
+        .join("inputs")
+        .join("rich-distillation-contributors.receipt.json");
+    let receipt_bytes = std::fs::read(&input_path)
+        .unwrap_or_else(|error| panic!("read {}: {error}", input_path.display()));
+    let receipt = ReceiptV1::parse(&receipt_bytes)
+        .unwrap_or_else(|error| panic!("parse {}: {error}", input_path.display()));
+    let mut project = fixed_project("Decision brief rich distillation fixture", vec![]);
+    receipt_bound_brief_from_receipt(
+        &mut project,
+        "finding.note",
+        target,
+        claim,
+        "computational",
+        vec![
+            "The distillation remains a draft and does not confer scientific acceptance."
+                .to_string(),
+        ],
+        receipt,
+        "draft_distillation_requires_human_review",
+        "the attributed draft helps review but carries no acceptance authority",
+    )
+}
+
+fn generated_cases() -> Vec<(&'static str, DecisionBrief)> {
+    vec![
         ("ordinary", ordinary_brief()),
         ("critical-warning", critical_warning_brief()),
         ("missing", missing_brief()),
         ("restricted-evidence", restricted_evidence_brief()),
+        ("build-statement-fidelity", build_statement_fidelity_brief()),
+        ("vacuity-tautology", vacuity_tautology_brief()),
+        (
+            "producer-trusting-partial-verifier",
+            producer_trusting_partial_verifier_brief(),
+        ),
+        (
+            "contradiction-blast-radius",
+            contradiction_blast_radius_brief(),
+        ),
+        (
+            "rich-distillation-contributors",
+            rich_distillation_contributors_brief(),
+        ),
     ]
 }
 
@@ -266,6 +619,26 @@ fn frozen_roots(name: &str) -> (&'static str, &'static str) {
         "restricted-evidence" => (
             "sha256:c61aa27cae344de6665ba25f99e1f2bc687c50b7f6646eaf477158d8500ff317",
             "sha256:5adad5b602c48436de8f2e1f0a4fceac06f69305999b743dbeb3d83c74a76c81",
+        ),
+        "build-statement-fidelity" => (
+            "sha256:48042cc6c59aeff61ccfa05a67f123ba887d9419ad87ce9eac4042a7b3038d62",
+            "sha256:3e28cd464771147a2e89092382396321df831fe838bdff891a015620b59c725f",
+        ),
+        "vacuity-tautology" => (
+            "sha256:74eae573086c6d1bd4b050ae4cbcca9d66e6192acb4c1f7955801e3f0620f9be",
+            "sha256:39567fc65f80a9a33d0f724193067016825a2d2ae82500f05d17b6653ec7515a",
+        ),
+        "producer-trusting-partial-verifier" => (
+            "sha256:209804dc49c48f0122961228f0174bede762214ef8b8e4657df3e2c9daea70ce",
+            "sha256:7f432dbde8e331a4aac4c976286e18733cfbd3c4d1b68bbf95ec5e573ca70b76",
+        ),
+        "contradiction-blast-radius" => (
+            "sha256:26bf05ec170724f30fe3a4ab42763385bdb75beaffab5d38fa8ae87193fd58a9",
+            "sha256:8d8f9f8a05bc6be3c9b741d221d37c12c2329fda39955b65ae5a13b9bd7843e0",
+        ),
+        "rich-distillation-contributors" => (
+            "sha256:ef999f2ccd71ac32d57992186a91bc11a59e45d7807dfded6b0530ece0c5c10a",
+            "sha256:a30bdd8e87ef4bf315dde031f03c1ebd5646952d59f086fed2d43478a8e16e53",
         ),
         other => panic!("no frozen roots for {other}"),
     }
@@ -494,6 +867,139 @@ fn golden_cases_cover_critical_missing_and_restricted_evidence() {
         json!("audit.raw_references[1]")
     );
     assert_eq!(restricted["authority"]["route"], json!("defer"));
+}
+
+#[test]
+fn adversarial_cases_expose_the_review_facts_without_inventing_authority() {
+    let load = |name: &str| -> Value {
+        let path = fixture_dir().join(format!("{name}.json"));
+        serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap()
+    };
+
+    let fidelity = load("build-statement-fidelity");
+    assert_eq!(
+        fidelity["facets"]["formal_fidelity"]["critical"],
+        json!(true)
+    );
+    assert_eq!(
+        fidelity["facets"]["formal_fidelity"]["data"]["statement_attestations"],
+        json!([])
+    );
+    assert_eq!(
+        fidelity["basis"]["check_state"]["producer_reported"],
+        json!([{
+            "method": "lean build --frozen",
+            "outcome": "pass",
+            "authority": "producer",
+        }])
+    );
+
+    let vacuity = load("vacuity-tautology");
+    assert_eq!(vacuity["facets"]["challenge"]["critical"], json!(true));
+    assert_eq!(
+        vacuity["facets"]["challenge"]["data"]["open_contradictions"][0]["other_subject"],
+        json!("vlv_vacuity_probe")
+    );
+    assert!(
+        vacuity["impact"]["critical_warnings"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|warning| warning["code"] == json!("active_challenge"))
+    );
+
+    let partial = load("producer-trusting-partial-verifier");
+    assert_eq!(
+        partial["basis"]["check_state"]["producer_reported"][0],
+        json!({
+            "method": "producer.partial-check --trust-inputs",
+            "outcome": "pass",
+            "authority": "producer",
+        })
+    );
+    assert_eq!(
+        partial["basis"]["check_state"]["durable_verifier_count"],
+        json!(0)
+    );
+    assert_eq!(
+        partial["basis"]["check_state"]["gate_status"],
+        json!("needs_verification")
+    );
+
+    let contradiction = load("contradiction-blast-radius");
+    assert_eq!(
+        contradiction["facets"]["challenge"]["data"]["open_contradictions"][0]["other_subject"],
+        json!("vf_decision_brief_blast_counter")
+    );
+    assert_eq!(
+        contradiction["impact"]["downstream_effect"]["downstream_dependents"],
+        json!(2)
+    );
+    assert_eq!(
+        contradiction["facets"]["challenge"]["critical"],
+        json!(true)
+    );
+
+    let rich = load("rich-distillation-contributors");
+    assert_eq!(rich["facets"]["distillation"]["critical"], json!(false));
+    assert_eq!(
+        rich["facets"]["distillation"]["data"]["status"],
+        json!("draft")
+    );
+    assert_eq!(
+        rich["facets"]["distillation"]["data"]["known_gaps"],
+        json!(["Independent replay has not yet been attached."])
+    );
+    assert_eq!(
+        rich["facets"]["contributor_roles"]["data"]
+            .as_array()
+            .unwrap()
+            .len(),
+        2
+    );
+    assert_eq!(
+        rich["facets"]["contributor_roles"]["data"][1]["roles"],
+        json!(["human_distiller", "writing_original_draft"])
+    );
+    assert_eq!(rich["authority"]["route"], json!("defer"));
+}
+
+#[test]
+fn adversarial_fixtures_publish_one_concrete_reviewer_question_each() {
+    let path = fixture_dir().join("reviewer-questions.json");
+    let questions: Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+    assert_eq!(
+        questions,
+        json!([
+            {
+                "fixture": "build-statement-fidelity",
+                "question": "Does the passing Lean build establish the intended informal statement, or is statement-faithfulness evidence still missing?"
+            },
+            {
+                "fixture": "vacuity-tautology",
+                "question": "Does the formal result use the intended hypotheses and establish a non-vacuous claim, or only a tautology?"
+            },
+            {
+                "fixture": "producer-trusting-partial-verifier",
+                "question": "Did an independent durable verifier recompute the result, or is this only a producer-reported partial check that trusts its inputs?"
+            },
+            {
+                "fixture": "contradiction-blast-radius",
+                "question": "Which live contradiction is unresolved, and how many downstream findings could be affected if this target changes?"
+            },
+            {
+                "fixture": "rich-distillation-contributors",
+                "question": "Is the distillation complete enough for this audience, what gaps remain, and who contributed in which roles without implying acceptance authority?"
+            }
+        ])
+    );
+    for item in questions.as_array().unwrap() {
+        let fixture = item["fixture"].as_str().unwrap();
+        assert!(
+            fixture_dir().join(format!("{fixture}.json")).is_file(),
+            "reviewer question has no frozen Decision Brief fixture: {fixture}"
+        );
+    }
 }
 
 #[test]

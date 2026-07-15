@@ -1,0 +1,253 @@
+{
+  "schema": "vela.decision-brief.testing.v1",
+  "stability": "testing",
+  "change": {
+    "subject": {
+      "type": "finding",
+      "id": "vf_decision_brief_vacuity"
+    },
+    "fixed_base": {
+      "event_log_root": "sha256:ec0cbc11c0d82102a254a84f43bc69cb9be810588b241a38afcd1731c4d22b44",
+      "receipt_event_log_root": "sha256:ec0cbc11c0d82102a254a84f43bc69cb9be810588b241a38afcd1731c4d22b44"
+    },
+    "claim": "The formal theorem establishes the intended conditional claim.",
+    "before": {
+      "id": "vf_decision_brief_vacuity",
+      "type": "theoretical",
+      "text": "The formal theorem establishes the intended conditional claim."
+    },
+    "after": {
+      "id": "vf_decision_brief_vacuity",
+      "type": "theoretical",
+      "text": "The formal theorem establishes the intended conditional claim."
+    },
+    "requested_action": "finding.note"
+  },
+  "basis": {
+    "primary_evidence_roots": [
+      {
+        "kind": "receipt",
+        "root": "sha256:f09b9c9dc1308ef575a782eec56ca61e4f3ba18bae14f105e1513c89ce6eabe3"
+      },
+      {
+        "kind": "artifact_set",
+        "root": "sha256:2edc7ee03f60bec34493bc7fb4e55cd0f818c15210867fa15cda9e99399d0628"
+      },
+      {
+        "kind": "durable_verifier_snapshot",
+        "root": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      }
+    ],
+    "check_state": {
+      "gate_status": "needs_verification",
+      "gate_reasons": [
+        "G1: need >=2 matched independent attachments, have 0",
+        "G3: no surviving adversarial probe attached (need >=1)"
+      ],
+      "durable_verifier_count": 0,
+      "durable_verifier_snapshot_root": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "engine_status": null,
+      "engine_new_blocking": [],
+      "engine_new_warnings": [],
+      "producer_reported": [
+        {
+          "method": "lean build --frozen",
+          "outcome": "pass",
+          "authority": "producer"
+        }
+      ]
+    },
+    "main_caveat": "The current proof closes x = x without using the hypotheses of the intended theorem.",
+    "attributed_interpretation": {
+      "actor": "agent:decision-brief-test",
+      "authority": "producer",
+      "text": "The formal theorem establishes the intended conditional claim."
+    }
+  },
+  "impact": {
+    "downstream_effect": {
+      "changed_findings": 1,
+      "downstream_dependents": 0,
+      "impact_tier": 3
+    },
+    "correction_path": {
+      "while_pending": [
+        "reject"
+      ],
+      "after_acceptance": [
+        "finding.retract",
+        "finding.supersede"
+      ]
+    },
+    "critical_warnings": [
+      {
+        "code": "active_challenge",
+        "reference": "vf_decision_brief_vacuity"
+      }
+    ]
+  },
+  "authority": {
+    "frontier": {
+      "id": "vfr_4665ad543064e160",
+      "name": "Decision brief vacuity fixture"
+    },
+    "route": "defer",
+    "scope": "hypothesis_only",
+    "why_human": [
+      "a vacuity probe raised an unadjudicated formalism-fidelity contradiction"
+    ],
+    "actions": [
+      {
+        "action": "accept",
+        "eligibility": "available",
+        "reasons": []
+      },
+      {
+        "action": "reject",
+        "eligibility": "available",
+        "reasons": []
+      }
+    ]
+  },
+  "audit": {
+    "observed_at": "2026-07-13T13:00:00Z",
+    "proposal_id": "vpr_0b759b3719438d2a",
+    "proposal_root": "sha256:6692def23e5a7af6ea038990be58456a108b02eb3f28fb6a34fc16d2532ce40b",
+    "decision_facts_root": "sha256:39567fc65f80a9a33d0f724193067016825a2d2ae82500f05d17b6653ec7515a",
+    "receipt_root": "sha256:f09b9c9dc1308ef575a782eec56ca61e4f3ba18bae14f105e1513c89ce6eabe3",
+    "declared_receipt_root": "sha256:f09b9c9dc1308ef575a782eec56ca61e4f3ba18bae14f105e1513c89ce6eabe3",
+    "artifact_root": "sha256:2edc7ee03f60bec34493bc7fb4e55cd0f818c15210867fa15cda9e99399d0628",
+    "policy_input_root": "sha256:71cab68259c492306d4b55462c60fff1b5b7942dd3bef73c9742f36b06a648e5",
+    "policy_result_root": "sha256:4f6d85e5d83bf14abb97d8641cabf23ae7763612a0fe8f691245df4e402a8e2d",
+    "publication_root": null,
+    "raw_references_root": "sha256:9cbd4d98db62c20f2399ec78c529e02392bd11a7c97f59a7fa7277817d4ab9bc",
+    "raw_references": [
+      "proofs/vacuity.olean",
+      "records/receipts/sha256/f09b9c9dc1308ef575a782eec56ca61e4f3ba18bae14f105e1513c89ce6eabe3.json",
+      "urn:source:adversarial-review"
+    ],
+    "raw_references_truncated": 0,
+    "missing_root": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "missing_truncated": 0,
+    "truncations": []
+  },
+  "missing": [],
+  "facets": {
+    "challenge": {
+      "schema": "vela.decision-brief.facet.challenge.testing.v1",
+      "critical": true,
+      "full_root": "sha256:0c19e6f48a7c161381c21374c42ab2e245d04606137e3ab6ab9767b34207f598",
+      "truncated": false,
+      "data": {
+        "open_contradictions": [
+          {
+            "adjudicated": false,
+            "id": "vcx_264f64538f61817c",
+            "other_subject": "vlv_vacuity_probe"
+          }
+        ],
+        "supersedes": [],
+        "target_contested": false,
+        "target_superseded": false
+      }
+    },
+    "contributor_roles": {
+      "schema": "vela.decision-brief.facet.contributor-roles.testing.v1",
+      "critical": false,
+      "full_root": "sha256:734f4b5ff9f1ec1818971ce9b5f4590eebdfb904ceeeac209e9cb68158e9db59",
+      "truncated": false,
+      "data": [
+        {
+          "author": false,
+          "id": "agent:decision-brief-test",
+          "note": "Origin identity only; not scientific acceptance.",
+          "roles": [
+            "machine_producer"
+          ]
+        }
+      ]
+    },
+    "distillation": {
+      "schema": "vela.decision-brief.facet.distillation.testing.v1",
+      "critical": true,
+      "full_root": "sha256:9b17a45624c0c63164c57ff06e8444c734cfce129c005eab694362f0eda146c9",
+      "truncated": false,
+      "data": {
+        "audience": "unspecified",
+        "rubric": "not_assessed",
+        "status": "missing"
+      }
+    },
+    "evidence_lineage": {
+      "schema": "vela.decision-brief.facet.evidence-lineage.testing.v1",
+      "critical": false,
+      "full_root": "sha256:3f99fa8ec5ff9036f5b60609b4b405f07cf616b5bea458e0910159062803a642",
+      "truncated": false,
+      "data": {
+        "derived_from": [],
+        "parents": [],
+        "source_refs": [],
+        "supersedes": []
+      }
+    },
+    "external_certificates": {
+      "schema": "vela.decision-brief.facet.external-certificates.testing.v1",
+      "critical": false,
+      "full_root": "sha256:db8b4f521ac9345a560c8b75632058029e6ab7709a40237f2312b1184f3df765",
+      "truncated": false,
+      "data": {
+        "external_profiles": [],
+        "identity_mechanisms": [
+          {
+            "mechanism": "ed25519_key_custody_ceremony",
+            "reference": "vib_7067542ae284b71a",
+            "role": "producer"
+          }
+        ]
+      }
+    },
+    "formal_fidelity": {
+      "schema": "vela.decision-brief.facet.formal-fidelity.testing.v1",
+      "critical": true,
+      "full_root": "sha256:08b68317d944a97294cc86fb493fb0747286137982e813f95af73cbf77cd2968",
+      "truncated": false,
+      "data": {
+        "claim_type": "theoretical",
+        "statement_attestations": []
+      }
+    },
+    "gate_matrix": {
+      "schema": "vela.decision-brief.facet.gate-matrix.testing.v1",
+      "critical": false,
+      "full_root": "sha256:d09681400d4b521cd2567687b0d2b8d3d8c27c584fc3d29788bd2056a7b77a88",
+      "truncated": false,
+      "data": {
+        "durable_gate": {
+          "attachment_count": 0,
+          "reasons": [
+            "G1: need >=2 matched independent attachments, have 0",
+            "G3: no surviving adversarial probe attached (need >=1)"
+          ],
+          "snapshot_root": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "status": "needs_verification"
+        },
+        "engine": {
+          "new_blocking": [],
+          "new_warnings": [],
+          "status": null
+        }
+      }
+    },
+    "hypothesis_evolution": {
+      "schema": "vela.decision-brief.facet.hypothesis-evolution.testing.v1",
+      "critical": false,
+      "full_root": "sha256:b3de67411dfbcdbebb33f520bb7101fe218b246eb1d3ef70860f65db96419b92",
+      "truncated": false,
+      "data": {
+        "authority": "producer",
+        "evidence_status": "runs",
+        "kind": "emitted"
+      }
+    }
+  }
+}

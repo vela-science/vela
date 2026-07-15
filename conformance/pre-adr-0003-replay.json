@@ -1,0 +1,37 @@
+{
+  "schema": "vela.pre-adr-0003-replay-golden.v0.1",
+  "source": {
+    "frontier": "examples/erdos-formalization",
+    "commit": "7f5aaf906eec1034a2367847bd2520f5b1c4fa9d",
+    "vela_tree": "a64e4d9ce110e1454e4904fb36ff8ede1799df61"
+  },
+  "files": [
+    { "path": ".vela/actors.json", "bytes": 2, "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945" },
+    { "path": ".vela/config.toml", "bytes": 187, "sha256": "6c2ea8fe98d7dc6743ffc97c7bfdc32424dd3953bba1ca6017d604febbc28d35" },
+    { "path": ".vela/events/vev_061159eed6d11b53.json", "bytes": 1481, "sha256": "b408b87d28028bf46d93e21f5115ba90557c670da2cf83d8f244336497eeb575" },
+    { "path": ".vela/events/vev_0783845a3c697709.json", "bytes": 619, "sha256": "9b52e69921e1e693d85337b77e766fdc45bfa918d4c0d56d65b30ce672b2ff6d" },
+    { "path": ".vela/events/vev_138171ea6d757b0e.json", "bytes": 619, "sha256": "0863a9a9c1f216c69354a9ce57ea347b4116088688c0a8a0314245477e3329af" },
+    { "path": ".vela/events/vev_5ed6b563e4a4b147.json", "bytes": 619, "sha256": "81e75620e215762b7d9ac5ee952631a326f21305d5581d6635ed8c730550ce80" },
+    { "path": ".vela/events/vev_787c98d706a61fff.json", "bytes": 1504, "sha256": "9296ca0831d74fcfab7afac4dcf0eb275d690f4afa2235774a77b447bfeae1ad" },
+    { "path": ".vela/events/vev_9643db8538773701.json", "bytes": 619, "sha256": "b04d0452bf4e77b565af6a7ea32ec2d086f517e43b7a2e7c44e784b704460439" },
+    { "path": ".vela/events/vev_b8879b9524e84af6.json", "bytes": 1496, "sha256": "1c46db9c2f303a1be0eaf1413d2865f74859ef829240d712ea3eb8ad25d605b6" },
+    { "path": ".vela/events/vev_eac9cbac8a11ad7a.json", "bytes": 1478, "sha256": "830056fe584fbf3968ddd72de62ca49da8db92b0fbe3c13a81f63628b707b635" },
+    { "path": ".vela/findings/vf_2ba3963823b23478.json", "bytes": 1643, "sha256": "ac6e36fecaaf8523626d1a9ddd785ec81f13b142749bb895daf040419a1f0f93" },
+    { "path": ".vela/findings/vf_3b7922fd5410caac.json", "bytes": 1644, "sha256": "1257837da632b21e46d3c2ea54bf6ebcc50f5bac2f998b8f684128bad10975af" },
+    { "path": ".vela/findings/vf_476e53ba112753c1.json", "bytes": 1643, "sha256": "a15dbd2b1be17a72735f5508101089909776aac955c34ac17124ac1b9e39c49a" },
+    { "path": ".vela/findings/vf_b9e82eeed266af04.json", "bytes": 1643, "sha256": "934064bbf12f2447ebcd662c388b66bd815b16d7d5659fc8f7b3624a650d6036" },
+    { "path": ".vela/proof-state.json", "bytes": 174, "sha256": "09f5f7bea3eb2bd71eae3b67ffbbabc6babc21552e13f8858a9b7732b5bb333c" },
+    { "path": ".vela/proposals/vpr_339deecc7f2e3eca.json", "bytes": 2619, "sha256": "13f943a9367b188a6643f0fe74b83bec2463b5378ce40aa8d75d55c2015bb369" },
+    { "path": ".vela/proposals/vpr_78a5d028a6536bd4.json", "bytes": 2618, "sha256": "977bdb844c437c6f564c11325bca2b04d14177b04821cf2d1a40a4b505bb394e" },
+    { "path": ".vela/proposals/vpr_8092624f0a0f726a.json", "bytes": 2618, "sha256": "d729960fda33b3116581ee64f72071710d4fe0fcddd2a673ae72ebb4b7616276" },
+    { "path": ".vela/proposals/vpr_c377a54d9b224fac.json", "bytes": 2618, "sha256": "c9ab27b0df3e43b234673e36c067299ca098e569b812793978b7415fa6801c8a" }
+  ],
+  "replay": {
+    "event_count": 8,
+    "event_log_hash": "044964c1f4b7d5d1a2a43270a300d9b88cf340d3571255aff93f98e328447d0d",
+    "state_hash": "4eb1a15b889a93c031a0496781507e7797fe8d4828e984fe03236775c9ae7518",
+    "finding_count": 4,
+    "proposal_total": 4,
+    "proposal_applied": 4
+  }
+}

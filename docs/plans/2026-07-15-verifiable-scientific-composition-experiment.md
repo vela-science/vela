@@ -1,9 +1,21 @@
 # Verifiable Scientific Composition Experiment Plan
 
-> **Status:** Approved companion plan for ADR 0004, queued behind completion of
-> ADR 0003. Do not start this program, run the Codex benchmark, access a paid
-> API or credential, add public wire objects, or exercise a human key while ADR
-> 0003 remains active.
+> **Status:** Approved companion plan for ADR 0004. On 2026-07-15 the project
+> owner authorized Phase 0 and experiment-only Phase 1 scaffolding to start in
+> parallel with ADR 0003. Do not run the blind handoff, ADR 0004
+> same-information Codex benchmark, or paid API; add public wire objects;
+> claim outside evidence; or exercise a human key until the corresponding
+> gates close.
+
+**Progress, 2026-07-15:** Phase 0 is frozen as an `internal_fixture` against
+released Vela `v0.800.12`. The removable Phase 1 candidate derives current
+structural roots from an exact local Git commit and rejects 14 shape-valid
+mismatch cases, but has no success state. A structurally matching fixture
+returns `unresolvable:authority_snapshot_porcelain_missing` and records that a
+derived `frontier.json` is not canonical replay. Historical signer authority,
+the normative snapshot verdict, and the exact attachment set consumed by the
+decision remain unresolved. No blind handoff, benchmark run, API call, public
+wire change, or human ceremony has begun.
 
 **Goal:** Determine whether independent systems can compose an exact,
 authority-scoped scientific result and react safely to a later delivered
@@ -25,8 +37,10 @@ proposal; read a human key; or place a model in the authority path.
 
 ## Phase 0: approve and freeze the experiment
 
-1. Record the 2026-07-15 approval and wait until ADR 0003's active goal is
-   complete before starting any experiment implementation or benchmark run.
+1. Record the 2026-07-15 approval and parallel-start authorization. Keep ADR
+   0003 as the active goal. Internal-fixture Phase 0 and Phase 1 work may begin;
+   the blind handoff, ADR 0004 benchmark runs, API spend, and human ceremony
+   may not.
 2. Freeze the problem statement, roles, support policy, metrics, red-team
    cases, and null hypothesis in
    `docs/adr/0004-verifiable-scientific-composition-experiment.md`.
@@ -70,8 +84,10 @@ proposal; read a human key; or place a model in the authority path.
     or transport failure that produced no usable output, and retain both
     records.
 
-**Gate:** No implementation begins until the ADR is approved and the roles,
-case, and support policy are frozen.
+**Gate:** Experiment-only implementation begins only after the exact release,
+case, support policy, null hypothesis, and internal-fixture status are frozen.
+No cold or outside run begins until independent roles are named and the full
+Phase 0 registration is frozen.
 
 ## Phase 1: prove what current objects can express
 

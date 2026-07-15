@@ -1,8 +1,15 @@
 # ADR 0004: Falsify the need for a scientific dependency primitive
 
-- Status: Accepted 2026-07-15; queued behind completion of ADR 0003. The
-  experiment is approved, but it is not the active goal and no benchmark run
-  or API spend begins until the remaining ADR 0003 release work is complete.
+- Status: Accepted 2026-07-15. On 2026-07-15 the project owner authorized
+  Phase 0 and experiment-only Phase 1 scaffolding to begin in parallel with
+  ADR 0003. ADR 0003 remains the active goal. The blind handoff, ADR 0004
+  same-information agent benchmark, API spend, human ceremony, and
+  outside-evidence claims remain closed until their own gates are satisfied.
+  Phase 0 is now frozen against released Vela `v0.800.12`. The first Phase 1
+  resolver candidate is incomplete by design: it rejects structural
+  mismatches but returns
+  `unresolvable:authority_snapshot_porcelain_missing` for a matching internal
+  fixture. That is a gap result, not evidence that current objects suffice.
 - Scope: exact cross-frontier composition, later-root correction handling, and
   the smallest public contract that independent producers and consumers might
   need.

@@ -1,5 +1,29 @@
 # Changelog
 
+## v0.800.13 — 2026-07-15 — Evidence closure and composition probe
+
+- Froze the reviewed pre-ADR 0003 canonical `.vela` Git tree, every path and
+  byte in that tree, and its strict replay result. The test attributes the tree
+  to the recorded historical commit and prevents a fixture or manifest
+  rebaseline from retaining stale provenance.
+- Completed the private frontier-transaction journal failpoint coverage for
+  abort and committed-conflict transitions, including operation-ID collision
+  refusal, third-party-drift preservation, and exact recovery. Added a
+  post-key-read/pre-marker boundary proving one fixture-key read still leaves
+  zero decision or journal delta on failure.
+- Made the complete Decision Brief byte-equivalent across six read transports
+  after normalizing only their independent observation time, and added five
+  adversarial fixtures with concrete reviewer questions for statement
+  fidelity, vacuity, partial verification, contradiction blast radius, and
+  contributor credit.
+- Started ADR 0004 only as a removable internal experiment frozen against
+  released `v0.800.12`. Exact-checkout vectors reject structural substitutions,
+  while the resolver has no success state and stops at
+  `unresolvable:authority_snapshot_porcelain_missing`: a derived aggregate
+  cannot prove canonical replay, historical signer scope, or which attachment
+  set the reviewer consumed. No public wire object, authority rule, human
+  ceremony, outside-use claim, or benchmark result is added.
+
 ## v0.800.12 — 2026-07-15 — Bounded trust-edge hardening
 
 - Made explicit Receipt v1 files and local public artifacts descriptor-bound,

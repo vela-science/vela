@@ -1,0 +1,18 @@
+{
+  "schema": "vela.verifiable-composition.intervention-log.v0",
+  "run_class": "internal_fixture",
+  "policy": {
+    "allowed": [
+      "installation help already present in frozen public instructions",
+      "transport retry before any usable output exists"
+    ],
+    "failure_if_needed": [
+      "artifact editing",
+      "semantic interpretation",
+      "bespoke command repair",
+      "maintainer-only API access",
+      "human-key access by an agent or harness"
+    ]
+  },
+  "entries": []
+}

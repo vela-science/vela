@@ -1,0 +1,226 @@
+{
+  "schema": "vela.decision-brief.testing.v1",
+  "stability": "testing",
+  "change": {
+    "subject": {
+      "type": "finding",
+      "id": "vf_decision_brief_build_statement_fidelity"
+    },
+    "fixed_base": {
+      "event_log_root": "sha256:63bf84ff4bacd4906869321f3c48ca5e0eef13728eeca5d6128067e96a1296e1",
+      "receipt_event_log_root": "sha256:63bf84ff4bacd4906869321f3c48ca5e0eef13728eeca5d6128067e96a1296e1"
+    },
+    "claim": "The Lean theorem faithfully formalizes the intended informal statement.",
+    "before": null,
+    "after": {
+      "id": "vf_decision_brief_build_statement_fidelity",
+      "type": "theoretical",
+      "text": "The Lean theorem faithfully formalizes the intended informal statement."
+    },
+    "requested_action": "finding.note"
+  },
+  "basis": {
+    "primary_evidence_roots": [
+      {
+        "kind": "receipt",
+        "root": "sha256:dc4823254d30d8dc493739f48efd772d56ae73da29e4f0c2f4cdbd88a619802a"
+      },
+      {
+        "kind": "artifact_set",
+        "root": "sha256:f7e259b910c1ea7038b7c71fe2b7462ce7aad4df5857991e11bbece781c72d2c"
+      },
+      {
+        "kind": "durable_verifier_snapshot",
+        "root": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      }
+    ],
+    "check_state": {
+      "gate_status": "needs_verification",
+      "gate_reasons": [
+        "G1: need >=2 matched independent attachments, have 0",
+        "G3: no surviving adversarial probe attached (need >=1)"
+      ],
+      "durable_verifier_count": 0,
+      "durable_verifier_snapshot_root": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "engine_status": null,
+      "engine_new_blocking": [],
+      "engine_new_warnings": [],
+      "producer_reported": [
+        {
+          "method": "lean build --frozen",
+          "outcome": "pass",
+          "authority": "producer"
+        }
+      ]
+    },
+    "main_caveat": "A passing kernel build establishes type checking, not fidelity to the intended informal statement.",
+    "attributed_interpretation": {
+      "actor": "agent:decision-brief-test",
+      "authority": "producer",
+      "text": "The Lean theorem faithfully formalizes the intended informal statement."
+    }
+  },
+  "impact": {
+    "downstream_effect": {
+      "changed_findings": 1,
+      "downstream_dependents": 0,
+      "impact_tier": 3
+    },
+    "correction_path": {
+      "while_pending": [
+        "reject"
+      ],
+      "after_acceptance": [
+        "finding.retract",
+        "finding.supersede"
+      ]
+    },
+    "critical_warnings": []
+  },
+  "authority": {
+    "frontier": {
+      "id": "vfr_2fd558d5190b03f5",
+      "name": "Decision brief build versus statement fixture"
+    },
+    "route": "defer",
+    "scope": "hypothesis_only",
+    "why_human": [
+      "theoretical statement fidelity has no independent attestation"
+    ],
+    "actions": [
+      {
+        "action": "accept",
+        "eligibility": "available",
+        "reasons": []
+      },
+      {
+        "action": "reject",
+        "eligibility": "available",
+        "reasons": []
+      }
+    ]
+  },
+  "audit": {
+    "observed_at": "2026-07-13T13:00:00Z",
+    "proposal_id": "vpr_8dcb6263875cef30",
+    "proposal_root": "sha256:7d39405e0d3e95de6c09b261b06e643e5a876092bbf556d805079079ba2570e9",
+    "decision_facts_root": "sha256:3e28cd464771147a2e89092382396321df831fe838bdff891a015620b59c725f",
+    "receipt_root": "sha256:dc4823254d30d8dc493739f48efd772d56ae73da29e4f0c2f4cdbd88a619802a",
+    "declared_receipt_root": "sha256:dc4823254d30d8dc493739f48efd772d56ae73da29e4f0c2f4cdbd88a619802a",
+    "artifact_root": "sha256:f7e259b910c1ea7038b7c71fe2b7462ce7aad4df5857991e11bbece781c72d2c",
+    "policy_input_root": "sha256:8d1bf675b82587effacafaa1bce3cc4930124bc13063bd2496f98d5bc485bdca",
+    "policy_result_root": "sha256:5aeff3aad220faa2505f2847718cfbae50ab324c39536b572e71b29aef92d4ac",
+    "publication_root": null,
+    "raw_references_root": "sha256:136e6d53db38a0b1558863c14c6e8ede5491dba987f15e5b51a4781cd83ac8d8",
+    "raw_references": [
+      "proofs/fidelity.olean",
+      "records/receipts/sha256/dc4823254d30d8dc493739f48efd772d56ae73da29e4f0c2f4cdbd88a619802a.json",
+      "urn:source:adversarial-review"
+    ],
+    "raw_references_truncated": 0,
+    "missing_root": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "missing_truncated": 0,
+    "truncations": []
+  },
+  "missing": [],
+  "facets": {
+    "contributor_roles": {
+      "schema": "vela.decision-brief.facet.contributor-roles.testing.v1",
+      "critical": false,
+      "full_root": "sha256:734f4b5ff9f1ec1818971ce9b5f4590eebdfb904ceeeac209e9cb68158e9db59",
+      "truncated": false,
+      "data": [
+        {
+          "author": false,
+          "id": "agent:decision-brief-test",
+          "note": "Origin identity only; not scientific acceptance.",
+          "roles": [
+            "machine_producer"
+          ]
+        }
+      ]
+    },
+    "distillation": {
+      "schema": "vela.decision-brief.facet.distillation.testing.v1",
+      "critical": true,
+      "full_root": "sha256:9b17a45624c0c63164c57ff06e8444c734cfce129c005eab694362f0eda146c9",
+      "truncated": false,
+      "data": {
+        "audience": "unspecified",
+        "rubric": "not_assessed",
+        "status": "missing"
+      }
+    },
+    "evidence_lineage": {
+      "schema": "vela.decision-brief.facet.evidence-lineage.testing.v1",
+      "critical": false,
+      "full_root": "sha256:3f99fa8ec5ff9036f5b60609b4b405f07cf616b5bea458e0910159062803a642",
+      "truncated": false,
+      "data": {
+        "derived_from": [],
+        "parents": [],
+        "source_refs": [],
+        "supersedes": []
+      }
+    },
+    "external_certificates": {
+      "schema": "vela.decision-brief.facet.external-certificates.testing.v1",
+      "critical": false,
+      "full_root": "sha256:db8b4f521ac9345a560c8b75632058029e6ab7709a40237f2312b1184f3df765",
+      "truncated": false,
+      "data": {
+        "external_profiles": [],
+        "identity_mechanisms": [
+          {
+            "mechanism": "ed25519_key_custody_ceremony",
+            "reference": "vib_7067542ae284b71a",
+            "role": "producer"
+          }
+        ]
+      }
+    },
+    "formal_fidelity": {
+      "schema": "vela.decision-brief.facet.formal-fidelity.testing.v1",
+      "critical": true,
+      "full_root": "sha256:08b68317d944a97294cc86fb493fb0747286137982e813f95af73cbf77cd2968",
+      "truncated": false,
+      "data": {
+        "claim_type": "theoretical",
+        "statement_attestations": []
+      }
+    },
+    "gate_matrix": {
+      "schema": "vela.decision-brief.facet.gate-matrix.testing.v1",
+      "critical": false,
+      "full_root": "sha256:d09681400d4b521cd2567687b0d2b8d3d8c27c584fc3d29788bd2056a7b77a88",
+      "truncated": false,
+      "data": {
+        "durable_gate": {
+          "attachment_count": 0,
+          "reasons": [
+            "G1: need >=2 matched independent attachments, have 0",
+            "G3: no surviving adversarial probe attached (need >=1)"
+          ],
+          "snapshot_root": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "status": "needs_verification"
+        },
+        "engine": {
+          "new_blocking": [],
+          "new_warnings": [],
+          "status": null
+        }
+      }
+    },
+    "hypothesis_evolution": {
+      "schema": "vela.decision-brief.facet.hypothesis-evolution.testing.v1",
+      "critical": false,
+      "full_root": "sha256:b3de67411dfbcdbebb33f520bb7101fe218b246eb1d3ef70860f65db96419b92",
+      "truncated": false,
+      "data": {
+        "authority": "producer",
+        "evidence_status": "runs",
+        "kind": "emitted"
+      }
+    }
+  }
+}

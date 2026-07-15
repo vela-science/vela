@@ -4,7 +4,7 @@
 - Scope: Vela substrate CLI, protocol plumbing, MCP exposure, and derived review
   projections.
 - Implementation state: Vela `0.800` is the deliberate prelaunch hard cut;
-  `0.800.12` is the current candidate.
+  `0.800.13` is the current candidate.
   All ordinary producer results cross `next -> work -> land`; ordinary
   truth-bearing review decisions cross `sign`; explicit policy-governance
   ceremonies remain separate. Submission and decision installation use the
@@ -22,8 +22,9 @@
 - Amendment: 2026-07-14 records the provisional causal policy-head contract
   required to make the existing signed Permit lane replay-safe across policy
   activation, rotation, and revocation.
-- Composition boundary: ADR 0004 is accepted, experiment-gated, queued behind
-  this ADR, and not active.
+- Composition boundary: ADR 0004 is accepted and experiment-gated. Its frozen
+  Phase 0 registration and removable, experiment-only Phase 1 scaffold are
+  proceeding in parallel; ADR 0003 remains the active implementation goal.
   It tests exact cross-frontier dependency composition with existing Receipt,
   proposal, finding-revision, verifier, event, and Git roots before any new
   public primitive is considered. Mutable finding links remain review/graph
@@ -1620,7 +1621,7 @@ four gaps found by the completion red team:
   restore and a disposable Atlas-cache parity check. Both use ordinary Git and
   current Vela contracts, stay offline, and perform no human decision.
 
-Candidate `0.800.12` narrows the remaining technical boundary further without
+Released `0.800.12` narrowed the technical boundary further without
 changing Receipt v1, authority, or the human ceremony:
 
 - explicit foreign Receipts and frontier-local artifacts are read through
@@ -1659,7 +1660,37 @@ The following program gates intentionally remain open:
   service commitments remain organizational work even where export, archive,
   and fork mechanics are implemented.
 
-Accordingly, `0.800.12` is a technical prelaunch candidate for the clerk layer,
+Candidate `0.800.13` adds release-bound evidence for the remaining mechanical
+questions without changing the Receipt, event, authority, or ceremony
+contracts:
+
+- a frozen pre-ADR 0003 golden attributes the fixture to commit
+  `7f5aaf906eec1034a2367847bd2520f5b1c4fa9d`, binds every canonical `.vela`
+  path and byte to reviewed Git tree
+  `a64e4d9ce110e1454e4904fb36ff8ede1799df61`, and proves strict replay from
+  those bytes;
+- the private frontier-transaction failpoint matrix now covers durable abort
+  and committed-conflict journal transitions, preserves third-party drift,
+  rejects operation-ID reuse for a different request, and recovers the exact
+  committed delta;
+- six read transports expose one complete Decision Brief after normalizing
+  only their per-observation timestamp: diff, proposal preview, state diff,
+  sign preview, status, and read-only MCP orient;
+- five adversarial Decision Brief fixtures make statement fidelity, vacuity,
+  producer-trusting verification, contradiction blast radius, and
+  contributor distillation concrete reviewer questions; and
+- an injected failure immediately after one fixture-key read but before the
+  marker leaves zero decision and journal delta. It is mechanical boundary
+  evidence, not a real human ceremony.
+
+ADR 0004's concurrent scaffold remains an internal negative experiment. It
+reconstructs structural roots and rejects mismatches, but returns by design
+`unresolvable:authority_snapshot_porcelain_missing`; derived `frontier.json`
+cannot prove canonical replay, historical authority, or the attachment set a
+human consumed. That result proposes no public wire object and supplies no
+outside-use credit.
+
+Accordingly, `0.800.13` is a technical prelaunch candidate for the clerk layer,
 not a claim that the acceptance program or outside-producer goal is complete.
 It expands no authority surface and performs no human ceremony. The campaign
 keeps a separate dated proof/open ledger; code fixtures cannot promote an

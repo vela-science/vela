@@ -1485,12 +1485,16 @@ pub(crate) enum FrontierTxnStep {
     AfterBlobJournalWrite { index: usize },
     BeforePreparedJournalWrite,
     AfterPreparedJournalWrite,
+    BeforeAbortedJournalWrite,
+    AfterAbortedJournalWrite,
     BeforeCommitMarkerWrite,
     AfterCommitMarkerWrite,
     BeforeCommittedJournalWrite,
     AfterCommittedJournalWrite,
     BeforeInstallWrite { index: usize },
     AfterInstallWrite { index: usize },
+    BeforeCommittedConflictJournalWrite { index: usize },
+    AfterCommittedConflictJournalWrite { index: usize },
     BeforeInstallingJournalWrite { index: usize },
     AfterInstallingJournalWrite { index: usize },
     BeforeInstalledJournalWrite,
@@ -1872,6 +1876,13 @@ impl FrontierTxn {
     /// this state transition has no frontier delta and a later plan may safely
     /// reuse the operation id.
     pub(crate) fn abort_prepared(&mut self) -> Result<(), FrontierTxnError> {
+        self.abort_prepared_with_failpoints(&mut NoFrontierTxnFailpoints)
+    }
+
+    fn abort_prepared_with_failpoints(
+        &mut self,
+        failpoints: &mut impl FrontierTxnFailpoints,
+    ) -> Result<(), FrontierTxnError> {
         if !matches!(self.journal.recovery, RecoveryState::Prepared) {
             return Err(FrontierTxnError::CorruptPlan(format!(
                 "cannot abort transaction {} from {:?}",
@@ -1889,8 +1900,18 @@ impl FrontierTxn {
             }
             Err(error) => return Err(error),
         }
+        failpoints.check(FrontierTxnStep::BeforeAbortedJournalWrite)?;
         self.journal.recovery = RecoveryState::Aborted;
-        self.persist_journal()
+        self.persist_journal()?;
+        failpoints.check(FrontierTxnStep::AfterAbortedJournalWrite)
+    }
+
+    #[cfg(test)]
+    fn abort_prepared_at_failpoint(
+        &mut self,
+        step: FrontierTxnStep,
+    ) -> Result<(), FrontierTxnError> {
+        self.abort_prepared_with_failpoints(&mut FailAtFrontierTxnStep { target: step })
     }
 
     pub(crate) fn install(&mut self) -> Result<(), FrontierTxnError> {
@@ -1915,7 +1936,11 @@ impl FrontierTxn {
                     self.journal.recovery = RecoveryState::CommittedConflict {
                         path: write.path.clone(),
                     };
+                    failpoints
+                        .check(FrontierTxnStep::BeforeCommittedConflictJournalWrite { index })?;
                     self.persist_journal()?;
+                    failpoints
+                        .check(FrontierTxnStep::AfterCommittedConflictJournalWrite { index })?;
                     return Err(FrontierTxnError::CommittedConflict {
                         path: write.path,
                         expected_preimage: Box::new(write.preimage),
@@ -3230,6 +3255,61 @@ mod tests {
             assert_eq!(snapshot_files(&root), expected_failpoint_postimage());
         }
 
+        // Aborting a marker-free plan is itself a durable journal transition.
+        // A failure on either side of that atomic replacement must still leave
+        // zero frontier delta, no marker, and a retryable operation identity.
+        for step in [
+            FrontierTxnStep::BeforeAbortedJournalWrite,
+            FrontierTxnStep::AfterAbortedJournalWrite,
+        ] {
+            let temp = tempfile::tempdir().unwrap();
+            let root = temp.path().join("frontier");
+            let journals = temp.path().join("journals");
+            initialize_failpoint_frontier(&root);
+            let before = snapshot_files(&root);
+            let identity = format!("abort {step:?}");
+            let draft = DeltaDraft::prepare(&root, failpoint_writes()).unwrap();
+            let plan = fixture_plan(&root, &draft, identity.as_bytes());
+            let operation_id = plan.operation_id.clone();
+            let paths = FrontierTxnPaths::new(&journals, &operation_id);
+            let mut txn = FrontierTxn::prepare(&root, &journals, plan, draft).unwrap();
+
+            assert_injected(txn.abort_prepared_at_failpoint(step), step);
+            assert_eq!(
+                snapshot_files(&root),
+                before,
+                "pre-marker abort failpoint {step:?} changed the frontier"
+            );
+            assert!(
+                !paths.marker.exists(),
+                "pre-marker abort failpoint {step:?} wrote a commit marker"
+            );
+            drop(txn);
+
+            let mut reopened = FrontierTxn::open(&root, &journals, &operation_id).unwrap();
+            match step {
+                FrontierTxnStep::BeforeAbortedJournalWrite => {
+                    assert_eq!(reopened.recovery_state(), &RecoveryState::Prepared);
+                    reopened.abort_prepared().unwrap();
+                }
+                FrontierTxnStep::AfterAbortedJournalWrite => {
+                    assert_eq!(reopened.recovery_state(), &RecoveryState::Aborted);
+                }
+                _ => unreachable!(),
+            }
+            drop(reopened);
+
+            let retry_draft = DeltaDraft::prepare(&root, failpoint_writes()).unwrap();
+            let retry_plan = fixture_plan(&root, &retry_draft, identity.as_bytes());
+            let mut retry =
+                FrontierTxn::prepare(&root, &journals, retry_plan, retry_draft).unwrap();
+            retry.mark_committed().unwrap();
+            retry.install().unwrap();
+            retry.complete().unwrap();
+            drop(retry);
+            assert_eq!(snapshot_files(&root), expected_failpoint_postimage());
+        }
+
         // A safely injected marker-write error occurs before the atomic,
         // fsync-backed journal replacement. The old state is therefore a
         // complete Prepared journal with no marker and no frontier delta.
@@ -3252,6 +3332,61 @@ mod tests {
             RecoveryOutcome::Prepared
         );
         assert_eq!(snapshot_files(&root), before);
+    }
+
+    #[test]
+    fn reused_operation_id_with_changed_request_is_rejected_after_abort_and_completion() {
+        for terminal_state in [RecoveryState::Aborted, RecoveryState::Completed] {
+            let temp = tempfile::tempdir().unwrap();
+            let root = temp.path().join("frontier");
+            let journals = temp.path().join("journals");
+            fs::create_dir_all(&root).unwrap();
+            let identity = format!("operation collision {terminal_state:?}");
+            let original_draft = DeltaDraft::prepare(
+                &root,
+                vec![PlannedWrite::write(
+                    RepoPath::parse("records/original.json").unwrap(),
+                    WriteClass::CanonicalEvidence,
+                    b"original".to_vec(),
+                )],
+            )
+            .unwrap();
+            let original_plan = fixture_plan(&root, &original_draft, identity.as_bytes());
+            let operation_id = original_plan.operation_id.clone();
+            let mut original =
+                FrontierTxn::prepare(&root, &journals, original_plan, original_draft).unwrap();
+            match terminal_state {
+                RecoveryState::Aborted => original.abort_prepared().unwrap(),
+                RecoveryState::Completed => {
+                    original.mark_committed().unwrap();
+                    original.install().unwrap();
+                    original.complete().unwrap();
+                }
+                _ => unreachable!(),
+            }
+            drop(original);
+
+            let changed_draft = DeltaDraft::prepare(
+                &root,
+                vec![PlannedWrite::write(
+                    RepoPath::parse("records/changed.json").unwrap(),
+                    WriteClass::CanonicalEvidence,
+                    b"changed".to_vec(),
+                )],
+            )
+            .unwrap();
+            let mut changed_plan = fixture_plan(&root, &changed_draft, identity.as_bytes());
+            assert_eq!(changed_plan.operation_id, operation_id);
+            changed_plan.request_root = ContentDigest::hash(b"different normalized request");
+            changed_plan.root = changed_plan.compute_root().unwrap();
+
+            assert!(matches!(
+                FrontierTxn::prepare(&root, &journals, changed_plan, changed_draft),
+                Err(FrontierTxnError::OperationConflict {
+                    operation_id: conflict
+                }) if conflict == operation_id.as_str()
+            ));
+        }
     }
 
     #[test]
@@ -3331,6 +3466,53 @@ mod tests {
             drop(txn);
 
             assert_post_marker_recovery_is_exact(&root, &journals, &operation_id);
+        }
+    }
+
+    #[test]
+    fn committed_conflict_journal_failpoints_preserve_drift_and_recover_after_repair() {
+        for index in 0..failpoint_writes().len() {
+            for step in [
+                FrontierTxnStep::BeforeCommittedConflictJournalWrite { index },
+                FrontierTxnStep::AfterCommittedConflictJournalWrite { index },
+            ] {
+                let temp = tempfile::tempdir().unwrap();
+                let root = temp.path().join("frontier");
+                let journals = temp.path().join("journals");
+                initialize_failpoint_frontier(&root);
+                let draft = DeltaDraft::prepare(&root, failpoint_writes()).unwrap();
+                let conflicted_write = draft.delta.writes()[index].clone();
+                let conflicted_target = conflicted_write.path.target(&root).unwrap();
+                let original_bytes = fs::read(&conflicted_target).ok();
+                let plan = fixture_plan(&root, &draft, format!("conflict {step:?}").as_bytes());
+                let operation_id = plan.operation_id.clone();
+                let mut txn = FrontierTxn::prepare(&root, &journals, plan, draft).unwrap();
+                txn.mark_committed().unwrap();
+
+                fs::create_dir_all(conflicted_target.parent().unwrap()).unwrap();
+                fs::write(&conflicted_target, b"third-party drift").unwrap();
+                assert_injected(txn.install_at_failpoint(step), step);
+                assert_eq!(
+                    fs::read(&conflicted_target).unwrap(),
+                    b"third-party drift",
+                    "conflict failpoint {step:?} overwrote external drift"
+                );
+                assert!(txn.paths.marker.exists());
+                drop(txn);
+
+                assert!(matches!(
+                    FrontierTxn::recover(&root, &journals, &operation_id),
+                    Err(FrontierTxnError::CommittedConflict { path, .. })
+                        if path == conflicted_write.path
+                ));
+                assert_eq!(fs::read(&conflicted_target).unwrap(), b"third-party drift");
+
+                match original_bytes {
+                    Some(bytes) => fs::write(&conflicted_target, bytes).unwrap(),
+                    None => fs::remove_file(&conflicted_target).unwrap(),
+                }
+                assert_post_marker_recovery_is_exact(&root, &journals, &operation_id);
+            }
         }
     }
 

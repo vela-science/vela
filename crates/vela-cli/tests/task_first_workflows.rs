@@ -1,7 +1,8 @@
 //! Cross-surface regressions for ADR 0003's task-first trust boundary.
 
+use std::io::Write;
 use std::path::Path;
-use std::process::{Command, Output};
+use std::process::{Command, Output, Stdio};
 
 fn vela_bin() -> &'static str {
     env!("CARGO_BIN_EXE_vela")
@@ -26,6 +27,44 @@ fn run_with_env(dir: &Path, args: &[&str], env: &[(&str, &str)]) -> Output {
     }
     command.envs(env.iter().copied());
     command.output().expect("run vela")
+}
+
+fn run_mcp_tool(
+    dir: &Path,
+    profile: &str,
+    name: &str,
+    arguments: serde_json::Value,
+) -> serde_json::Value {
+    let request = serde_json::json!({
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "tools/call",
+        "params": {"name": name, "arguments": arguments},
+    });
+    let mut command = Command::new(vela_bin());
+    command
+        .current_dir(dir)
+        .args(["serve", ".", "--profile", profile])
+        .env("HOME", dir)
+        .env("NO_COLOR", "1")
+        .env("VELA_ADVICE", "0")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+    for (key, _) in std::env::vars() {
+        if key.starts_with("VELA_") && key != "VELA_ADVICE" {
+            command.env_remove(key);
+        }
+    }
+    let mut server = command.spawn().expect("start MCP server");
+    writeln!(server.stdin.as_mut().unwrap(), "{request}").unwrap();
+    drop(server.stdin.take());
+    let output = server.wait_with_output().expect("wait for MCP server");
+    assert_success(&output, &format!("MCP {name}"));
+    let rpc = one_json_object(&output);
+    assert_eq!(rpc["result"]["isError"], false, "{rpc}");
+    serde_json::from_str(rpc["result"]["content"][0]["text"].as_str().unwrap())
+        .expect("MCP content is one JSON envelope")
 }
 
 fn git(dir: &Path, args: &[&str]) -> Output {
@@ -3698,6 +3737,21 @@ fn review_surface_contract(review: &serde_json::Value) -> serde_json::Value {
     })
 }
 
+fn normalized_review_snapshot(review: &serde_json::Value) -> serde_json::Value {
+    let mut normalized = review.clone();
+    assert_eq!(
+        normalized["observed_at"], normalized["brief"]["audit"]["observed_at"],
+        "each surface must keep its observation timestamp coherent"
+    );
+    // Every command takes its own read-only observation. Wall-clock bytes are
+    // visible by design in the testing projection but are not scientific
+    // facts or a signing input, so normalize only those two mirrored fields
+    // before asserting complete Decision Brief equality across transports.
+    normalized["observed_at"] = "<surface-observation>".into();
+    normalized["brief"]["audit"]["observed_at"] = "<surface-observation>".into();
+    normalized
+}
+
 #[test]
 fn decision_brief_read_surfaces_share_the_same_review_contract() {
     let tmp = tempfile::TempDir::new().unwrap();
@@ -3785,14 +3839,47 @@ fn decision_brief_read_surfaces_share_the_same_review_contract() {
     let sign_frontier = &sign_preview["frontiers"][0];
     assert_eq!(sign_frontier["items"].as_array().unwrap().len(), 1);
 
+    let status = run(tmp.path(), &["status", frontier, "--json"]);
+    assert_success(&status, "decision_brief status");
+    let status = one_json_object(&status);
+    let status_review = &status["inbox"]["review"];
+    assert_eq!(status_review["items"].as_array().unwrap().len(), 1);
+
+    let mcp = run_mcp_tool(
+        tmp.path(),
+        "read-only",
+        "orient",
+        serde_json::json!({"limit": 100}),
+    );
+    assert_eq!(mcp["tool"], "orient");
+    assert_eq!(mcp["ok"], true);
+    let mcp_review = &mcp["data"]["pending_review"];
+    assert_eq!(mcp_review["items"].as_array().unwrap().len(), 1);
+
     let contracts = [
         review_surface_contract(&diff["review"]),
         review_surface_contract(&proposals_preview["review"]),
         review_surface_contract(&state_diff),
         review_surface_contract(&sign_frontier["items"][0]),
+        review_surface_contract(&status_review["items"][0]),
+        review_surface_contract(&mcp_review["items"][0]),
     ];
     for contract in &contracts[1..] {
         assert_eq!(contract, &contracts[0]);
+    }
+    let normalized = [
+        normalized_review_snapshot(&diff["review"]),
+        normalized_review_snapshot(&proposals_preview["review"]),
+        normalized_review_snapshot(&state_diff),
+        normalized_review_snapshot(&sign_frontier["items"][0]),
+        normalized_review_snapshot(&status_review["items"][0]),
+        normalized_review_snapshot(&mcp_review["items"][0]),
+    ];
+    for snapshot in &normalized[1..] {
+        assert_eq!(
+            snapshot, &normalized[0],
+            "all read surfaces must expose one complete Decision Brief"
+        );
     }
     assert_eq!(contracts[0]["proposal_id"], proposal_id);
     assert_eq!(contracts[0]["sort_key_proposal_id"], proposal_id);
