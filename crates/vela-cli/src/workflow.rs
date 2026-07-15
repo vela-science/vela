@@ -509,6 +509,8 @@ pub(crate) struct WorkSession {
     pub frontier_id: String,
     pub base_event_log_root: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub base_nonlease_event_log_root: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub source_git_commit_oid: Option<String>,
     pub source_git_state: String,
     pub actor: String,
@@ -622,6 +624,18 @@ fn sha256_root(value: &impl Serialize) -> Result<String, String> {
     ))
 }
 
+fn nonlease_event_log_root(events: &[vela_protocol::events::StateEvent]) -> String {
+    let nonlease = events
+        .iter()
+        .filter(|event| event.kind != vela_protocol::events::EVENT_KIND_ATTEMPT_CLAIMED)
+        .cloned()
+        .collect::<Vec<_>>();
+    format!(
+        "sha256:{}",
+        vela_protocol::events::event_log_hash(&nonlease)
+    )
+}
+
 fn source_git_commit(frontier: &Path) -> (Option<String>, String) {
     let mut command = std::process::Command::new("git");
     command.arg("-C").arg(frontier).args([
@@ -686,6 +700,7 @@ fn preflight_work_session_size(
     target: &str,
     frontier_id: &str,
     base_event_log_root: &str,
+    base_nonlease_event_log_root: &str,
     source_git_commit_oid: Option<String>,
     source_git_state: &str,
     actor: &str,
@@ -704,6 +719,7 @@ fn preflight_work_session_size(
         target: target.to_string(),
         frontier_id: frontier_id.to_string(),
         base_event_log_root: base_event_log_root.to_string(),
+        base_nonlease_event_log_root: Some(base_nonlease_event_log_root.to_string()),
         source_git_commit_oid,
         source_git_state: source_git_state.to_string(),
         actor: actor.to_string(),
@@ -897,15 +913,17 @@ fn validate_active_session(
     Ok(())
 }
 
-/// Return the exact causal root for a session whose only frontier delta is its
-/// own lease event.
+/// Return the exact causal root for a session whose scientific base is still
+/// current.
 ///
 /// A work session deliberately pins `base_event_log_root` before its own
 /// coordination event, so the task describes the scientific state the
 /// producer actually started from. A policy-routed receipt must instead bind
-/// the current set commitment including that signed lease. Removing exactly
-/// that event must recover the pinned base; any concurrent or later event then
-/// fails closed without relying on storage order or replay timestamps.
+/// the current set commitment including signed coordination leases. New
+/// sessions separately pin the non-lease event set, so unrelated leases may
+/// coexist while every scientific, provenance, or authority-event change
+/// fails closed. A legacy session without that private pin keeps the stricter
+/// base-plus-own-lease rule.
 fn work_session_landing_event_root(
     project: &vela_protocol::project::Project,
     session: &WorkSession,
@@ -928,20 +946,29 @@ fn work_session_landing_event_root(
     {
         return Err("work session lease event does not match its signed session facts".to_string());
     }
-    let without_claim = project
-        .events
-        .iter()
-        .filter(|event| event.id != session.lease.claim_event_id)
-        .cloned()
-        .collect::<Vec<_>>();
-    let before = format!(
-        "sha256:{}",
-        vela_protocol::events::event_log_hash(&without_claim)
-    );
-    if before != session.base_event_log_root {
-        return Err(
-            "work session frontier is not its pinned state plus the exact lease event".to_string(),
+    if let Some(expected_nonlease_root) = &session.base_nonlease_event_log_root {
+        if nonlease_event_log_root(&project.events) != *expected_nonlease_root {
+            return Err(
+                "work session frontier has non-lease changes from its pinned state".to_string(),
+            );
+        }
+    } else {
+        let without_claim = project
+            .events
+            .iter()
+            .filter(|event| event.id != session.lease.claim_event_id)
+            .cloned()
+            .collect::<Vec<_>>();
+        let before = format!(
+            "sha256:{}",
+            vela_protocol::events::event_log_hash(&without_claim)
         );
+        if before != session.base_event_log_root {
+            return Err(
+                "legacy work session frontier is not its pinned state plus the exact lease event"
+                    .to_string(),
+            );
+        }
     }
     Ok(format!(
         "sha256:{}",
@@ -1061,6 +1088,7 @@ where
         "sha256:{}",
         vela_protocol::events::event_log_hash(&base_project.events)
     );
+    let base_nonlease_event_log_root = nonlease_event_log_root(&base_project.events);
     let (source_git_commit_oid, source_git_state) = source_git_commit(frontier);
     let contract = task_contract(&briefing, target);
     let task_contract_root = sha256_root(&contract)?;
@@ -1068,6 +1096,7 @@ where
         target,
         &base_project.frontier_id(),
         &base_event_log_root,
+        &base_nonlease_event_log_root,
         source_git_commit_oid.clone(),
         &source_git_state,
         actor,
@@ -1123,6 +1152,7 @@ where
         target: target.to_string(),
         frontier_id: base_project.frontier_id().to_string(),
         base_event_log_root,
+        base_nonlease_event_log_root: Some(base_nonlease_event_log_root),
         source_git_commit_oid,
         source_git_state,
         actor: actor.to_string(),
@@ -2982,6 +3012,7 @@ mod transactional_proposal_tests {
             target: "seed:size-fixture".to_string(),
             frontier_id: "vfr_size_fixture".to_string(),
             base_event_log_root: format!("sha256:{}", "0".repeat(64)),
+            base_nonlease_event_log_root: Some(format!("sha256:{}", "0".repeat(64))),
             source_git_commit_oid: Some("0".repeat(40)),
             source_git_state: "pinned".to_string(),
             actor: "agent:size-fixture".to_string(),
@@ -3196,7 +3227,7 @@ mod transactional_proposal_tests {
     }
 
     #[test]
-    fn work_session_landing_root_is_set_based_and_rejects_any_later_event() {
+    fn work_session_landing_root_allows_other_leases_but_rejects_nonlease_change() {
         let original = vela_protocol::project::assemble("lease-root", Vec::new(), 0, 0, "fixture");
         let key = SigningKey::from_bytes(&[0x76; 32]);
         let target = "seed:lease-root";
@@ -3215,6 +3246,7 @@ mod transactional_proposal_tests {
         session.actor = actor.to_string();
         session.frontier_id = original.frontier_id().to_string();
         session.base_event_log_root = claim["state_root_before"].as_str().unwrap().to_string();
+        session.base_nonlease_event_log_root = Some(nonlease_event_log_root(&original.events));
         session.lease.claim_event_id = claim["claim_event_id"].as_str().unwrap().to_string();
         session.lease.claimant_pubkey = claim["claimant_pubkey"].as_str().unwrap().to_string();
 
@@ -3231,7 +3263,7 @@ mod transactional_proposal_tests {
             "the event-set commitment must not inherit storage order"
         );
 
-        let (later, _) = signed_lease_candidate(
+        let (later, later_claim) = signed_lease_candidate(
             &claimed,
             "seed:later-event",
             "agent:later-event",
@@ -3240,10 +3272,29 @@ mod transactional_proposal_tests {
             None,
             "2026-07-14T10:00:01Z",
         );
-        let error = work_session_landing_event_root(&later, &session).unwrap_err();
+        assert_eq!(
+            work_session_landing_event_root(&later, &session).unwrap(),
+            later_claim["state_root_after"].as_str().unwrap(),
+            "an unrelated coordination lease must not stale scientific work"
+        );
+
+        let mut changed = clone_project(&later).unwrap();
+        vela_edge::vela_agent_mcp::apply_deposit_attempt_to_project(
+            &attempt_deposit_args(
+                "agent:nonlease-change",
+                "seed:nonlease-change",
+                "a later deposited attempt changes the working base",
+                "candidate",
+            ),
+            &mut changed,
+            &key,
+            Some("non-lease change fixture"),
+        )
+        .unwrap();
+        let error = work_session_landing_event_root(&changed, &session).unwrap_err();
         assert!(
-            error.contains("pinned state plus the exact lease event"),
-            "unexpected later-event error: {error}"
+            error.contains("non-lease changes"),
+            "unexpected non-lease change error: {error}"
         );
     }
 
