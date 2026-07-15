@@ -460,7 +460,7 @@ pub fn claim_state_delta(
         "downstream_count": downstream.len(),
         // Filled by callers that hold a frontier path (the CLI); the hub
         // leaves it absent because the strict gate runs at accept time.
-        "engine": { "available": false, "note": "Engine verdict (new_blocking/new_warnings) requires a frontier path; run `vela claim diff` locally, or attempt the accept to see the strict gate verdict." },
+        "engine": { "available": false, "note": "Engine verdict (new_blocking/new_warnings) requires a frontier path; run `vela check . --strict --json` locally and inspect the pending proposal with `vela diff <vpr_> --json`." },
     }))
 }
 

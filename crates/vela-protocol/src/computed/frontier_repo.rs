@@ -57,8 +57,6 @@ pub struct FrontierManifest {
     pub license: ManifestLicense,
     #[serde(default)]
     pub dependencies: ManifestDependencies,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub templates: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -292,7 +290,6 @@ pub struct RepoLayoutIssue {
 #[derive(Debug, Clone)]
 pub struct InitOptions<'a> {
     pub name: &'a str,
-    pub template: &'a str,
     pub initialize_git: bool,
 }
 
@@ -310,9 +307,8 @@ pub fn initialize(path: &Path, options: InitOptions<'_>) -> Result<serde_json::V
     let now = Utc::now().to_rfc3339_opts(SecondsFormat::Secs, true);
     let project = empty_project(options.name, "", &now);
     crate::repo::init_repo(path, &project)?;
-    write_frontier_card(path, options.name, options.template)?;
+    write_frontier_card(path, options.name)?;
     write_scope(path, options.name)?;
-    let next_commands = crate::frontier_template::apply(path, options.name, options.template)?;
     write_git_native_scaffold(path, options.name)?;
     if options.initialize_git && !path.join(".git").exists() {
         // Default to `main`, the ecosystem convention (the hub ingests `main` and
@@ -331,13 +327,12 @@ pub fn initialize(path: &Path, options: InitOptions<'_>) -> Result<serde_json::V
         }
     }
 
-    let mut payload = json!({
+    let payload = json!({
         "schema": FRONTIER_INIT_SCHEMA,
         "ok": true,
         "layout": FRONTIER_REPO_LAYOUT,
         "path": path.display().to_string(),
         "name": options.name,
-        "template": options.template,
         "wrote": [
             "README.md",
             "SCOPE.md",
@@ -350,17 +345,28 @@ pub fn initialize(path: &Path, options: InitOptions<'_>) -> Result<serde_json::V
             "VELA.md",
             ".mcp.json"
         ],
-        "next_commands": next_commands
+        "next_commands": init_next_commands(path)
     });
-    if let Some(object) = payload.as_object_mut()
-        && options.template == crate::frontier_template::ADOPTION_FRONTIER_TEMPLATE
-    {
-        object.insert(
-            "adoption_template".to_string(),
-            crate::frontier_template::init_payload_fields(options.template, path),
-        );
-    }
     Ok(payload)
+}
+
+fn init_next_commands(path: &Path) -> Vec<String> {
+    let target = posix_shell_arg(&path.display().to_string());
+    vec![
+        format!("vela agents sync {target} --json"),
+        format!("vela doctor {target} --json"),
+        format!("vela status {target} --json"),
+        format!("vela next {target} --json"),
+        format!("vela check {target} --strict --json"),
+    ]
+}
+
+/// Quote one argument for the POSIX shells supported by the prebuilt Vela
+/// releases. Init returns copyable command strings, so ordinary spaces and
+/// metacharacters must remain one literal path rather than becoming shell
+/// syntax.
+fn posix_shell_arg(value: &str) -> String {
+    format!("'{}'", value.replace('\'', "'\"'\"'"))
 }
 
 /// The git-native, AI-drivable scaffold: everything a fresh frontier needs
@@ -375,8 +381,8 @@ pub fn initialize(path: &Path, options: InitOptions<'_>) -> Result<serde_json::V
 ///   Action: every push re-derives the frontier from a clean checkout.
 /// - `VELA.md` is the canonical agent charter (`vela agents sync` generates
 ///   CLAUDE.md / AGENTS.md / editor adapters from it).
-/// - `.mcp.json` serves the read-only MCP profile to any client opening
-///   the repo; write verbs stay behind explicit human sessions.
+/// - `.mcp.json` selects the nonfinalizing draft MCP profile so agents can use
+///   the task-first producer loop; no finalizer or human key is exposed.
 fn write_git_native_scaffold(path: &Path, name: &str) -> Result<(), String> {
     let write = |rel: &str, contents: String| -> Result<(), String> {
         let dest = path.join(rel);
@@ -470,35 +476,45 @@ jobs:
         format!(
             r#"# {name} — agent charter
 
-This frontier is driven by `vela` + `git`. Agents propose; a human key
-accepts. `vela agents sync` regenerates CLAUDE.md / AGENTS.md / editor
-adapters from this file — edit here, never there.
+This frontier is driven by `vela` + `git`. The ordinary path is
+`next -> work -> land -> sign`: agents stop after the routed landing; only a
+human key or a previously human-signed Permit policy changes accepted state.
+`vela agents sync` regenerates CLAUDE.md / AGENTS.md / editor adapters from
+this file — edit here, never there.
 
 ## Agent rules
 
 Agents may:
 
 - inspect state: `vela status .`, `vela next .`, `vela check .`
-- land Receipt v1 work: `vela land <receipt.json>` /
-  `vela land --claim … --artifact … --caveat …`
+- claim one target: `vela work <target> --as agent:<name> --json`
+- land Receipt v1 work through that session: `vela land --work <target>
+  --claim … --artifact … --caveat … --as agent:<name> --json`
+- import a foreign producer's canonical Receipt v1: `vela land receipt.json
+  --as agent:<name> --json`
 - run the verifiers: `vela reproduce .`, `vela check . --strict`
 - rebuild derived views: `vela frontier materialize .`
 
 Agents may not:
 
-- accept, reject, or attest anything (human-key decisions; the engine
-  refuses agent actors on every truth-bearing verb)
-- sign with a human's key, or run bare review verbs without
-  `VELA_ACTOR_ID=agent:<name>` exported
+- run `vela sign`, accept, reject, apply, or finalize a truth-bearing proposal
+- sign with, read, or handle a human's key
+- hand-edit accepted events or derived views such as `frontier.json` and proof
+  packets
 
 ## Fast commands
 
 ```bash
-vela status .                 # where the frontier stands
-vela inbox .                  # pending proposals awaiting a human key
-vela check . --strict         # the full trust gate, locally
-vela frontier materialize .   # regenerate derived views after events land
-git push                      # publication (CI re-derives; the hub re-indexes)
+vela next . --json                              # ranked offer
+vela work <target> --as agent:<name> --json     # lease + briefing
+vela land --work <target> --claim <claim> \
+  --type computational --replayability exact \
+  --artifact <path>:<kind> --caveat <limit> \
+  --as agent:<name> --json                       # Receipt v1 + policy route
+vela status . --json                             # accepted and pending state
+vela check . --strict                            # replay and parity gate
+vela frontier materialize .                      # rebuild derived views
+git push                                         # publication; no authority
 ```
 "#
         ),
@@ -507,10 +523,16 @@ git push                      # publication (CI re-derives; the hub re-indexes)
     write(
         ".mcp.json",
         r#"{
+  "_generated_by": "vela agents sync (from VELA.md) — edit VELA.md, not this file",
   "mcpServers": {
-    "vela": {
-      "command": "vela",
-      "args": ["serve", ".", "--profile", "read-only"]
+    "vela-local": {
+      "args": [
+        "serve",
+        ".",
+        "--profile",
+        "draft"
+      ],
+      "command": "vela"
     }
   }
 }
@@ -1050,10 +1072,6 @@ fn render_manifest(path: &Path, project: &Project) -> Result<Vec<u8>, String> {
             adapters: existing_dependencies.adapters,
             frontiers_v2: project.project.dependencies.clone(),
         },
-        templates: existing
-            .as_ref()
-            .map(|manifest| manifest.templates.clone())
-            .unwrap_or_default(),
     };
     serde_yaml::to_string(&manifest)
         .map(String::into_bytes)
@@ -1219,9 +1237,9 @@ fn project_with_frontier_id(project: &Project) -> Result<Project, String> {
     serde_json::from_value(value).map_err(|e| format!("Failed to normalize frontier state: {e}"))
 }
 
-fn write_frontier_card(path: &Path, name: &str, template: &str) -> Result<(), String> {
+fn write_frontier_card(path: &Path, name: &str) -> Result<(), String> {
     let text = format!(
-        "# {name}\n\nThis is a Vela frontier repository.\n\n- State entrypoint: `frontier.json`\n- Manifest: `frontier.yaml`\n- Lockfile: `vela.lock`\n- Template: `{template}`\n\nRun:\n\n```bash\nvela check . --strict --json\nvela integrity . --json\nvela proof . --out proof/latest\n```\n"
+        "# {name}\n\nThis is a Vela frontier repository. Agents follow `next -> work -> land`; a human uses `sign` for deferred decisions, and Git publishes the resulting bytes.\n\n- State entrypoint: `frontier.json`\n- Manifest: `frontier.yaml`\n- Lockfile: `vela.lock`\n\nRun:\n\n```bash\nvela agents sync . --json\nvela status . --json\nvela next . --json\nvela check . --strict --json\n```\n"
     );
     fs::write(path.join("README.md"), text).map_err(|e| format!("Failed to write README.md: {e}"))
 }
@@ -1370,7 +1388,7 @@ fn render_proof(
     files.insert(
         "freshness.md".to_string(),
         format!(
-            "# Freshness\n\nCurrent proof status: fresh\n\n`frontier.json` was materialized from `.vela/events/` at {generated_at}.\n\nAccepted events: {}\nEvent log hash: `{event_log_hash}`\nSnapshot hash: `{snapshot_hash}`\n\nRun:\n\n```bash\nvela check . --strict --json\nvela integrity . --json\n```\n",
+            "# Freshness\n\nCurrent proof status: fresh\n\n`frontier.json` was materialized from `.vela/events/` at {generated_at}.\n\nAccepted events: {}\nEvent log hash: `{event_log_hash}`\nSnapshot hash: `{snapshot_hash}`\n\nRun:\n\n```bash\nvela check . --strict --json\nvela proof verify . --json\n```\n",
             locked.events.len()
         )
         .into_bytes(),
@@ -1531,7 +1549,6 @@ mod tests {
             tmp.path(),
             InitOptions {
                 name: "Rendered frontier",
-                template: "default",
                 initialize_git: false,
             },
         )
@@ -1570,7 +1587,6 @@ mod tests {
             tmp.path(),
             InitOptions {
                 name: "Unskippable frontier gate",
-                template: "default",
                 initialize_git: false,
             },
         )
@@ -1621,13 +1637,26 @@ mod tests {
     }
 
     #[test]
+    fn init_commands_quote_frontier_paths_as_one_shell_argument() {
+        let commands = init_next_commands(Path::new("frontier with 'quotes' and spaces"));
+        assert_eq!(
+            commands[0],
+            "vela agents sync 'frontier with '\"'\"'quotes'\"'\"' and spaces' --json"
+        );
+        assert!(
+            commands
+                .iter()
+                .all(|command| command.contains("'frontier with '\"'\"'quotes'\"'\"' and spaces'"))
+        );
+    }
+
+    #[test]
     fn initialize_writes_canonical_git_attributes() {
         let tmp = tempfile::tempdir().expect("tempdir");
         let payload = initialize(
             tmp.path(),
             InitOptions {
                 name: "Attribute-safe frontier",
-                template: "default",
                 initialize_git: false,
             },
         )

@@ -3,7 +3,7 @@
 
 use super::*;
 
-pub(crate) fn cmd_init(path: &Path, name: &str, template: &str, json_output: bool) {
+pub(crate) fn cmd_init(path: &Path, name: &str, json_output: bool) {
     if path.join(".vela").exists() {
         crate::ui::fail_with(
             crate::ui::ErrorKind::Exists,
@@ -18,7 +18,6 @@ pub(crate) fn cmd_init(path: &Path, name: &str, template: &str, json_output: boo
         path,
         frontier_repo::InitOptions {
             name,
-            template,
             initialize_git: true,
         },
     )
@@ -105,9 +104,9 @@ pub(crate) fn cmd_mcp_setup(source: Option<&Path>, frontiers: Option<&Path>) {
         .map(|p| p.display().to_string())
         .or_else(|| frontiers.map(|p| p.display().to_string()))
         .unwrap_or_else(|| "frontier.json".to_string());
-    // Emit the read-only profile by default (memo §9.1): the safe MCP surface
-    // an agent should get unless a human starts a scoped draft/maintainer
-    // session. Matches the `.mcp.json` that `vela agents sync` generates.
+    // Emit the read-only profile by default (memo §9.1): the safe generic MCP
+    // snippet. A frontier's generated `.mcp.json` opts into the nonfinalizing
+    // draft profile explicitly so `next -> work -> land` remains available.
     let args = if let Some(path) = source {
         format!(r#""serve", "{}", "--profile", "read-only""#, path.display())
     } else if let Some(path) = frontiers {

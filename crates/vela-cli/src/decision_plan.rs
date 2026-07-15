@@ -1537,7 +1537,6 @@ mod tests {
             temp.path(),
             vela_protocol::frontier_repo::InitOptions {
                 name: "decision-plan-test",
-                template: "",
                 initialize_git: false,
             },
         )

@@ -192,11 +192,11 @@ human glance while a corroborated, gate-clean witness auto-lands. That is
 the fidelity discipline made automatic — the policy opens the lane, the
 gate keeps it honest.
 
-`vela doctor` carries a setup lane for the operator machine: identity +
-key permissions, binary pin state (including the workshop-build warning
-— a cargo `target/` binary churns the pin), hub reachability, policy
-freshness (14-day expiry warning), adapter sync, and registry health —
-each row with the one command that fixes it.
+`vela doctor` is local and offline: it checks identity + key permissions,
+binary pin state (including the workshop-build warning — a cargo `target/`
+binary churns the pin), policy freshness (14-day expiry warning), adapter
+sync, and registry health. Hub reachability belongs to explicit hub commands,
+so first-run diagnostics never wait on or depend on an external service.
 
 ## Configuration
 

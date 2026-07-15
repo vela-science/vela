@@ -5,7 +5,6 @@ pub mod activity;
 pub mod anchor;
 pub mod attempt;
 pub mod cli_style;
-pub mod frontier_template;
 pub mod identity;
 pub mod merkle;
 pub mod nanopub;

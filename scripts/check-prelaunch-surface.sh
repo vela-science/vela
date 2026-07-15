@@ -24,6 +24,7 @@ absent_paths=(
   crates/vela-cli/src/write/cli_claim.rs
   crates/vela-edge/embedded
   crates/vela-protocol/embedded/carina-schemas
+  crates/vela-protocol/src/objects/frontier_template.rs
   docs/CARINA.md
   examples/carina-kernel
   schema/carina.artifact-packet.v0.1.json
@@ -40,6 +41,29 @@ for path in "${absent_paths[@]}"; do
     fail "retired path returned: $path"
   fi
 done
+
+# Generated first-run guidance is executable product surface. It must not
+# resurrect commands removed by the prelaunch hard cut.
+generated_guidance_surfaces=(
+  crates/vela-cli/src/cli/help_text.rs
+  crates/vela-protocol/src/computed/frontier_repo.rs
+  crates/vela-protocol/src/analysis/evidence_diff.rs
+  crates/vela-edge/src/mcp/doctor.rs
+  docs/AGENT_QUICKSTART.md
+)
+retired_generated_command_pattern='vela (inbox|integrity|stats|task|source-inbox|claim diff)([^[:alnum:]_-]|$)|vela gate \.|attempt the accept|--template adoption-frontier'
+if grep -nE "$retired_generated_command_pattern" "${generated_guidance_surfaces[@]}" >/dev/null; then
+  grep -nE "$retired_generated_command_pattern" "${generated_guidance_surfaces[@]}" >&2
+  fail "retired command remains in generated first-run guidance"
+fi
+
+if grep -nF '["serve", ".", "--profile", "read-only"]' docs/AGENT_QUICKSTART.md >/dev/null; then
+  grep -nF '["serve", ".", "--profile", "read-only"]' docs/AGENT_QUICKSTART.md >&2
+  fail "agent quickstart contradicts the generated draft MCP profile"
+fi
+if ! grep -nF '["serve", ".", "--profile", "draft"]' docs/AGENT_QUICKSTART.md >/dev/null; then
+  fail "agent quickstart does not document the generated draft MCP profile"
+fi
 
 # Carina was a prelaunch duplicate kernel. It must not survive in either the
 # maintained manifests or their regenerable materialized views.

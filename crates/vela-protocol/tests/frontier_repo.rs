@@ -97,8 +97,6 @@ fn init_creates_canonical_frontier_repo_layout() {
         frontier.to_str().unwrap(),
         "--name",
         "Test frontier",
-        "--template",
-        "disease-frontier",
         "--json",
     ]);
 
@@ -144,6 +142,49 @@ fn init_creates_canonical_frontier_repo_layout() {
         .expect("failed to inspect initialized frontier branch");
     assert!(branch.status.success());
     assert_eq!(String::from_utf8_lossy(&branch.stdout).trim(), "main");
+    let retired_guidance = [
+        "vela inbox",
+        "vela integrity",
+        "vela stats",
+        "vela task",
+        "vela source-inbox",
+        "vela claim diff",
+        "vela gate .",
+        "attempt the accept",
+    ];
+    for relative in ["README.md", "VELA.md", "proof/freshness.md"] {
+        let body = fs::read_to_string(frontier.join(relative)).unwrap();
+        for retired in retired_guidance {
+            assert!(
+                !body.contains(retired),
+                "{relative} still advertises retired command {retired}"
+            );
+        }
+    }
+    for command in payload["next_commands"].as_array().unwrap() {
+        let command = command.as_str().unwrap();
+        for retired in retired_guidance {
+            assert!(
+                !command.contains(retired),
+                "init next command still advertises {retired}: {command}"
+            );
+        }
+    }
+    assert!(
+        fs::read_to_string(frontier.join("VELA.md"))
+            .unwrap()
+            .contains("next -> work -> land -> sign")
+    );
+    let initial_mcp = fs::read(frontier.join(".mcp.json")).unwrap();
+    let sync = run_json(&["agents", "sync", frontier.to_str().unwrap(), "--json"]);
+    assert_eq!(sync["command"], "agents sync");
+    assert_eq!(
+        fs::read(frontier.join(".mcp.json")).unwrap(),
+        initial_mcp,
+        "fresh init and agents sync must agree on the MCP adapter"
+    );
+    let adapters = run_json(&["agents", "doctor", frontier.to_str().unwrap(), "--json"]);
+    assert_eq!(adapters["ok"], true);
     assert!(
         fs::read_to_string(frontier.join("README.md"))
             .unwrap()
@@ -183,9 +224,32 @@ fn init_creates_canonical_frontier_repo_layout() {
     // doctor are top-level now and carry no schema field — assert the
     // living contract: both answer, doctor is ok on a fresh init.
     let _status = run_json(&["status", frontier.to_str().unwrap(), "--json"]);
+    let next = run_json(&["next", frontier.to_str().unwrap(), "--json"]);
+    assert_eq!(next["targets"][0]["id"], "seed:first");
+    assert_eq!(next["targets"][0]["next_command"], "vela work seed:first");
     let proof = run_json(&["proof", "verify", frontier.to_str().unwrap(), "--json"]);
     assert_eq!(proof["schema"], "vela.frontier_proof_verify.v0.1");
     assert_eq!(proof["ok"], true);
+}
+
+#[test]
+fn init_rejects_the_removed_multi_template_surface() {
+    let tmp = TempDir::new().expect("tempdir");
+    let frontier = tmp.path().join("retired-template-frontier");
+
+    let failure = run_expect_failure(&[
+        "init",
+        frontier.to_str().unwrap(),
+        "--template",
+        "adoption-frontier",
+        "--json",
+    ]);
+
+    assert!(
+        failure.contains("unexpected argument '--template'"),
+        "{failure}"
+    );
+    assert!(!frontier.exists());
 }
 
 #[test]
@@ -232,7 +296,6 @@ fn frontier_materialize_is_idempotent_when_state_is_fresh() {
         &frontier,
         InitOptions {
             name: "Idempotent frontier",
-            template: "default",
             initialize_git: false,
         },
     )

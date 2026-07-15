@@ -1,0 +1,67 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: build-${{ matrix.asset }}
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            asset: vela-linux-x86_64
+          - runner: macos-15
+            asset: vela-macos-aarch64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable 2026-07-15
+      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
+      - name: Build release binary
+        run: cargo build --locked --release -p vela-cli --bin vela
+      - name: Prepare binary and installer checksum
+        env:
+          ASSET: ${{ matrix.asset }}
+        run: |
+          mkdir -p dist
+          cp target/release/vela "dist/$ASSET"
+          (
+            cd target/release
+            shasum -a 256 vela > "../../dist/$ASSET.sha256"
+          )
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ${{ matrix.asset }}
+          path: dist/*
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Publish immutable release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test -f dist/vela-linux-x86_64
+          test -f dist/vela-linux-x86_64.sha256
+          test -f dist/vela-macos-aarch64
+          test -f dist/vela-macos-aarch64.sha256
+          gh release create "$GITHUB_REF_NAME" dist/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --verify-tag \
+            --title "$GITHUB_REF_NAME" \
+            --notes-from-tag

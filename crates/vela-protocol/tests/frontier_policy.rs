@@ -26,10 +26,11 @@ fn loads_policy_documents_from_manifest_references() {
     let tmp = tempdir().unwrap();
     write_frontier(
         tmp.path(),
-        r#"  evidence: .vela/policy/evidence_policy.md
-  review: .vela/policy/review_policy.md
-  confidence: .vela/policy/confidence_policy.md
-  agent: .vela/policy/agent_policy.md
+        r#"  frontier:
+    evidence: .vela/policy/evidence_policy.md
+    review: .vela/policy/review_policy.md
+    confidence: .vela/policy/confidence_policy.md
+    agent: .vela/policy/agent_policy.md
 "#,
     );
     let dir = tmp.path().join(".vela").join("policy");
@@ -102,7 +103,8 @@ fn reports_missing_policy_documents_without_failing_small_fixtures() {
 
     let summary = load_policy_summary(tmp.path()).unwrap();
     assert!(!summary.ok);
-    assert!(summary.defaults_used);
+    assert!(!summary.configured);
+    assert!(!summary.defaults_used);
     assert_eq!(summary.missing_required.len(), 4);
 }
 
@@ -111,10 +113,11 @@ fn computes_policy_aware_review_requirements() {
     let tmp = tempdir().unwrap();
     write_frontier(
         tmp.path(),
-        r#"  evidence: .vela/policy/evidence_policy.md
-  review: .vela/policy/review_policy.md
-  confidence: .vela/policy/confidence_policy.md
-  agent: .vela/policy/agent_policy.md
+        r#"  frontier:
+    evidence: .vela/policy/evidence_policy.md
+    review: .vela/policy/review_policy.md
+    confidence: .vela/policy/confidence_policy.md
+    agent: .vela/policy/agent_policy.md
 "#,
     );
     let dir = tmp.path().join(".vela").join("policy");

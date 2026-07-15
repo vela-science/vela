@@ -12,5 +12,5 @@ Run:
 
 ```bash
 vela check . --strict --json
-vela integrity . --json
+vela proof verify . --json
 ```

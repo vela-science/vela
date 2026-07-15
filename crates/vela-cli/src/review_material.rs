@@ -1067,7 +1067,6 @@ mod tests {
             temp.path(),
             vela_protocol::frontier_repo::InitOptions {
                 name: "review-projection-test",
-                template: "",
                 initialize_git: false,
             },
         )

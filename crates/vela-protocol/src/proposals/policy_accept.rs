@@ -2574,7 +2574,6 @@ mod tests {
             &dir,
             crate::frontier_repo::InitOptions {
                 name: "policy-lane-test",
-                template: "",
                 initialize_git: false,
             },
         )

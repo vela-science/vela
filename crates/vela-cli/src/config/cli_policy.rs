@@ -2990,7 +2990,6 @@ mod tests {
             &dir,
             vela_protocol::frontier_repo::InitOptions {
                 name: "policy-porcelain-test",
-                template: "",
                 initialize_git: false,
             },
         )

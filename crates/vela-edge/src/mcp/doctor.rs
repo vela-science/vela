@@ -47,8 +47,13 @@ pub struct DoctorReport {
 }
 
 pub fn run(frontier_arg: Option<&Path>, port: u16) -> DoctorReport {
-    let workspace_root = workspace_root();
-    let frontier_path = resolve_frontier_path(frontier_arg, Path::new(&workspace_root));
+    let discovered_workspace_root = workspace_root();
+    let frontier_path = resolve_frontier_path(frontier_arg, Path::new(&discovered_workspace_root));
+    let workspace_root = if frontier_arg.is_some() {
+        frontier_path.display().to_string()
+    } else {
+        discovered_workspace_root
+    };
     let frontier_kind = frontier_kind(&frontier_path);
     let release_binary_exists = Path::new("target/release/vela").is_file();
     let has_cargo = command_exists("cargo");
@@ -56,6 +61,7 @@ pub fn run(frontier_arg: Option<&Path>, port: u16) -> DoctorReport {
     let has_rg = command_exists("rg");
     let has_curl = command_exists("curl");
     let workbench_port_available = port_available(port);
+    let dev_checkout = Path::new("Cargo.toml").is_file() && Path::new("crates").is_dir();
 
     let project_result = repo::load_from_path(&frontier_path);
     let frontier_load_ok = project_result.is_ok();
@@ -80,16 +86,15 @@ pub fn run(frontier_arg: Option<&Path>, port: u16) -> DoctorReport {
     let mut blocking = Vec::new();
     let mut warnings = Vec::new();
 
-    if !has_cargo {
+    if dev_checkout && !has_cargo {
         blocking.push("cargo_missing".to_string());
     }
     if !frontier_load_ok {
         blocking.push("frontier_load_failed".to_string());
     }
     if frontier_load_ok && !policy_ok {
-        // Nothing scaffolds the review-policy documents today (even the
-        // reference fixtures lack them), so their absence is advice, not
-        // a blocker — doctor must not fail every real frontier.
+        // An entirely absent policy set uses conservative built-in defaults;
+        // policy configuration remains optional for the first producer loop.
         warnings.push(
             "review-policy documents not configured (optional; `vela policy show .`)".to_string(),
         );
@@ -98,22 +103,21 @@ pub fn run(frontier_arg: Option<&Path>, port: u16) -> DoctorReport {
         blocking.push("evidence_ci_release_blocking".to_string());
     }
     if !workbench_port_available {
-        blocking.push("workbench_port_unavailable".to_string());
+        warnings.push("workbench port unavailable; local CLI work remains ready".to_string());
     }
     // Only meaningful inside the substrate dev checkout (the gate
     // scripts want target/release); an installed binary user is never
     // missing it — they are running it.
-    let dev_checkout = Path::new("Cargo.toml").is_file() && Path::new("crates").is_dir();
     if dev_checkout && !release_binary_exists {
         warnings.push("release binary missing; run cargo build --release --bin vela".to_string());
     }
-    if !has_jq {
+    if dev_checkout && !has_jq {
         warnings.push("jq missing; JSON examples will be harder to inspect".to_string());
     }
-    if !has_rg {
+    if dev_checkout && !has_rg {
         warnings.push("rg missing; release gates use ripgrep for text checks".to_string());
     }
-    if !has_curl {
+    if dev_checkout && !has_curl {
         warnings.push("curl missing; HTTP and serve smoke checks will fail".to_string());
     }
     if frontier_load_ok && !matches!(proof_status.as_str(), "fresh" | "current" | "ready") {
@@ -124,18 +128,20 @@ pub fn run(frontier_arg: Option<&Path>, port: u16) -> DoctorReport {
     }
 
     let frontier_display = frontier_path.display().to_string();
+    let frontier_arg = posix_shell_arg(&frontier_display);
     let next_commands = if frontier_load_ok {
         vec![
-            format!("vela doctor {frontier_display} --port {port}"),
-            format!("vela serve {frontier_display} --http {port}"),
-            format!("vela frontier audit {frontier_display}"),
-            format!("vela check {frontier_display} --evidence"),
-            format!("vela proof {frontier_display} --out /tmp/vela-proof"),
+            format!("vela doctor {frontier_arg} --port {port}"),
+            format!("vela serve {frontier_arg} --http {port}"),
+            format!("vela frontier audit {frontier_arg}"),
+            format!("vela check {frontier_arg} --evidence"),
+            format!("vela proof {frontier_arg} --out /tmp/vela-proof"),
             "vela proof verify /tmp/vela-proof".to_string(),
         ]
     } else {
         vec![
-            "vela init ./my-frontier --template adoption-frontier".to_string(),
+            "vela init ./my-frontier --name \"My frontier\" --json".to_string(),
+            "vela agents sync ./my-frontier --json".to_string(),
             "vela doctor ./my-frontier".to_string(),
         ]
     };
@@ -183,6 +189,10 @@ fn resolve_frontier_path(frontier_arg: Option<&Path>, workspace_root: &Path) -> 
         return frontier;
     }
     workspace_root.to_path_buf()
+}
+
+fn posix_shell_arg(value: &str) -> String {
+    format!("'{}'", value.replace('\'', "'\"'\"'"))
 }
 
 /// Returns the first frontier repo (a directory carrying a `.vela/` store)
@@ -277,5 +287,30 @@ mod tests {
         assert_eq!(found, projects.join("alpha-frontier"));
         // No projects directory at all resolves to None, not a panic.
         assert!(first_local_frontier(&dir.path().join("absent")).is_none());
+    }
+
+    #[test]
+    fn explicit_frontier_is_the_reported_root_and_commands_quote_it() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let frontier = dir.path().join("frontier with spaces");
+        vela_protocol::frontier_repo::initialize(
+            &frontier,
+            vela_protocol::frontier_repo::InitOptions {
+                name: "spaced doctor frontier",
+                initialize_git: false,
+            },
+        )
+        .expect("initialize frontier");
+
+        let report = run(Some(&frontier), 0);
+        assert_eq!(report.workspace_root, frontier.display().to_string());
+        let quoted = format!("'{}'", frontier.display());
+        assert!(
+            report
+                .next_commands
+                .iter()
+                .take(5)
+                .all(|command| command.contains(&quoted))
+        );
     }
 }

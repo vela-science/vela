@@ -2,6 +2,7 @@ use serde_json::Value;
 
 const ROOT_ACTION: &str = include_str!("../../../action.yml");
 const INSTALLER: &str = include_str!("../../../install.sh");
+const RELEASE_WORKFLOW: &str = include_str!("../../../.github/workflows/release.yml");
 
 fn parse_action(source: &str) -> Value {
     serde_yaml::from_str(source).expect("action source must be valid YAML")
@@ -80,12 +81,34 @@ fn root_action_is_lock_pinned_strict_and_nonfinalizing() {
 }
 
 #[test]
-fn prelaunch_tags_do_not_publish_a_github_release() {
-    let workspace = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    assert!(
-        !workspace.join(".github/workflows/release.yml").exists(),
-        "prelaunch tags must not trigger a GitHub Release"
-    );
+fn reviewed_tags_publish_both_installer_assets_from_locked_source() {
+    assert!(RELEASE_WORKFLOW.contains("tags:\n      - \"v*.*.*\""));
+    assert!(RELEASE_WORKFLOW.contains("cargo build --locked --release -p vela-cli --bin vela"));
+    for asset in ["vela-linux-x86_64", "vela-macos-aarch64"] {
+        assert!(RELEASE_WORKFLOW.contains(asset), "missing {asset}");
+        assert!(
+            RELEASE_WORKFLOW.contains(&format!("test -f dist/{asset}.sha256")),
+            "missing checksum assertion for {asset}"
+        );
+    }
+    assert!(RELEASE_WORKFLOW.contains("shasum -a 256 vela"));
+    assert!(RELEASE_WORKFLOW.contains("gh release create \"$GITHUB_REF_NAME\" dist/*"));
+    assert!(RELEASE_WORKFLOW.contains("--verify-tag"));
+    assert!(RELEASE_WORKFLOW.contains("permissions:\n  contents: read"));
+    assert!(RELEASE_WORKFLOW.contains("permissions:\n      contents: write"));
+    for mutable_ref in [
+        "actions/checkout@v",
+        "dtolnay/rust-toolchain@stable",
+        "Swatinem/rust-cache@v",
+        "actions/upload-artifact@v",
+        "actions/download-artifact@v",
+    ] {
+        assert!(
+            !RELEASE_WORKFLOW.contains(mutable_ref),
+            "release workflow retains mutable action ref {mutable_ref}"
+        );
+    }
+    assert!(!RELEASE_WORKFLOW.contains("vela sign"));
 }
 
 #[test]

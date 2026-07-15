@@ -73,6 +73,11 @@ pub struct FrontierPolicySummary {
     pub documents: Vec<PolicyDocumentSummary>,
     #[serde(default)]
     pub missing_required: Vec<String>,
+    /// True when the frontier declares at least one policy path or carries at
+    /// least one document at the conventional default path. This separates a
+    /// deliberately unconfigured frontier from a configured-but-broken one.
+    #[serde(default)]
+    pub configured: bool,
     pub defaults_used: bool,
     pub canonical_json_sha256: String,
 }
@@ -185,10 +190,10 @@ pub fn load_policy_summary(frontier_path: &Path) -> Result<FrontierPolicySummary
 pub fn engine_policy_summary_observation(frontier_path: &Path) -> EnginePolicySummaryObservation {
     match load_policy_summary_inner(frontier_path, false) {
         Ok(summary) => {
-            let state = if summary.documents.is_empty() {
-                EnginePolicySummaryState::Absent
-            } else {
+            let state = if summary.configured {
                 EnginePolicySummaryState::Present
+            } else {
+                EnginePolicySummaryState::Absent
             };
             let summary_root = Some(summary.canonical_json_sha256);
             let root = observation_root(state, summary_root.as_deref(), None, None);
@@ -256,6 +261,7 @@ fn load_policy_summary_inner(
         .as_ref()
         .map(policy_refs_from_manifest)
         .unwrap_or_default();
+    let has_manifest_refs = !manifest_refs.is_empty();
     let mut documents = Vec::new();
     let mut missing_required = Vec::new();
     let mut used_default_path = false;
@@ -264,7 +270,10 @@ fn load_policy_summary_inner(
         let manifest_ref = manifest_refs.get(&kind);
         let default_path = PathBuf::from(".vela").join("policy").join(kind.filename());
         let reference = format!("policy: {}", kind.as_str());
-        let declared = if let Some(path) = manifest_ref {
+        let chosen = if let Some(path) = manifest_ref {
+            // An explicit path is authoritative configuration. A missing
+            // declared file must remain missing; silently falling back to a
+            // conventional path would make a broken policy look healthy.
             read_frontier_regular_file(
                 resolved.canonical.as_deref(),
                 path,
@@ -273,19 +282,16 @@ fn load_policy_summary_inner(
             )?
             .map(|bytes| (path.clone(), bytes, true))
         } else {
-            None
-        };
-        let chosen = if declared.is_some() {
-            declared
-        } else {
-            used_default_path = true;
-            read_frontier_regular_file(
+            let default = read_frontier_regular_file(
                 resolved.canonical.as_deref(),
                 &default_path,
                 ENGINE_POLICY_DOCUMENT_MAX_BYTES,
                 &reference,
-            )?
-            .map(|bytes| (default_path, bytes, false))
+            )?;
+            if default.is_some() {
+                used_default_path = true;
+            }
+            default.map(|bytes| (default_path, bytes, false))
         };
 
         if let Some((path, bytes, declared_in_manifest)) = chosen {
@@ -314,12 +320,14 @@ fn load_policy_summary_inner(
 
     documents.sort_by(|a, b| a.kind.cmp(&b.kind));
     missing_required.sort();
+    let configured = has_manifest_refs || !documents.is_empty();
     let mut summary = FrontierPolicySummary {
         ok: missing_required.is_empty(),
         frontier_id,
         frontier_path: resolved.display.display().to_string(),
         documents,
         missing_required,
+        configured,
         defaults_used: used_default_path,
         canonical_json_sha256: String::new(),
     };
@@ -694,10 +702,6 @@ fn policy_refs_from_manifest(
     for kind in PolicyDocumentKind::all() {
         if let Some(value) = yaml_string_at(manifest, &["policies", "frontier", kind.as_str()]) {
             out.insert(kind, PathBuf::from(value));
-            continue;
-        }
-        if let Some(value) = yaml_string_at(manifest, &["policies", kind.as_str()]) {
-            out.insert(kind, PathBuf::from(value));
         }
     }
     out
@@ -950,6 +954,7 @@ mod tests {
         let tmp = complete_frontier();
         let summary = load_policy_summary(tmp.path()).unwrap();
         assert!(summary.ok, "all four docs present => ok");
+        assert!(summary.configured);
         assert!(summary.missing_required.is_empty());
         assert_eq!(summary.documents.len(), 4);
         // Front-matter title is lifted verbatim.
@@ -973,9 +978,46 @@ mod tests {
         write_default_policy(tmp.path(), PolicyDocumentKind::Review, "review body");
         let summary = load_policy_summary(tmp.path()).unwrap();
         assert!(!summary.ok);
+        assert!(summary.configured);
         assert_eq!(summary.documents.len(), 2);
         // missing_required is sorted and names exactly the absent kinds.
         assert_eq!(summary.missing_required, vec!["agent", "confidence"]);
+    }
+
+    #[test]
+    fn declared_missing_documents_do_not_fall_back_or_look_absent() {
+        let tmp = TempDir::new().unwrap();
+        // Even a conventional file with the same kind cannot replace an
+        // explicitly declared path that is missing.
+        write_default_policy(
+            tmp.path(),
+            PolicyDocumentKind::Evidence,
+            "must not be used as a fallback",
+        );
+        write_manifest(
+            tmp.path(),
+            "  frontier:\n    evidence: policy/missing-evidence.md\n    review: policy/missing-review.md\n    confidence: policy/missing-confidence.md\n    agent: policy/missing-agent.md\n",
+        );
+
+        let summary = load_policy_summary(tmp.path()).unwrap();
+        assert!(!summary.ok);
+        assert!(summary.configured);
+        assert!(summary.documents.is_empty());
+        assert!(!summary.defaults_used);
+        assert_eq!(summary.missing_required.len(), 4);
+        let observation = engine_policy_summary_observation(tmp.path());
+        assert_eq!(observation.state, EnginePolicySummaryState::Present);
+    }
+
+    #[test]
+    fn empty_frontier_policy_is_explicitly_unconfigured() {
+        let tmp = TempDir::new().unwrap();
+        let summary = load_policy_summary(tmp.path()).unwrap();
+        assert!(!summary.ok);
+        assert!(!summary.configured);
+        assert!(summary.documents.is_empty());
+        let observation = engine_policy_summary_observation(tmp.path());
+        assert_eq!(observation.state, EnginePolicySummaryState::Absent);
     }
 
     #[test]
@@ -1037,7 +1079,7 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let outside = TempDir::new().unwrap();
         std::fs::write(outside.path().join("outside.md"), "must not be read").unwrap();
-        write_manifest(tmp.path(), "  evidence: ../outside.md\n");
+        write_manifest(tmp.path(), "  frontier:\n    evidence: ../outside.md\n");
 
         let error = load_policy_summary(tmp.path()).unwrap_err();
         assert!(error.contains("path_not_normalized"), "{error}");
@@ -1070,14 +1112,17 @@ mod tests {
             leaf.path().join("policy/review.md"),
         )
         .unwrap();
-        write_manifest(leaf.path(), "  review: policy/review.md\n");
+        write_manifest(leaf.path(), "  frontier:\n    review: policy/review.md\n");
         let leaf_observation = engine_policy_summary_observation(leaf.path());
         assert_eq!(leaf_observation.state, EnginePolicySummaryState::Invalid);
         assert_eq!(leaf_observation.error_code.as_deref(), Some("path_symlink"));
 
         let ancestor = TempDir::new().unwrap();
         symlink(outside.path(), ancestor.path().join("linked")).unwrap();
-        write_manifest(ancestor.path(), "  review: linked/review.md\n");
+        write_manifest(
+            ancestor.path(),
+            "  frontier:\n    review: linked/review.md\n",
+        );
         let ancestor_observation = engine_policy_summary_observation(ancestor.path());
         assert_eq!(
             ancestor_observation.state,

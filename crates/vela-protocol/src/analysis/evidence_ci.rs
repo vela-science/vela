@@ -134,6 +134,13 @@ pub fn run_project(project: &Project, frontier_path: &Path) -> EvidenceCiReport 
             None,
             true,
         )),
+        Ok(summary) if !summary.configured => checks.push(warn(
+            "policy.review_requirement",
+            "frontier",
+            &frontier_id,
+            "No frontier review-policy documents are configured; conservative built-in review defaults apply.",
+            Some(format!("absent: {}", summary.missing_required.join(", "))),
+        )),
         Ok(summary) => checks.push(fail(
             "policy.review_requirement",
             "frontier",
@@ -893,6 +900,108 @@ mod tests {
         )]);
         assert!(clean.ok);
         assert_eq!(clean.summary.release_blocking_failed, 0);
+    }
+
+    #[test]
+    fn absent_policy_documents_use_conservative_defaults_without_blocking_release() {
+        let temp = tempfile::tempdir().unwrap();
+        crate::frontier_repo::initialize(
+            temp.path(),
+            crate::frontier_repo::InitOptions {
+                name: "policy-defaults-test",
+                initialize_git: false,
+            },
+        )
+        .unwrap();
+        let project = crate::repo::load_from_path(temp.path()).unwrap();
+
+        let report = run_project(&project, temp.path());
+        let policy = report
+            .checks
+            .iter()
+            .find(|check| check.id == "policy.review_requirement")
+            .unwrap();
+
+        assert!(report.ok);
+        assert_eq!(policy.status, EvidenceCiStatus::Warning);
+        assert!(!policy.release_blocking);
+        assert!(
+            policy
+                .message
+                .contains("conservative built-in review defaults")
+        );
+    }
+
+    #[test]
+    fn partial_policy_configuration_remains_release_blocking() {
+        let temp = tempfile::tempdir().unwrap();
+        crate::frontier_repo::initialize(
+            temp.path(),
+            crate::frontier_repo::InitOptions {
+                name: "partial-policy-test",
+                initialize_git: false,
+            },
+        )
+        .unwrap();
+        let policy_dir = temp.path().join(".vela/policy");
+        std::fs::create_dir_all(&policy_dir).unwrap();
+        std::fs::write(
+            policy_dir.join("evidence_policy.md"),
+            "# Evidence policy\n\nExplicit evidence rules.\n",
+        )
+        .unwrap();
+        let project = crate::repo::load_from_path(temp.path()).unwrap();
+
+        let report = run_project(&project, temp.path());
+        let policy = report
+            .checks
+            .iter()
+            .find(|check| check.id == "policy.review_requirement")
+            .unwrap();
+
+        assert!(!report.ok);
+        assert_eq!(policy.status, EvidenceCiStatus::Failed);
+        assert!(policy.release_blocking);
+    }
+
+    #[test]
+    fn declared_but_missing_policy_documents_remain_release_blocking() {
+        let temp = tempfile::tempdir().unwrap();
+        crate::frontier_repo::initialize(
+            temp.path(),
+            crate::frontier_repo::InitOptions {
+                name: "declared-missing-policy-test",
+                initialize_git: false,
+            },
+        )
+        .unwrap();
+        let manifest_path = temp.path().join("frontier.yaml");
+        let mut manifest: crate::frontier_repo::FrontierManifest =
+            serde_yaml::from_str(&std::fs::read_to_string(&manifest_path).unwrap()).unwrap();
+        for (kind, path) in [
+            ("evidence", "policy/missing-evidence.md"),
+            ("review", "policy/missing-review.md"),
+            ("confidence", "policy/missing-confidence.md"),
+            ("agent", "policy/missing-agent.md"),
+        ] {
+            manifest
+                .policies
+                .frontier
+                .insert(kind.to_string(), path.to_string());
+        }
+        std::fs::write(&manifest_path, serde_yaml::to_string(&manifest).unwrap()).unwrap();
+        let project = crate::repo::load_from_path(temp.path()).unwrap();
+
+        let report = run_project(&project, temp.path());
+        let policy = report
+            .checks
+            .iter()
+            .find(|check| check.id == "policy.review_requirement")
+            .unwrap();
+
+        assert!(!report.ok);
+        assert_eq!(policy.status, EvidenceCiStatus::Failed);
+        assert!(policy.release_blocking);
     }
 
     #[test]

@@ -1,5 +1,37 @@
 # Changelog
 
+## v0.800.5 — 2026-07-15 — One executable frontier scaffold
+
+- Removed the unlaunched multi-template `vela init --template` branch and its
+  orphaned adoption scaffold. New frontiers now have one task-first path and
+  one generated command list: `agents sync`, `doctor`, `status`, `next`, and
+  strict `check`.
+- Replaced retired generated commands (`inbox`, `integrity`, `stats`,
+  `source-inbox`, `task`, `claim diff`, and `gate .`) with commands the current
+  binary actually exposes. The generated charter now teaches
+  `next -> work -> land -> sign`, and a regression keeps first-run guidance on
+  the release surface.
+- Made a fresh frontier's MCP file byte-identical to `vela agents sync` and
+  explicitly limited it to the nonfinalizing draft profile. Agent tooling can
+  land a Receipt, but cannot sign or finalize a proposal.
+- Made an empty frontier's first `next` useful: it offers one generic
+  `seed:first` producer session, without inventing scientific content or
+  restoring a template system. Init/doctor command hints now shell-quote the
+  frontier path and the generated MCP adapter carries no dead environment.
+- Treat a completely absent optional review-policy document set as an explicit
+  conservative-default warning. Partially configured or malformed policy
+  documents remain release-blocking, including explicitly declared files that
+  are missing; declared paths never silently fall back. A fresh frontier no
+  longer contradicts its own doctor guidance.
+- Made `vela doctor` a local, offline diagnostic. It no longer probes a hosted
+  hub, requires a Rust toolchain outside the substrate checkout, or treats an
+  occupied optional Workbench port as failure.
+- Added a tag-driven two-platform release workflow. Linux x86-64 and Apple
+  Silicon binaries plus installer-compatible SHA-256 companions are now built
+  from the exact tag and attached to its GitHub Release. Release jobs use fixed
+  runner images, exact action commits, least-privilege job permissions, and
+  repository-level immutable releases.
+
 ## v0.800.4 — 2026-07-15 — Trust-boundary parity hardening
 
 - Consolidated policy-context derivation in the protocol. Landing, replay,

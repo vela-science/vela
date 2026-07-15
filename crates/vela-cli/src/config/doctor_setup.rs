@@ -2,7 +2,7 @@
 //!
 //! The dev-oriented checks live in vela-edge (`doctor::run`); these are
 //! the operator-machine checks — identity, key custody, binary pin, hub
-//! reach, policy freshness, adapter sync, registry health. Every one of
+//! policy freshness, adapter sync, registry health. Every one of
 //! them encodes an incident that actually happened; each carries the ONE
 //! command that fixes it. Merged into the doctor report at the cmd layer
 //! (vela-edge cannot see these crate-local stores).
@@ -56,12 +56,12 @@ fn fail(name: &'static str, detail: impl Into<String>, next: impl Into<String>) 
     }
 }
 
-/// Run every setup check. Pure reads plus one 2s network probe.
-pub(crate) async fn run(frontier: Option<&Path>) -> Vec<SetupCheck> {
+/// Run every setup check using local state only. Network reachability belongs
+/// to explicit hub commands, not the first-run frontier diagnostic.
+pub(crate) fn run(frontier: Option<&Path>) -> Vec<SetupCheck> {
     let mut out = Vec::new();
     out.push(identity_check());
     out.push(pin_check());
-    out.push(hub_check(frontier).await);
     if let Some(dir) = frontier {
         out.push(policy_check(dir));
         out.push(adapters_check(dir));
@@ -139,44 +139,6 @@ fn pin_check() -> SetupCheck {
         Ok(Some(pin)) => ok(
             "binary pin",
             format!("pinned {} ({})", &pin.sha256[..12], pin.version),
-        ),
-    }
-}
-
-/// Hub reachability: one GET /readyz with a short timeout.
-async fn hub_check(frontier: Option<&Path>) -> SetupCheck {
-    let (url, _origin) = super::settings::resolve("hub.url", frontier);
-    hub_check_url(&url).await
-}
-
-async fn hub_check_url(url: &str) -> SetupCheck {
-    let probe = format!("{}/readyz", url.trim_end_matches('/'));
-    let client = match reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(2))
-        .build()
-    {
-        Ok(c) => c,
-        Err(e) => return warn("hub", format!("probe client failed: {e}"), String::new()),
-    };
-    match client.get(&probe).send().await {
-        Ok(resp) if resp.status().is_success() => {
-            let version = resp
-                .json::<serde_json::Value>()
-                .await
-                .ok()
-                .and_then(|v| v.get("version").and_then(|s| s.as_str()).map(String::from))
-                .unwrap_or_else(|| "?".to_string());
-            ok("hub", format!("{url} ready ({version})"))
-        }
-        Ok(resp) => warn(
-            "hub",
-            format!("{probe} answered {}", resp.status()),
-            String::new(),
-        ),
-        Err(e) => warn(
-            "hub",
-            format!("{url} unreachable: {e}"),
-            "vela config set hub.url <url>  (if the hub moved)",
         ),
     }
 }
@@ -330,32 +292,6 @@ mod tests {
         assert_eq!(check.status, SetupStatus::Warn);
         assert!(check.detail.contains("active policy unreadable"));
         assert!(!check.detail.contains("unsigned policy draft"));
-    }
-
-    #[tokio::test(flavor = "current_thread")]
-    async fn hub_probe_is_safe_inside_the_cli_runtime() {
-        use std::io::{Read, Write};
-
-        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
-        let address = listener.local_addr().unwrap();
-        let server = std::thread::spawn(move || {
-            let (mut stream, _) = listener.accept().unwrap();
-            let mut request = [0_u8; 1024];
-            let _ = stream.read(&mut request).unwrap();
-            let body = br#"{"version":"test"}"#;
-            write!(
-                stream,
-                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
-                body.len()
-            )
-            .unwrap();
-            stream.write_all(body).unwrap();
-        });
-
-        let check = hub_check_url(&format!("http://{address}")).await;
-        server.join().unwrap();
-        assert_eq!(check.status, SetupStatus::Ok);
-        assert!(check.detail.contains("ready (test)"), "{}", check.detail);
     }
 
     #[test]

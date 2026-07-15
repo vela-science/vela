@@ -96,15 +96,17 @@ frontier. Writes and verifier runs still happen in a clone — the hosted
 endpoint cannot mutate state under any configuration.
 
 Any frontier scaffolded by `vela init` ships `.mcp.json`; any client
-opening the repo gets the read-only profile:
+opening the repo gets the nonfinalizing draft profile so the same
+`next -> work -> land` producer loop is available through tools:
 
 ```json
-{ "mcpServers": { "vela": { "command": "vela",
-    "args": ["serve", ".", "--profile", "read-only"] } } }
+{ "mcpServers": { "vela-local": { "command": "vela",
+    "args": ["serve", ".", "--profile", "draft"] } } }
 ```
 
-The `read-only` profile exposes no mutating tool (a unit test enforces this);
-`draft` adds only the nonfinalizing `work` tool.
+The `draft` profile adds only the nonfinalizing `work` tool to the read
+surface; `decide` is absent by construction. The hosted public MCP remains
+read-only because it has no worktree to mutate.
 Human decisions remain terminal-only through `vela sign`.
 
 The surface is eight tools; each one answers an agent question:

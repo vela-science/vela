@@ -127,8 +127,7 @@ fn mcp_json_adapter(root: &Path) -> String {
         "mcpServers": {
             "vela-local": {
                 "command": "vela",
-                "args": args,
-                "env": { "VELA_WORKTREE": "." }
+                "args": args
             }
         }
     });

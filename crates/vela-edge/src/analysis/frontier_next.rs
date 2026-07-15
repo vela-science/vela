@@ -31,7 +31,7 @@ use super::decision_brief::ReviewSnapshot;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct NextTarget {
-    /// "review" | "attack" | "verify"
+    /// "seed" | "review" | "attack" | "verify"
     pub lane: String,
     /// The target handle: `vsd_…` / `vpr_…` / a seed obligation id / `vf_…`.
     pub id: String,
@@ -589,6 +589,35 @@ pub fn try_frontier_next(
     verify.sort_by(|a, b| b.0.cmp(&a.0).then(b.1.cmp(&a.1)).then(a.2.id.cmp(&b.2.id)));
     actionable_targets.extend(verify.into_iter().map(|(_, _, target)| target));
 
+    // A brand-new frontier must still answer its first `next`. This offer is
+    // coordination, not scientific content or authority: the producer must
+    // state a bounded claim and land a Receipt before anything enters review.
+    // Hide it while another producer holds the bootstrap lease.
+    let bootstrap_lease_live = project.attempt_claims.iter().any(|lease| {
+        lease.obligation_id == "seed:first"
+            && lease_live_at(
+                &lease.claimed_at,
+                lease.lease_ttl_seconds,
+                observed_at.as_ref(),
+            )
+    });
+    if review_targets.is_empty()
+        && actionable_targets.is_empty()
+        && project.findings.is_empty()
+        && project.proposals.is_empty()
+        && !bootstrap_lease_live
+    {
+        actionable_targets.push(NextTarget {
+            lane: "seed".into(),
+            id: "seed:first".into(),
+            title: "Define the first bounded research result".into(),
+            why: "new frontier: land one scoped Receipt with an artifact and explicit caveat"
+                .into(),
+            next_command: "vela work seed:first".into(),
+            task: None,
+        });
+    }
+
     if limit == 0 {
         return Ok(Vec::new());
     }
@@ -632,6 +661,17 @@ mod tests {
             .unwrap()
             .to_utc();
         assert!(!lease_live_at("2020-01-01T00:00:00+00:00", 60, Some(&now)));
+    }
+
+    #[test]
+    fn empty_frontier_offers_one_non_authorizing_bootstrap_target() {
+        let project = vela_protocol::project::assemble("empty frontier", Vec::new(), 0, 0, "empty");
+        let targets = try_frontier_next(&project, &[], None, "2026-07-15T12:00:00Z", 10).unwrap();
+        assert_eq!(targets.len(), 1);
+        assert_eq!(targets[0].lane, "seed");
+        assert_eq!(targets[0].id, "seed:first");
+        assert_eq!(targets[0].next_command, "vela work seed:first");
+        assert!(targets[0].task.is_none());
     }
 
     #[test]

@@ -350,12 +350,7 @@ pub async fn run_command() {
                 }
             }
         },
-        Commands::Init {
-            path,
-            name,
-            template,
-            json,
-        } => cmd_init(&path, &name, &template, json),
+        Commands::Init { path, name, json } => cmd_init(&path, &name, json),
         Commands::Diff {
             target,
             frontier_b,

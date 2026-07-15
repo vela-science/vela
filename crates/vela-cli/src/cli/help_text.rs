@@ -110,8 +110,11 @@ EXAMPLES
 
 pub const GATE: &str = "\
 EXAMPLES
-  vela gate .   the one bar: check replay-verified AND
-                                  reproduce all witnesses green";
+  vela gate check --claim \"exact claim\" --attachments attachments.json --json
+  vela gate grade --claim \"bounded result\" --grade improved_published_bound --json
+
+For a whole frontier, run `vela check . --strict`; when it stores witnesses,
+also run `vela reproduce .`.";
 
 pub const CREDIT: &str = "\
 EXAMPLES

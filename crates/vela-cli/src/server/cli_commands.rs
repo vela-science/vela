@@ -388,8 +388,6 @@ pub(crate) enum Commands {
         path: PathBuf,
         #[arg(long, default_value = "unnamed")]
         name: String,
-        #[arg(long, default_value = "default")]
-        template: String,
         #[arg(long)]
         json: bool,
     },
