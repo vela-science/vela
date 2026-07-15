@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.800.9 — 2026-07-15 — Deterministic hosted regression
+
+- Removed a probabilistic ordering assumption from the legacy-retirement
+  regression exposed by hosted conformance for `v0.800.8`. The test now proves
+  canonical insertion against an existing proposal on either side of the new
+  proposal ID, without searching for a hash with a particular ordering.
+- Runtime behavior, transaction postimages, schemas, accepted state, and
+  authority boundaries are unchanged from `v0.800.8`.
+
 ## v0.800.8 — 2026-07-15 — Release lint closure
 
 - Removed the needless test-only borrow caught by the hosted all-targets Clippy

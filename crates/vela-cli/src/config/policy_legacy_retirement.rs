@@ -601,26 +601,22 @@ mod tests {
             ],
             PREPARED_AT,
         );
-        let seed = (0..1024)
-            .map(|nonce| {
-                vela_protocol::proposals::new_proposal_at(
-                    LEGACY_POLICY_RETIREMENT_PROPOSAL_KIND,
-                    vela_protocol::events::StateTarget {
-                        r#type: "governance".to_string(),
-                        id: project.frontier_id().to_string(),
-                    },
-                    "agent:seed",
-                    "agent",
-                    format!("ordering seed {nonce}"),
-                    serde_json::to_value(&payload).unwrap(),
-                    Vec::new(),
-                    vec!["ordering-only test fixture".to_string()],
-                    "2026-07-14T00:00:00Z",
-                )
-            })
-            .find(|proposal| proposal.id > expected.id)
-            .expect("a deterministic seed should sort after the retirement proposal");
-        assert!(expected.id < seed.id);
+        let seed = vela_protocol::proposals::new_proposal_at(
+            LEGACY_POLICY_RETIREMENT_PROPOSAL_KIND,
+            vela_protocol::events::StateTarget {
+                r#type: "governance".to_string(),
+                id: project.frontier_id().to_string(),
+            },
+            "agent:seed",
+            "agent",
+            "ordering seed",
+            serde_json::to_value(&payload).unwrap(),
+            Vec::new(),
+            vec!["ordering-only test fixture".to_string()],
+            "2026-07-14T00:00:00Z",
+        );
+        assert_ne!(expected.id, seed.id);
+        let expected_index = usize::from(seed.id < expected.id);
         project.proposals.push(seed);
         project
             .proposals
@@ -640,7 +636,7 @@ mod tests {
                 .proposals
                 .iter()
                 .position(|proposal| proposal.id == prepared.proposal_id),
-            Some(0),
+            Some(expected_index),
             "the new proposal must already occupy split-repository id order"
         );
 

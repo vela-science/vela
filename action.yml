@@ -3,10 +3,10 @@
 # Consume from any frontier repo:
 #
 #   - uses: actions/checkout@v5
-#   - uses: vela-science/vela@v0.800.8
+#   - uses: vela-science/vela@v0.800.9
 #     with:
 #       frontier: .
-#       vela-version: v0.800.8
+#       vela-version: v0.800.9
 #
 # It replays the signed event log from the clean checkout and proves the
 # committed materialized state (frontier.json / vela.lock / proof/) reproduces:
@@ -33,7 +33,7 @@ inputs:
     default: "."
   vela-version:
     description: >-
-      Required reviewed Vela release tag (e.g. v0.800.8). It must match the
+      Required reviewed Vela release tag (e.g. v0.800.9). It must match the
       `vela_version` recorded in the frontier's vela.lock, preventing the
       proposed frontier bytes from selecting an older verifier.
     required: true
