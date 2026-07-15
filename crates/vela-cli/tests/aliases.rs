@@ -1,8 +1,8 @@
 //! Integration tests pinning the consolidated CLI surface. After the
 //! dev-only cleanup, each concept has exactly ONE spelling: the
 //! acting-identity flag is `--as` (no `--reviewer`/`--actor`/`--by`), the
-//! key flag is `--key` (no `--private-key`), and the finding-mutation verbs
-//! live only under `vela finding <verb>` (no top-level `vela note`). These
+//! key flag is `--key` (no `--private-key`), and `finding` is read-only.
+//! Receipt v1 plus `land` is the producer write boundary. These
 //! run the built `vela` binary so they catch surface drift the clap-tree
 //! unit tests can't.
 
@@ -30,6 +30,18 @@ fn combined(out: &Output) -> String {
         String::from_utf8_lossy(&out.stdout),
         String::from_utf8_lossy(&out.stderr)
     )
+}
+
+fn vela_in(home: &std::path::Path, cwd: &std::path::Path, args: &[&str]) -> Output {
+    Command::new(env!("CARGO_BIN_EXE_vela"))
+        .args(args)
+        .current_dir(cwd)
+        .env("HOME", home)
+        .env("NO_COLOR", "1")
+        .env_remove("VELA_ACTOR_ID")
+        .env_remove("VELA_KEY_PATH")
+        .output()
+        .expect("run vela with isolated identity")
 }
 
 /// The acting-identity flag is `--as` and ONLY `--as` — the retired
@@ -134,6 +146,21 @@ fn retired_top_level_verbs_404() {
     }
 }
 
+/// Atlas is a projection only. The retired ingest spellings must stop before
+/// path loading or any canonical event writer can run, and point producers at
+/// the Receipt/land boundary.
+#[test]
+fn atlas_ingest_writers_are_retired() {
+    for subcommand in ["ingest", "ingest-source", "ingest-graph"] {
+        let out = vela(&["atlas", subcommand]);
+        let text = combined(&out);
+        assert_eq!(out.status.code(), Some(2), "{subcommand}: {text}");
+        assert!(text.contains("Atlas projections are read-only"), "{text}");
+        assert!(text.contains("vela.receipt.v1"), "{text}");
+        assert!(text.contains("vela land"), "{text}");
+    }
+}
+
 /// The folded spellings dispatch: hub, foundry planes, id keygen, state.
 #[test]
 fn folded_spellings_dispatch() {
@@ -186,20 +213,24 @@ fn unknown_flag_is_rejected() {
     );
 }
 
-/// The store-level decision verbs still dispatch: `proposals accept` /
-/// `proposals reject` survive the hard cut (the porcelain `vela sign` is
-/// their ceremony driver). Neither regresses to "unknown or non-release
-/// command".
+/// The public decision surface is singular: `vela sign`. Direct proposal
+/// decision subcommands must not return after the prelaunch cut.
 #[test]
-fn accept_paths_dispatch() {
+fn direct_proposal_decision_paths_are_absent() {
     for args in [
         vec!["proposals", "accept", "--help"],
         vec!["proposals", "reject", "--help"],
     ] {
         let out = vela(&args);
         assert!(
-            !combined(&out).contains("unknown or non-release command"),
-            "`{}` should dispatch, not 404",
+            !out.status.success(),
+            "`{}` unexpectedly exists",
+            args.join(" ")
+        );
+        let text = combined(&out);
+        assert!(
+            text.contains("unrecognized subcommand") || text.contains("unexpected argument"),
+            "`{}` should be rejected by clap: {text}",
             args.join(" ")
         );
     }
@@ -217,26 +248,144 @@ fn ergonomics_verbs_are_reachable() {
     );
 }
 
-/// The finding-mutation/graph verbs live ONLY under `vela finding <verb>`;
-/// the retired top-level spellings (`vela note` …) must now 404.
 #[test]
-fn finding_verbs_are_nested_only() {
-    for verb in ["note", "caveat", "revise", "reject", "retract", "link"] {
+fn finding_is_read_only_and_legacy_writer_bypasses_are_absent() {
+    let show = vela(&["finding", "show", "--help"]);
+    assert!(show.status.success(), "{}", combined(&show));
+
+    for verb in [
+        "add",
+        "supersede",
+        "note",
+        "caveat",
+        "revise",
+        "review",
+        "reject",
+        "retract",
+        "contribution",
+    ] {
         let nested = vela(&["finding", verb, "--help"]);
         assert!(
-            !combined(&nested).contains("unknown or non-release command")
-                && !combined(&nested).contains("unrecognized subcommand"),
-            "`vela finding {verb}` should dispatch"
-        );
-        let top = vela(&[verb, "--help"]);
-        assert!(
-            combined(&top).contains("unknown or non-release command"),
-            "retired top-level `vela {verb}` should 404, got: {}",
-            combined(&top)
+            !nested.status.success()
+                && (combined(&nested).contains("unrecognized subcommand")
+                    || combined(&nested).contains("unexpected argument")),
+            "`vela finding {verb}` unexpectedly exists: {}",
+            combined(&nested)
         );
     }
     let finding_help = combined(&vela(&["finding", "--help"]));
-    assert!(finding_help.contains("note") && finding_help.contains("retract"));
+    assert!(finding_help.contains("Receipt v1") && finding_help.contains("vela land"));
+
+    for args in [
+        vec!["proposals", "import", "--help"],
+        vec!["sign", "--batch", "/tmp/fidelity.json"],
+    ] {
+        let out = vela(&args);
+        assert!(
+            !out.status.success(),
+            "`{}` unexpectedly exists",
+            args.join(" ")
+        );
+        let text = combined(&out);
+        assert!(
+            text.contains("unrecognized subcommand") || text.contains("unexpected argument"),
+            "`{}` should be rejected by clap: {text}",
+            args.join(" ")
+        );
+    }
+}
+
+#[test]
+fn direct_writer_bypasses_are_absent() {
+    for args in [
+        vec!["finding", "link", "add", "--help"],
+        vec!["frontier", "add-dep", "--help"],
+        vec!["actor", "rotate", "--help"],
+    ] {
+        let out = vela(&args);
+        assert!(
+            !out.status.success(),
+            "`{}` unexpectedly exists",
+            args.join(" ")
+        );
+        let text = combined(&out);
+        assert!(
+            text.contains("unrecognized subcommand") || text.contains("unexpected argument"),
+            "`{}` should be rejected by clap: {text}",
+            args.join(" ")
+        );
+    }
+
+    for verb in ["anchor", "unanchor"] {
+        let out = vela(&["state", verb, "."]);
+        let text = combined(&out);
+        assert_eq!(out.status.code(), Some(2), "{verb}: {text}");
+        assert!(text.contains("state is read-only"), "{verb}: {text}");
+        assert!(text.contains("vela land"), "{verb}: {text}");
+    }
+}
+
+#[test]
+fn actor_add_is_configured_identity_bootstrap_only() {
+    let home = tempfile::tempdir().unwrap();
+    let frontier = tempfile::tempdir().unwrap();
+    let created = vela_in(
+        home.path(),
+        frontier.path(),
+        &["id", "create", "--handle", "bootstrap", "--json"],
+    );
+    assert!(created.status.success(), "{}", combined(&created));
+    let identity: serde_json::Value = serde_json::from_slice(&created.stdout).unwrap();
+
+    let init = vela_in(
+        home.path(),
+        frontier.path(),
+        &["init", ".", "--name", "actor-bootstrap", "--json"],
+    );
+    assert!(init.status.success(), "{}", combined(&init));
+
+    let added = vela_in(
+        home.path(),
+        frontier.path(),
+        &["actor", "add", ".", "--json"],
+    );
+    assert!(added.status.success(), "{}", combined(&added));
+    let project = vela_protocol::repo::load_from_path(frontier.path()).unwrap();
+    assert_eq!(project.actors.len(), 1);
+    assert_eq!(project.actors[0].id, identity["actor_id"].as_str().unwrap());
+    assert_eq!(
+        project.actors[0].public_key,
+        identity["pubkey"].as_str().unwrap()
+    );
+
+    let second = vela_in(
+        home.path(),
+        frontier.path(),
+        &["actor", "add", ".", "--json"],
+    );
+    assert!(
+        !second.status.success(),
+        "second bootstrap unexpectedly succeeded"
+    );
+    assert!(combined(&second).contains("bootstrap-only"));
+
+    let arbitrary = vela_in(
+        home.path(),
+        frontier.path(),
+        &[
+            "actor",
+            "add",
+            ".",
+            "reviewer:other",
+            "--pubkey",
+            &"00".repeat(32),
+        ],
+    );
+    assert_eq!(arbitrary.status.code(), Some(2));
+    assert!(
+        combined(&arbitrary).contains("unexpected argument")
+            || combined(&arbitrary).contains("reviewer:other")
+    );
 }
 
 fn artifact_frontier() -> (TempDir, std::path::PathBuf) {
@@ -443,7 +592,7 @@ fn json_is_offered_where_the_contract_promises() {
         "`config unset --json` must parse, got: {}",
         stderr(&unset)
     );
-    let sign = vela(&["policy", "sign", "examples/sidon-sets", "--json"]);
+    let sign = vela(&["policy", "sign", "examples/erdos-formalization", "--json"]);
     assert!(
         combined(&sign).contains("requires --yes"),
         "`policy sign --json` must require --yes (JSON is non-interactive), got: {}",

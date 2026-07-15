@@ -75,7 +75,7 @@ pub(crate) fn print_session_help() {
     println!();
     println!("  PUBLISH");
     println!("    git push          IS publication; the hub re-derives its index");
-    println!("    hub register-git  Bind this repo to its vfr_ on the hub, once");
+    println!("                      from operator-configured source repositories");
     println!();
     println!("  AGENTS");
     println!("    serve             This frontier as an MCP server for AI agents");
@@ -208,18 +208,28 @@ pub(crate) fn run_session() {
             ..crate::review_material::ReviewRequest::default()
         },
     );
-    let targets = next_review
-        .as_ref()
-        .map(|review| {
-            vela_edge::frontier_next::frontier_next(
-                &project,
-                &review.items,
-                Some(&repo_path),
-                &review.observed_at,
-                3,
-            )
-        })
-        .unwrap_or_default();
+    let targets = match next_review {
+        Ok(review) => match vela_edge::frontier_next::try_frontier_next(
+            &project,
+            &review.items,
+            Some(&repo_path),
+            &review.observed_at,
+            3,
+        ) {
+            Ok(targets) => targets,
+            Err(error) => {
+                println!(
+                    "  {}  next projection failed: {error}",
+                    style::lost("blocked")
+                );
+                Vec::new()
+            }
+        },
+        Err(error) => {
+            println!("  {}  next review failed: {error}", style::lost("blocked"));
+            Vec::new()
+        }
+    };
     if !targets.is_empty() {
         println!();
         println!("  {}", "next, ranked (vela next for more):".dimmed());

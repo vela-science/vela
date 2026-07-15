@@ -87,8 +87,6 @@ pub fn run(dir: &Path) -> (usize, usize) {
                 "directory-layout" => run_directory_layout(input, expected),
                 "proposal-idempotency" => run_proposal_idempotency(input, expected),
                 "note-provenance" => run_proposal_idempotency(input, expected),
-                "registry-publish-pull" => run_registry_publish_pull(input, expected),
-                "auto-apply-tier" => run_auto_apply_tier(input, expected),
                 _ => {
                     eprintln!("  {} unknown suite: {suite_name}", style::err_prefix());
                     Err("unknown suite".into())
@@ -472,67 +470,6 @@ fn run_proposal_idempotency(
         return Err(format!(
             "id '{}' != expected '{expected_id}'",
             proposal_a.id
-        ));
-    }
-    Ok(())
-}
-
-// ── Phase δ (v0.6): auto-apply-tier suite ──────────────────────────────
-
-fn run_auto_apply_tier(
-    input: &serde_json::Value,
-    expected: &serde_json::Value,
-) -> Result<(), String> {
-    use vela_protocol::sign::{ActorRecord, actor_can_auto_apply};
-    let tier = input["tier"].as_str().map(String::from);
-    let kind = input["kind"]
-        .as_str()
-        .ok_or("auto-apply-tier input missing `kind`")?;
-    let actor = ActorRecord {
-        id: "test".to_string(),
-        public_key: "0".repeat(64),
-        algorithm: "ed25519".to_string(),
-        created_at: "2026-04-25T00:00:00Z".to_string(),
-        tier,
-        orcid: None,
-        access_clearance: None,
-        revoked_at: None,
-        revoked_reason: None,
-    };
-    let actual = actor_can_auto_apply(&actor, kind);
-    let want = expected["permits"]
-        .as_bool()
-        .ok_or("auto-apply-tier expected.permits must be a boolean")?;
-    if actual != want {
-        return Err(format!(
-            "actor_can_auto_apply(tier={:?}, kind={}) returned {}; expected {}",
-            input["tier"], kind, actual, want
-        ));
-    }
-    Ok(())
-}
-
-// ── Phase U (v0.5): registry-publish-pull suite ────────────────────────
-
-fn run_registry_publish_pull(
-    input: &serde_json::Value,
-    expected: &serde_json::Value,
-) -> Result<(), String> {
-    use sha2::{Digest, Sha256};
-    use vela_protocol::registry::{RegistryEntry, entry_signing_bytes};
-    let entry: RegistryEntry = serde_json::from_value({
-        let mut v = input.clone();
-        v["signature"] = serde_json::Value::String(String::new());
-        v
-    })
-    .map_err(|e| format!("parse entry: {e}"))?;
-    let bytes = entry_signing_bytes(&entry)?;
-    let actual_hash = hex::encode(Sha256::digest(&bytes));
-    if let Some(expected_hash) = expected["preimage_sha256"].as_str()
-        && actual_hash != expected_hash
-    {
-        return Err(format!(
-            "canonical preimage sha256 mismatch: actual={actual_hash}, expected={expected_hash}"
         ));
     }
     Ok(())

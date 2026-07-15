@@ -702,7 +702,7 @@ fn validate_finding(
                     errors.push(ValidationError {
                         file: file_label.to_string(),
                         error: format!(
-                            "Cross-frontier link target '{}' references undeclared dependency '{}'; add it via `vela frontier add-dep`",
+                            "Cross-frontier link target '{}' references undeclared dependency '{}'; the dependency must already exist in accepted frontier state (direct add-dep mutation is not supported)",
                             link.target, vfr_id
                         ),
                     });
@@ -740,34 +740,25 @@ fn validate_project_metadata(
     source_path: &Path,
     errors: &mut Vec<ValidationError>,
 ) {
-    // `vela_version` and `schema` are publisher-claimed, like the compiler
-    // stamp. Pre-v0.10 frontiers (BBB at v0.8.0, the v0.8 conformance vector)
-    // must continue to validate under newer binaries without recomputing
-    // their content-addressed identity. v0.10's enum extensions are additive,
-    // so any pre-v0.10 schema URL listed in `KNOWN_SCHEMA_URLS` validates
-    // against the current code.
-    const KNOWN_VELA_VERSIONS: &[&str] = &["0.8.0", "0.10.0"];
-    const KNOWN_SCHEMA_URLS: &[&str] = &[
-        "https://vela.science/schema/finding-bundle/v0.8.0",
-        "https://vela.science/schema/finding-bundle/v0.10.0",
-    ];
-    if !KNOWN_VELA_VERSIONS.contains(&frontier.vela_version.as_str()) {
+    // The protocol is still prelaunch, so mutable frontiers and fixtures move
+    // with the current schema instead of accumulating compatibility branches.
+    const CURRENT_VELA_VERSION: &str = "0.10.0";
+    const CURRENT_SCHEMA_URL: &str = "https://vela.science/schema/finding-bundle/v0.10.0";
+    if frontier.vela_version != CURRENT_VELA_VERSION {
         errors.push(ValidationError {
             file: source_path.display().to_string(),
             error: format!(
-                "Unknown vela_version '{}': expected one of {}",
-                frontier.vela_version,
-                KNOWN_VELA_VERSIONS.join(", "),
+                "Unknown vela_version '{}': expected {}",
+                frontier.vela_version, CURRENT_VELA_VERSION,
             ),
         });
     }
-    if !KNOWN_SCHEMA_URLS.contains(&frontier.schema.as_str()) {
+    if frontier.schema != CURRENT_SCHEMA_URL {
         errors.push(ValidationError {
             file: source_path.display().to_string(),
             error: format!(
-                "Unknown schema '{}': expected one of {}",
-                frontier.schema,
-                KNOWN_SCHEMA_URLS.join(", "),
+                "Unknown schema '{}': expected {}",
+                frontier.schema, CURRENT_SCHEMA_URL,
             ),
         });
     }

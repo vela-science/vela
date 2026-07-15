@@ -166,7 +166,7 @@ fn belnap_meaning(status: BelnapStatus) -> &'static str {
 /// Derive the Claim-State Cell — a projection over the event log, never
 /// a stored object. (STATE_PLANE_MEMO §7.1.)
 ///
-/// Relocated verbatim from `vela-cli::cli_claim::derive_state_cell` so
+/// Relocated verbatim from `vela-cli::cli_state::derive_state_cell` so
 /// both the CLI projection and the hub Evidence-Diff endpoint compute
 /// the identical cell from one source of truth.
 pub fn state_cell(project: &Project, finding: &FindingBundle) -> Value {
@@ -489,7 +489,6 @@ mod tests {
             payload,
             caveats: vec![],
             signature: None,
-            schema_artifact_id: None,
         }
     }
 

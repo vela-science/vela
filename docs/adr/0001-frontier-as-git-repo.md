@@ -2,14 +2,15 @@
 
 - Status: Accepted 2026-06-24. Phase 0 landed (agent-doable); Phase 1+ pending
   Will key-custody. Target sharpened 2026-06-25 to **repo-native Vela** (below).
-- 2026-07-01: **Phase 2 executed** (v0.721). The bespoke transport is deleted
-  (~3,700 lines: `vela publish/clone/pull/workspace`, `registry.rs` remote
-  plumbing, `workspace.rs`, the hub's `POST /entries` write path); `merkle.rs`
-  and `storage.rs` KEPT per the corrections above. Publication is `git push`:
+- 2026-07-14: **The prelaunch transport cutover is complete.** The bespoke
+  publish/clone/pull/workspace path, Hub state-write path, S3 object mirror,
+  snapshot/manifest backfills, and blob redirects are removed. `merkle.rs`
+  remains as the offline-verifiable transparency primitive. Publication is `git push`:
   the hub runs a git-ingestion loop (validate + strict reducer replay +
-  signature signals) over owner-registered remotes (`registry register-git`,
-  with monorepo-subdir support), and a `no-legacy-transport` grep gate holds
-  the line. The restore drill proves credible exit through the real lane.
+  signature signals) over root repositories selected in a versioned operator
+  source catalog. There is no source-registration endpoint, monorepo-subdir
+  replay, or parallel signed publication record. A `no-legacy-transport` grep
+  gate holds the line. The restore drill proves credible exit through the real lane.
   Phase 1 (the re-sign ceremony) remains Will's: erdos-problems and
   benchmark-state still refuse strict ingest on `unsigned_registered_actor`
   (pre-signing events from a now-registered actor).
@@ -42,11 +43,8 @@ replay, reducers, receipts, verifier meaning, trust policy, review gates,
 materialization, semantic diff, provenance, retractions, and public/private
 overlays. The frontier must survive without the hub.
 
-Two corrections to the "delete list" below, from reading the live code:
+One correction to the "delete list" below survives implementation:
 
-- **`storage.rs` STAYS.** It is already a ~190-LOC wrapper over the AWS S3 SDK
-  (Tigris/R2), content-addressed by sha256. It is not a reinvented wheel; it
-  becomes the git-LFS custom-transport mirror.
 - **`merkle.rs` STAYS.** It is a self-contained RFC-6962 transparency log,
   validated against the published CT test vectors. Replacing it with
   sigstore/rekor would add a hosted network dependency that breaks "survives
@@ -86,10 +84,10 @@ finding improves on the body below:
   parent INTO the accept event so a GitHub Action can re-verify it without a
   hub. That is a change to the accept event structure with no consumer until the
   hub stops being the append authority, so it lands with the cutover, not before.
-- **0e** ships as the `vela-check` composite action + frontier-repo template
-  (`.github/actions/vela-check/`, `.github/workflows/vela-check.yml`): install a
-  pinned binary, then reproduce + check --strict + hash-parity. It is the PR
-  status check a frontier repo marks required.
+- **0e** ships as the root `action.yml` composite action: install a pinned
+  binary, then reproduce + check --strict + hash-parity. Frontier repositories
+  reference the versioned public action directly and mark that PR check
+  required; the substrate carries no second local copy.
 
 Still pending and genuinely yours (key custody): 0c (publish the frontiers + gate
 scripts to a public repo so there is something to fork), the Phase 1 re-sign +
@@ -147,7 +145,7 @@ Measured against the live code. These go to git, GitHub, and git-LFS.
 | clone/pull/push/status/registry verbs | `vela-cli/src/cli_registry.rs` | 1,882 | `git clone/pull/push/status` + a ~150-LOC materialize+parity shim |
 | publish/append/pull plumbing, signed ref | `vela-protocol/src/registry.rs` | 1,825 | git remote + LFS + signed tags; `pull_transitive` becomes a pinned submodule |
 | ~~RFC-6962 Merkle tree~~ **KEEP** | `vela-protocol/src/merkle.rs` | 492 | self-contained offline CT log; rekor/sigstore would add a hosted dependency that breaks "survives without the hub" |
-| ~~blob tier (Tigris, sha256 key)~~ **KEEP** | `vela-hub/src/storage.rs` | 191 | already the AWS S3 SDK; becomes the git-LFS custom-transport mirror |
+| blob tier (Tigris, sha256 key) | `vela-hub/src/storage.rs` | 191 | deleted; Git/LFS or repository-owned artifact locators carry bytes |
 | workspace registry | `vela-protocol/src/workspace.rs` | 144 | git remotes + submodule config |
 | append/promote write path | `vela-hub/src/db.rs` (write path) | ~1,000 | GitHub receive-pack + branch protection + the Action |
 | hydrate (= `git checkout`) | `scripts/hydrate-frontiers.sh` | 80 | `git clone` + `git lfs pull` + `vela frontier materialize` |
@@ -183,15 +181,19 @@ to git. The index half is genuine and stays.
   byte-serving (`main.rs:630,3332`). A git remote and LFS serve these bytes.
 - Keep (index): cross-frontier search (`/search`, `db.rs:385`), the producer CV
   cross-key join (`/producers/:pubkey`, `db.rs:892`), reverse-dependency
-  (`/entries/:vfr/depends-on`, `main.rs:2420`), the signed transparency log
-  (`/entries/:vfr/log/sth`, `main.rs:2087`), rollup summaries
-  (`/summary`, `db.rs:269`), and the `status='live'` editorial filter
-  (`db.rs:190`) that decides what is public. None of these is a git operation.
+  (`/entries/:vfr/depends-on`), rollup summaries (`/summary`), read-only event
+  streams, and the operator's versioned source catalog. `merkle.rs` stays as an
+  offline protocol primitive, not a Hub signing service. None of these index
+  operations owns frontier bytes or scientific authority.
 
 The hub stops being a second object store and becomes a read and query index
 over the git repos. That is the version of the hub worth running.
 
 ## Options considered
+
+> Implementation note (2026-07-14): the detached acceptance preimage explored
+> below was removed before external launch. ADR 0003's Decision Plan now binds
+> the reviewed facts and resulting signed `review.*` events directly.
 
 Three were designed and then adversarially critiqued. Each critique found a real
 flaw; none survives unmodified, which is why the decision is a sequence.
@@ -199,17 +201,18 @@ flaw; none survives unmodified, which is why the decision is a sequence.
 1. **Full git-backed** (effort XL). The on-thesis end state. Doctrinally sound:
    accept stays a committed, human-signed event, so merge alone is never accept.
    Fatal-if-rushed: it inherits the `event_log_hash` ordering change above, and
-   `accept_preimage_bytes` (`proposals.rs:463`) covers
-   `{action, vfr_id, proposal_id, reviewer_id, reason}` but **not** the parent
-   chain hash, so a valid signed accept is replayable onto a re-ordered or
-   forked history. Linear-history blocks force-push, not replay. The preimage
-   must bind the parent before this is safe.
+   an early detached-accept prototype covered the decision fields but **not**
+   the parent chain hash, so a valid signature was replayable onto a re-ordered
+   or forked history. Linear history blocks force-push, not replay. That
+   prototype was removed before launch; the Decision Plan now binds the exact
+   input and event-log roots into the signed event set.
 
 2. **GitHub-Action gate first** (effort L). Byte-parity-safe, signs nothing in
    CI, keeps the human-key accept. But the version we sketched assumed a repo
    topology that does not exist: the frontiers a producer is told to fork
-   (`examples/sidon-sets`) live in the **private** `vela-internal` repo, the
-   public substrate has a different `examples/`, and all five load-bearing gate
+   lived only in the **private** `vela-internal` integration repo, while the
+   public substrate carried verifier examples rather than a forkable frontier;
+   all five load-bearing gate
    scripts (`full-conformance`, `clone-roundtrip`, `vela-coverage`,
    `review-parity`, `hydrate`) are private. There is nothing public to fork and
    no public gate to run. This option is viable only after the frontiers and the
@@ -243,10 +246,10 @@ behind a green Phase 0.
 | 0a. Order-canonical `event_log_hash` | Hash `sorted_for_replay` order everywhere (`repo.rs` loaders, `cli_registry.rs:615`, `db.rs:1346`); re-pin the conformance vector | `event_log_hash(packet) == event_log_hash(dir)`; full-conformance green. If a current lock now fails parity, STOP and report the re-sign blast radius before going further. |
 | 0b. Determinism gate on materialize | Run materialize twice across a pinned toolchain matrix; assert identical `snapshot_hash` | determinism gate green for all six frontiers |
 | 0c. Publish the public surface | Move the six frontiers and the five gate scripts into a public repo (today they are private; the on-ramp has nothing to fork without this) | an outsider can `git clone` a frontier + run the public gate |
-| 0d. Bind accept to history | Add the parent chain hash to `accept_preimage_bytes` (`proposals.rs:463`) | new accepts bind history; replay test fails to forge |
-| 0e. Vela-binary-as-required-Action (shadow) | Mirror frontiers read-only to GitHub; PR Action runs `vela reproduce` + recompute hashes vs lock + `authorize_proposal_accept` on `review.accepted` diffs | a dual-key dry-run PR carrying a witness + a Will-signed `review.accepted` goes green and matches the bespoke hub accept byte-for-byte. **This is the conversion event for goal #66, with no store migration.** |
+| 0d. Bind decisions to history | Superseded before launch by the Decision Plan's exact event-log and fact-root binding | changed history invalidates the confirmed plan before the key is read |
+| 0e. Vela-binary-as-required-Action (shadow) | Mirror frontiers read-only to GitHub; PR Action runs `vela reproduce`, recomputes hashes, and verifies the signed `review.*` event set through normal replay | a dry-run PR carrying a witness and signed review events goes green without introducing a second accept protocol. **This is the conversion event for goal #66, with no store migration.** |
 | 1. Re-sign + git-backed cutover (Will) | Will re-signs all six locks under the order-canonical hash; un-gitignore `.vela/events/`; witnesses to LFS; `frontier.json`/`vela.lock` stay derived; `clone` becomes `git clone` + `lfs pull` + materialize | each frontier clones from GitHub, reproduces, re-derives hashes equal to the re-signed locks; Track-A conflict count not increased vs baseline |
-| 2. Retire the bespoke transport | Delete the `cli_registry` git-verbs, `registry.rs` remote, the `db.rs` write path, `hydrate-frontiers.sh`, `workspace.rs`; hub becomes the read/query index. **KEEP** `merkle.rs` (offline CT log) and `storage.rs` (S3 → LFS mirror) | full conformance + frozen verifiers green sourced entirely from git + LFS; a cold clone reproduces all six; a grep gate proves no caller of the deleted transport remains |
+| 2. Retire the bespoke transport | Delete the `cli_registry` git-verbs, `registry.rs` remote, the Hub state-write and object-store paths, `hydrate-frontiers.sh`, and `workspace.rs`; keep `merkle.rs` as the offline transparency primitive | focused conformance is sourced entirely from Git; a cold clone reproduces; a grep gate proves no caller of the deleted transport remains |
 
 ## Risks and what we lose
 
@@ -263,15 +266,17 @@ behind a green Phase 0.
   stays runnable locally with zero GitHub dependency.
 - **Authoritative ordering and revocation timing become git timestamps** the
   Action must re-adjudicate. Keep the revocation-ordering check in the binary.
-- **LFS availability.** A quota or GC 403 fails reproduce for non-scientific
-  reasons. Retain Tigris as an LFS custom-transport mirror.
+- **Large-artifact availability.** A Git LFS quota or GC failure can still
+  block reproduction for non-scientific reasons. Vela records the content
+  digest separately from the retrieval locator so mirrors can be added without
+  adding another Hub-owned byte store.
 - **Producer ergonomics could regress** (fork, clone, lfs install, branch,
   author canonical JSON, commit, push, PR) versus a flagless `vela land`.
   Ship a `vela land --github` one-command shim.
 - The intended loss: ~3,500 to 4,500 lines of hand-rolled git transport (the
-  `cli_registry` verbs, `registry.rs` remote, `workspace.rs`, the `db.rs` write
-  path, `hydrate`). `merkle.rs` (492) and `storage.rs` (191) stay, per the
-  repo-native target above. That deletion is the point.
+  `cli_registry` verbs, `registry.rs` remote, `workspace.rs`, the Hub write and
+  object-store paths, and `hydrate`). `merkle.rs` stays. That deletion is the
+  point.
 
 ## Open questions for Will
 
@@ -281,13 +286,13 @@ behind a green Phase 0.
    `snapshot_hash`? Binding the chain head closes cross-history replay but
    invalidates accepts on benign concurrent appends. A concurrency-versus-replay
    tradeoff that is yours to call.
-3. Is git-LFS acceptable as the sole witness-byte tier, or must Tigris be
-   retained permanently as a custom transport? This decides whether `storage.rs`
-   is deleted or demoted.
-4. How are unsigned but authority-relevant event kinds
-   (`policy.auto_admitted`, admission-feeding `attempt.deposited`) classified in
-   the Action's authority-versus-transparent partition? `signature` is
-   `Option` today (`events.rs:404`).
+3. Resolved before launch: the Hub does not own witness bytes. Git/LFS and
+   repository-declared locators carry artifacts; the Vela digest remains the
+   stable identity across mirrors.
+4. Resolved before launch: attempts do not feed admission through a direct
+   deposit writer. Scientific results and negative or partial work cross the
+   shared boundary as Receipt v1; historical `attempt.deposited` events remain
+   replay-only.
 5. Does the Track-A microsecond skew get fixed, frozen-as-known, or multiplied by
    re-derivation? Must be settled before Phase 1.
 

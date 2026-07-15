@@ -65,9 +65,8 @@ The surface is a deliberate hybrid, not drift:
   · serve`.
 - **Noun-verb** for everything else: `finding <verb>`, `frontier <verb>`,
   `policy <verb>`, `config <verb>`, `id <verb>`, …
-- **One human decision entry** (`sign`, the ceremony) and **one plumbing
-  entry** (`proposals accept|reject`, which `sign` drives). `finding note`
-  annotates; it does not decide.
+- **One human decision entry** (`sign`, the ceremony). Producers cross the
+  boundary through Receipt v1 and `land`; `finding` is read-only.
 - No new top-level verb without a deliberate `V0738_VISIBLE` edit. Growth
   is a decision, not a drift (pinned both directions).
 

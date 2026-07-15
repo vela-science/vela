@@ -47,7 +47,7 @@ pub struct IdentityBinding {
     pub schema: String,
     /// `vib_<16hex>`, content-addressed over the body with id/signature zeroed.
     pub binding_id: String,
-    /// Stable namespaced id, e.g. "reviewer:will-blair".
+    /// Stable namespaced id, e.g. "reviewer:human-reviewer".
     pub actor_id: String,
     pub actor_class: ActorClass,
     /// The Ed25519 public key being bound. MUST equal the signer (proof of

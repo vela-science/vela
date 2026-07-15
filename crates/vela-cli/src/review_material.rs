@@ -14,7 +14,7 @@ use vela_protocol::bundle::FindingBundle;
 use vela_protocol::independence::independence_from_attachments;
 use vela_protocol::project::Project;
 use vela_protocol::proposals::StateProposal;
-use vela_protocol::receipt_v1::{AttestationBinding, ReceiptV1};
+use vela_protocol::receipt_v1::ReceiptV1;
 use vela_protocol::verifier_attachment::{
     GateStatus, MethodIntegrity, VerifierAttachment, claim_digest, derive_gate_status,
 };
@@ -172,8 +172,7 @@ pub(crate) fn derive_existing_proposal_policy_context(
         finding: &finding,
         attachments: &project.verifier_attachments,
         replayability,
-        receipt_is_body_bound: receipt
-            .is_some_and(|receipt| receipt.attestation_binding() == AttestationBinding::Bound),
+        receipt_is_body_bound: receipt.is_some(),
         credential_valid: receipt.is_some_and(|receipt| {
             receipt_producer_credential_valid(project, receipt, &decision_time)
         }),
@@ -962,7 +961,7 @@ fn build_review_item(
 
     let policy_eligible = proposal.kind == "finding.add"
         && proposal.target.r#type == "finding"
-        && matches!(loaded, LoadedReceipt::Parsed(receipt) if receipt.attestation_binding() == AttestationBinding::Bound);
+        && matches!(loaded, LoadedReceipt::Parsed(_));
     if !policy_eligible {
         let has_submission = proposal.payload.get("vela_submission").is_some();
         let material_unavailable = matches!(
@@ -1005,9 +1004,6 @@ fn build_review_item(
                     vela_protocol::acceptance_policy::ActivePolicyMode::Active => "active",
                     vela_protocol::acceptance_policy::ActivePolicyMode::StagedUnsigned => {
                         "staged_unsigned"
-                    }
-                    vela_protocol::acceptance_policy::ActivePolicyMode::LegacyUnboundClosed => {
-                        "legacy_unbound_closed"
                     }
                     vela_protocol::acceptance_policy::ActivePolicyMode::Absent => "closed",
                 },
@@ -1112,7 +1108,6 @@ fn policy_snapshot_marker(
             "state": match snapshot.mode {
                 vela_protocol::acceptance_policy::ActivePolicyMode::Active => "live",
                 vela_protocol::acceptance_policy::ActivePolicyMode::StagedUnsigned => "staged_unsigned",
-                vela_protocol::acceptance_policy::ActivePolicyMode::LegacyUnboundClosed => "legacy_unbound_closed",
                 vela_protocol::acceptance_policy::ActivePolicyMode::Absent => "closed",
             },
             "policy_bytes_root": snapshot.policy_bytes.as_deref().map(bytes_root),

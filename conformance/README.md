@@ -1,199 +1,68 @@
-# Vela Conformance
+# Vela conformance vectors
 
-This directory ships the public conformance contract for any
-implementation that claims to be Vela-compatible.
+This directory carries the portable test vectors for Vela's prelaunch `0.800`
+protocol candidate. Passing them demonstrates agreement on the named byte and
+reducer contracts. It does not certify scientific truth, policy authority, or
+compatibility with future candidates.
 
-A Vela-compatible implementation must agree with the canonical Rust
-reducer on per-kind mutation rules across findings, negative results,
-trajectories, and artifacts. The fixtures here are the test vectors that
-prove that agreement.
+## Reducer contract
 
-It must also agree with the **verification gate** — the rule that decides
-when a claim is `verified`. `gate-vectors.json` is the portable spec: a set
-of `(claim, attachments) → gate_status` cases (and grade-gate cases),
-including the fail-closed reject-vectors (zero attachments →
-`needs_verification`; passed-but-unmatched → `needs_verification`; a refuted
-adversarial probe → `refuted`). The canonical Rust implementation
-(`vela_protocol::verifier_attachment::derive_gate_status`) is gated against
-every vector by `crates/vela-protocol/tests/gate_conformance.rs`; any
-implementation of the gate must reproduce the same verdicts.
+Each `fixtures/cascade-fixture-*.json` contains:
 
-It must finally agree on **canonical hashing** — the byte form every
-content-addressed id (`vf_`, `vev_`, `vpr_`, snapshot/log hashes) is the
-SHA-256 of. `canonical-hashing.json` is the portable spec of
-`vela.canonical-json/v1`: inputs paired with their exact canonical string and
-SHA-256 (keys sorted at every depth, no whitespace, UTF-8 verbatim — *not*
-`\u`-escaped, floats in Ryu shortest-round-trip form). The Rust id-minter is
-pinned by `crates/vela-protocol/tests/canonical_hashing_conformance.rs`; the
-load-bearing Python `vev_` re-verifier (`vela_verify_log.canonical_bytes`) by
-`conformance/verify_canonical_hashing.py` (run from `verify.py`). The vector
-file's `scope` block names which functions conform and which are explicitly
-out of scope — notably the TypeScript reducer's `canonicalJson` is a
-comparison-only helper that diverges on floats and must **not** content-address.
+- `genesis_findings`: the initial typed state;
+- `event_log`: ordered canonical events; and
+- `expected_states`: the reducer-owned projection after replay.
 
-## Contract
+An implementation parses the fixture, replays the event log, projects the same
+effect rows, and compares them with `expected_states`. The current set contains
+14 `fixture_version: 6` fixtures. Its manifest records the byte length and
+SHA-256 of every cascade fixture; the verifier refuses drift.
 
-Given any fixture file `cascade-fixture-NN.json`:
+The source of truth for mutation kinds is
+`crates/vela-protocol/src/kernel/reducer.rs`'s
+`REDUCER_MUTATION_KINDS`. The Rust coverage test derives its obligation from
+that constant, so adding a reducer arm without a fixture fails.
 
-1. Parse the JSON. It contains:
-   - `genesis_findings`: the initial finding bundles, plus initial
-     negative results, trajectories, and artifacts.
-   - `event_log`: the canonical event log (an ordered array of
-     `StateEvent` records).
-   - `expected_states`: the post-replay reducer-effects array, sorted by
-     finding id, capturing only the fields the reducer mutates
-     (`retracted`, `contested`, `review_state`, `confidence_score`,
-     `annotation_ids`, plus the analogous projections for negative
-     results, trajectories, and artifacts).
+Reference implementations:
 
-2. Apply your reducer to `(genesis_findings, event_log)` to produce a
-   post-state.
+- Rust: `crates/vela-protocol/src/kernel/reducer.rs`
+- Python: `clients/python/vela_reducer.py`
+- TypeScript: `clients/typescript/vela_reducer.ts`
 
-3. Compute the same effect-row shape from your post-state. The shape is
-   defined in `crates/vela-protocol/tests/cross_impl_reducer_fixtures.rs`.
-
-4. Assert deep equality with `expected_states`.
-
-If your implementation passes all 9 fixtures, you have shown agreement
-with the canonical reducer on every event kind currently in the
-substrate.
-
-## Event kinds covered
-
-The fixtures collectively exercise every event kind in the v0.93
-substrate:
-
-```
-finding.asserted
-finding.reviewed         (statuses: accepted, contested, needs_revision, rejected)
-finding.noted
-finding.caveated
-finding.confidence_revised
-finding.rejected
-finding.retracted
-finding.dependency_invalidated
-finding.span_repaired
-finding.entity_resolved
-finding.entity_added
-negative_result.asserted
-negative_result.reviewed
-negative_result.retracted
-trajectory.created
-trajectory.step_appended
-trajectory.reviewed
-trajectory.retracted
-artifact.asserted
-artifact.reviewed
-artifact.retracted
-tier.set
-attestation.recorded
-bridge.reviewed
-replication.deposited
-prediction.deposited
-evidence_atom.locator_repaired
-```
-
-Fixture 08 specifically exercises the v0.73+ event kinds
-(`bridge.reviewed`, `replication.deposited`, `prediction.deposited`)
-that have historically been the boundary of cross-impl coverage. A
-fully conformant implementation handles them as no-ops on the
-finding-effect-row digest if it does not yet implement the underlying
-side-table mutations.
-
-## Reference implementations
-
-Three reducers run these fixtures green today:
-
-- `crates/vela-protocol/src/reducer.rs` (Rust, canonical).
-- `clients/python/vela_reducer.py` (Python, second implementation).
-- `clients/typescript/vela_reducer.ts` (TypeScript, third implementation).
-  It handles every kind in `REDUCER_MUTATION_KINDS`, treating the
-  side-table arms (`diff_pack.*`, `verdict_conflict.resolved`,
-  `contradiction.resolved`, `evidence_atom.locator_repaired`, and the
-  `frontier.*` federation trio) as no-ops on the seven digested
-  collections, exactly as the Rust and Python reducers do.
-
-`verify.py` runs **both** the Python and the TypeScript reducer and gates
-on both. An unrun reducer drifts — a retired `vela_reducer.mjs` fell three
-fixture_versions behind precisely because nothing exercised it, so it was
-removed. The TS run requires Node 23+ (native TypeScript) and is skipped
-with a warning if `node` is absent.
-
-To verify a fourth implementation, walk the fixtures with your reducer
-and run the four-step contract above.
-
-## Running the canonical regression
-
-The Rust regression runs as part of the workspace test suite:
+Run the focused checks:
 
 ```bash
 cargo test -p vela-protocol --test cross_impl_reducer_fixtures
-```
-
-The Python **and** TypeScript regressions run from `verify.py`:
-
-```bash
 python3 conformance/verify.py
 ```
 
-All three compare against the same fixtures shipped here.
+`verify.py` checks the manifest, runs the Python reducer and canonical-hashing
+vectors, then runs the TypeScript reducer when Node supports native TypeScript.
 
-## Extending the conformance set
+## Other public vectors
 
-When a new event kind lands in the substrate, the conformance fixtures
-need a new vector that exercises it. The pattern is:
+- `gate-vectors.json` pins verifier-attachment gate outcomes.
+- `canonical-hashing.json` pins `vela.canonical-json/v1` bytes and digests.
+- `attempt-id.json` pins deterministic attempt identifiers.
+- `decision-binding.json` pins decision preimages and their consumed roots.
+- `spec-surface.v1.json` lists the narrow public schema and command surface.
+- `vela_v09_sidon_kernel_fixture.py` and its JSON fixture exercise append,
+  restrict, and observe on a small Sidon instance.
+- `vela_no_hidden_state_check.py` and its pass/fail fixtures require every
+  authoritative displayed value to have one replayable observation packet.
 
-1. Update `crates/vela-protocol/tests/cross_impl_reducer_fixtures.rs` to
-   produce a fixture covering the new kind.
-2. Run the test; it regenerates the corresponding JSON file in
-   `crates/vela-protocol/tests/fixtures/`.
-3. Copy the regenerated fixture(s) to `conformance/fixtures/`.
-4. Update this README's "Event kinds covered" list.
+These executable vectors are protocol-surface checks. Formal claims live in
+the separately scoped Lean sources and are not implied by a vector pass.
 
-Any implementation that has not yet implemented the new event kind must
-either add a handler or return a no-op-on-digest result for it; the
-fixture pins the expected reducer-effect shape so silent disagreement
-becomes a failing test.
+## Extending the set
 
-## v0.9 scientific-state-kernel fixtures
+When a reducer mutation kind changes:
 
-Three fixtures pin the v0.9 Scientific State Kernel surface (the three kernel
-verbs: append / restrict / observe):
+1. update the fixture builders in
+   `crates/vela-protocol/tests/cross_impl_reducer_fixtures.rs`;
+2. run that focused Rust test to regenerate the affected fixtures;
+3. copy the generated fixtures into `conformance/fixtures/`;
+4. regenerate `fixtures.manifest.json`; and
+5. run `python3 conformance/verify.py`.
 
-- `vela_v09_sidon_kernel_fixture.py` (+ `fixtures/vela_v09_sidon_kernel_fixture.json`)
-  builds one end-to-end math-wedge instance — the Sidon lower bound
-  `B2([0,4]) >= 3` from the witness `{0,1,4}` — and exercises all three verbs:
-  composed lineage Γ, a hitting-set challenge that kills support, and a repair
-  clause (`{0,2,5}`) that restores it under the challenged view. Run with
-  `--check` to assert the kill/repair/observation invariants.
-- `vela_no_hidden_state_check.py` (+ `fixtures/no_hidden_state_example_{pass,fail}.json`)
-  is the executable form of Conformance Law "No hidden state": every
-  authoritative field (status, confidence, κ, trust, cost, bottleneck, …) must
-  be reproduced by exactly one replayable observation packet whose canonical
-  output hash matches the displayed value. The pass example passes; the fail
-  example is rejected because a `kappa` field is shown with no packet behind it.
-
-These are Conformance Laws (protocol-surface obligations checked against an
-implementation), not theorems about the free lineage carrier. The finite-ranked
-core they correspond to is machine-checked in `lean/` (the Scientific State
-Kernel module: ranked-model existence/uniqueness, view restriction, hitting-set
-kill, repair, observation determinism, and the closed three-verb operation type).
-
-## License
-
-These fixtures are part of the Vela project and are licensed under the
-same terms as the rest of the repository (Apache 2.0 or MIT, dual).
-
-## Status
-
-The fixtures are at `fixture_version` 4 (seven digested collections:
-findings, negative_results, trajectories, artifacts, replications,
-predictions — plus `access_tier` on each). 13 fixtures cover every arm in
-`REDUCER_MUTATION_KINDS`, including the side-table and federation kinds
-pinned by `cascade-fixture-12.json`. Rust, Python, and TypeScript agree on
-all of them. The fixture set will grow as the substrate grows; the contract
-shape (parse, replay, compare effect rows) is stable and is the point at
-which an external implementation declares Vela-compatibility.
-
-For the formal substrate properties these fixtures empirically test,
-see `docs/THEORY.md` and the machine-checked theorems in `lean/`.
+The fixtures are licensed under the repository's Apache-2.0 OR MIT terms.

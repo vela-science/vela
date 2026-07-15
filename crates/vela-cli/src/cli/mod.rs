@@ -4,7 +4,6 @@ use vela_edge::lint;
 use vela_edge::signals;
 use vela_edge::state_integrity;
 use vela_edge::validate;
-use vela_protocol::bundle;
 use vela_protocol::diff;
 use vela_protocol::events;
 use vela_protocol::evidence_ci;
@@ -43,9 +42,9 @@ use crate::cli_commands::*;
 pub(crate) use crate::cli_engine::*;
 pub(crate) use crate::cli_finding::*;
 pub(crate) use crate::cli_frontier::*;
+pub(crate) use crate::cli_hub::*;
 pub(crate) use crate::cli_proof::*;
 pub(crate) use crate::cli_read::*;
-pub(crate) use crate::cli_registry::*;
 pub(crate) use crate::cli_write::*;
 
 mod checks;
@@ -56,7 +55,6 @@ pub(crate) mod help_text;
 mod identity;
 mod json_edit;
 mod lifecycle;
-mod links;
 mod output;
 pub(crate) mod progress;
 pub(crate) mod prompt;
@@ -75,7 +73,6 @@ pub(crate) use governance::*;
 pub(crate) use identity::*;
 pub(crate) use json_edit::*;
 pub(crate) use lifecycle::*;
-pub(crate) use links::*;
 pub(crate) use output::*;
 pub(crate) use records::*;
 pub(crate) use session::*;
@@ -261,28 +258,6 @@ pub async fn run_command() {
             r#as,
             json,
         ),
-        Commands::Submit {
-            witness,
-            frontier,
-            r#as,
-            push,
-            dry_run,
-            json,
-        } => {
-            let dir = crate::ui::resolve_frontier(frontier);
-            // A solver produced the witness, so it lands under an agent lane (a
-            // reviewer land would queue for the human sign ceremony instead).
-            let actor = crate::cli_identity::resolve_actor(r#as.as_deref());
-            let actor = if actor.starts_with("agent:") || actor.starts_with("ci:") {
-                actor
-            } else {
-                format!(
-                    "agent:{}",
-                    actor.split(':').next_back().unwrap_or("producer")
-                )
-            };
-            crate::cli_engine::cmd_submit(&dir, &witness, &actor, push, dry_run, json);
-        }
         Commands::Ci { action } => match action {
             crate::server::cli_commands::CiAction::Verdict {
                 frontier,
@@ -313,7 +288,7 @@ pub async fn run_command() {
                 let opts = if push {
                     crate::config::git_publish::PublishOptions::pushing()
                 } else {
-                    crate::config::git_publish::PublishOptions::new(false, false)
+                    crate::config::git_publish::PublishOptions::new(false)
                 };
                 let publication =
                     match crate::decision_plan::recover_decision_operation(&dir, &operation) {
@@ -379,9 +354,8 @@ pub async fn run_command() {
             path,
             name,
             template,
-            no_git,
             json,
-        } => cmd_init(&path, &name, &template, !no_git, json),
+        } => cmd_init(&path, &name, &template, json),
         Commands::Diff {
             target,
             frontier_b,
@@ -482,245 +456,14 @@ pub async fn run_command() {
             }
         }
         Commands::Proposals { action } => cmd_proposals(action),
-        Commands::Finding { command } => match command {
-            FindingCommands::Add {
-                frontier,
-                assertion,
-                r#type,
-                source,
-                source_type,
-                author,
-                confidence,
-                evidence_type,
-                evidence_span,
-                gap,
-                negative_space,
-                doi,
-                year,
-                url,
-                source_authors,
-                conditions_text,
-                json,
-                apply,
-                replication_attestation,
-            } => {
-                refuse_legacy_finding_apply(apply, json);
-                validate_enum_arg("--type", &r#type, bundle::VALID_ASSERTION_TYPES);
-                let replication_attestation = if let Some(p) = replication_attestation {
-                    let raw = std::fs::read_to_string(&p).unwrap_or_else(|e| {
-                        fail_return(&format!("--replication-attestation {}: {e}", p.display()))
-                    });
-                    Some(
-                        serde_json::from_str::<serde_json::Value>(&raw).unwrap_or_else(|e| {
-                            fail_return(&format!("--replication-attestation parse: {e}"))
-                        }),
-                    )
-                } else {
-                    None
-                };
-                validate_enum_arg(
-                    "--evidence-type",
-                    &evidence_type,
-                    bundle::VALID_EVIDENCE_TYPES,
-                );
-                validate_enum_arg(
-                    "--source-type",
-                    &source_type,
-                    bundle::VALID_PROVENANCE_SOURCE_TYPES,
-                );
-                let parsed_evidence_spans = parse_evidence_spans(&evidence_span);
-                let parsed_source_authors = source_authors
-                    .map(|s| {
-                        s.split(';')
-                            .map(|a| a.trim().to_string())
-                            .filter(|a| !a.is_empty())
-                            .collect()
-                    })
-                    .unwrap_or_default();
-                let report = state::add_finding(
-                    &frontier,
-                    state::FindingDraftOptions {
-                        text: assertion,
-                        assertion_type: r#type,
-                        source,
-                        source_type,
-                        author,
-                        confidence,
-                        evidence_type,
-                        doi,
-                        year,
-                        url,
-                        source_authors: parsed_source_authors,
-                        source_refs: Vec::new(),
-                        conditions_text,
-                        evidence_spans: parsed_evidence_spans,
-                        gap,
-                        negative_space,
-                        replication_attestation,
-                    },
-                    apply,
-                )
-                .unwrap_or_else(|e| fail_return(&e));
-                print_state_report(&report, json);
-            }
-            FindingCommands::Show {
-                frontier,
-                finding_id,
-                json,
-            } => cmd_finding_show(&frontier, &finding_id, json),
-            FindingCommands::Supersede {
-                frontier,
-                old_id,
-                assertion,
-                r#type,
-                source,
-                source_type,
-                author,
-                reason,
-                confidence,
-                evidence_type,
-                doi,
-                year,
-                url,
-                source_authors,
-                conditions_text,
-                json,
-                apply,
-            } => {
-                refuse_legacy_finding_apply(apply, json);
-                validate_enum_arg("--type", &r#type, bundle::VALID_ASSERTION_TYPES);
-                validate_enum_arg(
-                    "--evidence-type",
-                    &evidence_type,
-                    bundle::VALID_EVIDENCE_TYPES,
-                );
-                validate_enum_arg(
-                    "--source-type",
-                    &source_type,
-                    bundle::VALID_PROVENANCE_SOURCE_TYPES,
-                );
-                let parsed_source_authors = source_authors
-                    .map(|s| {
-                        s.split(';')
-                            .map(|a| a.trim().to_string())
-                            .filter(|a| !a.is_empty())
-                            .collect()
-                    })
-                    .unwrap_or_default();
-                let report = state::supersede_finding(
-                    &frontier,
-                    &old_id,
-                    &reason,
-                    state::FindingDraftOptions {
-                        text: assertion,
-                        assertion_type: r#type,
-                        source,
-                        source_type,
-                        author,
-                        confidence,
-                        evidence_type,
-                        doi,
-                        year,
-                        url,
-                        source_authors: parsed_source_authors,
-                        source_refs: Vec::new(),
-                        conditions_text,
-                        evidence_spans: Vec::new(),
-                        gap: false,
-                        negative_space: false,
-                        replication_attestation: None,
-                    },
-                    apply,
-                )
-                .unwrap_or_else(|e| fail_return(&e));
-                print_state_report(&report, json);
-            }
-            FindingCommands::Note {
-                frontier,
-                finding_id,
-                text,
-                author,
-                apply,
-                json,
-            } => cmd_finding_note(frontier, finding_id, text, author, apply, json),
-            FindingCommands::Caveat {
-                frontier,
-                finding_id,
-                text,
-                author,
-                apply,
-                json,
-            } => cmd_finding_caveat(frontier, finding_id, text, author, apply, json),
-            FindingCommands::Revise {
-                frontier,
-                finding_id,
-                confidence,
-                reason,
-                reviewer,
-                apply,
-                json,
-            } => cmd_finding_revise(
-                frontier, finding_id, confidence, reason, reviewer, apply, json,
-            ),
-            FindingCommands::Reject {
-                frontier,
-                finding_id,
-                reason,
-                reviewer,
-                apply,
-                json,
-            } => cmd_finding_reject(frontier, finding_id, reason, reviewer, apply, json),
-            FindingCommands::Review {
-                frontier,
-                finding_id,
-                status,
-                reason,
-                confidence,
-                reviewer,
-                apply,
-                json,
-            } => cmd_finding_review(
-                frontier, finding_id, status, reason, confidence, reviewer, apply, json,
-            ),
-            FindingCommands::Contribution {
-                frontier,
-                finding_id,
-                unit,
-                unit_type,
-                agent_kind,
-                agent_id,
-                model,
-                model_version,
-                role,
-                basis,
-                actor,
-                apply,
-                json,
-            } => cmd_finding_contribution(
-                frontier,
-                finding_id,
-                unit,
-                unit_type,
-                agent_kind,
-                agent_id,
-                model,
-                model_version,
-                role,
-                basis,
-                actor,
-                apply,
-                json,
-            ),
-            FindingCommands::Retract {
-                source,
-                finding_id,
-                reason,
-                reviewer,
-                apply,
-                json,
-            } => cmd_finding_retract(source, finding_id, reason, reviewer, apply, json),
-            FindingCommands::Link { action } => cmd_link(action).await,
-        },
+        Commands::Finding {
+            command:
+                FindingCommands::Show {
+                    frontier,
+                    finding_id,
+                    json,
+                },
+        } => cmd_finding_show(&frontier, &finding_id, json),
 
         Commands::Artifact { command } => match command {
             ArtifactCommands::Retract {
@@ -742,7 +485,6 @@ pub async fn run_command() {
             confirm_root,
             confirm_at,
             reason,
-            batch,
             reset,
             preview,
             cursor,
@@ -763,9 +505,6 @@ pub async fn run_command() {
             }
             if preview {
                 sign_session::cmd_sign_preview(frontier, cursor, limit, json);
-            } else if let Some(batch) = batch {
-                let dir = crate::ui::resolve_frontier(frontier);
-                cmd_review_fidelity_batch(dir, batch, None, key, json);
             } else if let Some(target) = target {
                 let as_path = std::path::Path::new(&target);
                 if as_path.exists() {
@@ -1303,33 +1042,6 @@ fn render_land_outcome(
     println!("  {:<16} {}", style::dim("next"), safe_text::inline(next));
 }
 
-pub(crate) fn parse_evidence_spans(inputs: &[String]) -> Vec<Value> {
-    inputs
-        .iter()
-        .filter_map(|input| {
-            let trimmed = input.trim();
-            if trimmed.is_empty() {
-                return None;
-            }
-            if trimmed.starts_with('{') {
-                match serde_json::from_str::<Value>(trimmed) {
-                    Ok(value @ Value::Object(_)) => return Some(value),
-                    Ok(_) | Err(_) => {
-                        eprintln!(
-                            "{} evidence span JSON should be an object; storing as text",
-                            style::warn("warn")
-                        );
-                    }
-                }
-            }
-            Some(json!({
-                "section": "curator_source",
-                "text": trimmed,
-            }))
-        })
-        .collect()
-}
-
 // Bare `vela` (no args) opens a session against the nearest `.vela/`
 // repo, walking up from cwd. The session prints a one-screen
 // dashboard, then accepts single-letter verb shortcuts or
@@ -1414,28 +1126,19 @@ pub fn run_from_args() {
         }
         // The state projections: `vela state <frontier> [vf_]` (claim-state),
         // `vela state trust|pack|diff …` (trust vector, claim pack, Evidence
-        // Diff), and the math-atlas anchor links `vela state
-        // anchor|anchors|unanchor`. Intercepted ahead of the clap dispatcher
-        // (mirroring `proof verify`). The internal parsers still speak the
-        // historical `claim <mode>` argv shape, so the argv is rewritten:
-        // bare `vela state X` becomes `claim state X`.
+        // Diff), and the read-only math-atlas anchor list `vela state anchors`.
+        // Intercepted ahead of the clap dispatcher (mirroring `proof verify`).
+        // The parser consumes this public argv shape directly.
         Some("state") => {
             let mode = args.get(2).map(String::as_str);
-            let mut rewritten: Vec<String> = vec![args[0].clone(), "claim".to_string()];
             match mode {
-                Some("trust" | "pack" | "diff") => {
-                    rewritten.extend(args[2..].iter().cloned());
-                    crate::cli_claim::run(&rewritten);
-                }
-                Some("anchor" | "anchors" | "unanchor") => {
-                    rewritten.extend(args[2..].iter().cloned());
-                    crate::cli_claim::run_anchor(&rewritten);
-                }
-                _ => {
-                    rewritten.push("state".to_string());
-                    rewritten.extend(args[2..].iter().cloned());
-                    crate::cli_claim::run(&rewritten);
-                }
+                Some("anchors") => crate::cli_state::run_anchors(&args),
+                Some("anchor" | "unanchor") => crate::ui::fail_with(
+                    crate::ui::ErrorKind::Usage,
+                    "state is read-only; direct anchor mutation commands were removed",
+                    Some("land the anchor change as a Receipt v1 through `vela land`"),
+                ),
+                _ => crate::cli_state::run(&args),
             }
             return;
         }

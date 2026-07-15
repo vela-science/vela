@@ -81,15 +81,15 @@ confidence. A finding can be reviewer-accepted and still gate
 |------|------------|
 | `crates/vela-protocol` | The reference reducer — the normative state-transition function. |
 | `crates/vela-cli` | The `vela` command-line tool. |
-| `crates/vela-verify` | Frozen, independent exact verifiers (Sidon, Golomb, cap, B_h, covering, constant-weight, Costas, linear codes, and the Erdős certificate kinds: interval-product #1056, CRT partial cover #203, Kummer no-carry #684, min-binom-gcd #700, binomial deficiency #1093, exception enumeration #1094) — the reference verifier registry behind the gate and `vela reproduce`. |
-| `crates/vela-hub` | The hub: a read-only index over git-replayed state (its one write is the owner-signed git-remote registration). |
-| `clients/` | Standalone Python + TypeScript reducers — the second and third conformance implementations of the reference reducer. |
-| `bindings/` | Python HTTP SDK: a client for `vela serve --http` (read endpoints + signed write tools). Not a reducer. |
+| `crates/vela-verify` | Frozen, independent exact verifiers (Sidon, Golomb, cap, B_h, covering, constant-weight, Costas, linear codes, and the Erdős certificate kinds: interval-product #1056, CRT partial cover #203, Kummer no-carry #684, min-binom-gcd #700, binomial deficiency #1093, exception enumeration #1094) — the reference verifier set behind the gate and `vela reproduce`. |
+| `crates/vela-hub` | The hub: a read-only index over strictly verified Git history. Operators select source repositories in a versioned catalog; the Hub accepts no frontier-state or source-registration writes. |
+| `clients/python` | A repository-local independent replay implementation used by conformance; it is not an alternate write API or distribution. |
 | `conformance/` | The cross-implementation test-vector suite (reducer fixtures + gate reject-vectors). |
-| `examples/sidon-a309370` | A worked, re-verifiable reference: the OEIS A309370 Sidon records you can re-check with `vela reproduce`. |
-| `frontiers/sidon-sets` | A worked external-producer frontier with frozen witness verification. |
+| `examples/sidon-a309370` | Current verifier example: nine OEIS A309370 witness files you can re-check with `vela reproduce`; not an accepted-state fixture. |
+| `examples/erdos-formalization` | Historical signed-event replay fixture; retained for immutable-byte compatibility, not as a current authoring template. |
+| `frontiers/` | Read-only discovery catalogs derived from standalone frontier state; these directories are not themselves Vela frontiers. |
 | `lean/` | Machine-checked proofs of the governance-soundness theorems, plus `SidonCertificate.lean` (a kernel-checked vcert). |
-| `schema/` | Carina kernel schemas. |
+| `schema/` | Current portable packet and finding schemas. |
 
 ## Build
 
@@ -103,8 +103,8 @@ Or install a prebuilt binary on Apple Silicon macOS or Linux x86_64. Other
 platforms must build from source:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.760.1/install.sh \
-  | VELA_VERSION=v0.760.1 bash
+curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.800.0/install.sh \
+  | VELA_VERSION=v0.800.0 bash
 ```
 
 ## The working loop
@@ -123,11 +123,12 @@ vela reproduce <frontier>
 vela sign                       # key-holding human only
 ```
 
-An agent may land; only a key-holding human signs. Failures are
-signed ledger entries, not noise.
+An agent may land; only a key-holding human signs. Failed and negative work can
+be retained as scoped receipts instead of disappearing from the next briefing.
 
-The Rust reducer is the normative reference; the Python and TypeScript reducers
-track it against the conformance vectors in `conformance/`.
+The Rust reducer is the reference implementation; the repository-local Python
+reader tracks its declared subset against the conformance vectors in
+`conformance/`.
 
 ## Contribute to a live frontier
 

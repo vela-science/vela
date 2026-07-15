@@ -73,17 +73,16 @@ pub const EVENT_KIND_EVIDENCE_ATOM_LOCATOR_REPAIRED: &str = "evidence_atom.locat
 /// equal span twice on the same finding).
 pub const EVENT_KIND_FINDING_SPAN_REPAIRED: &str = "finding.span_repaired";
 
-/// v0.79.4: Per-event attestation. The substrate's existing
-/// frontier-wide signing path (`vela review <frontier>`) is
-/// coarse-grained: it signs every unsigned finding under one key.
-/// Per-event attestation lets a reviewer or external verifier
+/// Per-event attestation. Frontier-level review and decision records are too
+/// coarse to bind one exact event. Per-event attestation lets a reviewer or
+/// external verifier
 /// attest one specific canonical event (`vev_*`) by emitting a
 /// new `attestation.recorded` event that points at it.
 ///
 /// Required payload: `{target_event_id, attester_id, scope_note}`.
 /// Optional: `scopes`, `reviewer_role`, `orcid`, `ror`,
 /// `attestation_id`, `signature` (Ed25519 over the target event's
-/// preimage), `proof_id` (`vpf_*` from the v0.75 Carina Proof
+/// preimage), `proof_id` (`vpf_*` from the v0.75 Vela proof
 /// primitive when the attestation is backed by a proof-assistant
 /// verification), `signed_at` (RFC3339).
 ///
@@ -406,15 +405,6 @@ pub struct StateEvent {
     pub caveats: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub signature: Option<String>,
-    /// v0.89: optional reference to a content-addressed schema /
-    /// reducer artifact (a content-addressed schema/reducer id).
-    /// When present, replay tooling can verify the artifact exists
-    /// before applying the event (per docs/THEORY.md §5.1 / §5.5).
-    /// **Not** part of the canonical event-id preimage: setting
-    /// or clearing this field does NOT change `event.id`. Pre-v0.89
-    /// events default to `None` and serialize byte-identically.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub schema_artifact_id: Option<String>,
 }
 
 pub struct FindingEventInput<'a> {
@@ -486,7 +476,6 @@ pub fn new_finding_event(input: FindingEventInput<'_>) -> StateEvent {
         payload: input.payload,
         caveats: input.caveats,
         signature: None,
-        schema_artifact_id: None,
     };
     event.id = event_id(&event);
     event
@@ -555,7 +544,6 @@ pub fn new_revocation_event(
         payload: payload_value,
         caveats: Vec::new(),
         signature: None,
-        schema_artifact_id: None,
     };
     event.id = event_id(&event);
     event
@@ -637,7 +625,6 @@ pub fn new_review_decision_event(
         payload: payload_value,
         caveats: Vec::new(),
         signature: None,
-        schema_artifact_id: None,
     };
     event.id = event_id(&event);
     Ok(event)
@@ -678,7 +665,6 @@ pub fn new_evidence_atom_locator_repair_event(
         payload,
         caveats,
         signature: None,
-        schema_artifact_id: None,
     };
     event.id = event_id(&event);
     event
@@ -716,7 +702,6 @@ pub fn new_contradiction_resolved_event(
         payload,
         caveats,
         signature: None,
-        schema_artifact_id: None,
     };
     event.id = event_id(&event);
     event
@@ -753,7 +738,6 @@ fn new_attempt_event(
         payload,
         caveats,
         signature: None,
-        schema_artifact_id: None,
     };
     event.id = event_id(&event);
     event
@@ -811,7 +795,6 @@ pub fn new_transfer_deposited_event(
         payload,
         caveats,
         signature: None,
-        schema_artifact_id: None,
     };
     event.id = event_id(&event);
     event
@@ -847,7 +830,6 @@ pub fn new_endorsement_deposited_event(
         payload,
         caveats,
         signature: None,
-        schema_artifact_id: None,
     };
     event.id = event_id(&event);
     event
@@ -1875,11 +1857,11 @@ pub fn compute_event_id(event: &StateEvent) -> String {
 
 /// The canonical content-address preimage bytes of an event — the exact bytes
 /// hashed to form its `vev_` id. Deliberately EXCLUDES the event's own `id`,
-/// `signature`, and `schema_artifact_id`, so the preimage is stable under
-/// legitimate re-signing/co-signing. Shared by `event_id` and the Merkle
-/// transparency log (`crate::merkle`) so a log leaf is exactly the event's
-/// content address — immune to re-signing and reproducible by any independent
-/// implementation. Changing this shape is a protocol break.
+/// and `signature`, so the preimage is stable under legitimate
+/// re-signing/co-signing. Shared by `event_id` and the Merkle transparency log
+/// (`crate::merkle`) so a log leaf is exactly the event's content address —
+/// immune to re-signing and reproducible by any independent implementation.
+/// Changing this shape is a protocol break.
 pub fn event_content_preimage_bytes(event: &StateEvent) -> Vec<u8> {
     let content = json!({
         "schema": event.schema,
@@ -2600,7 +2582,6 @@ mod tests {
             payload: Value::Null,
             caveats: vec![],
             signature: None,
-            schema_artifact_id: None,
         };
         // ids deliberately NOT in timestamp order: proves the canonical order
         // is id-sort (load-path stable), not (timestamp, id) replay order.

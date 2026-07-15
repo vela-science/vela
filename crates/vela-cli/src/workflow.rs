@@ -328,164 +328,6 @@ where
     )
 }
 
-fn transact_attempt_deposit_candidate_with_barrier<F>(
-    frontier: &Path,
-    barrier: crate::frontier_txn::FrontierRecoveryBarrier,
-    original: &vela_protocol::project::Project,
-    candidate: &vela_protocol::project::Project,
-    result: Value,
-    before_commit: F,
-) -> Result<Value, String>
-where
-    F: FnOnce() -> Result<(), String>,
-{
-    transact_event_candidate_with_barrier(
-        frontier,
-        barrier,
-        original,
-        candidate,
-        result,
-        EventTransactionBinding {
-            operation_namespace: "attempt-deposit",
-            request_schema: "vela.attempt-deposit-event-request.internal.v1",
-            request_event_id_field: "deposit_event_id",
-            result_event_id_field: "deposit_event_id",
-            result_timestamp_field: "deposited_at",
-        },
-        before_commit,
-    )
-}
-
-fn bind_deposit_actor(args: &Value, actor: &str) -> Result<Value, String> {
-    let actor = actor.trim();
-    if !actor.starts_with("agent:") && !actor.starts_with("ci:") {
-        return Err("attempt deposit requires an agent:/ci: actor".to_string());
-    }
-    let mut bound = args
-        .as_object()
-        .cloned()
-        .ok_or_else(|| "attempt deposit arguments must be an object".to_string())?;
-    if let Some(supplied) = bound.get("agent_actor") {
-        let supplied = supplied
-            .as_str()
-            .ok_or_else(|| "attempt deposit agent_actor must be a string".to_string())?;
-        if supplied != actor {
-            return Err(format!(
-                "attempt deposit actor mismatch: request names {supplied}, workflow is bound to {actor}"
-            ));
-        }
-    }
-    bound.insert("agent_actor".to_string(), json!(actor));
-    Ok(Value::Object(bound))
-}
-
-/// Bank one agent/CI attempt through the frontier-wide recoverable write edge.
-/// `actor` is an explicit workflow binding rather than a profile default, so
-/// foundry and MCP callers can share this path without inheriting a human key.
-pub(crate) fn deposit_attempt(
-    frontier: &Path,
-    args: &Value,
-    actor: &str,
-    deposit_reason: Option<&str>,
-) -> Result<Value, String> {
-    let bound_args = bind_deposit_actor(args, actor)?;
-    let journal_dir = frontier_transaction_journal_dir(frontier)?;
-    let barrier =
-        crate::frontier_txn::FrontierTxn::acquire_recovery_barrier(frontier, &journal_dir)
-            .map_err(|error| error.to_string())?;
-    // Key auto-mint may touch only the agent's private key store. It happens
-    // after the barrier and before the Project load, so the scientific base is
-    // still acquired and installed under one frontier-wide critical section.
-    let key = vela_edge::vela_agent_mcp::agent_signing_key(Some(actor))?;
-    deposit_attempt_with_barrier_and_key(
-        frontier,
-        barrier,
-        &bound_args,
-        &key,
-        deposit_reason,
-        || Ok(()),
-    )
-}
-
-#[cfg(test)]
-fn deposit_attempt_with_key_and_before_commit<F>(
-    frontier: &Path,
-    args: &Value,
-    actor: &str,
-    key: &ed25519_dalek::SigningKey,
-    deposit_reason: Option<&str>,
-    before_commit: F,
-) -> Result<Value, String>
-where
-    F: FnOnce() -> Result<(), String>,
-{
-    let bound_args = bind_deposit_actor(args, actor)?;
-    let journal_dir = frontier_transaction_journal_dir(frontier)?;
-    let barrier =
-        crate::frontier_txn::FrontierTxn::acquire_recovery_barrier(frontier, &journal_dir)
-            .map_err(|error| error.to_string())?;
-    deposit_attempt_with_barrier_and_key(
-        frontier,
-        barrier,
-        &bound_args,
-        key,
-        deposit_reason,
-        before_commit,
-    )
-}
-
-fn deposit_attempt_with_barrier_and_key<F>(
-    frontier: &Path,
-    barrier: crate::frontier_txn::FrontierRecoveryBarrier,
-    args: &Value,
-    key: &ed25519_dalek::SigningKey,
-    deposit_reason: Option<&str>,
-    before_commit: F,
-) -> Result<Value, String>
-where
-    F: FnOnce() -> Result<(), String>,
-{
-    let original = repo::load_from_path(frontier)?;
-    let mut candidate = clone_project(&original)?;
-    let result = vela_edge::vela_agent_mcp::apply_deposit_attempt_to_project(
-        args,
-        &mut candidate,
-        key,
-        deposit_reason,
-    )?;
-    if result.get("ok").and_then(Value::as_bool) != Some(true) {
-        return Err("attempt deposit candidate is not success-shaped".to_string());
-    }
-    if result.get("folded").and_then(Value::as_bool) == Some(true) {
-        if serde_json::to_value(&candidate).map_err(|error| error.to_string())?
-            != serde_json::to_value(&original).map_err(|error| error.to_string())?
-        {
-            return Err("folded attempt deposit mutated the loaded Project".to_string());
-        }
-        let root = format!(
-            "sha256:{}",
-            vela_protocol::events::event_log_hash(&original.events)
-        );
-        if result.get("state_root_before").and_then(Value::as_str) != Some(root.as_str())
-            || result.get("state_root_after").and_then(Value::as_str) != Some(root.as_str())
-        {
-            return Err("folded attempt deposit did not bind the unchanged event root".to_string());
-        }
-        return Ok(result);
-    }
-    if result.get("folded").and_then(Value::as_bool) != Some(false) {
-        return Err("attempt deposit candidate omitted its fold disposition".to_string());
-    }
-    transact_attempt_deposit_candidate_with_barrier(
-        frontier,
-        barrier,
-        &original,
-        &candidate,
-        result,
-        before_commit,
-    )
-}
-
 /// The pre-loaded briefing for a target — the compounding payload the
 /// session starts from. Problem-shaped targets get the full task packet;
 /// rich campaign targets also carry their non-authorizing coordination task.
@@ -554,8 +396,7 @@ pub(crate) struct WorkSession {
     pub target: String,
     pub frontier_id: String,
     pub base_event_log_root: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub base_nonlease_event_log_root: Option<String>,
+    pub base_nonlease_event_log_root: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub source_git_commit_oid: Option<String>,
     pub source_git_state: String,
@@ -765,7 +606,7 @@ fn preflight_work_session_size(
         target: target.to_string(),
         frontier_id: frontier_id.to_string(),
         base_event_log_root: base_event_log_root.to_string(),
-        base_nonlease_event_log_root: Some(base_nonlease_event_log_root.to_string()),
+        base_nonlease_event_log_root: base_nonlease_event_log_root.to_string(),
         source_git_commit_oid,
         source_git_state: source_git_state.to_string(),
         actor: actor.to_string(),
@@ -898,8 +739,12 @@ fn parse_work_session(path: &Path) -> Result<WorkSession, String> {
     }
     let bytes = std::fs::read(path)
         .map_err(|error| format!("read work session {}: {error}", path.display()))?;
-    let session: WorkSession = serde_json::from_slice(&bytes)
-        .map_err(|error| format!("parse work session {}: {error}", path.display()))?;
+    let session: WorkSession = serde_json::from_slice(&bytes).map_err(|error| {
+        format!(
+            "parse work session {}: {error}; remove this private stale session and rerun `vela work <target> --as <actor>`",
+            path.display()
+        )
+    })?;
     if session.schema != WORK_SESSION_SCHEMA {
         return Err(format!(
             "unsupported work-session schema {} in {}",
@@ -968,8 +813,8 @@ fn validate_active_session(
 /// the current set commitment including signed coordination leases. New
 /// sessions separately pin the non-lease event set, so unrelated leases may
 /// coexist while every scientific, provenance, or authority-event change
-/// fails closed. A legacy session without that private pin keeps the stricter
-/// base-plus-own-lease rule.
+/// fails closed. The non-lease root is required because work sessions are
+/// private scratch and have no compatibility lane.
 fn work_session_landing_event_root(
     project: &vela_protocol::project::Project,
     session: &WorkSession,
@@ -992,29 +837,11 @@ fn work_session_landing_event_root(
     {
         return Err("work session lease event does not match its signed session facts".to_string());
     }
-    if let Some(expected_nonlease_root) = &session.base_nonlease_event_log_root {
-        if nonlease_event_log_root(&project.events) != *expected_nonlease_root {
-            return Err(
-                "work session frontier has non-lease changes from its pinned state".to_string(),
-            );
-        }
-    } else {
-        let without_claim = project
-            .events
-            .iter()
-            .filter(|event| event.id != session.lease.claim_event_id)
-            .cloned()
-            .collect::<Vec<_>>();
-        let before = format!(
-            "sha256:{}",
-            vela_protocol::events::event_log_hash(&without_claim)
-        );
-        if before != session.base_event_log_root {
-            return Err(
-                "legacy work session frontier is not its pinned state plus the exact lease event"
-                    .to_string(),
-            );
-        }
+    if nonlease_event_log_root(&project.events) != session.base_nonlease_event_log_root {
+        return Err(format!(
+            "work session frontier has non-lease changes from its pinned state; remove the private session and rerun `vela work {} --as {}`",
+            session.target, session.actor
+        ));
     }
     Ok(format!(
         "sha256:{}",
@@ -1198,7 +1025,7 @@ where
         target: target.to_string(),
         frontier_id: base_project.frontier_id().to_string(),
         base_event_log_root,
-        base_nonlease_event_log_root: Some(base_nonlease_event_log_root),
+        base_nonlease_event_log_root,
         source_git_commit_oid,
         source_git_state,
         actor: actor.to_string(),
@@ -1681,231 +1508,6 @@ struct PreparedArtifacts {
     read_set: Vec<crate::frontier_txn::InputBinding>,
 }
 
-#[derive(Debug, Clone)]
-enum ProposalWriteAuthorization {
-    /// A detached proposal signature supplied by a remote writer. The actor
-    /// registry and signature are re-checked after the frontier-wide barrier
-    /// is acquired.
-    RegisteredSignature {
-        canonical_signature: String,
-        apply_if_tier_permits: bool,
-    },
-    /// A local CLI evidence writer that historically authored an unsigned
-    /// draft. This mode may only insert a pending proposal; it can never apply
-    /// one or cross the human decision boundary.
-    LocalPendingDraft,
-}
-
-/// Persist one already signed MCP proposal through the same recoverable,
-/// frontier-wide write edge used by receipt landing. Signature and tier checks
-/// are repeated against the actor registry loaded while the barrier is held;
-/// the in-memory MCP snapshot is never trusted as a write precondition.
-pub(crate) fn transact_signed_proposal(
-    frontier: &Path,
-    proposal: vela_protocol::proposals::StateProposal,
-    signature_hex: &str,
-    apply_if_tier_permits: bool,
-) -> Result<Value, String> {
-    let signature_bytes = hex::decode(signature_hex)
-        .map_err(|error| format!("invalid proposal signature hex: {error}"))?;
-    if signature_bytes.len() != 64 {
-        return Err("proposal signature must be 64 bytes".to_string());
-    }
-    transact_proposal_with_authorization(
-        frontier,
-        proposal,
-        ProposalWriteAuthorization::RegisteredSignature {
-            canonical_signature: hex::encode(signature_bytes),
-            apply_if_tier_permits,
-        },
-        || Ok(()),
-    )
-}
-
-/// Persist an unsigned proposal authored by a local CLI evidence command.
-/// Creation is deliberately proposal-only: a key-custody human must later
-/// decide it through the terminal ceremony.
-pub(crate) fn transact_pending_proposal(
-    frontier: &Path,
-    proposal: vela_protocol::proposals::StateProposal,
-) -> Result<Value, String> {
-    transact_proposal_with_authorization(
-        frontier,
-        proposal,
-        ProposalWriteAuthorization::LocalPendingDraft,
-        || Ok(()),
-    )
-}
-
-fn transact_proposal_with_authorization<F>(
-    frontier: &Path,
-    proposal: vela_protocol::proposals::StateProposal,
-    authorization: ProposalWriteAuthorization,
-    after_barrier: F,
-) -> Result<Value, String>
-where
-    F: FnOnce() -> Result<(), String>,
-{
-    use crate::frontier_txn::{
-        ContentDigest, DeltaDraft, FrontierBinding, FrontierTxn, FrontierTxnPlan,
-        FrontierTxnPlanSpec, InputBinding, OperationId, OperationKind, PlannedWrite, RecoveryState,
-        RepoPath,
-    };
-
-    let request = match &authorization {
-        ProposalWriteAuthorization::RegisteredSignature {
-            canonical_signature,
-            apply_if_tier_permits,
-        } => json!({
-            "schema": "vela.signed-proposal-request.internal.v1",
-            "proposal_id": &proposal.id,
-            "signature": canonical_signature,
-            "apply_if_tier_permits": apply_if_tier_permits,
-        }),
-        ProposalWriteAuthorization::LocalPendingDraft => json!({
-            "schema": "vela.local-pending-proposal-request.internal.v1",
-            "proposal_id": &proposal.id,
-            "disposition": "pending_review",
-        }),
-    };
-    let request_bytes = vela_protocol::canonical::to_canonical_bytes(&request)?;
-    let request_root = ContentDigest::hash(&request_bytes);
-    let operation_id = OperationId::derive("propose", request_root.as_str().as_bytes());
-    let journal_dir = frontier_transaction_journal_dir(frontier)?;
-
-    if let Some(mut existing) = FrontierTxn::open_if_present(frontier, &journal_dir, &operation_id)
-        .map_err(|error| error.to_string())?
-    {
-        if existing.plan().request_root != request_root {
-            return Err(format!(
-                "operation {} is already bound to a different signed proposal",
-                operation_id.as_str()
-            ));
-        }
-        if !matches!(existing.recovery_state(), RecoveryState::Aborted) {
-            let result = existing.plan().result.clone();
-            if !matches!(existing.recovery_state(), RecoveryState::Completed) {
-                existing
-                    .mark_committed()
-                    .map_err(|error| error.to_string())?;
-                existing.install().map_err(|error| error.to_string())?;
-                existing.complete().map_err(|error| error.to_string())?;
-            }
-            return Ok(result);
-        }
-        drop(existing);
-    }
-
-    let barrier = FrontierTxn::acquire_recovery_barrier(frontier, &journal_dir)
-        .map_err(|error| error.to_string())?;
-    after_barrier()?;
-    let original = repo::load_from_path(frontier)?;
-    let observed_at = chrono::Utc::now().to_rfc3339();
-    let (verified_write, bind_actor_registry) = match &authorization {
-        ProposalWriteAuthorization::RegisteredSignature {
-            canonical_signature,
-            apply_if_tier_permits,
-        } => (
-            Some(vela_protocol::proposals::authorize_signed_proposal_write(
-                &original,
-                &proposal,
-                canonical_signature,
-                *apply_if_tier_permits,
-                &observed_at,
-            )?),
-            true,
-        ),
-        ProposalWriteAuthorization::LocalPendingDraft => (None, false),
-    };
-
-    let mut candidate: vela_protocol::project::Project =
-        serde_json::from_value(serde_json::to_value(&original).map_err(|error| error.to_string())?)
-            .map_err(|error| error.to_string())?;
-    let result = if let Some(authority) = verified_write.as_ref() {
-        vela_protocol::proposals::create_with_verified_proposal_write_in_frontier(
-            &mut candidate,
-            proposal,
-            authority,
-        )?
-    } else {
-        vela_protocol::proposals::create_or_apply_in_frontier(&mut candidate, proposal, false)?
-    };
-    let result = json!({
-        "proposal_id": result.proposal_id,
-        "finding_id": result.finding_id,
-        "status": result.status,
-        "applied_event_id": result.applied_event_id,
-    });
-
-    let writes =
-        PlannedWrite::from_managed_files(repo::render_vela_repo_files(frontier, &candidate)?)
-            .map_err(|error| error.to_string())?;
-    let draft = DeltaDraft::prepare(frontier, writes).map_err(|error| error.to_string())?;
-    let layout = vela_protocol::canonical::to_canonical_bytes(&json!({
-        "schema": "vela.frontier-layout.internal.v1",
-        "frontier_id": original.frontier_id(),
-        "paths": draft
-            .delta
-            .writes()
-            .iter()
-            .map(|write| write.path.as_str())
-            .collect::<Vec<_>>(),
-    }))?;
-    let expected_event_log_root = ContentDigest::parse(format!(
-        "sha256:{}",
-        vela_protocol::events::event_log_hash(&original.events)
-    ))
-    .map_err(|error| error.to_string())?;
-    let resulting_event_log_root = ContentDigest::parse(format!(
-        "sha256:{}",
-        vela_protocol::events::event_log_hash(&candidate.events)
-    ))
-    .map_err(|error| error.to_string())?;
-    let mut resulting_event_ids = candidate
-        .events
-        .iter()
-        .map(|event| event.id.clone())
-        .collect::<Vec<_>>();
-    resulting_event_ids.sort();
-    let read_set = if bind_actor_registry {
-        vec![
-            InputBinding::existing_file(
-                frontier,
-                RepoPath::parse(".vela/actors.json").map_err(|error| error.to_string())?,
-            )
-            .map_err(|error| error.to_string())?,
-        ]
-    } else {
-        Vec::new()
-    };
-    let fixed_time = observed_at;
-    let plan = FrontierTxnPlan::new(
-        FrontierTxnPlanSpec {
-            kind: OperationKind::Maintenance,
-            operation_id,
-            request_root,
-            frontier: FrontierBinding::new(frontier, original.frontier_id(), &layout)
-                .map_err(|error| error.to_string())?,
-            fixed_time,
-            expected_event_log_root,
-            resulting_event_log_root,
-            resulting_event_ids,
-            read_set,
-            result: result.clone(),
-        },
-        draft.delta.clone(),
-    )
-    .map_err(|error| error.to_string())?;
-    let mut transaction = FrontierTxn::prepare_with_barrier(barrier, plan, draft)
-        .map_err(|error| error.to_string())?;
-    transaction
-        .mark_committed()
-        .map_err(|error| error.to_string())?;
-    transaction.install().map_err(|error| error.to_string())?;
-    transaction.complete().map_err(|error| error.to_string())?;
-    Ok(result)
-}
-
 /// Land one already-validated, lossless Receipt v1 through the single
 /// recoverable frontier write edge. `push` changes only the post-commit Git
 /// transport; it cannot change the scientific transaction or policy result.
@@ -1964,7 +1566,7 @@ pub(crate) fn land(
     let mut publish_opts = if push {
         PublishOptions::pushing()
     } else {
-        PublishOptions::new(false, false)
+        PublishOptions::new(false)
     };
     let publication_disabled = publication_disabled_reason(frontier, &publish_opts);
     if publication_disabled.is_none() {
@@ -2286,17 +1888,7 @@ pub(crate) fn land(
     };
     let mut snapshot_files = Vec::new();
     let route = if executor.starts_with("agent:") || executor.starts_with("ci:") {
-        let closed_policy_reason = if staged_review_route.policy_state == "legacy_unbound_closed" {
-            staged_review_route
-                .policy_authority_error
-                .clone()
-                .unwrap_or_else(|| {
-                    "legacy unbound policy is audit-only; rotate it before policy routing"
-                        .to_string()
-                })
-        } else {
-            "no signed policy: every decision is the human's".to_string()
-        };
+        let closed_policy_reason = "no signed policy: every decision is the human's".to_string();
         match policy_accept::apply_staged_policy_route_in_frontier(
             &mut candidate,
             staged_policy_route,
@@ -3053,16 +2645,13 @@ fn outcome_from_durable(
 }
 
 #[cfg(test)]
-mod transactional_proposal_tests {
+mod workflow_transaction_tests {
     use super::*;
     use ed25519_dalek::SigningKey;
-    use sha2::{Digest, Sha256};
     use vela_protocol::bundle::{
         Assertion, Conditions, Confidence, ConfidenceKind, ConfidenceMethod, Evidence, Extraction,
         FindingBundle, Flags, Provenance,
     };
-    use vela_protocol::events::StateTarget;
-    use vela_protocol::sign::ActorRecord;
 
     fn work_session_size_fixture(padding: usize) -> WorkSession {
         let contract = TaskContract {
@@ -3082,7 +2671,7 @@ mod transactional_proposal_tests {
             target: "seed:size-fixture".to_string(),
             frontier_id: "vfr_size_fixture".to_string(),
             base_event_log_root: format!("sha256:{}", "0".repeat(64)),
-            base_nonlease_event_log_root: Some(format!("sha256:{}", "0".repeat(64))),
+            base_nonlease_event_log_root: format!("sha256:{}", "0".repeat(64)),
             source_git_commit_oid: Some("0".repeat(40)),
             source_git_state: "pinned".to_string(),
             actor: "agent:size-fixture".to_string(),
@@ -3103,6 +2692,22 @@ mod transactional_proposal_tests {
 
     const PRODUCER_AUTHORITY_CEILING_FOR_TEST: &str =
         "Producer evidence only; fixture cannot accept truth.";
+
+    #[test]
+    fn work_session_requires_the_nonlease_root_without_a_legacy_fallback() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("session.json");
+        let mut value = serde_json::to_value(work_session_size_fixture(0)).unwrap();
+        value
+            .as_object_mut()
+            .unwrap()
+            .remove("base_nonlease_event_log_root");
+        std::fs::write(&path, serde_json::to_vec_pretty(&value).unwrap()).unwrap();
+
+        let error = parse_work_session(&path).unwrap_err();
+        assert!(error.contains("base_nonlease_event_log_root"), "{error}");
+        assert!(error.contains("rerun `vela work"), "{error}");
+    }
 
     #[test]
     fn work_session_size_ceiling_is_exact_and_preflight_precedes_claim() {
@@ -3205,29 +2810,6 @@ mod transactional_proposal_tests {
         assert!(briefing.get("task").is_none());
     }
 
-    fn signed_note(
-        target: &str,
-        text: &str,
-        key: &SigningKey,
-    ) -> (vela_protocol::proposals::StateProposal, String) {
-        let proposal = vela_protocol::proposals::new_proposal_at(
-            "finding.note",
-            StateTarget {
-                r#type: "finding".to_string(),
-                id: target.to_string(),
-            },
-            "reviewer:transaction-fixture",
-            "human",
-            "transaction fixture",
-            json!({"text": text}),
-            Vec::new(),
-            Vec::new(),
-            "2026-07-13T00:00:00Z",
-        );
-        let signature = vela_protocol::sign::sign_proposal(&proposal, key).unwrap();
-        (proposal, signature)
-    }
-
     fn signed_lease_candidate(
         original: &vela_protocol::project::Project,
         target: &str,
@@ -3316,7 +2898,7 @@ mod transactional_proposal_tests {
         session.actor = actor.to_string();
         session.frontier_id = original.frontier_id().to_string();
         session.base_event_log_root = claim["state_root_before"].as_str().unwrap().to_string();
-        session.base_nonlease_event_log_root = Some(nonlease_event_log_root(&original.events));
+        session.base_nonlease_event_log_root = nonlease_event_log_root(&original.events);
         session.lease.claim_event_id = claim["claim_event_id"].as_str().unwrap().to_string();
         session.lease.claimant_pubkey = claim["claimant_pubkey"].as_str().unwrap().to_string();
 
@@ -3349,223 +2931,24 @@ mod transactional_proposal_tests {
         );
 
         let mut changed = clone_project(&later).unwrap();
-        vela_edge::vela_agent_mcp::apply_deposit_attempt_to_project(
-            &attempt_deposit_args(
-                "agent:nonlease-change",
-                "seed:nonlease-change",
-                "a later deposited attempt changes the working base",
-                "candidate",
-            ),
-            &mut changed,
-            &key,
-            Some("non-lease change fixture"),
-        )
-        .unwrap();
+        let event =
+            vela_protocol::events::new_finding_event(vela_protocol::events::FindingEventInput {
+                kind: "finding.noted",
+                finding_id: "seed:nonlease-change",
+                actor_id: "agent:nonlease-change",
+                actor_type: "agent",
+                reason: "non-lease change fixture",
+                before_hash: vela_protocol::events::NULL_HASH,
+                after_hash: vela_protocol::events::NULL_HASH,
+                payload: json!({"text": "a later scientific event changes the working base"}),
+                caveats: Vec::new(),
+                timestamp: Some("2026-07-14T10:00:02Z"),
+            });
+        changed.events.push(event);
         let error = work_session_landing_event_root(&changed, &session).unwrap_err();
         assert!(
             error.contains("non-lease changes"),
             "unexpected non-lease change error: {error}"
-        );
-    }
-
-    fn attempt_deposit_args(actor: &str, target: &str, claim: &str, status: &str) -> Value {
-        json!({
-            "agent_actor": actor,
-            "problem": 647,
-            "kind": "negative",
-            "claim": claim,
-            "claimed_status": status,
-            "target_obligation_id": target,
-            "method_families": ["transaction-fixture"],
-            "named_obstructions": [format!("channel:{target}")],
-        })
-    }
-
-    #[test]
-    fn attempt_deposit_transaction_installs_once_and_folds_without_mutation() {
-        let temp = tempfile::tempdir().unwrap();
-        let project =
-            vela_protocol::project::assemble("deposit-transaction", Vec::new(), 0, 0, "fixture");
-        vela_protocol::repo::init_repo(temp.path(), &project).unwrap();
-        let initial_event_count = repo::load_from_path(temp.path()).unwrap().events.len();
-        let key = SigningKey::from_bytes(&[0x73; 32]);
-        let actor = "agent:deposit-transaction";
-        let first = deposit_attempt_with_key_and_before_commit(
-            temp.path(),
-            &attempt_deposit_args(actor, "erdos:647", "first failed route", "failed"),
-            actor,
-            &key,
-            Some("foundry fixture provenance"),
-            || Ok(()),
-        )
-        .unwrap();
-        assert_eq!(first["folded"], false);
-        let after_first = repo::load_from_path(temp.path()).unwrap();
-        assert_eq!(after_first.attempts.len(), 1);
-        assert_eq!(after_first.events.len(), initial_event_count + 1);
-        let deposit_event_id = first["deposit_event_id"].as_str().unwrap();
-        assert_eq!(
-            after_first
-                .events
-                .iter()
-                .find(|event| event.id == deposit_event_id)
-                .unwrap()
-                .reason,
-            "foundry fixture provenance"
-        );
-        let snapshot = serde_json::to_value(&after_first).unwrap();
-
-        let folded = deposit_attempt_with_key_and_before_commit(
-            temp.path(),
-            &attempt_deposit_args(actor, "erdos:647", "same route, still failed", "failed"),
-            actor,
-            &key,
-            None,
-            || Err("folded deposits must not prepare a transaction".to_string()),
-        )
-        .unwrap();
-        assert_eq!(folded["folded"], true);
-        assert_eq!(folded["attempt_id"], first["attempt_id"]);
-        assert_eq!(
-            serde_json::to_value(repo::load_from_path(temp.path()).unwrap()).unwrap(),
-            snapshot,
-            "folding must not install a second event or rewrite derived state"
-        );
-    }
-
-    #[test]
-    fn attempt_deposit_rejects_stale_event_without_overwriting_winner() {
-        let temp = tempfile::tempdir().unwrap();
-        let project = vela_protocol::project::assemble("deposit-race", Vec::new(), 0, 0, "fixture");
-        vela_protocol::repo::init_repo(temp.path(), &project).unwrap();
-        let original = repo::load_from_path(temp.path()).unwrap();
-        let key = SigningKey::from_bytes(&[0x74; 32]);
-        let planned_args = attempt_deposit_args(
-            "agent:planned-deposit",
-            "erdos:647:planned",
-            "planned attempt",
-            "candidate",
-        );
-        let mut planned_candidate = clone_project(&original).unwrap();
-        let planned = vela_edge::vela_agent_mcp::apply_deposit_attempt_to_project(
-            &planned_args,
-            &mut planned_candidate,
-            &key,
-            Some("planned transaction fixture"),
-        )
-        .unwrap();
-        let planned_attempt_id = planned["attempt_id"].as_str().unwrap().to_string();
-
-        let winner_args = attempt_deposit_args(
-            "agent:winner-deposit",
-            "erdos:647:winner",
-            "winner attempt",
-            "candidate",
-        );
-        let mut winner = clone_project(&original).unwrap();
-        let winner_result = vela_edge::vela_agent_mcp::apply_deposit_attempt_to_project(
-            &winner_args,
-            &mut winner,
-            &key,
-            Some("winner transaction fixture"),
-        )
-        .unwrap();
-        let winner_attempt_id = winner_result["attempt_id"].as_str().unwrap().to_string();
-        let winner_event_id = winner_result["deposit_event_id"]
-            .as_str()
-            .unwrap()
-            .to_string();
-
-        let error = deposit_attempt_with_key_and_before_commit(
-            temp.path(),
-            &planned_args,
-            "agent:planned-deposit",
-            &key,
-            Some("planned transaction fixture"),
-            || repo::save_to_path(temp.path(), &winner),
-        )
-        .unwrap_err();
-        assert!(
-            error.contains("event log"),
-            "unexpected stale deposit error: {error}"
-        );
-        let loaded = repo::load_from_path(temp.path()).unwrap();
-        assert!(
-            loaded
-                .events
-                .iter()
-                .any(|event| event.id == winner_event_id),
-            "the concurrent winner event must survive"
-        );
-        assert!(
-            loaded
-                .attempts
-                .iter()
-                .any(|attempt| attempt.attempt_id == winner_attempt_id)
-        );
-        assert!(
-            !loaded
-                .attempts
-                .iter()
-                .any(|attempt| attempt.attempt_id == planned_attempt_id),
-            "the stale candidate must not overwrite the winner"
-        );
-    }
-
-    #[test]
-    fn attempt_deposit_rejects_stale_managed_preimage_without_overwrite() {
-        let temp = tempfile::tempdir().unwrap();
-        let project =
-            vela_protocol::project::assemble("deposit-preimage-race", Vec::new(), 0, 0, "fixture");
-        vela_protocol::repo::init_repo(temp.path(), &project).unwrap();
-        let original = repo::load_from_path(temp.path()).unwrap();
-        let key = SigningKey::from_bytes(&[0x75; 32]);
-        let actor = "agent:preimage-deposit";
-        let args = attempt_deposit_args(
-            actor,
-            "erdos:647:preimage",
-            "managed preimage attempt",
-            "candidate",
-        );
-        let mut planned_candidate = clone_project(&original).unwrap();
-        let planned = vela_edge::vela_agent_mcp::apply_deposit_attempt_to_project(
-            &args,
-            &mut planned_candidate,
-            &key,
-            Some("managed preimage transaction fixture"),
-        )
-        .unwrap();
-        let planned_event_id = planned["deposit_event_id"].as_str().unwrap().to_string();
-        let concurrent_frontier = b"concurrent frontier writer\n".to_vec();
-
-        let error = deposit_attempt_with_key_and_before_commit(
-            temp.path(),
-            &args,
-            actor,
-            &key,
-            Some("managed preimage transaction fixture"),
-            || {
-                std::fs::write(temp.path().join("frontier.json"), &concurrent_frontier)
-                    .map_err(|error| error.to_string())
-            },
-        )
-        .unwrap_err();
-        assert!(
-            error.contains("frontier.json") || error.contains("preimage"),
-            "unexpected stale preimage error: {error}"
-        );
-        assert_eq!(
-            std::fs::read(temp.path().join("frontier.json")).unwrap(),
-            concurrent_frontier,
-            "the transaction must not overwrite a changed managed file"
-        );
-        assert!(
-            !temp
-                .path()
-                .join(".vela/events")
-                .join(format!("{planned_event_id}.json"))
-                .exists(),
-            "a stale managed preimage must prevent the event install"
         );
     }
 
@@ -3644,273 +3027,6 @@ mod transactional_proposal_tests {
                 .attempt_claims
                 .iter()
                 .any(|claim| claim.obligation_id == "seed:planned")
-        );
-    }
-
-    #[test]
-    fn open_session_barrier_excludes_concurrent_proposal_writer() {
-        let temp = tempfile::tempdir().unwrap();
-        let finding = finding();
-        let target = finding.id.clone();
-        let project =
-            vela_protocol::project::assemble("lease-barrier", vec![finding], 0, 0, "fixture");
-        vela_protocol::repo::init_repo(temp.path(), &project).unwrap();
-        let key = SigningKey::from_bytes(&[0x72; 32]);
-        let (proposal, signature) = signed_note(&target, "blocked by lease barrier", &key);
-        let error = open_session_with_after_barrier(
-            temp.path(),
-            "seed:barrier-probe",
-            "agent:barrier-probe",
-            86_400,
-            || {
-                let busy =
-                    transact_signed_proposal(temp.path(), proposal.clone(), &signature, false)
-                        .unwrap_err();
-                assert!(
-                    busy.contains("write lock") || busy.contains("busy"),
-                    "unexpected lock refusal: {busy}"
-                );
-                Err("stop after barrier probe".to_string())
-            },
-        )
-        .unwrap_err();
-        assert_eq!(error, "stop after barrier probe");
-        let loaded = repo::load_from_path(temp.path()).unwrap();
-        assert!(loaded.proposals.is_empty());
-        assert!(loaded.attempt_claims.is_empty());
-    }
-
-    fn race_receipt(frontier: &Path) -> ReceiptV1 {
-        use vela_protocol::identity::{ActorClass, IdentityBinding, IdentityBindingDraft};
-        use vela_protocol::receipt_v1::{
-            ArtifactInput, ProducerReportedRun, ReceiptBuilder, ReceiptInput,
-        };
-
-        let artifact_path = "artifacts/race-witness.json";
-        let artifact = br#"{"race":"witness"}"#;
-        std::fs::create_dir_all(frontier.join("artifacts")).unwrap();
-        std::fs::write(frontier.join(artifact_path), artifact).unwrap();
-        let digest = hex::encode(Sha256::digest(artifact));
-        let project = repo::load_from_path(frontier).unwrap();
-        let event_root = format!(
-            "sha256:{}",
-            vela_protocol::events::event_log_hash(&project.events)
-        );
-        let key = SigningKey::from_bytes(&[0x35; 32]);
-        let at = "2026-07-14T02:00:00Z";
-        let identity = IdentityBinding::build(
-            IdentityBindingDraft {
-                actor_id: "agent:receipt-race".to_string(),
-                actor_class: ActorClass::Agent,
-                created_at: at.to_string(),
-            },
-            &key,
-        )
-        .unwrap();
-        let operation_id = format!(
-            "vop_{}",
-            hex::encode(Sha256::digest(b"proposal-land-race-receipt"))
-        );
-        let input = ReceiptInput::new(
-            "a receipt concurrent with a local evidence proposal".to_string(),
-            "computational".to_string(),
-            "exact".to_string(),
-            vec![
-                ArtifactInput::new(
-                    artifact_path.to_string(),
-                    "witness".to_string(),
-                    Some(digest),
-                    None,
-                )
-                .unwrap(),
-            ],
-            vec!["race fixture only".to_string()],
-            vec![
-                ProducerReportedRun::producer_reported(
-                    "race-fixture".to_string(),
-                    "pass".to_string(),
-                )
-                .unwrap(),
-            ],
-            "agent:receipt-race".to_string(),
-            at.to_string(),
-            event_root,
-            ".".to_string(),
-            operation_id,
-            "urn:vela:policy:none".to_string(),
-        )
-        .unwrap();
-        ReceiptBuilder::build(input, &identity).unwrap()
-    }
-
-    #[test]
-    fn signed_proposals_share_the_land_recovery_barrier_and_retry_exactly() {
-        let temp = tempfile::tempdir().unwrap();
-        let key = SigningKey::from_bytes(&[0x66; 32]);
-        let finding = finding();
-        let target = finding.id.clone();
-        let mut project = vela_protocol::project::assemble(
-            "transactional-proposal",
-            vec![finding],
-            0,
-            0,
-            "fixture",
-        );
-        project.actors.push(ActorRecord {
-            id: "reviewer:transaction-fixture".to_string(),
-            public_key: hex::encode(key.verifying_key().to_bytes()),
-            algorithm: "ed25519".to_string(),
-            created_at: "2026-07-12T00:00:00Z".to_string(),
-            tier: None,
-            orcid: None,
-            access_clearance: None,
-            revoked_at: None,
-            revoked_reason: None,
-        });
-        vela_protocol::repo::init_repo(temp.path(), &project).unwrap();
-        let (first, first_signature) = signed_note(&target, "first note", &key);
-
-        let journal_dir = frontier_transaction_journal_dir(temp.path()).unwrap();
-        let barrier =
-            crate::frontier_txn::FrontierTxn::acquire_recovery_barrier(temp.path(), &journal_dir)
-                .unwrap();
-        let busy = transact_signed_proposal(temp.path(), first.clone(), &first_signature, false)
-            .unwrap_err();
-        assert!(
-            busy.contains("write lock") || busy.contains("busy"),
-            "unexpected lock refusal: {busy}"
-        );
-        drop(barrier);
-
-        let first_result =
-            transact_signed_proposal(temp.path(), first, &first_signature, false).unwrap();
-        let retry = transact_signed_proposal(
-            temp.path(),
-            vela_protocol::proposals::new_proposal_at(
-                "finding.note",
-                StateTarget {
-                    r#type: "finding".to_string(),
-                    id: target.clone(),
-                },
-                "reviewer:transaction-fixture",
-                "human",
-                "transaction fixture",
-                json!({"text": "first note"}),
-                Vec::new(),
-                Vec::new(),
-                "2026-07-14T00:00:00Z",
-            ),
-            &first_signature,
-            false,
-        )
-        .unwrap();
-        assert_eq!(retry, first_result);
-
-        let (second, second_signature) = signed_note(&target, "second note", &key);
-        let second_result =
-            transact_signed_proposal(temp.path(), second, &second_signature, false).unwrap();
-        assert_ne!(second_result["proposal_id"], first_result["proposal_id"]);
-        let loaded = repo::load_from_path(temp.path()).unwrap();
-        assert_eq!(loaded.proposals.len(), 2);
-        assert!(
-            loaded
-                .proposals
-                .iter()
-                .any(|proposal| proposal.id == first_result["proposal_id"])
-        );
-        assert!(
-            loaded
-                .proposals
-                .iter()
-                .any(|proposal| proposal.id == second_result["proposal_id"])
-        );
-    }
-
-    #[test]
-    fn paused_local_proposal_and_concurrent_land_both_survive_after_retry() {
-        let temp = tempfile::tempdir().unwrap();
-        let finding = finding();
-        let target = finding.id.clone();
-        let project =
-            vela_protocol::project::assemble("proposal-land-race", vec![finding], 0, 0, "fixture");
-        vela_protocol::repo::init_repo(temp.path(), &project).unwrap();
-        let receipt = race_receipt(temp.path());
-        let git = |args: &[&str]| {
-            let output = std::process::Command::new("git")
-                .arg("-C")
-                .arg(temp.path())
-                .args(args)
-                .output()
-                .unwrap();
-            assert!(
-                output.status.success(),
-                "git {} failed: {}",
-                args.join(" "),
-                String::from_utf8_lossy(&output.stderr)
-            );
-        };
-        git(&["init", "-q"]);
-        git(&["config", "user.name", "Vela Test"]);
-        git(&["config", "user.email", "test@vela.invalid"]);
-        git(&["config", "commit.gpgsign", "false"]);
-        git(&["add", "-A"]);
-        git(&["commit", "-qm", "baseline"]);
-        let proposal = vela_protocol::proposals::new_proposal_at(
-            "finding.note",
-            StateTarget {
-                r#type: "finding".to_string(),
-                id: target,
-            },
-            "agent:local-evidence",
-            "agent",
-            "record local evidence without deciding it",
-            json!({"text": "pending race note"}),
-            Vec::new(),
-            Vec::new(),
-            "2026-07-14T02:01:00Z",
-        );
-        let proposal_id = proposal.id.clone();
-        let root = temp.path().to_path_buf();
-        let (reached_tx, reached_rx) = std::sync::mpsc::channel();
-        let (resume_tx, resume_rx) = std::sync::mpsc::channel();
-        let proposal_writer = std::thread::spawn(move || {
-            transact_proposal_with_authorization(
-                &root,
-                proposal,
-                ProposalWriteAuthorization::LocalPendingDraft,
-                || {
-                    reached_tx.send(()).unwrap();
-                    resume_rx.recv().unwrap();
-                    Ok(())
-                },
-            )
-        });
-        reached_rx.recv().unwrap();
-
-        let busy = land(temp.path(), &receipt, "agent:receipt-race", false).unwrap_err();
-        assert!(
-            busy.contains("write lock") || busy.contains("busy"),
-            "concurrent land should fail retryably at the shared barrier: {busy}"
-        );
-        resume_tx.send(()).unwrap();
-        let proposal_result = proposal_writer.join().unwrap().unwrap();
-        assert_eq!(proposal_result["status"], "pending_review");
-
-        let land_result = land(temp.path(), &receipt, "agent:receipt-race", false).unwrap();
-        let loaded = repo::load_from_path(temp.path()).unwrap();
-        assert!(
-            loaded
-                .proposals
-                .iter()
-                .any(|candidate| candidate.id == proposal_id),
-            "the local writer's pending proposal was lost"
-        );
-        assert!(
-            loaded
-                .proposals
-                .iter()
-                .any(|candidate| candidate.id == land_result.proposal_id),
-            "the retried receipt landing was lost"
         );
     }
 }

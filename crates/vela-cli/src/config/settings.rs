@@ -8,8 +8,7 @@
 //!
 //! Layering, nearest-wins for preferences:
 //!   flag > VELA_* env > frontier .vela/config.toml (ALLOWLISTED keys
-//!   only) > user ~/.vela/config.toml > legacy identity.json fields >
-//!   built-in default
+//!   only) > user ~/.vela/config.toml > built-in default
 //!
 //! Two hard rules keep a cloned frontier from configuring its
 //! operator (git's "protected configuration", Codex's project-scope
@@ -30,7 +29,6 @@ use std::path::{Path, PathBuf};
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Origin {
     Default,
-    Identity,
     User,
     Frontier,
     Env,
@@ -40,7 +38,6 @@ impl Origin {
     pub(crate) fn as_str(self) -> &'static str {
         match self {
             Self::Default => "default",
-            Self::Identity => "identity (legacy)",
             Self::User => "user",
             Self::Frontier => "frontier",
             Self::Env => "env",
@@ -73,14 +70,6 @@ pub(crate) const KEYS: &[KeySpec] = &[
         frontier: None, // routing is never frontier-configurable (Codex base_url rule)
         allowed: &[],
         help: "the hub this machine publishes to and verifies against",
-    },
-    KeySpec {
-        key: "publish.git_commit",
-        default: "auto",
-        env: "VELA_PUBLISH_GIT_COMMIT",
-        frontier: Some(true), // may force "off", never "auto"
-        allowed: &["auto", "off"],
-        help: "auto-commit store changes after a signed decision",
     },
     KeySpec {
         key: "publish.git_push",
@@ -130,7 +119,7 @@ pub(crate) const KEYS: &[KeySpec] = &[
         default: "read-only",
         env: "VELA_MCP_PROFILE",
         frontier: Some(false),
-        allowed: &["read-only", "draft", "maintainer"],
+        allowed: &["read-only", "draft"],
         help: "default serve/agents-sync MCP profile",
     },
 ];
@@ -178,49 +167,23 @@ fn load_flat(path: &Path) -> BTreeMap<String, String> {
     out
 }
 
-/// Legacy identity.json fields serving as one resolution layer while
-/// they migrate out (hub_url, git_commit, git_push).
-fn identity_layer(key: &str) -> Option<String> {
-    let id = crate::cli_identity::load_identity()?;
-    match key {
-        "hub.url" => Some(id.hub_url),
-        "publish.git_commit" => Some(id.git_commit),
-        // Migration to explicit-publish: identities were written with
-        // git_push="auto" (the old default). Treat "auto"/empty from the
-        // identity as non-authoritative so it falls through to the new "off"
-        // default — existing users stop auto-pushing too. To opt back into
-        // auto-push, set publish.git_push=auto in user config or the env
-        // (both outrank this identity layer). A non-"auto" identity value is
-        // still honored here.
-        "publish.git_push" => match id.git_push.as_str() {
-            "auto" | "" => None,
-            other => Some(other.to_string()),
-        },
-        _ => None,
-    }
-}
-
 /// Resolve one key: env > frontier (allowlisted, narrowing honored) >
-/// user > legacy identity > default. Flags stay at call sites.
+/// user > default. Flags stay at call sites.
 pub(crate) fn resolve(key: &str, frontier: Option<&Path>) -> (String, Origin) {
     resolve_with(
         key,
         frontier,
         |name| std::env::var(name).ok(),
         user_config_path(),
-        true,
     )
 }
 
-/// The injectable core (tests pass their own env/home; the identity
-/// layer is skipped when `use_identity` is false so tests never read
-/// the operator's real ~/.vela profile).
+/// The injectable core (tests pass their own env/home).
 fn resolve_with(
     key: &str,
     frontier: Option<&Path>,
     env_get: impl Fn(&str) -> Option<String>,
     user_path: Option<PathBuf>,
-    use_identity: bool,
 ) -> (String, Origin) {
     let Some(spec) = spec(key) else {
         return (String::new(), Origin::Default);
@@ -255,12 +218,6 @@ fn resolve_with(
     }
     if let Some(v) = user_val {
         return (v, Origin::User);
-    }
-    if use_identity
-        && let Some(v) = identity_layer(key)
-        && !v.trim().is_empty()
-    {
-        return (v, Origin::Identity);
     }
     (spec.default.to_string(), Origin::Default)
 }
@@ -467,13 +424,7 @@ mod tests {
         // allowed-values check.
         let err = validate_value("publish.git_push", "sometimes").unwrap_err();
         assert!(err.contains("not a valid"), "{err}");
-        let (v, o) = resolve_with(
-            "publish.git_push",
-            None,
-            |_| None,
-            Some(user.clone()),
-            false,
-        );
+        let (v, o) = resolve_with("publish.git_push", None, |_| None, Some(user.clone()));
         assert_eq!((v.as_str(), o), ("off", Origin::User));
     }
 
@@ -487,7 +438,7 @@ mod tests {
         assert!(set("hub.url", "https://evil.example", Some(&frontier)).is_err());
         assert!(set("publish.git_push", "auto", Some(&frontier)).is_err());
         set("publish.git_push", "off", Some(&frontier)).unwrap();
-        let (v, o) = resolve_with("publish.git_push", Some(&frontier), |_| None, None, false);
+        let (v, o) = resolve_with("publish.git_push", Some(&frontier), |_| None, None);
         assert_eq!((v.as_str(), o), ("off", Origin::Frontier));
         // A hand-written hub.url in frontier config is IGNORED even
         // though the file contains it.
@@ -496,7 +447,7 @@ mod tests {
             "[hub]\nurl = \"https://evil.example\"\n[publish]\ngit_push = \"off\"\n",
         )
         .unwrap();
-        let (v, o) = resolve_with("hub.url", Some(&frontier), |_| None, None, false);
+        let (v, o) = resolve_with("hub.url", Some(&frontier), |_| None, None);
         assert_ne!(v, "https://evil.example");
         assert_ne!(o, Origin::Frontier);
     }
@@ -508,10 +459,9 @@ mod tests {
             None,
             |name| (name == "VELA_UI_COLOR").then(|| "never".to_string()),
             None,
-            false,
         );
         assert_eq!((v.as_str(), o), ("never", Origin::Env));
-        let (v, o) = resolve_with("ui.color", None, |_| None, None, false);
+        let (v, o) = resolve_with("ui.color", None, |_| None, None);
         assert_eq!((v.as_str(), o), ("auto", Origin::Default));
     }
 }

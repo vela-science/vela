@@ -3,8 +3,7 @@
 
 use super::*;
 
-/// v0.146: derive the on-disk owner-epoch chain transcript path
-/// for a given frontier. Sits at
+/// Derive the on-disk owner-epoch chain transcript path for a frontier. Sits at
 /// `<frontier-dir>/.vela/governance/chain.json` regardless of
 /// whether the input is a frontier file or a frontier directory.
 pub(crate) fn governance_chain_path(frontier: &Path) -> PathBuf {
@@ -18,7 +17,7 @@ pub(crate) fn governance_chain_path(frontier: &Path) -> PathBuf {
     dir.join(".vela").join("governance").join("chain.json")
 }
 
-/// v0.146: verify the owner-epoch chain transcript for a frontier.
+/// Verify the owner-epoch chain transcript for a frontier.
 pub(crate) fn cmd_verify_chain(frontier: PathBuf, artifacts: PathBuf, json: bool) {
     use vela_edge::governance::{
         ChainStatus, GovernancePolicy, OwnerEpochChain, OwnerRotateAttestationBundle,
@@ -27,24 +26,25 @@ pub(crate) fn cmd_verify_chain(frontier: PathBuf, artifacts: PathBuf, json: bool
 
     let chain_path = governance_chain_path(&frontier);
     if !chain_path.exists() {
-        // Legacy entry (pre-v0.144): no chain file.
+        // No transitions means the frontier is still at its bootstrap epoch;
+        // a placeholder chain file is unnecessary.
         if json {
             println!(
                 "{}",
                 serde_json::to_string_pretty(&json!({
                     "ok": true,
-                    "command": "registry.verify-chain",
+                    "command": "hub.verify-chain",
                     "frontier": frontier.display().to_string(),
-                    "chain_status": "legacy",
-                    "reason": format!("no chain file at {}", chain_path.display()),
+                    "chain_status": "bootstrap",
+                    "transition_count": 0,
+                    "current_epoch": 0,
                 }))
-                .expect("serialize legacy")
+                .expect("serialize bootstrap")
             );
         } else {
             println!(
-                "{} chain status: legacy ({} not present)",
-                style::ok("verify-chain"),
-                chain_path.display()
+                "{} chain status: bootstrap (0 transitions)",
+                style::ok("verify-chain")
             );
         }
         return;
@@ -109,14 +109,13 @@ pub(crate) fn cmd_verify_chain(frontier: PathBuf, artifacts: PathBuf, json: bool
     let status_str = match status {
         ChainStatus::Bootstrap => "bootstrap",
         ChainStatus::Verified => "verified",
-        ChainStatus::Legacy => "legacy",
         ChainStatus::Broken => "broken",
     };
 
     if json {
         let payload = json!({
             "ok": !matches!(status, ChainStatus::Broken),
-            "command": "registry.verify-chain",
+            "command": "hub.verify-chain",
             "frontier": frontier.display().to_string(),
             "chain_status": status_str,
             "transition_count": chain.transitions.len(),

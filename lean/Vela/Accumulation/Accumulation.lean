@@ -26,8 +26,8 @@ Mathlib-free and compiles standalone (`lean Vela/Accumulation.lean`).
   is also `O(1)`, not just the object. That cryptographic instantiation is out of scope here.
 * **Single verifier here.** This file folds one frozen verifier. The cross-frontier (heterogeneous)
   case — importing one frontier's verified state into another's accumulator via a soundness-preserving
-  transfer (`Vela/Transfer.lean`, Theorem 23) — is the genuinely novel composition and is specified in
-  `docs/PCK.md`; it is not proven in this file.
+  transfer — is proved separately in `Vela/Accumulation/HeteroAccumulation.lean`; it is not proved in
+  this file.
 * **Adoption is unwillable.** As with PoVD, mechanism + proof is necessary, not sufficient, for a
   breakthrough.
 -/

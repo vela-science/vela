@@ -1,19 +1,12 @@
-//! v0.21: backend abstraction so the hub can run on Postgres (production)
-//! or SQLite (self-hosted, no external dependencies). The enum stays
-//! small — five methods cover everything the route handlers need. Each
-//! backend handles its own placeholder syntax (`$1` vs `?`) and raw_json
-//! storage (`JSONB` vs `TEXT`).
-//!
-//! Doctrine: the SQL surface stays minimal. If the enum grows past ~10
-//! methods, the right move is to re-think whether the hub should be a
-//! sqlx-direct service or move to an ORM.
+//! Backend abstraction for the Hub's verified Git projection. Postgres serves
+//! hosted deployments; SQLite keeps self-hosting dependency-free. Each backend
+//! handles its placeholder syntax (`$1` vs `?`) and JSON representation
+//! (`JSONB` vs `TEXT`) while exposing one projection model.
 
 use serde_json::{Value, json};
 use sqlx::{PgPool, Row, SqlitePool};
-use vela_protocol::bundle::FindingBundle;
 use vela_protocol::events::{StateEvent, event_log_hash, snapshot_hash};
 use vela_protocol::project::Project;
-use vela_protocol::registry::RegistryEntry;
 
 /// Backend-agnostic hub database handle. Variant is picked at startup
 /// based on the `VELA_HUB_DATABASE_URL` prefix.
@@ -23,10 +16,23 @@ pub enum HubDb {
     Sqlite(SqlitePool),
 }
 
+/// Metadata computed by the verified Git ingestor and stored with one
+/// materialized frontier projection. This is an internal index cursor, not a
+/// signed publication manifest.
+#[derive(Debug, Clone)]
+pub struct VerifiedFrontierIndex {
+    pub vfr_id: String,
+    pub name: String,
+    pub owner_actor_id: String,
+    pub owner_pubkey: String,
+    pub latest_snapshot_hash: String,
+    pub latest_event_log_hash: String,
+    pub source_commit_at: String,
+}
+
 #[derive(Debug, Clone)]
 pub struct EventFirstPromotionReport {
     pub vfr_id: String,
-    pub registry_entry_id: Option<i64>,
     pub findings_count: i64,
     pub events_count: i64,
     pub sources_count: i64,
@@ -36,34 +42,11 @@ pub struct EventFirstPromotionReport {
     pub authority_mode: String,
 }
 
-/// Outcome of an incremental [`Db::append_to_frontier`]. Counts reflect what
-/// the append actually wrote; `skipped_*` are records already present (the
-/// idempotent no-ops). The new hashes are the frontier's post-append tail.
-#[derive(Debug, Clone)]
-pub struct AppendToFrontierOutcome {
-    pub vfr_id: String,
-    pub appended_findings: i64,
-    pub appended_events: i64,
-    pub skipped_duplicate_findings: i64,
-    pub skipped_duplicate_events: i64,
-    pub findings_count: i64,
-    pub events_count: i64,
-    pub new_event_log_hash: String,
-    pub new_snapshot_hash: String,
-}
-
 #[derive(Debug, Clone)]
 pub struct EventPage {
     pub events: Vec<Value>,
     pub next_cursor: Option<String>,
     pub log_total: i64,
-}
-
-#[derive(Debug, Clone)]
-pub struct PublishAuditStatus {
-    pub status: String,
-    pub error: Option<String>,
-    pub authority_mode: Option<String>,
 }
 
 struct FrontierObjectRow {
@@ -77,15 +60,45 @@ struct FrontierObjectRow {
     signer_pubkey: Option<String>,
 }
 
-impl HubDb {
-    /// Local/SQLite mode: the database file IS the durable local store,
-    /// so inline substrate is acceptable without object storage (the
-    /// snapshot lands in materialized_snapshot_json). Production
-    /// Postgres still requires the blob tier.
-    pub fn is_sqlite(&self) -> bool {
-        matches!(self, Self::Sqlite(_))
-    }
+type IndexedFrontierRow = (
+    String,
+    String,
+    String,
+    String,
+    String,
+    String,
+    String,
+    String,
+);
 
+pub const FRONTIER_INDEX_SCHEMA: &str = "vela.frontier-index.v1";
+
+fn indexed_entry_json(
+    (
+        vfr_id,
+        name,
+        owner_actor_id,
+        owner_pubkey,
+        latest_snapshot_hash,
+        latest_event_log_hash,
+        source_commit_at,
+        git_remote,
+    ): IndexedFrontierRow,
+) -> Value {
+    json!({
+        "schema": FRONTIER_INDEX_SCHEMA,
+        "vfr_id": vfr_id,
+        "name": name,
+        "owner_actor_id": owner_actor_id,
+        "owner_pubkey": owner_pubkey,
+        "latest_snapshot_hash": latest_snapshot_hash,
+        "latest_event_log_hash": latest_event_log_hash,
+        "git_remote": crate::git_ingest::canonical_git_remote(&git_remote),
+        "source_commit_at": source_commit_at,
+    })
+}
+
+impl HubDb {
     pub async fn health(&self) -> Result<(), String> {
         match self {
             Self::Postgres(p) => sqlx::query_scalar::<_, i32>("SELECT 1")
@@ -104,13 +117,13 @@ impl HubDb {
     pub async fn schema_present(&self) -> Result<bool, String> {
         match self {
             Self::Postgres(p) => sqlx::query_scalar(
-                "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'registry_entries')",
+                "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'frontiers')",
             )
             .fetch_one(p)
             .await
             .map_err(|e| e.to_string()),
             Self::Sqlite(p) => sqlx::query_scalar::<_, i64>(
-                "SELECT count(*) FROM sqlite_master WHERE type='table' AND name='registry_entries'",
+                "SELECT count(*) FROM sqlite_master WHERE type='table' AND name='frontiers'",
             )
             .fetch_one(p)
             .await
@@ -119,113 +132,54 @@ impl HubDb {
         }
     }
 
-    pub async fn get_entry(&self, vfr_id: &str) -> Result<Option<Value>, String> {
-        match self {
-            Self::Postgres(p) => sqlx::query_scalar::<_, Value>(
+    /// Frontier-index rows synthesized directly from the verified projection
+    /// and its configured Git source. There is no second publication record.
+    pub async fn list_entries(&self) -> Result<Vec<Value>, String> {
+        let rows: Vec<IndexedFrontierRow> = match self {
+            Self::Postgres(p) => sqlx::query_as(
                 r#"
-                SELECT raw_json FROM registry_entries
-                WHERE vfr_id = $1
-                ORDER BY signed_publish_at DESC
-                LIMIT 1
-                "#,
-            )
-            .bind(vfr_id)
-            .fetch_optional(p)
-            .await
-            .map_err(|e| e.to_string()),
-            Self::Sqlite(p) => {
-                let row: Option<String> = sqlx::query_scalar(
-                    r#"
-                    SELECT raw_json FROM registry_entries
-                    WHERE vfr_id = ?
-                    ORDER BY signed_publish_at DESC
-                    LIMIT 1
-                    "#,
-                )
-                .bind(vfr_id)
-                .fetch_optional(p)
-                .await
-                .map_err(|e| e.to_string())?;
-                match row {
-                    Some(s) => serde_json::from_str::<Value>(&s)
-                        .map(Some)
-                        .map_err(|e| e.to_string()),
-                    None => Ok(None),
-                }
-            }
-        }
-    }
-
-    /// Event-first live registry listing. Hard-cutover reads should use
-    /// this path: only verified, promoted frontiers appear. The returned
-    /// JSON is still the signed manifest shape (`registry_entries.raw_json`)
-    /// so old CLI clients keep working.
-    /// Canonicalize a served entry's `git+` network_locator in place (strip a
-    /// trailing `.git`/slash). Applied on every read so a locator STORED before
-    /// the canonicalization landed — or written by an older hub — still serves
-    /// canonically; two hubs then agree in `witness-check` without every entry
-    /// having to re-ingest. Only `git+…` locators are touched, so a snapshot/
-    /// http locator (and its manifest signature) is left byte-identical.
-    fn canon_served_locator(entry: &mut Value) {
-        if let Some(loc) = entry.get("network_locator").and_then(Value::as_str)
-            && let Some(rest) = loc.strip_prefix("git+")
-        {
-            let canon = format!(
-                "git+{}",
-                vela_protocol::registry::canonical_git_remote(rest)
-            );
-            if canon != loc {
-                entry["network_locator"] = Value::String(canon);
-            }
-        }
-    }
-
-    pub async fn list_live_entries(&self) -> Result<Vec<Value>, String> {
-        let mut entries: Vec<Value> = match self {
-            Self::Postgres(p) => sqlx::query_scalar::<_, Value>(
-                r#"
-                SELECT r.raw_json
+                SELECT f.vfr_id, f.name, f.owner_actor_id, f.owner_pubkey,
+                       f.latest_snapshot_hash, f.latest_event_log_hash,
+                       to_char(f.source_commit_at AT TIME ZONE 'UTC',
+                               'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),
+                       g.git_remote
                 FROM frontiers f
-                JOIN registry_entries r ON r.id = f.registry_entry_id
-                WHERE f.status = 'live'
-                ORDER BY f.signed_publish_at DESC
+                JOIN frontier_git_remotes g ON g.vfr_id = f.vfr_id
+                ORDER BY f.source_commit_at DESC
                 "#,
             )
             .fetch_all(p)
             .await
             .map_err(|e| e.to_string())?,
-            Self::Sqlite(p) => {
-                let rows: Vec<String> = sqlx::query_scalar(
-                    r#"
-                    SELECT r.raw_json
-                    FROM frontiers f
-                    JOIN registry_entries r ON r.id = f.registry_entry_id
-                    WHERE f.status = 'live'
-                    ORDER BY f.signed_publish_at DESC
-                    "#,
-                )
-                .fetch_all(p)
-                .await
-                .map_err(|e| e.to_string())?;
-                rows.into_iter()
-                    .map(|s| serde_json::from_str::<Value>(&s).map_err(|e| e.to_string()))
-                    .collect::<Result<Vec<Value>, String>>()?
-            }
+            Self::Sqlite(p) => sqlx::query_as(
+                r#"
+                SELECT f.vfr_id, f.name, f.owner_actor_id, f.owner_pubkey,
+                       f.latest_snapshot_hash, f.latest_event_log_hash,
+                       f.source_commit_at, g.git_remote
+                FROM frontiers f
+                JOIN frontier_git_remotes g ON g.vfr_id = f.vfr_id
+                ORDER BY f.source_commit_at DESC
+                "#,
+            )
+            .fetch_all(p)
+            .await
+            .map_err(|e| e.to_string())?,
         };
-        for e in &mut entries {
-            Self::canon_served_locator(e);
-        }
-        Ok(entries)
+        Ok(rows.into_iter().map(indexed_entry_json).collect())
     }
 
-    pub async fn get_live_entry(&self, vfr_id: &str) -> Result<Option<Value>, String> {
-        let mut entry: Option<Value> = match self {
-            Self::Postgres(p) => sqlx::query_scalar::<_, Value>(
+    pub async fn get_index_entry(&self, vfr_id: &str) -> Result<Option<Value>, String> {
+        let row: Option<IndexedFrontierRow> = match self {
+            Self::Postgres(p) => sqlx::query_as(
                 r#"
-                SELECT r.raw_json
+                SELECT f.vfr_id, f.name, f.owner_actor_id, f.owner_pubkey,
+                       f.latest_snapshot_hash, f.latest_event_log_hash,
+                       to_char(f.source_commit_at AT TIME ZONE 'UTC',
+                               'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),
+                       g.git_remote
                 FROM frontiers f
-                JOIN registry_entries r ON r.id = f.registry_entry_id
-                WHERE f.vfr_id = $1 AND f.status = 'live'
+                JOIN frontier_git_remotes g ON g.vfr_id = f.vfr_id
+                WHERE f.vfr_id = $1
                 LIMIT 1
                 "#,
             )
@@ -233,30 +187,23 @@ impl HubDb {
             .fetch_optional(p)
             .await
             .map_err(|e| e.to_string())?,
-            Self::Sqlite(p) => {
-                let row: Option<String> = sqlx::query_scalar(
-                    r#"
-                    SELECT r.raw_json
-                    FROM frontiers f
-                    JOIN registry_entries r ON r.id = f.registry_entry_id
-                    WHERE f.vfr_id = ? AND f.status = 'live'
-                    LIMIT 1
-                    "#,
-                )
-                .bind(vfr_id)
-                .fetch_optional(p)
-                .await
-                .map_err(|e| e.to_string())?;
-                match row {
-                    Some(s) => Some(serde_json::from_str::<Value>(&s).map_err(|e| e.to_string())?),
-                    None => None,
-                }
-            }
+            Self::Sqlite(p) => sqlx::query_as(
+                r#"
+                SELECT f.vfr_id, f.name, f.owner_actor_id, f.owner_pubkey,
+                       f.latest_snapshot_hash, f.latest_event_log_hash,
+                       f.source_commit_at, g.git_remote
+                FROM frontiers f
+                JOIN frontier_git_remotes g ON g.vfr_id = f.vfr_id
+                WHERE f.vfr_id = ?
+                LIMIT 1
+                "#,
+            )
+            .bind(vfr_id)
+            .fetch_optional(p)
+            .await
+            .map_err(|e| e.to_string())?,
         };
-        if let Some(e) = entry.as_mut() {
-            Self::canon_served_locator(e);
-        }
-        Ok(entry)
+        Ok(row.map(indexed_entry_json))
     }
 
     /// Lightweight per-frontier counts for list/dashboard views, computed by
@@ -264,9 +211,9 @@ impl HubDb {
     /// (multi-MB) snapshot. object_type counts come from `frontier_objects`
     /// (indexed on `(vfr_id, object_type)`); events from `frontier_events`;
     /// contested/human_reviewed/avg_confidence from finding `review_state` flags
-    /// and confidence scores. Returns None when the frontier is not live.
+    /// and confidence scores. Returns None when the frontier is not indexed.
     pub async fn frontier_summary(&self, vfr_id: &str) -> Result<Option<Value>, String> {
-        if self.get_live_entry(vfr_id).await?.is_none() {
+        if self.get_index_entry(vfr_id).await?.is_none() {
             return Ok(None);
         }
         type FlagAgg = (i64, i64, Option<f64>);
@@ -379,7 +326,7 @@ impl HubDb {
     /// Cross-frontier object text search (the /search backend) — one query
     /// over `frontier_objects` instead of downloading every frontier's
     /// multi-MB snapshot and scanning client-side. Restricted to one
-    /// `object_type`, across live frontiers only. Returns
+    /// `object_type`, across indexed frontiers. Returns
     /// `({vfr_id, object} rows, total)` where `total` counts every match
     /// under the same predicate so callers can paginate additively.
     ///
@@ -421,9 +368,8 @@ impl HubDb {
                         .replace('_', "\\_")
                 );
                 let rows: Vec<Row> = sqlx::query_as(
-                    "SELECT f.vfr_id, o.raw_json \
+                    "SELECT o.vfr_id, o.raw_json \
                      FROM frontier_objects o \
-                     JOIN frontiers f ON f.vfr_id = o.vfr_id AND f.status = 'live' \
                      WHERE o.object_type = ? AND o.raw_json LIKE ? ESCAPE '\\' \
                      ORDER BY o.vfr_id, o.seq LIMIT ? OFFSET ?",
                 )
@@ -437,7 +383,6 @@ impl HubDb {
                 let total: i64 = sqlx::query_scalar(
                     "SELECT COUNT(*) \
                      FROM frontier_objects o \
-                     JOIN frontiers f ON f.vfr_id = o.vfr_id AND f.status = 'live' \
                      WHERE o.object_type = ? AND o.raw_json LIKE ? ESCAPE '\\'",
                 )
                 .bind(object_type)
@@ -557,51 +502,17 @@ impl HubDb {
         }
     }
 
-    /// All of a frontier's events as raw_json Values, ordered by seq — the input
-    /// to the Merkle transparency log (P2). Unbounded: transparency needs the
-    /// whole log, not a page.
-    pub async fn all_event_values(&self, vfr_id: &str) -> Result<Vec<Value>, String> {
-        match self {
-            Self::Postgres(p) => sqlx::query(
-                "SELECT raw_json FROM frontier_events WHERE vfr_id = $1 ORDER BY seq ASC",
-            )
-            .bind(vfr_id)
-            .fetch_all(p)
-            .await
-            .map_err(|e| e.to_string())?
-            .into_iter()
-            .map(|row| {
-                row.try_get::<Value, _>("raw_json")
-                    .map_err(|e| e.to_string())
-            })
-            .collect(),
-            Self::Sqlite(p) => {
-                let rows: Vec<String> = sqlx::query_scalar(
-                    "SELECT raw_json FROM frontier_events WHERE vfr_id = ? ORDER BY seq ASC",
-                )
-                .bind(vfr_id)
-                .fetch_all(p)
-                .await
-                .map_err(|e| e.to_string())?;
-                rows.into_iter()
-                    .map(|s| serde_json::from_str::<Value>(&s).map_err(|e| e.to_string()))
-                    .collect()
-            }
-        }
-    }
-
-    /// v0.201: look up a Scientific Diff Pack by its `vsd_*` id.
-    /// Returns the raw signed pack JSON if the pack has been
-    /// registered with this hub via a `diff_pack.released` event,
-    /// otherwise None.
+    /// Look up a replayed Scientific Diff Pack record by its `vsd_*` id.
+    /// Packs are projected from each verified Git frontier's
+    /// `released_diff_packs` array; there is no independent Hub write path.
     pub async fn get_diff_pack(&self, pack_id: &str) -> Result<Option<Value>, String> {
         match self {
             Self::Postgres(p) => sqlx::query_scalar::<_, Value>(
                 r#"
                 SELECT raw_json
-                FROM registry_diff_packs
-                WHERE pack_id = $1
-                ORDER BY inserted_at DESC
+                FROM frontier_objects
+                WHERE object_type = 'diff_pack'
+                  AND object_id = $1
                 LIMIT 1
                 "#,
             )
@@ -613,9 +524,9 @@ impl HubDb {
                 let row: Option<String> = sqlx::query_scalar(
                     r#"
                     SELECT raw_json
-                    FROM registry_diff_packs
-                    WHERE pack_id = ?
-                    ORDER BY inserted_at DESC
+                    FROM frontier_objects
+                    WHERE object_type = 'diff_pack'
+                      AND object_id = ?
                     LIMIT 1
                     "#,
                 )
@@ -631,268 +542,6 @@ impl HubDb {
                 }
             }
         }
-    }
-
-    /// v0.209: register a signed Scientific Diff Pack with this hub.
-    /// Idempotent on (pack_id, signature) via the unique index. Returns
-    /// `true` when a new row landed, `false` when the same signed pack
-    /// was already present.
-    pub async fn insert_diff_pack(
-        &self,
-        pack: &vela_protocol::scientific_diff::ScientificDiffPack,
-        raw_json: &Value,
-    ) -> Result<bool, String> {
-        let signature = pack.signature.clone().unwrap_or_default();
-        let signer_pubkey_hex = pack.signer_pubkey_hex.clone().unwrap_or_default();
-        if signature.is_empty() || signer_pubkey_hex.is_empty() {
-            return Err("publish_diff_pack requires a signed pack".to_string());
-        }
-        let member_ids_json = serde_json::to_string(&pack.proposals)
-            .map_err(|e| format!("serialize members: {e}"))?;
-        match self {
-            Self::Postgres(p) => {
-                let inserted = sqlx::query_scalar::<_, String>(
-                    r#"
-                    INSERT INTO registry_diff_packs (
-                      pack_id, frontier_id, aggregate_kind, summary,
-                      created_at, agent_run, parent_pack, applied_event_id,
-                      member_ids, signature, signer_pubkey_hex, raw_json
-                    )
-                    VALUES (
-                      $1, $2, $3, $4, $5::timestamptz,
-                      $6, $7, $8,
-                      $9::jsonb, $10, $11, $12::jsonb
-                    )
-                    ON CONFLICT (pack_id, signature) DO NOTHING
-                    RETURNING pack_id
-                    "#,
-                )
-                .bind(&pack.pack_id)
-                .bind(&pack.frontier_id)
-                .bind(&pack.aggregate_kind)
-                .bind(&pack.summary)
-                .bind(&pack.created_at)
-                .bind(pack.agent_run.as_deref())
-                .bind(pack.parent_pack.as_deref())
-                .bind(pack.applied_event_id.as_deref())
-                .bind(&member_ids_json)
-                .bind(&signature)
-                .bind(&signer_pubkey_hex)
-                .bind(raw_json)
-                .fetch_optional(p)
-                .await
-                .map_err(|e| e.to_string())?;
-                Ok(inserted.is_some())
-            }
-            Self::Sqlite(p) => {
-                let raw_json_str = serde_json::to_string(raw_json)
-                    .map_err(|e| format!("serialize raw_json: {e}"))?;
-                let result = sqlx::query(
-                    r#"
-                    INSERT OR IGNORE INTO registry_diff_packs (
-                      pack_id, frontier_id, aggregate_kind, summary,
-                      created_at, agent_run, parent_pack, applied_event_id,
-                      member_ids_json, signature, signer_pubkey_hex, raw_json
-                    )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    "#,
-                )
-                .bind(&pack.pack_id)
-                .bind(&pack.frontier_id)
-                .bind(&pack.aggregate_kind)
-                .bind(&pack.summary)
-                .bind(&pack.created_at)
-                .bind(pack.agent_run.as_deref())
-                .bind(pack.parent_pack.as_deref())
-                .bind(pack.applied_event_id.as_deref())
-                .bind(&member_ids_json)
-                .bind(&signature)
-                .bind(&signer_pubkey_hex)
-                .bind(&raw_json_str)
-                .execute(p)
-                .await
-                .map_err(|e| e.to_string())?;
-                Ok(result.rows_affected() > 0)
-            }
-        }
-    }
-
-    pub async fn latest_audit_status(
-        &self,
-        vfr_id: &str,
-    ) -> Result<Option<PublishAuditStatus>, String> {
-        match self {
-            Self::Postgres(p) => {
-                let row: Option<(String, Option<String>, Option<String>)> = sqlx::query_as(
-                    r#"
-                    SELECT status, error, authority_mode
-                    FROM frontier_publish_audit
-                    WHERE vfr_id = $1
-                    ORDER BY verified_at DESC, id DESC
-                    LIMIT 1
-                    "#,
-                )
-                .bind(vfr_id)
-                .fetch_optional(p)
-                .await
-                .map_err(|e| e.to_string())?;
-                Ok(
-                    row.map(|(status, error, authority_mode)| PublishAuditStatus {
-                        status,
-                        error,
-                        authority_mode,
-                    }),
-                )
-            }
-            Self::Sqlite(p) => {
-                let row: Option<(String, Option<String>, Option<String>)> = sqlx::query_as(
-                    r#"
-                    SELECT status, error, authority_mode
-                    FROM frontier_publish_audit
-                    WHERE vfr_id = ?
-                    ORDER BY verified_at DESC, id DESC
-                    LIMIT 1
-                    "#,
-                )
-                .bind(vfr_id)
-                .fetch_optional(p)
-                .await
-                .map_err(|e| e.to_string())?;
-                Ok(
-                    row.map(|(status, error, authority_mode)| PublishAuditStatus {
-                        status,
-                        error,
-                        authority_mode,
-                    }),
-                )
-            }
-        }
-    }
-
-    /// Returns true on fresh insert, false on duplicate.
-    /// The EFFECTIVE owner pubkey: the latest owner rotation's successor,
-    /// or the original publisher's key if no rotation exists. Every owner
-    /// check (re-publish continuity, deprecation, further rotation) must
-    /// use this, never the raw frontiers.owner_pubkey.
-    pub async fn effective_owner_pubkey(&self, vfr_id: &str) -> Result<Option<String>, String> {
-        let rotated: Option<(String,)> = match self {
-            Self::Postgres(p) => sqlx::query_as(
-                "SELECT new_owner_pubkey FROM frontier_owner_rotations WHERE vfr_id = $1 ORDER BY id DESC LIMIT 1",
-            )
-            .bind(vfr_id)
-            .fetch_optional(p)
-            .await
-            .map_err(|e| e.to_string())?,
-            Self::Sqlite(p) => sqlx::query_as(
-                "SELECT new_owner_pubkey FROM frontier_owner_rotations WHERE vfr_id = ?1 ORDER BY id DESC LIMIT 1",
-            )
-            .bind(vfr_id)
-            .fetch_optional(p)
-            .await
-            .map_err(|e| e.to_string())?,
-        };
-        if let Some((k,)) = rotated {
-            return Ok(Some(k));
-        }
-        self.frontier_owner_pubkey(vfr_id).await
-    }
-
-    /// Append an owner rotation (the signature was verified by the caller
-    /// against the CURRENT effective owner).
-    pub async fn record_owner_rotation(
-        &self,
-        vfr_id: &str,
-        new_owner_pubkey: &str,
-        rotated_at: &str,
-        raw_json: &Value,
-    ) -> Result<(), String> {
-        match self {
-            Self::Postgres(p) => sqlx::query(
-                "INSERT INTO frontier_owner_rotations (vfr_id, new_owner_pubkey, rotated_at, raw_json) VALUES ($1, $2, $3, $4)",
-            )
-            .bind(vfr_id)
-            .bind(new_owner_pubkey)
-            .bind(rotated_at)
-            .bind(raw_json)
-            .execute(p)
-            .await
-            .map(|_| ())
-            .map_err(|e| e.to_string()),
-            Self::Sqlite(p) => {
-                let raw = serde_json::to_string(raw_json).map_err(|e| e.to_string())?;
-                sqlx::query(
-                    "INSERT INTO frontier_owner_rotations (vfr_id, new_owner_pubkey, rotated_at, raw_json) VALUES (?1, ?2, ?3, ?4)",
-                )
-                .bind(vfr_id)
-                .bind(new_owner_pubkey)
-                .bind(rotated_at)
-                .bind(raw)
-                .execute(p)
-                .await
-                .map(|_| ())
-                .map_err(|e| e.to_string())
-            }
-        }
-    }
-
-    /// Append a maintainer add/remove (signature verified by the caller
-    /// against the effective owner or a current maintainer).
-    pub async fn record_maintainer_action(
-        &self,
-        vfr_id: &str,
-        pubkey: &str,
-        action: &str,
-        authorized_by: &str,
-        authorized_at: &str,
-        raw_json: &Value,
-    ) -> Result<(), String> {
-        match self {
-            Self::Postgres(p) => sqlx::query(
-                "INSERT INTO frontier_maintainers (vfr_id, pubkey, action, authorized_by_pubkey, authorized_at, raw_json) VALUES ($1,$2,$3,$4,$5,$6)",
-            )
-            .bind(vfr_id).bind(pubkey).bind(action).bind(authorized_by).bind(authorized_at).bind(raw_json)
-            .execute(p).await.map(|_| ()).map_err(|e| e.to_string()),
-            Self::Sqlite(p) => {
-                let raw = serde_json::to_string(raw_json).map_err(|e| e.to_string())?;
-                sqlx::query(
-                    "INSERT INTO frontier_maintainers (vfr_id, pubkey, action, authorized_by_pubkey, authorized_at, raw_json) VALUES (?1,?2,?3,?4,?5,?6)",
-                )
-                .bind(vfr_id).bind(pubkey).bind(action).bind(authorized_by).bind(authorized_at).bind(raw)
-                .execute(p).await.map(|_| ()).map_err(|e| e.to_string())
-            }
-        }
-    }
-
-    /// The effective maintainer set: latest action per pubkey, filtered
-    /// to 'add'.
-    pub async fn effective_maintainers(&self, vfr_id: &str) -> Result<Vec<String>, String> {
-        let rows: Vec<(String, String)> = match self {
-            Self::Postgres(p) => sqlx::query_as(
-                "SELECT DISTINCT ON (pubkey) pubkey, action FROM frontier_maintainers WHERE vfr_id = $1 ORDER BY pubkey, id DESC",
-            )
-            .bind(vfr_id).fetch_all(p).await.map_err(|e| e.to_string())?,
-            Self::Sqlite(p) => sqlx::query_as(
-                "SELECT pubkey, action FROM frontier_maintainers fm WHERE vfr_id = ?1 AND id = (SELECT MAX(id) FROM frontier_maintainers fm2 WHERE fm2.vfr_id = fm.vfr_id AND fm2.pubkey = fm.pubkey)",
-            )
-            .bind(vfr_id).fetch_all(p).await.map_err(|e| e.to_string())?,
-        };
-        Ok(rows
-            .into_iter()
-            .filter(|(_, a)| a == "add")
-            .map(|(k, _)| k)
-            .collect())
-    }
-
-    /// Every key with accept authority on this frontier: the effective
-    /// owner plus the effective maintainer set.
-    pub async fn effective_accept_keys(&self, vfr_id: &str) -> Result<Vec<String>, String> {
-        let mut keys = self.effective_maintainers(vfr_id).await?;
-        if let Some(owner) = self.effective_owner_pubkey(vfr_id).await?
-            && !keys.iter().any(|k| k.eq_ignore_ascii_case(&owner))
-        {
-            keys.push(owner);
-        }
-        Ok(keys)
     }
 
     /// Cross-frontier producer view: verified-frontier objects signed by
@@ -926,197 +575,124 @@ impl HubDb {
         }
     }
 
-    /// Boot-time producer-index backfill: for live frontiers whose
-    /// finding objects lack signer_pubkey, re-run extraction from the
-    /// stored materialized snapshot. Idempotent.
-    pub async fn backfill_signer_pubkeys(&self) -> Result<usize, String> {
-        // The DB's materialized_snapshot_json is a stripped projection
-        // (no actors array), so signer resolution MUST come from the
-        // full content-addressed snapshot blob in object storage —
-        // which is the signed substrate and always carries actors.
-        let vfrs: Vec<(String, Option<String>)> = match self {
-            Self::Postgres(p) => sqlx::query_as(
-                "SELECT vfr_id, snapshot_blob_url FROM frontiers WHERE status = 'live' AND snapshot_blob_url IS NOT NULL",
-            )
-            .fetch_all(p)
-            .await
-            .map_err(|e| e.to_string())?,
-            Self::Sqlite(p) => sqlx::query_as(
-                "SELECT vfr_id, snapshot_blob_url FROM frontiers WHERE status = 'live' AND snapshot_blob_url IS NOT NULL",
-            )
-            .fetch_all(p)
-            .await
-            .map_err(|e| e.to_string())?,
-        };
-        let client = reqwest::Client::new();
-        let mut updated = 0usize;
-        for (vfr, blob_url) in vfrs {
-            let Some(url) = blob_url else { continue };
-            let Ok(resp) = client.get(&url).send().await else {
-                continue;
-            };
-            let Ok(text) = resp.text().await else {
-                continue;
-            };
-            let Ok(snapshot) = serde_json::from_str::<Value>(&text) else {
-                continue;
-            };
-            for row in collect_frontier_objects(&snapshot) {
-                let Some(pk) = row.signer_pubkey else {
-                    continue;
-                };
-                let affected: u64 = match self {
-                    Self::Postgres(p) => sqlx::query(
-                        "UPDATE frontier_objects SET signer_pubkey = $1 WHERE vfr_id = $2 AND object_type = $3 AND object_id = $4 AND signer_pubkey IS NULL",
-                    )
-                    .bind(&pk).bind(&vfr).bind(&row.object_type).bind(&row.object_id)
-                    .execute(p).await.map(|r| r.rows_affected()).unwrap_or(0),
-                    Self::Sqlite(p) => sqlx::query(
-                        "UPDATE frontier_objects SET signer_pubkey = ?1 WHERE vfr_id = ?2 AND object_type = ?3 AND object_id = ?4 AND signer_pubkey IS NULL",
-                    )
-                    .bind(&pk).bind(&vfr).bind(&row.object_type).bind(&row.object_id)
-                    .execute(p).await.map(|r| r.rows_affected()).unwrap_or(0),
-                };
-                updated += affected as usize;
-            }
-        }
-        Ok(updated)
-    }
-
-    /// Append-only frontier deprecation (earliest-wins; a second
-    /// deprecation of the same vfr_id is a no-op). Also flips
-    /// `frontiers.status` to 'deprecated', which every live read
-    /// (`list_live_entries`, `get_live_entry`, search) already filters on.
-    pub async fn record_deprecation(
-        &self,
-        vfr_id: &str,
-        deprecated_at: &str,
-        reason: &str,
-        raw_json: &Value,
-    ) -> Result<bool, String> {
-        match self {
-            Self::Postgres(p) => {
-                let inserted = sqlx::query_scalar::<_, String>(
-                    r#"
-                    INSERT INTO frontier_deprecations (vfr_id, deprecated_at, reason, raw_json)
-                    VALUES ($1, $2, $3, $4)
-                    ON CONFLICT (vfr_id) DO NOTHING
-                    RETURNING vfr_id
-                    "#,
-                )
-                .bind(vfr_id)
-                .bind(deprecated_at)
-                .bind(reason)
-                .bind(raw_json)
-                .fetch_optional(p)
-                .await
-                .map_err(|e| e.to_string())?
-                .is_some();
-                sqlx::query("UPDATE frontiers SET status = 'deprecated' WHERE vfr_id = $1")
-                    .bind(vfr_id)
-                    .execute(p)
-                    .await
-                    .map_err(|e| e.to_string())?;
-                Ok(inserted)
-            }
-            Self::Sqlite(p) => {
-                let raw = serde_json::to_string(raw_json).map_err(|e| e.to_string())?;
-                let res = sqlx::query(
-                    r#"
-                    INSERT OR IGNORE INTO frontier_deprecations (vfr_id, deprecated_at, reason, raw_json)
-                    VALUES (?1, ?2, ?3, ?4)
-                    "#,
-                )
-                .bind(vfr_id)
-                .bind(deprecated_at)
-                .bind(reason)
-                .bind(raw)
-                .execute(p)
-                .await
-                .map_err(|e| e.to_string())?;
-                sqlx::query("UPDATE frontiers SET status = 'deprecated' WHERE vfr_id = ?1")
-                    .bind(vfr_id)
-                    .execute(p)
-                    .await
-                    .map_err(|e| e.to_string())?;
-                Ok(res.rows_affected() > 0)
-            }
-        }
-    }
-
-    /// Register (or re-point) a frontier's git remote — the one owner-signed
-    /// act in the git-ingestion lane. The caller has already verified the
-    /// GitRemoteRegistration signature against the effective owner; this
-    /// stores it and resets the ingest cursor so the next tick re-ingests.
-    pub async fn set_git_remote(
+    /// Upsert one operator-configured Git source. An unchanged source keeps its
+    /// ingest cursor; changing the remote or ref clears the cursor so the next
+    /// sweep verifies it from scratch.
+    pub async fn upsert_git_source(
         &self,
         vfr_id: &str,
         git_remote: &str,
         git_ref: &str,
-        git_subdir: &str,
-        registered_by_pubkey: &str,
-        registered_at: &str,
-        raw_json: &Value,
     ) -> Result<(), String> {
         match self {
             Self::Postgres(p) => {
                 sqlx::query(
                     r#"
                     INSERT INTO frontier_git_remotes
-                        (vfr_id, git_remote, git_ref, git_subdir, registered_by_pubkey, registered_at, raw_json)
-                    VALUES ($1, $2, $3, $4, $5, $6, $7)
+                        (vfr_id, git_remote, git_ref)
+                    VALUES ($1, $2, $3)
                     ON CONFLICT (vfr_id) DO UPDATE SET
                         git_remote = EXCLUDED.git_remote,
                         git_ref = EXCLUDED.git_ref,
-                        git_subdir = EXCLUDED.git_subdir,
-                        registered_by_pubkey = EXCLUDED.registered_by_pubkey,
-                        registered_at = EXCLUDED.registered_at,
-                        raw_json = EXCLUDED.raw_json,
                         last_ingested_commit = NULL,
                         ingest_error = NULL
+                    WHERE frontier_git_remotes.git_remote IS DISTINCT FROM EXCLUDED.git_remote
+                       OR frontier_git_remotes.git_ref IS DISTINCT FROM EXCLUDED.git_ref
                     "#,
                 )
                 .bind(vfr_id)
                 .bind(git_remote)
                 .bind(git_ref)
-                .bind(git_subdir)
-                .bind(registered_by_pubkey)
-                .bind(registered_at)
-                .bind(raw_json)
                 .execute(p)
                 .await
                 .map_err(|e| e.to_string())?;
                 Ok(())
             }
             Self::Sqlite(p) => {
-                let raw = serde_json::to_string(raw_json).map_err(|e| e.to_string())?;
                 sqlx::query(
                     r#"
                     INSERT INTO frontier_git_remotes
-                        (vfr_id, git_remote, git_ref, git_subdir, registered_by_pubkey, registered_at, raw_json)
-                    VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+                        (vfr_id, git_remote, git_ref)
+                    VALUES (?1, ?2, ?3)
                     ON CONFLICT (vfr_id) DO UPDATE SET
                         git_remote = excluded.git_remote,
                         git_ref = excluded.git_ref,
-                        git_subdir = excluded.git_subdir,
-                        registered_by_pubkey = excluded.registered_by_pubkey,
-                        registered_at = excluded.registered_at,
-                        raw_json = excluded.raw_json,
                         last_ingested_commit = NULL,
                         ingest_error = NULL
+                    WHERE frontier_git_remotes.git_remote <> excluded.git_remote
+                       OR frontier_git_remotes.git_ref <> excluded.git_ref
                     "#,
                 )
                 .bind(vfr_id)
                 .bind(git_remote)
                 .bind(git_ref)
-                .bind(git_subdir)
-                .bind(registered_by_pubkey)
-                .bind(registered_at)
-                .bind(raw)
                 .execute(p)
                 .await
                 .map_err(|e| e.to_string())?;
                 Ok(())
+            }
+        }
+    }
+
+    /// Remove projections for sources absent from the active catalog. Hub rows
+    /// are disposable derived state, so catalog removal must not leave a stale
+    /// frontier discoverable through search or point reads.
+    pub async fn retain_git_sources(&self, keep: &[String]) -> Result<usize, String> {
+        match self {
+            Self::Postgres(pool) => {
+                let mut tx = pool.begin().await.map_err(|e| e.to_string())?;
+                let existing: Vec<String> =
+                    sqlx::query_scalar("SELECT vfr_id FROM frontier_git_remotes")
+                        .fetch_all(&mut *tx)
+                        .await
+                        .map_err(|e| e.to_string())?;
+                let removed: Vec<String> = existing
+                    .into_iter()
+                    .filter(|vfr_id| !keep.contains(vfr_id))
+                    .collect();
+                for vfr_id in &removed {
+                    sqlx::query("DELETE FROM frontiers WHERE vfr_id = $1")
+                        .bind(vfr_id)
+                        .execute(&mut *tx)
+                        .await
+                        .map_err(|e| e.to_string())?;
+                    sqlx::query("DELETE FROM frontier_git_remotes WHERE vfr_id = $1")
+                        .bind(vfr_id)
+                        .execute(&mut *tx)
+                        .await
+                        .map_err(|e| e.to_string())?;
+                }
+                tx.commit().await.map_err(|e| e.to_string())?;
+                Ok(removed.len())
+            }
+            Self::Sqlite(pool) => {
+                let mut tx = pool.begin().await.map_err(|e| e.to_string())?;
+                let existing: Vec<String> =
+                    sqlx::query_scalar("SELECT vfr_id FROM frontier_git_remotes")
+                        .fetch_all(&mut *tx)
+                        .await
+                        .map_err(|e| e.to_string())?;
+                let removed: Vec<String> = existing
+                    .into_iter()
+                    .filter(|vfr_id| !keep.contains(vfr_id))
+                    .collect();
+                for vfr_id in &removed {
+                    for table in ["frontier_events", "frontier_objects", "frontiers"] {
+                        let statement = format!("DELETE FROM {table} WHERE vfr_id = ?1");
+                        sqlx::query(&statement)
+                            .bind(vfr_id)
+                            .execute(&mut *tx)
+                            .await
+                            .map_err(|e| e.to_string())?;
+                    }
+                    sqlx::query("DELETE FROM frontier_git_remotes WHERE vfr_id = ?1")
+                        .bind(vfr_id)
+                        .execute(&mut *tx)
+                        .await
+                        .map_err(|e| e.to_string())?;
+                }
+                tx.commit().await.map_err(|e| e.to_string())?;
+                Ok(removed.len())
             }
         }
     }
@@ -1147,20 +723,14 @@ impl HubDb {
         }
     }
 
-    /// Every registered git-ingestion target with its cursor, for the
-    /// ingestor's tick. Row shape: (vfr_id, git_remote, git_ref, git_subdir,
-    /// last_ingested_commit, registered_by_pubkey).
-    ///
-    /// A DEPRECATED frontier drops out of the sweep: retiring it via
-    /// `vela hub deprecate` should stop the hub re-fetching + re-verifying a
-    /// dead repo every tick (otherwise the target lingers, since there is no
-    /// un-register verb — deprecation is the owner-signed retirement act).
+    /// Every configured Git-ingestion target with its cursor, for the
+    /// ingestor's tick. Row shape: (vfr_id, git_remote, git_ref,
+    /// last_ingested_commit).
     pub async fn git_ingest_targets(
         &self,
-    ) -> Result<Vec<(String, String, String, String, Option<String>, String)>, String> {
-        const Q: &str = "SELECT vfr_id, git_remote, git_ref, git_subdir, last_ingested_commit, \
-                         registered_by_pubkey FROM frontier_git_remotes \
-                         WHERE vfr_id NOT IN (SELECT vfr_id FROM frontier_deprecations)";
+    ) -> Result<Vec<(String, String, String, Option<String>)>, String> {
+        const Q: &str = "SELECT vfr_id, git_remote, git_ref, last_ingested_commit \
+                         FROM frontier_git_remotes";
         match self {
             Self::Postgres(p) => sqlx::query_as(Q)
                 .fetch_all(p)
@@ -1174,7 +744,7 @@ impl HubDb {
     }
 
     /// Record the outcome of one ingest attempt (the cursor on success, the
-    /// error text on failure — surfaced at /entries/{vfr}/status).
+    /// error text on failure — surfaced by the Git-source read endpoint).
     pub async fn record_git_ingest(
         &self,
         vfr_id: &str,
@@ -1215,18 +785,12 @@ impl HubDb {
         }
     }
 
-    /// The git-remote registration + ingest cursor for one frontier (status surface).
+    /// The configured Git source and ingest cursor for one frontier.
     pub async fn get_git_remote(&self, vfr_id: &str) -> Result<Option<Value>, String> {
-        // `registration` is the stored owner-signed document verbatim —
-        // exposing it makes mirrors self-seedable: a new hub can replay
-        // it against POST /entries/{vfr}/git-remote and the signature
-        // (which covers the payload, not a session) verifies there too.
         const Q_PG: &str = "SELECT json_build_object(\
             'git_remote', git_remote, 'git_ref', git_ref, \
-            'registered_at', registered_at, 'registered_by_pubkey', registered_by_pubkey, \
             'last_ingested_commit', last_ingested_commit, \
-            'last_ingested_at', last_ingested_at::text, 'ingest_error', ingest_error, \
-            'registration', raw_json::jsonb) \
+            'last_ingested_at', last_ingested_at::text, 'ingest_error', ingest_error) \
             FROM frontier_git_remotes WHERE vfr_id = $1";
         match self {
             Self::Postgres(p) => sqlx::query_scalar::<_, Value>(Q_PG)
@@ -1238,37 +802,26 @@ impl HubDb {
                 type GitRemoteRow = (
                     String,
                     String,
-                    String,
-                    String,
-                    Option<String>,
                     Option<String>,
                     Option<String>,
                     Option<String>,
                 );
                 let row: Option<GitRemoteRow> = sqlx::query_as(
-                    "SELECT git_remote, git_ref, registered_at, registered_by_pubkey, \
-                         last_ingested_commit, last_ingested_at, ingest_error, raw_json \
+                    "SELECT git_remote, git_ref, last_ingested_commit, \
+                         last_ingested_at, ingest_error \
                          FROM frontier_git_remotes WHERE vfr_id = ?1",
                 )
                 .bind(vfr_id)
                 .fetch_optional(p)
                 .await
                 .map_err(|e| e.to_string())?;
-                Ok(
-                    row.map(|(remote, r#ref, at, by, commit, ing_at, err, raw)| {
-                        let registration = raw
-                            .as_deref()
-                            .and_then(|r| serde_json::from_str::<Value>(r).ok())
-                            .unwrap_or(Value::Null);
-                        serde_json::json!({
-                            "git_remote": remote, "git_ref": r#ref,
-                            "registered_at": at, "registered_by_pubkey": by,
-                            "last_ingested_commit": commit,
-                            "last_ingested_at": ing_at, "ingest_error": err,
-                            "registration": registration,
-                        })
-                    }),
-                )
+                Ok(row.map(|(remote, r#ref, commit, ing_at, err)| {
+                    serde_json::json!({
+                        "git_remote": remote, "git_ref": r#ref,
+                        "last_ingested_commit": commit,
+                        "last_ingested_at": ing_at, "ingest_error": err,
+                    })
+                }))
             }
         }
     }
@@ -1314,474 +867,32 @@ impl HubDb {
         }
     }
 
-    /// The deprecation record for a frontier, if any (the audit receipt).
-    pub async fn get_deprecation(&self, vfr_id: &str) -> Result<Option<Value>, String> {
-        match self {
-            Self::Postgres(p) => sqlx::query_scalar::<_, Value>(
-                "SELECT raw_json FROM frontier_deprecations WHERE vfr_id = $1",
-            )
-            .bind(vfr_id)
-            .fetch_optional(p)
-            .await
-            .map_err(|e| e.to_string()),
-            Self::Sqlite(p) => {
-                let row: Option<String> = sqlx::query_scalar(
-                    "SELECT raw_json FROM frontier_deprecations WHERE vfr_id = ?1",
-                )
-                .bind(vfr_id)
-                .fetch_optional(p)
-                .await
-                .map_err(|e| e.to_string())?;
-                row.map(|s| serde_json::from_str(&s).map_err(|e| e.to_string()))
-                    .transpose()
-            }
-        }
-    }
-
-    /// Record the object-storage URL of the archived signed manifest for
-    /// every entry row of this (vfr_id, signature) publish.
-    pub async fn set_manifest_blob_url(
-        &self,
-        vfr_id: &str,
-        signature: &str,
-        url: &str,
-    ) -> Result<(), String> {
-        match self {
-            Self::Postgres(p) => sqlx::query(
-                "UPDATE registry_entries SET manifest_blob_url = $1 WHERE vfr_id = $2 AND signature = $3",
-            )
-            .bind(url)
-            .bind(vfr_id)
-            .bind(signature)
-            .execute(p)
-            .await
-            .map(|_| ())
-            .map_err(|e| e.to_string()),
-            Self::Sqlite(p) => sqlx::query(
-                "UPDATE registry_entries SET manifest_blob_url = ?1 WHERE vfr_id = ?2 AND signature = ?3",
-            )
-            .bind(url)
-            .bind(vfr_id)
-            .bind(signature)
-            .execute(p)
-            .await
-            .map(|_| ())
-            .map_err(|e| e.to_string()),
-        }
-    }
-
-    /// Entries whose signed manifest has not yet been archived to object
-    /// storage. Drives the idempotent boot-time backfill.
-    pub async fn entries_missing_manifest_blob(
-        &self,
-    ) -> Result<Vec<(String, String, Value)>, String> {
-        match self {
-            Self::Postgres(p) => {
-                let rows: Vec<(String, String, Value)> = sqlx::query_as(
-                    "SELECT vfr_id, signature, raw_json FROM registry_entries WHERE manifest_blob_url IS NULL",
-                )
-                .fetch_all(p)
-                .await
-                .map_err(|e| e.to_string())?;
-                Ok(rows)
-            }
-            Self::Sqlite(p) => {
-                let rows: Vec<(String, String, String)> = sqlx::query_as(
-                    "SELECT vfr_id, signature, raw_json FROM registry_entries WHERE manifest_blob_url IS NULL",
-                )
-                .fetch_all(p)
-                .await
-                .map_err(|e| e.to_string())?;
-                rows.into_iter()
-                    .map(|(v, s, r)| {
-                        serde_json::from_str(&r)
-                            .map(|j| (v, s, j))
-                            .map_err(|e| e.to_string())
-                    })
-                    .collect()
-            }
-        }
-    }
-
-    pub async fn insert_entry(
-        &self,
-        entry: &RegistryEntry,
-        raw_json: &Value,
-    ) -> Result<bool, String> {
-        match self {
-            Self::Postgres(p) => {
-                let inserted = sqlx::query_scalar::<_, String>(
-                    r#"
-                    INSERT INTO registry_entries (
-                      vfr_id, schema, name, owner_actor_id, owner_pubkey,
-                      latest_snapshot_hash, latest_event_log_hash, network_locator,
-                      signed_publish_at, signature, raw_json
-                    )
-                    VALUES (
-                      $1, $2, $3, $4, $5, $6, $7, $8, $9::timestamptz, $10, $11
-                    )
-                    ON CONFLICT (vfr_id, signature) DO NOTHING
-                    RETURNING vfr_id
-                    "#,
-                )
-                .bind(&entry.vfr_id)
-                .bind(&entry.schema)
-                .bind(&entry.name)
-                .bind(&entry.owner_actor_id)
-                .bind(&entry.owner_pubkey)
-                .bind(&entry.latest_snapshot_hash)
-                .bind(&entry.latest_event_log_hash)
-                .bind(&entry.network_locator)
-                .bind(&entry.signed_publish_at)
-                .bind(&entry.signature)
-                .bind(raw_json)
-                .fetch_optional(p)
-                .await
-                .map_err(|e| e.to_string())?;
-                Ok(inserted.is_some())
-            }
-            Self::Sqlite(p) => {
-                let raw_json_str = serde_json::to_string(raw_json)
-                    .map_err(|e| format!("serialize raw_json: {e}"))?;
-                let result = sqlx::query(
-                    r#"
-                    INSERT OR IGNORE INTO registry_entries (
-                      vfr_id, schema, name, owner_actor_id, owner_pubkey,
-                      latest_snapshot_hash, latest_event_log_hash, network_locator,
-                      signed_publish_at, signature, raw_json
-                    )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    "#,
-                )
-                .bind(&entry.vfr_id)
-                .bind(&entry.schema)
-                .bind(&entry.name)
-                .bind(&entry.owner_actor_id)
-                .bind(&entry.owner_pubkey)
-                .bind(&entry.latest_snapshot_hash)
-                .bind(&entry.latest_event_log_hash)
-                .bind(&entry.network_locator)
-                .bind(&entry.signed_publish_at)
-                .bind(&entry.signature)
-                .bind(&raw_json_str)
-                .execute(p)
-                .await
-                .map_err(|e| e.to_string())?;
-                Ok(result.rows_affected() > 0)
-            }
-        }
-    }
-
-    /// Upsert the synthetic registry row for a GIT-INGESTED promote:
-    /// latest promote wins. Ingested rows share the empty-signature key
-    /// per vfr, so the plain insert's ON CONFLICT DO NOTHING froze
-    /// `signed_publish_at` (and the hashes readers see) at FIRST
-    /// ingestion — which also froze every HTML page's projection cache,
-    /// keyed on that timestamp. The repo is the authority; this row is
-    /// an index cursor, and a cursor must advance.
-    pub async fn upsert_ingested_entry(
-        &self,
-        entry: &RegistryEntry,
-        raw_json: &Value,
-    ) -> Result<(), String> {
-        match self {
-            Self::Postgres(p) => {
-                sqlx::query(
-                    r#"
-                    INSERT INTO registry_entries (
-                      vfr_id, schema, name, owner_actor_id, owner_pubkey,
-                      latest_snapshot_hash, latest_event_log_hash, network_locator,
-                      signed_publish_at, signature, raw_json
-                    )
-                    VALUES (
-                      $1, $2, $3, $4, $5, $6, $7, $8, $9::timestamptz, $10, $11
-                    )
-                    ON CONFLICT (vfr_id, signature) DO UPDATE SET
-                      name = EXCLUDED.name,
-                      owner_actor_id = EXCLUDED.owner_actor_id,
-                      owner_pubkey = EXCLUDED.owner_pubkey,
-                      latest_snapshot_hash = EXCLUDED.latest_snapshot_hash,
-                      latest_event_log_hash = EXCLUDED.latest_event_log_hash,
-                      network_locator = EXCLUDED.network_locator,
-                      signed_publish_at = EXCLUDED.signed_publish_at,
-                      raw_json = EXCLUDED.raw_json
-                    "#,
-                )
-                .bind(&entry.vfr_id)
-                .bind(&entry.schema)
-                .bind(&entry.name)
-                .bind(&entry.owner_actor_id)
-                .bind(&entry.owner_pubkey)
-                .bind(&entry.latest_snapshot_hash)
-                .bind(&entry.latest_event_log_hash)
-                .bind(&entry.network_locator)
-                .bind(&entry.signed_publish_at)
-                .bind(&entry.signature)
-                .bind(raw_json)
-                .execute(p)
-                .await
-                .map_err(|e| e.to_string())?;
-                Ok(())
-            }
-            Self::Sqlite(p) => {
-                let raw_json_str = serde_json::to_string(raw_json)
-                    .map_err(|e| format!("serialize raw_json: {e}"))?;
-                sqlx::query(
-                    r#"
-                    INSERT INTO registry_entries (
-                      vfr_id, schema, name, owner_actor_id, owner_pubkey,
-                      latest_snapshot_hash, latest_event_log_hash, network_locator,
-                      signed_publish_at, signature, raw_json
-                    )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    ON CONFLICT (vfr_id, signature) DO UPDATE SET
-                      name = excluded.name,
-                      owner_actor_id = excluded.owner_actor_id,
-                      owner_pubkey = excluded.owner_pubkey,
-                      latest_snapshot_hash = excluded.latest_snapshot_hash,
-                      latest_event_log_hash = excluded.latest_event_log_hash,
-                      network_locator = excluded.network_locator,
-                      signed_publish_at = excluded.signed_publish_at,
-                      raw_json = excluded.raw_json
-                    "#,
-                )
-                .bind(&entry.vfr_id)
-                .bind(&entry.schema)
-                .bind(&entry.name)
-                .bind(&entry.owner_actor_id)
-                .bind(&entry.owner_pubkey)
-                .bind(&entry.latest_snapshot_hash)
-                .bind(&entry.latest_event_log_hash)
-                .bind(&entry.network_locator)
-                .bind(&entry.signed_publish_at)
-                .bind(&entry.signature)
-                .bind(&raw_json_str)
-                .execute(p)
-                .await
-                .map_err(|e| e.to_string())?;
-                Ok(())
-            }
-        }
-    }
-
-    async fn registry_entry_id(&self, entry: &RegistryEntry) -> Result<Option<i64>, String> {
-        match self {
-            Self::Postgres(p) => sqlx::query_scalar::<_, i64>(
-                "SELECT id FROM registry_entries WHERE vfr_id = $1 AND signature = $2 LIMIT 1",
-            )
-            .bind(&entry.vfr_id)
-            .bind(&entry.signature)
-            .fetch_optional(p)
-            .await
-            .map_err(|e| e.to_string()),
-            Self::Sqlite(p) => sqlx::query_scalar::<_, i64>(
-                "SELECT id FROM registry_entries WHERE vfr_id = ? AND signature = ? LIMIT 1",
-            )
-            .bind(&entry.vfr_id)
-            .bind(&entry.signature)
-            .fetch_optional(p)
-            .await
-            .map_err(|e| e.to_string()),
-        }
-    }
-
-    /// Promote a verified substrate into the event-first tables. This is
-    /// the hard-cutover write path for both backfill and future publishes:
-    /// registry manifest remains the signature receipt, while events and
-    /// materialized projections become the hub's read source.
-    /// The `owner_pubkey` of an already-promoted frontier, or None if this
-    /// vfr_id has never been promoted. Used to enforce owner continuity on
-    /// re-publish (an attacker cannot produce a valid signature for the
-    /// original owner's key, so they cannot pass the continuity check).
-    pub async fn frontier_owner_pubkey(&self, vfr_id: &str) -> Result<Option<String>, String> {
-        let row: Option<(String,)> = match self {
-            Self::Postgres(p) => {
-                sqlx::query_as("SELECT owner_pubkey FROM frontiers WHERE vfr_id = $1")
-                    .bind(vfr_id)
-                    .fetch_optional(p)
-                    .await
-                    .map_err(|e| e.to_string())?
-            }
-            Self::Sqlite(p) => {
-                sqlx::query_as("SELECT owner_pubkey FROM frontiers WHERE vfr_id = ?1")
-                    .bind(vfr_id)
-                    .fetch_optional(p)
-                    .await
-                    .map_err(|e| e.to_string())?
-            }
-        };
-        Ok(row.map(|(pk,)| pk))
-    }
-
-    /// Record every revoked actor into the authoritative, append-only
-    /// `frontier_revocations` log. Keyed by pubkey (lowercased crypto
-    /// identity); `ON CONFLICT DO NOTHING` makes it earliest-wins, so a
-    /// later snapshot that drops the revocation cannot un-revoke a key here.
-    /// Called on every git-ingest promote. Returns the count of
-    /// newly-recorded revocations.
-    pub async fn record_revocations(
-        &self,
-        vfr_id: &str,
-        actors: &[vela_protocol::sign::ActorRecord],
-    ) -> Result<usize, String> {
-        let mut recorded = 0usize;
-        for actor in actors {
-            let Some(revoked_at) = actor.revoked_at.as_deref() else {
-                continue;
-            };
-            let pubkey = actor.public_key.to_lowercase();
-            let reason = actor.revoked_reason.as_deref();
-            let affected = match self {
-                Self::Postgres(p) => sqlx::query(
-                    "INSERT INTO frontier_revocations \
-                       (vfr_id, pubkey, actor_id, revoked_at, revoked_reason) \
-                     VALUES ($1, $2, $3, $4, $5) \
-                     ON CONFLICT (vfr_id, pubkey) DO NOTHING",
-                )
-                .bind(vfr_id)
-                .bind(&pubkey)
-                .bind(&actor.id)
-                .bind(revoked_at)
-                .bind(reason)
-                .execute(p)
-                .await
-                .map_err(|e| e.to_string())?
-                .rows_affected(),
-                Self::Sqlite(p) => sqlx::query(
-                    "INSERT OR IGNORE INTO frontier_revocations \
-                       (vfr_id, pubkey, actor_id, revoked_at, revoked_reason) \
-                     VALUES (?, ?, ?, ?, ?)",
-                )
-                .bind(vfr_id)
-                .bind(&pubkey)
-                .bind(&actor.id)
-                .bind(revoked_at)
-                .bind(reason)
-                .execute(p)
-                .await
-                .map_err(|e| e.to_string())?
-                .rows_affected(),
-            };
-            recorded += affected as usize;
-        }
-        Ok(recorded)
-    }
-
-    /// Whether `pubkey` is in the authoritative revocation log for this
-    /// frontier. Returns `(revoked_at, reason)` if so. The accept/append paths
-    /// consult this in ADDITION to the snapshot's `ActorRecord::is_revoked_at`,
-    /// so a revoked key stays revoked even if a later snapshot drops it.
-    pub async fn is_pubkey_revoked(
-        &self,
-        vfr_id: &str,
-        pubkey: &str,
-    ) -> Result<Option<(String, String)>, String> {
-        let pk = pubkey.to_lowercase();
-        let row: Option<(String, Option<String>)> = match self {
-            Self::Postgres(p) => sqlx::query_as(
-                "SELECT revoked_at, revoked_reason FROM frontier_revocations \
-                 WHERE vfr_id = $1 AND pubkey = $2",
-            )
-            .bind(vfr_id)
-            .bind(&pk)
-            .fetch_optional(p)
-            .await
-            .map_err(|e| e.to_string())?,
-            Self::Sqlite(p) => sqlx::query_as(
-                "SELECT revoked_at, revoked_reason FROM frontier_revocations \
-                 WHERE vfr_id = ?1 AND pubkey = ?2",
-            )
-            .bind(vfr_id)
-            .bind(&pk)
-            .fetch_optional(p)
-            .await
-            .map_err(|e| e.to_string())?,
-        };
-        Ok(row.map(|(at, reason)| (at, reason.unwrap_or_default())))
-    }
-
+    /// Replace the read projection from one fully verified Git checkout.
+    /// Callers must verify the repository and replay before invoking this
+    /// method; the Hub accepts no independent manifest or snapshot bytes.
     pub async fn promote_frontier_snapshot(
         &self,
-        entry: &RegistryEntry,
+        entry: &VerifiedFrontierIndex,
         project: &Project,
-        snapshot_meta: Option<&SnapshotMeta>,
         authority_mode: &str,
     ) -> Result<EventFirstPromotionReport, String> {
         let computed_snapshot = snapshot_hash(project);
         if computed_snapshot != entry.latest_snapshot_hash {
             return Err(format!(
-                "snapshot_hash mismatch: manifest declares {}, substrate hashes to {}",
+                "snapshot_hash mismatch: index declares {}, verified project hashes to {}",
                 entry.latest_snapshot_hash, computed_snapshot
             ));
         }
         let computed_event_log = event_log_hash(&project.events);
         if computed_event_log != entry.latest_event_log_hash {
             return Err(format!(
-                "event_log_hash mismatch: manifest declares {}, substrate events hash to {}",
+                "event_log_hash mismatch: index declares {}, verified events hash to {}",
                 entry.latest_event_log_hash, computed_event_log
             ));
         }
 
-        // Owner-continuity guard. A frontier that already exists may only be
-        // re-published under its ORIGINAL owner key. The manifest's
-        // `owner_pubkey` is self-declared and `verify_entry` only checks the
-        // signature against that self-declared key — so a valid signature is
-        // NOT access control on an existing frontier. Without this check anyone
-        // could overwrite any published frontier (and rewrite its actor /
-        // revocation list) with their own self-signed manifest.
-        if let Some(existing_owner) = self.effective_owner_pubkey(&entry.vfr_id).await?
-            && existing_owner != entry.owner_pubkey
-        {
-            return Err(format!(
-                "owner continuity: vfr {} already belongs to a different owner key; a \
-                     re-publish must be signed by the current effective owner (original \
-                     publisher, or the successor named by the latest signed owner rotation)",
-                entry.vfr_id
-            ));
-        }
-
-        // Monotonic anti-replay guard. A re-publish must not carry an OLDER
-        // `signed_publish_at` than the live row. Without this, a captured old
-        // owner-signed manifest could be replayed to roll the frontier back to
-        // a prior state (e.g. undoing a revocation or a correction). A re-send
-        // at the SAME timestamp is allowed (idempotent retry — the upsert is a
-        // no-op for identical content, and the owner-continuity guard above
-        // already requires the owner key); only a strictly-older timestamp is a
-        // rollback. The comparison is done in SQL so the DB applies the right
-        // ordering — Postgres on `timestamptz`, SQLite on the RFC3339 `Z` text
-        // (which sorts chronologically).
-        let rolled_back: Option<(String,)> = match self {
-            Self::Postgres(p) => sqlx::query_as(
-                "SELECT vfr_id FROM frontiers WHERE vfr_id = $1 AND signed_publish_at > $2::timestamptz",
-            )
-            .bind(&entry.vfr_id)
-            .bind(&entry.signed_publish_at)
-            .fetch_optional(p)
-            .await
-            .map_err(|e| e.to_string())?,
-            Self::Sqlite(p) => sqlx::query_as(
-                "SELECT vfr_id FROM frontiers WHERE vfr_id = ?1 AND signed_publish_at > ?2",
-            )
-            .bind(&entry.vfr_id)
-            .bind(&entry.signed_publish_at)
-            .fetch_optional(p)
-            .await
-            .map_err(|e| e.to_string())?,
-        };
-        if rolled_back.is_some() {
-            return Err(format!(
-                "monotonic publish: vfr {} already has a newer live publish than {}; a \
-                 re-publish must not roll signed_publish_at backwards (anti-replay / \
-                 rollback guard)",
-                entry.vfr_id, entry.signed_publish_at
-            ));
-        }
-
-        let registry_entry_id = self.registry_entry_id(entry).await?;
         let snapshot_value =
             serde_json::to_value(project).map_err(|e| format!("serialize project: {e}"))?;
-        let snapshot_json =
-            serde_json::to_string(&snapshot_value).map_err(|e| format!("project json: {e}"))?;
         let snapshot_skeleton = frontier_skeleton(&snapshot_value);
         let snapshot_skeleton_json =
             serde_json::to_string(&snapshot_skeleton).map_err(|e| format!("project json: {e}"))?;
@@ -1790,10 +901,6 @@ impl HubDb {
             .and_then(Value::as_str)
             .or_else(|| snapshot_value.get("vela_version").and_then(Value::as_str))
             .unwrap_or("unknown");
-        let blob_url = snapshot_meta.map(|m| m.blob_url.as_str()).unwrap_or("");
-        let size_bytes = snapshot_meta
-            .map(|m| i64::from(m.size_bytes))
-            .unwrap_or(snapshot_json.len() as i64);
         let findings_count = project.findings.len() as i64;
         let events_count = project.events.len() as i64;
         let sources_count = project.sources.len() as i64;
@@ -1818,30 +925,27 @@ impl HubDb {
                 sqlx::query(
                     r#"
                     INSERT INTO frontiers (
-                      vfr_id, registry_entry_id, name, owner_actor_id, owner_pubkey,
+                      vfr_id, name, owner_actor_id, owner_pubkey,
                       latest_snapshot_hash, latest_event_log_hash, schema_version,
-                      signed_publish_at, snapshot_blob_url, snapshot_size_bytes,
+                      source_commit_at,
                       findings_count, events_count, sources_count, evidence_atoms_count,
-                      condition_records_count, materialized_snapshot_json, authority_mode, status
+                      condition_records_count, materialized_snapshot_json, authority_mode
                     )
                     VALUES (
-                      $1, $2, $3, $4, $5,
-                      $6, $7, $8,
-                      $9::timestamptz, $10, $11,
-                      $12, $13, $14, $15,
-                      $16, $17::jsonb, $18, 'live'
+                      $1, $2, $3, $4,
+                      $5, $6, $7,
+                      $8::timestamptz,
+                      $9, $10, $11, $12,
+                      $13, $14::jsonb, $15
                     )
                     ON CONFLICT (vfr_id) DO UPDATE SET
-                      registry_entry_id = EXCLUDED.registry_entry_id,
                       name = EXCLUDED.name,
                       owner_actor_id = EXCLUDED.owner_actor_id,
                       owner_pubkey = EXCLUDED.owner_pubkey,
                       latest_snapshot_hash = EXCLUDED.latest_snapshot_hash,
                       latest_event_log_hash = EXCLUDED.latest_event_log_hash,
                       schema_version = EXCLUDED.schema_version,
-                      signed_publish_at = EXCLUDED.signed_publish_at,
-                      snapshot_blob_url = EXCLUDED.snapshot_blob_url,
-                      snapshot_size_bytes = EXCLUDED.snapshot_size_bytes,
+                      source_commit_at = EXCLUDED.source_commit_at,
                       findings_count = EXCLUDED.findings_count,
                       events_count = EXCLUDED.events_count,
                       sources_count = EXCLUDED.sources_count,
@@ -1849,21 +953,17 @@ impl HubDb {
                       condition_records_count = EXCLUDED.condition_records_count,
                       materialized_snapshot_json = EXCLUDED.materialized_snapshot_json,
                       authority_mode = EXCLUDED.authority_mode,
-                      status = 'live',
                       updated_at = now()
                     "#,
                 )
                 .bind(&entry.vfr_id)
-                .bind(registry_entry_id)
                 .bind(&entry.name)
                 .bind(&entry.owner_actor_id)
                 .bind(&entry.owner_pubkey)
                 .bind(&entry.latest_snapshot_hash)
                 .bind(&entry.latest_event_log_hash)
                 .bind(schema_version)
-                .bind(&entry.signed_publish_at)
-                .bind(blob_url)
-                .bind(size_bytes)
+                .bind(&entry.source_commit_at)
                 .bind(findings_count)
                 .bind(events_count)
                 .bind(sources_count)
@@ -1957,29 +1057,6 @@ impl HubDb {
                     .map_err(|e| e.to_string())?;
                 }
 
-                sqlx::query(
-                    r#"
-                    INSERT INTO frontier_publish_audit (
-                      vfr_id, registry_entry_id, latest_snapshot_hash, signed_publish_at,
-                      status, error, authority_mode, findings_count, events_count,
-                      sources_count, evidence_atoms_count, condition_records_count
-                    )
-                    VALUES ($1, $2, $3, $4::timestamptz, 'verified', NULL, $5, $6, $7, $8, $9, $10)
-                    "#,
-                )
-                .bind(&entry.vfr_id)
-                .bind(registry_entry_id)
-                .bind(&entry.latest_snapshot_hash)
-                .bind(&entry.signed_publish_at)
-                .bind(authority_mode)
-                .bind(findings_count)
-                .bind(events_count)
-                .bind(sources_count)
-                .bind(evidence_atoms_count)
-                .bind(condition_records_count)
-                .execute(&mut *tx)
-                .await
-                .map_err(|e| e.to_string())?;
                 tx.commit().await.map_err(|e| e.to_string())?;
             }
             Self::Sqlite(p) => {
@@ -1997,24 +1074,21 @@ impl HubDb {
                 sqlx::query(
                     r#"
                     INSERT INTO frontiers (
-                      vfr_id, registry_entry_id, name, owner_actor_id, owner_pubkey,
+                      vfr_id, name, owner_actor_id, owner_pubkey,
                       latest_snapshot_hash, latest_event_log_hash, schema_version,
-                      signed_publish_at, snapshot_blob_url, snapshot_size_bytes,
+                      source_commit_at,
                       findings_count, events_count, sources_count, evidence_atoms_count,
-                      condition_records_count, materialized_snapshot_json, authority_mode, status
+                      condition_records_count, materialized_snapshot_json, authority_mode
                     )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'live')
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ON CONFLICT(vfr_id) DO UPDATE SET
-                      registry_entry_id = excluded.registry_entry_id,
                       name = excluded.name,
                       owner_actor_id = excluded.owner_actor_id,
                       owner_pubkey = excluded.owner_pubkey,
                       latest_snapshot_hash = excluded.latest_snapshot_hash,
                       latest_event_log_hash = excluded.latest_event_log_hash,
                       schema_version = excluded.schema_version,
-                      signed_publish_at = excluded.signed_publish_at,
-                      snapshot_blob_url = excluded.snapshot_blob_url,
-                      snapshot_size_bytes = excluded.snapshot_size_bytes,
+                      source_commit_at = excluded.source_commit_at,
                       findings_count = excluded.findings_count,
                       events_count = excluded.events_count,
                       sources_count = excluded.sources_count,
@@ -2022,21 +1096,17 @@ impl HubDb {
                       condition_records_count = excluded.condition_records_count,
                       materialized_snapshot_json = excluded.materialized_snapshot_json,
                       authority_mode = excluded.authority_mode,
-                      status = 'live',
                       updated_at = datetime('now')
                     "#,
                 )
                 .bind(&entry.vfr_id)
-                .bind(registry_entry_id)
                 .bind(&entry.name)
                 .bind(&entry.owner_actor_id)
                 .bind(&entry.owner_pubkey)
                 .bind(&entry.latest_snapshot_hash)
                 .bind(&entry.latest_event_log_hash)
                 .bind(schema_version)
-                .bind(&entry.signed_publish_at)
-                .bind(blob_url)
-                .bind(size_bytes)
+                .bind(&entry.source_commit_at)
                 .bind(findings_count)
                 .bind(events_count)
                 .bind(sources_count)
@@ -2097,42 +1167,12 @@ impl HubDb {
                     .map_err(|e| e.to_string())?;
                 }
 
-                sqlx::query(
-                    r#"
-                    INSERT INTO frontier_publish_audit (
-                      vfr_id, registry_entry_id, latest_snapshot_hash, signed_publish_at,
-                      status, error, authority_mode, findings_count, events_count,
-                      sources_count, evidence_atoms_count, condition_records_count
-                    )
-                    VALUES (?, ?, ?, ?, 'verified', NULL, ?, ?, ?, ?, ?, ?)
-                    "#,
-                )
-                .bind(&entry.vfr_id)
-                .bind(registry_entry_id)
-                .bind(&entry.latest_snapshot_hash)
-                .bind(&entry.signed_publish_at)
-                .bind(authority_mode)
-                .bind(findings_count)
-                .bind(events_count)
-                .bind(sources_count)
-                .bind(evidence_atoms_count)
-                .bind(condition_records_count)
-                .execute(&mut *tx)
-                .await
-                .map_err(|e| e.to_string())?;
                 tx.commit().await.map_err(|e| e.to_string())?;
             }
         }
 
-        // Record any revoked actors into the authoritative append-only log.
-        // Append-only + earliest-wins: a key revoked in any promoted snapshot
-        // stays revoked even if a later snapshot drops the revocation.
-        self.record_revocations(&entry.vfr_id, &project.actors)
-            .await?;
-
         Ok(EventFirstPromotionReport {
             vfr_id: entry.vfr_id.clone(),
-            registry_entry_id,
             findings_count,
             events_count,
             sources_count,
@@ -2143,383 +1183,11 @@ impl HubDb {
         })
     }
 
-    /// Incrementally append a batch of already-decided records (new findings
-    /// and their canonical events) to a live frontier, writing ONLY the new
-    /// rows. The owner-authenticated, DB-level analogue of
-    /// `incremental_ingest::append_batch` (which is the local `.vela/` path):
-    /// no DELETE + re-INSERT of the whole event/object set — new events go in
-    /// at `seq > max(seq)`, new objects upsert, and the `frontiers` row's
-    /// counts + hashes + skeleton update in place. O(batch), not O(frontier).
-    ///
-    /// Guards:
-    /// - **Owner continuity** — `owner_pubkey` must match the frontier's
-    ///   recorded owner. This is an OWNER/maintainer deposit path: it records
-    ///   decisions the owner has already made and deliberately does NOT run the
-    ///   Evidence-CI accept gate. A reviewer *accept* of a truth-bearing claim
-    ///   still goes through the gated accept path; this is for the spine /
-    ///   watcher case (the owner asserting genesis findings).
-    /// - **Optimistic concurrency** — `parent_event_log_hash` must equal the
-    ///   frontier's current event-log hash, else the append is rejected with a
-    ///   `conflict:`-prefixed error and the caller refetches. No frontier lock.
-    /// - **Idempotency** — records whose id is already present are skipped, so
-    ///   a retried deposit is a no-op.
-    pub async fn append_to_frontier(
-        &self,
-        vfr_id: &str,
-        owner_pubkey: &str,
-        new_findings: &[FindingBundle],
-        new_events: &[StateEvent],
-        parent_event_log_hash: &str,
-    ) -> Result<AppendToFrontierOutcome, String> {
-        let Some(mut project) = self.get_materialized_project(vfr_id).await? else {
-            return Err(format!("frontier {vfr_id} not found or not live"));
-        };
-
-        // Owner continuity is the only authority on an existing frontier; a
-        // valid self-signature is NOT access control (see promote's guard).
-        let accept_keys = self.effective_accept_keys(vfr_id).await?;
-        match self.effective_owner_pubkey(vfr_id).await? {
-            Some(_)
-                if accept_keys
-                    .iter()
-                    .any(|k| k.eq_ignore_ascii_case(owner_pubkey)) => {}
-            Some(_) => {
-                return Err(format!(
-                    "accept authority: append to {vfr_id} must be authorized by the \
-                     frontier's owner key or an effective maintainer key"
-                ));
-            }
-            None => return Err(format!("frontier {vfr_id} has no recorded owner")),
-        }
-
-        // Optimistic concurrency on the event-log tail — no whole-frontier lock.
-        let current_hash = event_log_hash(&project.events);
-        if current_hash != parent_event_log_hash {
-            return Err(format!(
-                "conflict: parent_event_log_hash is stale (current {current_hash}); \
-                 refetch and retry"
-            ));
-        }
-
-        // Dedup the batch against what's already present (idempotent re-apply).
-        let existing_findings: std::collections::HashSet<&str> =
-            project.findings.iter().map(|f| f.id.as_str()).collect();
-        let existing_events: std::collections::HashSet<&str> =
-            project.events.iter().map(|e| e.id.as_str()).collect();
-
-        let mut to_add_findings: Vec<FindingBundle> = Vec::new();
-        let mut skipped_findings = 0i64;
-        for f in new_findings {
-            if existing_findings.contains(f.id.as_str())
-                || to_add_findings.iter().any(|x| x.id == f.id)
-            {
-                skipped_findings += 1;
-            } else {
-                to_add_findings.push(f.clone());
-            }
-        }
-        let mut to_add_events: Vec<StateEvent> = Vec::new();
-        let mut skipped_events = 0i64;
-        for e in new_events {
-            if existing_events.contains(e.id.as_str()) || to_add_events.iter().any(|x| x.id == e.id)
-            {
-                skipped_events += 1;
-            } else {
-                to_add_events.push(e.clone());
-            }
-        }
-
-        // The appended events get seq continuing from the current tail.
-        let base_seq = project.events.len() as i64;
-
-        // Build the post-append project so hashes + counts + skeleton are
-        // coherent. recompute_stats keeps the snapshot hash canonical.
-        project.findings.extend(to_add_findings.iter().cloned());
-        project.events.extend(to_add_events.iter().cloned());
-        // CANONICAL EVENT ORDER: the CLI loader reads `.vela/events/{id}.json`
-        // and sorts by filename, i.e. by content-hash id. An append, left
-        // alone, would land new events at the tail (append order) and store a
-        // tail-order event_log_hash + skeleton that a cold `vela clone`
-        // (which reloads id-sorted) would NOT match — breaking clone/pull on
-        // appended frontiers. Sort by id here so the stored hash + the served
-        // snapshot are in the SAME canonical order the loader reconstructs.
-        // (For a full promote the publisher already id-sorts, so this is a
-        // no-op there; seq stays append-order in frontier_events, which only
-        // affects the order-independent /events listing.)
-        project.events.sort_by(|a, b| a.id.cmp(&b.id));
-        vela_protocol::project::recompute_stats(&mut project);
-
-        let new_event_log_hash = event_log_hash(&project.events);
-        let new_snapshot_hash = snapshot_hash(&project);
-        let snapshot_value =
-            serde_json::to_value(&project).map_err(|e| format!("serialize project: {e}"))?;
-        let skeleton_json = serde_json::to_string(&frontier_skeleton(&snapshot_value))
-            .map_err(|e| format!("skeleton json: {e}"))?;
-
-        // Object rows for ONLY the new findings — keeps the write O(batch),
-        // derived exactly as promote derives them (same `collect_frontier_objects`).
-        let new_findings_value =
-            serde_json::to_value(&to_add_findings).map_err(|e| format!("findings json: {e}"))?;
-        let new_objects = collect_frontier_objects(&json!({
-            "findings": new_findings_value,
-            "sources": [], "evidence_atoms": [], "condition_records": [],
-            "actors": [], "artifacts": [], "proposals": [],
-        }));
-
-        let findings_count = project.findings.len() as i64;
-        let events_count = project.events.len() as i64;
-        let sources_count = project.sources.len() as i64;
-        let evidence_atoms_count = project.evidence_atoms.len() as i64;
-        let condition_records_count = project.condition_records.len() as i64;
-
-        match self {
-            Self::Postgres(p) => {
-                let mut tx = p.begin().await.map_err(|e| e.to_string())?;
-                for (j, event) in to_add_events.iter().enumerate() {
-                    let raw = serde_json::to_string(event)
-                        .map_err(|e| format!("serialize event {}: {e}", event.id))?;
-                    sqlx::query(
-                        r#"
-                        INSERT INTO frontier_events (
-                          vfr_id, seq, event_id, kind, target_type, target_id,
-                          actor_id, event_timestamp, raw_json
-                        )
-                        VALUES ($1, $2, $3, $4, $5, $6, $7, $8::timestamptz, $9::jsonb)
-                        ON CONFLICT (vfr_id, event_id) DO NOTHING
-                        "#,
-                    )
-                    .bind(vfr_id)
-                    .bind(base_seq + j as i64)
-                    .bind(&event.id)
-                    .bind(event.kind.as_str())
-                    .bind(&event.target.r#type)
-                    .bind(&event.target.id)
-                    .bind(&event.actor.id)
-                    .bind(&event.timestamp)
-                    .bind(&raw)
-                    .execute(&mut *tx)
-                    .await
-                    .map_err(|e| e.to_string())?;
-                }
-                for object in &new_objects {
-                    let raw = serde_json::to_string(&object.raw_json)
-                        .map_err(|e| format!("serialize object {}: {e}", object.object_id))?;
-                    sqlx::query(
-                        r#"
-                        INSERT INTO frontier_objects (
-                          vfr_id, object_type, object_id, seq, target_id, raw_json
-                        )
-                        VALUES ($1, $2, $3, $4, $5, $6::jsonb)
-                        ON CONFLICT (vfr_id, object_type, object_id) DO NOTHING
-                        "#,
-                    )
-                    .bind(vfr_id)
-                    .bind(&object.object_type)
-                    .bind(&object.object_id)
-                    .bind(object.seq)
-                    .bind(&object.target_id)
-                    .bind(&raw)
-                    .execute(&mut *tx)
-                    .await
-                    .map_err(|e| e.to_string())?;
-                }
-                sqlx::query(
-                    r#"
-                    UPDATE frontiers SET
-                      latest_snapshot_hash = $2,
-                      latest_event_log_hash = $3,
-                      findings_count = $4,
-                      events_count = $5,
-                      sources_count = $6,
-                      evidence_atoms_count = $7,
-                      condition_records_count = $8,
-                      materialized_snapshot_json = $9::jsonb,
-                      updated_at = now()
-                    WHERE vfr_id = $1 AND status = 'live'
-                    "#,
-                )
-                .bind(vfr_id)
-                .bind(&new_snapshot_hash)
-                .bind(&new_event_log_hash)
-                .bind(findings_count)
-                .bind(events_count)
-                .bind(sources_count)
-                .bind(evidence_atoms_count)
-                .bind(condition_records_count)
-                .bind(&skeleton_json)
-                .execute(&mut *tx)
-                .await
-                .map_err(|e| e.to_string())?;
-                tx.commit().await.map_err(|e| e.to_string())?;
-            }
-            Self::Sqlite(p) => {
-                let mut tx = p.begin().await.map_err(|e| e.to_string())?;
-                for (j, event) in to_add_events.iter().enumerate() {
-                    let raw = serde_json::to_string(event)
-                        .map_err(|e| format!("serialize event {}: {e}", event.id))?;
-                    sqlx::query(
-                        r#"
-                        INSERT INTO frontier_events (
-                          vfr_id, seq, event_id, kind, target_type, target_id,
-                          actor_id, event_timestamp, raw_json
-                        )
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                        ON CONFLICT (vfr_id, event_id) DO NOTHING
-                        "#,
-                    )
-                    .bind(vfr_id)
-                    .bind(base_seq + j as i64)
-                    .bind(&event.id)
-                    .bind(event.kind.as_str())
-                    .bind(&event.target.r#type)
-                    .bind(&event.target.id)
-                    .bind(&event.actor.id)
-                    .bind(&event.timestamp)
-                    .bind(&raw)
-                    .execute(&mut *tx)
-                    .await
-                    .map_err(|e| e.to_string())?;
-                }
-                for object in &new_objects {
-                    let raw = serde_json::to_string(&object.raw_json)
-                        .map_err(|e| format!("serialize object {}: {e}", object.object_id))?;
-                    sqlx::query(
-                        r#"
-                        INSERT INTO frontier_objects (
-                          vfr_id, object_type, object_id, seq, target_id, raw_json
-                        )
-                        VALUES (?, ?, ?, ?, ?, ?)
-                        ON CONFLICT (vfr_id, object_type, object_id) DO NOTHING
-                        "#,
-                    )
-                    .bind(vfr_id)
-                    .bind(&object.object_type)
-                    .bind(&object.object_id)
-                    .bind(object.seq)
-                    .bind(&object.target_id)
-                    .bind(&raw)
-                    .execute(&mut *tx)
-                    .await
-                    .map_err(|e| e.to_string())?;
-                }
-                sqlx::query(
-                    r#"
-                    UPDATE frontiers SET
-                      latest_snapshot_hash = ?2,
-                      latest_event_log_hash = ?3,
-                      findings_count = ?4,
-                      events_count = ?5,
-                      sources_count = ?6,
-                      evidence_atoms_count = ?7,
-                      condition_records_count = ?8,
-                      materialized_snapshot_json = ?9,
-                      updated_at = datetime('now')
-                    WHERE vfr_id = ?1 AND status = 'live'
-                    "#,
-                )
-                .bind(vfr_id)
-                .bind(&new_snapshot_hash)
-                .bind(&new_event_log_hash)
-                .bind(findings_count)
-                .bind(events_count)
-                .bind(sources_count)
-                .bind(evidence_atoms_count)
-                .bind(condition_records_count)
-                .bind(&skeleton_json)
-                .execute(&mut *tx)
-                .await
-                .map_err(|e| e.to_string())?;
-                tx.commit().await.map_err(|e| e.to_string())?;
-            }
-        }
-
-        Ok(AppendToFrontierOutcome {
-            vfr_id: vfr_id.to_string(),
-            appended_findings: to_add_findings.len() as i64,
-            appended_events: to_add_events.len() as i64,
-            skipped_duplicate_findings: skipped_findings,
-            skipped_duplicate_events: skipped_events,
-            findings_count,
-            events_count,
-            new_event_log_hash,
-            new_snapshot_hash,
-        })
-    }
-
-    pub async fn record_publish_audit_failed(
-        &self,
-        entry: &RegistryEntry,
-        error: &str,
-        authority_mode: &str,
-    ) -> Result<(), String> {
-        let registry_entry_id = self.registry_entry_id(entry).await?;
-        match self {
-            Self::Postgres(p) => {
-                let mut tx = p.begin().await.map_err(|e| e.to_string())?;
-                sqlx::query(
-                    r#"
-                    INSERT INTO frontier_publish_audit (
-                      vfr_id, registry_entry_id, latest_snapshot_hash, signed_publish_at,
-                      status, error, authority_mode
-                    )
-                    VALUES ($1, $2, $3, $4::timestamptz, 'failed', $5, $6)
-                    "#,
-                )
-                .bind(&entry.vfr_id)
-                .bind(registry_entry_id)
-                .bind(&entry.latest_snapshot_hash)
-                .bind(&entry.signed_publish_at)
-                .bind(error)
-                .bind(authority_mode)
-                .execute(&mut *tx)
-                .await
-                .map_err(|e| e.to_string())?;
-                sqlx::query(
-                    "UPDATE frontiers SET status = 'unavailable', updated_at = now() WHERE vfr_id = $1",
-                )
-                .bind(&entry.vfr_id)
-                .execute(&mut *tx)
-                .await
-                .map_err(|e| e.to_string())?;
-                tx.commit().await.map_err(|e| e.to_string())
-            }
-            Self::Sqlite(p) => {
-                let mut tx = p.begin().await.map_err(|e| e.to_string())?;
-                sqlx::query(
-                    r#"
-                    INSERT INTO frontier_publish_audit (
-                      vfr_id, registry_entry_id, latest_snapshot_hash, signed_publish_at,
-                      status, error, authority_mode
-                    )
-                    VALUES (?, ?, ?, ?, 'failed', ?, ?)
-                    "#,
-                )
-                .bind(&entry.vfr_id)
-                .bind(registry_entry_id)
-                .bind(&entry.latest_snapshot_hash)
-                .bind(&entry.signed_publish_at)
-                .bind(error)
-                .bind(authority_mode)
-                .execute(&mut *tx)
-                .await
-                .map_err(|e| e.to_string())?;
-                sqlx::query(
-                    "UPDATE frontiers SET status = 'unavailable', updated_at = datetime('now') WHERE vfr_id = ?",
-                )
-                .bind(&entry.vfr_id)
-                .execute(&mut *tx)
-                .await
-                .map_err(|e| e.to_string())?;
-                tx.commit().await.map_err(|e| e.to_string())
-            }
-        }
-    }
-
     pub async fn get_materialized_project(&self, vfr_id: &str) -> Result<Option<Project>, String> {
         match self {
             Self::Postgres(p) => {
                 let mut value: Option<Value> = sqlx::query_scalar(
-                    "SELECT materialized_snapshot_json FROM frontiers WHERE vfr_id = $1 AND status = 'live'",
+                    "SELECT materialized_snapshot_json FROM frontiers WHERE vfr_id = $1",
                 )
                 .bind(vfr_id)
                 .fetch_optional(p)
@@ -2558,7 +1226,7 @@ impl HubDb {
             }
             Self::Sqlite(p) => {
                 let value: Option<String> = sqlx::query_scalar(
-                    "SELECT materialized_snapshot_json FROM frontiers WHERE vfr_id = ? AND status = 'live'",
+                    "SELECT materialized_snapshot_json FROM frontiers WHERE vfr_id = ?",
                 )
                 .bind(vfr_id)
                 .fetch_optional(p)
@@ -2607,8 +1275,8 @@ impl HubDb {
             .collect::<Result<_, _>>()
             .map_err(|e| format!("parse event log: {e}"))?;
         // Hash in the loader's canonical id-sorted order (rows come back in
-        // seq/append order), so this recompute equals the stored hash and what
-        // a cold clone reconstructs. See append_to_frontier.
+        // projection sequence), so this recompute equals the stored hash and
+        // what a cold Git clone reconstructs.
         events.sort_by(|a, b| a.id.cmp(&b.id));
         Ok(event_log_hash(&events))
     }
@@ -2755,462 +1423,18 @@ impl HubDb {
             }
         }
     }
-
-    /// Record metadata for a content-addressed snapshot whose bytes
-    /// already live in object storage at `blob_url`. Idempotent on
-    /// `snapshot_hash` — re-publishing identical content is a no-op
-    /// (PK conflict). Returns true on fresh insert.
-    ///
-    /// v0.55.1: substrate bytes do NOT live in this row. They live at
-    /// `blob_url` in Tigris/R2. This row is just the metadata index
-    /// the hub uses to route GETs and verify content addressing.
-    pub async fn insert_snapshot(
-        &self,
-        snapshot_hash: &str,
-        schema_version: &str,
-        size_bytes: i32,
-        blob_url: &str,
-        content_type: &str,
-    ) -> Result<bool, String> {
-        match self {
-            Self::Postgres(p) => {
-                let inserted = sqlx::query_scalar::<_, String>(
-                    r#"
-                    INSERT INTO frontier_snapshots (
-                      snapshot_hash, schema_version, size_bytes, blob_url, content_type
-                    )
-                    VALUES ($1, $2, $3, $4, $5)
-                    ON CONFLICT (snapshot_hash) DO NOTHING
-                    RETURNING snapshot_hash
-                    "#,
-                )
-                .bind(snapshot_hash)
-                .bind(schema_version)
-                .bind(size_bytes)
-                .bind(blob_url)
-                .bind(content_type)
-                .fetch_optional(p)
-                .await
-                .map_err(|e| e.to_string())?;
-                Ok(inserted.is_some())
-            }
-            Self::Sqlite(p) => {
-                let result = sqlx::query(
-                    r#"
-                    INSERT OR IGNORE INTO frontier_snapshots (
-                      snapshot_hash, schema_version, size_bytes, blob_url, content_type
-                    )
-                    VALUES (?, ?, ?, ?, ?)
-                    "#,
-                )
-                .bind(snapshot_hash)
-                .bind(schema_version)
-                .bind(size_bytes)
-                .bind(blob_url)
-                .bind(content_type)
-                .execute(p)
-                .await
-                .map_err(|e| e.to_string())?;
-                Ok(result.rows_affected() > 0)
-            }
-        }
-    }
-
-    /// Look up the storage URL for a content-addressed snapshot export.
-    /// The hub uses this only when callers request
-    /// `GET /entries/:vfr/snapshot?redirect=cdn`; live reads come from
-    /// event/projection tables.
-    pub async fn get_snapshot_meta(
-        &self,
-        snapshot_hash: &str,
-    ) -> Result<Option<SnapshotMeta>, String> {
-        match self {
-            Self::Postgres(p) => {
-                let row: Option<(String, String, String, i32)> = sqlx::query_as(
-                    "SELECT blob_url, content_type, schema_version, size_bytes
-                     FROM frontier_snapshots WHERE snapshot_hash = $1",
-                )
-                .bind(snapshot_hash)
-                .fetch_optional(p)
-                .await
-                .map_err(|e| e.to_string())?;
-                Ok(row.map(
-                    |(blob_url, content_type, schema_version, size_bytes)| SnapshotMeta {
-                        blob_url,
-                        content_type,
-                        schema_version,
-                        size_bytes,
-                    },
-                ))
-            }
-            Self::Sqlite(p) => {
-                let row: Option<(String, String, String, i64)> = sqlx::query_as(
-                    "SELECT blob_url, content_type, schema_version, size_bytes
-                     FROM frontier_snapshots WHERE snapshot_hash = ?",
-                )
-                .bind(snapshot_hash)
-                .fetch_optional(p)
-                .await
-                .map_err(|e| e.to_string())?;
-                Ok(row.map(
-                    |(blob_url, content_type, schema_version, size_bytes)| SnapshotMeta {
-                        blob_url,
-                        content_type,
-                        schema_version,
-                        size_bytes: size_bytes as i32,
-                    },
-                ))
-            }
-        }
-    }
-
-    /// v0.128: enqueue a verified, signature-bound `StateProposal` as a
-    /// pending projected object on the frontier. The proposal lands as a
-    /// `frontier_objects` row (`object_type = 'proposal'`, `object_id =
-    /// proposal.id`) so `get_materialized_project` merges it into
-    /// `project.proposals` via `merge_projected_objects` exactly as it
-    /// merges every other projected object.
-    ///
-    /// Idempotency: the `vpr_` content address is the natural key. The
-    /// upsert is `ON CONFLICT (vfr_id, object_type, object_id) DO NOTHING`,
-    /// so an agent re-POSTing the same signed proposal is a no-op and the
-    /// returned `bool` reports `true` for a duplicate.
-    ///
-    /// The status is forced to `pending_review` at the boundary; this
-    /// method stores the proposal verbatim and does not apply it.
-    pub async fn append_pending_proposal(
-        &self,
-        vfr_id: &str,
-        proposal: &vela_protocol::proposals::StateProposal,
-    ) -> Result<bool, String> {
-        let raw_value = serde_json::to_value(proposal)
-            .map_err(|e| format!("serialize proposal {}: {e}", proposal.id))?;
-        let target_id = proposal.target.id.clone();
-        match self {
-            Self::Postgres(p) => {
-                // seq is appended after the current max for this object_type
-                // so the projection preserves submission order.
-                let next_seq: i64 = sqlx::query_scalar(
-                    "SELECT COALESCE(MAX(seq), -1) + 1 FROM frontier_objects \
-                     WHERE vfr_id = $1 AND object_type = 'proposal'",
-                )
-                .bind(vfr_id)
-                .fetch_one(p)
-                .await
-                .map_err(|e| e.to_string())?;
-                let inserted = sqlx::query(
-                    r#"INSERT INTO frontier_objects (
-                          vfr_id, object_type, object_id, seq, target_id, raw_json
-                       )
-                       VALUES ($1, 'proposal', $2, $3, $4, $5)
-                       ON CONFLICT (vfr_id, object_type, object_id) DO NOTHING"#,
-                )
-                .bind(vfr_id)
-                .bind(&proposal.id)
-                .bind(next_seq)
-                .bind(&target_id)
-                .bind(&raw_value)
-                .execute(p)
-                .await
-                .map_err(|e| e.to_string())?;
-                Ok(inserted.rows_affected() == 0)
-            }
-            Self::Sqlite(p) => {
-                let next_seq: i64 = sqlx::query_scalar(
-                    "SELECT COALESCE(MAX(seq), -1) + 1 FROM frontier_objects \
-                     WHERE vfr_id = ? AND object_type = 'proposal'",
-                )
-                .bind(vfr_id)
-                .fetch_one(p)
-                .await
-                .map_err(|e| e.to_string())?;
-                let raw_string = serde_json::to_string(&raw_value)
-                    .map_err(|e| format!("serialize proposal {}: {e}", proposal.id))?;
-                let inserted = sqlx::query(
-                    r#"INSERT OR IGNORE INTO frontier_objects (
-                          vfr_id, object_type, object_id, seq, target_id, raw_json
-                       )
-                       VALUES (?, 'proposal', ?, ?, ?, ?)"#,
-                )
-                .bind(vfr_id)
-                .bind(&proposal.id)
-                .bind(next_seq)
-                .bind(&target_id)
-                .bind(&raw_string)
-                .execute(p)
-                .await
-                .map_err(|e| e.to_string())?;
-                Ok(inserted.rows_affected() == 0)
-            }
-        }
-    }
-
-    /// v0.128: persist the result of an accepted proposal in ONE
-    /// transaction. The caller has already run `accept_in_frontier_engine`
-    /// (strict, no-force) over the materialized `project`, which flipped
-    /// the proposal to `applied` (setting `reviewed_by` / `reviewed_at` /
-    /// `decision_reason` / `applied_event_id`) and appended the canonical
-    /// apply `event` to `project.events`. This method rewrites the
-    /// frontier projection to that accepted state:
-    ///
-    ///   (a) the proposal object rows are refreshed (the accepted
-    ///       proposal now carries status=applied),
-    ///   (b) the emitted canonical `event` is appended to `frontier_events`
-    ///       under the `UNIQUE (vfr_id, event_id)` guard — a re-accept of
-    ///       the same proposal yields the same event id, the insert is a
-    ///       no-op, and the method reports `Duplicate`,
-    ///   (c) the `frontiers.materialized_snapshot_json` skeleton + counts
-    ///       are refreshed.
-    ///
-    /// All three happen inside a single DB transaction, so a failed
-    /// persist leaves zero canonical state change. The whole projection
-    /// for `vfr_id` is rebuilt from `project` (delete + reinsert
-    /// events/objects), matching the `promote_frontier_snapshot` write
-    /// shape; the frontier row's identity columns (owner, hashes,
-    /// signed_publish_at) are preserved by only updating the projection
-    /// columns.
-    pub async fn persist_accept(
-        &self,
-        vfr_id: &str,
-        project: &Project,
-        event_id: &str,
-    ) -> Result<AppendOutcome, String> {
-        // Replay idempotency: if the emitted apply event is already on the
-        // log, the accept has already been persisted. Report Duplicate and
-        // do not rewrite anything.
-        let already: Option<i64> = match self {
-            Self::Postgres(p) => sqlx::query_scalar(
-                "SELECT seq FROM frontier_events WHERE vfr_id = $1 AND event_id = $2",
-            )
-            .bind(vfr_id)
-            .bind(event_id)
-            .fetch_optional(p)
-            .await
-            .map_err(|e| e.to_string())?,
-            Self::Sqlite(p) => sqlx::query_scalar(
-                "SELECT seq FROM frontier_events WHERE vfr_id = ? AND event_id = ?",
-            )
-            .bind(vfr_id)
-            .bind(event_id)
-            .fetch_optional(p)
-            .await
-            .map_err(|e| e.to_string())?,
-        };
-        if let Some(seq) = already {
-            return Ok(AppendOutcome::Duplicate { seq });
-        }
-
-        let snapshot_value =
-            serde_json::to_value(project).map_err(|e| format!("serialize project: {e}"))?;
-        let snapshot_skeleton = frontier_skeleton(&snapshot_value);
-        let snapshot_skeleton_json =
-            serde_json::to_string(&snapshot_skeleton).map_err(|e| format!("project json: {e}"))?;
-        let objects = collect_frontier_objects(&snapshot_value);
-        let findings_count = project.findings.len() as i64;
-        let events_count = project.events.len() as i64;
-        let sources_count = project.sources.len() as i64;
-        let evidence_atoms_count = project.evidence_atoms.len() as i64;
-        let condition_records_count = project.condition_records.len() as i64;
-        let applied_seq = events_count - 1;
-
-        match self {
-            Self::Postgres(p) => {
-                let mut tx = p.begin().await.map_err(|e| e.to_string())?;
-                sqlx::query("DELETE FROM frontier_events WHERE vfr_id = $1")
-                    .bind(vfr_id)
-                    .execute(&mut *tx)
-                    .await
-                    .map_err(|e| e.to_string())?;
-                sqlx::query("DELETE FROM frontier_objects WHERE vfr_id = $1")
-                    .bind(vfr_id)
-                    .execute(&mut *tx)
-                    .await
-                    .map_err(|e| e.to_string())?;
-                sqlx::query(
-                    r#"UPDATE frontiers SET
-                         findings_count = $2,
-                         events_count = $3,
-                         sources_count = $4,
-                         evidence_atoms_count = $5,
-                         condition_records_count = $6,
-                         materialized_snapshot_json = $7::jsonb,
-                         updated_at = now()
-                       WHERE vfr_id = $1"#,
-                )
-                .bind(vfr_id)
-                .bind(findings_count)
-                .bind(events_count)
-                .bind(sources_count)
-                .bind(evidence_atoms_count)
-                .bind(condition_records_count)
-                .bind(&snapshot_skeleton_json)
-                .execute(&mut *tx)
-                .await
-                .map_err(|e| e.to_string())?;
-
-                for (idx, event) in project.events.iter().enumerate() {
-                    let raw = serde_json::to_value(event)
-                        .map_err(|e| format!("serialize event {}: {e}", event.id))?;
-                    sqlx::query(
-                        r#"INSERT INTO frontier_events (
-                              vfr_id, seq, event_id, kind, target_type, target_id,
-                              actor_id, event_timestamp, raw_json
-                           )
-                           VALUES ($1, $2, $3, $4, $5, $6, $7, $8::timestamptz, $9)"#,
-                    )
-                    .bind(vfr_id)
-                    .bind(idx as i64)
-                    .bind(&event.id)
-                    .bind(event.kind.as_str())
-                    .bind(&event.target.r#type)
-                    .bind(&event.target.id)
-                    .bind(&event.actor.id)
-                    .bind(&event.timestamp)
-                    .bind(&raw)
-                    .execute(&mut *tx)
-                    .await
-                    .map_err(|e| e.to_string())?;
-                }
-
-                for object in &objects {
-                    sqlx::query(
-                        r#"INSERT INTO frontier_objects (
-                              vfr_id, object_type, object_id, seq, target_id, raw_json
-                           )
-                           VALUES ($1, $2, $3, $4, $5, $6)"#,
-                    )
-                    .bind(vfr_id)
-                    .bind(&object.object_type)
-                    .bind(&object.object_id)
-                    .bind(object.seq)
-                    .bind(&object.target_id)
-                    .bind(&object.raw_json)
-                    .execute(&mut *tx)
-                    .await
-                    .map_err(|e| e.to_string())?;
-                }
-
-                tx.commit().await.map_err(|e| e.to_string())?;
-                Ok(AppendOutcome::Inserted { seq: applied_seq })
-            }
-            Self::Sqlite(p) => {
-                let mut tx = p.begin().await.map_err(|e| e.to_string())?;
-                sqlx::query("DELETE FROM frontier_events WHERE vfr_id = ?")
-                    .bind(vfr_id)
-                    .execute(&mut *tx)
-                    .await
-                    .map_err(|e| e.to_string())?;
-                sqlx::query("DELETE FROM frontier_objects WHERE vfr_id = ?")
-                    .bind(vfr_id)
-                    .execute(&mut *tx)
-                    .await
-                    .map_err(|e| e.to_string())?;
-                sqlx::query(
-                    r#"UPDATE frontiers SET
-                         findings_count = ?2,
-                         events_count = ?3,
-                         sources_count = ?4,
-                         evidence_atoms_count = ?5,
-                         condition_records_count = ?6,
-                         materialized_snapshot_json = ?7,
-                         updated_at = datetime('now')
-                       WHERE vfr_id = ?1"#,
-                )
-                .bind(vfr_id)
-                .bind(findings_count)
-                .bind(events_count)
-                .bind(sources_count)
-                .bind(evidence_atoms_count)
-                .bind(condition_records_count)
-                .bind(&snapshot_skeleton_json)
-                .execute(&mut *tx)
-                .await
-                .map_err(|e| e.to_string())?;
-
-                for (idx, event) in project.events.iter().enumerate() {
-                    let raw = serde_json::to_string(event)
-                        .map_err(|e| format!("serialize event {}: {e}", event.id))?;
-                    sqlx::query(
-                        r#"INSERT INTO frontier_events (
-                              vfr_id, seq, event_id, kind, target_type, target_id,
-                              actor_id, event_timestamp, raw_json
-                           )
-                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"#,
-                    )
-                    .bind(vfr_id)
-                    .bind(idx as i64)
-                    .bind(&event.id)
-                    .bind(event.kind.as_str())
-                    .bind(&event.target.r#type)
-                    .bind(&event.target.id)
-                    .bind(&event.actor.id)
-                    .bind(&event.timestamp)
-                    .bind(&raw)
-                    .execute(&mut *tx)
-                    .await
-                    .map_err(|e| e.to_string())?;
-                }
-
-                for object in &objects {
-                    let raw = serde_json::to_string(&object.raw_json)
-                        .map_err(|e| format!("serialize object {}: {e}", object.object_id))?;
-                    sqlx::query(
-                        r#"INSERT INTO frontier_objects (
-                              vfr_id, object_type, object_id, seq, target_id, raw_json
-                           )
-                           VALUES (?, ?, ?, ?, ?, ?)"#,
-                    )
-                    .bind(vfr_id)
-                    .bind(&object.object_type)
-                    .bind(&object.object_id)
-                    .bind(object.seq)
-                    .bind(&object.target_id)
-                    .bind(&raw)
-                    .execute(&mut *tx)
-                    .await
-                    .map_err(|e| e.to_string())?;
-                }
-
-                tx.commit().await.map_err(|e| e.to_string())?;
-                Ok(AppendOutcome::Inserted { seq: applied_seq })
-            }
-        }
-    }
-}
-
-/// Outcome of an idempotent append (e.g. `persist_accept`). `Duplicate`
-/// covers the idempotent retry path (same signed object arriving twice)
-/// and is surfaced as 200 OK to the caller. `Inserted` is the fresh-write
-/// path and is surfaced as 202 Accepted.
-#[derive(Debug, Clone)]
-pub enum AppendOutcome {
-    Inserted { seq: i64 },
-    Duplicate { seq: i64 },
-}
-
-/// The metadata the hub holds about a snapshot. The bytes themselves
-/// live at `blob_url` (typically a Tigris/R2 public URL).
-#[derive(Debug, Clone)]
-pub struct SnapshotMeta {
-    pub blob_url: String,
-    pub content_type: String,
-    pub schema_version: String,
-    pub size_bytes: i32,
 }
 
 pub const POSTGRES_EVENT_FIRST_SCHEMA: &[&str] = &[
     r#"CREATE TABLE IF NOT EXISTS frontiers (
         vfr_id TEXT PRIMARY KEY,
-        registry_entry_id BIGINT REFERENCES registry_entries(id),
         name TEXT NOT NULL,
         owner_actor_id TEXT NOT NULL,
         owner_pubkey TEXT NOT NULL,
         latest_snapshot_hash TEXT NOT NULL,
         latest_event_log_hash TEXT NOT NULL,
         schema_version TEXT NOT NULL,
-        signed_publish_at TIMESTAMPTZ NOT NULL,
-        snapshot_blob_url TEXT NOT NULL DEFAULT '',
-        snapshot_size_bytes BIGINT NOT NULL DEFAULT 0,
+        source_commit_at TIMESTAMPTZ NOT NULL,
         findings_count BIGINT NOT NULL DEFAULT 0,
         events_count BIGINT NOT NULL DEFAULT 0,
         sources_count BIGINT NOT NULL DEFAULT 0,
@@ -3218,12 +1442,10 @@ pub const POSTGRES_EVENT_FIRST_SCHEMA: &[&str] = &[
         condition_records_count BIGINT NOT NULL DEFAULT 0,
         materialized_snapshot_json JSONB NOT NULL,
         authority_mode TEXT NOT NULL,
-        status TEXT NOT NULL DEFAULT 'live',
         inserted_at TIMESTAMPTZ NOT NULL DEFAULT now(),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
     )"#,
-    "CREATE INDEX IF NOT EXISTS idx_frontiers_signed_publish_at ON frontiers (signed_publish_at DESC)",
-    "CREATE INDEX IF NOT EXISTS idx_frontiers_status ON frontiers (status)",
+    "CREATE INDEX IF NOT EXISTS idx_frontiers_source_commit_at ON frontiers (source_commit_at DESC)",
     r#"CREATE TABLE IF NOT EXISTS frontier_events (
         vfr_id TEXT NOT NULL REFERENCES frontiers(vfr_id) ON DELETE CASCADE,
         seq BIGINT NOT NULL,
@@ -3253,141 +1475,22 @@ pub const POSTGRES_EVENT_FIRST_SCHEMA: &[&str] = &[
     )"#,
     "CREATE INDEX IF NOT EXISTS idx_frontier_objects_type ON frontier_objects (vfr_id, object_type)",
     "CREATE INDEX IF NOT EXISTS idx_frontier_objects_target ON frontier_objects (vfr_id, target_id)",
-    r#"CREATE TABLE IF NOT EXISTS frontier_publish_audit (
-        id BIGSERIAL PRIMARY KEY,
-        vfr_id TEXT NOT NULL,
-        registry_entry_id BIGINT REFERENCES registry_entries(id),
-        latest_snapshot_hash TEXT NOT NULL,
-        signed_publish_at TIMESTAMPTZ NOT NULL,
-        status TEXT NOT NULL,
-        error TEXT,
-        authority_mode TEXT,
-        findings_count BIGINT NOT NULL DEFAULT 0,
-        events_count BIGINT NOT NULL DEFAULT 0,
-        sources_count BIGINT NOT NULL DEFAULT 0,
-        evidence_atoms_count BIGINT NOT NULL DEFAULT 0,
-        condition_records_count BIGINT NOT NULL DEFAULT 0,
-        verified_at TIMESTAMPTZ NOT NULL DEFAULT now()
-    )"#,
-    "CREATE INDEX IF NOT EXISTS idx_frontier_publish_audit_vfr ON frontier_publish_audit (vfr_id, verified_at DESC)",
-    "CREATE INDEX IF NOT EXISTS idx_frontier_publish_audit_status ON frontier_publish_audit (status)",
-    // Authoritative, append-only revocation log. Keyed by the cryptographic
-    // identity (pubkey), recorded on promote when a snapshot's actor carries a
-    // revoked_at. ON CONFLICT DO NOTHING makes it earliest-wins / never-undone:
-    // once a key is revoked it stays revoked here, so a later snapshot that
-    // drops the revocation (silent un-revoke) cannot restore its authority —
-    // the accept/append paths consult this log, not just the mutable snapshot.
-    r#"CREATE TABLE IF NOT EXISTS frontier_revocations (
-        vfr_id TEXT NOT NULL,
-        pubkey TEXT NOT NULL,
-        actor_id TEXT NOT NULL,
-        revoked_at TEXT NOT NULL,
-        revoked_reason TEXT,
-        recorded_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-        PRIMARY KEY (vfr_id, pubkey)
-    )"#,
-    "CREATE INDEX IF NOT EXISTS idx_frontier_revocations_vfr ON frontier_revocations (vfr_id)",
-    // Frontier lifecycle: append-only, earliest-wins deprecation log.
-    // Once deprecated a frontier never returns to 'live' (a successor is
-    // a new vfr_id). Mirrors the revocation pattern above. The signed
-    // DeprecationRecord rides in raw_json as the audit receipt.
-    r#"CREATE TABLE IF NOT EXISTS frontier_deprecations (
-        vfr_id TEXT NOT NULL PRIMARY KEY,
-        deprecated_at TEXT NOT NULL,
-        reason TEXT,
-        raw_json JSONB NOT NULL,
-        recorded_at TIMESTAMPTZ NOT NULL DEFAULT now()
-    )"#,
-    // Durable publish receipts: the signed manifest archived to object
-    // storage, content-addressed by sha256(canonical manifest bytes).
-    // Postgres becomes a queryable cache; the trust chain (manifest +
-    // snapshot blobs) is reconstructible from storage alone.
-    "ALTER TABLE registry_entries ADD COLUMN IF NOT EXISTS manifest_blob_url TEXT",
-    // Owner rotation: the CURRENT owner key authorizes a successor.
-    // Append-only chain; the effective owner is the latest rotation's
-    // successor (or the original publisher if none). The signed record
-    // rides in raw_json as the audit receipt.
-    r#"CREATE TABLE IF NOT EXISTS frontier_owner_rotations (
-        id BIGSERIAL PRIMARY KEY,
-        vfr_id TEXT NOT NULL,
-        new_owner_pubkey TEXT NOT NULL,
-        rotated_at TEXT NOT NULL,
-        raw_json JSONB NOT NULL,
-        recorded_at TIMESTAMPTZ NOT NULL DEFAULT now()
-    )"#,
-    "CREATE INDEX IF NOT EXISTS idx_owner_rotations_vfr ON frontier_owner_rotations (vfr_id, id DESC)",
-    // Maintainer sets: append-only add/remove actions; the effective set
-    // is the latest action per pubkey. Accept authority = owner key OR
-    // any effective maintainer (the Linux pull model).
-    r#"CREATE TABLE IF NOT EXISTS frontier_maintainers (
-        id BIGSERIAL PRIMARY KEY,
-        vfr_id TEXT NOT NULL,
-        pubkey TEXT NOT NULL,
-        action TEXT NOT NULL,
-        authorized_by_pubkey TEXT NOT NULL,
-        authorized_at TEXT NOT NULL,
-        raw_json JSONB NOT NULL,
-        recorded_at TIMESTAMPTZ NOT NULL DEFAULT now()
-    )"#,
-    "CREATE INDEX IF NOT EXISTS idx_frontier_maintainers_vfr ON frontier_maintainers (vfr_id, pubkey, id DESC)",
     // Producer index: signer extracted at promote for cross-frontier
     // per-key queries.
     "ALTER TABLE frontier_objects ADD COLUMN IF NOT EXISTS signer_pubkey TEXT",
-    // v0.201: hub-side index handle for `vsd_*` Scientific Diff Packs.
-    // Mirror of registry_entries but for the v0.193 primitive.
-    r#"CREATE TABLE IF NOT EXISTS registry_diff_packs (
-        id BIGSERIAL PRIMARY KEY,
-        pack_id TEXT NOT NULL,
-        frontier_id TEXT NOT NULL,
-        aggregate_kind TEXT NOT NULL,
-        summary TEXT NOT NULL,
-        created_at TIMESTAMPTZ NOT NULL,
-        agent_run TEXT,
-        parent_pack TEXT,
-        applied_event_id TEXT,
-        member_ids JSONB NOT NULL DEFAULT '[]'::jsonb,
-        signature TEXT NOT NULL,
-        signer_pubkey_hex TEXT NOT NULL,
-        raw_json JSONB NOT NULL,
-        inserted_at TIMESTAMPTZ NOT NULL DEFAULT now()
-    )"#,
-    "CREATE INDEX IF NOT EXISTS idx_registry_diff_packs_pack_id ON registry_diff_packs (pack_id)",
-    "CREATE INDEX IF NOT EXISTS idx_registry_diff_packs_frontier_id ON registry_diff_packs (frontier_id)",
-    "CREATE UNIQUE INDEX IF NOT EXISTS uq_registry_diff_packs_pack_sig ON registry_diff_packs (pack_id, signature)",
-    // Snapshot blob routing index: content-addressed pointer (snapshot_hash ->
-    // Tigris blob_url) the `?redirect=cdn` path reads via get_snapshot_meta.
-    // The live hub has this table from schema history, but it was missing from
-    // this Postgres schema string — so a FRESH Postgres hub would fail
-    // `insert_snapshot` on the first publish. `IF NOT EXISTS` makes adding it a
-    // no-op on the existing table and correct for a new hub. (The SQLite schema
-    // already creates it.)
-    r#"CREATE TABLE IF NOT EXISTS frontier_snapshots (
-        snapshot_hash TEXT PRIMARY KEY,
-        schema_version TEXT NOT NULL,
-        size_bytes BIGINT NOT NULL,
-        blob_url TEXT NOT NULL,
-        content_type TEXT NOT NULL DEFAULT 'application/json',
-        inserted_at TIMESTAMPTZ NOT NULL DEFAULT now()
-    )"#,
-    "CREATE INDEX IF NOT EXISTS idx_snapshots_inserted_at ON frontier_snapshots (inserted_at DESC)",
     // Git ingestion (ADR 0001 / HUB.md: the hub is an index over git-replayed
     // state). One row per frontier whose index is derived from a git remote.
-    // `raw_json` holds the owner-signed GitRemoteRegistration; the ingest
-    // columns are the ingestor's cursor + last error, for /status surfaces.
+    // Source identity is operator configuration; the remaining columns are the
+    // ingestor's cursor + last error for status surfaces.
     r#"CREATE TABLE IF NOT EXISTS frontier_git_remotes (
         vfr_id TEXT PRIMARY KEY,
         git_remote TEXT NOT NULL,
         git_ref TEXT NOT NULL DEFAULT 'main',
-        git_subdir TEXT NOT NULL DEFAULT '',
-        registered_by_pubkey TEXT NOT NULL,
-        registered_at TEXT NOT NULL,
-        raw_json JSONB NOT NULL,
         last_ingested_commit TEXT,
         last_ingested_at TIMESTAMPTZ,
         ingest_error TEXT,
         inserted_at TIMESTAMPTZ NOT NULL DEFAULT now()
     )"#,
-    "ALTER TABLE frontier_git_remotes ADD COLUMN IF NOT EXISTS git_subdir TEXT NOT NULL DEFAULT ''",
     // Full-text search over frontier objects (the /search backend). A
     // stored generated tsvector over the first 8 KiB of the raw JSON —
     // enough to cover ids, assertion text, DOIs — plus a GIN index so
@@ -3415,81 +1518,15 @@ pub async fn ensure_postgres_event_first_schema(pool: &PgPool) -> Result<(), Str
 /// TIMESTAMPTZ → TEXT (RFC3339), JSONB → TEXT.
 pub async fn ensure_sqlite_schema(pool: &SqlitePool) -> Result<(), String> {
     for stmt in [
-        r#"CREATE TABLE IF NOT EXISTS registry_entries (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            vfr_id TEXT NOT NULL,
-            schema TEXT NOT NULL,
-            name TEXT NOT NULL,
-            owner_actor_id TEXT NOT NULL,
-            owner_pubkey TEXT NOT NULL,
-            latest_snapshot_hash TEXT NOT NULL,
-            latest_event_log_hash TEXT NOT NULL,
-            network_locator TEXT NOT NULL,
-            signed_publish_at TEXT NOT NULL,
-            signature TEXT NOT NULL,
-            raw_json TEXT NOT NULL,
-            manifest_blob_url TEXT,
-            created_at TEXT NOT NULL DEFAULT (datetime('now'))
-        )"#,
-        "CREATE INDEX IF NOT EXISTS idx_entries_vfr_id ON registry_entries (vfr_id)",
-        "CREATE INDEX IF NOT EXISTS idx_entries_signed_publish_at ON registry_entries (signed_publish_at DESC)",
-        "CREATE UNIQUE INDEX IF NOT EXISTS uq_entries_vfr_signature ON registry_entries (vfr_id, signature)",
-        // v0.201: registry_diff_packs is the hub-side index for
-        // `vsd_*` Scientific Diff Packs. A pack lands here when the
-        // corresponding `diff_pack.released` event has been applied
-        // on a frontier and its member proposals have been accepted.
-        // The pack itself stays small (id + frontier_id + summary +
-        // member ids + signature); reviewers fetch the full body
-        // and the resolved member proposals from the originating
-        // frontier's snapshot blob, addressed by latest_snapshot_hash.
-        r#"CREATE TABLE IF NOT EXISTS registry_diff_packs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            pack_id TEXT NOT NULL,
-            frontier_id TEXT NOT NULL,
-            aggregate_kind TEXT NOT NULL,
-            summary TEXT NOT NULL,
-            created_at TEXT NOT NULL,
-            agent_run TEXT,
-            parent_pack TEXT,
-            applied_event_id TEXT,
-            member_ids_json TEXT NOT NULL DEFAULT '[]',
-            signature TEXT NOT NULL,
-            signer_pubkey_hex TEXT NOT NULL,
-            raw_json TEXT NOT NULL,
-            inserted_at TEXT NOT NULL DEFAULT (datetime('now'))
-        )"#,
-        "CREATE INDEX IF NOT EXISTS idx_diff_packs_pack_id ON registry_diff_packs (pack_id)",
-        "CREATE INDEX IF NOT EXISTS idx_diff_packs_frontier_id ON registry_diff_packs (frontier_id)",
-        "CREATE UNIQUE INDEX IF NOT EXISTS uq_diff_packs_pack_signature ON registry_diff_packs (pack_id, signature)",
-        // v0.55.1: snapshots are metadata-only. Bulk substrate lives in
-        // object storage (Tigris/R2), addressed by `snapshot_hash`. This
-        // table is the routing index — `blob_url` is where the bytes
-        // actually live, served by the CDN. The hub never holds bulk
-        // substrate in process memory.
-        //
-        // For local SQLite hubs (single-publisher self-host), `blob_url`
-        // can be a `file://` path to a local content-addressed store.
-        r#"CREATE TABLE IF NOT EXISTS frontier_snapshots (
-            snapshot_hash TEXT PRIMARY KEY,
-            schema_version TEXT NOT NULL,
-            size_bytes INTEGER NOT NULL,
-            blob_url TEXT NOT NULL,
-            content_type TEXT NOT NULL DEFAULT 'application/json',
-            inserted_at TEXT NOT NULL DEFAULT (datetime('now'))
-        )"#,
-        "CREATE INDEX IF NOT EXISTS idx_snapshots_inserted_at ON frontier_snapshots (inserted_at DESC)",
         r#"CREATE TABLE IF NOT EXISTS frontiers (
             vfr_id TEXT PRIMARY KEY,
-            registry_entry_id INTEGER,
             name TEXT NOT NULL,
             owner_actor_id TEXT NOT NULL,
             owner_pubkey TEXT NOT NULL,
             latest_snapshot_hash TEXT NOT NULL,
             latest_event_log_hash TEXT NOT NULL,
             schema_version TEXT NOT NULL,
-            signed_publish_at TEXT NOT NULL,
-            snapshot_blob_url TEXT NOT NULL DEFAULT '',
-            snapshot_size_bytes INTEGER NOT NULL DEFAULT 0,
+            source_commit_at TEXT NOT NULL,
             findings_count INTEGER NOT NULL DEFAULT 0,
             events_count INTEGER NOT NULL DEFAULT 0,
             sources_count INTEGER NOT NULL DEFAULT 0,
@@ -3497,12 +1534,10 @@ pub async fn ensure_sqlite_schema(pool: &SqlitePool) -> Result<(), String> {
             condition_records_count INTEGER NOT NULL DEFAULT 0,
             materialized_snapshot_json TEXT NOT NULL,
             authority_mode TEXT NOT NULL,
-            status TEXT NOT NULL DEFAULT 'live',
             inserted_at TEXT NOT NULL DEFAULT (datetime('now')),
             updated_at TEXT NOT NULL DEFAULT (datetime('now'))
         )"#,
-        "CREATE INDEX IF NOT EXISTS idx_frontiers_signed_publish_at ON frontiers (signed_publish_at DESC)",
-        "CREATE INDEX IF NOT EXISTS idx_frontiers_status ON frontiers (status)",
+        "CREATE INDEX IF NOT EXISTS idx_frontiers_source_commit_at ON frontiers (source_commit_at DESC)",
         r#"CREATE TABLE IF NOT EXISTS frontier_events (
             vfr_id TEXT NOT NULL,
             seq INTEGER NOT NULL,
@@ -3533,70 +1568,11 @@ pub async fn ensure_sqlite_schema(pool: &SqlitePool) -> Result<(), String> {
         )"#,
         "CREATE INDEX IF NOT EXISTS idx_frontier_objects_type ON frontier_objects (vfr_id, object_type)",
         "CREATE INDEX IF NOT EXISTS idx_frontier_objects_target ON frontier_objects (vfr_id, target_id)",
-        r#"CREATE TABLE IF NOT EXISTS frontier_publish_audit (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            vfr_id TEXT NOT NULL,
-            registry_entry_id INTEGER,
-            latest_snapshot_hash TEXT NOT NULL,
-            signed_publish_at TEXT NOT NULL,
-            status TEXT NOT NULL,
-            error TEXT,
-            authority_mode TEXT,
-            findings_count INTEGER NOT NULL DEFAULT 0,
-            events_count INTEGER NOT NULL DEFAULT 0,
-            sources_count INTEGER NOT NULL DEFAULT 0,
-            evidence_atoms_count INTEGER NOT NULL DEFAULT 0,
-            condition_records_count INTEGER NOT NULL DEFAULT 0,
-            verified_at TEXT NOT NULL DEFAULT (datetime('now'))
-        )"#,
-        "CREATE INDEX IF NOT EXISTS idx_frontier_publish_audit_vfr ON frontier_publish_audit (vfr_id, verified_at DESC)",
-        "CREATE INDEX IF NOT EXISTS idx_frontier_publish_audit_status ON frontier_publish_audit (status)",
-        // Authoritative append-only revocation log (see the Postgres schema for
-        // the rationale): earliest-wins, never un-revoked, consulted by accept.
-        r#"CREATE TABLE IF NOT EXISTS frontier_revocations (
-            vfr_id TEXT NOT NULL,
-            pubkey TEXT NOT NULL,
-            actor_id TEXT NOT NULL,
-            revoked_at TEXT NOT NULL,
-            revoked_reason TEXT,
-            recorded_at TEXT NOT NULL DEFAULT (datetime('now')),
-            PRIMARY KEY (vfr_id, pubkey)
-        )"#,
-        r#"CREATE TABLE IF NOT EXISTS frontier_deprecations (
-            vfr_id TEXT NOT NULL PRIMARY KEY,
-            deprecated_at TEXT NOT NULL,
-            reason TEXT,
-            raw_json TEXT NOT NULL,
-            recorded_at TEXT NOT NULL DEFAULT (datetime('now'))
-        )"#,
-        r#"CREATE TABLE IF NOT EXISTS frontier_owner_rotations (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            vfr_id TEXT NOT NULL,
-            new_owner_pubkey TEXT NOT NULL,
-            rotated_at TEXT NOT NULL,
-            raw_json TEXT NOT NULL,
-            recorded_at TEXT NOT NULL DEFAULT (datetime('now'))
-        )"#,
-        r#"CREATE TABLE IF NOT EXISTS frontier_maintainers (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            vfr_id TEXT NOT NULL,
-            pubkey TEXT NOT NULL,
-            action TEXT NOT NULL,
-            authorized_by_pubkey TEXT NOT NULL,
-            authorized_at TEXT NOT NULL,
-            raw_json TEXT NOT NULL,
-            recorded_at TEXT NOT NULL DEFAULT (datetime('now'))
-        )"#,
-        "CREATE INDEX IF NOT EXISTS idx_frontier_revocations_vfr ON frontier_revocations (vfr_id)",
-        // Git ingestion registrations (mirror of the Postgres table).
+        // Git ingestion source cursor (mirror of the Postgres table).
         r#"CREATE TABLE IF NOT EXISTS frontier_git_remotes (
             vfr_id TEXT PRIMARY KEY,
             git_remote TEXT NOT NULL,
             git_ref TEXT NOT NULL DEFAULT 'main',
-            git_subdir TEXT NOT NULL DEFAULT '',
-            registered_by_pubkey TEXT NOT NULL,
-            registered_at TEXT NOT NULL,
-            raw_json TEXT NOT NULL,
             last_ingested_commit TEXT,
             last_ingested_at TEXT,
             ingest_error TEXT,
@@ -3614,7 +1590,7 @@ pub async fn ensure_sqlite_schema(pool: &SqlitePool) -> Result<(), String> {
 /// The array keys whose contents live in the `frontier_objects` projection,
 /// not the stored skeleton. `frontier_skeleton` empties them and
 /// `merge_projected_objects` rebuilds them on read.
-const PROJECTED_ARRAY_KEYS: [&str; 10] = [
+const PROJECTED_ARRAY_KEYS: [&str; 11] = [
     "findings",
     "sources",
     "evidence_atoms",
@@ -3622,6 +1598,7 @@ const PROJECTED_ARRAY_KEYS: [&str; 10] = [
     "actors",
     "artifacts",
     "proposals",
+    "released_diff_packs",
     // The trust arrays: projected so the record pages can fetch them granularly
     // instead of pulling the whole snapshot to render the verification web.
     "verifier_attachments",
@@ -3648,6 +1625,7 @@ fn projection_array_key(object_type: &str) -> Option<&'static str> {
         "actor" => Some("actors"),
         "artifact" => Some("artifacts"),
         "proposal" => Some("proposals"),
+        "diff_pack" => Some("released_diff_packs"),
         "verifier_attachment" => Some("verifier_attachments"),
         "statement_attestation" => Some("statement_attestations"),
         "statement_registration" => Some("statement_registrations"),
@@ -3691,6 +1669,7 @@ fn collect_frontier_objects(snapshot: &Value) -> Vec<FrontierObjectRow> {
     collect_array_objects(snapshot, "actors", "actor", &mut out);
     collect_array_objects(snapshot, "artifacts", "artifact", &mut out);
     collect_array_objects(snapshot, "proposals", "proposal", &mut out);
+    collect_array_objects(snapshot, "released_diff_packs", "diff_pack", &mut out);
     // The trust arrays the record pages render (verification web, attestation
     // cards). Projecting them lets a page fetch GET /objects/{type} instead of
     // the whole snapshot. See PROJECTED_ARRAY_KEYS / merge_projected_objects.
@@ -3807,6 +1786,7 @@ fn collect_array_objects(
         for (idx, item) in items.iter().enumerate() {
             let object_id = item
                 .get("id")
+                .or_else(|| item.get("pack_id"))
                 .and_then(Value::as_str)
                 .map(str::to_string)
                 .unwrap_or_else(|| format!("{object_type}:{idx}"));
@@ -3839,9 +1819,8 @@ pub struct IngestLockGuard {
 /// $1 = object_type, $2 = the raw user query (websearch grammar — total,
 /// never a syntax error), $3 = limit, $4 = offset. Rank-ordered with a
 /// stable `(vfr_id, seq)` tiebreak so pagination never shuffles.
-pub(crate) const PG_FTS_SEARCH_SQL: &str = "SELECT f.vfr_id, o.raw_json::text \
+pub(crate) const PG_FTS_SEARCH_SQL: &str = "SELECT o.vfr_id, o.raw_json::text \
      FROM frontier_objects o \
-     JOIN frontiers f ON f.vfr_id = o.vfr_id AND f.status = 'live' \
      WHERE o.object_type = $1 AND o.search_text @@ websearch_to_tsquery('english', $2) \
      ORDER BY ts_rank(o.search_text, websearch_to_tsquery('english', $2)) DESC, o.vfr_id, o.seq \
      LIMIT $3 OFFSET $4";
@@ -3849,7 +1828,6 @@ pub(crate) const PG_FTS_SEARCH_SQL: &str = "SELECT f.vfr_id, o.raw_json::text \
 /// The matching total, counted over the SAME predicate as the page query.
 pub(crate) const PG_FTS_COUNT_SQL: &str = "SELECT COUNT(*)::bigint \
      FROM frontier_objects o \
-     JOIN frontiers f ON f.vfr_id = o.vfr_id AND f.status = 'live' \
      WHERE o.object_type = $1 AND o.search_text @@ websearch_to_tsquery('english', $2)";
 
 #[cfg(test)]
@@ -3858,7 +1836,6 @@ mod tests {
     use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
     use std::str::FromStr;
     use tempfile::NamedTempFile;
-    use vela_protocol::repo;
 
     async fn sqlite_db() -> HubDb {
         let file = NamedTempFile::new().expect("temp sqlite");
@@ -3878,42 +1855,6 @@ mod tests {
         HubDb::Sqlite(pool)
     }
 
-    // The bbb-extension fixture is campaign data (Alzheimer's BBB) that lives in
-    // the internal monorepo, not the standalone OSS checkout. Returns None when
-    // absent so the tests below skip cleanly there and still run in-monorepo.
-    fn fixture_project() -> Option<Project> {
-        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../frontiers/bbb-extension.json");
-        if !path.exists() {
-            return None;
-        }
-        let mut project = repo::load_from_path(&path).expect("load fixture frontier");
-        if project.events.len() == 1 {
-            let mut second = project.events[0].clone();
-            second.id = "vev_test_second_event".to_string();
-            second.timestamp = "2026-05-05T00:00:01Z".to_string();
-            project.events.push(second);
-        }
-        Some(project)
-    }
-
-    fn entry_for(project: &Project) -> RegistryEntry {
-        RegistryEntry {
-            schema: vela_protocol::registry::ENTRY_SCHEMA.to_string(),
-            vfr_id: project.frontier_id(),
-            name: project.project.name.clone(),
-            owner_actor_id: "reviewer:test".to_string(),
-            owner_pubkey: "00".repeat(32),
-            latest_snapshot_hash: snapshot_hash(project),
-            latest_event_log_hash: event_log_hash(&project.events),
-            network_locator: "https://example.com/frontier.json".to_string(),
-            license: None,
-            extras_manifest_hash: None,
-            signed_publish_at: "2026-05-05T00:00:00Z".to_string(),
-            signature: "sig_fixture".to_string(),
-        }
-    }
-
     #[test]
     fn trust_arrays_round_trip_through_projection() {
         // A snapshot carrying the trust arrays: after promote (the skeleton
@@ -3929,7 +1870,15 @@ mod tests {
                 {"id": "vva_2", "target": {"id": "vf_1"}, "outcome": "pass"}
             ],
             "statement_attestations": [{"id": "vsa_1", "target": "vf_1", "verdict": "faithful"}],
-            "statement_registrations": [{"statement_hash": "sha256:abc", "informal_ref": "erdos:1"}]
+            "statement_registrations": [{"statement_hash": "sha256:abc", "informal_ref": "erdos:1"}],
+            "released_diff_packs": [{
+                "pack_id": "vsd_1234",
+                "frontier_id": "vfr_demo",
+                "summary": "one replayed pack",
+                "aggregate_kind": "finding_set",
+                "released_at": "2026-07-14T00:00:00Z",
+                "released_event_id": "vev_pack"
+            }]
         });
 
         let objects = collect_frontier_objects(&snapshot);
@@ -3937,6 +1886,7 @@ mod tests {
             "verifier_attachment",
             "statement_attestation",
             "statement_registration",
+            "diff_pack",
         ] {
             assert!(
                 objects.iter().any(|o| o.object_type == t),
@@ -3963,7 +1913,108 @@ mod tests {
             reconstructed["statement_registrations"],
             snapshot["statement_registrations"]
         );
+        assert_eq!(
+            reconstructed["released_diff_packs"],
+            snapshot["released_diff_packs"]
+        );
         assert_eq!(reconstructed["findings"], snapshot["findings"]);
+    }
+
+    #[tokio::test]
+    async fn diff_pack_lookup_uses_git_projection_without_transport_tables() {
+        let db = sqlite_db().await;
+        let HubDb::Sqlite(pool) = &db else {
+            unreachable!()
+        };
+        sqlx::query(
+            "INSERT INTO frontiers (vfr_id, name, owner_actor_id, owner_pubkey, \
+             latest_snapshot_hash, latest_event_log_hash, schema_version, \
+             source_commit_at, materialized_snapshot_json, authority_mode) \
+             VALUES ('vfr_pack', 'pack frontier', 'reviewer:test', '00', 'h', 'h', 'v1', \
+             '2026-07-14T00:00:00Z', '{}', 'git_ingested')",
+        )
+        .execute(pool)
+        .await
+        .expect("insert frontier");
+        let record = json!({
+            "pack_id": "vsd_projected",
+            "frontier_id": "vfr_pack",
+            "summary": "projected from replay",
+            "aggregate_kind": "finding_set",
+            "released_at": "2026-07-14T00:00:00Z",
+            "released_event_id": "vev_pack"
+        });
+        sqlx::query(
+            "INSERT INTO frontier_objects \
+             (vfr_id, object_type, object_id, seq, raw_json) \
+             VALUES ('vfr_pack', 'diff_pack', 'vsd_projected', 0, ?)",
+        )
+        .bind(record.to_string())
+        .execute(pool)
+        .await
+        .expect("insert projected pack");
+
+        assert_eq!(
+            db.get_diff_pack("vsd_projected").await.expect("lookup"),
+            Some(record)
+        );
+        let obsolete_tables: i64 = sqlx::query_scalar(
+            "SELECT count(*) FROM sqlite_master WHERE type = 'table' \
+             AND name IN ('registry_entries', 'registry_diff_packs', 'frontier_snapshots', \
+                          'frontier_publish_audit', 'frontier_owner_rotations', \
+                          'frontier_maintainers', 'frontier_deprecations', \
+                          'frontier_revocations')",
+        )
+        .fetch_one(pool)
+        .await
+        .expect("schema query");
+        assert_eq!(obsolete_tables, 0);
+    }
+
+    #[tokio::test]
+    async fn source_catalog_prunes_removed_projection_rows() {
+        let db = sqlite_db().await;
+        let keep = "vfr_001f148c07eebecb";
+        let drop = "vfr_496956067dc5ad79";
+        db.upsert_git_source(keep, "https://example.com/keep", "main")
+            .await
+            .expect("keep source");
+        db.upsert_git_source(drop, "https://example.com/drop", "main")
+            .await
+            .expect("drop source");
+        let HubDb::Sqlite(pool) = &db else {
+            unreachable!()
+        };
+        sqlx::query(
+            "INSERT INTO frontiers (vfr_id, name, owner_actor_id, owner_pubkey, \
+             latest_snapshot_hash, latest_event_log_hash, schema_version, \
+             source_commit_at, materialized_snapshot_json, authority_mode) \
+             VALUES (?, 'drop', 'reviewer:test', '00', 'h', 'h', 'v1', \
+             '2026-07-14T00:00:00Z', '{}', 'git_ingested')",
+        )
+        .bind(drop)
+        .execute(pool)
+        .await
+        .expect("drop projection");
+        sqlx::query(
+            "INSERT INTO frontier_objects (vfr_id, object_type, object_id, seq, raw_json) \
+             VALUES (?, 'finding', 'vf_drop', 0, '{}')",
+        )
+        .bind(drop)
+        .execute(pool)
+        .await
+        .expect("drop object");
+
+        assert_eq!(db.retain_git_sources(&[keep.to_string()]).await.unwrap(), 1);
+        assert_eq!(db.git_ingest_targets().await.unwrap().len(), 1);
+        assert!(db.get_index_entry(drop).await.unwrap().is_none());
+        let dropped_objects: i64 =
+            sqlx::query_scalar("SELECT count(*) FROM frontier_objects WHERE vfr_id = ?")
+                .bind(drop)
+                .fetch_one(pool)
+                .await
+                .expect("object count");
+        assert_eq!(dropped_objects, 0);
     }
 
     #[test]
@@ -3972,7 +2023,7 @@ mod tests {
         // projected holds them in its stored skeleton and has no projected
         // rows for them. The conditional merge must leave them intact rather
         // than blanking them — otherwise the live trust web would vanish the
-        // instant this change deploys, before any re-publish.
+        // instant this change deploys, before any re-ingest.
         let mut stored_skeleton = json!({
             "findings": [],
             "verifier_attachments": [{"id": "vva_old", "outcome": "pass"}],
@@ -3992,351 +2043,15 @@ mod tests {
         );
     }
 
-    #[tokio::test]
-    async fn append_to_frontier_writes_only_new_rows_and_guards() {
-        let db = sqlite_db().await;
-        let Some(project) = fixture_project() else {
-            eprintln!("skip: bbb-extension.json fixture absent (internal-only)");
-            return;
-        };
-        let entry = entry_for(&project);
-        let raw = serde_json::to_value(&entry).expect("entry json");
-        db.insert_entry(&entry, &raw).await.expect("insert entry");
-        db.promote_frontier_snapshot(&entry, &project, None, "manifest_snapshot")
-            .await
-            .expect("promote");
-
-        let parent = entry.latest_event_log_hash.clone();
-        let findings_before = project.findings.len() as i64;
-        let events_before = project.events.len() as i64;
-
-        // A new finding (clone with a fresh id) + its asserting event.
-        let mut new_finding = project.findings[0].clone();
-        new_finding.id = "vf_append_test_001".to_string();
-        let mut new_event = project.events[0].clone();
-        new_event.id = "vev_append_test_001".to_string();
-        new_event.target.r#type = "finding".to_string();
-        new_event.target.id = new_finding.id.clone();
-
-        let outcome = db
-            .append_to_frontier(
-                &entry.vfr_id,
-                &entry.owner_pubkey,
-                std::slice::from_ref(&new_finding),
-                std::slice::from_ref(&new_event),
-                &parent,
-            )
-            .await
-            .expect("append");
-        assert_eq!(outcome.appended_findings, 1);
-        assert_eq!(outcome.appended_events, 1);
-        assert_eq!(outcome.findings_count, findings_before + 1);
-        assert_eq!(outcome.events_count, events_before + 1);
-
-        // The stored event-log hash is the new tail.
-        assert_eq!(
-            db.event_log_hash_from_db(&entry.vfr_id)
-                .await
-                .expect("hash"),
-            outcome.new_event_log_hash
-        );
-
-        // The materialized project now contains the appended finding + event.
-        let mat = db
-            .get_materialized_project(&entry.vfr_id)
-            .await
-            .expect("read")
-            .expect("project");
-        assert!(mat.findings.iter().any(|f| f.id == "vf_append_test_001"));
-        assert_eq!(
-            mat.events
-                .iter()
-                .filter(|e| e.id == "vev_append_test_001")
-                .count(),
-            1
-        );
-
-        // Idempotent re-apply (against the NEW parent hash): nothing written.
-        let again = db
-            .append_to_frontier(
-                &entry.vfr_id,
-                &entry.owner_pubkey,
-                std::slice::from_ref(&new_finding),
-                std::slice::from_ref(&new_event),
-                &outcome.new_event_log_hash,
-            )
-            .await
-            .expect("idempotent append");
-        assert_eq!(again.appended_findings, 0);
-        assert_eq!(again.skipped_duplicate_findings, 1);
-        assert_eq!(again.skipped_duplicate_events, 1);
-
-        // Stale parent hash -> optimistic-concurrency conflict.
-        let stale = db
-            .append_to_frontier(&entry.vfr_id, &entry.owner_pubkey, &[], &[], &parent)
-            .await;
-        assert!(
-            stale.as_ref().is_err_and(|e| e.contains("conflict")),
-            "stale parent should conflict, got {stale:?}"
-        );
-
-        // Wrong owner key -> owner-continuity rejection.
-        let bad_owner = db
-            .append_to_frontier(
-                &entry.vfr_id,
-                &"ff".repeat(32),
-                &[],
-                &[],
-                &outcome.new_event_log_hash,
-            )
-            .await;
-        assert!(
-            bad_owner
-                .as_ref()
-                .is_err_and(|e| e.contains("owner continuity")),
-            "wrong owner should be rejected, got {bad_owner:?}"
-        );
-    }
-
-    #[tokio::test]
-    async fn revocation_is_authoritative_and_append_only() {
-        let db = sqlite_db().await;
-        let Some(mut project) = fixture_project() else {
-            eprintln!("skip: bbb-extension.json fixture absent (internal-only)");
-            return;
-        };
-        let pubkey = "ab".repeat(32);
-        project.actors.push(vela_protocol::sign::ActorRecord {
-            id: "reviewer:compromised".to_string(),
-            public_key: pubkey.clone(),
-            algorithm: "ed25519".to_string(),
-            created_at: "2026-05-01T00:00:00Z".to_string(),
-            tier: None,
-            orcid: None,
-            access_clearance: None,
-            revoked_at: Some("2026-05-10T00:00:00Z".to_string()),
-            revoked_reason: Some("key compromised".to_string()),
-        });
-        let entry = entry_for(&project);
-        let raw = serde_json::to_value(&entry).expect("entry json");
-        db.insert_entry(&entry, &raw).await.expect("insert entry");
-        db.promote_frontier_snapshot(&entry, &project, None, "manifest_snapshot")
-            .await
-            .expect("promote");
-
-        // Recorded in the authoritative log.
-        let rev = db
-            .is_pubkey_revoked(&entry.vfr_id, &pubkey)
-            .await
-            .expect("query");
-        assert!(rev.is_some(), "revocation must be recorded");
-        assert_eq!(rev.unwrap().1, "key compromised");
-
-        // A later snapshot that DROPS the revocation (silent un-revoke) must not
-        // restore the key's authority — record_revocations is what the next
-        // promote runs, and the append-only log keeps the original revocation.
-        if let Some(actor) = project.actors.iter_mut().find(|a| a.public_key == pubkey) {
-            actor.revoked_at = None;
-            actor.revoked_reason = None;
-        }
-        let newly = db
-            .record_revocations(&entry.vfr_id, &project.actors)
-            .await
-            .expect("re-record");
-        assert_eq!(newly, 0, "the un-revoked snapshot records nothing new");
-        assert!(
-            db.is_pubkey_revoked(&entry.vfr_id, &pubkey)
-                .await
-                .expect("query")
-                .is_some(),
-            "the key must STILL be revoked authoritatively after the un-revoke attempt"
-        );
-
-        // Case-insensitive on pubkey hex.
-        assert!(
-            db.is_pubkey_revoked(&entry.vfr_id, &pubkey.to_uppercase())
-                .await
-                .expect("query")
-                .is_some(),
-            "revocation lookup must be case-insensitive"
-        );
-    }
-
-    #[tokio::test]
-    async fn promote_rejects_signed_publish_at_replay() {
-        let db = sqlite_db().await;
-        let Some(project) = fixture_project() else {
-            eprintln!("skip: bbb-extension.json fixture absent (internal-only)");
-            return;
-        };
-        let mut entry = entry_for(&project);
-        entry.signed_publish_at = "2026-05-05T12:00:00Z".to_string();
-        let raw = serde_json::to_value(&entry).expect("entry json");
-        db.insert_entry(&entry, &raw).await.expect("insert entry");
-        db.promote_frontier_snapshot(&entry, &project, None, "manifest_snapshot")
-            .await
-            .expect("first promote");
-
-        // Replay an OLDER owner-signed manifest -> rejected (rollback guard).
-        let mut older = entry.clone();
-        older.signed_publish_at = "2026-05-05T00:00:00Z".to_string();
-        let err = db
-            .promote_frontier_snapshot(&older, &project, None, "manifest_snapshot")
-            .await
-            .expect_err("replay should be rejected");
-        assert!(err.contains("monotonic publish"), "{err}");
-
-        // Same timestamp is allowed — an idempotent retry, not a rollback.
-        db.promote_frontier_snapshot(&entry, &project, None, "manifest_snapshot")
-            .await
-            .expect("same-timestamp re-publish (idempotent) should be allowed");
-
-        // A strictly newer publish is accepted.
-        let mut newer = entry.clone();
-        newer.signed_publish_at = "2026-05-06T00:00:00Z".to_string();
-        let raw_newer = serde_json::to_value(&newer).expect("entry json");
-        db.insert_entry(&newer, &raw_newer)
-            .await
-            .expect("insert newer");
-        db.promote_frontier_snapshot(&newer, &project, None, "manifest_snapshot")
-            .await
-            .expect("strictly newer promote should succeed");
-    }
-
-    #[tokio::test]
-    async fn event_first_promotion_preserves_event_log_order_and_hash() {
-        let db = sqlite_db().await;
-        let Some(project) = fixture_project() else {
-            eprintln!("skip: bbb-extension.json fixture absent (internal-only)");
-            return;
-        };
-        let entry = entry_for(&project);
-        let raw = serde_json::to_value(&entry).expect("entry json");
-        db.insert_entry(&entry, &raw).await.expect("insert entry");
-
-        let report = db
-            .promote_frontier_snapshot(&entry, &project, None, "manifest_snapshot")
-            .await
-            .expect("promote");
-
-        assert_eq!(report.vfr_id, entry.vfr_id);
-        assert_eq!(report.events_count, project.events.len() as i64);
-        assert_eq!(report.findings_count, project.findings.len() as i64);
-        assert_eq!(
-            db.event_log_hash_from_db(&entry.vfr_id)
-                .await
-                .expect("event hash"),
-            entry.latest_event_log_hash
-        );
-        let materialized = db
-            .get_materialized_project(&entry.vfr_id)
-            .await
-            .expect("materialized read")
-            .expect("materialized project");
-        assert_eq!(snapshot_hash(&materialized), entry.latest_snapshot_hash);
-
-        let page = db
-            .event_page(&entry.vfr_id, None, 1, None, None)
-            .await
-            .expect("first page");
-        assert_eq!(page.events.len(), 1);
-        assert_eq!(page.log_total, project.events.len() as i64);
-        assert_eq!(
-            page.events[0].get("id").and_then(Value::as_str),
-            Some(project.events[0].id.as_str())
-        );
-        assert_eq!(page.next_cursor, Some(project.events[0].id.clone()));
-
-        let tail = db
-            .event_page(&entry.vfr_id, page.next_cursor.as_deref(), 500, None, None)
-            .await
-            .expect("tail page");
-        assert_eq!(tail.next_cursor, None);
-    }
-
-    #[tokio::test]
-    async fn event_first_pagination_rejects_unknown_cursor() {
-        let db = sqlite_db().await;
-        let Some(project) = fixture_project() else {
-            eprintln!("skip: bbb-extension.json fixture absent (internal-only)");
-            return;
-        };
-        let entry = entry_for(&project);
-        let raw = serde_json::to_value(&entry).expect("entry json");
-        db.insert_entry(&entry, &raw).await.expect("insert entry");
-        db.promote_frontier_snapshot(&entry, &project, None, "manifest_snapshot")
-            .await
-            .expect("promote");
-
-        let err = db
-            .event_page(&entry.vfr_id, Some("vev_missing"), 10, None, None)
-            .await
-            .expect_err("unknown cursor should fail");
-        assert!(err.contains("cursor_not_found"), "{err}");
-    }
-
-    #[tokio::test]
-    async fn event_first_promotion_rejects_snapshot_hash_mismatch() {
-        let db = sqlite_db().await;
-        let Some(project) = fixture_project() else {
-            eprintln!("skip: bbb-extension.json fixture absent (internal-only)");
-            return;
-        };
-        let mut entry = entry_for(&project);
-        entry.latest_snapshot_hash = "bad".to_string();
-
-        let err = db
-            .promote_frontier_snapshot(&entry, &project, None, "manifest_snapshot")
-            .await
-            .expect_err("bad hash should fail");
-        assert!(err.contains("snapshot_hash mismatch"), "{err}");
-    }
-
-    #[tokio::test]
-    async fn failed_latest_audit_demotes_prior_live_frontier() {
-        let db = sqlite_db().await;
-        let Some(project) = fixture_project() else {
-            eprintln!("skip: bbb-extension.json fixture absent (internal-only)");
-            return;
-        };
-        let entry = entry_for(&project);
-        let raw = serde_json::to_value(&entry).expect("entry json");
-        db.insert_entry(&entry, &raw).await.expect("insert entry");
-        db.promote_frontier_snapshot(&entry, &project, None, "manifest_snapshot")
-            .await
-            .expect("promote");
-        assert!(db.get_live_entry(&entry.vfr_id).await.unwrap().is_some());
-
-        let mut failed_entry = entry.clone();
-        failed_entry.signed_publish_at = "2026-05-05T00:01:00Z".to_string();
-        failed_entry.signature = "sig_failed_latest".to_string();
-        let raw = serde_json::to_value(&failed_entry).expect("failed entry json");
-        db.insert_entry(&failed_entry, &raw)
-            .await
-            .expect("insert failed latest");
-        db.record_publish_audit_failed(&failed_entry, "fetch failed", "manifest_snapshot")
-            .await
-            .expect("record failed audit");
-
-        assert!(db.get_live_entry(&entry.vfr_id).await.unwrap().is_none());
-        let audit = db
-            .latest_audit_status(&entry.vfr_id)
-            .await
-            .expect("audit lookup")
-            .expect("audit row");
-        assert_eq!(audit.status, "failed");
-    }
-
     /// The Postgres search lane is env-gated out of unit tests (no PG in
     /// the harness), so pin the query-builder strings instead: real FTS
-    /// (websearch grammar + rank ordering), the live filter, the stable
-    /// pagination tiebreak, and a count over the SAME predicate.
+    /// (websearch grammar + rank ordering), the stable pagination tiebreak,
+    /// and a count over the SAME predicate.
     #[test]
     fn postgres_fts_query_shape() {
         assert!(PG_FTS_SEARCH_SQL.contains("websearch_to_tsquery('english', $2)"));
         assert!(PG_FTS_SEARCH_SQL.contains("o.search_text @@"));
         assert!(PG_FTS_SEARCH_SQL.contains("ts_rank"));
-        assert!(PG_FTS_SEARCH_SQL.contains("f.status = 'live'"));
         assert!(
             PG_FTS_SEARCH_SQL.contains("o.vfr_id, o.seq"),
             "stable tiebreak"
@@ -4344,7 +2059,6 @@ mod tests {
         assert!(PG_FTS_SEARCH_SQL.contains("LIMIT $3 OFFSET $4"));
         assert!(PG_FTS_COUNT_SQL.starts_with("SELECT COUNT(*)::bigint"));
         assert!(PG_FTS_COUNT_SQL.contains("o.search_text @@ websearch_to_tsquery('english', $2)"));
-        assert!(PG_FTS_COUNT_SQL.contains("f.status = 'live'"));
         // The migration that backs the query, pinned from the schema DDL.
         let ddl = POSTGRES_EVENT_FIRST_SCHEMA.join("\n");
         assert!(ddl.contains(
@@ -4354,6 +2068,33 @@ mod tests {
         assert!(ddl.contains(
             "CREATE INDEX IF NOT EXISTS idx_frontier_objects_fts ON frontier_objects USING GIN (search_text)"
         ));
+    }
+
+    #[test]
+    fn postgres_schema_bootstraps_projection_without_registry_transport() {
+        let frontiers = POSTGRES_EVENT_FIRST_SCHEMA
+            .iter()
+            .position(|stmt| stmt.contains("CREATE TABLE IF NOT EXISTS frontiers"))
+            .expect("frontier projection table DDL");
+
+        assert_eq!(frontiers, 0, "the verified projection is the base table");
+        for retired in [
+            "registry_entries",
+            "frontier_publish_audit",
+            "registry_diff_packs",
+            "frontier_snapshots",
+            "frontier_owner_rotations",
+            "frontier_maintainers",
+            "frontier_deprecations",
+            "frontier_revocations",
+        ] {
+            assert!(
+                POSTGRES_EVENT_FIRST_SCHEMA
+                    .iter()
+                    .all(|stmt| !stmt.contains(retired)),
+                "fresh Postgres must not recreate retired table {retired}"
+            );
+        }
     }
 
     /// SQLite search keeps the LIKE lane but gains the additive
@@ -4368,9 +2109,9 @@ mod tests {
         sqlx::query(
             "INSERT INTO frontiers (vfr_id, name, owner_actor_id, owner_pubkey, \
              latest_snapshot_hash, latest_event_log_hash, schema_version, \
-             signed_publish_at, materialized_snapshot_json, authority_mode, status) \
+             source_commit_at, materialized_snapshot_json, authority_mode) \
              VALUES ('vfr_s1', 'sidon', 'reviewer:test', '00', 'h', 'h', 'v1', \
-             '2026-07-01T00:00:00Z', '{}', 'git_ingested', 'live')",
+             '2026-07-01T00:00:00Z', '{}', 'git_ingested')",
         )
         .execute(pool)
         .await

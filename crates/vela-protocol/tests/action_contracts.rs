@@ -1,8 +1,6 @@
 use serde_json::Value;
 
 const ROOT_ACTION: &str = include_str!("../../../action.yml");
-const LOCAL_ACTION: &str = include_str!("../../../.github/actions/vela-check/action.yml");
-const RELEASE_WORKFLOW: &str = include_str!("../../../.github/workflows/release.yml");
 const INSTALLER: &str = include_str!("../../../install.sh");
 
 fn parse_action(source: &str) -> Value {
@@ -50,7 +48,7 @@ fn assert_no_finalizing_commands(action: &Value) {
 #[test]
 fn root_action_is_lock_pinned_strict_and_nonfinalizing() {
     let action = parse_action(ROOT_ACTION);
-    assert_eq!(action["inputs"]["strict"]["default"], "true");
+    assert!(action["inputs"].get("strict").is_none());
     assert_eq!(action["inputs"]["vela-version"]["required"], true);
 
     let install = script_named(
@@ -68,9 +66,8 @@ fn root_action_is_lock_pinned_strict_and_nonfinalizing() {
     assert!(install.contains("installed Vela $installed does not match $lock's vela_version"));
 
     let strict = script_named(&action, "Strict trust gate");
-    assert!(strict.contains("[ \"$STRICT\" != \"true\" ]"));
     assert!(strict.contains("vela check \"$FRONTIER\" --strict"));
-    assert!(strict.contains("trust failures cannot be demoted"));
+    assert!(!strict.contains("STRICT"));
     assert!(!strict.contains("::notice::"));
 
     assert!(!ROOT_ACTION.contains("constellate-science/vela"));
@@ -83,51 +80,12 @@ fn root_action_is_lock_pinned_strict_and_nonfinalizing() {
 }
 
 #[test]
-fn local_auto_action_requires_one_lock_version_and_blocks_strict_by_default() {
-    let action = parse_action(LOCAL_ACTION);
-    assert_eq!(action["inputs"]["strict"]["default"], "true");
-    assert_eq!(action["inputs"]["vela-version"]["required"], true);
-
-    let install = script_named(
-        &action,
-        "Install vela (pinned binary, no from-source build)",
-    );
-    assert!(install.contains("mapfile -t frontiers"));
-    assert!(install.contains("vela-version is required"));
-    assert!(install.contains("candidate=\"$(awk '/^vela_version:/{print $2}' \"$lock\")\""));
-    assert!(install.contains("selected frontier locks require multiple Vela releases"));
+fn prelaunch_tags_do_not_publish_a_github_release() {
+    let workspace = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     assert!(
-        install.contains("requested Vela $requested does not match selected locks' vela_version")
+        !workspace.join(".github/workflows/release.yml").exists(),
+        "prelaunch tags must not trigger a GitHub Release"
     );
-    assert!(install.contains("release=\"v$lock_version\""));
-    assert!(
-        install.contains("https://raw.githubusercontent.com/vela-science/vela/$release/install.sh")
-    );
-    assert!(
-        install.contains("installed Vela $installed does not match selected locks' vela_version")
-    );
-
-    let gate = script_named(
-        &action,
-        "re-derive (reproduce + check + hash-parity, per frontier)",
-    );
-    assert!(gate.contains("[ \"$STRICT\" != \"true\" ]"));
-    assert!(gate.contains("strict proof-readiness or state-integrity debt is blocking"));
-    assert!(gate.contains("trust failures cannot be demoted"));
-    assert!(!gate.contains("::notice::"));
-
-    assert!(!LOCAL_ACTION.contains("constellate-science/vela"));
-    assert!(!LOCAL_ACTION.contains("/main/install.sh"));
-    assert_no_finalizing_commands(&action);
-}
-
-#[test]
-fn release_refuses_tag_version_drift_and_builds_the_lockfile() {
-    assert!(RELEASE_WORKFLOW.contains("Verify tag matches workspace version"));
-    assert!(RELEASE_WORKFLOW.contains("expected_tag=\"v${workspace_version}\""));
-    assert!(RELEASE_WORKFLOW.contains("[ \"$GITHUB_REF_NAME\" != \"$expected_tag\" ]"));
-    assert!(RELEASE_WORKFLOW.contains("cargo build --locked --release --bin vela"));
-    assert!(!RELEASE_WORKFLOW.contains("cargo build --release --bin vela"));
 }
 
 #[test]

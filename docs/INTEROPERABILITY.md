@@ -1,6 +1,6 @@
 # Interoperability and the narrow waist
 
-Status: released contracts and testing projections, 2026-07-14.
+Status: prelaunch `0.800` candidate boundary, 2026-07-15.
 
 Vela interoperates by preserving a small public boundary, not by making every
 scientific tool adopt Vela's internal model. A producer can keep its own Git
@@ -11,17 +11,17 @@ authority-bearing event without giving the producer authority to decide it.
 
 ## Contract classes
 
-| Class | Contracts | Compatibility promise |
+| Class | Contracts | Prelaunch stability intent |
 | --- | --- | --- |
-| Released | Receipt v1 JSON and canonicalization, canonical event JSON and replay, content-addressed artifacts, CLI JSON documented as released | Versioned, bounded, conformance-tested. Unknown namespaced Receipt v1 extensions survive import and export. |
-| Testing | Decision Brief, `next` task contract, packet decision view | Useful and covered by fixtures, but may change before evidence from two independent producers and two independent consumers. |
+| Candidate | Receipt v1 JSON and canonicalization, canonical event JSON and replay, content-addressed artifacts, documented CLI JSON | Versioned, bounded, and conformance-tested for `0.800`. Unknown namespaced Receipt v1 extensions survive parsing and canonical re-emission. |
+| Experimental | Decision Brief, `next` task contract, packet decision view | Useful and covered by fixtures, but may change before evidence from independent producers and consumers. |
 | Internal | Work sessions, transaction journals, adapter result JSON, caches, Rust modules | Replaceable implementation detail. Producers must not author or depend on it. |
 
 The packet file `decisions/decision-view.json` is a derived offline view. It
 embeds the exact signed decision event or policy certificate and points back to
-`events/events.json`. The canonical event remains authority. Older events that
-predate decision-root binding report `unavailable_legacy_event`; export does not
-invent a root or rewrite history.
+`events/events.json`. The canonical event remains authority. When binding
+evidence is unavailable, export reports that absence instead of inventing a
+root or rewriting history.
 
 ## Producer contract
 
@@ -37,14 +37,12 @@ complete Receipt v1. Vela intentionally does not define a second generic
 verifier-result schema. An adapter may not mutate accepted events, proposals,
 publication, policy, or work-session state directly.
 
-The default conformance fixture adds an unknown
-`x:foreign-receipt-conformance` object to a current-valid receipt, lands it
-pending through the real service, reads the durable exported receipt, and
-re-imports it into a second clean frontier. Both imports must preserve the same
-canonical receipt root and every unknown extension byte.
+The protocol test adds rich unknown namespaced objects to a valid receipt and
+requires lossless parse, canonical re-emission, and a body root that binds the
+extensions:
 
 ```bash
-python3 scripts/cross_impl_conformance.py
+cargo test -p vela-protocol rich_unknown_extensions_round_trip_losslessly_and_bind_root
 ```
 
 ## Portable transport and offline use
@@ -61,18 +59,22 @@ vela frontier materialize offline-frontier
 vela reproduce offline-frontier
 ```
 
-The tested procedure, including incremental bundles and failure on missing
-prerequisites, is in [EXIT_AND_EXPORT_DRILL.md](EXIT_AND_EXPORT_DRILL.md).
+The manual portability checklist, including incremental bundles and failure on
+missing prerequisites, is in
+[EXIT_AND_EXPORT_DRILL.md](EXIT_AND_EXPORT_DRILL.md).
 
-## Existing adapters
+## Boundary examples
 
 - External Lean is an installed Vela command. It pins source and toolchain,
   executes in a fail-closed sandbox, builds Receipt v1 privately, and uses the
   shared landing service.
-- Diderot certificates remain attributed external evidence. Issuer,
-  certificate type, disclosure, dates, faithfulness scope, caveats, and known
-  reviewer labor are preserved; a certificate is never mapped directly to
-  Vela acceptance.
+- Diderot is a very early exploratory project, not a Vela partner, robust
+  external producer, compatibility target, or architectural validation. A
+  future experiment may carry one of its certificates as attributed external
+  evidence through Receipt v1, preserving issuer, scope, caveats, and reviewer
+  labor. Diderot-specific formats and availability are not Vela conformance or
+  release dependencies, and a certificate is never mapped directly to Vela
+  acceptance.
 - RO-Crate and SWHID are export and immutable-locator conventions. They do not
   replace Vela event authority.
 - OpenResearch, OCI, CloudEvents, Hugging Face cards, graph tools, and wiki

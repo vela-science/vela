@@ -12,8 +12,8 @@
 
 pub const NEXT: &str = "\
 EXAMPLES
-  vela next examples/sidon-sets        ranked open targets, payload pre-loaded
-  vela next examples/sidon-sets --json the agent contract
+  vela next .        ranked open targets, payload pre-loaded
+  vela next . --json the agent contract
 
 SEE ALSO
   vela work   claim one of these targets";
@@ -43,20 +43,12 @@ or invalid input leaves it available for repair.
 SEE ALSO
   vela sign   decide what the policy deferred to you";
 
-pub const SUBMIT: &str = "\
-EXAMPLES
-  vela submit witness.json --frontier examples/sidon-sets
-  vela submit witness.json --dry-run           verify + preview, write nothing
-
-The one-step producer path: verify, land, bind, drive the exact lane.";
-
 pub const SIGN: &str = "\
 EXAMPLES
   vela sign                       decide one frontier's pending proposals
   vela sign vpr_8b49… --json      render root + observation time; read no key
   vela sign vpr_8b49… --yes --confirm-root sha256:… --confirm-at 2026-07-14T12:00:00Z
                                   accept only that exact rendered set
-  vela sign --batch fidelity.json separate fidelity-attestation lane
   vela sign --reset               discard a saved session and start clean
 
 In the interactive session: a accept · r reject · s skip. Vela then builds
@@ -71,16 +63,16 @@ The echoed time is valid for 15 minutes (with 60 seconds of future clock skew);
 after that, render a fresh preview.
 
 SEE ALSO
-  vela proposals accept · reject   the store-level plumbing sign drives";
+  vela proposals preview · show    inspect pending proposal bytes";
 
 pub const STATUS: &str = "\
 EXAMPLES
-  vela status examples/sidon-sets        what awaits, what is live
-  vela status examples/sidon-sets --json the machine view";
+  vela status .        what awaits, what is live
+  vela status . --json the machine view";
 
 pub const LOG: &str = "\
 EXAMPLES
-  vela log examples/sidon-sets   the accepted-event history, newest first";
+  vela log .   the accepted-event history, newest first";
 
 pub const DIFF: &str = "\
 EXAMPLES
@@ -89,12 +81,12 @@ EXAMPLES
 
 pub const CHECK: &str = "\
 EXAMPLES
-  vela check examples/sidon-sets           replay-verify the frontier
-  vela check examples/sidon-sets --strict  every signal is fatal";
+  vela check .           replay-verify the frontier
+  vela check . --strict  every signal is fatal";
 
 pub const REPRODUCE: &str = "\
 EXAMPLES
-  vela reproduce examples/sidon-sets   re-verify every witness from scratch
+  vela reproduce examples/sidon-a309370   re-verify every witness from scratch
 
 No trust required: the frozen verifiers re-derive each stored witness.";
 
@@ -118,7 +110,7 @@ EXAMPLES
 
 pub const GATE: &str = "\
 EXAMPLES
-  vela gate examples/sidon-sets   the one bar: check replay-verified AND
+  vela gate .   the one bar: check replay-verified AND
                                   reproduce all witnesses green";
 
 pub const CREDIT: &str = "\
@@ -137,8 +129,8 @@ EXAMPLES
 
 pub const SERVE: &str = "\
 EXAMPLES
-  vela serve examples/sidon-sets          MCP over stdio for an agent
-  vela serve examples/sidon-sets --http   the same dispatcher over HTTP";
+  vela serve .          MCP over stdio for an agent
+  vela serve . --http   the same dispatcher over HTTP";
 
 pub const CONFIG: &str = "\
 EXAMPLES
@@ -151,23 +143,22 @@ Layered: flag > VELA_* env > frontier .vela/config.toml > user ~/.vela/config.to
 
 pub const ID: &str = "\
 EXAMPLES
-  vela id create        one-time: generate a key, remember actor + hub
+  vela id create        one-time: generate a key and remember the actor
   vela id show          the current identity
   vela id pin-binary    pin this binary's hash (ceremonies verify it first)";
 
 pub const ACTOR: &str = "\
 EXAMPLES
-  vela actor list --frontier .            registered actors on this frontier
-  vela actor add vib_… --frontier .       vouch a self-minted binding (your key)";
+  vela actor list .              registered actors on this frontier
+  vela actor add .               bootstrap an empty registry from `vela id`";
 
 pub const FRONTIER: &str = "\
 EXAMPLES
-  vela frontier materialize examples/sidon-sets         rebuild derived views
-  vela frontier materialize examples/sidon-sets --json";
+  vela frontier materialize .         rebuild derived views
+  vela frontier materialize . --json";
 
 pub const HUB: &str = "\
 EXAMPLES
-  vela hub register-git <vfr> <git-url>   register a frontier's canonical repo
   vela hub witness-check <vfr>            do the mirrors agree on the bytes?";
 
 pub const PUBLICATION: &str = "\
@@ -181,35 +172,30 @@ signs or changes scientific authority.";
 
 pub const PROPOSALS: &str = "\
 EXAMPLES
-  vela proposals accept . vpr_8b49… --reason \"supported\" --json
-  vela proposals accept . vpr_8b49… --reason \"supported\" --yes --confirm-root sha256:… --confirm-at 2026-07-14T12:00:00Z
-  vela proposals reject . vpr_ed84… --reason \"superseded\" --yes --confirm-root sha256:… --confirm-at 2026-07-14T12:00:00Z
-  vela proposals import . pending.json     import pending records only
+  vela proposals list . --status pending_review --json
+  vela proposals show . vpr_8b49… --json
+  vela proposals preview . vpr_8b49… --json
+  vela proposals export . vpr_8b49… --out pending.json
 
-An interactive terminal renders the exact semantic set and asks once.
-Scripted and JSON use first preview key-free, then require --yes plus the exact
---confirm-root and --confirm-at pair within the 15-minute review window.
-Prefer `vela sign` for the resumable proposal ceremony. Import never trusts
-decision status fields; decided records
-need a separately verified signed-authority/event importer.";
+Proposal commands inspect or export records; they never write frontier state
+or decide. Land external work as Receipt v1. Use `vela sign` for the one
+resumable human Decision Plan ceremony.";
 
 pub const FINDING: &str = "\
 EXAMPLES
-  vela finding add . --assertion \"…\" --author \"A. Researcher\"
-                                                propose a new finding
-  vela finding show . vf_6d4a…                 read one finding
-  vela finding note . vf_6d4a… --text \"…\" --author agent:notes
-                                                propose an annotation
+  vela finding show . vf_6d4a…     read one accepted finding
+  vela land --claim \"…\" --artifact result.json:witness --as agent:demo
+                                    submit new work as Receipt v1
 
-Finding mutations create pending proposals. The legacy --apply flag is kept
-only for parser compatibility and is always refused; humans decide with
-`vela sign`.";
+Finding is read-only. Receipt v1 plus `vela land` is the only producer write
+path; policy routes it, and deferred work reaches the normal `vela sign` queue.";
 
 pub const ARTIFACT: &str = "\
 EXAMPLES
   vela artifact retract . va_417333a3e62df44a --reason \"legacy unpinned pointer\" --as agent:cleanup
 
-Retraction is draft-only here. `vela sign` is the human decision.";
+This is the sole direct draft-retirement exception. It creates only a pending
+proposal and never an accepted event; `vela sign` is the human decision.";
 
 pub const POLICY: &str = "\
 EXAMPLES
@@ -223,7 +209,9 @@ to `vela sign`. `--json` requires `--yes`.";
 
 pub const FOUNDRY: &str = "\
 EXAMPLES
-  vela foundry run --kind sidon --n 7 --seeds 20   search → frozen-verify
+  vela foundry campaign search sidon --n 7 --restarts 200 --json
+  vela foundry campaign run sidon --n 7 --frontier .  write witness + activity only
+  vela next . --json                              enter the shared work/land loop
   vela foundry lean-targets --lean-dir ./lean      surface tractable gaps";
 
 pub const AGENTS: &str = "\
@@ -233,4 +221,4 @@ EXAMPLES
 
 pub const CI: &str = "\
 EXAMPLES
-  vela ci verdict --frontier examples/sidon-sets   is the claimed beat real?";
+  vela ci verdict --frontier .   is the claimed beat real?";

@@ -1,6 +1,6 @@
 {
   "schema": "vela.decision-binding.conformance.v1",
-  "description": "One deterministic production-built cross-implementation vector for the private Decision Plan root and the additive acceptance-v1 signing input. The plan is not a public object or authority source; the human-signed events remain authoritative.",
+  "description": "One deterministic production-built cross-implementation vector for the private Decision Plan root. The plan is not a public object or authority source; the human-signed events remain authoritative.",
   "decision_plan": {
     "domain_prefix": "vela.decision-plan.internal.v1\u0000",
     "preimage": {
@@ -96,35 +96,5 @@
     "canonical": "{\"consumed_fact_roots\":[{\"downstream_impact_root\":\"sha256:aef2415ca6a561e76ded3b67182027609e59a7247055c79c26b20688f3e8172f\",\"engine_gate_root\":\"sha256:74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b\",\"evidence_availability\":\"missing\",\"evidence_or_reference_root\":\"sha256:fd2b38454df8ea69a38e131527f3475f8b9423c2ab127172013f5392a69dd7b1\",\"policy_input_root\":\"sha256:640c6d5b654614af0e29ab58154ff5adb093d732761ba60f040203af914cd92f\",\"policy_result_root\":\"sha256:f358bfab9a047e279c8fde76f29cf9917630029c5a5abf289f0e5c78c7fbc1a5\",\"proposal_id\":\"vpr_588b29cea672cbd8\",\"proposal_root\":\"sha256:0d3b29af36b3a1aa37ac1096c14decdc3baeb651aac76f94035423fc089e3588\",\"receipt_observation_root\":\"sha256:60e90c4989dd8b127e019e4dffb34a197aba2c4c30c3d0ea469f6aebb5dbfc21\",\"receipt_root\":null,\"reviewer_authority_root\":\"sha256:d4e7c4ebc45c4933e0cadb1f02a4852ca5ca78c05ac6a9dac02ed158acfa221d\",\"semantic_effect_root\":\"sha256:51c271b3e4582590473586574da787626f04b5abd9e3d9c40c766a6ff79a41a1\",\"verifier_snapshot_root\":\"sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945\"}],\"decision_preimage_version\":\"vela.decision-plan.internal.v1\",\"expected_event_log_root\":\"sha256:6dbec21f05ea2856be98545f49793b1ae83e3501d5c09e01f016ffdbe90cf7f5\",\"frontier_id\":\"vfr_08efd1e637a7b82a\",\"ordered_answers\":[{\"action\":\"accept\",\"proposal_id\":\"vpr_588b29cea672cbd8\",\"proposal_root\":\"sha256:0d3b29af36b3a1aa37ac1096c14decdc3baeb651aac76f94035423fc089e3588\",\"reason\":\"Scope and evidence checked\"}],\"policy_input_root\":\"sha256:cb0a5dcd95bc5418a2910b4aac00a026e02f1940ba03fb829d09827d531659a1\",\"semantic_event_cores\":[{\"answer_ordinal\":0,\"event\":{\"actor\":{\"id\":\"reviewer:test\",\"type\":\"human\"},\"after_hash\":\"sha256:81a6b59632c3fa0899781d54e12a5bfa751f748f1d7f87e213917b1b74fc4f22\",\"before_hash\":\"sha256:3d175ca6c86235414a399a67662a5c51652fbfc0b174551b04d26ba35966c622\",\"caveats\":[],\"id\":\"\",\"kind\":\"finding.noted\",\"payload\":{\"annotation_id\":\"ann_e52acac78011d454\",\"proposal_id\":\"vpr_588b29cea672cbd8\",\"text\":\"The observation applies only under the fixture conditions.\"},\"reason\":\"The observation applies only under the fixture conditions.\",\"schema\":\"vela.event.v0.1\",\"signature\":null,\"target\":{\"id\":\"vf_1209f6b55d0cc13b\",\"type\":\"finding\"},\"timestamp\":\"2026-07-14T12:00:00Z\"},\"event_ordinal\":0},{\"answer_ordinal\":0,\"event\":{\"actor\":{\"id\":\"reviewer:test\",\"type\":\"human\"},\"after_hash\":\"sha256:null\",\"before_hash\":\"sha256:null\",\"caveats\":[],\"id\":\"\",\"kind\":\"review.accepted\",\"payload\":{\"applied_event_id\":\"vev_9a7f8d90d2cf77a5\",\"proposal_id\":\"vpr_588b29cea672cbd8\",\"proposal_kind\":\"finding.note\",\"verdict\":\"accepted\"},\"reason\":\"Scope and evidence checked\",\"schema\":\"vela.event.v0.1\",\"signature\":null,\"target\":{\"id\":\"vpr_588b29cea672cbd8\",\"type\":\"proposal\"},\"timestamp\":\"2026-07-14T12:00:00Z\"},\"event_ordinal\":1}]}",
     "canonical_bytes": 2798,
     "decision_root": "sha256:d7328f2a0f4a70625b37d6dc79fc019bace26a48a7760fe19a90a3f093c46247"
-  },
-  "acceptance_v1": {
-    "payload_type": "application/vnd.vela.accept+json",
-    "decision_root": "sha256:d7328f2a0f4a70625b37d6dc79fc019bace26a48a7760fe19a90a3f093c46247",
-    "inputs": {
-      "vfr_id": "vfr_08efd1e637a7b82a",
-      "proposal_id": "vpr_588b29cea672cbd8",
-      "reviewer_id": "reviewer:test",
-      "reason": "Scope and evidence checked",
-      "parent_event_log_hash": "6dbec21f05ea2856be98545f49793b1ae83e3501d5c09e01f016ffdbe90cf7f5"
-    },
-    "canonical_body": "{\"action\":\"proposal.accept\",\"decision_preimage_version\":\"vela.acceptance-decision.v1\",\"decision_root\":\"sha256:d7328f2a0f4a70625b37d6dc79fc019bace26a48a7760fe19a90a3f093c46247\",\"parent_event_log_hash\":\"6dbec21f05ea2856be98545f49793b1ae83e3501d5c09e01f016ffdbe90cf7f5\",\"proposal_id\":\"vpr_588b29cea672cbd8\",\"reason\":\"Scope and evidence checked\",\"reviewer_id\":\"reviewer:test\",\"vfr_id\":\"vfr_08efd1e637a7b82a\"}",
-    "body_bytes": 404,
-    "pae": "DSSEv1 32 application/vnd.vela.accept+json 404 {\"action\":\"proposal.accept\",\"decision_preimage_version\":\"vela.acceptance-decision.v1\",\"decision_root\":\"sha256:d7328f2a0f4a70625b37d6dc79fc019bace26a48a7760fe19a90a3f093c46247\",\"parent_event_log_hash\":\"6dbec21f05ea2856be98545f49793b1ae83e3501d5c09e01f016ffdbe90cf7f5\",\"proposal_id\":\"vpr_588b29cea672cbd8\",\"reason\":\"Scope and evidence checked\",\"reviewer_id\":\"reviewer:test\",\"vfr_id\":\"vfr_08efd1e637a7b82a\"}",
-    "pae_bytes": 451,
-    "sha256": "bcbfb996dfe18360e8d1b7d878ef2cb0bc085c991aeabb30f98898e262346248"
-  },
-  "legacy_guards": {
-    "canonical_hashing_file_sha256": "a18aa13d0be3525e0629054f87676911f7191443a5c679f4cd8c9c510399de25",
-    "accept_v0": {
-      "inputs": {
-        "vfr_id": "vfr_08efd1e637a7b82a",
-        "proposal_id": "vpr_588b29cea672cbd8",
-        "reviewer_id": "reviewer:test",
-        "reason": "Scope and evidence checked",
-        "parent_event_log_hash": "6dbec21f05ea2856be98545f49793b1ae83e3501d5c09e01f016ffdbe90cf7f5"
-      },
-      "canonical_body": "{\"action\":\"proposal.accept\",\"parent_event_log_hash\":\"6dbec21f05ea2856be98545f49793b1ae83e3501d5c09e01f016ffdbe90cf7f5\",\"proposal_id\":\"vpr_588b29cea672cbd8\",\"reason\":\"Scope and evidence checked\",\"reviewer_id\":\"reviewer:test\",\"vfr_id\":\"vfr_08efd1e637a7b82a\"}",
-      "sha256": "1e1202d01309c0fc4ed1d28c5259c9af29b220ca5df45cf0848e9a5faf91cc51"
-    }
   }
 }

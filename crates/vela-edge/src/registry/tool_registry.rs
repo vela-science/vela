@@ -1,8 +1,8 @@
 //! Tool registry — tools defined as data, separate from execution.
 //! Borrowed from Codex (MIT) tool-as-data pattern.
 //!
-//! The surface is exactly nine tools. Each one owns a concept (orientation,
-//! one finding, search, the graph, verification, drafting, agent work, agent
+//! The surface is exactly eight tools. Each one owns a concept (orientation,
+//! one finding, search, the graph, verification, agent work, agent
 //! objects, external services); the dispatch in
 //! `vela-cli/src/server/serve.rs` maps each onto the underlying analysis
 //! functions. Schemas are strict: closed sets are enums, actor ids carry
@@ -204,7 +204,7 @@ pub fn all_tools() -> Vec<ToolDefinition> {
              git ingestor enforces); mode=witness re-verifies every stored \
              witnesses/*.witness.json from scratch with the frozen exact verifiers. Read-only \
              but path-bound, so it is not served on hosted endpoints. Example: \
-             {\"frontier_path\": \"examples/sidon-sets\", \"mode\": \"witness\"}.",
+             {\"frontier_path\": \".\", \"mode\": \"witness\"}.",
             json!({
                 "type": "object",
                 "additionalProperties": false,
@@ -227,90 +227,6 @@ pub fn all_tools() -> Vec<ToolDefinition> {
             vec!["Read-only: replays and verifies, writes nothing."],
         ),
         tool(
-            "propose",
-            "Draft a signed proposal against a finding; it lands pending_review, and only a \
-             key-custody human accept changes state. `kind` selects the shape: review \
-             (requires status), note (requires text; optional provenance), apply_note (a \
-             backward-compatible note alias that also remains pending), \
-             revise_confidence (requires new_score in [0,1]), retract. Requires a registered \
-             actor_id and an Ed25519 signature over the canonical proposal preimage. Human \
-             finalization is not exposed through MCP; use the terminal `vela sign` ceremony. \
-             Example: {\"kind\": \"note\", \"target\": \
-             \"vf_3f9a\", \"actor_id\": \"agent:x\", \"text\": \"…\", \"reason\": \"…\", \
-             \"signature\": \"<hex>\"}.",
-            json!({
-                "type": "object",
-                "additionalProperties": false,
-                "required": ["kind", "target", "actor_id", "reason", "signature"],
-                "properties": {
-                    "kind": {
-                        "type": "string",
-                        "enum": ["review", "note", "revise_confidence", "retract", "apply_note"],
-                        "description": "Proposal shape. review→finding.review, note/apply_note→finding.note, revise_confidence→finding.confidence_revise, retract→finding.retract."
-                    },
-                    "target": {
-                        "type": "string",
-                        "minLength": 3,
-                        "pattern": "^vf_",
-                        "description": "The vf_ finding the proposal targets."
-                    },
-                    "actor_id": {
-                        "type": "string",
-                        "minLength": 3,
-                        "pattern": "^[A-Za-z][A-Za-z0-9_.-]*:[A-Za-z0-9_.:-]+$",
-                        "description": "Registered actor id (e.g. agent:swarm-1, reviewer:will-blair). Must exist in frontier.actors."
-                    },
-                    "reason": {
-                        "type": "string",
-                        "minLength": 1,
-                        "description": "Why this proposal exists; recorded on the proposal."
-                    },
-                    "signature": {
-                        "type": "string",
-                        "minLength": 1,
-                        "description": "Hex Ed25519 signature by actor_id over the canonical proposal preimage."
-                    },
-                    "created_at": {
-                        "type": "string",
-                        "minLength": 1,
-                        "description": "RFC-3339 timestamp the signature was computed over (defaults to now; must match the signed preimage)."
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["accepted", "approved", "contested", "needs_revision", "rejected"],
-                        "description": "Review verdict. Required when kind=review."
-                    },
-                    "text": {
-                        "type": "string",
-                        "minLength": 1,
-                        "description": "Note body. Required when kind=note or kind=apply_note."
-                    },
-                    "new_score": {
-                        "type": "number",
-                        "minimum": 0.0,
-                        "maximum": 1.0,
-                        "description": "Revised confidence. Required when kind=revise_confidence."
-                    },
-                    "provenance": {
-                        "type": "object",
-                        "description": "Optional structured provenance for notes; at least one of doi/pmid/title when present.",
-                        "properties": {
-                            "doi": {"type": "string", "description": "DOI of the grounding source."},
-                            "pmid": {"type": "string", "description": "PubMed id of the grounding source."},
-                            "title": {"type": "string", "description": "Title of the grounding source."},
-                            "span": {"type": "string", "description": "The exact span the note rests on."}
-                        }
-                    }
-                }
-            }),
-            PermissionLevel::Write,
-            true,
-            vec![
-                "actor_id must be registered in frontier.actors (`vela actor add`) before writes verify.",
-                "Every proposal, including apply_note, stays pending_review until a key-custody human accepts; a proposal signature never doubles as a decision signature.",
-            ],
-        ),
-        tool(
             "work",
             "The compounding loop against a local frontier checkout. action=claim leases an \
              open target so other agents route around it, signed with the agent's auto-minted \
@@ -318,8 +234,7 @@ pub fn all_tools() -> Vec<ToolDefinition> {
              vela.receipt.v1 is recorded (artifacts hashed, head pinned), proposed, and routed \
              by the frontier's signed policy (Permit admits mechanically, Defer parks it in \
              the human's sign queue); action=drop commits a signed same-owner zero-TTL \
-             lease update and then removes private scratch; action=deposit banks a failed or partial attempt so the channel map \
-             compounds. Nothing here is a human decision — a landing either rides a policy a \
+             lease update and then removes private scratch. Nothing here is a human decision — a landing either rides a policy a \
              human already signed, or waits for their key. Example: {\"frontier_path\": \
              \".\", \"action\": \"claim\", \"obligation_id\": \"vf_3f9a\", \"agent_actor\": \
              \"agent:swarm-1\"}.",
@@ -335,8 +250,8 @@ pub fn all_tools() -> Vec<ToolDefinition> {
                     },
                     "action": {
                         "type": "string",
-                        "enum": ["claim", "land", "drop", "deposit"],
-                        "description": "claim = lease a target; land = route a vela.receipt.v1 by the signed policy; drop = release a session; deposit = bank a failed/partial attempt."
+                        "enum": ["claim", "land", "drop"],
+                        "description": "claim = lease a target; land = route a vela.receipt.v1 by the signed policy; drop = release a session."
                     },
                     "obligation_id": {
                         "type": "string",
@@ -347,7 +262,7 @@ pub fn all_tools() -> Vec<ToolDefinition> {
                         "type": "string",
                         "minLength": 4,
                         "pattern": "^(agent:|ci:)",
-                        "description": "claim/land/drop/deposit: the agent identity doing the work (agent:<name> or ci:<name>); drop is allowed only for the exact lease owner."
+                        "description": "claim/land/drop: the agent identity doing the work (agent:<name> or ci:<name>); drop is allowed only for the exact lease owner."
                     },
                     "ttl_seconds": {
                         "type": "integer",
@@ -363,71 +278,6 @@ pub fn all_tools() -> Vec<ToolDefinition> {
                         "type": "string",
                         "minLength": 2,
                         "description": "land: raw vela.receipt.v1 JSON text. Pass the receipt file's text without parsing it into an object so Vela can reject duplicate object names before normalization."
-                    },
-                    "problem": {
-                        "type": "integer",
-                        "minimum": 0,
-                        "description": "deposit: the problem number the attempt targeted."
-                    },
-                    "kind": {
-                        "type": "string",
-                        "description": "deposit: attempt kind."
-                    },
-                    "claim": {
-                        "type": "string",
-                        "description": "deposit: what the attempt claims (often a negative/partial result)."
-                    },
-                    "detail": {
-                        "type": "string",
-                        "description": "deposit: how the attempt proceeded."
-                    },
-                    "claimed_status": {
-                        "type": "string",
-                        "description": "deposit: the attempt's claimed outcome status."
-                    },
-                    "insight": {
-                        "type": "string",
-                        "description": "deposit: the transferable insight (what the next attempt should know)."
-                    },
-                    "base_frontier_root": {
-                        "type": "string",
-                        "description": "deposit: the frontier head the attempt started from."
-                    },
-                    "target_obligation_id": {
-                        "type": "string",
-                        "description": "deposit: the obligation the attempt targeted."
-                    },
-                    "statement_variant_id": {
-                        "type": "string",
-                        "description": "deposit: the statement variant attacked."
-                    },
-                    "method_families": {
-                        "type": "array",
-                        "description": "deposit: method families tried.",
-                        "items": {"type": "string", "description": "A method-family label."}
-                    },
-                    "remaining_obligations": {
-                        "type": "array",
-                        "description": "deposit: what remains open after the attempt.",
-                        "items": {"type": "string", "description": "An open obligation."}
-                    },
-                    "named_obstructions": {
-                        "type": "array",
-                        "description": "deposit: the walls the attempt hit, named.",
-                        "items": {"type": "string", "description": "An obstruction."}
-                    },
-                    "verifier_attachments": {
-                        "type": "array",
-                        "description": "deposit: verifier evidence ids backing the attempt.",
-                        "items": {"type": "string", "description": "An attachment id."}
-                    },
-                    "producer": {
-                        "type": "object",
-                        "description": "deposit: producer provenance {system, version, config_digest}."
-                    },
-                    "frontier": {
-                        "type": "string",
-                        "description": "deposit: frontier label override (defaults to the repo's vfr_ id)."
                     }
                 }
             }),
@@ -545,28 +395,23 @@ pub fn tool_caveats(name: &str) -> Vec<String> {
 }
 
 /// MCP exposure profile (memo §9.1). A served frontier scopes which tools an
-/// agent can see and call. `MCP exposes tools; Vela governs state` — even the
-/// deprecated maintainer alias only drafts proposals. Human finalization is
-/// available only through the terminal `vela sign` ceremony.
+/// agent can see and call. `MCP exposes tools; Vela governs state`. Human
+/// finalization is available only through the terminal `vela sign` ceremony.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum McpProfile {
     /// Inspect state, graph, provenance, tasks, schemas. The default.
     ReadOnly,
-    /// Read + non-finalizing writes: runs, observations, draft findings,
-    /// draft submissions (`propose` and `work`).
+    /// Read + the task-first Receipt landing workflow (`work`).
     Draft,
-    /// Deprecated compatibility alias for `Draft`; it grants no extra tools.
-    Maintainer,
 }
 
 impl McpProfile {
     pub fn parse(s: &str) -> Result<Self, String> {
-        match s.trim().to_ascii_lowercase().replace('_', "-").as_str() {
-            "read-only" | "readonly" | "read" => Ok(Self::ReadOnly),
+        match s.trim().to_ascii_lowercase().as_str() {
+            "read-only" => Ok(Self::ReadOnly),
             "draft" => Ok(Self::Draft),
-            "maintainer" => Ok(Self::Maintainer),
             other => Err(format!(
-                "unknown MCP profile `{other}`; valid: read-only (default), draft, maintainer"
+                "unknown MCP profile `{other}`; valid: read-only (default), draft"
             )),
         }
     }
@@ -575,31 +420,16 @@ impl McpProfile {
         match self {
             Self::ReadOnly => "read-only",
             Self::Draft => "draft",
-            Self::Maintainer => "maintainer",
-        }
-    }
-
-    /// A warning callers should surface when accepting a legacy profile name.
-    pub fn deprecation_warning(self) -> Option<&'static str> {
-        match self {
-            Self::Maintainer => Some(
-                "MCP profile `maintainer` is deprecated and is now an alias for `draft`; \
-                 human finalization is available only through terminal `vela sign`",
-            ),
-            Self::ReadOnly | Self::Draft => None,
         }
     }
 
     /// Whether this profile may expose AND execute `tool`. Read-only admits
     /// only non-mutating reads. Draft admits non-dangerous drafting writes.
-    /// Maintainer is a deprecated alias with exactly the same capabilities as
-    /// Draft. No MCP profile exposes human finalization.
+    /// No MCP profile exposes human finalization.
     pub fn allows(self, tool: &ToolDefinition) -> bool {
         match self {
             Self::ReadOnly => matches!(tool.permission_level, PermissionLevel::ReadOnly),
-            Self::Draft | Self::Maintainer => {
-                !matches!(tool.permission_level, PermissionLevel::Dangerous)
-            }
+            Self::Draft => !matches!(tool.permission_level, PermissionLevel::Dangerous),
         }
     }
 }
@@ -750,27 +580,23 @@ fn tool(
 mod profile_tests {
     use super::*;
 
-    /// The whole MCP surface, by contract: exactly these nine names.
-    const THE_NINE: [&str; 9] = [
-        "orient", "finding", "search", "graph", "verify", "propose", "work", "objects", "external",
+    /// The whole MCP surface, by contract: exactly these eight names.
+    const THE_EIGHT: [&str; 8] = [
+        "orient", "finding", "search", "graph", "verify", "work", "objects", "external",
     ];
-    const REMOVED_FINALIZERS: [&str; 1] = ["decide"];
+    const REMOVED_WRITERS: [&str; 2] = ["decide", "propose"];
 
     #[test]
-    fn the_surface_is_exactly_nine_and_finalization_is_absent() {
+    fn the_surface_is_exactly_eight_and_finalization_is_absent() {
         let names: Vec<String> = all_tools().into_iter().map(|t| t.name).collect();
-        assert_eq!(names, THE_NINE.to_vec(), "the nine-tool contract");
+        assert_eq!(names, THE_EIGHT.to_vec(), "the eight-tool contract");
 
-        for removed in REMOVED_FINALIZERS {
+        for removed in REMOVED_WRITERS {
             assert!(
                 get_tool(removed).is_none(),
                 "{removed} must not be registered"
             );
-            for profile in [
-                McpProfile::ReadOnly,
-                McpProfile::Draft,
-                McpProfile::Maintainer,
-            ] {
+            for profile in [McpProfile::ReadOnly, McpProfile::Draft] {
                 assert!(
                     !tools_for_profile(profile)
                         .iter()
@@ -795,16 +621,12 @@ mod profile_tests {
     fn profiles_nest_and_readonly_excludes_writes() {
         let ro = tools_for_profile(McpProfile::ReadOnly);
         let draft = tools_for_profile(McpProfile::Draft);
-        let maint = tools_for_profile(McpProfile::Maintainer);
-        // read-only is a strict subset; maintainer is only a deprecated
-        // spelling of draft and grants no additional capability.
+        // read-only is a strict subset of the nonfinalizing draft surface.
         assert!(
             ro.len() < draft.len(),
             "read-only must be a strict subset of draft"
         );
         let draft_names: Vec<&str> = draft.iter().map(|t| t.name.as_str()).collect();
-        let maint_names: Vec<&str> = maint.iter().map(|t| t.name.as_str()).collect();
-        assert_eq!(maint_names, draft_names, "maintainer must alias draft");
         // read-only = the seven inspection tools, and no mutating tool.
         let ro_names: Vec<&str> = ro.iter().map(|t| t.name.as_str()).collect();
         assert_eq!(
@@ -818,10 +640,13 @@ mod profile_tests {
             ro.iter().all(|t| !t.mutating),
             "read-only must expose no mutating tool"
         );
-        // draft adds the drafting writes, never the finalizing tier.
-        assert!(
-            draft_names.contains(&"propose") && draft_names.contains(&"work"),
-            "draft exposes the drafting writes"
+        // draft adds the task-first work tool, never a parallel proposal or
+        // finalization tier.
+        assert_eq!(
+            draft_names,
+            vec![
+                "orient", "finding", "search", "graph", "verify", "work", "objects", "external"
+            ]
         );
         assert_eq!(
             draft
@@ -829,8 +654,8 @@ mod profile_tests {
                 .filter(|tool| tool.mutating)
                 .map(|tool| tool.name.as_str())
                 .collect::<Vec<_>>(),
-            vec!["propose", "work"],
-            "MCP writes are limited to non-finalizing draft/work tools"
+            vec!["work"],
+            "MCP writes are limited to the task-first work tool"
         );
     }
 
@@ -887,27 +712,48 @@ mod profile_tests {
     }
 
     #[test]
+    fn work_actions_are_exactly_task_first() {
+        let work = get_tool("work").unwrap();
+        assert_eq!(
+            work.parameters["properties"]["action"]["enum"],
+            json!(["claim", "land", "drop"])
+        );
+        let properties = work.parameters["properties"].as_object().unwrap();
+        for retired in [
+            "problem",
+            "kind",
+            "claim",
+            "detail",
+            "claimed_status",
+            "insight",
+            "base_frontier_root",
+            "target_obligation_id",
+            "statement_variant_id",
+            "method_families",
+            "remaining_obligations",
+            "named_obstructions",
+            "verifier_attachments",
+            "producer",
+            "frontier",
+        ] {
+            assert!(
+                !properties.contains_key(retired),
+                "retired attempt-deposit field `{retired}` remains in MCP work"
+            );
+        }
+    }
+
+    #[test]
     fn profile_parse_roundtrips() {
         assert_eq!(
             McpProfile::parse("read-only").unwrap(),
             McpProfile::ReadOnly
         );
-        assert_eq!(
-            McpProfile::parse("read_only").unwrap(),
-            McpProfile::ReadOnly
-        );
+        assert!(McpProfile::parse("read_only").is_err());
+        assert!(McpProfile::parse("read").is_err());
+        assert!(McpProfile::parse("readonly").is_err());
         assert_eq!(McpProfile::parse("draft").unwrap(), McpProfile::Draft);
-        assert_eq!(
-            McpProfile::parse("maintainer").unwrap(),
-            McpProfile::Maintainer
-        );
-        assert!(McpProfile::Draft.deprecation_warning().is_none());
-        assert!(
-            McpProfile::Maintainer
-                .deprecation_warning()
-                .unwrap()
-                .contains("alias for `draft`")
-        );
+        assert!(McpProfile::parse("maintainer").is_err());
         assert!(McpProfile::parse("god-mode").is_err());
     }
 
@@ -933,13 +779,11 @@ mod profile_tests {
                 "{name} is frontier-scoped"
             );
         }
-        // Draft proposal writes append. Work is coarse-marked destructive
-        // because its drop action removes a private, actor-owned session.
-        for name in ["propose", "work"] {
-            let a = &by_name[name]["annotations"];
-            assert_eq!(a["readOnlyHint"], json!(false), "{name} writes");
-            assert_eq!(a["destructiveHint"], json!(name == "work"), "{name}");
-        }
+        // Work is coarse-marked destructive because its drop action removes a
+        // private, actor-owned session.
+        let work = &by_name["work"]["annotations"];
+        assert_eq!(work["readOnlyHint"], json!(false), "work writes");
+        assert_eq!(work["destructiveHint"], json!(true), "work");
         // external reaches outside the frontier.
         assert_eq!(
             by_name["external"]["annotations"]["openWorldHint"],

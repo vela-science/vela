@@ -152,16 +152,6 @@ pub(crate) fn cmd_status(path: &Path, json: bool) {
                         vela_protocol::acceptance_policy::ActivePolicyMode::Absent => {
                             json!({"mode": "shadow"})
                         }
-                        vela_protocol::acceptance_policy::ActivePolicyMode::LegacyUnboundClosed => {
-                            let legacy = snapshot.legacy_unbound.expect("legacy mode carries observation");
-                            json!({
-                                "mode": "legacy_unbound_closed",
-                                "stored_policy_id": legacy.stored_policy_id,
-                                "hardened_policy_id": legacy.hardened_policy_id,
-                                "authority": false,
-                                "next": crate::config::cli_policy::legacy_rotation_command(path, &legacy.policy),
-                            })
-                        }
                     },
                     Err(e) => json!({"mode": "BROKEN", "error": e}),
                 },
@@ -283,21 +273,6 @@ pub(crate) fn cmd_status(path: &Path, json: bool) {
                 "  policy:      {}",
                 style::warn("staged — one signature activates it")
             ),
-            vela_protocol::acceptance_policy::ActivePolicyMode::LegacyUnboundClosed => {
-                let legacy = snapshot
-                    .legacy_unbound
-                    .expect("legacy mode carries observation");
-                println!(
-                    "  policy:      {}",
-                    style::warn("legacy-unbound — audit only; lane closed")
-                );
-                println!("               stored   {}", legacy.stored_policy_id);
-                println!("               hardened {}", legacy.hardened_policy_id);
-                println!(
-                    "               replace: {}",
-                    crate::config::cli_policy::legacy_rotation_command(path, &legacy.policy)
-                );
-            }
             vela_protocol::acceptance_policy::ActivePolicyMode::Absent => {}
         },
         Err(error) => println!(

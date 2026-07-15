@@ -1,32 +1,133 @@
 //! Git ingestion: the hub as an index over git-replayed state (ADR 0001,
-//! docs/HUB.md). For each frontier whose owner registered a git remote, the
-//! ingestor fetches the repo, replays the committed `.vela/events` log with
+//! docs/HUB.md). For each repository in the operator's versioned source
+//! catalog, the ingestor fetches the repo, replays the committed `.vela/events` log with
 //! the protocol library, holds it to the one canonical strict bar
 //! (`vela_edge::verify::verify_frontier_strict`), and promotes the result
-//! through the same gate the legacy publish path used
-//! (`HubDb::promote_frontier_snapshot`).
+//! into the read projection (`HubDb::promote_frontier_snapshot`).
 //!
-//! Authority model, stated plainly: an ingested entry carries NO owner-signed
-//! manifest. Its authority is the repo's individually signed events, verified
-//! on replay — the hub derives the index; it never owns the truth. The one
-//! owner-signed act is the registration binding a vfr_id to a git remote
-//! (`GitRemoteRegistration`, verified at POST time against the effective
-//! owner key).
+//! Authority model, stated plainly: the projection carries no owner-signed
+//! publication manifest. Its authority is the repo's signed events, verified
+//! on replay — the hub derives the index; it never owns the truth. Source
+//! selection is explicit operator configuration and carries no scientific
+//! authority.
 //!
-//! Anti-replay: `signed_publish_at` for an ingested entry is the tip commit's
-//! committer timestamp, so the existing monotonic guard in
-//! `promote_frontier_snapshot` rejects a force-push that rewinds history.
+//! Anti-replay: after the first indexed commit, a new tip must be its Git
+//! descendant. A rewritten or rewound source is refused even if its timestamp
+//! is newer.
 
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use crate::db::HubDb;
+use crate::db::{HubDb, VerifiedFrontierIndex};
 use vela_protocol::events::{event_log_hash, snapshot_hash};
-use vela_protocol::registry::RegistryEntry;
 
-/// Authority mode recorded on frontiers whose index rows derive from a git
-/// remote rather than an owner-signed manifest.
+/// Authority mode recorded on frontiers whose index rows derive from a
+/// verified Git remote rather than an HTTP-delivered manifest.
 pub const AUTHORITY_GIT_INGESTED: &str = "git_ingested";
+pub const SOURCE_CATALOG_SCHEMA: &str = "vela.hub-source-catalog.v1";
+
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct GitSource {
+    pub vfr_id: String,
+    pub git_remote: String,
+    #[serde(default = "default_git_ref")]
+    pub git_ref: String,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct SourceCatalog {
+    pub schema: String,
+    pub sources: Vec<GitSource>,
+}
+
+fn default_git_ref() -> String {
+    "main".to_string()
+}
+
+/// Collapse harmless clone-URL spelling differences in the operator catalog.
+pub(crate) fn canonical_git_remote(remote: &str) -> String {
+    let mut value = remote.trim();
+    value = value.strip_suffix('/').unwrap_or(value);
+    value = value.strip_suffix(".git").unwrap_or(value);
+    value = value.strip_suffix('/').unwrap_or(value);
+    value.to_string()
+}
+
+/// Load the versioned operator source catalog. Deployments may point at a
+/// different checked-in catalog with `VELA_HUB_SOURCES_FILE`; the bundled
+/// public catalog is the default.
+pub fn load_source_catalog() -> Result<SourceCatalog, String> {
+    let raw = match std::env::var("VELA_HUB_SOURCES_FILE") {
+        Ok(path) => std::fs::read_to_string(&path)
+            .map_err(|e| format!("read VELA_HUB_SOURCES_FILE {path}: {e}"))?,
+        Err(_) => include_str!("../sources.json").to_string(),
+    };
+    parse_source_catalog(&raw)
+}
+
+fn parse_source_catalog(raw: &str) -> Result<SourceCatalog, String> {
+    let mut catalog: SourceCatalog =
+        serde_json::from_str(raw).map_err(|e| format!("parse Hub source catalog: {e}"))?;
+    if catalog.schema != SOURCE_CATALOG_SCHEMA {
+        return Err(format!(
+            "Hub source catalog schema must be {SOURCE_CATALOG_SCHEMA}, got {}",
+            catalog.schema
+        ));
+    }
+    let mut seen = std::collections::HashSet::new();
+    for source in &mut catalog.sources {
+        let frontier_suffix = source.vfr_id.strip_prefix("vfr_");
+        if !frontier_suffix.is_some_and(|suffix| {
+            suffix.len() == 16
+                && suffix
+                    .bytes()
+                    .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+        }) || !seen.insert(source.vfr_id.clone())
+        {
+            return Err(format!(
+                "Hub source catalog has invalid or duplicate frontier id {}",
+                source.vfr_id
+            ));
+        }
+        source.git_remote = canonical_git_remote(&source.git_remote);
+        let remote: axum::http::Uri = source
+            .git_remote
+            .parse()
+            .map_err(|e| format!("Hub source {} has invalid Git remote: {e}", source.vfr_id))?;
+        if remote.scheme_str() != Some("https")
+            || remote.host().is_none()
+            || remote
+                .authority()
+                .is_some_and(|authority| authority.as_str().contains('@'))
+            || remote.query().is_some()
+            || remote.path().is_empty()
+            || remote.path() == "/"
+        {
+            return Err(format!(
+                "Hub source {} must use a credential-free https Git remote without query or fragment",
+                source.vfr_id
+            ));
+        }
+        if source.git_ref.is_empty()
+            || source.git_ref.starts_with('-')
+            || source.git_ref.chars().any(char::is_whitespace)
+            || !source
+                .git_ref
+                .bytes()
+                .all(|byte| byte.is_ascii_alphanumeric() || b"._/-".contains(&byte))
+            || source.git_ref.contains("..")
+            || source.git_ref.contains("//")
+            || source.git_ref.ends_with('.')
+            || source.git_ref.ends_with('/')
+        {
+            return Err(format!(
+                "Hub source {} has invalid Git ref {:?}",
+                source.vfr_id, source.git_ref
+            ));
+        }
+    }
+    Ok(catalog)
+}
 
 pub struct GitIngestConfig {
     /// Seconds between ingest sweeps. 0 disables the loop.
@@ -85,19 +186,8 @@ pub async fn run_once(db: &HubDb, cfg: &GitIngestConfig) -> Result<usize, String
     };
     let targets = db.git_ingest_targets().await?;
     let mut ingested = 0;
-    for (vfr_id, remote, git_ref, subdir, last_commit, owner_pubkey) in targets {
-        match ingest_one(
-            db,
-            cfg,
-            &vfr_id,
-            &remote,
-            &git_ref,
-            &subdir,
-            last_commit.as_deref(),
-            &owner_pubkey,
-        )
-        .await
-        {
+    for (vfr_id, remote, git_ref, last_commit) in targets {
+        match ingest_one(db, cfg, &vfr_id, &remote, &git_ref, last_commit.as_deref()).await {
             Ok(Some(commit)) => {
                 db.record_git_ingest(&vfr_id, Some(&commit), None).await?;
                 eprintln!("git-ingest: {vfr_id} promoted at {commit}");
@@ -118,16 +208,13 @@ pub async fn run_once(db: &HubDb, cfg: &GitIngestConfig) -> Result<usize, String
 
 /// Ingest a single frontier. Returns Ok(Some(commit)) on promotion,
 /// Ok(None) when already at the tip.
-#[allow(clippy::too_many_arguments)]
 async fn ingest_one(
     db: &HubDb,
     cfg: &GitIngestConfig,
     vfr_id: &str,
     remote: &str,
     git_ref: &str,
-    subdir: &str,
     last_commit: Option<&str>,
-    owner_pubkey: &str,
 ) -> Result<Option<String>, String> {
     let dir = cfg.scratch_dir.join(vfr_id);
     fetch_repo(remote, git_ref, &dir).await?;
@@ -135,112 +222,62 @@ async fn ingest_one(
     if Some(commit.as_str()) == last_commit {
         return Ok(None);
     }
+    if let Some(previous) = last_commit
+        && !is_ancestor(&dir, previous, &commit).await?
+    {
+        return Err(format!(
+            "non-fast-forward Git update: previous indexed commit {previous} is not an ancestor of {commit}"
+        ));
+    }
     let commit_time = commit_timestamp(&dir).await?;
-
-    // A multi-frontier monorepo (vela-frontiers) registers each frontier at
-    // a signed subdirectory; a plain frontier repo replays from its root.
-    let frontier_dir = if subdir.is_empty() {
-        dir.clone()
-    } else {
-        let sub = dir.join(subdir);
-        // The clone is fetched fresh above; a subdir escaping it is a
-        // malicious registration, not a layout.
-        if !sub.starts_with(&dir) || !sub.exists() {
-            return Err(format!(
-                "registered subdir '{subdir}' not found in the repo"
-            ));
-        }
-        sub
-    };
 
     // Replay + verify off the async runtime (the protocol code is sync).
     // The strict bar is defined ONCE, in `vela_edge::verify` — the same
     // bundle any indexer must hold a frontier to.
-    let dir_cloned = frontier_dir.clone();
+    let dir_cloned = dir.clone();
     let (project, fid) =
         tokio::task::spawn_blocking(move || vela_edge::verify::verify_frontier_strict(&dir_cloned))
             .await
             .map_err(|e| format!("verify task: {e}"))??;
 
-    // The repo must BE the registered frontier: a remote that replays to a
-    // different frontier_id is a mis-registration (or a swap attack), not an
+    // The repo must BE the catalogued frontier: a remote that replays to a
+    // different frontier_id is a source error (or a swap attack), not an
     // update.
     if fid != vfr_id {
         return Err(format!(
-            "frontier_id mismatch: the repo replays to {fid}, registration is for {vfr_id}"
+            "frontier_id mismatch: the repo replays to {fid}, catalog source is for {vfr_id}"
         ));
     }
 
-    // Synthetic index entry. No manifest signature — authority_mode marks the
-    // lane, and the promoted state was verified event-by-event above. The
-    // owner fields carry the REGISTRATION's owner so the existing
-    // owner-continuity guard keeps holding across re-publishes.
-    let entry = RegistryEntry {
-        schema: "vela.registry-entry.v0.1".to_string(),
+    let owner_actor_id = project
+        .events
+        .iter()
+        .find(|event| event.kind == "frontier.created")
+        .or_else(|| project.events.first())
+        .map(|event| event.actor.id.clone())
+        .ok_or_else(|| "verified frontier has no genesis actor".to_string())?;
+    let owner_pubkey = project
+        .actors
+        .iter()
+        .find(|actor| actor.id == owner_actor_id)
+        .map(|actor| actor.public_key.clone())
+        .ok_or_else(|| format!("genesis actor {owner_actor_id} has no actor record"))?;
+
+    // Internal projection cursor. The promoted state was verified
+    // event-by-event above; no second manifest signature is created. The owner
+    // fields carry the verified genesis identity for index display.
+    let entry = VerifiedFrontierIndex {
         vfr_id: vfr_id.to_string(),
         name: project.project.name.clone(),
-        owner_actor_id: project
-            .actors
-            .iter()
-            .find(|a| a.public_key == owner_pubkey)
-            .map(|a| a.id.clone())
-            .unwrap_or_else(|| "owner:unregistered-in-frontier".to_string()),
-        owner_pubkey: owner_pubkey.to_string(),
+        owner_actor_id,
+        owner_pubkey,
         latest_snapshot_hash: snapshot_hash(&project),
         latest_event_log_hash: event_log_hash(&project.events),
-        network_locator: format!(
-            "git+{}",
-            vela_protocol::registry::canonical_git_remote(remote)
-        ),
-        signed_publish_at: commit_time,
-        signature: String::new(),
-        license: None,
-        extras_manifest_hash: None,
+        source_commit_at: commit_time,
     };
-    // Upsert the index row FIRST: the promotion links
-    // frontiers.registry_entry_id to it, and every read path JOINs on that
-    // link (an unlinked frontiers row is invisible to /entries). Latest
-    // promote WINS: ingested rows share the empty-signature key per vfr,
-    // and the old DO-NOTHING insert froze signed_publish_at (and every
-    // page cache keyed on it) at first ingestion.
-    // A deprecated frontier is retired for good (the deprecation record is
-    // earliest-wins and never undone). Never re-promote it, so a lingering
-    // push to a consolidated frontier's old repo cannot resurrect it and
-    // silently override its redirect back to a live 200.
-    if db.get_deprecation(vfr_id).await?.is_some() {
-        return Ok(None);
-    }
-    refuse_unrevocations(db, vfr_id, &project.actors).await?;
-    let raw = serde_json::to_value(&entry).map_err(|e| e.to_string())?;
-    db.upsert_ingested_entry(&entry, &raw).await?;
-    db.promote_frontier_snapshot(&entry, &project, None, AUTHORITY_GIT_INGESTED)
+    db.promote_frontier_snapshot(&entry, &project, AUTHORITY_GIT_INGESTED)
         .await?;
     Ok(Some(commit))
-}
-
-/// Monotonic revocation guard: the hub remembers every revocation it has
-/// ever promoted (earliest-wins, append-only, `frontier_revocations`). A
-/// force-pushed log in which a previously-revoked key is live again is
-/// the signature of key compromise, not a layout change — refuse it. A
-/// snapshot that keeps the revocation (or drops the actor entirely)
-/// passes.
-pub(crate) async fn refuse_unrevocations(
-    db: &HubDb,
-    vfr_id: &str,
-    actors: &[vela_protocol::sign::ActorRecord],
-) -> Result<(), String> {
-    for actor in actors {
-        if actor.revoked_at.is_some() {
-            continue;
-        }
-        if let Some((revoked_at, reason)) = db.is_pubkey_revoked(vfr_id, &actor.public_key).await? {
-            return Err(format!(
-                "snapshot un-revokes key {} (actor {}, revoked {} — {});                  a later log cannot un-revoke",
-                actor.public_key, actor.id, revoked_at, reason
-            ));
-        }
-    }
-    Ok(())
 }
 
 // ── git plumbing (process git: the borrow-logistics choice — git is the
@@ -269,11 +306,15 @@ async fn git(args: &[&str], cwd: Option<&Path>) -> Result<String, String> {
 
 pub(crate) async fn fetch_repo(remote: &str, git_ref: &str, dir: &Path) -> Result<(), String> {
     if dir.join(".git").exists() {
-        // A re-registration may have re-pointed the remote: the scratch
-        // clone must always fetch the CURRENTLY registered URL, never a
+        // A catalog edit may have re-pointed the remote: the scratch
+        // clone must always fetch the CURRENTLY configured URL, never a
         // stale origin.
         git(&["remote", "set-url", "origin", remote], Some(dir)).await?;
-        git(&["fetch", "--depth", "1", "origin", git_ref], Some(dir)).await?;
+        if dir.join(".git/shallow").exists() {
+            git(&["fetch", "--unshallow", "origin", git_ref], Some(dir)).await?;
+        } else {
+            git(&["fetch", "origin", git_ref], Some(dir)).await?;
+        }
         git(&["reset", "--hard", "FETCH_HEAD"], Some(dir)).await?;
         git(&["clean", "-fdq"], Some(dir)).await?;
     } else {
@@ -281,15 +322,7 @@ pub(crate) async fn fetch_repo(remote: &str, git_ref: &str, dir: &Path) -> Resul
             std::fs::create_dir_all(parent).map_err(|e| format!("scratch dir: {e}"))?;
         }
         git(
-            &[
-                "clone",
-                "--depth",
-                "1",
-                "--branch",
-                git_ref,
-                remote,
-                &dir.to_string_lossy(),
-            ],
+            &["clone", "--branch", git_ref, remote, &dir.to_string_lossy()],
             None,
         )
         .await?;
@@ -301,9 +334,25 @@ pub(crate) async fn rev_parse_head(dir: &Path) -> Result<String, String> {
     git(&["rev-parse", "HEAD"], Some(dir)).await
 }
 
-/// Committer timestamp of the tip, RFC3339 — the ingested entry's
-/// `signed_publish_at` surrogate (monotone for fast-forward history, so the
-/// promote guard rejects rewinds).
+async fn is_ancestor(dir: &Path, previous: &str, candidate: &str) -> Result<bool, String> {
+    let out = tokio::process::Command::new("git")
+        .current_dir(dir)
+        .args(["merge-base", "--is-ancestor", previous, candidate])
+        .output()
+        .await
+        .map_err(|e| format!("git merge-base: {e}"))?;
+    match out.status.code() {
+        Some(0) => Ok(true),
+        Some(1) => Ok(false),
+        _ => Err(format!(
+            "git merge-base --is-ancestor failed: {}",
+            String::from_utf8_lossy(&out.stderr).trim()
+        )),
+    }
+}
+
+/// Committer timestamp of the tip, RFC3339. This is display/ordering metadata;
+/// rollback protection uses Git ancestry, not timestamps.
 async fn commit_timestamp(dir: &Path) -> Result<String, String> {
     git(&["show", "-s", "--format=%cI", "HEAD"], Some(dir)).await
 }
@@ -312,72 +361,120 @@ async fn commit_timestamp(dir: &Path) -> Result<String, String> {
 mod tests {
     use super::*;
 
-    fn actor(id: &str, pubkey: &str, revoked_at: Option<&str>) -> vela_protocol::sign::ActorRecord {
-        serde_json::from_value(serde_json::json!({
-            "id": id,
-            "public_key": pubkey,
-            "created_at": "2026-01-01T00:00:00Z",
-            "revoked_at": revoked_at,
-            "revoked_reason": revoked_at.map(|_| "key compromised"),
-        }))
-        .expect("minimal actor record")
+    #[test]
+    fn canonical_source_url_strips_trailing_git_and_slash() {
+        let expected = "https://github.com/vela-science/sidon-frontier";
+        assert_eq!(canonical_git_remote(expected), expected);
+        assert_eq!(
+            canonical_git_remote("https://github.com/vela-science/sidon-frontier.git/"),
+            expected
+        );
     }
 
-    async fn sqlite_db() -> crate::db::HubDb {
-        let file = tempfile::NamedTempFile::new().expect("temp sqlite");
-        let url = format!("sqlite://{}", file.path().display());
-        let opts = <sqlx::sqlite::SqliteConnectOptions as std::str::FromStr>::from_str(&url)
-            .expect("sqlite opts")
-            .create_if_missing(true);
-        let pool = sqlx::sqlite::SqlitePoolOptions::new()
-            .max_connections(1)
-            .connect_with(opts)
-            .await
-            .expect("sqlite connect");
-        crate::db::ensure_sqlite_schema(&pool)
-            .await
-            .expect("schema");
-        std::mem::forget(file);
-        crate::db::HubDb::Sqlite(pool)
+    #[test]
+    fn bundled_source_catalog_is_valid_and_complete() {
+        let catalog = parse_source_catalog(include_str!("../sources.json")).expect("catalog");
+        assert_eq!(catalog.schema, SOURCE_CATALOG_SCHEMA);
+        assert_eq!(catalog.sources.len(), 4);
+        assert!(
+            catalog
+                .sources
+                .iter()
+                .all(|source| source.git_ref == "main")
+        );
+        assert!(catalog.sources.iter().all(|source| {
+            source
+                .git_remote
+                .starts_with("https://github.com/vela-science/")
+        }));
     }
 
-    /// The un-revocation attack: promote records a revocation; a later
-    /// force-pushed snapshot where the same key is live again must be
-    /// refused, while a snapshot keeping the revocation passes.
+    #[test]
+    fn source_catalog_rejects_path_ids_credentials_and_option_refs() {
+        let invalid = [
+            serde_json::json!({
+                "schema": SOURCE_CATALOG_SCHEMA,
+                "sources": [{
+                    "vfr_id": "vfr_../../outside",
+                    "git_remote": "https://github.com/example/frontier",
+                    "git_ref": "main"
+                }]
+            }),
+            serde_json::json!({
+                "schema": SOURCE_CATALOG_SCHEMA,
+                "sources": [{
+                    "vfr_id": "vfr_001f148c07eebecb",
+                    "git_remote": "https://token@github.com/example/frontier",
+                    "git_ref": "main"
+                }]
+            }),
+            serde_json::json!({
+                "schema": SOURCE_CATALOG_SCHEMA,
+                "sources": [{
+                    "vfr_id": "vfr_001f148c07eebecb",
+                    "git_remote": "https://github.com/example/frontier",
+                    "git_ref": "--upload-pack=oops"
+                }]
+            }),
+        ];
+        for catalog in invalid {
+            assert!(
+                parse_source_catalog(&catalog.to_string()).is_err(),
+                "{catalog}"
+            );
+        }
+    }
+
+    #[test]
+    fn source_catalog_rejects_duplicate_frontier_ids() {
+        let catalog = serde_json::json!({
+            "schema": SOURCE_CATALOG_SCHEMA,
+            "sources": [
+                {
+                    "vfr_id": "vfr_001f148c07eebecb",
+                    "git_remote": "https://github.com/example/one",
+                    "git_ref": "main"
+                },
+                {
+                    "vfr_id": "vfr_001f148c07eebecb",
+                    "git_remote": "https://github.com/example/two",
+                    "git_ref": "main"
+                }
+            ]
+        });
+        assert!(parse_source_catalog(&catalog.to_string()).is_err());
+    }
+
     #[tokio::test]
-    async fn revoked_key_stays_revoked_across_snapshots() {
-        let db = sqlite_db().await;
-        let vfr = "vfr_guard_test";
-        let pk = "ab".repeat(32);
+    async fn git_ancestry_accepts_fast_forward_and_rejects_reverse() {
+        let repo = tempfile::TempDir::new().expect("repo");
+        git(&["init"], Some(repo.path())).await.expect("git init");
+        git(
+            &["config", "user.email", "vela@example.test"],
+            Some(repo.path()),
+        )
+        .await
+        .expect("git email");
+        git(&["config", "user.name", "Vela test"], Some(repo.path()))
+            .await
+            .expect("git name");
+        std::fs::write(repo.path().join("state"), "one").expect("write first");
+        git(&["add", "state"], Some(repo.path()))
+            .await
+            .expect("add first");
+        git(&["commit", "-m", "first"], Some(repo.path()))
+            .await
+            .expect("commit first");
+        let first = rev_parse_head(repo.path()).await.expect("first head");
 
-        // Nothing remembered yet: a live key passes.
-        let live = vec![actor("reviewer:alice", &pk, None)];
-        refuse_unrevocations(&db, vfr, &live)
+        std::fs::write(repo.path().join("state"), "two").expect("write second");
+        git(&["commit", "-am", "second"], Some(repo.path()))
             .await
-            .expect("clean slate passes");
+            .expect("commit second");
+        let second = rev_parse_head(repo.path()).await.expect("second head");
 
-        // Record the revocation the way ingest does.
-        let revoked = vec![actor("reviewer:alice", &pk, Some("2026-06-01T00:00:00Z"))];
-        let n = db.record_revocations(vfr, &revoked).await.expect("record");
-        assert_eq!(n, 1);
-
-        // A snapshot that keeps the revocation passes.
-        refuse_unrevocations(&db, vfr, &revoked)
-            .await
-            .expect("kept revocation passes");
-        // A snapshot that drops the actor entirely passes.
-        refuse_unrevocations(&db, vfr, &[])
-            .await
-            .expect("dropped actor passes");
-        // A snapshot where the key is live again is refused.
-        let err = refuse_unrevocations(&db, vfr, &live)
-            .await
-            .expect_err("un-revocation refused");
-        assert!(err.contains("cannot un-revoke"), "{err}");
-        // Another frontier is unaffected.
-        refuse_unrevocations(&db, "vfr_other", &live)
-            .await
-            .expect("scoped per frontier");
+        assert!(is_ancestor(repo.path(), &first, &second).await.unwrap());
+        assert!(!is_ancestor(repo.path(), &second, &first).await.unwrap());
     }
 
     fn copy_tree(src: &Path, dst: &Path) {

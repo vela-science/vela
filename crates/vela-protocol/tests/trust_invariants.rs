@@ -115,7 +115,6 @@ fn populated_provenance_changes_event_id_omitted_is_identical() {
         payload: serde_json::json!({ "proposal_id": "vpr_test", "verdict": "accepted" }),
         caveats: vec![],
         signature: None,
-        schema_artifact_id: None,
     };
 
     // Omitted provenance: an event identical to a pre-redesign one keeps its id.

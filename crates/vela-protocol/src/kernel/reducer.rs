@@ -2066,7 +2066,6 @@ mod tests {
             payload: json!({ "finding": inline }),
             caveats: vec![],
             signature: None,
-            schema_artifact_id: None,
         });
 
         let report = classify_provenance(&state);
@@ -2106,7 +2105,6 @@ mod tests {
             payload: json!({"proposal_id": "vpr_x"}),
             caveats: vec![],
             signature: None,
-            schema_artifact_id: None,
         };
         apply_event(&mut state, &event).unwrap();
         assert!(state.findings[0].flags.retracted);
@@ -2149,7 +2147,6 @@ mod tests {
             }),
             caveats: vec![],
             signature: None,
-            schema_artifact_id: None,
         };
 
         apply_event(&mut state, &event).unwrap();
@@ -2180,7 +2177,6 @@ mod tests {
             payload: Value::Null,
             caveats: vec![],
             signature: None,
-            schema_artifact_id: None,
         };
         let r = apply_event(&mut state, &event);
         assert!(r.is_err());
@@ -2220,7 +2216,6 @@ mod tests {
                 payload: Value::Null,
                 caveats: vec![],
                 signature: None,
-                schema_artifact_id: None,
             };
             let r = apply_event(&mut state, &event);
             if let Err(e) = r {
@@ -2263,7 +2258,6 @@ mod tests {
                 payload: Value::Null,
                 caveats: vec![],
                 signature: None,
-                schema_artifact_id: None,
             };
             if let Err(e) = apply_event(&mut state, &event) {
                 assert!(
@@ -2357,7 +2351,6 @@ mod tests {
             }),
             caveats: vec![],
             signature: None,
-            schema_artifact_id: None,
         };
         apply_event(&mut state, &event).expect("apply locator_repaired");
         let atom = atom_by_id(&state, "vea_test_atom");
@@ -2391,7 +2384,6 @@ mod tests {
             }),
             caveats: vec![],
             signature: None,
-            schema_artifact_id: None,
         };
         apply_event(&mut state, &event).expect("first apply");
         apply_event(&mut state, &event).expect("second apply is a no-op when locator matches");
@@ -2425,7 +2417,6 @@ mod tests {
             }),
             caveats: vec![],
             signature: None,
-            schema_artifact_id: None,
         };
         let r = apply_event(&mut state, &event);
         assert!(r.is_err());
@@ -2464,7 +2455,6 @@ mod tests {
             }),
             caveats: vec![],
             signature: None,
-            schema_artifact_id: None,
         };
         apply_event(&mut state, &event).expect("apply ok");
         let hashes_after: Vec<String> = state

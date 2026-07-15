@@ -1,13 +1,12 @@
-//! Atlas source adapters: external catalogues → `SourceRecord`s, the native
-//! production path that replaces the synthetic-id Python prototypes
-//! (`scripts/atlas/ingest_*.py`). Each adapter reads one catalogue of
-//! per-problem records; `vela atlas ingest-source` turns them into real,
-//! content-addressed finding bundles plus signed `anchor.attached` events.
+//! Pure Atlas source adapters: external catalogues → `SourceRecord`s and
+//! content-addressed finding candidates. These functions never write a
+//! frontier or mint canonical events. Producers package adapter output as
+//! artifacts in `vela.receipt.v1` and submit it through `vela land`; the shared
+//! policy route then decides whether it is admitted or held for human review.
 //!
-//! Scope: the simple per-problem sources (formal-conjectures Lean corpus,
-//! AlphaProof Nexus). The Tao adapter (`ingest_tao.py`) also synthesizes the
-//! OEIS sequence frontier and the cross-frontier reference bridge, which is
-//! materially more involved; it stays a Python prototype for now.
+//! Scope: deterministic, local adapters for the supported mathematical source
+//! catalogues. Network acquisition and canonical-state mutation are outside
+//! this module.
 
 use std::path::Path;
 
@@ -16,8 +15,8 @@ use vela_protocol::bundle::{
     FindingBundle, Flags, Provenance,
 };
 
-/// One external-catalogue record an adapter yields. The namespace and role are
-/// supplied by the command (`--namespace`), so a record is just the id + claim.
+/// One external-catalogue record an adapter yields. A Receipt producer supplies
+/// the namespace and role, so a record is just the id plus its claim metadata.
 #[derive(Default)]
 pub struct SourceRecord {
     /// Catalogue id digits (e.g. "40" for Erdős #40).
@@ -27,12 +26,12 @@ pub struct SourceRecord {
     /// Assertion type tag (e.g. "lean-formalization").
     pub assertion_type: String,
     /// Cross-problem reduction targets in the SAME namespace (e.g. ["28"] when
-    /// this problem's Lean file proves `implies_erdos_28`). The command resolves
-    /// these to a typed `implies` link once all finding ids are known. Sparse —
+    /// this problem's Lean file proves `implies_erdos_28`). A Receipt producer
+    /// can resolve these to typed `implies` links once all ids are known. Sparse —
     /// see `scan_cross_problem_edges.py` (today: 2 across the whole corpus).
     pub implies: Vec<String>,
     /// Additional CROSS-namespace anchors `(namespace, id)` this record should
-    /// also join under (beyond the command's `--namespace`). The Formal-Conjectures
+    /// also join under (beyond its producer-supplied primary namespace). The Formal-Conjectures
     /// adapter sets `[("erdos", "42")]` for an Erdős-tagged declaration so the FC
     /// formalization and the canonical Erdős problem merge into one atlas cell
     /// (the HardIdentity statement-variant join). Empty for most records.
@@ -207,9 +206,8 @@ pub fn read_alphaproof(dir: &Path, rev: &str) -> Result<Vec<SourceRecord>, Strin
 /// OEIS adapter: read an `ErdosOEIS` catalogue (a JSON document with a
 /// `sequences` map of `A###### -> { id, name, terms }`, e.g.
 /// `examples/erdos-problems/sources/oeis.v1.json`) and yield one record per
-/// sequence. The native counterpart of the OEIS pass in
-/// `scripts/atlas/ingest_tao.py`; deterministic (sorted by id). Fetching is out
-/// of scope: this reads a local catalogue file, so the result is reproducible.
+/// sequence. Deterministic (sorted by id). Fetching is out of scope: this reads
+/// a local catalogue file, so the result is reproducible.
 pub fn read_oeis(input: &Path, _rev: &str) -> Result<Vec<SourceRecord>, String> {
     let raw =
         std::fs::read_to_string(input).map_err(|e| format!("read {}: {e}", input.display()))?;
@@ -252,7 +250,7 @@ pub fn read_oeis(input: &Path, _rev: &str) -> Result<Vec<SourceRecord>, String> 
 /// `{id, domain, level, statement, verifier_kind, incumbent{value,direction,basis}, status}`,
 /// e.g. `frontiers/horizonmath/catalog.json`) and yield one record per problem. Each
 /// problem carries its frozen-verifier kind, its incumbent (value-to-beat), and
-/// its declared status in the assertion text, so the ingested finding is a
+/// its declared status in the assertion text, so the resulting candidate is a
 /// faithful target for the foundry to attack. Deterministic (sorted by id); reads
 /// a local catalogue file, so the result is reproducible (no network).
 pub fn read_horizonmath(input: &Path, _rev: &str) -> Result<Vec<SourceRecord>, String> {
@@ -429,8 +427,8 @@ pub fn read_formal_corpus(dir: &Path, rev: &str) -> Result<Vec<SourceRecord>, St
 /// object. Each record carries every listed `(namespace, id)` pair as an
 /// `extra_anchor`, so `atlas::project`'s union-find merges the object's separate
 /// cells into one (the cross-source HardIdentity join the spine has been
-/// deferring). The bridge's primary anchor is the command's `--namespace`
-/// (use `identity`). Only unambiguous, hand-reviewed pairings live in the seed;
+/// deferring). A Receipt producer should use `identity` as the bridge's primary
+/// namespace. Only unambiguous, hand-reviewed pairings live in the seed;
 /// the speculative tail belongs to `SearchOnly` candidates, never here. A wrong
 /// name is harmless (it fails to join, never a false merge). Deterministic
 /// (sorted by slug); reads a local catalogue, so the result is reproducible.
@@ -662,7 +660,7 @@ pub fn read_adapter(adapter: &str, input: &Path, rev: &str) -> Result<Vec<Source
         "identity_seed" => read_identity_seed(input, rev),
         "erdos_deep" => read_erdos_deep(input, rev),
         other => Err(format!(
-            "unknown adapter '{other}' (supported: formal | formal_corpus | alphaproof | oeis | horizonmath | identity_seed | erdos_deep; tao stays scripts/atlas/ingest_tao.py)"
+            "unknown adapter '{other}' (supported: formal | formal_corpus | alphaproof | oeis | horizonmath | identity_seed | erdos_deep)"
         )),
     }
 }

@@ -44,10 +44,10 @@ mod surface_tests {
         on_big_stack(|| {
             let help = strict_help_text();
             for name in released_names() {
-                // Commands curated out of the menu (DEPRECATED_FROM_HELP) stay
+                // Commands curated out of the menu (HIDDEN_FROM_ADVANCED_HELP) stay
                 // callable but are intentionally not listed; the guard applies
                 // only to the canonical surface.
-                if DEPRECATED_FROM_HELP.contains(&name.as_str()) {
+                if HIDDEN_FROM_ADVANCED_HELP.contains(&name.as_str()) {
                     continue;
                 }
                 let listed = help.lines().any(|l| {
@@ -58,7 +58,7 @@ mod surface_tests {
                     listed,
                     "subcommand `{name}` is not listed in `vela help advanced` \
                      (strict_help_text) — add a row so the reference stays complete, \
-                     or add it to DEPRECATED_FROM_HELP if it is intentionally off-menu"
+                     or add it to HIDDEN_FROM_ADVANCED_HELP if it is intentionally off-menu"
                 );
             }
         });
@@ -96,11 +96,11 @@ mod surface_tests {
         });
     }
 
-    /// The v0.738 porcelain (the hard cut): the EXACT visible surface,
+    /// The v0.800 prelaunch porcelain: the exact visible surface,
     /// guarded in both directions. A dropped command fails ("a collapse
     /// removed it"); a new command fails too ("extend this list
     /// deliberately"). Growth is a decision, not a drift.
-    const V0738_VISIBLE: &[&str] = &[
+    const V0800_VISIBLE: &[&str] = &[
         "actor",
         "agents",
         "artifact",
@@ -129,13 +129,12 @@ mod surface_tests {
         "serve",
         "sign",
         "status",
-        "submit",
         "work",
     ];
-    const V0738_HIDDEN: &[&str] = &["completions"];
+    const V0800_HIDDEN: &[&str] = &["completions"];
 
     #[test]
-    fn v0738_surface_is_exact_both_directions() {
+    fn v0800_surface_is_exact_both_directions() {
         on_big_stack(|| {
             let cmd = Cli::command();
             let mut visible: Vec<String> = Vec::new();
@@ -149,8 +148,8 @@ mod surface_tests {
             }
             visible.sort();
             hidden.sort();
-            let want_visible: Vec<String> = V0738_VISIBLE.iter().map(|s| s.to_string()).collect();
-            let want_hidden: Vec<String> = V0738_HIDDEN.iter().map(|s| s.to_string()).collect();
+            let want_visible: Vec<String> = V0800_VISIBLE.iter().map(|s| s.to_string()).collect();
+            let want_hidden: Vec<String> = V0800_HIDDEN.iter().map(|s| s.to_string()).collect();
             assert_eq!(
                 visible, want_visible,
                 "the VISIBLE surface drifted — a removal broke the porcelain, or an \
@@ -184,6 +183,7 @@ mod surface_tests {
                 "workspace",
                 "attest",
                 "receipt",
+                "submit",
                 // the v0.738 hard cut: ten verbs retired into the loop
                 "inbox",
                 "propose",

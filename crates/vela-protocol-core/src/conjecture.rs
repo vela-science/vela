@@ -128,7 +128,7 @@ pub struct StandardCandle {
 /// witness per conjecture; co-signers go in `signatures`.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Witness {
-    /// Actor id (e.g. "pillar-head:energy", "reviewer:will-blair").
+    /// Actor id (e.g. "pillar-head:energy", "reviewer:human-reviewer").
     pub actor_id: String,
     /// ISO 8601 timestamp when the witness signed. None until signed.
     #[serde(default, skip_serializing_if = "Option::is_none")]

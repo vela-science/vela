@@ -4,7 +4,7 @@ import Vela.Crypto.CanonicalEventId
 /-!
 # Vela Theorem 24: Agent attestation envelope injectivity
 
-An agent attestation envelope (`vaa_*`) is a signed Carina primitive
+An agent attestation envelope (`vaa_*`) is a signed Vela primitive
 that names: the agent actor, the model name + version, the started_at
 and finished_at timestamps, the total token count, an ordered list
 of tool calls (each with input + output hash), an ordered list of

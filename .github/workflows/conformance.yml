@@ -26,21 +26,42 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: format
         run: cargo fmt --all -- --check
+      - name: prelaunch surface has one writer path
+        run: ./scripts/check-prelaunch-surface.sh
+      - name: portable and installed Receipt v1 surfaces
+        run: |
+          tmp="$(mktemp -d)"
+          trap 'rm -rf "$tmp"' EXIT
+          cp examples/sidon-a309370/witnesses/sidon-a08.witness.json "$tmp/witness.json"
+          cp crates/vela-cli/resources/receipt_v1.py "$tmp/receipt_v1.py"
+          cp crates/vela-cli/resources/vela_receipt_v1.py "$tmp/vela_receipt_v1.py"
+          cp crates/vela-cli/resources/receipt_json.py "$tmp/receipt_json.py"
+          PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="$tmp" \
+            python3 "$tmp/receipt_v1.py" emit \
+              --claim "portable Receipt v1 package check" \
+              --artifact "witness.json:witness" \
+              --base-dir "$tmp" \
+              --caveat "Package wiring check only; no acceptance." \
+              --out "$tmp/receipt.json"
+          PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="$tmp" \
+            python3 "$tmp/receipt_v1.py" validate "$tmp/receipt.json"
+          PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="$tmp" python3 -c \
+            'import vela_receipt_v1; vela_receipt_v1.validate_safe_public_artifact_descriptors({"artifacts": []})'
       - name: package contains installed verifier resources
         run: |
           cargo package -p vela-cli --list > /tmp/vela-cli-package-files
           grep -Fx resources/external_lean_sandbox.py /tmp/vela-cli-package-files
-          grep -Fx resources/diderot_lean_verifier.py /tmp/vela-cli-package-files
+          grep -Fx resources/external_lean_verifier.py /tmp/vela-cli-package-files
           grep -Fx resources/receipt_v1.py /tmp/vela-cli-package-files
+          grep -Fx resources/vela_receipt_v1.py /tmp/vela-cli-package-files
           grep -Fx resources/receipt_json.py /tmp/vela-cli-package-files
       - name: clippy (deny warnings)
         run: cargo clippy --workspace --all-targets -- -D warnings
       - name: build
-        run: cargo build --release --workspace
-      - name: test (incl. verifier reproduce + reducer parity)
-        run: cargo test --workspace
+        run: cargo build --release -p vela-cli --bin vela
+      - name: focused core protocol and task-first tests
+        run: ./scripts/check-core-surface.sh
       - name: reproduce (frozen verifiers re-derive every shipped witness)
         run: |
           ./target/release/vela reproduce examples/sidon-a309370
-          ./target/release/vela reproduce examples/sidon-sets
           ./target/release/vela reproduce examples/erdos-problems

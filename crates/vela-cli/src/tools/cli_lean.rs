@@ -429,10 +429,9 @@ pub(crate) fn cmd_lean(action: LeanAction) {
     }
 }
 
-/// Mint one signed `vlv_` LeanVerification for an anchored decl. Shared by
-/// `vela lean verify-all` (registry theorems) and `vela foundry lean-run`
-/// (formal-conjectures targets). When `axioms_map` is `Some`, the decl's axioms
-/// are classified against `policy` and the record is FAILED-CLOSED if the report
+/// Mint one signed `vlv_` LeanVerification for an anchored registry theorem in
+/// the explicit `vela lean verify-all` flow. When `axioms_map` is `Some`, the
+/// decl's axioms are classified against `policy` and the record is FAILED-CLOSED if the report
 /// omits the decl (never silently mint an axiom-unknown `verified`); `None`
 /// mints an axiom-unknown legacy-style attestation. The preimage is byte-
 /// identical to the prior inline path, so existing `vlv_` ids/signatures are
@@ -510,77 +509,6 @@ pub(crate) fn mint_verification(
     )
 }
 
-/// Run `#print axioms <fq_decl>` over a built module in `lean_dir` (e.g. the
-/// formal-conjectures clone) via `lake env lean`, returning the sorted, deduped
-/// axiom list. A `sorryAx` entry means the decl still carries a proof hole — the
-/// honest signal the Lean lane fails closed on. `lean_import` is the dotted
-/// import path (numeric components wrapped in guillemets, e.g.
-/// `FormalConjectures.ErdosProblems.«828»`). The probe writes a temporary Lean
-/// file inside the package so the import resolves against the warm `.lake`
-/// build, runs it, and removes it.
-pub(crate) fn lean_axioms_probe(
-    lean_dir: &std::path::Path,
-    lean_import: &str,
-    fq_decl: &str,
-) -> Result<Vec<String>, String> {
-    let stamp = {
-        let mut h = sha2::Sha256::new();
-        sha2::Digest::update(&mut h, fq_decl.as_bytes());
-        hex::encode(h.finalize())[..12].to_string()
-    };
-    let probe_name = format!("VelaFoundryProbe_{stamp}.lean");
-    let probe_path = lean_dir.join(&probe_name);
-    let body = format!("import {lean_import}\n#print axioms {fq_decl}\n");
-    std::fs::write(&probe_path, body)
-        .map_err(|e| format!("write probe {}: {e}", probe_path.display()))?;
-    let out = std::process::Command::new("lake")
-        .arg("env")
-        .arg("lean")
-        .arg(&probe_name)
-        .current_dir(lean_dir)
-        .output();
-    let _ = std::fs::remove_file(&probe_path);
-    let out = out.map_err(|e| format!("run `lake env lean`: {e}"))?;
-    let combined = format!(
-        "{}\n{}",
-        String::from_utf8_lossy(&out.stdout),
-        String::from_utf8_lossy(&out.stderr)
-    );
-    parse_print_axioms(&combined).ok_or_else(|| {
-        format!(
-            "#print axioms produced no axiom line for `{fq_decl}` \
-             (output: {})",
-            combined.trim().chars().take(400).collect::<String>()
-        )
-    })
-}
-
-/// Parse the native `#print axioms <decl>` output. The relevant line is either
-/// `'<decl>' depends on axioms: [a, b, c]` or `... does not depend on any
-/// axioms`. Returns the sorted, deduped axiom list (empty for the latter), or
-/// `None` if no axiom line is present (a build/elaboration error).
-fn parse_print_axioms(text: &str) -> Option<Vec<String>> {
-    for line in text.lines() {
-        let line = line.trim();
-        if line.contains("does not depend on any axioms") {
-            return Some(Vec::new());
-        }
-        if let Some(i) = line.find("depends on axioms:") {
-            let rest = &line[i + "depends on axioms:".len()..];
-            let inside = rest.trim().trim_start_matches('[').trim_end_matches(']');
-            let mut list: Vec<String> = inside
-                .split(',')
-                .map(|s| s.trim().to_string())
-                .filter(|s| !s.is_empty())
-                .collect();
-            list.sort();
-            list.dedup();
-            return Some(list);
-        }
-    }
-    None
-}
-
 /// Parse the per-decl axiom report emitted by `lean/Vela/AxiomAudit.lean`.
 /// Each relevant line has the form `AXIOMS <decl> | a, b, c` (the axiom list
 /// may be empty). Returns a map `decl -> sorted, deduped axiom names`. Lines
@@ -645,23 +573,6 @@ fn axiom_status(
 pub(crate) fn cmd_attempt(action: AttemptAction) {
     use vela_protocol::attempt::Attempt;
     match action {
-        AttemptAction::Import {
-            ledger,
-            frontier,
-            actor,
-            mapping,
-            source_ref,
-            apply,
-            json,
-        } => crate::cli_attempt::cmd_attempt_import(
-            &ledger,
-            &frontier,
-            &actor,
-            &mapping,
-            &source_ref,
-            apply,
-            json,
-        ),
         AttemptAction::Verify { file, json } => {
             let body = std::fs::read_to_string(&file)
                 .unwrap_or_else(|e| fail_return(&format!("read {}: {e}", file.display())));
@@ -856,7 +767,7 @@ fn cmd_transfer_admit(
         }
     };
 
-    // T2: the transfer theorem's vlv_ (Mint with `vela foundry lean-run`).
+    // T2: the transfer theorem's vlv_, produced by the explicit Lean verifier flow.
     let vlv: Option<LeanVerification> = vlv_path.map(|p| {
         let b = std::fs::read_to_string(p)
             .unwrap_or_else(|e| fail_return(&format!("read {}: {e}", p.display())));
@@ -1113,21 +1024,6 @@ mod tests {
 
     fn policy() -> TcbPolicy {
         TcbPolicy::default_for("leanprover/lean4:v4.29.1", "v4.29.1", "none", "").unwrap()
-    }
-
-    #[test]
-    fn parse_print_axioms_clean_and_sorry() {
-        let clean = "'Erdos828.foo' depends on axioms: [propext, Classical.choice, Quot.sound]";
-        assert_eq!(
-            parse_print_axioms(clean).unwrap(),
-            vec!["Classical.choice", "Quot.sound", "propext"]
-        );
-        let none = "'Foo.bar' does not depend on any axioms";
-        assert!(parse_print_axioms(none).unwrap().is_empty());
-        let sorry = "'Erdos828.erdos_828' depends on axioms: [sorryAx]";
-        assert_eq!(parse_print_axioms(sorry).unwrap(), vec!["sorryAx"]);
-        // No axiom line (an elaboration error) => None, so the caller fails closed.
-        assert!(parse_print_axioms("error: unknown identifier").is_none());
     }
 
     #[test]

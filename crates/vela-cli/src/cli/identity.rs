@@ -4,8 +4,7 @@
 use super::*;
 
 /// Shared success print for `vela id create` / `vela id import`: shows the
-/// identity and the single line a maintainer runs to register it, so the
-/// onboarding handoff is one copy-paste.
+/// identity and the one-time empty-registry bootstrap command.
 pub(crate) fn print_identity_created(identity: &crate::cli_identity::Identity, json: bool) {
     if json {
         print_json(&json!({
@@ -15,20 +14,16 @@ pub(crate) fn print_identity_created(identity: &crate::cli_identity::Identity, j
             "actor_type": identity.actor_type,
             "pubkey": identity.pubkey,
             "key_path": identity.key_path,
-            "hub_url": identity.hub_url,
         }));
         return;
     }
     println!("{} identity · {}", style::ok("ready"), identity.actor_id);
     println!("  public key: {}", identity.pubkey);
     println!("  key file:   {}", identity.key_path);
-    println!("  hub:        {}", identity.hub_url);
     println!();
-    println!("Next: a maintainer registers you on a frontier with");
-    println!(
-        "  vela actor add <frontier> {} --pubkey {}",
-        identity.actor_id, identity.pubkey
-    );
+    println!("Next: bootstrap a new frontier's empty actor registry with");
+    println!("  vela actor add <frontier>");
+    println!("Established registries change only through signed governance.");
     println!("Then `vela land` and `vela sign` need no key flags.");
 }
 

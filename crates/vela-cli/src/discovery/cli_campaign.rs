@@ -1,9 +1,8 @@
-//! `vela campaign` — drive the discovery engine from the CLI. `search` runs the
-//! engine and reports the best verified construction it found (writing
-//! nothing); `run` additionally writes the witness so `vela reproduce` covers
-//! it, and can land a *pending* `finding.add` proposal (key-free — AI proposes,
-//! a key-holder accepts). The engine itself lives in `crate::campaign`; this
-//! module is only orchestration + reporting.
+//! `vela campaign` — drive the discovery engine from the CLI. `search` reports
+//! the best verified construction without writing. `run` writes only the
+//! witness and a non-authoritative activity envelope; protocol state crosses
+//! the shared Receipt/land boundary. The engine itself lives in
+//! `crate::campaign`; this module is only orchestration + reporting.
 
 use crate::campaign;
 use crate::cli::{fail_return, print_json};
@@ -52,8 +51,6 @@ pub(crate) fn cmd_campaign(action: CampaignAction) {
             seed,
             out,
             frontier,
-            propose,
-            reviewer,
             json,
         } => cmd_run(
             &campaign::Target {
@@ -69,8 +66,6 @@ pub(crate) fn cmd_campaign(action: CampaignAction) {
             seed,
             out,
             frontier,
-            propose,
-            &reviewer,
             json,
         ),
     }
@@ -117,8 +112,6 @@ fn cmd_run(
     seed: u64,
     out: Option<std::path::PathBuf>,
     frontier: Option<std::path::PathBuf>,
-    propose: bool,
-    reviewer: &str,
     json_out: bool,
 ) {
     let (kind, n, h) = (tg.kind.as_str(), tg.n, tg.h);
@@ -219,18 +212,6 @@ fn cmd_run(
     std::fs::write(&activity_path, env_body + "\n")
         .unwrap_or_else(|e| fail_return(&format!("write {}: {e}", activity_path.display())));
 
-    // Optionally land a pending finding.add proposal (no key -> pending; a
-    // key-holder accepts). Shell to the same `vela finding add` the rest of the
-    // tool uses, so the proposal is byte-identical to a hand-made one.
-    let mut proposal_note = None;
-    if propose {
-        let fr = frontier
-            .as_ref()
-            .unwrap_or_else(|| fail_return("campaign run --propose needs --frontier <dir>"));
-        propose_pending(fr, &assertion, reviewer);
-        proposal_note = Some(assertion.clone());
-    }
-
     if json_out {
         print_json(&json!({
             "command": "campaign run",
@@ -242,8 +223,9 @@ fn cmd_run(
             "verified": true,
             "activity_id": envelope.activity_id,
             "activity_path": activity_path.display().to_string(),
-            "proposed": propose,
-            "assertion": proposal_note,
+            "assertion": assertion,
+            "protocol_write": false,
+            "next": format!("vela reproduce {}; vela land --artifact {}:witness", out_path.display(), out_path.display()),
         }));
     } else {
         println!(
@@ -256,12 +238,11 @@ fn cmd_run(
             envelope.activity_id,
             activity_path.display()
         );
-        if let Some(a) = proposal_note {
-            println!("  proposed (pending review): {a}");
-            println!("  decide with your key: vela sign   (as {reviewer})");
-        } else {
-            println!("  re-verify: vela reproduce {}", out_path.display());
-        }
+        println!("  re-verify: vela reproduce {}", out_path.display());
+        println!(
+            "  land:      vela land --artifact {}:witness",
+            out_path.display()
+        );
     }
 }
 
@@ -305,36 +286,6 @@ fn assertion_for(kind: &str, n: usize, h: usize, score: usize) -> String {
             "a difference triangle set with {n} rows of scope <= {score} (every within-row pairwise difference globally distinct). Frozen-verified by vela-verify (diff_triangle kind)."
         ),
         _ => format!("{kind} witness, score {score}. Frozen-verified by vela-verify."),
-    }
-}
-
-/// Land a pending `finding.add` by shelling to this same binary (no `--apply`,
-/// so it stays a key-free proposal awaiting a signed accept).
-fn propose_pending(frontier: &Path, assertion: &str, reviewer: &str) {
-    let exe = std::env::current_exe()
-        .unwrap_or_else(|e| fail_return(&format!("locate vela binary: {e}")));
-    let status = std::process::Command::new(exe)
-        .arg("finding")
-        .arg("add")
-        .arg(frontier)
-        .arg("--assertion")
-        .arg(assertion)
-        .arg("--type")
-        .arg("computational")
-        .arg("--source")
-        .arg("vela campaign (discovery engine)")
-        .arg("--source-type")
-        .arg("model_output")
-        .arg("--evidence-type")
-        .arg("computational")
-        .arg("--confidence")
-        .arg("1.0")
-        .arg("--author")
-        .arg(reviewer)
-        .status()
-        .unwrap_or_else(|e| fail_return(&format!("shell finding add: {e}")));
-    if !status.success() {
-        fail_return::<()>("campaign: finding add proposal failed");
     }
 }
 

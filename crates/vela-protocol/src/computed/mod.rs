@@ -3,7 +3,6 @@
 
 pub mod frontier_repo;
 pub mod project;
-pub mod registry;
 pub mod sources;
 pub mod state;
 pub mod transfer_registry;

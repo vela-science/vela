@@ -8,15 +8,12 @@ use vela_protocol::repo;
 use vela_protocol::sign;
 
 pub(crate) fn cmd_id(action: IdAction) {
-    use crate::cli_identity::{
-        DEFAULT_HUB, Identity, identity_path, load_identity, save_identity, vela_home,
-    };
+    use crate::cli_identity::{Identity, identity_path, load_identity, save_identity, vela_home};
     match action {
         IdAction::Keygen { out, json } => crate::cli::cmd_id_keygen(out, json),
         IdAction::Create {
             handle,
             agent,
-            hub,
             force,
             json,
         } => {
@@ -37,19 +34,12 @@ pub(crate) fn cmd_id(action: IdAction) {
             let key_dir = vela_home().join("keys").join(&handle);
             let pubkey = sign::generate_keypair(&key_dir).unwrap_or_else(|e| fail_return(&e));
             let key_path = key_dir.join("private.key");
-            let hub_url = hub.unwrap_or_else(|| DEFAULT_HUB.to_string());
             let identity = Identity {
                 version: "1.0".to_string(),
                 actor_id: actor_id.clone(),
                 actor_type: actor_type.to_string(),
                 key_path: key_path.display().to_string(),
                 pubkey: pubkey.clone(),
-                hub_url: hub_url.clone(),
-                git_commit: "auto".to_string(),
-                // Inherit the default (currently "off"): explicit publish. A new
-                // identity does not auto-push; the user opts in per-verb (--push)
-                // or via config. Empty = fall through to the KeySpec default.
-                git_push: String::new(),
             };
             save_identity(&identity).unwrap_or_else(|e| fail_return(&e));
             print_identity_created(&identity, json);
@@ -58,7 +48,6 @@ pub(crate) fn cmd_id(action: IdAction) {
             key,
             handle,
             agent,
-            hub,
             force,
             json,
         } => {
@@ -85,12 +74,6 @@ pub(crate) fn cmd_id(action: IdAction) {
                 actor_type: if agent { "agent" } else { "human" }.to_string(),
                 key_path: key.display().to_string(),
                 pubkey: pubkey.clone(),
-                hub_url: hub.unwrap_or_else(|| DEFAULT_HUB.to_string()),
-                git_commit: "auto".to_string(),
-                // Inherit the default (currently "off"): explicit publish. A new
-                // identity does not auto-push; the user opts in per-verb (--push)
-                // or via config. Empty = fall through to the KeySpec default.
-                git_push: String::new(),
             };
             save_identity(&identity).unwrap_or_else(|e| fail_return(&e));
             print_identity_created(&identity, json);
@@ -166,14 +149,12 @@ pub(crate) fn cmd_id(action: IdAction) {
                     "actor_type": identity.actor_type,
                     "pubkey": identity.pubkey,
                     "key_path": identity.key_path,
-                    "hub_url": identity.hub_url,
                 }));
             } else {
                 println!("{}", style::ok("identity"));
                 println!("  actor:  {}", identity.actor_id);
                 println!("  pubkey: {}", identity.pubkey);
                 println!("  key:    {}", identity.key_path);
-                println!("  hub:    {}", identity.hub_url);
             }
         }
     }
@@ -183,26 +164,30 @@ pub(crate) fn cmd_actor(action: ActorAction) {
     match action {
         ActorAction::Add {
             frontier,
-            id,
-            pubkey,
-            tier,
             orcid,
             clearance,
             json,
         } => {
-            // Default id + pubkey to the configured identity (`vela id`), so
-            // `vela actor add <frontier>` registers you without typing a 64-char
-            // hex key. The pubkey is stored by `vela id` for exactly this.
-            let pubkey = pubkey
-                .or_else(|| crate::cli_identity::load_identity().map(|i| i.pubkey))
-                .unwrap_or_else(|| {
-                    fail_usage("no --pubkey given and no configured identity; run `vela id import` / `vela id create`, or pass --pubkey")
-                });
-            let id = crate::cli_identity::resolve_actor(id.as_deref());
-            // Validate the pubkey shape before mutating the frontier.
+            // Registry bootstrap is deliberately one-shot and self-binding:
+            // only the configured identity may become the first actor. There
+            // is no arbitrary id/pubkey insertion path on an established
+            // frontier; later membership and rotation need signed governance.
+            let identity = crate::cli_identity::load_identity().unwrap_or_else(|| {
+                fail_usage("no configured identity; run `vela id create --handle <your-name>` before bootstrapping the frontier actor registry")
+            });
+            let id = identity.actor_id;
+            let pubkey = identity.pubkey;
             let trimmed = pubkey.trim();
             if trimmed.len() != 64 || hex::decode(trimmed).is_err() {
-                fail_usage("Public key must be 64 hex characters (32-byte Ed25519 pubkey).");
+                fail_return::<()>(
+                    "configured identity contains an invalid Ed25519 public key; recreate or re-import it with `vela id`",
+                );
+            }
+            let key = crate::cli_identity::resolve_signing_key(None);
+            if sign::pubkey_hex(&key) != trimmed {
+                fail_return::<()>(
+                    "configured identity pubkey does not match its private key; refusing actor-registry bootstrap",
+                );
             }
             // v0.43: Validate ORCID shape if supplied. Stored in bare form.
             let orcid_normalized = orcid
@@ -217,17 +202,17 @@ pub(crate) fn cmd_actor(action: ActorAction) {
                 });
 
             let mut project = repo::load_from_path(&frontier).unwrap_or_else(|e| fail_return(&e));
-            if project.actors.iter().any(|actor| actor.id == id) {
-                fail(&format!(
-                    "Actor '{id}' already registered in this frontier."
-                ));
+            if !project.actors.is_empty() {
+                fail(
+                    "actor registry is already established; `vela actor add` is bootstrap-only and cannot extend or replace it",
+                );
             }
             project.actors.push(sign::ActorRecord {
                 id: id.clone(),
                 public_key: trimmed.to_string(),
                 algorithm: "ed25519".to_string(),
                 created_at: chrono::Utc::now().to_rfc3339(),
-                tier: tier.clone(),
+                tier: None,
                 orcid: orcid_normalized.clone(),
                 access_clearance: clearance,
                 revoked_at: None,
@@ -240,118 +225,18 @@ pub(crate) fn cmd_actor(action: ActorAction) {
                 "frontier": frontier.display().to_string(),
                 "actor_id": id,
                 "public_key": trimmed,
-                "tier": tier,
                 "orcid": orcid_normalized,
                 "registered_count": project.actors.len(),
             });
             if json {
                 print_json(&payload);
             } else {
-                let tier_suffix = tier
-                    .as_deref()
-                    .map_or_else(String::new, |t| format!(" tier={t}"));
                 println!(
-                    "{} actor {} (pubkey {}{tier_suffix})",
+                    "{} actor {} (pubkey {})",
                     style::ok("registered"),
                     id,
                     &trimmed[..16]
                 );
-            }
-        }
-        ActorAction::Rotate {
-            frontier,
-            id,
-            new_id,
-            new_pubkey,
-            reason,
-            json,
-        } => {
-            // v0.127: validate the new pubkey shape up front.
-            let trimmed = new_pubkey.trim();
-            if trimmed.len() != 64 || hex::decode(trimmed).is_err() {
-                fail_usage("--new-pubkey must be 64 hex characters (32-byte Ed25519 pubkey).");
-            }
-            if reason.trim().is_empty() {
-                fail_usage("--reason must be non-empty (record why the rotation is happening).");
-            }
-            if id == new_id {
-                fail_usage(
-                    "--id and --new-id must differ; rotation registers a fresh actor record.",
-                );
-            }
-
-            let mut project = repo::load_from_path(&frontier).unwrap_or_else(|e| fail_return(&e));
-
-            // The new id must not already exist.
-            if project.actors.iter().any(|a| a.id == new_id) {
-                fail(&format!(
-                    "Refusing to rotate: actor '{new_id}' is already registered."
-                ));
-            }
-
-            // The old id must exist and must not already be revoked.
-            let now = chrono::Utc::now().to_rfc3339();
-            let mut found_old = false;
-            let mut old_pubkey_prefix: Option<String> = None;
-            for actor in project.actors.iter_mut() {
-                if actor.id == id {
-                    if actor.revoked_at.is_some() {
-                        fail(&format!(
-                            "Refusing to rotate: actor '{id}' is already revoked at {}.",
-                            actor.revoked_at.as_deref().unwrap_or("?")
-                        ));
-                    }
-                    actor.revoked_at = Some(now.clone());
-                    actor.revoked_reason = Some(reason.clone());
-                    old_pubkey_prefix = Some(actor.public_key[..16].to_string());
-                    found_old = true;
-                }
-            }
-            if !found_old {
-                fail(&format!(
-                    "Cannot rotate: actor '{id}' is not registered in this frontier."
-                ));
-            }
-
-            // Register the new actor record.
-            project.actors.push(sign::ActorRecord {
-                id: new_id.clone(),
-                public_key: trimmed.to_string(),
-                algorithm: "ed25519".to_string(),
-                created_at: now.clone(),
-                tier: None,
-                orcid: None,
-                access_clearance: None,
-                revoked_at: None,
-                revoked_reason: None,
-            });
-
-            repo::save_to_path(&frontier, &project).unwrap_or_else(|e| fail_return(&e));
-
-            let payload = json!({
-                "ok": true,
-                "command": "actor.rotate",
-                "frontier": frontier.display().to_string(),
-                "retired_actor_id": id,
-                "retired_pubkey_prefix": old_pubkey_prefix,
-                "new_actor_id": new_id,
-                "new_pubkey": trimmed,
-                "revoked_at": now,
-                "reason": reason,
-            });
-            if json {
-                print_json(&payload);
-            } else {
-                println!(
-                    "{} actor {} retired (pubkey {}...), {} registered (pubkey {}...)",
-                    style::ok("rotated"),
-                    id,
-                    old_pubkey_prefix.as_deref().unwrap_or("?"),
-                    new_id,
-                    &trimmed[..16]
-                );
-                println!("  revoked_at: {now}");
-                println!("  reason:     {reason}");
             }
         }
         ActorAction::List { frontier, json } => {

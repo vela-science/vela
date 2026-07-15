@@ -217,15 +217,6 @@ pub struct CreateProposalResult {
     pub applied_event_id: Option<String>,
 }
 
-#[derive(Debug, Clone, Default)]
-pub struct ImportProposalReport {
-    pub imported: usize,
-    pub applied: usize,
-    pub rejected: usize,
-    pub duplicates: usize,
-    pub wrote_to: String,
-}
-
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ProposalValidationReport {
     pub ok: bool,

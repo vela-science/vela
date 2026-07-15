@@ -4,7 +4,7 @@ import Vela.Crypto.CanonicalEventId
 /-!
 # Vela Theorem 25: Tool descriptor injectivity
 
-A tool descriptor (`vtd_*`) is a v0.199 Carina primitive declaring
+A tool descriptor (`vtd_*`) is a Vela primitive declaring
 that a frontier consumes outputs from a specific tool: tool name,
 tool version, provider identifier, calling convention, plus the
 tool's input + output JSON schemas. The descriptor id is content-

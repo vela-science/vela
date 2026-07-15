@@ -1751,33 +1751,6 @@ mod tests {
             vec!["finding.noted", "review.accepted"],
             "the fixture must bind the complete production accept event set"
         );
-
-        let acceptance = &fixture["acceptance_v1"];
-        let inputs = &acceptance["inputs"];
-        assert_eq!(inputs["vfr_id"], production.plan.frontier_id);
-        assert_eq!(
-            inputs["proposal_id"],
-            production.plan.ordered_answers[0].proposal_id
-        );
-        assert_eq!(inputs["reason"], production.plan.ordered_answers[0].reason);
-        assert_eq!(acceptance["decision_root"], production.plan.decision_root);
-        let signing_input = vela_protocol::proposals::accept_preimage_bytes_v1(
-            inputs["vfr_id"].as_str().unwrap(),
-            inputs["proposal_id"].as_str().unwrap(),
-            inputs["reviewer_id"].as_str().unwrap(),
-            inputs["reason"].as_str().unwrap(),
-            inputs["parent_event_log_hash"].as_str().unwrap(),
-            acceptance["decision_root"].as_str().unwrap(),
-        )
-        .unwrap();
-        assert_eq!(
-            String::from_utf8(signing_input.clone()).unwrap(),
-            acceptance["pae"].as_str().unwrap()
-        );
-        assert_eq!(
-            hex::encode(Sha256::digest(signing_input)),
-            acceptance["sha256"].as_str().unwrap()
-        );
     }
 
     #[test]

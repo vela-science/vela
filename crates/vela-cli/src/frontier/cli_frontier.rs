@@ -1,7 +1,7 @@
 //! `cmd_frontier` and its handler logic, split out of cli.rs.
 
 use crate::cli::{
-    cmd_frontier_audit, cmd_frontier_diff, cmd_frontier_release, cmd_frontier_releases, fail,
+    cmd_frontier_audit, cmd_frontier_diff, cmd_frontier_release, cmd_frontier_releases,
     fail_return, print_json,
 };
 use crate::cli_commands::FrontierAction;
@@ -79,11 +79,11 @@ pub(crate) fn cmd_frontier(action: FrontierAction) {
                 "schema": project::VELA_SCHEMA_URL,
                 "vela_version": env!("CARGO_PKG_VERSION"),
                 "next_steps": [
-                    "vela id keygen --out keys",
-                    "vela actor add <path> reviewer:you --pubkey \"$(cat keys/public.key)\"",
-                    "vela finding add <path> --assertion '...' --author 'reviewer:you'",
+                    "vela id create --handle <your-name>",
+                    "vela actor add <path>",
+                    "vela land <receipt.json> --frontier <path> --as agent:<you>",
                     "vela sign --frontier <path>",
-                    "git push   # publication; bind once with: vela hub register-git <vfr> --remote <url>",
+                    "git push   # publication to a Hub-configured source repository",
                 ],
             });
             if json {
@@ -95,19 +95,14 @@ pub(crate) fn cmd_frontier(action: FrontierAction) {
                     path.display()
                 );
                 println!("  next steps:");
-                println!("    1. vela id keygen --out keys");
+                println!("    1. vela id create --handle <your-name>");
+                println!("    2. vela actor add {}", path.display());
                 println!(
-                    "    2. vela actor add {} reviewer:you --pubkey \"$(cat keys/public.key)\"",
-                    path.display()
-                );
-                println!(
-                    "    3. vela finding add {} --assertion '...' --author 'reviewer:you'",
+                    "    3. vela land <receipt.json> --frontier {} --as agent:<you>",
                     path.display()
                 );
                 println!("    4. vela sign --frontier {}", path.display());
-                println!(
-                    "    5. git push   # publication; bind once with: vela hub register-git <vfr> --remote <url>"
-                );
+                println!("    5. git push   # publication to a Hub-configured source repository");
             }
         }
         FrontierAction::Materialize { frontier, json } => {
@@ -126,55 +121,6 @@ pub(crate) fn cmd_frontier(action: FrontierAction) {
                     style::ok("frontier"),
                     frontier.display()
                 );
-            }
-        }
-        FrontierAction::AddDep {
-            frontier,
-            vfr_id,
-            locator,
-            snapshot,
-            name,
-            json,
-        } => {
-            let mut p = repo::load_from_path(&frontier).unwrap_or_else(|e| fail_return(&e));
-            if p.project
-                .dependencies
-                .iter()
-                .any(|d| d.vfr_id.as_deref() == Some(&vfr_id))
-            {
-                fail(&format!(
-                    "cross-frontier dependency '{vfr_id}' already declared; remove it first via `vela frontier remove-dep`"
-                ));
-            }
-            let dep = ProjectDependency {
-                name: name.unwrap_or_else(|| vfr_id.clone()),
-                source: "vela.hub".into(),
-                version: None,
-                pinned_hash: None,
-                vfr_id: Some(vfr_id.clone()),
-                locator: Some(locator.clone()),
-                pinned_snapshot_hash: Some(snapshot.clone()),
-            };
-            p.project.dependencies.push(dep);
-            repo::save_to_path(&frontier, &p).unwrap_or_else(|e| fail_return(&e));
-            let payload = json!({
-                "ok": true,
-                "command": "frontier.add-dep",
-                "frontier": frontier.display().to_string(),
-                "vfr_id": vfr_id,
-                "locator": locator,
-                "pinned_snapshot_hash": snapshot,
-                "declared_count": p.project.dependencies.len(),
-            });
-            if json {
-                print_json(&payload);
-            } else {
-                println!(
-                    "{} declared cross-frontier dep {vfr_id}",
-                    style::ok("frontier")
-                );
-                println!("  locator:  {locator}");
-                println!("  snapshot: {snapshot}");
             }
         }
         FrontierAction::ListDeps { frontier, json } => {

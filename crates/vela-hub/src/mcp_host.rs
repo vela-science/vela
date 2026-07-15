@@ -10,7 +10,7 @@
 //! minutes of first-build latency. A fresh machine is ready in seconds.
 //!
 //! Freshness: the refresher lists the live entries and compares each
-//! one's `latest_snapshot_hash` (from the signed registry manifest row)
+//! one's `latest_snapshot_hash` (from the verified frontier projection)
 //! against the set the current service was built from; an unchanged set
 //! is a no-op. It runs on an interval, and immediately when the GitHub
 //! webhook kicks it — after the webhook's ingest sweep completes, so
@@ -88,13 +88,13 @@ pub(crate) async fn refresh_from_db(
     shared: &SharedMcp,
     built_from: &mut HashMap<String, String>,
 ) -> Result<Option<usize>, String> {
-    let live = db.list_live_entries().await?;
+    let live = db.list_entries().await?;
     if live.is_empty() {
         return Ok(None);
     }
-    // vfr_id → latest_snapshot_hash, straight from the signed manifest
-    // rows. This replaces git-HEAD change detection: a promote rewrites
-    // the manifest row, so the hash set moves exactly when state moves.
+    // vfr_id → latest_snapshot_hash, straight from the verified Git index
+    // rows. This replaces git-HEAD change detection: an ingest rewrites the
+    // index row, so the hash set moves exactly when state moves.
     let mut hashes: HashMap<String, String> = HashMap::new();
     let mut ordered: Vec<String> = Vec::new();
     for entry in &live {
@@ -161,9 +161,9 @@ pub(crate) async fn refresh_from_db(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::db::VerifiedFrontierIndex;
     use std::path::Path;
     use vela_protocol::events::{event_log_hash, snapshot_hash};
-    use vela_protocol::registry::RegistryEntry;
 
     // Same scaffolding as git_ingest::tests: a throwaway SQLite HubDb and
     // a copy of the load-bearing example frontier (never modified in
@@ -222,14 +222,13 @@ mod tests {
                 .expect("verify task")
                 .expect("clean fixture verifies");
 
-        // The synthetic index entry, exactly as ingest_one builds it.
+        // The internal index cursor, exactly as ingest_one builds it.
         let owner_pubkey = project
             .actors
             .first()
             .map(|a| a.public_key.clone())
             .unwrap_or_else(|| "00".repeat(32));
-        let entry = RegistryEntry {
-            schema: "vela.registry-entry.v0.1".to_string(),
+        let entry = VerifiedFrontierIndex {
             vfr_id: fid.clone(),
             name: project.project.name.clone(),
             owner_actor_id: project
@@ -241,24 +240,14 @@ mod tests {
             owner_pubkey,
             latest_snapshot_hash: snapshot_hash(&project),
             latest_event_log_hash: event_log_hash(&project.events),
-            network_locator: "git+https://example.test/erdos-formalization.git".to_string(),
-            signed_publish_at: "2026-07-03T00:00:00Z".to_string(),
-            signature: String::new(),
-            license: None,
-            extras_manifest_hash: None,
+            source_commit_at: "2026-07-03T00:00:00Z".to_string(),
         };
-        let raw = serde_json::to_value(&entry).expect("entry json");
-        db.upsert_ingested_entry(&entry, &raw)
+        db.upsert_git_source(&fid, "https://example.test/erdos-formalization.git", "main")
             .await
-            .expect("upsert");
-        db.promote_frontier_snapshot(
-            &entry,
-            &project,
-            None,
-            crate::git_ingest::AUTHORITY_GIT_INGESTED,
-        )
-        .await
-        .expect("promote");
+            .expect("register fixture Git source");
+        db.promote_frontier_snapshot(&entry, &project, crate::git_ingest::AUTHORITY_GIT_INGESTED)
+            .await
+            .expect("promote");
 
         let shared: SharedMcp = Arc::new(RwLock::new(None));
         let mut built_from = HashMap::new();

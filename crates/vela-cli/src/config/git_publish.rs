@@ -209,11 +209,9 @@ struct JournalEntry {
     worktree_sha256: Option<String>,
 }
 
-#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 enum PublicationScope {
-    #[default]
-    FullFrontier,
     ExactDelta,
 }
 
@@ -233,8 +231,6 @@ struct PublicationJournal {
     author_email: String,
     commit_date: String,
     entries: Vec<JournalEntry>,
-    specs: Vec<String>,
-    #[serde(default)]
     scope: PublicationScope,
     lfs_objects: Vec<LfsPointer>,
     original_index: IndexMap,
@@ -319,19 +315,6 @@ enum PublicationLockError {
 struct UpstreamTarget {
     remote: String,
     reference: String,
-}
-
-#[derive(Debug)]
-pub(crate) struct PublicationPreflight {
-    repository: PathBuf,
-    frontier: PathBuf,
-    target_refname: GitRefName,
-    target_checkout: TargetCheckoutState,
-    expected_git_commit_oid: GitOid,
-    original_index: IndexMap,
-    original_index_sha256: String,
-    allowed_input_hashes: BTreeMap<String, String>,
-    publication_lock: PublicationLock,
 }
 
 /// A held exact-delta publication lease. It binds repository/frontier
@@ -554,7 +537,6 @@ pub(crate) fn publication_repo_relative_path(
 }
 
 pub(crate) struct PublishOptions {
-    pub no_commit: bool,
     pub no_push: bool,
     /// Push even when config resolves `publish.git_push` to "off" — the explicit
     /// `--push` flag. Ordinary calls leave this false, so the default
@@ -564,67 +546,33 @@ pub(crate) struct PublishOptions {
     /// target in the options also makes un-checked-out publication testable
     /// without teaching the ordinary CLI a second default.
     pub target_refname: Option<String>,
-    pub preflight: Option<PublicationPreflight>,
     pub preflight_inputs: Vec<PathBuf>,
     #[cfg(test)]
-    fail_after_ref_move: bool,
-    #[cfg(test)]
-    fail_before_ref_move: bool,
-    #[cfg(test)]
     race_ref_before_cas: bool,
-    #[cfg(test)]
-    pause_after_journal: Option<(std::sync::mpsc::Sender<()>, std::sync::mpsc::Receiver<()>)>,
 }
 
 impl PublishOptions {
-    pub(crate) fn new(no_commit: bool, no_push: bool) -> Self {
+    pub(crate) fn new(no_push: bool) -> Self {
         Self {
-            no_commit,
             no_push,
             force_push: false,
             target_refname: None,
-            preflight: None,
             preflight_inputs: Vec::new(),
             #[cfg(test)]
-            fail_after_ref_move: false,
-            #[cfg(test)]
-            fail_before_ref_move: false,
-            #[cfg(test)]
             race_ref_before_cas: false,
-            #[cfg(test)]
-            pause_after_journal: None,
         }
     }
 
     /// Explicit publish: commit locally and push regardless of config.
     pub(crate) fn pushing() -> Self {
         Self {
-            no_commit: false,
             no_push: false,
             force_push: true,
             target_refname: None,
-            preflight: None,
             preflight_inputs: Vec::new(),
             #[cfg(test)]
-            fail_after_ref_move: false,
-            #[cfg(test)]
-            fail_before_ref_move: false,
-            #[cfg(test)]
             race_ref_before_cas: false,
-            #[cfg(test)]
-            pause_after_journal: None,
         }
-    }
-
-    #[cfg(test)]
-    fn targeting(mut self, target: &str) -> Self {
-        self.target_refname = Some(target.to_string());
-        self
-    }
-
-    pub(crate) fn with_preflight(mut self, preflight: PublicationPreflight) -> Self {
-        self.preflight = Some(preflight);
-        self
     }
 
     pub(crate) fn with_preflight_inputs(mut self, paths: Vec<PathBuf>) -> Self {
@@ -633,42 +581,10 @@ impl PublishOptions {
     }
 
     #[cfg(test)]
-    fn failing_after_ref_move(mut self) -> Self {
-        self.fail_after_ref_move = true;
-        self
-    }
-
-    #[cfg(test)]
-    fn failing_before_ref_move(mut self) -> Self {
-        self.fail_before_ref_move = true;
-        self
-    }
-
-    #[cfg(test)]
     fn racing_ref_before_cas(mut self) -> Self {
         self.race_ref_before_cas = true;
         self
     }
-
-    #[cfg(test)]
-    fn pausing_after_journal(
-        mut self,
-        reached: std::sync::mpsc::Sender<()>,
-        resume: std::sync::mpsc::Receiver<()>,
-    ) -> Self {
-        self.pause_after_journal = Some((reached, resume));
-        self
-    }
-}
-
-/// Capture the clean Git/Vela boundary before a scientific mutation. The
-/// returned token is private process plumbing; it is not serialized into a
-/// receipt, event, or authority object.
-pub(crate) fn publication_preflight(
-    frontier: &Path,
-    opts: &PublishOptions,
-) -> Result<PublicationPreflight, PublicationOutcome> {
-    publication_preflight_inner(frontier, opts).map_err(PublicationOutcome::uncommitted)
 }
 
 /// Establish a publication lease before a `FrontierTxn` installs its public
@@ -748,20 +664,15 @@ pub(crate) fn discover_receipt_publication(
 /// Return the deliberate, non-Git reason publication is disabled, if any.
 ///
 /// This check intentionally performs no repository discovery. Scientific
-/// transactions use it before constructing a Git-relative delta so a
-/// `vela init --no-git` frontier remains writable when publication is
-/// explicitly disabled. The worktree cannot inject `VELA_NO_PUBLISH` because
-/// Vela never loads frontier-local dotenv files.
+/// transactions use it before constructing a Git-relative delta. The worktree
+/// cannot inject `VELA_NO_PUBLISH` because Vela never loads frontier-local
+/// dotenv files.
 pub(crate) fn publication_disabled_reason(
-    frontier: &Path,
-    opts: &PublishOptions,
+    _frontier: &Path,
+    _opts: &PublishOptions,
 ) -> Option<String> {
     if !cfg!(test) && std::env::var("VELA_NO_PUBLISH").is_ok_and(|value| value == "1") {
         return Some("publication disabled by VELA_NO_PUBLISH".to_string());
-    }
-    let (commit_mode, _) = crate::config::settings::resolve("publish.git_commit", Some(frontier));
-    if opts.no_commit || commit_mode == "off" {
-        return Some("Git commit publication is disabled".to_string());
     }
     None
 }
@@ -771,12 +682,6 @@ fn exact_publication_preflight_inner(
     delta: &PublicationDelta,
     opts: &PublishOptions,
 ) -> Result<ExactPublicationPreflight, String> {
-    if opts.preflight.is_some() {
-        return Err(
-            "exact publication preflight cannot be combined with legacy preflight state"
-                .to_string(),
-        );
-    }
     let temporary = tempfile::tempdir().map_err(|error| format!("publication tempdir: {error}"))?;
     let empty_hooks = temporary.path().join("hooks");
     let empty_attributes = temporary.path().join("attributes");
@@ -905,12 +810,6 @@ fn exact_publication_resume_preflight_inner(
     delta: &PublicationDelta,
     opts: &PublishOptions,
 ) -> Result<ExactPublicationPreflight, String> {
-    if opts.preflight.is_some() {
-        return Err(
-            "exact publication resume preflight cannot be combined with legacy preflight state"
-                .to_string(),
-        );
-    }
     let temporary = tempfile::tempdir().map_err(|error| format!("publication tempdir: {error}"))?;
     let empty_hooks = temporary.path().join("hooks");
     let empty_attributes = temporary.path().join("attributes");
@@ -1050,12 +949,6 @@ fn discover_exact_publication_inner(
     anchor_path: &str,
     opts: &PublishOptions,
 ) -> Result<Option<PublicationOutcome>, String> {
-    if opts.preflight.is_some() {
-        return Err(
-            "exact publication discovery cannot be combined with legacy preflight state"
-                .to_string(),
-        );
-    }
     let (temporary, runner) = sanitized_git_runner(frontier)?;
     reject_local_attribute_overrides(&runner)?;
     let frontier_abs = frontier
@@ -1138,12 +1031,6 @@ fn discover_receipt_publication_inner(
     operation_id: &str,
     opts: &PublishOptions,
 ) -> Result<Option<PublicationOutcome>, String> {
-    if opts.preflight.is_some() {
-        return Err(
-            "receipt publication discovery cannot be combined with legacy preflight state"
-                .to_string(),
-        );
-    }
     if !is_canonical_sha256(receipt_root) || sha256(receipt_bytes) != receipt_root {
         return Err("receipt publication discovery bytes do not match receipt_root".to_string());
     }
@@ -1283,149 +1170,6 @@ fn capture_preflight_input_hashes(
     Ok(hashes)
 }
 
-fn publication_preflight_inner(
-    frontier: &Path,
-    opts: &PublishOptions,
-) -> Result<PublicationPreflight, String> {
-    let temporary = tempfile::tempdir().map_err(|error| format!("publication tempdir: {error}"))?;
-    let empty_hooks = temporary.path().join("hooks");
-    let empty_attributes = temporary.path().join("attributes");
-    fs::create_dir(&empty_hooks)
-        .map_err(|error| format!("create empty hooks directory: {error}"))?;
-    fs::write(&empty_attributes, [])
-        .map_err(|error| format!("create empty global attributes file: {error}"))?;
-    let bootstrap = GitRunner {
-        root: frontier.to_path_buf(),
-        empty_hooks: empty_hooks.clone(),
-        empty_attributes: empty_attributes.clone(),
-        attribute_source: None,
-    };
-    let root = PathBuf::from(bootstrap.text(&["rev-parse", "--show-toplevel"])?)
-        .canonicalize()
-        .map_err(|error| format!("canonicalize Git root: {error}"))?;
-    let mut runner = GitRunner {
-        root: root.clone(),
-        empty_hooks,
-        empty_attributes,
-        attribute_source: None,
-    };
-    let publication_lock = acquire_publication_lock(&runner).map_err(|error| match error {
-        PublicationLockError::Busy => PUBLICATION_BUSY_RETRY_REASON.to_string(),
-        PublicationLockError::Failed(reason) => reason,
-    })?;
-    reject_local_attribute_overrides(&runner)?;
-    let target_refname = resolve_target_ref(&runner, opts.target_refname.as_deref())?;
-    let target_checkout = target_checkout_state(&runner, &target_refname)?;
-    if let TargetCheckoutState::CheckedOutElsewhere { worktree } = &target_checkout {
-        return Err(format!(
-            "target ref {} is checked out in another worktree at {worktree}",
-            target_refname.0
-        ));
-    }
-    let frontier_abs = frontier
-        .canonicalize()
-        .unwrap_or_else(|_| frontier.to_path_buf());
-    if !frontier_abs.starts_with(&root) {
-        return Err("frontier is outside the resolved Git worktree".to_string());
-    }
-    let specs = frontier_specs(&frontier_abs, &root)?;
-    let object_format = runner.text(&["rev-parse", "--show-object-format"])?;
-    let expected = GitOid::parse(
-        &object_format,
-        &runner.text(&["rev-parse", &format!("{}^{{commit}}", target_refname.0)])?,
-    )?;
-    runner.pin_attributes(&expected);
-    reject_unsupported_index(&runner, &specs, &object_format)?;
-    let allowed_input_hashes =
-        capture_preflight_input_hashes(&runner, &frontier_abs, &opts.preflight_inputs)?;
-    let staged = git_paths(
-        &runner,
-        vec![
-            OsString::from("diff"),
-            OsString::from("--cached"),
-            OsString::from("--name-only"),
-            OsString::from("-z"),
-            OsString::from(&expected.hex),
-            OsString::from("--"),
-        ],
-        &specs,
-    )?;
-    if let Some(path) = staged
-        .iter()
-        .find(|path| allowed_input_hashes.contains_key(*path))
-    {
-        return Err(format!(
-            "explicit preflight input {path} is staged; unstage it so publication can prove the bound worktree bytes without consuming caller-owned index state"
-        ));
-    }
-    let parent = tree_entries(&runner, &expected, &specs)?;
-    let attribute_index = temporary.path().join("preflight.index");
-    runner.checked(
-        &[OsString::from("read-tree"), OsString::from(&expected.hex)],
-        None,
-        Some(&attribute_index),
-    )?;
-    let (desired, _) = desired_entries(
-        &runner,
-        &root,
-        &specs,
-        &parent,
-        &object_format,
-        &attribute_index,
-    )?;
-    let changed = desired
-        .iter()
-        .filter_map(|(path, entry)| {
-            let matches = match entry {
-                Some(entry) => parent
-                    .get(path)
-                    .is_some_and(|(mode, oid)| mode == &entry.mode && oid == &entry.oid),
-                None => !parent.contains_key(path),
-            };
-            (!matches).then_some(path)
-        })
-        .collect::<BTreeSet<_>>();
-    if let Some(path) = changed
-        .iter()
-        .find(|path| !allowed_input_hashes.contains_key(path.as_str()))
-    {
-        return Err(format!(
-            "preflight refuses pre-existing unstaged Vela edit at {path}"
-        ));
-    }
-    let (original_index, original_index_sha256) = capture_index(&runner)?;
-    Ok(PublicationPreflight {
-        repository: root,
-        frontier: frontier_abs,
-        target_refname,
-        target_checkout,
-        expected_git_commit_oid: expected,
-        original_index,
-        original_index_sha256,
-        allowed_input_hashes,
-        publication_lock,
-    })
-}
-
-/// Publish a signed decision: materialize derived views, stage the
-/// frontier's store paths, commit with a canonical message binding the
-/// event ids, and push. Config: identity `git_commit` / `git_push`
-/// ("auto" default, "off" opts out); `VELA_NO_PUBLISH=1` disables
-/// globally (gates, tests); per-call flags override.
-pub(crate) fn publish_decision(
-    frontier: &Path,
-    summary: &str,
-    event_ids: &[String],
-    opts: &PublishOptions,
-) -> PublicationOutcome {
-    if let Some(reason) = publication_disabled_reason(frontier, opts) {
-        return PublicationOutcome::uncommitted(reason);
-    }
-
-    publish_inner(frontier, summary, event_ids, opts)
-        .unwrap_or_else(PublicationOutcome::uncommitted)
-}
-
 /// Publish exactly the public postimages/deletions bound by an earlier exact
 /// preflight. No materialization or broad worktree enumeration contributes to
 /// the candidate mapping. Changing any caller-supplied delta field after
@@ -1449,12 +1193,8 @@ pub(crate) fn publish_exact_delta(
     if let Some(reason) = publication_disabled_reason(frontier, opts) {
         return Ok(PublicationOutcome::uncommitted(reason));
     }
-    let exact = ExactPublishContext {
-        delta,
-        preflight: &preflight,
-    };
     Ok(
-        publish_inner_mode(frontier, summary, event_ids, opts, Some(exact))
+        publish_exact_inner(frontier, summary, event_ids, delta, &preflight, opts)
             .unwrap_or_else(PublicationOutcome::uncommitted),
     )
 }
@@ -1718,31 +1458,14 @@ fn recover_publication_inner(
     ))
 }
 
-#[derive(Clone, Copy)]
-struct ExactPublishContext<'a> {
-    delta: &'a PublicationDelta,
-    preflight: &'a ExactPublicationPreflight,
-}
-
-fn publish_inner(
+fn publish_exact_inner(
     frontier: &Path,
     summary: &str,
     event_ids: &[String],
+    delta: &PublicationDelta,
+    preflight: &ExactPublicationPreflight,
     opts: &PublishOptions,
 ) -> Result<PublicationOutcome, String> {
-    publish_inner_mode(frontier, summary, event_ids, opts, None)
-}
-
-fn publish_inner_mode(
-    frontier: &Path,
-    summary: &str,
-    event_ids: &[String],
-    opts: &PublishOptions,
-    exact: Option<ExactPublishContext<'_>>,
-) -> Result<PublicationOutcome, String> {
-    if exact.is_some() && opts.preflight.is_some() {
-        return Err("exact publication cannot be combined with legacy preflight state".to_string());
-    }
     let temporary = tempfile::tempdir().map_err(|error| format!("publication tempdir: {error}"))?;
     let empty_hooks = temporary.path().join("hooks");
     let empty_attributes = temporary.path().join("attributes");
@@ -1765,26 +1488,7 @@ fn publish_inner_mode(
         empty_attributes,
         attribute_source: None,
     };
-    let owned_publication_lock = if opts.preflight.is_none() && exact.is_none() {
-        match acquire_publication_lock(&runner) {
-            Ok(lock) => Some(lock),
-            Err(PublicationLockError::Busy) => {
-                return Ok(publication_busy_outcome(&runner));
-            }
-            Err(PublicationLockError::Failed(reason)) => return Err(reason),
-        }
-    } else {
-        None
-    };
-    let publication_lock = exact
-        .map(|exact| &exact.preflight.publication_lock)
-        .or_else(|| {
-            opts.preflight
-                .as_ref()
-                .map(|preflight| &preflight.publication_lock)
-        })
-        .or(owned_publication_lock.as_ref())
-        .expect("preflight or internally-owned publication lock");
+    let publication_lock = &preflight.publication_lock;
     if publication_lock.repository != root {
         return Err("publication preflight lock belongs to a different repository".to_string());
     }
@@ -1806,13 +1510,6 @@ fn publish_inner_mode(
     }
     let specs = frontier_specs(&frontier_abs, &root)?;
 
-    // The legacy path still materializes before deriving its complete durable
-    // mapping. The transaction path has already committed and materialized an
-    // exact journaled delta; rematerializing here would violate that boundary.
-    if exact.is_none() {
-        vela_protocol::frontier_repo::materialize(frontier)
-            .map_err(|error| format!("materialize before publication: {error}"))?;
-    }
     let object_format = runner.text(&["rev-parse", "--show-object-format"])?;
     let expected = GitOid::parse(
         &object_format,
@@ -1821,59 +1518,32 @@ fn publish_inner_mode(
     runner.pin_attributes(&expected);
 
     reject_unsupported_index(&runner, &specs, &object_format)?;
-    if let Some(exact) = exact {
-        validate_publication_delta(exact.delta, &root, &specs)?;
-        let actual_delta_sha256 = publication_delta_sha256(exact.delta);
-        if actual_delta_sha256 != exact.preflight.delta_sha256 {
-            return Err("exact publication delta changed after digest validation".to_string());
-        }
-        if exact.preflight.repository != root
-            || exact.preflight.frontier != frontier_abs
-            || exact.preflight.target_refname != target_refname
-            || exact.preflight.target_checkout != target_checkout
-            || exact.preflight.expected_git_commit_oid != expected
-        {
-            return Err("exact publication preflight identity is stale".to_string());
-        }
-        let (current_index, current_index_sha256) = capture_index(&runner)?;
-        if current_index != exact.preflight.original_index
-            || current_index_sha256 != exact.preflight.original_index_sha256
-        {
-            return Err("exact publication preflight refuses caller-index drift".to_string());
-        }
-        for (path, expected_hash) in &exact.preflight.allowed_input_hashes {
-            let bytes = fs::read(root.join(path))
-                .map_err(|error| format!("re-read explicit preflight input {path}: {error}"))?;
-            if sha256(&bytes) != *expected_hash {
-                return Err(format!(
-                    "exact publication preflight refuses explicit-input drift at {path}"
-                ));
-            }
-        }
+    validate_publication_delta(delta, &root, &specs)?;
+    let actual_delta_sha256 = publication_delta_sha256(delta);
+    if actual_delta_sha256 != preflight.delta_sha256 {
+        return Err("exact publication delta changed after digest validation".to_string());
     }
-    if let Some(preflight) = &opts.preflight {
-        if preflight.repository != root
-            || preflight.frontier != frontier_abs
-            || preflight.target_refname != target_refname
-            || preflight.target_checkout != target_checkout
-            || preflight.expected_git_commit_oid != expected
-        {
-            return Err("publication preflight identity is stale".to_string());
-        }
-        let (current_index, current_index_sha256) = capture_index(&runner)?;
-        if current_index != preflight.original_index
-            || current_index_sha256 != preflight.original_index_sha256
-        {
-            return Err("publication preflight refuses caller-index drift".to_string());
-        }
-        for (path, expected_hash) in &preflight.allowed_input_hashes {
-            let bytes = fs::read(root.join(path))
-                .map_err(|error| format!("re-read explicit preflight input {path}: {error}"))?;
-            if sha256(&bytes) != *expected_hash {
-                return Err(format!(
-                    "publication preflight refuses explicit-input drift at {path}"
-                ));
-            }
+    if preflight.repository != root
+        || preflight.frontier != frontier_abs
+        || preflight.target_refname != target_refname
+        || preflight.target_checkout != target_checkout
+        || preflight.expected_git_commit_oid != expected
+    {
+        return Err("exact publication preflight identity is stale".to_string());
+    }
+    let (current_index, current_index_sha256) = capture_index(&runner)?;
+    if current_index != preflight.original_index
+        || current_index_sha256 != preflight.original_index_sha256
+    {
+        return Err("exact publication preflight refuses caller-index drift".to_string());
+    }
+    for (path, expected_hash) in &preflight.allowed_input_hashes {
+        let bytes = fs::read(root.join(path))
+            .map_err(|error| format!("re-read explicit preflight input {path}: {error}"))?;
+        if sha256(&bytes) != *expected_hash {
+            return Err(format!(
+                "exact publication preflight refuses explicit-input drift at {path}"
+            ));
         }
     }
     if matches!(target_checkout, TargetCheckoutState::Current { .. }) {
@@ -1903,48 +1573,28 @@ fn publish_inner_mode(
 
     let (original_index, original_index_sha256) = capture_index(&runner)?;
     let parent = tree_entries(&runner, &expected, &specs)?;
-    if let Some(exact) = exact {
-        let paths = delta_paths(exact.delta);
-        reject_parent_case_collisions(&paths, &parent)?;
-    }
+    let paths = delta_paths(delta);
+    reject_parent_case_collisions(&paths, &parent)?;
     let index_path = temporary.path().join("publication.index");
     runner.checked(
         &[OsString::from("read-tree"), OsString::from(&expected.hex)],
         None,
         Some(&index_path),
     )?;
-    if let Some(exact) = exact {
-        let mut allowed = delta_paths(exact.delta);
-        allowed.extend(exact.preflight.allowed_input_hashes.keys().cloned());
-        reject_unrelated_public_dirt(
-            &runner,
-            &expected,
-            &specs,
-            &allowed,
-            &parent,
-            &object_format,
-            &index_path,
-        )?;
-    }
-    let (desired, worktree_hashes, scope) = if let Some(exact) = exact {
-        let (desired, hashes) = exact_desired_entries(
-            &runner,
-            exact.delta,
-            &root,
-            &specs,
-            &object_format,
-            &index_path,
-        )?;
-        (desired, hashes, PublicationScope::ExactDelta)
-    } else {
-        let (desired, hashes) =
-            desired_entries(&runner, &root, &specs, &parent, &object_format, &index_path)?;
-        (desired, hashes, PublicationScope::FullFrontier)
-    };
-    if let Some(exact) = exact
-        && let ExactPublicationDisposition::AlreadyPublished { commit } =
-            &exact.preflight.disposition
-    {
+    let mut allowed = paths;
+    allowed.extend(preflight.allowed_input_hashes.keys().cloned());
+    reject_unrelated_public_dirt(
+        &runner,
+        &expected,
+        &specs,
+        &allowed,
+        &parent,
+        &object_format,
+        &index_path,
+    )?;
+    let (desired, worktree_hashes) =
+        exact_desired_entries(&runner, delta, &root, &specs, &object_format, &index_path)?;
+    if let ExactPublicationDisposition::AlreadyPublished { commit } = &preflight.disposition {
         if commit != &expected || !target_matches_exact_postimages(&parent, &desired) {
             return Err("already-published exact publication identity is stale".to_string());
         }
@@ -1980,12 +1630,6 @@ fn publish_inner_mode(
             },
         );
     }
-    if scope == PublicationScope::FullFrontier && mapping_matches(&parent, &desired) {
-        return Ok(PublicationOutcome::uncommitted(
-            "resolved Vela paths already match the target tree",
-        ));
-    }
-
     for (path, entry) in &desired {
         match entry {
             Some(entry) => {
@@ -2031,14 +1675,9 @@ fn publish_inner_mode(
         )?)
         .trim(),
     )?;
-    if scope == PublicationScope::ExactDelta {
-        inspect_exact_candidate(&runner, &expected, &tree, &desired)?;
-    } else {
-        inspect_candidate(&runner, &expected, &tree, &desired, &specs)?;
-    }
+    inspect_exact_candidate(&runner, &expected, &tree, &desired)?;
 
     let message = publication_message(summary, event_ids);
-    let exact_root = exact.map_or("", |exact| exact.delta.root.as_str());
     let planning_identity = format!(
         "{}\0{}\0{}\0{}\0{}\0{}\0{}",
         root.display(),
@@ -2046,7 +1685,7 @@ fn publish_inner_mode(
         target_refname.0,
         expected.hex,
         tree.hex,
-        exact_root,
+        delta.root,
         message
     );
     let operation_id =
@@ -2079,8 +1718,7 @@ fn publish_inner_mode(
         author_email: author_email.clone(),
         commit_date: commit_date.clone(),
         entries: journal_entries(&desired, &worktree_hashes),
-        specs: specs.clone(),
-        scope,
+        scope: PublicationScope::ExactDelta,
         lfs_objects: desired
             .values()
             .filter_map(|entry| entry.as_ref())
@@ -2092,16 +1730,6 @@ fn publish_inner_mode(
         ref_moved: false,
     };
     crate::operation_journal::write_json(&journal_path, &journal)?;
-    #[cfg(test)]
-    if let Some((reached, resume)) = &opts.pause_after_journal
-        && (reached.send(()).is_err() || resume.recv().is_err())
-    {
-        return Ok(uncommitted_operation_outcome(
-            None,
-            &operation_id,
-            "publication test pause channel disappeared",
-        ));
-    }
 
     let commit_output = match runner.run(
         &[
@@ -2147,35 +1775,17 @@ fn publish_inner_mode(
         ));
     }
 
-    #[cfg(test)]
-    if opts.fail_before_ref_move {
-        return Ok(PublicationOutcome {
-            state: PublicationState::Uncommitted {
-                candidate: Some(candidate.hex),
-                reason: "injected stop before ref movement".to_string(),
-            },
-            recovery_command: Some(format!(
-                "vela publication recover --operation {operation_id}"
-            )),
-        });
-    }
-
-    let worktree_unchanged = match worktree_matches(
-        &root,
-        &specs,
-        &worktree_hashes,
-        &desired_modes(&desired),
-        scope,
-    ) {
-        Ok(unchanged) => unchanged,
-        Err(error) => {
-            return Ok(uncommitted_operation_outcome(
-                Some(&candidate),
-                &operation_id,
-                error,
-            ));
-        }
-    };
+    let worktree_unchanged =
+        match worktree_matches(&root, &worktree_hashes, &desired_modes(&desired)) {
+            Ok(unchanged) => unchanged,
+            Err(error) => {
+                return Ok(uncommitted_operation_outcome(
+                    Some(&candidate),
+                    &operation_id,
+                    error,
+                ));
+            }
+        };
     if !worktree_unchanged {
         return Ok(uncommitted_operation_outcome(
             Some(&candidate),
@@ -2381,11 +1991,6 @@ fn publish_inner_mode(
         return Ok(operation_recovery_outcome(&candidate, &operation_id));
     }
 
-    #[cfg(test)]
-    if opts.fail_after_ref_move {
-        return Ok(operation_recovery_outcome(&candidate, &operation_id));
-    }
-
     let mut txn = GitPublicationTxn {
         target_refname: target_refname.clone(),
         target_checkout: target_checkout.clone(),
@@ -2398,11 +2003,9 @@ fn publish_inner_mode(
         && let Err(_error) = reconcile_current_index(
             &runner,
             &desired,
-            &specs,
             &original_index,
             &original_index_sha256,
             &worktree_hashes,
-            scope,
         )
     {
         return Ok(operation_recovery_outcome(&candidate, &operation_id));
@@ -2626,52 +2229,6 @@ fn is_private_vela_path(path: &str, specs: &[String]) -> bool {
             .and_then(|suffix| suffix.split('/').next())
             .is_some_and(|component| PRIVATE.contains(&component))
     })
-}
-
-fn filesystem_public_paths(root: &Path, specs: &[String]) -> Result<BTreeSet<String>, String> {
-    fn visit(
-        root: &Path,
-        path: &Path,
-        specs: &[String],
-        output: &mut BTreeSet<String>,
-    ) -> Result<(), String> {
-        let relative = path
-            .strip_prefix(root)
-            .map_err(|_| "public path escaped the Git root".to_string())?;
-        let relative = relative
-            .to_str()
-            .ok_or_else(|| "non-UTF-8 public Vela path is not publishable".to_string())?
-            .to_string();
-        if is_private_vela_path(&relative, specs) {
-            return Ok(());
-        }
-        let metadata = match fs::symlink_metadata(path) {
-            Ok(metadata) => metadata,
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
-            Err(error) => return Err(format!("inspect public path {}: {error}", path.display())),
-        };
-        if metadata.file_type().is_dir() {
-            let mut children = fs::read_dir(path)
-                .map_err(|error| format!("read public directory {}: {error}", path.display()))?
-                .filter_map(Result::ok)
-                .map(|entry| entry.path())
-                .collect::<Vec<_>>();
-            children.sort();
-            for child in children {
-                visit(root, &child, specs, output)?;
-            }
-        } else {
-            output.insert(relative);
-        }
-        Ok(())
-    }
-
-    let mut output = BTreeSet::new();
-    for spec in specs {
-        reject_symlink_ancestors(root, Path::new(spec))?;
-        visit(root, &root.join(spec), specs, &mut output)?;
-    }
-    Ok(output)
 }
 
 fn publication_delta_sha256(delta: &PublicationDelta) -> String {
@@ -3276,68 +2833,6 @@ fn tree_entries(runner: &GitRunner, tree: &GitOid, specs: &[String]) -> Result<T
         );
     }
     Ok(entries)
-}
-
-fn desired_entries(
-    runner: &GitRunner,
-    root: &Path,
-    specs: &[String],
-    parent: &TreeMap,
-    object_format: &str,
-    attribute_index: &Path,
-) -> Result<(DesiredMap, WorktreeHashMap), String> {
-    let mut listed = git_paths(
-        runner,
-        vec![
-            OsString::from("ls-files"),
-            OsString::from("-z"),
-            OsString::from("--cached"),
-            OsString::from("--others"),
-            OsString::from("--exclude-standard"),
-            OsString::from("--"),
-        ],
-        specs,
-    )?;
-    // `.gitignore` is only a convenience layer. Older frontiers, hostile local
-    // excludes, or a partially initialized repository may leave private Vela
-    // scratch visible to `ls-files --others`. The publication boundary must
-    // enforce the private-path rule itself instead of relying on ignore state.
-    listed.retain(|path| !is_private_vela_path(path, specs));
-    listed.extend(filesystem_public_paths(root, specs)?);
-    let paths = parent
-        .keys()
-        .cloned()
-        .chain(listed)
-        .collect::<BTreeSet<_>>();
-    let mut desired = BTreeMap::new();
-    let mut hashes = BTreeMap::new();
-    for path in paths {
-        let absolute = root.join(&path);
-        match fs::symlink_metadata(&absolute) {
-            Ok(metadata) if metadata.file_type().is_file() => {
-                let worktree_bytes = fs::read(&absolute)
-                    .map_err(|error| format!("read Vela path {path}: {error}"))?;
-                let entry = desired_entry_from_bytes(
-                    runner,
-                    &path,
-                    &worktree_bytes,
-                    regular_file_mode(&metadata),
-                    specs,
-                    object_format,
-                    attribute_index,
-                )?;
-                hashes.insert(path.clone(), Some(sha256(&worktree_bytes)));
-                desired.insert(path, Some(entry));
-            }
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-                hashes.insert(path.clone(), None);
-                desired.insert(path, None);
-            }
-            Ok(_) => return Err(format!("Vela path is not a regular file: {path}")),
-            Err(error) => return Err(format!("inspect Vela path {path}: {error}")),
-        }
-    }
-    Ok((desired, hashes))
 }
 
 fn desired_entry_from_bytes(
@@ -4228,56 +3723,6 @@ fn mapping_matches(parent: &TreeMap, desired: &BTreeMap<String, Option<DesiredEn
             })
 }
 
-fn inspect_candidate(
-    runner: &GitRunner,
-    expected: &GitOid,
-    tree: &GitOid,
-    desired: &BTreeMap<String, Option<DesiredEntry>>,
-    specs: &[String],
-) -> Result<(), String> {
-    let changed = git_paths(
-        runner,
-        vec![
-            OsString::from("diff-tree"),
-            OsString::from("--no-commit-id"),
-            OsString::from("--name-only"),
-            OsString::from("-r"),
-            OsString::from("-z"),
-            OsString::from(&expected.hex),
-            OsString::from(&tree.hex),
-            OsString::from("--"),
-        ],
-        specs,
-    )?;
-    let allowlist = desired.keys().cloned().collect::<BTreeSet<_>>();
-    if !changed.is_subset(&allowlist) {
-        return Err("candidate tree changes a path outside the exact Vela allowlist".to_string());
-    }
-    let actual = tree_entries(runner, tree, specs)?;
-    if !mapping_matches(&actual, desired) {
-        return Err("candidate tree does not equal the resolved Vela mapping".to_string());
-    }
-    for (path, entry) in desired {
-        if let Some(entry) = entry {
-            let bytes = runner.checked(
-                &[
-                    OsString::from("cat-file"),
-                    OsString::from("blob"),
-                    OsString::from(&entry.oid.hex),
-                ],
-                None,
-                None,
-            )?;
-            if bytes != entry.bytes {
-                return Err(format!(
-                    "candidate authority blob differs from canonical bytes at {path}"
-                ));
-            }
-        }
-    }
-    Ok(())
-}
-
 fn inspect_exact_candidate(
     runner: &GitRunner,
     expected: &GitOid,
@@ -4440,23 +3885,15 @@ fn atomically_reconcile_index(
 fn reconcile_current_index(
     runner: &GitRunner,
     desired: &BTreeMap<String, Option<DesiredEntry>>,
-    specs: &[String],
     original: &IndexMap,
     original_sha256: &str,
     worktree_hashes: &BTreeMap<String, Option<String>>,
-    scope: PublicationScope,
 ) -> Result<(), String> {
     let (current, current_sha256) = capture_index(runner)?;
     if current != *original || current_sha256 != original_sha256 {
         return Err("caller index drifted before post-ref reconciliation".to_string());
     }
-    if !worktree_matches(
-        &runner.root,
-        specs,
-        worktree_hashes,
-        &desired_modes(desired),
-        scope,
-    )? {
+    if !worktree_matches(&runner.root, worktree_hashes, &desired_modes(desired))? {
         return Err("Vela worktree drifted before post-ref reconciliation".to_string());
     }
     let zeros = "0".repeat(
@@ -4494,13 +3931,7 @@ fn reconcile_current_index(
             None => {}
         }
     }
-    if !worktree_matches(
-        &runner.root,
-        specs,
-        worktree_hashes,
-        &desired_modes(desired),
-        scope,
-    )? {
+    if !worktree_matches(&runner.root, worktree_hashes, &desired_modes(desired))? {
         return Err("publication changed Vela worktree bytes".to_string());
     }
     Ok(())
@@ -4580,21 +4011,9 @@ fn sha256(bytes: &[u8]) -> String {
 
 fn worktree_matches(
     root: &Path,
-    specs: &[String],
     expected: &BTreeMap<String, Option<String>>,
     modes: &BTreeMap<String, Option<String>>,
-    scope: PublicationScope,
 ) -> Result<bool, String> {
-    if scope == PublicationScope::FullFrontier {
-        let actual_paths = filesystem_public_paths(root, specs)?;
-        let expected_paths = expected
-            .iter()
-            .filter_map(|(path, hash)| hash.as_ref().map(|_| path.clone()))
-            .collect::<BTreeSet<_>>();
-        if actual_paths != expected_paths {
-            return Ok(false);
-        }
-    }
     for (path, expected_hash) in expected {
         let absolute = root.join(path);
         let actual = match fs::symlink_metadata(&absolute) {
@@ -4635,7 +4054,7 @@ fn journal_worktree_matches(root: &Path, journal: &PublicationJournal) -> Result
         .iter()
         .map(|entry| (entry.path.clone(), entry.mode.clone()))
         .collect::<BTreeMap<_, _>>();
-    worktree_matches(root, &journal.specs, &hashes, &modes, journal.scope)
+    worktree_matches(root, &hashes, &modes)
 }
 
 fn publication_message(summary: &str, event_ids: &[String]) -> String {
@@ -4715,26 +4134,6 @@ fn acquire_publication_lock(runner: &GitRunner) -> Result<PublicationLock, Publi
             "lock Git publication {}: {error}",
             path.display()
         ))),
-    }
-}
-
-fn publication_busy_outcome(runner: &GitRunner) -> PublicationOutcome {
-    let journal_dir = git_private_path(runner, "vela/operation-journals").ok();
-    let operation = journal_dir
-        .and_then(|dir| fs::read_dir(dir).ok())
-        .into_iter()
-        .flatten()
-        .filter_map(Result::ok)
-        .filter_map(|entry| entry.file_name().into_string().ok())
-        .filter_map(|name| name.strip_suffix(".json").map(str::to_string))
-        .find(|operation| valid_operation_id(operation));
-    PublicationOutcome {
-        state: PublicationState::Uncommitted {
-            candidate: None,
-            reason: PUBLICATION_BUSY_REASON.to_string(),
-        },
-        recovery_command: operation
-            .map(|operation| format!("vela publication recover --operation {operation}")),
     }
 }
 
@@ -5298,10 +4697,6 @@ mod tests {
         temporary
     }
 
-    fn change_vela(path: &Path) {
-        fs::write(path.join(".vela/actors.json"), "[\n]\n").unwrap();
-    }
-
     fn operation_from(outcome: &PublicationOutcome) -> String {
         let parts = outcome
             .recovery_command
@@ -5428,252 +4823,6 @@ mod tests {
     }
 
     #[test]
-    fn publication_never_commits_callers_index() {
-        let temporary = frontier();
-        let path = temporary.path();
-        fs::write(path.join("unrelated.txt"), "staged by caller\n").unwrap();
-        sh(path, &["add", "--", "unrelated.txt"]);
-        change_vela(path);
-
-        let outcome = publish_decision(
-            path,
-            "accept: 1 proposal",
-            &["vev_x".to_string()],
-            &PublishOptions::new(false, true),
-        );
-        assert!(
-            matches!(outcome.state, PublicationState::CommittedLocal { .. }),
-            "unexpected publication outcome: {outcome:?}"
-        );
-        let body = sh(path, &["log", "-1", "--format=%B"]);
-        assert!(body.contains("accept: 1 proposal"), "{body}");
-        assert!(body.contains("vev_x"), "{body}");
-        assert_eq!(
-            sh(path, &["diff", "--cached", "--name-only"]),
-            "unrelated.txt"
-        );
-        assert!(
-            !sh(
-                path,
-                &["diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD"]
-            )
-            .lines()
-            .any(|path| path == "unrelated.txt")
-        );
-    }
-
-    #[test]
-    fn publication_noop_ignores_unrelated_staging() {
-        let temporary = frontier();
-        let path = temporary.path();
-        let before = sh(path, &["rev-parse", "HEAD"]);
-        fs::write(path.join("unrelated.txt"), "staged by caller\n").unwrap();
-        sh(path, &["add", "--", "unrelated.txt"]);
-        let outcome = publish_decision(path, "noop", &[], &PublishOptions::new(false, true));
-        assert!(matches!(
-            outcome.state,
-            PublicationState::Uncommitted { .. }
-        ));
-        assert_eq!(sh(path, &["rev-parse", "HEAD"]), before);
-        assert_eq!(
-            sh(path, &["diff", "--cached", "--name-only"]),
-            "unrelated.txt"
-        );
-    }
-
-    #[test]
-    fn publication_includes_public_manifest_paths_but_not_private_work() {
-        let temporary = frontier();
-        let path = temporary.path();
-        fs::create_dir_all(path.join("records")).unwrap();
-        fs::create_dir_all(path.join("sources")).unwrap();
-        fs::create_dir_all(path.join("exports")).unwrap();
-        fs::create_dir_all(path.join(".vela/agents/agent-test")).unwrap();
-        fs::create_dir_all(path.join(".vela/keys/reviewer-test")).unwrap();
-        fs::create_dir_all(path.join(".vela/operation-journals/frontier")).unwrap();
-        fs::create_dir_all(path.join(".vela/work/session")).unwrap();
-        fs::write(path.join("records/public.json"), "{}\n").unwrap();
-        fs::write(path.join("sources/source.txt"), "source\n").unwrap();
-        fs::write(path.join("exports/derived.txt"), "derived\n").unwrap();
-        fs::write(
-            path.join(".vela/agents/agent-test/private.key"),
-            "agent-secret\n",
-        )
-        .unwrap();
-        fs::write(
-            path.join(".vela/keys/reviewer-test/private.key"),
-            "human-secret\n",
-        )
-        .unwrap();
-        fs::write(
-            path.join(".vela/operation-journals/frontier/private.json"),
-            "journal-secret\n",
-        )
-        .unwrap();
-        fs::write(path.join(".vela/work/session/private.txt"), "private\n").unwrap();
-        let outcome =
-            publish_decision(path, "public paths", &[], &PublishOptions::new(false, true));
-        assert!(
-            matches!(outcome.state, PublicationState::CommittedLocal { .. }),
-            "unexpected publication outcome: {outcome:?}"
-        );
-        let changed = sh(
-            path,
-            &["diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD"],
-        );
-        assert!(
-            changed.lines().any(|item| item == "records/public.json"),
-            "{changed}"
-        );
-        assert!(
-            changed.lines().any(|item| item == "sources/source.txt"),
-            "{changed}"
-        );
-        assert!(!changed.contains(".vela/work/"), "{changed}");
-        assert!(!changed.contains(".vela/agents/"), "{changed}");
-        assert!(!changed.contains(".vela/keys/"), "{changed}");
-        assert!(!changed.contains(".vela/operation-journals/"), "{changed}");
-        assert!(!changed.contains("exports/"), "{changed}");
-        assert_eq!(
-            fs::read_to_string(path.join(".vela/work/session/private.txt")).unwrap(),
-            "private\n"
-        );
-    }
-
-    #[test]
-    fn publication_converts_witness_to_verified_lfs_pointer() {
-        let has_lfs = Command::new("git")
-            .args(["lfs", "version"])
-            .output()
-            .is_ok_and(|output| output.status.success());
-        if !has_lfs {
-            return;
-        }
-        let temporary = frontier();
-        let path = temporary.path();
-        sh(path, &["lfs", "install", "--local"]);
-        fs::write(
-            path.join(".gitattributes"),
-            "witnesses/** filter=lfs diff=lfs merge=lfs -text\n",
-        )
-        .unwrap();
-        sh(path, &["add", "--", ".gitattributes"]);
-        sh(path, &["commit", "-q", "-m", "configure lfs"]);
-        fs::create_dir_all(path.join("witnesses")).unwrap();
-        let raw = b"{\"kind\":\"computational\",\"payload\":\"large-enough-for-transport\"}\n";
-        fs::write(path.join("witnesses/run.witness.json"), raw).unwrap();
-
-        let outcome = publish_decision(path, "lfs", &[], &PublishOptions::new(false, true));
-        assert!(matches!(
-            outcome.state,
-            PublicationState::CommittedLocal { .. }
-        ));
-        let pointer = sh(path, &["show", "HEAD:witnesses/run.witness.json"]);
-        assert!(
-            pointer.starts_with("version https://git-lfs.github.com/spec/v1\n"),
-            "{pointer}"
-        );
-        assert!(pointer.contains(&format!("oid sha256:{}", hex::encode(Sha256::digest(raw)))));
-        assert!(pointer.contains(&format!("size {}", raw.len())));
-        assert_eq!(
-            fs::read(path.join("witnesses/run.witness.json")).unwrap(),
-            raw
-        );
-    }
-
-    #[test]
-    fn publication_reports_missing_lfs_object_as_availability_failure() {
-        let has_lfs = Command::new("git")
-            .args(["lfs", "version"])
-            .output()
-            .is_ok_and(|output| output.status.success());
-        if !has_lfs {
-            return;
-        }
-        let temporary = frontier();
-        let path = temporary.path();
-        sh(path, &["lfs", "install", "--local"]);
-        fs::write(
-            path.join(".gitattributes"),
-            "witnesses/** filter=lfs diff=lfs merge=lfs -text\n",
-        )
-        .unwrap();
-        sh(path, &["add", "--", ".gitattributes"]);
-        sh(path, &["commit", "-q", "-m", "configure lfs"]);
-        fs::create_dir_all(path.join("witnesses")).unwrap();
-        let missing = "f".repeat(64);
-        fs::write(
-            path.join("witnesses/missing.witness.json"),
-            format!("version https://git-lfs.github.com/spec/v1\noid sha256:{missing}\nsize 42\n"),
-        )
-        .unwrap();
-        let before = sh(path, &["rev-parse", "HEAD"]);
-        let outcome = publish_decision(path, "missing lfs", &[], &PublishOptions::new(false, true));
-        match outcome.state {
-            PublicationState::Uncommitted { reason, .. } => {
-                assert!(reason.contains("LFS availability failure"), "{reason}")
-            }
-            state => panic!("expected LFS availability failure, got {state:?}"),
-        }
-        assert_eq!(sh(path, &["rev-parse", "HEAD"]), before);
-    }
-
-    #[test]
-    fn publication_refuses_overlapping_vela_staging() {
-        let temporary = frontier();
-        let path = temporary.path();
-        change_vela(path);
-        sh(path, &["add", "--", ".vela/actors.json"]);
-        let before = sh(path, &["rev-parse", "HEAD"]);
-        let outcome = publish_decision(path, "overlap", &[], &PublishOptions::new(false, true));
-        match outcome.state {
-            PublicationState::Uncommitted { reason, .. } => {
-                assert!(reason.contains("staged Vela"), "{reason}")
-            }
-            state => panic!("expected staged-path refusal, got {state:?}"),
-        }
-        assert_eq!(sh(path, &["rev-parse", "HEAD"]), before);
-        assert_eq!(
-            sh(path, &["diff", "--cached", "--name-only"]),
-            ".vela/actors.json"
-        );
-    }
-
-    #[test]
-    fn publication_refuses_overlapping_vela_edits_in_preflight() {
-        let temporary = frontier();
-        let path = temporary.path();
-        change_vela(path);
-        let outcome = publication_preflight(path, &PublishOptions::new(false, true)).unwrap_err();
-        match outcome.state {
-            PublicationState::Uncommitted { reason, .. } => {
-                assert!(
-                    reason.contains("pre-existing unstaged Vela edit"),
-                    "{reason}"
-                )
-            }
-            state => panic!("expected dirty-preflight refusal, got {state:?}"),
-        }
-    }
-
-    #[test]
-    fn publication_accepts_clean_preflight_then_exact_mutation() {
-        let temporary = frontier();
-        let path = temporary.path();
-        fs::create_dir_all(path.join("witnesses")).unwrap();
-        fs::write(path.join("witnesses/input.json"), "{}\n").unwrap();
-        let base = PublishOptions::new(false, true)
-            .with_preflight_inputs(vec![PathBuf::from("witnesses/input.json")]);
-        let preflight = publication_preflight(path, &base).unwrap();
-        change_vela(path);
-        let outcome = publish_decision(path, "preflight", &[], &base.with_preflight(preflight));
-        assert!(matches!(
-            outcome.state,
-            PublicationState::CommittedLocal { .. }
-        ));
-    }
-
-    #[test]
     fn exact_publication_commits_only_supplied_writes_and_deletions() {
         let temporary = frontier();
         let path = temporary.path();
@@ -5685,7 +4834,7 @@ mod tests {
                 exact_delete(path, "frontier.json"),
             ],
         );
-        let opts = PublishOptions::new(false, true);
+        let opts = PublishOptions::new(true);
         let preflight = exact_publication_preflight(path, &delta, &opts).unwrap();
         fs::write(path.join(".vela/actors.json"), written).unwrap();
         fs::remove_file(path.join("frontier.json")).unwrap();
@@ -5729,7 +4878,7 @@ mod tests {
                 exact_delete(path, "frontier.json"),
             ],
         );
-        let opts = PublishOptions::new(false, true);
+        let opts = PublishOptions::new(true);
 
         // Simulate a process dying after FrontierTxn reached Completed but
         // before it obtained or used a Git publication lease.
@@ -5776,7 +4925,7 @@ mod tests {
             "already-published",
             vec![exact_write(path, ".vela/actors.json", written)],
         );
-        let opts = PublishOptions::new(false, true);
+        let opts = PublishOptions::new(true);
         let initial = exact_publication_preflight(path, &delta, &opts).unwrap();
         fs::write(path.join(".vela/actors.json"), written).unwrap();
         let first =
@@ -5835,7 +4984,7 @@ mod tests {
             vec![exact_write(path, "witnesses/resume.bin", after)],
         );
         fs::write(path.join("witnesses/resume.bin"), after).unwrap();
-        let opts = PublishOptions::new(false, true);
+        let opts = PublishOptions::new(true);
         let preflight = exact_publication_resume_preflight(path, &delta, &opts).unwrap();
         let outcome =
             publish_exact_delta(path, "resume LFS parent", &[], &delta, preflight, &opts).unwrap();
@@ -5930,7 +5079,7 @@ mod tests {
             receipt_a,
             b"[\n  {\"actor_id\":\"agent:a\"}\n]\n",
         );
-        let opts = PublishOptions::new(false, true);
+        let opts = PublishOptions::new(true);
         let preflight_a = exact_publication_preflight(path, &delta_a, &opts).unwrap();
         install_delta(path, &delta_a);
         let published_a =
@@ -5994,7 +5143,7 @@ mod tests {
             !clone.join(".git/vela/operation-journals").exists(),
             "clean-clone discovery must not depend on private journals"
         );
-        let clone_opts = PublishOptions::new(false, true);
+        let clone_opts = PublishOptions::new(true);
         let clean_found =
             discover_receipt_publication(&clone, receipt_a, &root_a, &operation_a, &clone_opts)
                 .unwrap();
@@ -6021,7 +5170,7 @@ mod tests {
             "mutation",
             vec![exact_write(path, ".vela/actors.json", b"[\n]\n")],
         );
-        let opts = PublishOptions::new(false, true);
+        let opts = PublishOptions::new(true);
         let preflight = exact_publication_preflight(path, &delta, &opts).unwrap();
         delta.entries[0].postimage = Some(b"mutated after preflight\n".to_vec());
 
@@ -6062,9 +5211,8 @@ mod tests {
         ];
         for delta in invalid {
             let before = sh(path, &["count-objects", "-v"]);
-            let outcome =
-                exact_publication_preflight(path, &delta, &PublishOptions::new(false, true))
-                    .expect_err("unsafe exact delta must fail before object construction");
+            let outcome = exact_publication_preflight(path, &delta, &PublishOptions::new(true))
+                .expect_err("unsafe exact delta must fail before object construction");
             assert!(matches!(
                 outcome.state,
                 PublicationState::Uncommitted { .. }
@@ -6122,7 +5270,7 @@ mod tests {
             "hostile-filter",
             vec![exact_write(path, ".vela/actors.json", written)],
         );
-        let opts = PublishOptions::new(false, true);
+        let opts = PublishOptions::new(true);
         let preflight = exact_publication_preflight(path, &delta, &opts).unwrap();
         assert!(!marker.exists(), "exact preflight executed hostile filter");
         fs::write(path.join(".vela/actors.json"), written).unwrap();
@@ -6147,7 +5295,7 @@ mod tests {
             "unexpected-dirt",
             vec![exact_write(path, ".vela/actors.json", written)],
         );
-        let opts = PublishOptions::new(false, true);
+        let opts = PublishOptions::new(true);
         let preflight = exact_publication_preflight(path, &delta, &opts).unwrap();
         fs::write(path.join(".vela/actors.json"), written).unwrap();
         fs::write(path.join(".vela/artifacts.json"), "tracked caller dirt\n").unwrap();
@@ -6198,7 +5346,7 @@ mod tests {
             "no-sweep",
             vec![exact_write(path, ".vela/actors.json", written)],
         );
-        let opts = PublishOptions::new(false, true);
+        let opts = PublishOptions::new(true);
         let preflight = exact_publication_preflight(path, &delta, &opts).unwrap();
         fs::write(path.join(".vela/actors.json"), written).unwrap();
         let outcome = publish_exact_delta(path, "no sweep", &[], &delta, preflight, &opts).unwrap();
@@ -6230,7 +5378,7 @@ mod tests {
             "ref-race",
             vec![exact_write(path, ".vela/actors.json", written)],
         );
-        let opts = PublishOptions::new(false, true).racing_ref_before_cas();
+        let opts = PublishOptions::new(true).racing_ref_before_cas();
         let preflight = exact_publication_preflight(path, &delta, &opts).unwrap();
         fs::write(path.join(".vela/actors.json"), written).unwrap();
 
@@ -6340,7 +5488,7 @@ mod tests {
             "queued-a",
             vec![exact_write(path, ".vela/actors.json", actors_a)],
         );
-        let local_opts = PublishOptions::new(false, true);
+        let local_opts = PublishOptions::new(true);
         let preflight_a = exact_publication_preflight(path, &delta_a, &local_opts).unwrap();
         fs::write(path.join(".vela/actors.json"), actors_a).unwrap();
         let published_a =
@@ -6425,7 +5573,7 @@ mod tests {
                 executable: false,
             }],
         );
-        let opts = PublishOptions::new(false, true);
+        let opts = PublishOptions::new(true);
         let preflight = exact_publication_preflight(path, &delta, &opts).unwrap();
         fs::create_dir_all(path.join("witnesses")).unwrap();
         fs::write(path.join("witnesses/exact.bin"), raw).unwrap();
@@ -6439,556 +5587,6 @@ mod tests {
         assert!(pointer.starts_with("version https://git-lfs.github.com/spec/v1\n"));
         assert!(pointer.contains(&format!("oid sha256:{}", hex::encode(Sha256::digest(raw)))));
         assert_eq!(fs::read(path.join("witnesses/exact.bin")).unwrap(), raw);
-    }
-
-    #[test]
-    fn publication_preflight_rejects_parent_and_symlink_inputs() {
-        let temporary = frontier();
-        let path = temporary.path();
-        let parent = PublishOptions::new(false, true)
-            .with_preflight_inputs(vec![PathBuf::from("../outside")]);
-        let outcome = publication_preflight(path, &parent).unwrap_err();
-        assert!(matches!(
-            outcome.state,
-            PublicationState::Uncommitted { .. }
-        ));
-
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::symlink;
-            fs::write(path.join("real-input"), "input\n").unwrap();
-            symlink(path.join("real-input"), path.join("linked-input")).unwrap();
-            let linked = PublishOptions::new(false, true)
-                .with_preflight_inputs(vec![PathBuf::from("linked-input")]);
-            let outcome = publication_preflight(path, &linked).unwrap_err();
-            assert!(matches!(
-                outcome.state,
-                PublicationState::Uncommitted { .. }
-            ));
-        }
-    }
-
-    #[test]
-    fn publication_refuses_non_normal_vela_index_flags() {
-        let temporary = frontier();
-        let path = temporary.path();
-        sh(
-            path,
-            &["update-index", "--assume-unchanged", ".vela/actors.json"],
-        );
-        change_vela(path);
-        let before = sh(path, &["count-objects", "-v"]);
-        let outcome = publish_decision(path, "flags", &[], &PublishOptions::new(false, true));
-        match outcome.state {
-            PublicationState::Uncommitted { reason, .. } => {
-                assert!(reason.contains("index flag"), "{reason}")
-            }
-            state => panic!("expected index-flag refusal, got {state:?}"),
-        }
-        assert_eq!(sh(path, &["count-objects", "-v"]), before);
-    }
-
-    #[test]
-    fn publication_refuses_unsupported_index_extensions() {
-        let temporary = frontier();
-        let path = temporary.path();
-        sh(path, &["update-index", "--untracked-cache"]);
-        fs::write(path.join("untracked-for-cache"), "x\n").unwrap();
-        sh(path, &["status", "--porcelain"]);
-        change_vela(path);
-        let before = sh(path, &["count-objects", "-v"]);
-        let outcome = publish_decision(path, "extension", &[], &PublishOptions::new(false, true));
-        match outcome.state {
-            PublicationState::Uncommitted { reason, .. } => {
-                assert!(reason.contains("index extension"), "{reason}")
-            }
-            state => panic!("expected extension refusal, got {state:?}"),
-        }
-        assert_eq!(sh(path, &["count-objects", "-v"]), before);
-    }
-
-    #[test]
-    fn publication_preserves_unstaged_work_and_vela_deletion() {
-        let temporary = frontier();
-        let path = temporary.path();
-        fs::write(path.join("unrelated.txt"), "unstaged by caller\n").unwrap();
-        fs::remove_file(path.join(".vela/actors.json")).unwrap();
-        let outcome = publish_decision(path, "delete", &[], &PublishOptions::new(false, true));
-        assert!(matches!(
-            outcome.state,
-            PublicationState::CommittedLocal { .. }
-        ));
-        assert_eq!(
-            fs::read_to_string(path.join("unrelated.txt")).unwrap(),
-            "unstaged by caller\n"
-        );
-        assert_eq!(
-            sh(path, &["status", "--short", "--", "unrelated.txt"]),
-            "M unrelated.txt"
-        );
-        assert!(!path.join(".vela/actors.json").exists());
-        assert_eq!(
-            sh(
-                path,
-                &[
-                    "diff-tree",
-                    "--no-commit-id",
-                    "--name-status",
-                    "-r",
-                    "HEAD",
-                    "--",
-                    ".vela/actors.json"
-                ]
-            ),
-            "D\t.vela/actors.json"
-        );
-    }
-
-    #[test]
-    fn publication_bypasses_all_repository_hooks() {
-        use std::os::unix::fs::PermissionsExt;
-
-        let temporary = frontier();
-        let path = temporary.path();
-        let marker = path.join("hook-ran");
-        for hook in [
-            "pre-commit",
-            "post-commit",
-            "post-index-change",
-            "reference-transaction",
-        ] {
-            let hook_path = path.join(".git/hooks").join(hook);
-            fs::write(
-                &hook_path,
-                format!("#!/bin/sh\ntouch '{}'\nexit 91\n", marker.display()),
-            )
-            .unwrap();
-            let mut permissions = fs::metadata(&hook_path).unwrap().permissions();
-            permissions.set_mode(0o755);
-            fs::set_permissions(&hook_path, permissions).unwrap();
-        }
-        change_vela(path);
-        let outcome = publish_decision(path, "hooks", &[], &PublishOptions::new(false, true));
-        assert!(matches!(
-            outcome.state,
-            PublicationState::CommittedLocal { .. }
-        ));
-        assert!(!marker.exists(), "repository hook was invoked");
-    }
-
-    #[test]
-    fn publication_rejects_effective_worktree_filters() {
-        let temporary = frontier();
-        let path = temporary.path();
-        fs::write(
-            path.join(".git/info/attributes"),
-            ".vela/** filter=hostile\n",
-        )
-        .unwrap();
-        change_vela(path);
-        let before = sh(path, &["rev-parse", "HEAD"]);
-        let outcome = publish_decision(path, "attrs", &[], &PublishOptions::new(false, true));
-        match outcome.state {
-            PublicationState::Uncommitted { reason, .. } => {
-                assert!(reason.contains("attribute"), "{reason}")
-            }
-            state => panic!("expected attribute refusal, got {state:?}"),
-        }
-        assert_eq!(sh(path, &["rev-parse", "HEAD"]), before);
-    }
-
-    #[test]
-    fn publication_detached_head_requires_explicit_ref() {
-        let temporary = frontier();
-        let path = temporary.path();
-        sh(path, &["switch", "--detach", "-q"]);
-        change_vela(path);
-        let outcome = publish_decision(path, "detached", &[], &PublishOptions::new(false, true));
-        assert!(matches!(
-            outcome.state,
-            PublicationState::Uncommitted { .. }
-        ));
-    }
-
-    #[test]
-    fn publication_noncheckedout_ref_leaves_caller_index_untouched() {
-        let temporary = frontier();
-        let path = temporary.path();
-        sh(path, &["branch", "publication-target"]);
-        fs::write(path.join("unrelated.txt"), "staged by caller\n").unwrap();
-        sh(path, &["add", "--", "unrelated.txt"]);
-        let before_index = fs::read(path.join(".git/index")).unwrap();
-        change_vela(path);
-        let outcome = publish_decision(
-            path,
-            "other branch",
-            &[],
-            &PublishOptions::new(false, true).targeting("refs/heads/publication-target"),
-        );
-        assert!(matches!(
-            outcome.state,
-            PublicationState::CommittedLocal { .. }
-        ));
-        assert_eq!(fs::read(path.join(".git/index")).unwrap(), before_index);
-        assert_ne!(
-            sh(path, &["rev-parse", "main"]),
-            sh(path, &["rev-parse", "publication-target"])
-        );
-    }
-
-    #[test]
-    fn publication_ref_checked_out_elsewhere_fails_before_objects() {
-        let temporary = frontier();
-        let path = temporary.path();
-        sh(path, &["branch", "elsewhere"]);
-        let linked_parent = tempfile::tempdir().unwrap();
-        let linked = linked_parent.path().join("linked");
-        sh(
-            path,
-            &[
-                "worktree",
-                "add",
-                "-q",
-                linked.to_str().unwrap(),
-                "elsewhere",
-            ],
-        );
-        change_vela(path);
-        let before = sh(path, &["count-objects", "-v"]);
-        let outcome = publish_decision(
-            path,
-            "elsewhere",
-            &[],
-            &PublishOptions::new(false, true).targeting("refs/heads/elsewhere"),
-        );
-        assert!(matches!(
-            outcome.state,
-            PublicationState::Uncommitted { .. }
-        ));
-        assert_eq!(sh(path, &["count-objects", "-v"]), before);
-    }
-
-    #[test]
-    fn publication_git_ref_race_returns_stale_without_merge() {
-        let temporary = frontier();
-        let path = temporary.path();
-        change_vela(path);
-        let outcome = publish_decision(
-            path,
-            "race",
-            &[],
-            &PublishOptions::new(false, true).racing_ref_before_cas(),
-        );
-        let (candidate, actual) = match outcome.state {
-            PublicationState::Stale {
-                candidate, actual, ..
-            } => (candidate, actual),
-            state => panic!("expected stale publication, got {state:?}"),
-        };
-        assert_eq!(sh(path, &["rev-parse", "HEAD"]), actual);
-        assert_ne!(candidate, actual);
-        assert_eq!(sh(path, &["rev-list", "--count", "HEAD^..HEAD"]), "1");
-    }
-
-    #[test]
-    fn publication_crash_retry_reuses_candidate_commit() {
-        let temporary = frontier();
-        let path = temporary.path();
-        change_vela(path);
-        let outcome = publish_decision(
-            path,
-            "reuse",
-            &[],
-            &PublishOptions::new(false, true).failing_before_ref_move(),
-        );
-        let candidate = match outcome.state {
-            PublicationState::Uncommitted {
-                candidate: Some(candidate),
-                ..
-            } => candidate,
-            state => panic!("expected candidate-ready outcome, got {state:?}"),
-        };
-        let recovered = publish_decision(path, "reuse", &[], &PublishOptions::new(false, true));
-        assert_eq!(
-            recovered.state,
-            PublicationState::CommittedLocal {
-                commit: candidate.clone()
-            }
-        );
-        assert_eq!(sh(path, &["rev-parse", "HEAD"]), candidate);
-    }
-
-    #[test]
-    fn publication_post_ref_recovery_is_idempotent() {
-        let temporary = frontier();
-        let path = temporary.path();
-        change_vela(path);
-        let outcome = publish_decision(
-            path,
-            "recover",
-            &[],
-            &PublishOptions::new(false, true).failing_after_ref_move(),
-        );
-        let operation = operation_from(&outcome);
-        assert!(!sh(path, &["status", "--porcelain", "--", ".vela"]).is_empty());
-
-        let recovered = recover_publication(path, &operation, &PublishOptions::new(false, true));
-        assert!(matches!(
-            recovered.state,
-            PublicationState::CommittedLocal { .. }
-        ));
-        assert!(sh(path, &["status", "--porcelain", "--", ".vela"]).is_empty());
-        let second = recover_publication(path, &operation, &PublishOptions::new(false, true));
-        assert_eq!(second, recovered);
-    }
-
-    #[test]
-    fn publication_post_ref_recovery_refuses_vela_worktree_drift() {
-        let temporary = frontier();
-        let path = temporary.path();
-        change_vela(path);
-        let outcome = publish_decision(
-            path,
-            "drift",
-            &[],
-            &PublishOptions::new(false, true).failing_after_ref_move(),
-        );
-        let operation = operation_from(&outcome);
-        fs::write(path.join(".vela/actors.json"), "[{}, {}]\n").unwrap();
-        let before = sh(path, &["rev-parse", "HEAD"]);
-        let recovered = recover_publication(path, &operation, &PublishOptions::new(false, true));
-        match recovered.state {
-            PublicationState::Unknown { reason } => {
-                assert!(reason.contains("worktree drift"), "{reason}")
-            }
-            state => panic!("expected drift refusal, got {state:?}"),
-        }
-        assert_eq!(sh(path, &["rev-parse", "HEAD"]), before);
-    }
-
-    #[test]
-    fn publication_post_ref_recovery_refuses_checkout_drift() {
-        let temporary = frontier();
-        let path = temporary.path();
-        sh(path, &["branch", "other"]);
-        change_vela(path);
-        let outcome = publish_decision(
-            path,
-            "checkout drift",
-            &[],
-            &PublishOptions::new(false, true).failing_after_ref_move(),
-        );
-        let operation = operation_from(&outcome);
-        sh(path, &["symbolic-ref", "HEAD", "refs/heads/other"]);
-        let recovered = recover_publication(path, &operation, &PublishOptions::new(false, true));
-        match recovered.state {
-            PublicationState::Unknown { reason } => {
-                assert!(reason.contains("checkout identity drift"), "{reason}")
-            }
-            state => panic!("expected checkout refusal, got {state:?}"),
-        }
-    }
-
-    #[test]
-    fn publication_preflight_guard_excludes_a_second_writer() {
-        let temporary = frontier();
-        let path = temporary.path();
-        let first = publication_preflight(path, &PublishOptions::new(false, true)).unwrap();
-        let second = publication_preflight(path, &PublishOptions::new(false, true)).unwrap_err();
-        match second.state {
-            PublicationState::Uncommitted { reason, .. } => {
-                assert!(reason.contains("another Git publication"), "{reason}")
-            }
-            state => panic!("expected busy preflight, got {state:?}"),
-        }
-        change_vela(path);
-        let outcome = publish_decision(
-            path,
-            "guarded mutation",
-            &[],
-            &PublishOptions::new(false, true).with_preflight(first),
-        );
-        assert!(matches!(
-            outcome.state,
-            PublicationState::CommittedLocal { .. }
-        ));
-    }
-
-    #[test]
-    fn concurrent_identical_publisher_cannot_overwrite_recovery_journal() {
-        use std::sync::mpsc;
-        use std::time::Duration;
-
-        let temporary = frontier();
-        let path = temporary.path().to_path_buf();
-        change_vela(&path);
-        let (reached_tx, reached_rx) = mpsc::channel();
-        let (resume_tx, resume_rx) = mpsc::channel();
-        let first_path = path.clone();
-        let first = std::thread::spawn(move || {
-            publish_decision(
-                &first_path,
-                "identical",
-                &[],
-                &PublishOptions::new(false, true)
-                    .pausing_after_journal(reached_tx, resume_rx)
-                    .failing_after_ref_move(),
-            )
-        });
-        reached_rx.recv_timeout(Duration::from_secs(10)).unwrap();
-        let busy = publish_decision(&path, "identical", &[], &PublishOptions::new(false, true));
-        assert!(matches!(busy.state, PublicationState::Uncommitted { .. }));
-        resume_tx.send(()).unwrap();
-        let stopped = first.join().unwrap();
-        let operation = operation_from(&stopped);
-        assert_eq!(operation_from(&busy), operation);
-        let recovered = recover_publication(&path, &operation, &PublishOptions::new(false, true));
-        assert!(matches!(
-            recovered.state,
-            PublicationState::CommittedLocal { .. }
-        ));
-    }
-
-    #[test]
-    fn publication_rechecks_checkout_identity_at_cas_boundary() {
-        use std::sync::mpsc;
-        use std::time::Duration;
-
-        let temporary = frontier();
-        let path = temporary.path().to_path_buf();
-        sh(&path, &["branch", "other"]);
-        change_vela(&path);
-        let main_before = sh(&path, &["rev-parse", "refs/heads/main"]);
-        let (reached_tx, reached_rx) = mpsc::channel();
-        let (resume_tx, resume_rx) = mpsc::channel();
-        let thread_path = path.clone();
-        let publisher = std::thread::spawn(move || {
-            publish_decision(
-                &thread_path,
-                "checkout race",
-                &[],
-                &PublishOptions::new(false, true).pausing_after_journal(reached_tx, resume_rx),
-            )
-        });
-        reached_rx.recv_timeout(Duration::from_secs(10)).unwrap();
-        sh(&path, &["symbolic-ref", "HEAD", "refs/heads/other"]);
-        resume_tx.send(()).unwrap();
-        let outcome = publisher.join().unwrap();
-        match outcome.state {
-            PublicationState::Uncommitted { reason, .. } => {
-                assert!(reason.contains("checkout identity changed"), "{reason}")
-            }
-            state => panic!("expected checkout-race refusal, got {state:?}"),
-        }
-        assert_eq!(sh(&path, &["rev-parse", "refs/heads/main"]), main_before);
-    }
-
-    #[test]
-    fn recovery_refuses_ref_rollback_after_recorded_movement() {
-        let temporary = frontier();
-        let path = temporary.path();
-        change_vela(path);
-        let stopped = publish_decision(
-            path,
-            "rollback",
-            &[],
-            &PublishOptions::new(false, true).failing_after_ref_move(),
-        );
-        let operation = operation_from(&stopped);
-        let candidate = sh(path, &["rev-parse", "HEAD"]);
-        let expected = sh(path, &["rev-parse", "HEAD^"]);
-        sh(
-            path,
-            &["update-ref", "refs/heads/main", &expected, &candidate],
-        );
-        let recovered = recover_publication(path, &operation, &PublishOptions::new(false, true));
-        match recovered.state {
-            PublicationState::Unknown { reason } => {
-                assert!(reason.contains("rolled back"), "{reason}")
-            }
-            state => panic!("expected rollback refusal, got {state:?}"),
-        }
-        assert_eq!(sh(path, &["rev-parse", "HEAD"]), expected);
-    }
-
-    #[test]
-    fn publication_rejects_git_private_and_magic_manifest_paths_before_materialize() {
-        for hostile in [".git/config", ":(top)", "*"] {
-            let temporary = frontier();
-            let path = temporary.path();
-            let manifest = fs::read_to_string(path.join("frontier.yaml")).unwrap();
-            let manifest = manifest.replace("state: frontier.json", &format!("state: '{hostile}'"));
-            fs::write(path.join("frontier.yaml"), manifest).unwrap();
-            let config_before = fs::read(path.join(".git/config")).unwrap();
-            let objects_before = sh(path, &["count-objects", "-v"]);
-            let outcome = publish_decision(
-                path,
-                "hostile manifest",
-                &[],
-                &PublishOptions::new(false, true),
-            );
-            match outcome.state {
-                PublicationState::Uncommitted { reason, .. } => {
-                    assert!(reason.contains("manifest path"), "{hostile}: {reason}")
-                }
-                state => panic!("expected manifest refusal for {hostile}, got {state:?}"),
-            }
-            assert_eq!(fs::read(path.join(".git/config")).unwrap(), config_before);
-            assert_eq!(sh(path, &["count-objects", "-v"]), objects_before);
-        }
-    }
-
-    #[cfg(unix)]
-    #[test]
-    fn publication_rejects_nested_manifest_symlink_ancestor() {
-        use std::os::unix::fs::symlink;
-
-        let temporary = frontier();
-        let path = temporary.path();
-        let outside = tempfile::tempdir().unwrap();
-        fs::create_dir_all(outside.path().join("sources")).unwrap();
-        fs::write(outside.path().join("sources/secret"), "outside\n").unwrap();
-        symlink(outside.path(), path.join("nested")).unwrap();
-        let manifest = fs::read_to_string(path.join("frontier.yaml")).unwrap();
-        let manifest = manifest.replace("sources: sources/", "sources: nested/sources/");
-        fs::write(path.join("frontier.yaml"), manifest).unwrap();
-        let outcome = publish_decision(
-            path,
-            "ancestor containment",
-            &[],
-            &PublishOptions::new(false, true),
-        );
-        match outcome.state {
-            PublicationState::Uncommitted { reason, .. } => {
-                assert!(reason.contains("symlink ancestor"), "{reason}")
-            }
-            state => panic!("expected ancestor-symlink refusal, got {state:?}"),
-        }
-        assert_eq!(
-            fs::read_to_string(outside.path().join("sources/secret")).unwrap(),
-            "outside\n"
-        );
-    }
-
-    #[test]
-    fn publication_rejects_private_scratch_already_tracked_at_expected_tip() {
-        let temporary = frontier();
-        let path = temporary.path();
-        fs::create_dir_all(path.join(".vela/work")).unwrap();
-        fs::write(path.join(".vela/work/secret"), "private\n").unwrap();
-        sh(path, &["add", "-f", "--", ".vela/work/secret"]);
-        sh(path, &["commit", "-q", "-m", "tracked private fixture"]);
-        change_vela(path);
-        let before = sh(path, &["rev-parse", "HEAD"]);
-        let outcome =
-            publish_decision(path, "private path", &[], &PublishOptions::new(false, true));
-        match outcome.state {
-            PublicationState::Uncommitted { reason, .. } => {
-                assert!(reason.contains("tracked private Vela scratch"), "{reason}")
-            }
-            state => panic!("expected tracked-private refusal, got {state:?}"),
-        }
-        assert_eq!(sh(path, &["rev-parse", "HEAD"]), before);
     }
 
     #[test]
@@ -7013,218 +5611,6 @@ mod tests {
     }
 
     #[test]
-    fn explicit_preflight_input_reports_staged_refusal_precisely() {
-        let temporary = frontier();
-        let path = temporary.path();
-        fs::create_dir_all(path.join("witnesses")).unwrap();
-        fs::write(path.join("witnesses/input.json"), "{}\n").unwrap();
-        sh(path, &["add", "--", "witnesses/input.json"]);
-        let outcome = publication_preflight(
-            path,
-            &PublishOptions::new(false, true)
-                .with_preflight_inputs(vec![PathBuf::from("witnesses/input.json")]),
-        )
-        .unwrap_err();
-        match outcome.state {
-            PublicationState::Uncommitted { reason, .. } => {
-                assert!(reason.contains("is staged; unstage it"), "{reason}")
-            }
-            state => panic!("expected staged-input refusal, got {state:?}"),
-        }
-    }
-
-    #[test]
-    fn explicit_preflight_input_rejects_intent_to_add_index_entry() {
-        let temporary = frontier();
-        let path = temporary.path();
-        fs::create_dir_all(path.join("sources")).unwrap();
-        fs::write(path.join("sources/input.json"), "{}\n").unwrap();
-        sh(path, &["add", "-N", "--", "sources/input.json"]);
-        let outcome = publication_preflight(
-            path,
-            &PublishOptions::new(false, true)
-                .with_preflight_inputs(vec![PathBuf::from("sources/input.json")]),
-        )
-        .unwrap_err();
-        match outcome.state {
-            PublicationState::Uncommitted { reason, .. } => {
-                assert!(reason.contains("index flag"), "{reason}")
-            }
-            state => panic!("expected intent-to-add refusal, got {state:?}"),
-        }
-    }
-
-    #[test]
-    fn candidate_attributes_come_from_expected_tree_not_unstaged_mask() {
-        let temporary = frontier();
-        let path = temporary.path();
-        fs::write(path.join(".gitattributes"), ".vela/** filter=hostile\n").unwrap();
-        sh(path, &["add", "--", ".gitattributes"]);
-        sh(path, &["commit", "-q", "-m", "hostile tracked attributes"]);
-        fs::write(
-            path.join(".gitattributes"),
-            "# safe-looking worktree mask\n",
-        )
-        .unwrap();
-        change_vela(path);
-        let before = sh(path, &["rev-parse", "HEAD"]);
-        let outcome = publish_decision(
-            path,
-            "attribute provenance",
-            &[],
-            &PublishOptions::new(false, true),
-        );
-        match outcome.state {
-            PublicationState::Uncommitted { reason, .. } => {
-                assert!(
-                    reason.contains("unsafe effective Git attribute"),
-                    "{reason}"
-                )
-            }
-            state => panic!("expected candidate-attribute refusal, got {state:?}"),
-        }
-        assert_eq!(sh(path, &["rev-parse", "HEAD"]), before);
-    }
-
-    #[cfg(unix)]
-    #[test]
-    fn hostile_attribute_filter_never_executes_in_preflight_or_reconciliation() {
-        use std::os::unix::fs::PermissionsExt;
-
-        fn install_filter(path: &Path) -> PathBuf {
-            let marker = path.join("FILTER_EXECUTED");
-            let script = path.join("evil-filter.sh");
-            fs::write(
-                &script,
-                format!(
-                    "#!/bin/sh\n: > '{}'\ncat\n",
-                    marker.display().to_string().replace('\'', "'\"'\"'")
-                ),
-            )
-            .unwrap();
-            let mut permissions = fs::metadata(&script).unwrap().permissions();
-            permissions.set_mode(0o755);
-            fs::set_permissions(&script, permissions).unwrap();
-            sh(
-                path,
-                &["config", "filter.evil.clean", script.to_str().unwrap()],
-            );
-            sh(path, &["config", "filter.evil.required", "true"]);
-            marker
-        }
-
-        let with_info = frontier();
-        let info_path = with_info.path();
-        let marker = install_filter(info_path);
-        fs::create_dir_all(info_path.join(".git/info")).unwrap();
-        fs::write(
-            info_path.join(".git/info/attributes"),
-            ".vela/** filter=evil\n",
-        )
-        .unwrap();
-        let preflight =
-            publication_preflight(info_path, &PublishOptions::new(false, true)).unwrap_err();
-        assert!(matches!(
-            preflight.state,
-            PublicationState::Uncommitted { .. }
-        ));
-        assert!(!marker.exists(), "preflight executed hostile info filter");
-        change_vela(info_path);
-        let planned = publish_decision(
-            info_path,
-            "hostile info",
-            &[],
-            &PublishOptions::new(false, true),
-        );
-        assert!(matches!(
-            planned.state,
-            PublicationState::Uncommitted { .. }
-        ));
-        assert!(!marker.exists(), "planning executed hostile info filter");
-
-        let with_unstaged_attributes = frontier();
-        let path = with_unstaged_attributes.path();
-        let marker = install_filter(path);
-        fs::write(path.join(".gitattributes"), ".vela/** filter=evil\n").unwrap();
-        change_vela(path);
-        let outcome = publish_decision(
-            path,
-            "ignore unstaged filter mask",
-            &[],
-            &PublishOptions::new(false, true),
-        );
-        assert!(matches!(
-            outcome.state,
-            PublicationState::CommittedLocal { .. }
-        ));
-        assert!(
-            !marker.exists(),
-            "planning or index reconciliation executed hostile worktree filter"
-        );
-    }
-
-    #[cfg(unix)]
-    #[test]
-    fn recovery_rejects_symlink_and_new_public_path_drift() {
-        use std::os::unix::fs::symlink;
-
-        let temporary = frontier();
-        let path = temporary.path();
-        change_vela(path);
-        let stopped = publish_decision(
-            path,
-            "exact worktree",
-            &[],
-            &PublishOptions::new(false, true).failing_after_ref_move(),
-        );
-        let operation = operation_from(&stopped);
-        let bytes = fs::read(path.join(".vela/actors.json")).unwrap();
-        fs::write(path.join("outside-identical"), bytes).unwrap();
-        fs::remove_file(path.join(".vela/actors.json")).unwrap();
-        symlink(
-            path.join("outside-identical"),
-            path.join(".vela/actors.json"),
-        )
-        .unwrap();
-        fs::create_dir_all(path.join("records")).unwrap();
-        fs::write(path.join("records/appeared.json"), "{}\n").unwrap();
-        let recovered = recover_publication(path, &operation, &PublishOptions::new(false, true));
-        match recovered.state {
-            PublicationState::Unknown { reason } => {
-                assert!(reason.contains("worktree drift"), "{reason}")
-            }
-            state => panic!("expected exact-worktree refusal, got {state:?}"),
-        }
-    }
-
-    #[test]
-    fn real_index_lock_prevents_post_ref_overwrite_and_recovery_resumes() {
-        let temporary = frontier();
-        let path = temporary.path();
-        change_vela(path);
-        let index_before = fs::read(path.join(".git/index")).unwrap();
-        fs::write(path.join(".git/index.lock"), "external owner\n").unwrap();
-        let outcome = publish_decision(path, "index lock", &[], &PublishOptions::new(false, true));
-        assert!(matches!(
-            outcome.state,
-            PublicationState::CommittedLocal { .. }
-        ));
-        assert_eq!(fs::read(path.join(".git/index")).unwrap(), index_before);
-        assert_eq!(
-            fs::read_to_string(path.join(".git/index.lock")).unwrap(),
-            "external owner\n"
-        );
-        fs::remove_file(path.join(".git/index.lock")).unwrap();
-        let operation = active_operation(path);
-        let recovered = recover_publication(path, &operation, &PublishOptions::new(false, true));
-        assert!(matches!(
-            recovered.state,
-            PublicationState::CommittedLocal { .. }
-        ));
-        assert!(sh(path, &["status", "--porcelain", "--", ".vela"]).is_empty());
-    }
-
-    #[test]
     fn recovery_operation_id_requires_exact_lowercase_sha256_shape() {
         let temporary = frontier();
         let path = temporary.path();
@@ -7234,7 +5620,7 @@ mod tests {
             "vop_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
             "vop_gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg",
         ] {
-            let outcome = recover_publication(path, invalid, &PublishOptions::new(false, true));
+            let outcome = recover_publication(path, invalid, &PublishOptions::new(true));
             match outcome.state {
                 PublicationState::Unknown { reason } => {
                     assert!(
@@ -7245,135 +5631,6 @@ mod tests {
                 state => panic!("expected invalid-id refusal, got {state:?}"),
             }
         }
-    }
-
-    #[test]
-    fn push_uses_remote_branch_ref_and_committed_journal_can_resume() {
-        let temporary = frontier();
-        let path = temporary.path();
-        let remote = tempfile::tempdir().unwrap();
-        sh(remote.path(), &["init", "-q", "--bare"]);
-        sh(
-            path,
-            &["remote", "add", "upstream", remote.path().to_str().unwrap()],
-        );
-        sh(
-            path,
-            &[
-                "push",
-                "-q",
-                "-u",
-                "upstream",
-                "refs/heads/main:refs/heads/main",
-            ],
-        );
-        change_vela(path);
-        let pushed = publish_decision(path, "push", &[], &PublishOptions::pushing());
-        assert!(matches!(pushed.state, PublicationState::Pushed { .. }));
-        assert_eq!(
-            sh(remote.path(), &["rev-parse", "refs/heads/main"]),
-            sh(path, &["rev-parse", "HEAD"])
-        );
-        assert!(
-            sh(
-                remote.path(),
-                &["for-each-ref", "--format=%(refname)", "refs/remotes"]
-            )
-            .is_empty()
-        );
-
-        fs::create_dir_all(path.join("records")).unwrap();
-        fs::write(path.join("records/resume.json"), "{}\n").unwrap();
-        let local = publish_decision(path, "resume push", &[], &PublishOptions::new(false, true));
-        let operation = active_operation(path);
-        let expected_recovery = format!("vela publication recover --operation {operation} --push");
-        assert_eq!(
-            local.recovery_command.as_deref(),
-            Some(expected_recovery.as_str())
-        );
-        let resumed = recover_publication(path, &operation, &PublishOptions::pushing());
-        assert!(matches!(resumed.state, PublicationState::Pushed { .. }));
-        assert_eq!(
-            sh(remote.path(), &["rev-parse", "refs/heads/main"]),
-            sh(path, &["rev-parse", "HEAD"])
-        );
-    }
-
-    #[test]
-    fn push_explicitly_uploads_exact_lfs_objects_with_hooks_disabled() {
-        if !Command::new("git")
-            .args(["lfs", "version"])
-            .output()
-            .is_ok_and(|output| output.status.success())
-        {
-            return;
-        }
-        let temporary = frontier();
-        let path = temporary.path();
-        let remote = tempfile::tempdir().unwrap();
-        sh(remote.path(), &["init", "-q", "--bare"]);
-        sh(path, &["lfs", "install", "--local"]);
-        fs::write(
-            path.join(".gitattributes"),
-            "witnesses/** filter=lfs diff=lfs merge=lfs -text\n",
-        )
-        .unwrap();
-        sh(path, &["add", "--", ".gitattributes"]);
-        sh(path, &["commit", "-q", "-m", "witness LFS attributes"]);
-        sh(
-            path,
-            &["remote", "add", "upstream", remote.path().to_str().unwrap()],
-        );
-        sh(
-            path,
-            &[
-                "push",
-                "-q",
-                "-u",
-                "upstream",
-                "refs/heads/main:refs/heads/main",
-            ],
-        );
-        fs::create_dir_all(path.join("witnesses")).unwrap();
-        fs::write(
-            path.join("witnesses/upload.bin"),
-            b"large witness bytes transported explicitly\n",
-        )
-        .unwrap();
-        let outcome = publish_decision(path, "LFS push", &[], &PublishOptions::pushing());
-        assert!(matches!(outcome.state, PublicationState::Pushed { .. }));
-        let pointer = sh(
-            remote.path(),
-            &["show", "refs/heads/main:witnesses/upload.bin"],
-        );
-        let attributes = sh(
-            path,
-            &[
-                "check-attr",
-                "--cached",
-                "--all",
-                "--",
-                "witnesses/upload.bin",
-            ],
-        );
-        let oid = pointer
-            .lines()
-            .find_map(|line| line.strip_prefix("oid sha256:"))
-            .unwrap_or_else(|| {
-                panic!(
-                    "remote blob was not an LFS pointer: {pointer:?}; attributes: {attributes:?}"
-                )
-            });
-        assert!(
-            remote
-                .path()
-                .join("lfs/objects")
-                .join(&oid[..2])
-                .join(&oid[2..4])
-                .join(oid)
-                .is_file(),
-            "bare remote is missing explicitly uploaded LFS object {oid}"
-        );
     }
 
     #[test]
@@ -7396,19 +5653,5 @@ mod tests {
             command,
             "git push -- 'origin'\"'\"'; touch /tmp/pwn; echo '\"'\"'' '0000000000000000000000000000000000000000:refs/heads/main;$(touch${IFS}/tmp/pwn)'"
         );
-    }
-
-    #[test]
-    fn no_commit_returns_structured_uncommitted_without_writing_git() {
-        let temporary = frontier();
-        let path = temporary.path();
-        change_vela(path);
-        let before = sh(path, &["rev-parse", "HEAD"]);
-        let outcome = publish_decision(path, "x", &[], &PublishOptions::new(true, false));
-        assert!(matches!(
-            outcome.state,
-            PublicationState::Uncommitted { .. }
-        ));
-        assert_eq!(sh(path, &["rev-parse", "HEAD"]), before);
     }
 }

@@ -9,10 +9,8 @@ scope:
   question: ''
   includes: []
   excludes: []
-carina:
-  kernel: carina@0.1.0
 vela:
-  reducer: vela@0.710.0
+  reducer: vela@0.800.0
 paths:
   state: frontier.json
   sources: sources/

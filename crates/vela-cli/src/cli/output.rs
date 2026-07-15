@@ -143,59 +143,6 @@ pub(crate) fn print_tool_check_report(report: &Value) {
     }
 }
 
-pub(crate) fn print_state_report(report: &state::StateCommandReport, json_output: bool) {
-    if json_output {
-        println!(
-            "{}",
-            serde_json::to_string_pretty(report).expect("failed to serialize state command report")
-        );
-    } else {
-        println!("{}", report.message);
-        println!("  frontier: {}", report.frontier);
-        println!("  finding:  {}", report.finding_id);
-        println!("  proposal: {}", report.proposal_id);
-        println!("  status:   {}", report.proposal_status);
-        if let Some(event_id) = &report.applied_event_id {
-            println!("  event:    {}", event_id);
-        }
-        println!("  wrote:    {}", report.wrote_to);
-        // A direct `--apply` writes the event log but not the derived views
-        // (frontier.json / proof / vela.lock) — materialize rebuilds those. On a
-        // git-native frontier those views are tracked and the vela-check Action
-        // holds them to replayed-state hash parity, so committing the store ahead
-        // of a fresh materialize is a red CI by construction. The ceremony verbs
-        // (accept/reject/sign) self-publish and dodge this; a direct verb does
-        // not, so point the operator at the one command that reconciles it.
-        if report.applied_event_id.is_some() && frontier_views_are_git_tracked(&report.wrote_to) {
-            println!(
-                "  note: derived views are now stale — run `vela frontier materialize {}` \
-                 before committing (CI checks store↔views hash parity)",
-                report.wrote_to
-            );
-        }
-    }
-}
-
-/// True when the frontier's `frontier.json` is tracked in a git repo, i.e. a
-/// published git-native frontier where committing store-ahead-of-views fails the
-/// vela-check hash-parity gate. A throwaway (untracked) frontier returns false,
-/// so the materialize reminder stays quiet where it would be noise.
-fn frontier_views_are_git_tracked(frontier: &str) -> bool {
-    std::process::Command::new("git")
-        .args([
-            "-C",
-            frontier,
-            "ls-files",
-            "--error-unmatch",
-            "--",
-            "frontier.json",
-        ])
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .status()
-        .is_ok_and(|s| s.success())
-}
-
 pub(crate) fn print_history(payload: &Value) {
     let finding = payload.get("finding").unwrap_or(&Value::Null);
     println!("state-transition history");
@@ -381,19 +328,6 @@ pub(crate) fn fail_usage(message: &str) -> ! {
     crate::ui::fail_with(crate::ui::ErrorKind::Usage, message, None)
 }
 
-/// Validate that a CLI string argument is one of the allowed enum values.
-/// On mismatch, prints a friendly error naming the flag and the valid set
-/// and exits with code 1. Used at finding-add time so users learn before
-/// strict validation rejects the resulting frontier.
-pub(crate) fn validate_enum_arg(flag: &str, value: &str, valid: &[&str]) {
-    if !valid.contains(&value) {
-        fail(&format!(
-            "invalid {flag} '{value}'. Valid: {}",
-            valid.join(", ")
-        ));
-    }
-}
-
 pub(crate) fn fail_return<T>(message: &str) -> T {
     fail(message)
 }
@@ -406,47 +340,4 @@ pub(crate) fn print_json<T: Serialize + ?Sized>(value: &T) {
         "{}",
         serde_json::to_string_pretty(value).expect("serialize json output")
     );
-}
-
-#[cfg(test)]
-mod output_tests {
-    use super::frontier_views_are_git_tracked;
-    use std::path::Path;
-    use std::process::Command;
-
-    fn sh(dir: &Path, args: &[&str]) {
-        assert!(
-            Command::new(args[0])
-                .args(&args[1..])
-                .current_dir(dir)
-                .output()
-                .unwrap()
-                .status
-                .success(),
-            "{args:?}"
-        );
-    }
-
-    #[test]
-    fn detects_tracked_frontier_views_and_stays_quiet_on_throwaway() {
-        let tmp = std::env::temp_dir().join(format!("vela-output-{}", std::process::id()));
-        std::fs::create_dir_all(&tmp).unwrap();
-        let p = tmp.to_str().unwrap();
-
-        // No git repo, no frontier.json → not tracked (materialize hint stays quiet).
-        assert!(!frontier_views_are_git_tracked(p));
-
-        sh(&tmp, &["git", "init", "-q"]);
-        sh(&tmp, &["git", "config", "user.email", "t@t"]);
-        sh(&tmp, &["git", "config", "user.name", "t"]);
-        std::fs::write(tmp.join("frontier.json"), "{}").unwrap();
-        // Present but never added → still untracked.
-        assert!(!frontier_views_are_git_tracked(p));
-
-        // Tracked (staged is enough for ls-files) → hint fires.
-        sh(&tmp, &["git", "add", "frontier.json"]);
-        assert!(frontier_views_are_git_tracked(p));
-
-        std::fs::remove_dir_all(&tmp).ok();
-    }
 }

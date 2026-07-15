@@ -614,21 +614,6 @@ pub fn try_frontier_next(
     Ok(targets)
 }
 
-/// Compatibility wrapper for callers that cannot report projection errors.
-/// Invalid campaign bytes never reach an offer; checked CLI/MCP surfaces use
-/// `try_frontier_next` and return the exact error instead.
-pub fn frontier_next(
-    project: &Project,
-    reviews: &[ReviewSnapshot],
-    frontier_dir: Option<&Path>,
-    observed_at: &str,
-    limit: usize,
-) -> Vec<NextTarget> {
-    try_frontier_next(project, reviews, frontier_dir, observed_at, limit).unwrap_or_else(|_| {
-        try_frontier_next(project, reviews, None, observed_at, limit).unwrap_or_default()
-    })
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

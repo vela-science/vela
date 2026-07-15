@@ -1,16 +1,14 @@
-//! The MCP tool-handler bodies: the nine released tools (`orient`,
-//! `finding`, `search`, `graph`, `verify`, `propose`, `work`,
+//! The MCP tool-handler bodies: the eight released tools (`orient`,
+//! `finding`, `search`, `graph`, `verify`, `work`,
 //! `objects`, `external`) and the underlying per-concept tool functions
 //! they compose. Moved verbatim from `server/serve.rs`; the dispatch,
 //! envelope, and profile gate stay there.
 
 use std::collections::HashMap;
 use std::path::Path;
-use std::sync::Arc;
 
 use reqwest::Client;
 use serde_json::{Value, json};
-use tokio::sync::Mutex;
 
 use vela_edge::signals;
 use vela_protocol::events;
@@ -18,9 +16,7 @@ use vela_protocol::project::Project;
 use vela_protocol::sources;
 use vela_protocol::state;
 
-use super::serve::{
-    ToolError, ToolOutput, clamp_limit, decode_cursor, parse_payload, reload_served_project,
-};
+use super::serve::{ToolError, ToolOutput, clamp_limit, decode_cursor, parse_payload};
 
 /// `orient` — one-call situational awareness: stats, verification posture,
 /// ranked open targets, gap-flagged findings, the recent event tail, the
@@ -636,120 +632,8 @@ pub(crate) fn tool_verify(args: &Value, source_path: Option<&Path>) -> ToolOutpu
     Ok((payload, Vec::new()))
 }
 
-/// `propose` — the draft write surface: one tool, five kinds, all landing as
-/// pending proposals through the same signed path the narrow propose_* tools
-/// used.
-pub(crate) async fn tool_propose(
-    args: &Value,
-    frontier: &Arc<Mutex<Project>>,
-    source_path: Option<&Path>,
-) -> ToolOutput {
-    let kind = args
-        .get("kind")
-        .and_then(Value::as_str)
-        .ok_or_else(|| ToolError::invalid("propose requires `kind`"))?;
-    let target = args
-        .get("target")
-        .and_then(Value::as_str)
-        .filter(|t| t.starts_with("vf_"))
-        .ok_or_else(|| ToolError::invalid("propose requires `target` (a vf_… finding id)"))?;
-    // The underlying write path reads `target_finding_id`.
-    let mut legacy = args.clone();
-    legacy["target_finding_id"] = json!(target);
-
-    let result = match kind {
-        "review" => {
-            write_tool_propose(
-                &legacy,
-                frontier,
-                source_path,
-                "finding.review",
-                |args| {
-                    let status = args
-                        .get("status")
-                        .and_then(Value::as_str)
-                        .ok_or("propose kind=review requires `status`")?;
-                    if !matches!(
-                        status,
-                        "accepted" | "approved" | "contested" | "needs_revision" | "rejected"
-                    ) {
-                        return Err(format!("invalid review status '{status}'"));
-                    }
-                    Ok(json!({"status": status}))
-                },
-                false,
-            )
-            .await
-        }
-        "note" => {
-            write_tool_propose(
-                &legacy,
-                frontier,
-                source_path,
-                "finding.note",
-                |args| build_note_payload(args, "propose kind=note"),
-                false,
-            )
-            .await
-        }
-        // Backward-compatible alias for note. A proposal signature proves who
-        // drafted the note; it is not a signed human decision envelope. Keep
-        // this honestly pending until the separate custody ceremony decides.
-        "apply_note" => {
-            write_tool_propose(
-                &legacy,
-                frontier,
-                source_path,
-                "finding.note",
-                |args| build_note_payload(args, "propose kind=apply_note"),
-                false,
-            )
-            .await
-        }
-        "revise_confidence" => {
-            write_tool_propose(
-                &legacy,
-                frontier,
-                source_path,
-                "finding.confidence_revise",
-                |args| {
-                    let new_score = args
-                        .get("new_score")
-                        .and_then(Value::as_f64)
-                        .ok_or("propose kind=revise_confidence requires `new_score`")?;
-                    if !(0.0..=1.0).contains(&new_score) {
-                        return Err(format!("new_score {new_score} out of [0.0, 1.0]"));
-                    }
-                    Ok(json!({"confidence": new_score}))
-                },
-                false,
-            )
-            .await
-        }
-        "retract" => {
-            write_tool_propose(
-                &legacy,
-                frontier,
-                source_path,
-                "finding.retract",
-                |_args| Ok(json!({})),
-                false,
-            )
-            .await
-        }
-        other => {
-            return Err(
-                ToolError::invalid(format!("unknown propose kind '{other}'"))
-                    .with_hint("valid kinds: review, note, revise_confidence, retract, apply_note"),
-            );
-        }
-    };
-    Ok((parse_payload(result)?, Vec::new()))
-}
-
 /// `work` — the compounding loop for agents: claim a lease, land a
-/// receipt (routed by the signed policy), drop a session, or deposit a
-/// failed/partial attempt. Everything signs under the agent's own
+/// receipt (routed by the signed policy), or drop a session. Everything signs under the agent's own
 /// auto-minted session key; nothing here is a human decision — a landing
 /// either rides a policy the human already signed, or defers to the
 /// human's sign queue.
@@ -787,12 +671,6 @@ pub(crate) fn tool_work(args: &Value, source_path: Option<&Path>) -> ToolOutput 
             let opened = crate::workflow::open_session(frontier_path, target, actor, ttl)
                 .map_err(ToolError::classify)?;
             Ok((opened, Vec::new()))
-        }
-        Some("deposit") => {
-            let actor = agent_actor("deposit")?;
-            let deposited = crate::workflow::deposit_attempt(frontier_path, args, actor, None)
-                .map_err(ToolError::classify)?;
-            Ok((deposited, Vec::new()))
         }
         Some("land") => {
             let actor = agent_actor("land")?;
@@ -851,7 +729,7 @@ pub(crate) fn tool_work(args: &Value, source_path: Option<&Path>) -> ToolOutput 
             Ok((released, Vec::new()))
         }
         _ => Err(ToolError::invalid("work requires `action`")
-            .with_hint("valid actions: claim, land, drop, deposit")),
+            .with_hint("valid actions: claim, land, drop")),
     }
 }
 
@@ -1132,119 +1010,6 @@ async fn semantic_scholar_result_count(client: &Client, query: &str) -> Result<u
             .ok_or_else(|| "Semantic Scholar: no `total` in response".to_string());
     }
     Err("Semantic Scholar: unexpected retry exhaustion".to_string())
-}
-
-/// Phase β (v0.6): build the `finding.note` proposal payload from
-/// caller args. Accepts the required `text` plus an optional structured
-/// `provenance` object whose at-least-one-identifier rule is enforced
-/// here at the API boundary, so the same validation runs whether the
-/// caller is `propose` kind=note or kind=apply_note.
-fn build_note_payload(args: &Value, tool_name: &str) -> Result<Value, String> {
-    let text = args
-        .get("text")
-        .and_then(Value::as_str)
-        .ok_or_else(|| format!("{tool_name} requires `text`"))?;
-    if text.trim().is_empty() {
-        return Err("text must be non-empty".to_string());
-    }
-    let mut payload = json!({"text": text});
-    if let Some(prov) = args.get("provenance") {
-        let prov_obj = prov
-            .as_object()
-            .ok_or("provenance must be a JSON object when present")?;
-        let has_id = ["doi", "pmid", "title"].iter().any(|k| {
-            prov_obj
-                .get(*k)
-                .and_then(Value::as_str)
-                .is_some_and(|s| !s.trim().is_empty())
-        });
-        if !has_id {
-            return Err("provenance must include at least one of doi/pmid/title".to_string());
-        }
-        payload["provenance"] = prov.clone();
-    }
-    Ok(payload)
-}
-
-/// Phase Q-w (v0.5) + Phase α (v0.6): shared body for the propose-* write
-/// tools. `payload_builder` extracts the kind-specific payload from `args`.
-/// `apply_if_tier_permits` (Phase α): when `true`, the function looks up the
-/// actor's `tier`, requires `sign::actor_can_auto_apply(actor, kind)` to
-/// return `true`, and applies the proposal in one canonical event;
-/// otherwise rejects with a clear error. When `false` (the v0.5 default),
-/// the proposal stays in `pending_review` regardless of tier.
-async fn write_tool_propose<F>(
-    args: &Value,
-    frontier: &Arc<Mutex<Project>>,
-    source_path: Option<&Path>,
-    kind: &str,
-    payload_builder: F,
-    apply_if_tier_permits: bool,
-) -> Result<String, String>
-where
-    F: Fn(&Value) -> Result<Value, String>,
-{
-    let path = source_path.ok_or_else(|| {
-        "Write tools require a single-file frontier (--frontier <PATH>); rejected in --frontiers <DIR> mode".to_string()
-    })?;
-    let actor_id = args
-        .get("actor_id")
-        .and_then(Value::as_str)
-        .ok_or("write tool requires `actor_id`")?;
-    let target_finding_id = args
-        .get("target_finding_id")
-        .and_then(Value::as_str)
-        .ok_or("write tool requires `target_finding_id`")?;
-    let reason = args
-        .get("reason")
-        .and_then(Value::as_str)
-        .ok_or("write tool requires `reason`")?;
-    let signature_hex = args
-        .get("signature")
-        .and_then(Value::as_str)
-        .ok_or("write tool requires `signature` (Ed25519 over canonical proposal preimage)")?;
-    let created_at = args
-        .get("created_at")
-        .and_then(Value::as_str)
-        .map(String::from)
-        .unwrap_or_else(|| chrono::Utc::now().to_rfc3339());
-    let payload = payload_builder(args)?;
-
-    // Build the proposal exactly as the CLI would. The transactional writer
-    // re-loads the actor registry, re-checks its tier, and verifies this
-    // signature while holding the frontier-wide recovery barrier; the MCP
-    // service's cached Project is never a write precondition.
-    let mut proposal = vela_protocol::proposals::new_proposal(
-        kind,
-        vela_protocol::events::StateTarget {
-            r#type: "finding".to_string(),
-            id: target_finding_id.to_string(),
-        },
-        actor_id,
-        "human",
-        reason,
-        payload,
-        Vec::new(),
-        Vec::new(),
-    );
-    proposal.created_at = created_at;
-    proposal.id = vela_protocol::proposals::proposal_id(&proposal);
-
-    let result = crate::workflow::transact_signed_proposal(
-        path,
-        proposal,
-        signature_hex,
-        apply_if_tier_permits,
-    )
-    .map_err(|error| format!("transactional proposal failed: {error}"))?;
-
-    // Acquire the cache lock before loading disk. An earlier writer's delayed
-    // refresh must never overwrite a later writer's newer served snapshot.
-    reload_served_project(frontier, path)
-        .await
-        .map_err(|error| format!("reload after write failed: {error}"))?;
-
-    serde_json::to_string(&result).map_err(|e| format!("serialize write result: {e}"))
 }
 
 pub(crate) fn tool_search_findings(args: &Value, frontier: &Project) -> Result<String, String> {
@@ -1913,12 +1678,6 @@ pub(crate) fn build_task_packet(
         "note": "A gap-flagged finding through the Frontier PR flow: a precise, checkable reason a route cannot work. Prevents duplicate wasted passes.",
         }));
     }
-    allowed_outputs.push(json!({
-        "type": "attempt_deposit",
-        "verifier_kind": "signature",
-        "note": "A signed vat_ attempt record (banked or failed) so the pass itself becomes part of the ledger.",
-    }));
-
     // Obligations carry the route memory: BANKED = exhausted channels
     // (failed-route memory; do not re-grind), OPEN = the live targets.
     let mut failed_routes: Vec<Value> = Vec::new();
@@ -2061,8 +1820,8 @@ pub(crate) fn build_task_packet(
         "attempts": {"count": attempts.len(), "items": attempts},
         "submission": {
             "witness": "write the artifact as <frontier>/witnesses/<name>.witness.json and run `vela reproduce <frontier>` — the frozen verifier must pass",
-            "finding": "propose via `vela finding note`/`vela finding add` without --apply; a keyed reviewer decides the pending proposal through `vela sign`",
-            "attempt": "deposit a signed vat_ attempt; failed passes are ledger entries, not noise",
+            "finding": "encode the claim and evidence in Receipt v1, then use `vela land`; policy routes it and deferred work reaches `vela sign`",
+            "attempt": "land a negative or partial Receipt v1; failed passes are evidence when they carry an artifact and caveat",
         },
         "caveat": "Allowed outputs are the only state-changing submissions; strategy prose without an artifact does not move the frontier.",
     }))
@@ -2678,47 +2437,6 @@ batches:
             .unwrap();
             assert_eq!(bound, served.canonicalize().unwrap());
         }
-    }
-
-    #[test]
-    fn mcp_deposit_routes_through_the_frontier_transaction_barrier() {
-        let temp = tempfile::tempdir().unwrap();
-        let served = temp.path().join("deposit-barrier");
-        let project = vela_protocol::project::assemble("deposit-barrier", Vec::new(), 0, 0, "test");
-        vela_protocol::repo::init_repo(&served, &project).unwrap();
-        let before = vela_protocol::repo::load_from_path(&served).unwrap();
-        let before_root = vela_protocol::events::event_log_hash(&before.events);
-        let journal_dir = crate::workflow::frontier_transaction_journal_dir(&served).unwrap();
-        let _barrier =
-            crate::frontier_txn::FrontierTxn::acquire_recovery_barrier(&served, &journal_dir)
-                .unwrap();
-
-        let error = tool_work(
-            &json!({
-                "frontier_path": served.display().to_string(),
-                "action": "deposit",
-                "agent_actor": "agent:mcp-deposit-barrier",
-                "problem": 647,
-                "kind": "negative",
-                "claim": "transaction barrier probe",
-                "claimed_status": "failed",
-                "target_obligation_id": "erdos:647",
-                "method_families": ["barrier-probe"]
-            }),
-            Some(&served),
-        )
-        .unwrap_err();
-        assert!(
-            error.message.contains("write lock") || error.message.contains("busy"),
-            "unexpected MCP deposit refusal: {}",
-            error.message
-        );
-        let loaded = vela_protocol::repo::load_from_path(&served).unwrap();
-        assert_eq!(
-            vela_protocol::events::event_log_hash(&loaded.events),
-            before_root
-        );
-        assert!(loaded.attempts.is_empty());
     }
 
     #[test]

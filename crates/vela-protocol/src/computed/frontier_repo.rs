@@ -25,7 +25,6 @@ pub const FRONTIER_MATERIALIZE_SCHEMA: &str = "vela.frontier_materialize.v0.1";
 pub const FRONTIER_REPO_STATUS_SCHEMA: &str = "vela.frontier_repo_status.v0.1";
 pub const FRONTIER_REPO_DOCTOR_SCHEMA: &str = "vela.frontier_repo_doctor.v0.1";
 pub const FRONTIER_PROOF_VERIFY_SCHEMA: &str = "vela.frontier_proof_verify.v0.1";
-pub const DEFAULT_CARINA_KERNEL: &str = "carina@0.1.0";
 const VELA_ACTION_REPOSITORY: &str = "vela-science/vela";
 
 fn current_vela_release() -> String {
@@ -33,6 +32,7 @@ fn current_vela_release() -> String {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
 pub struct FrontierManifest {
     pub schema: String,
     pub layout: String,
@@ -47,7 +47,6 @@ pub struct FrontierManifest {
     pub visibility: String,
     #[serde(default)]
     pub scope: FrontierScope,
-    pub carina: CarinaManifest,
     pub vela: VelaManifest,
     pub paths: FrontierPaths,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -60,11 +59,6 @@ pub struct FrontierManifest {
     pub dependencies: ManifestDependencies,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub templates: Vec<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct CarinaManifest {
-    pub kernel: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -152,11 +146,11 @@ pub struct ManifestDependencies {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
 pub struct FrontierLock {
     pub schema: String,
     pub generated_at: String,
     pub vela_version: String,
-    pub carina_kernel: String,
     pub frontier_id: String,
     #[serde(default)]
     pub canonicalization: LockCanonicalization,
@@ -164,8 +158,6 @@ pub struct FrontierLock {
     pub reducer: LockPackage,
     #[serde(default)]
     pub verifiers: LockVerifiers,
-    #[serde(default)]
-    pub carina: LockKernel,
     pub snapshot_hash: String,
     pub event_log_hash: String,
     pub proposal_state_hash: String,
@@ -238,12 +230,6 @@ impl Default for LockCanonicalization {
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct LockPackage {
     pub package: String,
-    pub digest: String,
-}
-
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
-pub struct LockKernel {
-    pub kernel: String,
     pub digest: String,
 }
 
@@ -332,13 +318,16 @@ pub fn initialize(path: &Path, options: InitOptions<'_>) -> Result<serde_json::V
         // Default to `main`, the ecosystem convention (the hub ingests `main` and
         // the CI workflow triggers on it) — never the git-version-dependent
         // `master`, which silently breaks both if a repo ships with it.
-        let status = std::process::Command::new("git")
-            .args(["init", "-b", "main"])
+        let output = std::process::Command::new("git")
+            .args(["init", "--quiet", "-b", "main"])
             .arg(path)
-            .status()
+            .output()
             .map_err(|e| format!("Failed to run git init: {e}"))?;
-        if !status.success() {
-            return Err("git init failed".to_string());
+        if !output.status.success() {
+            return Err(format!(
+                "git init failed: {}",
+                String::from_utf8_lossy(&output.stderr).trim()
+            ));
         }
     }
 
@@ -471,7 +460,6 @@ jobs:
       - uses: __VELA_ACTION_REF__
         with:
           vela-version: __VELA_RELEASE__
-          strict: "true"
 "#
     .replace("__VELA_ACTION_REF__", &vela_action_ref)
     .replace("__VELA_RELEASE__", &vela_release);
@@ -491,8 +479,8 @@ adapters from this file — edit here, never there.
 Agents may:
 
 - inspect state: `vela status .`, `vela next .`, `vela check .`
-- draft findings and land receipts: `vela finding add . --author agent:<name> …`,
-  `vela land <receipt.json>` / `vela land --claim … --artifact … --caveat …`
+- land Receipt v1 work: `vela land <receipt.json>` /
+  `vela land --claim … --artifact … --caveat …`
 - run the verifiers: `vela reproduce .`, `vela check . --strict`
 - rebuild derived views: `vela frontier materialize .`
 
@@ -574,8 +562,7 @@ pub fn write_visible_repo_files(path: &Path, project: &Project) -> Result<(), St
 
 /// Render the complete set of bytes that [`write_visible_repo_files`] would
 /// write, without mutating the frontier. Existing user-owned manifest fields
-/// and proof-side files are treated as read-only inputs, matching the legacy
-/// writer's preservation behavior.
+/// and proof-side files are treated as read-only inputs.
 pub fn render_visible_repo_files(
     path: &Path,
     project: &Project,
@@ -644,9 +631,6 @@ pub fn layout_issues(path: &Path, project: &Project) -> Vec<RepoLayoutIssue> {
     if !path.is_dir() || !path.join(".vela").is_dir() {
         return Vec::new();
     }
-    if !path.join("frontier.yaml").is_file() && !path.join("vela.lock").is_file() {
-        return Vec::new();
-    }
     let mut issues = Vec::new();
     let manifest = match read_manifest(path) {
         Ok(value) => value,
@@ -671,10 +655,9 @@ pub fn layout_issues(path: &Path, project: &Project) -> Vec<RepoLayoutIssue> {
     }
     let Some(lock) = lock else {
         // A missing vela.lock is benign: it is a DERIVED view, regenerated
-        // byte-for-byte by `vela frontier materialize` (and by `vela clone`).
-        // Since the hub-as-remote round-trip, the lock is no longer
-        // git-committed — a fresh git/`vela clone` checkout simply has no lock
-        // until the first materialize. Treat it as "not yet materialized,"
+        // byte-for-byte by `vela frontier materialize`. The lock is not
+        // canonical custody: a fresh Git checkout may have no lock until the
+        // first materialize. Treat it as "not yet materialized,"
         // not a layout fault, so the lock-dependent hash checks below are
         // skipped rather than flagged.
         return issues;
@@ -908,7 +891,7 @@ pub fn proof_explain(path: &Path) -> Result<String, String> {
         .count();
     let status = if ok { "fresh" } else { "stale or invalid" };
     Ok(format!(
-        "vela proof explain\n\nFrontier: {}\nFrontier id: {}\nProof status: {status}\nAccepted events: {}\nOpen proposals: {open_proposals}\nSnapshot hash: {snapshot_hash}\nEvent log hash: {event_log_hash}\n\nAuthority: `.vela/events/` is replayed into `frontier.json`.\nVisible proof: `proof/latest.json`, `proof/events.manifest.jsonl`, and `proof/replay.trace.jsonl`.\nLockfile: `vela.lock` binds the event log, reducer, Carina kernel, visible state, and proof digest.\n",
+        "vela proof explain\n\nFrontier: {}\nFrontier id: {}\nProof status: {status}\nAccepted events: {}\nOpen proposals: {open_proposals}\nSnapshot hash: {snapshot_hash}\nEvent log hash: {event_log_hash}\n\nAuthority: `.vela/events/` is replayed into `frontier.json`.\nVisible proof: `proof/latest.json`, `proof/events.manifest.jsonl`, and `proof/replay.trace.jsonl`.\nLockfile: `vela.lock` binds the event log, Vela reducer, verifier set, visible state, and proof digest.\n",
         project.project.name,
         locked.frontier_id(),
         project.events.len(),
@@ -973,7 +956,7 @@ fn render_visible_state(project: &Project, generated_at: &str) -> Result<Vec<u8>
         object.insert(
             "_warning".to_string(),
             serde_json::Value::String(
-                "Generated by Vela. Do not edit frontier.json directly; use Vela commands to propose, accept, reject, materialize, and prove frontier state."
+                "Generated by Vela. Do not edit frontier.json directly; use Vela's task-first receipt, signing, materialization, and proof commands."
                     .to_string(),
             ),
         );
@@ -989,7 +972,6 @@ fn render_visible_state(project: &Project, generated_at: &str) -> Result<Vec<u8>
                 "replay_trace": "proof/replay.trace.jsonl",
                 "snapshot_hash": snapshot_hash,
                 "event_log_hash": event_log_hash,
-                "carina_kernel": DEFAULT_CARINA_KERNEL,
                 "vela_reducer": format!("vela@{}", env!("CARGO_PKG_VERSION")),
             }),
         );
@@ -1039,9 +1021,6 @@ fn render_manifest(path: &Path, project: &Project) -> Result<Vec<u8>, String> {
                 includes: Vec::new(),
                 excludes: Vec::new(),
             }),
-        carina: CarinaManifest {
-            kernel: DEFAULT_CARINA_KERNEL.to_string(),
-        },
         vela: VelaManifest {
             reducer: format!("vela@{}", env!("CARGO_PKG_VERSION")),
         },
@@ -1106,7 +1085,6 @@ fn render_lock(
         schema: FRONTIER_LOCK_SCHEMA.to_string(),
         generated_at: generated_at.to_string(),
         vela_version: env!("CARGO_PKG_VERSION").to_string(),
-        carina_kernel: DEFAULT_CARINA_KERNEL.to_string(),
         frontier_id: locked.frontier_id(),
         canonicalization: LockCanonicalization::default(),
         reducer: LockPackage {
@@ -1117,10 +1095,6 @@ fn render_lock(
             package: verifier_package.clone(),
             digest: identity_digest(&verifier_package),
             kinds: collect_verifier_kinds(path),
-        },
-        carina: LockKernel {
-            kernel: DEFAULT_CARINA_KERNEL.to_string(),
-            digest: identity_digest(DEFAULT_CARINA_KERNEL),
         },
         snapshot_hash: prefixed(events::snapshot_hash(&locked)),
         event_log_hash: prefixed(events::event_log_hash(&locked.events)),
@@ -1315,10 +1289,6 @@ fn render_proof(
             "package": reducer_package,
             "digest": identity_digest(&format!("vela@{}", env!("CARGO_PKG_VERSION"))),
         },
-        "carina": {
-            "kernel": DEFAULT_CARINA_KERNEL,
-            "digest": identity_digest(DEFAULT_CARINA_KERNEL),
-        },
         "materialized_at": generated_at,
         "freshness": "fresh",
         "event_count": locked.events.len(),
@@ -1329,7 +1299,7 @@ fn render_proof(
             "events_manifest": "proof/events.manifest.jsonl",
             "replay_trace": "proof/replay.trace.jsonl"
         },
-        "warning": "Do not edit frontier.json directly. Use Vela commands to propose, accept, reject, materialize, and prove frontier state."
+        "warning": "Do not edit frontier.json directly. Use Vela's task-first receipt, signing, materialization, and proof commands."
     });
     let mut files = VisibleRepoFiles::new();
     files.insert(
@@ -1621,7 +1591,7 @@ mod tests {
             "      - uses: {VELA_ACTION_REPOSITORY}@{expected_release}"
         )));
         assert!(workflow.contains(&format!("          vela-version: {expected_release}")));
-        assert!(workflow.contains("          strict: \"true\""));
+        assert!(!workflow.contains("          strict:"));
         assert!(!workflow.contains("@main"));
         assert!(!workflow.contains("constellate-science/vela"));
         assert!(!workflow.contains("vela sign"));

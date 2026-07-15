@@ -1,4 +1,4 @@
-//! v0.151: signed verification records for Carina Proof artifacts.
+//! v0.151: signed verification records for Vela proof artifacts.
 //!
 //! Substrate-honest split: the substrate stores attested
 //! verification records; the verifier (Lean kernel, Coq, etc.)
@@ -8,8 +8,7 @@
 //! lake_manifest_hash) tuple.
 //!
 //! See `docs/VERIFICATION.md` (the proof-attestation records section) for the
-//! end-to-end pipeline and `.github/workflows/verify-carina-proofs.yml`
-//! for the canonical GitHub Action implementation.
+//! verifier boundary and integration contract.
 
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -168,8 +167,7 @@ mod tests {
             verifier_output_hash: format!("sha256:{}", "0".repeat(64)),
             status: "verified".to_string(),
             verified_at: "2026-05-11T00:00:00+00:00".to_string(),
-            verifier_actor: "github-action:vela/.github/workflows/verify-carina-proofs.yml"
-                .to_string(),
+            verifier_actor: "verifier:lean-ci".to_string(),
         }
     }
 

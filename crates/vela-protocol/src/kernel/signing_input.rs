@@ -60,22 +60,6 @@ pub fn signing_input(version: SigVersion, payload_type: &str, body: &[u8]) -> Ve
     }
 }
 
-/// Canonical body version for new human decision acceptance preimages.
-///
-/// This is distinct from [`SigVersion`]: the body version defines which facts
-/// an acceptance commits to, while `SigVersion::V1` defines the DSSE/PAE byte
-/// framing. Historical accepts omit this marker and continue to use the raw v0
-/// body byte-for-byte.
-pub const ACCEPTANCE_DECISION_PREIMAGE_V1: &str = "vela.acceptance-decision.v1";
-
-/// Frame a canonical v1 decision-acceptance body under the existing accept
-/// media type. Kept here so every producer uses the same signing-input version
-/// for new decision-bound accepts while legacy builders remain on v0.
-#[must_use]
-pub fn decision_acceptance_signing_input(body: &[u8]) -> Vec<u8> {
-    signing_input(SigVersion::V1, payload_type::ACCEPT, body)
-}
-
 /// Versioned Vela media types, one per signed object. The type is authenticated
 /// under v1 (it enters the PAE frame) but never enters an id or log-hash
 /// preimage, so historical ids are untouched by the facade.
@@ -84,13 +68,7 @@ pub mod payload_type {
     pub const PROPOSAL: &str = "application/vnd.vela.proposal+json";
     pub const STATEMENT_ATTESTATION: &str = "application/vnd.vela.statement_attestation+json";
     pub const ANCHOR: &str = "application/vnd.vela.anchor+json";
-    pub const ACCEPT: &str = "application/vnd.vela.accept+json";
     pub const ACTIVITY_RECORD: &str = "application/vnd.vela.activity_record+json";
-    pub const REGISTRY_DEPRECATION: &str = "application/vnd.vela.registry.deprecation+json";
-    pub const REGISTRY_GIT_REMOTE: &str = "application/vnd.vela.registry.git_remote+json";
-    pub const REGISTRY_ROTATION: &str = "application/vnd.vela.registry.rotation+json";
-    pub const REGISTRY_MAINTAINER: &str = "application/vnd.vela.registry.maintainer+json";
-    pub const REGISTRY_ENTRY: &str = "application/vnd.vela.registry.entry+json";
 }
 
 #[cfg(test)]
@@ -125,19 +103,6 @@ mod tests {
         assert_ne!(
             signing_input(SigVersion::V0, payload_type::EVENT, body),
             signing_input(SigVersion::V1, payload_type::EVENT, body)
-        );
-    }
-
-    #[test]
-    fn decision_acceptance_uses_v1_framing_only() {
-        let body = br#"{"decision_preimage_version":"vela.acceptance-decision.v1"}"#;
-        assert_eq!(
-            decision_acceptance_signing_input(body),
-            signing_input(SigVersion::V1, payload_type::ACCEPT, body)
-        );
-        assert_ne!(
-            decision_acceptance_signing_input(body),
-            signing_input(SigVersion::V0, payload_type::ACCEPT, body)
         );
     }
 }

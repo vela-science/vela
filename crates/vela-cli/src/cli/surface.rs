@@ -26,7 +26,7 @@ const RELEASE_DENY: &[&str] = &[];
 /// completeness guard (`every_subcommand_is_documented_in_advanced_help`) skips
 /// these so the curated menu can shrink without losing the "no command is
 /// silently undocumented" protection for the canonical set.
-pub(crate) const DEPRECATED_FROM_HELP: &[&str] = &["completions"];
+pub(crate) const HIDDEN_FROM_ADVANCED_HELP: &[&str] = &["completions"];
 
 /// Whether `name` is a released top-level command the dispatcher will hand
 /// to clap. Derived from the clap command tree (`Cli::command()`), not a
@@ -72,7 +72,7 @@ pub(crate) fn print_strict_help() {
 /// so it can never silently omit a newly-added command (the drift the old
 /// hand-maintained allowlist suffered, now caught at the help layer too).
 pub(crate) fn strict_help_text() -> String {
-    let deprecated_line = DEPRECATED_FROM_HELP.join(", ");
+    let hidden_line = HIDDEN_FROM_ADVANCED_HELP.join(", ");
     format!(
         r#"Vela {}
 Version control for scientific state.
@@ -90,9 +90,6 @@ The loop:
                 routed by the signed policy. Permit admits; Defer parks
                 it in the sign queue; Deny refuses canonical admission.
                 Use --work <target> when this actor has several sessions.
-  submit        One-command producer path: frozen-verify a witness, land it,
-                bind it to its finding, drive the exact lane to
-                machine_verified, materialize. Commits locally; --push to publish.
   sign          THE human ceremony: everything awaiting your key, one
                 session, one confirm, one key read. Agents are refused.
   policy        Standing rules (suggest/draft/test/evaluate-proposal/sign/
@@ -112,7 +109,7 @@ Verify:
                 Pull a commit-pinned public Lean declaration into a controlled
                 Lake project and emit an unsigned typed reproduction receipt
   proof         Export a proof packet; `proof verify` re-checks one, `proof explain`
-  gate          Claim-level verification gate (grade/check/vocab/backfill/attach/auto-admit)
+  gate          Read-only claim-level verification (grade/check/vocab)
   ci            CI verbs for a frontier's Action; `ci verdict --base <ref>` is the
                 whole auto-merge decision (exit 0 iff a gate-clean machine_verified beat)
 
@@ -123,38 +120,36 @@ Setup (once):
                 --key/--as flags
   config        Plain settings (get/set/list, closed key set, origins
                 shown). Never touches identity, custody, or the record.
-  serve         MCP + HTTP surface: read-only or nonfinalizing draft;
-                maintainer is a deprecated alias for draft
-  foundry       The discovery/prover plane: run/targets/ablate, campaign,
+  serve         MCP + HTTP surface: read-only or nonfinalizing draft
+  foundry       The discovery/prover plane: targets/ablate, campaign,
                 lean, attempt, transfer, experiment
   doctor        First-user diagnosis of checkout/frontier/proof/serve
 
 Publish (git push IS publication):
-  hub           The index: register-git (bind repo->vfr once), witness-check,
-                verify-chain, verify-log
+  hub           The index: witness-check and verify-chain. Hub
+                operators configure source repositories.
   publication   Recover one interrupted path-exact Git publication by its
                 private operation id; never signs or changes authority
 
 Nouns (run `vela <noun> --help`):
-  finding       The core primitive: add/show/supersede/note/caveat/revise/
-                review/reject/retract/contribution/link
+  finding       Read one accepted finding; producers write through Receipt v1
   artifact      Content-addressed evidence lifecycle: retract drafts a
-                retirement for the human sign queue
-  frontier      Repo-level: new/materialize/add-dep/list-deps/diff/release/audit
-  proposals     The full proposal store: list/show/preview/import/validate/export/
-                accept/reject
-  actor         Frontier-registered identities: add/list/rotate
+                retirement for the human sign queue (sole direct draft exception)
+  frontier      Repo-level: new/materialize/list-deps/diff/release/audit
+  proposals     Read/transport only: list/show/preview/validate/export;
+                decisions happen only through sign
+  actor         Frontier identities: one-time configured-id bootstrap, then list
   agents        VELA.md charter adapters: sync/doctor/diff
 
 Projections (read-only):
-  state         Claim-state cell, trust vector, packs, evidence diff, anchors
-  atlas         Cross-frontier math atlas projections
+  state         Read-only claim-state, trust, pack, evidence-diff, anchor projections
+  atlas         Read-only math atlas projections; adapter output lands as Receipt v1
   credit        Derived attribution for a finding: accountable authors,
                 contributors, originating agents (a machine is never an author)
 
 Off-menu (reachable, intentionally undocumented here): {}
 "#,
         env!("CARGO_PKG_VERSION"),
-        deprecated_line,
+        hidden_line,
     )
 }

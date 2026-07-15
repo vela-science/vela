@@ -158,7 +158,7 @@ pub(crate) fn check_json_payload(src: &Path, schema_only: bool, strict: bool) ->
                 "finding_id": null,
                 "field_path": null,
                 "message": conflict,
-                "suggestion": "Every decided proposal must have a signed review.* event (or, for accepts, its domain event). Re-issue the decision through `vela sign` / `vela proposals reject`.",
+                "suggestion": "Every decided proposal must have a signed review.* event (or, for accepts, its domain event). Re-issue the decision through `vela sign`.",
                 "fixable": false,
                 "normalize_action": null,
             })

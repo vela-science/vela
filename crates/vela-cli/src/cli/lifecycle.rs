@@ -3,13 +3,7 @@
 
 use super::*;
 
-pub(crate) fn cmd_init(
-    path: &Path,
-    name: &str,
-    template: &str,
-    initialize_git: bool,
-    json_output: bool,
-) {
+pub(crate) fn cmd_init(path: &Path, name: &str, template: &str, json_output: bool) {
     if path.join(".vela").exists() {
         crate::ui::fail_with(
             crate::ui::ErrorKind::Exists,
@@ -25,7 +19,7 @@ pub(crate) fn cmd_init(
         frontier_repo::InitOptions {
             name,
             template,
-            initialize_git,
+            initialize_git: true,
         },
     )
     .unwrap_or_else(|e| fail_return(&e));

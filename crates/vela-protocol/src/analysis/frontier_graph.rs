@@ -1422,7 +1422,6 @@ mod tests {
             payload: serde_json::json!({}),
             caveats: vec![],
             signature: None,
-            schema_artifact_id: None,
         };
 
         // z depends_on a depends_on b (a required chain); s corroborates b via

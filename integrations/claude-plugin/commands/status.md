@@ -16,7 +16,7 @@ frontier works — vela discovers `.vela/` by walking upward, like git finds `.g
 3. `vela next --json`
 
 If the `vela` binary is missing, say so and point at the install
-(https://github.com/constellate-science/vela); if `status` returns `ok: false`,
+(https://github.com/vela-science/vela); if `status` returns `ok: false`,
 report the `error.message` and `error.hint` verbatim and stop.
 
 Then render a restrained dashboard in chat. Prose-first — numbers inline in

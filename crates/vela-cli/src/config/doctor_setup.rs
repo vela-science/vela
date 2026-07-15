@@ -191,22 +191,6 @@ fn policy_check(dir: &Path) -> SetupCheck {
         ),
         Ok(snapshot)
             if snapshot.mode
-                == vela_protocol::acceptance_policy::ActivePolicyMode::LegacyUnboundClosed =>
-        {
-            let legacy = snapshot
-                .legacy_unbound
-                .expect("legacy mode carries its observation");
-            warn(
-                "policy",
-                format!(
-                    "legacy-unbound audit history is closed: stored {}, hardened {}",
-                    legacy.stored_policy_id, legacy.hardened_policy_id
-                ),
-                super::cli_policy::legacy_rotation_command(dir, &legacy.policy),
-            )
-        }
-        Ok(snapshot)
-            if snapshot.mode
                 == vela_protocol::acceptance_policy::ActivePolicyMode::StagedUnsigned =>
         {
             warn(

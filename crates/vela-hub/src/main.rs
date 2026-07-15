@@ -1,24 +1,17 @@
-//! Vela hub: HTTP server over signed frontier manifests, canonical
+//! Vela hub: read-only HTTP index over verified Git frontiers, canonical
 //! event logs, and materialized frontier projections.
 //!
-//! Doctrine: the signed manifest is the publish receipt. The live read
-//! source is the verified event/projection tables. Snapshot blobs remain
-//! derived export artifacts, and clients still verify signatures and
-//! hashes locally.
-//!
-//! Writes are accepted from anyone who can produce a valid signature
-//! over their own manifest — the signature is the bind, not access
-//! control. The hub verifies the signature against the manifest's
-//! declared `owner_pubkey` and stores the canonical bytes verbatim.
+//! Doctrine: Git stores the bytes; the hub verifies each configured frontier
+//! and indexes its event/projection tables. It does not mirror substrate bytes
+//! or accept frontier state over an HTTP publication transport.
 //!
 //! Endpoints:
-//!   GET  /entries                   - live frontiers, manifest-compatible JSON
-//!   GET  /entries/{vfr_id}          - single live frontier entry
+//!   GET  /entries                   - configured, verified frontier indexes
+//!   GET  /entries/{vfr_id}          - one verified frontier index
 //!   GET  /entries/{vfr_id}/events   - cursor-paginated event log
 //!   GET  /entries/{vfr_id}/snapshot - derived materialized snapshot
-//!   (publication is `git push`: POST /entries retired — the ingest loop
-//!   re-derives the index from registered git remotes; the one write left
-//!   is POST /entries/{vfr}/git-remote, the owner-signed registration)
+//!   (publication is `git push`; the ingest loop re-derives the index from
+//!   the operator's versioned Git source catalog)
 //!   GET  /healthz                   - liveness
 //!   GET  /                          - banner + endpoint list
 
@@ -45,31 +38,26 @@ use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
 use std::str::FromStr;
 use tokio::sync::RwLock;
 
-// v0.55: db + storage modules are exposed via the lib (src/lib.rs) so
-// sibling binaries such as `vela-hub-backfill-event-first` can reuse them.
-// Same modules, just imported through the crate root instead of
-// declared inline.
+// DB and ingest modules are exposed via the lib so the read surface and
+// verified Git ingestor share one projection implementation.
 use db::{HubDb, ensure_postgres_event_first_schema, ensure_sqlite_schema};
 use tower_http::cors::CorsLayer;
 mod review;
 use review::*;
 
 use vela_hub::db;
-use vela_hub::storage::Storage;
-use vela_protocol::canonical;
 use vela_protocol::project::Project;
-use vela_protocol::sign as vsign;
 
 const HUB_VERSION: &str = env!("CARGO_PKG_VERSION");
-const MAX_PUBLISH_BODY_BYTES: usize = 128 * 1024 * 1024;
-const REGISTRY_SCHEMA: &str = "vela.registry.v0.1";
+const MAX_REQUEST_BODY_BYTES: usize = 128 * 1024 * 1024;
+const FRONTIER_INDEX_LIST_SCHEMA: &str = "vela.frontier-index-list.v1";
 
 const DEFAULT_PUBLIC_URL: &str = "https://hub.constellate.science";
-const DEFAULT_REPO_URL: &str = "https://github.com/constellate-science/vela";
+const DEFAULT_REPO_URL: &str = "https://github.com/vela-science/vela";
 const DEFAULT_SITE_URL: &str = "https://app.constellate.science";
 
-/// Cache key: (vfr_id, signed_publish_at). A fresh publish gets a new
-/// timestamp, so the key changes and the next read re-fetches.
+/// Cache key: (vfr_id, snapshot_hash). A changed verified projection gets a
+/// new content hash, so the next read re-fetches.
 type FrontierCache = Arc<RwLock<HashMap<(String, String), Arc<Project>>>>;
 
 /// Public URL strings the hub quotes back to clients: the JSON banners,
@@ -105,7 +93,7 @@ struct AppState {
     /// laptop runs. Variant chosen at startup from URL prefix.
     db: HubDb,
     /// Frontier cache for the entry detail page. Keyed by
-    /// `(vfr_id, signed_publish_at)` so a fresh publish forces a
+    /// `(vfr_id, snapshot_hash)` so a changed projection forces a
     /// re-fetch automatically. Bounded loosely; in v0.7 we expect
     /// fewer than a dozen frontiers ever.
     frontier_cache: FrontierCache,
@@ -125,21 +113,9 @@ struct AppState {
     /// route TEMPLATE (`/entries/{vfr_id}`), never the raw path — raw
     /// paths would explode label cardinality.
     http_metrics: Arc<HttpMetrics>,
-    /// v0.49.3: optional Ed25519 signing key for the
-    /// `/.well-known/vela` discovery manifest. When present, the
-    /// manifest's `manifest_canonical` bytes are signed and a
-    /// `signature` block is attached so a client can detect
-    /// MITM at the hub edge. Loaded once at startup from the file at
-    /// `VELA_HUB_SIGNING_KEY_PATH`; absent ⇒ unsigned mode (dev).
-    signing_key: Option<Arc<ed25519_dalek::SigningKey>>,
     /// Public-facing URLs the rendered HTML quotes back to readers.
     /// Configurable via env so the same binary serves any deployment.
     urls: PublicUrls,
-    /// v0.55.1: substrate object-storage client. Bulk content (multi-MB
-    /// Project bundles) is PUT here on publish and can be served via 302
-    /// redirects to a CDN URL as an export path. Live reads come from
-    /// event/projection tables.
-    storage: Option<Storage>,
     /// v0.727: the hosted MCP service, hot-swapped by the per-machine
     /// refresher (`mcp_host`). `None` until the first refresh lands.
     mcp: vela_hub::mcp_host::SharedMcp,
@@ -150,10 +126,6 @@ struct AppState {
     /// webhook lane answers 503 and the interval sweeps remain the only
     /// refresh path.
     webhook_secret: Option<Arc<String>>,
-    /// Peer hub URLs advertised in the `/.well-known/vela` manifest
-    /// (`VELA_HUB_PEERS`, comma-separated). Discovery only — a peer is
-    /// never a trust root; clients verify signatures per frontier.
-    peers: Arc<Vec<String>>,
     /// Per-IP sliding-window rate limiter (protocol-node hygiene).
     /// `VELA_HUB_RATE_LIMIT_PER_MIN` configures the default GET budget;
     /// 0 disables the limiter entirely.
@@ -764,10 +736,6 @@ async fn db_cache_write(cache: &DbCache, key: &str, value: Value) {
     );
 }
 
-// Local RegistryEntry struct removed in v0.21 — db.rs now uses
-// vela_protocol::registry::RegistryEntry directly so the publish handler
-// and the DB layer agree on the type.
-
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt()
@@ -828,7 +796,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .map_err(|e| -> Box<dyn std::error::Error> { e.into() })?;
         if !table_exists {
             return Err(
-                "registry_entries table not found; run the schema migration before starting the hub"
+                "frontiers table not found; run the schema migration before starting the hub"
                     .into(),
             );
         }
@@ -836,72 +804,30 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         h
     };
 
-    let urls = PublicUrls::from_env();
-
-    // v0.49.3: optional signing key for /.well-known/vela. Loaded
-    // once at startup. Absent ⇒ unsigned mode (dev). Present ⇒ the
-    // discovery manifest's canonical bytes are signed and a
-    // signature block is attached so a client can detect
-    // MITM at the hub edge.
-    // Inline hex key (`VELA_HUB_SIGNING_KEY`) takes precedence over a file
-    // path (`VELA_HUB_SIGNING_KEY_PATH`). The inline form is what a hosted
-    // deploy uses: Fly/K8s secrets are environment variables, not files, so
-    // there is no path to point at. Absent both ⇒ unsigned mode (dev).
-    let signing_key = match env::var("VELA_HUB_SIGNING_KEY") {
-        Ok(hex) if !hex.trim().is_empty() => match vsign::signing_key_from_hex(&hex) {
-            Ok(k) => {
-                tracing::info!(
-                    "vela-hub /.well-known/vela signing key loaded from VELA_HUB_SIGNING_KEY ({}…)",
-                    &vsign::pubkey_hex(&k)[..16]
-                );
-                Some(Arc::new(k))
-            }
-            Err(e) => {
-                tracing::warn!(
-                    "VELA_HUB_SIGNING_KEY set but failed to parse: {e}; \
-                     /.well-known/vela will run in unsigned mode"
-                );
-                None
-            }
-        },
-        _ => match env::var("VELA_HUB_SIGNING_KEY_PATH") {
-            Ok(path) if !path.is_empty() => {
-                match vsign::load_signing_key_from_path(std::path::Path::new(&path)) {
-                    Ok(k) => {
-                        tracing::info!(
-                            "vela-hub /.well-known/vela signing key loaded from path ({}…)",
-                            &vsign::pubkey_hex(&k)[..16]
-                        );
-                        Some(Arc::new(k))
-                    }
-                    Err(e) => {
-                        tracing::warn!(
-                            "VELA_HUB_SIGNING_KEY_PATH set but key failed to load: {e}; \
-                             /.well-known/vela will run in unsigned mode"
-                        );
-                        None
-                    }
-                }
-            }
-            _ => {
-                tracing::info!(
-                    "no VELA_HUB_SIGNING_KEY[_PATH] set; /.well-known/vela in unsigned mode"
-                );
-                None
-            }
-        },
-    };
-
-    // v0.55.1: object-storage backend for substrate bytes. Set up
-    // automatically when AWS_* + BUCKET_NAME env vars are present
-    // (`flyctl storage create` injects these). Absent in local SQLite
-    // dev: publishes still work, but CDN export redirects are disabled.
-    let storage = vela_hub::storage::from_env().await;
-    if storage.is_some() {
-        tracing::info!("substrate storage configured (S3-compatible, content-addressed)");
-    } else {
-        tracing::info!("no S3-compatible storage configured; snapshot export redirects disabled");
+    let source_catalog = vela_hub::git_ingest::load_source_catalog()
+        .map_err(|e| -> Box<dyn std::error::Error> { e.into() })?;
+    for source in &source_catalog.sources {
+        db.upsert_git_source(&source.vfr_id, &source.git_remote, &source.git_ref)
+            .await
+            .map_err(|e| -> Box<dyn std::error::Error> { e.into() })?;
     }
+    let configured_ids: Vec<String> = source_catalog
+        .sources
+        .iter()
+        .map(|source| source.vfr_id.clone())
+        .collect();
+    let pruned = db
+        .retain_git_sources(&configured_ids)
+        .await
+        .map_err(|e| -> Box<dyn std::error::Error> { e.into() })?;
+    tracing::info!(
+        sources = source_catalog.sources.len(),
+        pruned,
+        schema = %source_catalog.schema,
+        "Hub Git source catalog loaded"
+    );
+
+    let urls = PublicUrls::from_env();
 
     let state = AppState {
         db,
@@ -909,16 +835,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         db_cache: Arc::new(RwLock::new(HashMap::new())),
         db_cache_metrics: Arc::new(DbCacheMetrics::default()),
         http_metrics: Arc::new(HttpMetrics::default()),
-        signing_key,
         urls,
-        storage,
         mcp: Arc::new(tokio::sync::RwLock::new(None)),
         mcp_kick: Arc::new(tokio::sync::Notify::new()),
         webhook_secret: env::var("VELA_HUB_WEBHOOK_SECRET")
             .ok()
             .filter(|s| !s.is_empty())
             .map(Arc::new),
-        peers: Arc::new(parse_peers(&env::var("VELA_HUB_PEERS").unwrap_or_default())),
         rate_limiter: Arc::new(RateLimiter::from_env()),
     };
     if state.rate_limiter.disabled() {
@@ -930,67 +853,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         );
     }
 
-    // Producer-index backfill: re-extract signer_pubkey for finding
-    // objects from stored snapshots (covers publishes that predate the
-    // event-actor extraction). Idempotent; non-fatal.
-    {
-        let db = state.db.clone();
-        tokio::spawn(async move {
-            match db.backfill_signer_pubkeys().await {
-                Ok(n) if n > 0 => tracing::info!(updated = n, "producer-index backfill complete"),
-                Ok(_) => {}
-                Err(e) => tracing::warn!(error = %e, "producer-index backfill failed"),
-            }
-        });
-    }
-
-    // Boot-time backfill: archive any signed manifest that predates the
-    // durable-receipt path. Idempotent (content-addressed keys; rows are
-    // selected by manifest_blob_url IS NULL) and non-fatal — the hub
-    // serves regardless; the next boot retries what failed.
-    if let Some(storage) = state.storage.clone() {
-        let db = state.db.clone();
-        tokio::spawn(async move {
-            match db.entries_missing_manifest_blob().await {
-                Ok(rows) => {
-                    let total = rows.len();
-                    let mut archived = 0usize;
-                    for (vfr_id, signature, raw_json) in rows {
-                        let (Ok(bytes), Ok(mhash)) = (
-                            vela_protocol::canonical::to_canonical_bytes(&raw_json),
-                            vela_protocol::canonical::sha256_canonical(&raw_json),
-                        ) else {
-                            continue;
-                        };
-                        let key = format!("manifest/{mhash}");
-                        match storage.put(&key, bytes, "application/json").await {
-                            Ok(url) => {
-                                match db.set_manifest_blob_url(&vfr_id, &signature, &url).await {
-                                    Ok(()) => archived += 1,
-                                    Err(e) => {
-                                        // The original silent swallow here hid a
-                                        // missing column-level UPDATE grant for
-                                        // 89 rows. Receipts must fail loudly.
-                                        tracing::warn!(%vfr_id, error = %e, "manifest archived but url not recorded");
-                                    }
-                                }
-                            }
-                            Err(e) => {
-                                tracing::warn!(%vfr_id, error = %e, "manifest backfill put failed");
-                            }
-                        }
-                    }
-                    if total > 0 {
-                        tracing::info!(archived, total, "manifest receipt backfill complete");
-                    }
-                }
-                Err(e) => tracing::warn!(error = %e, "manifest backfill query failed"),
-            }
-        });
-    }
-
-    // Git ingestion (ADR 0001 / HUB.md): re-derive the index from registered
-    // frontier git repos on an interval. The repo is the authority; this
+    // Git ingestion (ADR 0001 / HUB.md): re-derive the index from catalogued
+    // frontier Git repos on an interval. The repo is the authority; this
     // loop only refreshes the projection.
     vela_hub::git_ingest::spawn(
         state.db.clone(),
@@ -1033,11 +897,7 @@ fn build_router(state: AppState) -> Router {
         .route("/.well-known/vela", get(well_known_vela))
         .route("/entries", get(list_entries))
         .route("/entries/{vfr_id}", get(get_entry))
-        .route(
-            "/entries/{vfr_id}/git-remote",
-            get(get_git_remote).post(register_git_remote),
-        )
-        .route("/entries/{vfr_id}/deprecate", post(deprecate_entry))
+        .route("/entries/{vfr_id}/git-remote", get(get_git_remote))
         .route("/entries/{vfr_id}/snapshot", get(get_entry_snapshot))
         .route(
             "/entries/{vfr_id}/sidon-frontier-map",
@@ -1049,25 +909,12 @@ fn build_router(state: AppState) -> Router {
         )
         .route("/entries/{vfr_id}/summary", get(get_entry_summary))
         .route("/entries/{vfr_id}/manifest", get(get_entry_manifest))
-        .route("/entries/{vfr_id}/status", get(get_entry_status))
-        .route("/entries/{vfr_id}/maintainers", get(list_maintainers))
         .route("/producers/{pubkey}", get(get_producer))
-        // Content-addressed artifact-blob tier (witnesses, proof packets,
-        // `local_blob` datasets). GET 302-redirects to the immutable CDN
-        // object. The hub is a read-only index: witness bytes are committed
-        // to Git LFS in the git-native frontier repos, not ingested here.
-        .route("/blobs/{hash}", get(get_blob))
         .route("/search", get(search_endpoint))
         .route("/entries/{vfr_id}/objects/{otype}", get(get_entry_objects))
         .route(
             "/entries/{vfr_id}/objects/{otype}/{object_id}",
             get(get_entry_object),
-        )
-        .route("/entries/{vfr_id}/log/sth", get(get_log_sth))
-        .route("/entries/{vfr_id}/log/proof/{event_id}", get(get_log_proof))
-        .route(
-            "/entries/{vfr_id}/log/consistency",
-            get(get_log_consistency),
         )
         .route("/entries/{vfr_id}/events", get(get_entry_events))
         // Read-only Evidence Diff: a pending proposal's before/after effect
@@ -1106,11 +953,6 @@ fn build_router(state: AppState) -> Router {
             "/entries/{vfr_id}/gate-status",
             get(get_frontier_gate_status),
         )
-        .route("/entries/{vfr_id}/proof", get(get_proof_packet))
-        .route(
-            "/entries/{vfr_id}/proof/download",
-            get(get_proof_packet_download),
-        )
         // v0.727: the hosted MCP endpoint (streamable HTTP, stateless
         // JSON, read-only profile) and the GitHub webhook that kicks
         // ingest + MCP refresh ahead of the interval sweeps.
@@ -1129,7 +971,7 @@ fn build_router(state: AppState) -> Router {
             state.http_metrics.clone(),
             http_metrics_mw,
         ))
-        .layer(DefaultBodyLimit::max(MAX_PUBLISH_BODY_BYTES))
+        .layer(DefaultBodyLimit::max(MAX_REQUEST_BODY_BYTES))
         .layer(CorsLayer::permissive())
         .with_state(state)
 }
@@ -1295,21 +1137,32 @@ fn urlencode(s: &str) -> String {
     out
 }
 
-/// `VELA_HUB_PEERS` is a comma-separated URL list; absent or empty ⇒ no
-/// peers. Trailing slashes are stripped so peer URLs compose like
-/// `urls.hub` does.
-fn parse_peers(raw: &str) -> Vec<String> {
-    raw.split(',')
-        .map(|p| p.trim().trim_end_matches('/').to_string())
-        .filter(|p| !p.is_empty())
-        .collect()
-}
-
 /// The one JSON error body shape, shared with `vela serve`'s HTTP surface
 /// and the MCP envelope's kind vocabulary:
 /// `{"error": {"kind": "...", "message": "..."}}`.
 fn error_body(kind: &str, message: impl Into<String>) -> Value {
     json!({"error": {"kind": kind, "message": message.into()}})
+}
+
+/// A configured Git source that failed its latest verification is unavailable,
+/// not unknown. Ingest owns this status directly; there is no parallel publish
+/// audit table to reconcile.
+async fn ingest_failure_response(state: &AppState, vfr_id: &str) -> Option<Response> {
+    let source = state.db.get_git_remote(vfr_id).await.ok().flatten()?;
+    let message = source.get("ingest_error")?.as_str()?;
+    Some(
+        (
+            StatusCode::FAILED_DEPENDENCY,
+            Json(json!({
+                "ok": false,
+                "status": "unavailable",
+                "vfr_id": vfr_id,
+                "error": {"kind": "UNAVAILABLE", "message": message},
+                "authority_mode": vela_hub::git_ingest::AUTHORITY_GIT_INGESTED,
+            })),
+        )
+            .into_response(),
+    )
 }
 
 #[derive(Debug, Deserialize)]
@@ -1368,49 +1221,22 @@ fn parse_event_query(
     })
 }
 
-#[derive(Debug, Deserialize)]
-struct SnapshotQuery {
-    redirect: Option<String>,
-}
-
 fn root_json() -> Value {
     json!({
         "service": "vela-hub",
         "version": HUB_VERSION,
-        "doctrine": "Signed manifests are publish receipts. Live reads come from verified frontier events and materialized projections; clients verify signatures and hashes locally.",
+        "doctrine": "Git stores frontier bytes. The hub verifies configured repositories and serves a read-only event/projection index.",
         "endpoints": [
             "GET  /              - this banner",
             "GET  /healthz       - liveness + db-cache metrics",
             "GET  /readyz        - readiness (MCP projection built)",
-            "GET  /entries       - live frontiers, manifest-compatible JSON",
+            "GET  /entries       - configured, verified frontier indexes",
             "GET  /entries/{vfr_id} - single entry",
             "GET  /entries/{vfr_id}/events - cursor-paginated canonical event log",
             "GET  /entries/{vfr_id}/events/stream - server-sent event inbox",
-            "GET  /entries/{vfr_id}/proof - browse the proof packet (HTML or JSON)",
-            "GET  /entries/{vfr_id}/proof/download - proof packet as .tar.gz",
             "GET  /entries/{vfr_id}/review - the review queue + the autonomy ledger (HTML or JSON; ?format=json)",
-            "POST /entries       - publish a signed manifest (open, signature-gated)",
-        ],
-        "api": {
-            "counterfactual": {
-                "method": "POST",
-                "path": "/api/counterfactual/{vfr_id}",
-                "request_body": {
-                    "intervene_on": "vf_<id>  // finding to set the confidence of",
-                    "set_to":       "0.0..1.0 // confidence value to imagine",
-                    "target":       "vf_<id>  // finding to read counterfactual confidence of"
-                },
-                "response_verdicts": [
-                    "Resolved             — twin-network propagated; returns factual, counterfactual, delta, paths_used[]",
-                    "MechanismUnspecified — every connecting path has at least one edge without a Mechanism",
-                    "NoCausalPath         — no directed path; counterfactual = factual",
-                    "UnknownNode          — intervened or target finding not in this frontier",
-                    "InvalidIntervention  — set_to outside [0, 1]"
-                ],
-                "schema": "https://vela.science/schema/counterfactual/v0.45.1",
-                "kernel": "vela_edge::counterfactual::answer_counterfactual"
-            }
-        }
+            "GET  /entries/{vfr_id}/git-remote - verified Git source and ingest status",
+        ]
     })
 }
 
@@ -1521,31 +1347,22 @@ async fn metrics_prometheus(State(state): State<AppState>) -> impl axum::respons
     )
 }
 
-/// v0.49.2: schema discoverability endpoint. Returns the canonical
-/// list of versioned protocol schemas this hub knows about. Lets a
+/// Schema discoverability endpoint. Returns the canonical list of versioned
+/// protocol schemas this hub knows about. Lets a
 /// client bootstrap without scraping HTML or guessing URLs.
 async fn well_known_vela(State(state): State<AppState>) -> Json<Value> {
-    let signed_at = chrono::Utc::now().to_rfc3339();
     let manifest = json!({
         "name": "vela-hub",
         "version": HUB_VERSION,
-        "protocol_version": "0.48",
+        "protocol_version": HUB_VERSION,
         "site": state.urls.site.clone(),
-        "signed_at": signed_at,
-        // Peer discovery (`VELA_HUB_PEERS`): other hubs known to carry
-        // the same protocol surface. Discovery only — never a trust
-        // root. Part of the manifest, so the detached signature below
-        // covers it (the signature is over the canonical bytes of this
-        // whole object).
-        "peers": &*state.peers,
         "endpoints": {
-            "registry": format!("{}/entries", state.urls.hub),
-            "publish":  format!("{}/entries", state.urls.hub),
+            "index": format!("{}/entries", state.urls.hub),
+            "git_remote": format!("{}/entries/{{vfr_id}}/git-remote", state.urls.hub),
             "events": format!("{}/entries/{{vfr_id}}/events", state.urls.hub),
             "events_stream": format!("{}/entries/{{vfr_id}}/events/stream", state.urls.hub),
             "frontier_inbox": format!("{}/frontier/{{vfr_id}}/inbox", state.urls.hub),
             "snapshot": format!("{}/entries/{{vfr_id}}/snapshot", state.urls.hub),
-            "counterfactual": format!("{}/api/counterfactual/{{vfr_id}}", state.urls.hub),
             "metrics":  format!("{}/metrics", state.urls.hub),
             "healthz":  format!("{}/healthz", state.urls.hub),
         },
@@ -1554,14 +1371,14 @@ async fn well_known_vela(State(state): State<AppState>) -> Json<Value> {
             "max_events_per_request": 500,
             "max_bytes_per_event": 1048576,
             "retry_after_seconds": 15,
-            "writes": "POST /entries accepts signed manifests with inline substrate; direct event append is not enabled on this hub yet"
+            "writes": "frontier publication is git push; the hub index does not accept frontier state bytes"
         },
         "schemas": {
-            "registry":               "https://vela.science/schema/registry/v1",
+            "frontier-index":         "vela.frontier-index.v1",
+            "frontier-index-list":    "vela.frontier-index-list.v1",
             "finding-bundle":         "https://vela.science/schema/finding-bundle/v0.10.0",
             "frontier-packet":        "https://vela.science/schema/frontier-packet/v1",
             "event":                  "https://vela.science/schema/event/v1",
-            "counterfactual-query":   "https://vela.science/schema/counterfactual/v0.45.1",
             "agent-run":              "https://vela.science/schema/agent-run/v0.22",
             "key-revoke":             "https://vela.science/schema/event/key-revoke/v0.49",
             "cross-impl-reducer-fixture": "https://vela.science/schema/cross-impl-reducer-fixture/v1",
@@ -1585,50 +1402,7 @@ async fn well_known_vela(State(state): State<AppState>) -> Json<Value> {
         },
     });
 
-    // v0.49.3.1: detached Ed25519 signature over the manifest's
-    // canonical-JSON bytes. To verify (TS / Python / any language with
-    // an Ed25519 lib):
-    //   1. Take envelope.manifest as a JSON object.
-    //   2. Re-canonicalize per the `canonical_json_v1` rules above
-    //      (sorted keys, no whitespace, UTF-8) → raw bytes.
-    //   3. Verify(signature.pubkey, canonical_bytes, signature.value)
-    //      using **pure Ed25519** (RFC 8032 §5.1.7 EdDSA).
-    //
-    // Pure Ed25519 hashes the message internally with SHA-512 as part
-    // of the EdDSA signing equation — DO NOT pre-hash the canonical
-    // bytes before verifying. (`ed25519_dalek::SigningKey::sign(bytes)`
-    // is pure Ed25519, not Ed25519ph.)
-    //
-    // Mode is "unsigned" when VELA_HUB_SIGNING_KEY_PATH is unset.
-    match (&state.signing_key, canonical::to_canonical_bytes(&manifest)) {
-        (Some(key), Ok(bytes)) => {
-            let sig = vsign::sign_bytes(key, &bytes);
-            Json(json!({
-                "manifest": manifest,
-                "signature": {
-                    "alg": "Ed25519",
-                    "alg_variant": "pure",
-                    "pubkey": vsign::pubkey_hex(key),
-                    "value": hex::encode(sig),
-                    "canonical_format": "vela.canonical-json/v1",
-                    "canonical_format_spec": "https://vela.science/schema/canonical-json/v1",
-                    "signed_at": signed_at,
-                    "verifier_steps": [
-                        "1. take envelope.manifest as JSON",
-                        "2. re-canonicalize per canonical_json_v1 → raw bytes",
-                        "3. Ed25519 verify (RFC 8032 §5.1.7, pure not ph) over canonical bytes — do NOT pre-hash"
-                    ],
-                },
-                "mode": "signed",
-            }))
-        }
-        _ => Json(json!({
-            "manifest": manifest,
-            "signature": null,
-            "mode": "unsigned",
-            "note": "set VELA_HUB_SIGNING_KEY_PATH on the hub to enable detached pure-Ed25519 signatures over this discovery manifest",
-        })),
-    }
+    Json(manifest)
 }
 
 /// Readiness, as distinct from liveness: a machine is READY only once
@@ -1643,7 +1417,7 @@ async fn readyz(State(state): State<AppState>) -> (StatusCode, Json<Value>) {
             Json(json!({"ready": true, "mcp": "projection built", "version": HUB_VERSION})),
         );
     }
-    match state.db.list_live_entries().await {
+    match state.db.list_entries().await {
         Ok(entries) if entries.is_empty() => (
             StatusCode::OK,
             Json(json!({"ready": true, "mcp": "no frontiers registered", "version": HUB_VERSION})),
@@ -1698,13 +1472,13 @@ async fn healthz(State(state): State<AppState>) -> (StatusCode, Json<Value>) {
 /// ADDITIVELY (`next_offset` only when more rows remain).
 fn entries_payload(values: &[Value], limit: Option<i64>, offset: i64) -> Value {
     let Some(limit) = limit else {
-        return json!({"schema": REGISTRY_SCHEMA, "entries": values});
+        return json!({"schema": FRONTIER_INDEX_LIST_SCHEMA, "entries": values});
     };
     let total = values.len() as i64;
     let start = offset.min(total) as usize;
     let end = offset.saturating_add(limit).min(total) as usize;
     let mut body = json!({
-        "schema": REGISTRY_SCHEMA,
+        "schema": FRONTIER_INDEX_LIST_SCHEMA,
         "entries": &values[start..end],
         "total": total,
     });
@@ -1751,12 +1525,12 @@ async fn list_entries(
         return cached_list_response(&entry.value, limit, offset, false);
     }
 
-    match state.db.list_live_entries().await {
+    match state.db.list_entries().await {
         Ok(values) => {
             state.db_cache_metrics.record_miss();
             // The cache holds the FULL list; pagination is a read-time
             // slice so every limit/offset shares one cache entry.
-            let payload = json!({"schema": REGISTRY_SCHEMA, "entries": values});
+            let payload = json!({"schema": FRONTIER_INDEX_LIST_SCHEMA, "entries": values});
             db_cache_write(&state.db_cache, cache_key, payload.clone()).await;
             (
                 StatusCode::OK,
@@ -1810,18 +1584,17 @@ fn cached_list_response(payload: &Value, limit: Option<i64>, offset: i64, stale:
 }
 
 /// Read a promoted frontier from event/projection tables and cache the
-/// reconstructed `Project` by `(vfr_id, signed_publish_at)`.
+/// reconstructed `Project` by `(vfr_id, snapshot_hash)`.
 ///
 /// This is intentionally strict after the event-first cutover: if a
 /// frontier has not been promoted to `frontiers`, live routes surface an
-/// unavailable state instead of fetching an old `network_locator` or a
-/// blob export as an alternate source of truth.
+/// unavailable state instead of fetching an alternate byte source.
 async fn load_substrate(
     state: &AppState,
     vfr_id: &str,
-    signed_publish_at: &str,
+    snapshot_hash: &str,
 ) -> Option<Arc<Project>> {
-    let cache_key = (vfr_id.to_string(), signed_publish_at.to_string());
+    let cache_key = (vfr_id.to_string(), snapshot_hash.to_string());
     if let Some(hit) = state.frontier_cache.read().await.get(&cache_key).cloned() {
         return Some(hit);
     }
@@ -1981,27 +1754,12 @@ async fn get_entry(
     if wants_html(&headers) {
         return redirect_to_site(&state.urls, &format!("/r/{vfr_id}"));
     }
-    let row = state.db.get_live_entry(&vfr_id).await;
+    let row = state.db.get_index_entry(&vfr_id).await;
     match row {
         Ok(Some(value)) => (StatusCode::OK, Json(value)).into_response(),
         Ok(None) => {
-            if let Some(redirect) = superseded_redirect(&state, &vfr_id, "").await {
-                return redirect;
-            }
-            if let Ok(Some(audit)) = state.db.latest_audit_status(&vfr_id).await
-                && audit.status == "failed"
-            {
-                return (
-                    StatusCode::FAILED_DEPENDENCY,
-                    Json(json!({
-                        "ok": false,
-                        "status": "unavailable",
-                        "vfr_id": vfr_id,
-                        "error": {"kind": "UNAVAILABLE", "message": audit.error.unwrap_or_else(|| "frontier failed verification".to_string())},
-                        "authority_mode": audit.authority_mode,
-                    })),
-                )
-                    .into_response();
+            if let Some(response) = ingest_failure_response(&state, &vfr_id).await {
+                return response;
             }
             (
                 StatusCode::NOT_FOUND,
@@ -2083,46 +1841,7 @@ async fn get_entry_summary(State(state): State<AppState>, Path(vfr_id): Path<Str
     }
 }
 
-/// Frontier manifest (L1): the small "list, then fetch only what you open"
-/// primitive — counts + log head + an index of object ids by type, WITHOUT the
-/// bulk raw_json. A client reads this, then pulls individual objects on demand
-/// (sparse / partial clone) rather than the whole multi-MB snapshot.
-/// Lifecycle status for a frontier: 'live' or 'deprecated', with the
-/// signed deprecation receipt when present. Deprecated entries vanish
-/// from /entries and /search, but stay auditable here — correction is
-/// first-class, never silent deletion.
-async fn get_entry_status(State(state): State<AppState>, Path(vfr_id): Path<String>) -> Response {
-    let deprecation = match state.db.get_deprecation(&vfr_id).await {
-        Ok(d) => d,
-        Err(e) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(error_body("INTERNAL", format!("query: {e}"))),
-            )
-                .into_response();
-        }
-    };
-    let known = match state.db.frontier_owner_pubkey(&vfr_id).await {
-        Ok(k) => k.is_some(),
-        Err(_) => false,
-    };
-    if !known && deprecation.is_none() {
-        return (
-            StatusCode::NOT_FOUND,
-            Json(error_body("NOT_FOUND", format!("{vfr_id} not found"))),
-        )
-            .into_response();
-    }
-    Json(json!({
-        "vfr_id": vfr_id,
-        "status": if deprecation.is_some() { "deprecated" } else { "live" },
-        "deprecation": deprecation,
-    }))
-    .into_response()
-}
-
-/// The git-remote registration + ingest cursor for a frontier (read side of
-/// the git-ingestion lane; docs/HUB.md).
+/// The configured Git source + ingest cursor for a frontier.
 async fn get_git_remote(State(state): State<AppState>, Path(vfr_id): Path<String>) -> Response {
     match state.db.get_git_remote(&vfr_id).await {
         Ok(Some(rec)) => Json(json!({"vfr_id": vfr_id, "git": rec})).into_response(),
@@ -2130,7 +1849,7 @@ async fn get_git_remote(State(state): State<AppState>, Path(vfr_id): Path<String
             StatusCode::NOT_FOUND,
             Json(error_body(
                 "NOT_FOUND",
-                format!("{vfr_id} has no registered git remote"),
+                format!("{vfr_id} has no configured Git source"),
             )),
         )
             .into_response(),
@@ -2139,343 +1858,6 @@ async fn get_git_remote(State(state): State<AppState>, Path(vfr_id): Path<String
             Json(error_body("INTERNAL", format!("query: {e}"))),
         )
             .into_response(),
-    }
-}
-
-/// Register a frontier's git remote — the ONE owner-signed act in the
-/// git-ingestion lane. The body is a `GitRemoteRegistration`
-/// (vela.frontier-git-remote.v0.1): the signature must verify AND the signer
-/// must be the frontier's effective owner (original publisher or rotation
-/// successor). After this, the ingestor re-derives the index from the repo
-/// itself; no further signed publishes are needed.
-async fn register_git_remote(
-    State(state): State<AppState>,
-    Path(vfr_id): Path<String>,
-    Json(body): Json<Value>,
-) -> Response {
-    use vela_protocol::registry::{GitRemoteRegistration, verify_git_remote};
-    let rec: GitRemoteRegistration = match serde_json::from_value(body.clone()) {
-        Ok(r) => r,
-        Err(e) => {
-            return (
-                StatusCode::BAD_REQUEST,
-                Json(error_body(
-                    "INVALID_ARG",
-                    format!("registration parse: {e}"),
-                )),
-            )
-                .into_response();
-        }
-    };
-    if rec.vfr_id != vfr_id {
-        return (
-            StatusCode::BAD_REQUEST,
-            Json(error_body(
-                "INVALID_ARG",
-                "registration vfr_id does not match the path",
-            )),
-        )
-            .into_response();
-    }
-    match verify_git_remote(&rec) {
-        Ok(true) => {}
-        Ok(false) => {
-            return (
-                StatusCode::UNAUTHORIZED,
-                Json(error_body(
-                    "PERMISSION_DENIED",
-                    "registration signature does not verify",
-                )),
-            )
-                .into_response();
-        }
-        Err(e) => {
-            return (
-                StatusCode::BAD_REQUEST,
-                Json(error_body("INVALID_ARG", format!("registration: {e}"))),
-            )
-                .into_response();
-        }
-    }
-    // Owner check: the signer must be the effective owner of an EXISTING
-    // entry. (A brand-new vfr_id may bootstrap by registering its remote —
-    // the signature is then the ownership claim, matching the "anyone can
-    // publish their own vfr_id" doctrine.)
-    match state.db.effective_owner_pubkey(&vfr_id).await {
-        Ok(Some(owner)) if owner != rec.signer_pubkey_hex => {
-            return (
-                StatusCode::FORBIDDEN,
-                Json(error_body(
-                    "PERMISSION_DENIED",
-                    "signer is not the frontier's effective owner",
-                )),
-            )
-                .into_response();
-        }
-        Ok(_) => {}
-        Err(e) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(error_body("INTERNAL", format!("owner lookup: {e}"))),
-            )
-                .into_response();
-        }
-    }
-    if let Err(e) = state
-        .db
-        .set_git_remote(
-            &vfr_id,
-            &rec.git_remote,
-            &rec.git_ref,
-            &rec.git_subdir,
-            &rec.signer_pubkey_hex,
-            &rec.registered_at,
-            &body,
-        )
-        .await
-    {
-        return (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(error_body("INTERNAL", format!("store: {e}"))),
-        )
-            .into_response();
-    }
-    Json(json!({
-        "ok": true,
-        "vfr_id": vfr_id,
-        "git_remote": rec.git_remote,
-        "git_ref": rec.git_ref,
-        "note": "registered; the ingestor re-derives the index from the repo on its next sweep",
-    }))
-    .into_response()
-}
-
-/// Deprecate a frontier — the owner-signed retirement act. The body is a
-/// `DeprecationRecord` (vela.frontier-deprecation.v0.1): the signature must
-/// verify AND the signer must be the entry's effective owner (the same
-/// continuity rule as register-git). When the record carries `superseded_by`,
-/// the entry's read routes thereafter answer a permanent redirect to the
-/// successor instead of a 404, so a consolidation retires the duplicate without
-/// breaking existing citations. Append-only, earliest-wins.
-async fn deprecate_entry(
-    State(state): State<AppState>,
-    Path(vfr_id): Path<String>,
-    Json(body): Json<Value>,
-) -> Response {
-    use vela_protocol::registry::{DeprecationRecord, verify_deprecation};
-    let rec: DeprecationRecord = match serde_json::from_value(body.clone()) {
-        Ok(r) => r,
-        Err(e) => {
-            return (
-                StatusCode::BAD_REQUEST,
-                Json(error_body("INVALID_ARG", format!("deprecation parse: {e}"))),
-            )
-                .into_response();
-        }
-    };
-    if rec.vfr_id != vfr_id {
-        return (
-            StatusCode::BAD_REQUEST,
-            Json(error_body(
-                "INVALID_ARG",
-                "deprecation vfr_id does not match the path",
-            )),
-        )
-            .into_response();
-    }
-    match verify_deprecation(&rec) {
-        Ok(true) => {}
-        Ok(false) => {
-            return (
-                StatusCode::UNAUTHORIZED,
-                Json(error_body(
-                    "PERMISSION_DENIED",
-                    "deprecation signature does not verify",
-                )),
-            )
-                .into_response();
-        }
-        Err(e) => {
-            return (
-                StatusCode::BAD_REQUEST,
-                Json(error_body("INVALID_ARG", format!("deprecation: {e}"))),
-            )
-                .into_response();
-        }
-    }
-    // Owner continuity: only the entry's effective owner may retire it.
-    match state.db.effective_owner_pubkey(&vfr_id).await {
-        Ok(Some(owner)) if owner != rec.signer_pubkey_hex => {
-            return (
-                StatusCode::FORBIDDEN,
-                Json(error_body(
-                    "PERMISSION_DENIED",
-                    "signer is not the frontier's effective owner",
-                )),
-            )
-                .into_response();
-        }
-        Ok(None) => {
-            return (
-                StatusCode::NOT_FOUND,
-                Json(error_body(
-                    "NOT_FOUND",
-                    format!("{vfr_id} is not a live entry"),
-                )),
-            )
-                .into_response();
-        }
-        Ok(_) => {}
-        Err(e) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(error_body("INTERNAL", format!("owner lookup: {e}"))),
-            )
-                .into_response();
-        }
-    }
-    match state
-        .db
-        .record_deprecation(&vfr_id, &rec.deprecated_at, &rec.reason, &body)
-        .await
-    {
-        Ok(inserted) => Json(json!({
-            "ok": true,
-            "vfr_id": vfr_id,
-            "deprecated": true,
-            "already_deprecated": !inserted,
-            "superseded_by": rec.superseded_by,
-            "note": "the entry's read routes now redirect to the successor; the ingestor will not re-promote it",
-        }))
-        .into_response(),
-        Err(e) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(error_body("INTERNAL", format!("store: {e}"))),
-        )
-            .into_response(),
-    }
-}
-
-/// If `vfr_id` is a deprecated entry that names a `superseded_by`, a permanent
-/// redirect (308) to the successor's same sub-path, so citations of a retired
-/// frontier resolve to the consolidation. `None` when the entry is not
-/// deprecated or named no successor — the caller then serves its normal 404.
-async fn superseded_redirect(state: &AppState, vfr_id: &str, subpath: &str) -> Option<Response> {
-    let dep = state.db.get_deprecation(vfr_id).await.ok().flatten()?;
-    let succ = dep
-        .get("superseded_by")
-        .and_then(|v| v.as_str())?
-        .to_string();
-    let location = format!("/entries/{succ}{subpath}");
-    Some(
-        (
-            StatusCode::PERMANENT_REDIRECT,
-            [(axum::http::header::LOCATION, location)],
-            Json(json!({
-                "ok": false,
-                "status": "deprecated",
-                "vfr_id": vfr_id,
-                "superseded_by": succ,
-                "note": "this frontier was consolidated; follow Location to the successor",
-            })),
-        )
-            .into_response(),
-    )
-}
-
-/// The effective maintainer set + the action log scaffold.
-async fn list_maintainers(State(state): State<AppState>, Path(vfr_id): Path<String>) -> Response {
-    match state.db.effective_maintainers(&vfr_id).await {
-        Ok(keys) => Json(json!({
-            "vfr_id": vfr_id,
-            "maintainer_pubkeys": keys,
-        }))
-        .into_response(),
-        Err(e) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(error_body("INTERNAL", format!("query: {e}"))),
-        )
-            .into_response(),
-    }
-}
-
-/// True iff `s` is a lowercase 64-char hex sha256 digest.
-fn is_sha256_hex(s: &str) -> bool {
-    s.len() == 64
-        && s.bytes()
-            .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
-}
-
-/// The object-storage key for an artifact blob, namespaced away from the
-/// bare-`{hash}` snapshot keys and the `scratch/` tier.
-fn blob_key(hash: &str) -> String {
-    format!("blobs/{hash}")
-}
-
-/// Content-addressed artifact-blob fetch (`GET /blobs/{hash}`).
-///
-/// Serves the bytes a frontier's `Artifact` objects commit to by
-/// `content_hash` — witnesses, proof packets, `local_blob` datasets. Like
-/// the snapshot path, the hub stays OUT of the bytes path: a 302 to the
-/// immutable public CDN object. Reads are self-verifying — the client
-/// recomputes sha256 and checks it against the `content_hash` committed in
-/// the signed snapshot, so a wrong or poisoned blob is caught on receipt,
-/// never trusted. This is the read half of what makes a cold `vela clone`
-/// able to reconstruct the working tree and re-run `vela reproduce`.
-async fn get_blob(State(state): State<AppState>, Path(hash): Path<String>) -> Response {
-    let hash = hash.trim().to_ascii_lowercase();
-    if !is_sha256_hex(&hash) {
-        return (
-            StatusCode::BAD_REQUEST,
-            Json(error_body(
-                "INVALID_ARG",
-                "blob id must be a 64-char sha256 hex string",
-            )),
-        )
-            .into_response();
-    }
-    let Some(storage) = &state.storage else {
-        return (
-            StatusCode::SERVICE_UNAVAILABLE,
-            Json(error_body(
-                "UNAVAILABLE",
-                "hub has no object storage configured",
-            )),
-        )
-            .into_response();
-    };
-    let key = blob_key(&hash);
-    // 302 to the immutable CDN object. Content-addressed bytes never change,
-    // so cache hard. The client follows the redirect and verifies the hash.
-    let redirect = || {
-        let url = storage.public_url_for(&key);
-        let mut resp = (
-            StatusCode::FOUND,
-            [(axum::http::header::LOCATION, url.as_str())],
-            Json(json!({"ok": true, "hash": hash, "blob_url": url})),
-        )
-            .into_response();
-        resp.headers_mut().insert(
-            axum::http::header::CACHE_CONTROL,
-            axum::http::HeaderValue::from_static("public, max-age=31536000, immutable"),
-        );
-        if let Ok(etag) = axum::http::HeaderValue::from_str(&format!("\"{hash}\"")) {
-            resp.headers_mut().insert(axum::http::header::ETAG, etag);
-        }
-        resp
-    };
-    match storage.exists(&key).await {
-        Ok(true) => redirect(),
-        Ok(false) => (
-            StatusCode::NOT_FOUND,
-            Json(error_body("NOT_FOUND", format!("blob {hash} not found"))),
-        )
-            .into_response(),
-        // A HEAD that errors (not a clean 404) must NOT block a blob that may
-        // well be present: the CDN is authoritative and the client verifies
-        // the hash, so redirect optimistically rather than 500. A truly-absent
-        // blob then surfaces as a CDN 404 on the followed request.
-        Err(_) => redirect(),
     }
 }
 
@@ -2530,7 +1912,7 @@ async fn get_producer(
 }
 
 async fn get_entry_manifest(State(state): State<AppState>, Path(vfr_id): Path<String>) -> Response {
-    let entry = match state.db.get_live_entry(&vfr_id).await {
+    let entry = match state.db.get_index_entry(&vfr_id).await {
         Ok(Some(e)) => e,
         Ok(None) => {
             return (
@@ -2671,7 +2053,7 @@ async fn get_entry_objects(
         .and_then(|s| s.parse().ok())
         .unwrap_or(0)
         .max(0);
-    match state.db.get_live_entry(&vfr_id).await {
+    match state.db.get_index_entry(&vfr_id).await {
         Ok(Some(_)) => {}
         Ok(None) => {
             return (
@@ -2739,262 +2121,9 @@ async fn get_entry_object(
     }
 }
 
-/// Load a frontier's event log as Merkle leaves — each leaf is an event's
-/// content-address preimage (the vev_ preimage), ordered by seq.
-async fn log_leaves(state: &AppState, vfr_id: &str) -> Result<Vec<Vec<u8>>, String> {
-    let values = state.db.all_event_values(vfr_id).await?;
-    let mut leaves = Vec::with_capacity(values.len());
-    for v in &values {
-        let ev: vela_protocol::events::StateEvent =
-            serde_json::from_value(v.clone()).map_err(|e| format!("event parse: {e}"))?;
-        leaves.push(vela_protocol::events::event_content_preimage_bytes(&ev));
-    }
-    Ok(leaves)
-}
-
-/// Signed Tree Head (P2 transparency log): a signed RFC 6962 Merkle commitment to
-/// the frontier's whole event log. Lets anyone verify the hub cannot silently
-/// rewrite history (against a non-equivocating hub; witness co-signing adds
-/// split-view resistance). Signed with the hub key (same key as
-/// /.well-known/vela); verifiers MUST pin the pubkey out-of-band, not trust the
-/// pubkey in the signature block.
-async fn get_log_sth(State(state): State<AppState>, Path(vfr_id): Path<String>) -> Response {
-    match state.db.get_live_entry(&vfr_id).await {
-        Ok(Some(_)) => {}
-        Ok(None) => {
-            return (
-                StatusCode::NOT_FOUND,
-                Json(error_body("NOT_FOUND", format!("{vfr_id} not found"))),
-            )
-                .into_response();
-        }
-        Err(e) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(error_body("INTERNAL", format!("query: {e}"))),
-            )
-                .into_response();
-        }
-    }
-    let leaves = match log_leaves(&state, &vfr_id).await {
-        Ok(l) => l,
-        Err(e) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(error_body("INTERNAL", e)),
-            )
-                .into_response();
-        }
-    };
-    let root = vela_protocol::merkle::merkle_root(&leaves);
-    let tree_size = leaves.len() as u64;
-    let timestamp = chrono::Utc::now().to_rfc3339();
-    let log_id = match &state.signing_key {
-        Some(key) => format!("vela-log:{}:{}", vfr_id, vsign::pubkey_hex(key)),
-        None => format!("vela-log:{vfr_id}:unsigned"),
-    };
-    let sth = json!({
-        "schema": "vela.sth.v1",
-        "log_id": log_id,
-        "vfr_id": vfr_id,
-        "tree_size": tree_size,
-        "root_hash": vela_protocol::merkle::to_commitment(&root),
-        "timestamp": timestamp,
-    });
-    match (&state.signing_key, canonical::to_canonical_bytes(&sth)) {
-        (Some(key), Ok(bytes)) => {
-            let sig = vsign::sign_bytes(key, &bytes);
-            (
-                StatusCode::OK,
-                [(axum::http::header::CACHE_CONTROL, "public, max-age=30")],
-                Json(json!({
-                    "sth": sth,
-                    "signature": {
-                        "alg": "Ed25519",
-                        "alg_variant": "pure",
-                        "pubkey": vsign::pubkey_hex(key),
-                        "value": hex::encode(sig),
-                        "canonical_format": "vela.canonical-json/v1",
-                        "verifier_steps": [
-                            "1. pin the hub pubkey out-of-band (/.well-known/vela); do NOT trust this block's pubkey",
-                            "2. re-canonicalize `sth` to bytes; Ed25519 (pure, not ph) verify the signature over them",
-                            "3. recompute leaves = event content-address preimages ordered by seq; merkle_root must equal sth.root_hash"
-                        ]
-                    },
-                    "mode": "signed",
-                })),
-            )
-                .into_response()
-        }
-        _ => (
-            StatusCode::OK,
-            Json(json!({"sth": sth, "signature": null, "mode": "unsigned"})),
-        )
-            .into_response(),
-    }
-}
-
-/// Inclusion proof that `event_id` is in the frontier's log (RFC 6962 audit
-/// path), checkable against the STH root.
-async fn get_log_proof(
-    State(state): State<AppState>,
-    Path((vfr_id, event_id)): Path<(String, String)>,
-) -> Response {
-    let values = match state.db.all_event_values(&vfr_id).await {
-        Ok(v) => v,
-        Err(e) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(error_body("INTERNAL", format!("events: {e}"))),
-            )
-                .into_response();
-        }
-    };
-    let mut leaves: Vec<Vec<u8>> = Vec::with_capacity(values.len());
-    let mut found: Option<usize> = None;
-    for (i, v) in values.iter().enumerate() {
-        match serde_json::from_value::<vela_protocol::events::StateEvent>(v.clone()) {
-            Ok(ev) => {
-                if ev.id == event_id {
-                    found = Some(i);
-                }
-                leaves.push(vela_protocol::events::event_content_preimage_bytes(&ev));
-            }
-            Err(e) => {
-                return (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    Json(error_body("INTERNAL", format!("event parse: {e}"))),
-                )
-                    .into_response();
-            }
-        }
-    }
-    let m = match found {
-        Some(i) => i,
-        None => {
-            return (
-                StatusCode::NOT_FOUND,
-                Json(error_body(
-                    "NOT_FOUND",
-                    format!("event {event_id} not in {vfr_id}"),
-                )),
-            )
-                .into_response();
-        }
-    };
-    let proof = match vela_protocol::merkle::inclusion_proof(&leaves, m) {
-        Some(p) => p,
-        None => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(error_body("INTERNAL", "proof generation failed")),
-            )
-                .into_response();
-        }
-    };
-    let root = vela_protocol::merkle::merkle_root(&leaves);
-    (
-        StatusCode::OK,
-        [(axum::http::header::CACHE_CONTROL, "public, max-age=30")],
-        Json(json!({
-            "vfr_id": vfr_id,
-            "event_id": event_id,
-            "leaf_index": m,
-            "tree_size": leaves.len(),
-            "root_hash": vela_protocol::merkle::to_commitment(&root),
-            "audit_path": proof.iter().map(hex::encode).collect::<Vec<_>>(),
-        })),
-    )
-        .into_response()
-}
-
-#[derive(Debug, Deserialize)]
-struct ConsistencyQuery {
-    /// Old (first) tree size — the size of the STH you already trust.
-    first: usize,
-    /// New (second) tree size; defaults to the current log length.
-    second: Option<usize>,
-}
-
-/// RFC 6962 §2.1.2 consistency proof: that the size-`first` tree is an
-/// append-only prefix of the size-`second` tree (defaults to the current
-/// length). Lets a verifier holding an older signed STH confirm the log only
-/// grew — never forked or rewrote history — before trusting a newer STH.
-async fn get_log_consistency(
-    State(state): State<AppState>,
-    Path(vfr_id): Path<String>,
-    Query(q): Query<ConsistencyQuery>,
-) -> Response {
-    let leaves = match log_leaves(&state, &vfr_id).await {
-        Ok(l) => l,
-        Err(e) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(error_body("INTERNAL", e)),
-            )
-                .into_response();
-        }
-    };
-    let total = leaves.len();
-    let m = q.first;
-    let n = q.second.unwrap_or(total);
-    if m == 0 || m > n || n > total {
-        return (
-            StatusCode::BAD_REQUEST,
-            Json(error_body(
-                "INVALID_ARG",
-                format!("require 1 <= first <= second <= tree_size; got first={m}, second={n}, tree_size={total}"),
-            )),
-        )
-            .into_response();
-    }
-    let proof = match vela_protocol::merkle::consistency_proof(&leaves[..n], m) {
-        Some(p) => p,
-        None => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(error_body(
-                    "INTERNAL",
-                    "consistency proof generation failed",
-                )),
-            )
-                .into_response();
-        }
-    };
-    let first_root = vela_protocol::merkle::merkle_root(&leaves[..m]);
-    let second_root = vela_protocol::merkle::merkle_root(&leaves[..n]);
-    (
-        StatusCode::OK,
-        [(axum::http::header::CACHE_CONTROL, "public, max-age=30")],
-        Json(json!({
-            "schema": "vela.consistency-proof.v1",
-            "vfr_id": vfr_id,
-            "first_size": m,
-            "second_size": n,
-            "first_root": vela_protocol::merkle::to_commitment(&first_root),
-            "second_root": vela_protocol::merkle::to_commitment(&second_root),
-            "consistency_proof": proof.iter().map(hex::encode).collect::<Vec<_>>(),
-            "verifier_steps": [
-                "1. first_root must equal the root of the older STH you already trust (size=first_size)",
-                "2. second_root must equal the root of the newer STH (size=second_size)",
-                "3. verify_consistency(first_size, second_size, first_root, second_root, proof) — confirms append-only"
-            ],
-        })),
-    )
-        .into_response()
-}
-
-/// v0.201: hub lookup handle for a Scientific Diff Pack (`vsd_*`).
-///
-/// Returns the signed pack JSON if the pack has been registered with
-/// this hub via a `diff_pack.released` event. The pack body itself
-/// is small (id + frontier_id + summary + member ids + signature);
-/// reviewers fetch the full member proposals from the originating
-/// frontier's snapshot blob, addressed by its latest_snapshot_hash.
-///
-/// 404 when the pack id isn't on this hub — that's substrate-honest:
-/// a hub can witness packs but is not required to mirror every
-/// peer hub's set.
+/// Hub lookup for a replayed Scientific Diff Pack record (`vsd_*`). The record
+/// comes from the verified frontier projection; the Hub has no independent
+/// pack registration or blob transport.
 async fn get_diff_pack(State(state): State<AppState>, Path(pack_id): Path<String>) -> Response {
     if !pack_id.starts_with("vsd_") {
         return (
@@ -3009,9 +2138,7 @@ async fn get_diff_pack(State(state): State<AppState>, Path(pack_id): Path<String
             StatusCode::NOT_FOUND,
             Json(error_body(
                 "NOT_FOUND",
-                format!(
-                    "{pack_id} not found on this hub (a pack lands here when a `diff_pack.released` event has been applied on a frontier this hub mirrors)"
-                ),
+                format!("{pack_id} not found in any verified Git frontier indexed by this hub"),
             )),
         )
             .into_response(),
@@ -3031,7 +2158,7 @@ async fn get_diff_pack(State(state): State<AppState>, Path(pack_id): Path<String
 ///
 /// Implementation is O(N) over current live entries: dependency lists
 /// are materialized from promoted frontier state and cached by
-/// `(vfr_id, signed_publish_at)`. Failed or unpromoted registry rows do
+/// `(vfr_id, snapshot_hash)`. Failed or unpromoted source rows do
 /// not participate.
 async fn get_depends_on(
     State(state): State<AppState>,
@@ -3039,7 +2166,7 @@ async fn get_depends_on(
     headers: HeaderMap,
 ) -> Response {
     let _ = &headers; // reserved for future HTML rendering
-    let rows = match state.db.list_live_entries().await {
+    let rows = match state.db.list_entries().await {
         Ok(v) => v,
         Err(e) => {
             return (
@@ -3056,11 +2183,11 @@ async fn get_depends_on(
         if entry_vfr == vfr_id {
             continue; // a frontier doesn't depend on itself
         }
-        let signed_at = entry
-            .get("signed_publish_at")
+        let snapshot_hash = entry
+            .get("latest_snapshot_hash")
             .and_then(|v| v.as_str())
             .unwrap_or("");
-        let Some(project) = load_substrate(&state, entry_vfr, signed_at).await else {
+        let Some(project) = load_substrate(&state, entry_vfr, snapshot_hash).await else {
             // Projection unavailable means the frontier is not live for
             // composition. Skip it; direct entry routes surface the
             // unavailable state.
@@ -3107,7 +2234,7 @@ async fn get_entry_graph(
     if wants_html(&headers) {
         return redirect_to_site(&state.urls, &format!("/r/{vfr_id}/graph"));
     }
-    let entry = match state.db.get_live_entry(&vfr_id).await {
+    let entry = match state.db.get_index_entry(&vfr_id).await {
         Ok(Some(v)) => v,
         Ok(None) => {
             return (
@@ -3124,11 +2251,11 @@ async fn get_entry_graph(
                 .into_response();
         }
     };
-    let signed_at = entry
-        .get("signed_publish_at")
+    let snapshot_hash = entry
+        .get("latest_snapshot_hash")
         .and_then(|v| v.as_str())
         .unwrap_or("");
-    let Some(frontier) = load_substrate(&state, &vfr_id, signed_at).await else {
+    let Some(frontier) = load_substrate(&state, &vfr_id, snapshot_hash).await else {
         return (
             StatusCode::SERVICE_UNAVAILABLE,
             Json(error_body(
@@ -3183,7 +2310,7 @@ async fn get_entry_frontier(
         .and_then(|s| s.parse::<usize>().ok())
         .unwrap_or(50)
         .min(500);
-    let entry = match state.db.get_live_entry(&vfr_id).await {
+    let entry = match state.db.get_index_entry(&vfr_id).await {
         Ok(Some(v)) => v,
         Ok(None) => {
             return (
@@ -3200,11 +2327,11 @@ async fn get_entry_frontier(
                 .into_response();
         }
     };
-    let signed_at = entry
-        .get("signed_publish_at")
+    let snapshot_hash = entry
+        .get("latest_snapshot_hash")
         .and_then(|v| v.as_str())
         .unwrap_or("");
-    let Some(frontier) = load_substrate(&state, &vfr_id, signed_at).await else {
+    let Some(frontier) = load_substrate(&state, &vfr_id, snapshot_hash).await else {
         return (
             StatusCode::SERVICE_UNAVAILABLE,
             Json(error_body(
@@ -3246,7 +2373,7 @@ async fn get_entry_boundary(
     if wants_html(&headers) {
         return redirect_to_site(&state.urls, &format!("/r/{vfr_id}/boundary"));
     }
-    let entry = match state.db.get_live_entry(&vfr_id).await {
+    let entry = match state.db.get_index_entry(&vfr_id).await {
         Ok(Some(v)) => v,
         Ok(None) => {
             return (
@@ -3263,11 +2390,11 @@ async fn get_entry_boundary(
                 .into_response();
         }
     };
-    let signed_at = entry
-        .get("signed_publish_at")
+    let snapshot_hash = entry
+        .get("latest_snapshot_hash")
         .and_then(|v| v.as_str())
         .unwrap_or("");
-    let Some(frontier) = load_substrate(&state, &vfr_id, signed_at).await else {
+    let Some(frontier) = load_substrate(&state, &vfr_id, snapshot_hash).await else {
         return (
             StatusCode::SERVICE_UNAVAILABLE,
             Json(error_body(
@@ -3311,7 +2438,7 @@ async fn get_finding(
         return redirect_to_site(&state.urls, &format!("/r/{vfr_id}/findings/{vf_id}"));
     }
     // Find the entry to get the locator.
-    let entry = state.db.get_live_entry(&vfr_id).await;
+    let entry = state.db.get_index_entry(&vfr_id).await;
     let entry = match entry {
         Ok(Some(v)) => v,
         Ok(None) => {
@@ -3330,11 +2457,11 @@ async fn get_finding(
         }
     };
 
-    let signed_at = entry
-        .get("signed_publish_at")
+    let snapshot_hash = entry
+        .get("latest_snapshot_hash")
         .and_then(|v| v.as_str())
         .unwrap_or("");
-    let frontier = load_substrate(&state, &vfr_id, signed_at).await;
+    let frontier = load_substrate(&state, &vfr_id, snapshot_hash).await;
 
     let Some(project) = frontier else {
         return (
@@ -3381,7 +2508,7 @@ async fn get_pack_review(
     if wants_html(&headers) {
         return redirect_to_site(&state.urls, &format!("/r/{vfr_id}/packs/{pack_id}"));
     }
-    let entry = match state.db.get_live_entry(&vfr_id).await {
+    let entry = match state.db.get_index_entry(&vfr_id).await {
         Ok(Some(v)) => v,
         Ok(None) => {
             return (
@@ -3399,11 +2526,11 @@ async fn get_pack_review(
         }
     };
 
-    let signed_at = entry
-        .get("signed_publish_at")
+    let snapshot_hash = entry
+        .get("latest_snapshot_hash")
         .and_then(|v| v.as_str())
         .unwrap_or("");
-    let Some(project) = load_substrate(&state, &vfr_id, signed_at).await else {
+    let Some(project) = load_substrate(&state, &vfr_id, snapshot_hash).await else {
         return (
             StatusCode::SERVICE_UNAVAILABLE,
             Json(error_body(
@@ -3469,7 +2596,7 @@ async fn get_entry_review(
     if format == Some("html") || (format != Some("json") && wants_html(&headers)) {
         return redirect_to_site(&state.urls, &format!("/r/{vfr_id}/review"));
     }
-    let entry = match state.db.get_live_entry(&vfr_id).await {
+    let entry = match state.db.get_index_entry(&vfr_id).await {
         Ok(Some(v)) => v,
         Ok(None) => {
             return (
@@ -3486,11 +2613,11 @@ async fn get_entry_review(
                 .into_response();
         }
     };
-    let signed_at = entry
-        .get("signed_publish_at")
+    let snapshot_hash = entry
+        .get("latest_snapshot_hash")
         .and_then(|v| v.as_str())
         .unwrap_or("");
-    let Some(project) = load_substrate(&state, &vfr_id, signed_at).await else {
+    let Some(project) = load_substrate(&state, &vfr_id, snapshot_hash).await else {
         return (
             StatusCode::SERVICE_UNAVAILABLE,
             Json(error_body(
@@ -3589,7 +2716,7 @@ async fn get_finding_context(
     State(state): State<AppState>,
     Path((vfr_id, vf_id)): Path<(String, String)>,
 ) -> Response {
-    let entry = match state.db.get_live_entry(&vfr_id).await {
+    let entry = match state.db.get_index_entry(&vfr_id).await {
         Ok(Some(v)) => v,
         Ok(None) => {
             return (
@@ -3606,11 +2733,11 @@ async fn get_finding_context(
                 .into_response();
         }
     };
-    let signed_at = entry
-        .get("signed_publish_at")
+    let snapshot_hash = entry
+        .get("latest_snapshot_hash")
         .and_then(|v| v.as_str())
         .unwrap_or("");
-    let Some(project) = load_substrate(&state, &vfr_id, signed_at).await else {
+    let Some(project) = load_substrate(&state, &vfr_id, snapshot_hash).await else {
         return (
             StatusCode::SERVICE_UNAVAILABLE,
             Json(error_body(
@@ -3759,7 +2886,7 @@ async fn get_finding_gate_status(
     State(state): State<AppState>,
     Path((vfr_id, vf_id)): Path<(String, String)>,
 ) -> Response {
-    let entry = match state.db.get_live_entry(&vfr_id).await {
+    let entry = match state.db.get_index_entry(&vfr_id).await {
         Ok(Some(v)) => v,
         Ok(None) => {
             return (
@@ -3777,11 +2904,11 @@ async fn get_finding_gate_status(
         }
     };
 
-    let signed_at = entry
-        .get("signed_publish_at")
+    let snapshot_hash = entry
+        .get("latest_snapshot_hash")
         .and_then(|v| v.as_str())
         .unwrap_or("");
-    let Some(project) = load_substrate(&state, &vfr_id, signed_at).await else {
+    let Some(project) = load_substrate(&state, &vfr_id, snapshot_hash).await else {
         return (
             StatusCode::SERVICE_UNAVAILABLE,
             Json(error_body(
@@ -3816,7 +2943,7 @@ async fn get_frontier_gate_status(
     State(state): State<AppState>,
     Path(vfr_id): Path<String>,
 ) -> Response {
-    let entry = match state.db.get_live_entry(&vfr_id).await {
+    let entry = match state.db.get_index_entry(&vfr_id).await {
         Ok(Some(v)) => v,
         Ok(None) => {
             return (
@@ -3833,11 +2960,11 @@ async fn get_frontier_gate_status(
                 .into_response();
         }
     };
-    let signed_at = entry
-        .get("signed_publish_at")
+    let snapshot_hash = entry
+        .get("latest_snapshot_hash")
         .and_then(|v| v.as_str())
         .unwrap_or("");
-    let Some(project) = load_substrate(&state, &vfr_id, signed_at).await else {
+    let Some(project) = load_substrate(&state, &vfr_id, snapshot_hash).await else {
         return (
             StatusCode::SERVICE_UNAVAILABLE,
             Json(error_body(
@@ -3952,181 +3079,21 @@ fn gate_status_value(
     })
 }
 
-// ─── Proof packet ─────────────────────────────────────────────────────
-//
-// `vela frontier export --packet` produces a directory of canonical
-// proof artifacts (manifest.json + packet.lock.json + proof-trace.json
-// + findings/full.json + sources/source-registry.json + ...). The hub
-// surfaces that directory inline so a skeptic can see the seam: signer
-// hashes, included-files sha256 table, replay status, schema version.
-//
-// Resolution: env VELA_PROOF_PACKET_DIR points at either
-//   (a) a single packet directory containing manifest.json (single-
-//       packet demo deploy — handler ignores vfr_id and serves it for
-//       every entry), or
-//   (b) a directory of packet directories named by vfr_id (multi-
-//       packet deploy, future).
-// If the env is unset OR the path doesn't resolve, the route answers
-// 404 in the house error envelope — no packet has been generated for
-// this entry yet (`vela frontier export --packet` would).
-
-fn resolve_packet_dir(vfr_id: &str) -> Option<std::path::PathBuf> {
-    let base = std::env::var("VELA_PROOF_PACKET_DIR").ok()?;
-    let base_path = std::path::PathBuf::from(&base);
-    if !base_path.is_dir() {
-        return None;
-    }
-    // Multi-packet deploy: prefer ${base}/${vfr_id}.
-    let by_id = base_path.join(vfr_id);
-    if by_id.join("manifest.json").is_file() {
-        return Some(by_id);
-    }
-    // Single-packet deploy: serve ${base} itself if it has a manifest.
-    if base_path.join("manifest.json").is_file() {
-        return Some(base_path);
-    }
-    None
-}
-
-fn read_packet_json(dir: &std::path::Path, name: &str) -> Option<Value> {
-    let raw = std::fs::read_to_string(dir.join(name)).ok()?;
-    serde_json::from_str(&raw).ok()
-}
-
-/// Browsers get the app's proof page; protocol clients get the three
-/// canonical packet files the page renders — `manifest.json`,
-/// `proof-trace.json`, `packet.lock.json` — as one JSON object. No
-/// packet on this hub ⇒ 404 in the house error envelope. The full
-/// artifact stays at `/entries/{vfr_id}/proof/download`.
-async fn get_proof_packet(
-    State(state): State<AppState>,
-    Path(vfr_id): Path<String>,
-    Query(params): Query<HashMap<String, String>>,
-    headers: HeaderMap,
-) -> Response {
-    let format = params.get("format").map(String::as_str);
-    if format != Some("json") && wants_html(&headers) {
-        return redirect_to_site(&state.urls, &format!("/r/{vfr_id}/proof"));
-    }
-    let Some(dir) = resolve_packet_dir(&vfr_id) else {
-        return (
-            StatusCode::NOT_FOUND,
-            Json(error_body(
-                "NOT_FOUND",
-                format!("no proof packet available for {vfr_id}"),
-            )),
-        )
-            .into_response();
-    };
-    let Some(manifest) = read_packet_json(&dir, "manifest.json") else {
-        return (
-            StatusCode::NOT_FOUND,
-            Json(error_body(
-                "NOT_FOUND",
-                format!("no proof packet available for {vfr_id}"),
-            )),
-        )
-            .into_response();
-    };
-    let proof_trace = read_packet_json(&dir, "proof-trace.json");
-    let lock = read_packet_json(&dir, "packet.lock.json");
-    (
-        StatusCode::OK,
-        Json(json!({
-            "manifest": manifest,
-            "proof_trace": proof_trace,
-            "lock": lock,
-        })),
-    )
-        .into_response()
-}
-
-async fn get_proof_packet_download(
-    State(_state): State<AppState>,
-    Path(vfr_id): Path<String>,
-) -> Response {
-    let dir = match resolve_packet_dir(&vfr_id) {
-        Some(d) => d,
-        None => {
-            return (
-                StatusCode::NOT_FOUND,
-                Json(error_body(
-                    "NOT_FOUND",
-                    "no proof packet available for this entry",
-                )),
-            )
-                .into_response();
-        }
-    };
-    // Build the tar.gz in memory. Packets are a few MB; this is fine.
-    let mut buf: Vec<u8> = Vec::new();
-    {
-        let enc = flate2::write::GzEncoder::new(&mut buf, flate2::Compression::default());
-        let mut tar = tar::Builder::new(enc);
-        let label = format!("{vfr_id}-proof-packet");
-        if let Err(e) = tar.append_dir_all(&label, &dir) {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(error_body("INTERNAL", format!("tar: {e}"))),
-            )
-                .into_response();
-        }
-        if let Err(e) = tar.into_inner().and_then(|enc| enc.finish()) {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(error_body("INTERNAL", format!("gz: {e}"))),
-            )
-                .into_response();
-        }
-    }
-    let filename = format!("{vfr_id}-proof-packet.tar.gz");
-    (
-        StatusCode::OK,
-        [
-            (
-                axum::http::header::CONTENT_TYPE,
-                "application/gzip".to_string(),
-            ),
-            (
-                axum::http::header::CONTENT_DISPOSITION,
-                format!("attachment; filename=\"{filename}\""),
-            ),
-        ],
-        buf,
-    )
-        .into_response()
-}
-
 /// Return the materialized frontier state for `vfr_id`.
 ///
-/// The event/projection tables are the source of truth after the
-/// event-first cutover. Callers that explicitly pass `?redirect=cdn`
-/// can still receive a 302 to an immutable snapshot export when one is
-/// available, but old `network_locator` URLs are never fetched on the
-/// live read path.
+/// The event/projection tables are the only live read path. Snapshot bytes are
+/// reconstructed from the verified Git-derived projection; the hub carries no
+/// alternate object-store transport.
 async fn get_entry_snapshot(
     State(state): State<AppState>,
     Path(vfr_id): Path<String>,
     headers: axum::http::HeaderMap,
-    Query(params): Query<SnapshotQuery>,
 ) -> Response {
-    let row = match state.db.get_live_entry(&vfr_id).await {
+    let row = match state.db.get_index_entry(&vfr_id).await {
         Ok(Some(r)) => r,
         Ok(None) => {
-            if let Ok(Some(audit)) = state.db.latest_audit_status(&vfr_id).await
-                && audit.status == "failed"
-            {
-                return (
-                    StatusCode::FAILED_DEPENDENCY,
-                    Json(json!({
-                        "ok": false,
-                        "status": "unavailable",
-                        "vfr_id": vfr_id,
-                        "error": {"kind": "UNAVAILABLE", "message": audit.error.unwrap_or_else(|| "frontier failed verification".to_string())},
-                        "authority_mode": audit.authority_mode,
-                    })),
-                )
-                    .into_response();
+            if let Some(response) = ingest_failure_response(&state, &vfr_id).await {
+                return response;
             }
             return (
                 StatusCode::NOT_FOUND,
@@ -4152,7 +3119,7 @@ async fn get_entry_snapshot(
             StatusCode::FAILED_DEPENDENCY,
             Json(error_body(
                 "UNAVAILABLE",
-                format!("registry entry for {vfr_id} is missing latest_snapshot_hash"),
+                format!("frontier index row for {vfr_id} is missing latest_snapshot_hash"),
             )),
         )
             .into_response();
@@ -4180,36 +3147,6 @@ async fn get_entry_snapshot(
             axum::http::header::CACHE_CONTROL,
             axum::http::HeaderValue::from_static("public, max-age=60, stale-while-revalidate=300"),
         );
-        return resp;
-    }
-
-    // Optional export optimization: callers that explicitly ask for
-    // the CDN path can still get the immutable object-storage redirect.
-    if params.redirect.as_deref() == Some("cdn")
-        && let Ok(Some(meta)) = state.db.get_snapshot_meta(snap_hash).await
-        && !meta.blob_url.is_empty()
-    {
-        let mut resp = (
-            StatusCode::FOUND,
-            [(axum::http::header::LOCATION, meta.blob_url.as_str())],
-            Json(json!({
-                "snapshot_hash": snap_hash,
-                "blob_url": meta.blob_url,
-                "size_bytes": meta.size_bytes,
-                "schema_version": meta.schema_version,
-                "content_type": meta.content_type,
-            })),
-        )
-            .into_response();
-        resp.headers_mut().insert(
-            axum::http::header::CACHE_CONTROL,
-            axum::http::HeaderValue::from_static(
-                "public, max-age=300, stale-while-revalidate=3600",
-            ),
-        );
-        if let Ok(etag) = axum::http::HeaderValue::from_str(&format!("\"{snap_hash}\"")) {
-            resp.headers_mut().insert(axum::http::header::ETAG, etag);
-        }
         return resp;
     }
 
@@ -4263,23 +3200,11 @@ async fn get_entry_events(
         Ok(p) => p,
         Err(resp) => return *resp,
     };
-    match state.db.get_live_entry(&vfr_id).await {
+    match state.db.get_index_entry(&vfr_id).await {
         Ok(Some(_)) => {}
         Ok(None) => {
-            if let Ok(Some(audit)) = state.db.latest_audit_status(&vfr_id).await
-                && audit.status == "failed"
-            {
-                return (
-                    StatusCode::FAILED_DEPENDENCY,
-                    Json(json!({
-                        "ok": false,
-                        "status": "unavailable",
-                        "vfr_id": vfr_id,
-                        "error": {"kind": "UNAVAILABLE", "message": audit.error.unwrap_or_else(|| "frontier failed verification".to_string())},
-                        "authority_mode": audit.authority_mode,
-                    })),
-                )
-                    .into_response();
+            if let Some(response) = ingest_failure_response(&state, &vfr_id).await {
+                return response;
             }
             return (
                 StatusCode::NOT_FOUND,
@@ -4351,23 +3276,11 @@ async fn get_entry_events_stream(
         Ok(p) => p,
         Err(resp) => return *resp,
     };
-    match state.db.get_live_entry(&vfr_id).await {
+    match state.db.get_index_entry(&vfr_id).await {
         Ok(Some(_)) => {}
         Ok(None) => {
-            if let Ok(Some(audit)) = state.db.latest_audit_status(&vfr_id).await
-                && audit.status == "failed"
-            {
-                return (
-                    StatusCode::FAILED_DEPENDENCY,
-                    Json(json!({
-                        "ok": false,
-                        "status": "unavailable",
-                        "vfr_id": vfr_id,
-                        "error": {"kind": "UNAVAILABLE", "message": audit.error.unwrap_or_else(|| "frontier failed verification".to_string())},
-                        "authority_mode": audit.authority_mode,
-                    })),
-                )
-                    .into_response();
+            if let Some(response) = ingest_failure_response(&state, &vfr_id).await {
+                return response;
             }
             return (
                 StatusCode::NOT_FOUND,
@@ -4557,7 +3470,7 @@ mod protocol_surface_tests {
     fn test_urls() -> PublicUrls {
         PublicUrls {
             hub: "http://127.0.0.1".to_string(),
-            repo: "https://github.com/constellate-science/vela".to_string(),
+            repo: "https://github.com/vela-science/vela".to_string(),
             site: SITE.to_string(),
         }
     }
@@ -4581,63 +3494,39 @@ mod protocol_surface_tests {
             db_cache: Arc::new(RwLock::new(HashMap::new())),
             db_cache_metrics: Arc::new(DbCacheMetrics::default()),
             http_metrics: Arc::new(HttpMetrics::default()),
-            signing_key: None,
             urls: test_urls(),
-            storage: None,
             mcp: Arc::new(tokio::sync::RwLock::new(None)),
             mcp_kick: Arc::new(tokio::sync::Notify::new()),
             webhook_secret: None,
-            peers: Arc::new(vec![]),
             // High budget: these tests exercise routing, not the limiter.
             rate_limiter: Arc::new(RateLimiter::new(10_000)),
         }
     }
 
-    /// One live frontier: a signed-manifest registry row + its promoted
-    /// projection (a minimal assembled Project). Returns the manifest —
-    /// the exact JSON `/entries` and `/entries/{vfr}` must serve.
+    /// One indexed frontier: a synthesized Git-derived index row plus its
+    /// promoted projection. Returns the exact index JSON served by `/entries`
+    /// and `/entries/{vfr}`.
     async fn seed_entry(state: &AppState, vfr_id: &str) -> Value {
         let HubDb::Sqlite(pool) = &state.db else {
             unreachable!("test state is sqlite")
         };
-        let manifest = json!({
-            "schema": "vela.registry-entry.v0.1",
+        let index_row = json!({
+            "schema": vela_hub::db::FRONTIER_INDEX_SCHEMA,
             "vfr_id": vfr_id,
             "name": "Fixture frontier",
             "owner_actor_id": "reviewer:test",
             "owner_pubkey": "00".repeat(32),
             "latest_snapshot_hash": "hash_snapshot",
             "latest_event_log_hash": "hash_log",
-            "network_locator": "https://example.com/frontier.json",
-            "signed_publish_at": "2026-07-01T00:00:00Z",
-            "signature": "sig_fixture",
+            "git_remote": "https://example.com/frontier",
+            "source_commit_at": "2026-07-01T00:00:00Z",
         });
-        sqlx::query(
-            "INSERT INTO registry_entries (vfr_id, schema, name, owner_actor_id, \
-             owner_pubkey, latest_snapshot_hash, latest_event_log_hash, \
-             network_locator, signed_publish_at, signature, raw_json) \
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        )
-        .bind(vfr_id)
-        .bind("vela.registry-entry.v0.1")
-        .bind("Fixture frontier")
-        .bind("reviewer:test")
-        .bind("00".repeat(32))
-        .bind("hash_snapshot")
-        .bind("hash_log")
-        .bind("https://example.com/frontier.json")
-        .bind("2026-07-01T00:00:00Z")
-        .bind("sig_fixture")
-        .bind(manifest.to_string())
-        .execute(pool)
-        .await
-        .expect("insert registry entry");
         let project = vela_protocol::project::assemble("fixture", vec![], 10, 0, "Fixture project");
         sqlx::query(
-            "INSERT INTO frontiers (vfr_id, registry_entry_id, name, owner_actor_id, \
+            "INSERT INTO frontiers (vfr_id, name, owner_actor_id, \
              owner_pubkey, latest_snapshot_hash, latest_event_log_hash, schema_version, \
-             signed_publish_at, materialized_snapshot_json, authority_mode, status) \
-             VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?, ?, 'git_ingested', 'live')",
+             source_commit_at, materialized_snapshot_json, authority_mode) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'git_ingested')",
         )
         .bind(vfr_id)
         .bind("Fixture frontier")
@@ -4651,7 +3540,12 @@ mod protocol_surface_tests {
         .execute(pool)
         .await
         .expect("insert frontier");
-        manifest
+        state
+            .db
+            .upsert_git_source(vfr_id, "https://example.com/frontier", "main")
+            .await
+            .expect("register fixture Git source");
+        index_row
     }
 
     /// Serve the REAL router (routes + middleware) on an ephemeral port.
@@ -4698,7 +3592,6 @@ mod protocol_surface_tests {
                 "/r/vfr_fix1/packs/vsd_pack1",
             ),
             ("/entries/vfr_fix1/reproduce", "/r/vfr_fix1/reproduce"),
-            ("/entries/vfr_fix1/proof", "/r/vfr_fix1/proof"),
             ("/producers/aabbccdd", "/producer/aabbccdd"),
             ("/search?q=sidon sets", "/search?q=sidon%20sets"),
         ];
@@ -4749,13 +3642,12 @@ mod protocol_surface_tests {
         assert_eq!(resp.status(), 301);
     }
 
-    /// JSON fixture equality on the precut shapes: /entries,
-    /// /entries/{vfr}, /entries/{vfr}/review, /search — plus the
-    /// additive-only pagination fields and the proof 404 envelope.
+    /// Pin the current JSON shapes for /entries, /entries/{vfr},
+    /// /entries/{vfr}/review, and /search, plus pagination.
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn json_branches_serve_protocol_shapes() {
         let state = test_state().await;
-        let manifest = seed_entry(&state, "vfr_fix1").await;
+        let index_row = seed_entry(&state, "vfr_fix1").await;
         let (base, client) = serve(state).await;
         let get_json = |path: String| {
             let client = client.clone();
@@ -4774,19 +3666,18 @@ mod protocol_surface_tests {
             }
         };
 
-        // /entries — the precut entries.json shape, byte-compatible keys.
+        // /entries — the frontier-index collection.
         let (status, body) = get_json("/entries".to_string()).await;
         assert_eq!(status, 200);
         assert_eq!(
             body,
-            json!({"schema": REGISTRY_SCHEMA, "entries": [manifest]})
+            json!({"schema": FRONTIER_INDEX_LIST_SCHEMA, "entries": [index_row]})
         );
 
-        // /entries/{vfr} — the precut entry-erdos.json shape: the raw
-        // signed manifest, nothing added.
+        // /entries/{vfr} — the synthesized Git index row, nothing added.
         let (status, body) = get_json("/entries/vfr_fix1".to_string()).await;
         assert_eq!(status, 200);
-        assert_eq!(body, manifest);
+        assert_eq!(body, index_row);
 
         // /entries?limit= — ADDITIVE pagination: same schema + entries,
         // plus total (and next_offset only when more remain).
@@ -4794,10 +3685,10 @@ mod protocol_surface_tests {
         assert_eq!(status, 200);
         assert_eq!(
             body,
-            json!({"schema": REGISTRY_SCHEMA, "entries": [manifest], "total": 1})
+            json!({"schema": FRONTIER_INDEX_LIST_SCHEMA, "entries": [index_row], "total": 1})
         );
 
-        // /search — the precut search-sidon.json keys plus additive total.
+        // /search — bounded results plus a total when queried.
         let (status, body) = get_json("/search?q=sidon".to_string()).await;
         assert_eq!(status, 200);
         assert_eq!(
@@ -4809,7 +3700,7 @@ mod protocol_surface_tests {
         assert_eq!(status, 200);
         assert_eq!(body, json!({"results": [], "q": "", "type": "finding"}));
 
-        // /entries/{vfr}/review — the precut review-erdos.json shape.
+        // /entries/{vfr}/review — derived review queue and autonomy ledger.
         let (status, body) = get_json("/entries/vfr_fix1/review".to_string()).await;
         assert_eq!(status, 200);
         assert_eq!(
@@ -4830,79 +3721,120 @@ mod protocol_surface_tests {
             })
         );
 
-        // /entries/{vfr}/proof — no packet on this hub: the house 404
-        // envelope, not an HTML page.
-        let (status, body) = get_json("/entries/vfr_fix1/proof".to_string()).await;
-        assert_eq!(status, 404);
-        assert_eq!(
-            body,
-            json!({"error": {"kind": "NOT_FOUND", "message": "no proof packet available for vfr_fix1"}})
-        );
-
         // Root JSON banner is unchanged.
         let (status, body) = get_json("/".to_string()).await;
         assert_eq!(status, 200);
         assert_eq!(body, root_json());
     }
 
-    /// The hub is a read-only index. In particular, ADR 0003's
-    /// decision-bound acceptance preimage does not justify restoring the old
-    /// detached HTTP accept path: human decisions are landed through the
-    /// git-native frontier workflow. Missing, malformed, and plausibly
-    /// decision-bound request shapes must all remain unroutable here.
+    /// The hub is a read-only index. Human decisions are landed through the
+    /// git-native Decision Plan workflow, so the hub must expose no accept
+    /// route.
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn truth_bearing_accept_route_remains_absent() {
         let state = test_state().await;
         seed_entry(&state, "vfr_fix1").await;
         let (base, client) = serve(state).await;
         let endpoint = format!("{base}/entries/vfr_fix1/proposals/vpr_fixture/accept");
-        let roots = [
-            None,
-            Some(format!("sha256:{}", "a".repeat(64))),
-            Some(format!("sha256:{}", "b".repeat(64))),
-        ];
-
-        for decision_root in roots {
-            let mut body = json!({"reason": "Evidence and caveats checked"});
-            if let Some(root) = decision_root {
-                body["decision_root"] = Value::String(root);
-            }
-            let response = client
-                .post(&endpoint)
-                .header("X-Vela-Signer-Pubkey", "00".repeat(32))
-                .header("X-Vela-Signature", "00".repeat(64))
-                .json(&body)
-                .send()
-                .await
-                .expect("accept probe");
-            assert_eq!(
-                response.status(),
-                StatusCode::NOT_FOUND,
-                "the read-only hub must not create an accept path for any request shape"
-            );
-        }
-    }
-
-    /// `/.well-known/vela` carries `peers` from VELA_HUB_PEERS (empty
-    /// array when unset), inside the manifest — i.e. under whatever
-    /// signature covers the manifest bytes.
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    async fn well_known_manifest_carries_peers() {
-        let mut state = test_state().await;
-        let (base, client) = serve(state.clone()).await;
-        let body: Value = client
-            .get(format!("{base}/.well-known/vela"))
+        let response = client
+            .post(&endpoint)
+            .json(&json!({"reason": "Evidence and caveats checked"}))
             .send()
             .await
-            .unwrap()
-            .json()
-            .await
-            .unwrap();
-        assert_eq!(body["manifest"]["peers"], json!([]));
+            .expect("accept probe");
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
 
-        state.peers = Arc::new(parse_peers(
-            "https://hub-eu.example.org/, https://mirror.example.net",
-        ));
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn removed_state_transport_routes_remain_absent() {
+        let state = test_state().await;
+        let (base, client) = serve(state).await;
+
+        let publish = client
+            .post(format!("{base}/entries"))
+            .json(&json!({"frontier": "bytes"}))
+            .send()
+            .await
+            .expect("publish probe");
+        assert_eq!(publish.status(), StatusCode::METHOD_NOT_ALLOWED);
+
+        let source_registration = client
+            .post(format!("{base}/entries/vfr_001f148c07eebecb/git-remote"))
+            .json(&json!({"git_remote": "https://example.com/untrusted"}))
+            .send()
+            .await
+            .expect("source registration probe");
+        assert_eq!(source_registration.status(), StatusCode::METHOD_NOT_ALLOWED);
+
+        let deprecate = client
+            .post(format!("{base}/entries/vfr_001f148c07eebecb/deprecate"))
+            .json(&json!({"reason": "retire"}))
+            .send()
+            .await
+            .expect("deprecate probe");
+        assert_eq!(deprecate.status(), StatusCode::NOT_FOUND);
+
+        let lifecycle_status = client
+            .get(format!("{base}/entries/vfr_001f148c07eebecb/status"))
+            .send()
+            .await
+            .expect("lifecycle status probe");
+        assert_eq!(lifecycle_status.status(), StatusCode::NOT_FOUND);
+
+        for path in [
+            "/entries/vfr_001f148c07eebecb/proof",
+            "/entries/vfr_001f148c07eebecb/proof/download",
+            "/entries/vfr_001f148c07eebecb/log/sth",
+            "/entries/vfr_001f148c07eebecb/log/proof/vev_deadbeef",
+            "/entries/vfr_001f148c07eebecb/log/consistency?first=1",
+        ] {
+            let response = client
+                .get(format!("{base}{path}"))
+                .send()
+                .await
+                .expect("retired local-artifact or signed-log probe");
+            assert_eq!(response.status(), StatusCode::NOT_FOUND, "{path}");
+        }
+
+        let blob = client
+            .get(format!("{base}/blobs/{}", "a".repeat(64)))
+            .send()
+            .await
+            .expect("blob probe");
+        assert_eq!(blob.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn failed_git_ingest_is_reported_without_a_parallel_audit_table() {
+        let state = test_state().await;
+        state
+            .db
+            .upsert_git_source("vfr_broken", "https://example.com/broken", "main")
+            .await
+            .expect("register source");
+        state
+            .db
+            .record_git_ingest("vfr_broken", None, Some("strict replay failed"))
+            .await
+            .expect("record ingest failure");
+        let (base, client) = serve(state).await;
+
+        let response = client
+            .get(format!("{base}/entries/vfr_broken"))
+            .send()
+            .await
+            .expect("failure probe");
+        assert_eq!(response.status(), StatusCode::FAILED_DEPENDENCY);
+        let body: Value = response.json().await.expect("json failure body");
+        assert_eq!(body["error"]["message"], "strict replay failed");
+        assert_eq!(body["authority_mode"], "git_ingested");
+    }
+
+    /// `/.well-known/vela` carries discovery data only: no Hub signature or
+    /// trust key is introduced.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn well_known_manifest_is_unsigned_discovery_only() {
+        let state = test_state().await;
         let (base, client) = serve(state).await;
         let body: Value = client
             .get(format!("{base}/.well-known/vela"))
@@ -4912,21 +3844,15 @@ mod protocol_surface_tests {
             .json()
             .await
             .unwrap();
+        assert!(body.get("peers").is_none());
+        assert!(body["endpoints"].get("publish").is_none());
+        assert!(body["endpoints"].get("counterfactual").is_none());
+        assert!(body["schemas"].get("counterfactual-query").is_none());
+        assert!(body.get("signature").is_none());
+        assert!(body.get("mode").is_none());
         assert_eq!(
-            body["manifest"]["peers"],
-            json!(["https://hub-eu.example.org", "https://mirror.example.net"])
-        );
-    }
-
-    #[test]
-    fn parse_peers_handles_slashes_gaps_and_absence() {
-        assert!(parse_peers("").is_empty());
-        assert_eq!(
-            parse_peers(" https://a.example/ ,, https://b.example "),
-            vec![
-                "https://a.example".to_string(),
-                "https://b.example".to_string()
-            ]
+            body["agent_sla"]["writes"],
+            "frontier publication is git push; the hub index does not accept frontier state bytes"
         );
     }
 
@@ -4942,16 +3868,16 @@ mod protocol_surface_tests {
         let values: Vec<Value> = (0..3)
             .map(|i| json!({"vfr_id": format!("vfr_{i}")}))
             .collect();
-        // No limit: the exact legacy shape.
+        // No limit: the unpaginated collection shape.
         assert_eq!(
             entries_payload(&values, None, 0),
-            json!({"schema": REGISTRY_SCHEMA, "entries": values})
+            json!({"schema": FRONTIER_INDEX_LIST_SCHEMA, "entries": values})
         );
         // Page 1 of 2: total + next_offset appear.
         assert_eq!(
             entries_payload(&values, Some(2), 0),
             json!({
-                "schema": REGISTRY_SCHEMA,
+                "schema": FRONTIER_INDEX_LIST_SCHEMA,
                 "entries": [values[0], values[1]],
                 "total": 3,
                 "next_offset": 2,
@@ -4961,7 +3887,7 @@ mod protocol_surface_tests {
         assert_eq!(
             entries_payload(&values, Some(2), 2),
             json!({
-                "schema": REGISTRY_SCHEMA,
+                "schema": FRONTIER_INDEX_LIST_SCHEMA,
                 "entries": [values[2]],
                 "total": 3,
             })
@@ -4970,7 +3896,7 @@ mod protocol_surface_tests {
         assert_eq!(
             entries_payload(&values, Some(2), 99),
             json!({
-                "schema": REGISTRY_SCHEMA,
+                "schema": FRONTIER_INDEX_LIST_SCHEMA,
                 "entries": [],
                 "total": 3,
             })

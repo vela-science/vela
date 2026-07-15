@@ -572,7 +572,6 @@ fn build_artifacts_log(frontier_idx: usize, findings: &[FindingBundle]) -> Vec<e
         }),
         caveats: vec![],
         signature: None,
-        schema_artifact_id: None,
     });
 
     log.push(StateEvent {
@@ -597,7 +596,6 @@ fn build_artifacts_log(frontier_idx: usize, findings: &[FindingBundle]) -> Vec<e
         }),
         caveats: vec![],
         signature: None,
-        schema_artifact_id: None,
     });
 
     log.push(StateEvent {
@@ -624,7 +622,6 @@ fn build_artifacts_log(frontier_idx: usize, findings: &[FindingBundle]) -> Vec<e
         }),
         caveats: vec![],
         signature: None,
-        schema_artifact_id: None,
     });
 
     let lab_file = pin_artifact(
@@ -670,7 +667,6 @@ fn build_artifacts_log(frontier_idx: usize, findings: &[FindingBundle]) -> Vec<e
         }),
         caveats: vec![],
         signature: None,
-        schema_artifact_id: None,
     });
 
     log.push(StateEvent {
@@ -694,7 +690,6 @@ fn build_artifacts_log(frontier_idx: usize, findings: &[FindingBundle]) -> Vec<e
         }),
         caveats: vec![],
         signature: None,
-        schema_artifact_id: None,
     });
 
     log
@@ -768,7 +763,6 @@ fn build_tier_set_log(frontier_idx: usize, findings: &[FindingBundle]) -> Vec<ev
             }),
             caveats: vec![],
             signature: None,
-            schema_artifact_id: None,
         });
     }
 
@@ -811,7 +805,6 @@ fn build_locator_repair_log(
         }),
         caveats: vec![],
         signature: None,
-        schema_artifact_id: None,
     }]
 }
 
@@ -848,7 +841,6 @@ fn build_span_repair_log(
         }),
         caveats: vec![],
         signature: None,
-        schema_artifact_id: None,
     }]
 }
 
@@ -886,7 +878,6 @@ fn build_superseded_log(
         }),
         caveats: vec![],
         signature: None,
-        schema_artifact_id: None,
     }]
 }
 
@@ -1021,7 +1012,6 @@ fn build_reinterpreted_causal_log(
         }),
         caveats: vec![],
         signature: None,
-        schema_artifact_id: None,
     }]
 }
 
@@ -1072,7 +1062,6 @@ fn build_statement_attested_log(
         payload: json!({ "attestation": att }),
         caveats: vec![],
         signature: None,
-        schema_artifact_id: None,
     }]
 }
 
@@ -1122,7 +1111,6 @@ fn build_anchor_log(frontier_idx: usize, findings: &[FindingBundle]) -> Vec<even
         payload,
         caveats: vec![],
         signature: None,
-        schema_artifact_id: None,
     };
     vec![
         mk("anchor.attached", json!({ "anchor_link": link }), 2),
@@ -1163,7 +1151,6 @@ fn build_claim_and_register_log(
         payload,
         caveats: vec![],
         signature: None,
-        schema_artifact_id: None,
     };
     vec![
         mk(
@@ -1211,7 +1198,6 @@ fn build_register_with_finding_edge_log(
         payload,
         caveats: vec![],
         signature: None,
-        schema_artifact_id: None,
     };
     vec![
         // With the edge: payload.finding_id names a genesis finding.
@@ -1273,7 +1259,6 @@ fn build_diff_pack_released_log(
         }),
         caveats: vec![],
         signature: None,
-        schema_artifact_id: None,
     }]
 }
 
@@ -1307,7 +1292,6 @@ fn build_diff_pack_reviewed_log(
         }),
         caveats: vec![],
         signature: None,
-        schema_artifact_id: None,
     }]
 }
 
@@ -1356,7 +1340,6 @@ fn build_verdict_conflict_resolved_log(
         }),
         caveats: vec![],
         signature: None,
-        schema_artifact_id: None,
     }]
 }
 
@@ -1404,7 +1387,6 @@ fn build_contradiction_resolved_log(
         }),
         caveats: vec![],
         signature: None,
-        schema_artifact_id: None,
     }]
 }
 

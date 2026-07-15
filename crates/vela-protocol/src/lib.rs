@@ -21,7 +21,7 @@
 mod kernel;
 pub use kernel::{bundle, canonical, detached, events, reducer, repo, sign, signing_input};
 mod computed;
-pub use computed::{frontier_repo, project, registry, sources, state, transfer_registry};
+pub use computed::{frontier_repo, project, sources, state, transfer_registry};
 mod analysis;
 pub use analysis::{
     atlas, boundary, contradiction, credit, diff, diff_pack_review, evidence_ci, evidence_diff,

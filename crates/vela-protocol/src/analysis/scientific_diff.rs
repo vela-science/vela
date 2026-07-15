@@ -1,7 +1,7 @@
 //! v0.193: Scientific Diff Pack (`vsd_*`).
 //!
-//! The per-proposal `carina.diff.v0.3` schema captures the change
-//! a single proposal would induce on frontier state. A Scientific
+//! A proposal diff captures the change a single proposal would induce on
+//! frontier state. A Scientific
 //! Diff Pack sits one level up: it bundles N proposals into one
 //! reviewable change-set so a reviewer sees a coherent unit
 //! ("BBB-shared sister findings reconciled") rather than 12
@@ -549,49 +549,26 @@ impl ScientificDiffPack {
 
         let mut cli_equivalents = BTreeMap::new();
         cli_equivalents.insert(
-            "inspect".to_string(),
-            format!("vela diff-pack inspect <frontier> {} --json", self.pack_id),
+            "decision_brief".to_string(),
+            "vela next <frontier> --json".to_string(),
         );
         cli_equivalents.insert(
-            "verify".to_string(),
-            format!(
-                "vela diff-pack verify <frontier>/.vela/diff_packs/{}.json",
-                self.pack_id
-            ),
+            "check".to_string(),
+            "vela check <frontier> --strict --json".to_string(),
         );
         cli_equivalents.insert(
-            "evidence_ci".to_string(),
-            format!(
-                "vela diff-pack validate <frontier> {} --evidence-ci --json",
-                self.pack_id
-            ),
-        );
-        cli_equivalents.insert(
-            "accept".to_string(),
-            format!(
-                "vela diff-pack promote-verdicts <frontier> --json # after local verdict on {}",
-                self.pack_id
-            ),
+            "decide".to_string(),
+            "vela sign --frontier <frontier>".to_string(),
         );
         let review_session_scope = format!("diff_pack:{}", self.pack_id);
         let mut review_session_commands = BTreeMap::new();
         review_session_commands.insert(
-            "start".to_string(),
-            format!(
-                "vela review-session start <frontier> --reviewer reviewer:external --scope {} --json",
-                review_session_scope
-            ),
+            "inspect".to_string(),
+            "vela next <frontier> --json".to_string(),
         );
         review_session_commands.insert(
-            "note".to_string(),
-            format!(
-                "vela review-session note <frontier> vrs_SESSION --object {} --note 'bounded reviewer note' --json",
-                self.pack_id
-            ),
-        );
-        review_session_commands.insert(
-            "close".to_string(),
-            "vela review-session close <frontier> vrs_SESSION --decision needs_revision --reason 'bounded reviewer reason' --json".to_string(),
+            "decide".to_string(),
+            "vela sign --frontier <frontier>".to_string(),
         );
 
         DiffPackReviewSummary {
@@ -662,7 +639,7 @@ fn diff_pack_evidence_ci_summary(
         warnings: 0,
         failed,
         release_blocking_failed: failed,
-        command: format!("vela diff-pack validate <frontier> {pack_id} --evidence-ci --json"),
+        command: "vela check <frontier> --strict --json".to_string(),
         caveat: "Evidence CI checks review readiness. It does not accept scientific state."
             .to_string(),
     }
@@ -1047,18 +1024,13 @@ mod tests {
             summary.review_session_scope
         );
         assert!(summary.evidence_ci_summary.total >= summary.proposed_operations.len());
-        assert!(
-            summary
-                .evidence_ci_summary
-                .command
-                .contains("diff-pack validate")
-        );
+        assert!(summary.evidence_ci_summary.command.contains("vela check"));
         assert!(
             summary
                 .review_session_commands
-                .get("start")
+                .get("inspect")
                 .unwrap()
-                .contains("vela review-session start")
+                .contains("vela next")
         );
     }
 
@@ -1163,12 +1135,9 @@ mod tests {
     }
 
     #[test]
-    fn cross_impl_python_sdk_pinned_id() {
-        // v0.196: the Python `vela_agent` SDK mirrors this canonical-
-        // bytes layout. The constants below are produced by the
-        // Python SDK on the exact same inputs (see
-        // clients/python/vela_agent/tests/test_primitives.py). Any
-        // drift in either implementation flags here.
+    fn canonical_bytes_pinned_id() {
+        // The pinned constants below make the canonical-bytes layout an
+        // implementation-independent fixture. Any encoder drift fails here.
         let p = ScientificDiffPack::build(PackDraft {
             frontier_id: "vfr_5076e7b3ff8e6b0f".to_string(),
             created_at: "2026-05-11T00:00:00Z".to_string(),

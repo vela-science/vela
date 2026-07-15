@@ -27,7 +27,6 @@ fn roundtrip(kind: &str, target_type: &str, target_id: &str, payload: serde_json
         payload,
         caveats: vec![],
         signature: None,
-        schema_artifact_id: None,
     };
     let serialized = serde_json::to_string(&event).expect("serialize");
     let parsed: StateEvent = serde_json::from_str(&serialized).expect("deserialize");

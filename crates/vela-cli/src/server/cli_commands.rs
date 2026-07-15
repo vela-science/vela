@@ -5,11 +5,9 @@
 //!
 //! ## Flag-naming conventions (one name per concept, no aliases)
 //! - **Acting identity** → `--as`, everywhere a command acts under an
-//!   identity (accept, review, propose, attach, record, finding verbs…).
+//!   identity (land, attach, artifact retirement…).
 //!   The value defaults from the configured identity (`vela id`) or
 //!   `$VELA_ACTOR_ID`, so the flag is usually omitted entirely.
-//!   `--author` survives ONLY on `finding add`/`supersede` as source
-//!   attribution (who authored the claim, not who is acting);
 //!   `--verifier-actor` names a mechanical verifier identity (CI, lean
 //!   keypairs) that is never a decision-maker.
 //! - **Signing key** → `--key`. Defaults from `vela id`.
@@ -26,7 +24,6 @@ use std::path::PathBuf;
 pub(crate) const HELP_KEY: &str = "Path to an Ed25519 private key (hex seed file). Optional: defaults to your `vela id` identity key";
 pub(crate) const HELP_AS: &str = "Acting identity for this write (reviewer:<you> or agent:<name>). Optional: defaults to your `vela id`";
 pub(crate) const HELP_AS_OF: &str = "Answer as of this RFC3339 instant, e.g. 2026-07-02T16:00:00Z";
-pub(crate) const HELP_LEGACY_FINDING_APPLY: &str = "Deprecated compatibility flag; always refused. Omit it to create a pending proposal, then use `vela sign`";
 
 #[derive(Subcommand, Debug)]
 pub enum ConfigAction {
@@ -197,8 +194,7 @@ pub(crate) enum Commands {
     /// Make this frontier queryable by AI agents: an MCP server any
     /// client (Claude Code, Cursor, …) can attach to, over stdio or
     /// HTTP. Profiles gate what tools exist: read-only (default), or draft
-    /// for nonfinalizing writes. `maintainer` is a deprecated alias for
-    /// draft and grants no extra capability. The public hub serves the same
+    /// for nonfinalizing writes. The public hub serves the same
     /// read surface at hub.constellate.science/mcp with no clone at all.
     #[command(after_long_help = crate::cli::help_text::SERVE)]
     Serve {
@@ -224,8 +220,7 @@ pub(crate) enum Commands {
         #[arg(long)]
         adoption: bool,
         /// MCP exposure profile: `read-only` (default) or `draft` (adds only
-        /// nonfinalizing propose/work tools). `maintainer` is a deprecated
-        /// warning alias for `draft`; human finalization is terminal-only.
+        /// the task-first `work` tool). Human finalization is terminal-only.
         #[arg(long, default_value = "read-only")]
         profile: String,
         /// Output stable JSON for --check-tools
@@ -344,18 +339,15 @@ pub(crate) enum Commands {
         #[arg(long)]
         json: bool,
     },
-    /// The foundry: one unattended compounding turn (Phase 2). Produce a
-    /// candidate with the frozen-verifier campaign, register its witness, and
-    /// run it through the exact-lane de-human-gate — produce -> frozen-verify
-    /// -> auto-admit -> machine_verified, with no human and no key. Dry-run by
-    /// default (previews the gate); `--apply` records the admission.
+    /// The foundry: search, verifier campaigns, targets, attempts, transfers,
+    /// and experiments. State enters a frontier only through `vela land`.
     #[command(after_long_help = crate::cli::help_text::FOUNDRY)]
     Foundry {
         #[command(subcommand)]
         action: FoundryAction,
     },
     /// Your Vela identity: set up a key once, then land and sign
-    /// with no `--key`/`--actor`/`--hub` flags. `vela id create` is the
+    /// with no `--key`/`--actor` flags. `vela id create` is the
     /// one-time onboarding step.
     #[command(after_long_help = crate::cli::help_text::ID)]
     Id {
@@ -368,17 +360,15 @@ pub(crate) enum Commands {
         #[command(subcommand)]
         action: ActorAction,
     },
-    /// Manage frontier-level metadata: cross-frontier dependencies (v0.8).
-    /// Use `vela frontier add-dep` to declare a remote frontier this
-    /// frontier links into via `vf_…@vfr_…` references.
+    /// Inspect and materialize frontier-level state, including read-only
+    /// cross-frontier dependency projections.
     #[command(after_long_help = crate::cli::help_text::FRONTIER)]
     Frontier {
         #[command(subcommand)]
         action: FrontierAction,
     },
-    /// The index: bind a frontier's git remote once (register-git),
-    /// then `git push` is publication. Verification verbs
-    /// (witness-check, verify-chain, verify-log) hold hubs honest.
+    /// Inspect and verify a Git-derived frontier index. Source discovery is
+    /// configured by Hub operators; `git push` publishes frontier history.
     #[command(after_long_help = crate::cli::help_text::HUB)]
     Hub {
         #[command(subcommand)]
@@ -400,8 +390,6 @@ pub(crate) enum Commands {
         name: String,
         #[arg(long, default_value = "default")]
         template: String,
-        #[arg(long)]
-        no_git: bool,
         #[arg(long)]
         json: bool,
     },
@@ -437,13 +425,13 @@ pub(crate) enum Commands {
         #[arg(long)]
         quiet: bool,
     },
-    /// Inspect or apply proposal-first frontier writes
+    /// Inspect, preview, validate, or export proposal records.
     #[command(after_long_help = crate::cli::help_text::PROPOSALS)]
     Proposals {
         #[command(subcommand)]
         action: ProposalAction,
     },
-    /// Manage finding bundles as the core frontier primitive
+    /// Inspect finding bundles as the core frontier primitive.
     #[command(after_long_help = crate::cli::help_text::FINDING)]
     Finding {
         #[command(subcommand)]
@@ -459,9 +447,8 @@ pub(crate) enum Commands {
     /// semantic set, one confirm, one key read, then an exact Git
     /// publication attempt. Scripted forms first render a root, then mutate
     /// only with `sign <vpr_id> --yes --confirm-root <sha256:...>
-    /// --confirm-at <RFC3339>`;
-    /// separate lanes remain `sign --batch <fidelity.json>` and
-    /// `sign <file>` (detached bytes). Agents are refused (exit 4).
+    /// --confirm-at <RFC3339>`. `sign <file>` remains the detached-byte
+    /// ceremony. Agents are refused (exit 4).
     #[command(after_long_help = crate::cli::help_text::SIGN)]
     Sign {
         /// A proposal id to preview/decide, or a file path to
@@ -475,20 +462,16 @@ pub(crate) enum Commands {
         #[arg(long)]
         yes: bool,
         /// Exact Decision Plan root rendered by the prior scripted preview.
-        #[arg(long, requires = "target", conflicts_with_all = ["batch", "preview", "reset"])]
+        #[arg(long, requires = "target", conflicts_with_all = ["preview", "reset"])]
         confirm_root: Option<String>,
         /// Exact RFC3339 observation instant echoed by the prior scripted
         /// preview; required with --confirm-root to reproduce timestamped bytes.
         /// The pair expires after the documented 15-minute review window.
-        #[arg(long, requires = "target", conflicts_with_all = ["batch", "preview", "reset"])]
+        #[arg(long, requires = "target", conflicts_with_all = ["preview", "reset"])]
         confirm_at: Option<String>,
         /// Decision reason for scripted accepts.
         #[arg(long)]
         reason: Option<String>,
-        /// A pre-filled verdicts JSON (the fidelity batch contract):
-        /// signs every row under one key read.
-        #[arg(long)]
-        batch: Option<PathBuf>,
         /// Discard the saved interactive session (your in-progress
         /// verdicts) and start clean. Use this if a resumed session shows
         /// choices you want to redo.
@@ -497,7 +480,7 @@ pub(crate) enum Commands {
         /// Read-only Decision Brief page. Never resolves or reads a key.
         #[arg(
             long,
-            conflicts_with_all = ["target", "yes", "confirm_root", "confirm_at", "reason", "batch", "reset", "sk", "key"]
+            conflicts_with_all = ["target", "yes", "confirm_root", "confirm_at", "reason", "reset", "sk", "key"]
         )]
         preview: bool,
         /// Opaque continuation returned by a prior --preview --json page.
@@ -593,27 +576,6 @@ pub(crate) enum Commands {
         json: bool,
     },
 
-    /// Submit a frozen-verified witness in ONE step: verify it, land it, bind it
-    /// to its finding, drive the exact lane to `machine_verified`, and
-    /// materialize. The producer path — no scripts, no manual gate steps.
-    #[command(after_long_help = crate::cli::help_text::SUBMIT)]
-    Submit {
-        /// Path to the witness JSON.
-        witness: PathBuf,
-        #[arg(long)]
-        frontier: Option<PathBuf>,
-        #[arg(long, help = HELP_AS)]
-        r#as: Option<String>,
-        /// Publish now: commit locally AND push. Default: commit locally only.
-        #[arg(long)]
-        push: bool,
-        /// Verify + preview the whole submission; write nothing.
-        #[arg(long)]
-        dry_run: bool,
-        #[arg(long)]
-        json: bool,
-    },
-
     /// Continuous-integration verbs for a frontier's GitHub Action.
     #[command(after_long_help = crate::cli::help_text::CI)]
     Ci {
@@ -685,8 +647,7 @@ pub(crate) enum IdAction {
         yes: bool,
     },
     /// One-time setup: generate a key, store it, and remember your actor id
-    /// and default hub. After this, `vela land` / `vela sign` need no
-    /// `--key`/`--actor`/`--hub` flags.
+    /// After this, `vela land` / `vela sign` need no `--key`/`--actor` flags.
     Create {
         /// Your handle, e.g. `alice`. Becomes `reviewer:alice` (or
         /// `agent:alice` with --agent). Defaults to `$USER`.
@@ -696,16 +657,13 @@ pub(crate) enum IdAction {
         /// human reviewer.
         #[arg(long)]
         agent: bool,
-        /// Default hub base URL for publish/propose/verify.
-        #[arg(long)]
-        hub: Option<String>,
         /// Overwrite an existing identity.
         #[arg(long)]
         force: bool,
         #[arg(long)]
         json: bool,
     },
-    /// Show the current identity (actor id, public key, key path, hub).
+    /// Show the current identity (actor id, public key, key path).
     Show {
         #[arg(long)]
         json: bool,
@@ -721,8 +679,6 @@ pub(crate) enum IdAction {
         handle: Option<String>,
         #[arg(long)]
         agent: bool,
-        #[arg(long)]
-        hub: Option<String>,
         #[arg(long)]
         force: bool,
         #[arg(long)]
@@ -788,60 +744,15 @@ pub(crate) enum ExperimentAction {
     },
 }
 
-/// `vela foundry` — one unattended compounding turn over the de-human-gate.
+/// `vela foundry` — discovery and verifier tools feeding the shared work/land loop.
 #[derive(Subcommand)]
 pub(crate) enum FoundryAction {
-    /// Run one turn: produce a candidate (campaign), register its witness, and
-    /// run the exact-lane auto-admit. Dry-run by default; `--apply` records the
-    /// `policy.auto_admitted` admission when the gate says YES.
-    Run {
-        /// Frontier directory (e.g. `examples/sidon-sets`).
-        frontier: PathBuf,
-        /// Witness kind: `sidon`, `golomb`, `cap`, `bh`, …
-        #[arg(long)]
-        kind: String,
-        /// The ambient size parameter `n`.
-        #[arg(long)]
-        n: usize,
-        /// For `bh` witnesses, the order `h`.
-        #[arg(long, default_value_t = 2)]
-        h: usize,
-        /// Secondary order parameter `k` (e.g. `diff_triangle` within-row order J
-        /// for a HorizonMath DTS(n,k) target, or `covering`'s block size). Passed
-        /// to the campaign only when non-zero.
-        #[arg(long, default_value_t = 0)]
-        k: usize,
-        /// Search restarts.
-        #[arg(long, default_value_t = 200)]
-        restarts: u64,
-        /// Search seed.
-        #[arg(long, default_value_t = 1)]
-        seed: u64,
-        /// Portfolio size: scan this many consecutive seeds (a diverse-search
-        /// portfolio), keep the best-scoring, and propose only that one.
-        #[arg(long, default_value_t = 1)]
-        seeds: u64,
-        /// Gate the turn on the continuous ablation: fail (exit 1) if inherited
-        /// frontier state does NOT make this kind compound (treatment <= control).
-        #[arg(long)]
-        run_ablation: bool,
-        /// Record the admission (else dry-run preview the whole turn).
-        #[arg(long)]
-        apply: bool,
-        /// Re-run even if this exact (kind, n, seed, restarts) cell is already in
-        /// the attempt ledger. By default the foundry skips a banked cell
-        /// (failed-route reuse: don't re-search what a prior turn already did).
-        #[arg(long)]
-        force: bool,
-        #[arg(long)]
-        json: bool,
-    },
     /// The foundry's work-list: the attackable target portfolio with its
     /// value-to-beat, read from a substrate-native catalog (the HorizonMath
     /// verifier-attackable subset by default) and cross-referenced against the
-    /// live per-family records (e.g. `frontiers/sidon-sets/bounds.json`) so the
+    /// live per-family records (e.g. `frontiers/sidon/records.json`) so the
     /// gap between the current accepted best and the value-to-beat is legible.
-    /// This is what `foundry run` selects from; replaces the web/script JSON
+    /// This is what campaign search selects from; replaces the web/script JSON
     /// (cohort.json, erdos-wedge.json) as the foundry's portfolio source.
     Targets {
         /// Target catalog (a `HorizonMathCatalog`-shaped JSON with a `problems`
@@ -872,7 +783,7 @@ pub(crate) enum FoundryAction {
     /// enabled by inheriting the frontier's solved targets); control spreads the
     /// same budget across the range it must rediscover. Reports treatment vs
     /// control boundary-success over N seeds; exits 1 if inheritance does not
-    /// beat control (so a foundry run can gate on it).
+    /// beat control for campaign evaluation.
     Ablate {
         /// Frontier directory (its solved targets are the inherited state).
         frontier: PathBuf,
@@ -924,49 +835,6 @@ pub(crate) enum FoundryAction {
         #[arg(long)]
         json: bool,
     },
-    /// The non-AI verifier half of the prove loop: given a Lean proof already
-    /// written into the corpus (the AI producer's output), build it, classify
-    /// the target decl's axioms (`#print axioms`, fail-closed on `sorryAx`),
-    /// anchor + mint a signed `vlv_`, and — when a frontier is given — draft a
-    /// PENDING `verifier.attach`. STOPS there: the truth-bearing accept is a
-    /// human key-custody decision (the Lean lane never auto-admits). The Lean
-    /// kernel is the trust; the proof's producer is never in the trust path.
-    LeanRun {
-        /// The Lean corpus root (e.g. the formal-conjectures clone). Its
-        /// `lean-toolchain` / `lake-manifest.json` pin the `vlv_`'s provenance.
-        #[arg(long)]
-        lean_dir: PathBuf,
-        /// Module path relative to `--lean-dir`, e.g.
-        /// `FormalConjectures/ErdosProblems/828.lean`.
-        #[arg(long)]
-        module: String,
-        /// Fully-qualified decl name for `#print axioms`, e.g.
-        /// `Erdos828.erdos_828`.
-        #[arg(long)]
-        decl: String,
-        /// Optional Vela frontier to draft the `verifier.attach` into.
-        #[arg(long)]
-        frontier: Option<PathBuf>,
-        /// The open finding this proof closes (required with `--frontier`).
-        #[arg(long)]
-        finding: Option<String>,
-        /// Reviewer/actor (an `agent:` actor drafts PENDING; a human applies).
-        #[arg(long, default_value = "agent:vela-foundry-lean")]
-        reviewer: String,
-        /// Verifier identity stamped on the `vlv_` (a machine key, not a human).
-        #[arg(long, default_value = "agent:vela-foundry-lean")]
-        actor: String,
-        /// Signing key for the `vlv_` (the verifier's machine key). Resolved
-        /// from managed identity when omitted.
-        #[arg(long, help = HELP_KEY)]
-        key: Option<PathBuf>,
-        /// Where to write the `vla_`/`vlv_` artifacts (default: alongside the
-        /// frontier under `lean/`, else the current dir).
-        #[arg(long)]
-        out_dir: Option<PathBuf>,
-        #[arg(long)]
-        json: bool,
-    },
     /// The decisive lemma-inheritance measurement (the memo's "Compounding B"):
     /// do accepted Lean lemmas widen the closable boundary? Treatment counts the
     /// open targets that are one-premise-away WITH the inherited lemmas present;
@@ -984,7 +852,7 @@ pub(crate) enum FoundryAction {
     },
     /// Project the typed current-best bounds (value-to-beat) from the erdos-deep
     /// source into a `vela.frontier-bounds.v1` sidecar. ADDITIVE — it reads the
-    /// staged source the erdos adapter already ingests and writes a NEW
+    /// staged source through the pure Erdős adapter and writes a NEW
     /// `bounds.json`; it never touches accepted findings or the frontier
     /// canonical root, so `vela reproduce` is unaffected. Every bound is
     /// unattested (`accepted: false`). Deterministic. `foundry targets
@@ -1067,9 +935,9 @@ pub(crate) enum CampaignAction {
         #[arg(long)]
         json: bool,
     },
-    /// Search, write the verified witness (so `vela reproduce` covers it), and
-    /// optionally land a *pending* `finding.add` proposal (no key — a
-    /// key-holder accepts).
+    /// Search and write the verified witness plus a non-authoritative activity
+    /// envelope. To cross into protocol state, reproduce the witness and use
+    /// the shared `work` / `land` path.
     Run {
         /// Verifier kind to search (see `search`).
         kind: String,
@@ -1093,15 +961,9 @@ pub(crate) enum CampaignAction {
         /// `<frontier>/witnesses/<kind>-n<N>.witness.json`.
         #[arg(long)]
         out: Option<PathBuf>,
-        /// Frontier directory (required for `--propose`, or to derive `--out`).
+        /// Frontier directory, used to derive `--out` and bind consumed state.
         #[arg(long)]
         frontier: Option<PathBuf>,
-        /// Also land a pending `finding.add` proposal for the verified bound.
-        #[arg(long)]
-        propose: bool,
-        /// Reviewer/author identity for the proposal.
-        #[arg(long, default_value = "reviewer:will-blair")]
-        reviewer: String,
         #[arg(long)]
         json: bool,
     },
@@ -1194,98 +1056,14 @@ pub(crate) enum GateAction {
         #[arg(long)]
         json: bool,
     },
-    /// Backfill frozen-verifier attachments. For each witness artifact in the
-    /// frontier, re-run the matching frozen verifier (vela-verify) and, on
-    /// pass, land a pending `verifier.attach` recording the check
-    /// (ComputationalSearch / vela-verify / Sound). Makes the frozen verifier
-    /// legible per finding; the gate still needs >=2 independent attachments to
-    /// derive `verified`, so this records the check, it does not flip the gate.
-    Backfill {
-        /// Frontier directory (e.g. `examples/sidon-sets`).
-        frontier: PathBuf,
-        /// Reviewer authority landing the attachments (e.g.
-        /// `reviewer:will-blair`). Optional: defaults to your configured
-        /// identity (`vela id`). This attributes the draft; it does not apply.
-        #[arg(long = "as", help = HELP_AS)]
-        reviewer: Option<String>,
-        /// Report the plan without writing.
-        #[arg(long)]
-        dry_run: bool,
-        #[arg(long)]
-        json: bool,
-    },
-    /// Preview the exact-lane auto-admission decision for a finding (Phase 1A,
-    /// the de-human-gate). READ-ONLY: it runs the full un-forgeable trust path
-    /// over real data — a fresh `vela-verify` re-check of the finding's witness
-    /// (reproduce-binding), the frozen `claim_witness_faithful` claim<->witness
-    /// binding, and the proposal-level guards + attachment corroboration
-    /// predicate — and prints whether the finding WOULD auto-admit to
-    /// `machine_verified`, with every guard's verdict. It never writes; the
-    /// `policy.auto_admitted` emit is held off pending the acceptance checklist
-    /// (see docs/VERIFICATION.md).
-    AutoAdmit {
-        /// Frontier directory (e.g. `examples/sidon-sets`).
-        frontier: PathBuf,
-        /// The finding id (`vf_…`) to preview.
-        #[arg(long)]
-        finding: String,
-        /// Record the unsigned `policy.auto_admitted` audit event when (and
-        /// only when) the finding WOULD auto-admit. Idempotent: re-running is a
-        /// no-op. Never signs, never lands the finding in canonical state. Omit
-        /// for a read-only preview.
-        #[arg(long)]
-        apply: bool,
-        #[arg(long)]
-        json: bool,
-    },
-    /// Attach an EXTERNAL verifier's output to a finding as a `verifier.attach`.
-    /// The first non-frozen source is Inspect-AI (`--from inspect`): an eval
-    /// log becomes an `eval_harness` attachment bound to the finding's claim.
-    /// Evidence, not a verdict — the attachment is `method_integrity:
-    /// unattested` and can NEVER auto-admit; a lone one fails the gate's G1. The
-    /// gate (>=2 independent) and the human key still decide.
-    Attach {
-        /// Frontier directory (e.g. `examples/sidon-sets`).
-        frontier: PathBuf,
-        /// The finding id (`vf_…`) whose claim the eval checked.
-        #[arg(long)]
-        finding: String,
-        /// The external source. Currently: `inspect` (Inspect-AI eval log).
-        #[arg(long, default_value = "inspect")]
-        from: String,
-        /// Path to the source log (an Inspect `EvalLog` JSON).
-        #[arg(long)]
-        log: PathBuf,
-        /// Headline-metric floor for a passing attachment (exact-match = 1.0).
-        #[arg(long, default_value_t = 1.0)]
-        threshold: f64,
-        /// Actor attributed on the pending attachment proposal. Optional:
-        /// defaults to your configured identity (`vela id`). Applying remains
-        /// a separate key-custody ceremony.
-        #[arg(long = "as", help = HELP_AS)]
-        reviewer: Option<String>,
-        #[arg(long)]
-        json: bool,
-    },
 }
 
 #[derive(Subcommand)]
 pub(crate) enum ActorAction {
-    /// Register an Ed25519 public key for a stable actor identity
+    /// Bootstrap an empty actor registry from the configured local identity.
+    /// This is a one-time initialization step, not a general registry writer.
     Add {
         frontier: PathBuf,
-        /// Stable actor id (e.g. "reviewer:will-blair"). Optional: defaults to
-        /// your configured identity (`vela id`).
-        id: Option<String>,
-        /// Hex-encoded Ed25519 public key (64 hex chars). Optional: defaults to
-        /// your configured identity's public key — you should never type it.
-        #[arg(long)]
-        pubkey: Option<String>,
-        /// Optional legacy trust-tier metadata. `auto-notes` remains readable
-        /// for compatibility, but current proposal writers always land notes
-        /// pending; a proposal signature is not a human decision signature.
-        #[arg(long)]
-        tier: Option<String>,
         /// v0.43: Optional ORCID identifier for cross-system identity.
         /// Format `0000-0000-0000-000X`. Accepts bare form, URL form
         /// (`https://orcid.org/0000-...`), or `orcid:` prefix.
@@ -1303,38 +1081,6 @@ pub(crate) enum ActorAction {
     /// List registered actors in a frontier
     List {
         frontier: PathBuf,
-        #[arg(long)]
-        json: bool,
-    },
-    /// v0.127: Rotate an actor's signing key. Registers a new actor
-    /// record under a versioned id, marks the prior actor as revoked
-    /// at the current timestamp, and pins a free-form reason. Closes
-    /// THREAT_MODEL.md A7 (compromised reviewer key) by giving
-    /// reviewers a primitive for retiring a key without inventing
-    /// per-frontier ceremony. Historical signatures under the
-    /// retired key remain valid (the substrate does not retroactively
-    /// invalidate canonical history); new signatures with the retired
-    /// key are flagged as `post_revocation_signature` errors by the
-    /// signals layer.
-    Rotate {
-        frontier: PathBuf,
-        /// Existing actor id to retire (e.g. `reviewer:will-blair`).
-        /// Must be currently registered and not already revoked.
-        #[arg(long)]
-        id: String,
-        /// New actor id to register (e.g.
-        /// `reviewer:will-blair-v2-2026-05-10`). Must not collide
-        /// with an existing actor id. Convention: append `-v<N>` or
-        /// `-v<N>-<date>` to the prior id.
-        #[arg(long = "new-id")]
-        new_id: String,
-        /// New Ed25519 public key (64 hex chars).
-        #[arg(long = "new-pubkey")]
-        new_pubkey: String,
-        /// Free-form reason recorded against the retired actor's
-        /// `revoked_reason` field.
-        #[arg(long)]
-        reason: String,
         #[arg(long)]
         json: bool,
     },
@@ -1381,7 +1127,7 @@ pub(crate) enum LeanAction {
         #[arg(long)]
         pub_out: PathBuf,
         /// Free-form identity to embed in the public-key spec
-        /// (e.g. "github-action:constellate-science/vela:verify-lean-bundle").
+        /// (e.g. "github-action:vela-science/vela:verify-lean-bundle").
         #[arg(long = "verifier-actor")]
         actor: String,
     },
@@ -1474,32 +1220,6 @@ pub(crate) enum LeanAction {
 
 #[derive(Subcommand)]
 pub(crate) enum AttemptAction {
-    /// Import a historical Attempt ledger into a frontier as signed
-    /// `attempt.deposited` events. The command is a dry-run unless `--apply`
-    /// is supplied. The mapping file is a `vela.attempt-import-map.v1`
-    /// exhaustive document (JSON or YAML) whose entries can override
-    /// `problem`/`frontier` or exclude a source record with an accountable
-    /// reason.
-    Import {
-        /// Path to an Attempt JSON or a ledger with a `records` array.
-        ledger: PathBuf,
-        /// Frontier directory or monolithic project JSON to receive deposits.
-        frontier: PathBuf,
-        /// Agent-grade actor that signs imported attempts and events.
-        #[arg(long)]
-        actor: String,
-        /// Versioned import mapping (`vela.attempt-import-map.v1`).
-        #[arg(long)]
-        mapping: PathBuf,
-        /// Pinned origin in `repo@commit:path` form.
-        #[arg(long)]
-        source_ref: String,
-        /// Append signed events. Without this flag the command only reconciles.
-        #[arg(long)]
-        apply: bool,
-        #[arg(long)]
-        json: bool,
-    },
     /// Verify a banked attempt file: a single `Attempt` JSON, or a
     /// CanopusAttemptLedger (`{"records": [...]}`, v1 or v2). Each record's
     /// `vat_` id must re-derive, its claim_digest must match, and its Ed25519
@@ -1550,7 +1270,7 @@ pub(crate) enum TransferAction {
         #[arg(long)]
         frontier: Option<PathBuf>,
         /// The transfer theorem's `vlv_` verification file (the LeanHomomorphism
-        /// T2 witness). Mint it with `vela foundry lean-run` over the theorem.
+        /// T2 witness). Mint it with the explicit `vela lean` verifier flow.
         #[arg(long)]
         vlv: Option<PathBuf>,
         /// A's actual domain for the T3 type-match (defaults to the
@@ -1601,9 +1321,9 @@ pub(crate) enum TransferAction {
 pub(crate) enum FrontierAction {
     /// Scaffold a fresh `frontier.json` stub. The result passes
     /// `vela check --strict` immediately and is ready to accept
-    /// findings via `vela finding add`. Prefer `vela init` for new
+    /// Receipt v1 work via `vela land`. Prefer `vela init` for new
     /// work: it creates the event-logged `.vela/` repo, and `git push`
-    /// is publication (bind once with `vela hub register-git`).
+    /// publishes to any Hub-configured source repository.
     New {
         /// Path to write the new frontier file (e.g. `./frontier.json`).
         path: PathBuf,
@@ -1623,28 +1343,6 @@ pub(crate) enum FrontierAction {
     Materialize {
         /// Frontier repository directory.
         frontier: PathBuf,
-        #[arg(long)]
-        json: bool,
-    },
-    /// Declare a cross-frontier dependency. Subsequent links of the
-    /// form `vf_<id>@vfr_<id>` resolve through this entry; strict
-    /// validation refuses cross-frontier targets without one.
-    AddDep {
-        /// Path to the frontier file
-        frontier: PathBuf,
-        /// The remote frontier's content-addressed id (`vfr_…`)
-        vfr_id: String,
-        /// Where to fetch the remote frontier file from. Typically
-        /// an `https://…` URL pointing at raw JSON.
-        #[arg(long)]
-        locator: String,
-        /// SHA-256 of the remote's canonical snapshot. Strict pull
-        /// verifies the fetched dependency's snapshot matches this.
-        #[arg(long)]
-        snapshot: String,
-        /// Optional human-readable name for the dependency.
-        #[arg(long)]
-        name: Option<String>,
         #[arg(long)]
         json: bool,
     },
@@ -1736,62 +1434,8 @@ pub(crate) enum FrontierAction {
 
 #[derive(Subcommand)]
 pub(crate) enum HubAction {
-    /// Register a frontier's git remote on a hub — the one owner-signed act
-    /// in the git-ingestion lane (docs/HUB.md: the hub is an index over
-    /// git-replayed state). After this, `git push` IS publication: the hub
-    /// re-derives its index from the repo on every ingest sweep, verifying
-    /// signatures and hash parity on replay. No further signed publishes.
-    RegisterGit {
-        /// The frontier to bind (vfr_…)
-        vfr_id: String,
-        /// The git clone URL (e.g. https://github.com/you/your-frontier.git)
-        #[arg(long)]
-        remote: String,
-        /// Branch or ref the hub ingests
-        #[arg(long, default_value = "main")]
-        r#ref: String,
-        /// Subdirectory holding the frontier (multi-frontier monorepos,
-        /// e.g. frontiers/sidon-sets in vela-frontiers). Omit when the
-        /// repo root is the frontier.
-        #[arg(long, default_value = "")]
-        subdir: String,
-        /// Hub base URL. Optional: defaults to your configured identity's hub.
-        #[arg(long)]
-        to: Option<String>,
-        /// Path to the owner's Ed25519 private key. Optional: defaults to
-        /// your configured identity's key (`vela id`).
-        #[arg(long, help = HELP_KEY)]
-        key: Option<PathBuf>,
-        #[arg(long)]
-        json: bool,
-    },
-    /// Retire a frontier — the owner-signed deprecation act. When
-    /// `--superseded-by` names a successor, the hub redirects the retired
-    /// entry's routes to it (a consolidation), so citations still resolve;
-    /// without it, the entry is a plain abandonment. Append-only,
-    /// earliest-wins; only the entry's owner key may sign it.
-    Deprecate {
-        /// The frontier to retire (vfr_…).
-        vfr_id: String,
-        /// The successor frontier (vfr_…) that supersedes it. Omit for a
-        /// plain abandonment (no redirect).
-        #[arg(long)]
-        superseded_by: Option<String>,
-        /// Why it is being retired (recorded in the signed deprecation).
-        #[arg(long, default_value = "")]
-        reason: String,
-        /// Hub base URL. Optional: defaults to your configured identity's hub.
-        #[arg(long)]
-        to: Option<String>,
-        /// Path to the owner's Ed25519 private key. Optional: defaults to
-        /// your configured identity's key (`vela id`).
-        #[arg(long, help = HELP_KEY)]
-        key: Option<PathBuf>,
-        #[arg(long)]
-        json: bool,
-    },
-    /// v0.129: fetch the same registry entry from multiple hubs and
-    /// assert byte-identical agreement. Closes part of
+    /// Fetch the same frontier-index row from multiple hubs and assert
+    /// byte-identical agreement. Closes part of
     /// THREAT_MODEL.md A11 (compromised hub) by giving operators a
     /// substrate-side cross-hub divergence detector. The
     /// substrate-honest claim: if two or more trustworthy mirrors
@@ -1809,13 +1453,10 @@ pub(crate) enum HubAction {
         #[arg(long)]
         json: bool,
     },
-    /// v0.146: verify a frontier's owner-epoch chain transcript.
-    /// Walks each transition, loads the corresponding policy,
-    /// proposal, and attestation bundle, and re-runs the v0.145
-    /// quorum verification. Surfaces `bootstrap` (chain empty),
-    /// `verified` (every transition checks out), `legacy` (no
-    /// chain file present; the entry pre-dates v0.144), or
-    /// `broken` (at least one transition fails verification).
+    /// Verify a frontier's owner-epoch chain transcript. Walks each
+    /// transition, loads the corresponding policy, proposal, and attestation
+    /// bundle, and re-runs quorum verification. Surfaces `bootstrap` (no
+    /// transitions), `verified`, or `broken`.
     VerifyChain {
         /// Frontier path. The chain is read from
         /// `<frontier-dir>/.vela/governance/chain.json`.
@@ -1828,135 +1469,10 @@ pub(crate) enum HubAction {
         #[arg(long)]
         json: bool,
     },
-    /// Independently verify a hub's RFC 6962 transparency log: fetch the
-    /// signed tree head (STH), check its Ed25519 signature against an
-    /// externally-pinned pubkey, recompute the Merkle root from the event
-    /// content-address preimages, and (with --event) check that event's
-    /// inclusion proof. Proves the hub cannot forge or silently drop accepted
-    /// state. The Rust sibling of clients/python/vela_verify_log.py.
-    VerifyLog {
-        /// The frontier (vfr_…) whose log to verify.
-        vfr_id: String,
-        /// Hub base URL (e.g. https://hub.constellate.science).
-        #[arg(long)]
-        hub: String,
-        /// Optional event id (vev_…) to also prove inclusion of.
-        #[arg(long)]
-        event: Option<String>,
-        /// Expected Ed25519 pubkey (hex), pinned out-of-band. Strongly
-        /// recommended; without it the STH's self-advertised key is trusted
-        /// (a corruption check only, not authenticity).
-        #[arg(long)]
-        pubkey: Option<String>,
-        #[arg(long)]
-        json: bool,
-    },
-}
-
-#[derive(Subcommand)]
-pub(crate) enum LinkAction {
-    /// Append a typed link from one finding to another. The target
-    /// may be a local `vf_<hex>` or a cross-frontier `vf_<hex>@vfr_<hex>`
-    /// (v0.8). Cross-frontier targets require a matching declared dep —
-    /// run `vela frontier add-dep` first or strict validation will refuse.
-    Add {
-        /// Frontier JSON file or Vela repo
-        frontier: PathBuf,
-        /// Source finding id (`vf_<hex>`)
-        #[arg(long)]
-        from: String,
-        /// Target. Either `vf_<hex>` (local) or `vf_<hex>@vfr_<hex>` (cross).
-        #[arg(long)]
-        to: String,
-        /// Link type. One of: supports, contradicts, extends, depends, replicates, supersedes, synthesized_from
-        #[arg(long, default_value = "supports")]
-        r#type: String,
-        /// Optional human-readable note
-        #[arg(long, default_value = "")]
-        note: String,
-        /// Who inferred the link. One of: compiler, reviewer, author
-        #[arg(long, default_value = "reviewer")]
-        inferred_by: String,
-        /// v0.16: skip the cross-frontier target-status check. By
-        /// default, when adding a cross-frontier link, the substrate
-        /// fetches the dep's frontier from its declared locator and
-        /// warns if the target finding has `flags.superseded = true`
-        /// (you'd be linking to an outdated wording). The link is
-        /// still recorded — this is a best-effort review hint, not a
-        /// hard refusal. Set this flag to skip the network fetch
-        /// (useful in CI or when offline).
-        #[arg(long)]
-        no_check_target: bool,
-        #[arg(long)]
-        json: bool,
-    },
 }
 
 #[derive(Subcommand)]
 pub(crate) enum FindingCommands {
-    /// Add a manual finding bundle with an assertion field
-    Add {
-        /// Frontier JSON file or Vela repo
-        frontier: PathBuf,
-        /// Assertion text inside the finding bundle
-        #[arg(long)]
-        assertion: String,
-        /// Assertion type. One of: mechanism, observational, computational, theoretical, negative, measurement, exclusion, tension, open_question, hypothesis, candidate_finding
-        #[arg(long, default_value = "mechanism")]
-        r#type: String,
-        /// Source label for the finding
-        #[arg(long, default_value = "manual finding")]
-        source: String,
-        /// Source type. One of: published_paper, preprint, model_output, expert_assertion, database_record, data_release, researcher_notes
-        #[arg(long, default_value = "expert_assertion")]
-        source_type: String,
-        /// Author/reviewer identifier
-        #[arg(long)]
-        author: String,
-        /// Initial confidence score from 0.0 to 1.0
-        #[arg(long, default_value = "0.3")]
-        confidence: f64,
-        /// Evidence type. One of: experimental, observational, computational, theoretical, extracted_from_notes
-        #[arg(long, default_value = "theoretical")]
-        evidence_type: String,
-        /// Evidence span text or JSON. Repeat to attach multiple source spans
-        #[arg(long)]
-        evidence_span: Vec<String>,
-        /// Mark this finding as a candidate gap
-        #[arg(long)]
-        gap: bool,
-        /// Mark this finding as negative-space evidence
-        #[arg(long)]
-        negative_space: bool,
-        /// v0.11: DOI of the source artifact (e.g. "10.1038/s41586-024-...")
-        #[arg(long)]
-        doi: Option<String>,
-        /// v0.11: Publication year
-        #[arg(long)]
-        year: Option<i32>,
-        /// v0.11: Generic source URL when none of the structured identifiers fit
-        #[arg(long)]
-        url: Option<String>,
-        /// v0.11: Source-paper authors as semicolon-separated list (distinct from --author which is the curating Vela actor)
-        #[arg(long)]
-        source_authors: Option<String>,
-        /// v0.11: Conditions/scope text. Replaces the placeholder otherwise written. Should describe scope boundaries (species, dosing, age range, model, etc.)
-        #[arg(long)]
-        conditions_text: Option<String>,
-        /// Output stable JSON
-        #[arg(long)]
-        json: bool,
-        /// Deprecated compatibility flag. Finding writes are proposal-only;
-        /// humans decide the pending proposal through `vela sign`.
-        #[arg(long, help = HELP_LEGACY_FINDING_APPLY)]
-        apply: bool,
-        /// v0.339: path to a replication_attestation JSON (e.g. emitted by
-        /// the mechinterp harness for a verified circuit claim). When set,
-        /// it rides in the pending finding.add payload as a sibling of
-        /// `finding`; it does not grant this legacy command decision authority.
-        #[arg(long)]
-        replication_attestation: Option<PathBuf>,
-    },
     /// v0.327: Read-only projection of one finding: assertion,
     /// evidence atoms, conditions, confidence with basis and
     /// actor-classified reviewed-state, typed links, and provenance.
@@ -1969,191 +1485,6 @@ pub(crate) enum FindingCommands {
         /// Emit stable JSON instead of the human view
         #[arg(long)]
         json: bool,
-    },
-    /// v0.14: Propose superseding an existing finding with a new
-    /// content-addressed claim. If the pending proposal is later signed, the
-    /// new finding gets its own `vf_…` id, an auto-injected `supersedes`
-    /// link points back at the old id, and the old finding is flagged
-    /// `superseded`. Both remain queryable.
-    Supersede {
-        /// Frontier JSON file or Vela repo
-        frontier: PathBuf,
-        /// `vf_…` id of the finding to supersede
-        old_id: String,
-        /// New assertion text (drives the new finding's content address)
-        #[arg(long)]
-        assertion: String,
-        /// New assertion type
-        #[arg(long, default_value = "mechanism")]
-        r#type: String,
-        /// Source label
-        #[arg(long, default_value = "manual finding")]
-        source: String,
-        /// Source type
-        #[arg(long, default_value = "expert_assertion")]
-        source_type: String,
-        /// Curating Vela actor id
-        #[arg(long)]
-        author: String,
-        /// Reason for the supersede (becomes the proposal/event reason)
-        #[arg(long)]
-        reason: String,
-        /// New confidence score 0.0..=1.0
-        #[arg(long, default_value = "0.5")]
-        confidence: f64,
-        /// New evidence type
-        #[arg(long, default_value = "experimental")]
-        evidence_type: String,
-        /// DOI of the source artifact
-        #[arg(long)]
-        doi: Option<String>,
-        /// Publication year
-        #[arg(long)]
-        year: Option<i32>,
-        /// Generic source URL
-        #[arg(long)]
-        url: Option<String>,
-        /// Source-paper authors (semicolon-separated)
-        #[arg(long)]
-        source_authors: Option<String>,
-        /// Conditions/scope text
-        #[arg(long)]
-        conditions_text: Option<String>,
-        #[arg(long)]
-        json: bool,
-        /// Deprecated compatibility flag. Always refused.
-        #[arg(long, help = HELP_LEGACY_FINDING_APPLY)]
-        apply: bool,
-    },
-    /// Propose attaching a lightweight note to a finding.
-    Note {
-        frontier: PathBuf,
-        finding_id: String,
-        #[arg(long)]
-        text: String,
-        #[arg(long)]
-        author: String,
-        #[arg(long, help = HELP_LEGACY_FINDING_APPLY)]
-        apply: bool,
-        #[arg(long)]
-        json: bool,
-    },
-    /// Propose attaching an explicit caveat to a finding.
-    Caveat {
-        frontier: PathBuf,
-        finding_id: String,
-        #[arg(long)]
-        text: String,
-        #[arg(long)]
-        author: String,
-        #[arg(long, help = HELP_LEGACY_FINDING_APPLY)]
-        apply: bool,
-        #[arg(long)]
-        json: bool,
-    },
-    /// Propose revising a finding's confidence interpretation.
-    Revise {
-        frontier: PathBuf,
-        finding_id: String,
-        #[arg(long)]
-        confidence: f64,
-        #[arg(long)]
-        reason: String,
-        #[arg(long = "as")]
-        reviewer: String,
-        #[arg(long, help = HELP_LEGACY_FINDING_APPLY)]
-        apply: bool,
-        #[arg(long)]
-        json: bool,
-    },
-    /// Propose marking a finding rejected without deleting it.
-    Reject {
-        frontier: PathBuf,
-        finding_id: String,
-        #[arg(long)]
-        reason: String,
-        #[arg(long = "as")]
-        reviewer: String,
-        #[arg(long, help = HELP_LEGACY_FINDING_APPLY)]
-        apply: bool,
-        #[arg(long)]
-        json: bool,
-    },
-    /// Propose a review verdict on a finding. `--status accepted` (the
-    /// default) does not establish it here; a human later decides the pending
-    /// proposal through `vela sign`.
-    Review {
-        frontier: PathBuf,
-        finding_id: String,
-        /// Proposed verdict: accepted (default) | contested | needs_revision.
-        #[arg(long, default_value = "accepted")]
-        status: String,
-        /// Optional note (accepts default silently; only a downgrade needs one).
-        #[arg(long, default_value = "reviewer accepted")]
-        reason: String,
-        /// Optionally set the finding's confidence in the same command — an
-        /// accept at >= 0.6 establishes it (below the fragile floor stays Fragile).
-        #[arg(long)]
-        confidence: Option<f64>,
-        #[arg(long = "as")]
-        reviewer: String,
-        #[arg(long, help = HELP_LEGACY_FINDING_APPLY)]
-        apply: bool,
-        #[arg(long)]
-        json: bool,
-    },
-    /// Propose a claim-granularity attribution: which actor originated,
-    /// derived, or formalized which unit of a finding. Descriptive provenance
-    /// only; it never changes confidence, review state, or the gate.
-    Contribution {
-        frontier: PathBuf,
-        finding_id: String,
-        /// The sub-claim reference: an evidence-span ref, a Lean decl name, or `whole`.
-        #[arg(long)]
-        unit: String,
-        /// evidence_span | lean_decl | step | whole
-        #[arg(long = "unit-type", default_value = "whole")]
-        unit_type: String,
-        /// human | agent | model
-        #[arg(long = "agent-kind")]
-        agent_kind: String,
-        /// ORCID, agent handle, or model id.
-        #[arg(long = "agent-id")]
-        agent_id: String,
-        #[arg(long)]
-        model: Option<String>,
-        #[arg(long = "model-version")]
-        model_version: Option<String>,
-        /// originated | derived | formalized | extracted | reviewed | vouched
-        #[arg(long)]
-        role: String,
-        /// Free text or an evidence-span reference backing the claim.
-        #[arg(long, default_value = "")]
-        basis: String,
-        #[arg(long = "as")]
-        actor: String,
-        #[arg(long, help = HELP_LEGACY_FINDING_APPLY)]
-        apply: bool,
-        #[arg(long)]
-        json: bool,
-    },
-    /// Propose retracting a finding.
-    Retract {
-        source: PathBuf,
-        finding_id: String,
-        #[arg(long)]
-        reason: String,
-        #[arg(long = "as")]
-        reviewer: String,
-        #[arg(long, help = HELP_LEGACY_FINDING_APPLY)]
-        apply: bool,
-        #[arg(long)]
-        json: bool,
-    },
-    /// Add typed links between findings.
-    Link {
-        #[command(subcommand)]
-        action: LinkAction,
     },
 }
 
@@ -2204,14 +1535,6 @@ pub(crate) enum ProposalAction {
         #[arg(long)]
         json: bool,
     },
-    /// Import pending proposal files into a frontier. Decided records require
-    /// a separately verified signed-authority/event import and are refused here.
-    Import {
-        frontier: PathBuf,
-        source: PathBuf,
-        #[arg(long)]
-        json: bool,
-    },
     /// Validate standalone proposal files or directories
     Validate {
         source: PathBuf,
@@ -2224,67 +1547,6 @@ pub(crate) enum ProposalAction {
         output: PathBuf,
         #[arg(long)]
         status: Option<String>,
-        #[arg(long)]
-        json: bool,
-    },
-    /// Accept and apply one proposal
-    Accept {
-        frontier: PathBuf,
-        proposal_id: String,
-        /// Reviewer actor id. Optional: defaults to your configured identity.
-        #[arg(long = "as", help = HELP_AS)]
-        reviewer: Option<String>,
-        #[arg(long)]
-        reason: String,
-        /// Path to the reviewer's Ed25519 private key. Optional: defaults to
-        /// your configured identity's key.
-        #[arg(long, help = HELP_KEY)]
-        key: Option<PathBuf>,
-        /// Confirm the exact semantic set after Vela renders it. Required for
-        /// mutation together with --confirm-root.
-        #[arg(long)]
-        yes: bool,
-        /// Exact Decision Plan root rendered by the prior scripted preview.
-        #[arg(long)]
-        confirm_root: Option<String>,
-        /// Exact RFC3339 observation instant echoed by the prior preview;
-        /// expires after the documented 15-minute review window.
-        #[arg(long)]
-        confirm_at: Option<String>,
-        #[arg(long)]
-        json: bool,
-    },
-    /// Reject one proposal
-    Reject {
-        /// Leave the signed decision uncommitted (publication stays manual).
-        #[arg(long)]
-        no_commit: bool,
-        /// Publish the commit locally but do not push.
-        #[arg(long)]
-        no_push: bool,
-        frontier: PathBuf,
-        proposal_id: String,
-        /// Reviewer actor id. Optional: defaults to your configured identity.
-        #[arg(long = "as", help = HELP_AS)]
-        reviewer: Option<String>,
-        #[arg(long)]
-        reason: String,
-        /// Path to the reviewer's Ed25519 private key. Optional: defaults to
-        /// your configured identity's key. A reject is a signed, append-only
-        /// event, so key custody is its authority just as for accept.
-        #[arg(long, help = HELP_KEY)]
-        key: Option<PathBuf>,
-        /// Confirm the exact semantic set after Vela renders it. Required for
-        /// mutation together with --confirm-root.
-        #[arg(long)]
-        yes: bool,
-        /// Exact Decision Plan root rendered by the prior scripted preview.
-        #[arg(long)]
-        confirm_root: Option<String>,
-        /// Exact RFC3339 observation instant echoed by the prior preview;
-        /// expires after the documented 15-minute review window.
-        #[arg(long)]
-        confirm_at: Option<String>,
         #[arg(long)]
         json: bool,
     },

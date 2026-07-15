@@ -1,8 +1,0 @@
-diff --git a/run.py b/run.py
-new file mode 100644
-index 0000000..1111111
---- /dev/null
-+++ b/run.py
-@@ -0,0 +1,2 @@
-+# OpenResearch-shaped fixture. This file is data for receipt emission.
-+print("producer activity, not Vela compute")

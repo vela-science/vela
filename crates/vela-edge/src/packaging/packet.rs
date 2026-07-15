@@ -1130,9 +1130,9 @@ mod tests {
                 "project_name": "test",
                 "description": "test packet",
                 "compiled_at": "2026-04-22T00:00:00Z",
-                "compiler": "vela/0.2.0",
-                "vela_version": "0.2.0",
-                "schema": "https://vela.science/schema/finding-bundle/v0.2.0"
+                "compiler": "vela/0.800.0",
+                "vela_version": "0.10.0",
+                "schema": "https://vela.science/schema/finding-bundle/v0.10.0"
             },
             "stats": {
                 "findings": 1,
@@ -1158,7 +1158,7 @@ mod tests {
         let trace = serde_json::json!({
             "trace_version": "0.1.0",
             "command": ["vela", "proof"],
-            "source": "frontiers/bbb-alzheimer.json",
+            "source": "frontiers/fixture.json",
             "source_hash": "a".repeat(64),
             "schema_version": "0.2.0",
             "checked_artifacts": [

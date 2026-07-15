@@ -23,8 +23,9 @@ use vela_protocol::receipt_v1::{
 // Reaching into the parent campaign checkout makes an otherwise valid public
 // clone and crates.io package fail at compile time.
 const DRIVER: &[u8] = include_bytes!("../resources/external_lean_sandbox.py");
-const ONRAMP: &[u8] = include_bytes!("../resources/diderot_lean_verifier.py");
-const RECEIPT_V1_PY: &[u8] = include_bytes!("../resources/receipt_v1.py");
+const ONRAMP: &[u8] = include_bytes!("../resources/external_lean_verifier.py");
+const RECEIPT_CORE_PY: &[u8] = include_bytes!("../resources/vela_receipt_v1.py");
+const RECEIPT_HARNESS_PY: &[u8] = include_bytes!("../resources/receipt_v1.py");
 const RECEIPT_JSON_PY: &[u8] = include_bytes!("../resources/receipt_json.py");
 const MAX_RESULT_BYTES: usize = 1024 * 1024;
 const MAX_REQUEST_BYTES: usize = 64 * 1024;
@@ -270,9 +271,10 @@ pub(crate) fn run_external_reproduction(request: &ExternalLeanPull<'_>) -> Resul
         .map_err(|error| format!("create installed external-Lean bundle: {error}"))?;
     let install_root = installation.path();
     let scripts = install_root.join("scripts");
-    let driver_path = scripts.join("diderot_lean_verifier.py");
+    let driver_path = scripts.join("external_lean_verifier.py");
     write_embedded(&driver_path, ONRAMP, true)?;
-    write_embedded(&scripts.join("receipt_v1.py"), RECEIPT_V1_PY, false)?;
+    write_embedded(&scripts.join("vela_receipt_v1.py"), RECEIPT_CORE_PY, false)?;
+    write_embedded(&scripts.join("receipt_v1.py"), RECEIPT_HARNESS_PY, false)?;
     write_embedded(&scripts.join("receipt_json.py"), RECEIPT_JSON_PY, false)?;
     write_embedded(
         &install_root
@@ -1047,7 +1049,13 @@ pub(crate) fn cmd_reproduce_external(
 /// Content identity of the complete installed producer bundle.
 pub fn embedded_onramp_root() -> String {
     let mut digest = Sha256::new();
-    for bytes in [ONRAMP, RECEIPT_V1_PY, RECEIPT_JSON_PY, DRIVER] {
+    for bytes in [
+        ONRAMP,
+        RECEIPT_CORE_PY,
+        RECEIPT_HARNESS_PY,
+        RECEIPT_JSON_PY,
+        DRIVER,
+    ] {
         digest.update((bytes.len() as u64).to_be_bytes());
         digest.update(bytes);
     }
@@ -1075,8 +1083,9 @@ mod tests {
         let resources = Path::new(env!("CARGO_MANIFEST_DIR")).join("resources");
         for (name, embedded) in [
             ("external_lean_sandbox.py", DRIVER),
-            ("diderot_lean_verifier.py", ONRAMP),
-            ("receipt_v1.py", RECEIPT_V1_PY),
+            ("external_lean_verifier.py", ONRAMP),
+            ("vela_receipt_v1.py", RECEIPT_CORE_PY),
+            ("receipt_v1.py", RECEIPT_HARNESS_PY),
             ("receipt_json.py", RECEIPT_JSON_PY),
         ] {
             let packaged = fs::read(resources.join(name))

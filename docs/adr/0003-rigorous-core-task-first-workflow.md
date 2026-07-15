@@ -3,28 +3,18 @@
 - Status: Accepted 2026-07-13. Approved by the user for implementation.
 - Scope: Vela substrate CLI, protocol plumbing, MCP exposure, and derived review
   projections.
-- Implementation state: The technical scaffold was implemented for Vela
-  `0.759.0` on 2026-07-14 and its macOS verifier cleanup and monitoring were
-  hardened in patch `0.759.1`. Patch `0.759.2` makes the installed verifier
-  bundle self-contained in the public crate after public-clone CI exposed a
-  parent-checkout dependency, and pins Git attribute resolution to the verified
-  target commit so exact publication never consults mutable worktree filters.
-  Patch `0.759.3` keeps the full Vela release contract deterministic and scopes
-  live or platform-pinned complementor checks to explicit compatibility runs.
-  Release `0.760.0` closes the one recognized pre-hardening policy format without
-  treating it as authority, makes its human-led replacement recoverable and
-  idempotent, carries pinned non-authorizing producer tasks through the existing
-  `next`/`work` path, routes task-first lease and attempt writes through the
-  shared recoverable frontier transaction, binds foundry deposits to a literal
-  agent identity without reading a profile decision key, adds a bounded testing
-  projection for AI-volume review pressure, and keeps the read-only doctor path
-  inside one async runtime. Patch `0.760.1` exposes exact accepted-event deltas
-  and work bindings on landing results, pins public verification to the
-  frontier lock, blocks strict trust debt by default, and adds the concise
-  outside-producer guide. Older maintenance, metadata, and
-  authority-administration writers remain serialized operator operations; this
-  release does not claim that all legacy writers are concurrent. None of these
-  patches changes the event or Receipt narrow waist.
+- Implementation state: Vela `0.800.0` is the deliberate prelaunch hard cut.
+  All ordinary producer results cross `next -> work -> land`; ordinary
+  truth-bearing review decisions cross `sign`; explicit policy-governance
+  ceremonies remain separate. Submission and decision installation use the
+  shared recoverable frontier transaction and exact Git publication path.
+  Alternate command writers,
+  compatibility aliases, duplicate distributions, mutable empty frontier
+  scaffolds, and obsolete schemas are removed instead of deprecated. The
+  unlaunched policy-compatibility path is removed completely: only current
+  policy IDs, bound signatures, and `vela.policy-lane.v2` are accepted. Event,
+  Receipt, and Lean decoders remain read-only only where tracked immutable bytes
+  require them. The Receipt and event narrow waist is unchanged.
   The human-ceremony, independent-producer, and independent-consumer acceptance
   gates below remain open. This ADR is an engineering decision record, not a
   signed scientific event or a substitute for a Vela policy decision.
@@ -79,7 +69,7 @@ and forensic detail?
 | [The UNIX Time-Sharing System](https://onlinelibrary.wiley.com/doi/abs/10.1002/j.1538-7305.1978.tb02136.x) | Compatible file, device, and inter-process I/O let many languages and small subsystems compose without one program owning the whole environment. | Use ordinary files, streams, digests, exit status, and versioned JSON at adapter boundaries. Do not require a Vela-native notebook, language, compute service, or presenter. |
 | [Internet architectural principles](https://www.rfc-editor.org/info/rfc1958/) and [the simplicity principle](https://www.rfc-editor.org/rfc/rfc3439.html) | A small spanning set, a hardware-independent inter-networking layer, end-to-end responsibility, modularity, and a minimalist waist supported unplanned applications at global scale. | Put domain intelligence and presentation at the edges. The waist carries references, evidence claims, proposed transitions, scoped authority, and replay, not a universal model of every science. |
 | [Linux userspace ABI discipline](https://www.kernel.org/doc/html/latest/admin-guide/abi.html) | Stable external interfaces are distinguished from testing and internal interfaces, allowing the implementation to change while applications retain a dependable contract. | Version and test Receipt v1, event replay, CLI JSON, and packet projections. Mark adapters experimental until real users depend on them; do not freeze internal Rust module boundaries as protocol. |
-| [Stripe idempotent requests](https://docs.stripe.com/api/idempotent_requests) and [Payment Intents](https://docs.stripe.com/payments/payment-intents) | Stripe makes a difficult regulated workflow usable through safe retries, one lifecycle-bearing intent per customer session, consistent errors, testing, and versioned APIs. The object retains failed attempts without permitting duplicate charges. | Make the common path one intent and one result, make retries exact, keep failed scientific attempts inspectable when deliberately deposited, and invest in fixtures and error quality. Do not copy Stripe's centralized authority model: Vela must remain forkable, offline, and plural in authority. |
+| [Stripe idempotent requests](https://docs.stripe.com/api/idempotent_requests) and [Payment Intents](https://docs.stripe.com/payments/payment-intents) | Stripe makes a difficult regulated workflow usable through safe retries, one lifecycle-bearing intent per customer session, consistent errors, testing, and versioned APIs. The object retains failed attempts without permitting duplicate charges. | Make the common path one intent and one result, make retries exact, keep failed scientific work inspectable as negative or partial Receipt v1 results with explicit caveats, and invest in fixtures and error quality. Do not copy Stripe's centralized authority model: Vela must remain forkable, offline, and plural in authority. |
 | [Amazon S3 object model](https://docs.aws.amazon.com/AmazonS3/latest/userguide/Welcome.html) | A small object interface became a substrate for unplanned applications. Its explicit boundary is equally useful: an update is atomic at one key, not across arbitrary keys, and a locator or ETag is not always an immutable content identity. | Keep content digest separate from retrieval locator, make one frontier the transaction unit, and do not invent distributed atomicity merely because one command can address several repositories. |
 | [OCI image and distribution specifications](https://github.com/opencontainers/image-spec) | A content-neutral registry protocol composes media type, size, digest, manifests, subjects, and referrers while runtimes remain separate. Multiple tools share the format without one engine owning execution. | Reuse digest, descriptor, and subject-style references at adapter boundaries. Let registries carry scientific artifacts when useful, but keep Vela acceptance and replay independent of any registry. |
 | [OpenTelemetry](https://opentelemetry.io/docs/) | A vendor-neutral instrumentation contract lets many runtimes emit correlated traces, metrics, and logs to replaceable backends. It succeeds by standardizing signals and context rather than one observability product. | Treat workbench and agent telemetry as upstream activity. Import only digest-bound, decision-relevant evidence and provenance; do not turn Vela into a trace warehouse. |
@@ -105,7 +95,7 @@ and forensic detail?
 | [LeanDojo v2](https://leandojo.org/leandojo.html) | Repository tracing turns Git-hosted Lean projects into proof-state, premise, and training data; a programmatic interaction layer lets many agents observe states and test tactics against the same proof environment. Its derived datasets and retrieval machinery can evolve independently of Lean's trusted kernel. | Let AI training, search trees, proof-state traces, and retrieval indexes remain high-volume activity and derived data. A Vela adapter should deposit selected results and exact roots at the boundary, not import the entire inner loop or make an agent framework authoritative. |
 | [Formal Conjectures](https://github.com/google-deepmind/formal-conjectures) | A living Git repository of open Lean statements tracks tagged mathlib releases, keeps potentially upstreamable definitions in a library-shaped area, and publishes immutable benchmark snapshots whose version changes when statements or formalizations change. It also states that a checked formal statement can still misrepresent the source conjecture. | Separate a fast-moving frontier from immutable evaluation snapshots. Pin language and library roots, preserve corrections as new versions, and expose semantic-faithfulness review separately from kernel checking. Mature reusable definitions should flow to their domain library rather than becoming Vela-owned. |
 | [AlphaEvolve](https://deepmind.google/blog/alphaevolve-a-gemini-powered-coding-agent-for-designing-advanced-algorithms/) and [AlphaProof](https://deepmind.google/blog/ai-solves-imo-problems-at-silver-medal-level/) | Evaluator-driven systems can run a rapid propose, execute, score, select loop over program databases and proof environments. Their strongest domains have cheap systematic checks, yet formal problem translation and final integration still require scarce human and domain judgment. | Optimize Vela around the boundary of a fast evaluator loop: pin the task and verifier, retain selected positive and informative negative checkpoints, route narrow exact classes by signed policy, and reserve people for semantic fidelity and exceptions. Do not append every search mutation to the authority log. |
-| [Diderot](https://projectdiderot.com/about) | An open-source mathematics preprint server requires authorship transparency and attaches human-issued certificates for tool disclosure, proof review, formal verification, and citation review. Its formal certificate separates machine checking from human judgments of statement and argument faithfulness. | Treat Diderot as a publication and attestation peer. Import or export papers, disclosures, repositories, comparator results, and scoped certificates with their issuer roles intact; do not collapse a Diderot certificate into Vela acceptance or rebuild its preprint server. |
+| [Diderot](https://projectdiderot.com/about) | This very early mathematics-publishing experiment explores authorship transparency and scoped certificates for tool disclosure, proof review, formal verification, and citation review. It is not a Vela partner, a robust external producer, or evidence of a stable contract or mature ecosystem. | Use it only as an exploratory design example. Do not make Diderot formats, availability, certificates, or workflows a Vela compatibility target, architectural validation, or release gate. Any future experiment must enter through the generic Receipt boundary and preserve issuer scope without implying Vela acceptance. |
 | [Leiden Declaration on Artificial Intelligence and Mathematics](https://leidendeclaration.ai/) | The IMU-endorsed declaration emphasizes tool and resource disclosure, attribution, independent verification, human responsibility for correctness, open science, community review, and public computational infrastructure. It warns that plausible automated arguments and formalizations can still be wrong or semantically unfaithful. | Make provenance, licensing, tool disclosure, references, formal versus informal scope, and human accountability inspectable. Keep significance, correctness, authorship norms, and ethical judgment outside automated Vela scoring. |
 | [RO-Crate](https://www.researchobject.org/ro-crate/specification.html) and [Software Heritage identifiers](https://www.softwareheritage.org/software-hash-identifier-swhid/) | Existing standards already describe research bundles and give archived source content-derived persistent references. | Support them as import, export, and immutable-content-locator adapters. Do not replace canonical Vela serialization, object IDs, or event replay with a general metadata graph. |
 | [Principles of Open Scholarly Infrastructure](https://openscholarlyinfrastructure.org/) | Durable shared infrastructure needs stakeholder governance, transparent operations, open source, open standards, data access within legal and ethical limits, preservation, and a credible exit path. | Put governance, sustainability, preservation, and a living-will plan on the project roadmap. Keep them out of scientific event semantics, but treat proprietary lock-in as an architectural risk. |
@@ -225,9 +215,11 @@ Several independent shifts now make this layer more timely:
 - Institutions increasingly need governed context, identity, data access,
   audit, and export. Those generic services can supply lower layers; Vela can
   remain focused on scientific transitions and scoped inheritance.
-- Diderot, the Leiden Declaration, and POSI point in the same social direction:
-  disclose tools and roles, preserve human responsibility and review, use open
-  infrastructure, and keep an exit path from any one provider.
+- Early experiments such as Diderot, together with the Leiden Declaration and
+  POSI, suggest a useful direction: disclose tools and roles, preserve human
+  responsibility and review, use open infrastructure, and keep an exit path
+  from any one provider. Only the latter two are mature enough to ground a
+  durable requirement; Diderot remains illustrative rather than validating.
 
 The counterwinds are equally important. Workbench vendors can add provenance;
 generic governance systems can own admission; rich semantic systems have
@@ -299,7 +291,7 @@ workflows compete above it. Vela should follow that shape.
 | Existing substrate | Git stores and transports bytes; Lean and other languages check domain artifacts; containers, workflow engines, object stores, notebooks, and archives execute or present work. | Vela composes these systems and records exact roots. It does not replace them. |
 | Vela kernel | Receipt v1, content references, proposals, signed-policy or human-signed events, deterministic replay, correction, and scoped inheritance. | Small, portable, backward-compatible, and sufficient from a clone. No model, hosted service, graph, or package index is in the trust path. |
 | Frontier kit | An ordinary Git tree containing a bounded problem, pinned dependencies, selected verifier instructions, task templates, examples, and domain guidance assembled from existing Vela contracts. | Packaging convention, not a new protocol object. A kit can fork, move, or disappear without changing receipt or event meaning. |
-| Complementors | Article machines, theorem provers, lab and workflow systems, OpenResearch, Diderot, graph and wiki tools, renderers, correction watchers, training pipelines, and hosted collaboration. | Replaceable producers and consumers. They use released read and write contracts and never acquire authority by integration. |
+| Complementors | Article machines, theorem provers, lab and workflow systems, reproduction tools, graph and wiki tools, renderers, correction watchers, training pipelines, and hosted collaboration. Early projects such as Diderot may be explored here without becoming dependencies. | Replaceable producers and consumers. They use released read and write contracts and never acquire authority by integration. |
 | Commons | Conformance fixtures, replay corpora, verifier honesty cases, immutable benchmark snapshots, interoperability examples, security advisories, governance, and preservation. | Openly forkable and independently runnable. A hosted hub may index the commons, but it may not become required for replay, acceptance, or export. |
 
 The unique edge over Git is narrow and testable. Git answers which bytes and
@@ -388,7 +380,7 @@ library, or the meaning of the mathematical statement.
 
 This ecosystem is working when independent producers and consumers shorten the
 loop without a kernel change: a new verifier can serve several frontiers; a
-new workbench can deposit the same receipt; a correction reaches dependent
+new workbench can land the same receipt; a correction reaches dependent
 work; a result becomes a reusable library contribution; an offline fork still
 works; and a tool the Vela maintainers did not design can build on an accepted
 root. Package count, generated output, and receipt volume are not ecosystem
@@ -502,25 +494,8 @@ Replay derives one linear head chain and fails closed on any ambiguity:
    event is staged.
 6. Rotation or revocation preserves only old-lane events already present in
    the successor head's exact causal prefix. A backdated or fully readdressed
-   old-policy event appended after supersession is not grandfathered and fails
+   old-policy event appended after supersession is outside that prefix and fails
    strict replay.
-
-Historical schema-less policy-lane bytes are a compatibility case, not a way
-to create new Permit authority. Only the first signed Activate head is the
-migration checkpoint: it may retain an exact historical event already present
-in its causal prefix. Strict replay may then recognize that exact immutable
-event under a typed historical audit result, but that path exposes no live
-verified policy and cannot stage or apply a new Permit. A later Rotate or
-Revoke cannot retroactively bless schema-less bytes appended after the first
-checkpoint, even though its exact prefix necessarily contains them.
-
-Before the first Activate confirmation, the reference ceremony enumerates the
-exact schema-less lane event IDs that would enter this audit-only checkpoint.
-It validates each frozen lane, binds the sorted ID set into the private
-recoverable ceremony intent, and rederives the same set under the frontier
-transaction barrier before reading the clock or key. A malformed lane or any
-display-to-sign set drift refuses the ceremony. Subsequent Rotate and Revoke
-ceremonies checkpoint no schema-less lanes.
 
 For new policy-lane events, every later use in this ADR of “signed Permit
 policy” is shorthand for the conjunction of two proofs: the policy snapshot
@@ -550,7 +525,7 @@ human-routed rather than claiming the lane can auto-admit them.
 | --- | --- |
 | Producer | The reference proposal path constructs `governance.policy_head`; the existing terminal human acceptance path emits its signed `review.accepted`. This is one first-party producer. |
 | Permit consumer | Policy-route staging and application require the verified active policy ID and head-chain epoch to match the current non-revoked signed head. The policy's internal epoch remains a separate rule-version field. |
-| Replay consumer | Strict replay derives the chain and verifies every new policy-lane event, plus exact historical checkpoint membership. |
+| Replay consumer | Strict replay derives the chain and verifies every `vela.policy-lane.v2` event against the current bound policy format. |
 | Operational consumer | Status and policy-selection porcelain may read `active.json`, but only to explain or select bytes; it cannot derive authority from that file. |
 
 These are useful separate code paths, but they are not independent ecosystem
@@ -583,10 +558,8 @@ The substrate already contains most of the clerk layer this ADR needs:
   already cover candidate and authority-bearing transitions.
 - Signed provenance already has generic `input_refs`; the attempt lease already
   supports same-owner refresh and a zero-second TTL.
-- `vela submit` builds and lands a receipt internally for the supported witness
-  path.
-- `vela land --claim --artifact --caveat` avoids a receipt file for a basic
-  landing.
+- `vela land --claim --artifact --caveat` builds the same Receipt v1 used by
+  external producers, then crosses the shared landing transaction.
 - `vela sign` is resumable, uses one final confirmation and one key read, and
   self-materializes and publishes signed decisions.
 - The sign queue is claim-first and already exposes artifacts, caveats,
@@ -833,7 +806,7 @@ The product has three jobs, not three new protocol layers:
 
 | Job | Default surface | Safe result |
 | --- | --- | --- |
-| Submit evidence | `next`, `work`, `reproduce`, `submit`, `land` | A durable receipt and proposal, routed by signed policy, with no manual protocol JSON on supported paths. |
+| Submit evidence | `next`, `work`, `reproduce`, `land` | A durable receipt and proposal, routed by signed policy, with no manual protocol JSON on supported paths. |
 | Understand a proposed change | `status`, `diff`, `sign --preview` | The same deterministic Decision Brief in human or JSON form, with no mutation and no key access. |
 | Decide and publish | `sign` | A reviewed internal Decision Plan is revalidated, signed once, materialized, committed, and pushed or left with an exact recovery command. |
 
@@ -849,7 +822,7 @@ but their cache output is never an input to signing or policy.
 
 ### 3. Make submission one recoverable transaction
 
-`land`, `submit`, MCP landing, and supported adapters call one submission
+`land`, MCP landing, and supported adapters call one submission
 service. Its state transaction includes receipt normalization, evidence
 registration, activity and proposal creation, policy and engine-gate results,
 an optional Permit event, and work-session close. Materialization and Git
@@ -1093,9 +1066,9 @@ audit snapshot is retained, Vela stores its canonical bytes as an ordinary
 content blob and cites its digest through the existing signed
 `Provenance.input_refs`. The root is inserted before event IDs and signatures
 are computed. The existing canonical event signature therefore covers the
-reference. The detached acceptance path extends its existing versioned
-`accept_preimage_bytes` with the same `decision_root`; it does not introduce a
-second signature protocol.
+reference. There is no detached acceptance protocol: the Decision Plan binds
+the root into the prepared `review.*` event before the existing canonical event
+signature is created.
 
 The successful order for one frontier is exact:
 
@@ -1242,9 +1215,9 @@ wall-time limits. Vela fails closed if no supported sandbox is available. The
 receipt records the sandbox backend, limits, source and toolchain pins, and any
 blocked capability attempt. It never claims `external_code_execution: false`.
 
-`vela submit` remains the one-command path where an adapter can safely verify,
-normalize, land, and bind evidence. New adapters must implement the same receipt
-builder and transactional landing contract, not bespoke state mutation.
+Adapters verify in their own domain, emit the portable Receipt v1, and call
+`vela land`. The built-in flag authoring path uses that same Receipt builder and
+transaction. There is no adapter-specific submit writer or publication pass.
 
 Useful failure is retained only deliberately. A producer may land a scoped
 negative or inconclusive receipt that records the attempted method, environment,
@@ -1347,13 +1320,9 @@ reuse or read the human scientific signing key.
 ### 11. Keep finalization off MCP
 
 No MCP profile may solicit a human verdict, read a human key, create a human
-signature, or finalize a truth-bearing proposal. The current `decide` exposure
-is removed from the maintainer profile.
-
-The `maintainer` MCP profile becomes a deprecated warning alias for the
-nonfinalizing `draft` profile. It does not retain a hidden capability difference.
-Callers that need broader read or producer tools must request those explicit
-capabilities; no profile name implies human authority.
+signature, or finalize a truth-bearing proposal. The `decide` exposure and the
+ambiguous `maintainer` profile are removed before launch. The only profiles are
+`read-only` and nonfinalizing `draft`; no profile name implies human authority.
 
 If a future integration needs to relay an already signed event, it must be a
 separately named, signature-verifying transport tool with no key access and no
@@ -1453,8 +1422,8 @@ ADR 0003 does not:
 - add a public receipt-draft schema, Workflow Projection schema, prepared-
   decision protocol, new artifact family, or attempt-release event;
 - add distributed cross-frontier transaction semantics;
-- add platform-specific OpenResearch, HEP, or Diderot kinds or mapping code to
-  the authority kernel;
+- add platform-specific OpenResearch, HEP, Diderot, or other producer kinds or
+  mapping code to the authority kernel;
 - add a top-level review command or a second signing surface;
 - add browser or MCP signing;
 - build the site projection before the CLI and JSON projection survive outside
@@ -1565,12 +1534,12 @@ landed incrementally so each trust-boundary change remains reviewable:
 
 Release verification covers the complete Rust workspace and lint surface; the
 Python, JavaScript, Rust, and decision-binding cross-implementation vectors;
-hostile and installed external-Lean fixtures; clean-clone and offline Git-bundle
-replay; the Diderot relay fixtures; the Atlas derived consumer; documentation
-and voice checks; and the registered 70-gate conformance union. These checks
-establish compatibility, replay, bounded rendering, safe retries, custody
-separation, and portable consumption. They do not establish scientific
-acceptance or ecosystem adoption.
+bounded installed-verifier fixtures; clean-clone and offline Git-bundle replay;
+derived-consumer contracts; documentation and voice checks; and the registered
+Vela conformance union. Exploratory producer-specific relays are deliberately
+outside that union. These checks establish compatibility, replay, bounded
+rendering, safe retries, custody separation, and portable consumption. They do
+not establish scientific acceptance or ecosystem adoption.
 
 The following program gates intentionally remain open:
 
@@ -1712,15 +1681,12 @@ The program is complete only when all of these hold:
 - Every new `vela.policy-lane.v2` Permit names the matching current signed
   policy-head event and epoch. Strict replay rejects a missing or mismatched
   head, fork, gap, stale causal prefix, pre-activation lane, and old-policy
-  event appended after rotation or revocation. An exact historical lane passes
-  only when the first signed Activate checkpoint already contains its event ID;
-  `active.json` alone never authorizes a write. A current Revoke closes Permit;
+  event appended after rotation or revocation. `active.json` alone never
+  authorizes a write. A current Revoke closes Permit;
   only its causally linked successor Rotate with a new, never-revoked policy ID
   may reopen the lane.
-- The first activation displays and transaction-binds every schema-less lane
-  it retains for audit compatibility; malformed or changed checkpoint sets
-  refuse before clock or key access. Generated Permit policies use causal
-  Rotate/Revoke validity rather than a misleading finite wall-clock window.
+- Generated Permit policies use causal Rotate/Revoke validity rather than a
+  misleading finite wall-clock window.
 - Any new Permit rule first passes historical replay and shadow mode, begins
   with complete audit, has sentinel cases and a kill switch, and reports false
   Permit, false Defer, semantic-fidelity error, reviewer minutes, and

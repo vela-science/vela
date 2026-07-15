@@ -332,7 +332,6 @@ fn build_genesis_event(name: &str, compiled_at: &str, creator: &str) -> crate::e
         }),
         caveats: vec![],
         signature: None,
-        schema_artifact_id: None,
     };
     event.id = crate::events::compute_event_id(&event);
     event

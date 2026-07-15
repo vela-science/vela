@@ -407,7 +407,7 @@ pub fn analyze(frontier: &Project, diagnostics: &[Value]) -> SignalReport {
                     "Active finding has no materialized evidence atom in the source-evidence map."
                         .to_string(),
                 recommended_action:
-                    "Attach explicit evidence spans (`vela finding add --evidence-span …`), or regenerate derived views with `vela frontier materialize`."
+                    "Land explicit evidence as Receipt v1, or regenerate derived views with `vela frontier materialize`."
                         .to_string(),
                 blocks: vec!["strict_check".to_string(), "proof_ready".to_string()],
                 caveats: vec![
@@ -667,7 +667,7 @@ pub fn analyze(frontier: &Project, diagnostics: &[Value]) -> SignalReport {
                     diffs.join("; ")
                 ),
                 recommended_action:
-                    "Regenerate finding.provenance from the canonical SourceRecord (re-add the source via `vela finding add`, or edit and re-materialize)."
+                    "Regenerate finding.provenance from the canonical SourceRecord by landing corrected provenance through Receipt v1, then re-materialize."
                         .to_string(),
                 blocks: vec!["strict_check".to_string(), "proof_ready".to_string()],
                 caveats: vec![
@@ -817,8 +817,7 @@ pub fn analyze(frontier: &Project, diagnostics: &[Value]) -> SignalReport {
                 "Pending {} proposal awaits a human key (`vela sign`).",
                 proposal.kind
             ),
-            recommended_action:
-                "Decide it in `vela sign` (or `vela proposals reject` with a reason).".to_string(),
+            recommended_action: "Decide it in `vela sign`.".to_string(),
             // Blocks NOTHING: a pending proposal is not active frontier
             // state (the caveat below) and therefore cannot be integrity
             // debt on the state that IS active. Pending review is the

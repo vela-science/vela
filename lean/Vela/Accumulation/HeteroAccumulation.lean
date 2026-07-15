@@ -23,7 +23,7 @@ Mathlib-free; compiles standalone (`lean Vela/HeteroAccumulation.lean`).
   concrete transfers, e.g. Sidon translation). This file proves the *accumulation* preserves
   verification given sound transfers; it does not re-prove any individual transfer's soundness.
 * A transfer imports the source's *current best* (`S src`); downward-closure of weaker levels is out of
-  scope. As elsewhere: constant-size proof carrying and adoption remain the unwillable parts (`docs/PCK.md`).
+  scope. Constant-size cryptographic proof carrying and adoption are also outside this model.
 -/
 
 namespace Vela.HeteroAccumulation

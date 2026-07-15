@@ -31,10 +31,8 @@
 //!
 //! `vela.policy-lane.v2` binds the signed-policy timestamp, decision instant,
 //! parent event ids/root, complete pre-state attachment set, receipt root,
-//! derived context, Engine verdict, and decision certificate. Historical v1
-//! lanes fail closed. One frozen schema-less shape remains audit-replayable
-//! only when its exact event ID precedes the first signed policy-head migration
-//! checkpoint; that typed audit lane cannot stage or apply new authority.
+//! derived context, Engine verdict, and decision certificate. All other lane
+//! shapes and policy-signature encodings fail strict replay.
 //!
 //! Finite wall-clock expiry is deliberately not an unsigned-event authority
 //! input: an attacker could backdate the event and recompute every content
@@ -44,7 +42,6 @@
 
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use sha2::{Digest, Sha256};
 use std::collections::{BTreeSet, HashMap, HashSet};
 use std::io::Read;
 use std::path::{Component, Path, PathBuf};
@@ -58,7 +55,7 @@ use crate::policy::acceptance_policy::{
     verify_policy_signature_bytes,
 };
 use crate::project;
-use crate::receipt_v1::{AttestationBinding, ReceiptV1};
+use crate::receipt_v1::ReceiptV1;
 use crate::verifier_attachment::{
     AttachmentOutcome, GateStatus, MethodIntegrity, claim_digest, derive_gate_status,
 };
@@ -72,8 +69,6 @@ use crate::repo;
 
 /// The payload key on a policy-lane accept event.
 pub const POLICY_LANE_PAYLOAD_KEY: &str = "policy_lane";
-/// Historical caller-supplied policy-lane stamp. Strict replay rejects it.
-pub const POLICY_LANE_SCHEMA_V1: &str = "vela.policy-lane.v1";
 /// Evidence-derived policy lane. Unlike v1, every decision-critical fact is
 /// rederived from retained public inputs and the exact causal pre-state.
 pub const POLICY_LANE_SCHEMA_V2: &str = "vela.policy-lane.v2";
@@ -137,32 +132,6 @@ pub struct PolicyHead {
     pub action: PolicyHeadAction,
     pub reviewed_at: String,
     pub parent_event_ids: Vec<String>,
-}
-
-/// Successful replay of the frozen, pre-v2 policy lane. This type is an audit
-/// verdict only: it intentionally contains neither [`VerifiedPolicy`] nor any
-/// method that can stage/apply a new Permit.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct HistoricalPolicyLane {
-    pub event_id: String,
-    pub policy_id: String,
-    pub certificate_id: String,
-    /// Signed causal checkpoint that grandfathered this exact event. `None`
-    /// means inspectable legacy evidence only, never strict-valid authority.
-    pub checkpoint_head_event_id: Option<String>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-struct HistoricalPolicyLaneStamp {
-    policy_id: String,
-    rule_ids: Vec<String>,
-    certificate: DecisionCertificate,
-    context: PolicyContext,
-}
-
-struct HistoricalPolicySnapshot {
-    policy: crate::policy::acceptance_policy::AcceptancePolicy,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -361,9 +330,6 @@ pub fn derive_submission_policy_context(
             != Some(finding.assertion.assertion_type.as_str())
     {
         return Err("retained receipt claim/type does not match the proposal finding".to_string());
-    }
-    if receipt.attestation_binding() != AttestationBinding::Bound {
-        return Err("legacy-unbound Receipt v1 cannot supply policy decision facts".to_string());
     }
     let emitted_at = receipt
         .as_value()
@@ -803,7 +769,6 @@ fn stage_policy_route_with_context_at(
     let policy_state = match snapshot.mode {
         ActivePolicyMode::Active => "active",
         ActivePolicyMode::StagedUnsigned => "staged_unsigned",
-        ActivePolicyMode::LegacyUnboundClosed => "legacy_unbound_closed",
         ActivePolicyMode::Absent => "closed",
     }
     .to_string();
@@ -851,19 +816,6 @@ fn stage_policy_route_with_context_at(
                     }
                 }
             }
-        }
-        _ if snapshot.mode == ActivePolicyMode::LegacyUnboundClosed => {
-            let legacy = snapshot
-                .legacy_unbound
-                .as_ref()
-                .expect("legacy mode must carry its audit observation");
-            (
-                None,
-                Some(format!(
-                    "legacy_unbound_signature_cannot_authorize: stored policy {} hardens to {}; rotate this audit-only pair before policy routing",
-                    legacy.stored_policy_id, legacy.hardened_policy_id
-                )),
-            )
         }
         _ => (None, None),
     };
@@ -1523,7 +1475,6 @@ pub fn prepare_policy_snapshot_files(
     )?;
     if reverified.signer_pubkey_hex != verified.signer_pubkey_hex
         || reverified.signed_at != verified.signed_at
-        || reverified.signed_at_bound != verified.signed_at_bound
     {
         return Err("active policy snapshot does not match its verified policy".to_string());
     }
@@ -1574,92 +1525,12 @@ pub fn verify_policy_lane_events(project: &project::Project, frontier_dir: &Path
         let Some(lane_value) = ev.payload.get(POLICY_LANE_PAYLOAD_KEY) else {
             continue;
         };
-        let result = match lane_value.get("schema") {
-            None => {
-                verify_grandfathered_historical_policy_lane(project, frontier_dir, ev, lane_value)
-                    .map(|_| ())
-            }
-            Some(_) => verify_policy_lane_event_v2(project, frontier_dir, ev, lane_value),
-        };
+        let result = verify_policy_lane_event_v2(project, frontier_dir, ev, lane_value);
         if let Err(error) = result {
             errors.push(format!("{}: {error}", ev.id));
         }
     }
     errors
-}
-
-/// Replay one frozen schema-less policy lane without creating live policy
-/// authority. New staging never calls this function.
-pub fn verify_historical_policy_lane_event(
-    frontier_dir: &Path,
-    event: &events::StateEvent,
-    lane_value: &serde_json::Value,
-) -> Result<HistoricalPolicyLane, String> {
-    if lane_value.get("schema").is_some() {
-        return Err("historical policy lane must be schema-less".to_string());
-    }
-    let lane: HistoricalPolicyLaneStamp = serde_json::from_value(lane_value.clone())
-        .map_err(|error| format!("historical policy_lane is malformed or open-ended: {error}"))?;
-    if serde_json::to_value(&lane)
-        .map_err(|error| format!("normalize historical policy_lane: {error}"))?
-        != *lane_value
-    {
-        return Err("historical policy_lane is not the exact frozen shape".to_string());
-    }
-    if event.id != events::event_id(event) {
-        return Err("historical policy_lane event id does not rederive".to_string());
-    }
-    if event.actor.id != format!("policy:{}", lane.policy_id) {
-        return Err("historical policy_lane actor does not match policy_id".to_string());
-    }
-    let historical = load_historical_policy_snapshot(frontier_dir, &lane.policy_id)?;
-    let mut evaluator_policy = historical.policy.clone();
-    evaluator_policy.id = evaluator_policy.content_address();
-    let decision = evaluate(&evaluator_policy, &lane.context, &event.timestamp);
-    if decision.outcome != Outcome::Permit {
-        return Err(format!(
-            "historical re-evaluation under {} yields {:?}, not permit ({})",
-            lane.policy_id,
-            decision.outcome,
-            decision.reasons.join(", ")
-        ));
-    }
-    if lane.rule_ids != decision.matched_rule_ids {
-        return Err("historical policy_lane rule_ids do not rederive".to_string());
-    }
-    if lane.certificate.policy_id != lane.policy_id || lane.certificate.outcome != Outcome::Permit {
-        return Err("historical policy_lane certificate is inconsistent".to_string());
-    }
-    Ok(HistoricalPolicyLane {
-        event_id: event.id.clone(),
-        policy_id: lane.policy_id,
-        certificate_id: lane.certificate.id,
-        checkpoint_head_event_id: None,
-    })
-}
-
-fn verify_grandfathered_historical_policy_lane(
-    project: &project::Project,
-    frontier_dir: &Path,
-    event: &events::StateEvent,
-    lane_value: &serde_json::Value,
-) -> Result<HistoricalPolicyLane, String> {
-    let mut historical = verify_historical_policy_lane_event(frontier_dir, event, lane_value)?;
-    let chain = derive_policy_head_chain(project)
-        .map_err(|error| format!("policy-head chain is invalid: {error}"))?;
-    // Only the first signed activation is the migration checkpoint. A later
-    // rotate/revoke necessarily parents intervening events too and must never
-    // retroactively bless a schema-less lane appended after strict authority
-    // was introduced.
-    let checkpoint = chain
-        .first()
-        .filter(|head| head.parent_event_ids.iter().any(|id| id == &event.id))
-        .ok_or_else(|| {
-            "historical policy_lane is inspectable but not grandfathered by a signed causal policy-head"
-                .to_string()
-        })?;
-    historical.checkpoint_head_event_id = Some(checkpoint.event_id.clone());
-    Ok(historical)
 }
 
 fn verify_policy_lane_event_v2(
@@ -1672,7 +1543,7 @@ fn verify_policy_lane_event_v2(
         .get("schema")
         .and_then(serde_json::Value::as_str)
         .ok_or_else(|| {
-            "policy_lane schema is required; legacy self-asserted lanes are not authoritative"
+            "policy_lane schema is required; strict replay accepts only vela.policy-lane.v2"
                 .to_string()
         })?;
     if schema != POLICY_LANE_SCHEMA_V2 {
@@ -1974,8 +1845,7 @@ fn verify_policy_lane_head_binding(
         && !successor.parent_event_ids.iter().any(|id| id == &event.id)
     {
         return Err(
-            "superseded policy_lane was not grandfathered in the successor head parent set"
-                .to_string(),
+            "superseded policy_lane is absent from the successor head parent set".to_string(),
         );
     }
     Ok(())
@@ -2271,81 +2141,6 @@ fn load_policy_snapshot(frontier_dir: &Path, policy_id: &str) -> Result<Verified
     )
 }
 
-fn legacy_policy_content_address(
-    policy: &crate::policy::acceptance_policy::AcceptancePolicy,
-) -> Result<String, String> {
-    let mut body = policy.clone();
-    body.id.clear();
-    let bytes = serde_json::to_vec(&body)
-        .map_err(|error| format!("serialize historical policy body: {error}"))?;
-    Ok(format!("vap_{}", &hex::encode(Sha256::digest(bytes))[..32]))
-}
-
-/// Frozen pre-v2 snapshot verifier. It accepts only the historical signature
-/// preimage (canonical policy bytes without signed_at) and returns a private
-/// audit-only wrapper, never `VerifiedPolicy`.
-fn load_historical_policy_snapshot(
-    frontier_dir: &Path,
-    policy_id: &str,
-) -> Result<HistoricalPolicySnapshot, String> {
-    if !policy_id.strip_prefix("vap_").is_some_and(|suffix| {
-        suffix.len() == 32
-            && suffix
-                .bytes()
-                .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
-    }) {
-        return Err(format!("invalid historical policy snapshot id {policy_id}"));
-    }
-    let policy = read_frontier_regular_file(
-        frontier_dir,
-        Path::new(&format!(".vela/policies/{policy_id}.json")),
-        1024 * 1024,
-        "historical policy snapshot",
-    )?;
-    let signature = read_frontier_regular_file(
-        frontier_dir,
-        Path::new(&format!(".vela/policies/{policy_id}.sig.json")),
-        1024 * 1024,
-        "historical policy snapshot signature",
-    )?;
-    let policy: crate::policy::acceptance_policy::AcceptancePolicy =
-        serde_json::from_slice(&policy)
-            .map_err(|error| format!("parse historical policy {policy_id}: {error}"))?;
-    if policy.id != policy_id || legacy_policy_content_address(&policy)? != policy_id {
-        return Err(format!(
-            "historical policy snapshot {policy_id}: legacy id does not rederive"
-        ));
-    }
-    let signature: crate::policy::acceptance_policy::PolicySignatureRecord =
-        serde_json::from_slice(&signature)
-            .map_err(|error| format!("parse historical policy signature: {error}"))?;
-    if signature.policy_id != policy_id {
-        return Err("historical policy signature names another policy".to_string());
-    }
-    let public_key: [u8; 32] = hex::decode(&signature.signer_pubkey_hex)
-        .map_err(|error| format!("decode historical policy public key: {error}"))?
-        .try_into()
-        .map_err(|_| "historical policy public key must be 32 bytes".to_string())?;
-    let signature_bytes: [u8; 64] = hex::decode(&signature.signature)
-        .map_err(|error| format!("decode historical policy signature: {error}"))?
-        .try_into()
-        .map_err(|_| "historical policy signature must be 64 bytes".to_string())?;
-    let verifying_key = ed25519_dalek::VerifyingKey::from_bytes(&public_key)
-        .map_err(|error| format!("historical policy public key is invalid: {error}"))?;
-    let body = crate::canonical::to_canonical_bytes(&policy)
-        .map_err(|error| format!("canonicalize historical policy: {error}"))?;
-    use ed25519_dalek::Verifier;
-    verifying_key
-        .verify(
-            &body,
-            &ed25519_dalek::Signature::from_bytes(&signature_bytes),
-        )
-        .map_err(|_| {
-            format!("historical policy snapshot {policy_id}: signature does not verify")
-        })?;
-    Ok(HistoricalPolicySnapshot { policy })
-}
-
 fn read_frontier_regular_file(
     frontier_dir: &Path,
     relative: &Path,
@@ -2518,31 +2313,6 @@ mod tests {
         policy.id = policy.content_address();
         let key = test_signing_key();
         let body = policy_signature_preimage(&policy, SIGNED_AT).unwrap();
-        let sig = key.sign(&body);
-        let pol_dir = dir.join(".vela").join("policies");
-        std::fs::create_dir_all(&pol_dir).unwrap();
-        std::fs::write(
-            pol_dir.join("active.json"),
-            serde_json::to_string_pretty(&policy).unwrap(),
-        )
-        .unwrap();
-        std::fs::write(
-            pol_dir.join("active.sig.json"),
-            serde_json::to_string_pretty(&PolicySignatureRecord {
-                policy_id: policy.id,
-                signer_pubkey_hex: hex::encode(key.verifying_key().to_bytes()),
-                signature: hex::encode(sig.to_bytes()),
-                signed_at: SIGNED_AT.to_string(),
-            })
-            .unwrap(),
-        )
-        .unwrap();
-    }
-
-    fn write_legacy_active_policy(dir: &Path, mut policy: AcceptancePolicy) {
-        policy.id = legacy_policy_content_address(&policy).unwrap();
-        let key = test_signing_key();
-        let body = crate::canonical::to_canonical_bytes(&policy).unwrap();
         let sig = key.sign(&body);
         let pol_dir = dir.join(".vela").join("policies");
         std::fs::create_dir_all(&pol_dir).unwrap();
@@ -2849,7 +2619,7 @@ mod tests {
             "2026-07-12T00:00:00Z",
         );
         let pid = proposal.id.clone();
-        super::super::create_or_apply(&dir, proposal, false).unwrap();
+        super::super::insert_pending_at_path(&dir, proposal).unwrap();
 
         // Human-sign the policy with a throwaway key (the test's "Will").
         write_active_policy(&dir, policy);
@@ -2941,111 +2711,6 @@ mod tests {
         frontier.events.push(event);
         project::recompute_stats(frontier);
         event_id
-    }
-
-    fn historical_schema_less_fixture(tmp: &TempDir) -> (std::path::PathBuf, String, String) {
-        let dir = tmp.path().to_path_buf();
-        crate::frontier_repo::initialize(
-            &dir,
-            crate::frontier_repo::InitOptions {
-                name: "historical-policy-lane-fixture",
-                template: "",
-                initialize_git: false,
-            },
-        )
-        .unwrap();
-        let mut frontier = repo::load_from_path(&dir).unwrap();
-        let key = test_signing_key();
-        frontier.actors.push(crate::sign::ActorRecord {
-            id: "reviewer:will".to_string(),
-            public_key: hex::encode(key.verifying_key().to_bytes()),
-            algorithm: "ed25519".to_string(),
-            created_at: "2026-07-01T00:00:00Z".to_string(),
-            tier: None,
-            orcid: None,
-            access_clearance: None,
-            revoked_at: None,
-            revoked_reason: None,
-        });
-        let frontier_id = frontier.frontier_id.as_deref().unwrap().to_string();
-        let mut legacy_policy = permitting_policy(&frontier_id);
-        legacy_policy.id = legacy_policy_content_address(&legacy_policy).unwrap();
-        let legacy_policy_id = legacy_policy.id.clone();
-        let policy_bytes = serde_json::to_vec_pretty(&legacy_policy).unwrap();
-        let signature_body = crate::canonical::to_canonical_bytes(&legacy_policy).unwrap();
-        let signature = PolicySignatureRecord {
-            policy_id: legacy_policy_id.clone(),
-            signer_pubkey_hex: hex::encode(key.verifying_key().to_bytes()),
-            signature: hex::encode(key.sign(&signature_body).to_bytes()),
-            signed_at: SIGNED_AT.to_string(),
-        };
-        let policy_dir = dir.join(".vela/policies");
-        std::fs::create_dir_all(&policy_dir).unwrap();
-        std::fs::write(
-            policy_dir.join(format!("{legacy_policy_id}.json")),
-            policy_bytes,
-        )
-        .unwrap();
-        std::fs::write(
-            policy_dir.join(format!("{legacy_policy_id}.sig.json")),
-            serde_json::to_vec_pretty(&signature).unwrap(),
-        )
-        .unwrap();
-
-        let context = permitting_ctx();
-        let mut evaluator_policy = legacy_policy.clone();
-        evaluator_policy.id = evaluator_policy.content_address();
-        let decision = evaluate(&evaluator_policy, &context, "2026-07-10T00:00:00Z");
-        assert_eq!(decision.outcome, Outcome::Permit);
-        let mut certificate = DecisionCertificate::build(
-            &decision,
-            &frontier_id,
-            "vpr_historical_fixture",
-            &format!("sha256:{}", "a".repeat(64)),
-            &format!("sha256:{}", "b".repeat(64)),
-            AuthorityMode::PolicyDelegation,
-            vec!["reviewer:will".to_string()],
-            "agent:frozen-fixture",
-            "assurance_level_a3",
-            3,
-            &format!("sha256:{}", "c".repeat(64)),
-            1,
-            false,
-        );
-        certificate.policy_id = legacy_policy_id.clone();
-        certificate.id = certificate.content_address();
-        let lane = HistoricalPolicyLaneStamp {
-            policy_id: legacy_policy_id.clone(),
-            rule_ids: decision.matched_rule_ids,
-            certificate,
-            context,
-        };
-        let legacy_event = events::new_finding_event(events::FindingEventInput {
-            kind: events::EVENT_KIND_ATTESTATION_RECORDED,
-            finding_id: "vf_historical_fixture",
-            actor_id: &format!("policy:{legacy_policy_id}"),
-            actor_type: events::actor_kind(&format!("policy:{legacy_policy_id}")),
-            reason: "frozen pre-v2 policy lane fixture",
-            before_hash: events::NULL_HASH,
-            after_hash: events::NULL_HASH,
-            payload: json!({(POLICY_LANE_PAYLOAD_KEY): lane}),
-            caveats: Vec::new(),
-            timestamp: Some("2026-07-10T00:00:00Z"),
-        });
-        let legacy_event_id = legacy_event.id.clone();
-        frontier.events.push(legacy_event);
-
-        let strict_policy = permitting_policy(&frontier_id);
-        append_signed_policy_head(
-            &mut frontier,
-            PolicyHeadAction::Activate,
-            Some(strict_policy.id),
-            "2026-07-11T00:00:00Z",
-            "2026-07-11T00:00:01Z",
-            "checkpoint exact retained historical events",
-        );
-        repo::save_to_path(&dir, &frontier).unwrap();
-        (dir, legacy_policy_id, legacy_event_id)
     }
 
     fn readdress_tampered_policy_event(
@@ -3265,7 +2930,31 @@ mod tests {
     }
 
     #[test]
-    fn rotate_or_revoke_grandfathers_only_preexisting_policy_lanes() {
+    fn policy_lane_without_v2_schema_is_a_strict_error() {
+        let tmp = TempDir::new().unwrap();
+        let (dir, pid) = seeded_frontier(&tmp);
+        accept_under_policy_at_path_at(&dir, &pid, &permitting_ctx(), "agent:prover", DECISION_AT)
+            .unwrap();
+        let mut frontier = repo::load_from_path(&dir).unwrap();
+        let lane = frontier
+            .events
+            .iter_mut()
+            .find_map(|event| event.payload.get_mut(POLICY_LANE_PAYLOAD_KEY))
+            .expect("permit event carries a policy lane")
+            .as_object_mut()
+            .expect("policy lane is an object");
+        lane.remove("schema");
+
+        let errors = verify_policy_lane_events(&frontier, &dir);
+        assert_eq!(errors.len(), 1, "{errors:?}");
+        assert!(
+            errors[0].contains("strict replay accepts only vela.policy-lane.v2"),
+            "{errors:?}"
+        );
+    }
+
+    #[test]
+    fn rotate_or_revoke_requires_successor_to_parent_preexisting_policy_lanes() {
         for action in [PolicyHeadAction::Rotate, PolicyHeadAction::Revoke] {
             let tmp = TempDir::new().unwrap();
             let (dir, pid) = seeded_frontier(&tmp);
@@ -3323,7 +3012,7 @@ mod tests {
             let errors = verify_policy_lane_events(&frontier, &dir);
             assert_eq!(errors.len(), 1, "{action:?}: {errors:?}");
             assert!(
-                errors[0].contains("superseded policy_lane was not grandfathered"),
+                errors[0].contains("superseded policy_lane is absent"),
                 "{action:?}: {errors:?}"
             );
         }
@@ -3687,67 +3376,9 @@ mod tests {
         );
     }
 
-    #[test]
-    fn frozen_schema_less_lane_is_byte_stable_only_when_exactly_checkpointed() {
-        let tmp = TempDir::new().unwrap();
-        let (dir, policy_id, event_id) = historical_schema_less_fixture(&tmp);
-        let frontier = repo::load_from_path(&dir).unwrap();
-        let event = frontier
-            .events
-            .iter()
-            .find(|event| event.id == event_id)
-            .unwrap();
-        let lane = event.payload.get(POLICY_LANE_PAYLOAD_KEY).unwrap();
-        assert!(lane.get("schema").is_none());
-        let policy_path = dir.join(format!(".vela/policies/{policy_id}.json"));
-        let signature_path = dir.join(format!(".vela/policies/{policy_id}.sig.json"));
-        let policy_before = std::fs::read(&policy_path).unwrap();
-        let signature_before = std::fs::read(&signature_path).unwrap();
-        let event_before = crate::canonical::to_canonical_bytes(event).unwrap();
-
-        let inspectable = verify_historical_policy_lane_event(&dir, event, lane).unwrap();
-        assert_eq!(inspectable.event_id, event_id);
-        assert!(inspectable.checkpoint_head_event_id.is_none());
-        let grandfathered =
-            verify_grandfathered_historical_policy_lane(&frontier, &dir, event, lane).unwrap();
-        assert!(grandfathered.checkpoint_head_event_id.is_some());
-        assert!(verify_policy_lane_events(&frontier, &dir).is_empty());
-        assert_eq!(std::fs::read(&policy_path).unwrap(), policy_before);
-        assert_eq!(std::fs::read(&signature_path).unwrap(), signature_before);
-        assert_eq!(
-            crate::canonical::to_canonical_bytes(event).unwrap(),
-            event_before
-        );
-
-        let mut forged = clone_project(&frontier);
-        let mut appended = event.clone();
-        appended.timestamp = "2026-07-12T00:00:00Z".to_string();
-        appended.reason = "appended after the signed checkpoint".to_string();
-        appended.id = events::event_id(&appended);
-        forged.events.push(appended);
-        let mut later_policy = permitting_policy(forged.frontier_id.as_deref().unwrap());
-        later_policy.epoch = 2;
-        later_policy.rules[0].id = "later-strict-policy-v2".to_string();
-        later_policy.id = later_policy.content_address();
-        append_signed_policy_head(
-            &mut forged,
-            PolicyHeadAction::Rotate,
-            Some(later_policy.id),
-            "2026-07-13T00:00:00Z",
-            "2026-07-13T00:00:01Z",
-            "later rotation must not bless appended legacy bytes",
-        );
-        let errors = verify_policy_lane_events(&forged, &dir);
-        assert_eq!(errors.len(), 1, "{errors:?}");
-        assert!(
-            errors[0].contains("inspectable but not grandfathered"),
-            "{errors:?}"
-        );
-    }
-
     #[cfg(unix)]
     #[test]
-    fn historical_policy_snapshot_symlink_is_rejected_without_following() {
+    fn policy_snapshot_symlink_is_rejected_without_following() {
         use std::os::unix::fs::symlink;
 
         let tmp = TempDir::new().unwrap();
@@ -3897,8 +3528,7 @@ mod tests {
         let errors = verify_policy_lane_events(&downgraded, &dir);
         assert_eq!(errors.len(), 1, "{errors:?}");
         assert!(
-            errors[0].contains("historical policy_lane is malformed")
-                || errors[0].contains("historical policy_lane is not the exact frozen shape"),
+            errors[0].contains("strict replay accepts only vela.policy-lane.v2"),
             "{errors:?}"
         );
 
@@ -3913,59 +3543,6 @@ mod tests {
         let errors = verify_policy_lane_events(&bad_link, &dir);
         assert_eq!(errors.len(), 1, "{errors:?}");
         assert!(errors[0].contains("applied_event_id"), "{errors:?}");
-    }
-
-    #[test]
-    fn legacy_lane_and_unbound_policy_signature_fail_closed() {
-        let tmp = TempDir::new().unwrap();
-        let (dir, pid) = seeded_frontier(&tmp);
-        let outcome = accept_under_policy_at_path_at(
-            &dir,
-            &pid,
-            &permitting_ctx(),
-            "agent:prover",
-            DECISION_AT,
-        )
-        .expect("permit lands");
-        let frontier_id = repo::load_from_path(&dir)
-            .unwrap()
-            .frontier_id()
-            .to_string();
-        write_legacy_active_policy(&dir, permitting_policy(&frontier_id));
-        let policy_dir = dir.join(".vela/policies");
-        std::fs::copy(
-            policy_dir.join("active.json"),
-            policy_dir.join(format!("{}.json", outcome.certificate.policy_id)),
-        )
-        .unwrap();
-        std::fs::copy(
-            policy_dir.join("active.sig.json"),
-            policy_dir.join(format!("{}.sig.json", outcome.certificate.policy_id)),
-        )
-        .unwrap();
-
-        let mut legacy = repo::load_from_path(&dir).unwrap();
-        let event = legacy
-            .events
-            .iter_mut()
-            .find(|event| event.payload.get(POLICY_LANE_PAYLOAD_KEY).is_some())
-            .unwrap();
-        let lane = event.payload[POLICY_LANE_PAYLOAD_KEY]
-            .as_object_mut()
-            .unwrap();
-        lane.remove("schema");
-        lane.remove("executor");
-        lane["certificate"]["id"] = json!("vdc_legacy_non_content_address");
-        readdress_tampered_policy_event(&mut legacy, &pid, false);
-
-        let errors = verify_policy_lane_events(&legacy, &dir);
-        assert_eq!(errors.len(), 1, "{errors:?}");
-        assert!(
-            errors[0].contains("historical policy_lane is malformed")
-                || errors[0].contains("historical policy_lane is not the exact frozen shape")
-                || errors[0].contains("signature does not verify"),
-            "{errors:?}"
-        );
     }
 
     #[test]
@@ -4170,57 +3747,6 @@ mod tests {
             policy.quorum.eligible_roles = vec!["steward".to_string()];
         });
         expect_authority_denial(&dir, &pid, "policy_head_inactive");
-    }
-
-    #[test]
-    fn legacy_unbound_policy_is_closed_pending_and_cannot_authorize_permit() {
-        let tmp = TempDir::new().unwrap();
-        let (dir, pid) = seeded_frontier(&tmp);
-        let frontier = repo::load_from_path(&dir).unwrap();
-        write_legacy_active_policy(
-            &dir,
-            permitting_policy(frontier.frontier_id.as_deref().unwrap()),
-        );
-        let error = crate::policy::acceptance_policy::load_active_policy(&dir)
-            .expect_err("legacy unbound signatures must fail closed");
-        assert!(
-            error.contains("legacy_unbound_signature_cannot_authorize"),
-            "{error}"
-        );
-        let snapshot = load_active_policy_snapshot(&dir).unwrap();
-        assert_eq!(snapshot.mode, ActivePolicyMode::LegacyUnboundClosed);
-        assert!(snapshot.verified.is_none());
-        let staged = stage_policy_route_with_context_at(
-            &dir,
-            &frontier,
-            &pid,
-            permitting_ctx(),
-            DECISION_AT,
-            &snapshot,
-        )
-        .unwrap();
-        assert_eq!(staged.policy_state(), "legacy_unbound_closed");
-        assert!(staged.decision().is_none());
-        assert!(
-            staged
-                .authority_error()
-                .is_some_and(|error| error.contains("cannot_authorize"))
-        );
-        let before =
-            crate::canonical::to_canonical_bytes(&repo::load_from_path(&dir).unwrap()).unwrap();
-        let refusal = accept_under_policy_at_path_at(
-            &dir,
-            &pid,
-            &permitting_ctx(),
-            "agent:prover",
-            DECISION_AT,
-        )
-        .expect_err("legacy signature cannot authorize Permit");
-        assert!(matches!(refusal, PolicyLaneRefusal::Closed), "{refusal}");
-        assert_eq!(
-            before,
-            crate::canonical::to_canonical_bytes(&repo::load_from_path(&dir).unwrap()).unwrap()
-        );
     }
 
     #[test]

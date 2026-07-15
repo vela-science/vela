@@ -1,44 +1,17 @@
 # Exit and export drill
 
-Status: executable technical drill. It proves transport and replay; it does not
-exercise a real human key or appoint a successor.
+Status: manual portability checklist. It checks standard Git transport and
+local replay; it does not exercise a real human key, certify a release, or
+appoint a successor.
 
 Vela's exit path uses standard Git. The canonical event log, proposals,
 receipts, public artifact bytes, schemas, and conformance fixtures remain
 ordinary repository files. Derived state and caches can be deleted and rebuilt.
 
-## Automated drill
+## Independent check
 
-From the parent integration repository:
-
-```bash
-./scripts/git-native-smoke.sh examples/sidon-sets
-```
-
-The drill creates disposable repositories and fake test keys only. It must:
-
-1. create clone A from the named frontier and land a current Receipt v1
-   pending;
-2. exercise decision installation only in a disposable fake-key fixture;
-3. export safe review material and a packet containing the derived decision
-   view;
-4. create a standard Git bundle, run `git bundle verify`, and record offered
-   refs, prerequisites, object format, bundle SHA-256, and exact Git version;
-5. create clone B from that bundle with network access denied;
-6. verify signatures and digests, replay the frontier, rebuild Decision Brief,
-   retain opaque restricted references without payload, recover accepted-parent
-   lineage, and build one child fixture from that root;
-7. create an incremental bundle, fetch it into the existing clone, and verify
-   the new root; and
-8. prove that a recipient without the prerequisite commit gets an explicit Git
-   prerequisite failure rather than weakened verification.
-
-The bundle is transport, not authority. A commit, clone, fetch, or successful
-bundle verification does not accept a scientific claim.
-
-## Manual independent check
-
-An independent operator should repeat the drill on a clean machine:
+An independent operator can check a frontier on a clean machine with ordinary
+Git and the pinned Vela binary:
 
 ```bash
 git bundle verify frontier.bundle
@@ -48,8 +21,15 @@ git fsck --full
 vela frontier materialize .
 vela reproduce .
 vela check . --strict --json
-vela packet validate path/to/packet
 ```
+
+Run the same commands twice and compare the event-log and snapshot roots. For
+an incremental transfer, create a second Git bundle from the newer ref, fetch
+it into the existing clone, and repeat the checks. A missing prerequisite must
+remain an explicit Git failure; do not substitute an unverified snapshot.
+
+The bundle is transport, not authority. A commit, clone, fetch, or successful
+bundle verification does not accept a scientific claim.
 
 Record:
 
@@ -98,7 +78,7 @@ reference and report the payload unavailable.
 
 ## Institutional remainder
 
-The automated drill does not satisfy POSI's living-will, preservation,
+This technical checklist does not satisfy POSI's living-will, preservation,
 succession, reserve, or patent commitments. A key-holding human and the future
 governing body must approve those policies and test an actual successor
 transfer before Vela can claim them.

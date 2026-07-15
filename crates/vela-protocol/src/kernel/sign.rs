@@ -14,9 +14,6 @@ use std::path::Path;
 use ed25519_dalek::{Signer, SigningKey, Verifier, VerifyingKey};
 use serde::{Deserialize, Serialize};
 
-use crate::project::Project;
-use crate::repo;
-
 /// A signed envelope wrapping a finding's cryptographic signature.
 ///
 /// Vestigial: retained so historical `Project.signatures` deserialize. The
@@ -43,7 +40,7 @@ pub struct SignedEnvelope {
 /// "placeholder reviewer" rejection from v0.3 only.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ActorRecord {
-    /// Stable, namespaced identifier (e.g. "reviewer:will-blair").
+    /// Stable, namespaced identifier (e.g. "reviewer:human-reviewer").
     pub id: String,
     /// Hex-encoded Ed25519 public key (64 hex chars = 32 bytes).
     pub public_key: String,
@@ -52,12 +49,9 @@ pub struct ActorRecord {
     pub algorithm: String,
     /// ISO 8601 timestamp of when the actor was registered.
     pub created_at: String,
-    /// Phase α (v0.6): trust tier permitting one-call auto-apply for a
-    /// restricted set of low-risk proposal kinds. The only tier defined
-    /// in v0.6 is `"auto-notes"`, which permits `propose_and_apply_note`.
-    /// Tier is never honored for state-changing kinds (review, retract,
-    /// confidence_revise, caveated). Pre-v0.6 actors load with `None`
-    /// and behave exactly as before.
+    /// Historical actor-tier metadata retained only so immutable records
+    /// continue to decode. Current constructors emit `None`; this field grants
+    /// no write or decision authority.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tier: Option<String>,
     /// v0.43: Optional ORCID identifier for cross-system identity.
@@ -73,12 +67,9 @@ pub struct ActorRecord {
     /// v0.51: Read-side access clearance. `None` (default) means
     /// public-only access. `Some(Restricted)` permits reading
     /// `Public` and `Restricted` tiered objects; `Some(Classified)`
-    /// permits all. Distinct from the v0.6 `tier` field above (which
-    /// gates write-side auto-apply). The two are intentionally
-    /// independent: an actor can have `tier: auto-notes` for fast
-    /// note application without any read clearance, or
-    /// `access_clearance: Classified` without any auto-apply
-    /// privilege. Pre-v0.51 actors load with `None` and behave
+    /// permits all. Unlike the historical `tier` field above, this is active
+    /// read-side policy; it never grants write or decision authority.
+    /// Pre-v0.51 actors load with `None` and behave
     /// exactly as before — the field is purely additive.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub access_clearance: Option<crate::access_tier::AccessTier>,
@@ -92,7 +83,7 @@ pub struct ActorRecord {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub revoked_at: Option<String>,
     /// v0.127: free-form reason for revocation (e.g. "key
-    /// compromised 2026-05-10", "rotated to reviewer:will-blair-v2").
+    /// compromised 2026-05-10", "rotated to reviewer:human-reviewer-v2").
     /// Display-only; the substrate does not parse this field.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub revoked_reason: Option<String>,
@@ -170,26 +161,6 @@ pub fn validate_orcid(s: &str) -> Result<String, String> {
 
 fn default_algorithm() -> String {
     "ed25519".to_string()
-}
-
-/// Phase α (v0.6): authorization predicate for one-call auto-apply.
-///
-/// Returns `true` iff the actor's tier explicitly permits auto-applying
-/// the given event kind without prior human review. Doctrine: tier
-/// permits review-context kinds only (annotations); never state-changing
-/// kinds (review verdicts, retractions, confidence revisions). Adding
-/// state-changing auto-apply requires a broader tier model with
-/// explicit doctrine review.
-///
-/// Currently recognized:
-///   - `tier="auto-notes"` + `kind="finding.note"` → `true`
-///   - everything else → `false`
-#[must_use]
-pub fn actor_can_auto_apply(actor: &ActorRecord, kind: &str) -> bool {
-    matches!(
-        (actor.tier.as_deref(), kind),
-        (Some("auto-notes"), "finding.note")
-    )
 }
 
 // ── Key generation ───────────────────────────────────────────────────
@@ -458,51 +429,6 @@ pub fn verify_action_signature(
     Ok(verifying_key.verify(signing_bytes, &signature).is_ok())
 }
 
-// ── Project-level operations ────────────────────────────────────────
-
-/// Sign all unsigned EVENTS whose registered human actor matches the given key.
-/// Returns the number of newly signed events.
-///
-/// The legacy per-finding signature lane (the v0.37 multi-sig `SignedEnvelope`
-/// machinery) was retired: the signed event log is the sole signing authority for
-/// new state. Existing finding envelopes remain as vestigial data and still
-/// verify, but nothing creates new ones, and the joint-accept / threshold quorum
-/// machinery is gone.
-pub fn sign_registered_events(
-    frontier_path: &Path,
-    private_key_path: &Path,
-) -> Result<usize, String> {
-    let mut frontier: Project = repo::load_from_path(frontier_path)?;
-
-    let signing_key = load_signing_key(private_key_path)?;
-    let our_pubkey_hex = hex::encode(signing_key.verifying_key().to_bytes());
-
-    let mut signed_count = 0usize;
-
-    let actor_ids_for_key: std::collections::HashSet<String> = frontier
-        .actors
-        .iter()
-        .filter(|actor| actor.public_key == our_pubkey_hex)
-        .map(|actor| actor.id.clone())
-        .collect();
-    if !actor_ids_for_key.is_empty() {
-        for event in &mut frontier.events {
-            if event.signature.is_some()
-                || event.actor.r#type != "human"
-                || !actor_ids_for_key.contains(&event.actor.id)
-            {
-                continue;
-            }
-            event.signature = Some(sign_event(event, &signing_key)?);
-            signed_count += 1;
-        }
-    }
-
-    repo::save_to_path(frontier_path, &frontier)?;
-
-    Ok(signed_count)
-}
-
 // ── Tests ────────────────────────────────────────────────────────────
 
 #[cfg(test)]
@@ -671,7 +597,6 @@ mod tests {
             payload: serde_json::json!({"status": "accepted", "proposal_id": "vpr_test"}),
             caveats: vec![],
             signature: None,
-            schema_artifact_id: None,
         };
         event.id = compute_event_id(&event);
         event.signature = Some(sign_event(&event, &key).unwrap());
@@ -717,7 +642,6 @@ mod tests {
             payload: serde_json::json!({"status": "accepted", "proposal_id": "vpr_test"}),
             caveats: vec![],
             signature: None,
-            schema_artifact_id: None,
         };
         event.id = compute_event_id(&event);
 
@@ -804,7 +728,6 @@ mod tests {
             payload,
             caveats: vec![],
             signature: None,
-            schema_artifact_id: None,
         };
         event.id = compute_event_id(&event);
         event.signature = Some(sign_event(&event, &human_key).unwrap());

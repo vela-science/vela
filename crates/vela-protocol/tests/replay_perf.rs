@@ -126,7 +126,6 @@ fn make_review_event(idx: usize, finding_id: &str) -> StateEvent {
         payload: json!({"status": "accepted"}),
         caveats: vec![],
         signature: None,
-        schema_artifact_id: None,
     }
 }
 

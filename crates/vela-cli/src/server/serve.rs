@@ -30,7 +30,7 @@ use super::http::{
 };
 use super::tools::{
     tool_external, tool_finding, tool_graph, tool_nanopublication, tool_objects, tool_orient,
-    tool_propose, tool_search, tool_verify, tool_work,
+    tool_search, tool_verify, tool_work,
 };
 pub enum ProjectSource {
     Single(PathBuf),
@@ -304,18 +304,11 @@ fn merge_projects(frontiers: Vec<(String, Project)>) -> Project {
     project
 }
 
-fn warn_if_deprecated_mcp_profile(profile: tool_registry::McpProfile) {
-    if let Some(warning) = profile.deprecation_warning() {
-        eprintln!("  warning: {warning}");
-    }
-}
-
 pub async fn run(
     source: ProjectSource,
     _backend: Option<&str>,
     profile: tool_registry::McpProfile,
 ) {
-    warn_if_deprecated_mcp_profile(profile);
     // No working-tree .env: serve runs inside cloned frontier checkouts
     // (see run_command's note on the injection class).
     let (frontier, project_infos) = load_projects(&source);
@@ -519,11 +512,6 @@ impl McpService {
         exclude: &[String],
     ) -> Result<(Self, Vec<String>), String> {
         let profile = tool_registry::McpProfile::parse(profile_str)?;
-        let warnings = profile
-            .deprecation_warning()
-            .into_iter()
-            .map(str::to_string)
-            .collect();
         if entries.is_empty() {
             return Err("no frontier projects to serve".to_string());
         }
@@ -554,7 +542,7 @@ impl McpService {
                 },
                 excluded: exclude.iter().cloned().collect(),
             },
-            warnings,
+            Vec::new(),
         ))
     }
 
@@ -593,7 +581,6 @@ pub async fn run_http(
     port: u16,
     profile: tool_registry::McpProfile,
 ) {
-    warn_if_deprecated_mcp_profile(profile);
     let _ = backend;
     // No working-tree .env: serve runs inside cloned frontier checkouts
     // (see run_command's note on the injection class).
@@ -626,12 +613,10 @@ pub async fn run_http(
         // stdio, so any remote MCP client can connect without a clone.
         .route("/mcp", post(http_mcp).get(http_mcp_get));
 
-    // v0.107.5: explicit request-body cap. Closes the integrity
-    // half of THREAT_MODEL.md A13 (resource exhaustion via large
-    // packets). axum's default body limit is 2MB; we raise to 8MB
-    // so a real Carina packet with several artifacts fits, then
-    // pin the limit explicitly so a future axum default change
-    // does not silently expose the surface. Localhost-only deploys
+    // Explicit request-body cap for THREAT_MODEL.md A13. Axum's default body
+    // limit is 2 MiB; 8 MiB accommodates ordinary MCP and Receipt envelopes
+    // while refusing unbounded inputs. Pin it so a future Axum default change
+    // cannot silently expose the surface. Localhost-only deploys
     // are bounded by this limit; remote deploys behind a reverse
     // proxy should layer rate limiting on top (the substrate does
     // not enforce per-actor or per-IP request budgets).
@@ -1119,11 +1104,6 @@ async fn execute_tool(
             (tool_graph(args, &project), Some(clone_project(&project)))
         }
         "verify" => (tool_verify(args, source_path), None),
-        "propose" => {
-            let result = tool_propose(args, frontier, source_path).await;
-            let snapshot = Some(clone_project(&*frontier.lock().await));
-            (result, snapshot)
-        }
         "work" => {
             let result = tool_work(args, source_path);
             match result {
@@ -1349,10 +1329,16 @@ mod mcp_service_tests {
         assert_eq!(envelope["ok"], false);
         assert_eq!(envelope["error"]["kind"], "NOT_FOUND");
 
-        // A write tool on a read-only profile → PERMISSION_DENIED.
-        let (_, body) = svc
+        // The hosted fixture excludes path-bound tools before the profile gate.
+        // Use the local MCP surface here so this assertion exercises the
+        // read-only profile's refusal of the task-first write tool itself.
+        let entries = vec![("erdos-formalization".to_string(), fixture())];
+        let (local_svc, warnings) = McpService::from_named_paths(&entries, "read-only", &[])
+            .expect("fixture frontier loads");
+        assert!(warnings.is_empty(), "unexpected warnings: {warnings:?}");
+        let (_, body) = local_svc
             .handle_http(
-                r#"{"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"propose","arguments":{}}}"#,
+                r#"{"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"work","arguments":{}}}"#,
             )
             .await;
         let text = body.unwrap()["result"]["content"][0]["text"]
@@ -1441,98 +1427,12 @@ mod mcp_service_tests {
     }
 
     #[tokio::test]
-    async fn registered_auto_notes_actor_gets_an_intentional_pending_result() {
-        use ed25519_dalek::SigningKey;
-        use vela_protocol::events::StateTarget;
-        use vela_protocol::sign::ActorRecord;
-
-        let temp = tempfile::tempdir().unwrap();
-        let path = temp.path().join("pending-auto-note");
-        let exemplar = repo::load_from_path(&fixture()).unwrap().findings[0].clone();
-        let target = exemplar.id.clone();
-        let key = SigningKey::from_bytes(&[0x5a; 32]);
-        let actor_id = "reviewer:auto-note-fixture";
-        let mut project = project::assemble("pending-auto-note", vec![exemplar], 0, 0, "test");
-        project.actors.push(ActorRecord {
-            id: actor_id.to_string(),
-            public_key: hex::encode(key.verifying_key().to_bytes()),
-            algorithm: "ed25519".to_string(),
-            created_at: "2026-07-14T00:00:00Z".to_string(),
-            tier: Some("auto-notes".to_string()),
-            orcid: None,
-            access_clearance: None,
-            revoked_at: None,
-            revoked_reason: None,
-        });
-        repo::init_repo(&path, &project).unwrap();
-        let frontier = Arc::new(Mutex::new(repo::load_from_path(&path).unwrap()));
-
-        let created_at = "2026-07-14T01:00:00Z";
-        let reason = "record review context without deciding it";
-        let text = "this note must wait for the human ceremony";
-        let proposal = vela_protocol::proposals::new_proposal_at(
-            "finding.note",
-            StateTarget {
-                r#type: "finding".to_string(),
-                id: target.clone(),
-            },
-            actor_id,
-            "human",
-            reason,
-            json!({"text": text}),
-            Vec::new(),
-            Vec::new(),
-            created_at,
-        );
-        let signature = vela_protocol::sign::sign_proposal(&proposal, &key).unwrap();
-        let (data, notes) = tool_propose(
-            &json!({
-                "kind": "apply_note",
-                "target": target,
-                "actor_id": actor_id,
-                "reason": reason,
-                "text": text,
-                "created_at": created_at,
-                "signature": signature,
-            }),
-            &frontier,
-            Some(&path),
-        )
-        .await
-        .unwrap();
-        assert!(notes.is_empty());
-        assert_eq!(data["status"], "pending_review");
-        assert!(data["applied_event_id"].is_null());
-
-        let stored = repo::load_from_path(&path).unwrap();
-        let stored_proposal = stored
-            .proposals
-            .iter()
-            .find(|candidate| candidate.id == proposal.id)
-            .expect("signed note proposal persisted");
-        assert_eq!(stored_proposal.status, "pending_review");
-        assert!(stored_proposal.applied_event_id.is_none());
-        assert!(
-            !stored
-                .events
-                .iter()
-                .any(|event| event.kind == "finding.noted"),
-            "a proposal signature must never become an unsigned note decision"
-        );
-    }
-
-    #[tokio::test]
     async fn finalization_is_absent_and_unroutable_in_every_profile() {
-        for profile in ["read-only", "draft", "maintainer"] {
+        for profile in ["read-only", "draft"] {
             let entries = vec![("erdos-formalization".to_string(), fixture())];
             let (svc, warnings) = McpService::from_named_paths(&entries, profile, &[])
                 .expect("fixture frontier loads");
-            if profile == "maintainer" {
-                assert_eq!(warnings.len(), 1, "legacy alias must emit a warning");
-                assert!(warnings[0].contains("alias for `draft`"));
-            } else {
-                assert!(warnings.is_empty(), "unexpected warnings: {warnings:?}");
-            }
+            assert!(warnings.is_empty(), "unexpected warnings: {warnings:?}");
 
             let (_, listed) = svc
                 .handle_http(r#"{"jsonrpc":"2.0","id":7,"method":"tools/list"}"#)

@@ -2814,7 +2814,6 @@ mod tests {
             payload: json!({}),
             caveats: vec![],
             signature: None,
-            schema_artifact_id: None,
         };
         event.id = vela_protocol::events::event_id(&event);
         event

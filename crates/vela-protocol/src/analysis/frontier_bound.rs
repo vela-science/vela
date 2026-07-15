@@ -5,8 +5,8 @@
 //! Today the Erdős atlas adapter (`atlas_adapters::read_erdos_deep`) folds each
 //! problem's `current_best` record into the free-text assertion. No consumer
 //! (foundry targets, attack ranking) can read it as a value-to-beat. This module
-//! gives the bound a typed shape that mirrors the Sidon producer's
-//! `frontiers/sidon-sets/bounds.json` (schema `vela.frontier-bounds.v1`):
+//! gives the bound a typed shape that mirrors a per-family records catalog
+//! (`frontiers/<family>/records.json`):
 //! a per-problem record with the bound prose, an optional parsed numeric value,
 //! a direction (lower/upper), and an `accepted` flag that is `false` until a
 //! human attests it.
@@ -20,8 +20,7 @@
 
 use serde::{Deserialize, Serialize};
 
-/// The schema tag written into a bounds sidecar, mirroring the Sidon producer's
-/// `frontiers/sidon-sets/bounds.json`.
+/// The schema tag written into a typed bounds sidecar.
 pub const FRONTIER_BOUNDS_SCHEMA: &str = "vela.frontier-bounds.v1";
 
 /// Which side of the open quantity the bound constrains.

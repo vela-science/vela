@@ -7,15 +7,15 @@ routes into frontier state.
 
 ```text
 source activity -> Receipt v1 bytes (sha256:<64>)
-                -> compatibility ActivityRecord (vrc_) + proposal
+                -> durable ActivityRecord (vrc_) + proposal
                 -> policy route -> Deny | Defer | signed-policy Permit
                 -> one recoverable frontier transaction -> derived state
 ```
 
 The raw Receipt v1 root and the `vrc_` identifier are deliberately different.
 The former is the full canonical Receipt byte root and names
-`records/receipts/sha256/<digest>.json`; the latter identifies the compatibility
-ActivityRecord that points at those bytes. Consumers must not substitute one
+`records/receipts/sha256/<digest>.json`; the latter identifies the durable
+landing record that points at those bytes. Consumers must not substitute one
 identity for the other.
 
 Everything before the receipt is production of evidence (an agent run, a
@@ -23,8 +23,8 @@ workflow, an eval, a proof). Everything after it is coordination over accepted,
 deferred, or contested scientific state. The receipt is the one control point in
 between, and the only input the landing path reads.
 
-A receipt does **not** imply verification. It can carry evidence and suggest
-verifier attachments, but it never sets gate status. That stays with the
+A receipt does **not** imply verification. It can carry evidence and state
+verification requirements, but it never authors an attachment or sets gate status. That stays with the
 verifier attachments (`vva_`) and the human key.
 
 ## The shape: `vela.receipt.v1`
@@ -32,16 +32,16 @@ verifier attachments (`vva_`) and the human key.
 The schema is versioned at
 [`docs/schemas/vela.receipt.v1.schema.json`](schemas/vela.receipt.v1.schema.json).
 External producers should validate against that file before handing a receipt to
-`vela land`. The tiny dependency-free emitter in
-[`tools/receipt-v0`](../tools/receipt-v0) is the reference cold-start tool for
-strangers: copy it outside this repo and run `python3 -m vela_receipt_v0`.
+`vela land`. The dependency-free production core and its command harness live
+in [`crates/vela-cli/resources`](../crates/vela-cli/resources) and are embedded
+byte-for-byte in the installed CLI. Copy `receipt_v1.py`,
+`vela_receipt_v1.py`, and `receipt_json.py` together for a cold-start emitter;
+there is no checkout-only second implementation.
 
-Receipt v1 keeps the released validity set. The schema has 15,458 bytes and
-SHA-256
-`369eed995d8a430a7d7b37e1431f04b01301b1c2789d541b3f4a32221088bf93`.
-`scripts/check-receipt-schema-sync.sh` compares every bundled schema copy with
-those exact bytes. Parsers reject duplicate object names before schema
-validation, including escaped names and names in the decoded DSSE payload.
+The schema in this prelaunch `0.800` candidate is canonical. There is no
+second frozen pre-ADR schema copy or promise to preserve an unpublished
+validity set. Parsers reject duplicate object names before schema validation,
+including escaped names and names in the decoded DSSE payload.
 
 ```jsonc
 {
@@ -78,8 +78,8 @@ validation, including escaped names and names in the decoded DSSE payload.
   reported `pass` remains A0 and cannot raise durable assurance. Only separate
   retained verifier attachments, evaluated by the gate, can do that.
 - **replayability** - see below.
-- **conditions / verification_requirements / state_diff** - the Carina-facing
-  typed handoff fields. They state what assumptions travel with the receipt,
+- **conditions / verification_requirements / state_diff** - typed handoff
+  fields. They state what assumptions travel with the receipt,
   what verifier or review work is still required, and what state change the
   producer believes the proposal would make. Landing records them as provenance;
   acceptance still requires the signed policy or a human key.
@@ -95,25 +95,24 @@ decision can add authority through its own signed object.
 
 ## Whole-receipt binding
 
-New emitters compute canonical JSON for the complete top-level receipt without
+Emitters compute canonical JSON for the complete top-level receipt without
 `attestation`. They place its lowercase SHA-256 digest at
 `attestation.statement.predicate["vela:receipt_body"].sha256`. Consumers check
 that root and compare the statement's subject, machine, acceptance,
 distillation, lineage, contributors, signature identities, and provenance with
-the receipt body.
-
-The read path classifies an older Receipt v1 without `vela:receipt_body` as
-`legacy_unbound`. A binding field that exists but has the wrong shape, digest,
-or body projection fails validation. Consumers must not upgrade a legacy
-unbound receipt to an authoritative claim.
+the receipt body. A missing, malformed, or stale binding fails validation.
 
 ## Landing is one write edge
 
 CLI flags, file import, MCP, and adapters converge on the same strict Receipt
 v1 parser and landing service. The service prepares the Receipt bytes, safe
-artifact projection, compatibility record, proposal, exact `PolicyContext`,
+artifact projection, durable landing record, proposal, exact `PolicyContext`,
 gate result, policy route, and materialized views before it crosses the commit
 marker.
+
+Atlas source adapters follow this boundary too: they emit their catalogue or
+graph output as Receipt v1 artifacts and call `vela land`; they never mint
+findings, anchors, or canonical events directly.
 
 - **Deny** returns before the marker and leaves no canonical Vela or Git delta.
 - **Defer** installs the pending proposal. This is the ordinary producer
@@ -133,22 +132,24 @@ route or authorization bytes.
 From outside this workspace:
 
 ```bash
-python3 -m vela_receipt_v0 emit \
+python3 receipt_v1.py emit \
   --claim "the scoped claim" \
   --artifact witnesses/w.json:witness \
   --caveat "Pending Vela landing and human acceptance." \
   --replayability exact \
   --out receipt.json
 
-python3 -m vela_receipt_v0 validate receipt.json
+python3 receipt_v1.py validate receipt.json
 ```
 
-The conformance gate runs
-[`scripts/stranger-first-write.sh`](../scripts/stranger-first-write.sh): it
-copies only the emitter into a temp directory, emits a receipt, replays the
-Sidon artifact with `vela reproduce`, lands into a temp copy of the Sidon
-frontier as `agent:scripted-stranger`, and asserts the proposal remains
-`pending_review`.
+The public conformance proof lives in
+[`crates/vela-cli/tests/task_first_workflows.rs`](../crates/vela-cli/tests/task_first_workflows.rs).
+It builds a signed Receipt v1 as an agent, lands it into an isolated Git
+frontier, and asserts that the route is deferred, the proposal remains
+`pending_review`, and every accepted-event byte is unchanged. The same suite
+also covers exact retries and clone portability. The proof therefore travels
+with the public protocol implementation instead of depending on a private
+workspace script or private frontier bytes.
 
 ## Replayability - honesty about re-execution
 
@@ -164,8 +165,9 @@ must say so rather than pretend. The field is a closed set:
 | `unavailable` | cannot be re-run; retained public bytes or immutable locators remain auditable, while restricted material may expose only an opaque custodian reference |
 | `unknown` | insufficient replay metadata (the default for a receipt that omits the field) |
 
-A value outside this set is rejected at land time. Absence defaults to `unknown`,
-so every pre-v0.748 receipt lands unchanged.
+A value outside this set or a missing value is rejected at land time. The
+neutral emitter writes `unknown` when the producer does not choose a more
+specific class.
 
 The class reaches the signed policy as `PolicyContext.replayability`. It is a
 **policy lever, not a gate lever**: the gate (G1-G5, derived from verifier
@@ -242,17 +244,16 @@ adversarial probe are what move a claim toward `Verified` - never a receipt or a
 single score on its own. A lone attachment is evidence ("attested by X"), not a
 reproduction.
 
-The **Inspect-AI adapter** is the first external attachment source: an Inspect
-eval log becomes a `vva_` bound to a claim digest, defaulted to
-`method_integrity: unattested` (an LLM-driven scorer is evidence, not a frozen
-exact verifier), so it cannot flip the gate to `Verified` alone. Not every
-Inspect score is admissible verification; the frontier policy decides.
+External evaluation logs, including Inspect-AI output, are producer activity.
+They enter Vela only through Receipt v1 and `vela land`; there is no separate
+attachment writer. A producer-reported evaluation remains provenance, not a
+frozen exact-verifier result, and cannot flip the gate to `Verified` alone.
 
 ## Adapter roadmap (documented, mostly deferred)
 
-The receipt boundary is intentionally the same for every source. One adapter is
-built (Inspect → verifier attachment). The rest are documented and follow a real
-producer, not built on spec:
+The receipt boundary is intentionally the same for every source. Optional
+producer adapters may shape source-native activity into Receipt v1; none is a
+second frontier writer. Candidate integrations follow real producers, not spec:
 
 - **Shepherd / OpenTelemetry** - agent execution trace → receipt `trace_refs`.
 - **Nextflow / Snakemake** - workflow run → receipt (inputs, outputs, env,

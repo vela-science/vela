@@ -33,7 +33,7 @@
 //!
 //! - This module only handles finding-level events. Replication
 //!   and prediction events are not yet mapped; that mapping rides
-//!   on a richer Carina-payload type system (target v0.85+).
+//!   on richer typed payloads.
 //! - The result is purely a function of the events passed in.
 //!   Callers control which events are in scope; this lets the
 //!   substrate compute the status under different review policies
@@ -125,7 +125,7 @@ where
             _ => {
                 // Other event kinds (span_repaired, etc.) do not
                 // change support polarity in v0.84. They may be
-                // wired in later cycles via Carina payload typing.
+                // wired in later cycles through typed payloads.
             }
         }
     }
@@ -386,7 +386,6 @@ mod tests {
             payload,
             caveats: vec![],
             signature: None,
-            schema_artifact_id: None,
         }
     }
 

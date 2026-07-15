@@ -1,0 +1,25 @@
+{
+  "schema": "vela.hub-source-catalog.v1",
+  "sources": [
+    {
+      "vfr_id": "vfr_0a25edabc16db143",
+      "git_remote": "https://github.com/vela-science/erdos-frontier",
+      "git_ref": "main"
+    },
+    {
+      "vfr_id": "vfr_97d7d25957384f80",
+      "git_remote": "https://github.com/vela-science/formal-conjectures-frontier",
+      "git_ref": "main"
+    },
+    {
+      "vfr_id": "vfr_001f148c07eebecb",
+      "git_remote": "https://github.com/vela-science/quantum-codes-frontier",
+      "git_ref": "main"
+    },
+    {
+      "vfr_id": "vfr_496956067dc5ad79",
+      "git_remote": "https://github.com/vela-science/sidon-frontier",
+      "git_ref": "main"
+    }
+  ]
+}

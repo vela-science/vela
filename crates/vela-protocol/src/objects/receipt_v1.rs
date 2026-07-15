@@ -189,18 +189,6 @@ impl fmt::Display for ReceiptV1Error {
 
 impl std::error::Error for ReceiptV1Error {}
 
-/// How much of a Receipt v1 is covered by its in-toto statement projection.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum AttestationBinding {
-    /// The in-toto statement carries the canonical root of every top-level
-    /// receipt field except `attestation` and its duplicated layers match.
-    Bound,
-    /// Historical Receipt v1 bytes predate the additive body-root binding.
-    /// They remain importable as producer evidence, but this state must never
-    /// be converted into verifier, identity, policy, or acceptance authority.
-    LegacyUnbound,
-}
-
 /// A validated Receipt v1 retaining the complete producer JSON value.
 ///
 /// This type intentionally does not implement `Deserialize`: a generic Serde
@@ -209,7 +197,6 @@ pub enum AttestationBinding {
 #[derive(Debug, Clone, PartialEq)]
 pub struct ReceiptV1 {
     value: Value,
-    body_binding: AttestationBinding,
 }
 
 impl ReceiptV1 {
@@ -243,7 +230,7 @@ impl ReceiptV1 {
         validate_limits(&value, limits)?;
         validate_portable_numeric_domain(&value, "$")?;
         validate_schema_exact(&value)?;
-        let body_binding = validate_semantics(&value, limits)?;
+        validate_semantics(&value, limits)?;
         let canonical = canonical_receipt_bytes(&value)?;
         if canonical.len() > limits.bytes {
             return Err(error(
@@ -255,10 +242,7 @@ impl ReceiptV1 {
                 ),
             ));
         }
-        Ok(Self {
-            value,
-            body_binding,
-        })
+        Ok(Self { value })
     }
 
     pub fn as_value(&self) -> &Value {
@@ -279,13 +263,6 @@ impl ReceiptV1 {
 
         canonical_receipt_bytes(&self.value)
             .map(|bytes| format!("sha256:{}", hex::encode(Sha256::digest(bytes))))
-    }
-
-    /// Whether this receipt uses the whole-body binding or the historical
-    /// statement-only envelope. Legacy receipts are importable evidence, but
-    /// must not be silently upgraded into verifier or acceptance authority.
-    pub fn attestation_binding(&self) -> AttestationBinding {
-        self.body_binding
     }
 
     /// Recheck the fail-closed public descriptor policy for restricted
@@ -1272,10 +1249,7 @@ fn validate_schema_exact(value: &Value) -> Result<(), ReceiptV1Error> {
 
 /// Shared semantic checks intentionally cover the stable trust-bearing waist,
 /// while the shipped JSON Schema and schema-sync gate own every open extension.
-fn validate_semantics(
-    value: &Value,
-    limits: ReceiptLimits,
-) -> Result<AttestationBinding, ReceiptV1Error> {
+fn validate_semantics(value: &Value, limits: ReceiptLimits) -> Result<(), ReceiptV1Error> {
     let receipt = object(value, "$")?;
     for field in RECEIPT_V1_REQUIRED_FIELDS {
         required(receipt, field, "$")?;
@@ -2128,7 +2102,7 @@ fn validate_bound_statement_projection(
 fn validate_attestation(
     receipt: &Map<String, Value>,
     limits: ReceiptLimits,
-) -> Result<AttestationBinding, ReceiptV1Error> {
+) -> Result<(), ReceiptV1Error> {
     let attestation = object(&receipt["attestation"], "$.attestation")?;
     if required(attestation, "format", "$.attestation")? != "in-toto-statement" {
         return Err(error("$.attestation.format", "must be in-toto-statement"));
@@ -2217,12 +2191,12 @@ fn validate_attestation(
             "does not encode attestation.statement",
         ));
     }
-    if predicate.contains_key(RECEIPT_BODY_BINDING_FIELD) {
-        validate_bound_statement_projection(receipt, statement)?;
-        Ok(AttestationBinding::Bound)
-    } else {
-        Ok(AttestationBinding::LegacyUnbound)
-    }
+    required(
+        predicate,
+        RECEIPT_BODY_BINDING_FIELD,
+        "$.attestation.statement.predicate",
+    )?;
+    validate_bound_statement_projection(receipt, statement)
 }
 
 /// Graded acceptance scope from the receipt's acceptance layer. This differs
@@ -2953,10 +2927,6 @@ mod tests {
 
     use crate::identity::{ActorClass, IdentityBinding, IdentityBindingDraft};
 
-    const FROZEN_PRE_ADR_SCHEMA: &[u8] =
-        include_bytes!("../../tests/fixtures/vela.receipt.v1.pre-adr.schema.json");
-    const FROZEN_PRE_ADR_SCHEMA_SHA256: &str =
-        "369eed995d8a430a7d7b37e1431f04b01301b1c2789d541b3f4a32221088bf93";
     type ReceiptMutation = (&'static str, Box<dyn Fn(&mut Value)>);
 
     fn identity(actor: &str) -> IdentityBinding {
@@ -3028,7 +2998,12 @@ mod tests {
     }
 
     fn schema() -> Value {
-        serde_json::from_slice(FROZEN_PRE_ADR_SCHEMA).unwrap()
+        let bytes = std::fs::read(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../docs/schemas/vela.receipt.v1.schema.json"
+        ))
+        .unwrap();
+        serde_json::from_slice(&bytes).unwrap()
     }
 
     fn refresh_payload_only(receipt: &mut Value) {
@@ -3075,7 +3050,6 @@ mod tests {
     #[test]
     fn builder_emits_complete_frozen_shape_without_authority_invention() {
         let receipt = build(Vec::new());
-        assert_eq!(receipt.attestation_binding(), AttestationBinding::Bound);
         let value = receipt.as_value();
         let schema = schema();
         let required: Vec<&str> = schema["required"]
@@ -3304,17 +3278,13 @@ mod tests {
     }
 
     #[test]
-    fn frozen_pre_adr_schema_bytes_and_digest_are_immutable() {
-        assert_eq!(
-            hex::encode(Sha256::digest(FROZEN_PRE_ADR_SCHEMA)),
-            FROZEN_PRE_ADR_SCHEMA_SHA256
-        );
-        let live = std::fs::read(concat!(
+    fn current_schema_accepts_the_protocol_builder() {
+        let schema = std::fs::read(concat!(
             env!("CARGO_MANIFEST_DIR"),
             "/../../docs/schemas/vela.receipt.v1.schema.json"
         ))
         .unwrap();
-        assert_eq!(live, FROZEN_PRE_ADR_SCHEMA);
+        assert!(!schema.is_empty());
         let receipt = build(Vec::new());
         validate_schema_exact(receipt.as_value()).unwrap();
     }
@@ -3331,11 +3301,10 @@ mod tests {
         raw["acceptance"]["x:external-certificates"] =
             json!([{"profile": "independent-review.v2", "certificate": {"opaque": true}}]);
         raw["lineage"]["derived_from"] = json!(["arxiv:2607.09195"]);
-        raw["attestation"]["statement"]["predicate"]["x:diderot"] = json!({"document": "diderot:article-machine", "sections": ["definition", "verification"]});
+        raw["attestation"]["statement"]["predicate"]["x:article-machine"] = json!({"document": "producer:article-machine", "sections": ["definition", "verification"]});
         refresh_bound_attestation(&mut raw);
 
         let parsed = ReceiptV1::parse(&serde_json::to_vec_pretty(&raw).unwrap()).unwrap();
-        assert_eq!(parsed.attestation_binding(), AttestationBinding::Bound);
         assert_ne!(
             initial_body,
             receipt_body_sha256(object(parsed.as_value(), "$").unwrap()).unwrap()
@@ -3783,19 +3752,18 @@ mod tests {
     }
 
     #[test]
-    fn legacy_statement_only_receipts_remain_importable_but_explicitly_unbound() {
+    fn statement_only_receipts_are_rejected() {
         let mut raw = build(Vec::new()).into_value();
         raw["attestation"]["statement"]["predicate"]
             .as_object_mut()
             .unwrap()
             .remove(RECEIPT_BODY_BINDING_FIELD);
         refresh_payload_only(&mut raw);
-        let parsed = ReceiptV1::parse(&serde_json::to_vec(&raw).unwrap()).unwrap();
+        let failure = ReceiptV1::parse(&serde_json::to_vec(&raw).unwrap()).unwrap_err();
         assert_eq!(
-            parsed.attestation_binding(),
-            AttestationBinding::LegacyUnbound
+            failure.path(),
+            "$.attestation.statement.predicate.vela:receipt_body"
         );
-        assert_eq!(parsed.as_value(), &raw);
     }
 
     #[test]

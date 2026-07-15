@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "vela-state"
-version = "0.337.0"
+version = "0.800.0"
 description = "Python loader, reducer, and verifier for Vela scientific frontier state. Cross-impl mirror of the Rust substrate."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -16,7 +16,6 @@ keywords = [
     "science",
     "version-control",
     "frontier",
-    "carina",
     "vela",
     "reproducibility",
     "provenance",
@@ -56,7 +55,6 @@ dev = [
 
 [tool.setuptools]
 py-modules = ["vela_loader", "vela_reducer", "vela_verify"]
-packages = ["vela_agent", "vela_agent.examples"]
 
 [tool.setuptools.package-data]
 "*" = ["*.md"]

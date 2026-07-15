@@ -10,6 +10,11 @@ This directory ships nine improved lower bounds, `a(8)` through `a(16)`, as
 They were the first external adoption of frontier state from this
 substrate: the bounds were approved into OEIS A309370 by an editor.
 
+This is a frozen-verifier example, not a Vela frontier or an authoring
+template: it contains witness inputs, not `.vela/events`. Accepted scientific
+state belongs in a standalone frontier Git repository; this directory only
+proves that the shipped verifier can re-derive the nine constructions.
+
 | n | this bound `a(n) ≥` | previous recorded |
 |---|---|---|
 | 8 | 33 | 32 |

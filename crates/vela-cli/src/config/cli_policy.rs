@@ -37,7 +37,7 @@ use vela_protocol::proposals::StateProposal;
 use vela_protocol::proposals::policy_accept::{
     CAUSALLY_UNBOUNDED_POLICY_EXPIRY, POLICY_HEAD_PROPOSAL_KIND, POLICY_HEAD_SCHEMA,
     POLICY_LANE_PAYLOAD_KEY, PolicyHead, PolicyHeadAction, PolicyHeadPayload, current_policy_head,
-    derive_policy_head_chain, verify_historical_policy_lane_event, verify_policy_lane_events,
+    verify_policy_lane_events,
 };
 use vela_protocol::repo;
 
@@ -413,58 +413,6 @@ fn seal_policy_with_issued_by(
             return Ok((staged, replaced_signed));
         }
     }
-    if replace && observed_snapshot.mode == ActivePolicyMode::StagedUnsigned {
-        let staged = read_sealed_active(frontier)?;
-        if staged.rules == rules {
-            let operation_id = legacy_rotation_operation_id(&staged.id);
-            if let Some(plan) = barrier
-                .completed_plan(&operation_id)
-                .map_err(transaction_error)?
-                && plan
-                    .result
-                    .get("schema")
-                    .and_then(serde_json::Value::as_str)
-                    == Some(LEGACY_POLICY_ROTATION_RESULT_SCHEMA)
-                && plan
-                    .result
-                    .get("replacement_policy_id")
-                    .and_then(serde_json::Value::as_str)
-                    == Some(staged.id.as_str())
-                && plan
-                    .result
-                    .get("request_fingerprint")
-                    .and_then(serde_json::Value::as_str)
-                    == Some(request_fingerprint.as_str())
-            {
-                return Ok((staged, true));
-            }
-        }
-    }
-    if observed_snapshot.mode == ActivePolicyMode::LegacyUnboundClosed {
-        let legacy = observed_snapshot
-            .legacy_unbound
-            .as_ref()
-            .expect("legacy mode carries its audit observation");
-        if !replace {
-            return Err(CmdError::hinted(
-                ErrorKind::Exists,
-                format!(
-                    "legacy-unbound policy {} is audit history only; refusing to overwrite its exact pair",
-                    legacy.stored_policy_id
-                ),
-                legacy_rotation_command(frontier, &legacy.policy),
-            ));
-        }
-        return replace_legacy_unbound_policy_transactional(
-            frontier,
-            barrier,
-            observed_snapshot,
-            rules,
-            issued_by,
-            request_fingerprint,
-        );
-    }
-
     let project =
         repo::load_from_path(frontier).map_err(|e| CmdError::new(ErrorKind::Domain, e))?;
 
@@ -559,8 +507,8 @@ fn seal_policy_with_issued_by(
 
 /// Install an ordinary policy draft as an event-neutral frontier transaction.
 /// Policy pointers are part of completed-history verification: changing them
-/// with direct file I/O would make a prior signing or legacy-rotation journal
-/// look corrupt at the next recovery barrier. Recording the exact preimage ->
+/// with direct file I/O would make a prior signing or draft journal look
+/// corrupt at the next recovery barrier. Recording the exact preimage ->
 /// postimage edge keeps those completed journals auditable and supersedable.
 fn install_policy_draft_transactional(
     frontier: &Path,
@@ -760,226 +708,6 @@ fn install_policy_draft(
     transaction.install()
 }
 
-/// Rotate the frozen pre-hardening active pair without ever promoting it to
-/// authority. The exact old bytes become audit snapshots, the mutable
-/// signature pointer is deleted, and a fresh canonical unsigned policy is
-/// built solely from the rules the operator selected. One frontier transaction
-/// makes the four path changes recoverable after a crash.
-fn replace_legacy_unbound_policy_transactional(
-    frontier: &Path,
-    barrier: crate::frontier_txn::FrontierRecoveryBarrier,
-    snapshot: ActivePolicySnapshot,
-    rules: Vec<PolicyRule>,
-    issued_by: Vec<String>,
-    request_fingerprint: crate::frontier_txn::ContentDigest,
-) -> Result<(AcceptancePolicy, bool), CmdError> {
-    use crate::frontier_txn::{
-        ContentDigest, DeltaDraft, FrontierBinding, FrontierTxn, FrontierTxnPlan,
-        FrontierTxnPlanSpec, InputBinding, OperationKind, PlannedWrite, RepoPath, WriteClass,
-    };
-
-    if snapshot.mode != ActivePolicyMode::LegacyUnboundClosed {
-        return Err(transaction_error(
-            "legacy active-policy pair changed before the rotation barrier",
-        ));
-    }
-    let legacy = snapshot
-        .legacy_unbound
-        .as_ref()
-        .expect("legacy mode carries its audit observation");
-    let old_policy_bytes = snapshot
-        .policy_bytes
-        .as_deref()
-        .expect("legacy mode carries policy bytes");
-    let old_signature_bytes = snapshot
-        .signature_bytes
-        .as_deref()
-        .expect("legacy mode carries signature bytes");
-    let project = repo::load_from_path(frontier).map_err(transaction_error)?;
-
-    let mut replacement = AcceptancePolicy {
-        schema: "vela.acceptance_policy.v0.1".to_string(),
-        id: String::new(),
-        frontier_id: project.frontier_id.clone().unwrap_or_default(),
-        epoch: legacy
-            .policy
-            .epoch
-            .checked_add(1)
-            .ok_or_else(|| transaction_error("legacy policy epoch overflow"))?,
-        issued_by,
-        quorum: Quorum {
-            threshold: 1,
-            eligible_roles: vec!["reviewer".to_string()],
-        },
-        rules,
-        default: Outcome::Defer,
-        expires_at: CAUSALLY_UNBOUNDED_POLICY_EXPIRY.to_string(),
-        revocation_ref: None,
-    };
-    replacement.id = replacement.content_address();
-    if !replacement.id_is_valid() {
-        return Err(transaction_error(
-            "fresh replacement policy id failed to rederive",
-        ));
-    }
-    let mut replacement_bytes = serde_json::to_vec_pretty(&replacement)
-        .map_err(|error| transaction_error(format!("serialize replacement policy: {error}")))?;
-    replacement_bytes.push(b'\n');
-
-    let old_policy_path = format!(".vela/policies/{}.json", legacy.stored_policy_id);
-    let old_signature_path = format!(".vela/policies/{}.sig.json", legacy.stored_policy_id);
-    require_exact_or_absent(frontier, &old_policy_path, old_policy_bytes)?;
-    require_exact_or_absent(frontier, &old_signature_path, old_signature_bytes)?;
-
-    let writes = vec![
-        PlannedWrite::write(
-            RepoPath::parse(old_policy_path.as_str()).map_err(transaction_error)?,
-            WriteClass::CanonicalEvidence,
-            old_policy_bytes.to_vec(),
-        ),
-        PlannedWrite::write(
-            RepoPath::parse(old_signature_path.as_str()).map_err(transaction_error)?,
-            // This historical signature is audit evidence, never authority.
-            WriteClass::CanonicalEvidence,
-            old_signature_bytes.to_vec(),
-        ),
-        PlannedWrite::write(
-            RepoPath::parse(".vela/policies/active.json").map_err(transaction_error)?,
-            WriteClass::CanonicalEvidence,
-            replacement_bytes,
-        ),
-        PlannedWrite::delete(
-            RepoPath::parse(".vela/policies/active.sig.json").map_err(transaction_error)?,
-            WriteClass::Authority,
-        ),
-    ];
-    let draft = DeltaDraft::prepare(frontier, writes).map_err(transaction_error)?;
-    let layout = vela_protocol::canonical::to_canonical_bytes(&json!({
-        "schema": "vela.frontier-layout.internal.v1",
-        "frontier_id": project.frontier_id(),
-        "paths": draft
-            .delta
-            .writes()
-            .iter()
-            .map(|write| write.path.as_str())
-            .collect::<Vec<_>>(),
-    }))
-    .map_err(transaction_error)?;
-    let intent = vela_protocol::canonical::to_canonical_bytes(&json!({
-        "schema": "vela.legacy-policy-rotation-intent.internal.v1",
-        "frontier_id": project.frontier_id(),
-        "stored_policy_id": legacy.stored_policy_id,
-        "hardened_policy_id": legacy.hardened_policy_id,
-        "replacement_policy_id": replacement.id,
-    }))
-    .map_err(transaction_error)?;
-    let request_root = ContentDigest::hash(intent);
-    let operation_id = legacy_rotation_operation_id(&replacement.id);
-    let event_log_root = ContentDigest::parse(format!(
-        "sha256:{}",
-        vela_protocol::events::event_log_hash(&project.events)
-    ))
-    .map_err(transaction_error)?;
-    let mut resulting_event_ids = project
-        .events
-        .iter()
-        .map(|event| event.id.clone())
-        .collect::<Vec<_>>();
-    resulting_event_ids.sort();
-    let read_set = vec![
-        InputBinding::project_snapshot(&project).map_err(transaction_error)?,
-        InputBinding::file_snapshot(
-            RepoPath::parse(".vela/policies/active.json").map_err(transaction_error)?,
-            Some(old_policy_bytes),
-        )
-        .map_err(transaction_error)?,
-        InputBinding::file_snapshot(
-            RepoPath::parse(".vela/policies/active.sig.json").map_err(transaction_error)?,
-            Some(old_signature_bytes),
-        )
-        .map_err(transaction_error)?,
-    ];
-    barrier
-        .verify_read_set(&read_set)
-        .map_err(transaction_error)?;
-    let plan = FrontierTxnPlan::new(
-        FrontierTxnPlanSpec {
-            kind: OperationKind::Maintenance,
-            operation_id,
-            request_root,
-            frontier: FrontierBinding::new(frontier, project.frontier_id(), &layout)
-                .map_err(transaction_error)?,
-            fixed_time: Utc::now().to_rfc3339(),
-            expected_event_log_root: event_log_root.clone(),
-            resulting_event_log_root: event_log_root,
-            resulting_event_ids,
-            read_set,
-            result: json!({
-                "schema": LEGACY_POLICY_ROTATION_RESULT_SCHEMA,
-                "state": "staged_unsigned",
-                "legacy_policy_id": legacy.stored_policy_id,
-                "replacement_policy_id": replacement.id,
-                "request_fingerprint": request_fingerprint,
-            }),
-        },
-        draft.delta.clone(),
-    )
-    .map_err(transaction_error)?;
-    let mut transaction =
-        FrontierTxn::prepare_with_barrier(barrier, plan, draft).map_err(transaction_error)?;
-    transaction.mark_committed().map_err(transaction_error)?;
-    install_legacy_policy_rotation(&mut transaction).map_err(transaction_error)?;
-    transaction.complete().map_err(transaction_error)?;
-
-    let installed = load_active_policy_snapshot(frontier).map_err(transaction_error)?;
-    if installed.mode != ActivePolicyMode::StagedUnsigned || active_sig_path(frontier).exists() {
-        return Err(transaction_error(
-            "completed legacy rotation did not leave one unsigned active draft",
-        ));
-    }
-    let installed_policy = read_sealed_active(frontier)?;
-    if installed_policy != replacement {
-        return Err(transaction_error(
-            "completed legacy rotation installed a different replacement policy",
-        ));
-    }
-    Ok((replacement, true))
-}
-
-#[cfg(test)]
-std::thread_local! {
-    static LEGACY_POLICY_ROTATION_INSTALL_FAILPOINT:
-        std::cell::Cell<Option<crate::frontier_txn::FrontierTxnStep>> = const {
-            std::cell::Cell::new(None)
-        };
-}
-
-#[cfg(test)]
-fn set_legacy_policy_rotation_install_failpoint(
-    step: Option<crate::frontier_txn::FrontierTxnStep>,
-) {
-    LEGACY_POLICY_ROTATION_INSTALL_FAILPOINT.with(|failpoint| failpoint.set(step));
-}
-
-fn install_legacy_policy_rotation(
-    transaction: &mut crate::frontier_txn::FrontierTxn,
-) -> Result<(), crate::frontier_txn::FrontierTxnError> {
-    #[cfg(test)]
-    if let Some(step) = LEGACY_POLICY_ROTATION_INSTALL_FAILPOINT.with(std::cell::Cell::take) {
-        return transaction.install_at_failpoint(step);
-    }
-    transaction.install()
-}
-
-const LEGACY_POLICY_ROTATION_RESULT_SCHEMA: &str = "vela.legacy-policy-rotation-result.internal.v1";
-
-fn legacy_rotation_operation_id(replacement_policy_id: &str) -> crate::frontier_txn::OperationId {
-    crate::frontier_txn::OperationId::derive(
-        "legacy-policy-rotation",
-        replacement_policy_id.as_bytes(),
-    )
-}
-
 fn require_exact_or_absent(
     frontier: &Path,
     relative: &str,
@@ -989,12 +717,12 @@ fn require_exact_or_absent(
     match std::fs::read(&path) {
         Ok(existing) if existing == expected => Ok(()),
         Ok(_) => Err(transaction_error(format!(
-            "audit snapshot {} already exists with different bytes",
+            "policy snapshot {} already exists with different bytes",
             path.display()
         ))),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
         Err(error) => Err(transaction_error(format!(
-            "read audit snapshot {}: {error}",
+            "read policy snapshot {}: {error}",
             path.display()
         ))),
     }
@@ -1259,7 +987,6 @@ fn policy_ceremony_identity(
     expected_policy_id: &str,
     actor: &str,
     reason: &str,
-    legacy_checkpoint_event_ids: &[String],
 ) -> Result<
     (
         crate::frontier_txn::ContentDigest,
@@ -1275,7 +1002,6 @@ fn policy_ceremony_identity(
         "expected_policy_id": expected_policy_id,
         "actor": actor,
         "reason": reason,
-        "legacy_checkpoint_event_ids": legacy_checkpoint_event_ids,
     });
     let bytes = vela_protocol::canonical::to_canonical_bytes(&intent).map_err(transaction_error)?;
     let request_root = ContentDigest::hash(bytes);
@@ -1445,7 +1171,7 @@ fn commit_policy_head_transaction(
     let mut candidate: Project =
         serde_json::from_value(serde_json::to_value(original).map_err(transaction_error)?)
             .map_err(transaction_error)?;
-    vela_protocol::proposals::create_or_apply_in_frontier(&mut candidate, proposal, false)
+    vela_protocol::proposals::insert_pending_in_frontier(&mut candidate, proposal)
         .map_err(transaction_error)?;
     let head_event_id = vela_protocol::proposals::accept_policy_head_proposal_in_frontier_at(
         &mut candidate,
@@ -1541,7 +1267,6 @@ fn sign_active_policy_transactional<C, K>(
     frontier: &Path,
     actor: &str,
     expected_policy_id: &str,
-    expected_legacy_checkpoint_event_ids: &[String],
     clock: C,
     load_key: K,
 ) -> Result<(AcceptancePolicy, PolicySignatureRecord, PolicyHead), CmdError>
@@ -1554,20 +1279,12 @@ where
     const REASON: &str = "activate signed acceptance policy";
     let journal_dir = policy_transaction_journal_dir(frontier)?;
     let observed = repo::load_from_path(frontier).map_err(transaction_error)?;
-    let observed_legacy_checkpoint_event_ids =
-        policy_sign_legacy_checkpoint_event_ids(&observed, frontier, expected_policy_id)?;
-    if observed_legacy_checkpoint_event_ids != expected_legacy_checkpoint_event_ids {
-        return Err(transaction_error(
-            "displayed legacy checkpoint set changed before the signing ceremony",
-        ));
-    }
     let (request_root, operation_id) = policy_ceremony_identity(
         &observed.frontier_id(),
         "sign",
         expected_policy_id,
         actor,
         REASON,
-        expected_legacy_checkpoint_event_ids,
     )?;
     if let Some(result) =
         resume_policy_ceremony(frontier, &journal_dir, &operation_id, &request_root)?
@@ -1598,13 +1315,6 @@ where
     let barrier =
         FrontierTxn::acquire_recovery_barrier(frontier, &journal_dir).map_err(transaction_error)?;
     let original = repo::load_from_path(frontier).map_err(transaction_error)?;
-    if policy_sign_legacy_checkpoint_event_ids(&original, frontier, expected_policy_id)?
-        != expected_legacy_checkpoint_event_ids
-    {
-        return Err(transaction_error(
-            "legacy checkpoint set changed before the signing barrier",
-        ));
-    }
     let policy = read_sealed_active(frontier)?;
     if policy.id != expected_policy_id {
         return Err(transaction_error(format!(
@@ -1749,7 +1459,6 @@ where
         expected_policy_id,
         actor,
         reason,
-        &[],
     )?;
     if let Some(result) =
         resume_policy_ceremony(frontier, &journal_dir, &operation_id, &request_root)?
@@ -2008,84 +1717,8 @@ fn lane_admissions(project: &Project) -> Vec<Admission> {
         .collect()
 }
 
-/// Exact schema-less policy lanes a first signed activation will retain as
-/// audit-only migration history. The set is shown before confirmation and
-/// rederived under the transaction barrier before the key is read. After a
-/// completed first activation, derive the same set from that head's frozen
-/// parent prefix so crash recovery keeps the same ceremony identity.
-fn policy_sign_legacy_checkpoint_event_ids(
-    project: &Project,
-    frontier: &Path,
-    selected_policy_id: &str,
-) -> Result<Vec<String>, CmdError> {
-    let chain = derive_policy_head_chain(project).map_err(transaction_error)?;
-    let checkpoint_parent_ids = match chain.last() {
-        None => None,
-        Some(head)
-            if head.action == PolicyHeadAction::Activate
-                && head.policy_id.as_deref() == Some(selected_policy_id) =>
-        {
-            Some(
-                head.parent_event_ids
-                    .iter()
-                    .cloned()
-                    .collect::<BTreeSet<_>>(),
-            )
-        }
-        Some(_) => return Ok(Vec::new()),
-    };
-    let mut event_ids = Vec::new();
-    for event in &project.events {
-        if checkpoint_parent_ids
-            .as_ref()
-            .is_some_and(|parents| !parents.contains(&event.id))
-        {
-            continue;
-        }
-        let Some(lane) = event.payload.get(POLICY_LANE_PAYLOAD_KEY) else {
-            continue;
-        };
-        if lane.get("schema").is_some() {
-            continue;
-        }
-        verify_historical_policy_lane_event(frontier, event, lane).map_err(|error| {
-            transaction_error(format!(
-                "legacy policy lane {} cannot be checkpointed: {error}",
-                event.id
-            ))
-        })?;
-        event_ids.push(event.id.clone());
-    }
-    event_ids.sort();
-    Ok(event_ids)
-}
-
 fn policy_has_causal_auto_permit(policy: &AcceptancePolicy) -> bool {
     policy.expires_at == CAUSALLY_UNBOUNDED_POLICY_EXPIRY
-}
-
-fn matching_template(policy: &AcceptancePolicy) -> Option<&'static str> {
-    [
-        "witness-rederivation",
-        "lean-rederivation",
-        "statement-drafts",
-        "search-witness",
-        "notes-threshold",
-    ]
-    .into_iter()
-    .find(|template| {
-        template_policy(template)
-            .map(|(rules, _)| rules == policy.rules)
-            .unwrap_or(false)
-    })
-}
-
-pub(crate) fn legacy_rotation_command(frontier: &Path, policy: &AcceptancePolicy) -> String {
-    let template = matching_template(policy).unwrap_or("<template>");
-    format!(
-        "vela policy draft {template} {} --replace",
-        frontier.display()
-    )
 }
 
 // ── Rendering ──────────────────────────────────────────────────────────
@@ -2210,10 +1843,7 @@ pub(crate) fn cmd_policy_show(frontier: &Path, json: bool) {
             Some("inspect the exact active policy bytes; invalid governance never fails open"),
         )
     });
-    let legacy = snapshot.legacy_unbound.as_ref();
-    let policy = legacy
-        .map(|observation| observation.policy.clone())
-        .unwrap_or_else(|| read_sealed_active(frontier).unwrap_or_else(|e| e.fail()));
+    let policy = read_sealed_active(frontier).unwrap_or_else(|e| e.fail());
     let sig_present = snapshot.signature_bytes.is_some();
     let signed = snapshot.verified.clone();
     let record: Option<PolicySignatureRecord> = if sig_present {
@@ -2238,9 +1868,7 @@ pub(crate) fn cmd_policy_show(frontier: &Path, json: bool) {
         .collect();
     let last: Vec<&Admission> = mine.iter().rev().take(5).rev().copied().collect();
 
-    let state = if legacy.is_some() {
-        "legacy_unbound_closed"
-    } else if signed.is_some() {
+    let state = if signed.is_some() {
         "signed"
     } else if revoked {
         "revoked"
@@ -2254,18 +1882,11 @@ pub(crate) fn cmd_policy_show(frontier: &Path, json: bool) {
             "command": "policy.show",
             "state": state,
             "expired": expired,
-            "auto_permit_enabled": legacy.is_none() && policy_has_causal_auto_permit(&policy),
+            "auto_permit_enabled": signed.is_some() && policy_has_causal_auto_permit(&policy),
             "policy": serde_json::to_value(&policy).unwrap_or_default(),
             "signature": record.as_ref().map(|r| json!({
                 "signer_pubkey_hex": r.signer_pubkey_hex,
                 "signed_at": r.signed_at,
-                "signed_at_bound": legacy.is_none(),
-            })),
-            "legacy_rotation": legacy.map(|observation| json!({
-                "stored_policy_id": observation.stored_policy_id,
-                "hardened_policy_id": observation.hardened_policy_id,
-                "authority": false,
-                "next": legacy_rotation_command(frontier, &observation.policy),
             })),
             "admissions": {
                 "count": mine.len(),
@@ -2283,46 +1904,34 @@ pub(crate) fn cmd_policy_show(frontier: &Path, json: bool) {
     ui::header("POLICY", &frontier.display().to_string(), None);
     render_policy(&policy);
     println!();
-    if let Some(observation) = legacy {
-        let next = legacy_rotation_command(frontier, &observation.policy);
-        println!(
-            "  {} LEGACY-UNBOUND — audit history only; the lane is CLOSED",
-            style::warn("state")
-        );
-        println!("  stored    {}", observation.stored_policy_id);
-        println!("  hardened  {}", observation.hardened_policy_id);
-        println!("  signed_at is not signature-bound and carries no authority");
-        println!("  replace: `{next}`");
-    } else {
-        match (&signed, revoked) {
-            (Some(v), _) => {
-                let signed_at = record.as_ref().map(|r| r.signed_at.as_str()).unwrap_or("");
-                if policy_has_causal_auto_permit(&policy) {
-                    println!(
-                        "  {} signed by {}… at {signed_at} — the lane is open",
-                        style::ok("state"),
-                        &v.signer_pubkey_hex[..16.min(v.signer_pubkey_hex.len())]
-                    );
-                } else {
-                    println!(
-                        "  {} signed by {}… at {signed_at} — Permit stays human-routed",
-                        style::ok("state"),
-                        &v.signer_pubkey_hex[..16.min(v.signer_pubkey_hex.len())]
-                    );
-                }
-            }
-            (None, true) => {
+    match (&signed, revoked) {
+        (Some(v), _) => {
+            let signed_at = record.as_ref().map(|r| r.signed_at.as_str()).unwrap_or("");
+            if policy_has_causal_auto_permit(&policy) {
                 println!(
-                    "  {} REVOKED — the lane is closed; this policy is never re-signed",
-                    style::lost("state")
+                    "  {} signed by {}… at {signed_at} — the lane is open",
+                    style::ok("state"),
+                    &v.signer_pubkey_hex[..16.min(v.signer_pubkey_hex.len())]
+                );
+            } else {
+                println!(
+                    "  {} signed by {}… at {signed_at} — Permit stays human-routed",
+                    style::ok("state"),
+                    &v.signer_pubkey_hex[..16.min(v.signer_pubkey_hex.len())]
                 );
             }
-            (None, false) => {
-                println!(
-                    "  {} SEALED-UNSIGNED — carries no authority; sign with `vela policy sign`",
-                    style::warn("state")
-                );
-            }
+        }
+        (None, true) => {
+            println!(
+                "  {} REVOKED — the lane is closed; this policy is never re-signed",
+                style::lost("state")
+            );
+        }
+        (None, false) => {
+            println!(
+                "  {} SEALED-UNSIGNED — carries no authority; sign with `vela policy sign`",
+                style::warn("state")
+            );
         }
     }
     if expired {
@@ -2724,7 +2333,7 @@ pub(crate) fn cmd_policy_evaluate_proposal(frontier: &Path, proposal_id: &str, j
 /// accepted record, and guards that the PR only touches the append-only store +
 /// its derived views (never `bounds.json` or the pinned `vela_version`). Exits 0
 /// iff the PR may auto-merge. The floor (replay, signatures, reproduce, hash
-/// parity) is the shared `constellate-science/vela` action's job, run before this.
+/// parity) is the shared `vela-science/vela` action's job, run before this.
 pub(crate) fn cmd_ci_verdict(frontier: &Path, base: &str, json: bool) {
     use std::process::Command;
 
@@ -2828,7 +2437,7 @@ pub(crate) fn cmd_ci_verdict(frontier: &Path, base: &str, json: bool) {
     let mut per: Vec<serde_json::Value> = Vec::new();
     for p in &new_proposals {
         let vf = p.target.id.clone();
-        let verdict = match crate::cli_engine::gate_auto_admit_core(frontier, &vf, false) {
+        let verdict = match crate::cli_engine::evaluate_exact_policy_route(frontier, &vf) {
             Ok(v) => v,
             Err(e) => {
                 all_mv = false;
@@ -2838,7 +2447,7 @@ pub(crate) fn cmd_ci_verdict(frontier: &Path, base: &str, json: bool) {
                 continue;
             }
         };
-        let mv = verdict.would_admit;
+        let mv = verdict.would_permit;
         let claim = verdict.canonical_claim.clone().or_else(|| {
             p.payload
                 .pointer("/finding/assertion/text")
@@ -2966,16 +2575,6 @@ pub(crate) fn cmd_policy_sign(frontier: &Path, key: Option<&Path>, yes: bool, js
     // Humans only: the whole point of the lane is that a HUMAN signed once.
     let actor = crate::cli_identity::resolve_decision_actor(None);
     let policy = read_sealed_active(frontier).unwrap_or_else(|e| e.fail());
-    let project = repo::load_from_path(frontier).unwrap_or_else(|e| {
-        CmdError::new(
-            ErrorKind::Domain,
-            format!("load frontier for policy review: {e}"),
-        )
-        .fail()
-    });
-    let legacy_checkpoint_event_ids =
-        policy_sign_legacy_checkpoint_event_ids(&project, frontier, &policy.id)
-            .unwrap_or_else(|e| e.fail());
     if revoked_marker_path(frontier, &policy.id).exists() {
         fail_with(
             ErrorKind::Custody,
@@ -3002,25 +2601,11 @@ pub(crate) fn cmd_policy_sign(frontier: &Path, key: Option<&Path>, yes: bool, js
         println!("  signing as {actor}");
         if policy_has_causal_auto_permit(&policy) {
             println!("  a signature makes every permit rule above LIVE: agents land that class of");
-            println!("  gated work until a signed `policy rotate` or `policy revoke` closes it.");
+            println!("  gated work until a signed replacement or `policy revoke` closes it.");
         } else {
             println!("  this finite wall-clock policy can route Defer/Deny, but Permit remains");
             println!(
                 "  human-routed because an unsigned event cannot prove it occurred before expiry."
-            );
-        }
-        if !legacy_checkpoint_event_ids.is_empty() {
-            println!();
-            println!(
-                "  {} first activation retains {} schema-less lane(s) as audit-only history:",
-                style::warn("migration checkpoint"),
-                legacy_checkpoint_event_ids.len()
-            );
-            for event_id in &legacy_checkpoint_event_ids {
-                println!("    {event_id}");
-            }
-            println!(
-                "  these exact events gain no live Permit path; malformed legacy lanes refuse signing."
             );
         }
         println!();
@@ -3040,7 +2625,6 @@ pub(crate) fn cmd_policy_sign(frontier: &Path, key: Option<&Path>, yes: bool, js
         frontier,
         &actor,
         &policy.id,
-        &legacy_checkpoint_event_ids,
         || Utc::now().to_rfc3339(),
         || crate::cli_identity::resolve_signing_key(key),
     )
@@ -3058,7 +2642,6 @@ pub(crate) fn cmd_policy_sign(frontier: &Path, key: Option<&Path>, yes: bool, js
                 "policy_head_event_id": head.event_id,
                 "policy_head_epoch": head.epoch,
                 "auto_permit_enabled": policy_has_causal_auto_permit(&policy),
-                "legacy_checkpoint_event_ids": legacy_checkpoint_event_ids,
             })
         );
         return;
@@ -3371,7 +2954,6 @@ pub(crate) fn run(args: &[String]) {
 mod tests {
     use super::*;
     use ed25519_dalek::SigningKey;
-    use sha2::{Digest, Sha256};
     use tempfile::TempDir;
     use vela_protocol::events::StateTarget;
     use vela_protocol::proposals::new_proposal;
@@ -3419,54 +3001,6 @@ mod tests {
         SigningKey::from_bytes(&[7u8; 32])
     }
 
-    fn install_legacy_unbound_policy(
-        dir: &Path,
-        template: &str,
-    ) -> (AcceptancePolicy, Vec<u8>, Vec<u8>) {
-        let (rules, _) = template_policy(template).unwrap();
-        let project = repo::load_from_path(dir).unwrap();
-        let mut policy = AcceptancePolicy {
-            schema: "vela.acceptance_policy.v0.1".to_string(),
-            id: String::new(),
-            frontier_id: project.frontier_id().to_string(),
-            epoch: 2,
-            issued_by: vec!["reviewer:legacy".to_string()],
-            quorum: Quorum {
-                threshold: 1,
-                eligible_roles: vec!["steward".to_string()],
-            },
-            rules,
-            default: Outcome::Defer,
-            expires_at: "2026-10-09T04:48:14.068136+00:00".to_string(),
-            revocation_ref: None,
-        };
-        let legacy_id = {
-            let mut body = policy.clone();
-            body.id.clear();
-            format!(
-                "vap_{}",
-                &hex::encode(Sha256::digest(serde_json::to_vec(&body).unwrap()))[..32]
-            )
-        };
-        policy.id = legacy_id;
-        let key = throwaway_key();
-        let signature = key.sign(&vela_protocol::canonical::to_canonical_bytes(&policy).unwrap());
-        let record = PolicySignatureRecord {
-            policy_id: policy.id.clone(),
-            signer_pubkey_hex: hex::encode(key.verifying_key().to_bytes()),
-            signature: hex::encode(signature.to_bytes()),
-            signed_at: AT.to_string(),
-        };
-        let mut policy_bytes = serde_json::to_vec_pretty(&policy).unwrap();
-        policy_bytes.push(b'\n');
-        let mut signature_bytes = serde_json::to_vec_pretty(&record).unwrap();
-        signature_bytes.push(b'\n');
-        std::fs::create_dir_all(policies_dir(dir)).unwrap();
-        std::fs::write(active_path(dir), &policy_bytes).unwrap();
-        std::fs::write(active_sig_path(dir), &signature_bytes).unwrap();
-        (policy, policy_bytes, signature_bytes)
-    }
-
     fn register_transaction_reviewer(dir: &Path) {
         let key = throwaway_key();
         let mut project = repo::load_from_path(dir).unwrap();
@@ -3489,7 +3023,6 @@ mod tests {
             dir,
             "reviewer:test",
             policy_id,
-            &[],
             || signed_at.to_string(),
             throwaway_key,
         )
@@ -3581,195 +3114,6 @@ mod tests {
     }
 
     #[test]
-    fn legacy_replace_is_transactional_audit_preserving_and_template_fresh() {
-        let tmp = TempDir::new().unwrap();
-        let dir = init_frontier(&tmp);
-        let (legacy, old_policy_bytes, old_signature_bytes) =
-            install_legacy_unbound_policy(&dir, "lean-rederivation");
-        let observed = load_active_policy_snapshot(&dir).unwrap();
-        assert_eq!(observed.mode, ActivePolicyMode::LegacyUnboundClosed);
-
-        let (replacement, replaced) = draft_policy(&dir, "notes-threshold", true).unwrap();
-        assert!(replaced);
-        assert_eq!(replacement.epoch, legacy.epoch + 1);
-        assert_eq!(
-            replacement.rules,
-            template_policy("notes-threshold").unwrap().0,
-            "legacy rules must not carry into a fresh replacement"
-        );
-        assert_eq!(
-            replacement.quorum,
-            Quorum {
-                threshold: 1,
-                eligible_roles: vec!["reviewer".to_string()],
-            },
-            "legacy steward quorum must not carry into the replacement"
-        );
-        assert_eq!(replacement.default, Outcome::Defer);
-        assert_eq!(replacement.revocation_ref, None);
-        assert!(!active_sig_path(&dir).exists());
-        assert_eq!(
-            std::fs::read(policies_dir(&dir).join(format!("{}.json", legacy.id))).unwrap(),
-            old_policy_bytes
-        );
-        assert_eq!(
-            std::fs::read(policies_dir(&dir).join(format!("{}.sig.json", legacy.id))).unwrap(),
-            old_signature_bytes
-        );
-        let installed = load_active_policy_snapshot(&dir).unwrap();
-        assert_eq!(installed.mode, ActivePolicyMode::StagedUnsigned);
-        assert!(installed.verified.is_none());
-        assert!(installed.legacy_unbound.is_none());
-        assert_eq!(read_sealed_active(&dir).unwrap(), replacement);
-
-        let journals = std::fs::read_dir(dir.join(".vela/operation-journals/frontier"))
-            .unwrap()
-            .filter_map(Result::ok)
-            .filter(|entry| entry.path().extension().is_some_and(|ext| ext == "json"))
-            .filter_map(|entry| std::fs::read(entry.path()).ok())
-            .filter_map(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok())
-            .collect::<Vec<_>>();
-        assert!(
-            journals.iter().any(|journal| {
-                journal
-                    .pointer("/recovery/state")
-                    .and_then(serde_json::Value::as_str)
-                    == Some("completed")
-            }),
-            "legacy replacement must complete through a recoverable frontier journal"
-        );
-    }
-
-    #[test]
-    fn completed_legacy_replace_exact_retry_reuses_the_durable_policy() {
-        let tmp = TempDir::new().unwrap();
-        let dir = init_frontier(&tmp);
-        let (legacy, _, _) = install_legacy_unbound_policy(&dir, "lean-rederivation");
-
-        let (first, replaced) = draft_policy(&dir, "notes-threshold", true).unwrap();
-        assert!(replaced);
-        let first_bytes = std::fs::read(active_path(&dir)).unwrap();
-        let (retry, retry_replaced) = draft_policy(&dir, "notes-threshold", true).unwrap();
-
-        assert!(retry_replaced);
-        assert_eq!(retry, first);
-        assert_eq!(retry.epoch, legacy.epoch + 1);
-        assert_eq!(std::fs::read(active_path(&dir)).unwrap(), first_bytes);
-        assert!(!active_sig_path(&dir).exists());
-    }
-
-    #[test]
-    fn legacy_replace_does_not_reuse_another_issuers_completed_draft() {
-        let tmp = TempDir::new().unwrap();
-        let dir = init_frontier(&tmp);
-        let (legacy, _, _) = install_legacy_unbound_policy(&dir, "lean-rederivation");
-        let rules = template_policy("notes-threshold").unwrap().0;
-
-        let (first, first_replaced) = seal_policy_with_issued_by(
-            &dir,
-            rules.clone(),
-            true,
-            vec!["reviewer:first".to_string()],
-        )
-        .unwrap();
-        assert!(first_replaced);
-        assert_eq!(first.issued_by, vec!["reviewer:first"]);
-
-        let (second, second_replaced_signed) =
-            seal_policy_with_issued_by(&dir, rules, true, vec!["reviewer:second".to_string()])
-                .unwrap();
-        assert!(!second_replaced_signed);
-        assert_eq!(second.issued_by, vec!["reviewer:second"]);
-        assert_eq!(second.epoch, legacy.epoch + 2);
-        assert_ne!(second.id, first.id);
-        assert_eq!(read_sealed_active(&dir).unwrap(), second);
-    }
-
-    #[test]
-    fn legacy_replace_recovers_every_post_marker_install_boundary() {
-        use crate::frontier_txn::FrontierTxnStep;
-
-        for index in 0..4 {
-            let tmp = TempDir::new().unwrap();
-            let dir = init_frontier(&tmp);
-            let (legacy, old_policy_bytes, old_signature_bytes) =
-                install_legacy_unbound_policy(&dir, "lean-rederivation");
-            set_legacy_policy_rotation_install_failpoint(Some(
-                FrontierTxnStep::AfterInstallWrite { index },
-            ));
-
-            let error = draft_policy(&dir, "notes-threshold", true).unwrap_err();
-            assert!(
-                error
-                    .message
-                    .contains("injected frontier transaction failure"),
-                "install boundary {index}: {}",
-                error.message
-            );
-
-            // The same command first recovers the marker-bound delta, then
-            // recognizes its completed plan as an exact retry.
-            let (recovered, replaced) = draft_policy(&dir, "notes-threshold", true).unwrap();
-            assert!(replaced, "install boundary {index}");
-            assert_eq!(
-                recovered.epoch,
-                legacy.epoch + 1,
-                "install boundary {index}"
-            );
-            assert_eq!(
-                recovered.rules,
-                template_policy("notes-threshold").unwrap().0,
-                "install boundary {index}"
-            );
-            assert!(!active_sig_path(&dir).exists(), "install boundary {index}");
-            assert_eq!(
-                std::fs::read(policies_dir(&dir).join(format!("{}.json", legacy.id))).unwrap(),
-                old_policy_bytes,
-                "install boundary {index}"
-            );
-            assert_eq!(
-                std::fs::read(policies_dir(&dir).join(format!("{}.sig.json", legacy.id))).unwrap(),
-                old_signature_bytes,
-                "install boundary {index}"
-            );
-            assert_eq!(
-                load_active_policy_snapshot(&dir).unwrap().mode,
-                ActivePolicyMode::StagedUnsigned,
-                "install boundary {index}"
-            );
-        }
-    }
-
-    #[test]
-    fn legacy_replace_refuses_conflicting_audit_snapshot_without_touching_active_pair() {
-        let tmp = TempDir::new().unwrap();
-        let dir = init_frontier(&tmp);
-        let (legacy, old_policy_bytes, old_signature_bytes) =
-            install_legacy_unbound_policy(&dir, "lean-rederivation");
-        std::fs::write(
-            policies_dir(&dir).join(format!("{}.json", legacy.id)),
-            b"different historical bytes",
-        )
-        .unwrap();
-
-        let error = draft_policy(&dir, "notes-threshold", true).unwrap_err();
-        assert!(
-            error.message.contains("different bytes"),
-            "{}",
-            error.message
-        );
-        assert_eq!(std::fs::read(active_path(&dir)).unwrap(), old_policy_bytes);
-        assert_eq!(
-            std::fs::read(active_sig_path(&dir)).unwrap(),
-            old_signature_bytes
-        );
-        assert_eq!(
-            load_active_policy_snapshot(&dir).unwrap().mode,
-            ActivePolicyMode::LegacyUnboundClosed
-        );
-    }
-
-    #[test]
     fn sign_round_trip_opens_the_lane() {
         let tmp = TempDir::new().unwrap();
         let dir = init_frontier(&tmp);
@@ -3784,8 +3128,6 @@ mod tests {
         let verified = load_active_policy(&dir).unwrap().expect("lane open");
         assert_eq!(verified.policy.id, policy.id);
         assert_eq!(verified.signer_pubkey_hex, record.signer_pubkey_hex);
-        assert!(verified.signed_at_bound);
-
         // Content-addressed snapshots survive future rotation.
         assert!(
             policies_dir(&dir)
@@ -3853,7 +3195,6 @@ mod tests {
             &dir,
             "reviewer:test",
             "vap_displayed_before_swap",
-            &[],
             || {
                 drift_clock.set(drift_clock.get() + 1);
                 ACTIVATE_AT.to_string()
@@ -3877,33 +3218,11 @@ mod tests {
                 .is_none()
         );
 
-        let checkpoint_clock = Cell::new(0);
-        let checkpoint_key_loads = Cell::new(0);
-        let checkpoint_drift = sign_active_policy_transactional(
-            &dir,
-            "reviewer:test",
-            &first_policy.id,
-            &["vev_unreviewed_legacy_lane".to_string()],
-            || {
-                checkpoint_clock.set(checkpoint_clock.get() + 1);
-                ACTIVATE_AT.to_string()
-            },
-            || {
-                checkpoint_key_loads.set(checkpoint_key_loads.get() + 1);
-                throwaway_key()
-            },
-        )
-        .unwrap_err();
-        assert!(checkpoint_drift.message.contains("legacy checkpoint set"));
-        assert_eq!(checkpoint_clock.get(), 0);
-        assert_eq!(checkpoint_key_loads.get(), 0);
-
         let sign_loads = Cell::new(0);
         let (_, _, activated) = sign_active_policy_transactional(
             &dir,
             "reviewer:test",
             &first_policy.id,
-            &[],
             || ACTIVATE_AT.to_string(),
             || {
                 sign_loads.set(sign_loads.get() + 1);
@@ -3938,7 +3257,6 @@ mod tests {
             &dir,
             "reviewer:test",
             &first_policy.id,
-            &[],
             || {
                 retry_clock.set(retry_clock.get() + 1);
                 "never sampled".to_string()
@@ -4030,7 +3348,6 @@ mod tests {
             &dir,
             "reviewer:test",
             &first_policy.id,
-            &[],
             || {
                 resurrect_clock.set(resurrect_clock.get() + 1);
                 "never sampled".to_string()
@@ -4053,7 +3370,6 @@ mod tests {
             &dir,
             "reviewer:test",
             &second_policy.id,
-            &[],
             || REOPEN_AT.to_string(),
             || {
                 reopen_loads.set(reopen_loads.get() + 1);
@@ -4138,33 +3454,6 @@ mod tests {
     }
 
     #[test]
-    fn legacy_rotation_redraft_and_sign_preserves_the_completed_history_chain() {
-        let tmp = TempDir::new().unwrap();
-        let dir = init_frontier(&tmp);
-        register_transaction_reviewer(&dir);
-        let (legacy, _, _) = install_legacy_unbound_policy(&dir, "lean-rederivation");
-
-        let (first_staged, replaced) = draft_policy(&dir, "notes-threshold", true).unwrap();
-        assert!(replaced);
-        assert_eq!(first_staged.epoch, legacy.epoch + 1);
-
-        let (redrafted, redraft_replaced_signed) =
-            draft_policy(&dir, "witness-rederivation", false).unwrap();
-        assert!(!redraft_replaced_signed);
-        assert_eq!(redrafted.epoch, first_staged.epoch + 1);
-        assert_ne!(redrafted.id, first_staged.id);
-
-        // The signing barrier verifies the legacy rotation's completed
-        // active.json postimage through the redraft transaction's exact edge.
-        let activated = transactionally_sign_policy(&dir, &redrafted.id, "2099-03-02T00:00:00Z");
-        assert_eq!(activated.action, PolicyHeadAction::Activate);
-        assert_eq!(
-            load_active_policy(&dir).unwrap().unwrap().policy.id,
-            redrafted.id
-        );
-    }
-
-    #[test]
     fn policy_ceremony_retries_pre_marker_and_post_marker_without_rereading_key() {
         use std::cell::Cell;
 
@@ -4182,7 +3471,6 @@ mod tests {
                 &dir,
                 "reviewer:test",
                 &policy.id,
-                &[],
                 || "2099-02-01T00:00:00Z".to_string(),
                 || {
                     first_key_loads.set(first_key_loads.get() + 1);
@@ -4207,7 +3495,6 @@ mod tests {
                 &dir,
                 "reviewer:test",
                 &policy.id,
-                &[],
                 || {
                     retry_clock.set(retry_clock.get() + 1);
                     "never sampled".to_string()

@@ -46,8 +46,7 @@ Always export `VELA_ACTOR_ID=agent:<your-name>` and pass
 `--as agent:<your-name>` on writes. Never run bare decision verbs.
 
 The identity grammar, in full: `--as <actor>` is THE acting-identity flag
-on every write verb. `--author` exists only on `finding add`/`finding
-supersede` (the claim's author, distinct from who is acting), and
+on every write verb. Producer attribution travels in Receipt v1, and
 `--verifier-actor` names the mechanical identity a frozen-verifier
 attachment is drafted for (e.g. `agent:vela-verify`). Nothing else names
 an identity.
@@ -105,11 +104,10 @@ opening the repo gets the read-only profile:
 ```
 
 The `read-only` profile exposes no mutating tool (a unit test enforces this);
-`draft` adds only the nonfinalizing `propose` and `work` tools. The deprecated
-`maintainer` name is a warning alias for `draft` and adds no capability.
+`draft` adds only the nonfinalizing `work` tool.
 Human decisions remain terminal-only through `vela sign`.
 
-The surface is nine tools; each one answers an agent question:
+The surface is eight tools; each one answers an agent question:
 
 | Question | Tool |
 |---|---|
@@ -118,7 +116,7 @@ The surface is nine tools; each one answers an agent question:
 | Where is X discussed? | `search` — findings, sources, evidence atoms; cursor-paginated |
 | What is contested / what breaks if X falls? | `graph` — mode=contradictions, mode=impact (blast radius + retraction cascade), mode=traverse |
 | Does the frontier pass the gate / do witnesses reproduce? | `verify` — mode=strict (the same bundle the hub's ingestor enforces), mode=witness (frozen-verifier re-check) |
-| How do I submit work? | `propose` (draft profile) — kind=review/note/apply_note/revise_confidence/retract, always pending; `work` — action=claim/land/drop/deposit |
+| How do I submit work? | `work` (draft profile) — action=claim/land/drop; land accepts Receipt v1 and policy routes it |
 | What agent objects exist here? | `objects` — packs, attestations, evaluations, conflicts, tool descriptors |
 | Is this novel / shareable? | `external` — service=pubmed prior-art count, service=nanopub export |
 
@@ -137,8 +135,9 @@ Every porcelain verb takes `--json` and emits a stable object with `ok`,
 
 The verifier-gated discovery engine lives under `vela foundry`:
 `foundry campaign search <kind> --n <n>` searches, the frozen verifier is
-the gate, `--propose` lands the result as a pending proposal. Attempts,
-transfers, Lean anchoring, and experiment receipts are
+the gate, and `foundry campaign run` writes only a witness plus an activity
+envelope. Reproduce it, then cross the shared Receipt boundary with `land`.
+Attempts, transfers, Lean anchoring, and experiment receipts are
 `foundry attempt|transfer|lean|experiment …`.
 
 ## Swarms (many agents, one frontier)
@@ -167,16 +166,9 @@ The loop scales by composition, not new machinery:
    receipt emitted by another producer, not for hand-authored plugin scratch.
 4. **Policy-bound lanes**: when the frontier carries a signed acceptance
    policy (`vela status . --json → .policy.mode == "live"`), mechanical
-   kinds (repairs, artifact provenance) auto-admit under the sealed
+   kinds (repairs, artifact provenance) may receive Permit under the sealed
    `vap_` policy id — the policy can only tighten the frozen verifier
    floor, and truth-bearing claims stay human-keyed no matter what.
-
-## Python SDK
-
-`clients/python/vela_agent` wraps the read surface and proposal drafting
-for Python-native agents. Note: its hub-publish helper predates the
-git-native cutover (git push is publication now); prefer the CLI/MCP loop
-above for writes.
 
 ## Doctrine, one paragraph
 

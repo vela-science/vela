@@ -20,11 +20,11 @@ asks:
 > assistant.
 
 Vela's substrate has carried `actor.type: "human" | "agent"` on
-every event since v0.55. The v0.75 Carina spec adds a
-`Proof` primitive (Lean / Coq / Isabelle / Agda / Metamath /
+every event since v0.55. The v0.75 protocol adds a `Proof`
+primitive (Lean / Coq / Isabelle / Agda / Metamath /
 Rocq) for the formalization slot. v0.76 adds an Agent4Science
-review-packet adapter and the `examples/sidon-sets/` reference
-frontier showing the chain end-to-end. This doc makes the
+review-packet adapter and the `examples/sidon-a309370/` frozen-verifier
+example. This doc makes the
 doctrine explicit so a reader knows what the substrate
 guarantees and what it leaves open.
 
@@ -111,12 +111,11 @@ repair; the human (`reviewer:will-blair`) accepts. The
 before/after hashes weld byte-for-byte across the chain.
 Replay re-derives the same finding state from the events alone.
 
-The Sidon-set example (`examples/sidon-sets/`) carries the same
-shape on a non-biology domain: an `agent:research-bot-2026-05-09`
-asserts the AI-drafted improvement, the human reviewer files a
-`needs_revision` verdict gated on a Lean stub, and the
-proof-script artifact lands as the certification slot the
-v0.75 Carina `Proof` primitive points at.
+The Sidon-set example (`examples/sidon-a309370/`) is deliberately narrower:
+it carries frozen witness inputs and demonstrates deterministic re-verification,
+not an actor decision chain. Accepted-state provenance belongs in a standalone
+frontier's signed `.vela/events`; a verifier example must not imply that
+re-running evidence also certifies or accepts it.
 
 ## The certification model
 
@@ -155,7 +154,7 @@ who ran Lean against what, when.
 - **Append-only event log.** No event is ever mutated.
   Corrections enter as new events with new attributions.
 - **Replay determinism.** Given the same event log + same
-  Carina kernel digest, Rust + Python reducers produce
+  Vela reducer release, Rust + Python reducers produce
   byte-identical finding-state digests. See
   `crates/vela-protocol/tests/cross_impl_reducer_fixtures.rs`.
 - **Hash-welded chain.** Each event's `before_hash` equals the
@@ -206,8 +205,8 @@ substrate questions:
 
 1. Read the `actor` block. If it says `type: "agent"`, treat
    the content as a draft, not a verdict.
-2. Inspect the supporting evidence. The Carina `Evidence`
-   primitive points at content-addressed sources; verify the
+2. Inspect the supporting evidence. Vela evidence atoms point
+   at content-addressed sources; verify the
    locator.
 3. If the proposal claims formalization, check the `Proof`
    primitive. Re-run Lean / Coq / Isabelle / etc. on the
@@ -223,7 +222,7 @@ substrate questions:
   wave.
 - **v0.74**: README opens with the four-event chain (early-AD)
   showing AI-draft + human-certified.
-- **v0.75**: Carina `Proof` primitive added (Gowers-shaped).
+- **v0.75**: `Proof` primitive added (Gowers-shaped).
 - **v0.76**: Agent4Science review-packet adapter; Sidon-set
   reference frontier; this doc.
 - **v0.77+ (planned)**: site surface for "human-certified" vs
@@ -234,6 +233,5 @@ substrate questions:
 - Gowers, T. "A recent experience with ChatGPT-5.5-Pro."
   gowers.wordpress.com, 2026-05-08.
 - `docs/PROTOCOL.md`. Normative event semantics.
-- `docs/CARINA.md` §v0.3. The Proof primitive.
 - `docs/PROTOCOL.md`. The canonical event log walkthrough.
-- `examples/sidon-sets/`. The mathematical reference chain.
+- `examples/sidon-a309370/`. The frozen-verifier reference inputs.

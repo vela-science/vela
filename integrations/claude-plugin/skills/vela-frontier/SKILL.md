@@ -42,14 +42,12 @@ next -> work -> land -> sign
 - `vela sign` — the one human ceremony. Not yours: it refuses `agent:` actors
   (exit 4) by design.
 
-For the single-witness producer case — contributing one frozen-verified beat to
-a frontier you do not maintain (a fork PR) — reach for `vela submit <witness>
---as agent:<you> --json` instead of driving `land` by hand. It is one
-transactional verb: reproduce the witness, land it, bind it to the finding as a
-content-addressed artifact, admit it through the exact lane, and materialize —
-in that order. It writes locally; `--push` publishes. The CI counterpart that
-decides the merge is `vela ci verdict` (it runs in the frontier's Action, not
-here). `submit` is porcelain over `land`; `land` stays the general write edge.
+For a frozen-verifier witness, run `vela reproduce <witness>` first, then land
+the result through the active work session with `vela land --work <target>
+--artifact <witness>:witness --as agent:<you> --json`. A producer outside the
+frontier can instead emit the same portable Receipt v1 and call `vela land
+receipt.json`. Both paths cross the one Receipt/land write edge; the frontier's
+Action may separately run `vela ci verdict` for merge policy.
 
 Every verb takes `--json` and returns one object with `ok` and `command`; no
 prose leaks into a JSON stream. Exit codes: 0 ok, 1 domain failure, 2 usage,
@@ -95,8 +93,7 @@ in which an agent's proposal becomes accepted state without a human key.
 
 ## Custody
 
-- Never run the decision verbs bare: `sign`, `accept`, `review`, and
-  `proposals reject` are key-custody human acts, and the engine refuses
+- Never run `sign`: it is the one key-custody human decision ceremony, and the engine refuses
   `agent:` actors on them.
 - Every write carries an explicit acting identity: `--as agent:<you>`, or set
   `VELA_ACTOR_ID=agent:<you>` for the session. Never write as a human.
@@ -131,6 +128,6 @@ silently break the reproduction of a banked result.
 policy mode, sign-queue depth, compounding metrics). `vela state <vf_id>` is
 one finding's claim-state cell; `vela log <dir> <vf_id>` its history. The MCP
 server (`vela serve . --profile draft`) exposes the read surface plus the
-non-finalizing writes (`propose`, `work` — claim|land|drop|deposit) as tools;
+non-finalizing `work` tool (claim|land|drop);
 `decide` is excluded by construction, so nothing an agent does through MCP
 finalizes state.

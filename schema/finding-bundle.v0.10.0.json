@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://vela.science/schema/finding-bundle/v0.8.0",
-  "title": "Vela Finding Bundle v0.2.0",
-  "description": "The atomic object of the Vela protocol. A finding bundle is a discrete scientific claim with its evidence, conditions, provenance, frontier confidence, and lineage attached. It is richer than a triple and smaller than a paper. v0.3.0 introduces frontier confidence semantics, entity resolution with candidates, link provenance, and content-addressing specification.",
+  "$id": "https://vela.science/schema/finding-bundle/v0.10.0",
+  "title": "Vela Finding Bundle v0.10.0",
+  "description": "The atomic object of the Vela protocol. A finding bundle is a discrete scientific claim with its evidence, conditions, provenance, frontier confidence, and lineage attached. It is richer than a triple and smaller than a paper.",
   "type": "object",
   "required": [
     "id",

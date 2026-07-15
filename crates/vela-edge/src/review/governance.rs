@@ -6,9 +6,9 @@
 //! This cycle ships the data shape + content-addressing + validation
 //! rules. The binding to `vela registry owner-rotate` ships in v0.145.
 //!
-//! Schema: `vela.registry_governance_policy.v0.1`. Embedded JSON
-//! Schema lives at
-//! `crates/vela-protocol/embedded/carina-schemas/registry_governance_policy.schema.json`.
+//! Schema: `vela.registry_governance_policy.v0.1`. The Rust constants and
+//! validators in this module are the canonical implementation; the protocol
+//! specification documents the portable shape.
 //!
 //! Policy ids are content-addressed: `vgp_` + first 16 hex of
 //! sha256 over canonical bytes of the policy (with the
@@ -707,10 +707,6 @@ pub enum ChainStatus {
     /// Every transition verifies cleanly against its policy +
     /// proposal + bundle inputs.
     Verified,
-    /// The chain is missing or malformed; the consumer should
-    /// treat the entry as legacy (pre-v0.144) or refuse trust as
-    /// the audit posture dictates.
-    Legacy,
     /// At least one transition failed verification. The error
     /// string accompanies this status.
     Broken,

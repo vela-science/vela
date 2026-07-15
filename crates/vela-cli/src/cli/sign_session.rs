@@ -1,14 +1,13 @@
 //! `vela sign` — THE human proposal-decision ceremony. One frontier,
 //! one bounded review set, one summary, one confirm, one key read, and
-//! one recoverable frontier transaction. Detached bytes and fidelity
-//! attestations remain separate signing lanes.
+//! one recoverable frontier transaction. Detached bytes remain a separate
+//! signing lane.
 //!
 //! Custody: agent/ci actors exit 4 before anything renders. There is
 //! deliberately no `--all --yes` for the interactive session — a
 //! decision without eyes on the item is a rubber stamp. Scripted forms
-//! exist for single items (`sign <id>` preview, then exact root/time echo), fidelity-attestation
-//! batches (`sign --batch file.json`), and detached artifact bytes
-//! (`sign <path>`).
+//! exist for single items (`sign <id>` preview, then exact root/time echo)
+//! and detached artifact bytes (`sign <path>`).
 
 use std::path::{Path, PathBuf};
 
@@ -1092,7 +1091,7 @@ pub(crate) fn cmd_sign_session(
     let outcome = execute_confirmed_decision(&queue.dir, &confirmed, key.as_deref())
         .unwrap_or_else(|error| fail_decision(error));
     clear_session(&queue.dir);
-    let publish_opts = crate::config::git_publish::PublishOptions::new(false, false);
+    let publish_opts = crate::config::git_publish::PublishOptions::new(false);
     let publication = publish_exact_decision(&queue.dir, "sign", &outcome, &publish_opts);
     apply_spin.finish("applied");
     println!(
@@ -1344,7 +1343,7 @@ pub(crate) fn cmd_sign_one(
 
     let outcome = execute_confirmed_decision(&dir, &prepared, key.as_deref())
         .unwrap_or_else(|error| fail_decision(error));
-    let publish_opts = crate::config::git_publish::PublishOptions::new(false, false);
+    let publish_opts = crate::config::git_publish::PublishOptions::new(false);
     let publication = publish_exact_decision(&dir, "sign", &outcome, &publish_opts);
     if json {
         println!(

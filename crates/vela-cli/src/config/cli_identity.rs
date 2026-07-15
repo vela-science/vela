@@ -1,16 +1,10 @@
 //! Managed identity — the ergonomics layer that hides key files and ids.
 //!
-//! Before this, every signed command took `--key <path>` plus `--actor` /
-//! `--reviewer` / `--owner`, and `--to <hub>`. A first-time producer had to
-//! juggle a key-file path, remember their actor id, and pass a hub URL on
-//! every call. That friction, not the cryptography, is what blocked
-//! adoption.
+//! Signed commands can resolve a key and actor from one local identity.
 //!
 //! A `vela id create` writes a single profile to `~/.vela/identity.json`:
-//! the generated key, the actor id, the default hub. After that, the
-//! signing commands resolve all four from the profile, so the common path
-//! is just `vela publish` with no flags. The crypto is unchanged and fully
-//! present; it is simply no longer in the user's face.
+//! the generated key and actor id. Routing and publication preferences live in
+//! `config.toml`, not in identity state.
 //!
 //! Precedence for every resolver: an explicit flag wins, then a `VELA_*`
 //! environment variable, then the stored profile. Nothing is silent: when
@@ -43,24 +37,9 @@ pub(crate) struct Identity {
     pub actor_type: String,
     /// Absolute path to the Ed25519 private key (hex seed).
     pub key_path: String,
-    /// Hex-encoded Ed25519 public key — the thing a maintainer registers
-    /// with `vela actor add`. Stored for display so the user never has to
-    /// `cat` the key file.
+    /// Hex-encoded Ed25519 public key. `vela actor add` verifies this against
+    /// the configured private key during one-time empty-registry bootstrap.
     pub pubkey: String,
-    /// Default hub base URL.
-    #[serde(default = "default_hub")]
-    pub hub_url: String,
-    /// Decisions self-publish: commit the store after every signed
-    /// decision ("auto") or leave publication manual ("off").
-    #[serde(default = "default_git_mode")]
-    pub git_commit: String,
-    /// Push the publish commit ("auto") or stop at the local commit ("off").
-    #[serde(default = "default_git_mode")]
-    pub git_push: String,
-}
-
-fn default_git_mode() -> String {
-    "auto".to_string()
 }
 
 fn default_version() -> String {
@@ -68,9 +47,6 @@ fn default_version() -> String {
 }
 fn default_actor_type() -> String {
     "human".to_string()
-}
-fn default_hub() -> String {
-    DEFAULT_HUB.to_string()
 }
 
 /// `~/.vela` — the per-user Vela home.
@@ -142,24 +118,6 @@ pub(crate) fn resolve_decision_actor(flag: Option<&str>) -> String {
         );
     }
     actor
-}
-
-/// Resolve the hub base URL. `--to` / `--hub` flag wins, then
-/// `$VELA_HUB_URL`, then the profile, then the baked-in default hub (so an
-/// unconfigured `verify` against a known vfr still works).
-pub(crate) fn resolve_hub(flag: Option<&str>) -> String {
-    if let Some(h) = flag.filter(|s| !s.trim().is_empty()) {
-        return h.to_string();
-    }
-    if let Ok(h) = std::env::var("VELA_HUB_URL")
-        && !h.trim().is_empty()
-    {
-        return h;
-    }
-    // settings covers user config.toml, the legacy identity field,
-    // and the baked default (frontier scope deliberately unreadable
-    // for routing).
-    crate::config::settings::resolve("hub.url", None).0
 }
 
 /// Resolve a signing key path. `--key` flag wins, then `$VELA_KEY_PATH`,

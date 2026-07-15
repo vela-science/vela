@@ -38,7 +38,7 @@ fn init_frontier(dir: &std::path::Path) {
     let out = Command::new(vela_bin())
         .current_dir(dir)
         .env("HOME", dir)
-        .args(["init", ".", "--name", "envtest", "--no-git"])
+        .args(["init", ".", "--name", "envtest"])
         .output()
         .expect("init");
     assert!(out.status.success(), "init failed: {out:?}");
@@ -108,7 +108,7 @@ fn write_current_receipt(dir: &std::path::Path, filename: &str, claim: &str, rep
 
 /// Malformed invocations across the command families must be exit 2
 /// (usage), not the generic exit 1 — the same class fixed in `state`,
-/// swept through cli_claim / cli_admin / cli_check.
+/// swept through cli_state / cli_admin / cli_check.
 #[test]
 fn usage_errors_are_exit_2() {
     let tmp = tempfile::TempDir::new().unwrap();
@@ -120,12 +120,12 @@ fn usage_errors_are_exit_2() {
         Some(2),
         "check --json no source: {out:?}"
     );
-    // `state anchor` missing its required flags is a usage error.
+    // Retired state writers fail as usage errors before touching the frontier.
     let out = run_in(tmp.path(), &["state", "anchor", ".", "vf_x", "--json"]);
     assert_eq!(
         out.status.code(),
         Some(2),
-        "state anchor missing --ns: {out:?}"
+        "retired state anchor writer: {out:?}"
     );
     // `id rotate-key` with identical old/new id is a usage error.
     let out = run_in(
@@ -271,93 +271,6 @@ fn land_honors_the_replayability_class() {
     assert!(
         text.contains("replayability") || text.contains("totally-reproducible-trust-me"),
         "the rejection should identify the offending replayability value: {text}"
-    );
-}
-
-/// The v0.748 Inspect-AI adapter: `gate attach --from inspect` is wired,
-/// validates its source, and parses the eval log before it touches the
-/// frontier. (The deterministic `vva_` build + "a lone eval_harness attachment
-/// does not verify" doctrine are conformance-tested in
-/// `vela_protocol::inspect_adapter`.)
-#[test]
-fn gate_attach_inspect_is_wired_and_validated() {
-    let tmp = tempfile::TempDir::new().unwrap();
-    init_frontier(tmp.path());
-    assert!(
-        run_in(tmp.path(), &["id", "create", "--handle", "t"])
-            .status
-            .success()
-    );
-    std::fs::write(
-        tmp.path().join("eval.json"),
-        r#"{"status":"success",
-            "eval":{"task":"erdos_sidon_bound","model":"openai/gpt-4o",
-                    "scorers":[{"name":"match"}]},
-            "results":{"total_samples":1,"completed_samples":1,
-                       "scores":[{"scorer":"match","metrics":{"accuracy":{"value":1.0}}}]},
-            "samples":[{"id":"s1","score":{"value":1.0},"metadata":{"adversarial":true}}]}"#,
-    )
-    .unwrap();
-
-    // An unknown --from source is rejected by name.
-    let bogus = run_in(
-        tmp.path(),
-        &[
-            "gate",
-            "attach",
-            ".",
-            "--finding",
-            "vf_0123456789abcdef",
-            "--from",
-            "bogus",
-            "--log",
-            "eval.json",
-            "--json",
-        ],
-    );
-    assert!(
-        !bogus.status.success(),
-        "unknown source must fail: {bogus:?}"
-    );
-    let btext = format!(
-        "{}{}",
-        String::from_utf8_lossy(&bogus.stdout),
-        String::from_utf8_lossy(&bogus.stderr)
-    );
-    assert!(
-        btext.contains("bogus") || btext.contains("inspect"),
-        "the rejection should name the source: {btext}"
-    );
-
-    // A valid inspect log against a non-existent finding parses the log, then
-    // fails cleanly on the finding lookup (proves wiring past arg parsing).
-    let missing = run_in(
-        tmp.path(),
-        &[
-            "gate",
-            "attach",
-            ".",
-            "--finding",
-            "vf_0123456789abcdef",
-            "--from",
-            "inspect",
-            "--log",
-            "eval.json",
-            "--json",
-        ],
-    );
-    assert!(
-        !missing.status.success(),
-        "attaching to a missing finding must fail: {missing:?}"
-    );
-    let mtext = format!(
-        "{}{}",
-        String::from_utf8_lossy(&missing.stdout),
-        String::from_utf8_lossy(&missing.stderr)
-    );
-    assert!(
-        mtext.contains("vf_0123456789abcdef") || mtext.contains("not found"),
-        "the rejection should name the missing finding: {mtext}"
     );
 }
 

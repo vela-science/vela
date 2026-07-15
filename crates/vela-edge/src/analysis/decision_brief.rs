@@ -18,9 +18,7 @@ use vela_protocol::acceptance_policy::{Decision, Outcome, PolicyContext};
 use vela_protocol::project::Project;
 use vela_protocol::proposals::policy_accept::StagedPolicyRoute;
 use vela_protocol::proposals::{self, EngineVerdict, StateProposal};
-use vela_protocol::receipt_v1::{
-    AttestationBinding, ReceiptV1, acceptance_scope_from_receipt, lineage_from_receipt,
-};
+use vela_protocol::receipt_v1::{ReceiptV1, acceptance_scope_from_receipt, lineage_from_receipt};
 use vela_protocol::verifier_attachment::{GateStatus, claim_digest, derive_gate_status};
 
 pub const DECISION_BRIEF_SCHEMA: &str = "vela.decision-brief.testing.v1";
@@ -40,9 +38,9 @@ const MAX_FACET_STRING_BYTES: usize = 1024;
 
 /// Receipt bytes available to the read projection.
 ///
-/// Missing, invalid, and legacy material are review facts, not projection
-/// failures. They produce a visible, non-signable brief when the proposal
-/// depends on the material. Only a corrupt in-memory frontier is an error.
+/// Missing and invalid material are review facts, not projection failures.
+/// They produce a visible, non-signable brief when the proposal depends on the
+/// material. Only a corrupt in-memory frontier is an error.
 #[derive(Debug, Clone, Copy)]
 pub struct ReceiptMaterial<'a> {
     source: ReceiptMaterialSource<'a>,
@@ -51,7 +49,6 @@ pub struct ReceiptMaterial<'a> {
 #[derive(Debug, Clone, Copy)]
 enum ReceiptMaterialSource<'a> {
     Present(&'a ReceiptV1),
-    Legacy(&'a ReceiptV1),
     Missing { reason: &'a str },
     Invalid { reason: &'a str },
 }
@@ -59,11 +56,9 @@ enum ReceiptMaterialSource<'a> {
 impl<'a> ReceiptMaterial<'a> {
     #[must_use]
     pub fn from_receipt(receipt: &'a ReceiptV1) -> Self {
-        let source = match receipt.attestation_binding() {
-            AttestationBinding::Bound => ReceiptMaterialSource::Present(receipt),
-            AttestationBinding::LegacyUnbound => ReceiptMaterialSource::Legacy(receipt),
-        };
-        Self { source }
+        Self {
+            source: ReceiptMaterialSource::Present(receipt),
+        }
     }
 
     #[must_use]
@@ -82,29 +77,16 @@ impl<'a> ReceiptMaterial<'a> {
 
     fn receipt(self) -> Option<&'a ReceiptV1> {
         match self.source {
-            ReceiptMaterialSource::Present(receipt) | ReceiptMaterialSource::Legacy(receipt) => {
-                Some(receipt)
-            }
+            ReceiptMaterialSource::Present(receipt) => Some(receipt),
             ReceiptMaterialSource::Missing { .. } | ReceiptMaterialSource::Invalid { .. } => None,
         }
     }
 
     fn blocks_accept(self, receipt_required: bool) -> bool {
         match self.source {
-            ReceiptMaterialSource::Present(_) | ReceiptMaterialSource::Legacy(_) => false,
+            ReceiptMaterialSource::Present(_) => false,
             ReceiptMaterialSource::Invalid { .. } => true,
             ReceiptMaterialSource::Missing { .. } => receipt_required,
-        }
-    }
-
-    fn is_legacy(self) -> bool {
-        matches!(self.source, ReceiptMaterialSource::Legacy(_))
-    }
-
-    #[cfg(test)]
-    fn test_legacy(receipt: &'a ReceiptV1) -> Self {
-        Self {
-            source: ReceiptMaterialSource::Legacy(receipt),
         }
     }
 }
@@ -699,10 +681,7 @@ impl DecisionFacts {
         if matches!(input.route.source, ReviewRouteSource::HumanOnly { .. })
             && proposal.kind == "finding.add"
             && proposal.target.r#type == "finding"
-            && input
-                .receipt
-                .receipt()
-                .is_some_and(|receipt| receipt.attestation_binding() == AttestationBinding::Bound)
+            && input.receipt.receipt().is_some()
         {
             return Err(
                 "body-bound receipt finding.add proposals require a staged policy route"
@@ -725,10 +704,6 @@ impl DecisionFacts {
             }
             ReceiptMaterialSource::Invalid { reason } => {
                 push_missing(&mut unknowns, "basis.receipt", reason);
-            }
-            ReceiptMaterialSource::Legacy(_) => {
-                // Exact legacy bytes remain reviewable by a human, but never
-                // become policy or verifier authority.
             }
             ReceiptMaterialSource::Present(_) | ReceiptMaterialSource::Missing { .. } => {}
         }
@@ -1030,11 +1005,6 @@ impl DecisionFacts {
             );
             accept_blockers.push("engine_preview_unavailable".to_string());
         }
-        if input.receipt.is_legacy() {
-            // Human review remains possible because the proposal binds the
-            // complete canonical receipt root. Only autonomous policy use is
-            // prohibited.
-        }
         accept_blockers.sort();
         accept_blockers.dedup();
         let actions = vec![
@@ -1071,7 +1041,6 @@ impl DecisionFacts {
         let challenge = challenge_facet(project, receipt_value, &proposal.target.id)?;
         let publication = input.publication.map(publication_facet).transpose()?;
         let acceptance_authority = acceptance_authority_facet(
-            receipt,
             receipt_value,
             input.route,
             &policy_input_root,
@@ -1092,7 +1061,6 @@ impl DecisionFacts {
         let mut critical_warnings = critical_warnings(
             project,
             proposal,
-            input.receipt,
             &event_log_root,
             receipt_event_log_root.as_deref(),
             receipt_root.as_deref(),
@@ -1106,12 +1074,6 @@ impl DecisionFacts {
             critical_warnings.push(CriticalWarning {
                 code: "active_challenge".to_string(),
                 reference: Some(proposal.target.id.clone()),
-            });
-        }
-        if input.receipt.is_legacy() {
-            critical_warnings.push(CriticalWarning {
-                code: "legacy_unbound_receipt".to_string(),
-                reference: receipt_root.clone(),
             });
         }
         for blocker in &accept_blockers {
@@ -1177,7 +1139,6 @@ impl DecisionFacts {
             truncations,
             receipt_availability: match input.receipt.source {
                 ReceiptMaterialSource::Present(_) => "available_bound",
-                ReceiptMaterialSource::Legacy(_) => "available_legacy_unbound",
                 ReceiptMaterialSource::Missing { .. } => "missing",
                 ReceiptMaterialSource::Invalid { .. } => "invalid",
             }
@@ -1418,14 +1379,13 @@ fn bound_claim_state(
 }
 
 fn acceptance_authority_facet(
-    receipt: Option<&ReceiptV1>,
     receipt_value: Option<&Value>,
     route: ReviewRoute<'_>,
     policy_input_root: &str,
     policy_result_root: &str,
 ) -> Result<Option<TypedDecisionFacet>, String> {
-    let (receipt, value, decision) = match (receipt, receipt_value, route.decision()) {
-        (Some(receipt), Some(value), Some(decision)) => (receipt, value, decision),
+    let (value, decision) = match (receipt_value, route.decision()) {
+        (Some(value), Some(decision)) => (value, decision),
         _ => return Ok(None),
     };
     typed_facet(
@@ -1440,10 +1400,7 @@ fn acceptance_authority_facet(
             .pointer("/status/authority")
             .and_then(Value::as_str)
             .unwrap_or("producer"),
-            "receipt_attestation_binding": match receipt.attestation_binding() {
-                AttestationBinding::Bound => "bound",
-                AttestationBinding::LegacyUnbound => "legacy_unbound",
-            },
+            "receipt_attestation_binding": "bound",
             "policy_id": decision.policy_id,
             "evaluator": decision.evaluator,
             "matched_rule_ids": decision.matched_rule_ids,
@@ -1947,7 +1904,6 @@ fn publication_facet(input: PublicationProjection<'_>) -> Result<TypedDecisionFa
 fn critical_warnings(
     project: &Project,
     proposal: &StateProposal,
-    receipt: ReceiptMaterial<'_>,
     event_log_root: &str,
     receipt_event_log_root: Option<&str>,
     receipt_root: Option<&str>,
@@ -1976,12 +1932,6 @@ fn critical_warnings(
         warnings.push(CriticalWarning {
             code: "proposal_receipt_claim_mismatch".to_string(),
             reference: Some(proposal.id.clone()),
-        });
-    }
-    if receipt.is_legacy() {
-        warnings.push(CriticalWarning {
-            code: "legacy_unbound_receipt".to_string(),
-            reference: receipt_root.map(ToString::to_string),
         });
     }
     if gate_status == GateStatus::Refuted {
@@ -2510,26 +2460,6 @@ mod tests {
                 .missing
                 .iter()
                 .any(|fact| fact.field == "basis.receipt")
-        );
-
-        // A legacy whole-receipt root remains visible to a human, but it never
-        // becomes verifier or policy authority.
-        let legacy = build_decision_brief(
-            &fixture.project,
-            test_input(
-                &fixture,
-                ReceiptMaterial::test_legacy(&fixture.receipt),
-                test_route(&fixture),
-            ),
-        )
-        .unwrap();
-        assert!(legacy.accept_ready());
-        assert!(
-            legacy
-                .impact
-                .critical_warnings
-                .iter()
-                .any(|warning| { warning.code == "legacy_unbound_receipt" })
         );
 
         let mut mismatch_fixture = self::fixture();

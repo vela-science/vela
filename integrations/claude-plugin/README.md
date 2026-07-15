@@ -6,7 +6,7 @@ the agent: a signed policy may authorize a narrow Permit class, while every
 other result waits for the human's `vela sign` ceremony. No plugin command runs
 that ceremony, touches a human key, or suggests a verdict.
 
-Requires the `vela` binary on PATH (https://github.com/constellate-science/vela)
+Requires the `vela` binary on PATH (https://github.com/vela-science/vela)
 and a repository with a `.vela/` directory.
 
 ## Install
@@ -96,9 +96,8 @@ deprecated upstream in favor of skills.
 ## MCP
 
 `.mcp.json` starts `vela serve . --profile draft` with
-`VELA_ACTOR_ID=agent:claude`. The draft profile is the read surface plus the
-drafting writes — `propose` (signed proposals that land pending review) and
-`work` (claim, land a foreign Receipt v1, signed drop, or deposit an attempt).
+`VELA_ACTOR_ID=agent:claude`. The draft profile is the read surface plus one
+nonfinalizing `work` tool (claim, land Receipt v1, or signed drop).
 The plugin's session-built default uses the CLI flag surface above. Both paths
 call the same landing service and signed policy evaluator. Permit carries the
 human-signed policy certificate; Defer parks the proposal in the human sign
