@@ -44,8 +44,9 @@ done
 # Carina was a prelaunch duplicate kernel. It must not survive in either the
 # maintained manifests or their regenerable materialized views.
 while IFS= read -r path; do
-  if rg -n -i '\bcarina(_kernel)?\b' "$path" >/dev/null; then
-    rg -n -i '\bcarina(_kernel)?\b' "$path" >&2
+  carina_pattern='(^|[^[:alnum:]_])carina(_kernel)?([^[:alnum:]_]|$)'
+  if grep -nEi "$carina_pattern" "$path" >/dev/null; then
+    grep -nEi "$carina_pattern" "$path" >&2
     fail "Carina metadata returned in a maintained frontier: $path"
   fi
 done < <(
@@ -63,7 +64,7 @@ for path in "${receipt_v1_files[@]}"; do
   [[ -f "$path" ]] || fail "Receipt v1 portable tool is incomplete: $path"
 done
 
-if rg -n '^def ' crates/vela-cli/resources/receipt_v1.py >/dev/null; then
+if grep -nE '^def ' crates/vela-cli/resources/receipt_v1.py >/dev/null; then
   fail "Receipt v1 command harness reimplemented production logic"
 fi
 for symbol in \
@@ -74,27 +75,23 @@ for symbol in \
   validate_restricted_artifact_mirrors \
   validate_receipt
 do
-  definitions="$(rg -n "^def ${symbol}\\(" crates/vela-cli/resources/*.py | wc -l | tr -d ' ')"
+  definitions="$({ grep -hE "^def ${symbol}\\(" crates/vela-cli/resources/*.py || true; } | wc -l | tr -d ' ')"
   [[ "$definitions" == 1 ]] \
     || fail "Receipt v1 production symbol must have one implementation: $symbol ($definitions found)"
 done
-if rg -n 'from receipt_v1 import' \
-  --glob '!scripts/check-prelaunch-surface.sh' \
-  crates/vela-cli/resources scripts >/dev/null
+if git grep -nE 'from receipt_v1 import' -- \
+  crates/vela-cli/resources scripts \
+  ':(exclude)scripts/check-prelaunch-surface.sh' >/dev/null
 then
   fail "installed code imports the command harness instead of the Receipt v1 core"
 fi
 
 retired_receipt_pattern="receipt-v${retired_receipt_version}|vela_receipt_v${retired_receipt_version}|vela-receipt-v${retired_receipt_version}"
-if rg -n "$retired_receipt_pattern" \
-  --glob '!target/**' \
-  --glob '!scripts/check-prelaunch-surface.sh' \
-  . >/dev/null
+if git grep -nE "$retired_receipt_pattern" -- \
+  . ':(exclude)scripts/check-prelaunch-surface.sh' >/dev/null
 then
-  rg -n "$retired_receipt_pattern" \
-    --glob '!target/**' \
-    --glob '!scripts/check-prelaunch-surface.sh' \
-    . >&2
+  git grep -nE "$retired_receipt_pattern" -- \
+    . ':(exclude)scripts/check-prelaunch-surface.sh' >&2
   fail "retired Receipt tool naming returned"
 fi
 
@@ -105,8 +102,8 @@ receipt_binding_surfaces=(
   docs/RECEIPTS.md
 )
 retired_receipt_binding_pattern='AttestationBinding|LegacyUnbound|legacy[-_ ]unbound'
-if rg -n "$retired_receipt_binding_pattern" "${receipt_binding_surfaces[@]}" >/dev/null; then
-  rg -n "$retired_receipt_binding_pattern" "${receipt_binding_surfaces[@]}" >&2
+if grep -nE "$retired_receipt_binding_pattern" "${receipt_binding_surfaces[@]}" >/dev/null; then
+  grep -nE "$retired_receipt_binding_pattern" "${receipt_binding_surfaces[@]}" >&2
   fail "retired unbound Receipt lane returned"
 fi
 
@@ -118,8 +115,8 @@ retired_policy_surfaces=(
   docs/adr/0003-rigorous-core-task-first-workflow.md
 )
 retired_policy_pattern='LegacyUnbound|legacy_unbound_closed|legacy_unbound_policy_content_address|verify_legacy_unbound_policy_pair|ClassifiedPolicyPair|verify_historical_policy_lane_event|HistoricalPolicyLane|legacy-policy-rotation|legacy_checkpoint_event_ids'
-if rg -n "$retired_policy_pattern" "${retired_policy_surfaces[@]}" >/dev/null; then
-  rg -n "$retired_policy_pattern" "${retired_policy_surfaces[@]}" >&2
+if git grep -nE "$retired_policy_pattern" -- "${retired_policy_surfaces[@]}" >/dev/null; then
+  git grep -nE "$retired_policy_pattern" -- "${retired_policy_surfaces[@]}" >&2
   fail "retired acceptance-policy compatibility returned"
 fi
 
@@ -171,8 +168,8 @@ forbidden_code=(
 )
 
 for pattern in "${forbidden_code[@]}"; do
-  if rg -n --glob '*.rs' "$pattern" crates >/dev/null; then
-    rg -n --glob '*.rs' "$pattern" crates >&2
+  if find crates -type f -name '*.rs' -exec grep -nE "$pattern" {} + >/dev/null; then
+    find crates -type f -name '*.rs' -exec grep -nHE "$pattern" {} + >&2
     fail "retired Rust writer or command returned: $pattern"
   fi
 done
@@ -211,8 +208,8 @@ for command in \
   'vela gate backfill' \
   'vela foundry lean-run'
 do
-  if rg -n -F "$command" "${operational_docs[@]}" >/dev/null; then
-    rg -n -F "$command" "${operational_docs[@]}" >&2
+  if grep -nF "$command" "${operational_docs[@]}" >/dev/null; then
+    grep -nF "$command" "${operational_docs[@]}" >&2
     fail "retired command remains in operational guidance: $command"
   fi
 done
@@ -229,8 +226,8 @@ work_surfaces=(
   docs/AGENT_QUICKSTART.md
 )
 retired_work_pattern='Some\("deposit"\)|action=deposit|claim/land/drop/deposit|claim\|land\|drop\|deposit|deposit an attempt'
-if rg -n "$retired_work_pattern" "${work_surfaces[@]}" >/dev/null; then
-  rg -n "$retired_work_pattern" "${work_surfaces[@]}" >&2
+if grep -nE "$retired_work_pattern" "${work_surfaces[@]}" >/dev/null; then
+  grep -nE "$retired_work_pattern" "${work_surfaces[@]}" >&2
   fail "retired MCP work deposit action returned"
 fi
 
@@ -243,12 +240,12 @@ mcp_propose_surfaces=(
   integrations/claude-plugin/skills/vela-frontier/SKILL.md
   docs/AGENT_QUICKSTART.md
 )
-if rg -n "$retired_mcp_propose_pattern" "${mcp_propose_surfaces[@]}" >/dev/null; then
-  rg -n "$retired_mcp_propose_pattern" "${mcp_propose_surfaces[@]}" >&2
+if grep -nE "$retired_mcp_propose_pattern" "${mcp_propose_surfaces[@]}" >/dev/null; then
+  grep -nE "$retired_mcp_propose_pattern" "${mcp_propose_surfaces[@]}" >&2
   fail "retired MCP propose tool returned"
 fi
 if sed '/#\[cfg(test)\]/,$d' crates/vela-edge/src/registry/tool_registry.rs \
-  | rg -n '"propose"' >/dev/null
+  | grep -nE '"propose"' >/dev/null
 then
   fail "retired MCP propose descriptor returned"
 fi

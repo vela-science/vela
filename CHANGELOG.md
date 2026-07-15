@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.800.1 — 2026-07-15 — Portable prelaunch maintenance
+
+- Made the one-writer-path regression guard depend only on standard Unix
+  tools and Git, so a clean GitHub runner checks the same surface as a local
+  checkout without requiring ripgrep.
+- Made agent-adapter generation use the tracked frontier manifest instead of
+  ignored local state, and refreshed the generated task-first skills.
+- Moved the broad historical Lean model build to an explicit manual workflow,
+  documented its custom assumptions honestly, and removed optional external
+  Lean packaging assertions from routine core CI.
+- Made the active packet test fixture derive its compiler version from the
+  package instead of pinning the prior release.
+- No protocol, schema, verifier, Receipt, or materialized-frontier bytes
+  changed. Frontiers recorded with Vela `0.800.0` remain exact historical
+  artifacts.
+
 ## v0.800.0 — 2026-07-14 — Task-first protocol hard cut
 
 Vela's prelaunch protocol candidate is organized around one contribution path:

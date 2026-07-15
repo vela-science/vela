@@ -1130,7 +1130,7 @@ mod tests {
                 "project_name": "test",
                 "description": "test packet",
                 "compiled_at": "2026-04-22T00:00:00Z",
-                "compiler": "vela/0.800.0",
+                "compiler": format!("vela/{}", env!("CARGO_PKG_VERSION")),
                 "vela_version": "0.10.0",
                 "schema": "https://vela.science/schema/finding-bundle/v0.10.0"
             },

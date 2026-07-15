@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "vela-state"
-version = "0.800.0"
+version = "0.800.1"
 description = "Python loader, reducer, and verifier for Vela scientific frontier state. Cross-impl mirror of the Rust substrate."
 readme = "README.md"
 requires-python = ">=3.10"

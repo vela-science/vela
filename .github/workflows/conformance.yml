@@ -47,11 +47,9 @@ jobs:
             python3 "$tmp/receipt_v1.py" validate "$tmp/receipt.json"
           PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="$tmp" python3 -c \
             'import vela_receipt_v1; vela_receipt_v1.validate_safe_public_artifact_descriptors({"artifacts": []})'
-      - name: package contains installed verifier resources
+      - name: package contains installed Receipt resources
         run: |
           cargo package -p vela-cli --list > /tmp/vela-cli-package-files
-          grep -Fx resources/external_lean_sandbox.py /tmp/vela-cli-package-files
-          grep -Fx resources/external_lean_verifier.py /tmp/vela-cli-package-files
           grep -Fx resources/receipt_v1.py /tmp/vela-cli-package-files
           grep -Fx resources/vela_receipt_v1.py /tmp/vela-cli-package-files
           grep -Fx resources/receipt_json.py /tmp/vela-cli-package-files
