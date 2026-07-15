@@ -675,10 +675,16 @@ pub fn tool_output_schema(name: &str) -> Option<Value> {
             "properties": {
                 "action": {"type": "string"},
                 "operation_id": {"type": ["string", "null"]},
+                "receipt_root": {"type": ["string", "null"]},
+                "record_id": {"type": ["string", "null"]},
                 "proposal_id": {"type": ["string", "null"]},
+                "finding_id": {"type": ["string", "null"]},
+                "accepted_event_count_before": {"type": ["integer", "null"], "minimum": 0},
+                "accepted_event_count_after": {"type": ["integer", "null"], "minimum": 0},
+                "accepted_event_delta": {"type": ["integer", "null"], "minimum": 0},
                 "route": {
                     "type": ["string", "null"],
-                    "description": "policy_admitted | deferred (for land)"
+                    "description": "policy_admitted | deferred | exact_retry (for land)"
                 },
                 "detail": {"type": ["string", "null"]},
                 "publication": {"type": ["object", "null"]}
@@ -946,5 +952,26 @@ mod profile_tests {
                 "{name} should declare an outputSchema"
             );
         }
+        let work_properties = by_name["work"]["outputSchema"]["properties"]
+            .as_object()
+            .expect("work output schema properties");
+        for field in [
+            "operation_id",
+            "receipt_root",
+            "record_id",
+            "proposal_id",
+            "finding_id",
+            "accepted_event_count_before",
+            "accepted_event_count_after",
+            "accepted_event_delta",
+            "route",
+            "publication",
+        ] {
+            assert!(
+                work_properties.contains_key(field),
+                "work output schema is missing {field}"
+            );
+        }
+        assert_eq!(work_properties["accepted_event_delta"]["minimum"], json!(0));
     }
 }

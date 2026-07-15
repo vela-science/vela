@@ -73,10 +73,40 @@ pub(crate) struct LandOutcome {
 }
 
 impl LandOutcome {
-    pub(crate) fn accepted_event_delta(&self) -> Option<i64> {
-        let before = i64::try_from(self.accepted_event_count_before?).ok()?;
-        let after = i64::try_from(self.accepted_event_count_after?).ok()?;
-        Some(after - before)
+    pub(crate) fn accepted_event_delta(&self) -> Option<usize> {
+        accepted_event_count_delta(
+            self.accepted_event_count_before,
+            self.accepted_event_count_after,
+        )
+        .expect("landing outcomes carry a validated monotone accepted-event count pair")
+    }
+}
+
+fn accepted_event_count_delta(
+    before: Option<usize>,
+    after: Option<usize>,
+) -> Result<Option<usize>, String> {
+    match (before, after) {
+        (None, None) => Ok(None),
+        (Some(before), Some(after)) => after.checked_sub(before).map(Some).ok_or_else(|| {
+            format!("accepted-event count decreased across landing ({before} -> {after})")
+        }),
+        _ => Err("accepted-event counts must either both be present or both be absent".to_string()),
+    }
+}
+
+#[cfg(test)]
+mod accepted_event_count_contract_tests {
+    use super::accepted_event_count_delta;
+
+    #[test]
+    fn accepted_event_delta_is_monotone_or_absent() {
+        assert_eq!(accepted_event_count_delta(Some(12), Some(12)), Ok(Some(0)));
+        assert_eq!(accepted_event_count_delta(Some(12), Some(13)), Ok(Some(1)));
+        assert_eq!(accepted_event_count_delta(None, None), Ok(None));
+        assert!(accepted_event_count_delta(Some(13), Some(12)).is_err());
+        assert!(accepted_event_count_delta(Some(12), None).is_err());
+        assert!(accepted_event_count_delta(None, Some(12)).is_err());
     }
 }
 
@@ -1612,6 +1642,14 @@ struct DurableLandResult {
     review_route: Option<StagedReviewRoute>,
 }
 
+fn validate_durable_event_counts(result: &DurableLandResult) -> Result<(), String> {
+    accepted_event_count_delta(
+        result.accepted_event_count_before,
+        result.accepted_event_count_after,
+    )
+    .map(|_| ())
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct StagedReviewRoute {
     schema: String,
@@ -1951,6 +1989,7 @@ pub(crate) fn land(
         } else {
             let durable: DurableLandResult = serde_json::from_value(existing.plan().result.clone())
                 .map_err(|error| format!("decode durable land result: {error}"))?;
+            validate_durable_event_counts(&durable)?;
             let scientific_completed =
                 matches!(existing.recovery_state(), RecoveryState::Completed);
             let public = existing
@@ -2063,6 +2102,7 @@ pub(crate) fn land(
         operation_id.as_str(),
         executor,
     )? {
+        validate_durable_event_counts(&durable)?;
         let publication = match discover_receipt_publication(
             frontier,
             &receipt_bytes,
@@ -2315,6 +2355,7 @@ pub(crate) fn land(
         route: route.clone(),
         review_route: Some(staged_review_route),
     };
+    validate_durable_event_counts(&durable)?;
     let work_session_close = active_work_session_close(
         frontier,
         &original,

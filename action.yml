@@ -4,6 +4,10 @@
 #
 #   - uses: actions/checkout@v5
 #   - uses: vela-science/vela@v0.760.1
+#     with:
+#       frontier: .
+#       vela-version: v0.760.1
+#       strict: "true"
 #
 # It replays the signed event log from the clean checkout and proves the
 # committed materialized state (frontier.json / vela.lock / proof/) reproduces:
@@ -30,19 +34,16 @@ inputs:
     default: "."
   strict:
     description: >-
-      When "true" (default), `vela check --strict` is a blocking gate. Set
-      "false" to demote strict to a non-blocking notice — only for a frontier
-      with acknowledged owner key-custody debt (pending reviewer signatures).
+      Must be "true". Strict proof-readiness and state-integrity failures are
+      always blocking; this input remains only for explicit compatibility.
     required: false
     default: "true"
   vela-version:
     description: >-
-      Vela release tag to install (e.g. v0.760.1). Empty (default) pins to the
-      `vela_version` recorded in the frontier's vela.lock. An explicit value
-      must match that lock, so the binary that gates is always the binary that
-      materialized the committed state.
-    required: false
-    default: ""
+      Required reviewed Vela release tag (e.g. v0.760.1). It must match the
+      `vela_version` recorded in the frontier's vela.lock, preventing the
+      proposed frontier bytes from selecting an older verifier.
+    required: true
 
 runs:
   using: composite
@@ -67,7 +68,11 @@ runs:
           exit 1
         fi
         requested="${VELA_VERSION_INPUT#v}"
-        if [ -n "$requested" ] && [ "$requested" != "$lock_version" ]; then
+        if [ -z "$requested" ]; then
+          echo "::error::vela-version is required; proposed lock bytes cannot select the verifier"
+          exit 1
+        fi
+        if [ "$requested" != "$lock_version" ]; then
           echo "::error::requested Vela $requested does not match $lock's vela_version $lock_version"
           exit 1
         fi
@@ -138,19 +143,11 @@ runs:
         STRICT: ${{ inputs.strict }}
       run: |
         set -uo pipefail
-        case "$STRICT" in
-          true)
-            if ! vela check "$FRONTIER" --strict; then
-              echo "::error::vela check --strict failed — proof-readiness or state-integrity debt is blocking. If this is acknowledged owner key-custody debt, set the action input strict: \"false\" until the owner signs."
-              exit 1
-            fi
-            ;;
-          false)
-            vela check "$FRONTIER" --strict \
-              || echo "::notice::strict proof-readiness debt (non-blocking; resolved when the owner signs the pending reviewer events)"
-            ;;
-          *)
-            echo "::error::strict must be exactly \"true\" or \"false\""
-            exit 2
-            ;;
-        esac
+        if [ "$STRICT" != "true" ]; then
+          echo "::error::strict must be exactly \"true\"; trust failures cannot be demoted"
+          exit 2
+        fi
+        if ! vela check "$FRONTIER" --strict; then
+          echo "::error::vela check --strict failed; proof-readiness or state-integrity debt is blocking"
+          exit 1
+        fi

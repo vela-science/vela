@@ -12,7 +12,9 @@ the [Vela releases page](https://github.com/vela-science/vela/releases), then
 check the version before you open work.
 
 ```bash
-awk '/^vela_version:/{print $2}' vela.lock
+version="$(awk '/^vela_version:/{print $2}' vela.lock)"
+curl -fsSL "https://raw.githubusercontent.com/vela-science/vela/v${version}/install.sh" \
+  | VELA_VERSION="v${version}" bash
 vela --version
 vela check . --strict --json
 ```
@@ -28,7 +30,7 @@ agent-only identity.
 ```bash
 git switch -c producer/<short-result-name>
 vela next . --json
-vela work <target-id> --as agent:<your-handle> --json
+vela work <target-id> --frontier . --as agent:<your-handle> --json
 ```
 
 The work response names the fixed base, completion condition, required
@@ -61,6 +63,7 @@ For another verifier, run it first and give `land` the selected artifact:
 
 ```bash
 vela land \
+  --frontier . \
   --work <target-id> \
   --claim "The exact bounded result from this run." \
   --type computational \
@@ -88,13 +91,16 @@ count effect, and Git publication state. Treat the route as follows:
 
 A verifier pass is evidence. A landed receipt is evidence. Neither grants a
 human decision. Stop and record the defect if the generated claim, caveat,
-source pin, task root, or event-count effect is wrong.
+source pin, task root, or event-count effect is wrong. Deny and invalid input
+are error-shaped outcomes; they leave the work session available for repair.
+An exact retry recovered only from pre-0.760.1 public state may report null
+historical event counts instead of inventing values.
 
 ## Publish the operational commit
 
-Only `pushed` means the remote contains the landing. Preserve a reported local
-commit when publication stops at `committed_local`, then run the recovery
-command from the response.
+Within Vela's publication response, `pushed` proves that Vela observed the
+remote ref. Preserve a reported local commit when publication stops at
+`committed_local`, then run the recovery command and verify the remote ref.
 
 ```bash
 git status --short
@@ -114,6 +120,7 @@ release it.
 
 ```bash
 vela work <target-id> \
+  --frontier . \
   --drop \
   --reason "why this attempt stopped" \
   --as agent:<your-handle> \

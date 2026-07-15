@@ -3,6 +3,7 @@ use serde_json::Value;
 const ROOT_ACTION: &str = include_str!("../../../action.yml");
 const LOCAL_ACTION: &str = include_str!("../../../.github/actions/vela-check/action.yml");
 const RELEASE_WORKFLOW: &str = include_str!("../../../.github/workflows/release.yml");
+const INSTALLER: &str = include_str!("../../../install.sh");
 
 fn parse_action(source: &str) -> Value {
     serde_yaml::from_str(source).expect("action source must be valid YAML")
@@ -50,6 +51,7 @@ fn assert_no_finalizing_commands(action: &Value) {
 fn root_action_is_lock_pinned_strict_and_nonfinalizing() {
     let action = parse_action(ROOT_ACTION);
     assert_eq!(action["inputs"]["strict"]["default"], "true");
+    assert_eq!(action["inputs"]["vela-version"]["required"], true);
 
     let install = script_named(
         &action,
@@ -57,6 +59,7 @@ fn root_action_is_lock_pinned_strict_and_nonfinalizing() {
     );
     assert!(install.contains("lock_version=\"$(awk '/^vela_version:/{print $2}' \"$lock\")\""));
     assert!(install.contains("requested=\"${VELA_VERSION_INPUT#v}\""));
+    assert!(install.contains("vela-version is required"));
     assert!(install.contains("requested Vela $requested does not match $lock's vela_version"));
     assert!(install.contains("release=\"v$lock_version\""));
     assert!(
@@ -65,11 +68,10 @@ fn root_action_is_lock_pinned_strict_and_nonfinalizing() {
     assert!(install.contains("installed Vela $installed does not match $lock's vela_version"));
 
     let strict = script_named(&action, "Strict trust gate");
-    assert!(strict.contains("case \"$STRICT\" in"));
-    assert!(strict.contains("true)"));
-    assert!(strict.contains("false)"));
+    assert!(strict.contains("[ \"$STRICT\" != \"true\" ]"));
     assert!(strict.contains("vela check \"$FRONTIER\" --strict"));
-    assert!(strict.contains("strict must be exactly"));
+    assert!(strict.contains("trust failures cannot be demoted"));
+    assert!(!strict.contains("::notice::"));
 
     assert!(!ROOT_ACTION.contains("constellate-science/vela"));
     assert!(!ROOT_ACTION.contains("/main/install.sh"));
@@ -84,12 +86,14 @@ fn root_action_is_lock_pinned_strict_and_nonfinalizing() {
 fn local_auto_action_requires_one_lock_version_and_blocks_strict_by_default() {
     let action = parse_action(LOCAL_ACTION);
     assert_eq!(action["inputs"]["strict"]["default"], "true");
+    assert_eq!(action["inputs"]["vela-version"]["required"], true);
 
     let install = script_named(
         &action,
         "Install vela (pinned binary, no from-source build)",
     );
     assert!(install.contains("mapfile -t frontiers"));
+    assert!(install.contains("vela-version is required"));
     assert!(install.contains("candidate=\"$(awk '/^vela_version:/{print $2}' \"$lock\")\""));
     assert!(install.contains("selected frontier locks require multiple Vela releases"));
     assert!(
@@ -107,10 +111,10 @@ fn local_auto_action_requires_one_lock_version_and_blocks_strict_by_default() {
         &action,
         "re-derive (reproduce + check + hash-parity, per frontier)",
     );
-    assert!(gate.contains("case \"$STRICT\" in"));
-    assert!(gate.contains("if [ \"$STRICT\" = \"true\" ]; then"));
+    assert!(gate.contains("[ \"$STRICT\" != \"true\" ]"));
     assert!(gate.contains("strict proof-readiness or state-integrity debt is blocking"));
-    assert!(gate.contains("strict: false explicitly acknowledges owner key-custody debt"));
+    assert!(gate.contains("trust failures cannot be demoted"));
+    assert!(!gate.contains("::notice::"));
 
     assert!(!LOCAL_ACTION.contains("constellate-science/vela"));
     assert!(!LOCAL_ACTION.contains("/main/install.sh"));
@@ -124,4 +128,17 @@ fn release_refuses_tag_version_drift_and_builds_the_lockfile() {
     assert!(RELEASE_WORKFLOW.contains("[ \"$GITHUB_REF_NAME\" != \"$expected_tag\" ]"));
     assert!(RELEASE_WORKFLOW.contains("cargo build --locked --release --bin vela"));
     assert!(!RELEASE_WORKFLOW.contains("cargo build --release --bin vela"));
+}
+
+#[test]
+fn installer_points_to_the_nonfinalizing_task_first_path() {
+    assert!(INSTALLER.contains("vela check . --strict --json"));
+    assert!(INSTALLER.contains("vela next . --json"));
+    assert!(INSTALLER.contains("docs/PRODUCER_QUICKSTART.md"));
+    for forbidden in ["vela finding add", "--apply", "vela sign", "vela accept"] {
+        assert!(
+            !INSTALLER.contains(forbidden),
+            "installer must not recommend `{forbidden}`"
+        );
+    }
 }

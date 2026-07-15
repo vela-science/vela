@@ -65,12 +65,11 @@ if ! command -v "$BINDIR/$BINARY" >/dev/null 2>&1 && [[ ":$PATH:" != *":$BINDIR:
 fi
 
 echo
-echo "Quick start (frontier workflow):"
-echo "  1) new:     vela frontier new frontier.json --name \"Your bounded question\""
-echo "  2) add:     vela finding add frontier.json --assertion \"A scoped finding\" --type therapeutic --evidence-type experimental --source \"Author et al., 2026\" --source-type published_paper --author reviewer:you --confidence 0.5 --apply"
-echo "  3) check:   vela check frontier.json"
-echo "  4) proof:   vela proof frontier.json --out proof-packet"
-echo "  5) serve:   vela serve frontier.json"
+echo "Quick start in a reviewed frontier clone:"
+echo "  1) verify:  vela check . --strict --json"
+echo "  2) inspect: vela next . --json"
+echo "  3) claim:   vela work <target> --frontier . --as agent:<you> --json"
+echo "Producer guide: https://github.com/vela-science/vela/blob/${TAG}/docs/PRODUCER_QUICKSTART.md"
 echo
 echo "To re-verify a reference frontier from scratch, clone the repo and run:"
 echo "  git clone https://github.com/vela-science/vela.git"

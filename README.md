@@ -99,11 +99,12 @@ cargo build --release
 vela completions zsh > ~/.zfunc/_vela   # shell completions (bash/zsh/fish)
 ```
 
-Or install a prebuilt binary (macOS and Linux x86_64; falls back to building
-from source for other platforms):
+Or install a prebuilt binary on Apple Silicon macOS or Linux x86_64. Other
+platforms must build from source:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/vela-science/vela/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.760.1/install.sh \
+  | VELA_VERSION=v0.760.1 bash
 ```
 
 ## The working loop
@@ -114,8 +115,9 @@ the [producer quickstart](docs/PRODUCER_QUICKSTART.md).
 
 ```sh
 vela next <frontier> --json
-vela work <target> --as agent:<you> --json
-vela land --work <target> --claim <result> --artifact <path>:<kind> \
+vela work <target> --frontier <frontier> --as agent:<you> --json
+vela land --frontier <frontier> --work <target> --claim <result> \
+  --type computational --replayability exact --artifact <path>:<kind> \
   --caveat <limit> --as agent:<you> --json
 vela reproduce <frontier>
 vela sign                       # key-holding human only
@@ -134,9 +136,10 @@ receipt under an `agent:` identity:
 
 ```sh
 vela next . --json
-vela work <target> --as agent:<your-handle> --json
+vela work <target> --frontier . --as agent:<your-handle> --json
 # Run the verifier named by the work briefing, then:
-vela land --work <target> --claim <result> --artifact <path>:<kind> \
+vela land --frontier . --work <target> --claim <result> \
+  --type computational --replayability exact --artifact <path>:<kind> \
   --caveat <limit> --as agent:<your-handle> --json
 ```
 

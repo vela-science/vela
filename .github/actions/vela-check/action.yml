@@ -17,9 +17,8 @@
 #                     state (the ADR 0a/0b property: the hashes are load-path
 #                     independent and materialize is deterministic, so a green
 #                     check means what merges is what verifies).
-#   4. check --strict is blocking by default. A frontier owner may explicitly
-#                     set strict: "false" only while acknowledging temporary
-#                     key-custody debt; the action still reports that debt.
+#   4. check --strict is always blocking. Trust failures cannot be demoted by
+#                     a producer-controlled action input.
 #
 # It NEVER signs anything: the human-key accept stays the reviewer's signed
 # event committed in the PR. This action only re-derives and reports.
@@ -36,18 +35,16 @@ inputs:
     default: auto
   strict:
     description: >-
-      When "true" (default), `vela check --strict` is a blocking gate. Set
-      "false" only for acknowledged owner key-custody debt; strict findings
-      remain visible as non-blocking notices.
+      Must be "true". Strict proof-readiness and state-integrity failures are
+      always blocking; this input remains only for explicit compatibility.
     required: false
     default: "true"
   vela-version:
     description: >-
-      Pinned Vela release tag to install (e.g. v0.760.1). Empty pins to the
-      selected frontier lock. All selected locks and any explicit value must
-      agree on exactly one release.
-    required: false
-    default: ""
+      Required reviewed Vela release tag (e.g. v0.760.1). It must match every
+      selected frontier lock, preventing proposed lock bytes from selecting an
+      older verifier.
+    required: true
 
 runs:
   using: composite
@@ -89,7 +86,11 @@ runs:
           lock_version="$candidate"
         done
         requested="${VELA_VERSION_INPUT#v}"
-        if [ -n "$requested" ] && [ "$requested" != "$lock_version" ]; then
+        if [ -z "$requested" ]; then
+          echo "::error::vela-version is required; proposed lock bytes cannot select the verifier"
+          exit 1
+        fi
+        if [ "$requested" != "$lock_version" ]; then
           echo "::error::requested Vela $requested does not match selected locks' vela_version $lock_version"
           exit 1
         fi
@@ -121,10 +122,10 @@ runs:
         STRICT: ${{ inputs.strict }}
       run: |
         set -uo pipefail
-        case "$STRICT" in
-          true|false) ;;
-          *) echo "::error::strict must be exactly \"true\" or \"false\""; exit 2 ;;
-        esac
+        if [ "$STRICT" != "true" ]; then
+          echo "::error::strict must be exactly \"true\"; trust failures cannot be demoted"
+          exit 2
+        fi
         if [ "$FRONTIER" = "auto" ]; then
           # every git-backed frontier = a frontiers/<name>/ dir with a vela.lock
           mapfile -t fs < <(for d in frontiers/*/; do [ -f "${d}vela.lock" ] && echo "${d%/}"; done)
@@ -165,15 +166,10 @@ runs:
           else
             echo "$f: hash-parity OK"
           fi
-          # 4. strict trust gate (blocking unless the owner explicitly acknowledges debt)
-          if [ "$STRICT" = "true" ]; then
-            if ! vela check "$f" --strict; then
-              echo "::error::$f: strict proof-readiness or state-integrity debt is blocking"
-              fail=1
-            fi
-          else
-            vela check "$f" --strict \
-              || echo "::notice::$f has strict proof-readiness debt (non-blocking; strict: false explicitly acknowledges owner key-custody debt)"
+          # 4. strict trust gate (always blocking)
+          if ! vela check "$f" --strict; then
+            echo "::error::$f: strict proof-readiness or state-integrity debt is blocking"
+            fail=1
           fi
           echo "::endgroup::"
         done
