@@ -196,6 +196,83 @@ fn folded_spellings_dispatch() {
     }
 }
 
+#[test]
+fn legacy_policy_retirement_is_prepare_only_json_porcelain() {
+    const POLICY_ID: &str = "vap_e0abc750544408e637bd90e0661bac15";
+    let frontier = TempDir::new().unwrap();
+    vela_protocol::frontier_repo::initialize(
+        frontier.path(),
+        vela_protocol::frontier_repo::InitOptions {
+            name: "legacy-policy-retirement-cli",
+            initialize_git: false,
+        },
+    )
+    .unwrap();
+    let policies = frontier.path().join(".vela/policies");
+    std::fs::create_dir_all(&policies).unwrap();
+    std::fs::write(
+        policies.join("active.json"),
+        format!("{{\"schema\":\"vela.acceptance_policy.prelaunch\",\"id\":\"{POLICY_ID}\"}}\n"),
+    )
+    .unwrap();
+    std::fs::write(
+        policies.join("active.sig.json"),
+        format!("{{\"policy_id\":\"{POLICY_ID}\",\"signature\":\"historical\"}}\n"),
+    )
+    .unwrap();
+
+    let out = vela(&[
+        "policy",
+        "retire-legacy",
+        frontier.path().to_str().unwrap(),
+        "--reason",
+        "retire unsupported prelaunch bytes",
+        "--as",
+        "agent:test",
+        "--json",
+    ]);
+    assert!(out.status.success(), "{}", combined(&out));
+    assert!(stderr(&out).is_empty(), "{}", stderr(&out));
+    let value: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert_eq!(value["status"], "pending_review");
+    assert_eq!(value["policy_id"], POLICY_ID);
+    let project = vela_protocol::repo::load_from_path(frontier.path()).unwrap();
+    assert_eq!(project.proposals.len(), 1);
+    assert!(
+        project.events.is_empty(),
+        "prepare must not create a decision"
+    );
+    assert!(policies.join("active.json").exists());
+    assert!(policies.join("active.sig.json").exists());
+
+    let keyed = vela(&[
+        "policy",
+        "retire-legacy",
+        frontier.path().to_str().unwrap(),
+        "--reason",
+        "retire unsupported prelaunch bytes",
+        "--as",
+        "agent:test",
+        "--key",
+        "/tmp/never-read",
+    ]);
+    assert_eq!(keyed.status.code(), Some(2));
+    assert!(combined(&keyed).contains("prepare-only"));
+
+    let bare_key = vela(&[
+        "policy",
+        "retire-legacy",
+        frontier.path().to_str().unwrap(),
+        "--reason",
+        "retire unsupported prelaunch bytes",
+        "--as",
+        "agent:test",
+        "--key",
+    ]);
+    assert_eq!(bare_key.status.code(), Some(2));
+    assert!(combined(&bare_key).contains("prepare-only"));
+}
+
 /// Sanity: a genuinely-unknown flag is rejected (so the checks above mean
 /// something — the parser doesn't swallow everything).
 #[test]

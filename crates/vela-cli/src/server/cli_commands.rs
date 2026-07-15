@@ -111,6 +111,19 @@ pub enum PolicyAction {
         #[arg(long)]
         yes: bool,
     },
+    /// Prepare a pending human-governance proposal that retires an unused
+    /// prelaunch policy byte pair which current policy parsing rejects. This
+    /// command is keyless; only the existing `vela sign` ceremony can accept.
+    RetireLegacy {
+        frontier: Option<PathBuf>,
+        /// Why these unsupported prelaunch bytes should be retired.
+        #[arg(long)]
+        reason: String,
+        #[arg(long = "as", help = HELP_AS)]
+        actor: String,
+        #[arg(long)]
+        json: bool,
+    },
     /// Every policy-lane admission, grouped by policy.
     Log {
         frontier: Option<PathBuf>,

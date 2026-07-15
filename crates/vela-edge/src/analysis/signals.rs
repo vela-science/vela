@@ -126,6 +126,11 @@ pub fn analyze(frontier: &Project, diagnostics: &[Value]) -> SignalReport {
         .iter()
         .map(|source| (source.id.as_str(), source))
         .collect::<BTreeMap<_, _>>();
+    let finding_by_id = frontier
+        .findings
+        .iter()
+        .map(|finding| (finding.id.as_str(), finding))
+        .collect::<BTreeMap<_, _>>();
     let reviewed_finding_ids = frontier
         .events
         .iter()
@@ -246,7 +251,10 @@ pub fn analyze(frontier: &Project, diagnostics: &[Value]) -> SignalReport {
     }
 
     for record in &projection.condition_records {
-        if record.text.trim().is_empty() {
+        let theoretical_catalogue_record = finding_by_id
+            .get(record.finding_id.as_str())
+            .is_some_and(|finding| is_theoretical_catalogue_record(finding));
+        if record.text.trim().is_empty() && !theoretical_catalogue_record {
             signals.push(SignalItem {
                 id: signal_id("missing_conditions", &record.id),
                 kind: "missing_conditions".into(),
@@ -455,7 +463,8 @@ pub fn analyze(frontier: &Project, diagnostics: &[Value]) -> SignalReport {
             });
         }
 
-        if finding.conditions.text.trim().is_empty() {
+        let theoretical_catalogue_record = is_theoretical_catalogue_record(finding);
+        if finding.conditions.text.trim().is_empty() && !theoretical_catalogue_record {
             signals.push(SignalItem {
                 id: signal_id("missing_conditions", &finding.id),
                 kind: "missing_conditions".into(),
@@ -477,7 +486,8 @@ pub fn analyze(frontier: &Project, diagnostics: &[Value]) -> SignalReport {
         }
 
         if finding.conditions.text.trim().is_empty()
-            && contains_condition_sensitive_claim(&finding.assertion.text)
+            && !theoretical_catalogue_record
+            && contains_condition_sensitive_claim(finding)
         {
             signals.push(SignalItem {
                 id: signal_id("condition_loss_risk", &finding.id),
@@ -1138,8 +1148,25 @@ fn signal_id(kind: &str, finding_id: &str) -> String {
     format!("sig_{kind}_{}", finding_id.trim_start_matches("vf_"))
 }
 
-fn contains_condition_sensitive_claim(text: &str) -> bool {
-    let lower = text.to_ascii_lowercase();
+fn is_theoretical_catalogue_record(finding: &vela_protocol::bundle::FindingBundle) -> bool {
+    finding.provenance.source_type == "database_record"
+        && finding.provenance.extraction.method == "database_import"
+        && finding.assertion.assertion_type == "theoretical"
+        && finding.evidence.evidence_type == "theoretical"
+        && finding.evidence.method == "erdos_deep"
+        && finding.evidence.model_system.eq_ignore_ascii_case("n/a")
+        && finding
+            .provenance
+            .title
+            .strip_prefix("erdos_deep:")
+            .is_some_and(|problem| {
+                !problem.is_empty() && problem.bytes().all(|byte| byte.is_ascii_digit())
+            })
+        && !has_biomedical_context(finding)
+}
+
+fn contains_condition_sensitive_claim(finding: &vela_protocol::bundle::FindingBundle) -> bool {
+    let lower = finding.assertion.text.to_ascii_lowercase();
     [
         "delivery",
         "efficacy",
@@ -1152,10 +1179,63 @@ fn contains_condition_sensitive_claim(text: &str) -> bool {
         "endpoint",
         "payload",
         "exposure",
-        "translation",
     ]
     .iter()
     .any(|term| lower.contains(term))
+        || (lower.contains("translation") && has_biomedical_translation_context(finding))
+}
+
+fn has_biomedical_translation_context(finding: &vela_protocol::bundle::FindingBundle) -> bool {
+    has_biomedical_context(finding)
+}
+
+fn has_biomedical_context(finding: &vela_protocol::bundle::FindingBundle) -> bool {
+    if finding.assertion.entities.iter().any(|entity| {
+        matches!(
+            entity.entity_type.to_ascii_lowercase().as_str(),
+            "protein"
+                | "gene"
+                | "disease"
+                | "drug"
+                | "compound"
+                | "cell"
+                | "organism"
+                | "tissue"
+                | "patient"
+        )
+    }) {
+        return true;
+    }
+    let context = format!(
+        "{} {} {}",
+        finding.assertion.text, finding.evidence.model_system, finding.evidence.method
+    )
+    .to_ascii_lowercase();
+    [
+        "clinical",
+        "patient",
+        "human",
+        "mouse",
+        "mice",
+        "animal",
+        "in vitro",
+        "in vivo",
+        "cell",
+        "therapeutic",
+        "disease",
+        "protein",
+        "gene",
+        "genomic",
+        "dna",
+        "rna",
+        "ribosome",
+        "drug",
+        "toxicity",
+        "adverse event",
+        "efficacy",
+    ]
+    .iter()
+    .any(|term| context.contains(term))
 }
 
 #[cfg(test)]
@@ -1243,5 +1323,130 @@ mod tests {
                 .any(|s| s.kind == "contested_high_confidence")
         );
         assert_eq!(report.review_queue.len(), 1);
+    }
+
+    #[test]
+    fn erdos_database_imports_do_not_invent_empirical_condition_blockers() {
+        for (finding_id, condition_id, problem) in [
+            ("vf_00008dacb7640287", "vcnd_f3a9d1319a449e81", "1057"),
+            ("vf_001ca4e62aaa125e", "vcnd_69697c99c4658b1c", "1018"),
+            ("vf_0026e977242a051a", "vcnd_686c31cbec80687a", "703"),
+            ("vf_0043888dee5bea76", "vcnd_3431d18d10bd7375", "647"),
+            ("vf_00541e85275a706a", "vcnd_0e7f19e825b078dc", "699"),
+        ] {
+            let mut finding = minimal_finding(finding_id);
+            finding.provenance.source_type = "database_record".to_string();
+            finding.provenance.extraction.method = "database_import".to_string();
+            finding.provenance.title = format!("erdos_deep:{problem}");
+            finding.assertion.assertion_type = "theoretical".to_string();
+            finding.evidence.evidence_type = "theoretical".to_string();
+            finding.evidence.model_system = "n/a".to_string();
+            finding.evidence.method = "erdos_deep".to_string();
+            finding.assertion.text = "A catalogue status for an Erdős problem.".to_string();
+            let frontier = project::assemble("erdos", vec![finding], 1, 0, "migrate_erdos");
+            let report = analyze(&frontier, &[]);
+            assert!(
+                report
+                    .signals
+                    .iter()
+                    .all(|signal| signal.id != format!("sig_missing_conditions_{condition_id}")),
+                "{finding_id} should not manufacture an empirical condition blocker: {:?}",
+                report.signals
+            );
+            assert!(
+                report.signals.iter().all(|signal| {
+                    signal.target.id != finding_id
+                        || !matches!(
+                            signal.kind.as_str(),
+                            "missing_conditions" | "condition_loss_risk"
+                        )
+                }),
+                "{finding_id} should carry catalogue provenance instead of condition debt"
+            );
+        }
+    }
+
+    #[test]
+    fn mathematical_translation_property_is_not_biomedical_translation_risk() {
+        let mut finding = minimal_finding("vf_af1c3ee8e0a0262c");
+        finding.provenance.source_type = "published_paper".to_string();
+        finding.provenance.extraction.method = "manual".to_string();
+        finding.evidence.evidence_type = "theoretical".to_string();
+        finding.evidence.model_system.clear();
+        finding.evidence.method = "proof".to_string();
+        finding.assertion.text =
+            "The constructed set satisfies the translation property.".to_string();
+        let frontier = project::assemble("erdos", vec![finding], 1, 0, "migrate_erdos");
+        let report = analyze(&frontier, &[]);
+        assert!(
+            report
+                .signals
+                .iter()
+                .all(|signal| signal.id != "sig_condition_loss_risk_af1c3ee8e0a0262c")
+        );
+        assert!(
+            report
+                .signals
+                .iter()
+                .any(|signal| signal.id == "sig_missing_conditions_af1c3ee8e0a0262c"),
+            "non-catalogue theoretical claims still retain ordinary condition review"
+        );
+    }
+
+    #[test]
+    fn empirical_and_biomedical_condition_claims_remain_strict() {
+        let mut finding = minimal_finding("vf_empirical");
+        finding.assertion.text =
+            "Mouse efficacy supports clinical translation to humans.".to_string();
+        let frontier = project::assemble("biomed", vec![finding], 1, 0, "test");
+        let report = analyze(&frontier, &[]);
+        assert!(report.signals.iter().any(|signal| {
+            signal.kind == "missing_conditions"
+                && signal.blocks.iter().any(|block| block == "strict_check")
+        }));
+        assert!(report.signals.iter().any(|signal| {
+            signal.kind == "condition_loss_risk"
+                && signal.blocks.iter().any(|block| block == "strict_check")
+        }));
+    }
+
+    #[test]
+    fn producer_labels_cannot_disguise_biomedical_or_untyped_records_as_erdos_catalogue() {
+        let mut biomedical = minimal_finding("vf_disguised_biomedical");
+        biomedical.provenance.source_type = "database_record".to_string();
+        biomedical.provenance.extraction.method = "database_import".to_string();
+        biomedical.provenance.title = "erdos_deep:647".to_string();
+        biomedical.assertion.assertion_type = "theoretical".to_string();
+        biomedical.evidence.evidence_type = "theoretical".to_string();
+        biomedical.evidence.model_system = "n/a".to_string();
+        biomedical.evidence.method = "erdos_deep".to_string();
+        biomedical.assertion.text =
+            "Protein translation in patients changes therapeutic efficacy.".to_string();
+        let report = analyze(
+            &project::assemble("biomed", vec![biomedical], 1, 0, "test"),
+            &[],
+        );
+        assert!(report.signals.iter().any(|signal| {
+            signal.target.id == "vf_disguised_biomedical" && signal.kind == "missing_conditions"
+        }));
+        assert!(report.signals.iter().any(|signal| {
+            signal.target.id == "vf_disguised_biomedical" && signal.kind == "condition_loss_risk"
+        }));
+
+        let mut untyped = minimal_finding("vf_disguised_untyped");
+        untyped.provenance.source_type = "database_record".to_string();
+        untyped.provenance.extraction.method = "database_import".to_string();
+        untyped.provenance.title = "erdos_deep:647".to_string();
+        untyped.evidence.evidence_type = "theoretical".to_string();
+        untyped.evidence.model_system = "n/a".to_string();
+        untyped.evidence.method = "erdos_deep".to_string();
+        untyped.assertion.text = "An untyped catalogue-looking record.".to_string();
+        let report = analyze(
+            &project::assemble("catalogue", vec![untyped], 1, 0, "test"),
+            &[],
+        );
+        assert!(report.signals.iter().any(|signal| {
+            signal.target.id == "vf_disguised_untyped" && signal.kind == "missing_conditions"
+        }));
     }
 }

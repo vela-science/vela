@@ -1514,6 +1514,69 @@ fn clone_project_for_decision(project: &Project) -> Project {
 }
 
 #[test]
+fn public_accept_preparation_rejects_legacy_retirement_while_preview_remains_pure() {
+    const DECIDED_AT: &str = "2026-07-14T12:34:56Z";
+    let key = SigningKey::from_bytes(&[73_u8; 32]);
+    let mut project = project::assemble("legacy-retirement-seam", vec![], 0, 0, "test");
+    project.actors = vec![accept_actor(
+        "reviewer:will",
+        &crate::sign::pubkey_hex(&key),
+    )];
+    let proposal = new_proposal_at(
+        policy_accept::LEGACY_POLICY_RETIREMENT_PROPOSAL_KIND,
+        StateTarget {
+            r#type: "governance".to_string(),
+            id: project.frontier_id().to_string(),
+        },
+        "agent:test",
+        "agent",
+        "retire unsupported prelaunch policy bytes",
+        serde_json::to_value(policy_accept::LegacyPolicyRetirementPayload {
+            schema: policy_accept::LEGACY_POLICY_RETIREMENT_SCHEMA.to_string(),
+            policy_id: "vap_e0abc750544408e637bd90e0661bac15".to_string(),
+            policy_bytes_root: format!("sha256:{}", "a".repeat(64)),
+            signature_bytes_root: format!("sha256:{}", "b".repeat(64)),
+            retire_identical_snapshot_pair: true,
+        })
+        .unwrap(),
+        vec![],
+        vec![],
+        "2026-07-14T11:00:00Z",
+    );
+    let proposal_id = proposal.id.clone();
+    project.proposals.push(proposal);
+    let before = serde_json::to_value(&project).unwrap();
+
+    let error = prepare_proposal_accept_in_memory_at(
+        &mut project,
+        &proposal_id,
+        "reviewer:will",
+        "The exact legacy bytes are obsolete",
+        None,
+        DECIDED_AT,
+    )
+    .unwrap_err();
+    assert!(error.contains("public protocol preparation API"), "{error}");
+    assert_eq!(serde_json::to_value(&project).unwrap(), before);
+
+    let error = prepare_proposal_accept_candidate_at(
+        &project,
+        &proposal_id,
+        "reviewer:will",
+        "The exact legacy bytes are obsolete",
+        None,
+        DECIDED_AT,
+    )
+    .unwrap_err();
+    assert!(error.contains("public protocol preparation API"), "{error}");
+    assert_eq!(serde_json::to_value(&project).unwrap(), before);
+
+    let temp = TempDir::new().unwrap();
+    preview_engine_verdict_in_frontier(&project, temp.path(), &proposal_id, false).unwrap();
+    assert_eq!(serde_json::to_value(&project).unwrap(), before);
+}
+
+#[test]
 fn prepared_accept_is_fixed_time_root_bound_and_exactly_signed() {
     const DECIDED_AT: &str = "2026-07-14T12:34:56Z";
     let root_a = format!("sha256:{}", "a".repeat(64));

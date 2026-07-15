@@ -1,5 +1,26 @@
 # Changelog
 
+## v0.800.6 — 2026-07-15 — Bounded legacy-policy retirement
+
+- Added one prepare-only recovery command for unsupported prelaunch policy
+  bytes. `vela policy retire-legacy` records a closed, content-addressed
+  governance proposal without reading a key, validating the legacy signature,
+  or granting policy authority. The existing isolated `vela sign` Decision
+  Plan remains the only acceptance path.
+- Bound acceptance to the exact raw active pair, fixed internally derived
+  paths, the optional byte-identical same-id snapshot pair, an intact replay,
+  no current policy head, and no evidence that the legacy policy admitted
+  state. Drift aborts before key access; rejection preserves every byte; an
+  accepted review and the bounded deletions commit in one recoverable
+  transaction.
+- Narrowed strict-signal heuristics so typed, non-biomedical Erdős catalogue
+  records do not inherit empirical missing-condition failures and a mathematical
+  “translation property” is not treated as a missing biological translation
+  condition. Empirical biomedical records retain the strict checks.
+- Added the `vela.policy-legacy-retirement.v1` governance proposal shape and
+  its review/audit regressions. Receipt v1, accepted event, policy-lane, and
+  scientific finding schemas are unchanged.
+
 ## v0.800.5 — 2026-07-15 — One executable frontier scaffold
 
 - Removed the unlaunched multi-template `vela init --template` branch and its

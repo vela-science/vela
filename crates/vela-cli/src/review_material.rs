@@ -636,6 +636,21 @@ fn build_review_item(
         .map_err(|error| ReviewProjectionError::new("decision_brief_invariant", error))
     };
 
+    if crate::config::policy_legacy_retirement::is_legacy_policy_retirement(proposal) {
+        return match crate::config::policy_legacy_retirement::audit_legacy_policy_retirement(
+            frontier, project, proposal,
+        ) {
+            Ok(_) => build(vela_edge::decision_brief::ReviewRoute::human_only(
+                "legacy_policy_retirement",
+                "retiring unsupported prelaunch policy bytes requires an isolated explicit human decision",
+            )),
+            Err(error) => build(vela_edge::decision_brief::ReviewRoute::unavailable(
+                "legacy_policy_retirement_broken",
+                &error,
+            )),
+        };
+    }
+
     let Ok(snapshot) = policy_snapshot else {
         return build(vela_edge::decision_brief::ReviewRoute::unavailable(
             "broken",

@@ -1143,8 +1143,8 @@ pub struct ActivePolicySnapshot {
 // Governance files are deliberately much smaller than general repository
 // objects. The byte ceiling is the first bound; the structural budgets prevent
 // a compact adversarial document from spending unbounded parser work.
-const POLICY_JSON_MAX_BYTES: usize = 64 * 1024;
-const POLICY_SIGNATURE_JSON_MAX_BYTES: usize = 8 * 1024;
+pub const POLICY_JSON_MAX_BYTES: usize = 64 * 1024;
+pub const POLICY_SIGNATURE_JSON_MAX_BYTES: usize = 8 * 1024;
 const GOVERNANCE_JSON_MAX_DEPTH: usize = 16;
 const GOVERNANCE_JSON_MAX_NODES: usize = 4_096;
 const GOVERNANCE_JSON_MAX_OBJECT_FIELDS: usize = 2_048;
@@ -1606,6 +1606,129 @@ pub fn load_active_policy(
     frontier_dir: &std::path::Path,
 ) -> Result<Option<VerifiedPolicy>, String> {
     Ok(load_active_policy_snapshot(frontier_dir)?.verified)
+}
+
+/// Content observation for a prelaunch policy pair that no longer parses as a
+/// supported [`AcceptancePolicy`]. This is provenance for a human retirement
+/// proposal, never policy authority: it deliberately does not rederive the
+/// policy id, validate the current schema, or verify the historical signature.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct LegacyPolicyPairObservation {
+    pub stored_policy_id: String,
+    pub policy_bytes_root: String,
+    pub signature_bytes_root: String,
+}
+
+/// Inspect exact legacy policy/signature bytes under the same structural and
+/// byte budgets as current governance inputs. Duplicate object names are
+/// rejected before the two stored ids are compared. A successful observation
+/// says only which immutable bytes are present; it must never be interpreted as
+/// a valid signature or an authorization to admit scientific state.
+pub fn observe_legacy_policy_pair_bytes(
+    policy_bytes: &[u8],
+    signature_bytes: &[u8],
+) -> Result<LegacyPolicyPairObservation, String> {
+    let policy: Value = parse_bounded_governance_json(
+        policy_bytes,
+        GovernanceJsonLimits {
+            bytes: POLICY_JSON_MAX_BYTES,
+        },
+        "legacy active policy",
+    )?;
+    let signature: Value = parse_bounded_governance_json(
+        signature_bytes,
+        GovernanceJsonLimits {
+            bytes: POLICY_SIGNATURE_JSON_MAX_BYTES,
+        },
+        "legacy active policy signature",
+    )?;
+    let stored_policy_id = policy
+        .as_object()
+        .and_then(|object| object.get("id"))
+        .and_then(Value::as_str)
+        .ok_or_else(|| "legacy active policy must contain a string id".to_string())?;
+    let signature_policy_id = signature
+        .as_object()
+        .and_then(|object| object.get("policy_id"))
+        .and_then(Value::as_str)
+        .ok_or_else(|| {
+            "legacy active policy signature must contain a string policy_id".to_string()
+        })?;
+    if !is_policy_id_shape(stored_policy_id) {
+        return Err(
+            "legacy active policy id must be vap_ followed by 32 lowercase hex characters"
+                .to_string(),
+        );
+    }
+    if signature_policy_id != stored_policy_id {
+        return Err(
+            "legacy active policy and signature name different stored policy ids".to_string(),
+        );
+    }
+    Ok(LegacyPolicyPairObservation {
+        stored_policy_id: stored_policy_id.to_string(),
+        policy_bytes_root: format!("sha256:{}", hex::encode(Sha256::digest(policy_bytes))),
+        signature_bytes_root: format!("sha256:{}", hex::encode(Sha256::digest(signature_bytes))),
+    })
+}
+
+fn is_policy_id_shape(value: &str) -> bool {
+    value.strip_prefix("vap_").is_some_and(|digest| {
+        digest.len() == 32
+            && digest
+                .bytes()
+                .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+    })
+}
+
+#[cfg(test)]
+mod legacy_pair_observation_tests {
+    use super::*;
+
+    #[test]
+    fn observes_legacy_bytes_without_granting_current_policy_authority() {
+        let id = "vap_e0abc750544408e637bd90e0661bac15";
+        let policy =
+            format!(r#"{{"schema":"vela.acceptance_policy.prelaunch","id":"{id}","legacy":true}}"#);
+        let signature = format!(
+            r#"{{"policy_id":"{id}","signer_pubkey_hex":"not-authority","signature":"historical","signed_at":"before-current-format"}}"#
+        );
+        let observed =
+            observe_legacy_policy_pair_bytes(policy.as_bytes(), signature.as_bytes()).unwrap();
+        assert_eq!(observed.stored_policy_id, id);
+        assert_eq!(
+            observed.policy_bytes_root,
+            format!("sha256:{}", hex::encode(Sha256::digest(policy.as_bytes())))
+        );
+        assert!(
+            verify_policy_signature_bytes(
+                policy.as_bytes(),
+                signature.as_bytes(),
+                None,
+                "legacy fixture"
+            )
+            .is_err(),
+            "observation must not make unsupported legacy bytes authoritative"
+        );
+    }
+
+    #[test]
+    fn rejects_duplicate_names_and_mismatched_envelope_ids() {
+        let id = "vap_e0abc750544408e637bd90e0661bac15";
+        let duplicate = format!(r#"{{"id":"{id}","id":"{id}"}}"#);
+        let signature = format!(r#"{{"policy_id":"{id}"}}"#);
+        let error = observe_legacy_policy_pair_bytes(duplicate.as_bytes(), signature.as_bytes())
+            .unwrap_err();
+        assert!(error.contains("duplicate object name"), "{error}");
+
+        let other = "vap_dbbc9caf67767317e42e217c65bab979";
+        let policy = format!(r#"{{"id":"{id}"}}"#);
+        let signature = format!(r#"{{"policy_id":"{other}"}}"#);
+        let error =
+            observe_legacy_policy_pair_bytes(policy.as_bytes(), signature.as_bytes()).unwrap_err();
+        assert!(error.contains("different stored policy ids"), "{error}");
+    }
 }
 
 /// Load the active policy paths exactly once, retaining the bytes that were

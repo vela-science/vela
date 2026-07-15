@@ -74,6 +74,8 @@ pub const POLICY_LANE_PAYLOAD_KEY: &str = "policy_lane";
 pub const POLICY_LANE_SCHEMA_V2: &str = "vela.policy-lane.v2";
 pub const POLICY_HEAD_PROPOSAL_KIND: &str = "governance.policy_head";
 pub const POLICY_HEAD_SCHEMA: &str = "vela.policy-head.v1";
+pub const LEGACY_POLICY_RETIREMENT_PROPOSAL_KIND: &str = "governance.policy_legacy_retirement";
+pub const LEGACY_POLICY_RETIREMENT_SCHEMA: &str = "vela.policy-legacy-retirement.v1";
 const POLICY_TRANSITION_ROOT_SCHEMA: &str = "vela.policy-transition-root.v1";
 const MAX_REVIEW_MATERIAL_BYTES: u64 = 1024 * 1024;
 /// Finite wall-clock expiry cannot authorize an unsigned event: an event can
@@ -122,6 +124,19 @@ pub struct PolicyHeadPayload {
     pub expected_parent_event_log_root: String,
     pub parent_event_ids: Vec<String>,
     pub epoch: u32,
+}
+
+/// Closed, content-bound intent for retiring one prelaunch policy pair that
+/// cannot be interpreted as current authority. Paths are intentionally absent:
+/// implementations derive the fixed active paths and same-id snapshot paths.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct LegacyPolicyRetirementPayload {
+    pub schema: String,
+    pub policy_id: String,
+    pub policy_bytes_root: String,
+    pub signature_bytes_root: String,
+    pub retire_identical_snapshot_pair: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1041,6 +1056,118 @@ pub(crate) fn parse_policy_head_payload(
         PolicyHeadAction::Revoke => {}
     }
     Ok(payload)
+}
+
+pub fn parse_legacy_policy_retirement_payload(
+    proposal: &super::StateProposal,
+) -> Result<LegacyPolicyRetirementPayload, String> {
+    let payload: LegacyPolicyRetirementPayload =
+        serde_json::from_value(proposal.payload.clone())
+            .map_err(|error| format!("legacy-policy-retirement payload is malformed: {error}"))?;
+    if serde_json::to_value(&payload).map_err(|error| error.to_string())? != proposal.payload {
+        return Err("legacy-policy-retirement payload is not the exact closed shape".to_string());
+    }
+    if payload.schema != LEGACY_POLICY_RETIREMENT_SCHEMA {
+        return Err(format!(
+            "legacy-policy-retirement schema must be {LEGACY_POLICY_RETIREMENT_SCHEMA}, got {}",
+            payload.schema
+        ));
+    }
+    if !payload
+        .policy_id
+        .strip_prefix("vap_")
+        .is_some_and(|digest| {
+            digest.len() == 32
+                && digest
+                    .bytes()
+                    .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+        })
+    {
+        return Err(
+            "legacy-policy-retirement policy_id must be vap_ plus 32 lowercase hex characters"
+                .to_string(),
+        );
+    }
+    for (label, root) in [
+        ("policy_bytes_root", payload.policy_bytes_root.as_str()),
+        (
+            "signature_bytes_root",
+            payload.signature_bytes_root.as_str(),
+        ),
+    ] {
+        if !root.strip_prefix("sha256:").is_some_and(|digest| {
+            digest.len() == 64
+                && digest
+                    .bytes()
+                    .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+        }) {
+            return Err(format!(
+                "legacy-policy-retirement {label} must be sha256 plus 64 lowercase hex characters"
+            ));
+        }
+    }
+    Ok(payload)
+}
+
+/// Pure shape validation. Live filesystem roots, policy-head absence, replay,
+/// and historical-use checks are intentionally performed by the CLI at prepare
+/// and Decision Plan time: an applied retirement proposal must remain valid
+/// after its target files are gone and after a later current policy is created.
+pub fn validate_legacy_policy_retirement_proposal(
+    frontier: &project::Project,
+    proposal: &super::StateProposal,
+) -> Result<(), String> {
+    if proposal.kind != LEGACY_POLICY_RETIREMENT_PROPOSAL_KIND
+        || proposal.target.r#type != "governance"
+        || proposal.target.id != frontier.frontier_id.as_deref().unwrap_or_default()
+    {
+        return Err(
+            "legacy-policy-retirement proposal must target this frontier as governance".to_string(),
+        );
+    }
+    parse_legacy_policy_retirement_payload(proposal).map(|_| ())
+}
+
+/// Refuse recovery when the named legacy object may have admitted anything.
+/// A historical `policy.auto_admitted` event is conservatively unattributed,
+/// so any such event blocks retirement even if no current policy-lane stamp
+/// names this id.
+pub fn ensure_legacy_policy_has_no_admissions(
+    frontier: &project::Project,
+    policy_id: &str,
+) -> Result<(), String> {
+    let policy_actor = format!("policy:{policy_id}");
+    if frontier
+        .events
+        .iter()
+        .any(|event| event.kind.as_str() == events::EVENT_KIND_POLICY_AUTO_ADMITTED)
+    {
+        return Err(
+            "legacy policy retirement is unavailable because unattributed policy.auto_admitted history exists"
+                .to_string(),
+        );
+    }
+    if frontier.events.iter().any(|event| {
+        event.actor.id == policy_actor
+            || event
+                .payload
+                .get(POLICY_LANE_PAYLOAD_KEY)
+                .and_then(|lane| lane.get("policy_id"))
+                .and_then(serde_json::Value::as_str)
+                == Some(policy_id)
+    }) {
+        return Err(format!(
+            "legacy policy {policy_id} appears in policy-lane event history"
+        ));
+    }
+    if frontier.proposals.iter().any(|proposal| {
+        proposal.status == "applied" && proposal.reviewed_by.as_deref() == Some(&policy_actor)
+    }) {
+        return Err(format!(
+            "legacy policy {policy_id} appears as an applied proposal reviewer"
+        ));
+    }
+    Ok(())
 }
 
 fn verify_policy_head_review_authority(
@@ -3976,5 +4103,109 @@ mod tests {
             .find(|event| event.id == out.event_id)
             .unwrap();
         assert_eq!(event.timestamp, DECISION_AT);
+    }
+
+    #[test]
+    fn legacy_policy_retirement_payload_is_closed_and_frontier_bound() {
+        let frontier = project::assemble("legacy-retirement", vec![], 0, 0, "test");
+        let payload = LegacyPolicyRetirementPayload {
+            schema: LEGACY_POLICY_RETIREMENT_SCHEMA.to_string(),
+            policy_id: "vap_e0abc750544408e637bd90e0661bac15".to_string(),
+            policy_bytes_root: format!("sha256:{}", "a".repeat(64)),
+            signature_bytes_root: format!("sha256:{}", "b".repeat(64)),
+            retire_identical_snapshot_pair: true,
+        };
+        let mut proposal = crate::proposals::new_proposal_at(
+            LEGACY_POLICY_RETIREMENT_PROPOSAL_KIND,
+            events::StateTarget {
+                r#type: "governance".to_string(),
+                id: frontier.frontier_id().to_string(),
+            },
+            "agent:test",
+            "agent",
+            "retire unsupported prelaunch policy bytes",
+            serde_json::to_value(payload).unwrap(),
+            vec![],
+            vec![],
+            "2026-07-15T00:00:00Z",
+        );
+        validate_legacy_policy_retirement_proposal(&frontier, &proposal).unwrap();
+
+        proposal.payload.as_object_mut().unwrap().insert(
+            "caller_selected_path".to_string(),
+            serde_json::json!("/tmp/key"),
+        );
+        let error = parse_legacy_policy_retirement_payload(&proposal).unwrap_err();
+        assert!(
+            error.contains("malformed") || error.contains("closed shape"),
+            "{error}"
+        );
+    }
+
+    #[test]
+    fn legacy_policy_retirement_refuses_known_admission_history_shapes() {
+        let mut frontier = project::assemble("legacy-retirement", vec![], 0, 0, "test");
+        let id = "vap_e0abc750544408e637bd90e0661bac15";
+        let mut proposal = crate::proposals::new_proposal_at(
+            "finding.note",
+            events::StateTarget {
+                r#type: "finding".to_string(),
+                id: "vf_fixture".to_string(),
+            },
+            "agent:test",
+            "agent",
+            "fixture",
+            serde_json::json!({"text":"fixture"}),
+            vec![],
+            vec![],
+            "2026-07-15T00:00:00Z",
+        );
+        proposal.status = "applied".to_string();
+        proposal.reviewed_by = Some(format!("policy:{id}"));
+        proposal.reviewed_at = Some("2026-07-15T01:00:00Z".to_string());
+        proposal.decision_reason = Some("fixture".to_string());
+        proposal.applied_event_id = Some("vev_fixture".to_string());
+        frontier.proposals.push(proposal);
+        let error = ensure_legacy_policy_has_no_admissions(&frontier, id).unwrap_err();
+        assert!(error.contains("applied proposal reviewer"), "{error}");
+
+        let event = |kind: &str, actor: &str, payload: serde_json::Value| events::StateEvent {
+            schema: events::EVENT_SCHEMA.to_string(),
+            id: "vev_legacy_history_fixture".to_string(),
+            kind: kind.into(),
+            target: events::StateTarget {
+                r#type: "proposal".to_string(),
+                id: "vpr_fixture".to_string(),
+            },
+            actor: events::StateActor {
+                id: actor.to_string(),
+                r#type: events::actor_kind(actor).to_string(),
+            },
+            timestamp: "2026-07-15T00:00:00Z".to_string(),
+            reason: "fixture".to_string(),
+            before_hash: events::NULL_HASH.to_string(),
+            after_hash: events::NULL_HASH.to_string(),
+            payload,
+            caveats: vec![],
+            signature: None,
+        };
+
+        let mut unattributed = project::assemble("legacy-retirement", vec![], 0, 0, "test");
+        unattributed.events.push(event(
+            events::EVENT_KIND_POLICY_AUTO_ADMITTED,
+            "policy:historical",
+            json!({"proposal_id":"vpr_fixture"}),
+        ));
+        let error = ensure_legacy_policy_has_no_admissions(&unattributed, id).unwrap_err();
+        assert!(error.contains("unattributed"), "{error}");
+
+        let mut attributed = project::assemble("legacy-retirement", vec![], 0, 0, "test");
+        attributed.events.push(event(
+            events::EVENT_KIND_REVIEW_ACCEPTED,
+            "reviewer:test",
+            json!({(POLICY_LANE_PAYLOAD_KEY):{"policy_id":id}}),
+        ));
+        let error = ensure_legacy_policy_has_no_admissions(&attributed, id).unwrap_err();
+        assert!(error.contains("policy-lane event history"), "{error}");
     }
 }

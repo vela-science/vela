@@ -921,6 +921,20 @@ pub async fn run_command() {
                     false,
                 )
             }
+            PolicyAction::RetireLegacy {
+                frontier,
+                reason,
+                actor,
+                json,
+            } => {
+                crate::ui::set_mode("policy", json);
+                crate::config::policy_legacy_retirement::cmd_policy_retire_legacy(
+                    &crate::ui::resolve_frontier(frontier),
+                    &reason,
+                    &actor,
+                    json,
+                )
+            }
             PolicyAction::Log { frontier, json } => {
                 crate::ui::set_mode("policy", json);
                 crate::config::cli_policy::cmd_policy_log(

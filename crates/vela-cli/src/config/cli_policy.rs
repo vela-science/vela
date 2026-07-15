@@ -2823,7 +2823,7 @@ pub(crate) fn cmd_policy_log(frontier: &Path, json: bool) {
 /// `cli/mod.rs::run_from_args` still routes raw argv here. The clap surface
 /// (`Commands::Policy` → the typed `cmd_policy_*` functions above) is the
 /// real dispatch; once the lead deletes that intercept, delete this shim —
-/// it exists only so both paths speak the same six verbs meanwhile.
+/// it exists only so both paths speak the same verbs meanwhile.
 pub(crate) fn run(args: &[String]) {
     let verb = args.get(2).map(String::as_str).unwrap_or("");
     let json = args.iter().any(|a| a == "--json");
@@ -2838,13 +2838,14 @@ pub(crate) fn run(args: &[String]) {
     };
     let key = value_of("--key").map(PathBuf::from);
     let reason = value_of("--reason");
+    let actor = value_of("--as");
 
     // Positional operands after the verb, skipping flags and their values.
     let mut positionals: Vec<String> = Vec::new();
     let mut i = 3;
     while i < args.len() {
         let a = &args[i];
-        if a == "--key" || a == "--reason" {
+        if a == "--key" || a == "--reason" || a == "--as" {
             i += 2;
             continue;
         }
@@ -2860,8 +2861,8 @@ pub(crate) fn run(args: &[String]) {
     // in the same EXAMPLES block the clap verbs carry (Phase 1: both surfaces).
     let usage = format!(
         "usage: vela policy <show|suggest|draft <template>|test|evaluate-proposal <vpr_>|\
-                 sign|revoke --reason <why>|log> [frontier] [--json] [--replace] [--from-suggest] \
-                 [--yes] [--key <path>]\n\n{}",
+                 sign|revoke --reason <why>|retire-legacy --reason <why> --as <actor>|log> \
+                 [frontier] [--json] [--replace] [--from-suggest] [--yes] [--key <path>]\n\n{}",
         crate::cli::help_text::POLICY
     );
     match verb {
@@ -2892,6 +2893,43 @@ pub(crate) fn run(args: &[String]) {
             ui::set_mode("policy", json);
             let dir = ui::resolve_frontier(positionals.first().map(PathBuf::from));
             cmd_policy_suggest(&dir, json);
+        }
+        "retire-legacy" => {
+            ui::set_mode("policy", json);
+            let custody_flag_present = args
+                .iter()
+                .any(|arg| arg == "--key" || arg.starts_with("--key="));
+            if custody_flag_present || yes {
+                fail_with(
+                    ErrorKind::Usage,
+                    "retire-legacy is prepare-only and does not accept --key or --yes",
+                    Some(
+                        "prepare the proposal, then use the existing isolated `vela sign` ceremony",
+                    ),
+                );
+            }
+            let reason = reason.unwrap_or_else(|| {
+                fail_with(
+                    ErrorKind::Usage,
+                    "retire-legacy needs --reason <why>",
+                    Some(
+                        "vela policy retire-legacy . --reason \"retire unsupported prelaunch bytes\" --as agent:<you>",
+                    ),
+                )
+            });
+            let actor = actor.unwrap_or_else(|| {
+                fail_with(
+                    ErrorKind::Usage,
+                    "retire-legacy needs --as <stable actor>",
+                    Some(
+                        "vela policy retire-legacy . --reason \"retire unsupported prelaunch bytes\" --as agent:<you>",
+                    ),
+                )
+            });
+            let dir = ui::resolve_frontier(positionals.first().map(PathBuf::from));
+            crate::config::policy_legacy_retirement::cmd_policy_retire_legacy(
+                &dir, &reason, &actor, json,
+            );
         }
         "show" | "test" | "log" | "sign" | "revoke" => {
             let interactive = matches!(verb, "sign" | "revoke");

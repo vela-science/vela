@@ -4,7 +4,7 @@
 - Scope: Vela substrate CLI, protocol plumbing, MCP exposure, and derived review
   projections.
 - Implementation state: Vela `0.800` is the deliberate prelaunch hard cut;
-  `0.800.5` is the current candidate.
+  `0.800.6` is the current candidate.
   All ordinary producer results cross `next -> work -> land`; ordinary
   truth-bearing review decisions cross `sign`; explicit policy-governance
   ceremonies remain separate. Submission and decision installation use the
@@ -519,6 +519,51 @@ signed head chain: a signed Rotate or Revoke is their operational validity
 boundary. An imported or hand-authored finite policy remains valid for
 Defer/Deny and human routing, but the CLI labels its Permit rules as
 human-routed rather than claiming the lane can auto-admit them.
+
+#### Prelaunch legacy-policy retirement
+
+The hard cut exposed one narrow migration case: a prelaunch frontier can hold
+`active.json` and `active.sig.json` bytes whose stored `vap_` ID predates the
+hardened canonical policy preimage. Current parsing correctly rejects that pair,
+but ordinary revocation cannot proceed because revocation first requires a
+valid current policy and signed policy head. Loosening policy parsing, adding a
+`--force` deletion, or treating the old signature as present authority would
+move a model or filesystem flag into the trust path.
+
+The adopted recovery is scaffolding over the existing proposal and Decision
+Plan primitives:
+
+1. `vela policy retire-legacy` is a keyless preparer. It creates one pending
+   `governance.policy_legacy_retirement` proposal with closed payload schema
+   `vela.policy-legacy-retirement.v1`.
+2. The payload binds the stored policy ID, the raw SHA-256 roots of the active
+   policy and signature bytes, and whether the fixed same-ID policy/signature
+   snapshots exist as one exact byte-identical pair. It contains no arbitrary
+   paths and does not embed the legacy bytes.
+3. The raw observer uses the current governance byte and structural budgets and
+   rejects duplicate JSON keys and mismatched stored IDs. It deliberately does
+   not rederive the current policy content address, validate the old schema, or
+   verify the old signature. Observation is provenance, not authority.
+4. Preparation and the Decision Brief require an intact reducer replay, no
+   signed policy head, no `policy_lane` event or `policy:<vap_>` reviewer use,
+   no applied proposal reviewed by that policy, and conservatively no legacy
+   unattributed `policy.auto_admitted` event. A present snapshot pair must be
+   complete and byte-identical to the active pair.
+5. The proposal is high-risk and therefore isolated by the existing Decision
+   Plan. Its active and same-ID snapshot paths join the read set; review is
+   rederived under the recovery barrier and drift aborts before key loading.
+6. Human acceptance appends the ordinary signed `review.accepted` event and
+   deletes the fixed active pair plus the declared exact duplicate snapshots in
+   the same recoverable transaction. Rejection changes no policy files. No new
+   event kind, key ceremony, Receipt schema, revocation marker, or MCP writer is
+   introduced.
+
+The signed review event and proposal are the durable explanation. Git retains
+the old immutable bytes and their history, so copying them into an authority
+event or adding a tombstone file would duplicate existing primitives. Because
+this protocol has not launched externally, this is a one-way prelaunch cleanup,
+not a compatibility promise. After retirement, a newly drafted current policy
+may enter the ordinary policy-head chain at epoch 1.
 
 #### Producers, consumers, and maturity
 
@@ -1580,7 +1625,7 @@ The following program gates intentionally remain open:
   service commitments remain organizational work even where export, archive,
   and fork mechanics are implemented.
 
-Accordingly, `0.800.5` is a technical prelaunch candidate for the clerk layer,
+Accordingly, `0.800.6` is a technical prelaunch candidate for the clerk layer,
 not a claim that the acceptance program or outside-producer goal is complete.
 It expands no authority surface and performs no human ceremony. The campaign
 keeps a separate dated proof/open ledger; code fixtures cannot promote an

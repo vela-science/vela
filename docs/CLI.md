@@ -192,6 +192,39 @@ human glance while a corroborated, gate-clean witness auto-lands. That is
 the fidelity discipline made automatic — the policy opens the lane, the
 gate keeps it honest.
 
+### Prelaunch legacy-policy recovery
+
+One narrow recovery command exists for a frontier whose unlaunched policy
+bytes predate the hardened canonical policy format and therefore make ordinary
+`policy show` or `policy revoke` fail closed:
+
+```bash
+vela policy retire-legacy . \
+  --reason "retire unsupported prelaunch policy bytes" \
+  --as agent:cleanup \
+  --json
+```
+
+This command is prepare-only. It accepts neither `--key` nor `--yes`, reads no
+private key, validates no legacy signature as current authority, deletes
+nothing, and creates only a content-addressed pending
+`governance.policy_legacy_retirement` proposal. The payload binds the stored
+`vap_` ID and SHA-256 roots of the exact active policy and signature bytes. It
+also records whether the fixed same-ID snapshot pair exists and is byte-for-byte
+identical; callers cannot supply deletion paths.
+
+Preparation and review fail closed unless the frontier has intact replay, no
+signed policy head, no policy-lane history for the pair, conservatively no
+unattributed legacy auto-admission history, a complete bounded non-symlink
+active pair with matching stored IDs, and either no same-ID snapshots or one
+exact duplicate pair. The existing isolated
+`vela sign` Decision Plan rechecks and binds those files before any key access.
+Human acceptance atomically appends the ordinary signed `review.accepted` event
+and deletes only the fixed bound pair; rejection preserves every byte. A
+frontier with no registered reviewer must first complete the existing human
+identity bootstrap (`vela id show`, then `vela actor add <frontier>`). Agents do
+not perform that ceremony.
+
 `vela doctor` is local and offline: it checks identity + key permissions,
 binary pin state (including the workshop-build warning — a cargo `target/`
 binary churns the pin), policy freshness (14-day expiry warning), adapter

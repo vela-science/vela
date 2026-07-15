@@ -206,9 +206,13 @@ EXAMPLES
   vela policy test  projects/formal-conjectures-lean   dry-run, mutates nothing
   vela policy sign  projects/formal-conjectures-lean   your key opens the lane
   vela policy revoke --reason \"…\"                     close the lane
+  vela policy retire-legacy . --reason \"prelaunch bytes\" --as agent:cleanup --json
+                                                        prepare only; keyless
 
 Signing a policy delegates a class of gated work; everything else defers
-to `vela sign`. `--json` requires `--yes`.";
+to `vela sign`. `retire-legacy` is a narrow prelaunch recovery proposal and
+accepts neither --key nor --yes; its human decision still happens in `vela sign`.
+`--json` requires `--yes` only for signing/revoking ceremonies.";
 
 pub const FOUNDRY: &str = "\
 EXAMPLES

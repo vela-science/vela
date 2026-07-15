@@ -1,13 +1,13 @@
 # Vela protocol: current contract
 
-Status: current prelaunch contract for Vela `0.800.5`.
+Status: current prelaunch contract for Vela `0.800.6`.
 
 This document defines the small protocol surface that Vela ships now. Git
 stores and transports immutable bytes. Vela gives a scientific meaning to a
 bounded subset of those bytes, records who had authority to change accepted
 state, and deterministically rebuilds the current frontier from the event log.
 
-The workspace release (`0.800.5`), finding-bundle schema (`0.10.0`), and wire
+The workspace release (`0.800.6`), finding-bundle schema (`0.10.0`), and wire
 schema names such as `vela.event.v0.1` are separate identifiers. New work uses
 the current forms below. Older micro-version chronology belongs in Git history
 and `CHANGELOG.md`, not in the active protocol.
@@ -279,6 +279,27 @@ class without a per-item human ceremony, but only while its ID, signature,
 frontier, scope, expiry or revocation state, verifier requirements, and causal
 head all match. A policy cannot authorize its own replacement.
 
+Prelaunch frontiers may contain a policy/signature pair encoded before the
+current closed policy format. Such bytes are not grandfathered into authority.
+The protocol-local `governance.policy_legacy_retirement` proposal carries the
+closed `vela.policy-legacy-retirement.v1` payload: stored `vap_` ID, raw SHA-256
+roots for the active policy and signature bytes, and one boolean saying whether
+the fixed same-ID snapshot pair is also an exact deletion target. It carries no
+caller-selected path and no copy of the legacy bytes.
+
+This is a recovery relation over existing primitives, not a second policy or
+revocation mechanism. The keyless preparer only records a pending proposal.
+The reference Decision Plan permits acceptance only when live replay is intact,
+no signed policy head exists, no policy admission can be attributed to the
+legacy ID (and no unattributed legacy auto-admission exists), both stored IDs
+match, all byte roots still match, and the snapshot pair is absent or exactly
+duplicated as declared. Those fixed files join the transaction read set. An
+isolated registered human acceptance appends the existing signed
+`review.accepted` event and atomically deletes the active pair plus the declared
+exact duplicate snapshots. Rejection deletes nothing. The observation parser
+is bounded and duplicate-key-safe but deliberately does not rederive a current
+policy ID or verify the old signature; Git history retains the retired bytes.
+
 No MCP profile solicits a human verdict, reads a human key, or creates a human
 signature. Relaying already signed immutable bytes would be transport, not a
 second signing surface.
@@ -334,6 +355,8 @@ A frontier is an ordinary Git repository. The current owned paths are:
 | `.vela/events/*.json` | canonical ordered authority events |
 | `.vela/proposals/*.json` | durable proposals and their checked decision projection |
 | `.vela/actors.json` | actor-to-public-key registry and revocation state |
+| `.vela/policies/active.json`, `.vela/policies/active.sig.json` | mutable candidate policy bytes and signature input; never causal authority without a signed policy head |
+| `.vela/policies/<vap_>.json`, `.vela/policies/<vap_>.sig.json` | immutable retained policy pairs needed to replay actual policy-lane admissions |
 | `.vela/findings/*.json`, `.vela/artifacts/*.json` | reducer-owned materialized object files; never hand-edit |
 | `records/receipts/sha256/*.json` | exact durable Receipt bytes named by full digest |
 | `frontier.yaml` | repository manifest and declared dependency metadata |

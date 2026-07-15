@@ -520,12 +520,11 @@ pub struct EngineVerdict {
 }
 
 /// A proposal kind is truth-bearing when accepting it changes what the
-/// frontier asserts about the world. Process/provenance records and
-/// mechanical repairs are not — this mirrors the bounded safe set the
-/// agent self-accept policy already trusts, keeping the Engine gate and
-/// that policy consistent.
+/// frontier asserts about the world. Process/provenance records, governance
+/// cleanup, and mechanical repairs are not. This classification controls the
+/// Engine gate only; it does not grant decision authority.
 pub fn is_truth_bearing_kind(kind: &str) -> bool {
-    !(PROCESS_PROVENANCE_KINDS.contains(&kind) || MECHANICAL_REPAIR_KINDS.contains(&kind))
+    !(NON_TRUTH_BEARING_KINDS.contains(&kind) || MECHANICAL_REPAIR_KINDS.contains(&kind))
 }
 
 /// Evaluate one already-prepared candidate transaction under the strict Engine
@@ -755,6 +754,9 @@ fn validate_proposal_shape(frontier: &Project, proposal: &StateProposal) -> Resu
     match proposal.kind.as_str() {
         policy_accept::POLICY_HEAD_PROPOSAL_KIND => {
             policy_accept::validate_policy_head_proposal(frontier, proposal)?;
+        }
+        policy_accept::LEGACY_POLICY_RETIREMENT_PROPOSAL_KIND => {
+            policy_accept::validate_legacy_policy_retirement_proposal(frontier, proposal)?;
         }
         "finding.add" => {
             let finding_value = proposal
@@ -1190,6 +1192,14 @@ fn validate_standalone_proposal(
             }
             policy_accept::parse_policy_head_payload(proposal)?;
         }
+        policy_accept::LEGACY_POLICY_RETIREMENT_PROPOSAL_KIND => {
+            if proposal.target.r#type != "governance" {
+                return Err(
+                    "legacy-policy-retirement proposal target.type must be governance".to_string(),
+                );
+            }
+            policy_accept::parse_legacy_policy_retirement_payload(proposal)?;
+        }
         "finding.add" => {
             let finding_value = proposal
                 .payload
@@ -1499,19 +1509,17 @@ fn require_existing_finding(frontier: &Project, finding_id: &str) -> Result<usiz
 /// it does not let an agent apply the proposal without decision authority.
 const MECHANICAL_REPAIR_KINDS: &[&str] = &["finding.span_repair", "evidence_atom.locator_repair"];
 
-/// Non-truth-bearing provenance kinds: content-addressed artifact registration
-/// and claim-granularity attribution
-/// (`finding.contribution.recorded`). These assert no scientific claim about the
-/// world — an artifact stores bytes, and a contribution records *who produced
-/// what*, disclosed and never conferring trust (the reducer ignores it, the gate
-/// never reads it, and the credit view keeps a machine out of `author_of_record`
-/// regardless). They fall outside the human-gated truth boundary, so a fleet need
-/// not block on a human. Anything truth-bearing (a claim about the world,
-/// including a null result) stays gated.
-const PROCESS_PROVENANCE_KINDS: &[&str] = &[
+/// Non-truth-bearing process and provenance kinds. Content-addressed artifact
+/// registration and claim-granularity attribution assert no scientific claim
+/// about the world. Legacy policy retirement is governance cleanup and remains
+/// human-only through its dedicated acceptance branch; listing it here merely
+/// prevents the scientific Evidence CI gate from treating byte retirement as a
+/// scientific assertion. Classification never confers authority.
+const NON_TRUTH_BEARING_KINDS: &[&str] = &[
     "artifact.assert",
     "artifact.add",
     "finding.contribution.recorded",
+    policy_accept::LEGACY_POLICY_RETIREMENT_PROPOSAL_KIND,
 ];
 
 /// Proposal-level guards for exact-lane auto-admission (Phase 1A, the
@@ -1886,6 +1894,10 @@ impl<'a> DecisionAuthority<'a> {
             _ => None,
         }
     }
+
+    fn is_preview(&self) -> bool {
+        matches!(self, Self::Preview)
+    }
 }
 
 fn enforce_decision_authority(
@@ -1971,6 +1983,13 @@ fn accept_proposal_in_frontier_with_authority_at(
         .iter()
         .position(|proposal| proposal.id == proposal_id)
         .ok_or_else(|| format!("Proposal not found: {proposal_id}"))?;
+    let is_legacy_retirement =
+        frontier.proposals[index].kind == policy_accept::LEGACY_POLICY_RETIREMENT_PROPOSAL_KIND;
+    if is_legacy_retirement && !authority.is_preview() {
+        return Err(
+            "legacy-policy retirement must use the recoverable human Decision Plan".to_string(),
+        );
+    }
     let status = frontier.proposals[index].status.clone();
     if status == "rejected" {
         return Err(format!("Cannot accept rejected proposal {}", proposal_id));
@@ -2056,6 +2075,40 @@ fn accept_proposal_in_frontier_with_authority_at(
         mark_proof_stale(
             frontier,
             format!("Accepted policy-head proposal {}", proposal.id),
+        );
+        return Ok(event_id);
+    }
+    if is_legacy_retirement {
+        // Retirement changes fixed governance files outside Project. The pure
+        // Engine preview may simulate its review event, but every real
+        // protocol acceptance path must fail closed: only vela-cli's private,
+        // recoverable Decision Plan can bind this event to the atomic
+        // Authority-file deletions.
+        let mut event = events::new_review_decision_event(
+            &proposal.id,
+            &proposal.kind,
+            "accepted",
+            None,
+            reviewer,
+            reason,
+            Some(&decided_at),
+        )?;
+        if let Some(provenance) = provenance
+            && !provenance.is_empty()
+        {
+            crate::provenance::attach_to_payload(&mut event.payload, provenance)?;
+            event.id = events::compute_event_id(&event);
+        }
+        let event_id = event.id.clone();
+        frontier.events.push(event);
+        frontier.proposals[index].status = "applied".to_string();
+        frontier.proposals[index].reviewed_by = Some(reviewer.to_string());
+        frontier.proposals[index].reviewed_at = Some(decided_at);
+        frontier.proposals[index].decision_reason = Some(reason.to_string());
+        frontier.proposals[index].applied_event_id = Some(event_id.clone());
+        mark_proof_stale(
+            frontier,
+            format!("Accepted legacy-policy retirement proposal {}", proposal.id),
         );
         return Ok(event_id);
     }
@@ -2473,7 +2526,9 @@ fn validate_prepared_decision_invariants(
 /// `review.accepted` event in addition to any domain events. After the final
 /// plan root is known, bind it with [`bind_decision_root_to_prepared`]; then,
 /// after a locked rederivation, sign exactly the returned event set with
-/// [`sign_prepared_decision_events`].
+/// [`sign_prepared_decision_events`]. Legacy policy retirement is deliberately
+/// excluded because its accepted event is valid only when atomically journaled
+/// with fixed Authority-file deletions by vela-cli's private Decision Plan.
 pub fn prepare_proposal_accept_in_memory_at(
     frontier: &mut Project,
     proposal_id: &str,
@@ -2503,6 +2558,15 @@ fn prepare_proposal_accept_on_candidate(
     provenance: Option<&crate::provenance::Provenance>,
     decided_at: &str,
 ) -> Result<PreparedDecisionMutation, String> {
+    if frontier.proposals.iter().any(|proposal| {
+        proposal.id == proposal_id
+            && proposal.kind == policy_accept::LEGACY_POLICY_RETIREMENT_PROPOSAL_KIND
+    }) {
+        return Err(
+            "legacy-policy retirement cannot use a public protocol preparation API; use the recoverable human Decision Plan"
+                .to_string(),
+        );
+    }
     validate_human_reviewer_authority_at(frontier, reviewer, decided_at)?;
     let first_event = frontier.events.len();
     let primary_event_id = accept_proposal_in_frontier_with_authority_at(
@@ -2527,7 +2591,9 @@ fn prepare_proposal_accept_on_candidate(
 
 /// Clone-only convenience wrapper for the first item in a Decision Plan.
 /// Callers can chain later items by applying the mutating in-memory seam to the
-/// returned candidate; the input project is never changed.
+/// returned candidate; the input project is never changed. The same legacy
+/// policy retirement exclusion as [`prepare_proposal_accept_in_memory_at`]
+/// applies.
 pub fn prepare_proposal_accept_candidate_at(
     frontier: &Project,
     proposal_id: &str,
