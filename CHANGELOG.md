@@ -1,5 +1,37 @@
 # Changelog
 
+## v0.800.12 — 2026-07-15 — Bounded trust-edge hardening
+
+- Made explicit Receipt v1 files and local public artifacts descriptor-bound,
+  symlink-safe, and bounded before the write edge. Receipts and individual
+  artifacts are capped at 8 MiB; one landing may retain at most 64 MiB of local
+  public artifact bytes. Traversal, symlink, oversize, and identity drift fail
+  before scientific or Git state changes. Archive-like artifacts remain opaque
+  content-addressed bytes and are never expanded by review.
+- Removed duplicate raw claim rendering from proposal preview and state diff.
+  Hostile claims and caveats are now regression-tested across `diff`, proposal
+  preview, state diff, sign preview, and status with visible escaping, bounded
+  output, no command execution, and no scientific delta.
+- Consolidated exact Git publication interruption controls into one private
+  durability-step harness. Focused regressions cover a nonempty caller index on
+  exact retry, caller-index drift after preflight, every pre-ref journal state,
+  an actual compare-and-swap loss, post-ref recovery, and successful push
+  followed by completion-record failure without minting or moving another
+  commit.
+- Replaced the Hub's unbounded review JSON response with
+  `vela.hub.review.v0.2`: snapshot-bound offset pages default to 25 and cap at
+  100, each ledger reports its own exact total and continuation, and policy
+  counts are explicitly page-scoped. Materialized rows are loaded with the
+  snapshot hash stored in the same database read snapshot, so a concurrent
+  promotion can never cache or label new rows under an old continuation hash.
+  The scale proof composes the existing 10,000-row typed pending catalog with
+  bounded Receipt paging, task-first landing/idempotency regressions, and a
+  10,000-row Hub page collector; it does not perform 10,000 redundant Git
+  writes.
+- Changed no Receipt, event, proposal, signature, policy-authority, or accepted
+  scientific-state contract. ADR 0004 remains accepted but inactive behind the
+  open ADR 0003 human and independent-adoption gates.
+
 ## v0.800.11 — 2026-07-15 — Exact fixture-signature state
 
 - Removed a superseded detached signature from the active fixture-manifest

@@ -756,11 +756,18 @@ pub async fn run_command() {
                         "--work selects the private flag-authoring path and cannot be combined with a foreign Receipt v1 file".to_string(),
                     );
                 }
-                let raw = std::fs::read(&path).unwrap_or_else(|error| {
-                    fail_preflight(
-                        crate::ui::ErrorKind::NotFound,
-                        format!("read {}: {error}", path.display()),
-                    )
+                let raw = crate::bounded_file::read_bounded_file(
+                    &path,
+                    crate::bounded_file::RECEIPT_MAX_BYTES,
+                    "foreign Receipt v1",
+                )
+                .unwrap_or_else(|error| {
+                    let kind = if error.code == "missing" {
+                        crate::ui::ErrorKind::NotFound
+                    } else {
+                        crate::ui::ErrorKind::Domain
+                    };
+                    fail_preflight(kind, error.to_string())
                 });
                 vela_protocol::receipt_v1::ReceiptV1::parse(&raw).unwrap_or_else(|error| {
                     fail_preflight(crate::ui::ErrorKind::Domain, error.to_string())

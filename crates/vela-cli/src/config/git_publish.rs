@@ -558,9 +558,22 @@ pub(crate) struct PublishOptions {
     pub target_refname: Option<String>,
     pub preflight_inputs: Vec<PathBuf>,
     #[cfg(test)]
-    race_ref_before_cas: bool,
-    #[cfg(test)]
-    fail_after_ref_cas_before_marker: bool,
+    test_step: PublicationTestStep,
+}
+
+#[cfg(test)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum PublicationTestStep {
+    None,
+    InterruptAfterPreparedJournal,
+    InterruptAfterCommitTree,
+    InterruptAfterCandidateJournal,
+    AdvanceRefBeforeFinalObservation,
+    AdvanceRefAfterFinalObservation,
+    InterruptAfterRefCasBeforeMarker,
+    FailCompletedRecordWrite,
+    FailActiveJournalRemove,
+    FailCompletedRecordPrune,
 }
 
 impl PublishOptions {
@@ -571,9 +584,7 @@ impl PublishOptions {
             target_refname: None,
             preflight_inputs: Vec::new(),
             #[cfg(test)]
-            race_ref_before_cas: false,
-            #[cfg(test)]
-            fail_after_ref_cas_before_marker: false,
+            test_step: PublicationTestStep::None,
         }
     }
 
@@ -585,9 +596,7 @@ impl PublishOptions {
             target_refname: None,
             preflight_inputs: Vec::new(),
             #[cfg(test)]
-            race_ref_before_cas: false,
-            #[cfg(test)]
-            fail_after_ref_cas_before_marker: false,
+            test_step: PublicationTestStep::None,
         }
     }
 
@@ -597,14 +606,8 @@ impl PublishOptions {
     }
 
     #[cfg(test)]
-    fn racing_ref_before_cas(mut self) -> Self {
-        self.race_ref_before_cas = true;
-        self
-    }
-
-    #[cfg(test)]
-    fn failing_after_ref_cas_before_marker(mut self) -> Self {
-        self.fail_after_ref_cas_before_marker = true;
+    fn at_test_step(mut self, step: PublicationTestStep) -> Self {
+        self.test_step = step;
         self
     }
 }
@@ -1385,6 +1388,7 @@ fn recover_publication_inner(
             &completed_dir,
             outcome,
             local_only,
+            opts,
         ));
     }
 
@@ -1485,7 +1489,53 @@ fn recover_publication_inner(
         &completed_dir,
         outcome,
         local_only,
+        opts,
     ))
+}
+
+#[cfg(test)]
+#[allow(clippy::too_many_arguments)]
+fn inject_competing_ref_advance(
+    runner: &GitRunner,
+    target_refname: &GitRefName,
+    expected: &GitOid,
+    tree: &GitOid,
+    author_name: &str,
+    author_email: &str,
+    commit_date: &str,
+) -> Result<GitOid, String> {
+    let output = runner.run(
+        &[
+            OsString::from("commit-tree"),
+            OsString::from(&tree.hex),
+            OsString::from("-p"),
+            OsString::from(&expected.hex),
+        ],
+        Some(b"competing publication\n"),
+        None,
+        Some((author_name, author_email, commit_date)),
+    )?;
+    if !output.status.success() {
+        return Err(format!(
+            "construct injected competing commit: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        ));
+    }
+    let competing = GitOid::parse(
+        &expected.object_format,
+        String::from_utf8_lossy(&output.stdout).trim(),
+    )?;
+    runner.checked(
+        &[
+            OsString::from("update-ref"),
+            OsString::from(&target_refname.0),
+            OsString::from(&competing.hex),
+            OsString::from(&expected.hex),
+        ],
+        None,
+        None,
+    )?;
+    Ok(competing)
 }
 
 fn publish_exact_inner(
@@ -1753,6 +1803,14 @@ fn publish_exact_inner(
         ref_moved: false,
     };
     crate::operation_journal::write_json(&journal_path, &journal)?;
+    #[cfg(test)]
+    if opts.test_step == PublicationTestStep::InterruptAfterPreparedJournal {
+        return Ok(uncommitted_operation_outcome(
+            None,
+            &operation_id,
+            "injected interruption after prepared publication journal",
+        ));
+    }
 
     let commit_output = match runner.run(
         &[
@@ -1789,12 +1847,28 @@ fn publish_exact_inner(
             return Ok(uncommitted_operation_outcome(None, &operation_id, error));
         }
     };
+    #[cfg(test)]
+    if opts.test_step == PublicationTestStep::InterruptAfterCommitTree {
+        return Ok(uncommitted_operation_outcome(
+            Some(&candidate),
+            &operation_id,
+            "injected interruption after commit-tree",
+        ));
+    }
     journal.candidate_commit_oid = Some(candidate.clone());
     if let Err(error) = crate::operation_journal::write_json(&journal_path, &journal) {
         return Ok(uncommitted_operation_outcome(
             Some(&candidate),
             &operation_id,
             error,
+        ));
+    }
+    #[cfg(test)]
+    if opts.test_step == PublicationTestStep::InterruptAfterCandidateJournal {
+        return Ok(uncommitted_operation_outcome(
+            Some(&candidate),
+            &operation_id,
+            "injected interruption after candidate publication journal",
         ));
     }
 
@@ -1836,53 +1910,22 @@ fn publish_exact_inner(
         }
     }
     #[cfg(test)]
-    if opts.race_ref_before_cas {
-        let competing = match runner.run(
-            &[
-                OsString::from("commit-tree"),
-                OsString::from(&tree.hex),
-                OsString::from("-p"),
-                OsString::from(&expected.hex),
-            ],
-            Some(b"competing publication\n"),
-            None,
-            Some((&author_name, &author_email, &commit_date)),
-        ) {
-            Ok(output) => output,
-            Err(error) => {
-                return Ok(uncommitted_operation_outcome(
-                    Some(&candidate),
-                    &operation_id,
-                    error,
-                ));
-            }
-        };
-        if !competing.status.success() {
-            return Ok(uncommitted_operation_outcome(
-                Some(&candidate),
-                &operation_id,
-                "could not construct injected competing commit",
-            ));
-        }
-        let competing = String::from_utf8_lossy(&competing.stdout)
-            .trim()
-            .to_string();
-        if let Err(error) = runner.checked(
-            &[
-                OsString::from("update-ref"),
-                OsString::from(&target_refname.0),
-                OsString::from(competing),
-                OsString::from(&expected.hex),
-            ],
-            None,
-            None,
-        ) {
-            return Ok(uncommitted_operation_outcome(
-                Some(&candidate),
-                &operation_id,
-                error,
-            ));
-        }
+    if opts.test_step == PublicationTestStep::AdvanceRefBeforeFinalObservation
+        && let Err(error) = inject_competing_ref_advance(
+            &runner,
+            &target_refname,
+            &expected,
+            &tree,
+            &author_name,
+            &author_email,
+            &commit_date,
+        )
+    {
+        return Ok(uncommitted_operation_outcome(
+            Some(&candidate),
+            &operation_id,
+            error,
+        ));
     }
     let checkout_at_cas = match target_checkout_state(&runner, &target_refname) {
         Ok(checkout) => checkout,
@@ -1921,6 +1964,24 @@ fn publish_exact_inner(
             },
             recovery_command: None,
         });
+    }
+    #[cfg(test)]
+    if opts.test_step == PublicationTestStep::AdvanceRefAfterFinalObservation
+        && let Err(error) = inject_competing_ref_advance(
+            &runner,
+            &target_refname,
+            &expected,
+            &tree,
+            &author_name,
+            &author_email,
+            &commit_date,
+        )
+    {
+        return Ok(uncommitted_operation_outcome(
+            Some(&candidate),
+            &operation_id,
+            error,
+        ));
     }
 
     let update = runner.run(
@@ -2010,7 +2071,7 @@ fn publish_exact_inner(
         ));
     }
     #[cfg(test)]
-    if opts.fail_after_ref_cas_before_marker {
+    if opts.test_step == PublicationTestStep::InterruptAfterRefCasBeforeMarker {
         return Ok(operation_recovery_outcome(&candidate, &operation_id));
     }
     journal.ref_moved = true;
@@ -2057,6 +2118,7 @@ fn publish_exact_inner(
         &completed_dir,
         outcome,
         false,
+        opts,
     ))
 }
 
@@ -4302,6 +4364,7 @@ fn complete_publication(
     completed_dir: &Path,
     mut outcome: PublicationOutcome,
     complete_local: bool,
+    _opts: &PublishOptions,
 ) -> PublicationOutcome {
     if !complete_local && !matches!(outcome.state, PublicationState::Pushed { .. }) {
         // A newly queued local publication or an indeterminate push remains
@@ -4318,14 +4381,28 @@ fn complete_publication(
         operation_id: operation_id.to_string(),
         outcome: outcome.clone(),
     };
-    if crate::operation_journal::write_json(&completed_path, &completed).is_err()
-        || crate::operation_journal::remove(journal_path).is_err()
-        || crate::operation_journal::prune_json(completed_dir, 64).is_err()
-    {
-        operation_recovery_outcome(candidate, operation_id)
-    } else {
-        outcome
+    #[cfg(test)]
+    if _opts.test_step == PublicationTestStep::FailCompletedRecordWrite {
+        return operation_recovery_outcome(candidate, operation_id);
     }
+    if crate::operation_journal::write_json(&completed_path, &completed).is_err() {
+        return operation_recovery_outcome(candidate, operation_id);
+    }
+    #[cfg(test)]
+    if _opts.test_step == PublicationTestStep::FailActiveJournalRemove {
+        return operation_recovery_outcome(candidate, operation_id);
+    }
+    if crate::operation_journal::remove(journal_path).is_err() {
+        return operation_recovery_outcome(candidate, operation_id);
+    }
+    #[cfg(test)]
+    if _opts.test_step == PublicationTestStep::FailCompletedRecordPrune {
+        return operation_recovery_outcome(candidate, operation_id);
+    }
+    if crate::operation_journal::prune_json(completed_dir, 64).is_err() {
+        return operation_recovery_outcome(candidate, operation_id);
+    }
+    outcome
 }
 
 fn shell_quote(value: &str) -> String {
@@ -4798,6 +4875,22 @@ mod tests {
         String::from_utf8_lossy(&output.stdout).trim().to_string()
     }
 
+    fn all_commit_oids(dir: &Path) -> Vec<String> {
+        let mut commits = sh(
+            dir,
+            &[
+                "cat-file",
+                "--batch-all-objects",
+                "--batch-check=%(objecttype) %(objectname)",
+            ],
+        )
+        .lines()
+        .filter_map(|line| line.strip_prefix("commit ").map(str::to_string))
+        .collect::<Vec<_>>();
+        commits.sort();
+        commits
+    }
+
     fn frontier() -> tempfile::TempDir {
         let temporary = tempfile::tempdir().unwrap();
         let path = temporary.path();
@@ -4866,20 +4959,25 @@ mod tests {
         }
     }
 
-    fn active_operation(path: &Path) -> String {
-        let git_dir = PathBuf::from(sh(path, &["rev-parse", "--git-dir"]));
-        let git_dir = if git_dir.is_absolute() {
-            git_dir
-        } else {
-            path.join(git_dir)
+    fn active_operations(path: &Path) -> Vec<String> {
+        let directory = publication_journal_dir(path).unwrap();
+        let Ok(entries) = fs::read_dir(directory) else {
+            return Vec::new();
         };
-        fs::read_dir(git_dir.join("vela/operation-journals"))
-            .unwrap()
+        let mut operations = entries
             .filter_map(Result::ok)
             .filter_map(|entry| entry.file_name().into_string().ok())
             .filter_map(|name| name.strip_suffix(".json").map(str::to_string))
-            .find(|operation| valid_operation_id(operation))
-            .unwrap()
+            .filter(|operation| valid_operation_id(operation))
+            .collect::<Vec<_>>();
+        operations.sort();
+        operations
+    }
+
+    fn active_operation(path: &Path) -> String {
+        let operations = active_operations(path);
+        assert_eq!(operations.len(), 1, "expected exactly one active operation");
+        operations.into_iter().next().unwrap()
     }
 
     fn publication_journal_path(path: &Path, operation: &str) -> PathBuf {
@@ -5142,6 +5240,61 @@ mod tests {
     }
 
     #[test]
+    fn caller_index_drift_after_exact_preflight_is_zero_delta() {
+        let temporary = frontier();
+        let path = temporary.path();
+        let postimage = b"[\n  {\"actor_id\":\"agent:index-drift\"}\n]\n";
+        let delta = exact_delta(
+            "caller-index-drift-after-preflight",
+            vec![exact_write(path, ".vela/actors.json", postimage)],
+        );
+        let opts = PublishOptions::new(true);
+        let expected = sh(path, &["rev-parse", "refs/heads/main"]);
+        let preflight = exact_publication_preflight(path, &delta, &opts).unwrap();
+
+        fs::write(path.join("unrelated.txt"), "staged after preflight\n").unwrap();
+        sh(path, &["add", "--", "unrelated.txt"]);
+        fs::write(path.join(".vela/actors.json"), postimage).unwrap();
+        let status_after_drift = sh(path, &["--no-optional-locks", "status", "--porcelain=v1"]);
+        let index_after_drift = fs::read(path.join(".git/index")).unwrap();
+        let objects_after_drift = sh(path, &["count-objects", "-v"]);
+
+        let outcome = publish_exact_delta(
+            path,
+            "caller index drift after exact preflight",
+            &[],
+            &delta,
+            preflight,
+            &opts,
+        )
+        .unwrap();
+
+        match &outcome.state {
+            PublicationState::Uncommitted { candidate, reason } => {
+                assert!(candidate.is_none());
+                assert!(
+                    reason.contains("exact publication preflight refuses caller-index drift"),
+                    "{reason}"
+                );
+            }
+            state => panic!("expected caller-index-drift refusal, got {state:?}"),
+        }
+        assert!(outcome.recovery_command.is_none());
+        assert_eq!(sh(path, &["rev-parse", "refs/heads/main"]), expected);
+        assert_eq!(
+            fs::read(path.join(".git/index")).unwrap(),
+            index_after_drift
+        );
+        assert_eq!(sh(path, &["count-objects", "-v"]), objects_after_drift);
+        assert_eq!(
+            sh(path, &["--no-optional-locks", "status", "--porcelain=v1"]),
+            status_after_drift
+        );
+        assert_eq!(fs::read(path.join(".vela/actors.json")).unwrap(), postimage);
+        assert!(active_operations(path).is_empty());
+    }
+
+    #[test]
     fn detached_head_requires_an_explicit_publication_target() {
         let temporary = frontier();
         let path = temporary.path();
@@ -5276,6 +5429,93 @@ mod tests {
     }
 
     #[test]
+    fn pre_ref_journal_interruptions_recover_exactly_once() {
+        for step in [
+            PublicationTestStep::InterruptAfterPreparedJournal,
+            PublicationTestStep::InterruptAfterCommitTree,
+            PublicationTestStep::InterruptAfterCandidateJournal,
+        ] {
+            let temporary = frontier();
+            let path = temporary.path();
+            fs::write(path.join("unrelated.txt"), "caller staged\n").unwrap();
+            sh(path, &["add", "--", "unrelated.txt"]);
+            let expected = sh(path, &["rev-parse", "refs/heads/main"]);
+            let postimage = format!("[\n  {{\"actor_id\":\"agent:{step:?}\"}}\n]\n").into_bytes();
+            let delta = exact_delta(
+                &format!("pre-ref-journal-{step:?}"),
+                vec![exact_write(path, ".vela/actors.json", &postimage)],
+            );
+            let opts = PublishOptions::new(true).at_test_step(step);
+            let preflight = exact_publication_preflight(path, &delta, &opts).unwrap();
+            fs::write(path.join(".vela/actors.json"), &postimage).unwrap();
+            let index_before = fs::read(path.join(".git/index")).unwrap();
+
+            let interrupted = publish_exact_delta(
+                path,
+                "pre-ref publication interruption",
+                &[],
+                &delta,
+                preflight,
+                &opts,
+            )
+            .unwrap();
+            match &interrupted.state {
+                PublicationState::Uncommitted { candidate, reason } => {
+                    assert!(reason.contains("injected interruption"), "{reason}");
+                    assert_eq!(
+                        candidate.is_some(),
+                        step != PublicationTestStep::InterruptAfterPreparedJournal,
+                        "candidate visibility at {step:?}"
+                    );
+                }
+                state => panic!("expected injected interruption at {step:?}, got {state:?}"),
+            }
+            let operation = operation_from(&interrupted);
+            let journal: PublicationJournal =
+                crate::operation_journal::read_json(&publication_journal_path(path, &operation))
+                    .unwrap();
+            assert_eq!(
+                journal.candidate_commit_oid.is_some(),
+                step == PublicationTestStep::InterruptAfterCandidateJournal,
+                "durable candidate journal state at {step:?}"
+            );
+            assert_eq!(sh(path, &["rev-parse", "refs/heads/main"]), expected);
+            assert_eq!(fs::read(path.join(".git/index")).unwrap(), index_before);
+
+            let recovered = recover_publication(path, &operation, &PublishOptions::new(true));
+            let commit = match &recovered.state {
+                PublicationState::CommittedLocal { commit } => commit.clone(),
+                state => panic!("expected local recovery at {step:?}, got {state:?}"),
+            };
+            assert_eq!(sh(path, &["rev-parse", "refs/heads/main"]), commit);
+            assert_eq!(sh(path, &["rev-parse", "HEAD^"]), expected);
+            assert!(
+                sh(
+                    path,
+                    &["diff", "--cached", "--name-only", "--", ".vela/actors.json"]
+                )
+                .is_empty(),
+                "recovery at {step:?} must reconcile the published Vela entry"
+            );
+            assert_eq!(
+                sh(
+                    path,
+                    &["diff", "--cached", "--name-only", "--", "unrelated.txt"]
+                ),
+                "unrelated.txt"
+            );
+            let commit_count = sh(path, &["rev-list", "--count", "refs/heads/main"]);
+            let repeated = recover_publication(path, &operation, &PublishOptions::new(true));
+            assert_eq!(repeated.state, recovered.state);
+            assert_eq!(
+                sh(path, &["rev-list", "--count", "refs/heads/main"]),
+                commit_count
+            );
+            assert!(active_operations(path).is_empty());
+        }
+    }
+
+    #[test]
     fn index_lock_after_ref_move_retains_commit_and_recovers_exactly_once() {
         let temporary = frontier();
         let path = temporary.path();
@@ -5355,7 +5595,8 @@ mod tests {
             "after-ref-cas-before-marker",
             vec![exact_write(path, ".vela/actors.json", postimage)],
         );
-        let opts = PublishOptions::new(true).failing_after_ref_cas_before_marker();
+        let opts = PublishOptions::new(true)
+            .at_test_step(PublicationTestStep::InterruptAfterRefCasBeforeMarker);
         let preflight = exact_publication_preflight(path, &delta, &opts).unwrap();
         fs::write(path.join(".vela/actors.json"), postimage).unwrap();
 
@@ -6116,7 +6357,8 @@ mod tests {
             "ref-race",
             vec![exact_write(path, ".vela/actors.json", written)],
         );
-        let opts = PublishOptions::new(true).racing_ref_before_cas();
+        let opts = PublishOptions::new(true)
+            .at_test_step(PublicationTestStep::AdvanceRefBeforeFinalObservation);
         let preflight = exact_publication_preflight(path, &delta, &opts).unwrap();
         fs::write(path.join(".vela/actors.json"), written).unwrap();
 
@@ -6132,6 +6374,187 @@ mod tests {
             ),
             "unrelated.txt"
         );
+    }
+
+    #[test]
+    fn actual_cas_loss_after_final_ref_observation_is_stale_and_non_destructive() {
+        let temporary = frontier();
+        let path = temporary.path();
+        fs::write(path.join("unrelated.txt"), "caller staged\n").unwrap();
+        sh(path, &["add", "--", "unrelated.txt"]);
+        let expected = sh(path, &["rev-parse", "refs/heads/main"]);
+        let index_before = fs::read(path.join(".git/index")).unwrap();
+        let postimage = b"[\n  {\"actor_id\":\"agent:actual-cas-loss\"}\n]\n";
+        let delta = exact_delta(
+            "actual-cas-loss",
+            vec![exact_write(path, ".vela/actors.json", postimage)],
+        );
+        let opts = PublishOptions::new(true)
+            .at_test_step(PublicationTestStep::AdvanceRefAfterFinalObservation);
+        let preflight = exact_publication_preflight(path, &delta, &opts).unwrap();
+        fs::write(path.join(".vela/actors.json"), postimage).unwrap();
+
+        let outcome =
+            publish_exact_delta(path, "actual CAS loss", &[], &delta, preflight, &opts).unwrap();
+        let actual = match &outcome.state {
+            PublicationState::Stale {
+                candidate,
+                expected: observed_expected,
+                actual,
+            } => {
+                assert_eq!(observed_expected, &expected);
+                assert_ne!(candidate, actual);
+                actual.clone()
+            }
+            state => panic!("expected a real compare-and-swap loss, got {state:?}"),
+        };
+        assert!(outcome.recovery_command.is_none());
+        assert_eq!(sh(path, &["rev-parse", "refs/heads/main"]), actual);
+        assert_eq!(sh(path, &["rev-parse", "HEAD^"]), expected);
+        assert_eq!(
+            sh(path, &["show", "--format=%s", "--no-patch", "HEAD"]),
+            "competing publication"
+        );
+        assert_eq!(fs::read(path.join(".git/index")).unwrap(), index_before);
+        assert_eq!(fs::read(path.join(".vela/actors.json")).unwrap(), postimage);
+        assert_eq!(
+            sh(
+                path,
+                &["diff", "--cached", "--name-only", "--", "unrelated.txt"]
+            ),
+            "unrelated.txt"
+        );
+        assert!(active_operations(path).is_empty());
+    }
+
+    #[test]
+    fn pushed_completion_failures_recover_without_new_commit_or_ref_move() {
+        for step in [
+            PublicationTestStep::FailCompletedRecordWrite,
+            PublicationTestStep::FailActiveJournalRemove,
+            PublicationTestStep::FailCompletedRecordPrune,
+        ] {
+            let temporary = frontier();
+            let path = temporary.path();
+            let remote = tempfile::tempdir().unwrap();
+            sh(remote.path(), &["init", "-q", "--bare"]);
+            sh(remote.path(), &["config", "core.logAllRefUpdates", "true"]);
+            sh(
+                path,
+                &["remote", "add", "upstream", remote.path().to_str().unwrap()],
+            );
+            sh(
+                path,
+                &[
+                    "push",
+                    "-q",
+                    "-u",
+                    "upstream",
+                    "refs/heads/main:refs/heads/main",
+                ],
+            );
+            fs::write(path.join("unrelated.txt"), "caller staged\n").unwrap();
+            sh(path, &["add", "--", "unrelated.txt"]);
+            let expected = sh(path, &["rev-parse", "refs/heads/main"]);
+            let postimage = format!("[\n  {{\"actor_id\":\"agent:{step:?}\"}}\n]\n").into_bytes();
+            let delta = exact_delta(
+                &format!("pushed-completion-{step:?}"),
+                vec![exact_write(path, ".vela/actors.json", &postimage)],
+            );
+            let opts = PublishOptions::pushing().at_test_step(step);
+            let preflight = exact_publication_preflight(path, &delta, &opts).unwrap();
+            fs::write(path.join(".vela/actors.json"), &postimage).unwrap();
+
+            let interrupted = publish_exact_delta(
+                path,
+                "pushed completion failure",
+                &[],
+                &delta,
+                preflight,
+                &opts,
+            )
+            .unwrap();
+            let candidate = match &interrupted.state {
+                PublicationState::CommittedLocal { commit } => commit.clone(),
+                state => panic!("expected resumable completion failure at {step:?}, got {state:?}"),
+            };
+            let operation = operation_from(&interrupted);
+            let journal_path = publication_journal_path(path, &operation);
+            let completed_path = journal_path
+                .parent()
+                .unwrap()
+                .join("completed")
+                .join(journal_path.file_name().unwrap());
+            match step {
+                PublicationTestStep::FailCompletedRecordWrite => {
+                    assert!(journal_path.is_file());
+                    assert!(!completed_path.exists());
+                }
+                PublicationTestStep::FailActiveJournalRemove => {
+                    assert!(journal_path.is_file());
+                    assert!(completed_path.is_file());
+                }
+                PublicationTestStep::FailCompletedRecordPrune => {
+                    assert!(!journal_path.exists());
+                    assert!(completed_path.is_file());
+                }
+                _ => unreachable!(),
+            }
+            assert_eq!(sh(path, &["rev-parse", "refs/heads/main"]), candidate);
+            assert_eq!(sh(path, &["rev-parse", "HEAD^"]), expected);
+            assert_eq!(
+                sh(remote.path(), &["rev-parse", "refs/heads/main"]),
+                candidate,
+                "the remote push must complete before {step:?}"
+            );
+            let local_commits = all_commit_oids(path);
+            let remote_commits = all_commit_oids(remote.path());
+            let local_reflog = sh(path, &["reflog", "show", "--format=%H", "refs/heads/main"]);
+            let remote_reflog = sh(
+                remote.path(),
+                &["reflog", "show", "--format=%H", "refs/heads/main"],
+            );
+            let index_after_failure = fs::read(path.join(".git/index")).unwrap();
+
+            let recovered = recover_publication(path, &operation, &PublishOptions::pushing());
+            assert_eq!(
+                recovered.state,
+                PublicationState::Pushed {
+                    commit: candidate.clone(),
+                    remote: "upstream".to_string(),
+                }
+            );
+            assert!(recovered.recovery_command.is_none());
+            assert_eq!(sh(path, &["rev-parse", "refs/heads/main"]), candidate);
+            assert_eq!(
+                sh(remote.path(), &["rev-parse", "refs/heads/main"]),
+                candidate
+            );
+            assert_eq!(all_commit_oids(path), local_commits);
+            assert_eq!(all_commit_oids(remote.path()), remote_commits);
+            assert_eq!(
+                sh(path, &["reflog", "show", "--format=%H", "refs/heads/main"]),
+                local_reflog
+            );
+            assert_eq!(
+                sh(
+                    remote.path(),
+                    &["reflog", "show", "--format=%H", "refs/heads/main"]
+                ),
+                remote_reflog
+            );
+            assert_eq!(
+                fs::read(path.join(".git/index")).unwrap(),
+                index_after_failure
+            );
+            assert!(active_operations(path).is_empty());
+            assert!(completed_path.is_file());
+
+            let repeated = recover_publication(path, &operation, &PublishOptions::pushing());
+            assert_eq!(repeated, recovered);
+            assert_eq!(all_commit_oids(path), local_commits);
+            assert_eq!(all_commit_oids(remote.path()), remote_commits);
+        }
     }
 
     #[test]

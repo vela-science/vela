@@ -1234,7 +1234,7 @@ fn root_json() -> Value {
             "GET  /entries/{vfr_id} - single entry",
             "GET  /entries/{vfr_id}/events - cursor-paginated canonical event log",
             "GET  /entries/{vfr_id}/events/stream - server-sent event inbox",
-            "GET  /entries/{vfr_id}/review - the review queue + the autonomy ledger (HTML or JSON; ?format=json)",
+            "GET  /entries/{vfr_id}/review - snapshot-bound review queue + autonomy ledger pages (HTML or JSON; ?format=json&limit=25&offset=0)",
             "GET  /entries/{vfr_id}/git-remote - verified Git source and ingest status",
         ]
     })
@@ -1589,32 +1589,60 @@ fn cached_list_response(payload: &Value, limit: Option<i64>, offset: i64, stale:
 /// This is intentionally strict after the event-first cutover: if a
 /// frontier has not been promoted to `frontiers`, live routes surface an
 /// unavailable state instead of fetching an alternate byte source.
-async fn load_substrate(
+enum SubstrateLoad {
+    Ready(Arc<Project>),
+    Missing,
+    SnapshotMismatch { actual: String },
+    Unavailable(String),
+}
+
+async fn load_substrate_exact(
     state: &AppState,
     vfr_id: &str,
     snapshot_hash: &str,
-) -> Option<Arc<Project>> {
+) -> SubstrateLoad {
     let cache_key = (vfr_id.to_string(), snapshot_hash.to_string());
     if let Some(hit) = state.frontier_cache.read().await.get(&cache_key).cloned() {
-        return Some(hit);
+        return SubstrateLoad::Ready(hit);
     }
 
-    match state.db.get_materialized_project(vfr_id).await {
-        Ok(Some(project)) => {
+    match state
+        .db
+        .get_materialized_project_with_snapshot_hash(vfr_id)
+        .await
+    {
+        Ok(Some((actual, project))) if actual == snapshot_hash => {
             let arc = Arc::new(project);
             state
                 .frontier_cache
                 .write()
                 .await
                 .insert(cache_key, arc.clone());
-            return Some(arc);
+            SubstrateLoad::Ready(arc)
         }
-        Ok(None) => {}
-        Err(e) => {
-            tracing::warn!(%vfr_id, error = %e, "event-first materialized project read failed");
+        Ok(Some((actual, _))) => SubstrateLoad::SnapshotMismatch { actual },
+        Ok(None) => SubstrateLoad::Missing,
+        Err(error) => SubstrateLoad::Unavailable(error),
+    }
+}
+
+async fn load_substrate(
+    state: &AppState,
+    vfr_id: &str,
+    snapshot_hash: &str,
+) -> Option<Arc<Project>> {
+    match load_substrate_exact(state, vfr_id, snapshot_hash).await {
+        SubstrateLoad::Ready(project) => Some(project),
+        SubstrateLoad::Missing => None,
+        SubstrateLoad::SnapshotMismatch { actual } => {
+            tracing::warn!(%vfr_id, expected = %snapshot_hash, %actual, "materialized project snapshot changed during read");
+            None
+        }
+        SubstrateLoad::Unavailable(error) => {
+            tracing::warn!(%vfr_id, %error, "event-first materialized project read failed");
+            None
         }
     }
-    None
 }
 
 /// The live Sidon open-frontier over HTTP: the next bound to beat at each n,
@@ -2596,6 +2624,16 @@ async fn get_entry_review(
     if format == Some("html") || (format != Some("json") && wants_html(&headers)) {
         return redirect_to_site(&state.urls, &format!("/r/{vfr_id}/review"));
     }
+    let page_request = match parse_review_page_request(&params) {
+        Ok(request) => request,
+        Err(message) => {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(error_body("INVALID_ARG", message)),
+            )
+                .into_response();
+        }
+    };
     let entry = match state.db.get_index_entry(&vfr_id).await {
         Ok(Some(v)) => v,
         Ok(None) => {
@@ -2617,36 +2655,72 @@ async fn get_entry_review(
         .get("latest_snapshot_hash")
         .and_then(|v| v.as_str())
         .unwrap_or("");
-    let Some(project) = load_substrate(&state, &vfr_id, snapshot_hash).await else {
+    if let Some(expected) = params.get("snapshot_hash") {
+        if expected != snapshot_hash {
+            return (
+                StatusCode::CONFLICT,
+                Json(error_body(
+                    "STALE_PAGE",
+                    "the verified frontier snapshot changed; start a fresh review page",
+                )),
+            )
+                .into_response();
+        }
+    } else if page_request.offset > 0 {
         return (
-            StatusCode::SERVICE_UNAVAILABLE,
+            StatusCode::BAD_REQUEST,
             Json(error_body(
-                "UNAVAILABLE",
-                "frontier projection unavailable; pull via the CLI to inspect",
+                "INVALID_ARG",
+                "review continuation requires the snapshot_hash returned by the first page",
             )),
         )
             .into_response();
+    }
+    let project = match load_substrate_exact(&state, &vfr_id, snapshot_hash).await {
+        SubstrateLoad::Ready(project) => project,
+        SubstrateLoad::SnapshotMismatch { .. } => {
+            return (
+                StatusCode::CONFLICT,
+                Json(error_body(
+                    "STALE_PAGE",
+                    "the verified frontier snapshot changed during review loading; start a fresh review page",
+                )),
+            )
+                .into_response();
+        }
+        SubstrateLoad::Missing | SubstrateLoad::Unavailable(_) => {
+            return (
+                StatusCode::SERVICE_UNAVAILABLE,
+                Json(error_body(
+                    "UNAVAILABLE",
+                    "frontier projection unavailable; pull via the CLI to inspect",
+                )),
+            )
+                .into_response();
+        }
     };
 
-    let queue = build_review_queue(&state, &vfr_id, &project).await;
+    let queue = build_review_queue(&state, &vfr_id, &project, page_request).await;
 
-    let admissions = policy_admissions(&project);
-    let decisions = human_decisions(&project);
+    let admissions = policy_admissions(&project, page_request);
+    let decisions = human_decisions(&project, page_request);
     let autonomy = vela_edge::frontier_health::compounding_metrics(&project).autonomy_ratio;
-    let mut by_policy: std::collections::BTreeMap<&str, usize> = Default::default();
-    for a in &admissions {
-        *by_policy.entry(a.policy_id.as_str()).or_default() += 1;
-    }
     (
         StatusCode::OK,
         Json(json!({
-            "schema": "vela.hub.review.v0.1",
+            "schema": "vela.hub.review.v0.2",
             "vfr_id": vfr_id,
             "stats": {
-                "awaiting": queue.rows.len(),
-                "policy_admitted": admissions.len(),
-                "human_decided": decisions.len(),
+                "awaiting": queue.page.total,
+                "policy_admitted": admissions.page.total,
+                "human_decided": decisions.page.total,
                 "autonomy_ratio": autonomy,
+            },
+            "pagination": {
+                "snapshot_hash": snapshot_hash,
+                "awaiting": queue.page,
+                "policy_admitted": admissions.page,
+                "human_decisions": decisions.page,
             },
             "policy": {
                 "active": queue.policy_active,
@@ -2665,8 +2739,9 @@ async fn get_entry_review(
                 "pack_memberships": r.pack_memberships,
             })).collect::<Vec<_>>(),
             "policy_admitted": {
-                "by_policy": by_policy,
-                "events": admissions.iter().map(|a| json!({
+                "by_policy_scope": "page",
+                "by_policy": admissions.by_policy,
+                "events": admissions.rows.iter().map(|a| json!({
                     "event_id": a.event_id,
                     "policy_id": a.policy_id,
                     "rule_ids": a.rule_ids,
@@ -2675,7 +2750,7 @@ async fn get_entry_review(
                     "target": {"type": a.target_type, "id": a.target_id},
                 })).collect::<Vec<_>>(),
             },
-            "human_decisions": decisions.iter().rev().take(HUMAN_DECISIONS_SHOWN).map(|d| json!({
+            "human_decisions": decisions.rows.iter().map(|d| json!({
                 "event_id": d.event_id,
                 "kind": d.kind,
                 "reviewer": d.reviewer,
@@ -2687,16 +2762,48 @@ async fn get_entry_review(
         .into_response()
 }
 
+/// Parse the Hub's read-only page window using the same public bounds as the
+/// frontier-local review projection. Invalid values fail explicitly instead
+/// of silently changing the requested page.
+fn parse_review_page_request(
+    params: &HashMap<String, String>,
+) -> Result<ReviewPageRequest, String> {
+    let limit = match params.get("limit") {
+        None => REVIEW_PAGE_DEFAULT,
+        Some(value) => match value.parse::<usize>() {
+            Ok(limit @ 1..=REVIEW_PAGE_MAX) => limit,
+            _ => {
+                return Err(format!(
+                    "review page limit `{value}` is outside 1..={REVIEW_PAGE_MAX}"
+                ));
+            }
+        },
+    };
+    let offset = match params.get("offset") {
+        None => 0,
+        Some(value) => match value.parse::<usize>() {
+            Ok(offset) => offset,
+            Err(_) => {
+                return Err(format!(
+                    "review page offset `{value}` is not a non-negative integer"
+                ));
+            }
+        },
+    };
+    Ok(ReviewPageRequest { limit, offset })
+}
+
 /// Build the hub's replay-only awaiting view. The filesystem-aware Decision
 /// Brief transaction lives in the CLI; reproducing only part of it here would
-/// create a second trust interpretation. The hub therefore exposes every
-/// pending proposal and labels action eligibility as not evaluated.
+/// create a second trust interpretation. The hub therefore pages replayed
+/// pending proposals and labels action eligibility as not evaluated.
 async fn build_review_queue(
     _state: &AppState,
     _vfr_id: &str,
     project: &Project,
+    request: ReviewPageRequest,
 ) -> ReviewQueueView {
-    pending_review_fallback(project)
+    pending_review_fallback(project, request)
 }
 
 /// `GET /entries/{vfr_id}/findings/{vf_id}/context`
@@ -3706,7 +3813,7 @@ mod protocol_surface_tests {
         assert_eq!(
             body,
             json!({
-                "schema": "vela.hub.review.v0.1",
+                "schema": "vela.hub.review.v0.2",
                 "vfr_id": "vfr_fix1",
                 "stats": {
                     "awaiting": 0,
@@ -3714,14 +3821,58 @@ mod protocol_surface_tests {
                     "human_decided": 0,
                     "autonomy_ratio": 0.0,
                 },
+                "pagination": {
+                    "snapshot_hash": "hash_snapshot",
+                    "awaiting": {"limit": 25, "offset": 0, "returned": 0, "total": 0},
+                    "policy_admitted": {"limit": 25, "offset": 0, "returned": 0, "total": 0},
+                    "human_decisions": {"limit": 25, "offset": 0, "returned": 0, "total": 0},
+                },
                 "policy": {"active": false, "policy_id": null, "filtered": false},
                 "awaiting": [],
-                "policy_admitted": {"by_policy": {}, "events": []},
+                "policy_admitted": {"by_policy_scope": "page", "by_policy": {}, "events": []},
                 "human_decisions": [],
             })
         );
 
-        // Root JSON banner is unchanged.
+        // The v0.2 review projection applies one explicit window to each
+        // ledger and reports the effective human-decision cap separately.
+        let (status, body) = get_json(
+            "/entries/vfr_fix1/review?limit=2&offset=1&snapshot_hash=hash_snapshot".to_string(),
+        )
+        .await;
+        assert_eq!(status, 200);
+        assert_eq!(body["pagination"]["snapshot_hash"], "hash_snapshot");
+        assert_eq!(
+            body["pagination"],
+            json!({
+                "snapshot_hash": "hash_snapshot",
+                "awaiting": {"limit": 2, "offset": 1, "returned": 0, "total": 0},
+                "policy_admitted": {"limit": 2, "offset": 1, "returned": 0, "total": 0},
+                "human_decisions": {"limit": 2, "offset": 1, "returned": 0, "total": 0},
+            })
+        );
+
+        for path in [
+            "/entries/vfr_fix1/review?limit=0",
+            "/entries/vfr_fix1/review?limit=101",
+            "/entries/vfr_fix1/review?limit=many",
+            "/entries/vfr_fix1/review?offset=-1",
+        ] {
+            let (status, body) = get_json(path.to_string()).await;
+            assert_eq!(status, 400, "{path}");
+            assert_eq!(body["error"]["kind"], "INVALID_ARG", "{path}");
+        }
+
+        let (status, body) = get_json("/entries/vfr_fix1/review?offset=1".to_string()).await;
+        assert_eq!(status, 400);
+        assert_eq!(body["error"]["kind"], "INVALID_ARG");
+        let (status, body) =
+            get_json("/entries/vfr_fix1/review?offset=1&snapshot_hash=old_snapshot".to_string())
+                .await;
+        assert_eq!(status, 409);
+        assert_eq!(body["error"]["kind"], "STALE_PAGE");
+
+        // The root JSON banner remains self-consistent with its endpoint list.
         let (status, body) = get_json("/".to_string()).await;
         assert_eq!(status, 200);
         assert_eq!(body, root_json());
@@ -3861,6 +4012,27 @@ mod protocol_surface_tests {
         assert_eq!(urlencode("sidon sets"), "sidon%20sets");
         assert_eq!(urlencode("a+b&c=d"), "a%2Bb%26c%3Dd");
         assert_eq!(urlencode("Ab0-_.~"), "Ab0-_.~");
+    }
+
+    #[tokio::test]
+    async fn projection_is_never_cached_under_an_unverified_snapshot_hash() {
+        let state = test_state().await;
+        seed_entry(&state, "vfr_fix1").await;
+
+        match load_substrate_exact(&state, "vfr_fix1", "stale_snapshot").await {
+            SubstrateLoad::SnapshotMismatch { actual } => {
+                assert_eq!(actual, "hash_snapshot");
+            }
+            _ => panic!("a caller-supplied stale hash must not label current project bytes"),
+        }
+        assert!(
+            !state
+                .frontier_cache
+                .read()
+                .await
+                .contains_key(&("vfr_fix1".to_string(), "stale_snapshot".to_string())),
+            "mismatched project bytes must never enter the cache under the stale hash"
+        );
     }
 
     #[test]

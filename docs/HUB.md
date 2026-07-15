@@ -82,6 +82,14 @@ Pagination, cursors, filtering, and response fields are discoverable from the
 endpoint schema and stable CLI JSON contracts. This document intentionally does
 not duplicate every projection field.
 
+The review JSON contract is `vela.hub.review.v0.2`. It defaults to 25 rows and
+accepts `limit=1..100` plus a non-negative `offset`. Every returned ledger has
+its own `returned`, `total`, and optional `next_offset`; `stats` carries the
+full totals, while `policy_admitted.by_policy` is explicitly scoped to the
+current page. A continuation (`offset > 0`) must echo the first page's
+`snapshot_hash`; a changed snapshot fails with `409 STALE_PAGE` so pages from
+different replayed frontier states are never silently combined.
+
 The Hub has negative route tests for former state-write, source-registration,
 object-store, deprecation, status-authority, transparency-proof, and peer
 surfaces. Adding any such route is a trust-boundary change, not routine API

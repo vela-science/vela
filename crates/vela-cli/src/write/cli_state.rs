@@ -72,7 +72,6 @@ pub(crate) fn run(args: &[String]) {
             );
         } else {
             println!("evidence diff  {}", review.brief.audit.proposal_id);
-            println!("  {}", review.brief.change.claim);
             for line in crate::cli::sign_session::render_decision_brief_lines(&review.brief) {
                 println!("    {line}");
             }

@@ -1158,11 +1158,9 @@ pub(crate) fn author_receipt(
     let work = resolve_work_session(frontier, actor, requested_work)?;
     let work_target = work.record.target.clone();
     let work_started_at = work.record.created_at.clone();
-    let canonical_frontier = frontier
-        .canonicalize()
-        .map_err(|error| format!("canonicalize frontier: {error}"))?;
     let mut artifacts = Vec::new();
     let mut normalized_artifacts = Vec::new();
+    let mut total_artifact_bytes = 0_u64;
     for (index, flag) in artifact_flags.iter().enumerate() {
         let (path, kind) = if frontier.join(flag).is_file() {
             (flag.as_str(), "other")
@@ -1179,27 +1177,13 @@ pub(crate) fn author_receipt(
                 "artifact {index} must be a normalized frontier-relative file"
             ));
         }
-        let candidate = canonical_frontier.join(relative);
-        let metadata = std::fs::symlink_metadata(&candidate)
-            .map_err(|error| format!("artifact {}: {error}", candidate.display()))?;
-        if metadata.file_type().is_symlink() || !metadata.is_file() {
-            return Err(format!(
-                "artifact {} must be a regular non-symlink file",
-                candidate.display()
-            ));
-        }
-        let canonical = candidate
-            .canonicalize()
-            .map_err(|error| format!("canonicalize artifact {}: {error}", candidate.display()))?;
-        if !canonical.starts_with(&canonical_frontier) {
-            return Err(format!(
-                "artifact {} escapes the frontier",
-                candidate.display()
-            ));
-        }
-        let bytes = std::fs::read(&canonical)
-            .map_err(|error| format!("read artifact {}: {error}", canonical.display()))?;
-        let digest = hex::encode(Sha256::digest(bytes));
+        let label = format!("artifact {index}");
+        let read_limit = public_artifact_read_limit(total_artifact_bytes, index)?;
+        let bytes =
+            crate::bounded_file::read_bounded_frontier_file(frontier, relative, read_limit, &label)
+                .map_err(|error| public_artifact_read_error(error, read_limit, index))?;
+        account_public_artifact_bytes(&mut total_artifact_bytes, bytes.len() as u64, index)?;
+        let digest = hex::encode(Sha256::digest(&bytes));
         artifacts.push(
             ArtifactInput::new(
                 path.to_string(),
@@ -2167,12 +2151,10 @@ fn prepare_receipt_artifacts(
         .get("artifacts")
         .and_then(Value::as_array)
         .ok_or_else(|| "validated receipt is missing artifacts".to_string())?;
-    let canonical_frontier = frontier
-        .canonicalize()
-        .map_err(|error| format!("canonicalize frontier: {error}"))?;
     let mut records = Vec::with_capacity(values.len());
     let mut public_blobs = BTreeMap::<String, Vec<u8>>::new();
     let mut read_set = Vec::new();
+    let mut total_artifact_bytes = 0_u64;
     for (index, value) in values.iter().enumerate() {
         let path = value
             .get("path")
@@ -2223,28 +2205,26 @@ fn prepare_receipt_artifacts(
             && relative
                 .components()
                 .all(|component| matches!(component, std::path::Component::Normal(_)));
-        let local = local_candidate.then(|| canonical_frontier.join(relative));
-        let local = local.filter(|candidate| candidate.exists());
-        if let Some(local) = local {
-            let metadata = std::fs::symlink_metadata(&local)
-                .map_err(|error| format!("artifact {}: {error}", local.display()))?;
-            if metadata.file_type().is_symlink() || !metadata.is_file() {
-                return Err(format!(
-                    "artifact {} must be a regular non-symlink file",
-                    local.display()
-                ));
+        let local = if local_candidate {
+            let candidate = frontier.join(relative);
+            match std::fs::symlink_metadata(&candidate) {
+                Ok(_) => Some(candidate),
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
+                Err(error) => {
+                    return Err(format!("inspect artifact {}: {error}", candidate.display()));
+                }
             }
-            let canonical = local
-                .canonicalize()
-                .map_err(|error| format!("canonicalize artifact {}: {error}", local.display()))?;
-            if !canonical.starts_with(&canonical_frontier) {
-                return Err(format!(
-                    "artifact {} escapes the frontier; use an immutable public URI or opaque restricted reference",
-                    local.display()
-                ));
-            }
-            let bytes = std::fs::read(&canonical)
-                .map_err(|error| format!("read artifact {}: {error}", canonical.display()))?;
+        } else {
+            None
+        };
+        if local.is_some() {
+            let label = format!("artifact {index}");
+            let read_limit = public_artifact_read_limit(total_artifact_bytes, index)?;
+            let bytes = crate::bounded_file::read_bounded_frontier_file(
+                frontier, relative, read_limit, &label,
+            )
+            .map_err(|error| public_artifact_read_error(error, read_limit, index))?;
+            account_public_artifact_bytes(&mut total_artifact_bytes, bytes.len() as u64, index)?;
             let digest = hex::encode(Sha256::digest(&bytes));
             if declared_hash.is_some_and(|declared| declared != digest) {
                 return Err(format!("artifact {index} sha256 does not match its bytes"));
@@ -2254,6 +2234,7 @@ fn prepare_receipt_artifacts(
                     "artifact {index} size_bytes does not match its bytes"
                 ));
             }
+            let size_bytes = bytes.len() as u64;
             let blob_path = format!("records/artifacts/sha256/{digest}");
             public_blobs.entry(blob_path.clone()).or_insert(bytes);
             read_set.push(InputBinding {
@@ -2265,7 +2246,7 @@ fn prepare_receipt_artifacts(
                 kind: kind.to_string(),
                 locator: blob_path,
                 sha256: digest,
-                size_bytes: Some(metadata.len()),
+                size_bytes: Some(size_bytes),
                 media_type: Some(
                     media_type.unwrap_or_else(|| "application/octet-stream".to_string()),
                 ),
@@ -2330,6 +2311,106 @@ fn prepare_receipt_artifacts(
         writes,
         read_set,
     })
+}
+
+fn account_public_artifact_bytes(
+    total: &mut u64,
+    artifact_bytes: u64,
+    index: usize,
+) -> Result<(), String> {
+    let next = total.checked_add(artifact_bytes).ok_or_else(|| {
+        format!("public artifact byte count overflowed while reading artifact {index}")
+    })?;
+    if next > crate::bounded_file::PUBLIC_ARTIFACT_TOTAL_MAX_BYTES {
+        return Err(format!(
+            "public artifacts exceed the {}-byte total limit at artifact {index}",
+            crate::bounded_file::PUBLIC_ARTIFACT_TOTAL_MAX_BYTES
+        ));
+    }
+    *total = next;
+    Ok(())
+}
+
+fn public_artifact_read_limit(total: u64, index: usize) -> Result<u64, String> {
+    let remaining = crate::bounded_file::PUBLIC_ARTIFACT_TOTAL_MAX_BYTES
+        .checked_sub(total)
+        .ok_or_else(|| {
+            format!(
+                "public artifacts already exceed the {}-byte total limit before artifact {index}",
+                crate::bounded_file::PUBLIC_ARTIFACT_TOTAL_MAX_BYTES
+            )
+        })?;
+    Ok(remaining.min(crate::bounded_file::PUBLIC_ARTIFACT_MAX_BYTES))
+}
+
+fn public_artifact_read_error(
+    error: crate::bounded_file::BoundedFileError,
+    read_limit: u64,
+    index: usize,
+) -> String {
+    if error.code == "oversized" && read_limit < crate::bounded_file::PUBLIC_ARTIFACT_MAX_BYTES {
+        format!(
+            "public artifacts exceed the {}-byte total limit at artifact {index}",
+            crate::bounded_file::PUBLIC_ARTIFACT_TOTAL_MAX_BYTES
+        )
+    } else {
+        error.to_string()
+    }
+}
+
+#[cfg(test)]
+mod public_artifact_budget_tests {
+    use super::{account_public_artifact_bytes, public_artifact_read_limit};
+    use crate::bounded_file::{PUBLIC_ARTIFACT_MAX_BYTES, PUBLIC_ARTIFACT_TOTAL_MAX_BYTES};
+
+    #[test]
+    fn public_artifact_total_budget_accepts_the_boundary_and_rejects_overflow() {
+        let mut total = PUBLIC_ARTIFACT_TOTAL_MAX_BYTES - 1;
+        account_public_artifact_bytes(&mut total, 1, 7).unwrap();
+        assert_eq!(total, PUBLIC_ARTIFACT_TOTAL_MAX_BYTES);
+
+        let error = account_public_artifact_bytes(&mut total, 1, 8).unwrap_err();
+        assert_eq!(
+            error,
+            format!(
+                "public artifacts exceed the {}-byte total limit at artifact 8",
+                PUBLIC_ARTIFACT_TOTAL_MAX_BYTES
+            )
+        );
+        assert_eq!(total, PUBLIC_ARTIFACT_TOTAL_MAX_BYTES);
+    }
+
+    #[test]
+    fn public_artifact_total_budget_rejects_arithmetic_overflow() {
+        let mut total = u64::MAX;
+        let error = account_public_artifact_bytes(&mut total, 1, 1).unwrap_err();
+        assert_eq!(
+            error,
+            "public artifact byte count overflowed while reading artifact 1"
+        );
+        assert_eq!(total, u64::MAX);
+    }
+
+    #[test]
+    fn public_artifact_reader_never_crosses_the_remaining_total_budget() {
+        assert_eq!(
+            public_artifact_read_limit(0, 0).unwrap(),
+            PUBLIC_ARTIFACT_MAX_BYTES
+        );
+        assert_eq!(
+            public_artifact_read_limit(PUBLIC_ARTIFACT_TOTAL_MAX_BYTES - 1, 8).unwrap(),
+            1
+        );
+        assert_eq!(
+            public_artifact_read_limit(PUBLIC_ARTIFACT_TOTAL_MAX_BYTES, 9).unwrap(),
+            0
+        );
+        assert!(
+            public_artifact_read_limit(PUBLIC_ARTIFACT_TOTAL_MAX_BYTES + 1, 9)
+                .unwrap_err()
+                .contains("already exceed")
+        );
+    }
 }
 
 /// Return only safe, currently materialized public receipt inputs. Exact Git

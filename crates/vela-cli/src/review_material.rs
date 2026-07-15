@@ -1872,6 +1872,62 @@ mod tests {
         }
     }
 
+    #[cfg(unix)]
+    #[test]
+    fn unsafe_and_symlinked_receipt_paths_are_not_opened_and_block_accept() {
+        use std::os::unix::fs::symlink;
+
+        let temp = initialized_review_frontier();
+        let mut unsafe_path = pending_with_missing_receipt(0);
+        unsafe_path.payload["vela_submission"]["receipt_path"] =
+            json!("records/receipts/sha256/../../outside.json");
+        unsafe_path.id = vela_protocol::proposals::proposal_id(&unsafe_path);
+
+        let symlinked = retain_receipt_for_proposal(temp.path(), 1);
+        let relative = symlinked.payload["vela_submission"]["receipt_path"]
+            .as_str()
+            .unwrap();
+        let receipt_path = temp.path().join(relative);
+        let retained_path = receipt_path.with_extension("retained.json");
+        std::fs::rename(&receipt_path, &retained_path).unwrap();
+        symlink(retained_path.file_name().unwrap(), &receipt_path).unwrap();
+
+        save_pending(temp.path(), vec![unsafe_path, symlinked]);
+        let state_before = vela_protocol::canonical::to_canonical_bytes(
+            &vela_protocol::repo::load_from_path(temp.path()).unwrap(),
+        )
+        .unwrap();
+
+        let page = ReviewProjection::page(
+            temp.path(),
+            ReviewRequest {
+                limit: Some(10),
+                ..ReviewRequest::default()
+            },
+        )
+        .unwrap();
+
+        assert_eq!(page.returned, 2);
+        assert_eq!(page.receipts_opened, 0);
+        let reasons = page
+            .items
+            .iter()
+            .flat_map(|item| item.brief.missing.iter())
+            .map(|fact| fact.reason.as_str())
+            .collect::<Vec<_>>();
+        assert!(reasons.contains(&"receipt_path_unsafe"), "{reasons:?}");
+        assert!(reasons.contains(&"receipt_file_symlink"), "{reasons:?}");
+        for item in &page.items {
+            assert_eq!(action_eligibility(&item.brief, "accept"), "blocked");
+            assert_eq!(action_eligibility(&item.brief, "reject"), "available");
+        }
+        let state_after = vela_protocol::canonical::to_canonical_bytes(
+            &vela_protocol::repo::load_from_path(temp.path()).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(state_after, state_before);
+    }
+
     #[test]
     fn review_projection_selects_and_bounds_the_page_before_opening_receipts() {
         let temp = initialized_review_frontier();

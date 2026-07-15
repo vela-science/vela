@@ -424,6 +424,64 @@ fn snapshot_exact_tree(root: &Path) -> Vec<(String, Vec<u8>)> {
     out
 }
 
+#[derive(Debug, PartialEq, Eq)]
+struct GitPrivateSnapshot {
+    object_store: String,
+    publication_state: Vec<(String, Vec<u8>)>,
+}
+
+fn snapshot_git_private_state(dir: &Path) -> GitPrivateSnapshot {
+    let git_dir = std::path::PathBuf::from(git_stdout(dir, &["rev-parse", "--git-dir"]).trim());
+    let git_dir = if git_dir.is_absolute() {
+        git_dir
+    } else {
+        dir.join(git_dir)
+    };
+    GitPrivateSnapshot {
+        object_store: git_stdout(dir, &["count-objects", "-v"]),
+        publication_state: snapshot_exact_tree(&git_dir.join("vela")),
+    }
+}
+
+fn valid_ustar_archive(path: &str, contents: &[u8]) -> Vec<u8> {
+    fn write_octal(field: &mut [u8], value: u64) {
+        let octal = format!("{value:o}");
+        assert!(octal.len() < field.len());
+        field.fill(b'0');
+        let start = field.len() - octal.len() - 1;
+        field[start..start + octal.len()].copy_from_slice(octal.as_bytes());
+        field[field.len() - 1] = 0;
+    }
+
+    assert!(
+        path.len() <= 100,
+        "ustar fixture path must fit the name field"
+    );
+    let mut header = [0_u8; 512];
+    header[..path.len()].copy_from_slice(path.as_bytes());
+    write_octal(&mut header[100..108], 0o644);
+    write_octal(&mut header[108..116], 0);
+    write_octal(&mut header[116..124], 0);
+    write_octal(&mut header[124..136], contents.len() as u64);
+    write_octal(&mut header[136..148], 0);
+    header[148..156].fill(b' ');
+    header[156] = b'0';
+    header[257..263].copy_from_slice(b"ustar\0");
+    header[263..265].copy_from_slice(b"00");
+    header[265..269].copy_from_slice(b"vela");
+    header[297..301].copy_from_slice(b"vela");
+    let checksum = header.iter().map(|byte| u64::from(*byte)).sum::<u64>();
+    let checksum = format!("{checksum:06o}\0 ");
+    assert_eq!(checksum.len(), 8);
+    header[148..156].copy_from_slice(checksum.as_bytes());
+
+    let mut archive = header.to_vec();
+    archive.extend_from_slice(contents);
+    let padding = (512 - archive.len() % 512) % 512;
+    archive.resize(archive.len() + padding + 1024, 0);
+    archive
+}
+
 #[test]
 fn json_mode_writes_one_object_only() {
     let tmp = tempfile::TempDir::new().unwrap();
@@ -517,6 +575,104 @@ fn exact_receipt_retry_is_idempotent_across_frontier_and_git() {
             &["status", "--porcelain=v1", "--untracked-files=all"]
         ),
         status_before
+    );
+}
+
+#[test]
+fn exact_retry_with_no_vela_git_delta_preserves_nonempty_caller_index() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    init_git_frontier(tmp.path());
+    std::fs::write(tmp.path().join("notes.txt"), "baseline\n").unwrap();
+    assert_success(
+        &git(tmp.path(), &["add", "notes.txt"]),
+        "stage notes baseline",
+    );
+    assert_success(
+        &git(tmp.path(), &["commit", "-qm", "notes baseline"]),
+        "commit notes baseline",
+    );
+    write_receipt(
+        tmp.path(),
+        "receipt.json",
+        "an exact retry with no Vela Git delta preserves caller staging",
+    );
+
+    let first = run(
+        tmp.path(),
+        &["land", "receipt.json", "--as", "agent:t", "--json"],
+    );
+    assert_success(&first, "first landing before nonempty-index retry");
+    let first = one_json_object(&first);
+    assert_eq!(first["route"], "deferred", "{first}");
+
+    std::fs::write(tmp.path().join("notes.txt"), "caller staged bytes\n").unwrap();
+    assert_success(
+        &git(tmp.path(), &["add", "notes.txt"]),
+        "stage caller bytes",
+    );
+    let head_before = git_stdout(tmp.path(), &["rev-parse", "HEAD"]);
+    let commits_before = git_stdout(tmp.path(), &["rev-list", "--count", "HEAD"]);
+    let status_before = git_stdout(
+        tmp.path(),
+        &["status", "--porcelain=v1", "--untracked-files=all"],
+    );
+    let objects_before = git_stdout(tmp.path(), &["count-objects", "-v"]);
+    let scientific_before = snapshot_scientific_tree(tmp.path());
+    let staged_before = git_stdout(tmp.path(), &["show", ":notes.txt"]);
+    let committed_before = git_stdout(tmp.path(), &["show", "HEAD:notes.txt"]);
+    // Capture raw index bytes after all Git reads above; `git status` may
+    // legitimately refresh stat-cache fields while preserving logical entries.
+    let index_before = std::fs::read(tmp.path().join(".git/index")).unwrap();
+
+    let retry = run(
+        tmp.path(),
+        &["land", "receipt.json", "--as", "agent:t", "--json"],
+    );
+    assert_success(&retry, "exact retry with nonempty caller index");
+    let retry = one_json_object(&retry);
+    assert_eq!(retry["route"], "exact_retry", "{retry}");
+    assert_eq!(retry["publication"]["state"], "committed_local", "{retry}");
+    for key in [
+        "operation_id",
+        "receipt_root",
+        "record_id",
+        "proposal_id",
+        "finding_id",
+    ] {
+        assert_eq!(retry[key], first[key], "exact retry changed {key}");
+    }
+    assert_eq!(
+        retry["publication"]["commit"],
+        first["publication"]["commit"]
+    );
+    assert_eq!(git_stdout(tmp.path(), &["rev-parse", "HEAD"]), head_before);
+    assert_eq!(
+        git_stdout(tmp.path(), &["rev-list", "--count", "HEAD"]),
+        commits_before
+    );
+    assert_eq!(
+        std::fs::read(tmp.path().join(".git/index")).unwrap(),
+        index_before
+    );
+    assert_eq!(
+        git_stdout(
+            tmp.path(),
+            &["status", "--porcelain=v1", "--untracked-files=all"]
+        ),
+        status_before
+    );
+    assert_eq!(
+        git_stdout(tmp.path(), &["count-objects", "-v"]),
+        objects_before
+    );
+    assert_eq!(snapshot_scientific_tree(tmp.path()), scientific_before);
+    assert_eq!(
+        git_stdout(tmp.path(), &["show", ":notes.txt"]),
+        staged_before
+    );
+    assert_eq!(
+        git_stdout(tmp.path(), &["show", "HEAD:notes.txt"]),
+        committed_before
     );
 }
 
@@ -746,6 +902,376 @@ fn external_public_artifact_requires_complete_descriptor() {
     );
     assert_eq!(snapshot_scientific_tree(tmp.path()), before);
     assert_eq!(git_stdout(tmp.path(), &["rev-parse", "HEAD"]), head_before);
+}
+
+#[test]
+fn foreign_receipt_read_is_bounded_symlink_safe_and_zero_delta() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    init_git_frontier(tmp.path());
+
+    let oversized = tmp.path().join("oversized-receipt.json");
+    let file = std::fs::File::create(&oversized).unwrap();
+    file.set_len(8 * 1024 * 1024 + 1).unwrap();
+    drop(file);
+    let scientific_before = snapshot_scientific_tree(tmp.path());
+    let head_before = git_stdout(tmp.path(), &["rev-parse", "HEAD"]);
+    let status_before = git_stdout(
+        tmp.path(),
+        &["status", "--porcelain=v1", "--untracked-files=all"],
+    );
+    let git_private_before = snapshot_git_private_state(tmp.path());
+    let index_before = std::fs::read(tmp.path().join(".git/index")).unwrap();
+
+    let rejected = run(
+        tmp.path(),
+        &[
+            "land",
+            "oversized-receipt.json",
+            "--as",
+            "agent:t",
+            "--json",
+        ],
+    );
+    assert!(!rejected.status.success(), "oversized Receipt must fail");
+    let rejected = one_json_object(&rejected);
+    assert!(
+        rejected["error"]["message"]
+            .as_str()
+            .is_some_and(|message| message.contains("exceeds the 8388608-byte limit")),
+        "{rejected}"
+    );
+    assert_eq!(snapshot_scientific_tree(tmp.path()), scientific_before);
+    assert_eq!(git_stdout(tmp.path(), &["rev-parse", "HEAD"]), head_before);
+    assert_eq!(
+        git_stdout(
+            tmp.path(),
+            &["status", "--porcelain=v1", "--untracked-files=all"]
+        ),
+        status_before
+    );
+    assert_eq!(
+        std::fs::read(tmp.path().join(".git/index")).unwrap(),
+        index_before
+    );
+    assert_eq!(snapshot_git_private_state(tmp.path()), git_private_before);
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::symlink;
+
+        write_receipt(
+            tmp.path(),
+            "real-receipt.json",
+            "a foreign Receipt symlink must not cross the write edge",
+        );
+        symlink("real-receipt.json", tmp.path().join("linked-receipt.json")).unwrap();
+        let scientific_before = snapshot_scientific_tree(tmp.path());
+        let head_before = git_stdout(tmp.path(), &["rev-parse", "HEAD"]);
+        let status_before = git_stdout(
+            tmp.path(),
+            &["status", "--porcelain=v1", "--untracked-files=all"],
+        );
+        let git_private_before = snapshot_git_private_state(tmp.path());
+        let index_before = std::fs::read(tmp.path().join(".git/index")).unwrap();
+
+        let rejected = run(
+            tmp.path(),
+            &["land", "linked-receipt.json", "--as", "agent:t", "--json"],
+        );
+        assert!(!rejected.status.success(), "symlinked Receipt must fail");
+        let rejected = one_json_object(&rejected);
+        assert!(
+            rejected["error"]["message"]
+                .as_str()
+                .is_some_and(|message| message.contains("symlink")),
+            "{rejected}"
+        );
+        assert_eq!(snapshot_scientific_tree(tmp.path()), scientific_before);
+        assert_eq!(git_stdout(tmp.path(), &["rev-parse", "HEAD"]), head_before);
+        assert_eq!(
+            git_stdout(
+                tmp.path(),
+                &["status", "--porcelain=v1", "--untracked-files=all"]
+            ),
+            status_before
+        );
+        assert_eq!(
+            std::fs::read(tmp.path().join(".git/index")).unwrap(),
+            index_before
+        );
+        assert_eq!(snapshot_git_private_state(tmp.path()), git_private_before);
+    }
+}
+
+#[test]
+fn local_artifact_reads_are_bounded_symlink_safe_and_zero_delta() {
+    {
+        let tmp = tempfile::TempDir::new().unwrap();
+        init_git_frontier(tmp.path());
+        write_receipt_with_artifact(
+            tmp.path(),
+            "oversized-artifact-receipt.json",
+            "an oversized local artifact must not cross the write edge",
+            "oversized.bin",
+            b"seed",
+        );
+        let artifact = tmp.path().join("artifacts/oversized.bin");
+        let file = std::fs::OpenOptions::new()
+            .write(true)
+            .open(&artifact)
+            .unwrap();
+        file.set_len(8 * 1024 * 1024 + 1).unwrap();
+        drop(file);
+        let scientific_before = snapshot_scientific_tree(tmp.path());
+        let head_before = git_stdout(tmp.path(), &["rev-parse", "HEAD"]);
+        let status_before = git_stdout(
+            tmp.path(),
+            &["status", "--porcelain=v1", "--untracked-files=all"],
+        );
+        let git_private_before = snapshot_git_private_state(tmp.path());
+        let index_before = std::fs::read(tmp.path().join(".git/index")).unwrap();
+
+        let rejected = run(
+            tmp.path(),
+            &[
+                "land",
+                "oversized-artifact-receipt.json",
+                "--as",
+                "agent:t",
+                "--json",
+            ],
+        );
+        assert!(!rejected.status.success(), "oversized artifact must fail");
+        let rejected = one_json_object(&rejected);
+        assert!(
+            rejected["error"]["message"]
+                .as_str()
+                .is_some_and(|message| message.contains("exceeds the 8388608-byte limit")),
+            "{rejected}"
+        );
+        assert_eq!(snapshot_scientific_tree(tmp.path()), scientific_before);
+        assert_eq!(git_stdout(tmp.path(), &["rev-parse", "HEAD"]), head_before);
+        assert_eq!(
+            git_stdout(
+                tmp.path(),
+                &["status", "--porcelain=v1", "--untracked-files=all"]
+            ),
+            status_before
+        );
+        assert_eq!(
+            std::fs::read(tmp.path().join(".git/index")).unwrap(),
+            index_before
+        );
+        assert_eq!(snapshot_git_private_state(tmp.path()), git_private_before);
+    }
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::symlink;
+
+        let tmp = tempfile::TempDir::new().unwrap();
+        init_git_frontier(tmp.path());
+        write_receipt_with_artifact(
+            tmp.path(),
+            "symlinked-artifact-receipt.json",
+            "a symlinked artifact ancestor must not cross the write edge",
+            "w.json",
+            br#"{"witness":"inside"}"#,
+        );
+        std::fs::rename(
+            tmp.path().join("artifacts"),
+            tmp.path().join("real-artifacts"),
+        )
+        .unwrap();
+        symlink("real-artifacts", tmp.path().join("artifacts")).unwrap();
+        let scientific_before = snapshot_scientific_tree(tmp.path());
+        let head_before = git_stdout(tmp.path(), &["rev-parse", "HEAD"]);
+        let status_before = git_stdout(
+            tmp.path(),
+            &["status", "--porcelain=v1", "--untracked-files=all"],
+        );
+        let git_private_before = snapshot_git_private_state(tmp.path());
+        let index_before = std::fs::read(tmp.path().join(".git/index")).unwrap();
+
+        let rejected = run(
+            tmp.path(),
+            &[
+                "land",
+                "symlinked-artifact-receipt.json",
+                "--as",
+                "agent:t",
+                "--json",
+            ],
+        );
+        assert!(!rejected.status.success(), "symlinked artifact must fail");
+        let rejected = one_json_object(&rejected);
+        assert!(
+            rejected["error"]["message"]
+                .as_str()
+                .is_some_and(|message| message.contains("path traverses a symlink")),
+            "{rejected}"
+        );
+        assert_eq!(snapshot_scientific_tree(tmp.path()), scientific_before);
+        assert_eq!(git_stdout(tmp.path(), &["rev-parse", "HEAD"]), head_before);
+        assert_eq!(
+            git_stdout(
+                tmp.path(),
+                &["status", "--porcelain=v1", "--untracked-files=all"]
+            ),
+            status_before
+        );
+        assert_eq!(
+            std::fs::read(tmp.path().join(".git/index")).unwrap(),
+            index_before
+        );
+        assert_eq!(snapshot_git_private_state(tmp.path()), git_private_before);
+    }
+}
+
+#[test]
+fn flag_authored_artifact_read_is_bounded_and_preserves_work_session() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    init_git_frontier(tmp.path());
+    std::fs::create_dir_all(tmp.path().join("artifacts")).unwrap();
+    let artifact = tmp.path().join("artifacts/oversized.bin");
+    let file = std::fs::File::create(&artifact).unwrap();
+    file.set_len(8 * 1024 * 1024 + 1).unwrap();
+    drop(file);
+    let agent_key = "42".repeat(32);
+    let env = [("VELA_AGENT_KEY_HEX", agent_key.as_str())];
+    let work = run_with_env(
+        tmp.path(),
+        &[
+            "work",
+            "erdos:bounded-artifact",
+            "--as",
+            "agent:t",
+            "--json",
+        ],
+        &env,
+    );
+    assert_success(&work, "open bounded-artifact work session");
+    let work = one_json_object(&work);
+    let session_path = std::path::PathBuf::from(work["session_path"].as_str().unwrap());
+    let session_before = std::fs::read(&session_path).unwrap();
+    let scientific_before = snapshot_scientific_tree(tmp.path());
+    let head_before = git_stdout(tmp.path(), &["rev-parse", "HEAD"]);
+    let status_before = git_stdout(
+        tmp.path(),
+        &["status", "--porcelain=v1", "--untracked-files=all"],
+    );
+    let git_private_before = snapshot_git_private_state(tmp.path());
+    let index_before = std::fs::read(tmp.path().join(".git/index")).unwrap();
+
+    let rejected = run_with_env(
+        tmp.path(),
+        &[
+            "land",
+            "--work",
+            "erdos:bounded-artifact",
+            "--claim",
+            "an oversized flag-authored artifact must not cross the write edge",
+            "--type",
+            "computational",
+            "--replayability",
+            "exact",
+            "--artifact",
+            "artifacts/oversized.bin:witness",
+            "--caveat",
+            "fixture evidence only",
+            "--as",
+            "agent:t",
+            "--json",
+        ],
+        &env,
+    );
+    assert!(!rejected.status.success(), "oversized artifact must fail");
+    let rejected = one_json_object(&rejected);
+    assert!(
+        rejected["error"]["message"]
+            .as_str()
+            .is_some_and(|message| message.contains("exceeds the 8388608-byte limit")),
+        "{rejected}"
+    );
+    assert_eq!(std::fs::read(&session_path).unwrap(), session_before);
+    assert_eq!(snapshot_scientific_tree(tmp.path()), scientific_before);
+    assert_eq!(git_stdout(tmp.path(), &["rev-parse", "HEAD"]), head_before);
+    assert_eq!(
+        git_stdout(
+            tmp.path(),
+            &["status", "--porcelain=v1", "--untracked-files=all"]
+        ),
+        status_before
+    );
+    assert_eq!(
+        std::fs::read(tmp.path().join(".git/index")).unwrap(),
+        index_before
+    );
+    assert_eq!(snapshot_git_private_state(tmp.path()), git_private_before);
+}
+
+#[test]
+fn archive_artifact_is_retained_as_opaque_bytes_and_never_expanded() {
+    use sha2::{Digest, Sha256};
+
+    let tmp = tempfile::TempDir::new().unwrap();
+    init_git_frontier(tmp.path());
+    let sentinel = format!(
+        "VELA_VALID_ARCHIVE_WAS_EXPANDED_{}_{}",
+        std::process::id(),
+        tmp.path().file_name().unwrap().to_string_lossy()
+    );
+    let archive = valid_ustar_archive(&format!("../{sentinel}"), b"expanded fixture bytes");
+    assert_eq!(&archive[257..263], b"ustar\0");
+    assert_eq!(archive.len() % 512, 0);
+    assert!(archive.ends_with(&[0_u8; 1024]));
+    write_receipt_with_artifact(
+        tmp.path(),
+        "archive-receipt.json",
+        "archive-like evidence remains opaque until an explicit verifier opens it",
+        "bundle.tar",
+        &archive,
+    );
+
+    let landed = run(
+        tmp.path(),
+        &["land", "archive-receipt.json", "--as", "agent:t", "--json"],
+    );
+    assert_success(&landed, "land opaque archive artifact");
+    let landed = one_json_object(&landed);
+    let digest = hex::encode(Sha256::digest(&archive));
+    assert_eq!(
+        std::fs::read(
+            tmp.path()
+                .join(format!("records/artifacts/sha256/{digest}"))
+        )
+        .unwrap(),
+        archive
+    );
+    let sentinel_paths = [
+        tmp.path().join("artifacts").join(&sentinel),
+        tmp.path().join(&sentinel),
+        tmp.path().parent().unwrap().join(&sentinel),
+    ];
+    for path in &sentinel_paths {
+        assert!(
+            !path.exists(),
+            "archive traversal created {}",
+            path.display()
+        );
+    }
+
+    let scientific_before = snapshot_scientific_tree(tmp.path());
+    let head_before = git_stdout(tmp.path(), &["rev-parse", "HEAD"]);
+    let proposal_id = landed["proposal_id"].as_str().unwrap();
+    let frontier = tmp.path().to_str().unwrap();
+    let preview = run(tmp.path(), &["proposals", "preview", frontier, proposal_id]);
+    assert_success(&preview, "preview opaque archive proposal");
+    assert_eq!(snapshot_scientific_tree(tmp.path()), scientific_before);
+    assert_eq!(git_stdout(tmp.path(), &["rev-parse", "HEAD"]), head_before);
+    for path in &sentinel_paths {
+        assert!(!path.exists(), "review created {}", path.display());
+    }
 }
 
 #[test]
@@ -3310,6 +3836,10 @@ fn hostile_review_text_and_command_locator_stay_inert_and_bounded() {
     let locator = format!("$(touch${{IFS}}{})", sentinel.display());
     receipt["artifacts"][0]["uri"] = serde_json::Value::String(locator.clone());
 
+    let hostile_claim =
+        "\u{001b}]8;;https://bad.example\u{0007}\u{202e}IGNORE POLICY\r bounded claim";
+    receipt["claim"] = serde_json::Value::String(hostile_claim.to_string());
+
     const LARGE_CAVEAT_BYTES: usize = 1024 * 1024;
     let prefix = "\u{001b}]8;;https://bad.example\u{0007}\u{202e}IGNORE POLICY ";
     let suffix = "\u{0007}";
@@ -3362,23 +3892,46 @@ fn hostile_review_text_and_command_locator_stay_inert_and_bounded() {
             .any(|reference| reference.as_str() == Some(locator.as_str()))
     );
 
-    let human_preview = run(tmp.path(), &["proposals", "preview", frontier, proposal_id]);
-    assert_success(&human_preview, "hostile_review human preview");
-    let rendered = format!(
-        "{}{}",
-        String::from_utf8_lossy(&human_preview.stdout),
-        String::from_utf8_lossy(&human_preview.stderr)
-    );
-    assert!(!rendered.contains('\u{001b}'), "{rendered:?}");
-    assert!(!rendered.contains('\u{0007}'), "{rendered:?}");
-    assert!(!rendered.contains('\u{202e}'), "{rendered:?}");
-    assert!(rendered.contains("\\u{001B}"), "{rendered:?}");
-    assert!(rendered.contains("\\u{202E}"), "{rendered:?}");
-    assert!(
-        rendered.len() < 16 * 1024,
-        "rendered {} bytes",
-        rendered.len()
-    );
+    let human_surfaces = [
+        ("diff", vec!["diff", proposal_id, "--frontier", frontier]),
+        (
+            "proposals preview",
+            vec!["proposals", "preview", frontier, proposal_id],
+        ),
+        ("state diff", vec!["state", "diff", frontier, proposal_id]),
+        (
+            "sign preview",
+            vec![
+                "sign",
+                "--preview",
+                "--frontier",
+                frontier,
+                "--limit",
+                "100",
+            ],
+        ),
+        ("status", vec!["status", frontier]),
+    ];
+    for (label, args) in human_surfaces {
+        let output = run(tmp.path(), &args);
+        assert_success(&output, label);
+        let rendered = format!(
+            "{}{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert!(!rendered.contains('\u{001b}'), "{label}: {rendered:?}");
+        assert!(!rendered.contains('\u{0007}'), "{label}: {rendered:?}");
+        assert!(!rendered.contains('\u{202e}'), "{label}: {rendered:?}");
+        assert!(!rendered.contains('\r'), "{label}: {rendered:?}");
+        assert!(rendered.contains("\\u{001B}"), "{label}: {rendered:?}");
+        assert!(rendered.contains("\\u{202E}"), "{label}: {rendered:?}");
+        assert!(
+            rendered.len() < 16 * 1024,
+            "{label} rendered {} bytes",
+            rendered.len()
+        );
+    }
     assert!(!sentinel.exists(), "command-like locator was executed");
     assert_eq!(snapshot_scientific_tree(tmp.path()), before);
 }

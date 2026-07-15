@@ -9,6 +9,8 @@ use std::io::Read;
 use std::path::{Component, Path};
 
 pub(crate) const RECEIPT_MAX_BYTES: u64 = 8 * 1024 * 1024;
+pub(crate) const PUBLIC_ARTIFACT_MAX_BYTES: u64 = 8 * 1024 * 1024;
+pub(crate) const PUBLIC_ARTIFACT_TOTAL_MAX_BYTES: u64 = 64 * 1024 * 1024;
 
 #[derive(Debug)]
 pub(crate) struct BoundedFileError {
@@ -33,6 +35,109 @@ impl std::fmt::Display for BoundedFileError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter.write_str(&self.message)
     }
+}
+
+/// Read one explicitly supplied file without allowing its path to swap to a
+/// symlink or different inode while Vela is reading it. Unlike
+/// [`read_bounded_frontier_file`], this accepts a path outside the frontier so
+/// portable Receipt v1 files can be landed directly.
+pub(crate) fn read_bounded_file(
+    path: &Path,
+    max_bytes: u64,
+    label: &str,
+) -> Result<Vec<u8>, BoundedFileError> {
+    let metadata = std::fs::symlink_metadata(path).map_err(|error| {
+        BoundedFileError::new(
+            if error.kind() == std::io::ErrorKind::NotFound {
+                "missing"
+            } else {
+                "inspect_failed"
+            },
+            format!("inspect {label} {}: {error}", path.display()),
+            false,
+        )
+    })?;
+    if metadata.file_type().is_symlink() {
+        return Err(BoundedFileError::new(
+            "symlink",
+            format!("{label} must not be a symlink: {}", path.display()),
+            false,
+        ));
+    }
+    if !metadata.is_file() {
+        return Err(BoundedFileError::new(
+            "not_regular",
+            format!("{label} must be a regular file: {}", path.display()),
+            false,
+        ));
+    }
+    if metadata.len() > max_bytes {
+        return Err(BoundedFileError::new(
+            "oversized",
+            format!(
+                "{label} {} exceeds the {max_bytes}-byte limit",
+                path.display()
+            ),
+            false,
+        ));
+    }
+
+    let file = std::fs::File::open(path).map_err(|error| {
+        BoundedFileError::new(
+            "open_failed",
+            format!("open {label} {}: {error}", path.display()),
+            false,
+        )
+    })?;
+    let opened = file.metadata().map_err(|error| {
+        BoundedFileError::new(
+            "inspect_open_failed",
+            format!("inspect open {label} {}: {error}", path.display()),
+            true,
+        )
+    })?;
+    if !opened.is_file() {
+        return Err(BoundedFileError::new(
+            "not_regular",
+            format!("{label} must be a regular file: {}", path.display()),
+            true,
+        ));
+    }
+    verify_metadata_identity(&metadata, &opened, path, label, true)?;
+    if opened.len() > max_bytes {
+        return Err(BoundedFileError::new(
+            "oversized",
+            format!(
+                "{label} {} exceeds the {max_bytes}-byte limit",
+                path.display()
+            ),
+            true,
+        ));
+    }
+    verify_named_path_identity(path, &opened, label, true)?;
+
+    let mut bytes = Vec::new();
+    file.take(max_bytes.saturating_add(1))
+        .read_to_end(&mut bytes)
+        .map_err(|error| {
+            BoundedFileError::new(
+                "read_failed",
+                format!("read {label} {}: {error}", path.display()),
+                true,
+            )
+        })?;
+    if bytes.len() as u64 > max_bytes {
+        return Err(BoundedFileError::new(
+            "oversized",
+            format!(
+                "{label} {} exceeds the {max_bytes}-byte limit",
+                path.display()
+            ),
+            true,
+        ));
+    }
+    verify_named_path_identity(path, &opened, label, true)?;
+    Ok(bytes)
 }
 
 pub(crate) fn read_bounded_frontier_file(
@@ -64,6 +169,7 @@ pub(crate) fn read_bounded_frontier_file(
     })?;
     let components = relative.components().collect::<Vec<_>>();
     let mut current = root.clone();
+    let mut inspected_leaf = None;
     for (index, component) in components.iter().enumerate() {
         let Component::Normal(component) = component else {
             unreachable!("relative components were validated")
@@ -112,6 +218,7 @@ pub(crate) fn read_bounded_frontier_file(
                     false,
                 ));
             }
+            inspected_leaf = Some(metadata);
         } else if !metadata.is_dir() {
             return Err(BoundedFileError::new(
                 "ancestor_not_directory",
@@ -145,6 +252,17 @@ pub(crate) fn read_bounded_frontier_file(
             true,
         ));
     }
+    let inspected_leaf = inspected_leaf.ok_or_else(|| {
+        BoundedFileError::new(
+            "path_invalid",
+            format!(
+                "{label} path must name a frontier-relative file: {}",
+                relative.display()
+            ),
+            true,
+        )
+    })?;
+    verify_metadata_identity(&inspected_leaf, &opened, &current, label, true)?;
     if opened.len() > max_bytes {
         return Err(BoundedFileError::new(
             "oversized",
@@ -188,23 +306,7 @@ fn verify_open_path_identity(
     label: &str,
     descriptor_opened: bool,
 ) -> Result<(), BoundedFileError> {
-    let linked = std::fs::symlink_metadata(current).map_err(|error| {
-        BoundedFileError::new(
-            "path_changed",
-            format!("reinspect {label} {}: {error}", current.display()),
-            descriptor_opened,
-        )
-    })?;
-    if linked.file_type().is_symlink() || !linked.is_file() {
-        return Err(BoundedFileError::new(
-            "path_changed",
-            format!(
-                "{label} path must remain a non-symlink regular file: {}",
-                current.display()
-            ),
-            descriptor_opened,
-        ));
-    }
+    verify_named_path_identity(current, opened, label, descriptor_opened)?;
     let canonical = current.canonicalize().map_err(|error| {
         BoundedFileError::new(
             "path_changed",
@@ -222,17 +324,53 @@ fn verify_open_path_identity(
             descriptor_opened,
         ));
     }
+    Ok(())
+}
+
+fn verify_named_path_identity(
+    current: &Path,
+    opened: &std::fs::Metadata,
+    label: &str,
+    descriptor_opened: bool,
+) -> Result<(), BoundedFileError> {
+    let linked = std::fs::symlink_metadata(current).map_err(|error| {
+        BoundedFileError::new(
+            "path_changed",
+            format!("reinspect {label} {}: {error}", current.display()),
+            descriptor_opened,
+        )
+    })?;
+    if linked.file_type().is_symlink() || !linked.is_file() {
+        return Err(BoundedFileError::new(
+            "path_changed",
+            format!(
+                "{label} path must remain a non-symlink regular file: {}",
+                current.display()
+            ),
+            descriptor_opened,
+        ));
+    }
+    let named = std::fs::metadata(current).map_err(|error| {
+        BoundedFileError::new(
+            "path_changed",
+            format!("reinspect named {label} {}: {error}", current.display()),
+            descriptor_opened,
+        )
+    })?;
+    verify_metadata_identity(&named, opened, current, label, descriptor_opened)
+}
+
+fn verify_metadata_identity(
+    inspected: &std::fs::Metadata,
+    opened: &std::fs::Metadata,
+    current: &Path,
+    label: &str,
+    descriptor_opened: bool,
+) -> Result<(), BoundedFileError> {
     #[cfg(unix)]
     {
         use std::os::unix::fs::MetadataExt;
-        let named = std::fs::metadata(current).map_err(|error| {
-            BoundedFileError::new(
-                "path_changed",
-                format!("reinspect named {label} {}: {error}", current.display()),
-                descriptor_opened,
-            )
-        })?;
-        if opened.dev() != named.dev() || opened.ino() != named.ino() {
+        if opened.dev() != inspected.dev() || opened.ino() != inspected.ino() {
             return Err(BoundedFileError::new(
                 "path_changed",
                 format!("{label} path changed while open: {}", current.display()),
@@ -243,15 +381,8 @@ fn verify_open_path_identity(
     #[cfg(windows)]
     {
         use std::os::windows::fs::MetadataExt;
-        let named = std::fs::metadata(current).map_err(|error| {
-            BoundedFileError::new(
-                "path_changed",
-                format!("reinspect named {label} {}: {error}", current.display()),
-                descriptor_opened,
-            )
-        })?;
-        if opened.volume_serial_number() != named.volume_serial_number()
-            || opened.file_index() != named.file_index()
+        if opened.volume_serial_number() != inspected.volume_serial_number()
+            || opened.file_index() != inspected.file_index()
         {
             return Err(BoundedFileError::new(
                 "path_changed",
@@ -259,6 +390,18 @@ fn verify_open_path_identity(
                 descriptor_opened,
             ));
         }
+    }
+    #[cfg(not(any(unix, windows)))]
+    {
+        let _ = (inspected, opened);
+        return Err(BoundedFileError::new(
+            "identity_unsupported",
+            format!(
+                "{label} cannot bind file identity on this platform: {}",
+                current.display()
+            ),
+            descriptor_opened,
+        ));
     }
     Ok(())
 }
@@ -286,6 +429,57 @@ mod tests {
         .unwrap();
 
         assert_eq!(bytes, b"bounded receipt bytes");
+    }
+
+    #[test]
+    fn standalone_reader_accepts_an_absolute_file_and_rejects_size_before_open() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("receipt.json");
+        fs::write(&path, b"bounded receipt bytes").unwrap();
+        assert_eq!(
+            read_bounded_file(&path, b"bounded receipt bytes".len() as u64, "receipt").unwrap(),
+            b"bounded receipt bytes"
+        );
+
+        let error = read_bounded_file(&path, 4, "receipt").unwrap_err();
+        assert_eq!(error.code, "oversized");
+        assert!(!error.opened);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn standalone_reader_rejects_a_symlink_leaf_before_open() {
+        use std::os::unix::fs::symlink;
+
+        let directory = tempfile::tempdir().unwrap();
+        let real = directory.path().join("real.json");
+        let linked = directory.path().join("linked.json");
+        fs::write(&real, b"receipt").unwrap();
+        symlink(&real, &linked).unwrap();
+
+        let error = read_bounded_file(&linked, 128, "receipt").unwrap_err();
+        assert_eq!(error.code, "symlink");
+        assert!(!error.opened);
+    }
+
+    #[test]
+    fn inspected_leaf_identity_must_match_the_open_descriptor() {
+        let directory = tempfile::tempdir().unwrap();
+        let inspected_path = directory.path().join("inspected.json");
+        let substituted_path = directory.path().join("substituted.json");
+        fs::write(&inspected_path, b"inspected").unwrap();
+        fs::write(&substituted_path, b"substituted").unwrap();
+        let inspected = fs::symlink_metadata(&inspected_path).unwrap();
+        let substituted = fs::File::open(&substituted_path)
+            .unwrap()
+            .metadata()
+            .unwrap();
+
+        let error =
+            verify_metadata_identity(&inspected, &substituted, &inspected_path, "receipt", true)
+                .unwrap_err();
+        assert_eq!(error.code, "path_changed");
+        assert!(error.opened);
     }
 
     #[test]

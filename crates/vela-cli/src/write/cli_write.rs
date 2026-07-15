@@ -79,7 +79,6 @@ pub(crate) fn cmd_proposals(action: ProposalAction) {
             } else {
                 println!("vela proposals preview");
                 println!("  proposal: {}", proposal_id);
-                println!("  claim: {}", review.brief.change.claim);
                 for line in crate::cli::sign_session::render_decision_brief_lines(&review.brief) {
                     println!("    {line}");
                 }

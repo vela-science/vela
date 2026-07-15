@@ -4,7 +4,7 @@
 - Scope: Vela substrate CLI, protocol plumbing, MCP exposure, and derived review
   projections.
 - Implementation state: Vela `0.800` is the deliberate prelaunch hard cut;
-  `0.800.11` is the current candidate.
+  `0.800.12` is the current candidate.
   All ordinary producer results cross `next -> work -> land`; ordinary
   truth-bearing review decisions cross `sign`; explicit policy-governance
   ceremonies remain separate. Submission and decision installation use the
@@ -1589,18 +1589,21 @@ landed incrementally so each trust-boundary change remains reviewable:
 - `e193edc` proves portable review consumption, Git-native exit, and removable
   derived consumers without adding authority to those consumers.
 
-Release verification covers the complete Rust workspace and lint surface; the
-Python, JavaScript, Rust, and decision-binding cross-implementation vectors;
-bounded installed-verifier fixtures; clean-clone and offline Git-bundle replay;
-derived-consumer contracts; documentation and voice checks; and the registered
-Vela conformance union. Exploratory producer-specific relays are deliberately
-outside that union. These checks establish compatibility, replay, bounded
-rendering, safe retries, custody separation, and portable consumption. They do
-not establish scientific acceptance or ecosystem adoption.
+Accumulated released and focused verification evidence covers the Rust
+workspace and lint surface; the Python, JavaScript, Rust, and decision-binding
+cross-implementation vectors; bounded installed-verifier fixtures; clean-clone
+and offline Git-bundle replay; derived-consumer contracts; documentation and
+voice checks; and the registered deterministic suite partition. Exploratory
+producer-specific relays stay outside the release union. This ADR labels
+candidate checks as local evidence; the parent full union remains a separate
+release-certification gate. These checks establish
+compatibility, replay, bounded rendering, safe retries, custody separation, and
+portable consumption. They do not establish scientific acceptance or ecosystem
+adoption.
 
 The `0.800` hard cut removed the unlaunched compatibility writers and retired
-transport variants. Candidate `0.800.4` then closes four gaps found by the
-completion red team:
+transport variants. Subsequent candidates through released `0.800.11` closed
+four gaps found by the completion red team:
 
 - policy context has one protocol-owned strict derivation; projections receive
   the caller's fixed observation instant and fall back only to a maximally
@@ -1616,6 +1619,26 @@ completion red team:
 - the frontier suite again includes a current full/incremental `git bundle`
   restore and a disposable Atlas-cache parity check. Both use ordinary Git and
   current Vela contracts, stay offline, and perform no human decision.
+
+Candidate `0.800.12` narrows the remaining technical boundary further without
+changing Receipt v1, authority, or the human ceremony:
+
+- explicit foreign Receipts and frontier-local artifacts are read through
+  bounded, descriptor-bound readers; symlinks, path replacement, per-file
+  overflow, and aggregate artifact-budget overflow fail closed before routing;
+- the five supported human review surfaces use the same inert text boundary,
+  including terminal controls, bidirectional controls, carriage returns, and
+  command-shaped locators; valid archive bytes remain opaque and have an
+  expansion budget of zero;
+- the Git publication harness covers a nonempty caller index with no Vela
+  delta, interruption before ref movement, compare-and-swap loss, and
+  post-push journal or cleanup failure. It also accounts for unreachable Git
+  objects and private publication journals when proving zero visible delta; and
+- Hub review projection v0.2 uses bounded pages with explicit totals and binds
+  each continuation hash to the same read snapshot as its response. Its
+  10,000-row proof counts the full durable
+  ledgers while materializing one bounded page. The proof covers composition at
+  projection boundaries and omits 10,000 sequential Git writes.
 
 Diderot supplies no evidence for any item above. It is an early illustrative
 experiment, not an independent producer, consumer, partner, verifier, or
@@ -1636,7 +1659,7 @@ The following program gates intentionally remain open:
   service commitments remain organizational work even where export, archive,
   and fork mechanics are implemented.
 
-Accordingly, `0.800.11` is a technical prelaunch candidate for the clerk layer,
+Accordingly, `0.800.12` is a technical prelaunch candidate for the clerk layer,
 not a claim that the acceptance program or outside-producer goal is complete.
 It expands no authority surface and performs no human ceremony. The campaign
 keeps a separate dated proof/open ledger; code fixtures cannot promote an

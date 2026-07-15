@@ -1184,55 +1184,86 @@ impl HubDb {
     }
 
     pub async fn get_materialized_project(&self, vfr_id: &str) -> Result<Option<Project>, String> {
+        self.get_materialized_project_with_snapshot_hash(vfr_id)
+            .await
+            .map(|project| project.map(|(_, project)| project))
+    }
+
+    /// Load one materialized project together with the snapshot hash stored in
+    /// the same database snapshot. Callers that key caches or continuation
+    /// tokens by `latest_snapshot_hash` must use this method and compare the
+    /// returned hash before labeling the project bytes.
+    ///
+    /// Promotion replaces the frontier row and projected objects in one write
+    /// transaction. Postgres therefore uses a repeatable-read transaction for
+    /// the two reconstruction queries; SQLite holds its read snapshot from the
+    /// first query until commit. This prevents a reader from combining a
+    /// frontier skeleton from one promotion with projected objects from the
+    /// next.
+    pub async fn get_materialized_project_with_snapshot_hash(
+        &self,
+        vfr_id: &str,
+    ) -> Result<Option<(String, Project)>, String> {
         match self {
             Self::Postgres(p) => {
-                let mut value: Option<Value> = sqlx::query_scalar(
-                    "SELECT materialized_snapshot_json FROM frontiers WHERE vfr_id = $1",
-                )
-                .bind(vfr_id)
-                .fetch_optional(p)
-                .await
-                .map_err(|e| e.to_string())?;
-                if let Some(snapshot) = value.as_mut() {
-                    let rows = sqlx::query(
-                        r#"
-                        SELECT object_type, seq, raw_json
-                        FROM frontier_objects
-                        WHERE vfr_id = $1
-                        ORDER BY object_type, seq
-                        "#,
-                    )
-                    .bind(vfr_id)
-                    .fetch_all(p)
+                let mut tx = p.begin().await.map_err(|e| e.to_string())?;
+                sqlx::query("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY")
+                    .execute(&mut *tx)
                     .await
                     .map_err(|e| e.to_string())?;
-                    let objects = rows
-                        .into_iter()
-                        .map(|row| {
-                            Ok((
-                                row.try_get::<String, _>("object_type")?,
-                                row.try_get::<i64, _>("seq")?,
-                                row.try_get::<Value, _>("raw_json")?,
-                            ))
-                        })
-                        .collect::<Result<Vec<_>, sqlx::Error>>()
-                        .map_err(|e| e.to_string())?;
-                    merge_projected_objects(snapshot, objects);
-                }
-                value
-                    .map(serde_json::from_value::<Project>)
-                    .transpose()
-                    .map_err(|e| e.to_string())
-            }
-            Self::Sqlite(p) => {
-                let value: Option<String> = sqlx::query_scalar(
-                    "SELECT materialized_snapshot_json FROM frontiers WHERE vfr_id = ?",
+                let row: Option<(String, Value)> = sqlx::query_as(
+                    "SELECT latest_snapshot_hash, materialized_snapshot_json \
+                     FROM frontiers WHERE vfr_id = $1",
                 )
                 .bind(vfr_id)
-                .fetch_optional(p)
+                .fetch_optional(&mut *tx)
                 .await
                 .map_err(|e| e.to_string())?;
-                let Some(raw) = value else {
+                let Some((snapshot_hash, mut snapshot)) = row else {
+                    tx.commit().await.map_err(|e| e.to_string())?;
+                    return Ok(None);
+                };
+                let rows = sqlx::query(
+                    r#"
+                    SELECT object_type, seq, raw_json
+                    FROM frontier_objects
+                    WHERE vfr_id = $1
+                    ORDER BY object_type, seq
+                    "#,
+                )
+                .bind(vfr_id)
+                .fetch_all(&mut *tx)
+                .await
+                .map_err(|e| e.to_string())?;
+                let objects = rows
+                    .into_iter()
+                    .map(|row| {
+                        Ok((
+                            row.try_get::<String, _>("object_type")?,
+                            row.try_get::<i64, _>("seq")?,
+                            row.try_get::<Value, _>("raw_json")?,
+                        ))
+                    })
+                    .collect::<Result<Vec<_>, sqlx::Error>>()
+                    .map_err(|e| e.to_string())?;
+                merge_projected_objects(&mut snapshot, objects);
+                let project =
+                    serde_json::from_value::<Project>(snapshot).map_err(|e| e.to_string())?;
+                tx.commit().await.map_err(|e| e.to_string())?;
+                Ok(Some((snapshot_hash, project)))
+            }
+            Self::Sqlite(p) => {
+                let mut tx = p.begin().await.map_err(|e| e.to_string())?;
+                let row: Option<(String, String)> = sqlx::query_as(
+                    "SELECT latest_snapshot_hash, materialized_snapshot_json \
+                     FROM frontiers WHERE vfr_id = ?",
+                )
+                .bind(vfr_id)
+                .fetch_optional(&mut *tx)
+                .await
+                .map_err(|e| e.to_string())?;
+                let Some((snapshot_hash, raw)) = row else {
+                    tx.commit().await.map_err(|e| e.to_string())?;
                     return Ok(None);
                 };
                 let mut snapshot =
@@ -1246,7 +1277,7 @@ impl HubDb {
                     "#,
                 )
                 .bind(vfr_id)
-                .fetch_all(p)
+                .fetch_all(&mut *tx)
                 .await
                 .map_err(|e| e.to_string())?;
                 let objects = rows
@@ -1258,9 +1289,10 @@ impl HubDb {
                     })
                     .collect::<Result<Vec<_>, _>>()?;
                 merge_projected_objects(&mut snapshot, objects);
-                serde_json::from_value::<Project>(snapshot)
-                    .map(Some)
-                    .map_err(|e| e.to_string())
+                let project =
+                    serde_json::from_value::<Project>(snapshot).map_err(|e| e.to_string())?;
+                tx.commit().await.map_err(|e| e.to_string())?;
+                Ok(Some((snapshot_hash, project)))
             }
         }
     }
