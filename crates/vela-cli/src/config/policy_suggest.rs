@@ -94,6 +94,7 @@ pub(crate) fn ask_histogram(project: &Project, frontier: &Path) -> Result<Vec<As
                             project,
                             &p.id,
                             receipt.as_ref(),
+                            &now,
                         );
                         let class = ctx.claim_class.clone();
                         let d = evaluate(&vp.policy, &ctx, &now);

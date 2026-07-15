@@ -1499,6 +1499,160 @@ fn flag_authored_land_closes_only_its_exact_private_work_session() {
 }
 
 #[test]
+fn flag_authoring_and_file_input_share_canonical_receipt_bytes() {
+    const CLAIM: &str = "flag and file inputs have one canonical Receipt v1";
+    const CAVEAT: &str = "fixture evidence only";
+
+    let tmp = tempfile::TempDir::new().unwrap();
+    let base = tmp.path().join("base");
+    std::fs::create_dir(&base).unwrap();
+    init_git_frontier(&base);
+    std::fs::create_dir_all(base.join("artifacts")).unwrap();
+    let artifact_bytes = br#"{"input_parity":true}"#;
+    std::fs::write(base.join("artifacts/input-parity.json"), artifact_bytes).unwrap();
+    assert_success(&git(&base, &["add", "-A"]), "stage parity artifact");
+    assert_success(
+        &git(&base, &["commit", "-qm", "add parity artifact"]),
+        "commit parity artifact",
+    );
+
+    let agent_key = "42".repeat(32);
+    let env = [("VELA_AGENT_KEY_HEX", agent_key.as_str())];
+    let opened = run_with_env(
+        &base,
+        &["work", "erdos:input-parity", "--as", "agent:t", "--json"],
+        &env,
+    );
+    assert_success(&opened, "open parity work session");
+    let opened = one_json_object(&opened);
+    let session = std::path::PathBuf::from(opened["session_path"].as_str().unwrap());
+    let relative_session = session
+        .strip_prefix(base.canonicalize().unwrap())
+        .unwrap()
+        .to_path_buf();
+    assert_success(&git(&base, &["add", "-A"]), "stage parity work claim");
+    assert_success(
+        &git(&base, &["commit", "-qm", "add parity work claim"]),
+        "commit common parity preimage",
+    );
+
+    let flags_frontier = tmp.path().join("flags");
+    let file_frontier = tmp.path().join("file");
+    for destination in [&flags_frontier, &file_frontier] {
+        let cloned = Command::new("git")
+            .args(["clone", "-q", "--no-local"])
+            .arg(&base)
+            .arg(destination)
+            .output()
+            .unwrap();
+        assert_success(&cloned, "clone common parity preimage");
+        let destination_session = destination.join(&relative_session);
+        std::fs::create_dir_all(destination_session.parent().unwrap()).unwrap();
+        std::fs::copy(&session, destination_session).unwrap();
+    }
+
+    let from_flags = run_with_env(
+        &flags_frontier,
+        &[
+            "land",
+            "--work",
+            "erdos:input-parity",
+            "--claim",
+            CLAIM,
+            "--type",
+            "computational",
+            "--replayability",
+            "exact",
+            "--artifact",
+            "artifacts/input-parity.json:witness",
+            "--caveat",
+            CAVEAT,
+            "--as",
+            "agent:t",
+            "--json",
+        ],
+        &env,
+    );
+    assert_success(&from_flags, "land flag-authored receipt");
+    let from_flags = one_json_object(&from_flags);
+    let receipt_hex = from_flags["receipt_root"]
+        .as_str()
+        .unwrap()
+        .strip_prefix("sha256:")
+        .unwrap();
+    let receipt_bytes = std::fs::read(
+        flags_frontier
+            .join("records/receipts/sha256")
+            .join(format!("{receipt_hex}.json")),
+    )
+    .unwrap();
+
+    std::fs::write(flags_frontier.join("portable-receipt.json"), &receipt_bytes).unwrap();
+    let retry = run_with_env(
+        &flags_frontier,
+        &["land", "portable-receipt.json", "--as", "agent:t", "--json"],
+        &env,
+    );
+    assert_success(&retry, "retry flag-authored Receipt through file input");
+    let retry = one_json_object(&retry);
+    assert_eq!(retry["route"], "exact_retry", "{retry}");
+    for field in [
+        "operation_id",
+        "receipt_root",
+        "record_id",
+        "proposal_id",
+        "finding_id",
+    ] {
+        assert_eq!(
+            retry[field], from_flags[field],
+            "byte-identical file retry changed {field}"
+        );
+    }
+    assert_eq!(
+        retry["publication"]["commit"], from_flags["publication"]["commit"],
+        "byte-identical file retry changed the publication commit"
+    );
+
+    std::fs::write(file_frontier.join("portable-receipt.json"), &receipt_bytes).unwrap();
+    let from_file = run_with_env(
+        &file_frontier,
+        &["land", "portable-receipt.json", "--as", "agent:t", "--json"],
+        &env,
+    );
+    assert_success(&from_file, "land imported Receipt v1");
+    let from_file = one_json_object(&from_file);
+
+    assert_eq!(
+        from_file["receipt_root"], from_flags["receipt_root"],
+        "file input changed the canonical Receipt v1 root"
+    );
+    assert_eq!(
+        from_file["route"], from_flags["route"],
+        "both fresh landings should reach the same no-policy route"
+    );
+    assert!(
+        !flags_frontier.join(&relative_session).exists()
+            && !file_frontier.join(&relative_session).exists(),
+        "both surfaces must close the same receipt-bound private session"
+    );
+    assert_eq!(
+        std::fs::read(
+            file_frontier
+                .join("records/receipts/sha256")
+                .join(format!("{receipt_hex}.json")),
+        )
+        .unwrap(),
+        receipt_bytes,
+        "file import changed the canonical Receipt v1 bytes"
+    );
+
+    // The flag surface authors the complete Receipt; the file surface imports
+    // those canonical bytes without reinterpretation. Record, proposal, and
+    // publication identities intentionally include the fresh landing time, so
+    // independent landings need not share those downstream IDs.
+}
+
+#[test]
 fn receipt_with_a_different_key_cannot_close_an_agents_work_session() {
     let tmp = tempfile::TempDir::new().unwrap();
     init_git_frontier(tmp.path());

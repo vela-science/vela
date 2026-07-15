@@ -108,7 +108,9 @@ CLI flags, file import, MCP, and adapters converge on the same strict Receipt
 v1 parser and landing service. The service prepares the Receipt bytes, safe
 artifact projection, durable landing record, proposal, exact `PolicyContext`,
 gate result, policy route, and materialized views before it crosses the commit
-marker.
+marker. The proposal retains one typed evidence span for each explicit Receipt
+artifact and points it into the canonical Receipt; no span infers a verifier
+pass, independence, or acceptance.
 
 Atlas source adapters follow this boundary too: they emit their catalogue or
 graph output as Receipt v1 artifacts and call `vela land`; they never mint

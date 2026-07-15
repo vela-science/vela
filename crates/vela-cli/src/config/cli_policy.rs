@@ -1657,6 +1657,7 @@ fn evaluate_pending(
                 project,
                 &p.id,
                 receipt.as_ref(),
+                now,
             );
             let d = evaluate(policy, &ctx, now);
             ShadowRow {

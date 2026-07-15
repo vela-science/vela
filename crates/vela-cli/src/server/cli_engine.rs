@@ -269,23 +269,17 @@ pub(crate) fn evaluate_exact_policy_route(
                 .map_err(|error| format!("active policy authority: {error}"))?;
             // This legacy audit lane has no Receipt v1 body binding or
             // frontier-resolved producer credential. Feed those unknowns to
-            // the shared conservative builder instead of manufacturing the
+            // the conservative policy context instead of manufacturing the
             // old `credential_valid=true`/`has_unknown_fields=false` pair.
             // The frozen floor may still drive its non-authoritative audit
             // event when no signed policy is active; it cannot satisfy a live
             // policy with facts this path does not possess.
-            let ctx = crate::review_material::derive_policy_context(
-                crate::review_material::PolicyContextInputs {
-                    proposal: &proposal,
-                    finding: &finding,
-                    attachments: &proj.verifier_attachments,
-                    replayability: None,
-                    receipt_is_body_bound: false,
-                    credential_valid: false,
-                    target_contested: !open_contradictions.is_empty(),
-                    downstream_dependents: 0,
-                },
-            );
+            let ctx = vela_protocol::acceptance_policy::PolicyContext {
+                claim_class: vela_protocol::proposals::policy_accept::proposal_claim_class(
+                    &proposal,
+                ),
+                ..vela_protocol::acceptance_policy::PolicyContext::default()
+            };
             let decision = vela_protocol::acceptance_policy::evaluate(&vp.policy, &ctx, &now);
             let permitted = format!("{:?}", decision.outcome) == "Permit";
             would_permit = would_permit && permitted;

@@ -10,92 +10,14 @@ use std::path::{Component, Path};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use vela_protocol::acceptance_policy::PolicyContext;
-use vela_protocol::bundle::FindingBundle;
-use vela_protocol::independence::independence_from_attachments;
 use vela_protocol::project::Project;
 use vela_protocol::proposals::StateProposal;
-use vela_protocol::receipt_v1::ReceiptV1;
-use vela_protocol::verifier_attachment::{
-    GateStatus, MethodIntegrity, VerifierAttachment, claim_digest, derive_gate_status,
+pub(crate) use vela_protocol::proposals::policy_accept::proposal_claim_class;
+#[cfg(test)]
+use vela_protocol::proposals::policy_accept::{
+    PolicyContextInputs, derive_policy_context, receipt_producer_credential_valid,
 };
-
-const REPLAYABILITY: &[&str] = &["exact", "bounded", "approximate", "unavailable", "unknown"];
-
-/// Inputs that are not themselves verifier judgments.
-///
-/// Every boolean defaults in the conservative direction. The call site may
-/// supply a resolved credential result or graph facts, but cannot supply an
-/// assurance level, independence verdict, or method-integrity verdict.
-#[derive(Debug, Clone)]
-pub(crate) struct PolicyContextInputs<'a> {
-    pub(crate) proposal: &'a StateProposal,
-    pub(crate) finding: &'a FindingBundle,
-    pub(crate) attachments: &'a [VerifierAttachment],
-    pub(crate) replayability: Option<&'a str>,
-    pub(crate) receipt_is_body_bound: bool,
-    pub(crate) credential_valid: bool,
-    pub(crate) target_contested: bool,
-    pub(crate) downstream_dependents: u32,
-}
-
-/// The one policy-context derivation used by submission, review, and status.
-///
-/// `GateStatus::Verified` is A3 because the protocol gate already requires
-/// independent matched attachments. A producer-reported pass that has not
-/// become a durable attachment therefore remains A0. A refutation also remains
-/// A0; its effect is surfaced separately by the gate and cannot be mistaken for
-/// positive assurance.
-pub(crate) fn derive_policy_context(input: PolicyContextInputs<'_>) -> PolicyContext {
-    let digest = claim_digest(&input.finding.assertion.text);
-    let relevant = input
-        .attachments
-        .iter()
-        .filter(|attachment| attachment.target == input.finding.id)
-        .cloned()
-        .collect::<Vec<_>>();
-    let gate = derive_gate_status(&digest, &relevant);
-    let independence = independence_from_attachments(&digest, &relevant);
-    let method_integrity_sound = gate.status == GateStatus::Verified
-        && relevant
-            .iter()
-            .filter(|attachment| {
-                attachment.claim_digest == digest
-                    && attachment.match_to_claim.matches
-                    && attachment.outcome
-                        == vela_protocol::verifier_attachment::AttachmentOutcome::Passed
-            })
-            .all(|attachment| attachment.method_integrity == MethodIntegrity::Sound);
-
-    let replayability = input.replayability.unwrap_or("unknown");
-    let replayability_known = REPLAYABILITY.contains(&replayability);
-    let claim_class = format!("receipt_{}", input.finding.assertion.assertion_type);
-    let governance_mutation = input.proposal.kind.starts_with("governance.")
-        || input.proposal.target.r#type == "governance";
-
-    PolicyContext {
-        claim_class,
-        assurance_level: if gate.status == GateStatus::Verified {
-            3
-        } else {
-            0
-        },
-        impact_tier: if governance_mutation { 4 } else { 1 },
-        changed_findings: 1,
-        downstream_dependents: input.downstream_dependents,
-        assertion_text_mutated: input.proposal.kind == "finding.add",
-        target_contested: input.target_contested || gate.status == GateStatus::Refuted,
-        governance_mutation,
-        independence_satisfied: gate.status == GateStatus::Verified && independence.satisfied,
-        method_integrity_sound,
-        credential_valid: input.credential_valid,
-        has_unknown_fields: !input.receipt_is_body_bound || !replayability_known,
-        replayability: if replayability_known {
-            replayability.to_string()
-        } else {
-            "unknown".to_string()
-        },
-    }
-}
+use vela_protocol::receipt_v1::ReceiptV1;
 
 /// Derive the policy facts for a proposal already present in a frontier.
 ///
@@ -109,78 +31,14 @@ pub(crate) fn derive_existing_proposal_policy_context(
     project: &Project,
     proposal_id: &str,
     receipt: Option<&ReceiptV1>,
+    decision_time: &str,
 ) -> PolicyContext {
-    let decision_time = chrono::Utc::now().to_rfc3339();
-    let Some(proposal) = project
-        .proposals
-        .iter()
-        .find(|proposal| proposal.id == proposal_id)
-    else {
-        return PolicyContext::default();
-    };
-    if let Some(receipt) = receipt
-        && let Ok(context) =
-            vela_protocol::proposals::policy_accept::derive_submission_policy_context(
-                project,
-                proposal_id,
-                receipt,
-                &decision_time,
-            )
-    {
-        return context;
-    }
-    let claim_class = proposal_claim_class(proposal);
-    let Some(finding) = proposal_finding(project, proposal) else {
-        return PolicyContext {
-            claim_class,
-            ..PolicyContext::default()
-        };
-    };
-    let receipt = receipt.filter(|receipt| receipt_matches_proposal(receipt, proposal, &finding));
-    let replayability = receipt
-        .and_then(|receipt| receipt.as_value().get("replayability"))
-        .and_then(serde_json::Value::as_str);
-    let downstream_dependents = project
-        .findings
-        .iter()
-        .filter(|candidate| {
-            candidate.links.iter().any(|link| {
-                vela_protocol::bundle::bare_finding_id(&link.target) == finding.id.as_str()
-            })
-        })
-        .count()
-        .try_into()
-        .unwrap_or(u32::MAX);
-    let target_contested = finding.flags.contested
-        || proposal
-            .payload
-            .get("vela_submission")
-            .and_then(|submission| submission.get("same_claim_findings"))
-            .and_then(serde_json::Value::as_array)
-            .into_iter()
-            .flatten()
-            .filter_map(serde_json::Value::as_str)
-            .any(|related| {
-                project
-                    .findings
-                    .iter()
-                    .find(|candidate| candidate.id == related)
-                    .is_some_and(|candidate| candidate.flags.contested)
-            });
-    let mut context = derive_policy_context(PolicyContextInputs {
-        proposal,
-        finding: &finding,
-        attachments: &project.verifier_attachments,
-        replayability,
-        receipt_is_body_bound: receipt.is_some(),
-        credential_valid: receipt.is_some_and(|receipt| {
-            receipt_producer_credential_valid(project, receipt, &decision_time)
-        }),
-        target_contested,
-        downstream_dependents,
-    });
-    context.claim_class = claim_class;
-    context
+    vela_protocol::proposals::policy_accept::derive_existing_proposal_policy_context(
+        project,
+        proposal_id,
+        receipt,
+        decision_time,
+    )
 }
 
 /// Load the exact Receipt v1 named by a proposal's typed submission links.
@@ -211,180 +69,6 @@ pub(crate) fn frontier_receipt_for_proposal(
     .ok()?;
     let receipt = ReceiptV1::parse(&bytes).ok()?;
     (receipt.canonical_root().ok()?.as_str() == declared_root).then_some(receipt)
-}
-
-/// Structural class used by every existing-proposal projection. Receipt-backed
-/// finding additions retain their receipt type even when the receipt bytes are
-/// temporarily unavailable; the remaining facts still fail closed.
-pub(crate) fn proposal_claim_class(proposal: &StateProposal) -> String {
-    if proposal.kind == "finding.note" {
-        return "finding_note".to_string();
-    }
-    if proposal.kind.starts_with("governance.") || proposal.target.r#type == "governance" {
-        return "governance".to_string();
-    }
-    if proposal.kind == "finding.add"
-        && let Some(
-            claim_type @ ("computational" | "theoretical" | "empirical" | "negative"
-            | "contradiction"),
-        ) = proposal
-            .payload
-            .get("finding")
-            .and_then(|finding| finding.get("assertion"))
-            .and_then(|assertion| assertion.get("type"))
-            .and_then(serde_json::Value::as_str)
-    {
-        return format!("receipt_{claim_type}");
-    }
-    let text = proposal
-        .payload
-        .get("assertion")
-        .and_then(|assertion| assertion.get("text"))
-        .and_then(serde_json::Value::as_str)
-        .or_else(|| {
-            proposal
-                .payload
-                .get("finding")
-                .and_then(|finding| finding.get("assertion"))
-                .and_then(|assertion| assertion.get("text"))
-                .and_then(serde_json::Value::as_str)
-        })
-        .or_else(|| {
-            proposal
-                .payload
-                .get("text")
-                .and_then(serde_json::Value::as_str)
-        })
-        .unwrap_or_default();
-    classify_claim(text).to_string()
-}
-
-fn classify_claim(text: &str) -> &'static str {
-    let text = text.to_lowercase();
-    if text.contains("a309370") || text.contains("sidon") {
-        "sidon_lower_bound"
-    } else if text.contains("lean") || text.contains("formaliz") || text.contains("theorem") {
-        "formal_theorem"
-    } else if text.contains("oeis ") || text.contains("oeis:") {
-        "oeis_sequence"
-    } else if text.contains("erdős problem") || text.contains("erdos problem") {
-        "erdos_problem"
-    } else {
-        "unknown"
-    }
-}
-
-fn proposal_finding(project: &Project, proposal: &StateProposal) -> Option<FindingBundle> {
-    proposal
-        .payload
-        .get("finding")
-        .cloned()
-        .and_then(|value| serde_json::from_value(value).ok())
-        .or_else(|| {
-            project
-                .findings
-                .iter()
-                .find(|finding| finding.id == proposal.target.id)
-                .cloned()
-        })
-}
-
-fn receipt_matches_proposal(
-    receipt: &ReceiptV1,
-    proposal: &StateProposal,
-    finding: &FindingBundle,
-) -> bool {
-    let Some(submission) = proposal.payload.get("vela_submission") else {
-        return false;
-    };
-    let Some(declared_root) = submission
-        .get("receipt_root")
-        .and_then(serde_json::Value::as_str)
-    else {
-        return false;
-    };
-    receipt
-        .canonical_root()
-        .ok()
-        .is_some_and(|root| root == declared_root)
-        && receipt
-            .as_value()
-            .get("claim")
-            .and_then(serde_json::Value::as_str)
-            == Some(finding.assertion.text.as_str())
-        && receipt
-            .as_value()
-            .get("type")
-            .and_then(serde_json::Value::as_str)
-            == Some(finding.assertion.assertion_type.as_str())
-}
-
-/// Resolve a producer proof-of-possession against frontier authority.
-///
-/// An embedded [`IdentityBinding`](vela_protocol::identity::IdentityBinding)
-/// proves only that its key signed the binding. It becomes a valid producer
-/// credential here only when the same actor/key pair resolves uniquely in the
-/// frontier registry, the actor registration predates the signed binding, the
-/// binding predates the fixed decision time, and the registered key is not
-/// revoked at that time. Malformed authority timestamps and ambiguous registry
-/// entries fail closed.
-pub(crate) fn receipt_producer_credential_valid(
-    project: &Project,
-    receipt: &ReceiptV1,
-    decision_time: &str,
-) -> bool {
-    let Some(binding) = receipt
-        .as_value()
-        .get("environment")
-        .and_then(|value| value.get("vela:producer_context"))
-        .and_then(|value| value.get("identity_binding"))
-        .cloned()
-    else {
-        return false;
-    };
-    let Ok(binding) = serde_json::from_value::<vela_protocol::identity::IdentityBinding>(binding)
-    else {
-        return false;
-    };
-    if binding.verify().is_err() {
-        return false;
-    }
-    let (Ok(decision_at), Ok(binding_at)) = (
-        chrono::DateTime::parse_from_rfc3339(decision_time),
-        chrono::DateTime::parse_from_rfc3339(&binding.created_at),
-    ) else {
-        return false;
-    };
-    if binding_at > decision_at {
-        return false;
-    }
-
-    let mut matches = project.actors.iter().filter(|actor| {
-        actor.id == binding.actor_id
-            && actor
-                .public_key
-                .eq_ignore_ascii_case(&binding.public_key_hex)
-    });
-    let Some(actor) = matches.next() else {
-        return false;
-    };
-    if matches.next().is_some() {
-        return false;
-    }
-    let Ok(actor_created_at) = chrono::DateTime::parse_from_rfc3339(&actor.created_at) else {
-        return false;
-    };
-    // A later registry entry cannot retroactively confer authority on an
-    // earlier self-signed producer binding. Registration must already exist
-    // when the producer signs/creates the binding, not merely by review time.
-    if actor_created_at > binding_at {
-        return false;
-    }
-    match actor.revoked_at.as_deref() {
-        None => true,
-        Some(revoked_at) => chrono::DateTime::parse_from_rfc3339(revoked_at)
-            .is_ok_and(|revoked_at| revoked_at > decision_at),
-    }
 }
 
 pub(crate) const REVIEW_PAGE_DEFAULT: usize = 25;
@@ -1338,7 +1022,10 @@ mod tests {
     }
 
     fn retained_receipt(finding: &FindingBundle) -> ReceiptV1 {
-        let at = "2026-07-13T00:00:00Z";
+        retained_receipt_at(finding, "2026-07-13T00:00:00Z")
+    }
+
+    fn retained_receipt_at(finding: &FindingBundle, at: &str) -> ReceiptV1 {
         let identity = IdentityBinding::build(
             IdentityBindingDraft {
                 actor_id: "agent:test".to_string(),
@@ -1542,22 +1229,64 @@ mod tests {
 
         let loaded = frontier_receipt_for_proposal(temp.path(), &proposal)
             .expect("typed retained receipt must load");
-        let actual = derive_existing_proposal_policy_context(&project, &proposal.id, Some(&loaded));
-        let expected = derive_policy_context(PolicyContextInputs {
-            proposal: &proposal,
-            finding: &finding,
-            attachments: &[],
-            replayability: Some("exact"),
-            receipt_is_body_bound: true,
-            credential_valid: true,
-            target_contested: false,
-            downstream_dependents: 0,
-        });
+        let decision_time = "2026-07-13T01:00:00Z";
+        let actual = derive_existing_proposal_policy_context(
+            &project,
+            &proposal.id,
+            Some(&loaded),
+            decision_time,
+        );
+        let expected = vela_protocol::proposals::policy_accept::derive_submission_policy_context(
+            &project,
+            &proposal.id,
+            &loaded,
+            decision_time,
+        )
+        .expect("retained receipt should satisfy the strict landing derivation");
 
         assert_eq!(actual, expected);
         assert_eq!(actual.claim_class, "receipt_computational");
         assert!(actual.credential_valid);
         assert!(!actual.has_unknown_fields);
+    }
+
+    #[test]
+    fn future_receipt_time_cannot_trigger_an_optimistic_projection_fallback() {
+        let finding = finding();
+        let receipt = retained_receipt_at(&finding, "2026-07-14T00:00:00Z");
+        let mut proposal = proposal(&finding);
+        proposal.payload["vela_submission"] = json!({
+            "schema": "vela.submission-links.internal.v1",
+            "receipt_root": receipt.canonical_root().unwrap(),
+            "receipt_path": format!(
+                "records/receipts/sha256/{}.json",
+                receipt
+                    .canonical_root()
+                    .unwrap()
+                    .strip_prefix("sha256:")
+                    .unwrap()
+            ),
+            "record_id": "vrc_0123456789abcdef",
+            "operation_id": format!("vop_{}", "c".repeat(64)),
+        });
+        let mut project = vela_protocol::project::assemble("test", vec![], 0, 0, "test");
+        project.proposals.push(proposal.clone());
+
+        let context = derive_existing_proposal_policy_context(
+            &project,
+            &proposal.id,
+            Some(&receipt),
+            "2026-07-13T01:00:00Z",
+        );
+
+        assert_eq!(context.claim_class, "receipt_computational");
+        assert_eq!(
+            context,
+            PolicyContext {
+                claim_class: "receipt_computational".to_string(),
+                ..PolicyContext::default()
+            }
+        );
     }
 
     #[test]
@@ -1593,6 +1322,13 @@ mod tests {
             decision_time
         ));
 
+        project.actors[0].algorithm = "not-ed25519".to_string();
+        assert!(
+            !receipt_producer_credential_valid(&project, &receipt, decision_time),
+            "an actor record with the wrong algorithm cannot authorize an Ed25519 binding"
+        );
+        project.actors[0].algorithm = "ed25519".to_string();
+
         project.actors[0].created_at = "2026-07-13T00:30:00Z".to_string();
         assert!(
             !receipt_producer_credential_valid(&project, &receipt, decision_time),
@@ -1620,7 +1356,12 @@ mod tests {
         let mut project = vela_protocol::project::assemble("test", vec![], 0, 0, "test");
         project.proposals.push(proposal.clone());
 
-        let context = derive_existing_proposal_policy_context(&project, &proposal.id, None);
+        let context = derive_existing_proposal_policy_context(
+            &project,
+            &proposal.id,
+            None,
+            "2026-07-13T01:00:00Z",
+        );
 
         assert_eq!(context.claim_class, "receipt_theoretical");
         assert_eq!(context.assurance_level, 0);

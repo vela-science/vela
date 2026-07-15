@@ -3,7 +3,8 @@
 - Status: Accepted 2026-07-13. Approved by the user for implementation.
 - Scope: Vela substrate CLI, protocol plumbing, MCP exposure, and derived review
   projections.
-- Implementation state: Vela `0.800.0` is the deliberate prelaunch hard cut.
+- Implementation state: Vela `0.800` is the deliberate prelaunch hard cut;
+  `0.800.4` is the current candidate.
   All ordinary producer results cross `next -> work -> land`; ordinary
   truth-bearing review decisions cross `sign`; explicit policy-governance
   ceremonies remain separate. Submission and decision installation use the
@@ -1517,7 +1518,7 @@ frontiers must replay byte-identically. The optional signed
 decision-root reference is exercised by a new fixture; old fixture bytes and
 IDs do not change.
 
-### Implementation evidence, 2026-07-14
+### Implementation evidence, refreshed 2026-07-15
 
 The six slices above now have a release-shaped technical scaffold. The work was
 landed incrementally so each trust-boundary change remains reviewable:
@@ -1541,6 +1542,29 @@ outside that union. These checks establish compatibility, replay, bounded
 rendering, safe retries, custody separation, and portable consumption. They do
 not establish scientific acceptance or ecosystem adoption.
 
+The `0.800` hard cut removed the unlaunched compatibility writers and retired
+transport variants. Candidate `0.800.4` then closes four gaps found by the
+completion red team:
+
+- policy context has one protocol-owned strict derivation; projections receive
+  the caller's fixed observation instant and fall back only to a maximally
+  conservative context when retained material cannot be rederived;
+- flag authoring and file import are checked against the same canonical Receipt
+  v1 bytes and root, while activity-time record and proposal identities remain
+  correctly separate from Receipt identity; each explicit Receipt artifact is
+  also retained as a typed finding evidence span, so the ordinary proposal can
+  reach exact review without inventing a verifier result;
+- path-exact Git publication directly covers detached HEAD, an un-checked-out
+  target branch, a target checked out in another worktree, and exact recovery
+  after the ref moved but the real index lock prevented reconciliation; and
+- the frontier suite again includes a current full/incremental `git bundle`
+  restore and a disposable Atlas-cache parity check. Both use ordinary Git and
+  current Vela contracts, stay offline, and perform no human decision.
+
+Diderot supplies no evidence for any item above. It is an early illustrative
+experiment, not an independent producer, consumer, partner, verifier, or
+compatibility target.
+
 The following program gates intentionally remain open:
 
 - No real human key ceremony was performed as part of implementation or
@@ -1556,12 +1580,11 @@ The following program gates intentionally remain open:
   service commitments remain organizational work even where export, archive,
   and fork mechanics are implemented.
 
-Accordingly, the `0.759` release train is the implementation release for the
-clerk layer, not a claim that the acceptance program or the outside-producer
-goal is complete. Patch `0.759.1` changes only fail-closed sandbox cleanup and
-host monitoring. Patch `0.759.2` contains the installed verifier resources
-inside the publishable crate and adds a public-package regression. Neither
-patch expands the authority surface.
+Accordingly, `0.800.4` is a technical prelaunch candidate for the clerk layer,
+not a claim that the acceptance program or outside-producer goal is complete.
+It expands no authority surface and performs no human ceremony. The campaign
+keeps a separate dated proof/open ledger; code fixtures cannot promote an
+organizational or independent-adoption gate to complete.
 
 ## Acceptance metrics
 

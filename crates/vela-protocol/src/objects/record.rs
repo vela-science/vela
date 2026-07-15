@@ -371,6 +371,37 @@ impl ActivityRecord {
         }
         source_refs.sort();
         source_refs.dedup();
+        // A Receipt artifact is already the producer's explicit evidence
+        // binding. Preserve that relation as a typed finding span instead of
+        // emitting a finding whose evidence locator is empty. The span points
+        // into the retained canonical Receipt when available and carries only
+        // the artifact locator/digest the record already exposes. It does not
+        // infer a verifier pass, independence, or acceptance.
+        let evidence_spans = self
+            .artifacts
+            .iter()
+            .enumerate()
+            .map(|(index, artifact)| {
+                let source = if !self.receipt_path.is_empty() {
+                    self.receipt_path.as_str()
+                } else if !self.receipt_digest.is_empty() {
+                    self.receipt_digest.as_str()
+                } else {
+                    artifact.locator.as_str()
+                };
+                let mut span = serde_json::json!({
+                    "source": source,
+                    "section": format!("artifacts[{index}]"),
+                    "text": self.assertion.as_str(),
+                    "artifact_kind": artifact.kind.as_str(),
+                    "artifact_locator": artifact.locator.as_str(),
+                });
+                if !artifact.sha256.is_empty() {
+                    span["artifact_sha256"] = serde_json::json!(artifact.sha256.as_str());
+                }
+                span
+            })
+            .collect();
         crate::state::FindingDraftOptions {
             text: self.assertion.clone(),
             assertion_type: self.assertion_type.clone(),
@@ -385,7 +416,7 @@ impl ActivityRecord {
             source_authors,
             source_refs,
             conditions_text: Some(conditions),
-            evidence_spans: vec![],
+            evidence_spans,
             gap: false,
             negative_space: false,
             replication_attestation: None,
@@ -541,6 +572,12 @@ mod tests {
         assert_eq!(links["receipt_root"], record.receipt_digest);
         assert_eq!(links["record_id"], record.id);
         assert!(!proposal.payload.to_string().contains("verifier_runs"));
+        let span = &proposal.payload["finding"]["evidence"]["evidence_spans"][0];
+        assert_eq!(span["source"], record.receipt_path);
+        assert_eq!(span["section"], "artifacts[0]");
+        assert_eq!(span["artifact_kind"], "witness");
+        assert_eq!(span["artifact_locator"], "witnesses/a17.json");
+        assert_eq!(span["artifact_sha256"], "a".repeat(64));
     }
 
     #[test]
@@ -595,5 +632,22 @@ mod tests {
                 .source_refs
                 .contains(&format!("record:{}", record.id))
         );
+    }
+
+    #[test]
+    fn restricted_artifact_span_preserves_opaque_locator_without_equality_digest() {
+        let mut input = draft();
+        input.artifacts[0].locator = "custodian:restricted-evidence-01".to_string();
+        input.artifacts[0].sha256.clear();
+        input.artifacts[0].disclosure = ArtifactDisclosure::Restricted;
+        input.receipt_digest = format!("sha256:{}", "b".repeat(64));
+        input.receipt_path = "records/receipts/sha256/restricted.json".to_string();
+        let record = ActivityRecord::build(input, None).unwrap();
+
+        let finding = record.to_finding_draft("current head", false);
+        let span = &finding.evidence_spans[0];
+        assert_eq!(span["source"], record.receipt_path);
+        assert_eq!(span["artifact_locator"], "custodian:restricted-evidence-01");
+        assert!(span.get("artifact_sha256").is_none());
     }
 }

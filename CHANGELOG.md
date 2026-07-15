@@ -1,5 +1,28 @@
 # Changelog
 
+## v0.800.4 — 2026-07-15 — Trust-boundary parity hardening
+
+- Consolidated policy-context derivation in the protocol. Landing, replay,
+  review, policy testing, and policy suggestion now use one strict builder and
+  one caller-supplied observation instant. Missing or incoherent retained
+  material fails closed instead of being reconstructed optimistically by the
+  CLI; legacy audit paths cannot manufacture credential or assurance facts.
+- Added direct regressions for detached-HEAD refusal, publication to an
+  un-checked-out branch without touching the caller index, linked-worktree
+  rejection, and exact post-ref index-lock recovery. These tests exercise the
+  existing Git transaction rather than adding a transport or authority layer.
+- Proved that flag authoring and file import retain byte-identical canonical
+  Receipt v1 bytes and roots for the same facts. Landing-time activity,
+  proposal, and commit identities remain separate provenance; exact retries
+  on one frontier remain fully idempotent.
+- Receipt-backed finding proposals now retain one typed evidence span per
+  explicitly bound artifact, pointing into the canonical Receipt. The normal
+  task-first result is therefore review-ready without inventing verifier,
+  independence, or acceptance claims.
+- No Receipt, event, policy-lane, or Decision Brief schema changed. Existing
+  accepted-event bytes are not rewritten, and no human decision or key
+  ceremony is part of this release.
+
 ## v0.800.3 — 2026-07-15 — Nested-workspace test portability
 
 - Made the frontier-repository integration tests honor the explicit

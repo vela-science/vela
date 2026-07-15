@@ -254,6 +254,80 @@ pub enum PolicyLaneRefusal {
     Error(String),
 }
 
+/// Non-judgment inputs to the one policy-context derivation.
+///
+/// Callers may supply resolved frontier facts, but they cannot supply an
+/// assurance, independence, or method-integrity verdict. Those are always
+/// recomputed from durable verifier attachments here.
+#[derive(Debug, Clone)]
+pub struct PolicyContextInputs<'a> {
+    pub proposal: &'a super::StateProposal,
+    pub finding: &'a FindingBundle,
+    pub attachments: &'a [crate::verifier_attachment::VerifierAttachment],
+    pub replayability: Option<&'a str>,
+    pub receipt_is_body_bound: bool,
+    pub credential_valid: bool,
+    pub target_contested: bool,
+    pub downstream_dependents: u32,
+}
+
+/// Derive every field consumed by the policy language from typed frontier
+/// facts. This is the only low-level builder used by landing, replay, review,
+/// policy testing, policy suggestion, CLI, and MCP projections.
+#[must_use]
+pub fn derive_policy_context(input: PolicyContextInputs<'_>) -> PolicyContext {
+    let digest = claim_digest(&input.finding.assertion.text);
+    let relevant = input
+        .attachments
+        .iter()
+        .filter(|attachment| attachment.target == input.finding.id)
+        .cloned()
+        .collect::<Vec<_>>();
+    let gate = derive_gate_status(&digest, &relevant);
+    let independence = independence_from_attachments(&digest, &relevant);
+    let method_integrity_sound = gate.status == GateStatus::Verified
+        && relevant
+            .iter()
+            .filter(|attachment| {
+                attachment.claim_digest == digest
+                    && attachment.match_to_claim.matches
+                    && attachment.outcome == AttachmentOutcome::Passed
+            })
+            .all(|attachment| attachment.method_integrity == MethodIntegrity::Sound);
+
+    let replayability = input.replayability.unwrap_or("unknown");
+    let replayability_known = matches!(
+        replayability,
+        "exact" | "bounded" | "approximate" | "unavailable" | "unknown"
+    );
+    let governance_mutation = input.proposal.kind.starts_with("governance.")
+        || input.proposal.target.r#type == "governance";
+
+    PolicyContext {
+        claim_class: format!("receipt_{}", input.finding.assertion.assertion_type),
+        assurance_level: if gate.status == GateStatus::Verified {
+            3
+        } else {
+            0
+        },
+        impact_tier: if governance_mutation { 4 } else { 1 },
+        changed_findings: 1,
+        downstream_dependents: input.downstream_dependents,
+        assertion_text_mutated: input.proposal.kind == "finding.add",
+        target_contested: input.target_contested || gate.status == GateStatus::Refuted,
+        governance_mutation,
+        independence_satisfied: gate.status == GateStatus::Verified && independence.satisfied,
+        method_integrity_sound,
+        credential_valid: input.credential_valid,
+        has_unknown_fields: !input.receipt_is_body_bound || !replayability_known,
+        replayability: if replayability_known {
+            replayability.to_string()
+        } else {
+            "unknown".to_string()
+        },
+    }
+}
+
 impl std::fmt::Display for PolicyLaneRefusal {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -343,7 +417,6 @@ pub fn derive_submission_policy_context(
         return Err("receipt was emitted after the policy decision time".to_string());
     }
 
-    let digest = claim_digest(&finding.assertion.text);
     let relevant = frontier
         .verifier_attachments
         .iter()
@@ -355,26 +428,11 @@ pub fn derive_submission_policy_context(
             .verify()
             .map_err(|error| format!("policy evidence attachment {}: {error}", attachment.id))?;
     }
-    let gate = derive_gate_status(&digest, &relevant);
-    let independence = independence_from_attachments(&digest, &relevant);
-    let method_integrity_sound = gate.status == GateStatus::Verified
-        && relevant
-            .iter()
-            .filter(|attachment| {
-                attachment.claim_digest == digest
-                    && attachment.match_to_claim.matches
-                    && attachment.outcome == AttachmentOutcome::Passed
-            })
-            .all(|attachment| attachment.method_integrity == MethodIntegrity::Sound);
     let replayability = receipt
         .as_value()
         .get("replayability")
         .and_then(serde_json::Value::as_str)
         .unwrap_or("unknown");
-    let replayability_known = matches!(
-        replayability,
-        "exact" | "bounded" | "approximate" | "unavailable" | "unknown"
-    );
     let target_contested = finding.flags.contested
         || submission
             .get("same_claim_findings")
@@ -401,29 +459,112 @@ pub fn derive_submission_policy_context(
         .count()
         .try_into()
         .unwrap_or(u32::MAX);
-    Ok(PolicyContext {
-        claim_class: format!("receipt_{}", finding.assertion.assertion_type),
-        assurance_level: if gate.status == GateStatus::Verified {
-            3
-        } else {
-            0
-        },
-        impact_tier: 1,
-        changed_findings: 1,
-        downstream_dependents,
-        assertion_text_mutated: proposal.kind == "finding.add",
-        target_contested: target_contested || gate.status == GateStatus::Refuted,
-        governance_mutation: false,
-        independence_satisfied: gate.status == GateStatus::Verified && independence.satisfied,
-        method_integrity_sound,
+    Ok(derive_policy_context(PolicyContextInputs {
+        proposal,
+        finding: &finding,
+        attachments: &relevant,
+        replayability: Some(replayability),
+        receipt_is_body_bound: true,
         credential_valid: receipt_producer_credential_valid(frontier, receipt, decision_time),
-        has_unknown_fields: !replayability_known,
-        replayability: if replayability_known {
-            replayability.to_string()
-        } else {
-            "unknown".to_string()
-        },
-    })
+        target_contested,
+        downstream_dependents,
+    }))
+}
+
+/// Derive policy facts for a proposal already retained in a frontier.
+///
+/// A parsed receipt is used only when the complete strict submission
+/// derivation succeeds. Missing or incoherent material retains only the
+/// structural claim class on top of [`PolicyContext::default`]; it never
+/// reconstructs assurance, independence, integrity, credentials,
+/// replayability, or graph impact. The caller supplies the observation instant
+/// so credential validity cannot drift between policy testing, suggestion,
+/// review, CLI, and MCP projections.
+#[must_use]
+pub fn derive_existing_proposal_policy_context(
+    frontier: &project::Project,
+    proposal_id: &str,
+    receipt: Option<&ReceiptV1>,
+    decision_time: &str,
+) -> PolicyContext {
+    let Some(proposal) = frontier
+        .proposals
+        .iter()
+        .find(|proposal| proposal.id == proposal_id)
+    else {
+        return PolicyContext::default();
+    };
+    let claim_class = proposal_claim_class(proposal);
+    if let Some(receipt) = receipt
+        && let Ok(context) =
+            derive_submission_policy_context(frontier, proposal_id, receipt, decision_time)
+    {
+        return context;
+    }
+    PolicyContext {
+        claim_class,
+        ..PolicyContext::default()
+    }
+}
+
+/// Structural class shared by existing-proposal policy projections.
+#[must_use]
+pub fn proposal_claim_class(proposal: &super::StateProposal) -> String {
+    if proposal.kind == "finding.note" {
+        return "finding_note".to_string();
+    }
+    if proposal.kind.starts_with("governance.") || proposal.target.r#type == "governance" {
+        return "governance".to_string();
+    }
+    if proposal.kind == "finding.add"
+        && let Some(
+            claim_type @ ("computational" | "theoretical" | "empirical" | "negative"
+            | "contradiction"),
+        ) = proposal
+            .payload
+            .get("finding")
+            .and_then(|finding| finding.get("assertion"))
+            .and_then(|assertion| assertion.get("type"))
+            .and_then(serde_json::Value::as_str)
+    {
+        return format!("receipt_{claim_type}");
+    }
+    let text = proposal
+        .payload
+        .get("assertion")
+        .and_then(|assertion| assertion.get("text"))
+        .and_then(serde_json::Value::as_str)
+        .or_else(|| {
+            proposal
+                .payload
+                .get("finding")
+                .and_then(|finding| finding.get("assertion"))
+                .and_then(|assertion| assertion.get("text"))
+                .and_then(serde_json::Value::as_str)
+        })
+        .or_else(|| {
+            proposal
+                .payload
+                .get("text")
+                .and_then(serde_json::Value::as_str)
+        })
+        .unwrap_or_default();
+    classify_claim(text).to_string()
+}
+
+fn classify_claim(text: &str) -> &'static str {
+    let text = text.to_lowercase();
+    if text.contains("a309370") || text.contains("sidon") {
+        "sidon_lower_bound"
+    } else if text.contains("lean") || text.contains("formaliz") || text.contains("theorem") {
+        "formal_theorem"
+    } else if text.contains("oeis ") || text.contains("oeis:") {
+        "oeis_sequence"
+    } else if text.contains("erdős problem") || text.contains("erdos problem") {
+        "erdos_problem"
+    } else {
+        "unknown"
+    }
 }
 
 /// Resolve the receipt's producer proof-of-possession against frontier

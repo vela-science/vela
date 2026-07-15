@@ -4867,6 +4867,208 @@ mod tests {
     }
 
     #[test]
+    fn detached_head_requires_an_explicit_publication_target() {
+        let temporary = frontier();
+        let path = temporary.path();
+        let head = sh(path, &["rev-parse", "HEAD"]);
+        sh(path, &["checkout", "-q", "--detach", &head]);
+        let delta = exact_delta(
+            "detached-head",
+            vec![exact_write(path, ".vela/actors.json", b"[\n]\n")],
+        );
+        let objects_before = sh(path, &["count-objects", "-v"]);
+
+        let outcome = exact_publication_preflight(path, &delta, &PublishOptions::new(true))
+            .expect_err("detached HEAD without an explicit branch must fail before publication");
+
+        match outcome.state {
+            PublicationState::Uncommitted { reason, .. } => assert!(
+                reason.contains("detached HEAD requires an explicit local branch ref"),
+                "{reason}"
+            ),
+            state => panic!("expected detached-HEAD refusal, got {state:?}"),
+        }
+        assert_eq!(sh(path, &["rev-parse", "HEAD"]), head);
+        assert_eq!(sh(path, &["count-objects", "-v"]), objects_before);
+    }
+
+    #[test]
+    fn unchecked_target_publication_leaves_the_entire_caller_index_untouched() {
+        let temporary = frontier();
+        let path = temporary.path();
+        sh(path, &["branch", "publication-target"]);
+        let main_before = sh(path, &["rev-parse", "refs/heads/main"]);
+        fs::write(path.join("unrelated.txt"), "caller staged\n").unwrap();
+        sh(path, &["add", "--", "unrelated.txt"]);
+        let index_before = fs::read(path.join(".git/index")).unwrap();
+        let written = b"[\n  {\"actor_id\":\"agent:unchecked\"}\n]\n";
+        let delta = exact_delta(
+            "unchecked-target",
+            vec![exact_write(path, ".vela/actors.json", written)],
+        );
+        let mut opts = PublishOptions::new(true);
+        opts.target_refname = Some("refs/heads/publication-target".to_string());
+        let preflight = exact_publication_preflight(path, &delta, &opts).unwrap();
+        fs::write(path.join(".vela/actors.json"), written).unwrap();
+
+        let outcome = publish_exact_delta(
+            path,
+            "publish to unchecked target",
+            &[],
+            &delta,
+            preflight,
+            &opts,
+        )
+        .unwrap();
+
+        let target_commit = match outcome.state {
+            PublicationState::CommittedLocal { commit } => commit,
+            state => panic!("expected unchecked-target commit, got {state:?}"),
+        };
+        assert_eq!(sh(path, &["symbolic-ref", "HEAD"]), "refs/heads/main");
+        assert_eq!(sh(path, &["rev-parse", "refs/heads/main"]), main_before);
+        assert_eq!(
+            sh(path, &["rev-parse", "refs/heads/publication-target"]),
+            target_commit
+        );
+        assert_eq!(
+            sh(
+                path,
+                &["show", "refs/heads/publication-target:.vela/actors.json"]
+            ),
+            String::from_utf8_lossy(written).trim()
+        );
+        assert_eq!(fs::read(path.join(".git/index")).unwrap(), index_before);
+        assert_eq!(
+            sh(
+                path,
+                &["diff", "--cached", "--name-only", "--", "unrelated.txt"]
+            ),
+            "unrelated.txt"
+        );
+    }
+
+    #[test]
+    fn target_checked_out_in_another_worktree_is_rejected_before_construction() {
+        let temporary = frontier();
+        let path = temporary.path();
+        sh(path, &["branch", "linked-target"]);
+        let linked_parent = tempfile::tempdir().unwrap();
+        let linked = linked_parent.path().join("linked-target");
+        sh(
+            path,
+            &[
+                "worktree",
+                "add",
+                "-q",
+                linked.to_str().unwrap(),
+                "linked-target",
+            ],
+        );
+        let target_before = sh(path, &["rev-parse", "refs/heads/linked-target"]);
+        let index_before = fs::read(path.join(".git/index")).unwrap();
+        let objects_before = sh(path, &["count-objects", "-v"]);
+        let delta = exact_delta(
+            "linked-worktree",
+            vec![exact_write(path, ".vela/actors.json", b"[\n]\n")],
+        );
+        let mut opts = PublishOptions::new(true);
+        opts.target_refname = Some("refs/heads/linked-target".to_string());
+
+        let outcome = exact_publication_preflight(path, &delta, &opts)
+            .expect_err("a target checked out elsewhere must fail before object construction");
+
+        match outcome.state {
+            PublicationState::Uncommitted { reason, .. } => {
+                assert!(
+                    reason.contains("checked out in another worktree"),
+                    "{reason}"
+                );
+                assert!(reason.contains(linked.to_str().unwrap()), "{reason}");
+            }
+            state => panic!("expected linked-worktree refusal, got {state:?}"),
+        }
+        assert_eq!(
+            sh(path, &["rev-parse", "refs/heads/linked-target"]),
+            target_before
+        );
+        assert_eq!(fs::read(path.join(".git/index")).unwrap(), index_before);
+        assert_eq!(sh(path, &["count-objects", "-v"]), objects_before);
+        sh(
+            path,
+            &["worktree", "remove", "--force", linked.to_str().unwrap()],
+        );
+    }
+
+    #[test]
+    fn index_lock_after_ref_move_retains_commit_and_recovers_exactly_once() {
+        let temporary = frontier();
+        let path = temporary.path();
+        fs::write(path.join("unrelated.txt"), "caller staged\n").unwrap();
+        sh(path, &["add", "--", "unrelated.txt"]);
+        let index_before = fs::read(path.join(".git/index")).unwrap();
+        let written = b"[\n  {\"actor_id\":\"agent:recover-index\"}\n]\n";
+        let delta = exact_delta(
+            "post-ref-index-lock",
+            vec![exact_write(path, ".vela/actors.json", written)],
+        );
+        let opts = PublishOptions::new(true);
+        let preflight = exact_publication_preflight(path, &delta, &opts).unwrap();
+        fs::write(path.join(".vela/actors.json"), written).unwrap();
+        let index_lock = path.join(".git/index.lock");
+        fs::write(&index_lock, "held by fixture\n").unwrap();
+
+        let interrupted = publish_exact_delta(
+            path,
+            "post-ref index-lock recovery",
+            &[],
+            &delta,
+            preflight,
+            &opts,
+        )
+        .unwrap();
+        let commit = match &interrupted.state {
+            PublicationState::CommittedLocal { commit } => commit.clone(),
+            state => panic!("ref movement must be reported as retained, got {state:?}"),
+        };
+        let operation = operation_from(&interrupted);
+        assert_eq!(sh(path, &["rev-parse", "refs/heads/main"]), commit);
+        assert_eq!(fs::read(path.join(".git/index")).unwrap(), index_before);
+
+        fs::remove_file(index_lock).unwrap();
+        let recovered = recover_publication(path, &operation, &opts);
+        assert_eq!(
+            recovered.state,
+            PublicationState::CommittedLocal {
+                commit: commit.clone()
+            }
+        );
+        assert_eq!(sh(path, &["rev-parse", "refs/heads/main"]), commit);
+        assert!(
+            sh(
+                path,
+                &["diff", "--cached", "--name-only", "--", ".vela/actors.json"]
+            )
+            .is_empty(),
+            "recovery must reconcile only the published Vela index entry"
+        );
+        assert_eq!(
+            sh(
+                path,
+                &["diff", "--cached", "--name-only", "--", "unrelated.txt"]
+            ),
+            "unrelated.txt"
+        );
+        let commit_count = sh(path, &["rev-list", "--count", "refs/heads/main"]);
+        let repeated = recover_publication(path, &operation, &opts);
+        assert_eq!(repeated.state, recovered.state);
+        assert_eq!(
+            sh(path, &["rev-list", "--count", "refs/heads/main"]),
+            commit_count
+        );
+    }
+
+    #[test]
     fn exact_publication_resume_after_scientific_commit_publishes_bound_delta() {
         let temporary = frontier();
         let path = temporary.path();
