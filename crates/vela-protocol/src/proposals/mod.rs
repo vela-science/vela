@@ -226,6 +226,13 @@ pub fn insert_pending_in_frontier(
 
     validate_new_proposal(frontier, &proposal)?;
     frontier.proposals.push(proposal);
+    // Split repositories load proposal files in filename/id order. Keep every
+    // in-memory insertion in that same canonical order so a transaction's
+    // rendered postimage remains byte-identical after a subsequent official
+    // materialization.
+    frontier
+        .proposals
+        .sort_by(|left, right| left.id.cmp(&right.id));
     project::recompute_stats(frontier);
     Ok(CreateProposalResult {
         proposal_id,

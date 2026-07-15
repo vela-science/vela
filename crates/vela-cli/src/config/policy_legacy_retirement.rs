@@ -571,6 +571,104 @@ mod tests {
     }
 
     #[test]
+    fn prepare_postimage_is_byte_exact_after_official_materialization() {
+        const REASON: &str = "retire unsupported prelaunch bytes";
+        const PREPARED_AT: &str = "2026-07-15T00:00:00Z";
+        let (temp, _, _) = fixture(true);
+        let mut project = vela_protocol::repo::load_from_path(temp.path()).unwrap();
+        let (_, _, observed) = read_active_pair(temp.path()).unwrap();
+        let payload = LegacyPolicyRetirementPayload {
+            schema: LEGACY_POLICY_RETIREMENT_SCHEMA.to_string(),
+            policy_id: observed.stored_policy_id,
+            policy_bytes_root: observed.policy_bytes_root,
+            signature_bytes_root: observed.signature_bytes_root,
+            retire_identical_snapshot_pair: true,
+        };
+        let expected = vela_protocol::proposals::new_proposal_at(
+            LEGACY_POLICY_RETIREMENT_PROPOSAL_KIND,
+            vela_protocol::events::StateTarget {
+                r#type: "governance".to_string(),
+                id: project.frontier_id().to_string(),
+            },
+            "agent:test",
+            "agent",
+            REASON,
+            serde_json::to_value(&payload).unwrap(),
+            Vec::new(),
+            vec![
+                "This proposal fingerprints unsupported prelaunch bytes; it does not validate their signature or grant policy authority."
+                    .to_string(),
+            ],
+            PREPARED_AT,
+        );
+        let seed = (0..1024)
+            .map(|nonce| {
+                vela_protocol::proposals::new_proposal_at(
+                    LEGACY_POLICY_RETIREMENT_PROPOSAL_KIND,
+                    vela_protocol::events::StateTarget {
+                        r#type: "governance".to_string(),
+                        id: project.frontier_id().to_string(),
+                    },
+                    "agent:seed",
+                    "agent",
+                    &format!("ordering seed {nonce}"),
+                    serde_json::to_value(&payload).unwrap(),
+                    Vec::new(),
+                    vec!["ordering-only test fixture".to_string()],
+                    "2026-07-14T00:00:00Z",
+                )
+            })
+            .find(|proposal| proposal.id > expected.id)
+            .expect("a deterministic seed should sort after the retirement proposal");
+        assert!(expected.id < seed.id);
+        project.proposals.push(seed);
+        project
+            .proposals
+            .sort_by(|left, right| left.id.cmp(&right.id));
+        vela_protocol::repo::save_to_path(temp.path(), &project).unwrap();
+
+        let prepared =
+            prepare_legacy_policy_retirement_at(temp.path(), REASON, "agent:test", PREPARED_AT)
+                .unwrap();
+        assert_eq!(prepared.proposal_id, expected.id);
+        let prepared_frontier = std::fs::read(temp.path().join("frontier.json")).unwrap();
+        let prepared_lock = std::fs::read(temp.path().join("vela.lock")).unwrap();
+        let prepared_proof = std::fs::read(temp.path().join("proof/latest.json")).unwrap();
+        let installed = vela_protocol::repo::load_from_path(temp.path()).unwrap();
+        assert_eq!(
+            installed
+                .proposals
+                .iter()
+                .position(|proposal| proposal.id == prepared.proposal_id),
+            Some(0),
+            "the new proposal must already occupy split-repository id order"
+        );
+
+        vela_protocol::frontier_repo::materialize(temp.path()).unwrap();
+        assert_eq!(
+            std::fs::read(temp.path().join("frontier.json")).unwrap(),
+            prepared_frontier
+        );
+        assert_eq!(
+            std::fs::read(temp.path().join("vela.lock")).unwrap(),
+            prepared_lock
+        );
+        assert_eq!(
+            std::fs::read(temp.path().join("proof/latest.json")).unwrap(),
+            prepared_proof
+        );
+
+        let repeated = prepare_legacy_policy_retirement_at(
+            temp.path(),
+            REASON,
+            "agent:test",
+            "2026-07-15T01:00:00Z",
+        )
+        .unwrap();
+        assert_eq!(repeated.proposal_id, prepared.proposal_id);
+    }
+
+    #[test]
     fn prepare_without_snapshots_binds_absence_and_deletes_only_active_pair() {
         let (temp, policy, signature) = fixture(false);
         let prepared = prepare_legacy_policy_retirement_at(

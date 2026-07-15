@@ -1457,6 +1457,41 @@ fn frontier_with_proposal(actors: Vec<ActorRecord>) -> (Project, StateProposal) 
     (project, proposal)
 }
 
+#[test]
+fn pending_insertion_matches_split_repository_proposal_id_order() {
+    let (mut project, existing) = frontier_with_proposal(vec![]);
+    let earlier = (0..1024)
+        .map(|nonce| {
+            new_proposal(
+                "finding.review",
+                StateTarget {
+                    r#type: "finding".to_string(),
+                    id: "vf_target0000000".to_string(),
+                },
+                "agent:literature-scout",
+                "agent",
+                &format!("Canonical ordering fixture {nonce}"),
+                json!({"status": "contested"}),
+                Vec::new(),
+                Vec::new(),
+            )
+        })
+        .find(|proposal| proposal.id < existing.id)
+        .expect("a deterministic fixture should sort before the existing proposal");
+    let earlier_id = earlier.id.clone();
+
+    insert_pending_in_frontier(&mut project, earlier).unwrap();
+
+    assert_eq!(
+        project
+            .proposals
+            .iter()
+            .map(|proposal| proposal.id.as_str())
+            .collect::<Vec<_>>(),
+        vec![earlier_id.as_str(), existing.id.as_str()]
+    );
+}
+
 const VFR: &str = "vfr_accept_gate_fixture";
 const NOW: &str = "2026-05-29T00:00:00Z";
 

@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.800.7 — 2026-07-15 — Canonical proposal transaction postimages
+
+- Kept every in-memory pending-proposal insertion in the same proposal-ID
+  order used by split-repository loading. A prepared transaction's visible
+  postimages therefore remain byte-identical after the official materializer
+  reloads the same proposal files.
+- Added the exact regression found while migrating the Erdős frontier: prepare
+  bounded legacy-policy retirement, materialize, compare `frontier.json`,
+  `vela.lock`, and `proof/latest.json` byte for byte, then reacquire the
+  completed-journal recovery barrier successfully.
+- Added a direct protocol ordering regression. Accepted events, Receipt v1,
+  scientific schemas, and authority rules are unchanged; this patch reads no
+  key and performs no decision.
+
 ## v0.800.6 — 2026-07-15 — Bounded legacy-policy retirement
 
 - Added one prepare-only recovery command for unsupported prelaunch policy
