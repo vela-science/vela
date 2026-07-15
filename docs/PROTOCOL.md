@@ -837,9 +837,11 @@ Earlier releases are documented inline in the sections above.
   now performs its hub probe on the ambient async runtime and reports missing
   adapter inputs as rows instead of panicking or aborting. Task-first lease and
   attempt writes now share the recoverable frontier transaction: claims bind
-  the exact pre-lease event root, attempt deposits preserve concurrent accepted
-  events, and foundry deposits use only the literal `agent:vela-foundry`
-  identity rather than consulting a profile decision key. The unsafe public
+  the exact pre-lease event root, the work contract keeps that scientific base
+  while a policy-routed Receipt binds the exact base-plus-lease event set,
+  attempt deposits preserve concurrent accepted events, and foundry deposits
+  use only the literal `agent:vela-foundry` identity rather than consulting a
+  profile decision key. The unsafe public
   edge `claim_task` and `deposit_attempt` direct-save entry points are deprecated
   and hard-disabled in favor of those transactional workflows. Older
   maintenance, metadata, and authority-administration commands remain

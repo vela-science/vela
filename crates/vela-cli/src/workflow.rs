@@ -897,6 +897,58 @@ fn validate_active_session(
     Ok(())
 }
 
+/// Return the exact causal root for a session whose only frontier delta is its
+/// own lease event.
+///
+/// A work session deliberately pins `base_event_log_root` before its own
+/// coordination event, so the task describes the scientific state the
+/// producer actually started from. A policy-routed receipt must instead bind
+/// the current set commitment including that signed lease. Removing exactly
+/// that event must recover the pinned base; any concurrent or later event then
+/// fails closed without relying on storage order or replay timestamps.
+fn work_session_landing_event_root(
+    project: &vela_protocol::project::Project,
+    session: &WorkSession,
+) -> Result<String, String> {
+    let matching_claims = project
+        .events
+        .iter()
+        .filter(|event| event.id == session.lease.claim_event_id)
+        .collect::<Vec<_>>();
+    if matching_claims.len() != 1 {
+        return Err("work session must resolve to exactly one frontier lease event".to_string());
+    }
+    let claim = matching_claims[0];
+    if claim.kind != vela_protocol::events::EVENT_KIND_ATTEMPT_CLAIMED
+        || claim.actor.id != session.actor
+        || claim.payload.get("obligation_id").and_then(Value::as_str)
+            != Some(session.target.as_str())
+        || claim.payload.get("claimant_pubkey").and_then(Value::as_str)
+            != Some(session.lease.claimant_pubkey.as_str())
+    {
+        return Err("work session lease event does not match its signed session facts".to_string());
+    }
+    let without_claim = project
+        .events
+        .iter()
+        .filter(|event| event.id != session.lease.claim_event_id)
+        .cloned()
+        .collect::<Vec<_>>();
+    let before = format!(
+        "sha256:{}",
+        vela_protocol::events::event_log_hash(&without_claim)
+    );
+    if before != session.base_event_log_root {
+        return Err(
+            "work session frontier is not its pinned state plus the exact lease event".to_string(),
+        );
+    }
+    Ok(format!(
+        "sha256:{}",
+        vela_protocol::events::event_log_hash(&project.events)
+    ))
+}
+
 /// Resolve an explicit target or infer the one active session owned by this
 /// actor. Other actors' sessions never create ambiguity.
 pub(crate) fn resolve_work_session(
@@ -1257,7 +1309,7 @@ pub(crate) fn author_receipt(
         normalized_artifacts.push(json!({"path": path, "kind": kind, "sha256": digest}));
     }
     let project = repo::load_from_path(frontier)?;
-    let event_root = work.record.base_event_log_root.clone();
+    let event_root = work_session_landing_event_root(&project, &work.record)?;
     let policy_ref = vela_protocol::acceptance_policy::load_active_policy(frontier)?
         .map(|policy| policy.policy.id)
         .unwrap_or_else(|| "urn:vela:policy:none".to_string());
@@ -1416,8 +1468,9 @@ fn active_work_session_close(
         .get("event_log_root")
         .and_then(Value::as_str)
         .ok_or_else(|| "work session receipt has no event log root".to_string())?;
-    if receipt_event_root != session.base_event_log_root {
-        return Err("work session receipt is not bound to its pinned frontier state".to_string());
+    let landing_event_root = work_session_landing_event_root(project, &session)?;
+    if receipt_event_root != landing_event_root {
+        return Err("work session receipt is not bound through its exact lease event".to_string());
     }
     let receipt_task_root = context
         .get("task_contract_root")
@@ -3140,6 +3193,58 @@ mod transactional_proposal_tests {
             "state_root_after": state_root_after,
         });
         (candidate, result)
+    }
+
+    #[test]
+    fn work_session_landing_root_is_set_based_and_rejects_any_later_event() {
+        let original = vela_protocol::project::assemble("lease-root", Vec::new(), 0, 0, "fixture");
+        let key = SigningKey::from_bytes(&[0x76; 32]);
+        let target = "seed:lease-root";
+        let actor = "agent:lease-root";
+        let (claimed, claim) = signed_lease_candidate(
+            &original,
+            target,
+            actor,
+            &key,
+            86_400,
+            None,
+            "2026-07-14T10:00:00Z",
+        );
+        let mut session = work_session_size_fixture(0);
+        session.target = target.to_string();
+        session.actor = actor.to_string();
+        session.frontier_id = original.frontier_id().to_string();
+        session.base_event_log_root = claim["state_root_before"].as_str().unwrap().to_string();
+        session.lease.claim_event_id = claim["claim_event_id"].as_str().unwrap().to_string();
+        session.lease.claimant_pubkey = claim["claimant_pubkey"].as_str().unwrap().to_string();
+
+        let expected = claim["state_root_after"].as_str().unwrap();
+        assert_eq!(
+            work_session_landing_event_root(&claimed, &session).unwrap(),
+            expected
+        );
+        let mut reordered = clone_project(&claimed).unwrap();
+        reordered.events.reverse();
+        assert_eq!(
+            work_session_landing_event_root(&reordered, &session).unwrap(),
+            expected,
+            "the event-set commitment must not inherit storage order"
+        );
+
+        let (later, _) = signed_lease_candidate(
+            &claimed,
+            "seed:later-event",
+            "agent:later-event",
+            &key,
+            86_400,
+            None,
+            "2026-07-14T10:00:01Z",
+        );
+        let error = work_session_landing_event_root(&later, &session).unwrap_err();
+        assert!(
+            error.contains("pinned state plus the exact lease event"),
+            "unexpected later-event error: {error}"
+        );
     }
 
     fn attempt_deposit_args(actor: &str, target: &str, claim: &str, status: &str) -> Value {
