@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.800.11 — 2026-07-15 — Exact fixture-signature state
+
+- Removed a superseded detached signature from the active fixture-manifest
+  slot after `v0.800.10` changed one fixture and regenerated the manifest.
+  The current manifest is now honestly unsigned; no key was read and no new
+  authenticity claim was created. The prior human signature remains in Git
+  history.
+- Added a public Rust regression that rejects any present detached signature
+  unless it verifies over the exact current manifest bytes. Fixture-change
+  guidance now requires retiring the prior active signature and leaves any
+  later re-signing to the canonical `vela sign <manifest>` human ceremony.
+- Closed the same ceremony's clear-signing gap: detached `vela sign <path>`
+  now checks the operator's binary pin before resolving a key or writing a
+  signature, with a regression proving stale pins fail closed.
+
 ## v0.800.10 — 2026-07-15 — Typed readiness and bounded review
 
 - Replaced the ambiguous open/closed policy lane with one byte-level policy

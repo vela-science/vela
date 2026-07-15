@@ -424,6 +424,38 @@ fn stale_pin_blocks_ceremony_not_list() {
         "{}",
         String::from_utf8_lossy(&out.stderr)
     );
+
+    // Detached exact-byte signing is the same human-key ceremony. It must
+    // refuse before reading a key or writing a signature when the binary pin
+    // is stale.
+    let subject = tmp.path().join("exact-bytes.txt");
+    std::fs::write(&subject, b"exact bytes\n").unwrap();
+    let out = run(&[
+        "sign",
+        "exact-bytes.txt",
+        "--key",
+        "missing-human-key",
+        "--json",
+    ]);
+    assert_eq!(
+        out.status.code(),
+        Some(4),
+        "a stale pin must stop detached signing before key resolution: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let detached_output = format!(
+        "{}{}",
+        String::from_utf8_lossy(&out.stdout),
+        String::from_utf8_lossy(&out.stderr)
+    );
+    assert!(
+        detached_output.contains("does not match your pin"),
+        "{detached_output}"
+    );
+    assert!(
+        !tmp.path().join("exact-bytes.txt.sig.json").exists(),
+        "a refused detached ceremony must not write a signature"
+    );
 }
 
 /// The binary pin holds: pin a copy of the binary, mutate it, and the

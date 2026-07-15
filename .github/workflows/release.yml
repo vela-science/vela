@@ -26,6 +26,9 @@ jobs:
       - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
       - name: Build release binary
         run: cargo build --locked --release -p vela-cli --bin vela
+      - name: Check exact fixture-signature state
+        if: matrix.asset == 'vela-linux-x86_64'
+        run: cargo test --locked -p vela-protocol --test fixture_manifest_signature
       - name: Prepare binary and installer checksum
         env:
           ASSET: ${{ matrix.asset }}

@@ -16,6 +16,7 @@ cargo test --quiet -p vela-protocol --lib \
   --test cross_frontier_dep_persistence \
   --test cross_impl_reducer_fixtures \
   --test evidence_ci \
+  --test fixture_manifest_signature \
   --test frontier_policy \
   --test frontier_repo \
   --test proposal_signature_parity \

@@ -62,7 +62,16 @@ When a reducer mutation kind changes:
    `crates/vela-protocol/tests/cross_impl_reducer_fixtures.rs`;
 2. run that focused Rust test to regenerate the affected fixtures;
 3. copy the generated fixtures into `conformance/fixtures/`;
-4. regenerate `fixtures.manifest.json`; and
-5. run `python3 conformance/verify.py`.
+4. regenerate `fixtures.manifest.json`;
+5. remove `fixtures.manifest.sig.json` in the same change, because the prior
+   human signature no longer binds the current bytes;
+6. run `python3 conformance/verify.py`; and
+7. leave the new manifest explicitly unsigned until a human chooses to run
+   `vela sign conformance/fixtures/fixtures.manifest.json` in a separate
+   signing ceremony.
+
+The public core gate rejects a present signature that does not verify over the
+exact current manifest. Git history preserves superseded signatures; they do
+not remain in the active signature slot.
 
 The fixtures are licensed under the repository's Apache-2.0 OR MIT terms.

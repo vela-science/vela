@@ -1395,6 +1395,7 @@ pub(crate) fn cmd_sign_one(
 /// `vela sign <path>` — detached bytes under your key.
 pub(crate) fn cmd_sign_detached(path: &Path, key: Option<&Path>, json: bool) {
     let _actor = crate::cli_identity::resolve_decision_actor(None);
+    ceremony_binary_gate(false);
     apply_detached_sign(path, key);
     if json {
         println!(

@@ -11,6 +11,7 @@ Cargo.lock.bak
 *.pyc
 **/.pytest_cache
 **/.venv
+**/.vela/operation-journals/
 
 # JS/TS
 **/node_modules
