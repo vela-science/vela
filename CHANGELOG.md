@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.800.3 — 2026-07-15 — Nested-workspace test portability
+
+- Made the frontier-repository integration tests honor the explicit
+  `VELA_BIN` contract, matching the release-contract tests. Parent workspaces
+  can now reuse the Vela binary they already built instead of requiring a
+  duplicate binary under the submodule's private `target/` directory.
+- No runtime behavior, protocol schema, Receipt, verifier, accepted event, or
+  materialized-frontier bytes changed.
+
 ## v0.800.2 — 2026-07-15 — External Lean boundary consolidation
 
 - Removed the unlaunched replay-packet compatibility mode, its packet lineage

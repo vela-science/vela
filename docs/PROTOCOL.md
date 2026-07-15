@@ -1,13 +1,13 @@
 # Vela protocol: current contract
 
-Status: current prelaunch contract for Vela `0.800.2`.
+Status: current prelaunch contract for Vela `0.800.3`.
 
 This document defines the small protocol surface that Vela ships now. Git
 stores and transports immutable bytes. Vela gives a scientific meaning to a
 bounded subset of those bytes, records who had authority to change accepted
 state, and deterministically rebuilds the current frontier from the event log.
 
-The workspace release (`0.800.2`), finding-bundle schema (`0.10.0`), and wire
+The workspace release (`0.800.3`), finding-bundle schema (`0.10.0`), and wire
 schema names such as `vela.event.v0.1` are separate identifiers. New work uses
 the current forms below. Older micro-version chronology belongs in Git history
 and `CHANGELOG.md`, not in the active protocol.
