@@ -198,6 +198,10 @@ fn write_receipt_with_artifact_as(
 }
 
 fn write_active_deny_policy(dir: &Path) {
+    write_active_deny_policy_with_expiry(dir, "2099-12-31T23:59:59Z");
+}
+
+fn write_active_deny_policy_with_expiry(dir: &Path, expires_at: &str) {
     use ed25519_dalek::{Signer, SigningKey};
     use vela_protocol::acceptance_policy::{
         AcceptancePolicy, Outcome, PolicySignatureRecord, Quorum,
@@ -216,7 +220,7 @@ fn write_active_deny_policy(dir: &Path) {
         },
         rules: Vec::new(),
         default: Outcome::Deny,
-        expires_at: "2099-12-31T23:59:59Z".to_string(),
+        expires_at: expires_at.to_string(),
         revocation_ref: None,
     };
     policy.id = policy.content_address();
@@ -243,6 +247,14 @@ fn write_active_deny_policy(dir: &Path) {
         .unwrap(),
     )
     .unwrap();
+}
+
+fn break_active_policy_content_address(dir: &Path) {
+    let path = dir.join(".vela/policies/active.json");
+    let mut policy: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+    policy["expires_at"] = "2098-12-31T23:59:59Z".into();
+    std::fs::write(path, serde_json::to_vec_pretty(&policy).unwrap()).unwrap();
 }
 
 fn one_json_object(output: &Output) -> serde_json::Value {
@@ -1008,7 +1020,12 @@ fn clean_clone_rebuilds_public_review_root_without_restricted_bytes() {
         serde_json::from_slice(&review_material_bytes).unwrap();
     assert_eq!(review_material["proposal_id"], proposal_id);
     assert_eq!(review_material["receipt_root"], landed["receipt_root"]);
-    assert_eq!(review_material["route"]["policy_state"], "closed");
+    assert_eq!(review_material["route"]["policy_state"], "absent");
+    assert_eq!(review_material["route"]["permit_readiness"], "human_only");
+    assert_eq!(
+        review_material["route"]["reason_codes"],
+        serde_json::json!(["policy_absent"])
+    );
     assert!(review_material["route"]["policy_decision"].is_null());
     assert_eq!(review_material["route"]["engine_gate"]["strict"], true);
     let review_material_root_before =
@@ -2458,6 +2475,594 @@ fn untrusted_terminal_text_is_escaped() {
     assert!(!rendered.contains('\u{202e}'), "{rendered:?}");
     assert!(rendered.contains("\\u{001B}"), "{rendered:?}");
     assert!(rendered.contains("\\u{202E}"), "{rendered:?}");
+}
+
+#[test]
+fn broken_active_policy_fails_ordinary_check_and_status() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    init_git_frontier(tmp.path());
+    write_active_deny_policy(tmp.path());
+    break_active_policy_content_address(tmp.path());
+
+    let json_check = run(tmp.path(), &["check", ".", "--json"]);
+    assert!(
+        !json_check.status.success(),
+        "ordinary check must fail when present active-policy bytes are broken"
+    );
+    let check = one_json_object(&json_check);
+    assert_eq!(check["ok"], false, "{check}");
+    let active_policy = check["checks"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|item| item["id"] == "active_policy")
+        .expect("active_policy check entry");
+    assert_eq!(active_policy["status"], "fail", "{check}");
+    assert_eq!(active_policy["failed"], 1, "{check}");
+    assert!(
+        check["diagnostics"].as_array().unwrap().iter().any(|item| {
+            item["rule_id"] == "active_policy_integrity"
+                && item["message"]
+                    .as_str()
+                    .is_some_and(|message| message.contains("id does not re-derive"))
+        }),
+        "{check}"
+    );
+
+    let human_check = run(tmp.path(), &["check", "."]);
+    assert!(
+        !human_check.status.success(),
+        "human check must fail when present active-policy bytes are broken"
+    );
+    let rendered = format!(
+        "{}{}",
+        String::from_utf8_lossy(&human_check.stdout),
+        String::from_utf8_lossy(&human_check.stderr)
+    );
+    assert!(
+        rendered.contains("active policy: broken · Permit blocked"),
+        "{rendered}"
+    );
+    assert!(rendered.contains("id does not re-derive"), "{rendered}");
+
+    let json_status = run(tmp.path(), &["status", ".", "--json"]);
+    assert!(
+        !json_status.status.success(),
+        "JSON status must return failure for a broken active policy"
+    );
+    let status = one_json_object(&json_status);
+    assert_eq!(status["ok"], false, "{status}");
+    assert_eq!(status["policy"]["state"], "broken", "{status}");
+    assert_eq!(status["policy"]["permit_readiness"], "blocked", "{status}");
+    assert!(
+        status["policy"]["error"]
+            .as_str()
+            .is_some_and(|message| message.contains("id does not re-derive")),
+        "{status}"
+    );
+
+    let human_status = run(tmp.path(), &["status", "."]);
+    assert!(
+        !human_status.status.success(),
+        "human status must return failure for a broken active policy"
+    );
+    let rendered = format!(
+        "{}{}",
+        String::from_utf8_lossy(&human_status.stdout),
+        String::from_utf8_lossy(&human_status.stderr)
+    );
+    assert!(rendered.contains("broken · Permit blocked"), "{rendered}");
+    assert!(rendered.contains("id does not re-derive"), "{rendered}");
+}
+
+#[test]
+fn orphan_and_invalid_signature_active_policy_pairs_fail_cli_surfaces() {
+    let assert_broken = |dir: &Path, expected: &str| {
+        let check = run(dir, &["check", ".", "--json"]);
+        assert!(!check.status.success(), "broken pair passed check");
+        let check = one_json_object(&check);
+        let active_policy = check["checks"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|item| item["id"] == "active_policy")
+            .expect("active_policy check entry");
+        assert!(
+            active_policy["errors"][0]
+                .as_str()
+                .is_some_and(|message| message.contains(expected)),
+            "{check}"
+        );
+
+        let status = run(dir, &["status", ".", "--json"]);
+        assert!(!status.status.success(), "broken pair passed status");
+        let status = one_json_object(&status);
+        assert_eq!(status["ok"], false, "{status}");
+        assert_eq!(status["policy"]["state"], "broken", "{status}");
+        assert_eq!(status["policy"]["permit_readiness"], "blocked", "{status}");
+        assert!(
+            status["policy"]["error"]
+                .as_str()
+                .is_some_and(|message| message.contains(expected)),
+            "{status}"
+        );
+    };
+
+    let orphan = tempfile::TempDir::new().unwrap();
+    init_git_frontier(orphan.path());
+    write_active_deny_policy(orphan.path());
+    std::fs::remove_file(orphan.path().join(".vela/policies/active.json")).unwrap();
+    assert_broken(orphan.path(), "signature exists without");
+
+    let invalid_signature = tempfile::TempDir::new().unwrap();
+    init_git_frontier(invalid_signature.path());
+    write_active_deny_policy(invalid_signature.path());
+    let signature_path = invalid_signature
+        .path()
+        .join(".vela/policies/active.sig.json");
+    let mut signature: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(&signature_path).unwrap()).unwrap();
+    signature["signature"] = "00".into();
+    std::fs::write(
+        signature_path,
+        serde_json::to_vec_pretty(&signature).unwrap(),
+    )
+    .unwrap();
+    assert_broken(invalid_signature.path(), "signature must be 64 bytes");
+}
+
+#[test]
+fn malformed_policy_head_is_a_separate_blocked_readiness_check() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    init_git_frontier(tmp.path());
+    write_active_deny_policy(tmp.path());
+    let mut frontier = vela_protocol::repo::load_from_path(tmp.path()).unwrap();
+    frontier.events.push(
+        vela_protocol::events::new_review_decision_event(
+            "vpr_missing_policy_head",
+            vela_protocol::proposals::policy_accept::POLICY_HEAD_PROPOSAL_KIND,
+            "accepted",
+            None,
+            "reviewer:unregistered",
+            "malformed head fixture",
+            Some("2026-07-14T00:00:00Z"),
+        )
+        .unwrap(),
+    );
+    vela_protocol::repo::save_to_path(tmp.path(), &frontier).unwrap();
+
+    let check = run(tmp.path(), &["check", ".", "--json"]);
+    assert!(!check.status.success(), "invalid head passed check");
+    let check = one_json_object(&check);
+    let checks = check["checks"].as_array().unwrap();
+    let active_pair = checks
+        .iter()
+        .find(|item| item["id"] == "active_policy")
+        .unwrap();
+    assert_eq!(active_pair["status"], "pass", "{check}");
+    let readiness = checks
+        .iter()
+        .find(|item| item["id"] == "policy_readiness")
+        .unwrap();
+    assert_eq!(readiness["status"], "fail", "{check}");
+    assert_eq!(readiness["state"], "active", "{check}");
+    assert_eq!(readiness["permit_readiness"], "blocked", "{check}");
+    assert_eq!(
+        readiness["reason_codes"],
+        serde_json::json!(["policy_head_invalid"]),
+        "{check}"
+    );
+    assert!(check["diagnostics"].as_array().unwrap().iter().any(|item| {
+        item["rule_id"] == "policy_head_integrity" && item["check"] == "policy_readiness"
+    }));
+
+    let status = run(tmp.path(), &["status", ".", "--json"]);
+    assert!(!status.status.success(), "invalid head passed status");
+    let status = one_json_object(&status);
+    assert_eq!(status["policy"]["state"], "active", "{status}");
+    assert_eq!(status["policy"]["permit_readiness"], "blocked", "{status}");
+    assert_eq!(
+        status["policy"]["reason_codes"],
+        serde_json::json!(["policy_head_invalid"]),
+        "{status}"
+    );
+
+    let show_json = run(tmp.path(), &["policy", "show", ".", "--json"]);
+    assert!(
+        !show_json.status.success(),
+        "invalid head passed policy show"
+    );
+    let show_json = one_json_object(&show_json);
+    assert_eq!(show_json["ok"], false, "{show_json}");
+    assert_eq!(show_json["state"], "active", "{show_json}");
+    assert_eq!(show_json["permit_readiness"], "blocked", "{show_json}");
+    assert_eq!(
+        show_json["reason_codes"],
+        serde_json::json!(["policy_head_invalid"]),
+        "{show_json}"
+    );
+    assert!(show_json["policy"].is_object(), "{show_json}");
+
+    let show_human = run(tmp.path(), &["policy", "show", "."]);
+    assert!(
+        !show_human.status.success(),
+        "invalid head passed human policy show"
+    );
+    let show_human = String::from_utf8_lossy(&show_human.stdout);
+    assert!(
+        show_human.contains("active · Permit blocked"),
+        "{show_human}"
+    );
+    assert!(show_human.contains("policy_head_invalid"), "{show_human}");
+}
+
+#[test]
+fn doctor_names_the_supported_missing_policy_head_recovery() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    init_git_frontier(tmp.path());
+    write_active_deny_policy_with_expiry(
+        tmp.path(),
+        vela_protocol::proposals::policy_accept::CAUSALLY_UNBOUNDED_POLICY_EXPIRY,
+    );
+
+    let doctor = run(tmp.path(), &["doctor", ".", "--json"]);
+    assert_success(
+        &doctor,
+        "doctor with an active pair missing its causal head",
+    );
+    let doctor = one_json_object(&doctor);
+    let policy = doctor["setup"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|item| item["name"] == "policy")
+        .expect("doctor policy row");
+    assert_eq!(policy["status"], "warn", "{doctor}");
+    assert!(
+        policy["detail"]
+            .as_str()
+            .is_some_and(|detail| detail.contains("policy_head_missing")),
+        "{doctor}"
+    );
+    assert!(
+        policy["next"]
+            .as_str()
+            .is_some_and(|fix| fix.contains("policy draft <template> --replace")
+                && fix.contains("policy sign")),
+        "{doctor}"
+    );
+}
+
+#[test]
+fn canonical_policy_states_and_readiness_keep_their_routes() {
+    let absent = tempfile::TempDir::new().unwrap();
+    init_git_frontier(absent.path());
+
+    let absent_check = run(absent.path(), &["check", ".", "--json"]);
+    assert_success(&absent_check, "ordinary check without an active policy");
+    let absent_check = one_json_object(&absent_check);
+    let active_policy = absent_check["checks"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|item| item["id"] == "active_policy")
+        .expect("active_policy check entry");
+    assert_eq!(active_policy["status"], "pass", "{absent_check}");
+    assert_eq!(active_policy["state"], "absent", "{absent_check}");
+    assert_eq!(
+        active_policy["permit_readiness"], "human_only",
+        "{absent_check}"
+    );
+
+    let absent_status = run(absent.path(), &["status", ".", "--json"]);
+    assert_success(&absent_status, "status without an active policy");
+    let absent_status = one_json_object(&absent_status);
+    assert_eq!(absent_status["ok"], true, "{absent_status}");
+    assert_eq!(
+        absent_status["policy"]["state"], "absent",
+        "{absent_status}"
+    );
+    assert_eq!(
+        absent_status["policy"]["permit_readiness"], "human_only",
+        "{absent_status}"
+    );
+
+    let absent_file_status = run(absent.path(), &["status", "frontier.json", "--json"]);
+    assert_success(
+        &absent_file_status,
+        "file-source status without an active policy",
+    );
+    let absent_file_status = one_json_object(&absent_file_status);
+    assert_eq!(absent_file_status["ok"], true, "{absent_file_status}");
+    assert_eq!(
+        absent_file_status["policy"]["state"], "absent",
+        "{absent_file_status}"
+    );
+    assert_eq!(
+        absent_file_status["policy"]["permit_readiness"], "human_only",
+        "{absent_file_status}"
+    );
+
+    write_receipt(
+        absent.path(),
+        "receipt.json",
+        "an absent policy retains the conservative deferred route",
+    );
+    let deferred = run(
+        absent.path(),
+        &["land", "receipt.json", "--as", "agent:t", "--json"],
+    );
+    assert_success(&deferred, "land without an active policy");
+    assert_eq!(one_json_object(&deferred)["route"], "deferred");
+
+    let staged = tempfile::TempDir::new().unwrap();
+    init_git_frontier(staged.path());
+    write_active_deny_policy(staged.path());
+    std::fs::remove_file(staged.path().join(".vela/policies/active.sig.json")).unwrap();
+
+    let staged_check = run(staged.path(), &["check", ".", "--json"]);
+    assert_success(
+        &staged_check,
+        "ordinary check with a valid staged unsigned policy",
+    );
+    let staged_check = one_json_object(&staged_check);
+    let active_policy = staged_check["checks"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|item| item["id"] == "active_policy")
+        .expect("active_policy check entry");
+    assert_eq!(active_policy["status"], "pass", "{staged_check}");
+    assert_eq!(active_policy["state"], "staged_unsigned", "{staged_check}");
+    assert_eq!(
+        active_policy["permit_readiness"], "human_only",
+        "{staged_check}"
+    );
+
+    let staged_status = run(staged.path(), &["status", ".", "--json"]);
+    assert_success(&staged_status, "status with a valid staged unsigned policy");
+    let staged_status = one_json_object(&staged_status);
+    assert_eq!(staged_status["ok"], true, "{staged_status}");
+    assert_eq!(
+        staged_status["policy"]["state"], "staged_unsigned",
+        "{staged_status}"
+    );
+    assert_eq!(
+        staged_status["policy"]["permit_readiness"], "human_only",
+        "{staged_status}"
+    );
+
+    let staged_log = run(staged.path(), &["policy", "log", ".", "--json"]);
+    assert_success(&staged_log, "policy log with staged unsigned bytes");
+    let staged_log = one_json_object(&staged_log);
+    assert_eq!(
+        staged_log["policy_state"], "staged_unsigned",
+        "{staged_log}"
+    );
+    assert_eq!(staged_log["permit_readiness"], "human_only", "{staged_log}");
+    assert!(staged_log["current_policy_id"].is_string(), "{staged_log}");
+    assert!(
+        !staged_log.to_string().contains("\"active\":"),
+        "{staged_log}"
+    );
+
+    write_receipt(
+        staged.path(),
+        "receipt.json",
+        "a staged unsigned policy retains the conservative deferred route",
+    );
+    let deferred = run(
+        staged.path(),
+        &["land", "receipt.json", "--as", "agent:t", "--json"],
+    );
+    assert_success(&deferred, "land with a valid staged unsigned policy");
+    assert_eq!(one_json_object(&deferred)["route"], "deferred");
+
+    let valid = tempfile::TempDir::new().unwrap();
+    init_git_frontier(valid.path());
+    write_active_deny_policy(valid.path());
+
+    let valid_check = run(valid.path(), &["check", ".", "--json"]);
+    assert_success(&valid_check, "ordinary check with a valid active policy");
+    let valid_check = one_json_object(&valid_check);
+    let active_policy = valid_check["checks"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|item| item["id"] == "active_policy")
+        .expect("active_policy check entry");
+    assert_eq!(active_policy["status"], "pass", "{valid_check}");
+    assert_eq!(active_policy["state"], "active", "{valid_check}");
+    assert_eq!(
+        active_policy["permit_readiness"], "human_only",
+        "{valid_check}"
+    );
+
+    let valid_status = run(valid.path(), &["status", ".", "--json"]);
+    assert_success(&valid_status, "status with a valid active policy");
+    let valid_status = one_json_object(&valid_status);
+    assert_eq!(valid_status["ok"], true, "{valid_status}");
+    assert_eq!(valid_status["policy"]["state"], "active", "{valid_status}");
+    assert_eq!(
+        valid_status["policy"]["permit_readiness"], "human_only",
+        "{valid_status}"
+    );
+
+    let valid_file_status = run(valid.path(), &["status", "frontier.json", "--json"]);
+    assert_success(
+        &valid_file_status,
+        "file-source status with a valid active policy",
+    );
+    let valid_file_status = one_json_object(&valid_file_status);
+    assert_eq!(valid_file_status["ok"], true, "{valid_file_status}");
+    assert_eq!(
+        valid_file_status["policy"]["state"], "active",
+        "{valid_file_status}"
+    );
+    assert_eq!(
+        valid_file_status["policy"]["permit_readiness"], "human_only",
+        "{valid_file_status}"
+    );
+
+    let policy_show = run(valid.path(), &["policy", "show", ".", "--json"]);
+    assert_success(&policy_show, "policy show with a valid active pair");
+    let policy_show = one_json_object(&policy_show);
+    assert_eq!(policy_show["state"], "active", "{policy_show}");
+    assert_eq!(
+        policy_show["permit_readiness"], "human_only",
+        "{policy_show}"
+    );
+    assert!(
+        policy_show.get("auto_permit_enabled").is_none(),
+        "{policy_show}"
+    );
+
+    let policy_test = run(valid.path(), &["policy", "test", ".", "--json"]);
+    assert_success(&policy_test, "policy test with human-only active bytes");
+    let policy_test = one_json_object(&policy_test);
+    assert_eq!(policy_test["state"], "active", "{policy_test}");
+    assert_eq!(
+        policy_test["permit_readiness"], "human_only",
+        "{policy_test}"
+    );
+    assert!(policy_test.get("lane_open").is_none(), "{policy_test}");
+    assert!(policy_test.get("mode").is_none(), "{policy_test}");
+
+    let doctor = run(valid.path(), &["doctor", ".", "--json"]);
+    assert_success(&doctor, "doctor with a valid active pair");
+    let doctor = one_json_object(&doctor);
+    let policy_check = doctor["setup"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|item| item["name"] == "policy")
+        .expect("doctor policy row");
+    assert_eq!(policy_check["status"], "warn", "{doctor}");
+    assert!(
+        policy_check["detail"]
+            .as_str()
+            .is_some_and(|detail| detail.contains("active · Permit human_only")
+                && detail.contains("policy_wall_clock_expiry_unanchored")),
+        "{doctor}"
+    );
+
+    write_receipt(
+        valid.path(),
+        "receipt.json",
+        "a valid deny policy retains its existing route",
+    );
+    let denied = run(
+        valid.path(),
+        &["land", "receipt.json", "--as", "agent:t", "--json"],
+    );
+    assert!(
+        !denied.status.success(),
+        "valid deny policy must still deny"
+    );
+    let denied = one_json_object(&denied);
+    assert!(
+        denied["error"]["message"]
+            .as_str()
+            .is_some_and(|message| message.contains("policy denies")),
+        "{denied}"
+    );
+}
+
+#[test]
+fn broken_active_policy_fails_every_check_mode_except_schema_only() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    init_git_frontier(tmp.path());
+    write_active_deny_policy(tmp.path());
+    break_active_policy_content_address(tmp.path());
+
+    let conformance_dir = tmp.path().join("conformance-fixture");
+    std::fs::create_dir_all(&conformance_dir).unwrap();
+    std::fs::write(
+        conformance_dir.join("noop.json"),
+        br#"{"suite":"noop","cases":[]}"#,
+    )
+    .unwrap();
+    let conformance = conformance_dir.to_string_lossy().into_owned();
+
+    let human_modes = [
+        vec!["check", ".", "--schema"],
+        vec!["check", ".", "--stats"],
+        vec![
+            "check",
+            ".",
+            "--conformance",
+            "--conformance-dir",
+            conformance.as_str(),
+        ],
+    ];
+    for args in human_modes {
+        let output = run(tmp.path(), &args);
+        assert!(
+            !output.status.success(),
+            "broken policy passed human mode: {}",
+            args.join(" ")
+        );
+        let rendered = format!(
+            "{}{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert!(
+            rendered.contains("active policy: broken · Permit blocked")
+                && rendered.contains("id does not re-derive"),
+            "{}: {rendered}",
+            args.join(" ")
+        );
+    }
+
+    let json_modes = [
+        vec!["check", ".", "--schema", "--json"],
+        vec!["check", ".", "--stats", "--json"],
+        vec![
+            "check",
+            ".",
+            "--conformance",
+            "--conformance-dir",
+            conformance.as_str(),
+            "--json",
+        ],
+    ];
+    for args in json_modes {
+        let output = run(tmp.path(), &args);
+        assert!(
+            !output.status.success(),
+            "broken policy passed JSON mode: {}",
+            args.join(" ")
+        );
+        let payload = one_json_object(&output);
+        let active_policy = payload["checks"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|item| item["id"] == "active_policy")
+            .expect("active_policy check entry");
+        assert_eq!(active_policy["status"], "fail", "{payload}");
+    }
+
+    let schema_only = run(tmp.path(), &["check", ".", "--schema-only"]);
+    assert_success(&schema_only, "explicit human schema-only check");
+    let rendered = format!(
+        "{}{}",
+        String::from_utf8_lossy(&schema_only.stdout),
+        String::from_utf8_lossy(&schema_only.stderr)
+    );
+    assert!(!rendered.contains("active policy:"), "{rendered}");
+
+    let schema_only = run(tmp.path(), &["check", ".", "--schema-only", "--json"]);
+    assert_success(&schema_only, "explicit JSON schema-only check");
+    let payload = one_json_object(&schema_only);
+    let active_policy = payload["checks"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|item| item["id"] == "active_policy")
+        .expect("active_policy check entry");
+    assert_eq!(active_policy["skipped"], true, "{payload}");
 }
 
 #[test]

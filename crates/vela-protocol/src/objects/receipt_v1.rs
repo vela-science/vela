@@ -3856,6 +3856,34 @@ mod tests {
     }
 
     #[test]
+    fn default_parser_rejects_depth_65_and_one_hundred_thousand_artifacts() {
+        let depth_65 = format!("{}0{}", "[".repeat(65), "]".repeat(65));
+        let failure = ReceiptV1::parse(depth_65.as_bytes()).unwrap_err();
+        assert!(failure.message().contains("JSON depth"), "{failure}");
+
+        // Receipt v1 carries descriptors, never archive bodies. This input is
+        // intentionally below the encoded-byte ceiling but far above both the
+        // 10,000-artifact and bounded-array ceilings. The streaming parser
+        // must reject it before schema or landing logic sees the document.
+        let mut artifacts = String::with_capacity(300_032);
+        artifacts.push_str("{\"artifacts\":[");
+        for index in 0..100_000 {
+            if index > 0 {
+                artifacts.push(',');
+            }
+            artifacts.push_str("{}");
+        }
+        artifacts.push_str("]}");
+        let failure = ReceiptV1::parse(artifacts.as_bytes()).unwrap_err();
+        assert!(
+            failure.message().contains("array-element budget")
+                || failure.message().contains("JSON node budget")
+                || failure.message().contains("descriptors"),
+            "{failure}"
+        );
+    }
+
+    #[test]
     fn malformed_dsse_payload_is_rejected_semantically() {
         let mut raw = build(Vec::new()).into_value();
         raw["attestation"]["dsse_envelope"]["payload"] = json!("e30=");

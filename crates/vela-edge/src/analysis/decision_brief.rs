@@ -16,7 +16,9 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use vela_protocol::acceptance_policy::{Decision, Outcome, PolicyContext};
 use vela_protocol::project::Project;
-use vela_protocol::proposals::policy_accept::StagedPolicyRoute;
+use vela_protocol::proposals::policy_accept::{
+    PermitReadiness, PolicyAssessment, PolicyState, StagedPolicyRoute,
+};
 use vela_protocol::proposals::{self, EngineVerdict, StateProposal};
 use vela_protocol::receipt_v1::{ReceiptV1, acceptance_scope_from_receipt, lineage_from_receipt};
 use vela_protocol::verifier_attachment::{GateStatus, claim_digest, derive_gate_status};
@@ -91,9 +93,51 @@ impl<'a> ReceiptMaterial<'a> {
     }
 }
 
+/// The central policy axes attached to a non-staged review route.
+///
+/// Route availability is deliberately not encoded here: a missing receipt can
+/// make a route unavailable without making the active policy pair or causal
+/// authority chain broken.
+#[derive(Debug, Clone, Copy)]
+pub struct ReviewPolicyFacts<'a> {
+    policy_state: PolicyState,
+    permit_readiness: PermitReadiness,
+    reason_codes: &'a [String],
+    readiness_detail: Option<&'a str>,
+}
+
+impl<'a> ReviewPolicyFacts<'a> {
+    #[must_use]
+    pub fn from_assessment(assessment: &'a PolicyAssessment) -> Self {
+        Self {
+            policy_state: assessment.state(),
+            permit_readiness: assessment.permit_readiness(),
+            reason_codes: assessment.reason_codes(),
+            readiness_detail: assessment.detail(),
+        }
+    }
+
+    /// Construct typed projection facts for callers that already retain the
+    /// central assessment fields. This object carries no authority.
+    #[must_use]
+    pub const fn new(
+        policy_state: PolicyState,
+        permit_readiness: PermitReadiness,
+        reason_codes: &'a [String],
+        readiness_detail: Option<&'a str>,
+    ) -> Self {
+        Self {
+            policy_state,
+            permit_readiness,
+            reason_codes,
+            readiness_detail,
+        }
+    }
+}
+
 /// One sealed policy-route input for review.
 ///
-/// A live route can only be constructed from the protocol's opaque
+/// A staged evaluator route can only be constructed from the protocol's opaque
 /// [`StagedPolicyRoute`]. Callers therefore cannot combine a context from one
 /// route with a decision or Engine verdict from another. The unavailable form
 /// keeps broken or inapplicable routes visible without manufacturing facts.
@@ -106,11 +150,13 @@ pub struct ReviewRoute<'a> {
 enum ReviewRouteSource<'a> {
     Staged(&'a StagedPolicyRoute),
     HumanOnly {
-        policy_state: &'a str,
+        policy: ReviewPolicyFacts<'a>,
+        route_reason_code: &'a str,
         reason: &'a str,
     },
     Unavailable {
-        policy_state: &'a str,
+        policy: ReviewPolicyFacts<'a>,
+        route_reason_code: &'a str,
         reason: &'a str,
     },
     #[cfg(test)]
@@ -118,8 +164,7 @@ enum ReviewRouteSource<'a> {
         context: &'a PolicyContext,
         decision: Option<&'a Decision>,
         engine_gate: Option<&'a EngineVerdict>,
-        policy_state: &'a str,
-        authority_error: Option<&'a str>,
+        policy: ReviewPolicyFacts<'a>,
     },
 }
 
@@ -137,10 +182,15 @@ impl<'a> ReviewRoute<'a> {
     /// a human-review route, not a broken route, and supplies no fabricated
     /// policy context, decision, or Engine preview.
     #[must_use]
-    pub fn human_only(policy_state: &'a str, reason: &'a str) -> Self {
+    pub fn human_only(
+        policy: ReviewPolicyFacts<'a>,
+        route_reason_code: &'a str,
+        reason: &'a str,
+    ) -> Self {
         Self {
             source: ReviewRouteSource::HumanOnly {
-                policy_state,
+                policy,
+                route_reason_code,
                 reason,
             },
         }
@@ -149,10 +199,15 @@ impl<'a> ReviewRoute<'a> {
     /// Preserve a visible degraded brief when no coherent staged route exists.
     /// No context, decision, or Engine fact is inferred in this state.
     #[must_use]
-    pub fn unavailable(policy_state: &'a str, reason: &'a str) -> Self {
+    pub fn unavailable(
+        policy: ReviewPolicyFacts<'a>,
+        route_reason_code: &'a str,
+        reason: &'a str,
+    ) -> Self {
         Self {
             source: ReviewRouteSource::Unavailable {
-                policy_state,
+                policy,
+                route_reason_code,
                 reason,
             },
         }
@@ -188,25 +243,88 @@ impl<'a> ReviewRoute<'a> {
         }
     }
 
-    fn policy_state(self) -> &'a str {
+    fn policy_state(self) -> PolicyState {
         match self.source {
             ReviewRouteSource::Staged(route) => route.policy_state(),
-            ReviewRouteSource::HumanOnly { policy_state, .. } => policy_state,
-            ReviewRouteSource::Unavailable { policy_state, .. } => policy_state,
+            ReviewRouteSource::HumanOnly { policy, .. }
+            | ReviewRouteSource::Unavailable { policy, .. } => policy.policy_state,
             #[cfg(test)]
-            ReviewRouteSource::Test { policy_state, .. } => policy_state,
+            ReviewRouteSource::Test { policy, .. } => policy.policy_state,
         }
     }
 
-    fn authority_error(self) -> Option<&'a str> {
+    fn route_kind(self) -> &'static str {
         match self.source {
-            ReviewRouteSource::Staged(route) => route.authority_error(),
-            ReviewRouteSource::HumanOnly { .. } => None,
-            ReviewRouteSource::Unavailable { reason, .. } => Some(reason),
+            ReviewRouteSource::Staged(_) => "staged",
+            ReviewRouteSource::HumanOnly { .. } => "human_only",
+            ReviewRouteSource::Unavailable { .. } => "unavailable",
             #[cfg(test)]
-            ReviewRouteSource::Test {
-                authority_error, ..
-            } => authority_error,
+            ReviewRouteSource::Test { .. } => "staged",
+        }
+    }
+
+    fn route_reason_code(self) -> Option<&'a str> {
+        match self.source {
+            ReviewRouteSource::Staged(_) => None,
+            ReviewRouteSource::HumanOnly {
+                route_reason_code, ..
+            }
+            | ReviewRouteSource::Unavailable {
+                route_reason_code, ..
+            } => Some(route_reason_code),
+            #[cfg(test)]
+            ReviewRouteSource::Test { .. } => None,
+        }
+    }
+
+    fn route_reason(self) -> Option<&'a str> {
+        match self.source {
+            ReviewRouteSource::Staged(_) => None,
+            ReviewRouteSource::HumanOnly { reason, .. }
+            | ReviewRouteSource::Unavailable { reason, .. } => Some(reason),
+            #[cfg(test)]
+            ReviewRouteSource::Test { .. } => None,
+        }
+    }
+
+    fn policy_facts(self) -> Option<ReviewPolicyFacts<'a>> {
+        match self.source {
+            ReviewRouteSource::Staged(_) => None,
+            ReviewRouteSource::HumanOnly { policy, .. }
+            | ReviewRouteSource::Unavailable { policy, .. } => Some(policy),
+            #[cfg(test)]
+            ReviewRouteSource::Test { policy, .. } => Some(policy),
+        }
+    }
+
+    fn readiness_detail(self) -> Option<&'a str> {
+        match self.source {
+            ReviewRouteSource::Staged(route) => route.readiness_detail(),
+            _ => self
+                .policy_facts()
+                .and_then(|policy| policy.readiness_detail),
+        }
+    }
+
+    fn permit_readiness(self) -> PermitReadiness {
+        match self.source {
+            ReviewRouteSource::Staged(route) => route.permit_readiness(),
+            _ => {
+                self.policy_facts()
+                    .expect("non-staged review routes carry typed policy facts")
+                    .permit_readiness
+            }
+        }
+    }
+
+    fn policy_reason_codes(self) -> &'a [String] {
+        match self.source {
+            ReviewRouteSource::Staged(route) => route.policy_reason_codes(),
+            _ => {
+                self.policy_facts()
+                    .expect("non-staged review routes carry typed policy facts")
+                    .reason_codes
+            }
         }
     }
 
@@ -249,16 +367,14 @@ impl<'a> ReviewRoute<'a> {
         context: &'a PolicyContext,
         decision: Option<&'a Decision>,
         engine_gate: Option<&'a EngineVerdict>,
-        policy_state: &'a str,
-        authority_error: Option<&'a str>,
+        policy: ReviewPolicyFacts<'a>,
     ) -> Self {
         Self {
             source: ReviewRouteSource::Test {
                 context,
                 decision,
                 engine_gate,
-                policy_state,
-                authority_error,
+                policy,
             },
         }
     }
@@ -760,23 +876,23 @@ impl DecisionFacts {
         let policy_context = input.route.context();
         let policy_input_root = if let Some(context) = policy_context {
             context.policy_language_digest()?
-        } else if let ReviewRouteSource::HumanOnly {
-            policy_state,
-            reason,
-        } = input.route.source
-        {
-            typed_root(&json!({
-                "state": "human_only",
-                "policy_state": policy_state,
-                "reason_root": text_root(reason),
-            }))?
         } else {
-            push_missing(
-                &mut unknowns,
-                "authority.policy_context",
-                "coherent_policy_route_unavailable",
-            );
-            typed_root(&json!({"state": "unavailable"}))?
+            if matches!(input.route.source, ReviewRouteSource::Unavailable { .. }) {
+                push_missing(
+                    &mut unknowns,
+                    "authority.policy_context",
+                    "coherent_policy_route_unavailable",
+                );
+            }
+            typed_root(&json!({
+                "route_kind": input.route.route_kind(),
+                "route_reason_code": input.route.route_reason_code(),
+                "route_reason_root": input.route.route_reason().map(text_root),
+                "policy_state": input.route.policy_state().as_str(),
+                "permit_readiness": input.route.permit_readiness().as_str(),
+                "policy_reason_codes": input.route.policy_reason_codes(),
+                "readiness_detail_root": input.route.readiness_detail().map(text_root),
+            }))?
         };
         let policy_result_root = typed_root(&review_route_value(input.route, human_routed))?;
         let receipt_event_log_root = receipt_value
@@ -1243,36 +1359,14 @@ impl DecisionFacts {
 }
 
 fn review_route_value(route: ReviewRoute<'_>, human_routed: bool) -> Value {
-    if let ReviewRouteSource::HumanOnly {
-        policy_state,
-        reason,
-    } = route.source
-    {
-        return json!({
-            "state": "human_only",
-            "policy_state": policy_state,
-            "reason_root": text_root(reason),
-            "decision": null,
-            "engine_gate": null,
-        });
-    }
-    if let ReviewRouteSource::Unavailable {
-        policy_state,
-        reason,
-    } = route.source
-    {
-        return json!({
-            "state": "unavailable",
-            "policy_state": policy_state,
-            "reason_root": text_root(reason),
-            "decision": null,
-            "engine_gate": null,
-        });
-    }
     json!({
-        "state": if route.authority_error().is_some() { "broken" } else { "staged" },
-        "policy_state": route.policy_state(),
-        "authority_error_root": route.authority_error().map(text_root),
+        "route_kind": route.route_kind(),
+        "route_reason_code": route.route_reason_code(),
+        "route_reason_root": route.route_reason().map(text_root),
+        "policy_state": route.policy_state().as_str(),
+        "permit_readiness": route.permit_readiness().as_str(),
+        "reason_codes": route.policy_reason_codes(),
+        "readiness_detail_root": route.readiness_detail().map(text_root),
         "decision": route.decision(),
         "engine_gate": route.engine_gate(),
         "human_routed": human_routed,
@@ -1291,18 +1385,35 @@ fn review_route_authority(
             None,
         );
     }
-    if let Some(error) = route.authority_error() {
+    if let ReviewRouteSource::Unavailable {
+        route_reason_code,
+        reason,
+        ..
+    } = route.source
+    {
         return (
             "broken".to_string(),
-            vec![format!("{}: {error}", route.policy_state())],
-            vec!["policy_route_unavailable".to_string()],
+            vec![format!("{route_reason_code}: {reason}")],
+            vec![route_reason_code.to_string()],
+            route.decision(),
+        );
+    }
+    if route.permit_readiness() == PermitReadiness::Blocked {
+        return (
+            "broken".to_string(),
+            vec![format!(
+                "{}: {}",
+                route.policy_state().as_str(),
+                route.readiness_detail().unwrap_or("policy route blocked")
+            )],
+            route.policy_reason_codes().to_vec(),
             route.decision(),
         );
     }
     match route.decision() {
         None => (
             "defer".to_string(),
-            vec![format!("policy_lane_{}", route.policy_state())],
+            vec![format!("policy_{}", route.permit_readiness().as_str())],
             Vec::new(),
             None,
         ),
@@ -1313,6 +1424,19 @@ fn review_route_authority(
                 Vec::new(),
                 Some(decision),
             ),
+            Outcome::Deny
+                if route.permit_readiness() == PermitReadiness::HumanOnly
+                    && decision.reasons.iter().any(|reason| {
+                        matches!(reason.as_str(), "policy_expired" | "policy_revoked")
+                    }) =>
+            {
+                (
+                    "defer".to_string(),
+                    route.policy_reason_codes().to_vec(),
+                    Vec::new(),
+                    Some(decision),
+                )
+            }
             Outcome::Deny => (
                 "deny".to_string(),
                 decision.reasons.clone(),
@@ -1325,9 +1449,15 @@ fn review_route_authority(
                 Vec::new(),
                 Some(decision),
             ),
+            Outcome::Permit if route.permit_readiness() == PermitReadiness::HumanOnly => (
+                "defer".to_string(),
+                route.policy_reason_codes().to_vec(),
+                Vec::new(),
+                Some(decision),
+            ),
             Outcome::Permit => (
                 "permit_pending".to_string(),
-                vec!["a policy Permit remains pending and requires repair".to_string()],
+                vec!["a ready policy Permit remains pending and requires repair".to_string()],
                 vec!["pending_permit_invariant".to_string()],
                 Some(decision),
             ),
@@ -2230,8 +2360,7 @@ mod tests {
             &fixture.policy_context,
             Some(&fixture.policy_decision),
             Some(&fixture.engine_gate),
-            "active",
-            None,
+            ReviewPolicyFacts::new(PolicyState::Active, PermitReadiness::Ready, &[], None),
         )
     }
 
@@ -2492,7 +2621,16 @@ mod tests {
             test_input(
                 &fixture,
                 ReceiptMaterial::from_receipt(&fixture.receipt),
-                ReviewRoute::unavailable("broken", "policy snapshot could not be verified"),
+                ReviewRoute::unavailable(
+                    ReviewPolicyFacts::new(
+                        PolicyState::Broken,
+                        PermitReadiness::Blocked,
+                        &[],
+                        Some("policy snapshot could not be verified"),
+                    ),
+                    "policy_route_unavailable",
+                    "policy snapshot could not be verified",
+                ),
             ),
         )
         .unwrap();
@@ -2511,8 +2649,7 @@ mod tests {
             &fixture.policy_context,
             Some(&deny_decision),
             Some(&fixture.engine_gate),
-            "active",
-            None,
+            ReviewPolicyFacts::new(PolicyState::Active, PermitReadiness::Ready, &[], None),
         );
         let denied = build_decision_brief(
             &fixture.project,
@@ -2532,8 +2669,7 @@ mod tests {
             &fixture.policy_context,
             Some(&permit_decision),
             Some(&fixture.engine_gate),
-            "active",
-            None,
+            ReviewPolicyFacts::new(PolicyState::Active, PermitReadiness::Ready, &[], None),
         );
         let pending_permit = build_decision_brief(
             &fixture.project,
@@ -2564,7 +2700,11 @@ mod tests {
             test_input(
                 &policy_fixture,
                 ReceiptMaterial::from_receipt(&policy_fixture.receipt),
-                ReviewRoute::human_only("manual", "attempted route downgrade"),
+                ReviewRoute::human_only(
+                    ReviewPolicyFacts::new(PolicyState::Active, PermitReadiness::Ready, &[], None),
+                    "manual_route_downgrade",
+                    "attempted route downgrade",
+                ),
             ),
         )
         .unwrap_err();
@@ -2587,6 +2727,12 @@ mod tests {
                 &fixture,
                 ReceiptMaterial::missing("receipt_not_applicable"),
                 ReviewRoute::human_only(
+                    ReviewPolicyFacts::new(
+                        PolicyState::Absent,
+                        PermitReadiness::HumanOnly,
+                        &[],
+                        None,
+                    ),
                     "proposal_kind_requires_human_review",
                     "this proposal kind is intentionally reviewed by a human",
                 ),
@@ -2603,6 +2749,32 @@ mod tests {
         assert_eq!(
             brief.authority.why_human,
             ["this proposal kind is intentionally reviewed by a human"]
+        );
+    }
+
+    #[test]
+    fn route_projection_keeps_policy_readiness_separate_from_route_availability() {
+        let policy_reason_codes = vec!["policy_head_missing".to_string()];
+        let route = ReviewRoute::unavailable(
+            ReviewPolicyFacts::new(
+                PolicyState::Active,
+                PermitReadiness::HumanOnly,
+                &policy_reason_codes,
+                Some("the causal policy head is missing"),
+            ),
+            "receipt_material_unavailable",
+            "a coherent receipt-backed policy route cannot be derived",
+        );
+
+        let value = review_route_value(route, false);
+        assert!(value.get("state").is_none());
+        assert_eq!(value["policy_state"], json!("active"));
+        assert_eq!(value["permit_readiness"], json!("human_only"));
+        assert_eq!(value["reason_codes"], json!(["policy_head_missing"]));
+        assert_eq!(value["route_kind"], json!("unavailable"));
+        assert_eq!(
+            value["route_reason_code"],
+            json!("receipt_material_unavailable")
         );
     }
 

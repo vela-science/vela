@@ -1,8 +1,8 @@
 //! `cmd_check` and its handler logic, split out of cli.rs.
 
 use crate::cli::{
-    check_json_payload, fail_usage, load_frontier_or_fail, print_json, print_signal_summary,
-    scan_for_sensitive_paths,
+    active_policy_pair_snapshot, check_json_payload, fail_usage, frontier_dir_for_source,
+    load_frontier_or_fail, print_json, print_signal_summary, scan_for_sensitive_paths,
 };
 use serde_json::Value;
 use std::path::Path;
@@ -67,6 +67,48 @@ pub(crate) fn cmd_check(
     }
 
     let run_all = all || (!schema && !stats && !conformance_flag && !schema_only);
+    let active_policy_error = if schema_only {
+        None
+    } else if let Some(src) = source {
+        let snapshot = active_policy_pair_snapshot(src);
+        match vela_protocol::repo::load_from_path(src) {
+            Ok(frontier) => {
+                let assessment = vela_protocol::proposals::policy_accept::assess_policy_readiness(
+                    &frontier,
+                    snapshot.as_ref().map_err(String::as_str),
+                    &chrono::Utc::now().to_rfc3339(),
+                );
+                println!(
+                    "active policy: {} · Permit {}{}",
+                    assessment.state().as_str(),
+                    assessment.permit_readiness().as_str(),
+                    if assessment.reason_codes().is_empty() {
+                        String::new()
+                    } else {
+                        format!(" ({})", assessment.reason_codes().join(", "))
+                    }
+                );
+                if let Some(detail) = assessment.detail() {
+                    println!("active policy detail: {detail}");
+                }
+                if assessment.permit_readiness()
+                    == vela_protocol::proposals::policy_accept::PermitReadiness::Blocked
+                {
+                    Some(
+                        assessment
+                            .detail()
+                            .unwrap_or("policy readiness assessment is blocked")
+                            .to_string(),
+                    )
+                } else {
+                    None
+                }
+            }
+            Err(_) => snapshot.err(),
+        }
+    } else {
+        None
+    };
     if run_all || schema || schema_only {
         let Some(src) = source else {
             crate::ui::fail_with(
@@ -122,14 +164,9 @@ pub(crate) fn cmd_check(
             println!("  - {conflict}");
         }
         let policy_lane_errors = if strict {
-            let frontier_dir = if src.is_dir() {
-                src
-            } else {
-                src.parent().unwrap_or_else(|| Path::new("."))
-            };
             vela_protocol::proposals::policy_accept::verify_policy_lane_events(
                 &frontier,
-                frontier_dir,
+                frontier_dir_for_source(src),
             )
         } else {
             Vec::new()
@@ -215,6 +252,7 @@ pub(crate) fn cmd_check(
         if !replay_report.ok
             || !replay_verification.ok
             || !parity_conflicts.is_empty()
+            || active_policy_error.is_some()
             || !policy_lane_errors.is_empty()
             || !activity_leaks.is_empty()
             || (strict
@@ -242,6 +280,9 @@ pub(crate) fn cmd_check(
                 conformance_dir.display()
             );
         }
+    }
+    if active_policy_error.is_some() {
+        std::process::exit(1);
     }
     let _ = fix;
 }

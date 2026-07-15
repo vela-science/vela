@@ -4,7 +4,7 @@
 - Scope: Vela substrate CLI, protocol plumbing, MCP exposure, and derived review
   projections.
 - Implementation state: Vela `0.800` is the deliberate prelaunch hard cut;
-  `0.800.9` is the current candidate.
+  `0.800.10` is the current candidate.
   All ordinary producer results cross `next -> work -> land`; ordinary
   truth-bearing review decisions cross `sign`; explicit policy-governance
   ceremonies remain separate. Submission and decision installation use the
@@ -22,6 +22,13 @@
 - Amendment: 2026-07-14 records the provisional causal policy-head contract
   required to make the existing signed Permit lane replay-safe across policy
   activation, rotation, and revocation.
+- Composition boundary: ADR 0004 is accepted, experiment-gated, queued behind
+  this ADR, and not active.
+  It tests exact cross-frontier dependency composition with existing Receipt,
+  proposal, finding-revision, verifier, event, and Git roots before any new
+  public primitive is considered. Mutable finding links remain review/graph
+  surfaces rather than dependency locks. ADR 0004 does not expand ADR
+  0003's release or acceptance gates.
 
 ## Executive decision
 
@@ -416,7 +423,8 @@ policy was active at a particular causal point in the frontier, whether a
 newer policy superseded it, or whether it had been revoked before a later event
 was appended. The mutable `.vela/policies/active.json` selector cannot supply
 that missing fact: copying an old signed policy into that path, or choosing an
-earlier self-asserted event timestamp, must not reopen a retired Permit lane.
+earlier self-asserted event timestamp, must not restore retired standing Permit
+authority.
 
 Git order, file modification time, the event's unsigned timestamp, and the
 policy signature cannot prove the missing fact. Git remains transport rather
@@ -506,9 +514,9 @@ valid signed policy head. Neither proof substitutes for the other. The files
 `active.json` selects candidate policy bytes, while the signature record helps
 prove that a human signed those bytes. Neither file proves causal activation,
 rotation, or revocation. Changing them without a matching signed head cannot
-create a Permit; a missing, mismatched, forked, or revoked head closes the
-lane. A valid successor Rotate after Revoke reopens it only for the new,
-never-revoked policy named by that Rotate.
+create a Permit; a missing, mismatched, forked, or revoked head makes Permit
+human-only. A valid successor Rotate after Revoke can grant standing Permit
+authority only to the new, never-revoked policy named by that Rotate.
 
 The policy head supplies causal selection, not trustworthy wall-clock time.
 This amendment does not by itself enable finite-expiry policies to emit
@@ -1329,6 +1337,9 @@ swap returns a distinct stale-publication result; a later attempt must resolve
 and inspect a new parent and construct a new candidate rather than retrying the
 old commit forever.
 
+- `unchanged`: the selected local target commit already contains every exact
+  postimage, so the publication attempt moves no ref and rewrites no caller
+  index entry; an explicit push may still verify that commit on its upstream.
 - `uncommitted`: Vela state changed but no publication commit is reachable from
   the target ref. An unreachable candidate object may await Git garbage collection.
 - `stale`: another writer moved the target ref. Vela leaves the winning ref and
@@ -1625,7 +1636,7 @@ The following program gates intentionally remain open:
   service commitments remain organizational work even where export, archive,
   and fork mechanics are implemented.
 
-Accordingly, `0.800.9` is a technical prelaunch candidate for the clerk layer,
+Accordingly, `0.800.10` is a technical prelaunch candidate for the clerk layer,
 not a claim that the acceptance program or outside-producer goal is complete.
 It expands no authority surface and performs no human ceremony. The campaign
 keeps a separate dated proof/open ledger; code fixtures cannot promote an
@@ -1707,12 +1718,13 @@ The program is complete only when all of these hold:
   excessive artifacts, archive bombs, malicious locators, terminal controls,
   and untrusted hyperlinks. Review never fetches or executes them implicitly.
 - A stress fixture with at least 10,000 machine-generated submissions remains
-  paginated and bounded, applies explicit backpressure, preserves exact retry
-  idempotency and independent evidence, and routes only real exceptions to
-  human attention.
-- Queue depth and age, reviewer minutes, correction latency, verifier
-  diversity, replication-versus-duplication, and independent downstream use
-  are measured. Receipt volume alone is not a success metric.
+  paginated and bounded, exposes typed queue-pressure telemetry, and preserves
+  exact retry idempotency without opening every retained Receipt.
+- Queue depth and age, actor concentration, and repeated exact work are measured
+  from durable proposal facts. Reviewer effort, correction latency, verifier
+  diversity, independence, evidence direction, policy priority, and downstream
+  use remain typed missing until retained facts can support them. Receipt volume
+  alone is not a success metric, and telemetry does not route or admit work.
 - A malicious external Lean fixture cannot read host credentials, reach the
   network, write outside its temporary output, or exceed configured resources;
   the command fails closed without a supported sandbox.
@@ -1750,12 +1762,12 @@ The program is complete only when all of these hold:
   policy-head event and epoch. Strict replay rejects a missing or mismatched
   head, fork, gap, stale causal prefix, pre-activation lane, and old-policy
   event appended after rotation or revocation. `active.json` alone never
-  authorizes a write. A current Revoke closes Permit;
+  authorizes a write. A current Revoke makes Permit human-only;
   only its causally linked successor Rotate with a new, never-revoked policy ID
-  may reopen the lane.
+  may restore standing Permit authority.
 - Generated Permit policies use causal Rotate/Revoke validity rather than a
   misleading finite wall-clock window.
-- Any new Permit rule first passes historical replay and shadow mode, begins
+- Any new Permit rule first passes historical replay in a non-authoritative dry run, begins
   with complete audit, has sentinel cases and a kill switch, and reports false
   Permit, false Defer, semantic-fidelity error, reviewer minutes, and
   replication-versus-diversity rates before its audit sample may shrink.
@@ -1780,7 +1792,7 @@ The program is complete only when all of these hold:
 | Publication corrupts or commits the user's work | Scope both delta detection and commit construction to the resolved Vela path set, preserve the caller index, inspect the candidate tree before publication, and fail on overlapping staged paths or Git ref drift. |
 | A graph or wiki projection is mistaken for current truth | Root every view in exact source versions, label relation provenance and staleness, recompute signing facts from canonical replay, and make every cache disposable. |
 | External Lean exfiltrates credentials or mutates the host | Treat elaboration as untrusted code, require the documented sandbox profile, remove network and credentials, mount inputs read-only, bound resources, and fail closed when isolation is unavailable. |
-| Machine volume or hostile text overwhelms review | Bound parsing, rendering, queues, retrieval, decompression, and verifier work; escape terminal input; paginate; apply policy-owned backpressure; and measure review debt. |
+| Machine volume or hostile text overwhelms review | Bound parsing, rendering, queues, retrieval, decompression, and verifier work; escape terminal input; paginate; surface bounded pressure telemetry; keep unsupported metrics typed missing; and add policy-owned routing only through a separately reviewed policy contract. |
 | A new Vela layer creates prohibitive network effects | Integrate through Git, ordinary files, content digests, and thin adapters; prove value on one repository without forcing a new authoring, compute, or publication platform. |
 | Ecosystem ambition turns Vela into a monolithic science platform | Keep the state, runtime, and network ownership boundaries explicit. Ship a frontier-kit convention and conformance commons; leave workbenches, education, community, package discovery, and publication to replaceable complementors. |
 | Democratization is mistaken for removal of expertise or safety controls | Make evidence contribution cheap while keeping verifier scope, biosafety and dual-use constraints, semantic review, clinical responsibility, and canon authority explicit and domain-owned. |

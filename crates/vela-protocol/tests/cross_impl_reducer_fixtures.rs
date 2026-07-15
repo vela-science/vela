@@ -1709,7 +1709,8 @@ fn export_cross_impl_reducer_fixtures() {
 
     // Fixture 16 — supersession + dependency-cascade propagation.
     // Two findings: A (findings[0]) and B (findings[1]), where B carries
-    // a `depends_on` link to A. The log supersedes A and then invalidates
+    // a stored `depends` link (projected as `depends_on`) to A. The log
+    // supersedes A and then invalidates
     // B through the upstream cascade. Unlike the no-op coverage fixtures,
     // this one moves the finding-effects digest: B becomes contested and
     // gains a deterministic `ann_dep_*` cascade annotation, so a second
@@ -1724,14 +1725,15 @@ fn export_cross_impl_reducer_fixtures() {
         let mut findings: Vec<FindingBundle> =
             vec![make_finding(frontier_idx, 0), make_finding(frontier_idx, 1)];
         // B (findings[1]) depends on A (findings[0]). Overwrite the
-        // synthetic forward "supports" link with an explicit depends_on
-        // edge to A. Links are excluded from the content-address, so the
+        // synthetic forward "supports" link with an explicit canonical
+        // stored `depends` edge to A. The derived graph renders this as
+        // `depends_on`. Links are excluded from the content-address, so the
         // ids are unchanged.
         let a_id = findings[0].id.clone();
         findings[0].links = vec![];
         findings[1].links = vec![Link {
             target: a_id,
-            link_type: "depends_on".into(),
+            link_type: "depends".into(),
             note: "B's premise rests on A".into(),
             inferred_by: "vela-cross-impl-fixture/0".into(),
             created_at: "2026-05-02T00:00:00Z".into(),
@@ -1903,14 +1905,15 @@ fn fixture_coverage_includes_every_reducer_arm() {
 }
 
 /// Build the (A, B) genesis pair for the supersession-propagation
-/// fixture: B (index 1) carries a `depends_on` link to A (index 0).
+/// fixture: B (index 1) carries a canonical stored `depends` link to A
+/// (index 0), projected as `depends_on` by the typed graph.
 fn supersession_pair(frontier_idx: usize) -> Vec<FindingBundle> {
     let mut findings = vec![make_finding(frontier_idx, 0), make_finding(frontier_idx, 1)];
     let a_id = findings[0].id.clone();
     findings[0].links = vec![];
     findings[1].links = vec![Link {
         target: a_id,
-        link_type: "depends_on".into(),
+        link_type: "depends".into(),
         note: "B's premise rests on A".into(),
         inferred_by: "vela-cross-impl-fixture/0".into(),
         created_at: "2026-05-02T00:00:00Z".into(),
@@ -1921,7 +1924,7 @@ fn supersession_pair(frontier_idx: usize) -> Vec<FindingBundle> {
 
 /// Reality check on what supersession actually does in the reducer.
 /// Supersession is a LOCAL flag-flip on the old finding; it does NOT
-/// auto-propagate down the `depends_on` edge. The dependent B only
+/// auto-propagate down the `depends` edge. The dependent B only
 /// changes because of the EXPLICIT `finding.dependency_invalidated`
 /// cascade event — which sets `contested` and appends a deterministic
 /// `ann_dep_*` annotation, both visible in the cross-impl digest.
@@ -1959,7 +1962,7 @@ fn supersession_is_local_no_dependent_cascade() {
     assert!(b.flags.contested, "B must be contested by the cascade");
     assert!(
         !b.flags.superseded,
-        "superseded must NOT propagate down the depends_on edge"
+        "superseded must NOT propagate down the depends edge"
     );
     assert!(
         b.annotations
@@ -1971,8 +1974,8 @@ fn supersession_is_local_no_dependent_cascade() {
     assert!(
         b.links
             .iter()
-            .any(|l| l.target == a_id && l.link_type == "depends_on"),
-        "B's depends_on edge to A is preserved"
+            .any(|l| l.target == a_id && l.link_type == "depends"),
+        "B's canonical depends edge to A is preserved"
     );
 }
 

@@ -143,56 +143,70 @@ fn pin_check() -> SetupCheck {
     }
 }
 
-/// Policy freshness for the cwd frontier: signed, and not about to expire.
+/// Active-policy bytes and standing Permit authority for the cwd frontier.
 fn policy_check(dir: &Path) -> SetupCheck {
-    match vela_protocol::acceptance_policy::load_active_policy_snapshot(dir) {
-        Err(e) => warn(
+    let snapshot = vela_protocol::acceptance_policy::load_active_policy_snapshot(dir);
+    let project = match vela_protocol::repo::load_from_path(dir) {
+        Ok(project) => project,
+        Err(error) => return fail("policy", error, "vela check ."),
+    };
+    let assessment = vela_protocol::proposals::policy_accept::assess_policy_readiness(
+        &project,
+        snapshot.as_ref().map_err(String::as_str),
+        &chrono::Utc::now().to_rfc3339(),
+    );
+    let summary = format!(
+        "{} · Permit {}{}",
+        assessment.state().as_str(),
+        assessment.permit_readiness().as_str(),
+        if assessment.reason_codes().is_empty() {
+            String::new()
+        } else {
+            format!(" ({})", assessment.reason_codes().join(", "))
+        }
+    );
+    match assessment.permit_readiness() {
+        vela_protocol::proposals::policy_accept::PermitReadiness::Ready => ok("policy", summary),
+        vela_protocol::proposals::policy_accept::PermitReadiness::Blocked => fail(
             "policy",
-            format!("active policy unreadable: {e}"),
-            String::new(),
+            assessment.detail().unwrap_or(&summary),
+            "inspect the active policy pair and policy-head chain; invalid governance never fails open",
         ),
-        Ok(snapshot)
-            if snapshot.mode
-                == vela_protocol::acceptance_policy::ActivePolicyMode::StagedUnsigned =>
-        {
-            warn(
-                "policy",
-                "unsigned policy draft — the lane is closed; every landing defers to you",
-                "vela policy sign",
-            )
-        }
-        Ok(snapshot)
-            if snapshot.mode == vela_protocol::acceptance_policy::ActivePolicyMode::Absent =>
-        {
-            warn(
-                "policy",
-                "no signed policy — the lane is closed; every landing defers to you",
-                "vela policy suggest .",
-            )
-        }
-        Ok(snapshot) => {
-            let vp = snapshot
-                .verified
-                .expect("active policy mode carries VerifiedPolicy");
-            let expires = chrono::DateTime::parse_from_rfc3339(&vp.policy.expires_at).ok();
-            let days_left =
-                expires.map(|t| (t.with_timezone(&chrono::Utc) - chrono::Utc::now()).num_days());
-            match days_left {
-                Some(d) if d < 0 => fail(
-                    "policy",
-                    format!("{} EXPIRED — the lane is closed", vp.policy.id),
-                    "vela policy sign .  (re-signing renews the epoch)",
-                ),
-                Some(d) if d <= 14 => warn(
-                    "policy",
-                    format!("{} expires in {d} day(s)", vp.policy.id),
-                    "vela policy sign .",
-                ),
-                _ => ok(
-                    "policy",
-                    format!("{} (epoch {}) signed", vp.policy.id, vp.policy.epoch),
-                ),
-            }
+        vela_protocol::proposals::policy_accept::PermitReadiness::HumanOnly => {
+            let repair = if assessment.reason_codes().iter().any(|code| {
+                matches!(
+                    code.as_str(),
+                    "policy_wall_clock_expiry_unanchored" | "policy_expired"
+                )
+            }) {
+                "draft and sign a replacement policy with causal Permit authority; re-signing unchanged bytes does not renew them"
+            } else if assessment.reason_codes().iter().any(|code| {
+                matches!(
+                    code.as_str(),
+                    "policy_head_missing"
+                        | "policy_head_mismatch"
+                        | "policy_head_revoked"
+                        | "policy_revoked"
+                        | "policy_authority_invalid"
+                )
+            }) {
+                "vela policy draft <template> --replace  (then one human `vela policy sign`)"
+            } else if assessment
+                .reason_codes()
+                .iter()
+                .any(|code| code == "policy_unsigned")
+            {
+                "vela policy sign ."
+            } else if assessment
+                .reason_codes()
+                .iter()
+                .any(|code| code == "policy_absent")
+            {
+                "vela policy suggest ."
+            } else {
+                "inspect `vela policy show --json` and complete the required human policy-head or authority ceremony"
+            };
+            warn("policy", summary, repair)
         }
     }
 }
@@ -289,8 +303,8 @@ mod tests {
         std::fs::write(policies.join("active.json"), b"{not-json\n").unwrap();
 
         let check = policy_check(temp.path());
-        assert_eq!(check.status, SetupStatus::Warn);
-        assert!(check.detail.contains("active policy unreadable"));
+        assert_eq!(check.status, SetupStatus::Fail);
+        assert!(check.detail.contains("active policy parse"));
         assert!(!check.detail.contains("unsigned policy draft"));
     }
 

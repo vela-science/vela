@@ -90,7 +90,7 @@ pub enum PolicyAction {
         json: bool,
     },
     /// THE ceremony: review the sealed policy, one confirm, one key
-    /// read — the lane opens. Humans only.
+    /// read — standing policy authority is reassessed. Humans only.
     Sign {
         frontier: Option<PathBuf>,
         #[arg(long, help = HELP_KEY)]

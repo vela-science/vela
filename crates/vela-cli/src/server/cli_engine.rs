@@ -1,4 +1,7 @@
-use crate::cli::{collect_witness_files, fail, fail_return, parse_witness, print_json};
+use crate::cli::{
+    active_policy_pair_snapshot, collect_witness_files, fail, fail_return, parse_witness,
+    print_json,
+};
 use crate::cli_commands::*;
 use serde_json::{Value, json};
 use std::path::Path;
@@ -262,30 +265,48 @@ pub(crate) fn evaluate_exact_policy_route(
     // (a Defer/Deny verdict refuses an admit the floor would allow; a
     // Permit never overrides a failed floor). Signer must be a registered
     // human reviewer on the frontier. Absent policy = today's behavior.
-    match vela_protocol::acceptance_policy::load_active_policy(frontier) {
-        Ok(Some(vp)) => {
-            let now = chrono::Utc::now().to_rfc3339();
-            vela_protocol::acceptance_policy::resolve_policy_authority(&proj, &vp, &now)
-                .map_err(|error| format!("active policy authority: {error}"))?;
-            // This legacy audit lane has no Receipt v1 body binding or
-            // frontier-resolved producer credential. Feed those unknowns to
-            // the conservative policy context instead of manufacturing the
-            // old `credential_valid=true`/`has_unknown_fields=false` pair.
-            // The frozen floor may still drive its non-authoritative audit
-            // event when no signed policy is active; it cannot satisfy a live
-            // policy with facts this path does not possess.
-            let ctx = vela_protocol::acceptance_policy::PolicyContext {
-                claim_class: vela_protocol::proposals::policy_accept::proposal_claim_class(
-                    &proposal,
-                ),
-                ..vela_protocol::acceptance_policy::PolicyContext::default()
-            };
-            let decision = vela_protocol::acceptance_policy::evaluate(&vp.policy, &ctx, &now);
-            let permitted = format!("{:?}", decision.outcome) == "Permit";
-            would_permit = would_permit && permitted;
+    let policy_snapshot = vela_protocol::acceptance_policy::load_active_policy_snapshot(frontier);
+    let now = chrono::Utc::now().to_rfc3339();
+    let policy_assessment = vela_protocol::proposals::policy_accept::assess_policy_readiness(
+        &proj,
+        policy_snapshot.as_ref().map_err(String::as_str),
+        &now,
+    );
+    if policy_assessment.permit_readiness()
+        == vela_protocol::proposals::policy_accept::PermitReadiness::Blocked
+    {
+        return Err(format!(
+            "active policy: {}",
+            policy_assessment
+                .detail()
+                .unwrap_or("policy readiness assessment is blocked")
+        ));
+    }
+    match policy_snapshot {
+        Ok(snapshot) => {
+            if let Some(vp) = snapshot.verified {
+                // This legacy audit lane has no Receipt v1 body binding or
+                // frontier-resolved producer credential. Feed those unknowns to
+                // the conservative policy context instead of manufacturing the
+                // old `credential_valid=true`/`has_unknown_fields=false` pair.
+                // The frozen floor may still drive its non-authoritative audit
+                // event when no signed policy is active; it cannot satisfy a live
+                // policy with facts this path does not possess.
+                let ctx = vela_protocol::acceptance_policy::PolicyContext {
+                    claim_class: vela_protocol::proposals::policy_accept::proposal_claim_class(
+                        &proposal,
+                    ),
+                    ..vela_protocol::acceptance_policy::PolicyContext::default()
+                };
+                let decision = vela_protocol::acceptance_policy::evaluate(&vp.policy, &ctx, &now);
+                let permitted = decision.outcome
+                    == vela_protocol::acceptance_policy::Outcome::Permit
+                    && policy_assessment.permit_readiness()
+                        == vela_protocol::proposals::policy_accept::PermitReadiness::Ready;
+                would_permit = would_permit && permitted;
+            }
         }
-        Ok(None) => {}
-        Err(e) => return Err(format!("active policy: {e}")),
+        Err(error) => return Err(format!("active policy: {error}")),
     }
 
     Ok(PolicyRouteVerdict {
@@ -1286,6 +1307,35 @@ pub(crate) fn cmd_reproduce(path: &Path, json_output: bool) {
 }
 
 pub(crate) fn cmd_evidence_ci(frontier: &Path, json: bool) {
+    let project = repo::load_from_path(frontier)
+        .unwrap_or_else(|error| fail_return(&format!("evidence-ci failed: {error}")));
+    let snapshot = active_policy_pair_snapshot(frontier);
+    let policy = vela_protocol::proposals::policy_accept::assess_policy_readiness(
+        &project,
+        snapshot.as_ref().map_err(String::as_str),
+        &chrono::Utc::now().to_rfc3339(),
+    );
+    if policy.permit_readiness()
+        == vela_protocol::proposals::policy_accept::PermitReadiness::Blocked
+    {
+        if json {
+            print_json(&json!({
+                "ok": false,
+                "command": "evidence-ci",
+                "policy": {
+                    "state": policy.state().as_str(),
+                    "permit_readiness": policy.permit_readiness().as_str(),
+                    "reason_codes": policy.reason_codes(),
+                    "error": policy.detail(),
+                },
+            }));
+            std::process::exit(1);
+        }
+        fail_return::<()>(&format!(
+            "evidence-ci failed: active policy {}",
+            policy.detail().unwrap_or("readiness assessment is blocked")
+        ));
+    }
     let report = evidence_ci::run_frontier(frontier)
         .unwrap_or_else(|e| fail_return(&format!("evidence-ci failed: {e}")));
     if json {

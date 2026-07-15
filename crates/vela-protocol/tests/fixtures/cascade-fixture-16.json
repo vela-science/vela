@@ -283,7 +283,7 @@
           "inferred_by": "vela-cross-impl-fixture/0",
           "note": "B's premise rests on A",
           "target": "vf_bd11b34556bd1b21",
-          "type": "depends_on"
+          "type": "depends"
         }
       ],
       "previous_version": null,

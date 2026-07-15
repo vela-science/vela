@@ -310,7 +310,8 @@ pub async fn run_command() {
                     };
                 let ok = matches!(
                     &publication.state,
-                    crate::config::git_publish::PublicationState::CommittedLocal { .. }
+                    crate::config::git_publish::PublicationState::Unchanged { .. }
+                        | crate::config::git_publish::PublicationState::CommittedLocal { .. }
                         | crate::config::git_publish::PublicationState::Pushed { .. }
                 );
                 if json {
@@ -957,6 +958,14 @@ fn render_land_outcome(
 
     let (state, retained, changed_git, unchanged, remote, fallback_next) = match &publication.state
     {
+        PublicationState::Unchanged { commit } => (
+            "unchanged".to_string(),
+            format!("existing local commit {commit} already contains every exact postimage"),
+            "no Git ref or caller index entry moved".to_string(),
+            "caller index/worktree entries".to_string(),
+            "unverified; the exact local target commit is proven".to_string(),
+            "git push".to_string(),
+        ),
         PublicationState::Uncommitted { candidate, reason } => (
             format!("uncommitted: {reason}"),
             candidate

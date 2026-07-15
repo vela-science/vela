@@ -16,14 +16,17 @@ frontier works — vela discovers `.vela/` by walking upward, like git finds `.g
 3. `vela next --json`
 
 If the `vela` binary is missing, say so and point at the install
-(https://github.com/vela-science/vela); if `status` returns `ok: false`,
-report the `error.message` and `error.hint` verbatim and stop.
+(https://github.com/vela-science/vela); if `status` returns `ok: false`, report
+`policy.state`, `policy.permit_readiness`, `policy.reason_codes`, and
+`policy.error` verbatim and stop.
 
 Then render a restrained dashboard in chat. Prose-first — numbers inline in
 sentences, no giant tables, under roughly twenty lines:
 
 - **Frontier.** Name, findings total and by status, replay integrity
-  (`replay.ok`), policy mode (`policy.mode`: shadow / staged / live).
+  (`replay.ok`), policy byte state (`policy.state`: absent / staged_unsigned /
+  active / broken), and Permit readiness (`policy.permit_readiness`: ready /
+  human_only / blocked) with any `reason_codes`.
 - **Sign queue.** `signable_total` from the sign JSON. If nonzero, give each
   item one headline line: lane, id, the first clause of `title`, and
   `why_here`. These await a human key. Never characterize them as yours to

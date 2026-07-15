@@ -70,6 +70,7 @@ pub(crate) fn tool_orient(
                             "observed_at": page.observed_at,
                             "total": page.total,
                             "returned": page.returned,
+                            "pressure": page.pressure,
                             "items": page.items,
                             "next_cursor": page.next_cursor,
                         }),

@@ -101,6 +101,9 @@ historical event counts instead of inventing values.
 Within Vela's publication response, `pushed` proves that Vela observed the
 remote ref. Preserve a reported local commit when publication stops at
 `committed_local`, then run the recovery command and verify the remote ref.
+`unchanged` means the selected local commit already contains every exact
+postimage and Vela moved no ref or index entry; run its push command only when
+that existing commit still needs remote verification.
 
 ```bash
 git status --short

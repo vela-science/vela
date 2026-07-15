@@ -1,5 +1,32 @@
 # Changelog
 
+## v0.800.10 — 2026-07-15 — Typed readiness and bounded review
+
+- Replaced the ambiguous open/closed policy lane with one byte-level policy
+  state (`absent`, `staged_unsigned`, `active`, or `broken`) and a separate
+  Permit readiness (`ready`, `human_only`, or `blocked`). Missing or lifecycle-
+  limited authority now routes a Permit to a human; malformed governance blocks;
+  an intentional evaluator Deny remains a Deny. Status, check, doctor, policy
+  show/test/log/suggest, Decision Briefs, MCP, and landing use the same
+  assessment without reading a human key.
+- Made exact publication no-ops explicit as `unchanged`, allowed a requested
+  push to verify an unchanged tip, and made recovery recognize when an upstream
+  ref already contains an earlier publication candidate. Recovery remains
+  idempotent and preserves caller index, worktree, local tip, and remote
+  descendants.
+- Added bounded review-pressure telemetry over durable pending-proposal facts.
+  A 10,000-row queue is measured without opening Receipts; queues beyond 16,384
+  keep deterministic pagination while pressure becomes typed unavailable.
+  Unsupported quality, independence, priority, verifier, effort, correction,
+  and downstream-use metrics remain typed missing and never gain authority.
+- Bounded the default Receipt parser against excessive JSON depth and 100,000-
+  artifact inputs, corrected the canonical stored dependency relation to
+  `depends`, and narrowed public reproducibility and adoption claims.
+- Recorded accepted ADR 0004 and its experiment plan for verifiable scientific
+  composition, queued behind completion of ADR 0003. It starts with four
+  Codex-only diagnostic runs; no API spend, new wire primitive, human ceremony,
+  or active-goal change begins during this release.
+
 ## v0.800.9 — 2026-07-15 — Deterministic hosted regression
 
 - Removed a probabilistic ordering assumption from the legacy-retirement

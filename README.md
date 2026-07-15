@@ -1,7 +1,9 @@
 # Vela
 
-Version control for scientific state, with a gate on what counts as verified.
-An open protocol and reference implementation.
+Git-native, authority-scoped state for scientific work. Evidence enters as
+content-addressed receipts, verification is derived from explicit checks, and
+accepted state changes only through a human key or a policy that key already
+authorized. This repository is the open protocol and reference implementation.
 
 Sixty seconds, no trust required:
 
@@ -10,21 +12,25 @@ cargo build --release
 ./target/release/vela reproduce examples/sidon-a309370
 ```
 
-That command re-verifies every stored witness from scratch with frozen exact
-verifiers — same input, same answer, on any machine, forever. No model, no
-judgment, no reputation. Everything else in this repository exists to make
-results that pass that bar durable, signed, and composable.
+That command re-verifies every stored witness from scratch with the declared
+exact verifier. Given the same tracked bytes and a supported execution
+environment, the verifier deterministically returns the same scoped result. It
+does not establish scientific truth, indefinite artifact availability, or
+compatibility with every future machine. No model or reputation score decides
+the verifier outcome.
 
 Vela compiles research artifacts (papers, notes, runs, proofs) into a versioned
-*frontier*: a signed, content-addressed, replayable record of what a field
-currently holds to be true. The unit it tracks is the *change* to that state,
-not the document that triggered it.
+*frontier*: a content-addressed, replayable record of what a named authority has
+accepted for one bounded scope at an exact root. Other authorities may disagree
+or fork. The unit Vela tracks is the *change* to that scoped state, not the
+document that triggered it.
 
 Two things are separate here, and the separation is the point:
 
-- **The log is trustworthy by construction.** Every change is signed over
-  content-addressed bytes and replays to the same state on any machine. This is
-  necessary, and it is not sufficient.
+- **Log integrity and replay are mechanically checkable.** Authority-bearing
+  changes are signed over content-addressed bytes, and conforming readers given
+  the same valid log derive the same declared state. This is necessary, and it
+  is not sufficient.
 - **A claim only becomes *verified* by passing the gate.** Not by a proposer's
   say-so, not by an LLM judge, not by a single confirming run. The gate wants at
   least two independent matched verifier attachments — by different method and
@@ -35,8 +41,8 @@ Two things are separate here, and the separation is the point:
 The gate is what kept the Erdős dogfooding from banking 47 "verified" records
 that carried an empty verification field. Nine Sidon-set records that did pass
 it were later approved into [OEIS A309370](https://oeis.org/A309370) by an
-outside editor: the first external adoption of frontier state from this
-substrate.
+outside editor. That is external publication of the witness data, not
+independent adoption, interoperability, or validation of Vela itself.
 
 This repository contains the open Vela protocol, reference reducer, CLI, hub,
 and conformance suite. It is dual-licensed under Apache-2.0 OR MIT.
@@ -103,8 +109,8 @@ Or install a prebuilt binary on Apple Silicon macOS or Linux x86_64. Other
 platforms must build from source:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.800.9/install.sh \
-  | VELA_VERSION=v0.800.9 bash
+curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.800.10/install.sh \
+  | VELA_VERSION=v0.800.10 bash
 ```
 
 ## The working loop

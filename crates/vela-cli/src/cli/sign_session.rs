@@ -592,6 +592,7 @@ pub(crate) fn cmd_sign_preview(
                     "observed_at": page.observed_at,
                     "total": page.total,
                     "returned": page.returned,
+                    "pressure": page.pressure,
                     "items": page.items,
                     "next_cursor": page.next_cursor,
                 })).collect::<Vec<_>>(),
@@ -605,6 +606,10 @@ pub(crate) fn cmd_sign_preview(
             "SIGN PREVIEW",
             &safe_inline(dir.display().to_string()),
             Some(&format!("{} of {} pending", page.returned, page.total)),
+        );
+        println!(
+            "  review pressure: {}",
+            crate::review_material::review_pressure_summary(&page.pressure)
         );
         for item in &page.items {
             println!();

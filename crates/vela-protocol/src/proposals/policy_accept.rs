@@ -149,6 +149,108 @@ pub struct PolicyHead {
     pub parent_event_ids: Vec<String>,
 }
 
+/// Public byte-level state of the active-policy pair.
+///
+/// `Active` means only that the content-addressed policy bytes and detached
+/// signature verify. Whether those bytes can authorize an unsigned Permit is
+/// reported separately by [`PermitReadiness`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PolicyState {
+    Absent,
+    StagedUnsigned,
+    Active,
+    Broken,
+}
+
+impl PolicyState {
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Absent => "absent",
+            Self::StagedUnsigned => "staged_unsigned",
+            Self::Active => "active",
+            Self::Broken => "broken",
+        }
+    }
+}
+
+impl From<ActivePolicyMode> for PolicyState {
+    fn from(mode: ActivePolicyMode) -> Self {
+        match mode {
+            ActivePolicyMode::Absent => Self::Absent,
+            ActivePolicyMode::StagedUnsigned => Self::StagedUnsigned,
+            ActivePolicyMode::Active => Self::Active,
+        }
+    }
+}
+
+/// Whether an evaluator Permit can use the standing policy without a fresh
+/// human key ceremony. This is intentionally independent of evaluator outcome.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PermitReadiness {
+    Ready,
+    HumanOnly,
+    Blocked,
+}
+
+impl PermitReadiness {
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Ready => "ready",
+            Self::HumanOnly => "human_only",
+            Self::Blocked => "blocked",
+        }
+    }
+}
+
+/// One pure assessment of active-policy bytes plus frontier authority.
+///
+/// Public surfaces expose only `state`, `permit_readiness`, and stable reason
+/// codes. Resolved authority/head objects and diagnostic detail remain typed
+/// internal inputs for policy-lane application and repair guidance.
+#[derive(Debug, Clone)]
+pub struct PolicyAssessment {
+    state: PolicyState,
+    permit_readiness: PermitReadiness,
+    reason_codes: Vec<String>,
+    detail: Option<String>,
+    authority: Option<PolicyAuthority>,
+    head: Option<PolicyHead>,
+}
+
+impl PolicyAssessment {
+    #[must_use]
+    pub fn state(&self) -> PolicyState {
+        self.state
+    }
+
+    #[must_use]
+    pub fn permit_readiness(&self) -> PermitReadiness {
+        self.permit_readiness
+    }
+
+    #[must_use]
+    pub fn reason_codes(&self) -> &[String] {
+        &self.reason_codes
+    }
+
+    #[must_use]
+    pub fn detail(&self) -> Option<&str> {
+        self.detail.as_deref()
+    }
+
+    fn ready_authority(&self) -> Option<&PolicyAuthority> {
+        self.authority.as_ref()
+    }
+
+    fn ready_head(&self) -> Option<&PolicyHead> {
+        self.head.as_ref()
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct RetainedReviewMaterial {
@@ -165,9 +267,11 @@ struct RetainedReviewRoute {
     schema: String,
     policy_context: PolicyContext,
     policy_decision: Option<Decision>,
-    policy_state: String,
+    policy_state: PolicyState,
+    permit_readiness: PermitReadiness,
+    reason_codes: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    policy_authority_error: Option<String>,
+    readiness_detail: Option<String>,
     engine_gate: EngineVerdict,
 }
 
@@ -199,14 +303,10 @@ pub struct StagedPolicyRoute {
     state_root_before: String,
     parent_event_ids: Vec<String>,
     prestate_attachment_ids: Vec<String>,
-    policy_head_event_id: Option<String>,
-    policy_head_epoch: Option<u32>,
     context: PolicyContext,
-    policy_state: String,
     verified: Option<VerifiedPolicy>,
     decision: Option<Decision>,
-    authority: Option<PolicyAuthority>,
-    authority_error: Option<String>,
+    policy_assessment: PolicyAssessment,
     engine_gate: EngineVerdict,
     policy_snapshot_files: Vec<PolicySnapshotFile>,
 }
@@ -243,24 +343,32 @@ impl StagedPolicyRoute {
     }
 
     #[must_use]
-    pub fn policy_state(&self) -> &str {
-        &self.policy_state
+    pub fn policy_state(&self) -> PolicyState {
+        self.policy_assessment.state()
     }
 
     #[must_use]
-    pub fn authority_error(&self) -> Option<&str> {
-        self.authority_error.as_deref()
+    pub fn readiness_detail(&self) -> Option<&str> {
+        self.policy_assessment.detail()
+    }
+
+    #[must_use]
+    pub fn permit_readiness(&self) -> PermitReadiness {
+        self.policy_assessment.permit_readiness()
+    }
+
+    #[must_use]
+    pub fn policy_reason_codes(&self) -> &[String] {
+        self.policy_assessment.reason_codes()
     }
 }
 
 /// Why the policy lane did not land anything. `Deferred` is the normal
 /// exit for work that needs a human — the caller leaves the proposal
-/// pending (it becomes a sign-queue item). `Denied` and `Closed` are
-/// refusals.
+/// pending (it becomes a sign-queue item). `Denied` is reserved for an
+/// intentional evaluator denial.
 #[derive(Debug, Clone)]
 pub enum PolicyLaneRefusal {
-    /// No active, signed policy — the lane is closed; everything defers.
-    Closed,
     /// The evaluator routed this to a named human.
     Deferred { reasons: Vec<String> },
     /// The evaluator prohibited this outright.
@@ -346,7 +454,6 @@ pub fn derive_policy_context(input: PolicyContextInputs<'_>) -> PolicyContext {
 impl std::fmt::Display for PolicyLaneRefusal {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Closed => write!(f, "policy lane closed: no active signed policy"),
             Self::Deferred { reasons } => write!(f, "policy deferred: {}", reasons.join(", ")),
             Self::Denied { reasons } => write!(f, "policy denied: {}", reasons.join(", ")),
             Self::Error(e) => write!(f, "{e}"),
@@ -678,8 +785,10 @@ fn accept_under_policy_at_path_at(
     )?;
     let review_context = staged.context.clone();
     let review_decision = staged.decision.clone();
-    let review_policy_state = staged.policy_state.clone();
-    let review_authority_error = staged.authority_error.clone();
+    let review_policy_state = staged.policy_state();
+    let review_permit_readiness = staged.permit_readiness();
+    let review_reason_codes = staged.policy_reason_codes().to_vec();
+    let review_readiness_detail = staged.readiness_detail().map(ToString::to_string);
     let review_engine_gate = staged.engine_gate.clone();
     let outcome = apply_staged_policy_route_in_frontier(&mut frontier, staged, executor)?;
     persist_policy_snapshot_files(path, &outcome.policy_snapshot_files)
@@ -693,8 +802,10 @@ fn accept_under_policy_at_path_at(
         now,
         &review_context,
         review_decision.as_ref(),
-        &review_policy_state,
-        review_authority_error.as_deref(),
+        review_policy_state,
+        review_permit_readiness,
+        &review_reason_codes,
+        review_readiness_detail.as_deref(),
         &review_engine_gate,
     )
     .map_err(PolicyLaneRefusal::Error)?;
@@ -710,8 +821,10 @@ fn persist_test_review_material(
     evaluated_at: &str,
     context: &PolicyContext,
     decision: Option<&Decision>,
-    policy_state: &str,
-    authority_error: Option<&str>,
+    policy_state: PolicyState,
+    permit_readiness: PermitReadiness,
+    reason_codes: &[String],
+    readiness_detail: Option<&str>,
     engine_gate: &EngineVerdict,
 ) -> Result<(), String> {
     let proposal = frontier
@@ -737,24 +850,26 @@ fn persist_test_review_material(
         std::fs::create_dir_all(parent).map_err(|error| error.to_string())?;
     }
     let mut material = json!({
-        "schema": "vela.proposal-review-material.internal.v1",
+        "schema": "vela.proposal-review-material.internal.v2",
         "proposal_id": proposal_id,
         "receipt_root": receipt_root,
         "evaluated_at": evaluated_at,
         "route": {
-            "schema": "vela.staged-review-route.internal.v1",
+            "schema": "vela.staged-review-route.internal.v2",
             "policy_context": context,
             "policy_decision": decision,
             "policy_state": policy_state,
-            "policy_authority_error": authority_error,
+            "permit_readiness": permit_readiness,
+            "reason_codes": reason_codes,
+            "readiness_detail": readiness_detail,
             "engine_gate": engine_gate,
         }
     });
-    if authority_error.is_none() {
+    if readiness_detail.is_none() {
         material["route"]
             .as_object_mut()
             .unwrap()
-            .remove("policy_authority_error");
+            .remove("readiness_detail");
     }
     std::fs::write(
         destination,
@@ -768,7 +883,7 @@ fn persist_test_review_material(
 /// The active policy and its detached signature are read and verified, but no
 /// policy snapshot or scientific state is installed. On Permit, the candidate
 /// event, exact context, engine verdict, and snapshot bytes are staged in the
-/// supplied project. On Defer, Deny, a closed lane, or a gate block, `frontier`
+/// supplied project. On Defer, Deny, human-only readiness, or a gate block, `frontier`
 /// remains byte-for-byte unchanged.
 #[cfg(test)]
 fn accept_under_policy_in_frontier_at(
@@ -802,13 +917,22 @@ pub fn stage_policy_route_in_frontier_at(
     now: &str,
     snapshot: &ActivePolicySnapshot,
 ) -> Result<StagedPolicyRoute, PolicyLaneRefusal> {
+    let policy_assessment = assess_policy_readiness(frontier, Ok(snapshot), now);
+    if policy_assessment.permit_readiness() == PermitReadiness::Blocked {
+        return Err(PolicyLaneRefusal::Error(
+            policy_assessment
+                .detail()
+                .unwrap_or("policy readiness assessment is blocked")
+                .to_string(),
+        ));
+    }
     let context = derive_submission_policy_context(frontier, proposal_id, receipt, now)
         .map_err(PolicyLaneRefusal::Error)?;
     // Causal producer bindings are required before a signed policy can make an
     // autonomous decision. A closed or merely staged-unsigned lane has no
     // authority to exercise, so portable foreign receipts remain landable as
     // pending review without inventing Vela-private producer context.
-    if snapshot.verified.is_some() {
+    if policy_assessment.permit_readiness() == PermitReadiness::Ready {
         let parent_event_log_root = format!("sha256:{}", events::event_log_hash(&frontier.events));
         let receipt_parent_event_log_root =
             receipt_parent_event_log_root(receipt).ok_or_else(|| {
@@ -922,59 +1046,19 @@ fn stage_policy_route_with_context_at(
 
     let engine_gate = super::preview_engine_verdict_in_frontier(frontier, path, proposal_id, true)
         .map_err(PolicyLaneRefusal::Error)?;
-    let policy_state = match snapshot.mode {
-        ActivePolicyMode::Active => "active",
-        ActivePolicyMode::StagedUnsigned => "staged_unsigned",
-        ActivePolicyMode::Absent => "closed",
+    let policy_assessment = assess_policy_readiness(frontier, Ok(snapshot), now);
+    if policy_assessment.permit_readiness() == PermitReadiness::Blocked {
+        return Err(PolicyLaneRefusal::Error(
+            policy_assessment
+                .detail()
+                .unwrap_or("policy readiness assessment is blocked")
+                .to_string(),
+        ));
     }
-    .to_string();
     let verified = snapshot.verified.clone();
     let decision = verified
         .as_ref()
         .map(|verified| evaluate(&verified.policy, &context, now));
-    let mut policy_head_event_id = None;
-    let mut policy_head_epoch = None;
-    let (authority, authority_error) = match (&verified, &decision) {
-        (Some(verified), Some(decision)) if decision.outcome == Outcome::Permit => {
-            if verified.policy.expires_at != CAUSALLY_UNBOUNDED_POLICY_EXPIRY {
-                (
-                    None,
-                    Some(
-                        "policy_wall_clock_expiry_unanchored: finite wall-clock windows cannot authorize an unsigned Permit event"
-                            .to_string(),
-                    ),
-                )
-            } else {
-                match current_policy_head(frontier) {
-                    Ok(Some(head))
-                        if head.action != PolicyHeadAction::Revoke
-                            && head.policy_id.as_deref() == Some(verified.policy.id.as_str()) =>
-                    {
-                        policy_head_event_id = Some(head.event_id);
-                        policy_head_epoch = Some(head.epoch);
-                        match resolve_policy_authority(frontier, verified, now) {
-                            Ok(authority) => (Some(authority), None),
-                            Err(reason) => (None, Some(reason)),
-                        }
-                    }
-                    Ok(Some(head)) => (
-                        None,
-                        Some(format!(
-                            "policy_head_inactive: current head epoch {} is {:?} for {:?}",
-                            head.epoch, head.action, head.policy_id
-                        )),
-                    ),
-                    Ok(None) => (None, Some("policy_head_missing".to_string())),
-                    Err(reason) => {
-                        return Err(PolicyLaneRefusal::Error(format!(
-                            "policy-head chain is invalid: {reason}"
-                        )));
-                    }
-                }
-            }
-        }
-        _ => (None, None),
-    };
     let policy_snapshot_files = match &verified {
         Some(verified) => {
             prepare_policy_snapshot_files(snapshot, verified).map_err(PolicyLaneRefusal::Error)?
@@ -992,14 +1076,10 @@ fn stage_policy_route_with_context_at(
                 .iter()
                 .map(|attachment| attachment.id.as_str()),
         ),
-        policy_head_event_id,
-        policy_head_epoch,
         context,
-        policy_state,
         verified,
         decision,
-        authority,
-        authority_error,
+        policy_assessment,
         engine_gate,
         policy_snapshot_files,
     })
@@ -1367,6 +1447,157 @@ pub fn current_policy_head(frontier: &project::Project) -> Result<Option<PolicyH
     Ok(derive_policy_head_chain(frontier)?.pop())
 }
 
+/// Assess active-policy byte state and standing Permit authority once.
+///
+/// A malformed active pair is supplied as `Err` and is blocked. Valid signed
+/// bytes remain `active` even when a missing/revoked/mismatched policy head,
+/// finite wall-clock window, or unresolved signer keeps Permit human-only.
+/// This separation prevents unavailable infrastructure from being
+/// misrepresented as an evaluator Deny.
+#[must_use]
+pub fn assess_policy_readiness(
+    frontier: &project::Project,
+    snapshot: Result<&ActivePolicySnapshot, &str>,
+    observed_at: &str,
+) -> PolicyAssessment {
+    let snapshot = match snapshot {
+        Ok(snapshot) => snapshot,
+        Err(error) => {
+            return PolicyAssessment {
+                state: PolicyState::Broken,
+                permit_readiness: PermitReadiness::Blocked,
+                reason_codes: vec!["active_policy_broken".to_string()],
+                detail: Some(error.to_string()),
+                authority: None,
+                head: None,
+            };
+        }
+    };
+    let state = PolicyState::from(snapshot.mode);
+    if let Err(error) = chrono::DateTime::parse_from_rfc3339(observed_at) {
+        return PolicyAssessment {
+            state,
+            permit_readiness: PermitReadiness::Blocked,
+            reason_codes: vec!["policy_observation_time_invalid".to_string()],
+            detail: Some(format!("policy observation time must be RFC3339: {error}")),
+            authority: None,
+            head: None,
+        };
+    }
+    let head = match current_policy_head(frontier) {
+        Ok(head) => head,
+        Err(error) => {
+            return PolicyAssessment {
+                state,
+                permit_readiness: PermitReadiness::Blocked,
+                reason_codes: vec!["policy_head_invalid".to_string()],
+                detail: Some(format!("policy-head chain is invalid: {error}")),
+                authority: None,
+                head: None,
+            };
+        }
+    };
+
+    match snapshot.mode {
+        ActivePolicyMode::Absent => PolicyAssessment {
+            state,
+            permit_readiness: PermitReadiness::HumanOnly,
+            reason_codes: vec!["policy_absent".to_string()],
+            detail: None,
+            authority: None,
+            head,
+        },
+        ActivePolicyMode::StagedUnsigned => {
+            let mut reason_codes = vec!["policy_unsigned".to_string()];
+            if head
+                .as_ref()
+                .is_some_and(|head| head.action == PolicyHeadAction::Revoke)
+            {
+                reason_codes.push("policy_revoked".to_string());
+            }
+            PolicyAssessment {
+                state,
+                permit_readiness: PermitReadiness::HumanOnly,
+                reason_codes,
+                detail: None,
+                authority: None,
+                head,
+            }
+        }
+        ActivePolicyMode::Active => {
+            let Some(verified) = snapshot.verified.as_ref() else {
+                return PolicyAssessment {
+                    state: PolicyState::Broken,
+                    permit_readiness: PermitReadiness::Blocked,
+                    reason_codes: vec!["active_policy_broken".to_string()],
+                    detail: Some("active policy snapshot has no verified policy".to_string()),
+                    authority: None,
+                    head: None,
+                };
+            };
+            let mut reason_codes = Vec::new();
+            let mut detail = None;
+            if verified.policy.expires_at != CAUSALLY_UNBOUNDED_POLICY_EXPIRY {
+                reason_codes.push("policy_wall_clock_expiry_unanchored".to_string());
+                if verified.policy.is_expired(observed_at) {
+                    reason_codes.push("policy_expired".to_string());
+                }
+            }
+            if verified.policy.revocation_ref.is_some() {
+                reason_codes.push("policy_revoked".to_string());
+            }
+            match head.as_ref() {
+                None => reason_codes.push("policy_head_missing".to_string()),
+                Some(head) if head.action == PolicyHeadAction::Revoke => {
+                    reason_codes.push("policy_head_revoked".to_string());
+                }
+                Some(head) if head.policy_id.as_deref() != Some(verified.policy.id.as_str()) => {
+                    reason_codes.push("policy_head_mismatch".to_string());
+                }
+                Some(_) => {}
+            }
+
+            let head_matches = head.as_ref().is_some_and(|head| {
+                head.action != PolicyHeadAction::Revoke
+                    && head.policy_id.as_deref() == Some(verified.policy.id.as_str())
+            });
+            let expired = reason_codes.iter().any(|code| code == "policy_expired");
+            let authority = if head_matches && !expired && verified.policy.revocation_ref.is_none()
+            {
+                match resolve_policy_authority(frontier, verified, observed_at) {
+                    Ok(authority) => Some(authority),
+                    Err(error) => {
+                        reason_codes.push("policy_authority_invalid".to_string());
+                        detail = Some(error);
+                        None
+                    }
+                }
+            } else {
+                None
+            };
+            if reason_codes.is_empty() {
+                PolicyAssessment {
+                    state,
+                    permit_readiness: PermitReadiness::Ready,
+                    reason_codes,
+                    detail,
+                    authority,
+                    head,
+                }
+            } else {
+                PolicyAssessment {
+                    state,
+                    permit_readiness: PermitReadiness::HumanOnly,
+                    reason_codes,
+                    detail,
+                    authority: None,
+                    head,
+                }
+            }
+        }
+    }
+}
+
 /// Validate a pending head proposal against the exact current causal state.
 /// This is called again under the human accept lock, so a concurrent event
 /// stales the proposal instead of silently changing its authority base.
@@ -1444,7 +1675,9 @@ pub fn apply_staged_policy_route_in_frontier(
         ));
     }
     let Some(verified) = staged.verified.as_ref() else {
-        return Err(PolicyLaneRefusal::Closed);
+        return Err(PolicyLaneRefusal::Deferred {
+            reasons: staged.policy_assessment.reason_codes().to_vec(),
+        });
     };
     let decision = staged
         .decision
@@ -1457,36 +1690,50 @@ pub fn apply_staged_policy_route_in_frontier(
                 reasons: decision.reasons.clone(),
             });
         }
+        Outcome::Deny
+            if staged.policy_assessment.permit_readiness() == PermitReadiness::HumanOnly
+                && decision.reasons.iter().any(|reason| {
+                    matches!(reason.as_str(), "policy_expired" | "policy_revoked")
+                })
+                && decision.reasons.iter().all(|reason| {
+                    matches!(reason.as_str(), "policy_expired" | "policy_revoked")
+                }) =>
+        {
+            return Err(PolicyLaneRefusal::Deferred {
+                reasons: staged.policy_assessment.reason_codes().to_vec(),
+            });
+        }
         Outcome::Deny => {
             return Err(PolicyLaneRefusal::Denied {
                 reasons: decision.reasons.clone(),
             });
         }
     }
-    let authority = staged
-        .authority
-        .as_ref()
-        .ok_or_else(|| PolicyLaneRefusal::Denied {
-            reasons: vec![format!(
-                "policy_authority_invalid:{}",
+    match staged.policy_assessment.permit_readiness() {
+        PermitReadiness::HumanOnly => {
+            return Err(PolicyLaneRefusal::Deferred {
+                reasons: staged.policy_assessment.reason_codes().to_vec(),
+            });
+        }
+        PermitReadiness::Blocked => {
+            return Err(PolicyLaneRefusal::Error(
                 staged
-                    .authority_error
-                    .as_deref()
-                    .unwrap_or("Permit route lost its resolved human authority")
-            )],
-        })?;
-    let policy_head_event_id =
-        staged
-            .policy_head_event_id
-            .as_deref()
-            .ok_or_else(|| PolicyLaneRefusal::Denied {
-                reasons: vec!["policy_head_missing".to_string()],
-            })?;
-    let policy_head_epoch = staged
-        .policy_head_epoch
-        .ok_or_else(|| PolicyLaneRefusal::Denied {
-            reasons: vec!["policy_head_missing".to_string()],
-        })?;
+                    .policy_assessment
+                    .detail()
+                    .unwrap_or("policy readiness assessment is blocked")
+                    .to_string(),
+            ));
+        }
+        PermitReadiness::Ready => {}
+    }
+    let authority = staged
+        .policy_assessment
+        .ready_authority()
+        .ok_or_else(|| PolicyLaneRefusal::Error("ready policy lost its authority".to_string()))?;
+    let policy_head = staged
+        .policy_assessment
+        .ready_head()
+        .ok_or_else(|| PolicyLaneRefusal::Error("ready policy lost its head".to_string()))?;
     if staged.engine_gate.status == "blocked" {
         return Err(PolicyLaneRefusal::Error(format!(
             "engine gate blocked policy-lane accept of {}: {} new blocking, {} new warning(s) \
@@ -1512,8 +1759,8 @@ pub fn apply_staged_policy_route_in_frontier(
         &staged.state_root_before,
         &staged.parent_event_ids,
         &staged.prestate_attachment_ids,
-        policy_head_event_id,
-        policy_head_epoch,
+        &policy_head.event_id,
+        policy_head.epoch,
         executor,
         &staged.decision_time,
     )
@@ -1973,15 +2220,17 @@ fn verify_policy_lane_event_v2(
     let receipt_root = receipt
         .canonical_root()
         .map_err(|error| format!("derive retained receipt root: {error}"))?;
-    if review.schema != "vela.proposal-review-material.internal.v1"
-        || review.route.schema != "vela.staged-review-route.internal.v1"
+    if review.schema != "vela.proposal-review-material.internal.v2"
+        || review.route.schema != "vela.staged-review-route.internal.v2"
         || review.proposal_id != proposal.id
         || review.receipt_root != receipt_root
         || review.evaluated_at != lane.decision_time
         || review.route.policy_context != context
         || review.route.policy_decision.as_ref() != Some(&decision)
-        || review.route.policy_state != "active"
-        || review.route.policy_authority_error.is_some()
+        || review.route.policy_state != PolicyState::Active
+        || review.route.permit_readiness != PermitReadiness::Ready
+        || !review.route.reason_codes.is_empty()
+        || review.route.readiness_detail.is_some()
         || review.route.engine_gate != engine_gate
     {
         return Err(
@@ -2573,6 +2822,12 @@ mod tests {
             expires_at: CAUSALLY_UNBOUNDED_POLICY_EXPIRY.into(),
             revocation_ref: None,
         };
+        p.rules.push(PolicyRule {
+            id: "reject-forbidden-v1".into(),
+            effect: Outcome::Deny,
+            claim_classes: vec!["forbidden".into()],
+            constraints: p.rules[0].constraints.clone(),
+        });
         p.id = p.content_address();
         p
     }
@@ -2609,10 +2864,10 @@ mod tests {
         write_active_policy(dir, policy);
     }
 
-    fn expect_authority_denial(
+    fn expect_authority_defer(
         dir: &Path,
         proposal_id: &str,
-        expected_reason: &str,
+        expected_reason_code: &str,
     ) -> PolicyLaneRefusal {
         let before =
             crate::canonical::to_canonical_bytes(&repo::load_from_path(dir).unwrap()).unwrap();
@@ -2623,19 +2878,41 @@ mod tests {
             "agent:prover",
             DECISION_AT,
         )
-        .expect_err("invalid policy authority must fail closed");
+        .expect_err("invalid policy authority must route to a human");
         assert!(
-            matches!(
-                error,
-                PolicyLaneRefusal::Denied { .. } | PolicyLaneRefusal::Error(_)
-            ),
+            matches!(error, PolicyLaneRefusal::Deferred { .. }),
             "{error}"
         );
-        assert!(error.to_string().contains(expected_reason), "{error}");
+        assert!(error.to_string().contains(expected_reason_code), "{error}");
         assert_eq!(
             before,
             crate::canonical::to_canonical_bytes(&repo::load_from_path(dir).unwrap()).unwrap(),
-            "authority denial changed the canonical frontier"
+            "authority deferral changed the canonical frontier"
+        );
+        error
+    }
+
+    fn expect_policy_head_blocked(
+        dir: &Path,
+        proposal_id: &str,
+        expected_detail: &str,
+    ) -> PolicyLaneRefusal {
+        let before =
+            crate::canonical::to_canonical_bytes(&repo::load_from_path(dir).unwrap()).unwrap();
+        let error = accept_under_policy_at_path_at(
+            dir,
+            proposal_id,
+            &permitting_ctx(),
+            "agent:prover",
+            DECISION_AT,
+        )
+        .expect_err("invalid policy-head integrity must block");
+        assert!(matches!(error, PolicyLaneRefusal::Error(_)), "{error}");
+        assert!(error.to_string().contains(expected_detail), "{error}");
+        assert_eq!(
+            before,
+            crate::canonical::to_canonical_bytes(&repo::load_from_path(dir).unwrap()).unwrap(),
+            "blocked policy-head check changed the canonical frontier"
         );
         error
     }
@@ -3379,7 +3656,7 @@ mod tests {
             Some(new_policy.id.clone()),
             "2026-07-15T00:00:00Z",
             "2026-07-15T00:00:01Z",
-            "reopen with new policy bytes",
+            "rotate to new policy bytes",
         );
         let head = current_policy_head(&reopened).unwrap().unwrap();
         assert_eq!(head.action, PolicyHeadAction::Rotate);
@@ -3542,6 +3819,51 @@ mod tests {
                 .contains("not the current causal pre-state"),
             "{error}"
         );
+
+        // The same stale/foreign causal binding must not block a route that
+        // cannot autonomously Permit. Removing the signed head makes the
+        // active bytes human-only; the receipt is still reviewed, but its
+        // producer-context root is not treated as autonomous authority.
+        let mut human_only = clone_project(&frontier);
+        let head_proposal_ids = human_only
+            .proposals
+            .iter()
+            .filter(|proposal| proposal.kind == POLICY_HEAD_PROPOSAL_KIND)
+            .map(|proposal| proposal.id.clone())
+            .collect::<BTreeSet<_>>();
+        human_only
+            .proposals
+            .retain(|proposal| !head_proposal_ids.contains(&proposal.id));
+        human_only.events.retain(|event| {
+            event
+                .payload
+                .get("proposal_id")
+                .and_then(serde_json::Value::as_str)
+                .is_none_or(|id| !head_proposal_ids.contains(id))
+        });
+        project::recompute_stats(&mut human_only);
+        let staged = stage_policy_route_in_frontier_at(
+            &dir,
+            &human_only,
+            &pid,
+            &receipt,
+            DECISION_AT,
+            &snapshot,
+        )
+        .expect("human-only route must not require autonomous producer bindings");
+        assert_eq!(staged.permit_readiness(), PermitReadiness::HumanOnly);
+        assert!(
+            staged
+                .policy_reason_codes()
+                .iter()
+                .any(|code| code == "policy_head_missing")
+        );
+        let error = apply_staged_policy_route_in_frontier(&mut human_only, staged, "agent:prover")
+            .expect_err("human-only Permit must defer");
+        assert!(
+            matches!(error, PolicyLaneRefusal::Deferred { .. }),
+            "{error}"
+        );
     }
 
     #[test]
@@ -3570,7 +3892,9 @@ mod tests {
             DECISION_AT,
             &forged_context,
             Some(&forged_decision),
-            "active",
+            PolicyState::Active,
+            PermitReadiness::Ready,
+            &[],
             None,
             &engine_gate,
         )
@@ -3617,7 +3941,9 @@ mod tests {
             backdated_time,
             &context,
             Some(&decision),
-            "active",
+            PolicyState::Active,
+            PermitReadiness::Ready,
+            &[],
             None,
             &engine_gate,
         )
@@ -3813,7 +4139,7 @@ mod tests {
     }
 
     #[test]
-    fn defer_and_deny_land_nothing() {
+    fn evaluator_defer_and_expired_policy_route_land_nothing() {
         let tmp = TempDir::new().unwrap();
         let (dir, pid) = seeded_frontier(&tmp);
         let mut ctx = permitting_ctx();
@@ -3878,10 +4204,10 @@ mod tests {
             "commit.gpgsign=false",
             "commit",
             "-qm",
-            "deny baseline",
+            "expiry baseline",
         ]);
         let canonical_before = crate::canonical::to_canonical_bytes(
-            &repo::load_from_path(&dir).expect("load deny baseline"),
+            &repo::load_from_path(&dir).expect("load expiry baseline"),
         )
         .unwrap();
         let head_before = git(&["rev-parse", "HEAD"]);
@@ -3894,11 +4220,11 @@ mod tests {
             "agent:prover",
             "2100-01-01T00:00:00Z",
         )
-        .expect_err("expired signed policy must deny");
+        .expect_err("expired signed policy requires a human");
         assert!(
             matches!(
                 err,
-                PolicyLaneRefusal::Denied { ref reasons }
+                PolicyLaneRefusal::Deferred { ref reasons }
                     if reasons.iter().any(|reason| reason == "policy_expired")
             ),
             "{err}"
@@ -3906,14 +4232,171 @@ mod tests {
         assert_eq!(
             crate::canonical::to_canonical_bytes(&repo::load_from_path(&dir).unwrap()).unwrap(),
             canonical_before,
-            "Deny changed the canonical frontier"
+            "expiry deferral changed the canonical frontier"
         );
         assert_eq!(git(&["rev-parse", "HEAD"]), head_before);
         assert_eq!(git(&["write-tree"]), index_before);
         assert!(
             git(&["status", "--porcelain=v1", "--untracked-files=all"]).is_empty(),
-            "Deny changed the Git worktree"
+            "expiry deferral changed the Git worktree"
         );
+    }
+
+    #[test]
+    fn fully_ready_policy_preserves_intentional_evaluator_deny() {
+        let tmp = TempDir::new().unwrap();
+        let (dir, pid) = seeded_frontier(&tmp);
+        let snapshot = load_active_policy_snapshot(&dir).unwrap();
+        let frontier = repo::load_from_path(&dir).unwrap();
+        let assessment = assess_policy_readiness(&frontier, Ok(&snapshot), DECISION_AT);
+        assert_eq!(assessment.state(), PolicyState::Active);
+        assert_eq!(assessment.permit_readiness(), PermitReadiness::Ready);
+
+        let mut context = permitting_ctx();
+        context.claim_class = "forbidden".to_string();
+        let error =
+            accept_under_policy_at_path_at(&dir, &pid, &context, "agent:prover", DECISION_AT)
+                .expect_err("an explicit deny rule must remain a denial");
+        assert!(
+            matches!(
+                error,
+                PolicyLaneRefusal::Denied { ref reasons }
+                    if reasons.iter().any(|reason| reason == "explicit_deny_rule")
+            ),
+            "{error}"
+        );
+    }
+
+    #[test]
+    fn active_policy_without_head_is_human_only_and_permit_defers() {
+        let tmp = TempDir::new().unwrap();
+        let (dir, pid) = seeded_frontier(&tmp);
+        let mut frontier = repo::load_from_path(&dir).unwrap();
+        let head_proposal_ids = frontier
+            .proposals
+            .iter()
+            .filter(|proposal| proposal.kind == POLICY_HEAD_PROPOSAL_KIND)
+            .map(|proposal| proposal.id.clone())
+            .collect::<BTreeSet<_>>();
+        frontier
+            .proposals
+            .retain(|proposal| !head_proposal_ids.contains(&proposal.id));
+        frontier.events.retain(|event| {
+            event
+                .payload
+                .get("proposal_id")
+                .and_then(serde_json::Value::as_str)
+                .is_none_or(|id| !head_proposal_ids.contains(id))
+        });
+        project::recompute_stats(&mut frontier);
+        let snapshot = load_active_policy_snapshot(&dir).unwrap();
+        let assessment = assess_policy_readiness(&frontier, Ok(&snapshot), DECISION_AT);
+        assert_eq!(assessment.state(), PolicyState::Active);
+        assert_eq!(assessment.permit_readiness(), PermitReadiness::HumanOnly);
+        assert_eq!(assessment.reason_codes(), ["policy_head_missing"]);
+
+        let staged = stage_policy_route_with_context_at(
+            &dir,
+            &frontier,
+            &pid,
+            permitting_ctx(),
+            DECISION_AT,
+            &snapshot,
+        )
+        .unwrap();
+        let error = apply_staged_policy_route_in_frontier(&mut frontier, staged, "agent:prover")
+            .expect_err("missing policy head must defer a Permit");
+        assert!(
+            matches!(
+                error,
+                PolicyLaneRefusal::Deferred { ref reasons }
+                    if reasons == &["policy_head_missing"]
+            ),
+            "{error}"
+        );
+    }
+
+    #[test]
+    fn finite_unexpired_policy_is_human_only_and_permit_defers() {
+        let tmp = TempDir::new().unwrap();
+        let (dir, pid) = seeded_frontier(&tmp);
+        mutate_active_policy(&dir, |policy| {
+            policy.expires_at = "2099-12-31T23:59:59Z".to_string();
+        });
+        let snapshot = load_active_policy_snapshot(&dir).unwrap();
+        let mut frontier = repo::load_from_path(&dir).unwrap();
+        let assessment = assess_policy_readiness(&frontier, Ok(&snapshot), DECISION_AT);
+        assert_eq!(assessment.state(), PolicyState::Active);
+        assert_eq!(assessment.permit_readiness(), PermitReadiness::HumanOnly);
+        assert!(
+            assessment
+                .reason_codes()
+                .iter()
+                .any(|code| code == "policy_wall_clock_expiry_unanchored")
+        );
+
+        let staged = stage_policy_route_with_context_at(
+            &dir,
+            &frontier,
+            &pid,
+            permitting_ctx(),
+            DECISION_AT,
+            &snapshot,
+        )
+        .unwrap();
+        let error = apply_staged_policy_route_in_frontier(&mut frontier, staged, "agent:prover")
+            .expect_err("finite Permit authority must route to a human");
+        assert!(
+            matches!(error, PolicyLaneRefusal::Deferred { .. }),
+            "{error}"
+        );
+    }
+
+    #[test]
+    fn malformed_policy_head_chain_is_blocked_and_staging_errors() {
+        let tmp = TempDir::new().unwrap();
+        let (dir, pid) = seeded_frontier(&tmp);
+        let snapshot = load_active_policy_snapshot(&dir).unwrap();
+        let mut frontier = repo::load_from_path(&dir).unwrap();
+        let head_proposal_id = frontier
+            .proposals
+            .iter()
+            .find(|proposal| proposal.kind == POLICY_HEAD_PROPOSAL_KIND)
+            .unwrap()
+            .id
+            .clone();
+        let head_event = frontier
+            .events
+            .iter_mut()
+            .find(|event| {
+                event
+                    .payload
+                    .get("proposal_id")
+                    .and_then(serde_json::Value::as_str)
+                    == Some(head_proposal_id.as_str())
+            })
+            .unwrap();
+        head_event.reason.push_str(" tampered");
+
+        let assessment = assess_policy_readiness(&frontier, Ok(&snapshot), DECISION_AT);
+        assert_eq!(assessment.state(), PolicyState::Active);
+        assert_eq!(assessment.permit_readiness(), PermitReadiness::Blocked);
+        assert_eq!(assessment.reason_codes(), ["policy_head_invalid"]);
+        assert!(
+            assessment
+                .detail()
+                .is_some_and(|detail| detail.contains("policy-head chain is invalid"))
+        );
+        let error = stage_policy_route_with_context_at(
+            &dir,
+            &frontier,
+            &pid,
+            permitting_ctx(),
+            DECISION_AT,
+            &snapshot,
+        )
+        .expect_err("malformed policy head must block staging");
+        assert!(matches!(error, PolicyLaneRefusal::Error(_)), "{error}");
     }
 
     #[test]
@@ -3926,23 +4409,30 @@ mod tests {
     }
 
     #[test]
-    fn no_signed_policy_means_lane_closed() {
+    fn unsigned_policy_defers_with_canonical_reason() {
         let tmp = TempDir::new().unwrap();
         let (dir, pid) = seeded_frontier(&tmp);
         std::fs::remove_file(dir.join(".vela/policies/active.sig.json")).unwrap();
         let err = accept_under_policy_at_path(&dir, &pid, &permitting_ctx(), "agent:prover")
-            .expect_err("unsigned policy = no authority");
-        assert!(matches!(err, PolicyLaneRefusal::Closed), "{err}");
+            .expect_err("unsigned policy requires human authority");
+        assert!(
+            matches!(
+                err,
+                PolicyLaneRefusal::Deferred { ref reasons }
+                    if reasons == &["policy_unsigned"]
+            ),
+            "{err}"
+        );
     }
 
     #[test]
-    fn unregistered_or_ambiguous_policy_signer_is_denied() {
+    fn unregistered_or_ambiguous_policy_signer_is_human_only() {
         let tmp = TempDir::new().unwrap();
         let (dir, pid) = seeded_frontier(&tmp);
         let mut frontier = repo::load_from_path(&dir).unwrap();
         frontier.actors.clear();
         repo::save_to_path(&dir, &frontier).unwrap();
-        expect_authority_denial(&dir, &pid, "not registered");
+        expect_policy_head_blocked(&dir, &pid, "not registered");
 
         let tmp = TempDir::new().unwrap();
         let (dir, pid) = seeded_frontier(&tmp);
@@ -3951,35 +4441,35 @@ mod tests {
         duplicate.id = "reviewer:second".to_string();
         frontier.actors.push(duplicate);
         repo::save_to_path(&dir, &frontier).unwrap();
-        expect_authority_denial(&dir, &pid, "resolves ambiguously");
+        expect_authority_defer(&dir, &pid, "policy_authority_invalid");
     }
 
     #[test]
-    fn wrong_frontier_policy_is_denied() {
+    fn wrong_frontier_policy_is_human_only() {
         let tmp = TempDir::new().unwrap();
         let (dir, pid) = seeded_frontier(&tmp);
         mutate_active_policy(&dir, |policy| {
             policy.frontier_id = "vfr_other".to_string();
         });
-        expect_authority_denial(&dir, &pid, "policy_head_inactive");
+        expect_authority_defer(&dir, &pid, "policy_head_mismatch");
     }
 
     #[test]
-    fn revoked_or_not_yet_registered_policy_signer_is_denied() {
+    fn revoked_or_not_yet_registered_policy_signer_is_human_only() {
         let tmp = TempDir::new().unwrap();
         let (dir, pid) = seeded_frontier(&tmp);
         let mut frontier = repo::load_from_path(&dir).unwrap();
         frontier.actors[0].revoked_at = Some("2026-07-10T00:00:00Z".to_string());
         frontier.actors[0].revoked_reason = Some("test rotation".to_string());
         repo::save_to_path(&dir, &frontier).unwrap();
-        expect_authority_denial(&dir, &pid, "revocation");
+        expect_policy_head_blocked(&dir, &pid, "at/after reviewer revocation");
 
         let tmp = TempDir::new().unwrap();
         let (dir, pid) = seeded_frontier(&tmp);
         let mut frontier = repo::load_from_path(&dir).unwrap();
         frontier.actors[0].created_at = "2026-07-04T00:00:00Z".to_string();
         repo::save_to_path(&dir, &frontier).unwrap();
-        expect_authority_denial(&dir, &pid, "not registered before policy signing");
+        expect_authority_defer(&dir, &pid, "policy_authority_invalid");
     }
 
     #[test]
@@ -3989,7 +4479,7 @@ mod tests {
         mutate_active_policy(&dir, |policy| {
             policy.issued_by = vec!["reviewer:someone-else".to_string()];
         });
-        expect_authority_denial(&dir, &pid, "policy_head_inactive");
+        expect_authority_defer(&dir, &pid, "policy_head_mismatch");
     }
 
     #[test]
@@ -3999,21 +4489,21 @@ mod tests {
         mutate_active_policy(&dir, |policy| {
             policy.quorum.threshold = 2;
         });
-        expect_authority_denial(&dir, &pid, "policy_head_inactive");
+        expect_authority_defer(&dir, &pid, "policy_head_mismatch");
 
         let tmp = TempDir::new().unwrap();
         let (dir, pid) = seeded_frontier(&tmp);
         mutate_active_policy(&dir, |policy| {
             policy.quorum.eligible_roles = vec!["agent".to_string()];
         });
-        expect_authority_denial(&dir, &pid, "policy_head_inactive");
+        expect_authority_defer(&dir, &pid, "policy_head_mismatch");
 
         let tmp = TempDir::new().unwrap();
         let (dir, pid) = seeded_frontier(&tmp);
         mutate_active_policy(&dir, |policy| {
             policy.quorum.eligible_roles = vec!["steward".to_string()];
         });
-        expect_authority_denial(&dir, &pid, "policy_head_inactive");
+        expect_authority_defer(&dir, &pid, "policy_head_mismatch");
     }
 
     #[test]

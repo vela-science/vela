@@ -80,6 +80,13 @@ git push                  # publication: CI re-derives the frontier and the
                           # hub re-indexes from the repo
 ```
 
+In JSON, publication is a separate typed axis: `unchanged`, `uncommitted`,
+`stale`, `committed_local`, `pushed`, or `unknown`. `unchanged` means the
+selected target commit already contains every exact Vela postimage, so Vela
+moved no ref and rewrote no caller index entry. If `--push` was requested,
+Vela still verifies or publishes that exact existing commit upstream instead
+of pretending there was nothing to do.
+
 Do not ask a human to confirm the agent-authored receipt before this landing.
 Receipt authoring carries producer authority. A human runs `vela sign` only for
 the proposals Vela reports as `deferred`; the ceremony re-renders the exact
@@ -166,11 +173,12 @@ The loop scales by composition, not new machinery:
    --type … --replayability … --artifact <path>:<kind> --caveat …`.
    Vela builds one Receipt v1 from the typed session. Use file import for a
    receipt emitted by another producer, not for hand-authored plugin scratch.
-4. **Policy-bound lanes**: when the frontier carries a signed acceptance
-   policy (`vela status . --json → .policy.mode == "live"`), mechanical
-   kinds (repairs, artifact provenance) may receive Permit under the sealed
-   `vap_` policy id — the policy can only tighten the frozen verifier
-   floor, and truth-bearing claims stay human-keyed no matter what.
+4. **Policy-bound lanes**: inspect both `vela status . --json → .policy.state`
+   and `.policy.permit_readiness`. Only `active` plus `ready` can turn an
+   evaluator Permit into a policy-authorized landing. `human_only` defers to a
+   human key and `blocked` is an integrity error; neither is a Deny. The policy
+   can only tighten the frozen verifier floor, and truth-bearing claims stay
+   human-keyed no matter what.
 
 ## Doctrine, one paragraph
 

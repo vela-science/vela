@@ -1,8 +1,8 @@
 //! `vela policy suggest` — the self-shrinking ceremony.
 //!
 //! Every ask that reaches a human key is a data point: either the active
-//! policy DEFERRED it, or no policy exists and the lane is closed, or a
-//! human already decided one just like it. This module folds those asks
+//! policy DEFERRED it, Permit requires a human under the current readiness
+//! state, or a human already decided one just like it. This module folds those asks
 //! into a histogram of (claim_class, reason) and, when a class keeps
 //! recurring, SHOWS the one rule whose signature would cover the whole
 //! class — so every sign session shrinks the next one.
@@ -20,19 +20,19 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 use serde::Serialize;
-use vela_protocol::acceptance_policy::{
-    Constraints, Outcome, PolicyRule, evaluate, load_active_policy,
-};
+use vela_protocol::acceptance_policy::{Constraints, Outcome, PolicyRule, evaluate};
 use vela_protocol::project::Project;
 use vela_protocol::proposals::StateProposal;
+use vela_protocol::proposals::policy_accept::{PermitReadiness, assess_policy_readiness};
 
 /// One histogram row: how often a class reached the human, and why.
 #[derive(Debug, Clone, Serialize)]
 pub(crate) struct AskRow {
     pub claim_class: String,
     /// Machine-readable reason class: a policy defer code
-    /// ("default_defer", "rule:constraint"), "no_signed_policy" when the
-    /// lane is closed, or "decided_by_you" for past human verdicts.
+    /// ("default_defer", "rule:constraint"), a canonical policy-readiness
+    /// reason (for example `policy_absent`), or `decided_by_you` for past
+    /// human verdicts.
     pub reason: String,
     pub count: usize,
     pub sample_ids: Vec<String>,
@@ -64,8 +64,20 @@ fn future_claim_class(p: &StateProposal) -> String {
 /// Fold a frontier's asks into (claim_class, reason) rows, most frequent
 /// first. Pure read.
 pub(crate) fn ask_histogram(project: &Project, frontier: &Path) -> Result<Vec<AskRow>, String> {
-    let policy = load_active_policy(frontier)?;
+    let snapshot = vela_protocol::acceptance_policy::load_active_policy_snapshot(frontier)?;
     let now = chrono::Utc::now().to_rfc3339();
+    let assessment = assess_policy_readiness(project, Ok(&snapshot), &now);
+    if assessment.permit_readiness() == PermitReadiness::Blocked {
+        return Err(assessment
+            .detail()
+            .unwrap_or("policy readiness assessment is blocked")
+            .to_string());
+    }
+    let readiness_reason = assessment
+        .reason_codes()
+        .first()
+        .cloned()
+        .unwrap_or_else(|| "policy_human_only".to_string());
 
     // Events the policy lane admitted never reached the human — their
     // proposals are autonomy, not asks.
@@ -85,8 +97,8 @@ pub(crate) fn ask_histogram(project: &Project, frontier: &Path) -> Result<Vec<As
         match p.status.as_str() {
             // Asks waiting right now.
             "pending_review" => {
-                match &policy {
-                    None => bump(future_claim_class(p), "no_signed_policy".to_string(), &p.id),
+                match snapshot.verified.as_ref() {
+                    None => bump(future_claim_class(p), readiness_reason.clone(), &p.id),
                     Some(vp) => {
                         let receipt =
                             crate::review_material::frontier_receipt_for_proposal(frontier, p);
@@ -99,8 +111,23 @@ pub(crate) fn ask_histogram(project: &Project, frontier: &Path) -> Result<Vec<As
                         let class = ctx.claim_class.clone();
                         let d = evaluate(&vp.policy, &ctx, &now);
                         match d.outcome {
-                            Outcome::Permit => {}
+                            Outcome::Permit => {
+                                if assessment.permit_readiness() == PermitReadiness::HumanOnly {
+                                    bump(class, readiness_reason.clone(), &p.id);
+                                }
+                            }
                             // A Deny is a standing decision, not friction.
+                            Outcome::Deny
+                                if assessment.permit_readiness() == PermitReadiness::HumanOnly
+                                    && d.reasons.iter().all(|reason| {
+                                        matches!(
+                                            reason.as_str(),
+                                            "policy_expired" | "policy_revoked"
+                                        )
+                                    }) =>
+                            {
+                                bump(class, readiness_reason.clone(), &p.id);
+                            }
                             Outcome::Deny => {}
                             Outcome::Defer => {
                                 bump(class, d.reasons.first().cloned().unwrap_or_default(), &p.id)
@@ -218,8 +245,10 @@ mod tests {
     use super::*;
     use serde_json::json;
     use tempfile::TempDir;
+    use vela_protocol::acceptance_policy::{AcceptancePolicy, Quorum};
     use vela_protocol::events::StateTarget;
     use vela_protocol::proposals::new_proposal;
+    use vela_protocol::proposals::policy_accept::CAUSALLY_UNBOUNDED_POLICY_EXPIRY;
 
     fn receipt_proposal(n: usize, status: &str) -> StateProposal {
         let mut p = new_proposal(
@@ -253,11 +282,11 @@ mod tests {
         }
         project.proposals.push(receipt_proposal(3, "accepted"));
 
-        // No policy dir at all: the lane is closed.
+        // No policy exists: Permit is human-only with a typed reason.
         let rows = ask_histogram(&project, tmp.path()).unwrap();
         let pending = rows
             .iter()
-            .find(|r| r.reason == "no_signed_policy")
+            .find(|r| r.reason == "policy_absent")
             .expect("pending asks counted");
         assert_eq!(pending.claim_class, "receipt_theoretical");
         assert_eq!(pending.count, 3);
@@ -270,10 +299,47 @@ mod tests {
     }
 
     #[test]
+    fn histogram_uses_typed_unsigned_readiness_instead_of_a_closed_lane() {
+        let tmp = TempDir::new().unwrap();
+        let mut project = vela_protocol::project::assemble("t", vec![], 0, 0, "test");
+        project
+            .proposals
+            .push(receipt_proposal(0, "pending_review"));
+        let mut policy = AcceptancePolicy {
+            schema: "vela.acceptance_policy.v0.1".to_string(),
+            id: String::new(),
+            frontier_id: "t".to_string(),
+            epoch: 1,
+            issued_by: vec!["reviewer:human".to_string()],
+            quorum: Quorum {
+                threshold: 1,
+                eligible_roles: vec!["reviewer".to_string()],
+            },
+            rules: Vec::new(),
+            default: Outcome::Defer,
+            expires_at: CAUSALLY_UNBOUNDED_POLICY_EXPIRY.to_string(),
+            revocation_ref: None,
+        };
+        policy.id = policy.content_address();
+        let directory = tmp.path().join(".vela/policies");
+        std::fs::create_dir_all(&directory).unwrap();
+        std::fs::write(
+            directory.join("active.json"),
+            serde_json::to_vec_pretty(&policy).unwrap(),
+        )
+        .unwrap();
+
+        let rows = ask_histogram(&project, tmp.path()).unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].reason, "policy_unsigned");
+        assert_eq!(rows[0].count, 1);
+    }
+
+    #[test]
     fn recurring_class_maps_to_the_covering_template() {
         let rows = vec![AskRow {
             claim_class: "receipt_theoretical".to_string(),
-            reason: "no_signed_policy".to_string(),
+            reason: "policy_absent".to_string(),
             count: 4,
             sample_ids: vec![],
         }];
@@ -288,7 +354,7 @@ mod tests {
         let rows = vec![
             AskRow {
                 claim_class: "unknown".to_string(),
-                reason: "no_signed_policy".to_string(),
+                reason: "policy_absent".to_string(),
                 count: 50,
                 sample_ids: vec![],
             },

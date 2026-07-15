@@ -1,13 +1,13 @@
 {
   "audit": {
     "artifact_root": null,
-    "decision_facts_root": "sha256:9bc7756fab626c05d6fbddfd5c4efee63586c71ab5e1bb6c95dd2c34c25d66c5",
+    "decision_facts_root": "sha256:d2b14e23b93f914ac59e1b47dcd3e7dfda3c84e8e791a1edbdde35a422298393",
     "declared_receipt_root": null,
     "missing_root": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
     "missing_truncated": 0,
     "observed_at": "2026-07-13T13:00:00Z",
-    "policy_input_root": "sha256:f3371d8d94bbaa5ea71641b087beeb048006fa0958e3454a8a715c027c110819",
-    "policy_result_root": "sha256:b942b663a6b5e9a45ed74632796b7fc38c28f0ad188529697571e5b1a40903df",
+    "policy_input_root": "sha256:32e2e5233114464c9ae769e5b1db29459f2b3c6f7f132cfcf22df9ad85dc7f66",
+    "policy_result_root": "sha256:d0bf809e003d51ed8b7f88dbadde9f531f0f8944fc3364e2f62006aadb2b2dcb",
     "proposal_id": "vpr_08ddd7b2246761a2",
     "proposal_root": "sha256:3ac3ac55c490d847709de5c008d77cc9073a186bcf9f78e74b29ba283ba08a23",
     "publication_root": null,

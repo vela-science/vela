@@ -10,7 +10,7 @@ scope:
   includes: []
   excludes: []
 vela:
-  reducer: vela@0.800.9
+  reducer: vela@0.800.10
 paths:
   state: frontier.json
   sources: sources/

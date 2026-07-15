@@ -382,7 +382,7 @@ mod tests {
         // depending on an activity envelope is a boundary break
         f.links.push(crate::bundle::Link {
             target: "vac_deadbeefdeadbeef".to_string(),
-            link_type: "depends_on".to_string(),
+            link_type: "depends".to_string(),
             note: String::new(),
             inferred_by: "agent:test".to_string(),
             created_at: "2026-06-18T00:00:00Z".to_string(),
@@ -450,7 +450,7 @@ mod tests {
         let mut f = crate::test_support::make_finding("vf_a", 1.0, "computational");
         f.links.push(crate::bundle::Link {
             target: "vac_deadbeefdeadbeef".to_string(),
-            link_type: "depends_on".to_string(),
+            link_type: "depends".to_string(),
             note: String::new(),
             inferred_by: "agent:test".to_string(),
             created_at: "2026-06-18T00:00:00Z".to_string(),

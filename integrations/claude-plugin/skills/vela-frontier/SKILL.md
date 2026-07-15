@@ -5,12 +5,14 @@ description: Working in a repository that has a .vela/ directory (a Vela frontie
 
 # Vela frontier work
 
-Vela is version control for scientific state. Findings, evidence, provenance,
-and proofs live as content-addressed, signed, replayable events; everything
-else (frontier.json, proof packets, rollups) is a derived view. Activity is not
-state: a script that ran is activity; a witness plus a frozen verifier anyone
-can re-run is state. A repository with a `.vela/` directory is a frontier, and
-this skill is how an agent works inside one.
+Vela is Git-native, authority-scoped state for scientific work. Findings,
+evidence, provenance, and proofs are bound to content-addressed, signed,
+replayable events; everything else (frontier.json, proof packets, rollups) is a
+derived view. Activity is not state: a script that ran is activity; a witness
+plus a declared frozen verifier is evidence for that verifier's scoped result;
+only an authorized accepted event changes frontier state. A repository with a
+`.vela/` directory is a frontier, and this skill is how an agent works inside
+one.
 
 ## The loop
 
@@ -125,7 +127,7 @@ silently break the reproduction of a banked result.
 ## Reading state
 
 `vela status --json` is the one-screen summary (findings, replay integrity,
-policy mode, sign-queue depth, compounding metrics). `vela state <vf_id>` is
+policy state and Permit readiness, sign-queue depth, compounding metrics). `vela state <vf_id>` is
 one finding's claim-state cell; `vela log <dir> <vf_id>` its history. The MCP
 server (`vela serve . --profile draft`) exposes the read surface plus the
 non-finalizing `work` tool (claim|land|drop);

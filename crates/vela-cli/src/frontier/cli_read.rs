@@ -1,4 +1,6 @@
-use crate::cli::{fail, fail_return, fmt_timestamp, frontier_label, print_json};
+use crate::cli::{
+    fail, fail_return, fmt_timestamp, frontier_dir_for_source, frontier_label, print_json,
+};
 use colored::Colorize;
 use serde_json::json;
 use std::path::Path;
@@ -10,7 +12,27 @@ use vela_protocol::repo;
 /// v0.42: One-screen status. The `git status` analogue.
 pub(crate) fn cmd_status(path: &Path, json: bool) {
     crate::ui::set_mode("status", json);
-    let project = repo::load_from_path(path).unwrap_or_else(|e| fail_return(&e));
+    let frontier_dir = frontier_dir_for_source(path);
+    let crate::review_material::StatusSnapshot {
+        project,
+        active_policy,
+        observed_at: now_iso,
+        review_page,
+    } = crate::review_material::ReviewProjection::status_snapshot(
+        frontier_dir,
+        crate::review_material::ReviewRequest {
+            limit: Some(5),
+            ..crate::review_material::ReviewRequest::default()
+        },
+    )
+    .unwrap_or_else(|error| fail_return(&error.to_string()));
+    let policy_assessment = vela_protocol::proposals::policy_accept::assess_policy_readiness(
+        &project,
+        active_policy.as_ref().map_err(String::as_str),
+        &now_iso,
+    );
+    let active_policy_ok = policy_assessment.permit_readiness()
+        != vela_protocol::proposals::policy_accept::PermitReadiness::Blocked;
 
     // Replay integrity: the one-line truth a stranger checks first.
     let replay = vela_protocol::reducer::verify_replay(&project);
@@ -21,7 +43,6 @@ pub(crate) fn cmd_status(path: &Path, json: bool) {
     };
 
     // Production state: live leases, attestations, registrations.
-    let now_iso = chrono::Utc::now().to_rfc3339();
     let live_leases: Vec<&vela_protocol::project::AttemptClaim> = project
         .attempt_claims
         .iter()
@@ -48,13 +69,6 @@ pub(crate) fn cmd_status(path: &Path, json: bool) {
             *pending_by_kind.entry(p.kind.clone()).or_insert(0) += 1;
         }
     }
-    let review_page = crate::review_material::ReviewProjection::page(
-        path,
-        crate::review_material::ReviewRequest {
-            limit: Some(5),
-            ..crate::review_material::ReviewRequest::default()
-        },
-    );
     let review_projection = match &review_page {
         Ok(page) => json!({
             "snapshot_root": page.snapshot_root,
@@ -62,6 +76,7 @@ pub(crate) fn cmd_status(path: &Path, json: bool) {
             "observed_at": page.observed_at,
             "total": page.total,
             "returned": page.returned,
+            "pressure": page.pressure,
             "items": page.items,
             "next_cursor": page.next_cursor,
         }),
@@ -107,7 +122,7 @@ pub(crate) fn cmd_status(path: &Path, json: bool) {
     // the curated channel map when a channels.yaml sits next to the frontier.
     let compounding = vela_edge::frontier_health::compounding_metrics(&project);
     let (channels_cold, channels_total) =
-        match vela_edge::channel_map::ChannelTaxonomy::load_for_frontier(path) {
+        match vela_edge::channel_map::ChannelTaxonomy::load_for_frontier(frontier_dir) {
             Some(taxonomy) => {
                 let map = vela_edge::channel_map::channel_map(&project, &taxonomy);
                 let cold = map
@@ -123,7 +138,7 @@ pub(crate) fn cmd_status(path: &Path, json: bool) {
         println!(
             "{}",
             serde_json::to_string_pretty(&json!({
-                "ok": true,
+                "ok": active_policy_ok,
                 "command": "status",
                 "frontier": frontier_label(&project),
                 "vfr_id": project.frontier_id(),
@@ -140,20 +155,14 @@ pub(crate) fn cmd_status(path: &Path, json: bool) {
                 "proof": {
                     "status": project.proof_state.latest_packet.status,
                 },
-                "policy": match vela_protocol::acceptance_policy::load_active_policy_snapshot(path) {
-                    Ok(snapshot) => match snapshot.mode {
-                        vela_protocol::acceptance_policy::ActivePolicyMode::Active => {
-                            let vp = snapshot.verified.expect("active mode carries VerifiedPolicy");
-                            json!({"id": vp.policy.id, "mode": "live"})
-                        }
-                        vela_protocol::acceptance_policy::ActivePolicyMode::StagedUnsigned => {
-                            json!({"mode": "staged", "next": "vela policy sign"})
-                        }
-                        vela_protocol::acceptance_policy::ActivePolicyMode::Absent => {
-                            json!({"mode": "shadow"})
-                        }
-                    },
-                    Err(e) => json!({"mode": "BROKEN", "error": e}),
+                "policy": {
+                    "state": policy_assessment.state().as_str(),
+                    "permit_readiness": policy_assessment.permit_readiness().as_str(),
+                    "reason_codes": policy_assessment.reason_codes(),
+                    "id": active_policy.as_ref().ok()
+                        .and_then(vela_protocol::acceptance_policy::ActivePolicySnapshot::policy)
+                        .map(|policy| &policy.id),
+                    "error": policy_assessment.detail(),
                 },
                 "events": project.events.len(),
                 "actors": project.actors.len(),
@@ -170,7 +179,7 @@ pub(crate) fn cmd_status(path: &Path, json: bool) {
                     "pending_by_kind": pending_by_kind,
                     "review": review_projection,
                 },
-                "unpublished_store_files": unpublished_store_files(path),
+                "unpublished_store_files": unpublished_store_files(frontier_dir),
                 "next": if pending_total > 0 {
                     json!(format!(
                         "{pending_total} pending proposal(s) await a human key: `vela sign`"
@@ -185,6 +194,9 @@ pub(crate) fn cmd_status(path: &Path, json: bool) {
             }))
             .expect("serialize status")
         );
+        if !active_policy_ok {
+            std::process::exit(1);
+        }
         return;
     }
 
@@ -259,28 +271,39 @@ pub(crate) fn cmd_status(path: &Path, json: bool) {
         pct(compounding.context_reuse_ratio),
     );
     println!();
-    match vela_protocol::acceptance_policy::load_active_policy_snapshot(path) {
-        Ok(snapshot) => match snapshot.mode {
-            vela_protocol::acceptance_policy::ActivePolicyMode::Active => println!(
-                "  policy:      live ({})",
-                snapshot
-                    .verified
-                    .expect("active mode carries VerifiedPolicy")
-                    .policy
-                    .id
-            ),
-            vela_protocol::acceptance_policy::ActivePolicyMode::StagedUnsigned => println!(
-                "  policy:      {}",
-                style::warn("staged — one signature activates it")
-            ),
-            vela_protocol::acceptance_policy::ActivePolicyMode::Absent => {}
-        },
-        Err(error) => println!(
-            "  policy:      {}",
-            style::lost(&format!("BROKEN — {error}"))
-        ),
+    let policy_id = active_policy
+        .as_ref()
+        .ok()
+        .and_then(vela_protocol::acceptance_policy::ActivePolicySnapshot::policy)
+        .map(|policy| format!(" ({})", policy.id))
+        .unwrap_or_default();
+    let policy_line = format!(
+        "{} · Permit {}{}",
+        policy_assessment.state().as_str(),
+        policy_assessment.permit_readiness().as_str(),
+        policy_id
+    );
+    if policy_assessment.permit_readiness()
+        == vela_protocol::proposals::policy_accept::PermitReadiness::Blocked
+    {
+        println!("  policy:      {}", style::lost(&policy_line));
+    } else if policy_assessment.permit_readiness()
+        == vela_protocol::proposals::policy_accept::PermitReadiness::HumanOnly
+    {
+        println!("  policy:      {}", style::warn(&policy_line));
+    } else {
+        println!("  policy:      {}", style::ok(&policy_line));
     }
-    let unpublished = unpublished_store_files(path);
+    if !policy_assessment.reason_codes().is_empty() {
+        println!(
+            "               {}",
+            style::dim(&policy_assessment.reason_codes().join(", "))
+        );
+    }
+    if let Some(detail) = policy_assessment.detail() {
+        println!("               {}", style::dim(detail));
+    }
+    let unpublished = unpublished_store_files(frontier_dir);
     if unpublished > 0 {
         println!(
             "  {}  {unpublished} store file(s) changed but not committed — signed state that exists only on this machine",
@@ -298,6 +321,10 @@ pub(crate) fn cmd_status(path: &Path, json: bool) {
         }
         match &review_page {
             Ok(page) => {
+                println!(
+                    "    · review pressure: {}",
+                    crate::review_material::review_pressure_summary(&page.pressure)
+                );
                 for item in &page.items {
                     let accept = item
                         .brief
@@ -341,6 +368,9 @@ pub(crate) fn cmd_status(path: &Path, json: bool) {
         println!("  {}  sign queue clean", style::ok("ok"));
     }
     println!();
+    if !active_policy_ok {
+        std::process::exit(1);
+    }
 }
 
 /// Signed-but-uncommitted store state: the worst state a decision can

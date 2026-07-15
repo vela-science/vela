@@ -1052,6 +1052,37 @@ mod tests {
     }
 
     #[test]
+    fn active_snapshot_retains_the_policy_parsed_from_its_exact_bytes() {
+        let temp = TempDir::new().unwrap();
+        let directory = temp.path().join(".vela/policies");
+        std::fs::create_dir_all(&directory).unwrap();
+
+        let original = exact_sidon_policy();
+        let original_bytes = serde_json::to_vec_pretty(&original).unwrap();
+        std::fs::write(directory.join("active.json"), &original_bytes).unwrap();
+        let snapshot = load_active_policy_snapshot(temp.path()).unwrap();
+
+        let mut replacement = original.clone();
+        replacement.epoch += 1;
+        replacement.id = replacement.content_address();
+        std::fs::write(
+            directory.join("active.json"),
+            serde_json::to_vec_pretty(&replacement).unwrap(),
+        )
+        .unwrap();
+
+        assert_eq!(
+            snapshot.policy_bytes.as_deref(),
+            Some(original_bytes.as_slice())
+        );
+        assert_eq!(
+            snapshot.policy().map(|policy| policy.id.as_str()),
+            Some(original.id.as_str())
+        );
+        assert_ne!(snapshot.policy().unwrap().id, replacement.id);
+    }
+
+    #[test]
     fn decision_certificate_binds_and_verifies() {
         let p = exact_sidon_policy();
         let d = evaluate(&p, &clean_exact_ctx(), NOW);
@@ -1138,6 +1169,16 @@ pub struct ActivePolicySnapshot {
     pub signature_bytes: Option<Vec<u8>>,
     pub verified: Option<VerifiedPolicy>,
     pub mode: ActivePolicyMode,
+    policy: Option<AcceptancePolicy>,
+}
+
+impl ActivePolicySnapshot {
+    /// Return the policy parsed from this exact byte snapshot. This never
+    /// re-reads the mutable active-policy pointer.
+    #[must_use]
+    pub fn policy(&self) -> Option<&AcceptancePolicy> {
+        self.policy.as_ref()
+    }
 }
 
 // Governance files are deliberately much smaller than general repository
@@ -1600,8 +1641,8 @@ fn resolve_policy_authority_inner(
 }
 
 /// Load `.vela/policies/active.json` + `active.sig.json` from a frontier
-/// dir. Returns None when absent (shadow mode); Err on a present-but-broken
-/// pair (a corrupt governance file must never fail open into shadow).
+/// dir. Returns None when absent; Err on a present-but-broken pair (corrupt
+/// governance must never fail open into the absent state).
 pub fn load_active_policy(
     frontier_dir: &std::path::Path,
 ) -> Result<Option<VerifiedPolicy>, String> {
@@ -1732,7 +1773,7 @@ mod legacy_pair_observation_tests {
 }
 
 /// Load the active policy paths exactly once, retaining the bytes that were
-/// verified. A present policy without a signature is a staged, closed lane;
+/// verified. A present policy without a signature is staged and human-only;
 /// an orphan signature is corruption and never fails open.
 pub fn load_active_policy_snapshot(
     frontier_dir: &std::path::Path,
@@ -1747,8 +1788,8 @@ pub fn load_active_policy_snapshot(
         "active policy signature",
         POLICY_SIGNATURE_JSON_MAX_BYTES,
     )?;
-    let (mode, verified) = match (&policy_bytes, &signature_bytes) {
-        (None, None) => (ActivePolicyMode::Absent, None),
+    let (mode, policy, verified) = match (&policy_bytes, &signature_bytes) {
+        (None, None) => (ActivePolicyMode::Absent, None, None),
         (Some(policy), None) => {
             let policy = parse_supported_policy_bytes(policy, "active policy")?;
             if !policy.id_is_valid() {
@@ -1758,28 +1799,28 @@ pub fn load_active_policy_snapshot(
                     policy.content_address()
                 ));
             }
-            (ActivePolicyMode::StagedUnsigned, None)
+            (ActivePolicyMode::StagedUnsigned, Some(policy), None)
         }
         (None, Some(_)) => {
             return Err(
                 "active policy signature exists without .vela/policies/active.json".to_string(),
             );
         }
-        (Some(policy), Some(signature)) => (
-            ActivePolicyMode::Active,
-            Some(verify_policy_signature_bytes(
-                policy,
-                signature,
-                None,
-                "active policy",
-            )?),
-        ),
+        (Some(policy), Some(signature)) => {
+            let verified = verify_policy_signature_bytes(policy, signature, None, "active policy")?;
+            (
+                ActivePolicyMode::Active,
+                Some(verified.policy.clone()),
+                Some(verified),
+            )
+        }
     };
     Ok(ActivePolicySnapshot {
         policy_bytes,
         signature_bytes,
         verified,
         mode,
+        policy,
     })
 }
 

@@ -3,16 +3,22 @@ use std::path::{Path, PathBuf};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use vela_edge::decision_brief::{
-    DecisionBrief, DecisionBriefInput, ReceiptMaterial, ReviewRoute, build_decision_brief,
+    DecisionBrief, DecisionBriefInput, ReceiptMaterial, ReviewPolicyFacts, ReviewRoute,
+    build_decision_brief,
 };
 use vela_protocol::events::{self, StateTarget};
 use vela_protocol::project::{self, Project};
 use vela_protocol::proposals;
+use vela_protocol::proposals::policy_accept::{PermitReadiness, PolicyState};
 use vela_protocol::test_support::{make_finding, make_project};
 
 const OBSERVED_AT: &str = "2026-07-13T13:00:00Z";
 const CREATED_AT: &str = "2026-07-13T12:35:00Z";
 const FIXTURE_ACTOR: &str = "agent:decision-brief-fixture";
+
+fn absent_policy_facts() -> ReviewPolicyFacts<'static> {
+    ReviewPolicyFacts::new(PolicyState::Absent, PermitReadiness::HumanOnly, &[], None)
+}
 
 fn fixed_project(name: &str, findings: Vec<vela_protocol::bundle::FindingBundle>) -> Project {
     let mut project = make_project(name, findings);
@@ -87,6 +93,7 @@ fn ordinary_brief() -> DecisionBrief {
             proposal_id: &proposal_id,
             receipt: ReceiptMaterial::missing("receipt_not_applicable"),
             route: ReviewRoute::human_only(
+                absent_policy_facts(),
                 "proposal_kind_requires_human_review",
                 "this proposal kind is intentionally reviewed by a human",
             ),
@@ -120,6 +127,7 @@ fn critical_warning_brief() -> DecisionBrief {
             proposal_id: &proposal_id,
             receipt: ReceiptMaterial::missing("receipt_not_applicable"),
             route: ReviewRoute::human_only(
+                absent_policy_facts(),
                 "active_challenge_requires_human_review",
                 "the active challenge requires an explicit human decision",
             ),
@@ -161,7 +169,8 @@ fn missing_brief() -> DecisionBrief {
             proposal_id: &proposal_id,
             receipt: ReceiptMaterial::missing("receipt_not_found"),
             route: ReviewRoute::unavailable(
-                "broken",
+                absent_policy_facts(),
+                "receipt_material_unavailable",
                 "the coherent policy route could not be reconstructed",
             ),
             observed_at: OBSERVED_AT,
@@ -209,6 +218,7 @@ fn restricted_evidence_brief() -> DecisionBrief {
             proposal_id: &proposal_id,
             receipt: ReceiptMaterial::missing("restricted_evidence_not_available_to_reviewer"),
             route: ReviewRoute::human_only(
+                absent_policy_facts(),
                 "restricted_evidence_requires_authorized_human_review",
                 "restricted evidence requires an authorized human review",
             ),
@@ -242,20 +252,20 @@ fn canonical_sha256(value: &Value) -> String {
 fn frozen_roots(name: &str) -> (&'static str, &'static str) {
     match name {
         "ordinary" => (
-            "sha256:fa57bf7019b5f012b548842f0875938ebf8d03104491d23ecf252ab6fe50a27c",
-            "sha256:9bc7756fab626c05d6fbddfd5c4efee63586c71ab5e1bb6c95dd2c34c25d66c5",
+            "sha256:c3539201c6647c53ea034f064e5e972fa80d609c61db6012cf5e5a55b4a4fbbc",
+            "sha256:d2b14e23b93f914ac59e1b47dcd3e7dfda3c84e8e791a1edbdde35a422298393",
         ),
         "critical-warning" => (
-            "sha256:f82bf925239821a0056cde93a8887cf3f205f45c0323e2fa67db23930a1c6329",
-            "sha256:7671f9929c92454461aceec3c812a6f8ea41f5755de2c93615440fdf64d9df53",
+            "sha256:dc9edc7c2c8e9af004f72c9be66f826d20f89f6eefb774433a096aa5cd90899c",
+            "sha256:86159badb0d041fa302ba179e2e8e9698e84699acbf81e737807a89d46fb1957",
         ),
         "missing" => (
-            "sha256:0c5996b6a29de835b6050faf031bb7008fb2deaa950a97a065ba4e9941b602ac",
-            "sha256:1548dbb556ffc3a16b58476fa78452bfc7fc1a6393632c5a5f15d6bbce4e200b",
+            "sha256:f85c4c9017ad7a342812aef08939f829a25455786787bea437bcd55005721135",
+            "sha256:c3223498a0ad414ded41fa869f76df9de63e5ca953ebc2420f1e9bac93d9faaf",
         ),
         "restricted-evidence" => (
-            "sha256:9b3fe88c9ba14e9507c48b64580ceccc0153ceb5101ac70441afece012d3e047",
-            "sha256:c7740f86773cef7e121ea3a58d0327a90b17ed515b762c3a938ed3b6a3baea6c",
+            "sha256:c61aa27cae344de6665ba25f99e1f2bc687c50b7f6646eaf477158d8500ff317",
+            "sha256:5adad5b602c48436de8f2e1f0a4fceac06f69305999b743dbeb3d83c74a76c81",
         ),
         other => panic!("no frozen roots for {other}"),
     }

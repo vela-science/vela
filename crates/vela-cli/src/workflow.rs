@@ -1482,9 +1482,11 @@ struct StagedReviewRoute {
     schema: String,
     policy_context: vela_protocol::acceptance_policy::PolicyContext,
     policy_decision: Option<vela_protocol::acceptance_policy::Decision>,
-    policy_state: String,
+    policy_state: vela_protocol::proposals::policy_accept::PolicyState,
+    permit_readiness: vela_protocol::proposals::policy_accept::PermitReadiness,
+    reason_codes: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    policy_authority_error: Option<String>,
+    readiness_detail: Option<String>,
     engine_gate: vela_protocol::proposals::EngineVerdict,
 }
 
@@ -1877,18 +1879,19 @@ pub(crate) fn land(
     .map_err(|error| error.to_string())?;
     let context = staged_policy_route.context().clone();
     let staged_review_route = StagedReviewRoute {
-        schema: "vela.staged-review-route.internal.v1".to_string(),
+        schema: "vela.staged-review-route.internal.v2".to_string(),
         policy_context: context.clone(),
         policy_decision: staged_policy_route.decision().cloned(),
-        policy_state: staged_policy_route.policy_state().to_string(),
-        policy_authority_error: staged_policy_route
-            .authority_error()
+        policy_state: staged_policy_route.policy_state(),
+        permit_readiness: staged_policy_route.permit_readiness(),
+        reason_codes: staged_policy_route.policy_reason_codes().to_vec(),
+        readiness_detail: staged_policy_route
+            .readiness_detail()
             .map(ToString::to_string),
         engine_gate: staged_policy_route.engine_gate().clone(),
     };
     let mut snapshot_files = Vec::new();
     let route = if executor.starts_with("agent:") || executor.starts_with("ci:") {
-        let closed_policy_reason = "no signed policy: every decision is the human's".to_string();
         match policy_accept::apply_staged_policy_route_in_frontier(
             &mut candidate,
             staged_policy_route,
@@ -1901,9 +1904,6 @@ pub(crate) fn land(
                     policy_id: outcome.certificate.policy_id,
                 }
             }
-            Err(PolicyLaneRefusal::Closed) => LandRoute::Deferred {
-                reasons: vec![closed_policy_reason],
-            },
             Err(PolicyLaneRefusal::Deferred { reasons }) => LandRoute::Deferred { reasons },
             Err(PolicyLaneRefusal::Denied { reasons }) => {
                 return Err(format!(
@@ -1930,7 +1930,7 @@ pub(crate) fn land(
     };
 
     let review_material = ProposalReviewMaterial {
-        schema: "vela.proposal-review-material.internal.v1".to_string(),
+        schema: "vela.proposal-review-material.internal.v2".to_string(),
         proposal_id: proposal_id.clone(),
         receipt_root: receipt_root.clone(),
         evaluated_at: fixed_time.clone(),

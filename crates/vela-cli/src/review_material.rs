@@ -75,6 +75,9 @@ pub(crate) const REVIEW_PAGE_DEFAULT: usize = 25;
 pub(crate) const REVIEW_PAGE_MAX: usize = 100;
 const REVIEW_CURSOR_DOMAIN: &[u8] = b"vela.review-cursor.internal.v1";
 const REVIEW_CURSOR_MAX_BYTES: usize = 16 * 1024;
+const REVIEW_PRESSURE_OVERFLOW: &str = "pending_catalog_exceeds_pressure_bound";
+const REVIEW_PRESSURE_FACT_INVALID: &str = "pending_catalog_fact_invalid";
+const REVIEW_PRESSURE_REFERENCE_TIME_INVALID: &str = "pending_catalog_reference_time_invalid";
 
 #[derive(Debug, Clone, Default)]
 pub(crate) struct ReviewRequest {
@@ -94,9 +97,61 @@ pub(crate) struct ReviewPage {
     pub(crate) observed_at: String,
     pub(crate) total: usize,
     pub(crate) returned: usize,
+    /// Queue-wide pressure from the complete pending proposal catalog. This is
+    /// deliberately independent from the selected Receipt page: deriving it
+    /// never opens retained receipts, and exceeding its aggregate bound makes
+    /// only this field unavailable.
+    pub(crate) pressure: ReviewPressureProjection,
     pub(crate) items: Vec<vela_edge::decision_brief::ReviewSnapshot>,
     pub(crate) next_cursor: Option<String>,
     pub(crate) receipts_opened: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(tag = "status", rename_all = "snake_case")]
+pub(crate) enum ReviewPressureProjection {
+    Measured {
+        report: vela_edge::review_backpressure::ReviewBackpressureReport,
+    },
+    Unavailable {
+        reason_code: String,
+        total: usize,
+        maximum: usize,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        detail: Option<String>,
+    },
+}
+
+pub(crate) fn review_pressure_summary(pressure: &ReviewPressureProjection) -> String {
+    match pressure {
+        ReviewPressureProjection::Measured { report } => {
+            let level = match report.level {
+                vela_edge::review_backpressure::BackpressureLevel::Normal => "normal",
+                vela_edge::review_backpressure::BackpressureLevel::Elevated => "elevated",
+                vela_edge::review_backpressure::BackpressureLevel::Critical => "critical",
+            };
+            format!(
+                "{level} · {} pending · oldest {}s · largest actor queue {}",
+                report.metrics.queue_depth,
+                report.metrics.oldest_age_seconds,
+                report.metrics.actor_pressure.largest_actor_queue_depth
+            )
+        }
+        ReviewPressureProjection::Unavailable {
+            reason_code,
+            total,
+            maximum,
+            ..
+        } => format!("unavailable ({reason_code}) · {total} pending · measurement bound {maximum}"),
+    }
+}
+
+pub(crate) struct StatusSnapshot {
+    pub(crate) project: Project,
+    pub(crate) active_policy:
+        Result<vela_protocol::acceptance_policy::ActivePolicySnapshot, String>,
+    pub(crate) observed_at: String,
+    pub(crate) review_page: Result<ReviewPage, ReviewProjectionError>,
 }
 
 /// Lock-neutral review material for an exact caller-selected proposal set.
@@ -143,6 +198,11 @@ struct PendingReviewLeaf {
     proposal_root: String,
     receipt_path: Option<String>,
     declared_receipt_root: Option<String>,
+}
+
+struct PendingReviewCatalog {
+    leaves: Vec<PendingReviewLeaf>,
+    pressure: ReviewPressureProjection,
 }
 
 impl PendingReviewLeaf {
@@ -211,84 +271,95 @@ impl ReviewProjection {
             .as_deref()
             .map(decode_review_cursor)
             .transpose()?;
-        let project = vela_protocol::repo::load_from_path(frontier)
-            .map_err(|error| ReviewProjectionError::new("frontier_invalid", error))?;
-        let project_root = format!(
-            "sha256:{}",
-            vela_protocol::canonical::sha256_canonical(&project)
-                .map_err(|error| ReviewProjectionError::new("project_root_failed", error))?
-        );
         let observed_at = supplied_cursor.as_ref().map_or_else(
             || chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Nanos, true),
             |cursor| cursor.observed_at.clone(),
         );
-        let replay_ok = vela_protocol::reducer::verify_replay(&project).ok;
+        let project = vela_protocol::repo::load_from_path(frontier)
+            .map_err(|error| ReviewProjectionError::new("frontier_invalid", error))?;
         let policy_snapshot =
             vela_protocol::acceptance_policy::load_active_policy_snapshot(frontier);
         let engine_policy_observation =
             vela_protocol::frontier_policy::engine_policy_summary_observation(frontier);
+        Self::page_from_locked_snapshot(
+            frontier,
+            &request,
+            supplied_cursor,
+            &project,
+            &policy_snapshot,
+            &observed_at,
+            engine_policy_observation,
+        )
+    }
 
-        let mut seen = std::collections::BTreeSet::new();
-        let mut leaves = Vec::new();
-        for proposal in project.proposals.iter().filter(|proposal| {
-            proposal.status == "pending_review" && proposal.applied_event_id.is_none()
-        }) {
-            if !seen.insert(proposal.id.as_str()) {
-                return Err(ReviewProjectionError::new(
-                    "duplicate_proposal_id",
-                    format!("proposal {} appears more than once", proposal.id),
-                ));
-            }
-            let expected = vela_protocol::proposals::proposal_id(proposal);
-            if proposal.id != expected {
-                return Err(ReviewProjectionError::new(
-                    "proposal_id_mismatch",
-                    format!("stored proposal {} rederives as {expected}", proposal.id),
-                ));
-            }
-            if request
-                .proposal_id
-                .as_ref()
-                .is_some_and(|requested| requested != &proposal.id)
-            {
-                continue;
-            }
-            let created_at = chrono::DateTime::parse_from_rfc3339(&proposal.created_at)
-                .map_err(|error| {
-                    ReviewProjectionError::new(
-                        "proposal_time_invalid",
-                        format!("proposal {} created_at: {error}", proposal.id),
-                    )
-                })?
-                .to_utc()
-                .to_rfc3339_opts(chrono::SecondsFormat::Nanos, true);
-            let submission = proposal.payload.get("vela_submission");
-            leaves.push(PendingReviewLeaf {
-                created_at,
-                proposal_id: proposal.id.clone(),
-                proposal_root: format!(
-                    "sha256:{}",
-                    vela_protocol::canonical::sha256_canonical(proposal).map_err(|error| {
-                        ReviewProjectionError::new("proposal_root_failed", error)
-                    })?
-                ),
-                receipt_path: submission
-                    .and_then(|value| value.get("receipt_path"))
-                    .and_then(serde_json::Value::as_str)
-                    .map(ToString::to_string),
-                declared_receipt_root: submission
-                    .and_then(|value| value.get("receipt_root"))
-                    .and_then(serde_json::Value::as_str)
-                    .map(ToString::to_string),
-            });
-        }
-        leaves.sort_by(|left, right| left.key().cmp(&right.key()));
+    /// Read the status project, policy pair, and review preview while holding
+    /// one recovery barrier. The returned policy assessment and review items
+    /// therefore describe the same frontier transaction snapshot.
+    pub(crate) fn status_snapshot(
+        frontier: &Path,
+        request: ReviewRequest,
+    ) -> Result<StatusSnapshot, ReviewProjectionError> {
+        let journal_dir = crate::workflow::frontier_transaction_journal_dir(frontier)
+            .map_err(|error| ReviewProjectionError::new("frontier_unavailable", error))?;
+        let _barrier =
+            crate::frontier_txn::FrontierTxn::acquire_recovery_barrier(frontier, &journal_dir)
+                .map_err(review_barrier_error)?;
+        let supplied_cursor = request
+            .cursor
+            .as_deref()
+            .map(decode_review_cursor)
+            .transpose()?;
+        let observed_at = supplied_cursor.as_ref().map_or_else(
+            || chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Nanos, true),
+            |cursor| cursor.observed_at.clone(),
+        );
+        let project = vela_protocol::repo::load_from_path(frontier)
+            .map_err(|error| ReviewProjectionError::new("frontier_invalid", error))?;
+        let active_policy = vela_protocol::acceptance_policy::load_active_policy_snapshot(frontier);
+        let engine_policy_observation =
+            vela_protocol::frontier_policy::engine_policy_summary_observation(frontier);
+        let review_page = Self::page_from_locked_snapshot(
+            frontier,
+            &request,
+            supplied_cursor,
+            &project,
+            &active_policy,
+            &observed_at,
+            engine_policy_observation,
+        );
+        Ok(StatusSnapshot {
+            project,
+            active_policy,
+            observed_at,
+            review_page,
+        })
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn page_from_locked_snapshot(
+        frontier: &Path,
+        request: &ReviewRequest,
+        supplied_cursor: Option<ReviewCursor>,
+        project: &Project,
+        policy_snapshot: &Result<vela_protocol::acceptance_policy::ActivePolicySnapshot, String>,
+        observed_at: &str,
+        engine_policy_observation: vela_protocol::frontier_policy::EnginePolicySummaryObservation,
+    ) -> Result<ReviewPage, ReviewProjectionError> {
+        let project_root = format!(
+            "sha256:{}",
+            vela_protocol::canonical::sha256_canonical(project)
+                .map_err(|error| ReviewProjectionError::new("project_root_failed", error))?
+        );
+        let replay_ok = vela_protocol::reducer::verify_replay(project).ok;
+
+        let PendingReviewCatalog { leaves, pressure } =
+            build_pending_review_catalog(project, request, observed_at)?;
 
         let event_log_root = format!(
             "sha256:{}",
             vela_protocol::events::event_log_hash(&project.events)
         );
-        let policy_snapshot_root = policy_snapshot_marker(&policy_snapshot);
+        let policy_snapshot_root = policy_snapshot_marker(policy_snapshot);
         let snapshot_root = format!(
             "sha256:{}",
             vela_protocol::canonical::sha256_canonical(&serde_json::json!({
@@ -358,11 +429,11 @@ impl ReviewProjection {
             let loaded = load_receipt_material(frontier, proposal, &mut receipts_opened);
             items.push(build_review_item(
                 frontier,
-                &project,
+                project,
                 proposal,
                 &loaded,
-                &policy_snapshot,
-                &observed_at,
+                policy_snapshot,
+                observed_at,
                 replay_ok,
             )?);
         }
@@ -383,7 +454,7 @@ impl ReviewProjection {
                         snapshot_root: snapshot_root.clone(),
                         filter_root: filter_root.clone(),
                         order: "created_at_utc_then_proposal_id".to_string(),
-                        observed_at: observed_at.clone(),
+                        observed_at: observed_at.to_string(),
                         after_created_at: leaf.created_at.clone(),
                         after_proposal_id: leaf.proposal_id.clone(),
                         after_proposal_root: leaf.proposal_root.clone(),
@@ -397,9 +468,10 @@ impl ReviewProjection {
         Ok(ReviewPage {
             snapshot_root,
             event_log_root,
-            observed_at,
+            observed_at: observed_at.to_string(),
             total: leaves.len(),
             returned: items.len(),
+            pressure,
             items,
             next_cursor,
             receipts_opened,
@@ -575,6 +647,197 @@ impl ReviewProjection {
     }
 }
 
+/// Build the complete pending proposal catalog without touching retained
+/// Receipt files. The selected leaves may be paged later; pressure is derived
+/// from queue facts that already live on each [`StateProposal`].
+fn build_pending_review_catalog(
+    project: &Project,
+    request: &ReviewRequest,
+    observed_at: &str,
+) -> Result<PendingReviewCatalog, ReviewProjectionError> {
+    use vela_edge::review_backpressure::MAX_REVIEW_QUEUE_FACTS;
+
+    let mut seen = std::collections::BTreeSet::new();
+    let mut leaves = Vec::new();
+    let mut pressure_facts =
+        Vec::with_capacity(project.proposals.len().min(MAX_REVIEW_QUEUE_FACTS));
+    let mut pressure_fact_error = None;
+    let mut pending_total = 0usize;
+
+    for proposal in project.proposals.iter().filter(|proposal| {
+        proposal.status == "pending_review" && proposal.applied_event_id.is_none()
+    }) {
+        if !seen.insert(proposal.id.as_str()) {
+            return Err(ReviewProjectionError::new(
+                "duplicate_proposal_id",
+                format!("proposal {} appears more than once", proposal.id),
+            ));
+        }
+        let expected = vela_protocol::proposals::proposal_id(proposal);
+        if proposal.id != expected {
+            return Err(ReviewProjectionError::new(
+                "proposal_id_mismatch",
+                format!("stored proposal {} rederives as {expected}", proposal.id),
+            ));
+        }
+
+        pending_total = pending_total.saturating_add(1);
+        let selected = request
+            .proposal_id
+            .as_ref()
+            .is_none_or(|requested| requested == &proposal.id);
+        let created_at = match chrono::DateTime::parse_from_rfc3339(&proposal.created_at) {
+            Ok(created_at) => Some(created_at.to_utc()),
+            Err(error) => {
+                pressure_fact_error.get_or_insert_with(|| {
+                    format!("proposal {} created_at is invalid: {error}", proposal.id)
+                });
+                if selected {
+                    return Err(ReviewProjectionError::new(
+                        "proposal_time_invalid",
+                        format!("proposal {} created_at: {error}", proposal.id),
+                    ));
+                }
+                None
+            }
+        };
+
+        if pending_total <= MAX_REVIEW_QUEUE_FACTS
+            && let Some(created_at) = created_at.as_ref()
+        {
+            match pressure_fact_from_proposal(proposal, created_at.timestamp()) {
+                Ok(fact) => pressure_facts.push(fact),
+                Err(error) => {
+                    pressure_fact_error.get_or_insert(error);
+                }
+            }
+        }
+
+        if !selected {
+            continue;
+        }
+        let created_at = created_at
+            .expect("selected proposals return above when created_at is invalid")
+            .to_rfc3339_opts(chrono::SecondsFormat::Nanos, true);
+        let submission = proposal.payload.get("vela_submission");
+        leaves.push(PendingReviewLeaf {
+            created_at,
+            proposal_id: proposal.id.clone(),
+            proposal_root: format!(
+                "sha256:{}",
+                vela_protocol::canonical::sha256_canonical(proposal).map_err(|error| {
+                    ReviewProjectionError::new("proposal_root_failed", error)
+                })?
+            ),
+            receipt_path: submission
+                .and_then(|value| value.get("receipt_path"))
+                .and_then(serde_json::Value::as_str)
+                .map(ToString::to_string),
+            declared_receipt_root: submission
+                .and_then(|value| value.get("receipt_root"))
+                .and_then(serde_json::Value::as_str)
+                .map(ToString::to_string),
+        });
+    }
+    leaves.sort_by(|left, right| left.key().cmp(&right.key()));
+
+    Ok(PendingReviewCatalog {
+        leaves,
+        pressure: derive_review_pressure(
+            &pressure_facts,
+            pending_total,
+            pressure_fact_error,
+            observed_at,
+        ),
+    })
+}
+
+fn pressure_fact_from_proposal(
+    proposal: &StateProposal,
+    submitted_at_seconds: i64,
+) -> Result<vela_edge::review_backpressure::ReviewQueueFact, String> {
+    let submitted_at_seconds = u64::try_from(submitted_at_seconds).map_err(|_| {
+        format!(
+            "proposal {} created_at predates the pressure clock epoch",
+            proposal.id
+        )
+    })?;
+    let exact_work_root = match proposal
+        .payload
+        .get("vela_submission")
+        .and_then(|submission| submission.get("receipt_root"))
+    {
+        None => None,
+        Some(value) => {
+            let root = value.as_str().ok_or_else(|| {
+                format!(
+                    "proposal {} retained receipt root is not a string",
+                    proposal.id
+                )
+            })?;
+            if !is_sha256_root(root) {
+                return Err(format!(
+                    "proposal {} retained receipt root is not canonical sha256",
+                    proposal.id
+                ));
+            }
+            Some(root.to_string())
+        }
+    };
+    Ok(vela_edge::review_backpressure::ReviewQueueFact {
+        proposal_id: proposal.id.clone(),
+        claim_key: format!("{}:{}", proposal.target.r#type, proposal.target.id),
+        actor_id: proposal.actor.id.clone(),
+        exact_work_root,
+        submitted_at_seconds,
+    })
+}
+
+fn derive_review_pressure(
+    facts: &[vela_edge::review_backpressure::ReviewQueueFact],
+    total: usize,
+    fact_error: Option<String>,
+    observed_at: &str,
+) -> ReviewPressureProjection {
+    use vela_edge::review_backpressure::{
+        MAX_REVIEW_QUEUE_FACTS, ReviewBackpressureThresholds, review_backpressure,
+    };
+
+    let unavailable =
+        |reason_code: &str, detail: Option<String>| ReviewPressureProjection::Unavailable {
+            reason_code: reason_code.to_string(),
+            total,
+            maximum: MAX_REVIEW_QUEUE_FACTS,
+            detail,
+        };
+    if total > MAX_REVIEW_QUEUE_FACTS {
+        return unavailable(REVIEW_PRESSURE_OVERFLOW, None);
+    }
+    if let Some(error) = fact_error {
+        return unavailable(REVIEW_PRESSURE_FACT_INVALID, Some(error));
+    }
+    let as_of_seconds = match chrono::DateTime::parse_from_rfc3339(observed_at)
+        .ok()
+        .and_then(|value| u64::try_from(value.timestamp()).ok())
+    {
+        Some(seconds) => seconds,
+        None => {
+            return unavailable(
+                REVIEW_PRESSURE_REFERENCE_TIME_INVALID,
+                Some("review observation time is outside the pressure clock".to_string()),
+            );
+        }
+    };
+    match review_backpressure(
+        facts,
+        as_of_seconds,
+        ReviewBackpressureThresholds::default(),
+    ) {
+        Ok(report) => ReviewPressureProjection::Measured { report },
+        Err(error) => unavailable(REVIEW_PRESSURE_FACT_INVALID, Some(error.to_string())),
+    }
+}
+
 fn select_review_leaves<'a>(
     leaves: &'a [PendingReviewLeaf],
     after: Option<&(String, String, String)>,
@@ -621,6 +884,13 @@ fn build_review_item(
 ) -> Result<vela_edge::decision_brief::ReviewSnapshot, ReviewProjectionError> {
     let material = loaded.material();
     let publication = None;
+    let policy_assessment = vela_protocol::proposals::policy_accept::assess_policy_readiness(
+        project,
+        policy_snapshot.as_ref().map_err(String::as_str),
+        observed_at,
+    );
+    let policy_facts =
+        vela_edge::decision_brief::ReviewPolicyFacts::from_assessment(&policy_assessment);
     let build = |route: vela_edge::decision_brief::ReviewRoute<'_>| {
         vela_edge::decision_brief::build_review_snapshot(
             project,
@@ -641,10 +911,12 @@ fn build_review_item(
             frontier, project, proposal,
         ) {
             Ok(_) => build(vela_edge::decision_brief::ReviewRoute::human_only(
+                policy_facts,
                 "legacy_policy_retirement",
                 "retiring unsupported prelaunch policy bytes requires an isolated explicit human decision",
             )),
             Err(error) => build(vela_edge::decision_brief::ReviewRoute::unavailable(
+                policy_facts,
                 "legacy_policy_retirement_broken",
                 &error,
             )),
@@ -653,7 +925,8 @@ fn build_review_item(
 
     let Ok(snapshot) = policy_snapshot else {
         return build(vela_edge::decision_brief::ReviewRoute::unavailable(
-            "broken",
+            policy_facts,
+            "policy_snapshot_broken",
             policy_snapshot.as_ref().unwrap_err(),
         ));
     };
@@ -669,17 +942,19 @@ fn build_review_item(
         );
         if has_submission && material_unavailable {
             return build(vela_edge::decision_brief::ReviewRoute::unavailable(
-                "material_unavailable",
+                policy_facts,
+                "receipt_material_unavailable",
                 "a coherent receipt-backed policy route cannot be derived",
             ));
         }
-        let state = if has_submission {
+        let route_reason_code = if has_submission {
             "proposal_kind_outside_policy_lane"
         } else {
             "human_review_only"
         };
         return build(vela_edge::decision_brief::ReviewRoute::human_only(
-            state,
+            policy_facts,
+            route_reason_code,
             "this proposal kind requires an explicit human decision",
         ));
     }
@@ -699,13 +974,8 @@ fn build_review_item(
         Err(error) => {
             let error = error.to_string();
             build(vela_edge::decision_brief::ReviewRoute::unavailable(
-                match snapshot.mode {
-                    vela_protocol::acceptance_policy::ActivePolicyMode::Active => "active",
-                    vela_protocol::acceptance_policy::ActivePolicyMode::StagedUnsigned => {
-                        "staged_unsigned"
-                    }
-                    vela_protocol::acceptance_policy::ActivePolicyMode::Absent => "closed",
-                },
+                policy_facts,
+                "policy_route_staging_failed",
                 &error,
             ))
         }
@@ -805,9 +1075,9 @@ fn policy_snapshot_marker(
     match snapshot {
         Ok(snapshot) => serde_json::json!({
             "state": match snapshot.mode {
-                vela_protocol::acceptance_policy::ActivePolicyMode::Active => "live",
+                vela_protocol::acceptance_policy::ActivePolicyMode::Active => "active",
                 vela_protocol::acceptance_policy::ActivePolicyMode::StagedUnsigned => "staged_unsigned",
-                vela_protocol::acceptance_policy::ActivePolicyMode::Absent => "closed",
+                vela_protocol::acceptance_policy::ActivePolicyMode::Absent => "absent",
             },
             "policy_bytes_root": snapshot.policy_bytes.as_deref().map(bytes_root),
             "signature_bytes_root": snapshot.signature_bytes.as_deref().map(bytes_root),
@@ -1111,6 +1381,25 @@ mod tests {
         proposal
     }
 
+    fn pending_catalog_proposal(index: usize) -> StateProposal {
+        let claim_index = index / 2;
+        let finding = finding_with_text(&format!("bounded catalog claim {claim_index}"));
+        let mut proposal = proposal(&finding);
+        proposal.actor.id = format!("agent:catalog-{}", index % 128);
+        proposal.created_at = at_second(index);
+        proposal.reason = format!("catalog submission {index}");
+        let receipt_root = format!("sha256:{:064x}", claim_index + 1);
+        proposal.payload["vela_submission"] = json!({
+            "schema": "vela.submission-links.internal.v1",
+            "receipt_root": receipt_root,
+            "receipt_path": format!("records/receipts/sha256/{:064x}.json", claim_index + 1),
+            "record_id": format!("vrc_{index:016x}"),
+            "operation_id": format!("vop_{:064x}", index + 1),
+        });
+        proposal.id = vela_protocol::proposals::proposal_id(&proposal);
+        proposal
+    }
+
     fn retain_receipt_for_proposal(frontier: &Path, index: usize) -> StateProposal {
         let finding = finding_with_text(&format!("bounded retained result {index}"));
         let receipt = retained_receipt(&finding);
@@ -1387,6 +1676,43 @@ mod tests {
         assert!(!context.credential_valid);
         assert!(!context.independence_satisfied);
         assert!(!context.method_integrity_sound);
+    }
+
+    #[test]
+    fn status_snapshot_binds_policy_and_review_to_one_project_observation() {
+        let temp = initialized_review_frontier();
+        save_pending(temp.path(), vec![pending_with_missing_receipt(0)]);
+
+        let status = ReviewProjection::status_snapshot(
+            temp.path(),
+            ReviewRequest {
+                limit: Some(5),
+                ..ReviewRequest::default()
+            },
+        )
+        .unwrap();
+        let expected_event_log_root = format!(
+            "sha256:{}",
+            vela_protocol::events::event_log_hash(&status.project.events)
+        );
+        let page = status.review_page.unwrap();
+
+        assert_eq!(page.event_log_root, expected_event_log_root);
+        assert_eq!(page.observed_at, status.observed_at);
+        assert_eq!(page.returned, 1);
+        let assessment = vela_protocol::proposals::policy_accept::assess_policy_readiness(
+            &status.project,
+            status.active_policy.as_ref().map_err(String::as_str),
+            &status.observed_at,
+        );
+        assert_eq!(
+            assessment.state(),
+            vela_protocol::proposals::policy_accept::PolicyState::Absent
+        );
+        assert_eq!(
+            assessment.permit_readiness(),
+            vela_protocol::proposals::policy_accept::PermitReadiness::HumanOnly
+        );
     }
 
     #[test]
@@ -1684,37 +2010,77 @@ mod tests {
     }
 
     #[test]
-    fn ten_thousand_catalog_ids_page_stably_before_materialization() {
-        let leaves = (0..10_000)
-            .map(|index| PendingReviewLeaf {
-                created_at: at_second(index),
-                proposal_id: format!("vpr_{index:016x}"),
-                proposal_root: format!("sha256:{index:064x}"),
-                receipt_path: Some(format!("records/receipts/sha256/{index:064x}.json")),
-                declared_receipt_root: Some(format!("sha256:{index:064x}")),
-            })
-            .collect::<Vec<_>>();
-        let mut after = None;
-        let mut seen = std::collections::BTreeSet::new();
-        let mut pages = 0usize;
-        loop {
-            let (_, selected) = select_review_leaves(&leaves, after.as_ref(), 100).unwrap();
-            if selected.is_empty() {
-                break;
+    fn real_pending_catalog_measures_ten_thousand_without_receipts_and_overflow_keeps_paging() {
+        use vela_edge::review_backpressure::{MAX_REVIEW_QUEUE_FACTS, MetricAvailability};
+
+        let mut project = vela_protocol::project::assemble("catalog", vec![], 0, 0, "catalog test");
+        project.proposals = (0..10_000).map(pending_catalog_proposal).collect();
+        let observed_at = at_second(MAX_REVIEW_QUEUE_FACTS + 100);
+        let request = ReviewRequest::default();
+        let catalog = build_pending_review_catalog(&project, &request, &observed_at).unwrap();
+
+        assert_eq!(catalog.leaves.len(), 10_000);
+        let ReviewPressureProjection::Measured { report } = &catalog.pressure else {
+            panic!("ten thousand durable proposal rows should remain measurable")
+        };
+        assert_eq!(report.input_count, 10_000);
+        assert_eq!(report.metrics.queue_depth, 10_000);
+        assert_eq!(report.metrics.claims, 5_000);
+        assert_eq!(
+            report.metrics.repeated_exact_work,
+            MetricAvailability::Measured {
+                value: 5_000,
+                observed: 10_000,
+                total: 10_000,
             }
-            assert!(selected.len() <= REVIEW_PAGE_MAX);
-            for leaf in &selected {
-                assert!(seen.insert(leaf.proposal_id.clone()));
-            }
-            let last = selected.last().unwrap();
-            after = Some((
-                last.created_at.clone(),
-                last.proposal_id.clone(),
-                last.proposal_root.clone(),
-            ));
-            pages += 1;
-        }
-        assert_eq!(pages, 100);
-        assert_eq!(seen.len(), 10_000);
+        );
+        assert!(matches!(
+            report.metrics.verifier_class_diversity,
+            MetricAvailability::Missing { .. }
+        ));
+        let pressure_json = serde_json::to_value(&catalog.pressure).unwrap();
+        assert_eq!(pressure_json["status"], "measured");
+        assert_eq!(
+            pressure_json["report"]["metrics"]["independent_replications"]["status"],
+            "missing"
+        );
+        assert_eq!(
+            pressure_json["report"]["metrics"]["repeated_exact_work"]["status"],
+            "measured"
+        );
+        assert_eq!(
+            review_pressure_summary(&catalog.pressure),
+            "critical · 10000 pending · oldest 16484s · largest actor queue 79"
+        );
+        let (_, first_page) = select_review_leaves(&catalog.leaves, None, REVIEW_PAGE_MAX).unwrap();
+        assert_eq!(first_page.len(), REVIEW_PAGE_MAX);
+
+        project
+            .proposals
+            .extend((10_000..=MAX_REVIEW_QUEUE_FACTS).map(pending_catalog_proposal));
+        let overflow = build_pending_review_catalog(&project, &request, &observed_at).unwrap();
+        assert_eq!(overflow.leaves.len(), MAX_REVIEW_QUEUE_FACTS + 1);
+        assert!(matches!(
+            overflow.pressure,
+            ReviewPressureProjection::Unavailable {
+                ref reason_code,
+                total,
+                maximum,
+                detail: None,
+            } if reason_code == REVIEW_PRESSURE_OVERFLOW
+                && total == MAX_REVIEW_QUEUE_FACTS + 1
+                && maximum == MAX_REVIEW_QUEUE_FACTS
+        ));
+        assert_eq!(
+            review_pressure_summary(&overflow.pressure),
+            "unavailable (pending_catalog_exceeds_pressure_bound) · 16385 pending · measurement bound 16384"
+        );
+        assert_eq!(
+            select_review_leaves(&overflow.leaves, None, REVIEW_PAGE_MAX)
+                .unwrap()
+                .1
+                .len(),
+            REVIEW_PAGE_MAX
+        );
     }
 }

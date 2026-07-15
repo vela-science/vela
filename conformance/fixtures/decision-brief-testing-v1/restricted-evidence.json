@@ -1,13 +1,13 @@
 {
   "audit": {
     "artifact_root": null,
-    "decision_facts_root": "sha256:c7740f86773cef7e121ea3a58d0327a90b17ed515b762c3a938ed3b6a3baea6c",
+    "decision_facts_root": "sha256:5adad5b602c48436de8f2e1f0a4fceac06f69305999b743dbeb3d83c74a76c81",
     "declared_receipt_root": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
     "missing_root": "sha256:056f44f2d20ae936f910933be1832ee52480c4a07539f5d7746c2ee4eb4f29d5",
     "missing_truncated": 0,
     "observed_at": "2026-07-13T13:00:00Z",
-    "policy_input_root": "sha256:036f19a833ac53ca2c462f2ca406dd129a1c0bcc421a01c8bc0412ceb306246b",
-    "policy_result_root": "sha256:e84cbe00cec8a66d49096020781510c7d4e0abfb7869b061e487acc5906732ac",
+    "policy_input_root": "sha256:4cc098c8d19609b8decd553da65d2deb29d941997439fe4f2c7c112338d03617",
+    "policy_result_root": "sha256:a134de140628906256abe789db614bbaf5ac490c81c06ff769a315ac85fa101b",
     "proposal_id": "vpr_5d7aed1e9bfa9723",
     "proposal_root": "sha256:f7d0baaa5da3e83239416b72e526a9ea9bd13ecfc6879ac6bc9cb63801f38b6b",
     "publication_root": null,

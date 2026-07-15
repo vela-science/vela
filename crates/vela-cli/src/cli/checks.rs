@@ -66,6 +66,23 @@ pub fn scan_for_sensitive_paths(root: &Path) -> Vec<PathBuf> {
     hits
 }
 
+pub(crate) fn frontier_dir_for_source(source: &Path) -> &Path {
+    if source.is_dir() {
+        source
+    } else {
+        source
+            .parent()
+            .filter(|parent| !parent.as_os_str().is_empty())
+            .unwrap_or_else(|| Path::new("."))
+    }
+}
+
+pub(crate) fn active_policy_pair_snapshot(
+    source: &Path,
+) -> Result<vela_protocol::acceptance_policy::ActivePolicySnapshot, String> {
+    vela_protocol::acceptance_policy::load_active_policy_snapshot(frontier_dir_for_source(source))
+}
+
 pub(crate) fn check_json_payload(src: &Path, schema_only: bool, strict: bool) -> Value {
     let report = validate::validate(src);
     let loaded = repo::load_from_path(src).ok();
@@ -164,15 +181,77 @@ pub(crate) fn check_json_payload(src: &Path, schema_only: bool, strict: bool) ->
             })
         }));
     }
+    // Active-pair integrity and current Permit readiness are assessed once.
+    // Historical admissions remain the separate strict `policy_lane` check.
+    let frontier_dir = frontier_dir_for_source(src);
+    let active_policy_result = if !schema_only && loaded.is_some() {
+        Some(active_policy_pair_snapshot(src))
+    } else {
+        None
+    };
+    let observed_at = chrono::Utc::now().to_rfc3339();
+    let active_policy_assessment =
+        active_policy_result
+            .as_ref()
+            .zip(loaded.as_ref())
+            .map(|(result, frontier)| {
+                vela_protocol::proposals::policy_accept::assess_policy_readiness(
+                    frontier,
+                    result.as_ref().map_err(String::as_str),
+                    &observed_at,
+                )
+            });
+    let active_policy_errors = active_policy_result
+        .as_ref()
+        .and_then(|result| result.as_ref().err())
+        .cloned()
+        .into_iter()
+        .collect::<Vec<_>>();
+    let policy_readiness_errors = active_policy_assessment
+        .as_ref()
+        .filter(|assessment| {
+            assessment.state() != vela_protocol::proposals::policy_accept::PolicyState::Broken
+                && assessment.permit_readiness()
+                    == vela_protocol::proposals::policy_accept::PermitReadiness::Blocked
+        })
+        .map(|assessment| {
+            assessment
+                .detail()
+                .unwrap_or("policy readiness assessment is blocked")
+                .to_string()
+        })
+        .into_iter()
+        .collect::<Vec<_>>();
+    diagnostics.extend(active_policy_errors.iter().map(|error| {
+        json!({
+            "severity": "error",
+            "rule_id": "active_policy_integrity",
+            "check": "active_policy",
+            "finding_id": null,
+            "field_path": ".vela/policies/{active.json,active.sig.json}",
+            "message": error,
+            "suggestion": "Restore the exact active-policy pair or retire legacy bytes through the signed human governance ceremony; invalid policy bytes never fail open.",
+            "fixable": false,
+            "normalize_action": null,
+        })
+    }));
+    diagnostics.extend(policy_readiness_errors.iter().map(|error| {
+        json!({
+            "severity": "error",
+            "rule_id": "policy_head_integrity",
+            "check": "policy_readiness",
+            "finding_id": null,
+            "field_path": "events[governance.policy_head]",
+            "message": error,
+            "suggestion": "Repair the signed policy-head chain through the human governance ceremony; malformed authority history never fails open.",
+            "fixable": false,
+            "normalize_action": null,
+        })
+    }));
     let policy_lane_errors = if strict && !schema_only {
         loaded
             .as_ref()
             .map(|frontier| {
-                let frontier_dir = if src.is_dir() {
-                    src
-                } else {
-                    src.parent().unwrap_or_else(|| Path::new("."))
-                };
                 vela_protocol::proposals::policy_accept::verify_policy_lane_events(
                     frontier,
                     frontier_dir,
@@ -347,6 +426,8 @@ pub(crate) fn check_json_payload(src: &Path, schema_only: bool, strict: bool) ->
         + graph_errors
         + event_errors
         + state_integrity_errors
+        + active_policy_errors.len()
+        + policy_readiness_errors.len()
         + activity_leak_errors;
     let warnings = method_warnings + graph_warnings + signal_report.proof_readiness.warnings;
     let infos = method_infos + graph_infos;
@@ -440,6 +521,29 @@ pub(crate) fn check_json_payload(src: &Path, schema_only: bool, strict: bool) ->
                 "checked": state_integrity_report.as_ref().map_or(0, |report| report.summary.get("events").copied().unwrap_or_default()),
                 "failed": state_integrity_errors,
                 "skipped": schema_only || loaded.is_none(),
+            },
+            {
+                "id": "active_policy",
+                "status": if active_policy_errors.is_empty() { "pass" } else { "fail" },
+                "checked": usize::from(active_policy_result.is_some()),
+                "failed": active_policy_errors.len(),
+                "errors": active_policy_errors,
+                "state": active_policy_assessment.as_ref().map(|assessment| assessment.state().as_str()),
+                "permit_readiness": active_policy_assessment.as_ref().map(|assessment| assessment.permit_readiness().as_str()),
+                "reason_codes": active_policy_assessment.as_ref().map(|assessment| assessment.reason_codes()).unwrap_or_default(),
+                "skipped": active_policy_result.is_none(),
+            },
+            {
+                "id": "policy_readiness",
+                "status": if policy_readiness_errors.is_empty() { "pass" } else { "fail" },
+                "checked": usize::from(active_policy_assessment.is_some()),
+                "failed": policy_readiness_errors.len(),
+                "errors": policy_readiness_errors,
+                "state": active_policy_assessment.as_ref().map(|assessment| assessment.state().as_str()),
+                "permit_readiness": active_policy_assessment.as_ref().map(|assessment| assessment.permit_readiness().as_str()),
+                "reason_codes": active_policy_assessment.as_ref().map(|assessment| assessment.reason_codes()).unwrap_or_default(),
+                "skipped": active_policy_assessment.as_ref().is_none_or(|assessment| assessment.state()
+                    == vela_protocol::proposals::policy_accept::PolicyState::Broken),
             },
             {
                 "id": "policy_lane",

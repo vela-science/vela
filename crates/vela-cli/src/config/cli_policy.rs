@@ -8,12 +8,12 @@
 //!   show    the active policy, its signature state, what it admitted lately
 //!   draft   seal a policy from a template (no authority until signed)
 //!   test    dry-run the policy over every pending proposal (never mutates)
-//!   sign    THE ceremony: review, one confirm, one key read — the lane opens
+//!   sign    THE ceremony: review, one confirm, one key read — authority resolves
 //!   revoke  sign a causal head close; snapshots keep past events verifiable
 //!   log     every policy-lane admission across all policies
 //!
 //! Custody doctrine is unchanged: agents draft, the evaluator routes, only a
-//! human key opens a lane (`resolve_decision_actor` refuses `agent:`/`ci:` with
+//! human key can grant standing Permit authority (`resolve_decision_actor` refuses `agent:`/`ci:` with
 //! exit 4), and revocation is a real signed human review — never a model
 //! output. One recoverable frontier transaction binds that review to the
 //! signature-pointer change and retained snapshots. The signature verified
@@ -310,7 +310,7 @@ fn read_sealed_active(frontier: &Path) -> Result<AcceptancePolicy, CmdError> {
     if !path.exists() {
         return Err(CmdError::hinted(
             ErrorKind::NotFound,
-            "no policy at .vela/policies/active.json — the lane is closed",
+            "no policy at .vela/policies/active.json",
             format!("draft one: `vela policy draft <template>` (templates: {TEMPLATES})"),
         ));
     }
@@ -340,8 +340,8 @@ fn read_sealed_active(frontier: &Path) -> Result<AcceptancePolicy, CmdError> {
 /// authority — that is the signature's
 /// job. Refuses to overwrite an existing SIGNED active policy unless
 /// `replace` is set; replacing snapshots the outgoing pair content-addressed
-/// (past admissions keep verifying) and closes the lane until the new draft
-/// is signed. Returns the sealed policy and whether a signed policy was
+/// (past admissions keep verifying) and makes Permit human-only until the new
+/// draft is signed. Returns the sealed policy and whether a signed policy was
 /// rotated out.
 fn draft_policy(
     frontier: &Path,
@@ -732,8 +732,8 @@ fn require_exact_or_absent(
 /// binds the sealed policy and `signed_at`. Writes `active.sig.json` as a
 /// [`PolicySignatureRecord`] plus the content-addressed snapshot pair
 /// `<vap_id>.json` / `<vap_id>.sig.json`, then round-trips the loader to
-/// prove the lane actually opened. Refuses a revoked policy (revocation is
-/// not undone by re-signing) and is idempotent on an already-open lane.
+/// prove the signed pair actually reloads. Refuses a revoked policy (revocation
+/// is not undone by re-signing) and is idempotent on an already-signed pair.
 /// Test-only frozen file-format fixture: production must use the transactional
 /// ceremony below so no callable file-direct authority bypass exists.
 #[cfg(test)]
@@ -756,7 +756,7 @@ fn sign_active_policy(
     if let Ok(Some(_)) = load_active_policy(frontier) {
         return Err(CmdError::hinted(
             ErrorKind::Exists,
-            format!("{} is already signed — the lane is open", policy.id),
+            format!("{} already has a verified active signature", policy.id),
             "rotate deliberately: `vela policy revoke --reason <why>` then draft + sign",
         ));
     }
@@ -800,13 +800,13 @@ fn sign_active_policy(
         )
     })?;
 
-    // The proof of the ceremony: the exact loader the accept lane uses must
-    // see an open lane, or the signature we just wrote is worthless.
+    // The proof of the ceremony: the exact loader used by policy routing must
+    // see the verified active pair, or the signature we just wrote is worthless.
     match load_active_policy(frontier) {
         Ok(Some(_)) => Ok((policy, record)),
         Ok(None) => Err(CmdError::new(
             ErrorKind::Domain,
-            "signature written but the loader does not see an open lane",
+            "signature written but the loader does not see a verified active policy pair",
         )),
         Err(e) => Err(CmdError::new(
             ErrorKind::Domain,
@@ -815,8 +815,8 @@ fn sign_active_policy(
     }
 }
 
-/// The revocation core: the `active.sig.json` pointer loses authority (the
-/// lane closes) while the content-addressed snapshots STAY so every event the
+/// The revocation core: the `active.sig.json` pointer loses authority while
+/// the content-addressed snapshots STAY so every event the
 /// policy admitted keeps verifying on replay. Writes a
 /// `revoked-<vap_id>.json` marker that `sign` honors — re-signing never
 /// resurrects a revoked policy. Returns the revoked `vap_` id.
@@ -1625,8 +1625,8 @@ where
     Ok((policy_id, head))
 }
 
-/// One shadow decision from the dry-run.
-struct ShadowRow {
+/// One evaluator decision from the dry-run.
+struct EvaluationRow {
     proposal: String,
     kind: String,
     claim_class: String,
@@ -1644,7 +1644,7 @@ fn evaluate_pending(
     policy: &AcceptancePolicy,
     now: &str,
     frontier: Option<&Path>,
-) -> Vec<ShadowRow> {
+) -> Vec<EvaluationRow> {
     project
         .proposals
         .iter()
@@ -1660,7 +1660,7 @@ fn evaluate_pending(
                 now,
             );
             let d = evaluate(policy, &ctx, now);
-            ShadowRow {
+            EvaluationRow {
                 proposal: p.id.clone(),
                 kind: p.kind.clone(),
                 claim_class: ctx.claim_class,
@@ -1718,10 +1718,6 @@ fn lane_admissions(project: &Project) -> Vec<Admission> {
         .collect()
 }
 
-fn policy_has_causal_auto_permit(policy: &AcceptancePolicy) -> bool {
-    policy.expires_at == CAUSALLY_UNBOUNDED_POLICY_EXPIRY
-}
-
 // ── Rendering ──────────────────────────────────────────────────────────
 
 fn constraints_summary(c: &Constraints) -> String {
@@ -1758,7 +1754,7 @@ fn render_policy(p: &AcceptancePolicy) {
     if !p.issued_by.is_empty() {
         println!("  issued by {}", p.issued_by.join(", "));
     }
-    if policy_has_causal_auto_permit(p) {
+    if p.expires_at == CAUSALLY_UNBOUNDED_POLICY_EXPIRY {
         println!(
             "  default   {} · valid until signed rotation or revocation",
             p.default.as_str()
@@ -1816,78 +1812,162 @@ fn confirm(prompt: &str) -> bool {
 /// signature state (a sealed-unsigned policy carries NO authority), and what
 /// it admitted lately (the last policy-lane events stamped with its id).
 pub(crate) fn cmd_policy_show(frontier: &Path, json: bool) {
-    let active = active_path(frontier);
-    if !active.exists() {
+    let snapshot = load_active_policy_snapshot(frontier);
+    let project = repo::load_from_path(frontier).unwrap_or_else(|error| {
+        fail_with(
+            ErrorKind::Domain,
+            &error,
+            Some("run `vela check .` and repair the frontier before inspecting policy authority"),
+        )
+    });
+    let admissions = lane_admissions(&project);
+    let now = Utc::now().to_rfc3339();
+    let assessment = vela_protocol::proposals::policy_accept::assess_policy_readiness(
+        &project,
+        snapshot.as_ref().map_err(String::as_str),
+        &now,
+    );
+    if assessment.permit_readiness()
+        == vela_protocol::proposals::policy_accept::PermitReadiness::Blocked
+    {
+        let parsed_policy_id = snapshot
+            .as_ref()
+            .ok()
+            .and_then(|snapshot| snapshot.policy())
+            .map(|policy| policy.id.as_str());
+        let retained: Vec<&Admission> = admissions
+            .iter()
+            .filter(|admission| {
+                parsed_policy_id.is_none_or(|policy_id| admission.policy_id == policy_id)
+            })
+            .collect();
+        let last: Vec<&Admission> = retained.iter().rev().take(5).rev().copied().collect();
+        if json {
+            let policy = snapshot
+                .as_ref()
+                .ok()
+                .and_then(|snapshot| snapshot.policy())
+                .and_then(|policy| serde_json::to_value(policy).ok())
+                .unwrap_or(serde_json::Value::Null);
+            let signature = snapshot
+                .as_ref()
+                .ok()
+                .and_then(|snapshot| snapshot.verified.as_ref())
+                .map(|verified| {
+                    json!({
+                        "signer_pubkey_hex": verified.signer_pubkey_hex,
+                        "signed_at": verified.signed_at,
+                    })
+                });
+            print_json(&json!({
+                "ok": false,
+                "command": "policy.show",
+                "state": assessment.state().as_str(),
+                "permit_readiness": assessment.permit_readiness().as_str(),
+                "reason_codes": assessment.reason_codes(),
+                "error": assessment.detail(),
+                "policy": policy,
+                "signature": signature,
+                "admissions": {
+                    "scope": if parsed_policy_id.is_some() {
+                        "parsed_policy"
+                    } else {
+                        "all_retained_policy_lanes"
+                    },
+                    "count": retained.len(),
+                    "last": last.iter().map(|admission| json!({
+                        "policy_id": admission.policy_id,
+                        "event": admission.event_id,
+                        "proposal": admission.proposal_id,
+                        "rule_ids": admission.rule_ids,
+                        "timestamp": admission.timestamp,
+                    })).collect::<Vec<_>>(),
+                },
+            }));
+        } else {
+            ui::header("POLICY", &frontier.display().to_string(), None);
+            println!(
+                "  {}",
+                style::lost(&format!(
+                    "{} · Permit blocked ({})",
+                    assessment.state().as_str(),
+                    assessment.reason_codes().join(", ")
+                ))
+            );
+            if let Some(detail) = assessment.detail() {
+                println!("  {detail}");
+            }
+            println!();
+            if retained.is_empty() {
+                println!("  retained policy-lane admissions: none");
+            } else {
+                println!(
+                    "  retained policy-lane admissions: {} event(s), last {}:",
+                    retained.len(),
+                    last.len()
+                );
+                for admission in last {
+                    println!(
+                        "    {}  {}  {}  {}",
+                        admission.timestamp,
+                        admission.event_id,
+                        admission.proposal_id,
+                        admission.policy_id
+                    );
+                }
+            }
+        }
+        std::process::exit(1);
+    }
+    let snapshot = snapshot.expect("non-broken assessment has a valid snapshot");
+    if assessment.state() == vela_protocol::proposals::policy_accept::PolicyState::Absent {
         if json {
             print_json(&json!({
                 "ok": true,
                 "command": "policy.show",
-                "state": "absent",
+                "state": assessment.state().as_str(),
+                "permit_readiness": assessment.permit_readiness().as_str(),
+                "reason_codes": assessment.reason_codes(),
                 "policy": serde_json::Value::Null,
                 "signature": serde_json::Value::Null,
                 "admissions": { "count": 0, "last": [] },
             }));
         } else {
             ui::header("POLICY", &frontier.display().to_string(), None);
-            println!("  no active policy — the lane is closed; every accept is a key ceremony");
+            println!("  absent · Permit human_only (policy_absent)");
             println!(
-                "  open one: `vela policy draft <template>` (templates: {TEMPLATES}), then `vela policy sign`"
+                "  draft one: `vela policy draft <template>` (templates: {TEMPLATES}), then `vela policy sign`"
             );
         }
         return;
     }
-
-    let snapshot = load_active_policy_snapshot(frontier).unwrap_or_else(|e| {
-        fail_with(
-            ErrorKind::Domain,
-            &format!("active policy pair is broken: {e}"),
-            Some("inspect the exact active policy bytes; invalid governance never fails open"),
-        )
-    });
-    let policy = read_sealed_active(frontier).unwrap_or_else(|e| e.fail());
-    let sig_present = snapshot.signature_bytes.is_some();
-    let signed = snapshot.verified.clone();
-    let record: Option<PolicySignatureRecord> = if sig_present {
-        std::fs::read_to_string(active_sig_path(frontier))
-            .ok()
-            .and_then(|raw| serde_json::from_str(&raw).ok())
-    } else {
-        None
-    };
-    let revoked = revoked_marker_path(frontier, &policy.id).exists();
-    let now = Utc::now().to_rfc3339();
+    let policy = snapshot
+        .policy()
+        .expect("a non-absent policy snapshot retains its parsed policy");
+    let signed = snapshot.verified.as_ref();
     let expired = policy.is_expired(&now);
 
     // What it admitted lately. A missing/partial event log is fine — the
     // policy files are still worth showing.
-    let admissions: Vec<Admission> = repo::load_from_path(frontier)
-        .map(|p| lane_admissions(&p))
-        .unwrap_or_default();
     let mine: Vec<&Admission> = admissions
         .iter()
         .filter(|a| a.policy_id == policy.id)
         .collect();
     let last: Vec<&Admission> = mine.iter().rev().take(5).rev().copied().collect();
 
-    let state = if signed.is_some() {
-        "signed"
-    } else if revoked {
-        "revoked"
-    } else {
-        "sealed_unsigned"
-    };
-
     if json {
         print_json(&json!({
             "ok": true,
             "command": "policy.show",
-            "state": state,
+            "state": assessment.state().as_str(),
+            "permit_readiness": assessment.permit_readiness().as_str(),
+            "reason_codes": assessment.reason_codes(),
+            "readiness_detail": assessment.detail(),
             "expired": expired,
-            "auto_permit_enabled": signed.is_some() && policy_has_causal_auto_permit(&policy),
-            "policy": serde_json::to_value(&policy).unwrap_or_default(),
-            "signature": record.as_ref().map(|r| json!({
-                "signer_pubkey_hex": r.signer_pubkey_hex,
-                "signed_at": r.signed_at,
+            "policy": serde_json::to_value(policy).unwrap_or_default(),
+            "signature": signed.map(|verified| json!({
+                "signer_pubkey_hex": verified.signer_pubkey_hex,
+                "signed_at": verified.signed_at,
             })),
             "admissions": {
                 "count": mine.len(),
@@ -1903,41 +1983,39 @@ pub(crate) fn cmd_policy_show(frontier: &Path, json: bool) {
     }
 
     ui::header("POLICY", &frontier.display().to_string(), None);
-    render_policy(&policy);
+    render_policy(policy);
     println!();
-    match (&signed, revoked) {
-        (Some(v), _) => {
-            let signed_at = record.as_ref().map(|r| r.signed_at.as_str()).unwrap_or("");
-            if policy_has_causal_auto_permit(&policy) {
-                println!(
-                    "  {} signed by {}… at {signed_at} — the lane is open",
-                    style::ok("state"),
-                    &v.signer_pubkey_hex[..16.min(v.signer_pubkey_hex.len())]
-                );
-            } else {
-                println!(
-                    "  {} signed by {}… at {signed_at} — Permit stays human-routed",
-                    style::ok("state"),
-                    &v.signer_pubkey_hex[..16.min(v.signer_pubkey_hex.len())]
-                );
-            }
+    let state_line = format!(
+        "{} · Permit {}{}",
+        assessment.state().as_str(),
+        assessment.permit_readiness().as_str(),
+        if assessment.reason_codes().is_empty() {
+            String::new()
+        } else {
+            format!(" ({})", assessment.reason_codes().join(", "))
         }
-        (None, true) => {
-            println!(
-                "  {} REVOKED — the lane is closed; this policy is never re-signed",
-                style::lost("state")
-            );
+    );
+    match assessment.permit_readiness() {
+        vela_protocol::proposals::policy_accept::PermitReadiness::Ready => {
+            println!("  {}", style::ok(&state_line));
         }
-        (None, false) => {
-            println!(
-                "  {} SEALED-UNSIGNED — carries no authority; sign with `vela policy sign`",
-                style::warn("state")
-            );
+        vela_protocol::proposals::policy_accept::PermitReadiness::HumanOnly => {
+            println!("  {}", style::warn(&state_line));
         }
+        vela_protocol::proposals::policy_accept::PermitReadiness::Blocked => {
+            println!("  {}", style::lost(&state_line));
+        }
+    }
+    if let Some(v) = signed {
+        println!(
+            "  signature verified: {}… at {}",
+            &v.signer_pubkey_hex[..16.min(v.signer_pubkey_hex.len())],
+            v.signed_at
+        );
     }
     if expired {
         println!(
-            "  {} expired at {} — the evaluator denies everything",
+            "  {} expired at {} — Permit remains human_only",
             style::lost("note"),
             policy.expires_at
         );
@@ -2060,7 +2138,9 @@ pub(crate) fn cmd_policy_draft_from_suggest(frontier: &Path, replace: bool, json
             "policy_id": policy.id,
             "epoch": policy.epoch,
             "replaced_signed": replaced,
-            "signed": false,
+            "state": "staged_unsigned",
+            "permit_readiness": "human_only",
+            "reason_codes": ["policy_unsigned"],
             "policy": serde_json::to_value(&policy).unwrap_or_default(),
             "next": "vela policy sign",
         }));
@@ -2076,7 +2156,7 @@ pub(crate) fn cmd_policy_draft_from_suggest(frontier: &Path, replace: bool, json
     println!();
     if replaced {
         println!(
-            "  {} the outgoing signed policy was snapshotted; the lane is CLOSED until you sign",
+            "  {} the outgoing signed policy was snapshotted; state is staged_unsigned and Permit is human_only until signing",
             style::warn("rotated")
         );
     }
@@ -2102,9 +2182,10 @@ pub(crate) fn cmd_policy_draft(frontier: &Path, template: &str, replace: bool, j
             "epoch": policy.epoch,
             "frontier_id": policy.frontier_id,
             "expires_at": policy.expires_at,
-            "auto_permit_enabled": policy_has_causal_auto_permit(&policy),
             "replaced_signed": replaced,
-            "signed": false,
+            "state": "staged_unsigned",
+            "permit_readiness": "human_only",
+            "reason_codes": ["policy_unsigned"],
             "policy": serde_json::to_value(&policy).unwrap_or_default(),
             "next": "vela policy sign",
         }));
@@ -2118,7 +2199,7 @@ pub(crate) fn cmd_policy_draft(frontier: &Path, template: &str, replace: bool, j
     println!();
     if replaced {
         println!(
-            "  {} the outgoing signed policy was snapshotted; the lane is CLOSED until you sign",
+            "  {} the outgoing signed policy was snapshotted; state is staged_unsigned and Permit is human_only until signing",
             style::warn("rotated")
         );
     }
@@ -2133,12 +2214,37 @@ pub(crate) fn cmd_policy_test(frontier: &Path, json: bool) {
     let spin = (!json).then(|| {
         crate::cli::progress::Spinner::start("dry-running the policy over every pending proposal")
     });
-    let policy = read_sealed_active(frontier).unwrap_or_else(|e| e.fail());
-    let lane_open = matches!(load_active_policy(frontier), Ok(Some(_)));
     let project =
         repo::load_from_path(frontier).unwrap_or_else(|e| fail_with(ErrorKind::Domain, &e, None));
     let now = Utc::now().to_rfc3339();
-    let rows = evaluate_pending(&project, &policy, &now, Some(frontier));
+    let snapshot = load_active_policy_snapshot(frontier);
+    let policy_assessment = vela_protocol::proposals::policy_accept::assess_policy_readiness(
+        &project,
+        snapshot.as_ref().map_err(String::as_str),
+        &now,
+    );
+    if policy_assessment.permit_readiness()
+        == vela_protocol::proposals::policy_accept::PermitReadiness::Blocked
+    {
+        fail_with(
+            ErrorKind::Domain,
+            policy_assessment
+                .detail()
+                .unwrap_or("policy readiness assessment is blocked"),
+            Some("repair the policy pair or causal policy-head chain before testing it"),
+        );
+    }
+    let snapshot = snapshot.expect("a non-blocked policy assessment has a valid snapshot");
+    let policy = snapshot.policy().unwrap_or_else(|| {
+        fail_with(
+            ErrorKind::NotFound,
+            "no policy at .vela/policies/active.json",
+            Some(&format!(
+                "draft one: `vela policy draft <template>` (templates: {TEMPLATES})"
+            )),
+        )
+    });
+    let rows = evaluate_pending(&project, policy, &now, Some(frontier));
 
     let permit = rows.iter().filter(|r| r.outcome == Outcome::Permit).count();
     let defer = rows.iter().filter(|r| r.outcome == Outcome::Defer).count();
@@ -2151,9 +2257,11 @@ pub(crate) fn cmd_policy_test(frontier: &Path, json: bool) {
         print_json(&json!({
             "ok": true,
             "command": "policy.test",
-            "mode": "dry_run",
+            "evaluation": "dry_run",
             "policy_id": policy.id,
-            "lane_open": lane_open,
+            "state": policy_assessment.state().as_str(),
+            "permit_readiness": policy_assessment.permit_readiness().as_str(),
+            "reason_codes": policy_assessment.reason_codes(),
             "evaluator": EVALUATOR_VERSION,
             "now": now,
             "summary": { "permit": permit, "defer": defer, "deny": deny, "total": rows.len() },
@@ -2197,9 +2305,21 @@ pub(crate) fn cmd_policy_test(frontier: &Path, json: bool) {
     println!(
         "  missing receipt or verifier facts remain conservative and cannot manufacture a permit."
     );
-    if !lane_open {
+    println!(
+        "  policy state {} · Permit {}{}",
+        policy_assessment.state().as_str(),
+        policy_assessment.permit_readiness().as_str(),
+        if policy_assessment.reason_codes().is_empty() {
+            String::new()
+        } else {
+            format!(" ({})", policy_assessment.reason_codes().join(", "))
+        }
+    );
+    if policy_assessment.permit_readiness()
+        == vela_protocol::proposals::policy_accept::PermitReadiness::HumanOnly
+    {
         println!(
-            "  {} this policy is not signed — even a permit would land nothing until `vela policy sign`",
+            "  {} evaluator Permit routes to human review under this readiness state",
             style::warn("note")
         );
     }
@@ -2596,13 +2716,17 @@ pub(crate) fn cmd_policy_sign(frontier: &Path, key: Option<&Path>, yes: bool, js
     }
 
     if !json {
-        ui::header("POLICY", &policy.id, Some("sign — the lane opens"));
+        ui::header(
+            "POLICY",
+            &policy.id,
+            Some("sign — resolve standing authority"),
+        );
         render_policy(&policy);
         println!();
         println!("  signing as {actor}");
-        if policy_has_causal_auto_permit(&policy) {
-            println!("  a signature makes every permit rule above LIVE: agents land that class of");
-            println!("  gated work until a signed replacement or `policy revoke` closes it.");
+        if policy.expires_at == CAUSALLY_UNBOUNDED_POLICY_EXPIRY {
+            println!("  after the signature, causal head, and signer authority resolve, matching");
+            println!("  Permit rules may land work until signed rotation or revocation.");
         } else {
             println!("  this finite wall-clock policy can route Defer/Deny, but Permit remains");
             println!(
@@ -2613,7 +2737,10 @@ pub(crate) fn cmd_policy_sign(frontier: &Path, key: Option<&Path>, yes: bool, js
     }
     if !yes {
         ui::ensure_can_prompt("policy sign", "pass --yes to sign non-interactively");
-        if !confirm(&format!("  sign {} and open the lane? [y/N] ", policy.id)) {
+        if !confirm(&format!(
+            "  sign exact policy {} and its causal head? [y/N] ",
+            policy.id
+        )) {
             fail_with(
                 ErrorKind::Usage,
                 "not signed — no confirmation",
@@ -2630,6 +2757,20 @@ pub(crate) fn cmd_policy_sign(frontier: &Path, key: Option<&Path>, yes: bool, js
         || crate::cli_identity::resolve_signing_key(key),
     )
     .unwrap_or_else(|e| e.fail());
+    let signed_snapshot = load_active_policy_snapshot(frontier).unwrap_or_else(|error| {
+        fail_with(
+            ErrorKind::Domain,
+            &format!("signed policy could not be reloaded: {error}"),
+            Some("inspect the committed policy transaction before relying on it"),
+        )
+    });
+    let signed_project = repo::load_from_path(frontier)
+        .unwrap_or_else(|error| fail_with(ErrorKind::Domain, &error, Some("run `vela check .`")));
+    let signed_assessment = vela_protocol::proposals::policy_accept::assess_policy_readiness(
+        &signed_project,
+        Ok(&signed_snapshot),
+        &Utc::now().to_rfc3339(),
+    );
 
     if json {
         println!(
@@ -2642,21 +2783,26 @@ pub(crate) fn cmd_policy_sign(frontier: &Path, key: Option<&Path>, yes: bool, js
                 "signer": record.signer_pubkey_hex,
                 "policy_head_event_id": head.event_id,
                 "policy_head_epoch": head.epoch,
-                "auto_permit_enabled": policy_has_causal_auto_permit(&policy),
+                "state": signed_assessment.state().as_str(),
+                "permit_readiness": signed_assessment.permit_readiness().as_str(),
+                "reason_codes": signed_assessment.reason_codes(),
             })
         );
         return;
     }
 
     println!();
-    if policy_has_causal_auto_permit(&policy) {
-        println!("  {} policy live — the lane is open", style::ok("signed"));
-    } else {
-        println!(
-            "  {} policy signed — finite-window Permit remains human-routed",
-            style::ok("signed")
-        );
-    }
+    println!(
+        "  {} policy {} · Permit {}{}",
+        style::ok("signed"),
+        signed_assessment.state().as_str(),
+        signed_assessment.permit_readiness().as_str(),
+        if signed_assessment.reason_codes().is_empty() {
+            String::new()
+        } else {
+            format!(" ({})", signed_assessment.reason_codes().join(", "))
+        }
+    );
     println!(
         "  {} · epoch {} · signer {}…",
         policy.id,
@@ -2664,7 +2810,9 @@ pub(crate) fn cmd_policy_sign(frontier: &Path, key: Option<&Path>, yes: bool, js
         &record.signer_pubkey_hex[..16.min(record.signer_pubkey_hex.len())]
     );
     println!();
-    if policy_has_causal_auto_permit(&policy) {
+    if signed_assessment.permit_readiness()
+        == vela_protocol::proposals::policy_accept::PermitReadiness::Ready
+    {
         for r in policy.rules.iter().filter(|r| r.effect == Outcome::Permit) {
             println!(
                 "  auto-lands: {}  ({})",
@@ -2674,7 +2822,7 @@ pub(crate) fn cmd_policy_sign(frontier: &Path, key: Option<&Path>, yes: bool, js
         }
     }
     println!("  everything else defers to `vela sign` — the queue, not silence.");
-    println!("  close the lane anytime: `vela policy revoke --reason <why>`");
+    println!("  revoke standing authority anytime: `vela policy revoke --reason <why>`");
 }
 
 /// `vela policy revoke --reason <why>` — a human signs a causal Revoke head.
@@ -2693,7 +2841,7 @@ pub(crate) fn cmd_policy_revoke(
     if reason.trim().is_empty() {
         fail_with(
             ErrorKind::Usage,
-            "a revocation needs a reason — it is recorded next to the closed lane",
+            "a revocation needs a reason — it is recorded in the signed causal head",
             Some("vela policy revoke --reason \"rotating to a tighter epoch\""),
         );
     }
@@ -2708,7 +2856,11 @@ pub(crate) fn cmd_policy_revoke(
         .unwrap_or(0);
 
     if !json {
-        ui::header("POLICY", &policy.id, Some("revoke — closing the lane"));
+        ui::header(
+            "POLICY",
+            &policy.id,
+            Some("revoke — record causal head revocation"),
+        );
         println!("  epoch {} · admitted {admitted} event(s)", policy.epoch);
         println!("  reason: {reason}");
         println!("  snapshots stay under .vela/policies/ — past admissions keep verifying.");
@@ -2716,7 +2868,10 @@ pub(crate) fn cmd_policy_revoke(
     }
     if !yes {
         ui::ensure_can_prompt("policy revoke", "pass --yes to revoke non-interactively");
-        if !confirm(&format!("  close the lane for {}? [y/N] ", policy.id)) {
+        if !confirm(&format!(
+            "  revoke standing authority for {}? [y/N] ",
+            policy.id
+        )) {
             fail_with(
                 ErrorKind::Usage,
                 "not revoked — no confirmation",
@@ -2734,6 +2889,20 @@ pub(crate) fn cmd_policy_revoke(
         reason,
     )
     .unwrap_or_else(|e| e.fail());
+    let revoked_snapshot = load_active_policy_snapshot(frontier).unwrap_or_else(|error| {
+        fail_with(
+            ErrorKind::Domain,
+            &format!("revoked policy state could not be reloaded: {error}"),
+            Some("inspect the committed policy-head transaction before relying on it"),
+        )
+    });
+    let revoked_project = repo::load_from_path(frontier)
+        .unwrap_or_else(|error| fail_with(ErrorKind::Domain, &error, Some("run `vela check .`")));
+    let revoked_assessment = vela_protocol::proposals::policy_accept::assess_policy_readiness(
+        &revoked_project,
+        Ok(&revoked_snapshot),
+        &Utc::now().to_rfc3339(),
+    );
     if json {
         println!(
             "{}",
@@ -2741,20 +2910,26 @@ pub(crate) fn cmd_policy_revoke(
                 "ok": true,
                 "command": "policy",
                 "policy_id": vap,
-                "revoked": true,
+                "head_action": "revoke",
                 "reason": reason,
                 "policy_head_event_id": head.event_id,
                 "policy_head_epoch": head.epoch,
+                "state": revoked_assessment.state().as_str(),
+                "permit_readiness": revoked_assessment.permit_readiness().as_str(),
+                "reason_codes": revoked_assessment.reason_codes(),
             })
         );
         return;
     }
     println!();
     println!(
-        "  {} lane closed — {vap} no longer admits anything",
-        style::ok("revoked")
+        "  {} {vap} · state {} · Permit {} ({})",
+        style::ok("revoked"),
+        revoked_assessment.state().as_str(),
+        revoked_assessment.permit_readiness().as_str(),
+        revoked_assessment.reason_codes().join(", ")
     );
-    println!("  reopen with a NEW policy: `vela policy draft <template>` then `vela policy sign`");
+    println!("  replace with a NEW policy: `vela policy draft <template>` then `vela policy sign`");
 }
 
 /// `vela policy log` — every policy-lane admission across ALL policies (the
@@ -2762,22 +2937,36 @@ pub(crate) fn cmd_policy_revoke(
 pub(crate) fn cmd_policy_log(frontier: &Path, json: bool) {
     let project =
         repo::load_from_path(frontier).unwrap_or_else(|e| fail_with(ErrorKind::Domain, &e, None));
+    let snapshot = load_active_policy_snapshot(frontier);
+    let assessment = vela_protocol::proposals::policy_accept::assess_policy_readiness(
+        &project,
+        snapshot.as_ref().map_err(String::as_str),
+        &Utc::now().to_rfc3339(),
+    );
+    let current_policy_id = snapshot
+        .as_ref()
+        .ok()
+        .and_then(ActivePolicySnapshot::policy)
+        .map(|policy| policy.id.as_str());
     let admissions = lane_admissions(&project);
     let mut by_policy: std::collections::BTreeMap<String, Vec<&Admission>> =
         std::collections::BTreeMap::new();
     for a in &admissions {
         by_policy.entry(a.policy_id.clone()).or_default().push(a);
     }
-    let active_id = read_sealed_active(frontier).ok().map(|p| p.id);
 
     if json {
         print_json(&json!({
             "ok": true,
             "command": "policy.log",
+            "policy_state": assessment.state().as_str(),
+            "permit_readiness": assessment.permit_readiness().as_str(),
+            "reason_codes": assessment.reason_codes(),
+            "current_policy_id": current_policy_id,
             "total": admissions.len(),
             "policies": by_policy.iter().map(|(pid, rows)| json!({
                 "policy_id": pid,
-                "active": Some(pid) == active_id.as_ref(),
+                "current": Some(pid.as_str()) == current_policy_id,
                 "count": rows.len(),
                 "admissions": rows.iter().map(|a| json!({
                     "event": a.event_id,
@@ -2795,9 +2984,20 @@ pub(crate) fn cmd_policy_log(frontier: &Path, json: bool) {
         &frontier.display().to_string(),
         Some("admissions"),
     );
+    println!(
+        "  current policy {} · Permit {}{}",
+        assessment.state().as_str(),
+        assessment.permit_readiness().as_str(),
+        if assessment.reason_codes().is_empty() {
+            String::new()
+        } else {
+            format!(" ({})", assessment.reason_codes().join(", "))
+        }
+    );
     if by_policy.is_empty() {
+        println!();
         println!("  no policy-lane admissions yet — every event in this log is key-signed");
-        println!("  open a lane: `vela policy draft <template>` then `vela policy sign`");
+        println!("  draft standing rules: `vela policy draft <template>` then `vela policy sign`");
         return;
     }
     println!(
@@ -2806,13 +3006,13 @@ pub(crate) fn cmd_policy_log(frontier: &Path, json: bool) {
         by_policy.len()
     );
     for (pid, rows) in &by_policy {
-        let live = if Some(pid) == active_id.as_ref() {
-            format!("  {}", style::live("active"))
+        let current = if Some(pid.as_str()) == current_policy_id {
+            format!("  {}", style::live("current"))
         } else {
             String::new()
         };
         println!();
-        println!("  {pid} — {} admission(s){live}", rows.len());
+        println!("  {pid} — {} admission(s){current}", rows.len());
         print_admission_rows(rows);
     }
 }
@@ -3081,7 +3281,7 @@ mod tests {
         assert_eq!(policy.epoch, 1);
         assert_eq!(policy.default, Outcome::Defer);
         assert_eq!(policy.expires_at, CAUSALLY_UNBOUNDED_POLICY_EXPIRY);
-        assert!(policy_has_causal_auto_permit(&policy));
+        assert_eq!(policy.expires_at, CAUSALLY_UNBOUNDED_POLICY_EXPIRY);
         // The sealed file on disk re-derives its own id.
         let raw = std::fs::read_to_string(active_path(&dir)).unwrap();
         let on_disk: AcceptancePolicy = serde_json::from_str(&raw).unwrap();
@@ -3134,14 +3334,14 @@ mod tests {
         let err = draft_policy(&dir, "notes-threshold", false).unwrap_err();
         assert_eq!(err.kind, ErrorKind::Exists, "{}", err.message);
 
-        // --replace rotates: snapshots the outgoing pair, closes the lane.
+        // --replace rotates: snapshots the outgoing pair and removes standing authority.
         let (newer, replaced) = draft_policy(&dir, "notes-threshold", true).unwrap();
         assert!(replaced);
         assert_eq!(newer.epoch, 2);
         assert_ne!(newer.id, old.id);
         assert!(
             load_active_policy(&dir).unwrap().is_none(),
-            "lane closes until the new draft is signed"
+            "Permit stays human-only until the new draft is signed"
         );
         assert!(policies_dir(&dir).join(format!("{}.json", old.id)).exists());
         assert!(
@@ -3152,7 +3352,7 @@ mod tests {
     }
 
     #[test]
-    fn sign_round_trip_opens_the_lane() {
+    fn sign_round_trip_verifies_the_active_pair() {
         let tmp = TempDir::new().unwrap();
         let dir = init_frontier(&tmp);
         draft_policy(&dir, "witness-rederivation", false).unwrap();
@@ -3162,8 +3362,10 @@ mod tests {
         assert_eq!(record.policy_id, policy.id);
         assert_eq!(record.signed_at, AT);
 
-        // The exact loader the accept lane uses sees an open lane.
-        let verified = load_active_policy(&dir).unwrap().expect("lane open");
+        // The exact loader used by policy routing sees the verified active pair.
+        let verified = load_active_policy(&dir)
+            .unwrap()
+            .expect("active signature verifies");
         assert_eq!(verified.policy.id, policy.id);
         assert_eq!(verified.signer_pubkey_hex, record.signer_pubkey_hex);
         // Content-addressed snapshots survive future rotation.
@@ -3178,13 +3380,13 @@ mod tests {
                 .exists()
         );
 
-        // Idempotent: signing an already-open lane is `Exists`, not a re-sign.
+        // Idempotent: signing an already-signed pair is `Exists`, not a re-sign.
         let err = sign_active_policy(&dir, &key, AT).unwrap_err();
         assert_eq!(err.kind, ErrorKind::Exists);
     }
 
     #[test]
-    fn revoke_closes_the_lane_and_keeps_snapshots() {
+    fn revoke_removes_standing_authority_and_keeps_snapshots() {
         let tmp = TempDir::new().unwrap();
         let dir = init_frontier(&tmp);
         draft_policy(&dir, "witness-rederivation", false).unwrap();
@@ -3193,7 +3395,7 @@ mod tests {
 
         let vap = revoke_active_policy(&dir, "reviewer:test", "rotating the ladder", AT).unwrap();
         assert_eq!(vap, policy.id);
-        // The lane is closed: the loader sees nothing to grant authority.
+        // The loader sees no signature capable of contributing authority.
         assert!(load_active_policy(&dir).unwrap().is_none());
         // But the snapshots stay for replay verification of past events.
         assert!(policies_dir(&dir).join(format!("{vap}.json")).exists());
@@ -3215,12 +3417,12 @@ mod tests {
     }
 
     #[test]
-    fn transactional_policy_ceremony_activates_revokes_and_reopens_once_per_key_load() {
+    fn transactional_policy_ceremony_activates_revokes_and_rotates_once_per_key_load() {
         use std::cell::Cell;
 
         const ACTIVATE_AT: &str = "2099-01-01T00:00:00Z";
         const REVOKE_AT: &str = "2099-01-01T00:00:01Z";
-        const REOPEN_AT: &str = "2099-01-01T00:00:02Z";
+        const ROTATE_AT: &str = "2099-01-01T00:00:02Z";
 
         let tmp = TempDir::new().unwrap();
         let dir = init_frontier(&tmp);
@@ -3323,7 +3525,7 @@ mod tests {
                 revoke_drift_key_loads.set(revoke_drift_key_loads.get() + 1);
                 throwaway_key()
             },
-            "close the lane",
+            "revoke standing authority",
         )
         .unwrap_err();
         assert!(
@@ -3350,7 +3552,7 @@ mod tests {
                 revoke_loads.set(revoke_loads.get() + 1);
                 throwaway_key()
             },
-            "close the lane",
+            "revoke standing authority",
         )
         .unwrap();
         assert_eq!(revoke_loads.get(), 1);
@@ -3372,7 +3574,7 @@ mod tests {
                 retry_key_loads.set(retry_key_loads.get() + 1);
                 throwaway_key()
             },
-            "close the lane",
+            "revoke standing authority",
         )
         .unwrap();
         assert_eq!(retried_id, revoked_id);
@@ -3403,28 +3605,28 @@ mod tests {
 
         let (second_policy, _) = draft_policy(&dir, "notes-threshold", false).unwrap();
         assert_ne!(second_policy.id, first_policy.id);
-        let reopen_loads = Cell::new(0);
-        let (_, _, reopened) = sign_active_policy_transactional(
+        let rotate_loads = Cell::new(0);
+        let (_, _, rotated) = sign_active_policy_transactional(
             &dir,
             "reviewer:test",
             &second_policy.id,
-            || REOPEN_AT.to_string(),
+            || ROTATE_AT.to_string(),
             || {
-                reopen_loads.set(reopen_loads.get() + 1);
+                rotate_loads.set(rotate_loads.get() + 1);
                 throwaway_key()
             },
         )
         .unwrap();
-        assert_eq!(reopen_loads.get(), 1);
-        assert_eq!(reopened.action, PolicyHeadAction::Rotate);
+        assert_eq!(rotate_loads.get(), 1);
+        assert_eq!(rotated.action, PolicyHeadAction::Rotate);
         assert_eq!(
-            reopened.policy_id.as_deref(),
+            rotated.policy_id.as_deref(),
             Some(second_policy.id.as_str())
         );
-        assert_eq!(reopened.epoch, 3);
+        assert_eq!(rotated.epoch, 3);
         let final_project = repo::load_from_path(&dir).unwrap();
         let chain = current_policy_head(&final_project).unwrap().unwrap();
-        assert_eq!(chain, reopened);
+        assert_eq!(chain, rotated);
         assert_eq!(
             load_active_policy(&dir).unwrap().unwrap().policy.id,
             second_policy.id

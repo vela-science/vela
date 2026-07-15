@@ -50,7 +50,7 @@ the agent, and the pen belongs to you.
 | `work` | Claim a target and write one typed, ignored `session.json` under `.vela/work/`. `--drop --reason <why>` signs an exact zero-TTL lease release before removing scratch. |
 | `land` | Land a result (`vela.receipt.v1`): record, propose, then route by the signed policy. Permit admits, Defer parks it in the sign queue, and Deny refuses canonical admission. `--work <target>` selects a session; it is inferred only when this actor owns exactly one. A committed Permit or Defer closes `session.json`; Deny or invalid input keeps it for repair. Commits locally; `--push` publishes. |
 | `sign` | The one human ceremony: every deferred decision, one session, one confirm, one key read. |
-| `status` | One-screen frontier state: findings by status, verdicts, replay integrity, sign-queue count, policy mode, and a `next` hint. |
+| `status` | One-screen frontier state: findings by status, verdicts, replay integrity, sign-queue count, policy state plus Permit readiness, and a `next` hint. |
 | `log` | Recent signed events; `vela log <dir> <vf_>` is one finding's history. |
 | `diff` | Two frontiers, or one pending proposal previewed. |
 | `proposals` | Read and export the proposal store: list/show/preview/validate/export. It cannot import or decide; external work enters as Receipt v1 through `land`. |
@@ -189,7 +189,7 @@ computational witnesses — bounds and finite confirmations from
 results: even where a template permits a class, the engine gate still
 requires zero new review warnings, so a fresh lone claim defers to a
 human glance while a corroborated, gate-clean witness auto-lands. That is
-the fidelity discipline made automatic — the policy opens the lane, the
+the fidelity discipline made automatic — a ready policy authorizes Permit, the
 gate keeps it honest.
 
 ### Prelaunch legacy-policy recovery
@@ -303,23 +303,25 @@ vela sign                       # everything awaiting your key: one
                                 # self-publishes (materialize, commit, push)
 ```
 
-## Policy tiers (shadow / staged / live)
+## Policy state, Permit readiness, and evaluator outcome
 
 A frontier may carry a sealed acceptance policy (`vap_` id,
-`policies/active.json`). `vela status . --json` reports
-`policy.mode`:
+`policies/active.json`). `vela status . --json` reports three separate facts:
 
-- **shadow** — no sealed policy on the frontier; the engine's built-in
-  conservative kind-allowlist is the only mechanical lane.
-- **staged** — a sealed policy sits at `.vela/policies/active.json` but
-  is unsigned; advisory only, one human signature activates it.
-- **live** — a `PolicySignatureRecord` (`active.sig.json`) signed by a
-  human reviewer key activates it; mechanical proposal kinds (span
-  repairs, artifact provenance) may receive Permit, with the `vap_` id
-  stamped into the accepted event.
+- `policy.state` is `absent`, `staged_unsigned`, `active`, or `broken`.
+  `active` means only that the content-addressed bytes and detached signature
+  verify; it does not claim standing authority.
+- `policy.permit_readiness` is `ready`, `human_only`, or `blocked`, with stable
+  `reason_codes`. A missing, mismatched, or revoked causal policy head; a
+  finite or expired wall-clock policy; or unresolved human signer authority is
+  `human_only`. Malformed policy bytes or policy-head history is `blocked`.
+- A proposal evaluation remains `permit`, `defer`, or `deny`. Only an
+  intentional evaluator Deny refuses the proposal. A would-be Permit whose
+  standing authority is `human_only` defers to `vela sign`; unavailable
+  infrastructure is never relabeled as a policy Deny.
 
 A policy can only TIGHTEN the frozen-verifier floor. Truth-bearing
-claims stay human-keyed in every mode; there is no configuration in
+claims stay human-keyed in every state; there is no configuration in
 which an agent's proposal becomes accepted state without a human key.
 
 ## See also
