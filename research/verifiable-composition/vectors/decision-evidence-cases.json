@@ -15,6 +15,7 @@
     {"id": "actor-revoked-after-decision", "mutation": "actor_revoked_after", "expected": "verified:decision_evidence_bound"},
     {"id": "wrong-public-key", "mutation": "actor_public_key", "expected": "rejected:decision_signature_invalid"},
     {"id": "malformed-signature", "mutation": "decision_signature", "expected": "rejected:decision_signature_invalid"},
+    {"id": "invalid-applied-event-signature", "mutation": "applied_event_signature", "expected": "rejected:decision_event_signature_invalid"},
     {"id": "missing-decision-root", "mutation": "decision_root_remove", "expected": "rejected:decision_root_not_unique"},
     {"id": "duplicate-decision-root", "mutation": "decision_root_duplicate", "expected": "rejected:decision_root_not_unique"},
     {"id": "wrong-proposal-link", "mutation": "proposal_link", "expected": "rejected:proposal_link_mismatch"},

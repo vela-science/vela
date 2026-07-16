@@ -484,6 +484,14 @@ def mutate_decision(case: dict[str, Any], mutation: str) -> None:
     if mutation == "decision_signature":
         decision["signature"] = "v1:" + "00" * 64
         return
+    if mutation == "applied_event_signature":
+        applied = next(
+            event
+            for event in project["events"]
+            if event["id"] == decision["payload"]["applied_event_id"]
+        )
+        applied["signature"] = "v1:" + "00" * 64
+        return
     if mutation == "decision_root_remove":
         decision["payload"]["provenance"]["input_refs"] = []
         readdress_decision(case)
@@ -593,8 +601,11 @@ def main() -> None:
     parser.add_argument(
         "--vela",
         type=Path,
-        default=REPO / "target/debug/vela",
-        help="pre-registered offline Vela 0.800.13 executable",
+        required=True,
+        help=(
+            "explicit pre-registered offline Vela 0.800.13 executable; "
+            "the release-mismatch check rejects every other version"
+        ),
     )
     args = parser.parse_args()
 

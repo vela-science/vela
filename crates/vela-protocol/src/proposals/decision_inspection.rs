@@ -596,6 +596,27 @@ fn inspect_preimage(
                     .to_string(),
             ));
         }
+        match crate::sign::verify_event_signature(event, &historical_actor.public_key) {
+            Ok(true) => {}
+            Ok(false) => {
+                return Err((
+                    "decision_event_signature_invalid",
+                    format!(
+                        "DecisionPlan semantic event {} does not verify under the historical reviewer key",
+                        event.id
+                    ),
+                ));
+            }
+            Err(error) => {
+                return Err((
+                    "decision_event_signature_invalid",
+                    format!(
+                        "DecisionPlan semantic event {} has an invalid reviewer signature: {error}",
+                        event.id
+                    ),
+                ));
+            }
+        }
     }
 
     let decision_time = parse_time(&decision.timestamp, "decision timestamp")?;
@@ -1141,6 +1162,25 @@ mod tests {
                     .unwrap()
                     .signature = Some(format!("v1:{}", "00".repeat(64)));
             }
+            "applied_event_signature" => {
+                let decision = fixture
+                    .project
+                    .events
+                    .iter()
+                    .find(|event| event.id == fixture.event_id)
+                    .unwrap();
+                let applied_event_id = decision.payload["applied_event_id"]
+                    .as_str()
+                    .unwrap()
+                    .to_string();
+                fixture
+                    .project
+                    .events
+                    .iter_mut()
+                    .find(|event| event.id == applied_event_id)
+                    .unwrap()
+                    .signature = Some(format!("v1:{}", "00".repeat(64)));
+            }
             "decision_root_remove" => {
                 fixture
                     .project
@@ -1440,7 +1480,7 @@ mod tests {
             "/../../research/verifiable-composition/vectors/decision-evidence-cases.json"
         )))
         .unwrap();
-        assert_eq!(vectors.cases.len(), 28);
+        assert_eq!(vectors.cases.len(), 29);
         for vector in vectors.cases {
             let mut fixture = static_fixture();
             mutate_vector(&mut fixture, &vector.mutation);

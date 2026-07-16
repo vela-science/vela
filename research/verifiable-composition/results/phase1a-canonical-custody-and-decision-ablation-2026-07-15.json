@@ -34,7 +34,7 @@
     "project_snapshot_candidate_both_arms": "sha256:ad7b59b80481e9d8eabae69230f555d61939631ac8b8b6f64f773cc5cde3a472",
     "preimage_bytes": 2825,
     "preimage_content_sha256": "sha256:1c4eec9e1a0ff72a537cb8555d52a71fc805966904049449262243c1a5aeb416",
-    "registered_vectors": 28,
+    "registered_vectors": 29,
     "rust_python_classification_parity": true,
     "false_verified_count": 0,
     "arms": {
@@ -46,7 +46,7 @@
     "outcome": "pass"
   },
   "focused_commands": [
-    "python3 -B research/verifiable-composition/check_phase1_canonical.py --self-test",
+    "python3 -B research/verifiable-composition/check_phase1_canonical.py --self-test --vela <exact-v0.800.13-runner>",
     "cargo test --locked -p vela-protocol decision_inspection -- --nocapture"
   ],
   "promotion_decision": {

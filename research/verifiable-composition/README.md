@@ -104,11 +104,26 @@ Focused offline checks:
 PYTHONDONTWRITEBYTECODE=1 python3 check_phase0.py
 PYTHONDONTWRITEBYTECODE=1 python3 check_observation_vectors.py
 PYTHONDONTWRITEBYTECODE=1 python3 check_receipt_binding.py
-PYTHONDONTWRITEBYTECODE=1 python3 check_phase1_canonical.py --self-test
+REGISTERED_VELA_SOURCE="$(mktemp -d)"
+git archive b3076f8935a38ecaef252e7f062648794cc7cd07 | \
+  tar -x -C "$REGISTERED_VELA_SOURCE"
+cargo build --offline --locked \
+  --manifest-path "$REGISTERED_VELA_SOURCE/Cargo.toml" \
+  --target-dir "$REGISTERED_VELA_SOURCE/target" \
+  -p vela-cli --bin vela
+PYTHONDONTWRITEBYTECODE=1 python3 check_phase1_canonical.py --self-test \
+  --vela "$REGISTERED_VELA_SOURCE/target/debug/vela"
 cargo test --locked -p vela-protocol decision_inspection -- --nocapture
 cargo test --locked -p vela-cli decision_plan -- --nocapture
 cargo clippy --locked -p vela-protocol --lib -- -D warnings
 ```
+
+The Phase 1A checker requires an explicit runner built from registered commit
+`b3076f8935a38ecaef252e7f062648794cc7cd07`. It rejects any executable whose
+reported version is not exactly `vela 0.800.13`; the mutable current workspace
+binary is never an implicit experiment input. `--offline` keeps the rebuild
+network-free and therefore requires the locked Cargo dependencies in the local
+cache.
 
 The Phase 1A checker validates preregistration, including negative tests for an
 unregistered metric, vector, or arm. It then runs all registered vectors. The

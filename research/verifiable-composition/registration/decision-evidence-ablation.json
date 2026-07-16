@@ -62,6 +62,7 @@
       "actor-revoked-after-decision",
       "wrong-public-key",
       "malformed-signature",
+      "invalid-applied-event-signature",
       "missing-decision-root",
       "duplicate-decision-root",
       "wrong-proposal-link",

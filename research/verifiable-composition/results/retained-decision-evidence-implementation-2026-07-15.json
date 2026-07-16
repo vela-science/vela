@@ -2,10 +2,11 @@
   "schema": "vela.verifiable-composition.retained-decision-evidence-implementation.v0",
   "recorded_on": "2026-07-15",
   "run_class": "local_engineering_closeout",
-  "status": "implemented_unreleased",
+  "status": "release_candidate",
   "target_release": "v0.800.14",
   "source_revision": {
-    "state": "dirty_working_tree",
+    "state": "release_candidate_hardening_after_base_commit",
+    "base_commit": "fc6a529b92889afa51e82af1105d29c40b9bb485",
     "commit": null,
     "release_evidence": false
   },
@@ -28,10 +29,10 @@
   },
   "focused_verification": [
     {
-      "command": "PYTHONDONTWRITEBYTECODE=1 python3 research/verifiable-composition/check_phase1_canonical.py --self-test",
+      "command": "PYTHONDONTWRITEBYTECODE=1 python3 research/verifiable-composition/check_phase1_canonical.py --self-test --vela <exact-v0.800.13-runner>",
       "result": "pass",
       "canonical_vectors": 14,
-      "decision_vectors": 28,
+      "decision_vectors": 29,
       "false_verified_count": 0
     },
     {
@@ -62,7 +63,7 @@
     "deletion changes neither reducer replay, event-log identity, event bytes, nor signature verification"
   ],
   "limitations": [
-    "the target is not released, committed, tagged, or publicly verified",
+    "the retention implementation base is committed, but the signature-hardening closeout and target release are not yet committed, tagged, published, or publicly verified",
     "released v0.800.13 and older decisions are not backfilled",
     "the pure inspector still requires caller-supplied bytes and exactly one answer",
     "no public path-discovery, batch-inspection, or prune command exists",

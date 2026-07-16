@@ -1161,6 +1161,10 @@ def inspect_named_decision_python(
         for index in matched
     ):
         return _decision_result("rejected:decision_event_core_mismatch", **context)
+    if any(not _verify_python_event_signature(events[index], key) for index in matched):
+        return _decision_result(
+            "rejected:decision_event_signature_invalid", **context
+        )
     historical = []
     for index, candidate in enumerate(events):
         if index in matched:
