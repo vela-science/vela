@@ -516,6 +516,11 @@ pub fn tool_output_schema(name: &str) -> Option<Value> {
                     "type": ["string", "null"],
                     "description": "policy_admitted | deferred | exact_retry (for land)"
                 },
+                "original_route": {
+                    "type": ["string", "null"],
+                    "enum": ["policy_admitted", "deferred", null],
+                    "description": "Prior durable policy route for exact_retry; null otherwise"
+                },
                 "detail": {"type": ["string", "null"]},
                 "publication": {"type": ["object", "null"]}
             }
@@ -809,6 +814,7 @@ mod profile_tests {
             "accepted_event_count_after",
             "accepted_event_delta",
             "route",
+            "original_route",
             "publication",
         ] {
             assert!(
@@ -817,5 +823,9 @@ mod profile_tests {
             );
         }
         assert_eq!(work_properties["accepted_event_delta"]["minimum"], json!(0));
+        assert_eq!(
+            work_properties["original_route"]["enum"],
+            json!(["policy_admitted", "deferred", null])
+        );
     }
 }

@@ -33,6 +33,7 @@ const POLICY_INPUT_DOMAIN: &[u8] = b"vela.decision-policy-input.internal.v1\0";
 const COHERENCE_POLICY_DOMAIN: &[u8] = b"vela.decision-coherence.policy.internal.v1\0";
 const COHERENCE_CHECK_DOMAIN: &[u8] = b"vela.decision-coherence.checks.internal.v1\0";
 const COHERENCE_CAPABILITY_DOMAIN: &[u8] = b"vela.decision-coherence.capability.internal.v1\0";
+const DECISION_EVIDENCE_PATH_PREFIX: &str = "records/decision-evidence/decision-root";
 /// Scripted confirmations are deliberately short-lived clear-signing tokens.
 /// A small future allowance tolerates ordinary host clock skew without
 /// permitting a caller to mint a decision far into the future.
@@ -638,6 +639,7 @@ where
             .map_err(|error| DecisionPlanError::new("render_failed", error))?,
     )
     .map_err(DecisionPlanError::transaction)?;
+    writes.push(canonical_decision_evidence_write(&prepared.plan)?);
     writes.extend(legacy_retirement_delete_writes(
         &prepared.candidate,
         &prepared.plan.ordered_answers,
@@ -1769,6 +1771,39 @@ fn decision_plan_preimage_bytes(plan: &DecisionPlan) -> Result<Vec<u8>, Decision
     .map_err(|error| DecisionPlanError::new("canonicalization_failed", error))
 }
 
+/// Retain the already-root-bound DecisionPlan preimage as discoverable public
+/// evidence in the decision's own recoverable transaction. The file is not an
+/// event, proposal, authority input, or replay dependency: deleting it removes
+/// the canonical preimage without changing the signed scientific state. A
+/// read-only inspector given no other copy then returns "preimage unavailable".
+fn canonical_decision_evidence_write(
+    plan: &DecisionPlan,
+) -> Result<PlannedWrite, DecisionPlanError> {
+    let derived_root = decision_plan_root(plan)?;
+    if derived_root != plan.decision_root {
+        return Err(DecisionPlanError::new(
+            "decision_evidence_invalid",
+            format!(
+                "decision evidence preimage rederived as {derived_root}, expected {}",
+                plan.decision_root
+            ),
+        ));
+    }
+    let root =
+        ContentDigest::parse(plan.decision_root.clone()).map_err(DecisionPlanError::transaction)?;
+    let digest = root
+        .as_str()
+        .strip_prefix("sha256:")
+        .expect("validated decision digest");
+    let path = RepoPath::parse(format!("{DECISION_EVIDENCE_PATH_PREFIX}/{digest}.json"))
+        .map_err(DecisionPlanError::transaction)?;
+    Ok(PlannedWrite::write(
+        path,
+        WriteClass::CanonicalEvidence,
+        decision_plan_preimage_bytes(plan)?,
+    ))
+}
+
 fn domain_root(value_domain: &[u8], value: &impl Serialize) -> Result<String, DecisionPlanError> {
     let bytes = vela_protocol::canonical::to_canonical_bytes(value)
         .map_err(|error| DecisionPlanError::new("canonicalization_failed", error))?;
@@ -2006,6 +2041,15 @@ mod tests {
         snapshot
     }
 
+    fn decision_evidence_file(frontier: &Path, decision_root: &str) -> std::path::PathBuf {
+        let digest = decision_root
+            .strip_prefix("sha256:")
+            .expect("validated decision root");
+        frontier.join(format!(
+            "records/decision-evidence/decision-root/{digest}.json"
+        ))
+    }
+
     fn decision_fixture() -> (tempfile::TempDir, SigningKey, SavedAnswer) {
         let temp = tempfile::tempdir().unwrap();
         vela_protocol::frontier_repo::initialize(
@@ -2067,6 +2111,73 @@ mod tests {
             reason: "Reject malformed retained material".to_string(),
         };
         (temp, signing_key, answer)
+    }
+
+    fn coherence_batch_fixture() -> (
+        tempfile::TempDir,
+        Project,
+        LockedReviewSelection,
+        Vec<SavedAnswer>,
+        String,
+    ) {
+        let (temp, _key, _first_answer) = decision_fixture();
+        let mut project = vela_protocol::repo::load_from_path(temp.path()).unwrap();
+        let original_id = project.proposals[0].id.clone();
+        project.proposals[0]
+            .payload
+            .as_object_mut()
+            .unwrap()
+            .remove("vela_submission");
+        project.proposals[0].id = vela_protocol::proposals::proposal_id(&project.proposals[0]);
+        std::fs::remove_file(
+            temp.path()
+                .join(".vela/proposals")
+                .join(format!("{original_id}.json")),
+        )
+        .unwrap();
+        let first_id = project.proposals[0].id.clone();
+        let mut second = project.proposals[0].clone();
+        second.created_at = "2026-07-13T01:00:01Z".to_string();
+        second.source_refs.push("urn:batch:second".to_string());
+        second.id = vela_protocol::proposals::proposal_id(&second);
+        let second_id = second.id.clone();
+        let mut skipped = project.proposals[0].clone();
+        skipped.created_at = "2026-07-13T01:00:02Z".to_string();
+        skipped.source_refs.push("urn:batch:skipped".to_string());
+        skipped.id = vela_protocol::proposals::proposal_id(&skipped);
+        let skipped_id = skipped.id.clone();
+        project.proposals.extend([second, skipped]);
+        vela_protocol::repo::save_to_path(temp.path(), &project).unwrap();
+
+        let selected_ids = vec![first_id, second_id];
+        let mut review = ReviewProjection::selected_from_locked_project_at(
+            temp.path(),
+            &project,
+            &selected_ids,
+            DECIDED_AT,
+        )
+        .unwrap();
+        for snapshot in &mut review.items {
+            snapshot.brief.impact.downstream_effect.impact_tier = 0;
+            snapshot.brief.impact.critical_warnings.clear();
+        }
+        let answers = review
+            .items
+            .iter()
+            .enumerate()
+            .map(|(index, snapshot)| SavedAnswer {
+                proposal_id: snapshot.brief.audit.proposal_id.clone(),
+                proposal_root: snapshot.decision_bindings.proposal_root.clone(),
+                seen_decision_facts_root: snapshot.brief.audit.decision_facts_root.clone(),
+                action: if index == 0 {
+                    DecisionAction::Accept
+                } else {
+                    DecisionAction::Reject
+                },
+                reason: format!("bounded batch answer {index}"),
+            })
+            .collect();
+        (temp, project, review, answers, skipped_id)
     }
 
     fn deterministic_production_accept_fixture() -> (tempfile::TempDir, PreparedDecision) {
@@ -2608,6 +2719,86 @@ mod tests {
     }
 
     #[test]
+    fn finite_decision_batch_matrix_is_coherent_bounded_and_fail_closed() {
+        let (_temp, project, review, answers, skipped_id) = coherence_batch_fixture();
+        let reviewer_authority_root = test_root('4');
+
+        for snapshot in &review.items {
+            assert!(
+                snapshot.brief.impact.critical_warnings.is_empty(),
+                "coherent low-risk fixture acquired warnings: {:?}",
+                snapshot.brief.impact.critical_warnings
+            );
+            assert!(
+                snapshot.brief.impact.downstream_effect.impact_tier < 2,
+                "coherent fixture became high-impact: {:?}",
+                snapshot.brief.impact.downstream_effect
+            );
+            assert_ne!(snapshot.brief.basis.check_state.gate_status, "refuted");
+            assert_ne!(
+                snapshot.brief.basis.check_state.engine_status.as_deref(),
+                Some("blocked")
+            );
+        }
+
+        validate_coherence(&project, &review, &answers, &reviewer_authority_root).unwrap();
+        assert_eq!(
+            answers
+                .iter()
+                .map(|answer| answer.action)
+                .collect::<Vec<_>>(),
+            vec![DecisionAction::Accept, DecisionAction::Reject],
+            "a coherent batch may carry an explicit accept/reject mix"
+        );
+        assert!(
+            !answers
+                .iter()
+                .any(|answer| answer.proposal_id == skipped_id),
+            "unanswered proposals must stay outside the selected Decision Plan"
+        );
+        assert_eq!(review.items.len(), answers.len());
+
+        let mut route_mismatch = review.clone();
+        route_mismatch.items[1].brief.authority.route = "permit_pending".to_string();
+        let error = validate_coherence(
+            &project,
+            &route_mismatch,
+            &answers,
+            &reviewer_authority_root,
+        )
+        .unwrap_err();
+        assert_eq!(error.code, "incoherent_batch");
+
+        let mut class_mismatch = clone_project(&project).unwrap();
+        let second_id = &answers[1].proposal_id;
+        class_mismatch
+            .proposals
+            .iter_mut()
+            .find(|proposal| &proposal.id == second_id)
+            .unwrap()
+            .kind = "finding.confidence_revise".to_string();
+        let error =
+            validate_coherence(&class_mismatch, &review, &answers, &reviewer_authority_root)
+                .unwrap_err();
+        assert_eq!(error.code, "incoherent_batch");
+
+        let mut high_risk = project;
+        for answer in &answers {
+            high_risk
+                .proposals
+                .iter_mut()
+                .find(|proposal| proposal.id == answer.proposal_id)
+                .unwrap()
+                .kind = "finding.confidence_revise".to_string();
+        }
+        let error = validate_coherence(&high_risk, &review, &answers, &reviewer_authority_root)
+            .unwrap_err();
+        assert_eq!(error.code, "high_risk_requires_isolation");
+        assert!(error.message.contains(&answers[0].proposal_id));
+        assert!(error.message.contains(&answers[1].proposal_id));
+    }
+
+    #[test]
     fn corrupt_confirmed_root_aborts_before_recovery_lock_or_key() {
         let (temp, key, answer) = decision_fixture();
         let mut confirmed =
@@ -2698,6 +2889,8 @@ mod tests {
         let (temp, key, answer) = decision_fixture();
         let confirmed =
             build_unlocked(temp.path(), &[answer], "reviewer:test", DECIDED_AT, None).unwrap();
+        let expected_evidence = decision_plan_preimage_bytes(&confirmed.plan).unwrap();
+        let evidence_path = decision_evidence_file(temp.path(), &confirmed.plan.decision_root);
         let key_reads = Cell::new(0usize);
         let first = execute_with_key_loader(temp.path(), &confirmed, || {
             key_reads.set(key_reads.get() + 1);
@@ -2706,6 +2899,7 @@ mod tests {
         .unwrap();
         assert_eq!(key_reads.get(), 1);
         assert_eq!(first.event_ids.len(), 1);
+        assert_eq!(std::fs::read(&evidence_path).unwrap(), expected_evidence);
         let second = execute_with_key_loader(temp.path(), &confirmed, || {
             key_reads.set(key_reads.get() + 1);
             Ok(key.clone())
@@ -2713,6 +2907,101 @@ mod tests {
         .unwrap();
         assert_eq!(second, first);
         assert_eq!(key_reads.get(), 1);
+        assert_eq!(
+            std::fs::read(&evidence_path).unwrap(),
+            decision_plan_preimage_bytes(&confirmed.plan).unwrap()
+        );
+    }
+
+    #[test]
+    fn decision_evidence_is_exact_root_bound_preimage_in_the_decision_transaction() {
+        let (temp, key, answer) = decision_fixture();
+        let confirmed =
+            build_unlocked(temp.path(), &[answer], "reviewer:test", DECIDED_AT, None).unwrap();
+        let expected_bytes = decision_plan_preimage_bytes(&confirmed.plan).unwrap();
+        let evidence_path = decision_evidence_file(temp.path(), &confirmed.plan.decision_root);
+
+        let outcome = execute_with_key_loader(temp.path(), &confirmed, || Ok(key.clone())).unwrap();
+        let actual_bytes = std::fs::read(&evidence_path).unwrap();
+        assert_eq!(actual_bytes, expected_bytes);
+        let preimage: serde_json::Value = serde_json::from_slice(&actual_bytes).unwrap();
+        assert_eq!(
+            domain_root(DECISION_PLAN_DOMAIN, &preimage).unwrap(),
+            confirmed.plan.decision_root
+        );
+
+        let journal_dir = crate::workflow::frontier_transaction_journal_dir(temp.path()).unwrap();
+        let operation_id = OperationId::parse(outcome.operation_id).unwrap();
+        let transaction = FrontierTxn::open(temp.path(), &journal_dir, &operation_id).unwrap();
+        let relative = evidence_path.strip_prefix(temp.path()).unwrap();
+        let write = transaction
+            .plan()
+            .canonical_delta
+            .writes()
+            .iter()
+            .find(|write| write.path.as_str() == relative.to_str().unwrap())
+            .expect("decision transaction retains its exact evidence preimage");
+        assert_eq!(write.class, WriteClass::CanonicalEvidence);
+        assert_eq!(write.preimage, crate::frontier_txn::FileState::Absent);
+        assert!(matches!(
+            &write.postimage,
+            crate::frontier_txn::FileState::File { digest, .. }
+                if digest == &ContentDigest::hash(&actual_bytes)
+        ));
+    }
+
+    #[test]
+    fn deleting_decision_evidence_does_not_change_replay_or_signed_events() {
+        let (temp, key, answer) = decision_fixture();
+        let confirmed =
+            build_unlocked(temp.path(), &[answer], "reviewer:test", DECIDED_AT, None).unwrap();
+        let outcome = execute_with_key_loader(temp.path(), &confirmed, || Ok(key.clone())).unwrap();
+        let evidence_path = decision_evidence_file(temp.path(), &confirmed.plan.decision_root);
+        assert!(evidence_path.is_file());
+
+        let before = vela_protocol::repo::load_from_path(temp.path()).unwrap();
+        let before_replay = vela_protocol::reducer::verify_replay(&before);
+        let before_events = vela_protocol::canonical::to_canonical_bytes(&before.events).unwrap();
+        let before_event_root = vela_protocol::events::event_log_hash(&before.events);
+        let public_key = hex::encode(key.verifying_key().to_bytes());
+        for event_id in &outcome.event_ids {
+            let event = before
+                .events
+                .iter()
+                .find(|event| &event.id == event_id)
+                .unwrap();
+            assert!(vela_protocol::sign::verify_event_signature(event, &public_key).unwrap());
+        }
+
+        std::fs::remove_file(&evidence_path).unwrap();
+        let after = vela_protocol::repo::load_from_path(temp.path()).unwrap();
+        let after_replay = vela_protocol::reducer::verify_replay(&after);
+        assert_eq!(after_replay.ok, before_replay.ok);
+        assert_eq!(
+            after_replay.replayed_snapshot_hash,
+            before_replay.replayed_snapshot_hash
+        );
+        assert_eq!(
+            after_replay.materialized_snapshot_hash,
+            before_replay.materialized_snapshot_hash
+        );
+        assert_eq!(after_replay.diffs, before_replay.diffs);
+        assert_eq!(
+            vela_protocol::canonical::to_canonical_bytes(&after.events).unwrap(),
+            before_events
+        );
+        assert_eq!(
+            vela_protocol::events::event_log_hash(&after.events),
+            before_event_root
+        );
+        for event_id in &outcome.event_ids {
+            let event = after
+                .events
+                .iter()
+                .find(|event| &event.id == event_id)
+                .unwrap();
+            assert!(vela_protocol::sign::verify_event_signature(event, &public_key).unwrap());
+        }
     }
 
     #[test]

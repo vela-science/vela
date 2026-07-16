@@ -89,6 +89,10 @@ count effect, and Git publication state. Treat the route as follows:
 | `deferred` | The proposal is pending a separate human decision. |
 | `exact_retry` | Vela found the same durable operation and did not create a second result. |
 
+For `exact_retry`, `original_route` is the structured prior route:
+`policy_admitted` or `deferred`. It is `null` for first results. Branch on
+`route` and `original_route`; reserve `detail` for human-facing diagnostics.
+
 A verifier pass is evidence. A landed receipt is evidence. Neither grants a
 human decision. Stop and record the defect if the generated claim, caveat,
 source pin, task root, or event-count effect is wrong. Deny and invalid input

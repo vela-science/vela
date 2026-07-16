@@ -160,7 +160,10 @@ The loop scales by composition, not new machinery:
    you claim, no key step needed (`VELA_AGENT_KEY_HEX` overrides). A
    live competing lease returns `already_claimed_by` — route around it.
    A lease coordinates; it never decides. Vela writes one typed private
-   session bound to the exact lease and task contract. A committed Permit or
+   session bound to the exact lease and task contract after exact-publishing
+   the signed lease event in a local Git commit. JSON exposes that result as
+   `claim.publication`; no manual lease commit belongs between `work` and
+   `land`. A committed Permit or
    Defer closes `session.json`; Deny and error retain it. Abandoned work uses
    `work --drop --reason <why>`, which appends a signed same-owner zero-TTL
    `attempt.claimed` update before removing scratch. An expired lease is

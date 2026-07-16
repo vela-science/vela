@@ -4,7 +4,14 @@
 - Scope: Vela substrate CLI, protocol plumbing, MCP exposure, and derived review
   projections.
 - Implementation state: Vela `0.800` is the deliberate prelaunch hard cut;
-  `0.800.13` is the current candidate.
+  released `v0.800.13` at commit
+  `b3076f8935a38ecaef252e7f062648794cc7cd07` is the current technical
+  baseline. Public conformance run
+  [29455939576](https://github.com/vela-science/vela/actions/runs/29455939576)
+  and immutable release run
+  [29456349900](https://github.com/vela-science/vela/actions/runs/29456349900)
+  succeeded at that exact commit; campaign commit
+  `7d26b2b050aa1dbcfa7864d184c45250c3c21f26` pins it.
   All ordinary producer results cross `next -> work -> land`; ordinary
   truth-bearing review decisions cross `sign`; explicit policy-governance
   ceremonies remain separate. Submission and decision installation use the
@@ -1596,7 +1603,7 @@ cross-implementation vectors; bounded installed-verifier fixtures; clean-clone
 and offline Git-bundle replay; derived-consumer contracts; documentation and
 voice checks; and the registered deterministic suite partition. Exploratory
 producer-specific relays stay outside the release union. This ADR labels
-candidate checks as local evidence; the parent full union remains a separate
+  focused checks as local evidence; the parent full union remains a separate
 release-certification gate. These checks establish
 compatibility, replay, bounded rendering, safe retries, custody separation, and
 portable consumption. They do not establish scientific acceptance or ecosystem
@@ -1660,7 +1667,7 @@ The following program gates intentionally remain open:
   service commitments remain organizational work even where export, archive,
   and fork mechanics are implemented.
 
-Candidate `0.800.13` adds release-bound evidence for the remaining mechanical
+Released `0.800.13` adds release-bound evidence for the remaining mechanical
 questions without changing the Receipt, event, authority, or ceremony
 contracts:
 
@@ -1690,7 +1697,7 @@ cannot prove canonical replay, historical authority, or the attachment set a
 human consumed. That result proposes no public wire object and supplies no
 outside-use credit.
 
-Accordingly, `0.800.13` is a technical prelaunch candidate for the clerk layer,
+Accordingly, `0.800.13` is the technical prelaunch release for the clerk layer,
 not a claim that the acceptance program or outside-producer goal is complete.
 It expands no authority surface and performs no human ceremony. The campaign
 keeps a separate dated proof/open ledger; code fixtures cannot promote an
@@ -1698,138 +1705,39 @@ organizational or independent-adoption gate to complete.
 
 ## Acceptance metrics
 
-The program is complete only when all of these hold:
+This finite ledger supersedes the earlier open-ended checklist. A new concrete
+defect adds a named regression vector; it does not reopen an unbounded
+requirement to prove every possible race, encoding, or scale shape.
 
-- A first-time producer reaches one valid pending receipt in 5 minutes at the
-  median and 10 minutes at the 90th percentile after documented prerequisites.
-- The exact-witness path takes one Vela command. The external Lean path takes at
-  most two Vela commands after prerequisites.
-- Supported paths require no hand-authored protocol JSON and no maintainer
-  repair during the measured run.
-- Deny, invalid input, stale event-log roots, Git ref races, and every
-  interruption before a commit marker produce zero durable Vela or Git delta. Every tested interruption
-  after a marker recovers the exact committed delta idempotently.
-- Two receipts with the same claim and type but different evidence both remain
-  inspectable; only a byte-identical receipt retry is deduplicated.
-- Every newly emitted Receipt v1 validates with the pre-ADR v1 validity rules;
-  the existing required wire fields remain required and unknown namespaced
-  extensions survive round-trip.
-- A clean clone reconstructs the same safe Decision Brief and every public
-  review byte. Restricted evidence retains the same sealed commitment or opaque
-  custodian reference, disclosure tier, access requirement, and typed
-  availability without leaking payload equality when that is sensitive.
-- Every decision-critical Decision Brief field is populated or carries an
-  explicit typed reason for absence. Optional facets do not emit decorative
-  missing values.
-- The Decision Brief contract remains testing until two independent producers
-  and two independent consumers are named with conformance evidence; one
-  outside consumer cannot stabilize it. Every brief declares its testing
-  schema and stability, and canonical golden fixtures cover the required core.
-- Supported producer paths preserve an explicit claim, predicted observable or
-  typed `not_applicable`, test, result, evidence reference, and caveat chain.
-  Contrary and insufficient evidence remains visible.
-- Landing, sign, status, policy test, and policy suggest derive identical policy
-  context for the same proposal.
-- Five out of five test reviewers see every item before it can enter a batch;
-  at least four can accurately state the proposed change, evidence, caveat,
-  authority source, and consequence without opening raw JSON.
-- The ceremony has one final confirmation and one key read.
-- No Decision Brief contains a preselected verdict or model recommendation.
-- Every tested change to the base, proposal, evidence, verifier snapshot,
-  policy context or evaluator result, reviewer authorization, or semantic
-  effect changes the `decision_root` and invalidates the review before key
-  access.
-- Changing the signed decision-root input reference changes the event ID and
-  fails signature verification; changing Git publication options does not
-  change scientific authorization bytes.
-- A failed push retains the signed decision and gives a verified one-command
-  recovery path.
-- Publication with unrelated staged and unstaged files changes only the
-  resolved Vela path set in the candidate commit diff and leaves those unrelated
-  changes in their original state. When the target is the current branch, Vela
-  paths are clean against the new tip while unrelated index entries retain
-  their logical state. An un-checked-out target leaves the caller's entire index
-  untouched; a target checked out in another linked worktree is rejected before
-  object construction. If the Vela path set has no delta, no commit is created
-  even when the caller's index is nonempty.
-- Repository hooks are not invoked. A concurrent Git ref update leaves the
-  winning branch and caller index unchanged and returns a stale-publication
-  result that requires replanning against the new parent. Publication never
-  merges, rebases, resets, retries the stale candidate indefinitely, or silently
-  rewrites unrelated work.
-- A crash or index-lock failure after the ref moves reports the retained local
-  commit and recovers only the Vela index entries idempotently when the
-  journaled worktree, checkout, index entries, and worktree bytes still match.
-  Any drift refuses recovery with zero writes; recovery does not move the ref
-  again, overwrite new Vela work, or rewrite unrelated entries.
-- Canonical authority paths pass cross-platform attribute tests. Any clean or
-  smudge filter, keyword expansion, line-ending, or local attribute override
-  that would change an authority blob is detected and rejected before
-  commit; semantic merge drivers are not used for those paths.
-- CLI and MCP JSON parse as exactly one object and agree on the landing result.
-- Agent signing and MCP-finalization violations remain zero.
-- Receipt import rejects or safely bounds oversized strings, deep JSON,
-  excessive artifacts, archive bombs, malicious locators, terminal controls,
-  and untrusted hyperlinks. Review never fetches or executes them implicitly.
-- A stress fixture with at least 10,000 machine-generated submissions remains
-  paginated and bounded, exposes typed queue-pressure telemetry, and preserves
-  exact retry idempotency without opening every retained Receipt.
-- Queue depth and age, actor concentration, and repeated exact work are measured
-  from durable proposal facts. Reviewer effort, correction latency, verifier
-  diversity, independence, evidence direction, policy priority, and downstream
-  use remain typed missing until retained facts can support them. Receipt volume
-  alone is not a success metric, and telemetry does not route or admit work.
-- A malicious external Lean fixture cannot read host credentials, reach the
-  network, write outside its temporary output, or exceed configured resources;
-  the command fails closed without a supported sandbox.
-- One existing Git-and-container or Git-and-Lean project integrates without
-  moving its source, changing its authoring language, or adopting a hosted Vela
-  service.
-- From a clean clone, a new contributor identifies the bounded question,
-  accepted root, next target, selected verifier, authority ceiling, and first
-  command from the reference frontier kit in under two minutes.
-- The installed Lean adapter and task-first contract run unchanged on two
-  pinned Lean repositories or frontiers. Reports distinguish formal kernel
-  checking from statement faithfulness, significance, and library quality.
-- One isolated training frontier ends in a real pending Receipt v1 through the
-  same verifier and authority semantics as the expert path; it never grants or
-  simulates acceptance.
-- Accepted-root-to-substantive-child, target-to-verifier, receipt-to-route,
-  Defer-to-decision, and correction-propagation latency are measured. Mature
-  reusable definitions record whether they were proposed to the upstream
-  domain library.
-- Unknown namespaced Receipt v1 extensions survive normalize, land, export, and
-  re-import byte-for-byte or with a documented canonical equivalence.
-- A reproduce-on-arrival bot or correction watcher is implemented outside the
-  kernel from a clone and stable read contracts, proving generativity without a
-  platform-specific event kind.
-- One graph or wiki consumer binds every result to an exact Git and Vela source
-  root, labels deterministic versus inferred relations, reports stale roots,
-  and can lose its entire cache without losing accepted meaning. Signing is
-  identical with that cache present, stale, or deleted.
-- The POSI self-assessment, specification archive, data-export policy, and
-  verified Git-bundle fork drill exist before a hosted service becomes a
-  dependency.
-- Core, frontier, trust-invariant, cross-implementation, and selected formal
-  suites report zero failures.
-- Every new `vela.policy-lane.v2` Permit names the matching current signed
-  policy-head event and epoch. Strict replay rejects a missing or mismatched
-  head, fork, gap, stale causal prefix, pre-activation lane, and old-policy
-  event appended after rotation or revocation. `active.json` alone never
-  authorizes a write. A current Revoke makes Permit human-only;
-  only its causally linked successor Rotate with a new, never-revoked policy ID
-  may restore standing Permit authority.
-- Generated Permit policies use causal Rotate/Revoke validity rather than a
-  misleading finite wall-clock window.
-- Any new Permit rule first passes historical replay in a non-authoritative dry run, begins
-  with complete audit, has sentinel cases and a kill switch, and reports false
-  Permit, false Defer, semantic-fidelity error, reviewer minutes, and
-  replication-versus-diversity rates before its audit sample may shrink.
-- The existing outside-producer goal closes: one independent producer lands a
-  genuinely rederived, non-vacuous result through a strong verifier, a human
-  decides it, and a different independent producer consumes its durable receipt
-  to build a substantive child from the accepted root. Raw receipt, project, or
-  verifier counts do not satisfy this criterion.
+| Condition | Status | Exact boundary |
+| --- | --- | --- |
+| Released task-first substrate and public evidence | **PROVED** | `v0.800.13`, exact commit and hosted runs recorded above |
+| One-command exact witness and at-most-two-command installed external verifier surface | **PROVED** | released CLI surface; this is interface evidence, not outside usability evidence |
+| Receipt v1 validity, distinct-evidence retention, exact-retry identity, and namespaced-extension round-trip | **PROVED** | released protocol and cross-implementation vectors |
+| Single-frontier transaction, Deny zero delta, exact retry, and named Git publication/recovery boundaries | **PROVED** | released finite failpoint and publication matrices through `v0.800.13` |
+| Shared policy context, fail-closed broken policy, causal Permit head rotation and revocation | **PROVED** | released protocol/CLI checks; no new Permit rule is introduced here |
+| Core Decision Brief, six read transports, adversarial reviewer questions, and no model verdict | **PROVED** | released `v0.800.13` equality and fixture checks |
+| Restricted evidence, bounded descriptor reads, inert review text, and opaque archives | **PROVED** | released finite malicious-input vectors; new concrete encodings require named regressions |
+| Bounded Hub pagination and durable queue-pressure facts | **PROVED** | 10,000-row ledger projection with one bounded materialized page; not 10,000 Git writes |
+| Offline bundle, removable graph/wiki projection, export mechanics, and cache-deletion parity | **PROVED** | released bundle and Frontier Atlas checks; derived state remains non-authoritative |
+| Finite scientific-chain producer assertion | **PROVED** | Task 3 adds one optional bounded Receipt v1 producer assertion, exact flag/file bytes, body binding, and Decision Brief projection; focused local gates pass |
+| Finite CLI/MCP landing wire parity | **PROVED** | Task 4 gives policy-admitted, Deferred, and exact retry one shared success projection; integration parity passes and Deny remains the separately proved zero-delta failure boundary |
+| Finite mixed-batch DecisionPlan safety | **PROVED** | Task 5 proves coherent mixed decisions, incoherent route/class rejection, high-risk isolation, and exclusion of skipped proposals |
+| One exact all-facets Decision Brief golden | **PROVED** | Task 6 freezes the complete known facet inventory and canonical golden; missing, duplicate, or renamed facets fail the contract |
+| Isolated ordinary-path training frontier | **PROVED** | Task 7 drives the current compiled CLI through `next -> work -> reproduce -> land`, removes the human key before work, proves Deferred and accepted-event delta/root zero, then passes strict replay and frozen reproduction from a clean clone; the focused test is part of the public task-first conformance target |
+| Next technical-closure patch and current parent deterministic union | **IMPLEMENTING** | Task 8 runs focused public gates, releases the patch, pins the parent atomically, then runs the local deterministic union once |
+| Current installed adapter on outside pinned projects and reference-kit comprehension | **OPEN — INDEPENDENT** | first-party fixtures cannot establish outside integration or under-two-minute comprehension |
+| First cold producer timing, repair count, and `pending_review` understanding | **OPEN — INDEPENDENT** | qualifying raw runs must supply the median, p90, and repair record |
+| Five real cold reviewer comprehension runs | **OPEN — INDEPENDENT** | five people see all items; at least four satisfy the finite five-question rubric |
+| One final confirmation and one real key activation | **OPEN — HUMAN** | an authorized human performs terminal `vela sign`; fixture keys do not count |
+| Independent producer -> human decision -> different producer substantive child | **OPEN — INDEPENDENT** | outside evidence must include accepted-root inheritance, correction propagation, and actual latency |
+| Decision Brief stability beyond `testing` | **OPEN — INDEPENDENT** | two independent producers and two independent consumers pass conformance |
+| Stewardship, sustainability, domain cutover, and other organizational commitments | **OPEN — HUMAN** | export mechanics do not substitute for named human decisions |
+| Hosted parent run after the current release input | **OPEN — INFRASTRUCTURE** | a zero-step billing-blocked workflow is neither a Vela nor Lean result |
+| Diderot as adoption, partner, compatibility, or cold-use evidence | **REJECTED** | Diderot receives zero credit and is not a release gate |
+| A second receipt, event, authority, signer, graph, wiki, or cache truth plane | **REJECTED** | the existing Vela/Git waist remains authoritative |
+| An extra joined failpoint matrix beyond registered finite boundaries | **SUPERSEDED** | composable named transaction, decision, and publication matrices replace the duplicate gate |
+| 10,000 sequential Git commits and “all races/encodings” as completion gates | **SUPERSEDED** | bounded projection evidence and finite hostile vectors are the falsifiable requirements |
 
 ## Risks and mitigations
 

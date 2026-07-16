@@ -72,6 +72,26 @@ pub(crate) struct LandOutcome {
     pub publication: crate::config::git_publish::PublicationOutcome,
 }
 
+/// Transport-neutral landing result. CLI JSON adds only its command envelope;
+/// MCP returns this projection inside its tool envelope. Scientific and
+/// publication facts are therefore mapped exactly once.
+#[derive(Debug, Serialize)]
+pub(crate) struct LandOutcomeWire<'a> {
+    pub operation_id: &'a str,
+    pub receipt_root: &'a str,
+    pub record_id: &'a str,
+    pub proposal_id: &'a str,
+    pub finding_id: &'a str,
+    pub accepted_event_count_before: Option<usize>,
+    pub accepted_event_count_after: Option<usize>,
+    pub accepted_event_delta: Option<usize>,
+    pub route: &'static str,
+    /// Prior durable policy route for an exact retry; null for a first result.
+    pub original_route: Option<&'a str>,
+    pub detail: String,
+    pub publication: &'a crate::config::git_publish::PublicationOutcome,
+}
+
 impl LandOutcome {
     pub(crate) fn accepted_event_delta(&self) -> Option<usize> {
         accepted_event_count_delta(
@@ -79,6 +99,24 @@ impl LandOutcome {
             self.accepted_event_count_after,
         )
         .expect("landing outcomes carry a validated monotone accepted-event count pair")
+    }
+
+    pub(crate) fn wire(&self) -> LandOutcomeWire<'_> {
+        let (route, detail) = self.route.summary();
+        LandOutcomeWire {
+            operation_id: &self.operation_id,
+            receipt_root: &self.receipt_root,
+            record_id: &self.record_id,
+            proposal_id: &self.proposal_id,
+            finding_id: &self.finding_id,
+            accepted_event_count_before: self.accepted_event_count_before,
+            accepted_event_count_after: self.accepted_event_count_after,
+            accepted_event_delta: self.accepted_event_delta(),
+            route,
+            original_route: self.route.original_route(),
+            detail,
+            publication: &self.publication,
+        }
     }
 }
 
@@ -97,7 +135,8 @@ fn accepted_event_count_delta(
 
 #[cfg(test)]
 mod accepted_event_count_contract_tests {
-    use super::accepted_event_count_delta;
+    use super::{LandOutcome, LandRoute, accepted_event_count_delta};
+    use crate::config::git_publish::{PublicationOutcome, PublicationState};
 
     #[test]
     fn accepted_event_delta_is_monotone_or_absent() {
@@ -108,9 +147,98 @@ mod accepted_event_count_contract_tests {
         assert!(accepted_event_count_delta(Some(12), None).is_err());
         assert!(accepted_event_count_delta(None, Some(12)).is_err());
     }
+
+    #[test]
+    fn land_wire_projection_is_the_one_transport_neutral_contract() {
+        let fixture = |route, after| LandOutcome {
+            operation_id: format!("vop_{}", "1".repeat(64)),
+            receipt_root: format!("sha256:{}", "2".repeat(64)),
+            record_id: "vrc_wire".to_string(),
+            proposal_id: "vsp_wire".to_string(),
+            finding_id: "vf_wire".to_string(),
+            accepted_event_count_before: Some(7),
+            accepted_event_count_after: Some(after),
+            route,
+            publication: PublicationOutcome {
+                state: PublicationState::Uncommitted {
+                    candidate: None,
+                    reason: "fixture".to_string(),
+                },
+                recovery_command: None,
+            },
+        };
+        let cases = [
+            (
+                fixture(
+                    LandRoute::PolicyAdmitted {
+                        event_id: "vev_wire".to_string(),
+                        policy_id: "vap_wire".to_string(),
+                    },
+                    8,
+                ),
+                "policy_admitted",
+                None,
+                "event vev_wire under vap_wire",
+                1,
+            ),
+            (
+                fixture(
+                    LandRoute::Deferred {
+                        reasons: vec!["human scientific judgment".to_string()],
+                    },
+                    7,
+                ),
+                "deferred",
+                None,
+                "human scientific judgment",
+                0,
+            ),
+            (
+                fixture(
+                    LandRoute::ExactRetry {
+                        original_route: "deferred".to_string(),
+                    },
+                    7,
+                ),
+                "exact_retry",
+                Some("deferred"),
+                "reused durable deferred result",
+                0,
+            ),
+            (
+                fixture(
+                    LandRoute::ExactRetry {
+                        original_route: "policy_admitted".to_string(),
+                    },
+                    7,
+                ),
+                "exact_retry",
+                Some("policy_admitted"),
+                "reused durable policy_admitted result",
+                0,
+            ),
+        ];
+
+        for (outcome, route, original_route, detail, delta) in cases {
+            let wire = serde_json::to_value(outcome.wire()).unwrap();
+            assert_eq!(wire["route"], route);
+            assert_eq!(wire["original_route"], serde_json::json!(original_route));
+            assert_eq!(wire["detail"], detail);
+            assert_eq!(wire["accepted_event_delta"], delta);
+            assert_eq!(wire.as_object().unwrap().len(), 12, "{wire}");
+        }
+    }
 }
 
 impl LandRoute {
+    /// Machine-readable prior route. `detail` remains human-facing text.
+    pub(crate) fn original_route(&self) -> Option<&str> {
+        match self {
+            LandRoute::ExactRetry { original_route } => Some(original_route),
+            LandRoute::PolicyAdmitted { .. } | LandRoute::Deferred { .. } => None,
+        }
+    }
+
     /// The `(route, detail)` pair every landing surface reports — the CLI
     /// verb and the MCP `work` tool speak the same contract.
     pub(crate) fn summary(&self) -> (&'static str, String) {
@@ -175,13 +303,17 @@ fn transact_event_candidate_with_barrier<F>(
     barrier: crate::frontier_txn::FrontierRecoveryBarrier,
     original: &vela_protocol::project::Project,
     candidate: &vela_protocol::project::Project,
-    result: Value,
+    mut result: Value,
     binding: EventTransactionBinding,
     before_commit: F,
 ) -> Result<Value, String>
 where
     F: FnOnce() -> Result<(), String>,
 {
+    use crate::config::git_publish::{
+        PublicationOutcome, PublicationState, PublishOptions, exact_publication_resume_preflight,
+        publication_disabled_reason, publish_exact_delta,
+    };
     use crate::frontier_txn::{
         ContentDigest, DeltaDraft, FrontierBinding, FrontierTxn, FrontierTxnPlan,
         FrontierTxnPlanSpec, OperationId, OperationKind, PlannedWrite,
@@ -222,6 +354,7 @@ where
                 binding.operation_namespace
             )
         })?;
+    let event_id = event_id.to_string();
     if !candidate.events.iter().any(|event| event.id == event_id) {
         return Err(format!(
             "{} candidate does not contain its claimed event",
@@ -291,12 +424,62 @@ where
     .map_err(|error| error.to_string())?;
     let mut transaction = FrontierTxn::prepare_with_barrier(barrier, plan, draft)
         .map_err(|error| error.to_string())?;
+    let public = transaction
+        .resolved_public_writes()
+        .map_err(|error| error.to_string())?;
+    let delta_root = transaction
+        .plan()
+        .canonical_delta
+        .root()
+        .as_str()
+        .to_string();
     before_commit()?;
     transaction
         .mark_committed()
         .map_err(|error| error.to_string())?;
     transaction.install().map_err(|error| error.to_string())?;
     transaction.complete().map_err(|error| error.to_string())?;
+    let publish_opts = PublishOptions::new(false);
+    let publication_disabled = publication_disabled_reason(frontier, &publish_opts);
+    let publication_delta = if publication_disabled.is_some() {
+        None
+    } else {
+        publication_delta(frontier, &delta_root, public)?
+    };
+    let publication = match publication_delta.as_ref() {
+        Some(delta) => match exact_publication_resume_preflight(frontier, delta, &publish_opts) {
+            Ok(preflight) => publish_exact_delta(
+                frontier,
+                "work",
+                std::slice::from_ref(&event_id),
+                delta,
+                preflight,
+                &publish_opts,
+            )
+            .unwrap_or_else(|error| PublicationOutcome {
+                state: PublicationState::Unknown {
+                    reason: error.to_string(),
+                },
+                recovery_command: None,
+            }),
+            Err(outcome) => outcome,
+        },
+        None => PublicationOutcome {
+            state: PublicationState::Uncommitted {
+                candidate: None,
+                reason: publication_disabled
+                    .unwrap_or_else(|| "lease transaction had no public Git delta".to_string()),
+            },
+            recovery_command: None,
+        },
+    };
+    result
+        .as_object_mut()
+        .ok_or_else(|| "lease candidate result is not an object".to_string())?
+        .insert(
+            "publication".to_string(),
+            serde_json::to_value(publication).map_err(|error| error.to_string())?,
+        );
     Ok(result)
 }
 
@@ -1136,6 +1319,7 @@ pub(crate) fn release_session(
 /// accepted by file import. A unique active work session supplies the stable
 /// emission context, so repeating the same normalized request produces the
 /// same receipt and operation identity instead of consulting a new clock.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn author_receipt(
     frontier: &Path,
     actor: &str,
@@ -1145,9 +1329,17 @@ pub(crate) fn author_receipt(
     replayability: String,
     artifact_flags: &[String],
     caveats: Vec<String>,
+    predicted_observable: Option<String>,
+    not_applicable: bool,
+    performed_test: Option<String>,
+    result: Option<String>,
+    evidence: Vec<String>,
+    counterevidence: Vec<String>,
 ) -> Result<ReceiptV1, String> {
     use vela_protocol::identity::{ActorClass, IdentityBinding, IdentityBindingDraft};
-    use vela_protocol::receipt_v1::{ArtifactInput, ReceiptBuilder, ReceiptInput};
+    use vela_protocol::receipt_v1::{
+        ArtifactInput, ReceiptBuilder, ReceiptInput, ScientificChainAssertion,
+    };
 
     if !(actor.starts_with("agent:") || actor.starts_with("ci:")) {
         return Err(
@@ -1200,6 +1392,31 @@ pub(crate) fn author_receipt(
     let policy_ref = vela_protocol::acceptance_policy::load_active_policy(frontier)?
         .map(|policy| policy.policy.id)
         .unwrap_or_else(|| "urn:vela:policy:none".to_string());
+    let scientific_chain_requested = predicted_observable.is_some()
+        || not_applicable
+        || performed_test.is_some()
+        || result.is_some()
+        || !evidence.is_empty()
+        || !counterevidence.is_empty();
+    let scientific_chain = if scientific_chain_requested {
+        let performed_test = performed_test
+            .ok_or_else(|| "scientific-chain authoring requires --performed-test".to_string())?;
+        let result =
+            result.ok_or_else(|| "scientific-chain authoring requires --result".to_string())?;
+        Some(
+            ScientificChainAssertion::new(
+                predicted_observable,
+                not_applicable,
+                performed_test,
+                result,
+                evidence,
+                counterevidence,
+            )
+            .map_err(|error| error.to_string())?,
+        )
+    } else {
+        None
+    };
     let operation_preimage = vela_protocol::canonical::to_canonical_bytes(&json!({
         "schema": "vela.land-authoring.internal.v1",
         "frontier_id": project.frontier_id(),
@@ -1212,6 +1429,7 @@ pub(crate) fn author_receipt(
         "replayability": replayability,
         "artifacts": normalized_artifacts,
         "caveats": caveats,
+        "scientific_chain": scientific_chain.as_ref().map(ScientificChainAssertion::as_value),
         "policy_ref": policy_ref,
     }))?;
     let operation_id = crate::operation_journal::operation_id("land", &operation_preimage);
@@ -1224,7 +1442,7 @@ pub(crate) fn author_receipt(
         },
         &key,
     )?;
-    let input = ReceiptInput::new(
+    let mut input = ReceiptInput::new(
         claim,
         claim_type,
         replayability,
@@ -1240,6 +1458,11 @@ pub(crate) fn author_receipt(
     )
     .and_then(|input| input.with_task_contract_root(work.record.task_contract_root.clone()))
     .map_err(|error| error.to_string())?;
+    if let Some(scientific_chain) = scientific_chain {
+        input = input
+            .with_scientific_chain(scientific_chain)
+            .map_err(|error| error.to_string())?;
+    }
     ReceiptBuilder::build(input, &identity).map_err(|error| error.to_string())
 }
 

@@ -15,8 +15,10 @@ use crate::project::{self, Project};
 use crate::propagate::{self, PropagationAction};
 use crate::repo;
 
+mod decision_inspection;
 pub mod policy_accept;
 mod types;
+pub use decision_inspection::{DecisionInspection, inspect_named_decision};
 pub use types::*;
 
 pub fn new_proposal(

@@ -128,7 +128,10 @@ next -> work -> land -> sign
   claiming work. `--json` is the agent contract.
 - `vela work <target> --as agent:<you> --json` — claim the lease, return the
   briefing and task contract, and write one typed private `session.json` under
-  `.vela/work/`. Do not edit or stage that record. Release without landing via
+  `.vela/work/`. The signed lease event exact-publishes in its own local Git
+  commit before the private session is handed back, and JSON reports that
+  publication result under `claim.publication`. Do not edit or stage the
+  session record. Release without landing via
   `vela work <target> --drop --reason <why> --as agent:<you>`; Vela commits the
   signed lease release before deleting scratch.
 - `vela land --work <target> --claim <result> --artifact <path>:<kind>

@@ -2,7 +2,7 @@
 
 - Status: Accepted 2026-07-15. On 2026-07-15 the project owner authorized
   Phase 0 and experiment-only Phase 1 scaffolding to begin in parallel with
-  ADR 0003. ADR 0003 remains the active goal. The blind handoff, ADR 0004
+  ADR 0003. The blind handoff, ADR 0004
   same-information agent benchmark, API spend, human ceremony, and
   outside-evidence claims remain closed until their own gates are satisfied.
   Phase 0 is now frozen against released Vela `v0.800.12`. The first Phase 1
@@ -10,14 +10,29 @@
   mismatches but returns
   `unresolvable:authority_snapshot_porcelain_missing` for a matching internal
   fixture. That is a gap result, not evidence that current objects suffice.
+  Released `v0.800.13` at commit
+  `b3076f8935a38ecaef252e7f062648794cc7cd07` carries that negative result;
+  public conformance run
+  [29455939576](https://github.com/vela-science/vela/actions/runs/29455939576)
+  and immutable release run
+  [29456349900](https://github.com/vela-science/vela/actions/runs/29456349900)
+  succeeded at the exact release commit. Campaign commit
+  `7d26b2b050aa1dbcfa7864d184c45250c3c21f26` pins it.
+  Phase 1A completed as an internal fixture. Its registered ablation
+  found one evidence-availability gap: the signed event binds a DecisionPlan
+  root, but released decisions do not retain the corresponding canonical
+  preimage. The current working tree implements the narrow fix for the
+  `v0.800.14` target. It is not released evidence, outside-use evidence, or a
+  dependency verdict.
 - Scope: exact cross-frontier composition, later-root correction handling, and
   the smallest public contract that independent producers and consumers might
   need.
 - Relation to ADR 0003: this ADR does not expand or replace the active
-  task-first workflow implementation. ADR 0003 remains the current program.
+  task-first workflow implementation. It is the registered research lane in
+  the current ADR 0003/ADR 0004/Canopus program.
 - Authority: this document is an accepted engineering decision. It is not a
   signed scientific event, does not exercise a human key, and does not replace
-  ADR 0003 as the active goal.
+  ADR 0003's authority boundary.
 
 ## Decision summary
 
@@ -51,6 +66,49 @@ DSSE or in-toto, exact locks, and a small deterministic status rule provide the
 same safety with less special machinery, Vela should become the interoperable
 profile and tooling around those standards rather than claim a new protocol
 category.
+
+The registered Phase 1A result justifies one smaller engineering change. New
+decisions should retain the exact canonical DecisionPlan preimage at
+`records/decision-evidence/decision-root/<decision-root-hex>.json` in the same
+recoverable transaction as the signed decision. The signed event binds that
+preimage through its domain-separated decision root. Retention preserves
+inspectable evidence; it adds no event, authority rule, dependency object, or
+status reducer. Removing the file leaves reducer replay, event-log identity,
+and event signatures unchanged.
+
+## Finite implementation ledger
+
+This ledger replaces a growing list of open-ended research questions. A result
+may change one row only with registered evidence; it may not silently widen the
+experiment or promote a primitive by analogy.
+
+| Item | Status | Exact boundary |
+| --- | --- | --- |
+| Frozen Phase 0 registration and negative resolver result | **PROVED** | released result is `unresolvable:authority_snapshot_porcelain_missing`; it promotes no object |
+| Public release and campaign pin for the negative experiment | **PROVED** | `v0.800.13`, exact public runs, and parent commit recorded above |
+| Phase 1A canonical-custody registration and hostile vectors | **PROVED — INTERNAL** | registered `v0.800.13` run passes 14 custody vectors with zero false verified outcomes; this is fixture evidence only |
+| Canonical exact-checkout reader | **PROVED — INTERNAL** | exact Git/tree/replay/proof/view/lock roots agree for the ordinary Vela-produced fixture under bounded offline execution |
+| Read-only named-decision inspector | **PROVED — LOCAL** | 28 registered Rust/Python classifications agree and 10 focused Rust tests pass; the pure API has no path, write, socket, clock, registry, or key parameter |
+| DecisionPlan-preimage ablation | **PROVED — INTERNAL** | root-only returns `unresolvable:decision_preimage_unavailable`; retained preimage returns `verified:decision_evidence_bound`; event and replay roots remain equal |
+| Root-keyed DecisionPlan evidence retention | **IMPLEMENTED — UNRELEASED** | `v0.800.14` target writes the exact canonical preimage as removable `CanonicalEvidence` in the decision transaction; focused tests bind bytes/root and prove deletion leaves replay and signed events unchanged |
+| Public release of the retained-preimage seam | **OPEN — RELEASE** | no release claim until `v0.800.14` is versioned, committed, tagged, published, and verified at its exact commit |
+| Git/DSSE/in-toto same-information baseline | **IMPLEMENTING** | the simpler standards profile is allowed to win at equal semantics |
+| First-party resolver, CI, and context projections | **IMPLEMENTING** | all consume one exact tuple, remain removable, and add no authority object |
+| Canopus paired agent benchmark | **IMPLEMENTING** | **Vela Research Harness** / `vela-research-harness`, CLI `canopus`; preregistered equal-budget runs only |
+| Independent substantive safety handoff and reader agreement | **OPEN — INDEPENDENT** | outside A, B, and Reader C complete the exact-root handoff without maintainer repair |
+| Real authority decision and later correction | **OPEN — HUMAN** | the relevant key holder decides through existing Vela ceremony and later authority state is delivered |
+| Independent complementor using the narrow contract | **OPEN — INDEPENDENT** | a third-party application removes real work without schema or authority proliferation |
+| Claim that Vela is a useful new foundation | **OPEN — INDEPENDENT** | held-out causal lift, producer/verifier substitution, correction advantage, and three applications all pass |
+| Hosted parent execution evidence after the complete release input | **OPEN — INFRASTRUCTURE** | a zero-step billing-blocked run is not evidence for or against the experiment |
+| Any dependency object, event kind, command family, status reducer, or primitive beyond the registered retained-preimage seam | **REJECTED** | Phase 1A justified evidence retention only; no broader protocol expansion follows from it |
+| A graph, wiki, cache, Canopus database, or hosted service as authority | **REJECTED** | every projection remains derived and deletable |
+| Short handles, mutable branches, prose reconstruction, automatic truth propagation, or central-registry dependence | **REJECTED** | every accepted dependency judgment remains full-root, authority-scoped, and replayable |
+| The synthetic derived-view fixture as canonical-custody evidence | **SUPERSEDED** | Phase 1A must use ordinary Vela-produced canonical state |
+| The earlier broad proposal for a parallel dependency stack | **SUPERSEDED** | the experiment may promote only the smallest evidence-justified read-only invariant |
+
+Canopus in this ledger names only the reactivated orchestration product above.
+Earlier Canopus protocol, stewardship, and `canopus-lean` designs remain
+historical and provide no evidence for this ADR.
 
 ## Mission
 
@@ -240,6 +298,15 @@ experiment must determine whether those semantics require:
 - a genuinely new protocol object.
 
 The burden of proof increases down that list.
+
+Phase 1A closed two narrower implementation questions without resolving this
+composition question. Exact checkout showed that canonical custody
+exists in Git plus Vela's replay and proof surfaces. The registered ablation
+showed that retaining a bound DecisionPlan preimage makes one named
+decision inspectable. Historical decisions and `v0.800.13` still expose only
+the root, and the current pure inspector handles one decision with one answer.
+No public resolver yet discovers the retained path or assigns dependency
+standing.
 
 ## Experimental dependency observation
 
@@ -814,6 +881,10 @@ independent replay, offline operation, and a deterministic later-root status.
 
 ### GO: add one minimal invariant
 
+The retained-preimage fix does not cross this gate. It preserves evidence whose
+root the signed event commits, and it changes no decision or dependency
+semantics. The gate below still controls any new composition invariant.
+
 Proceed only if all of the following are true:
 
 1. independent teams confirm the problem is operationally acute;
@@ -892,7 +963,7 @@ existing contracts without adding authority or a new object:
 5. Existing links and correction fixtures must not be presented as proof of
    cross-frontier dependency invalidation.
 
-The experiment implementation and every unproven architectural consequence
+The remaining experiment stages and every unproven architectural consequence
 remain queued. In particular, accepting this ADR does not give ADR 0003 a new
 object, command, continuity model, release gate, or external experiment by
 implication.
@@ -972,33 +1043,10 @@ The experimental design also consolidates recent Vela working research:
 Those working memos generated hypotheses. This ADR and its executable evidence
 must stand without private prose or founder interpretation.
 
-## Open questions the experiment must answer
+## Question closure rule
 
-1. Is Receipt v1's bound extension space sufficient, or does a dependency need
-   a first-class location in the receipt or accepted event?
-2. Can full canonical roots for decision events and verifier attachments be
-   recomputed portably without adding stored fields?
-3. Is Git ancestry plus Vela event continuity enough for rollback and fork
-   visibility?
-4. Which dependency roles have defensible deterministic status mappings?
-5. Can a child bind only the exact parent revision, or must it also retain the
-   parent claim text or a separate premise-normalization digest?
-6. Which later authority actions affect standing, and which merely add context?
-7. Can an independent reader remain small enough to serve as real
-   interoperability evidence?
-8. Does the standards baseline reveal that Vela's correct long-term form is a
-   profile rather than a distinct object protocol?
-9. Does inherited state causally improve verified progress over the same facts
-   in flat and retrieval form?
-10. Which negative results reduce repeated work without unsafe pruning?
-11. Can correction remain useful when dependency declarations are incomplete?
-12. Can the reference resolver, its CI adapter, and a separate context consumer
-    use the same tuple without adding authority objects, domain-specific state,
-    or a hosted service, and can a genuinely independent complementor later do
-    so without maintainer help?
-13. Does the primitive lower the barrier for a first-time human contributor as
-    well as an autonomous producer?
-14. Does Vela help a fixed agent complete more verifier-gated work per dollar,
-    token, and tool call than matched files, locks, or retrieval?
-15. Does the gain survive completely fresh consumer agents in both producer
-    strata under equal budgets?
+The finite implementation ledger groups the former open-question list into
+registered canonical-custody, inspector, ablation, standards-baseline,
+independent-use, and causal-benchmark rows. A question is closed only by the
+named row's evidence. An unexpected result may add one registered vector or
+force `PIVOT`/`NO-GO`; it may not create an unbounded completion checklist.

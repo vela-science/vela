@@ -1,0 +1,97 @@
+{
+  "schema": "vela.verifiable-composition.decision-evidence-ablation.v0",
+  "stability": "experimental",
+  "registered_on": "2026-07-15",
+  "run_class": "internal_fixture",
+  "release": {
+    "tag": "v0.800.13",
+    "commit": "b3076f8935a38ecaef252e7f062648794cc7cd07"
+  },
+  "invariant_bytes": [
+    "canonical frontier state",
+    "signed review decision event",
+    "decision-root input reference",
+    "proposal and applied-event linkage",
+    "registered reviewer actor record"
+  ],
+  "arms": [
+    {
+      "id": "R",
+      "name": "root_only",
+      "retained_evidence": "signed review event retains only the DecisionPlan root",
+      "registered_outcome": "unresolvable:decision_preimage_unavailable"
+    },
+    {
+      "id": "P",
+      "name": "retained_preimage",
+      "retained_evidence": "experiment-only canonical DecisionPlan preimage whose domain-separated root is already bound by the signed review event",
+      "registered_outcome": "verified:decision_evidence_bound"
+    }
+  ],
+  "execution": {
+    "network": "disabled",
+    "key_reads": "forbidden",
+    "writes": "none",
+    "preimage_bytes": 1048576,
+    "max_answers": 64,
+    "max_event_cores": 512
+  },
+  "registered_metrics": [
+    "false_verified_count",
+    "rust_python_classification_parity",
+    "root_only_classification",
+    "retained_preimage_classification",
+    "replay_root_equal_between_arms",
+    "decision_event_id_equal_between_arms",
+    "registered_vector_pass_count"
+  ],
+  "registered_vectors": {
+    "path": "vectors/decision-evidence-cases.json",
+    "ids": [
+      "retained-preimage-baseline",
+      "root-only-preimage-absent",
+      "wrong-decision-event-id",
+      "wrong-decision-content-root",
+      "event-id-does-not-rederive",
+      "unregistered-actor",
+      "duplicate-actor",
+      "agent-actor",
+      "wrong-authority-namespace",
+      "actor-registered-after-decision",
+      "actor-revoked-at-decision",
+      "actor-revoked-after-decision",
+      "wrong-public-key",
+      "malformed-signature",
+      "missing-decision-root",
+      "duplicate-decision-root",
+      "wrong-proposal-link",
+      "wrong-applied-event-link",
+      "wrong-preimage-domain-version",
+      "tampered-preimage-root",
+      "wrong-base-event-log-root",
+      "wrong-proposal-root",
+      "wrong-receipt-root",
+      "wrong-verifier-root",
+      "wrong-policy-root",
+      "wrong-authority-root",
+      "wrong-impact-root",
+      "attachment-added-after-decision"
+    ]
+  },
+  "registered_outcomes": {
+    "success": "R is unresolvable only because the preimage is absent; P verifies the named decision binding; removal of the P preimage leaves replay and the signed decision unchanged and returns exactly to R; all hostile cases fail closed; Rust and Python classifications match",
+    "failure": "R verifies, a hostile case verifies, the two implementations disagree, retained evidence changes replay or authority, or an unregistered arm/metric/vector is reported"
+  },
+  "promotion_rule": {
+    "read_only_inspector": "eligible only after zero false verified outcomes and complete Rust/Python parity",
+    "retained_preimage": "eligible only if P alone closes the registered evidence gap without changing replay or adding authority semantics",
+    "forbidden_promotions": [
+      "dependency object",
+      "dependency status reducer",
+      "graph primitive",
+      "wiki",
+      "cache",
+      "whole-frontier success shortcut"
+    ]
+  }
+}

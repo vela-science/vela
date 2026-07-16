@@ -1,0 +1,19 @@
+{
+  "schema": "vela.verifiable-composition.canonical-custody-vectors.v0",
+  "cases": [
+    {"id": "canonical-baseline", "mutation": "none", "expected": "canonical_custody_verified"},
+    {"id": "frontier-json-only-mutation", "mutation": "frontier_json_only", "expected": "rejected"},
+    {"id": "canonical-event-content-mutation", "mutation": "canonical_event_content", "expected": "rejected"},
+    {"id": "canonical-event-deletion", "mutation": "canonical_event_delete", "expected": "rejected"},
+    {"id": "canonical-event-duplication", "mutation": "canonical_event_duplicate", "expected": "rejected"},
+    {"id": "lock-snapshot-root-mismatch", "mutation": "lock_snapshot_root", "expected": "rejected"},
+    {"id": "proof-event-root-mismatch", "mutation": "proof_event_root", "expected": "rejected"},
+    {"id": "fabricated-derived-views", "mutation": "fabricate_derived_views", "expected": "rejected"},
+    {"id": "missing-canonical-events", "mutation": "canonical_events_missing", "expected": "rejected"},
+    {"id": "partial-canonical-findings", "mutation": "canonical_finding_delete", "expected": "rejected"},
+    {"id": "exact-frontier-tree-mismatch", "mutation": "exact_tree_mismatch", "expected": "rejected"},
+    {"id": "git-symlink-entry", "mutation": "git_symlink_entry", "expected": "rejected"},
+    {"id": "destination-symlink", "mutation": "destination_symlink", "expected": "rejected"},
+    {"id": "bounded-checkout-oversize", "mutation": "checkout_oversize", "expected": "rejected"}
+  ]
+}

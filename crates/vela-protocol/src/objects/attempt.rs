@@ -212,7 +212,7 @@ pub struct AttemptDraft {
 
 /// The one canonical claim digest (`sha256(claim.trim())[:16]`), defined in
 /// `verifier_attachment` and re-exported here so a claim has one digest
-/// everywhere (and matches `canopus_trust.py`).
+/// everywhere (and matches `verifier_gate_reference.py`).
 pub use crate::verifier_attachment::claim_digest;
 
 impl Attempt {

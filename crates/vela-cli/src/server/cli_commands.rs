@@ -573,6 +573,28 @@ pub(crate) enum Commands {
         artifact: Vec<String>,
         #[arg(long)]
         caveat: Vec<String>,
+        /// Observable expected before the test was performed. Exactly one of
+        /// this flag and --not-applicable is required when authoring a
+        /// scientific chain.
+        #[arg(long)]
+        predicted_observable: Option<String>,
+        /// Declare explicitly that this theoretical/source-only result has no
+        /// applicable predicted observable.
+        #[arg(long)]
+        not_applicable: bool,
+        /// Test or check that was actually performed.
+        #[arg(long)]
+        performed_test: Option<String>,
+        /// Result observed from the performed test.
+        #[arg(long)]
+        result: Option<String>,
+        /// Ordered artifact/root references supporting the result.
+        #[arg(long)]
+        evidence: Vec<String>,
+        /// Ordered artifact/root references that count against or bound the
+        /// result.
+        #[arg(long)]
+        counterevidence: Vec<String>,
         /// Select the active work target explicitly. Required when this actor
         /// owns more than one active session.
         #[arg(long)]

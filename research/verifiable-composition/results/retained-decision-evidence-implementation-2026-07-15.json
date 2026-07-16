@@ -1,0 +1,72 @@
+{
+  "schema": "vela.verifiable-composition.retained-decision-evidence-implementation.v0",
+  "recorded_on": "2026-07-15",
+  "run_class": "local_engineering_closeout",
+  "status": "implemented_unreleased",
+  "target_release": "v0.800.14",
+  "source_revision": {
+    "state": "dirty_working_tree",
+    "commit": null,
+    "release_evidence": false
+  },
+  "registered_basis": {
+    "result": "results/phase1a-canonical-custody-and-decision-ablation-2026-07-15.json",
+    "root_only": "unresolvable:decision_preimage_unavailable",
+    "retained_preimage": "verified:decision_evidence_bound",
+    "promotion": "promote_in_a_separate_protocol_change_with_the_same_non_authoritative_content-addressed_evidence_semantics"
+  },
+  "primitive": {
+    "path": "records/decision-evidence/decision-root/<decision-root-hex>.json",
+    "bytes": "exact canonical seven-field vela.decision-plan.internal.v1 preimage",
+    "path_key": "domain-separated DecisionPlan root bound by the signed review event",
+    "transaction": "same recoverable FrontierTxn as the decision",
+    "write_class": "canonical_evidence",
+    "event_kind_added": false,
+    "authority_semantics_added": false,
+    "dependency_semantics_added": false,
+    "status_reducer_added": false
+  },
+  "focused_verification": [
+    {
+      "command": "PYTHONDONTWRITEBYTECODE=1 python3 research/verifiable-composition/check_phase1_canonical.py --self-test",
+      "result": "pass",
+      "canonical_vectors": 14,
+      "decision_vectors": 28,
+      "false_verified_count": 0
+    },
+    {
+      "command": "cargo test --locked -p vela-protocol decision_inspection -- --nocapture",
+      "result": "pass",
+      "tests": 10
+    },
+    {
+      "command": "cargo test --locked -p vela-cli decision_plan -- --nocapture",
+      "result": "pass",
+      "unit_tests": 25,
+      "matching_integration_tests": 2
+    },
+    {
+      "command": "cargo clippy --locked -p vela-protocol --lib -- -D warnings",
+      "result": "pass"
+    },
+    {
+      "command": "cargo clippy --locked -p vela-cli --lib -- -D warnings",
+      "result": "pass"
+    }
+  ],
+  "proved_boundaries": [
+    "retained bytes equal the canonical DecisionPlan preimage",
+    "the path decision root rederives from the exact retained bytes under the DecisionPlan domain",
+    "the evidence write is part of the decision transaction",
+    "exact retry preserves the bytes and does not read the fixture key again",
+    "deletion changes neither reducer replay, event-log identity, event bytes, nor signature verification"
+  ],
+  "limitations": [
+    "the target is not released, committed, tagged, or publicly verified",
+    "released v0.800.13 and older decisions are not backfilled",
+    "the pure inspector still requires caller-supplied bytes and exactly one answer",
+    "no public path-discovery, batch-inspection, or prune command exists",
+    "the deletion test covers canonical replay and signed-event semantics, not same-worktree recovery after manual deletion of a completed transaction postimage",
+    "all evidence is an internal fixture and does not establish a human ceremony, outside interoperability, dependency validity, ecosystem adoption, or a new foundation"
+  ]
+}

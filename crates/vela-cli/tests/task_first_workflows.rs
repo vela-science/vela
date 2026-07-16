@@ -306,6 +306,15 @@ fn one_json_object(output: &Output) -> serde_json::Value {
     })
 }
 
+fn strip_cli_land_envelope(mut value: serde_json::Value) -> serde_json::Value {
+    let fields = value.as_object_mut().expect("CLI land output is an object");
+    assert_eq!(fields.remove("ok"), Some(serde_json::json!(true)));
+    assert_eq!(fields.remove("command"), Some(serde_json::json!("land")));
+    let request_id = fields.remove("request_id").expect("CLI request id");
+    assert_eq!(request_id, fields["operation_id"]);
+    value
+}
+
 fn assert_land_rejected_without_git_change(
     dir: &Path,
     filename: &str,
@@ -541,6 +550,7 @@ fn json_mode_writes_one_object_only() {
     assert_eq!(value["command"], "land");
     assert!(value["operation_id"].as_str().is_some(), "{value}");
     assert!(value.get("publication").is_some(), "{value}");
+    assert!(value["original_route"].is_null(), "{value}");
     assert_eq!(
         value["accepted_event_count_before"], value["accepted_event_count_after"],
         "a deferred landing must not append an accepted event: {value}"
@@ -565,6 +575,7 @@ fn exact_receipt_retry_is_idempotent_across_frontier_and_git() {
     assert_success(&first, "first exact landing");
     let first = one_json_object(&first);
     assert_eq!(first["route"], "deferred", "{first}");
+    assert!(first["original_route"].is_null(), "{first}");
     assert_eq!(first["accepted_event_delta"], 0, "{first}");
 
     let frontier_before = snapshot_scientific_tree(tmp.path());
@@ -580,6 +591,7 @@ fn exact_receipt_retry_is_idempotent_across_frontier_and_git() {
     assert_success(&retry, "exact retry");
     let retry = one_json_object(&retry);
     assert_eq!(retry["route"], "exact_retry", "{retry}");
+    assert_eq!(retry["original_route"], "deferred", "{retry}");
     assert_eq!(
         retry["accepted_event_count_before"], first["accepted_event_count_before"],
         "exact retry changed the recorded transaction preimage count"
@@ -615,6 +627,54 @@ fn exact_receipt_retry_is_idempotent_across_frontier_and_git() {
         ),
         status_before
     );
+}
+
+#[test]
+fn land_wire_parity_is_exact_between_cli_and_mcp_retries() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    init_git_frontier(tmp.path());
+    write_receipt(
+        tmp.path(),
+        "receipt.json",
+        "CLI and MCP expose one transport-neutral durable landing result",
+    );
+    let receipt =
+        String::from_utf8(std::fs::read(tmp.path().join("receipt.json")).unwrap()).unwrap();
+
+    let first = run(
+        tmp.path(),
+        &["land", "receipt.json", "--as", "agent:t", "--json"],
+    );
+    assert_success(&first, "initial deferred landing");
+    let first = one_json_object(&first);
+    assert_eq!(first["route"], "deferred", "{first}");
+    assert!(first["original_route"].is_null(), "{first}");
+    assert_eq!(first["accepted_event_delta"], 0, "{first}");
+
+    let frontier_path = tmp.path().canonicalize().unwrap();
+    let mcp = run_mcp_tool(
+        tmp.path(),
+        "draft",
+        "work",
+        serde_json::json!({
+            "action": "land",
+            "frontier_path": frontier_path,
+            "agent_actor": "agent:t",
+            "receipt": receipt,
+        }),
+    );
+    assert_eq!(mcp["tool"], "work", "{mcp}");
+    assert_eq!(mcp["ok"], true, "{mcp}");
+    let mcp_wire = mcp["data"].clone();
+    assert_eq!(mcp_wire["route"], "exact_retry", "{mcp}");
+    assert_eq!(mcp_wire["original_route"], "deferred", "{mcp}");
+
+    let cli = run(
+        tmp.path(),
+        &["land", "receipt.json", "--as", "agent:t", "--json"],
+    );
+    assert_success(&cli, "CLI exact retry after MCP exact retry");
+    assert_eq!(strip_cli_land_envelope(one_json_object(&cli)), mcp_wire);
 }
 
 #[test]
@@ -1794,6 +1854,202 @@ fn clean_clone_rebuilds_public_review_root_without_restricted_bytes() {
 }
 
 #[test]
+fn isolated_training_frontier_lands_pending_and_reproduces_from_a_clean_clone() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let producer = tmp.path().join("producer");
+    let clone = tmp.path().join("clone");
+    std::fs::create_dir(&producer).unwrap();
+    init_git_frontier(&producer);
+
+    // The ordinary contribution path must not depend on a human signing key.
+    // Keep only the explicit fixture agent key used to sign coordination and
+    // producer provenance below.
+    let human_key = producer.join(".vela/keys/t/private.key");
+    std::fs::remove_file(&human_key).unwrap();
+    assert!(!human_key.exists());
+
+    std::fs::write(
+        producer.join("campaign.yaml"),
+        r#"
+batches:
+  - name: bounded training contribution
+    state: open
+    problems:
+      - id: seed:training-golomb
+        title: Reproduce a bounded Golomb witness
+        why: Exercise the real pending-contribution path without authority
+"#,
+    )
+    .unwrap();
+    std::fs::create_dir_all(producer.join("witnesses")).unwrap();
+    std::fs::write(
+        producer.join("witnesses/training-golomb.witness.json"),
+        br#"{"kind":"golomb","length":6,"marks":[0,1,4,6]}"#,
+    )
+    .unwrap();
+    assert_success(
+        &git(&producer, &["add", "campaign.yaml", "witnesses"]),
+        "stage training frontier",
+    );
+    assert_success(
+        &git(&producer, &["commit", "-qm", "add bounded training target"]),
+        "commit training frontier",
+    );
+
+    let next = run(&producer, &["next", ".", "--json"]);
+    assert_success(&next, "rank training target");
+    let next = one_json_object(&next);
+    let offered = next["targets"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|target| target["id"] == "seed:training-golomb")
+        .expect("training target appears in the real next offer");
+    assert_eq!(offered["next_command"], "vela work seed:training-golomb");
+
+    let agent_key = "42".repeat(32);
+    let env = [("VELA_AGENT_KEY_HEX", agent_key.as_str())];
+    let work = run_with_env(
+        &producer,
+        &[
+            "work",
+            "seed:training-golomb",
+            "--as",
+            "agent:training-fixture",
+            "--json",
+        ],
+        &env,
+    );
+    assert_success(&work, "open training work session");
+    let work = one_json_object(&work);
+    assert_eq!(work["target"], "seed:training-golomb", "{work}");
+    assert_eq!(
+        work["claim"]["publication"]["state"], "committed_local",
+        "the real work step did not publish its exact lease: {work}"
+    );
+    let session_path = std::path::PathBuf::from(work["session_path"].as_str().unwrap());
+    assert!(session_path.is_file());
+
+    let reproduced = run(&producer, &["reproduce", ".", "--json"]);
+    assert_success(&reproduced, "verify training witness before landing");
+    let reproduced = one_json_object(&reproduced);
+    assert_eq!(reproduced["passed"], 1, "{reproduced}");
+    assert_eq!(reproduced["failed"], 0, "{reproduced}");
+
+    let before_land = vela_protocol::repo::load_from_path(&producer).unwrap();
+    let accepted_root_before = vela_protocol::events::event_log_hash(&before_land.events);
+    let land = run_with_env(
+        &producer,
+        &[
+            "land",
+            "--work",
+            "seed:training-golomb",
+            "--claim",
+            "the frozen verifier confirms the bounded training Golomb witness",
+            "--type",
+            "computational",
+            "--replayability",
+            "exact",
+            "--artifact",
+            "witnesses/training-golomb.witness.json:witness",
+            "--caveat",
+            "training evidence remains pending human review",
+            "--predicted-observable",
+            "The frozen verifier reports six distinct pairwise differences.",
+            "--performed-test",
+            "Ran vela reproduce against the committed witness.",
+            "--result",
+            "The frozen Golomb verifier passed.",
+            "--evidence",
+            "witnesses/training-golomb.witness.json",
+            "--as",
+            "agent:training-fixture",
+            "--json",
+        ],
+        &env,
+    );
+    assert_success(&land, "land training receipt");
+    let land = one_json_object(&land);
+    assert_eq!(land["route"], "deferred", "{land}");
+    assert_eq!(land["accepted_event_delta"], 0, "{land}");
+    assert_eq!(
+        land["publication"]["state"], "committed_local",
+        "training landing was not committed for portable review: {land}"
+    );
+    assert_eq!(
+        land["accepted_event_count_before"], land["accepted_event_count_after"],
+        "pending training evidence changed accepted state: {land}"
+    );
+    assert!(
+        !session_path.exists(),
+        "successful landing kept its private session"
+    );
+
+    let after_land = vela_protocol::repo::load_from_path(&producer).unwrap();
+    assert_eq!(
+        vela_protocol::events::event_log_hash(&after_land.events),
+        accepted_root_before,
+        "Deferred landing changed the accepted event root"
+    );
+    let proposal_id = land["proposal_id"].as_str().unwrap();
+    assert!(
+        producer
+            .join(".vela/proposals")
+            .join(format!("{proposal_id}.json"))
+            .is_file(),
+        "Deferred route did not retain its pending proposal"
+    );
+    let proposal_path = format!(".vela/proposals/{proposal_id}.json");
+    let published_tree = git_stdout(&producer, &["ls-tree", "-r", "--name-only", "HEAD"]);
+    assert!(
+        published_tree.lines().any(|path| path == proposal_path),
+        "pending proposal was not included in the landing commit:\n{published_tree}"
+    );
+
+    let cloned = Command::new("git")
+        .args(["clone", "-q", "--no-local"])
+        .arg(&producer)
+        .arg(&clone)
+        .output()
+        .unwrap();
+    assert_success(&cloned, "clone landed training frontier");
+    assert!(
+        !clone.join(".vela/keys").exists(),
+        "a private key entered the portable frontier"
+    );
+    assert!(
+        clone
+            .join(".vela/proposals")
+            .join(format!("{proposal_id}.json"))
+            .is_file(),
+        "clean clone lost the pending proposal; clone tree:\n{}",
+        git_stdout(&clone, &["ls-tree", "-r", "--name-only", "HEAD"])
+    );
+
+    let strict = run(&clone, &["check", ".", "--strict", "--json"]);
+    assert_success(&strict, "strict replay in clean clone");
+    let cloned_frontier = vela_protocol::repo::load_from_path(&clone).unwrap();
+    assert_eq!(
+        vela_protocol::events::event_log_hash(&cloned_frontier.events),
+        accepted_root_before,
+        "clean clone replay changed the accepted root"
+    );
+    let reproduced = run(&clone, &["reproduce", ".", "--json"]);
+    assert_success(&reproduced, "reproduce training witness in clean clone");
+    let reproduced = one_json_object(&reproduced);
+    assert_eq!(reproduced["passed"], 1, "{reproduced}");
+    assert_eq!(reproduced["failed"], 0, "{reproduced}");
+    assert_eq!(
+        git_stdout(
+            &clone,
+            &["status", "--porcelain=v1", "--untracked-files=all"]
+        ),
+        "",
+        "strict replay or reproduction dirtied the clean clone"
+    );
+}
+
+#[test]
 fn rich_campaign_target_is_consistent_across_next_and_prelease_work() {
     let tmp = tempfile::TempDir::new().unwrap();
     init_git_frontier(tmp.path());
@@ -2084,6 +2340,9 @@ fn flag_authored_land_closes_only_its_exact_private_work_session() {
 fn flag_authoring_and_file_input_share_canonical_receipt_bytes() {
     const CLAIM: &str = "flag and file inputs have one canonical Receipt v1";
     const CAVEAT: &str = "fixture evidence only";
+    const PREDICTION: &str = "The exact replay emits the same witness checksum.";
+    const PERFORMED_TEST: &str = "Re-ran the frozen fixture verifier.";
+    const RESULT: &str = "The verifier passed with the expected checksum.";
 
     let tmp = tempfile::TempDir::new().unwrap();
     let base = tmp.path().join("base");
@@ -2107,15 +2366,22 @@ fn flag_authoring_and_file_input_share_canonical_receipt_bytes() {
     );
     assert_success(&opened, "open parity work session");
     let opened = one_json_object(&opened);
+    assert_eq!(
+        opened["claim"]["publication"]["state"], "committed_local",
+        "work must publish its exact lease before a portable landing: {opened}"
+    );
     let session = std::path::PathBuf::from(opened["session_path"].as_str().unwrap());
     let relative_session = session
         .strip_prefix(base.canonicalize().unwrap())
         .unwrap()
         .to_path_buf();
-    assert_success(&git(&base, &["add", "-A"]), "stage parity work claim");
-    assert_success(
-        &git(&base, &["commit", "-qm", "add parity work claim"]),
-        "commit common parity preimage",
+    assert_eq!(
+        git_stdout(
+            &base,
+            &["status", "--porcelain=v1", "--untracked-files=all"]
+        ),
+        "",
+        "published work claim left public frontier dirt"
     );
 
     let flags_frontier = tmp.path().join("flags");
@@ -2149,6 +2415,16 @@ fn flag_authoring_and_file_input_share_canonical_receipt_bytes() {
             "artifacts/input-parity.json:witness",
             "--caveat",
             CAVEAT,
+            "--predicted-observable",
+            PREDICTION,
+            "--performed-test",
+            PERFORMED_TEST,
+            "--result",
+            RESULT,
+            "--evidence",
+            "artifacts/input-parity.json",
+            "--counterevidence",
+            "records/attempts/prior-mismatch.json",
             "--as",
             "agent:t",
             "--json",
@@ -2168,6 +2444,20 @@ fn flag_authoring_and_file_input_share_canonical_receipt_bytes() {
             .join(format!("{receipt_hex}.json")),
     )
     .unwrap();
+    let authored: serde_json::Value = serde_json::from_slice(&receipt_bytes).unwrap();
+    assert_eq!(
+        authored["environment"]["vela:scientific_chain"],
+        serde_json::json!({
+            "schema": "vela.scientific-chain.producer.v1",
+            "authority": "producer",
+            "predicted_observable": PREDICTION,
+            "not_applicable": false,
+            "performed_test": PERFORMED_TEST,
+            "result": RESULT,
+            "evidence": ["artifacts/input-parity.json"],
+            "counterevidence": ["records/attempts/prior-mismatch.json"],
+        })
+    );
 
     std::fs::write(flags_frontier.join("portable-receipt.json"), &receipt_bytes).unwrap();
     let retry = run_with_env(
@@ -2321,6 +2611,10 @@ fn drop_records_a_signed_exact_release_before_removing_private_scratch() {
     );
     assert_success(&opened, "open lease for signed drop");
     let opened = one_json_object(&opened);
+    assert_eq!(
+        opened["claim"]["publication"]["state"], "committed_local",
+        "work claim was not committed before private session handoff: {opened}"
+    );
     let first_claim_event_id = opened["claim"]["claim_event_id"]
         .as_str()
         .unwrap()
@@ -2383,6 +2677,10 @@ fn drop_records_a_signed_exact_release_before_removing_private_scratch() {
         release_state_root_before
     );
     assert_eq!(released["release"]["ttl_seconds"], 0);
+    assert_eq!(
+        released["release"]["publication"]["state"], "committed_local",
+        "signed lease release was not committed: {released}"
+    );
     assert!(
         !session_record.exists(),
         "scratch was not removed after the signed release committed"
@@ -2432,6 +2730,10 @@ fn drop_records_a_signed_exact_release_before_removing_private_scratch() {
     assert_success(&reclaimed, "immediate reclaim after signed release");
     let reclaimed = one_json_object(&reclaimed);
     assert_eq!(reclaimed["claim"]["claimed_by"], "agent:other");
+    assert_eq!(
+        reclaimed["claim"]["publication"]["state"], "committed_local",
+        "reclaimed lease was not committed: {reclaimed}"
+    );
 }
 
 #[test]

@@ -689,24 +689,10 @@ pub(crate) fn tool_work(args: &Value, source_path: Option<&Path>) -> ToolOutput 
             let frontier = frontier_path;
             let outcome = crate::workflow::land(frontier, &receipt, actor, false)
                 .map_err(ToolError::classify)?;
-            let (route, detail) = outcome.route.summary();
-            let accepted_event_delta = outcome.accepted_event_delta();
-            Ok((
-                json!({
-                    "operation_id": outcome.operation_id,
-                    "receipt_root": outcome.receipt_root,
-                    "record_id": outcome.record_id,
-                    "proposal_id": outcome.proposal_id,
-                    "finding_id": outcome.finding_id,
-                    "accepted_event_count_before": outcome.accepted_event_count_before,
-                    "accepted_event_count_after": outcome.accepted_event_count_after,
-                    "accepted_event_delta": accepted_event_delta,
-                    "route": route,
-                    "detail": detail,
-                    "publication": outcome.publication,
-                }),
-                Vec::new(),
-            ))
+            let wire = serde_json::to_value(outcome.wire()).map_err(|error| {
+                ToolError::internal(format!("serialize landing result: {error}"))
+            })?;
+            Ok((wire, Vec::new()))
         }
         Some("drop") => {
             let actor = agent_actor("drop")?;

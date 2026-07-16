@@ -357,7 +357,7 @@ pub struct AttachmentDraft {
 
 /// The digest of a claim, binding an attachment to the exact text it
 /// checked. `sha256(trimmed claim)`, first 16 hex chars — the same
-/// rule as `canopus_trust.py::claim_digest`, so digests match across
+/// rule as `verifier_gate_reference.py::claim_digest`, so digests match across
 /// the Rust and Python implementations.
 #[must_use]
 pub fn claim_digest(claim: &str) -> String {
@@ -1570,7 +1570,7 @@ mod tests {
 
     #[test]
     fn claim_digest_matches_python_rule() {
-        // sha256("claim X")[:16] — same as canopus_trust.py.
+        // sha256("claim X")[:16] — same as verifier_gate_reference.py.
         let d = claim_digest("  claim X  ");
         assert_eq!(d.len(), 16);
         // trimming is part of the rule

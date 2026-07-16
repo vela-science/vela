@@ -1,21 +1,27 @@
 use std::path::{Path, PathBuf};
 
+use ed25519_dalek::{Signer, SigningKey};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use vela_edge::decision_brief::{
-    DecisionBrief, DecisionBriefInput, ReceiptMaterial, ReviewPolicyFacts, ReviewRoute,
-    build_decision_brief,
+    DecisionBrief, DecisionBriefInput, PublicationProjection, ReceiptMaterial, ReviewPolicyFacts,
+    ReviewRoute, build_decision_brief,
+};
+use vela_protocol::acceptance_policy::{
+    AcceptancePolicy, Constraints, Outcome, PolicyRule, PolicySignatureRecord, Quorum,
 };
 use vela_protocol::bundle::Link;
 use vela_protocol::contradiction::Contradiction;
 use vela_protocol::events::{self, StateTarget};
 use vela_protocol::identity::{ActorClass, IdentityBinding};
-use vela_protocol::project::{self, Project};
+use vela_protocol::project::{self, AttemptClaim, Project};
 use vela_protocol::proposals;
 use vela_protocol::proposals::policy_accept::{PermitReadiness, PolicyState};
 use vela_protocol::receipt_v1::{
     ArtifactInput, ProducerReportedRun, ReceiptBuilder, ReceiptInput, ReceiptV1,
+    ScientificChainAssertion,
 };
+use vela_protocol::sign::ActorRecord;
 use vela_protocol::test_support::{make_finding, make_project};
 
 const OBSERVED_AT: &str = "2026-07-13T13:00:00Z";
@@ -569,6 +575,202 @@ fn rich_distillation_contributors_brief() -> DecisionBrief {
     )
 }
 
+fn install_active_permit_policy(path: &Path, project: &Project) -> String {
+    let mut policy = AcceptancePolicy {
+        schema: "vela.acceptance_policy.v0.1".to_string(),
+        id: String::new(),
+        frontier_id: project.frontier_id().to_string(),
+        epoch: 1,
+        issued_by: vec!["reviewer:all-facets-fixture".to_string()],
+        quorum: Quorum {
+            threshold: 1,
+            eligible_roles: vec!["reviewer".to_string()],
+        },
+        rules: vec![PolicyRule {
+            id: "permit:all-facets-fixture".to_string(),
+            effect: Outcome::Permit,
+            claim_classes: vec!["receipt_theoretical".to_string()],
+            constraints: Constraints {
+                max_changed_findings: 1,
+                max_downstream_dependents: 1,
+                required_assurance_min: 0,
+                allow_semantic_text_change: true,
+                allow_contested: true,
+                allow_governance_mutation: false,
+                require_independence: false,
+                require_method_integrity: false,
+            },
+        }],
+        default: Outcome::Defer,
+        expires_at: "2099-12-31T23:59:59Z".to_string(),
+        revocation_ref: None,
+    };
+    policy.id = policy.content_address();
+    let key = SigningKey::from_bytes(&[0x63; 32]);
+    let signed_at = "2026-07-13T12:10:00Z";
+    let signature = key.sign(
+        &vela_protocol::acceptance_policy::policy_signature_preimage(&policy, signed_at).unwrap(),
+    );
+    let policy_dir = path.join(".vela/policies");
+    std::fs::create_dir_all(&policy_dir).unwrap();
+    std::fs::write(
+        policy_dir.join("active.json"),
+        serde_json::to_vec_pretty(&policy).unwrap(),
+    )
+    .unwrap();
+    std::fs::write(
+        policy_dir.join("active.sig.json"),
+        serde_json::to_vec_pretty(&PolicySignatureRecord {
+            policy_id: policy.id.clone(),
+            signer_pubkey_hex: hex::encode(key.verifying_key().to_bytes()),
+            signature: hex::encode(signature.to_bytes()),
+            signed_at: signed_at.to_string(),
+        })
+        .unwrap(),
+    )
+    .unwrap();
+    policy.id
+}
+
+fn all_facets_brief() -> DecisionBrief {
+    let target = "vf_decision_brief_all_facets";
+    let claim = "A theoretical result has a bounded scientific chain and complete review context.";
+    let mut existing = make_finding(target, 0.3, "theoretical");
+    existing.assertion.text = "The prior theoretical claim remains contested.".to_string();
+    existing.flags.contested = true;
+    let mut project = fixed_project("Decision brief all-facets fixture", vec![existing]);
+    let identity = frozen_receipt_identity();
+    project.actors.push(ActorRecord {
+        id: identity.actor_id.clone(),
+        public_key: identity.public_key_hex.clone(),
+        algorithm: "ed25519".to_string(),
+        created_at: "2026-07-13T11:00:00Z".to_string(),
+        tier: None,
+        orcid: None,
+        access_clearance: None,
+        revoked_at: None,
+        revoked_reason: None,
+    });
+    project.attempt_claims.push(AttemptClaim {
+        obligation_id: target.to_string(),
+        claimant_actor: RECEIPT_ACTOR.to_string(),
+        claimant_pubkey: identity.public_key_hex,
+        claimed_at: "2026-07-13T12:20:00Z".to_string(),
+        lease_ttl_seconds: 3600,
+        claim_event_id: Some(format!("vev_{}", "1".repeat(64))),
+    });
+
+    let temp = tempfile::tempdir().unwrap();
+    std::fs::create_dir(temp.path().join(".vela")).unwrap();
+    let policy_id = install_active_permit_policy(temp.path(), &project);
+    let event_log_root = format!(
+        "sha256:{}",
+        vela_protocol::events::event_log_hash(&project.events)
+    );
+    let receipt = ReceiptBuilder::build(
+        ReceiptInput::new(
+            claim.to_string(),
+            "theoretical".to_string(),
+            "exact".to_string(),
+            vec![
+                ArtifactInput::new(
+                    "proofs/all-facets.olean".to_string(),
+                    "proof".to_string(),
+                    Some("d".repeat(64)),
+                    None,
+                )
+                .unwrap(),
+            ],
+            vec!["The producer assertion remains subject to human review.".to_string()],
+            vec![
+                ProducerReportedRun::producer_reported(
+                    "lean build --frozen".to_string(),
+                    "pass".to_string(),
+                )
+                .unwrap(),
+            ],
+            RECEIPT_ACTOR.to_string(),
+            "2026-07-13T12:34:56Z".to_string(),
+            event_log_root,
+            ".".to_string(),
+            RECEIPT_OPERATION_ID.to_string(),
+            policy_id,
+        )
+        .unwrap()
+        .with_scientific_chain(
+            ScientificChainAssertion::new(
+                Some("The frozen proof checks without new axioms.".to_string()),
+                false,
+                "Build the exact Lean artifact and inspect its axiom closure.".to_string(),
+                "The build passed and the declared closure was observed.".to_string(),
+                vec!["proofs/all-facets.olean".to_string()],
+                vec!["records/attempts/failed-generalization.json".to_string()],
+            )
+            .unwrap(),
+        )
+        .unwrap(),
+        &frozen_receipt_identity(),
+    )
+    .unwrap();
+    let receipt_root = receipt.canonical_root().unwrap();
+    let receipt_digest = receipt_root.strip_prefix("sha256:").unwrap();
+    let proposal_id = install_proposal(
+        &mut project,
+        "finding.note",
+        target,
+        json!({
+            "text": claim,
+            "finding": finding_value(target, "theoretical", claim),
+            "vela_submission": {
+                "schema": "vela.submission-links.internal.v1",
+                "receipt_root": receipt_root,
+                "receipt_path": format!("records/receipts/sha256/{receipt_digest}.json"),
+                "record_id": format!("vrc_{receipt_digest}"),
+                "operation_id": RECEIPT_OPERATION_ID,
+                "same_claim_findings": ["vf_independent_replication"],
+            }
+        }),
+        vec!["urn:source:all-facets".to_string()],
+        vec!["The producer assertion remains subject to human review.".to_string()],
+        "exercise every bounded Decision Brief facet",
+    );
+    vela_protocol::repo::save_to_path(temp.path(), &project).unwrap();
+    let snapshot =
+        vela_protocol::acceptance_policy::load_active_policy_snapshot(temp.path()).unwrap();
+    let staged = vela_protocol::proposals::policy_accept::stage_policy_route_in_frontier_at(
+        temp.path(),
+        &project,
+        &proposal_id,
+        &receipt,
+        OBSERVED_AT,
+        &snapshot,
+    )
+    .unwrap();
+    assert_eq!(
+        staged.decision().unwrap().outcome,
+        Outcome::Permit,
+        "decision={:?} context={:?}",
+        staged.decision().unwrap(),
+        staged.context()
+    );
+    let publication_root = format!("sha256:{}", "e".repeat(64));
+    build_decision_brief(
+        &project,
+        DecisionBriefInput {
+            proposal_id: &proposal_id,
+            receipt: ReceiptMaterial::from_receipt(&receipt),
+            route: ReviewRoute::from_staged(&staged),
+            observed_at: OBSERVED_AT,
+            replay_ok: true,
+            publication: Some(PublicationProjection {
+                root: &publication_root,
+                state: "committed_local",
+            }),
+        },
+    )
+    .unwrap()
+}
+
 fn generated_cases() -> Vec<(&'static str, DecisionBrief)> {
     vec![
         ("ordinary", ordinary_brief()),
@@ -867,6 +1069,57 @@ fn golden_cases_cover_critical_missing_and_restricted_evidence() {
         json!("audit.raw_references[1]")
     );
     assert_eq!(restricted["authority"]["route"], json!("defer"));
+}
+
+#[test]
+fn all_facets_golden_has_the_exact_known_inventory() {
+    const EXPECTED_FACETS: &[&str] = &[
+        "acceptance_authority",
+        "challenge",
+        "contributor_roles",
+        "distillation",
+        "evidence_lineage",
+        "external_certificates",
+        "formal_fidelity",
+        "gate_matrix",
+        "hypothesis_evolution",
+        "publication",
+        "replication_diversity",
+        "scientific_chain",
+        "work_lease",
+    ];
+    let generated = serde_json::to_value(all_facets_brief()).unwrap();
+    let actual = generated["facets"]
+        .as_object()
+        .unwrap()
+        .keys()
+        .map(String::as_str)
+        .collect::<Vec<_>>();
+    assert_eq!(actual, EXPECTED_FACETS);
+    assert_eq!(
+        generated["facets"]["acceptance_authority"]["critical"],
+        json!(false),
+        "a verified Permit route is the positive acceptance-authority case"
+    );
+    assert_eq!(
+        generated["facets"]["publication"]["data"]["state"],
+        json!("committed_local")
+    );
+    assert_eq!(
+        generated["facets"]["scientific_chain"]["data"]["authority"],
+        json!("producer")
+    );
+    assert_contract_shape(&generated);
+    let path = fixture_dir().join("all-facets/decision-brief.json");
+    let frozen: Value = serde_json::from_slice(
+        &std::fs::read(&path).unwrap_or_else(|error| panic!("read {}: {error}", path.display())),
+    )
+    .unwrap_or_else(|error| panic!("parse {}: {error}", path.display()));
+    assert_eq!(generated, frozen, "fixture drift: {}", path.display());
+    assert_eq!(
+        canonical_sha256(&generated),
+        "sha256:9f79721056489bd676d652bcc1e5dbf71d41b3e1fcc05ddfdde2de7c785b2a19"
+    );
 }
 
 #[test]

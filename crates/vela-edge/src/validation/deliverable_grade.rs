@@ -8,8 +8,8 @@
 //! may be the least earned.
 //!
 //! This module closes it with two pieces, ported from the Erdős
-//! campaign's `canopus_trust.py` (the dogfooding that surfaced the
-//! need):
+//! campaign reference now retained as `verifier_gate_reference.py`
+//! (the dogfooding that surfaced the need):
 //!
 //! 1. [`DeliverableGrade`] — a closed taxonomy of what a deliverable
 //!    actually *is*, from `unconditional_solve` down to `honest_null`
@@ -79,7 +79,7 @@ impl DeliverableGrade {
     }
 
     /// Canonical lowercase string (matches the serde wire form and the
-    /// `canopus_trust.py` `GRADES` tuple).
+    /// `verifier_gate_reference.py` `GRADES` tuple).
     #[must_use]
     pub fn as_str(self) -> &'static str {
         match self {
@@ -200,7 +200,7 @@ impl GradeGate {
 /// `resolves` or `dissolves`; multi-word and `#`-bearing phrases
 /// (`resolves #`, `first to solve`) match as substrings, which is what
 /// makes them specific. This is stricter and more precise than the
-/// loose substring match in `canopus_trust.py`.
+/// earlier loose substring match in the Python reference.
 fn phrase_present(lower: &str, phrase: &str) -> bool {
     let is_single_word = phrase.bytes().all(|b| b.is_ascii_alphabetic());
     if !is_single_word {
@@ -216,7 +216,7 @@ fn phrase_present(lower: &str, phrase: &str) -> bool {
 ///
 /// `grade` is the raw stored string (so callers can pass an unvalidated
 /// value straight from a payload and learn precisely why it failed).
-/// Mirrors `canopus_trust.py::grade_gate`, with word-boundary matching
+/// Mirrors `verifier_gate_reference.py::grade_gate`, with word-boundary matching
 /// for the single-word triggers.
 #[must_use]
 pub fn grade_gate(claim: &str, grade: Option<&str>) -> GradeGate {

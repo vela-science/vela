@@ -1,15 +1,75 @@
-# ADR 0004 Phase 1 current-object gap report
+# ADR 0004 Phase 1A current-object gap report
 
-Status: internal fixture, experiment only. No public type, authority change, or
+Status: Phase 1A completed as an internal fixture. No authority change or
 scientific dependency verdict is proposed here.
 
-The focused test is a shape-compatible synthetic aggregate, not a canonical
-current-schema frontier. The selected attachment is accepted by the current
-Rust attachment parser when available, and the real gate returns the expected
-`needs_verification`/G1 result. That does not validate the synthetic aggregate
-as canonical Vela state.
+## Phase 1A superseding result
 
-## Result
+The earlier report overclassified canonical custody and snapshot roots as
+missing. Phase 1A materializes the exact registered Git subtree for
+`examples/erdos-formalization` and runs released Vela offline with `check
+--strict --json` plus `proof verify --json`. The check replay root, proof root,
+visible-view metadata, proof sidecars, and lockfile agree on event-log root
+`sha256:044964…447d0d` and snapshot root `sha256:4eb1a1…7518`.
+
+Fourteen registered custody vectors reject canonical event mutation, deletion,
+and duplication; visible-view-only mutation; lock/proof mismatch; mutually
+consistent derived-view fabrication; missing or partial `.vela` delivery; Git
+tree mismatch; symlink inputs; destination escape; and bounded-checkout
+overflow. Existing Git and Vela infrastructure supplies canonical custody; the
+experiment does not justify a new custody primitive.
+
+The read-only inspector in the current unreleased working tree rederives and
+verifies one fully named `review.accepted` event, its historical reviewer
+authority and signature, its proposal/applied-event links, and an optional
+canonical DecisionPlan preimage. The registered fixture exposes one narrower
+evidence-availability gap:
+historical decisions retain the DecisionPlan root but not its preimage. The
+ablation produces:
+
+- R, root only: `unresolvable:decision_preimage_unavailable`;
+- P, identical state and signed event plus retained preimage:
+  `verified:decision_evidence_bound`.
+
+Removing the preimage changes neither replay nor the signed event. The
+registered ablation justifies retaining that bound evidence. It does not
+support a dependency object, status reducer, graph, wiki, or cache.
+
+See
+`results/phase1a-canonical-custody-and-decision-ablation-2026-07-15.json` for
+the exact run identity, roots, vector counts, and promotion decision.
+
+## `v0.800.14` implementation target
+
+The current working tree applies the registered promotion rule to new
+decisions. The decision transaction writes the exact canonical seven-field
+preimage to
+`records/decision-evidence/decision-root/<decision-root-hex>.json` as
+`CanonicalEvidence`. The domain-separated decision root determines the path
+and remains bound by the signed review event. The transaction journal binds the
+file bytes and installs them in the same durable transaction as the decision.
+
+Focused transaction tests establish four properties:
+
+- retained bytes equal the canonical DecisionPlan preimage;
+- the path root rederives from those exact bytes under the DecisionPlan domain;
+- an exact retry returns the same bytes without a second fixture-key read; and
+- deleting the file changes neither reducer replay, event-log identity, event
+  bytes, nor signature verification.
+
+This implementation remains unreleased until `v0.800.14` receives an exact
+release commit and public checks. It covers future decisions only. The current
+inspector accepts caller-supplied bytes and requires exactly one answer, so path
+discovery, batch inspection, external interoperability, correction handling,
+and dependency standing remain outside this result.
+
+## Frozen Phase 1 baseline (historical)
+
+The remainder of this document records the v0.800.12 shape-compatible synthetic
+aggregate that motivated Phase 1A. Statements below about missing canonical
+porcelain describe that earlier probe and are not the current implementation.
+
+### Historical result
 
 Current Git and Vela objects can carry most of the bytes needed for an exact
 dependency observation. They cannot currently support a complete independent

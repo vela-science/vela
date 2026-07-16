@@ -1,0 +1,12 @@
+{
+  "schema": "vela.verifiable-composition.canonical-fixture.v0",
+  "source_commit": "b3076f8935a38ecaef252e7f062648794cc7cd07",
+  "source_tree": "c03d5eda6069ffa93b66c0f7de84e41b524b2b48",
+  "source_path": "examples/erdos-formalization",
+  "authority_path": ".vela",
+  "visible_view": "frontier.json",
+  "lock": "vela.lock",
+  "proof": "proof/latest.json",
+  "generated_by": "ordinary Vela proposal, materialization, and proof commands before ADR 0004 Phase 1A",
+  "note": "This manifest points at committed canonical split material instead of copying or hand-authoring accepted state. The exact-checkout runner materializes these bytes into an isolated temporary directory."
+}

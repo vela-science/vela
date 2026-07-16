@@ -645,6 +645,7 @@ pub async fn run_command() {
                 } else {
                     crate::ui::header("WORK", &target, Some("lease released"));
                     println!("  reason        {}", safe_text::inline(reason));
+                    render_work_publication(&result["release"]);
                     println!("  another agent may claim this target immediately");
                 }
                 return;
@@ -703,6 +704,7 @@ pub async fn run_command() {
                                     .unwrap_or(".vela/work/<slug>--<target-sha256>/session.json")
                             )
                         );
+                        render_work_publication(&opened["claim"]);
                         println!(
                             "  {:<14} vela land --work {} --claim ...",
                             vela_protocol::cli_style::dim("when done"),
@@ -721,6 +723,12 @@ pub async fn run_command() {
             replayability,
             artifact,
             caveat,
+            predicted_observable,
+            not_applicable,
+            performed_test,
+            result,
+            evidence,
+            counterevidence,
             work,
             r#as,
             push,
@@ -740,6 +748,12 @@ pub async fn run_command() {
                     "replayability": replayability,
                     "artifacts": artifact,
                     "caveats": caveat,
+                    "predicted_observable": predicted_observable,
+                    "not_applicable": not_applicable,
+                    "performed_test": performed_test,
+                    "result": result,
+                    "evidence": evidence,
+                    "counterevidence": counterevidence,
                     "work": work,
                     "push": push,
                 }))
@@ -802,6 +816,12 @@ pub async fn run_command() {
                     replayability,
                     &artifact,
                     caveat,
+                    predicted_observable,
+                    not_applicable,
+                    performed_test,
+                    result,
+                    evidence,
+                    counterevidence,
                 )
                 .unwrap_or_else(|error| {
                     fail_preflight(
@@ -812,30 +832,27 @@ pub async fn run_command() {
             };
             match crate::workflow::land(&dir, &receipt, &actor, push) {
                 Ok(outcome) => {
-                    let (route, detail) = outcome.route.summary();
-                    let accepted_event_delta = outcome.accepted_event_delta();
+                    let wire = outcome.wire();
                     if json {
-                        print_json(&serde_json::json!({
-                            "ok": true, "command": "land",
-                            "request_id": outcome.operation_id,
-                            "operation_id": outcome.operation_id,
-                            "receipt_root": outcome.receipt_root,
-                            "record_id": outcome.record_id,
-                            "proposal_id": outcome.proposal_id,
-                            "finding_id": outcome.finding_id,
-                            "accepted_event_count_before": outcome.accepted_event_count_before,
-                            "accepted_event_count_after": outcome.accepted_event_count_after,
-                            "accepted_event_delta": accepted_event_delta,
-                            "route": route, "detail": detail,
-                            "publication": outcome.publication,
-                        }));
+                        let mut payload = serde_json::to_value(&wire)
+                            .expect("LandOutcomeWire contains only serializable values");
+                        let fields = payload
+                            .as_object_mut()
+                            .expect("LandOutcomeWire serializes as an object");
+                        fields.insert("ok".to_string(), serde_json::json!(true));
+                        fields.insert("command".to_string(), serde_json::json!("land"));
+                        fields.insert(
+                            "request_id".to_string(),
+                            serde_json::json!(wire.operation_id),
+                        );
+                        print_json(&payload);
                     } else {
                         render_land_outcome(
-                            &outcome.proposal_id,
-                            route,
-                            &detail,
-                            &outcome.operation_id,
-                            &outcome.publication,
+                            wire.proposal_id,
+                            wire.route,
+                            &wire.detail,
+                            wire.operation_id,
+                            wire.publication,
                         );
                     }
                 }
@@ -951,6 +968,44 @@ pub async fn run_command() {
                 )
             }
         },
+    }
+}
+
+fn render_work_publication(operation: &serde_json::Value) {
+    let Some(publication) = operation.get("publication") else {
+        return;
+    };
+    let state = publication
+        .get("state")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or("unknown");
+    let detail = publication
+        .get("commit")
+        .and_then(serde_json::Value::as_str)
+        .map(|commit| format!("{state} {commit}"))
+        .or_else(|| {
+            publication
+                .get("reason")
+                .and_then(serde_json::Value::as_str)
+                .map(|reason| format!("{state}: {reason}"))
+        })
+        .unwrap_or_else(|| state.to_string());
+    println!(
+        "  {:<14} {}",
+        vela_protocol::cli_style::dim("git"),
+        safe_text::inline(&detail)
+    );
+    if !matches!(state, "unchanged" | "committed_local" | "pushed") {
+        println!(
+            "  {:<14} {}",
+            vela_protocol::cli_style::dim("recover"),
+            safe_text::inline(
+                publication
+                    .get("recovery_command")
+                    .and_then(serde_json::Value::as_str)
+                    .unwrap_or("git status --short")
+            )
+        );
     }
 }
 

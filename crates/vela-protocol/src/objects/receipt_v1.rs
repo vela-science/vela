@@ -52,6 +52,10 @@ const RECEIPT_BODY_BINDING_FIELD: &str = "vela:receipt_body";
 const RECEIPT_PREDICATE_SCHEMA: &str = "vela.receipt.predicate.v1";
 const NEUTRAL_RECEIPT_GENERATOR: &str = "vela-protocol/neutral-receipt-v1";
 const NO_ACTIVE_POLICY_REF: &str = "urn:vela:policy:none";
+const SCIENTIFIC_CHAIN_SCHEMA: &str = "vela.scientific-chain.producer.v1";
+const SCIENTIFIC_CHAIN_MAX_TEXT_BYTES: usize = 16 * 1024;
+const SCIENTIFIC_CHAIN_MAX_REFERENCE_BYTES: usize = 16 * 1024;
+const SCIENTIFIC_CHAIN_MAX_REFERENCES: usize = 64;
 
 /// Required fields remain byte-for-byte aligned with the published v1 schema.
 const RECEIPT_V1_REQUIRED_FIELDS: &[&str] = &[
@@ -1294,6 +1298,7 @@ fn validate_semantics(value: &Value, limits: ReceiptLimits) -> Result<(), Receip
         }
     }
     validate_safe_public_artifact_descriptors(receipt)?;
+    validate_scientific_chain_extension(receipt)?;
 
     let caveats = array(required(receipt, "caveats", "$")?, "$.caveats")?;
     if caveats.is_empty() {
@@ -1340,6 +1345,145 @@ fn validate_semantics(value: &Value, limits: ReceiptLimits) -> Result<(), Receip
     validate_contributors(receipt)?;
     validate_identities(receipt)?;
     validate_attestation(receipt, limits)
+}
+
+fn validate_scientific_chain_extension(receipt: &Map<String, Value>) -> Result<(), ReceiptV1Error> {
+    let environment = object(&receipt["environment"], "$.environment")?;
+    let Some(value) = environment.get("vela:scientific_chain") else {
+        return Ok(());
+    };
+    let path = "$.environment.vela:scientific_chain";
+    let assertion = object(value, path)?;
+    let allowed = [
+        "schema",
+        "authority",
+        "predicted_observable",
+        "not_applicable",
+        "performed_test",
+        "result",
+        "evidence",
+        "counterevidence",
+    ];
+    if let Some(field) = assertion
+        .keys()
+        .find(|field| !allowed.contains(&field.as_str()))
+    {
+        return Err(error(
+            format!("{path}.{field}"),
+            "is not a scientific-chain producer assertion field",
+        ));
+    }
+    if text(
+        required(assertion, "schema", path)?,
+        &format!("{path}.schema"),
+        false,
+    )? != SCIENTIFIC_CHAIN_SCHEMA
+    {
+        return Err(error(
+            format!("{path}.schema"),
+            format!("must be {SCIENTIFIC_CHAIN_SCHEMA}"),
+        ));
+    }
+    if text(
+        required(assertion, "authority", path)?,
+        &format!("{path}.authority"),
+        false,
+    )? != "producer"
+    {
+        return Err(error(format!("{path}.authority"), "must be producer"));
+    }
+    let predicted = assertion
+        .get("predicted_observable")
+        .map(|value| scientific_chain_text(value, &format!("{path}.predicted_observable")))
+        .transpose()?;
+    let not_applicable = required(assertion, "not_applicable", path)?
+        .as_bool()
+        .ok_or_else(|| error(format!("{path}.not_applicable"), "must be a boolean"))?;
+    if predicted.is_some() == not_applicable {
+        return Err(error(
+            format!("{path}.predicted_observable"),
+            "exactly one prediction mode is required: predicted_observable or not_applicable=true",
+        ));
+    }
+    scientific_chain_text(
+        required(assertion, "performed_test", path)?,
+        &format!("{path}.performed_test"),
+    )?;
+    scientific_chain_text(
+        required(assertion, "result", path)?,
+        &format!("{path}.result"),
+    )?;
+    scientific_chain_references(
+        required(assertion, "evidence", path)?,
+        &format!("{path}.evidence"),
+        true,
+    )?;
+    scientific_chain_references(
+        required(assertion, "counterevidence", path)?,
+        &format!("{path}.counterevidence"),
+        false,
+    )?;
+    Ok(())
+}
+
+fn scientific_chain_text<'a>(value: &'a Value, path: &str) -> Result<&'a str, ReceiptV1Error> {
+    let value = text(value, path, true)?;
+    if value != value.trim() {
+        return Err(error(path, "must be trimmed"));
+    }
+    if value.len() > SCIENTIFIC_CHAIN_MAX_TEXT_BYTES {
+        return Err(error(
+            path,
+            format!(
+                "is {} bytes; limit is {} bytes",
+                value.len(),
+                SCIENTIFIC_CHAIN_MAX_TEXT_BYTES
+            ),
+        ));
+    }
+    Ok(value)
+}
+
+fn scientific_chain_references(
+    value: &Value,
+    path: &str,
+    required_nonempty: bool,
+) -> Result<(), ReceiptV1Error> {
+    let values = array(value, path)?;
+    if required_nonempty && values.is_empty() {
+        return Err(error(path, "must contain at least one evidence reference"));
+    }
+    if values.len() > SCIENTIFIC_CHAIN_MAX_REFERENCES {
+        return Err(error(
+            path,
+            format!(
+                "contains {} references; limit is {}",
+                values.len(),
+                SCIENTIFIC_CHAIN_MAX_REFERENCES
+            ),
+        ));
+    }
+    for (index, value) in values.iter().enumerate() {
+        let item_path = format!("{path}[{index}]");
+        let reference = text(value, &item_path, true)?;
+        if reference != reference.trim() || reference.chars().any(char::is_control) {
+            return Err(error(
+                item_path,
+                "must be trimmed and contain no control characters",
+            ));
+        }
+        if reference.len() > SCIENTIFIC_CHAIN_MAX_REFERENCE_BYTES {
+            return Err(error(
+                item_path,
+                format!(
+                    "is {} bytes; limit is {} bytes",
+                    reference.len(),
+                    SCIENTIFIC_CHAIN_MAX_REFERENCE_BYTES
+                ),
+            ));
+        }
+    }
+    Ok(())
 }
 
 /// Receipt v1 intentionally keeps artifact objects open for compatible public
@@ -2320,7 +2464,8 @@ mod authoring {
 
     use super::{
         ACCEPTANCE_MECHANISM, INTOTO_PAYLOAD_TYPE, NEUTRAL_RECEIPT_GENERATOR, NO_ACTIVE_POLICY_REF,
-        ReceiptV1, ReceiptV1Error, canonical_receipt_bytes, error, object, statement_projection,
+        ReceiptV1, ReceiptV1Error, SCIENTIFIC_CHAIN_SCHEMA, canonical_receipt_bytes, error, object,
+        statement_projection, validate_scientific_chain_extension,
     };
     use crate::identity::{ActorClass, IdentityBinding};
 
@@ -2494,6 +2639,60 @@ mod authoring {
         }
     }
 
+    /// A bounded producer-authored scientific chain carried as a namespaced
+    /// Receipt v1 extension. It is attributed context for review, never a
+    /// verifier verdict or an acceptance claim.
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    pub struct ScientificChainAssertion {
+        predicted_observable: Option<String>,
+        not_applicable: bool,
+        performed_test: String,
+        result: String,
+        evidence: Vec<String>,
+        counterevidence: Vec<String>,
+    }
+
+    impl ScientificChainAssertion {
+        #[allow(clippy::too_many_arguments)]
+        pub fn new(
+            predicted_observable: Option<String>,
+            not_applicable: bool,
+            performed_test: String,
+            result: String,
+            evidence: Vec<String>,
+            counterevidence: Vec<String>,
+        ) -> Result<Self, ReceiptV1Error> {
+            let assertion = Self {
+                predicted_observable,
+                not_applicable,
+                performed_test,
+                result,
+                evidence,
+                counterevidence,
+            };
+            validate_scientific_chain_assertion(&assertion)?;
+            Ok(assertion)
+        }
+
+        /// Canonical extension value used by authoring clients when binding
+        /// their operation identity before Receipt construction.
+        pub fn as_value(&self) -> Value {
+            let mut value = json!({
+                "schema": SCIENTIFIC_CHAIN_SCHEMA,
+                "authority": "producer",
+                "not_applicable": self.not_applicable,
+                "performed_test": self.performed_test,
+                "result": self.result,
+                "evidence": self.evidence,
+                "counterevidence": self.counterevidence,
+            });
+            if let Some(predicted_observable) = &self.predicted_observable {
+                value["predicted_observable"] = json!(predicted_observable);
+            }
+            value
+        }
+    }
+
     /// Authority-neutral inputs for a first-party Receipt v1 emission.
     ///
     /// The fields deliberately contain no acceptance scope, status authority,
@@ -2516,6 +2715,7 @@ mod authoring {
         operation_id: String,
         policy_ref: String,
         task_contract_root: Option<String>,
+        scientific_chain: Option<ScientificChainAssertion>,
     }
 
     impl NeutralReceiptInput {
@@ -2548,6 +2748,7 @@ mod authoring {
                 operation_id,
                 policy_ref,
                 task_contract_root: None,
+                scientific_chain: None,
             };
             validate_neutral_input(&input)?;
             Ok(input)
@@ -2568,6 +2769,17 @@ mod authoring {
             self.task_contract_root = Some(task_contract_root);
             Ok(self)
         }
+
+        /// Attach producer-attributed hypothesis/test/result context without
+        /// changing Receipt v1 authority or minting a verifier capability.
+        pub fn with_scientific_chain(
+            mut self,
+            scientific_chain: ScientificChainAssertion,
+        ) -> Result<Self, ReceiptV1Error> {
+            validate_scientific_chain_assertion(&scientific_chain)?;
+            self.scientific_chain = Some(scientific_chain);
+            Ok(self)
+        }
     }
 
     #[derive(Debug, Clone)]
@@ -2579,6 +2791,7 @@ mod authoring {
         caveats: Vec<String>,
         verifier_runs: Vec<VerifierRunInput>,
         producer: ProducerContext,
+        scientific_chain: Option<ScientificChainAssertion>,
     }
 
     impl ReceiptInput {
@@ -2600,6 +2813,7 @@ mod authoring {
                 caveats,
                 verifier_runs,
                 producer,
+                scientific_chain: None,
             };
             validate_input(&input)?;
             Ok(input)
@@ -2627,6 +2841,7 @@ mod authoring {
                 &input.policy_ref,
             )?;
             let task_contract_root = input.task_contract_root.clone();
+            let scientific_chain = input.scientific_chain.clone();
             let NeutralReceiptInput {
                 claim,
                 claim_type,
@@ -2646,6 +2861,7 @@ mod authoring {
                 producer,
             )?;
             validated.producer.task_contract_root = task_contract_root;
+            validated.scientific_chain = scientific_chain;
             Self::build_validated(validated)
         }
 
@@ -2788,6 +3004,9 @@ mod authoring {
                 receipt["environment"]["vela:producer_context"]["task_contract_root"] =
                     json!(task_contract_root);
             }
+            if let Some(scientific_chain) = input.scientific_chain {
+                receipt["environment"]["vela:scientific_chain"] = scientific_chain.as_value();
+            }
             let statement = statement_projection(object(&receipt, "$")?)?;
             let payload = canonical_receipt_bytes(&statement)
                 .map_err(|cause| error("$.attestation.statement", cause.to_string()))?;
@@ -2848,6 +3067,9 @@ mod authoring {
             ));
         }
         validate_policy_ref(&input.policy_ref)?;
+        if let Some(scientific_chain) = &input.scientific_chain {
+            validate_scientific_chain_assertion(scientific_chain)?;
+        }
         Ok(())
     }
 
@@ -2877,7 +3099,21 @@ mod authoring {
             &input.replayability,
             &input.artifacts,
             &input.caveats,
-        )
+        )?;
+        if let Some(scientific_chain) = &input.scientific_chain {
+            validate_scientific_chain_assertion(scientific_chain)?;
+        }
+        Ok(())
+    }
+
+    fn validate_scientific_chain_assertion(
+        assertion: &ScientificChainAssertion,
+    ) -> Result<(), ReceiptV1Error> {
+        let receipt = json!({
+            "environment": {"vela:scientific_chain": assertion.as_value()}
+        });
+        let receipt = object(&receipt, "$")?;
+        validate_scientific_chain_extension(receipt)
     }
 
     fn validate_receipt_fields(
@@ -2913,7 +3149,7 @@ mod authoring {
 }
 
 pub use authoring::{
-    ArtifactInput, NeutralReceiptInput as ReceiptInput, ReceiptBuilder,
+    ArtifactInput, NeutralReceiptInput as ReceiptInput, ReceiptBuilder, ScientificChainAssertion,
     VerifierRunInput as ProducerReportedRun,
 };
 
@@ -3252,6 +3488,141 @@ mod tests {
         assert_eq!(
             failure.path(),
             "$.environment.vela:producer_context.task_contract_root"
+        );
+    }
+
+    #[test]
+    fn scientific_chain_producer_assertion_round_trips_and_is_body_bound() {
+        let assertion = ScientificChainAssertion::new(
+            Some("The bounded checksum remains stable on an exact replay.".to_string()),
+            false,
+            "Re-run the frozen checksum verifier over witnesses/result.json.".to_string(),
+            "The verifier returned pass with the declared checksum.".to_string(),
+            vec![
+                "witnesses/result.json".to_string(),
+                "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                    .to_string(),
+            ],
+            vec!["records/attempts/failed-seed.json".to_string()],
+        )
+        .unwrap();
+        let receipt = ReceiptBuilder::build(
+            input(Vec::new()).with_scientific_chain(assertion).unwrap(),
+            &identity("agent:receipt-test"),
+        )
+        .unwrap();
+        let expected = json!({
+            "schema": "vela.scientific-chain.producer.v1",
+            "authority": "producer",
+            "predicted_observable": "The bounded checksum remains stable on an exact replay.",
+            "not_applicable": false,
+            "performed_test": "Re-run the frozen checksum verifier over witnesses/result.json.",
+            "result": "The verifier returned pass with the declared checksum.",
+            "evidence": [
+                "witnesses/result.json",
+                "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            ],
+            "counterevidence": ["records/attempts/failed-seed.json"],
+        });
+        assert_eq!(
+            receipt.as_value()["environment"]["vela:scientific_chain"],
+            expected
+        );
+        let reparsed = ReceiptV1::parse(&receipt.canonical_bytes().unwrap()).unwrap();
+        assert_eq!(
+            reparsed.as_value()["environment"]["vela:scientific_chain"],
+            expected
+        );
+
+        let mut tampered = receipt.into_value();
+        tampered["environment"]["vela:scientific_chain"]["result"] =
+            json!("The result was changed after emission.");
+        let failure = ReceiptV1::parse(&serde_json::to_vec(&tampered).unwrap()).unwrap_err();
+        assert_eq!(
+            failure.path(),
+            "$.attestation.statement.predicate.vela:receipt_body"
+        );
+    }
+
+    #[test]
+    fn scientific_chain_is_optional_exactly_one_prediction_mode_and_bounded() {
+        let plain = build(Vec::new());
+        assert!(
+            plain.as_value()["environment"]
+                .get("vela:scientific_chain")
+                .is_none()
+        );
+
+        let not_applicable = ScientificChainAssertion::new(
+            None,
+            true,
+            "Inspect the source-only argument.".to_string(),
+            "No empirical observable applies to this theoretical reduction.".to_string(),
+            vec!["proof/reduction.md".to_string()],
+            Vec::new(),
+        )
+        .unwrap();
+        let receipt = ReceiptBuilder::build(
+            input(Vec::new())
+                .with_scientific_chain(not_applicable)
+                .unwrap(),
+            &identity("agent:receipt-test"),
+        )
+        .unwrap();
+        assert_eq!(
+            receipt.as_value()["environment"]["vela:scientific_chain"]["not_applicable"],
+            true
+        );
+        assert!(
+            receipt.as_value()["environment"]["vela:scientific_chain"]
+                .get("predicted_observable")
+                .is_none()
+        );
+
+        for (prediction, not_applicable) in [(None, false), (Some("prediction".into()), true)] {
+            let failure = ScientificChainAssertion::new(
+                prediction,
+                not_applicable,
+                "test".to_string(),
+                "result".to_string(),
+                vec!["evidence".to_string()],
+                Vec::new(),
+            )
+            .unwrap_err();
+            assert_eq!(
+                failure.path(),
+                "$.environment.vela:scientific_chain.predicted_observable"
+            );
+        }
+
+        let too_many = (0..=SCIENTIFIC_CHAIN_MAX_REFERENCES)
+            .map(|index| format!("evidence:{index}"))
+            .collect();
+        assert_eq!(
+            ScientificChainAssertion::new(
+                Some("prediction".to_string()),
+                false,
+                "test".to_string(),
+                "result".to_string(),
+                too_many,
+                Vec::new(),
+            )
+            .unwrap_err()
+            .path(),
+            "$.environment.vela:scientific_chain.evidence"
+        );
+        assert_eq!(
+            ScientificChainAssertion::new(
+                Some("x".repeat(SCIENTIFIC_CHAIN_MAX_TEXT_BYTES + 1)),
+                false,
+                "test".to_string(),
+                "result".to_string(),
+                vec!["evidence".to_string()],
+                Vec::new(),
+            )
+            .unwrap_err()
+            .path(),
+            "$.environment.vela:scientific_chain.predicted_observable"
         );
     }
 

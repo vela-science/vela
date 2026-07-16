@@ -1662,6 +1662,28 @@ fn rich_facets(
                 )?,
             );
         }
+        if let Some(scientific_chain) = receipt.pointer("/environment/vela:scientific_chain") {
+            facets.insert(
+                "scientific_chain".to_string(),
+                typed_facet(
+                    "vela.decision-brief.facet.scientific-chain.testing.v1",
+                    false,
+                    select_object_fields(
+                        scientific_chain,
+                        &[
+                            "schema",
+                            "authority",
+                            "predicted_observable",
+                            "not_applicable",
+                            "performed_test",
+                            "result",
+                            "evidence",
+                            "counterevidence",
+                        ],
+                    ),
+                )?,
+            );
+        }
 
         let identities = receipt
             .get("signature_identities")
@@ -2211,7 +2233,7 @@ mod tests {
     use vela_protocol::events::StateTarget;
     use vela_protocol::identity::{ActorClass, IdentityBinding};
     use vela_protocol::receipt_v1::{
-        ArtifactInput, ProducerReportedRun, ReceiptBuilder, ReceiptInput,
+        ArtifactInput, ProducerReportedRun, ReceiptBuilder, ReceiptInput, ScientificChainAssertion,
     };
     use vela_protocol::test_support::{make_finding, make_project};
 
@@ -2281,6 +2303,18 @@ mod tests {
                 ".".to_string(),
                 format!("vop_{}", "b".repeat(64)),
                 "urn:vela:policy:none".to_string(),
+            )
+            .unwrap()
+            .with_scientific_chain(
+                ScientificChainAssertion::new(
+                    Some("The checksum remains stable on exact replay.".to_string()),
+                    false,
+                    "Re-run the frozen checksum verifier.".to_string(),
+                    "The verifier returned pass.".to_string(),
+                    vec!["witnesses/result.json".to_string()],
+                    vec!["records/attempts/prior-mismatch.json".to_string()],
+                )
+                .unwrap(),
             )
             .unwrap(),
             &identity(actor),
@@ -2492,6 +2526,19 @@ mod tests {
         assert!(first.facet("work_lease").is_none());
         assert!(first.facet("challenge").is_none());
         assert!(first.facet("acceptance_authority").is_some());
+        assert_eq!(
+            first.facet("scientific_chain").unwrap().data,
+            json!({
+                "schema": "vela.scientific-chain.producer.v1",
+                "authority": "producer",
+                "predicted_observable": "The checksum remains stable on exact replay.",
+                "not_applicable": false,
+                "performed_test": "Re-run the frozen checksum verifier.",
+                "result": "The verifier returned pass.",
+                "evidence": ["witnesses/result.json"],
+                "counterevidence": ["records/attempts/prior-mismatch.json"],
+            })
+        );
         assert_eq!(
             first.facet("publication").unwrap().data["state"],
             json!("committed_local")

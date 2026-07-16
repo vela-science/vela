@@ -1,0 +1,97 @@
+{
+  "schema": "vela.verifiable-composition.phase1a-registration.v0",
+  "stability": "experimental",
+  "registered_on": "2026-07-15",
+  "run_class": "internal_fixture",
+  "release": {
+    "repository": "https://github.com/vela-science/vela.git",
+    "tag": "v0.800.13",
+    "commit": "b3076f8935a38ecaef252e7f062648794cc7cd07",
+    "source_tree": "00cb485d059b07f190dc9dbafbc9359a362a1ebb",
+    "runner_rule": "the run record must retain the full path, byte length, sha256, and --version output of the offline Vela executable"
+  },
+  "inputs": {
+    "repository_commit": "b3076f8935a38ecaef252e7f062648794cc7cd07",
+    "frontier_path": "examples/erdos-formalization",
+    "frontier_git_tree": "c03d5eda6069ffa93b66c0f7de84e41b524b2b48",
+    "fixture_provenance": "generated and materialized through ordinary Vela commands; canonical authority is the split .vela directory, never frontier.json",
+    "fixture_manifest": "fixtures/canonical-custody/fixture.json"
+  },
+  "execution": {
+    "network": "disabled",
+    "key_reads": "forbidden",
+    "writes": "temporary_checkout_only",
+    "commands": [
+      "vela check . --strict --json",
+      "vela proof verify . --json"
+    ],
+    "limits": {
+      "checkout_files": 20000,
+      "checkout_bytes": 268435456,
+      "single_blob_bytes": 67108864,
+      "json_bytes": 33554432,
+      "stdout_bytes_per_command": 33554432,
+      "stderr_bytes_per_command": 262144,
+      "seconds_per_command": 30
+    }
+  },
+  "registered_metrics": [
+    "false_verified_count",
+    "check_strict_ok",
+    "proof_verify_ok",
+    "git_commit_exact",
+    "git_tree_exact",
+    "replay_current_replayed_root_parity",
+    "replay_proof_event_log_root_parity",
+    "replay_proof_snapshot_root_parity",
+    "visible_view_root_parity",
+    "lock_root_parity",
+    "registered_vector_pass_count"
+  ],
+  "registered_vectors": {
+    "path": "vectors/canonical-custody-cases.json",
+    "ids": [
+      "canonical-baseline",
+      "frontier-json-only-mutation",
+      "canonical-event-content-mutation",
+      "canonical-event-deletion",
+      "canonical-event-duplication",
+      "lock-snapshot-root-mismatch",
+      "proof-event-root-mismatch",
+      "fabricated-derived-views",
+      "missing-canonical-events",
+      "partial-canonical-findings",
+      "exact-frontier-tree-mismatch",
+      "git-symlink-entry",
+      "destination-symlink",
+      "bounded-checkout-oversize"
+    ]
+  },
+  "registered_outcomes": {
+    "success": "the baseline has exact Git identity and complete check/replay/proof/view/lock root parity; every hostile case is rejected; false_verified_count is zero",
+    "failure": "any hostile case reaches canonical_custody_verified, any root lane disagrees on the baseline, a command exceeds a bound, or an unregistered metric/vector is reported",
+    "dependency_verdict": "never produced by this experiment"
+  },
+  "same_information_baseline": {
+    "name": "git-plus-two-frozen-vela-commands",
+    "inputs": "the same exact commit and frontier bytes",
+    "allowed_information": [
+      "Git commit and tree identity",
+      "vela check --strict JSON",
+      "vela proof verify JSON"
+    ],
+    "disallowed_information": [
+      "maintainer-only state",
+      "network lookups",
+      "private keys",
+      "hand-authored accepted events"
+    ]
+  },
+  "non_claims": [
+    "scientific truth",
+    "dependency validity",
+    "outside interoperability",
+    "ecosystem adoption",
+    "a new protocol primitive"
+  ]
+}
