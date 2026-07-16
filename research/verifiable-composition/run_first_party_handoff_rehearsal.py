@@ -172,30 +172,30 @@ def main() -> int:
             "GIT_CONFIG_NOSYSTEM": "1",
             "GIT_CONFIG_GLOBAL": "/dev/null",
         }
-        commands.append(
-            run(
-                [str(args.vela), "init", str(frontier), "--name", "first-party-handoff", "--json"],
-                environment=vela_environment,
-                json_output=True,
-            )
+        init_record = run(
+            [str(args.vela), "init", str(frontier), "--name", "first-party-handoff", "--json"],
+            environment=vela_environment,
+            json_output=True,
         )
+        init_record.pop("stdout_json")
+        commands.append(init_record)
         shutil.copyfile(parent_graph, frontier / "parent-graph.json")
-        commands.append(
-            run(
-                [
-                    str(args.vela),
-                    "work",
-                    "seed:first",
-                    "--frontier",
-                    str(frontier),
-                    "--as",
-                    "agent:first-party-rehearsal",
-                    "--json",
-                ],
-                environment=vela_environment,
-                json_output=True,
-            )
+        work_record = run(
+            [
+                str(args.vela),
+                "work",
+                "seed:first",
+                "--frontier",
+                str(frontier),
+                "--as",
+                "agent:first-party-rehearsal",
+                "--json",
+            ],
+            environment=vela_environment,
+            json_output=True,
         )
+        work_record.pop("stdout_json")
+        commands.append(work_record)
         land_record = run(
             [
                 str(args.vela),
@@ -229,8 +229,8 @@ def main() -> int:
             environment=vela_environment,
             json_output=True,
         )
+        land = land_record.pop("stdout_json")
         commands.append(land_record)
-        land = land_record["stdout_json"]
         require(land["route"] == "deferred", "released Vela did not defer")
         require(land["accepted_event_delta"] == 0, "released Vela changed accepted state")
         check_record = run(
@@ -238,12 +238,13 @@ def main() -> int:
             environment=vela_environment,
             json_output=True,
         )
+        check = check_record.pop("stdout_json")
         commands.append(check_record)
-        require(check_record["stdout_json"]["ok"] is True, "released Vela strict check failed")
+        require(check["ok"] is True, "released Vela strict check failed")
         vela_land_path = artifacts / "vela-land.json"
         vela_land_path.write_bytes(canonical_bytes(land) + b"\n")
         vela_check_path = artifacts / "vela-check.json"
-        vela_check_path.write_bytes(canonical_bytes(check_record["stdout_json"]) + b"\n")
+        vela_check_path.write_bytes(canonical_bytes(check) + b"\n")
 
     pending = {
         "schema": "vela.first-party-pending-handoff.v1",

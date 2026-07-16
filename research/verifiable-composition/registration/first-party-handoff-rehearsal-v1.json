@@ -3,7 +3,7 @@
   "status": "registered_not_run",
   "run_class": "first_party_internal_fixture",
   "base_commit": "350fc733eaddf57628745217317853ad158b8132",
-  "supersedes_registration_root": "sha256:d2bb58a1386d47e55ef4e40b84eab2bcefc81fb45c728d754d978e7eda81dc53",
+  "supersedes_registration_root": "sha256:f1da1b891577d5cf20b474224b68008bfaf0b0b37ff34de987c065d136296dcd",
   "registration_history": [
     {
       "root": "sha256:55b14e2e1bbc6a66f476dcd99c14402381c2bc1e40671005338bfaf3a2a1f68d",
@@ -26,6 +26,12 @@
       "outcome": "superseded_after_completion_audit",
       "result_root": "sha256:57b3eb89b8154cd9b1e931b5873fb9a5168e6ed7820e0456593c480139e9bbc0",
       "reason": "released Vela was pinned but no released-Vela land transaction produced the pending package"
+    },
+    {
+      "root": "sha256:f1da1b891577d5cf20b474224b68008bfaf0b0b37ff34de987c065d136296dcd",
+      "outcome": "completed_then_compacted",
+      "result_root": "sha256:09c69cec74b2310919db52f58fcc8b033ee0ba28e77225456b696265ed83ddc1",
+      "reason": "duplicate Vela JSON was removed from command records after retaining canonical land and check artifacts"
     }
   ],
   "release": {
@@ -103,7 +109,7 @@
     },
     {
       "path": "check_first_party_handoff_registration.py",
-      "sha256": "sha256:0682bab633dd50497b236f9aa784f29ce4a2484688dfa3fa0a725801e8dd00ac"
+      "sha256": "sha256:e59216a40b8dc986c5da07600486f0121b2ccffb6ab1cb612a2366446f45c038"
     },
     {
       "path": "reference/graph_handoff.py",
@@ -123,7 +129,7 @@
     },
     {
       "path": "run_first_party_handoff_rehearsal.py",
-      "sha256": "sha256:86479d95501a5c8690b6b4aba5dfa4adc1a017978859027dfd4bf35b92cabee7"
+      "sha256": "sha256:ec3450c8daaab7945a4897fefdf7a8483be210240da55693faf2524ad703db4f"
     },
     {
       "path": "check_first_party_handoff_rehearsal.py",
@@ -162,5 +168,5 @@
     "protocol_promotion": false
   },
   "result_root": null,
-  "registration_root": "sha256:f1da1b891577d5cf20b474224b68008bfaf0b0b37ff34de987c065d136296dcd"
+  "registration_root": "sha256:c9afabdac6ec868f286583a995e27cdad2055c95b655bad6f91cdbcc30d11482"
 }
