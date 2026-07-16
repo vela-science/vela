@@ -1,0 +1,10 @@
+{
+  "schema": "vela.graph-handoff-vectors.v1",
+  "cases": [
+    {"id": "canonical", "mutation": "none", "expected": "pass"},
+    {"id": "edge-order", "mutation": "reverse_edges", "expected": "edge_order"},
+    {"id": "triangle", "mutation": "add_triangle", "expected": "parent_root"},
+    {"id": "root-drift", "mutation": "wrong_root", "expected": "parent_root"},
+    {"id": "parent-substitution", "mutation": "substitute_parent", "expected": "parent_root"}
+  ]
+}
