@@ -3,7 +3,19 @@
   "status": "registered_not_run",
   "run_class": "first_party_internal_fixture",
   "base_commit": "350fc733eaddf57628745217317853ad158b8132",
-  "supersedes_registration_root": "sha256:55b14e2e1bbc6a66f476dcd99c14402381c2bc1e40671005338bfaf3a2a1f68d",
+  "supersedes_registration_root": "sha256:72689a75ce295026dac2ddb9c6df70170bcc9a2e80d25742f19732f89b76dc04",
+  "registration_history": [
+    {
+      "root": "sha256:55b14e2e1bbc6a66f476dcd99c14402381c2bc1e40671005338bfaf3a2a1f68d",
+      "outcome": "superseded_before_execution",
+      "reason": "executable rehearsal inputs were not yet bound"
+    },
+    {
+      "root": "sha256:72689a75ce295026dac2ddb9c6df70170bcc9a2e80d25742f19732f89b76dc04",
+      "outcome": "infrastructure_failure_before_usable_output",
+      "reason": "relative artifact paths were interpreted from the controller working directory"
+    }
+  ],
   "release": {
     "repository": "https://github.com/vela-science/vela",
     "tag": "v0.800.22",
@@ -79,7 +91,7 @@
     },
     {
       "path": "check_first_party_handoff_registration.py",
-      "sha256": "sha256:bec3c73387016549520d8c8ff000ed42bcb5508544f248607b8bb5ae6d6197a9"
+      "sha256": "sha256:9df8bf99d06d2059047639f2f4b6786fa3657026659f4d34e80401b162126c0a"
     },
     {
       "path": "reference/graph_handoff.py",
@@ -99,7 +111,7 @@
     },
     {
       "path": "run_first_party_handoff_rehearsal.py",
-      "sha256": "sha256:d6fde65aa5d7b5c029f60a30988d28ba2cf72df760281b17a238dbb848cd3cc5"
+      "sha256": "sha256:8b00ff06db692b06acdf00d4cfab4ae922abd654c0d2700a616d06f385374ecb"
     },
     {
       "path": "check_first_party_handoff_rehearsal.py",
@@ -138,5 +150,5 @@
     "protocol_promotion": false
   },
   "result_root": null,
-  "registration_root": "sha256:72689a75ce295026dac2ddb9c6df70170bcc9a2e80d25742f19732f89b76dc04"
+  "registration_root": "sha256:18255af98a8bc37e942e6589fce2e6741ad0cb1a21ad3c7ddb9f9149aca43a59"
 }

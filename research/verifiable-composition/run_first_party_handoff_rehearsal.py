@@ -91,6 +91,12 @@ def parser() -> argparse.ArgumentParser:
 
 def main() -> int:
     args = parser().parse_args()
+    args.registration = args.registration.resolve()
+    args.vela = args.vela.resolve()
+    args.cadical = args.cadical.resolve()
+    args.drat_trim = args.drat_trim.resolve()
+    args.lrat_check = args.lrat_check.resolve()
+    args.output = args.output.resolve()
     registration = json.loads(args.registration.read_text())
     require(registration["status"] == "registered_not_run", "registration is not runnable")
     require(registration["authority"]["signing_allowed"] is False, "signing enabled")
