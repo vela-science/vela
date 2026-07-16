@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -43,26 +44,36 @@ def file_record(path: Path, base: Path) -> dict[str, Any]:
     return {"path": str(path.relative_to(base)), "sha256": sha(raw), "bytes": len(raw)}
 
 
-def run(argv: list[str], *, cwd: Path = ROOT, exits: set[int] = {0}) -> dict[str, Any]:
+def run(
+    argv: list[str],
+    *,
+    cwd: Path = ROOT,
+    exits: set[int] = {0},
+    environment: dict[str, str] | None = None,
+    json_output: bool = False,
+) -> dict[str, Any]:
     started = time.monotonic_ns()
+    command_environment = {
+        "PATH": "/opt/homebrew/bin:/usr/bin:/bin",
+        "PYTHONDONTWRITEBYTECODE": "1",
+        "HOME": os.environ.get("HOME", "/nonexistent"),
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "VELA_NO_KEY_ACCESS": "1",
+    }
+    if environment is not None:
+        command_environment.update(environment)
     result = subprocess.run(
         argv,
         cwd=cwd,
         check=False,
         capture_output=True,
         timeout=600,
-        env={
-            "PATH": "/opt/homebrew/bin:/usr/bin:/bin",
-            "PYTHONDONTWRITEBYTECODE": "1",
-            "HOME": os.environ.get("HOME", "/nonexistent"),
-            "LANG": "C.UTF-8",
-            "LC_ALL": "C.UTF-8",
-            "VELA_NO_KEY_ACCESS": "1",
-        },
+        env=command_environment,
     )
     duration_ms = (time.monotonic_ns() - started) // 1_000_000
     require(result.returncode in exits, f"{argv[0]} exited {result.returncode}: {result.stderr[:500]!r}")
-    return {
+    record = {
         "argv": argv,
         "exit_code": result.returncode,
         "stdout_sha256": sha(result.stdout),
@@ -70,6 +81,9 @@ def run(argv: list[str], *, cwd: Path = ROOT, exits: set[int] = {0}) -> dict[str
         "duration_ms": duration_ms,
         "stdout": result.stdout.decode("utf-8", "replace")[:1000],
     }
+    if json_output:
+        record["stdout_json"] = json.loads(result.stdout)
+    return record
 
 
 def executable(path: Path) -> dict[str, Any]:
@@ -141,6 +155,96 @@ def main() -> int:
     drat.unlink()
 
     parent_files = [parent_graph, parent_coloring, parent_cnf, parent_lrat]
+    with tempfile.TemporaryDirectory(prefix="vela-operational-", dir=args.output) as raw_operational:
+        operational = Path(raw_operational)
+        frontier = operational / "frontier"
+        home = operational / "home"
+        home.mkdir()
+        vela_environment = {
+            "HOME": str(home),
+            "VELA_NO_PUBLISH": "1",
+            "VELA_NO_KEY_ACCESS": "1",
+            "VELA_ADVICE": "0",
+            "GIT_AUTHOR_NAME": "Vela Rehearsal",
+            "GIT_AUTHOR_EMAIL": "rehearsal@invalid",
+            "GIT_COMMITTER_NAME": "Vela Rehearsal",
+            "GIT_COMMITTER_EMAIL": "rehearsal@invalid",
+            "GIT_CONFIG_NOSYSTEM": "1",
+            "GIT_CONFIG_GLOBAL": "/dev/null",
+        }
+        commands.append(
+            run(
+                [str(args.vela), "init", str(frontier), "--name", "first-party-handoff", "--json"],
+                environment=vela_environment,
+                json_output=True,
+            )
+        )
+        shutil.copyfile(parent_graph, frontier / "parent-graph.json")
+        commands.append(
+            run(
+                [
+                    str(args.vela),
+                    "work",
+                    "seed:first",
+                    "--frontier",
+                    str(frontier),
+                    "--as",
+                    "agent:first-party-rehearsal",
+                    "--json",
+                ],
+                environment=vela_environment,
+                json_output=True,
+            )
+        )
+        land_record = run(
+            [
+                str(args.vela),
+                "land",
+                "--frontier",
+                str(frontier),
+                "--work",
+                "seed:first",
+                "--claim",
+                "The registered graph is triangle-free and has chromatic number 4.",
+                "--type",
+                "theoretical",
+                "--replayability",
+                "exact",
+                "--artifact",
+                "parent-graph.json:graph",
+                "--caveat",
+                "First-party authority-free rehearsal only.",
+                "--not-applicable",
+                "--performed-test",
+                "Two graph verifiers and LRAT checking.",
+                "--result",
+                "Pass.",
+                "--evidence",
+                parent["graph_root"],
+                "--as",
+                "agent:first-party-rehearsal",
+                "--json",
+            ],
+            cwd=frontier,
+            environment=vela_environment,
+            json_output=True,
+        )
+        commands.append(land_record)
+        land = land_record["stdout_json"]
+        require(land["route"] == "deferred", "released Vela did not defer")
+        require(land["accepted_event_delta"] == 0, "released Vela changed accepted state")
+        check_record = run(
+            [str(args.vela), "check", str(frontier), "--strict", "--json"],
+            environment=vela_environment,
+            json_output=True,
+        )
+        commands.append(check_record)
+        require(check_record["stdout_json"]["ok"] is True, "released Vela strict check failed")
+        vela_land_path = artifacts / "vela-land.json"
+        vela_land_path.write_bytes(canonical_bytes(land) + b"\n")
+        vela_check_path = artifacts / "vela-check.json"
+        vela_check_path.write_bytes(canonical_bytes(check_record["stdout_json"]) + b"\n")
+
     pending = {
         "schema": "vela.first-party-pending-handoff.v1",
         "registration_root": registration["registration_root"],
@@ -148,6 +252,10 @@ def main() -> int:
         "artifact_roots": [file_record(path, args.output)["sha256"] for path in parent_files],
         "verifier_paths": ["python_adjacency_dsat", "python_bitset_static_order", "cadical_drat_to_lrat"],
         "authority_status": "pending_review",
+        "vela_route": land["route"],
+        "receipt_root": land["receipt_root"],
+        "proposal_id": land["proposal_id"],
+        "accepted_event_delta": land["accepted_event_delta"],
         "hard_dependency_usable": False,
         "accepted_state_claim": False,
         "human_key_access": False,
@@ -184,7 +292,16 @@ def main() -> int:
     vectors = json.loads((ROOT / "vectors/fact-manifest-projection-cases.json").read_text())["cases"]
     status_distribution = dict(sorted(Counter(case["expected_status"] for case in vectors).items()))
     standards_vectors = json.loads((ROOT / "vectors/standards-baseline-cases.json").read_text())["cases"]
-    retained = [*parent_files, pending_path, child_graph, child_coloring, child_cnf, child_lrat]
+    retained = [
+        *parent_files,
+        vela_land_path,
+        vela_check_path,
+        pending_path,
+        child_graph,
+        child_coloring,
+        child_cnf,
+        child_lrat,
+    ]
     result = {
         "schema": "vela.first-party-handoff-rehearsal-result.v1",
         "registration_root": registration["registration_root"],

@@ -3,7 +3,7 @@
   "status": "registered_not_run",
   "run_class": "first_party_internal_fixture",
   "base_commit": "350fc733eaddf57628745217317853ad158b8132",
-  "supersedes_registration_root": "sha256:18255af98a8bc37e942e6589fce2e6741ad0cb1a21ad3c7ddb9f9149aca43a59",
+  "supersedes_registration_root": "sha256:d2bb58a1386d47e55ef4e40b84eab2bcefc81fb45c728d754d978e7eda81dc53",
   "registration_history": [
     {
       "root": "sha256:55b14e2e1bbc6a66f476dcd99c14402381c2bc1e40671005338bfaf3a2a1f68d",
@@ -20,6 +20,12 @@
       "outcome": "clean_reproduction_failure_after_local_pass",
       "result_root": "sha256:243584745a19a06760cbe048ba057196a2f28f42468b9245501e08726634e8ee",
       "reason": "artifact records required an output directory beneath the source checkout"
+    },
+    {
+      "root": "sha256:d2bb58a1386d47e55ef4e40b84eab2bcefc81fb45c728d754d978e7eda81dc53",
+      "outcome": "superseded_after_completion_audit",
+      "result_root": "sha256:57b3eb89b8154cd9b1e931b5873fb9a5168e6ed7820e0456593c480139e9bbc0",
+      "reason": "released Vela was pinned but no released-Vela land transaction produced the pending package"
     }
   ],
   "release": {
@@ -97,7 +103,7 @@
     },
     {
       "path": "check_first_party_handoff_registration.py",
-      "sha256": "sha256:1be24fe793f87c827685833494e9af4c65a5d7719bdda49e9501240f58aec38f"
+      "sha256": "sha256:0682bab633dd50497b236f9aa784f29ce4a2484688dfa3fa0a725801e8dd00ac"
     },
     {
       "path": "reference/graph_handoff.py",
@@ -117,11 +123,11 @@
     },
     {
       "path": "run_first_party_handoff_rehearsal.py",
-      "sha256": "sha256:dfde616c84517822bb9a8f4545d00b9c03d799dd4b91ab3c42761d82a07040d8"
+      "sha256": "sha256:86479d95501a5c8690b6b4aba5dfa4adc1a017978859027dfd4bf35b92cabee7"
     },
     {
       "path": "check_first_party_handoff_rehearsal.py",
-      "sha256": "sha256:68aa01c06603eb9cf7741a01adadfcf3f7f215a879ed82ff19b88f1078ff625c"
+      "sha256": "sha256:0b01aa8abb0d4d5151c2d75c10e89c6555f9874fc7990dec6efa6a663cb6527b"
     }
   ],
   "budgets": {
@@ -156,5 +162,5 @@
     "protocol_promotion": false
   },
   "result_root": null,
-  "registration_root": "sha256:d2bb58a1386d47e55ef4e40b84eab2bcefc81fb45c728d754d978e7eda81dc53"
+  "registration_root": "sha256:f1da1b891577d5cf20b474224b68008bfaf0b0b37ff34de987c065d136296dcd"
 }
