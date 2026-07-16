@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.800.23 — 2026-07-16 — Durable journal boundaries
+
+- Fixed the completed-transaction recovery barrier so a later legitimate
+  materialization may replace a historical derived-view postimage without
+  making the frontier unavailable.
+- Retained exact completed-journal verification for markers, staged blobs,
+  event membership and roots, authority, public-review, canonical-evidence,
+  and private-coordination postimages. Active installation and completion
+  continue to verify every write class exactly.
+- Added regressions proving derived re-materialization preserves event bytes
+  and roots while authority drift, missing durable postimages, corrupt journal
+  material, and incomplete recovery still fail closed.
+- Reproduced the defect and repair against the completed Erdős governance
+  journal. This patch changes no event, reducer, signature, policy, Receipt,
+  scientific authority, or human key-custody contract.
+
 ## v0.800.22 — 2026-07-16 — Immutable event transactions
 
 - Fixed repository rendering so an existing event file is retained

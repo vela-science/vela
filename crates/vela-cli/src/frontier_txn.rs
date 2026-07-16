@@ -1359,12 +1359,20 @@ fn verify_completed_history(
     }
 
     // Event-neutral transactions can share one event root. Validate that each
-    // of their postimages is either still current or is connected to the
-    // current bytes by another completed transaction's exact preimage ->
-    // postimage edge. This preserves old exact retries without treating a
-    // missing latest postimage as historical.
+    // durable postimage is either still current or is connected to the current
+    // bytes by another completed transaction's exact preimage -> postimage
+    // edge. Derived views are deliberately excluded from this historical-head
+    // check: a later materialization may replace them without changing the
+    // exact event membership that the completed journal commits to. Active
+    // installation and completion still verify every write class exactly.
     for (_, journal) in &current_head {
-        for write in journal.plan.canonical_delta.writes() {
+        for write in journal
+            .plan
+            .canonical_delta
+            .writes()
+            .iter()
+            .filter(|write| write.class != WriteClass::Derived)
+        {
             let actual = inspect_file_state(root, &write.path)?;
             if postimage_reaches_current(&write.path, &write.postimage, &actual, &current_head) {
                 continue;
@@ -3770,6 +3778,88 @@ mod tests {
         assert_eq!(first_retry.recovery_state(), &RecoveryState::Completed);
         drop(first_retry);
         drop(FrontierTxn::acquire_recovery_barrier(&root, &journals).unwrap());
+    }
+
+    #[test]
+    fn completed_history_allows_derived_rematerialization_without_event_drift() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path().join("frontier");
+        let journals = temp.path().join("journals");
+        fs::create_dir_all(root.join(".vela/events")).unwrap();
+
+        let event = fixture_event("derived rematerialization");
+        let event_path = root.join(format!(".vela/events/{}.json", event.id));
+        let event_bytes = serde_json::to_vec_pretty(&event).unwrap();
+        let draft = DeltaDraft::prepare(
+            &root,
+            vec![
+                PlannedWrite::write(
+                    RepoPath::parse(format!(".vela/events/{}.json", event.id)).unwrap(),
+                    WriteClass::Authority,
+                    event_bytes.clone(),
+                ),
+                PlannedWrite::write(
+                    RepoPath::parse("frontier.json").unwrap(),
+                    WriteClass::Derived,
+                    b"materialized by reducer one".to_vec(),
+                ),
+            ],
+        )
+        .unwrap();
+        let mut plan = fixture_plan(&root, &draft, b"derived rematerialization");
+        plan.resulting_event_ids = vec![event.id.clone()];
+        plan.resulting_event_log_root = event_log_root(std::slice::from_ref(&event)).unwrap();
+        plan.root = plan.compute_root().unwrap();
+        let expected_event_root = plan.resulting_event_log_root.clone();
+
+        let mut txn = FrontierTxn::prepare(&root, &journals, plan, draft).unwrap();
+        txn.mark_committed().unwrap();
+        txn.install().unwrap();
+        txn.complete().unwrap();
+        drop(txn);
+
+        fs::write(root.join("frontier.json"), b"materialized by reducer two").unwrap();
+
+        drop(FrontierTxn::acquire_recovery_barrier(&root, &journals).unwrap());
+        assert_eq!(fs::read(event_path).unwrap(), event_bytes);
+        let current_events = current_event_log_events(&root).unwrap();
+        assert_eq!(
+            event_log_root(&current_events).unwrap(),
+            expected_event_root
+        );
+    }
+
+    #[test]
+    fn completed_history_still_rejects_authority_postimage_drift() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path().join("frontier");
+        let journals = temp.path().join("journals");
+        fs::create_dir_all(root.join(".vela/events")).unwrap();
+
+        let event = fixture_event("authority postimage drift");
+        let event_path = RepoPath::parse(format!(".vela/events/{}.json", event.id)).unwrap();
+        let event_bytes = serde_json::to_vec_pretty(&event).unwrap();
+        let draft = DeltaDraft::prepare(
+            &root,
+            vec![PlannedWrite::write(
+                event_path.clone(),
+                WriteClass::Authority,
+                event_bytes,
+            )],
+        )
+        .unwrap();
+        let mut plan = fixture_plan(&root, &draft, b"authority postimage drift");
+        plan.resulting_event_ids = vec![event.id.clone()];
+        plan.resulting_event_log_root = event_log_root(std::slice::from_ref(&event)).unwrap();
+        plan.root = plan.compute_root().unwrap();
+        let mut txn = FrontierTxn::prepare(&root, &journals, plan, draft).unwrap();
+        txn.mark_committed().unwrap();
+        txn.install().unwrap();
+        txn.complete().unwrap();
+        drop(txn);
+
+        fs::write(root.join(event_path.as_str()), b"corrupt authority bytes").unwrap();
+        assert!(FrontierTxn::acquire_recovery_barrier(&root, &journals).is_err());
     }
 
     #[test]
