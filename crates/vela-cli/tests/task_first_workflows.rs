@@ -247,6 +247,10 @@ fn temporal_actor_registration_strict_check_preserves_legacy_history() {
     activation.signature = Some(vela_protocol::sign::sign_event(&activation, &key).unwrap());
     project.events.push(activation);
     vela_protocol::repo::save_to_path(tmp.path(), &project).unwrap();
+    assert_success(
+        &run(tmp.path(), &["frontier", "materialize", ".", "--json"]),
+        "materialize temporal registration fixture",
+    );
     assert_success(&git(tmp.path(), &["add", "-A"]), "stage activation");
     assert_success(
         &git(
