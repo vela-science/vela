@@ -1157,7 +1157,7 @@ pub fn export_packet_with_source(
         reviewer_replay_manifest: reviewer_sections.replay_manifest.clone(),
         caveats: caveats.clone(),
     };
-    let signal_report = signals::analyze(frontier, &[]);
+    let signal_report = signals::analyze_at(frontier, &[], source_path);
     let quality_table = signals::quality_table(frontier, &signal_report);
     let state_transitions = state::state_transitions(frontier);
     let replay_report = events::replay_report(frontier);

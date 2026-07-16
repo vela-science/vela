@@ -48,7 +48,7 @@ pub(crate) fn cmd_proof(
     if record_proof_state {
         save_recorded_proof_state(&proof_frontier, &loaded).unwrap_or_else(|e| fail(&e));
     }
-    let signal_report = signals::analyze(&loaded, &[]);
+    let signal_report = signals::analyze_at(&loaded, &[], Some(frontier));
     if json_output {
         let payload = json!({
             "ok": true,

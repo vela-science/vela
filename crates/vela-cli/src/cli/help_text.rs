@@ -153,7 +153,12 @@ EXAMPLES
 pub const ACTOR: &str = "\
 EXAMPLES
   vela actor list .              registered actors on this frontier
-  vela actor add .               bootstrap an empty registry from `vela id`";
+  vela actor add .               bootstrap an empty registry from `vela id`
+  vela actor activate . --anchor <commit> --preview --json
+  vela actor activate . --anchor <commit> --yes --confirm-root <sha256:...> --json
+
+Activation is a human-key terminal ceremony. The preview reads no key.
+Unsigned anchor members remain legacy and unauthenticated.";
 
 pub const FRONTIER: &str = "\
 EXAMPLES

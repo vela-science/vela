@@ -247,7 +247,8 @@ pub(crate) fn cmd_check(
                 "key custody: {unsigned_keyed_accepts} accept-class event(s) by keyed reviewers carry no signature (history predating key registration; new accepts require --key)"
             );
         }
-        let signal_report = signals::analyze(&frontier, &[]);
+        let signal_report =
+            signals::analyze_at(&frontier, &[], source.map(frontier_dir_for_source));
         print_signal_summary(&signal_report, strict);
         if !replay_report.ok
             || !replay_verification.ok

@@ -7,9 +7,9 @@ pub use validation::{
 };
 mod analysis;
 pub use analysis::{
-    artifact_audit, channel_map, decision_brief, frontier_health, frontier_next,
-    provenance_compute, research_trace, review_backpressure, sign_preview, sign_queue, signals,
-    verify,
+    actor_registration, artifact_audit, channel_map, decision_brief, frontier_health,
+    frontier_next, provenance_compute, research_trace, review_backpressure, sign_preview,
+    sign_queue, signals, verify,
 };
 mod packaging;
 pub use packaging::{export, packet, proof_packet};

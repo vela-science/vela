@@ -7,6 +7,7 @@
 #![allow(clippy::module_name_repetitions)]
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -14,6 +15,8 @@ use serde_json::{Value, json};
 use vela_protocol::project::{self, Project};
 use vela_protocol::proposals;
 use vela_protocol::sources;
+
+use super::actor_registration::{self, BoundaryOutcome};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct SignalTarget {
@@ -62,7 +65,16 @@ pub struct SignalReport {
 }
 
 pub fn analyze(frontier: &Project, diagnostics: &[Value]) -> SignalReport {
+    analyze_at(frontier, diagnostics, None)
+}
+
+pub fn analyze_at(
+    frontier: &Project,
+    diagnostics: &[Value],
+    repo_dir: Option<&Path>,
+) -> SignalReport {
     let mut signals = Vec::new();
+    let actor_registration = actor_registration::assess(frontier, repo_dir);
 
     for diagnostic in diagnostics {
         let severity = diagnostic
@@ -688,11 +700,69 @@ pub fn analyze(frontier: &Project, diagnostics: &[Value]) -> SignalReport {
         }
     }
 
-    // Phase M (v0.4): registered actors must sign their canonical
-    // events. Once an actor.id appears in `frontier.actors`, every
-    // canonical event referencing that actor.id MUST carry a signature
-    // that verifies against the registered public key. Unregistered
-    // actor.ids fall back to the legacy placeholder-rejection rule.
+    for removed in &actor_registration.removed_activation_event_ids {
+        signals.push(SignalItem {
+            id: signal_id("actor_registration_anchor_invalid", removed),
+            kind: "actor_registration_anchor_invalid".into(),
+            severity: "error".to_string(),
+            target: SignalTarget {
+                r#type: "event".to_string(),
+                id: removed.clone(),
+            },
+            reason: format!(
+                "A signed actor-registration activation present in ancestor Git history was removed from the checked descendant: {removed}."
+            ),
+            recommended_action:
+                "Restore the activation event and matching actor record from the descendant history. Removing an activated boundary never grants an exemption."
+                    .to_string(),
+            blocks: vec!["strict_check".to_string(), "proof_ready".to_string()],
+            caveats: vec![
+                "A fresh clone of force-pushed history cannot infer withheld ancestors; pin trusted roots when consuming a frontier."
+                    .to_string(),
+            ],
+        });
+    }
+    for boundary in actor_registration.boundaries.values() {
+        let (kind, recommended_action) = match boundary.outcome {
+            BoundaryOutcome::Valid => continue,
+            BoundaryOutcome::Invalid => (
+                "actor_registration_anchor_invalid",
+                "Restore the exact signed activation, actor registry, anchored Git objects, and immutable event cores. Invalid activation grants no legacy exemption.",
+            ),
+            BoundaryOutcome::Unavailable => (
+                "actor_registration_anchor_unavailable",
+                "Fetch a complete clone or Git bundle containing the signed anchor. Missing history grants no legacy exemption.",
+            ),
+        };
+        signals.push(SignalItem {
+            id: signal_id(kind, &boundary.activation_event_id),
+            kind: kind.to_string(),
+            severity: "error".to_string(),
+            target: SignalTarget {
+                r#type: "event".to_string(),
+                id: boundary.activation_event_id.clone(),
+            },
+            reason: format!(
+                "Actor-registration boundary for '{}' cannot be used: {}.",
+                boundary.actor_id,
+                boundary
+                    .reason
+                    .as_deref()
+                    .unwrap_or("the boundary did not validate")
+            ),
+            recommended_action: recommended_action.to_string(),
+            blocks: vec!["strict_check".to_string(), "proof_ready".to_string()],
+            caveats: vec![
+                "An invalid or unavailable activation never suppresses timeless actor-signature checks."
+                    .to_string(),
+            ],
+        });
+    }
+
+    // Registered actors sign their canonical events. A valid temporal
+    // activation changes only the treatment of exact anchor members:
+    // anchored unsigned events remain legacy and unauthenticated, while every
+    // event absent from the anchor keeps the ordinary key requirement.
     if !frontier.actors.is_empty() {
         let registry: BTreeMap<&str, &vela_protocol::sign::ActorRecord> = frontier
             .actors
@@ -738,6 +808,80 @@ pub fn analyze(frontier: &Project, diagnostics: &[Value]) -> SignalReport {
                 continue;
             }
             let pubkey = actor_record.public_key.as_str();
+            let anchored = actor_registration
+                .boundary(event.actor.id.as_str())
+                .filter(|boundary| boundary.outcome == BoundaryOutcome::Valid)
+                .and_then(|boundary| boundary.anchored_events.get(&event.id));
+            if let Some(anchored) = anchored {
+                if anchored.signature_was_present {
+                    let valid = event.signature.is_some()
+                        && vela_protocol::sign::verify_event_signature(event, pubkey)
+                            .unwrap_or(false);
+                    if !valid {
+                        signals.push(SignalItem {
+                            id: signal_id("pre_registration_signature_lost", &event.id),
+                            kind: "pre_registration_signature_lost".into(),
+                            severity: "error".to_string(),
+                            target: SignalTarget {
+                                r#type: "event".to_string(),
+                                id: event.id.clone(),
+                            },
+                            reason: format!(
+                                "Anchored event {} from '{}' carried a signature at activation but no longer has a valid signature.",
+                                event.id, event.actor.id
+                            ),
+                            recommended_action:
+                                "Restore a valid signature under the activated actor key. Temporal registration never permits signature stripping."
+                                    .to_string(),
+                            blocks: vec![
+                                "strict_check".to_string(),
+                                "proof_ready".to_string(),
+                            ],
+                            caveats: vec![
+                                "The event content address excludes signatures, but authenticated history must remain authenticated."
+                                    .to_string(),
+                            ],
+                        });
+                    }
+                    continue;
+                }
+                match event.signature.as_deref() {
+                    None => {
+                        signals.push(SignalItem {
+                            id: signal_id(
+                                "pre_registration_unsigned_actor_event",
+                                &event.id,
+                            ),
+                            kind: "pre_registration_unsigned_actor_event".into(),
+                            severity: "info".to_string(),
+                            target: SignalTarget {
+                                r#type: "event".to_string(),
+                                id: event.id.clone(),
+                            },
+                            reason: format!(
+                                "Event {} from '{}' is an exact unsigned member of the signed pre-registration anchor. It remains legacy and unauthenticated.",
+                                event.id, event.actor.id
+                            ),
+                            recommended_action:
+                                "No rewrite is required. Preserve the historical bytes; future matching events require a valid actor signature."
+                                    .to_string(),
+                            blocks: vec![],
+                            caveats: vec![
+                                "Anchor membership does not attribute this event to the activated key holder."
+                                    .to_string(),
+                            ],
+                        });
+                        continue;
+                    }
+                    Some(_) => {
+                        if vela_protocol::sign::verify_event_signature(event, pubkey)
+                            .unwrap_or(false)
+                        {
+                            continue;
+                        }
+                    }
+                }
+            }
             let invalid = match event.signature.as_deref() {
                 None => Some("missing".to_string()),
                 Some(_) => match vela_protocol::sign::verify_event_signature(event, pubkey) {

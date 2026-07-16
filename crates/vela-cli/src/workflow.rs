@@ -296,6 +296,7 @@ struct EventTransactionBinding {
     request_event_id_field: &'static str,
     result_event_id_field: &'static str,
     result_timestamp_field: &'static str,
+    publication_summary: &'static str,
 }
 
 fn transact_event_candidate_with_barrier<F>(
@@ -450,7 +451,7 @@ where
         Some(delta) => match exact_publication_resume_preflight(frontier, delta, &publish_opts) {
             Ok(preflight) => publish_exact_delta(
                 frontier,
-                "work",
+                binding.publication_summary,
                 std::slice::from_ref(&event_id),
                 delta,
                 preflight,
@@ -506,8 +507,55 @@ where
             request_event_id_field: "claim_event_id",
             result_event_id_field: "claim_event_id",
             result_timestamp_field: "claimed_at",
+            publication_summary: "work",
         },
         before_commit,
+    )
+}
+
+pub(crate) fn transact_actor_registration<F>(frontier: &Path, build: F) -> Result<Value, String>
+where
+    F: FnOnce(
+        &vela_protocol::project::Project,
+    ) -> Result<(vela_protocol::project::Project, String, String), String>,
+{
+    let journal_dir = frontier_transaction_journal_dir(frontier)?;
+    let barrier =
+        crate::frontier_txn::FrontierTxn::acquire_recovery_barrier(frontier, &journal_dir)
+            .map_err(|error| error.to_string())?;
+    let original = repo::load_from_path(frontier)?;
+    let state_root_before = format!(
+        "sha256:{}",
+        vela_protocol::events::event_log_hash(&original.events)
+    );
+    let (candidate, activation_event_id, activated_at) = build(&original)?;
+    let state_root_after = format!(
+        "sha256:{}",
+        vela_protocol::events::event_log_hash(&candidate.events)
+    );
+    let result = json!({
+        "ok": true,
+        "command": "actor.activate",
+        "activation_event_id": activation_event_id,
+        "activated_at": activated_at,
+        "state_root_before": state_root_before,
+        "state_root_after": state_root_after,
+    });
+    transact_event_candidate_with_barrier(
+        frontier,
+        barrier,
+        &original,
+        &candidate,
+        result,
+        EventTransactionBinding {
+            operation_namespace: "actor-registration-activation",
+            request_schema: "vela.actor-registration-activation-request.internal.v1",
+            request_event_id_field: "activation_event_id",
+            result_event_id_field: "activation_event_id",
+            result_timestamp_field: "activated_at",
+            publication_summary: "activate actor registration",
+        },
+        || Ok(()),
     )
 }
 

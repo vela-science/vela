@@ -1,0 +1,35 @@
+{
+  "schema": "vela.actor-registration-boundary.conformance.v1",
+  "erdos_regression": {
+    "registration_commit": "bba62e8d85393887f00caffe7c28d005a1786b3f",
+    "anchor_tree": "2c5c5a6c688a274b40017321d920f258f1c70c04",
+    "anchor_event_count": 2185,
+    "anchor_event_log_root": "sha256:e16e57f2e39957ddc2fb529e1b715547c27935fa04730e3c78b4a997eb6f4678",
+    "anchor_actor_registry_root": "sha256:665f3e1c48f0a50fac949681c0af01bdd28de2991f2cdc5cc4cddbe69df6311b",
+    "actor_id": "reviewer:will-blair",
+    "actor_events": {
+      "unsigned_anchor": 81,
+      "signed_anchor": 131,
+      "signed_post_anchor": 1,
+      "signed_total": 132,
+      "total": 213
+    },
+    "post_anchor_event_id": "vev_27922b9c8dab0575",
+    "released_v0_800_19": {
+      "non_strict": {
+        "ok": true,
+        "unsigned_registered_actor": 81
+      },
+      "strict": {
+        "ok": false,
+        "unsigned_registered_actor_blockers": 81
+      }
+    },
+    "expected_after_activation": {
+      "pre_registration_unsigned_actor_event": 81,
+      "anchored_unsigned_registered_actor_blockers": 0,
+      "post_anchor_signed_event_still_verifies": true,
+      "anchored_event_file_delta": 0
+    }
+  }
+}

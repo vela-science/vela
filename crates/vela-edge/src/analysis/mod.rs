@@ -1,6 +1,7 @@
 //! Derived signals, research traces, audits, health, provenance.
 //! Re-exported flat (`vela_edge::*`) at the crate root; file organization only.
 
+pub mod actor_registration;
 pub mod artifact_audit;
 pub mod channel_map;
 pub mod decision_brief;

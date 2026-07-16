@@ -200,7 +200,7 @@ pub(crate) async fn http_entry(
             "stats": project.stats,
             "events": project.events.len(),
             "proof_state": project.proof_state,
-            "signals": signals::analyze(&project, &[]).signals,
+            "signals": signals::analyze_at(&project, &[], state.source_path.as_deref()).signals,
         })),
     )
 }

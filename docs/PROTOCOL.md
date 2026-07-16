@@ -1,13 +1,13 @@
 # Vela protocol: current contract
 
-Status: current prelaunch contract for Vela `0.800.19`.
+Status: current prelaunch contract for Vela `0.800.20`.
 
 This document defines the small protocol surface that Vela ships now. Git
 stores and transports immutable bytes. Vela gives a scientific meaning to a
 bounded subset of those bytes, records who had authority to change accepted
 state, and deterministically rebuilds the current frontier from the event log.
 
-The workspace release (`0.800.19`), finding-bundle schema (`0.10.0`), and wire
+The workspace release (`0.800.20`), finding-bundle schema (`0.10.0`), and wire
 schema names such as `vela.event.v0.1` are separate identifiers. New work uses
 the current forms below. Older micro-version chronology belongs in Git history
 and `CHANGELOG.md`, not in the active protocol.
@@ -180,6 +180,18 @@ signatures may still verify for immutable replay, but no new writer emits the
 historical form. Revocation invalidates signatures at or after its effective
 time without rewriting valid earlier history.
 
+An established actor may opt into temporal registration through one signed
+`actor.registration_activated` event carrying
+`vela.actor-registration-boundary.v1`. The payload binds the actor key to an
+exact ancestor Git commit and tree, event-log root and count, and actor-registry
+byte root. Exact events present at that anchor may retain their historical
+signature state. An unsigned anchor member remains legacy and unauthenticated;
+the activation does not attribute it to the key holder. Every matching event
+absent from the anchor requires a valid signature, regardless of timestamp.
+Missing, forked, altered, or tampered anchor history fails closed and grants no
+exemption. Actor records without a valid activation retain timeless signature
+enforcement.
+
 An acceptance policy (`vap_`) is human-signed, frontier-scoped, and bounded by
 its current causal head. The current lane is `vela.policy-lane.v2`; an
 unbound, unknown, revoked, stale, or out-of-scope policy cannot authorize a
@@ -188,6 +200,7 @@ Permit. Policy suggestions and tests are derived advice, not authority.
 The relevant current implementations are:
 
 - [`crates/vela-protocol/src/kernel/sign.rs`](../crates/vela-protocol/src/kernel/sign.rs)
+- [`crates/vela-protocol/src/kernel/actor_registration.rs`](../crates/vela-protocol/src/kernel/actor_registration.rs)
 - [`crates/vela-protocol/src/policy/acceptance_policy.rs`](../crates/vela-protocol/src/policy/acceptance_policy.rs)
 - [`crates/vela-protocol/src/proposals/policy_accept.rs`](../crates/vela-protocol/src/proposals/policy_accept.rs)
 

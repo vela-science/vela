@@ -419,7 +419,9 @@ pub(crate) fn check_json_payload(src: &Path, schema_only: bool, strict: bool) ->
     }
     let signal_report = loaded
         .as_ref()
-        .map(|frontier| signals::analyze(frontier, &diagnostics))
+        .map(|frontier| {
+            signals::analyze_at(frontier, &diagnostics, Some(frontier_dir_for_source(src)))
+        })
         .unwrap_or_else(empty_signal_report);
     let errors = report.errors.len()
         + method_errors

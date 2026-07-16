@@ -1117,6 +1117,27 @@ pub(crate) enum ActorAction {
         #[arg(long)]
         json: bool,
     },
+    /// Preview or perform the human-only temporal activation ceremony.
+    Activate {
+        frontier: PathBuf,
+        /// Exact pre-registration Git commit.
+        #[arg(long)]
+        anchor: String,
+        /// Actor id to activate. Defaults to the configured identity.
+        #[arg(long)]
+        actor: Option<String>,
+        /// Render the exact key-free preview without reading a private key.
+        #[arg(long)]
+        preview: bool,
+        /// Skip the interactive confirmation after rendering the preview.
+        #[arg(long)]
+        yes: bool,
+        /// Exact root returned by a prior preview. Required with --yes.
+        #[arg(long, requires = "yes")]
+        confirm_root: Option<String>,
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 #[derive(Subcommand)]

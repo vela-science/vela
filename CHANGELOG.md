@@ -1,5 +1,33 @@
 # Changelog
 
+## v0.800.20 — 2026-07-16 — Temporal actor registration
+
+- Added the signed, audit-only `actor.registration_activated` event and closed
+  `vela.actor-registration-boundary.v1` payload. A temporal boundary binds one
+  actor key to an exact ancestor Git commit and tree, event-log root and count,
+  and actor-registry byte root.
+- Strict verification now classifies exact unsigned anchor members as legacy
+  and unauthenticated without attributing them to the key holder. Matching
+  events absent from the anchor still require valid signatures regardless of
+  timestamp. Existing actor records without a valid activation preserve the
+  timeless rule.
+- Added fail-closed checks for missing and shallow history, non-ancestor forks,
+  wrong roots, registry tampering, duplicate boundaries, event deletion or
+  mutation, signature stripping, backdating, and activation-plus-registry
+  deletion from descendant history.
+- Added `vela actor activate --preview` and the human-only activation ceremony.
+  Scripted use requires `--yes --confirm-root <sha256:...>` from an exact
+  key-free preview. The ceremony refuses agent identities, reads the matching
+  key only after confirmation and a recovery barrier, installs one signed event
+  through the recoverable frontier transaction, and uses exact Git publication.
+- Reproduced the Erdős migration preview at its exact registration root: 81
+  anchored unsigned events, 131 anchored signed events, zero later unsigned
+  events, and one later signed event. No key was read and no frontier byte was
+  changed.
+- Rust, Python, and TypeScript reducers agree that the activation event is
+  state-neutral. This release changes no scientific acceptance rule, signature
+  algorithm, object family, registry service, or model authority.
+
 ## v0.800.19 — 2026-07-16 — Reload-stable policy retirement
 
 - Kept legacy-policy retirement replay-stable by recomputing project

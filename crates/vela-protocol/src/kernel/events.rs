@@ -164,6 +164,11 @@ pub const EVENT_KIND_REVIEW_ACCEPTED: &str = "review.accepted";
 pub const EVENT_KIND_REVIEW_REJECTED: &str = "review.rejected";
 pub const EVENT_KIND_REVIEW_REVISION_REQUESTED: &str = "review.revision_requested";
 
+/// Signed temporal activation of an actor registration. The event is an
+/// audit-only boundary over exact Git/Vela history; it neither authenticates
+/// unsigned legacy events nor mutates scientific state.
+pub const EVENT_KIND_ACTOR_REGISTRATION_ACTIVATED: &str = "actor.registration_activated";
+
 /// Deterministic machine-verified admission (Phase 1A). Emitted, UNSIGNED, when a
 /// proposal clears the exact-lane auto-admission predicate (kernel-clean, >=2
 /// independent attachments derive `Verified`, a present-and-Survived
@@ -225,6 +230,7 @@ pub const KNOWN_EVENT_KINDS: &[&str] = &[
     "review.accepted",
     "review.rejected",
     "review.revision_requested",
+    "actor.registration_activated",
     "policy.auto_admitted",
 ];
 
@@ -345,6 +351,7 @@ event_kinds! {
     ReviewAccepted => "review.accepted",
     ReviewRejected => "review.rejected",
     ReviewRevisionRequested => "review.revision_requested",
+    ActorRegistrationActivated => "actor.registration_activated",
     PolicyAutoAdmitted => "policy.auto_admitted",
 }
 
@@ -1480,6 +1487,12 @@ pub fn validate_event_payload(kind: &str, payload: &Value) -> Result<(), String>
                     ));
                 }
             }
+        }
+        EVENT_KIND_ACTOR_REGISTRATION_ACTIVATED => {
+            let parsed: crate::actor_registration::ActorRegistrationBoundaryPayload =
+                serde_json::from_value(payload.clone())
+                    .map_err(|error| format!("invalid actor-registration payload: {error}"))?;
+            parsed.validate()?;
         }
         EVENT_KIND_ARTIFACT_ASSERTED => {
             require_str("proposal_id")?;

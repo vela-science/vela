@@ -74,7 +74,7 @@ pub fn verify_frontier_strict(dir: &Path) -> Result<(Project, String), String> {
         ));
     }
 
-    let signals = crate::signals::analyze(&project, &[]);
+    let signals = crate::signals::analyze_at(&project, &[], Some(dir));
     let errors: Vec<String> = signals
         .signals
         .iter()

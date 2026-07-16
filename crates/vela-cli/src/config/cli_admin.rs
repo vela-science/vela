@@ -272,5 +272,22 @@ pub(crate) fn cmd_actor(action: ActorAction) {
                 }
             }
         }
+        ActorAction::Activate {
+            frontier,
+            anchor,
+            actor,
+            preview,
+            yes,
+            confirm_root,
+            json,
+        } => crate::config::actor_registration::cmd_actor_activate(
+            &frontier,
+            &anchor,
+            actor.as_deref(),
+            preview,
+            yes,
+            confirm_root.as_deref(),
+            json,
+        ),
     }
 }

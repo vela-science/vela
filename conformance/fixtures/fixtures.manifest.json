@@ -67,9 +67,9 @@
       "sha256": "sha256:f31e37a68c13ff34c252c94f7bfa845516a6c8b7c8ba440733e6ea322bae7d57"
     },
     {
-      "bytes": 25076,
+      "bytes": 26612,
       "path": "cascade-fixture-17.json",
-      "sha256": "sha256:6412c68db1f520a845ae6a4694cc77937b8e5b666ca0fbefd385c462f6ad6789"
+      "sha256": "sha256:2b3b4f2f34fd621b60a96d69994dc567c56ddf3b5df715324e54ccec193c6e87"
     }
   ],
   "schema": "vela.conformance-fixtures-manifest.v1"

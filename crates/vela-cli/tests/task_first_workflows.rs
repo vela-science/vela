@@ -149,6 +149,327 @@ fn register_deterministic_reviewer(dir: &Path, seed: u8) -> std::path::PathBuf {
     key_path
 }
 
+#[test]
+fn temporal_actor_registration_strict_check_preserves_legacy_history() {
+    use ed25519_dalek::SigningKey;
+    use serde_json::json;
+    use sha2::{Digest, Sha256};
+    use vela_protocol::actor_registration::ACTOR_REGISTRATION_BOUNDARY_SCHEMA;
+    use vela_protocol::events::{
+        EVENT_KIND_ACTOR_REGISTRATION_ACTIVATED, EVENT_SCHEMA, NULL_HASH, StateActor, StateEvent,
+        StateTarget, compute_event_id,
+    };
+
+    let tmp = tempfile::tempdir().unwrap();
+    init_git_frontier(tmp.path());
+    register_deterministic_reviewer(tmp.path(), 0x55);
+    let key = SigningKey::from_bytes(&[0x55; 32]);
+    let public_key = hex::encode(key.verifying_key().to_bytes());
+
+    let mut project = vela_protocol::repo::load_from_path(tmp.path()).unwrap();
+    let mut legacy = StateEvent {
+        schema: EVENT_SCHEMA.to_string(),
+        id: String::new(),
+        kind: "research_trace.review".into(),
+        target: StateTarget {
+            r#type: "frontier".to_string(),
+            id: project.frontier_id(),
+        },
+        actor: StateActor {
+            r#type: "human".to_string(),
+            id: "reviewer:t".to_string(),
+        },
+        timestamp: "2026-07-01T00:00:00Z".to_string(),
+        reason: "Unsigned legacy review record.".to_string(),
+        before_hash: NULL_HASH.to_string(),
+        after_hash: NULL_HASH.to_string(),
+        payload: json!({}),
+        caveats: vec![],
+        signature: None,
+    };
+    legacy.id = compute_event_id(&legacy);
+    project.events.push(legacy);
+    vela_protocol::repo::save_to_path(tmp.path(), &project).unwrap();
+    assert_success(&git(tmp.path(), &["add", "-A"]), "stage anchor");
+    assert_success(
+        &git(tmp.path(), &["commit", "-qm", "actor registration anchor"]),
+        "commit anchor",
+    );
+    let anchor_commit = git_stdout(tmp.path(), &["rev-parse", "HEAD"])
+        .trim()
+        .to_string();
+    let anchor_tree = git_stdout(tmp.path(), &["show", "-s", "--format=%T", "HEAD"])
+        .trim()
+        .to_string();
+    let registry_bytes = std::fs::read(tmp.path().join(".vela/actors.json")).unwrap();
+    let registry_root = format!("sha256:{}", hex::encode(Sha256::digest(registry_bytes)));
+    let event_root = format!(
+        "sha256:{}",
+        vela_protocol::events::event_log_hash(&project.events)
+    );
+
+    let mut activation = StateEvent {
+        schema: EVENT_SCHEMA.to_string(),
+        id: String::new(),
+        kind: EVENT_KIND_ACTOR_REGISTRATION_ACTIVATED.into(),
+        target: StateTarget {
+            r#type: "actor".to_string(),
+            id: "reviewer:t".to_string(),
+        },
+        actor: StateActor {
+            r#type: "human".to_string(),
+            id: "reviewer:t".to_string(),
+        },
+        timestamp: "2026-07-16T00:00:00Z".to_string(),
+        reason: "Activate temporal actor registration.".to_string(),
+        before_hash: NULL_HASH.to_string(),
+        after_hash: NULL_HASH.to_string(),
+        payload: json!({
+            "schema": ACTOR_REGISTRATION_BOUNDARY_SCHEMA,
+            "mode": "temporalize_existing",
+            "frontier_id": project.frontier_id(),
+            "actor_id": "reviewer:t",
+            "public_key": public_key,
+            "algorithm": "ed25519",
+            "anchor": {
+                "git_object_format": "sha1",
+                "git_commit": anchor_commit,
+                "git_tree": anchor_tree,
+                "event_log_root": event_root,
+                "event_count": project.events.len(),
+                "actor_registry_root": registry_root
+            }
+        }),
+        caveats: vec!["Unsigned anchor members remain unauthenticated.".to_string()],
+        signature: None,
+    };
+    activation.id = compute_event_id(&activation);
+    activation.signature = Some(vela_protocol::sign::sign_event(&activation, &key).unwrap());
+    project.events.push(activation);
+    vela_protocol::repo::save_to_path(tmp.path(), &project).unwrap();
+    assert_success(&git(tmp.path(), &["add", "-A"]), "stage activation");
+    assert_success(
+        &git(
+            tmp.path(),
+            &["commit", "-qm", "activate actor registration"],
+        ),
+        "commit activation",
+    );
+
+    let checked = run(tmp.path(), &["check", ".", "--strict", "--json"]);
+    assert_success(&checked, "strict temporal actor registration");
+    let payload: serde_json::Value = serde_json::from_slice(&checked.stdout).unwrap();
+    let kinds = payload["signals"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|signal| signal["kind"].as_str())
+        .collect::<Vec<_>>();
+    assert!(kinds.contains(&"pre_registration_unsigned_actor_event"));
+    assert!(!kinds.contains(&"unsigned_registered_actor"));
+}
+
+#[test]
+fn temporal_actor_registration_command_previews_then_installs_one_signed_event() {
+    use ed25519_dalek::SigningKey;
+    use serde_json::json;
+    use vela_protocol::events::{
+        EVENT_SCHEMA, NULL_HASH, StateActor, StateEvent, StateTarget, compute_event_id,
+    };
+
+    let tmp = tempfile::tempdir().unwrap();
+    init_git_frontier(tmp.path());
+    register_deterministic_reviewer(tmp.path(), 0x66);
+    let mut project = vela_protocol::repo::load_from_path(tmp.path()).unwrap();
+    let mut legacy = StateEvent {
+        schema: EVENT_SCHEMA.to_string(),
+        id: String::new(),
+        kind: "research_trace.review".into(),
+        target: StateTarget {
+            r#type: "frontier".to_string(),
+            id: project.frontier_id(),
+        },
+        actor: StateActor {
+            r#type: "human".to_string(),
+            id: "reviewer:t".to_string(),
+        },
+        timestamp: "2026-07-01T00:00:00Z".to_string(),
+        reason: "Immutable unsigned legacy event.".to_string(),
+        before_hash: NULL_HASH.to_string(),
+        after_hash: NULL_HASH.to_string(),
+        payload: json!({}),
+        caveats: vec![],
+        signature: None,
+    };
+    legacy.id = compute_event_id(&legacy);
+    project.events.push(legacy);
+    let before = project.events.len();
+    vela_protocol::repo::save_to_path(tmp.path(), &project).unwrap();
+    assert_success(&git(tmp.path(), &["add", "-A"]), "stage anchor");
+    assert_success(
+        &git(tmp.path(), &["commit", "-qm", "temporal activation anchor"]),
+        "commit anchor",
+    );
+    let anchor = git_stdout(tmp.path(), &["rev-parse", "HEAD"])
+        .trim()
+        .to_string();
+
+    let preview = run(
+        tmp.path(),
+        &[
+            "actor",
+            "activate",
+            ".",
+            "--anchor",
+            &anchor,
+            "--preview",
+            "--json",
+        ],
+    );
+    assert_success(&preview, "actor activation preview");
+    let preview_json: serde_json::Value = serde_json::from_slice(&preview.stdout).unwrap();
+    assert_eq!(preview_json["command"], "actor.activate.preview");
+    assert_eq!(preview_json["counts"]["anchored_unsigned"], 1);
+    let preview_root = preview_json["preview_root"].as_str().unwrap().to_string();
+    assert_eq!(
+        vela_protocol::repo::load_from_path(tmp.path())
+            .unwrap()
+            .events
+            .len(),
+        before
+    );
+
+    let unconfirmed = run(
+        tmp.path(),
+        &["actor", "activate", ".", "--anchor", &anchor, "--json"],
+    );
+    assert!(!unconfirmed.status.success());
+    assert_eq!(
+        vela_protocol::repo::load_from_path(tmp.path())
+            .unwrap()
+            .events
+            .len(),
+        before
+    );
+
+    let refused = run_with_env(
+        tmp.path(),
+        &[
+            "actor",
+            "activate",
+            ".",
+            "--anchor",
+            &anchor,
+            "--actor",
+            "reviewer:t",
+            "--yes",
+            "--confirm-root",
+            &preview_root,
+            "--json",
+        ],
+        &[("VELA_ACTOR_ID", "agent:attempted-custody")],
+    );
+    assert_eq!(refused.status.code(), Some(4));
+    assert_eq!(
+        vela_protocol::repo::load_from_path(tmp.path())
+            .unwrap()
+            .events
+            .len(),
+        before
+    );
+
+    let stale = run(
+        tmp.path(),
+        &[
+            "actor",
+            "activate",
+            ".",
+            "--anchor",
+            &anchor,
+            "--yes",
+            "--confirm-root",
+            &format!("sha256:{}", "0".repeat(64)),
+            "--json",
+        ],
+    );
+    assert!(!stale.status.success());
+    assert_eq!(
+        vela_protocol::repo::load_from_path(tmp.path())
+            .unwrap()
+            .events
+            .len(),
+        before
+    );
+
+    let wrong_key = SigningKey::from_bytes(&[0x67; 32]);
+    std::fs::write(
+        tmp.path().join(".vela/keys/t/private.key"),
+        hex::encode(wrong_key.to_bytes()),
+    )
+    .unwrap();
+    let wrong_key_attempt = run(
+        tmp.path(),
+        &[
+            "actor",
+            "activate",
+            ".",
+            "--anchor",
+            &anchor,
+            "--yes",
+            "--confirm-root",
+            &preview_root,
+            "--json",
+        ],
+    );
+    assert!(!wrong_key_attempt.status.success());
+    assert_eq!(
+        vela_protocol::repo::load_from_path(tmp.path())
+            .unwrap()
+            .events
+            .len(),
+        before
+    );
+    let correct_key = SigningKey::from_bytes(&[0x66; 32]);
+    std::fs::write(
+        tmp.path().join(".vela/keys/t/private.key"),
+        hex::encode(correct_key.to_bytes()),
+    )
+    .unwrap();
+
+    let activated = run(
+        tmp.path(),
+        &[
+            "actor",
+            "activate",
+            ".",
+            "--anchor",
+            &anchor,
+            "--yes",
+            "--confirm-root",
+            &preview_root,
+            "--json",
+        ],
+    );
+    assert_success(&activated, "actor activation ceremony");
+    let activated_json: serde_json::Value = serde_json::from_slice(&activated.stdout).unwrap();
+    assert_eq!(activated_json["command"], "actor.activate");
+    let reloaded = vela_protocol::repo::load_from_path(tmp.path()).unwrap();
+    assert_eq!(reloaded.events.len(), before + 1);
+    let activation = reloaded
+        .events
+        .iter()
+        .find(|event| event.kind.as_str() == "actor.registration_activated")
+        .unwrap();
+    let actor = reloaded
+        .actors
+        .iter()
+        .find(|actor| actor.id == "reviewer:t")
+        .unwrap();
+    assert!(vela_protocol::sign::verify_event_signature(activation, &actor.public_key).unwrap());
+    let strict = run(tmp.path(), &["check", ".", "--strict", "--json"]);
+    assert_success(&strict, "strict check after actor activation");
+}
+
 fn write_receipt(dir: &Path, filename: &str, claim: &str) {
     write_receipt_with_artifact(dir, filename, claim, "w.json", br#"{"witness":true}"#);
 }

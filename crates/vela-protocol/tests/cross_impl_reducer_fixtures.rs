@@ -1199,6 +1199,41 @@ fn build_register_with_finding_edge_log(
         caveats: vec![],
         signature: None,
     };
+    let actor_activation = StateEvent {
+        schema: events::EVENT_SCHEMA.to_string(),
+        id: String::new(),
+        kind: events::EVENT_KIND_ACTOR_REGISTRATION_ACTIVATED.into(),
+        target: StateTarget {
+            r#type: "actor".to_string(),
+            id: "reviewer:priority-fixture".to_string(),
+        },
+        actor: StateActor {
+            id: "reviewer:priority-fixture".to_string(),
+            r#type: "human".to_string(),
+        },
+        timestamp: fixture_timestamp(frontier_idx, 2),
+        reason: "fixture: temporal actor registration is reducer-neutral".to_string(),
+        before_hash: NULL_HASH.to_string(),
+        after_hash: NULL_HASH.to_string(),
+        payload: json!({
+            "schema": "vela.actor-registration-boundary.v1",
+            "mode": "temporalize_existing",
+            "frontier_id": "vfr_0000000000000000",
+            "actor_id": "reviewer:priority-fixture",
+            "public_key": "1".repeat(64),
+            "algorithm": "ed25519",
+            "anchor": {
+                "git_object_format": "sha1",
+                "git_commit": "2".repeat(40),
+                "git_tree": "3".repeat(40),
+                "event_log_root": format!("sha256:{}", "4".repeat(64)),
+                "event_count": 1,
+                "actor_registry_root": format!("sha256:{}", "5".repeat(64))
+            }
+        }),
+        caveats: vec!["fixture only".to_string()],
+        signature: Some(format!("v1:{}", "6".repeat(128))),
+    };
     vec![
         // With the edge: payload.finding_id names a genesis finding.
         mk(
@@ -1220,6 +1255,7 @@ fn build_register_with_finding_edge_log(
                 "informal_ref": "fixture priority without edge",
             }),
         ),
+        actor_activation,
     ]
 }
 

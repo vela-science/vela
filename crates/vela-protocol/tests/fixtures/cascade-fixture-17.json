@@ -45,6 +45,43 @@
         "type": "finding"
       },
       "timestamp": "2026-05-02T17:00:01Z"
+    },
+    {
+      "actor": {
+        "id": "reviewer:priority-fixture",
+        "type": "human"
+      },
+      "after_hash": "sha256:null",
+      "before_hash": "sha256:null",
+      "caveats": [
+        "fixture only"
+      ],
+      "id": "vev_93d231d4da37eebd",
+      "kind": "actor.registration_activated",
+      "payload": {
+        "actor_id": "reviewer:priority-fixture",
+        "algorithm": "ed25519",
+        "anchor": {
+          "actor_registry_root": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+          "event_count": 1,
+          "event_log_root": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+          "git_commit": "2222222222222222222222222222222222222222",
+          "git_object_format": "sha1",
+          "git_tree": "3333333333333333333333333333333333333333"
+        },
+        "frontier_id": "vfr_0000000000000000",
+        "mode": "temporalize_existing",
+        "public_key": "1111111111111111111111111111111111111111111111111111111111111111",
+        "schema": "vela.actor-registration-boundary.v1"
+      },
+      "reason": "fixture: temporal actor registration is reducer-neutral",
+      "schema": "vela.event.v0.1",
+      "signature": "v1:66666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666",
+      "target": {
+        "id": "reviewer:priority-fixture",
+        "type": "actor"
+      },
+      "timestamp": "2026-05-02T17:00:02Z"
     }
   ],
   "expected_artifacts": [],
@@ -755,9 +792,10 @@
   "stats": {
     "artifacts": 0,
     "cascade_depth": 0,
-    "events": 2,
+    "events": 3,
     "findings": 8,
     "kinds_seen": {
+      "actor.registration_activated": 1,
       "statement.registered": 2
     }
   }

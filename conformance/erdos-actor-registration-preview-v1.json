@@ -1,0 +1,54 @@
+{
+  "schema": "vela.actor-registration-preview.evidence.v1",
+  "generated_at": "2026-07-16",
+  "source": {
+    "repository": "vela-science/erdos-frontier",
+    "checked_commit": "d0a2f56dfecf7027248403e43ba133e18e56b3c6",
+    "worktree_clean_before": true,
+    "worktree_clean_after": true
+  },
+  "candidate": {
+    "vela_baseline": "0.800.19",
+    "status": "local_unreleased_adr_0005_candidate",
+    "command": "vela actor activate . --anchor bba62e8d85393887f00caffe7c28d005a1786b3f --actor reviewer:will-blair --preview --json",
+    "key_read": false,
+    "frontier_mutation": false,
+    "git_mutation": false
+  },
+  "preview": {
+    "preview_root": "sha256:87c5a97b6d7944a6025334e24af40a73dd474402068b77cc0b1af92ec1005175",
+    "authority": "human_terminal_only",
+    "legacy_authentication": "none",
+    "counts": {
+      "anchored_unsigned": 81,
+      "anchored_signed": 131,
+      "post_anchor_unsigned": 0,
+      "post_anchor_signed": 1
+    },
+    "payload": {
+      "schema": "vela.actor-registration-boundary.v1",
+      "mode": "temporalize_existing",
+      "frontier_id": "vfr_0a25edabc16db143",
+      "actor_id": "reviewer:will-blair",
+      "public_key": "4892f93877e637b5f59af31d9ec6704814842fb278cacb0eb94704baef99455e",
+      "algorithm": "ed25519",
+      "anchor": {
+        "git_object_format": "sha1",
+        "git_commit": "bba62e8d85393887f00caffe7c28d005a1786b3f",
+        "git_tree": "2c5c5a6c688a274b40017321d920f258f1c70c04",
+        "event_log_root": "sha256:e16e57f2e39957ddc2fb529e1b715547c27935fa04730e3c78b4a997eb6f4678",
+        "event_count": 2185,
+        "actor_registry_root": "sha256:665f3e1c48f0a50fac949681c0af01bdd28de2991f2cdc5cc4cddbe69df6311b"
+      }
+    }
+  },
+  "expected_human_migration": {
+    "activation_events_appended": 1,
+    "anchored_event_files_changed": 0,
+    "legacy_informational_signals": 81,
+    "anchored_actor_signature_blockers": 0,
+    "post_anchor_event_id": "vev_27922b9c8dab0575",
+    "post_anchor_event_signature_required": true,
+    "unrelated_strict_blockers_unchanged": true
+  }
+}

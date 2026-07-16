@@ -519,7 +519,11 @@ function applyEvent(state: ReducerState, event: Event): void {
     kind === "frontier.observation_reviewed" ||
     kind === "correction_return.review" ||
     kind === "research_trace.review" ||
-    kind === "key.revoke"
+    kind === "key.revoke" ||
+    kind === "review.accepted" ||
+    kind === "review.rejected" ||
+    kind === "review.revision_requested" ||
+    kind === "actor.registration_activated"
   )
     return;
   // policy.auto_admitted (Phase 1A): deterministic machine-verified admission
