@@ -2138,6 +2138,10 @@ batches:
     assert_eq!(work["session"]["base_event_log_root"], expected_base);
     assert_eq!(work["claim"]["state_root_before"], expected_base);
     assert_eq!(
+        work["claim"]["publication"]["state"], "committed_local",
+        "strict post-work parity must cover the exact published Git delta: {work}"
+    );
+    assert_eq!(
         work["session"]["base_event_log_root"],
         work["claim"]["state_root_before"]
     );

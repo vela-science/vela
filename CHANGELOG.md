@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.800.15 — 2026-07-16 — Replay-equivalent work snapshots
+
+- Fixed the task-first `work` transaction so its in-memory candidate
+  recomputes derived project statistics before rendering `frontier.json` and
+  `vela.lock`. The signed `attempt.claimed` event, visible state, lock, proof,
+  Git commit, and a fresh replay now agree immediately after the claim.
+- Added a public regression that runs `work` and then
+  `vela check . --strict --json` without an intervening materialization.
+- This patch changes no event, Receipt, authority, signer, policy, or human
+  ceremony contract.
+
 ## v0.800.14 — 2026-07-15 — Task-first closure and inspectable decisions
 
 - Completed the ordinary producer chain through one supported Receipt v1
