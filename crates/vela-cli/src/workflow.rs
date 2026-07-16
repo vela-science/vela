@@ -300,6 +300,43 @@ struct EventTransactionBinding {
     preserve_existing_event_bytes: bool,
 }
 
+fn preserve_existing_event_bytes(
+    frontier: &Path,
+    original: &vela_protocol::project::Project,
+    candidate: &vela_protocol::project::Project,
+    managed: &mut vela_protocol::repo::ManagedFileSet,
+    operation_namespace: &str,
+) -> Result<(), String> {
+    for original_event in &original.events {
+        let candidate_event = candidate
+            .events
+            .iter()
+            .find(|event| event.id == original_event.id)
+            .ok_or_else(|| {
+                format!(
+                    "{operation_namespace} candidate removed existing event {}",
+                    original_event.id
+                )
+            })?;
+        if serde_json::to_value(original_event).map_err(|error| error.to_string())?
+            != serde_json::to_value(candidate_event).map_err(|error| error.to_string())?
+        {
+            return Err(format!(
+                "{operation_namespace} candidate changed existing event {}",
+                original_event.id
+            ));
+        }
+        let relative = format!(".vela/events/{}.json", original_event.id);
+        let bytes = std::fs::read(frontier.join(&relative)).map_err(|error| {
+            format!(
+                "{operation_namespace} cannot preserve existing event bytes at {relative}: {error}"
+            )
+        })?;
+        managed.writes.insert(relative, bytes);
+    }
+    Ok(())
+}
+
 fn transact_event_candidate_with_barrier<F>(
     frontier: &Path,
     barrier: crate::frontier_txn::FrontierRecoveryBarrier,
@@ -378,34 +415,13 @@ where
     );
     let mut managed = repo::render_vela_repo_files(frontier, candidate)?;
     if binding.preserve_existing_event_bytes {
-        for original_event in &original.events {
-            let candidate_event = candidate
-                .events
-                .iter()
-                .find(|event| event.id == original_event.id)
-                .ok_or_else(|| {
-                    format!(
-                        "{} candidate removed existing event {}",
-                        binding.operation_namespace, original_event.id
-                    )
-                })?;
-            if serde_json::to_value(original_event).map_err(|error| error.to_string())?
-                != serde_json::to_value(candidate_event).map_err(|error| error.to_string())?
-            {
-                return Err(format!(
-                    "{} candidate changed existing event {}",
-                    binding.operation_namespace, original_event.id
-                ));
-            }
-            let relative = format!(".vela/events/{}.json", original_event.id);
-            let bytes = std::fs::read(frontier.join(&relative)).map_err(|error| {
-                format!(
-                    "{} cannot preserve existing event bytes at {relative}: {error}",
-                    binding.operation_namespace
-                )
-            })?;
-            managed.writes.insert(relative, bytes);
-        }
+        preserve_existing_event_bytes(
+            frontier,
+            original,
+            candidate,
+            &mut managed,
+            binding.operation_namespace,
+        )?;
     }
     let writes = PlannedWrite::from_managed_files(managed).map_err(|error| error.to_string())?;
     let draft = DeltaDraft::prepare(frontier, writes).map_err(|error| error.to_string())?;
@@ -538,7 +554,7 @@ where
             result_event_id_field: "claim_event_id",
             result_timestamp_field: "claimed_at",
             publication_summary: "work",
-            preserve_existing_event_bytes: false,
+            preserve_existing_event_bytes: true,
         },
         before_commit,
     )
@@ -2260,9 +2276,10 @@ pub(crate) fn land(
         executor,
         operation_id.as_str(),
     )?;
+    let mut managed = repo::render_vela_repo_files(frontier, &candidate)?;
+    preserve_existing_event_bytes(frontier, &original, &candidate, &mut managed, "land")?;
     let mut writes =
-        PlannedWrite::from_managed_files(repo::render_vela_repo_files(frontier, &candidate)?)
-            .map_err(|error| error.to_string())?;
+        PlannedWrite::from_managed_files(managed).map_err(|error| error.to_string())?;
     writes.push(PlannedWrite::write(
         RepoPath::parse(&receipt_path).map_err(|error| error.to_string())?,
         WriteClass::PublicReview,

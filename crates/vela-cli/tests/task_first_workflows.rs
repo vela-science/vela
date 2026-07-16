@@ -505,6 +505,125 @@ fn temporal_actor_registration_command_previews_then_installs_one_signed_event()
     assert_success(&strict, "strict check after actor activation");
 }
 
+#[test]
+fn work_and_land_preserve_all_preexisting_event_bytes() {
+    use serde_json::json;
+    use vela_protocol::events::{
+        EVENT_SCHEMA, NULL_HASH, StateActor, StateEvent, StateTarget, compute_event_id,
+    };
+
+    let tmp = tempfile::tempdir().unwrap();
+    init_git_frontier(tmp.path());
+    let mut project = vela_protocol::repo::load_from_path(tmp.path()).unwrap();
+    let mut legacy = StateEvent {
+        schema: EVENT_SCHEMA.to_string(),
+        id: String::new(),
+        kind: "research_trace.review".into(),
+        target: StateTarget {
+            r#type: "frontier".to_string(),
+            id: project.frontier_id(),
+        },
+        actor: StateActor {
+            r#type: "human".to_string(),
+            id: "reviewer:legacy".to_string(),
+        },
+        timestamp: "2026-07-01T00:00:00Z".to_string(),
+        reason: "Immutable pre-registration history.".to_string(),
+        before_hash: NULL_HASH.to_string(),
+        after_hash: NULL_HASH.to_string(),
+        payload: json!({"fixture": "cold-use"}),
+        caveats: Vec::new(),
+        signature: None,
+    };
+    legacy.id = compute_event_id(&legacy);
+    project.events.push(legacy.clone());
+    vela_protocol::repo::save_to_path(tmp.path(), &project).unwrap();
+    let legacy_path = tmp
+        .path()
+        .join(".vela/events")
+        .join(format!("{}.json", legacy.id));
+    let mut explicit_null = serde_json::to_value(&legacy).unwrap();
+    explicit_null["signature"] = serde_json::Value::Null;
+    let legacy_bytes = format!(
+        "{}\n",
+        serde_json::to_string_pretty(&explicit_null).unwrap()
+    )
+    .into_bytes();
+    std::fs::write(&legacy_path, &legacy_bytes).unwrap();
+    std::fs::create_dir_all(tmp.path().join("artifacts")).unwrap();
+    std::fs::write(
+        tmp.path().join("artifacts/byte-preservation.json"),
+        br#"{"preserve":true}"#,
+    )
+    .unwrap();
+    assert_success(&git(tmp.path(), &["add", "-A"]), "stage byte fixture");
+    assert_success(
+        &git(tmp.path(), &["commit", "-qm", "freeze byte fixture"]),
+        "commit byte fixture",
+    );
+
+    let agent_key = "42".repeat(32);
+    let env = [("VELA_AGENT_KEY_HEX", agent_key.as_str())];
+    let work = run_with_env(
+        tmp.path(),
+        &[
+            "work",
+            "erdos:byte-preservation",
+            "--as",
+            "agent:t",
+            "--json",
+        ],
+        &env,
+    );
+    assert_success(&work, "open byte-preserving work session");
+    assert_eq!(
+        std::fs::read(&legacy_path).unwrap(),
+        legacy_bytes,
+        "work rewrote immutable legacy event bytes"
+    );
+    let after_work = std::fs::read_dir(tmp.path().join(".vela/events"))
+        .unwrap()
+        .map(|entry| {
+            let path = entry.unwrap().path();
+            (
+                path.file_name().unwrap().to_string_lossy().into_owned(),
+                std::fs::read(path).unwrap(),
+            )
+        })
+        .collect::<std::collections::BTreeMap<_, _>>();
+
+    let land = run_with_env(
+        tmp.path(),
+        &[
+            "land",
+            "--work",
+            "erdos:byte-preservation",
+            "--claim",
+            "The transaction preserves every preexisting event byte.",
+            "--type",
+            "computational",
+            "--replayability",
+            "exact",
+            "--artifact",
+            "artifacts/byte-preservation.json:witness",
+            "--caveat",
+            "Fixture evidence only.",
+            "--as",
+            "agent:t",
+            "--json",
+        ],
+        &env,
+    );
+    assert_success(&land, "land byte-preserving receipt");
+    for (name, bytes) in after_work {
+        assert_eq!(
+            std::fs::read(tmp.path().join(".vela/events").join(&name)).unwrap(),
+            bytes,
+            "land rewrote immutable event file {name}"
+        );
+    }
+}
+
 fn write_receipt(dir: &Path, filename: &str, claim: &str) {
     write_receipt_with_artifact(dir, filename, claim, "w.json", br#"{"witness":true}"#);
 }

@@ -662,11 +662,36 @@ pub fn render_vela_repo_files(dir: &Path, project: &Project) -> Result<ManagedFi
     }
     for event in &project.events {
         let path = managed_object_path("events", &event.id)?;
-        managed.insert(
-            path,
-            serde_json::to_vec_pretty(event)
-                .map_err(|e| format!("Failed to serialize state event {}: {e}", event.id))?,
-        )?;
+        let rendered = serde_json::to_vec_pretty(event)
+            .map_err(|e| format!("Failed to serialize state event {}: {e}", event.id))?;
+        let bytes = match std::fs::read(dir.join(&path)) {
+            Ok(existing) => {
+                let existing_event: StateEvent =
+                    serde_json::from_slice(&existing).map_err(|error| {
+                        format!(
+                            "Existing immutable event {} cannot be decoded: {error}",
+                            event.id
+                        )
+                    })?;
+                let existing_value =
+                    serde_json::to_value(&existing_event).map_err(|error| error.to_string())?;
+                let candidate_value =
+                    serde_json::to_value(event).map_err(|error| error.to_string())?;
+                if existing_value == candidate_value {
+                    existing
+                } else {
+                    rendered
+                }
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => rendered,
+            Err(error) => {
+                return Err(format!(
+                    "Failed to read existing immutable event {}: {error}",
+                    event.id
+                ));
+            }
+        };
+        managed.insert(path, bytes)?;
     }
     for proposal in &project.proposals {
         let path = managed_object_path("proposals", &proposal.id)?;
@@ -930,6 +955,77 @@ mod tests {
                 "stale path survived {relative}"
             );
         }
+    }
+
+    #[test]
+    fn managed_repo_render_preserves_unchanged_event_bytes() {
+        use crate::events::{
+            EVENT_SCHEMA, NULL_HASH, StateActor, StateEvent, StateTarget, compute_event_id,
+        };
+
+        let tmp = TempDir::new().unwrap();
+        let dir = tmp.path().join("immutable-event-render");
+        let mut original = make_project("immutable-event-render", Vec::new());
+        let mut event = StateEvent {
+            schema: EVENT_SCHEMA.to_string(),
+            id: String::new(),
+            kind: "research_trace.review".into(),
+            target: StateTarget {
+                r#type: "frontier".to_string(),
+                id: original.frontier_id(),
+            },
+            actor: StateActor {
+                r#type: "human".to_string(),
+                id: "reviewer:legacy".to_string(),
+            },
+            timestamp: "2026-07-01T00:00:00Z".to_string(),
+            reason: "Immutable legacy event.".to_string(),
+            before_hash: NULL_HASH.to_string(),
+            after_hash: NULL_HASH.to_string(),
+            payload: serde_json::json!({"fixture": true}),
+            caveats: Vec::new(),
+            signature: None,
+        };
+        event.id = compute_event_id(&event);
+        original.events.push(event.clone());
+        init_repo(&dir, &original).unwrap();
+
+        let event_path = dir.join(".vela/events").join(format!("{}.json", event.id));
+        let mut explicit_null = serde_json::to_value(&event).unwrap();
+        explicit_null["signature"] = serde_json::Value::Null;
+        let raw = format!(
+            "{}\n",
+            serde_json::to_string_pretty(&explicit_null).unwrap()
+        )
+        .into_bytes();
+        std::fs::write(&event_path, &raw).unwrap();
+
+        let mut next: Project =
+            serde_json::from_value(serde_json::to_value(&original).unwrap()).unwrap();
+        next.project.description = "unrelated derived-view update".to_string();
+        let rendered = render_vela_repo_files(&dir, &next).unwrap();
+        assert_eq!(
+            rendered
+                .writes
+                .get(&format!(".vela/events/{}.json", event.id))
+                .unwrap(),
+            &raw
+        );
+
+        next.events
+            .iter_mut()
+            .find(|candidate| candidate.id == event.id)
+            .unwrap()
+            .reason = "Attempted historical rewrite.".to_string();
+        let rendered = render_vela_repo_files(&dir, &next).unwrap();
+        assert_ne!(
+            rendered
+                .writes
+                .get(&format!(".vela/events/{}.json", event.id))
+                .unwrap(),
+            &raw,
+            "an explicitly changed event candidate must render its new bytes"
+        );
     }
 
     /// attempts / transfers / endorsements / contradictions have reducer

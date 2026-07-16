@@ -1,5 +1,23 @@
 # Changelog
 
+## v0.800.22 — 2026-07-16 — Immutable event transactions
+
+- Fixed repository rendering so an existing event file is retained
+  byte-for-byte whenever its decoded event is unchanged. This preserves legacy
+  JSON encodings across policy, decision, maintenance, and ordinary derived
+  view writes.
+- Extended the append-only transaction guard from actor activation to `work`
+  and `land`: those commands now fail closed if their candidate removes or
+  semantically changes any preexisting event. Deliberate valid signature
+  acquisition remains representable through its explicit migration path.
+- Added protocol and real CLI regressions proving `work` and deferred `land`
+  preserve all preexisting event bytes. The defect was found by the first valid
+  direct-Codex cold-use producer cell, which stopped safely after observing
+  that `v0.800.21` had reserialized three fixture events.
+- This patch changes no event identity, signature algorithm, reducer result,
+  actor-registration semantics, policy route, accepted-state authority, or
+  human key-custody boundary.
+
 ## v0.800.21 — 2026-07-16 — Byte-preserving actor activation
 
 - Fixed the temporal actor-registration ceremony so it preserves every
