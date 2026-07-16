@@ -297,6 +297,7 @@ struct EventTransactionBinding {
     result_event_id_field: &'static str,
     result_timestamp_field: &'static str,
     publication_summary: &'static str,
+    preserve_existing_event_bytes: bool,
 }
 
 fn transact_event_candidate_with_barrier<F>(
@@ -375,9 +376,38 @@ where
         binding.operation_namespace,
         request_root.as_str().as_bytes(),
     );
-    let writes =
-        PlannedWrite::from_managed_files(repo::render_vela_repo_files(frontier, candidate)?)
-            .map_err(|error| error.to_string())?;
+    let mut managed = repo::render_vela_repo_files(frontier, candidate)?;
+    if binding.preserve_existing_event_bytes {
+        for original_event in &original.events {
+            let candidate_event = candidate
+                .events
+                .iter()
+                .find(|event| event.id == original_event.id)
+                .ok_or_else(|| {
+                    format!(
+                        "{} candidate removed existing event {}",
+                        binding.operation_namespace, original_event.id
+                    )
+                })?;
+            if serde_json::to_value(original_event).map_err(|error| error.to_string())?
+                != serde_json::to_value(candidate_event).map_err(|error| error.to_string())?
+            {
+                return Err(format!(
+                    "{} candidate changed existing event {}",
+                    binding.operation_namespace, original_event.id
+                ));
+            }
+            let relative = format!(".vela/events/{}.json", original_event.id);
+            let bytes = std::fs::read(frontier.join(&relative)).map_err(|error| {
+                format!(
+                    "{} cannot preserve existing event bytes at {relative}: {error}",
+                    binding.operation_namespace
+                )
+            })?;
+            managed.writes.insert(relative, bytes);
+        }
+    }
+    let writes = PlannedWrite::from_managed_files(managed).map_err(|error| error.to_string())?;
     let draft = DeltaDraft::prepare(frontier, writes).map_err(|error| error.to_string())?;
     let layout = vela_protocol::canonical::to_canonical_bytes(&json!({
         "schema": "vela.frontier-layout.internal.v1",
@@ -508,6 +538,7 @@ where
             result_event_id_field: "claim_event_id",
             result_timestamp_field: "claimed_at",
             publication_summary: "work",
+            preserve_existing_event_bytes: false,
         },
         before_commit,
     )
@@ -554,6 +585,7 @@ where
             result_event_id_field: "activation_event_id",
             result_timestamp_field: "activated_at",
             publication_summary: "activate actor registration",
+            preserve_existing_event_bytes: true,
         },
         || Ok(()),
     )

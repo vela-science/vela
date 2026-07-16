@@ -309,6 +309,30 @@ fn temporal_actor_registration_command_previews_then_installs_one_signed_event()
     project.events.push(legacy);
     let before = project.events.len();
     vela_protocol::repo::save_to_path(tmp.path(), &project).unwrap();
+    let legacy_path = tmp
+        .path()
+        .join(".vela/events")
+        .join(format!("{}.json", project.events.last().unwrap().id));
+    let mut explicit_null = serde_json::to_value(project.events.last().unwrap()).unwrap();
+    explicit_null["signature"] = serde_json::Value::Null;
+    std::fs::write(
+        &legacy_path,
+        format!(
+            "{}\n",
+            serde_json::to_string_pretty(&explicit_null).unwrap()
+        ),
+    )
+    .unwrap();
+    let before_event_bytes = std::fs::read_dir(tmp.path().join(".vela/events"))
+        .unwrap()
+        .map(|entry| {
+            let path = entry.unwrap().path();
+            (
+                path.file_name().unwrap().to_string_lossy().into_owned(),
+                std::fs::read(path).unwrap(),
+            )
+        })
+        .collect::<std::collections::BTreeMap<_, _>>();
     assert_success(&git(tmp.path(), &["add", "-A"]), "stage anchor");
     assert_success(
         &git(tmp.path(), &["commit", "-qm", "temporal activation anchor"]),
@@ -459,6 +483,13 @@ fn temporal_actor_registration_command_previews_then_installs_one_signed_event()
     assert_eq!(activated_json["command"], "actor.activate");
     let reloaded = vela_protocol::repo::load_from_path(tmp.path()).unwrap();
     assert_eq!(reloaded.events.len(), before + 1);
+    for (name, bytes) in &before_event_bytes {
+        assert_eq!(
+            std::fs::read(tmp.path().join(".vela/events").join(name)).unwrap(),
+            *bytes,
+            "actor activation rewrote immutable event file {name}"
+        );
+    }
     let activation = reloaded
         .events
         .iter()

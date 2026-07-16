@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.800.21 — 2026-07-16 — Byte-preserving actor activation
+
+- Fixed the temporal actor-registration ceremony so it preserves every
+  preexisting event file byte-for-byte. The recoverable transaction now rejects
+  any removal or semantic mutation of an existing event and installs only the
+  new signed activation event plus its derived projections.
+- Added a CLI regression with deliberately noncanonical legacy bytes, including
+  an explicit `signature: null` and trailing newline, and proved those bytes
+  survive the real terminal ceremony unchanged.
+- The verifier semantics, activation payload, event identity, authority rule,
+  and scientific state are unchanged from `v0.800.20`. This patch closes the
+  immutable-history migration contract before cold-use registration.
+
 ## v0.800.20 — 2026-07-16 — Temporal actor registration
 
 - Added the signed, audit-only `actor.registration_activated` event and closed

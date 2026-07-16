@@ -7,7 +7,7 @@
   `5a270f8b5ec038ade7c1274dc64a33dd99117851`.
 - Authority: this ADR proposes an engineering rule. It is not a scientific
   event, a registry mutation, a human decision, or permission to read a key.
-- Implementation state: released in Vela `v0.800.20` at commit
+- Implementation state: verifier semantics released in Vela `v0.800.20` at commit
   `06ca1712573d735263c869fb20c7a3c4b54ce345`. Public conformance run
   [29519883804](https://github.com/vela-science/vela/actions/runs/29519883804)
   and immutable two-platform release run
@@ -17,7 +17,10 @@
   `d246aa29519f9f2a5d9a6b8b40d3cbe64334fe53d0d64556d03efba99ef1ae3e`
   and reports `vela 0.800.20`; the Linux x86-64 binary has SHA-256
   `aae2e6a38497f4911ac131fb44265769f452dc191a5dadf54f4025c9b3f19d9c`.
-  The real Erdős activation ceremony and cold-use benchmark remain undone.
+  Cold-use fixture registration then found that the `v0.800.20` ceremony
+  reserialized existing event files. The `v0.800.21` release candidate rejects
+  existing-event mutation and preserves their raw bytes. The real Erdős
+  activation ceremony and cold-use benchmark remain undone.
 
 ## Decision summary
 
@@ -515,9 +518,12 @@ python3 conformance/verify.py
 External Lean, Diderot, live-network checks, provider benchmarks, and broad
 release suites are outside this ADR's focused implementation gate.
 
-The release boundary additionally passed the repository's prelaunch surface,
-format, workspace clippy, core-surface, locked release-build, hosted
-conformance, and immutable release checks. These release checks add software
+The `v0.800.20` release boundary additionally passed the repository's prelaunch
+surface, format, workspace clippy, core-surface, locked release-build, hosted
+conformance, and immutable release checks. Cold-use fixture freezing supplied
+an additional byte-level migration check and exposed a writer defect those
+semantic checks did not cover. `v0.800.21` must pass the same public release
+boundary before fixture registration. These release checks add software
 publication evidence; they do not substitute for the real activation or
 cold-use gates.
 

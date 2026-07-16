@@ -1,9 +1,12 @@
 # ADR 0005 cold-use benchmark plan
 
 - Status: Non-normative draft, 2026-07-16.
-- Execution state: ready for fixture registration. ADR 0005 is accepted and
-  released in Vela `v0.800.20`; its focused conformance and public release
-  workflows passed. No benchmark session has run.
+- Execution state: blocked on corrective release. ADR 0005 verifier semantics
+  shipped in Vela `v0.800.20`, but the first clean fixture freeze proved that
+  its activation ceremony reserialized preexisting event files. The
+  `v0.800.21` candidate preserves those raw bytes and must complete focused
+  conformance and public release before registration. No benchmark session has
+  run.
 - Credit boundary: Codex sessions provide first-party interface diagnostics.
   Real independent producers and reviewers provide cold-use evidence. Neither
   group creates scientific acceptance by completing the benchmark.
