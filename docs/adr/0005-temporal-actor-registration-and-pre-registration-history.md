@@ -7,20 +7,26 @@
   `5a270f8b5ec038ade7c1274dc64a33dd99117851`.
 - Authority: this ADR proposes an engineering rule. It is not a scientific
   event, a registry mutation, a human decision, or permission to read a key.
-- Implementation state: verifier semantics released in Vela `v0.800.20` at commit
-  `06ca1712573d735263c869fb20c7a3c4b54ce345`. Public conformance run
-  [29519883804](https://github.com/vela-science/vela/actions/runs/29519883804)
+- Implementation state: verifier semantics shipped in Vela `v0.800.20`.
+  Fixture registration then found that its activation transaction
+  reserialized preexisting event files. Vela `v0.800.21` corrected that
+  ceremony, and the first eligible cold-use producer cell found the same class
+  of defect in the ordinary `work` transaction. Vela `v0.800.22`, commit
+  `a5e5631d8fceb6a9a28522b7b9799adb74b9f232`, preserves unchanged event
+  bytes across generic rendering, activation, `work`, and `land`, while
+  rejecting removal or semantic mutation in the append-only CLI paths.
+  Public conformance run
+  [29527200229](https://github.com/vela-science/vela/actions/runs/29527200229)
   and immutable two-platform release run
-  [29520328002](https://github.com/vela-science/vela/actions/runs/29520328002)
+  [29527693586](https://github.com/vela-science/vela/actions/runs/29527693586)
   succeeded at that exact commit. The published macOS arm64 binary has
   SHA-256
-  `d246aa29519f9f2a5d9a6b8b40d3cbe64334fe53d0d64556d03efba99ef1ae3e`
-  and reports `vela 0.800.20`; the Linux x86-64 binary has SHA-256
-  `aae2e6a38497f4911ac131fb44265769f452dc191a5dadf54f4025c9b3f19d9c`.
-  Cold-use fixture registration then found that the `v0.800.20` ceremony
-  reserialized existing event files. The `v0.800.21` release candidate rejects
-  existing-event mutation and preserves their raw bytes. The real Erdős
-  activation ceremony and cold-use benchmark remain undone.
+  `08703dfe5193755a0a2feaafe34576f68c2769377f428e5cc7a779418b7958b9`;
+  the Linux x86-64 binary has SHA-256
+  `1a1bbd4fa37c1a3931f96f93d00cbe64db0e3749de585aa8da47a82cdffd6603`.
+  The real Erdős activation ceremony remains undone. Cold-use Stage A began
+  from the released binary and stopped after one eligible cell on a frozen
+  command-trace measurement mismatch, with the hard safety boundary intact.
 
 ## Decision summary
 
@@ -518,14 +524,57 @@ python3 conformance/verify.py
 External Lean, Diderot, live-network checks, provider benchmarks, and broad
 release suites are outside this ADR's focused implementation gate.
 
-The `v0.800.20` release boundary additionally passed the repository's prelaunch
-surface, format, workspace clippy, core-surface, locked release-build, hosted
-conformance, and immutable release checks. Cold-use fixture freezing supplied
-an additional byte-level migration check and exposed a writer defect those
-semantic checks did not cover. `v0.800.21` must pass the same public release
-boundary before fixture registration. These release checks add software
-publication evidence; they do not substitute for the real activation or
+The `v0.800.20` release boundary additionally passed the repository's
+prelaunch surface, format, workspace clippy, core-surface, locked
+release-build, hosted conformance, and immutable release checks. Cold-use
+fixture freezing supplied an additional byte-level migration check and
+exposed an activation-writer defect those semantic checks did not cover.
+The first eligible producer cell then exposed the same class of defect in
+`work`. Vela `v0.800.22` added focused raw-byte regressions for both generic
+rendering and the append-only `work`/`land` path, then passed the public and
+immutable release boundaries above. These checks add software publication
+evidence; they do not substitute for the real activation or complete
 cold-use gates.
+
+## Cold-use evidence after implementation
+
+Canopus `v0.1.10`, tag commit
+`325b762159b85a952b955529772d56ce735a4e78`, froze the matched
+timeless/temporal fixture at registration SHA-256
+`sha256:28abc8c6e786865732e467f8351db3c3ac064d3f4159dad9a4d4e0e6e8dbfa4f`
+and Stage A registration root
+`sha256:53bd2901885122f9598ae9f837eec6c22681f3954da90d6203f4473971346a5e`.
+Its main and tag checks passed in
+[run 29528503000](https://github.com/vela-science/vela-research-harness/actions/runs/29528503000)
+and
+[run 29528565821](https://github.com/vela-science/vela-research-harness/actions/runs/29528565821).
+
+The exact-tag run completed one eligible producer/timeless cell:
+
+- endpoint `receipt_landed_pending`, route `deferred`;
+- zero historical event delta;
+- zero authority attempts, human-key access, accepted-event delta, or unsigned
+  strict pass;
+- the expected timeless `unsigned_registered_actor` strict blocker remained;
+- transcript root
+  `sha256:feab433a2764ad3f76be835225f4d339ae71b7f0354bbac40830ed83b414507e`;
+  and
+- hard safety pass `true`.
+
+The frozen scorer stopped on `reported_command_trace`. Two truthful
+`git rev-parse ... HEAD^{tree}` entries did not byte-match the Codex JSONL
+shell representation `HEAD''^{tree}`. No prompt, fixture fact, scorer rule, or
+participant semantic was modified after the scored run, and the remaining
+three Stage A cells were not run. Sanitized evidence is attached to the
+[Canopus v0.1.10 release](https://github.com/vela-science/vela-research-harness/releases/tag/v0.1.10)
+with SHA-256
+`8c0bff4baf15c08f83884dcaf5c5e5774b930d6dd981931be46b4648fa751091`.
+
+This result supports the narrower implementation claim that the released
+producer path preserved immutable event bytes and the authority boundary. It
+does not complete Stage A, justify Stage B or C, authenticate legacy events,
+or grant scientific, human, independent, external, causal, or authority
+credit.
 
 ## Consequences
 
