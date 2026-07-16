@@ -16,6 +16,26 @@ Hard boundaries:
 - no truth-bearing dependency wire object, status reducer, or automatic graph;
 - no benchmark or foundation claim from internal fixture results.
 
+## First-party authority-free rehearsal
+
+Registration
+`sha256:c9afabdac6ec868f286583a995e27cdad2055c95b655bad6f91cdbcc30d11482`
+now covers the complete key-free graph handoff. It generated and LRAT-verified
+the registered parent and substantive Mycielski child, passed two graph
+verifier implementations, used released Vela `v0.800.22` to produce an
+explicitly deferred Receipt with zero accepted-event delta,
+replayed all 54 dependency-standing vectors with Reader C parity, and passed
+13 of 13 standards-wrapper vectors.
+
+The eight scientific artifacts and all pending-route, correction, standards,
+and authority invariants reproduced in a second output directory. See
+`results/first-party-handoff-gap-report-2026-07-16.md` for roots, timing, the
+two corrected controller defects, and the evidence-based decision not to
+implement ADR 0007, 0008, or 0009.
+
+This is internal engineering evidence. Independent recruitment is paused; the
+frozen packet below remains audit material rather than active execution work.
+
 ## ADR 0006 independent packet
 
 `registration/independent-handoff-v1.json` binds released Vela `v0.800.22`,

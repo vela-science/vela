@@ -175,3 +175,24 @@ Classify the result:
 ADR 0007 through ADR 0009 remain Proposed until this experiment selects them.
 Hub, Atlas, Canopus, Git publication, or a passing first-party fixture cannot
 substitute for the required participants or human decision.
+
+## First-party rehearsal evidence
+
+The authority-free rehearsal at registration root
+`sha256:c9afabdac6ec868f286583a995e27cdad2055c95b655bad6f91cdbcc30d11482`
+completed both graph generations, two verifier paths, SAT-to-LRAT evidence, a
+released-Vela deferred Receipt with zero accepted-event delta, the substantive
+child, 54 correction and continuity vectors with Reader C parity, and 13
+standards-wrapper vectors. A clean second output run reproduced all eight
+scientific artifact roots and every registered pending-route and standing
+invariant.
+
+The rehearsal reproduced and corrected two controller path defects. It did not
+reproduce a claim-identity, checkpoint-continuity, or dependency-standing
+protocol gap. ADR 0007 through ADR 0009 therefore remain unimplemented.
+
+This result does not satisfy this ADR's decision rule. The authority profile
+was an explicitly simulated internal fixture, no human signed, and no
+participant was independent. The exact measurements and gap classifications
+are in
+`research/verifiable-composition/results/first-party-handoff-gap-report-2026-07-16.md`.
