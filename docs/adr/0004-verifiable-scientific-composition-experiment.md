@@ -21,10 +21,11 @@
   Phase 1A completed as an internal fixture. Its registered ablation
   found one evidence-availability gap: the signed event binds a DecisionPlan
   root, but released decisions do not retain the corresponding canonical
-  preimage. Implementation commit
-  `fc6a529b92889afa51e82af1105d29c40b9bb485` contains the narrow fix for the
-  `v0.800.14` release candidate. It is not yet released evidence, outside-use
-  evidence, or a dependency verdict.
+  preimage. Exact implementation commit
+  `e083ffd05ba80b3e9ad06c4fa3b377a2e5ac75dc` contains the narrow fix and
+  semantic-event signature hardening for the `v0.800.14` release candidate.
+  It is not yet released evidence, outside-use evidence, or a dependency
+  verdict.
 - Scope: exact cross-frontier composition, later-root correction handling, and
   the smallest public contract that independent producers and consumers might
   need.
@@ -91,7 +92,7 @@ experiment or promote a primitive by analogy.
 | Canonical exact-checkout reader | **PROVED — INTERNAL** | exact Git/tree/replay/proof/view/lock roots agree for the ordinary Vela-produced fixture under bounded offline execution |
 | Read-only named-decision inspector | **PROVED — LOCAL** | 29 registered Rust/Python classifications agree, including invalid applied-event signatures, and 10 focused Rust tests pass; the pure API has no path, write, socket, clock, registry, or key parameter |
 | DecisionPlan-preimage ablation | **PROVED — INTERNAL** | root-only returns `unresolvable:decision_preimage_unavailable`; retained preimage returns `verified:decision_evidence_bound`; event and replay roots remain equal |
-| Root-keyed DecisionPlan evidence retention | **PROVED — LOCAL** | exact implementation commit `fc6a529b92889afa51e82af1105d29c40b9bb485` writes the canonical preimage as removable `CanonicalEvidence` in the decision transaction; focused tests bind bytes/root and prove deletion leaves replay and signed events unchanged |
+| Root-keyed DecisionPlan evidence retention | **PROVED — LOCAL** | exact implementation commit `e083ffd05ba80b3e9ad06c4fa3b377a2e5ac75dc` writes the canonical preimage as removable `CanonicalEvidence`, verifies every matched semantic-event signature, and proves deletion leaves replay and signed events unchanged |
 | Public release of the retained-preimage seam | **OPEN — RELEASE** | no release claim until `v0.800.14` is versioned, committed, tagged, published, and verified at its exact commit |
 | Git/DSSE/in-toto same-information baseline | **IMPLEMENTING** | the simpler standards profile is allowed to win at equal semantics |
 | First-party resolver, CI, and context projections | **IMPLEMENTING** | all consume one exact tuple, remain removable, and add no authority object |

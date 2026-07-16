@@ -1,5 +1,31 @@
 # Changelog
 
+## v0.800.14 — 2026-07-15 — Task-first closure and inspectable decisions
+
+- Completed the ordinary producer chain through one supported Receipt v1
+  surface. Scientific-chain assertions now have bounded typed authoring,
+  flag/file canonical-byte parity, exact retry identity, and the same
+  structured landing result across CLI and MCP, including a nullable typed
+  `original_route` for exact retries.
+- Made `vela work` and signed zero-TTL lease release publish their exact Git
+  deltas through the existing recoverable publication path. A clean-clone
+  training frontier now proves `next -> work -> reproduce -> land`, Deferred
+  routing, zero accepted-state delta, and replay from retained artifacts.
+- Completed the Decision Brief facet inventory and finite DecisionPlan batch
+  matrix. Mixed decisions remain coherent, high-risk items remain isolated,
+  and every supported read transport exposes the same bounded review facts
+  without adding model judgment or authority.
+- Retained each new decision's canonical seven-field DecisionPlan preimage at
+  its root-keyed content-addressed evidence path in the same recoverable
+  transaction as the decision. A pure named-decision inspector and registered
+  adversarial vectors prove exact binding, including every matched semantic
+  event's historical reviewer signature, and prove the evidence remains
+  non-authoritative: deleting it changes neither replay nor signed events.
+- This release adds no scientific event, Receipt family, signer, policy rule,
+  dependency object, or automatic truth propagation. Its fixture and local
+  engineering evidence do not establish a human ceremony, independent
+  adoption, outside interoperability, or a new scientific foundation.
+
 ## v0.800.13 — 2026-07-15 — Evidence closure and composition probe
 
 - Froze the reviewed pre-ADR 0003 canonical `.vela` Git tree, every path and

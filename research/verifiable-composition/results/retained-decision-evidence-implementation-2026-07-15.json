@@ -5,9 +5,9 @@
   "status": "release_candidate",
   "target_release": "v0.800.14",
   "source_revision": {
-    "state": "release_candidate_hardening_after_base_commit",
+    "state": "exact_implementation_commit",
     "base_commit": "fc6a529b92889afa51e82af1105d29c40b9bb485",
-    "commit": null,
+    "commit": "e083ffd05ba80b3e9ad06c4fa3b377a2e5ac75dc",
     "release_evidence": false
   },
   "registered_basis": {
@@ -63,7 +63,7 @@
     "deletion changes neither reducer replay, event-log identity, event bytes, nor signature verification"
   ],
   "limitations": [
-    "the retention implementation base is committed, but the signature-hardening closeout and target release are not yet committed, tagged, published, or publicly verified",
+    "the implementation and signature hardening are committed, but the target release is not yet tagged, published, or publicly verified",
     "released v0.800.13 and older decisions are not backfilled",
     "the pure inspector still requires caller-supplied bytes and exactly one answer",
     "no public path-discovery, batch-inspection, or prune command exists",
