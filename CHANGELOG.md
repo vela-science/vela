@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.800.19 — 2026-07-16 — Reload-stable policy retirement
+
+- Kept legacy-policy retirement replay-stable by recomputing project
+  statistics without re-materializing removed source associations during the
+  governance-only event. A shared-source regression now proves that a signed
+  retirement remains byte-stable after reload.
+- Corrected the reusable GitHub Action and installation examples to pin the
+  current release. `v0.800.18` published valid binaries, but its conformance
+  run exposed the stale `v0.800.17` action example after publication.
+- This patch changes no scientific state, authority rule, signer boundary,
+  event schema, Receipt contract, or verifier semantics.
+
 ## v0.800.17 — 2026-07-16 — Bounded composition profiles
 
 - Completed ADR 0004's removable Phase 1B reference profiles around one exact
