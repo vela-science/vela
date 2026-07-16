@@ -118,7 +118,10 @@ next -> work -> land -> sign
 
 - `vela next` — the offer: ranked open targets with the compounding
   payload pre-loaded (premises you may build on, banked routes, prior
-  attempts, dead channels). A frontier may add a rich campaign target with
+  attempts, dead channels). A large atlas may expose a derived, hash-pinned
+  [`targets.json`](TARGET_INDEX.md) catalogue; `next` reads the bounded index,
+  while `work` verifies and loads only the selected packet. A frontier may
+  also add a rich campaign target with
   campaign-declared source and verifier coordinates. Those coordinates are
   advisory coordination, not a source-integrity or verifier verdict. Vela
   replaces any supplied fixed base and authority-shaped fields with the live

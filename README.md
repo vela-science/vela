@@ -109,8 +109,8 @@ Or install a prebuilt binary on Apple Silicon macOS or Linux x86_64. Other
 platforms must build from source:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.800.13/install.sh \
-  | VELA_VERSION=v0.800.13 bash
+curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.800.16/install.sh \
+  | VELA_VERSION=v0.800.16 bash
 ```
 
 ## The working loop
@@ -131,6 +131,9 @@ vela sign                       # key-holding human only
 
 An agent may land; only a key-holding human signs. Failed and negative work can
 be retained as scoped receipts instead of disappearing from the next briefing.
+Large frontiers can expose every problem through the derived, hash-pinned
+[`targets.json` contract](docs/TARGET_INDEX.md); the catalogue is a removable
+work projection, not a second truth store.
 
 The Rust reducer is the reference implementation; the repository-local Python
 reader tracks its declared subset against the conformance vectors in

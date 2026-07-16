@@ -8,10 +8,9 @@
 //! - **review** — undecided packs and loose pending proposals: the
 //!   human's decisions, listed first because a decision unblocks
 //!   everything behind it.
-//! - **attack** — open campaign seeds (`campaign.yaml`, when the
-//!   frontier carries one): problems in non-terminal batches with no
-//!   live lease and no landed statement finding. Batch order is kept —
-//!   the file IS the curated ranking.
+//! - **attack** — open entries from a derived, hash-pinned `targets.json`
+//!   catalogue and open campaign seeds (`campaign.yaml`, when present).
+//!   Neither projection is authority; both only prepare a work target.
 //! - **verify** — accepted findings the gate still holds at
 //!   `needs_verification`: the honest accepted-but-unverified gap,
 //!   closest-to-the-bar first.
@@ -20,10 +19,11 @@
 //! and claiming a target still goes through the lease tool.
 
 use std::io::Read;
-use std::path::Path;
+use std::path::{Component, Path};
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
+use sha2::{Digest, Sha256};
 use vela_protocol::project::Project;
 use vela_protocol::verifier_attachment::{GateStatus, claim_digest, derive_gate_status};
 
@@ -50,7 +50,54 @@ const CAMPAIGN_YAML_MAX_BYTES: u64 = 1024 * 1024;
 const CAMPAIGN_TASK_MAX_BYTES: usize = 256 * 1024;
 const CAMPAIGN_MAX_BATCHES: usize = 4096;
 const CAMPAIGN_MAX_SEEDS: usize = 16_384;
+const TARGET_INDEX_JSON_MAX_BYTES: u64 = 4 * 1024 * 1024;
+const TARGET_PACKET_MAX_BYTES: u64 = 1024 * 1024;
+const TARGET_INDEX_MAX_TARGETS: usize = 16_384;
+const TARGET_INDEX_MAX_LABELS: usize = 64;
 pub const EXTERNAL_TARGET_ID_MAX_BYTES: usize = 256;
+
+#[derive(Debug, Clone, Deserialize)]
+struct TargetIndex {
+    schema: String,
+    frontier_id: String,
+    as_of: TargetIndexAsOf,
+    targets: Vec<TargetIndexEntry>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+struct TargetIndexAsOf {
+    snapshot_hash: String,
+    event_log_hash: String,
+    proposal_state_hash: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct TargetIndexEntry {
+    id: String,
+    title: String,
+    why: String,
+    state: String,
+    rank: u64,
+    objective: String,
+    #[serde(default)]
+    labels: Vec<String>,
+    packet: TargetPacketRef,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+struct TargetPacketRef {
+    path: String,
+    sha256: String,
+    schema: String,
+}
+
+#[derive(Debug, Clone)]
+struct LoadedTargetIndex {
+    sha256: String,
+    stale_against_loaded_frontier: bool,
+    loaded_event_log_root: String,
+    index: TargetIndex,
+}
 
 #[derive(Debug, Clone)]
 struct CampaignSeed {
@@ -61,6 +108,322 @@ struct CampaignSeed {
     title: Option<String>,
     why: Option<String>,
     task: Option<Value>,
+}
+
+fn valid_sha256(value: &str) -> bool {
+    value.strip_prefix("sha256:").is_some_and(|digest| {
+        digest.len() == 64 && digest.bytes().all(|byte| byte.is_ascii_hexdigit())
+    })
+}
+
+fn bounded_text(value: &str, field: &str, max: usize) -> Result<(), String> {
+    if value.trim().is_empty() || value.len() > max || value.chars().any(char::is_control) {
+        return Err(format!(
+            "target index {field} must be non-empty, at most {max} bytes, and free of control characters"
+        ));
+    }
+    Ok(())
+}
+
+fn read_regular_file(path: &Path, max_bytes: u64, label: &str) -> Result<Vec<u8>, String> {
+    let metadata = std::fs::symlink_metadata(path)
+        .map_err(|error| format!("inspect {label} {}: {error}", path.display()))?;
+    if metadata.file_type().is_symlink() || !metadata.is_file() {
+        return Err(format!(
+            "{label} must be a regular non-symlink file: {}",
+            path.display()
+        ));
+    }
+    if metadata.len() > max_bytes {
+        return Err(format!(
+            "{label} {} exceeds the {max_bytes}-byte limit",
+            path.display()
+        ));
+    }
+    let file = std::fs::File::open(path)
+        .map_err(|error| format!("open {label} {}: {error}", path.display()))?;
+    let opened = file
+        .metadata()
+        .map_err(|error| format!("inspect open {label} {}: {error}", path.display()))?;
+    if !opened.is_file() || opened.len() > max_bytes {
+        return Err(format!(
+            "{label} must remain a regular file within the {max_bytes}-byte limit: {}",
+            path.display()
+        ));
+    }
+    if !same_file_identity(&metadata, &opened) {
+        return Err(format!(
+            "{label} changed while it was being opened: {}",
+            path.display()
+        ));
+    }
+    let mut bytes = Vec::new();
+    file.take(max_bytes + 1)
+        .read_to_end(&mut bytes)
+        .map_err(|error| format!("read {label} {}: {error}", path.display()))?;
+    if bytes.len() as u64 > max_bytes {
+        return Err(format!(
+            "{label} {} exceeds the {max_bytes}-byte limit",
+            path.display()
+        ));
+    }
+    let named = std::fs::symlink_metadata(path)
+        .map_err(|error| format!("reinspect {label} {}: {error}", path.display()))?;
+    if named.file_type().is_symlink() || !named.is_file() || !same_file_identity(&opened, &named) {
+        return Err(format!(
+            "{label} changed while it was being read: {}",
+            path.display()
+        ));
+    }
+    Ok(bytes)
+}
+
+fn validate_target_packet_relative_path(relative: &str) -> Result<&Path, String> {
+    bounded_text(relative, "packet.path", 1024)?;
+    let relative_path = Path::new(relative);
+    if relative_path.is_absolute()
+        || relative_path
+            .components()
+            .any(|component| !matches!(component, Component::Normal(_)))
+    {
+        return Err(format!(
+            "target packet path must be a normalized frontier-relative path: {relative:?}"
+        ));
+    }
+    Ok(relative_path)
+}
+
+fn target_packet_path(dir: &Path, relative: &str) -> Result<std::path::PathBuf, String> {
+    let relative_path = validate_target_packet_relative_path(relative)?;
+    let mut cursor = dir.to_path_buf();
+    for component in relative_path.components() {
+        let Component::Normal(component) = component else {
+            unreachable!("relative path was validated above");
+        };
+        cursor.push(component);
+        let metadata = std::fs::symlink_metadata(&cursor)
+            .map_err(|error| format!("inspect target packet path {}: {error}", cursor.display()))?;
+        if metadata.file_type().is_symlink() {
+            return Err(format!(
+                "target packet path must not contain symlinks: {}",
+                cursor.display()
+            ));
+        }
+    }
+    let root = std::fs::canonicalize(dir)
+        .map_err(|error| format!("resolve frontier directory {}: {error}", dir.display()))?;
+    let candidate = dir.join(relative_path);
+    let resolved = std::fs::canonicalize(&candidate)
+        .map_err(|error| format!("resolve target packet {}: {error}", candidate.display()))?;
+    if !resolved.starts_with(&root) {
+        return Err(format!(
+            "target packet escapes the frontier: {}",
+            candidate.display()
+        ));
+    }
+    Ok(candidate)
+}
+
+fn load_target_index(project: &Project, dir: &Path) -> Result<Option<LoadedTargetIndex>, String> {
+    let path = dir.join("targets.json");
+    if !path.exists() {
+        return Ok(None);
+    }
+    let bytes = read_regular_file(&path, TARGET_INDEX_JSON_MAX_BYTES, "target index")?;
+    let index: TargetIndex = serde_json::from_slice(&bytes)
+        .map_err(|error| format!("parse target index {}: {error}", path.display()))?;
+    if index.schema != "vela.target-index.v1" {
+        return Err(format!(
+            "target index has unsupported schema {:?}",
+            index.schema
+        ));
+    }
+    if index.frontier_id != project.frontier_id() {
+        return Err(format!(
+            "target index frontier {:?} differs from loaded frontier {:?}",
+            index.frontier_id,
+            project.frontier_id()
+        ));
+    }
+    for (field, digest) in [
+        ("as_of.snapshot_hash", index.as_of.snapshot_hash.as_str()),
+        ("as_of.event_log_hash", index.as_of.event_log_hash.as_str()),
+        (
+            "as_of.proposal_state_hash",
+            index.as_of.proposal_state_hash.as_str(),
+        ),
+    ] {
+        if !valid_sha256(digest) {
+            return Err(format!("target index {field} must be a sha256: digest"));
+        }
+    }
+    if index.targets.len() > TARGET_INDEX_MAX_TARGETS {
+        return Err(format!(
+            "target index has {} targets; limit is {TARGET_INDEX_MAX_TARGETS}",
+            index.targets.len()
+        ));
+    }
+    let mut ids = std::collections::BTreeSet::new();
+    for target in &index.targets {
+        validate_external_target_id(&target.id)
+            .map_err(|error| format!("invalid target index id {:?}: {error}", target.id))?;
+        bounded_text(&target.title, "target.title", 512)?;
+        bounded_text(&target.why, "target.why", 2048)?;
+        bounded_text(&target.objective, "target.objective", 4096)?;
+        if !matches!(
+            target.state.as_str(),
+            "open" | "paused" | "blocked" | "done" | "retired"
+        ) {
+            return Err(format!(
+                "target index state for {:?} is unsupported: {:?}",
+                target.id, target.state
+            ));
+        }
+        if target.labels.len() > TARGET_INDEX_MAX_LABELS {
+            return Err(format!(
+                "target index target {:?} has more than {TARGET_INDEX_MAX_LABELS} labels",
+                target.id
+            ));
+        }
+        for label in &target.labels {
+            bounded_text(label, "target.labels[]", 128)?;
+        }
+        bounded_text(&target.packet.schema, "packet.schema", 256)?;
+        if !valid_sha256(&target.packet.sha256) {
+            return Err(format!(
+                "target index packet digest for {:?} must be a sha256: digest",
+                target.id
+            ));
+        }
+        validate_target_packet_relative_path(&target.packet.path)?;
+        if !ids.insert(target.id.clone()) {
+            return Err(format!("duplicate target index id {:?}", target.id));
+        }
+    }
+    let loaded_event_log_root = format!(
+        "sha256:{}",
+        vela_protocol::events::event_log_hash(&project.events)
+    );
+    let stale_against_loaded_frontier =
+        target_index_is_stale(project, &index, &loaded_event_log_root);
+    Ok(Some(LoadedTargetIndex {
+        sha256: format!("sha256:{}", hex::encode(Sha256::digest(&bytes))),
+        stale_against_loaded_frontier,
+        loaded_event_log_root,
+        index,
+    }))
+}
+
+fn target_index_is_stale(
+    project: &Project,
+    index: &TargetIndex,
+    loaded_event_log_root: &str,
+) -> bool {
+    index.as_of.snapshot_hash != format!("sha256:{}", vela_protocol::events::snapshot_hash(project))
+        || index.as_of.event_log_hash != loaded_event_log_root
+}
+
+fn pinned_target_index_task(
+    project: &Project,
+    loaded: &LoadedTargetIndex,
+    target: &TargetIndexEntry,
+) -> Value {
+    json!({
+        "kind": "target_packet",
+        "objective": target.objective,
+        "state": target.state,
+        "rank": target.rank,
+        "labels": target.labels,
+        "packet_ref": target.packet,
+        "index": {
+            "path": "targets.json",
+            "schema": loaded.index.schema,
+            "sha256": loaded.sha256,
+            "as_of": loaded.index.as_of,
+            "stale_against_loaded_frontier": loaded.stale_against_loaded_frontier,
+        },
+        "fixed_base": {
+            "frontier_id": project.frontier_id(),
+            "event_log_root": loaded.loaded_event_log_root,
+        },
+        "authority_ceiling": PRODUCER_AUTHORITY_CEILING,
+    })
+}
+
+/// Return the non-authorizing target-index task metadata for one external
+/// target. The index is a deletable projection; accepted state remains the
+/// event log and the selected packet is hash-checked separately.
+pub fn target_index_task_for_target(
+    project: &Project,
+    dir: &Path,
+    target: &str,
+) -> Result<Option<Value>, String> {
+    let Some(loaded) = load_target_index(project, dir)? else {
+        return Ok(None);
+    };
+    Ok(loaded
+        .index
+        .targets
+        .iter()
+        .find(|entry| entry.id == target)
+        .map(|entry| pinned_target_index_task(project, &loaded, entry)))
+}
+
+/// Load and hash-check the selected target packet. This is producer briefing
+/// material only: the wrapper names both its derived index root and the live
+/// frontier root, and never converts packet content into accepted state.
+pub fn target_index_packet_for_target(
+    project: &Project,
+    dir: &Path,
+    target: &str,
+) -> Result<Option<Value>, String> {
+    let Some(loaded) = load_target_index(project, dir)? else {
+        return Ok(None);
+    };
+    let Some(entry) = loaded.index.targets.iter().find(|entry| entry.id == target) else {
+        return Ok(None);
+    };
+    let path = target_packet_path(dir, &entry.packet.path)?;
+    let bytes = read_regular_file(&path, TARGET_PACKET_MAX_BYTES, "target packet")?;
+    let digest = format!("sha256:{}", hex::encode(Sha256::digest(&bytes)));
+    if digest != entry.packet.sha256 {
+        return Err(format!(
+            "target packet digest mismatch for {:?}: index {} != bytes {}",
+            target, entry.packet.sha256, digest
+        ));
+    }
+    let packet: Value = serde_json::from_slice(&bytes)
+        .map_err(|error| format!("parse target packet {}: {error}", path.display()))?;
+    if !packet.is_object() {
+        return Err(format!(
+            "target packet {} must be a JSON object",
+            path.display()
+        ));
+    }
+    if packet.get("schema").and_then(Value::as_str) != Some(entry.packet.schema.as_str()) {
+        return Err(format!(
+            "target packet schema mismatch for {:?}: index {:?} != packet {:?}",
+            target,
+            entry.packet.schema,
+            packet.get("schema")
+        ));
+    }
+    Ok(Some(json!({
+        "kind": "target_packet",
+        "target": target,
+        "objective": entry.objective,
+        "packet": packet,
+        "packet_ref": entry.packet,
+        "index": {
+            "path": "targets.json",
+            "schema": loaded.index.schema,
+            "sha256": loaded.sha256,
+            "as_of": loaded.index.as_of,
+            "stale_against_loaded_frontier": loaded.stale_against_loaded_frontier,
+        },
+        "authority_ceiling": PRODUCER_AUTHORITY_CEILING,
+        "caveat": "The target index and packet are derived briefing projections. Their bytes are pinned here, but only signed frontier events carry accepted truth.",
+    })))
 }
 
 /// A pack awaits a decision only while it has no verdict AND at least
@@ -484,7 +847,7 @@ pub fn try_frontier_next(
         });
     }
 
-    // ── attack: open campaign seeds, unleased and unlanded ─────────────
+    // ── attack: open target-index entries and campaign seeds ───────────
     if let Some(dir) = frontier_dir {
         let ns = lease_namespace(project);
         let live_leases: std::collections::BTreeSet<String> = project
@@ -499,8 +862,35 @@ pub fn try_frontier_next(
             })
             .map(|l| l.obligation_id.clone())
             .collect();
+        let mut indexed_ids = std::collections::BTreeSet::new();
+        if let Some(loaded) = load_target_index(project, dir)? {
+            let mut indexed = loaded
+                .index
+                .targets
+                .iter()
+                .filter(|target| target.state == "open")
+                .collect::<Vec<_>>();
+            indexed.sort_by(|left, right| left.rank.cmp(&right.rank).then(left.id.cmp(&right.id)));
+            for target in indexed {
+                indexed_ids.insert(target.id.clone());
+                if live_leases.contains(&target.id) {
+                    continue;
+                }
+                actionable_targets.push(NextTarget {
+                    lane: "attack".into(),
+                    id: target.id.clone(),
+                    title: target.title.clone(),
+                    why: target.why.clone(),
+                    next_command: format!("vela work {}", target.id),
+                    task: Some(pinned_target_index_task(project, &loaded, target)),
+                });
+            }
+        }
         for seed in campaign_seeds(dir, &ns)? {
             let obligation = campaign_target_id(&seed, &ns);
+            if indexed_ids.contains(&obligation) {
+                continue;
+            }
             if live_leases.contains(&obligation) || live_leases.contains(&seed.handle) {
                 continue;
             }
@@ -646,6 +1036,201 @@ pub fn try_frontier_next(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn write_target_index(
+        dir: &Path,
+        project: &Project,
+        packet_bytes: &[u8],
+        packet_digest: Option<String>,
+    ) {
+        std::fs::create_dir_all(dir.join("packets")).unwrap();
+        std::fs::write(dir.join("packets/443.json"), packet_bytes).unwrap();
+        let digest = packet_digest
+            .unwrap_or_else(|| format!("sha256:{}", hex::encode(Sha256::digest(packet_bytes))));
+        std::fs::write(
+            dir.join("targets.json"),
+            serde_json::to_vec_pretty(&json!({
+                "schema": "vela.target-index.v1",
+                "frontier_id": project.frontier_id(),
+                "as_of": {
+                    "snapshot_hash": format!(
+                        "sha256:{}",
+                        vela_protocol::events::snapshot_hash(project)
+                    ),
+                    "event_log_hash": format!(
+                        "sha256:{}",
+                        vela_protocol::events::event_log_hash(&project.events)
+                    ),
+                    "proposal_state_hash": format!("sha256:{}", "0".repeat(64)),
+                },
+                "claim_boundary": {
+                    "derived": true,
+                    "authoritative": false,
+                },
+                "targets": [{
+                    "id": "erdos:443",
+                    "title": "Erdős 443",
+                    "why": "Open problem with a pinned packet",
+                    "state": "open",
+                    "rank": 7,
+                    "objective": "Advance Erdős problem 443 from its pinned state.",
+                    "labels": ["erdos", "open"],
+                    "packet": {
+                        "path": "packets/443.json",
+                        "sha256": digest,
+                        "schema": "fixture.problem.v1",
+                    },
+                }],
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn target_index_offers_and_loads_one_hash_pinned_native_target() {
+        let temp = tempfile::tempdir().unwrap();
+        let project = vela_protocol::project::assemble("target-index", Vec::new(), 0, 0, "fixture");
+        write_target_index(
+            temp.path(),
+            &project,
+            br#"{"schema":"fixture.problem.v1","problem":443,"statement":"fixture"}"#,
+            None,
+        );
+
+        let targets =
+            try_frontier_next(&project, &[], Some(temp.path()), "2026-07-16T12:00:00Z", 10)
+                .unwrap();
+        assert_eq!(targets[0].id, "erdos:443");
+        assert_eq!(targets[0].lane, "attack");
+        assert_eq!(targets[0].task.as_ref().unwrap()["kind"], "target_packet");
+        assert_eq!(
+            targets[0].task.as_ref().unwrap()["authority_ceiling"],
+            PRODUCER_AUTHORITY_CEILING
+        );
+
+        let loaded = target_index_packet_for_target(&project, temp.path(), "erdos:443")
+            .unwrap()
+            .unwrap();
+        assert_eq!(loaded["packet"]["problem"], 443);
+        assert_eq!(loaded["packet_ref"]["path"], "packets/443.json");
+        assert_eq!(loaded["index"]["stale_against_loaded_frontier"], false);
+    }
+
+    #[test]
+    fn target_index_refuses_packet_digest_drift_and_path_escape() {
+        let temp = tempfile::tempdir().unwrap();
+        let project = vela_protocol::project::assemble("target-index", Vec::new(), 0, 0, "fixture");
+        write_target_index(
+            temp.path(),
+            &project,
+            br#"{"schema":"fixture.problem.v1","problem":443}"#,
+            Some(format!("sha256:{}", "1".repeat(64))),
+        );
+        assert!(
+            target_index_packet_for_target(&project, temp.path(), "erdos:443")
+                .unwrap_err()
+                .contains("digest mismatch")
+        );
+
+        let mut index: Value =
+            serde_json::from_slice(&std::fs::read(temp.path().join("targets.json")).unwrap())
+                .unwrap();
+        index["targets"][0]["packet"]["path"] = json!("../outside.json");
+        std::fs::write(
+            temp.path().join("targets.json"),
+            serde_json::to_vec_pretty(&index).unwrap(),
+        )
+        .unwrap();
+        assert!(
+            load_target_index(&project, temp.path())
+                .unwrap_err()
+                .contains("normalized frontier-relative")
+        );
+    }
+
+    #[test]
+    fn target_index_terminal_entries_are_addressable_but_not_ranked() {
+        let temp = tempfile::tempdir().unwrap();
+        let project = vela_protocol::project::assemble("target-index", Vec::new(), 0, 0, "fixture");
+        write_target_index(
+            temp.path(),
+            &project,
+            br#"{"schema":"fixture.problem.v1","problem":443}"#,
+            None,
+        );
+        let mut index: Value =
+            serde_json::from_slice(&std::fs::read(temp.path().join("targets.json")).unwrap())
+                .unwrap();
+        index["targets"][0]["state"] = json!("done");
+        std::fs::write(
+            temp.path().join("targets.json"),
+            serde_json::to_vec_pretty(&index).unwrap(),
+        )
+        .unwrap();
+
+        let targets =
+            try_frontier_next(&project, &[], Some(temp.path()), "2026-07-16T12:00:00Z", 10)
+                .unwrap();
+        assert!(targets.iter().all(|target| target.id != "erdos:443"));
+        assert!(
+            target_index_packet_for_target(&project, temp.path(), "erdos:443")
+                .unwrap()
+                .is_some()
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn target_index_packet_rejects_a_symlinked_parent_directory() {
+        use std::os::unix::fs::symlink;
+
+        let temp = tempfile::tempdir().unwrap();
+        let outside = tempfile::tempdir().unwrap();
+        let project = vela_protocol::project::assemble("target-index", Vec::new(), 0, 0, "fixture");
+        let packet = br#"{"schema":"fixture.problem.v1","problem":443}"#;
+        std::fs::write(outside.path().join("443.json"), packet).unwrap();
+        symlink(outside.path(), temp.path().join("packets")).unwrap();
+        let digest = format!("sha256:{}", hex::encode(Sha256::digest(packet)));
+        std::fs::write(
+            temp.path().join("targets.json"),
+            serde_json::to_vec_pretty(&json!({
+                "schema": "vela.target-index.v1",
+                "frontier_id": project.frontier_id(),
+                "as_of": {
+                    "snapshot_hash": format!(
+                        "sha256:{}",
+                        vela_protocol::events::snapshot_hash(&project)
+                    ),
+                    "event_log_hash": format!(
+                        "sha256:{}",
+                        vela_protocol::events::event_log_hash(&project.events)
+                    ),
+                    "proposal_state_hash": format!("sha256:{}", "0".repeat(64)),
+                },
+                "targets": [{
+                    "id": "erdos:443",
+                    "title": "Erdős 443",
+                    "why": "fixture",
+                    "state": "open",
+                    "rank": 0,
+                    "objective": "fixture",
+                    "packet": {
+                        "path": "packets/443.json",
+                        "sha256": digest,
+                        "schema": "fixture.problem.v1",
+                    },
+                }],
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+        assert!(
+            target_index_packet_for_target(&project, temp.path(), "erdos:443")
+                .unwrap_err()
+                .contains("must not contain symlinks")
+        );
+    }
 
     #[test]
     fn seed_token_matching_respects_digit_boundary() {

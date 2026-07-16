@@ -1,5 +1,25 @@
 # Changelog
 
+## v0.800.16 — 2026-07-16 — Native atlas targets
+
+- Added the optional `vela.target-index.v1` projection so a large scientific
+  atlas can expose thousands of stable, ranked targets through the ordinary
+  `next -> work -> land` loop without creating a second authority store.
+- `vela next` reads only the bounded derived index, filters non-open and live
+  leased targets, and carries a hash-pinned packet reference plus the live
+  producer-only authority ceiling. `vela work` opens and verifies only the
+  selected packet, then retains the packet root, index root, current frontier
+  root, and Git commit in the private session.
+- Hardened the new reader against unsafe or duplicate IDs, traversal,
+  symlinks, oversize indexes and packets, frontier mismatches, digest drift,
+  and schema drift. Terminal entries remain explicitly addressable but are not
+  suggested as open work.
+- Validated the interface against the complete 1,217-problem Erdős atlas:
+  652 open targets, seven paused targets, 558 completed-status targets, and 38
+  frozen witnesses reproduced. This establishes native local integration, not
+  acceptance of any scientific claim or completion of the pending human policy
+  retirement ceremony.
+
 ## v0.800.15 — 2026-07-16 — Replay-equivalent work snapshots
 
 - Fixed the task-first `work` transaction so its in-memory candidate

@@ -520,9 +520,22 @@ fn briefing_from_project(
     project: &vela_protocol::project::Project,
 ) -> Result<Value, String> {
     let head = vela_protocol::events::event_log_hash(&project.events);
-    let packet = crate::server::tools::briefing_for_target(project, frontier, target);
-    let task = if project.findings.iter().any(|finding| finding.id == target) {
+    let finding_target = project.findings.iter().any(|finding| finding.id == target);
+    let packet = if finding_target {
+        crate::server::tools::briefing_for_target(project, frontier, target)
+    } else if let Some(packet) =
+        vela_edge::frontier_next::target_index_packet_for_target(project, frontier, target)?
+    {
+        packet
+    } else {
+        crate::server::tools::briefing_for_target(project, frontier, target)
+    };
+    let task = if finding_target {
         None
+    } else if let Some(task) =
+        vela_edge::frontier_next::target_index_task_for_target(project, frontier, target)?
+    {
+        Some(task)
     } else {
         vela_edge::frontier_next::campaign_task_for_target(project, frontier, target)?
     };
@@ -636,6 +649,11 @@ fn task_contract(briefing: &Value, target: &str) -> TaskContract {
         .get("statement")
         .and_then(Value::as_str)
         .map(|statement| format!("Produce decision-relevant evidence for: {statement}"))
+        .or_else(|| {
+            body.get("objective")
+                .and_then(Value::as_str)
+                .map(ToString::to_string)
+        })
         .unwrap_or_else(|| format!("Produce decision-relevant evidence for target {target}."));
     let mut required_outputs = body
         .get("allowed_outputs")
@@ -3112,6 +3130,60 @@ mod workflow_transaction_tests {
         let briefing = briefing_from_project(temp.path(), &target, &project).unwrap();
         assert_eq!(briefing["target"], target);
         assert!(briefing.get("task").is_none());
+    }
+
+    #[test]
+    fn target_index_briefing_loads_the_hash_pinned_packet_and_objective() {
+        let temp = tempfile::tempdir().unwrap();
+        let project =
+            vela_protocol::project::assemble("indexed-briefing", Vec::new(), 0, 0, "fixture");
+        vela_protocol::repo::init_repo(temp.path(), &project).unwrap();
+        std::fs::create_dir_all(temp.path().join("site/problems")).unwrap();
+        let packet = br#"{"schema":"erdos-frontier.problem-work.v1","problem":1056,"statement":{"upstream_state":"open"},"residual_obligations":["one"]}"#;
+        std::fs::write(temp.path().join("site/problems/1056.json"), packet).unwrap();
+        let packet_digest = format!("sha256:{}", hex::encode(Sha256::digest(packet)));
+        std::fs::write(
+            temp.path().join("targets.json"),
+            serde_json::to_vec_pretty(&json!({
+                "schema": "vela.target-index.v1",
+                "frontier_id": project.frontier_id(),
+                "as_of": {
+                    "snapshot_hash": format!(
+                        "sha256:{}",
+                        vela_protocol::events::snapshot_hash(&project)
+                    ),
+                    "event_log_hash": format!(
+                        "sha256:{}",
+                        vela_protocol::events::event_log_hash(&project.events)
+                    ),
+                    "proposal_state_hash": format!("sha256:{}", "0".repeat(64)),
+                },
+                "targets": [{
+                    "id": "erdos:1056",
+                    "title": "Erdős 1056",
+                    "why": "Nine banked attempts and open residual obligations",
+                    "state": "open",
+                    "rank": 0,
+                    "objective": "Advance Erdős problem 1056 without repeating banked routes.",
+                    "labels": ["erdos", "open", "banked"],
+                    "packet": {
+                        "path": "site/problems/1056.json",
+                        "sha256": packet_digest,
+                        "schema": "erdos-frontier.problem-work.v1",
+                    },
+                }],
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+
+        let briefing = briefing_from_project(temp.path(), "erdos:1056", &project).unwrap();
+        assert_eq!(briefing["briefing"]["packet"]["problem"], 1056);
+        assert_eq!(briefing["task"]["kind"], "target_packet");
+        assert_eq!(
+            task_contract(&briefing, "erdos:1056").objective,
+            "Advance Erdős problem 1056 without repeating banked routes."
+        );
     }
 
     fn signed_lease_candidate(
