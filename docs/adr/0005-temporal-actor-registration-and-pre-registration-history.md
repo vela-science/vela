@@ -7,12 +7,17 @@
   `5a270f8b5ec038ade7c1274dc64a33dd99117851`.
 - Authority: this ADR proposes an engineering rule. It is not a scientific
   event, a registry mutation, a human decision, or permission to read a key.
-- Implementation state: the local, unreleased `0.800.20` reference candidate contains
-  the event schema, explicit reducer no-op, Git-rooted assessment, strict
-  classifications, hostile fixtures, CLI check integration, and
-  Rust/Python/TypeScript reducer parity, and the human-only activation
-  porcelain. The public release, real Erdős activation ceremony, and cold-use
-  benchmark remain undone.
+- Implementation state: released in Vela `v0.800.20` at commit
+  `06ca1712573d735263c869fb20c7a3c4b54ce345`. Public conformance run
+  [29519883804](https://github.com/vela-science/vela/actions/runs/29519883804)
+  and immutable two-platform release run
+  [29520328002](https://github.com/vela-science/vela/actions/runs/29520328002)
+  succeeded at that exact commit. The published macOS arm64 binary has
+  SHA-256
+  `d246aa29519f9f2a5d9a6b8b40d3cbe64334fe53d0d64556d03efba99ef1ae3e`
+  and reports `vela 0.800.20`; the Linux x86-64 binary has SHA-256
+  `aae2e6a38497f4911ac131fb44265769f452dc191a5dadf54f4025c9b3f19d9c`.
+  The real Erdős activation ceremony and cold-use benchmark remain undone.
 
 ## Decision summary
 
@@ -307,8 +312,8 @@ The migration must append one activation event. It must leave all 2,185
 anchored event files byte-identical. The later signed
 `vev_27922b9c8dab0575` event must continue to verify.
 
-The local unreleased implementation produced a key-free preview against the
-clean standalone frontier at
+The released implementation produced a key-free preview against the clean
+standalone frontier at
 `d0a2f56dfecf7027248403e43ba133e18e56b3c6`. The preview root is
 `sha256:87c5a97b6d7944a6025334e24af40a73dd474402068b77cc0b1af92ec1005175`.
 It re-derived 81 anchored unsigned events, 131 anchored signed events, zero
@@ -330,7 +335,7 @@ The event introduces a new known kind, so a pre-ADR binary may reject a
 frontier that contains it. That rejection is an intentional protocol-version
 boundary. It does not justify rewriting old history.
 
-The implementing release must retain:
+The implementing release retains:
 
 - old event and actor decoding;
 - timeless behavior when no activation event exists;
@@ -509,6 +514,12 @@ python3 conformance/verify.py
 
 External Lean, Diderot, live-network checks, provider benchmarks, and broad
 release suites are outside this ADR's focused implementation gate.
+
+The release boundary additionally passed the repository's prelaunch surface,
+format, workspace clippy, core-surface, locked release-build, hosted
+conformance, and immutable release checks. These release checks add software
+publication evidence; they do not substitute for the real activation or
+cold-use gates.
 
 ## Consequences
 
