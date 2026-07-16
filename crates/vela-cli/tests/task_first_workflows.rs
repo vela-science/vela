@@ -2175,6 +2175,19 @@ batches:
         expected_base,
         "lease fixture did not add its coordination event"
     );
+
+    let checked = run(tmp.path(), &["check", ".", "--strict", "--json"]);
+    assert_success(
+        &checked,
+        "immediate strict check after the published work claim",
+    );
+    let checked = one_json_object(&checked);
+    assert_eq!(checked["ok"], true, "{checked}");
+    assert_eq!(
+        checked["state_integrity"]["structural_errors"],
+        serde_json::json!([]),
+        "work left frontier.json or vela.lock at the pre-claim snapshot: {checked}"
+    );
 }
 
 #[test]

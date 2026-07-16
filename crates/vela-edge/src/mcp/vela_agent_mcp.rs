@@ -507,6 +507,11 @@ pub fn apply_claim_task_to_project(
     event.signature = Some(vela_protocol::sign::sign_event(&event, &key)?);
     vela_protocol::reducer::apply_event(project, &event)?;
     project.events.push(event.clone());
+    // `snapshot_hash` includes the derived ProjectStats table. Keep the
+    // in-memory candidate byte-equivalent to a fresh replay before the caller
+    // renders frontier.json and vela.lock; otherwise the lease event is
+    // present but those derived views retain the pre-claim snapshot hash.
+    vela_protocol::project::recompute_stats(project);
     let state_root_after = format!(
         "sha256:{}",
         vela_protocol::events::event_log_hash(&project.events)
