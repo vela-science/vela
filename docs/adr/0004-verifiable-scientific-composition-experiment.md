@@ -21,11 +21,16 @@
   Phase 1A completed as an internal fixture. Its registered ablation
   found one evidence-availability gap: the signed event binds a DecisionPlan
   root, but released decisions do not retain the corresponding canonical
-  preimage. Exact implementation commit
-  `e083ffd05ba80b3e9ad06c4fa3b377a2e5ac75dc` contains the narrow fix and
-  semantic-event signature hardening for the `v0.800.14` release candidate.
-  It is not yet released evidence, outside-use evidence, or a dependency
-  verdict.
+  preimage. Released `v0.800.14` at commit
+  `54d1ab7810f0f74ca59ba0bedffed598c3d6924e` contains the narrow retention
+  fix from exact implementation commit
+  `e083ffd05ba80b3e9ad06c4fa3b377a2e5ac75dc` and semantic-event signature
+  hardening. Public conformance run
+  [29470053318](https://github.com/vela-science/vela/actions/runs/29470053318)
+  and immutable release run
+  [29470054208](https://github.com/vela-science/vela/actions/runs/29470054208)
+  succeeded at that exact release commit. This is released engineering
+  evidence, not outside-use evidence or a dependency verdict.
 - Scope: exact cross-frontier composition, later-root correction handling, and
   the smallest public contract that independent producers and consumers might
   need.
@@ -93,7 +98,7 @@ experiment or promote a primitive by analogy.
 | Read-only named-decision inspector | **PROVED — LOCAL** | 29 registered Rust/Python classifications agree, including invalid applied-event signatures, and 10 focused Rust tests pass; the pure API has no path, write, socket, clock, registry, or key parameter |
 | DecisionPlan-preimage ablation | **PROVED — INTERNAL** | root-only returns `unresolvable:decision_preimage_unavailable`; retained preimage returns `verified:decision_evidence_bound`; event and replay roots remain equal |
 | Root-keyed DecisionPlan evidence retention | **PROVED — LOCAL** | exact implementation commit `e083ffd05ba80b3e9ad06c4fa3b377a2e5ac75dc` writes the canonical preimage as removable `CanonicalEvidence`, verifies every matched semantic-event signature, and proves deletion leaves replay and signed events unchanged |
-| Public release of the retained-preimage seam | **OPEN — RELEASE** | no release claim until `v0.800.14` is versioned, committed, tagged, published, and verified at its exact commit |
+| Public release of the retained-preimage seam | **PROVED — RELEASE** | `v0.800.14` is tagged at `54d1ab7810f0f74ca59ba0bedffed598c3d6924e`; public conformance and immutable release runs `29470053318` and `29470054208` succeeded at that exact commit |
 | Git/DSSE/in-toto same-information baseline | **IMPLEMENTING** | the simpler standards profile is allowed to win at equal semantics |
 | First-party resolver, CI, and context projections | **IMPLEMENTING** | all consume one exact tuple, remain removable, and add no authority object |
 | Canopus paired agent benchmark | **IMPLEMENTING** | **Vela Research Harness** / `vela-research-harness`, CLI `canopus`; preregistered equal-budget runs only |

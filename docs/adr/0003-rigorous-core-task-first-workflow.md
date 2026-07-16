@@ -1703,6 +1703,19 @@ It expands no authority surface and performs no human ceremony. The campaign
 keeps a separate dated proof/open ledger; code fixtures cannot promote an
 organizational or independent-adoption gate to complete.
 
+Released `0.800.14` closes the remaining finite task-first implementation
+slice without widening that boundary. Release commit
+`54d1ab7810f0f74ca59ba0bedffed598c3d6924e` carries the bounded producer
+assertion, shared CLI/MCP landing projection, mixed DecisionPlan matrix,
+all-facets Decision Brief golden, exact Git publication for `work`, and the
+isolated ordinary-path training frontier. Public conformance run
+[29470053318](https://github.com/vela-science/vela/actions/runs/29470053318)
+and immutable release run
+[29470054208](https://github.com/vela-science/vela/actions/runs/29470054208)
+succeeded at that exact commit. The release performed no real human ceremony
+and supplies no independent-producer, independent-consumer, or adoption
+evidence; those gates remain open below.
+
 ## Acceptance metrics
 
 This finite ledger supersedes the earlier open-ended checklist. A new concrete
@@ -1711,7 +1724,7 @@ requirement to prove every possible race, encoding, or scale shape.
 
 | Condition | Status | Exact boundary |
 | --- | --- | --- |
-| Released task-first substrate and public evidence | **PROVED** | `v0.800.13`, exact commit and hosted runs recorded above |
+| Released task-first substrate and public evidence | **PROVED** | `v0.800.14`, exact commit and hosted runs recorded above |
 | One-command exact witness and at-most-two-command installed external verifier surface | **PROVED** | released CLI surface; this is interface evidence, not outside usability evidence |
 | Receipt v1 validity, distinct-evidence retention, exact-retry identity, and namespaced-extension round-trip | **PROVED** | released protocol and cross-implementation vectors |
 | Single-frontier transaction, Deny zero delta, exact retry, and named Git publication/recovery boundaries | **PROVED** | released finite failpoint and publication matrices through `v0.800.13` |
@@ -1720,12 +1733,12 @@ requirement to prove every possible race, encoding, or scale shape.
 | Restricted evidence, bounded descriptor reads, inert review text, and opaque archives | **PROVED** | released finite malicious-input vectors; new concrete encodings require named regressions |
 | Bounded Hub pagination and durable queue-pressure facts | **PROVED** | 10,000-row ledger projection with one bounded materialized page; not 10,000 Git writes |
 | Offline bundle, removable graph/wiki projection, export mechanics, and cache-deletion parity | **PROVED** | released bundle and Frontier Atlas checks; derived state remains non-authoritative |
-| Finite scientific-chain producer assertion | **PROVED** | Task 3 adds one optional bounded Receipt v1 producer assertion, exact flag/file bytes, body binding, and Decision Brief projection; focused local gates pass |
-| Finite CLI/MCP landing wire parity | **PROVED** | Task 4 gives policy-admitted, Deferred, and exact retry one shared success projection; integration parity passes and Deny remains the separately proved zero-delta failure boundary |
-| Finite mixed-batch DecisionPlan safety | **PROVED** | Task 5 proves coherent mixed decisions, incoherent route/class rejection, high-risk isolation, and exclusion of skipped proposals |
-| One exact all-facets Decision Brief golden | **PROVED** | Task 6 freezes the complete known facet inventory and canonical golden; missing, duplicate, or renamed facets fail the contract |
-| Isolated ordinary-path training frontier | **PROVED** | Task 7 drives the current compiled CLI through `next -> work -> reproduce -> land`, removes the human key before work, proves Deferred and accepted-event delta/root zero, then passes strict replay and frozen reproduction from a clean clone; the focused test is part of the public task-first conformance target |
-| Next technical-closure patch and current parent deterministic union | **IMPLEMENTING** | Task 8 runs focused public gates, releases the patch, pins the parent atomically, then runs the local deterministic union once |
+| Finite scientific-chain producer assertion | **PROVED** | released in `v0.800.14`: one optional bounded Receipt v1 producer assertion, exact flag/file bytes, body binding, and Decision Brief projection |
+| Finite CLI/MCP landing wire parity | **PROVED** | released in `v0.800.14`: policy-admitted, Deferred, and exact retry share one success projection; Deny remains the separately proved zero-delta failure boundary |
+| Finite mixed-batch DecisionPlan safety | **PROVED** | released in `v0.800.14`: coherent mixed decisions, incoherent route/class rejection, high-risk isolation, and exclusion of skipped proposals |
+| One exact all-facets Decision Brief golden | **PROVED** | released in `v0.800.14`: the complete known facet inventory and canonical golden fail on missing, duplicate, or renamed facets |
+| Isolated ordinary-path training frontier | **PROVED** | released in `v0.800.14`: `next -> work -> reproduce -> land` runs without a human key, proves Deferred and zero accepted-event delta/root, then replays from a clean clone |
+| Public technical-closure patch and current parent deterministic union | **PROVED — PUBLIC; IMPLEMENTING — PARENT** | `v0.800.14` and its exact public gates are complete; campaign pinning and the parent-local deterministic union remain separate parent-repository work |
 | Current installed adapter on outside pinned projects and reference-kit comprehension | **OPEN — INDEPENDENT** | first-party fixtures cannot establish outside integration or under-two-minute comprehension |
 | First cold producer timing, repair count, and `pending_review` understanding | **OPEN — INDEPENDENT** | qualifying raw runs must supply the median, p90, and repair record |
 | Five real cold reviewer comprehension runs | **OPEN — INDEPENDENT** | five people see all items; at least four satisfy the finite five-question rubric |

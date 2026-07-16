@@ -2,13 +2,33 @@
   "schema": "vela.verifiable-composition.retained-decision-evidence-implementation.v0",
   "recorded_on": "2026-07-15",
   "run_class": "local_engineering_closeout",
-  "status": "release_candidate",
+  "status": "released",
   "target_release": "v0.800.14",
   "source_revision": {
-    "state": "exact_implementation_commit",
+    "state": "released_exact_implementation",
     "base_commit": "fc6a529b92889afa51e82af1105d29c40b9bb485",
     "commit": "e083ffd05ba80b3e9ad06c4fa3b377a2e5ac75dc",
-    "release_evidence": false
+    "release_commit": "54d1ab7810f0f74ca59ba0bedffed598c3d6924e",
+    "tag": "v0.800.14",
+    "release_evidence": true
+  },
+  "release_verification": {
+    "public_conformance_run": {
+      "id": 29470053318,
+      "url": "https://github.com/vela-science/vela/actions/runs/29470053318",
+      "result": "success"
+    },
+    "immutable_release_run": {
+      "id": 29470054208,
+      "url": "https://github.com/vela-science/vela/actions/runs/29470054208",
+      "result": "success"
+    },
+    "macos_aarch64": {
+      "asset": "vela-macos-aarch64",
+      "sha256": "70f8f39b7cfdf1c4c38cce73e91ca563ce7f31ded13aa047a2c9e5383bb8fb92",
+      "version_output": "vela 0.800.14",
+      "checksum_match": true
+    }
   },
   "registered_basis": {
     "result": "results/phase1a-canonical-custody-and-decision-ablation-2026-07-15.json",
@@ -63,7 +83,7 @@
     "deletion changes neither reducer replay, event-log identity, event bytes, nor signature verification"
   ],
   "limitations": [
-    "the implementation and signature hardening are committed, but the target release is not yet tagged, published, or publicly verified",
+    "the release and public gates establish engineering behavior only, not outside use or a dependency verdict",
     "released v0.800.13 and older decisions are not backfilled",
     "the pure inspector still requires caller-supplied bytes and exactly one answer",
     "no public path-discovery, batch-inspection, or prune command exists",
