@@ -1,5 +1,25 @@
 # Changelog
 
+## v0.800.17 — 2026-07-16 — Bounded composition profiles
+
+- Completed ADR 0004's removable Phase 1B reference profiles around one exact
+  canonical fact manifest: a Vela resolver, correction-aware CI projection,
+  accepted-state context pack, independent Reader C, and a competing
+  Git/DSSE/in-toto/`science.lock` wrapper.
+- Added 54 hostile fact-manifest vectors, seven three-consumer CLI cases,
+  independent reader status/root parity, offline same/descendant/stale/fork
+  bundle inspection, projection-deletion checks, and 13 hostile
+  standards-wrapper vectors.
+- Red-team review removed an ambiguous precedence rule. One delivered manifest
+  may now carry one later truth-relevant change event; combined finding,
+  decision, or verifier changes fail closed and must be delivered as separate
+  exact manifests.
+- No dependency object, event kind, command family, authority rule, automatic
+  child-truth propagation, graph, cache, or hosted service is promoted. These
+  are internal research profiles and engineering evidence, not independent
+  interoperability, human ceremony, ecosystem adoption, or proof that Vela is
+  a scientific foundation.
+
 ## v0.800.16 — 2026-07-16 — Native atlas targets
 
 - Added the optional `vela.target-index.v1` projection so a large scientific

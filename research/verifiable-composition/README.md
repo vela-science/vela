@@ -16,6 +16,40 @@ Hard boundaries:
 - no truth-bearing dependency wire object, status reducer, or automatic graph;
 - no benchmark or foundation claim from internal fixture results.
 
+## Phase 1B: one derived fact manifest, two removable profiles
+
+The current Phase 1B candidate keeps one exact, canonical fact manifest and
+derives three read-only Vela consumers from it:
+
+- a dependency-standing resolver;
+- a correction-aware CI projection; and
+- an accepted-state context pack.
+
+An independently written Reader C agrees on status and roots. A separate
+Git/DSSE/in-toto/`science.lock` wrapper carries the same manifest and is
+explicitly allowed to win. Neither representation is accepted state.
+
+The standing model deliberately permits only one later truth-relevant change
+event per delivered manifest. A correction, decision revocation, and verifier
+revocation may all occur over time, but combined changes must arrive as
+separate exact manifests. This removes precedence ambiguity instead of adding a
+more complicated multi-event reducer.
+
+Focused checks:
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 python3 check_fact_manifest_projections.py
+PYTHONDONTWRITEBYTECODE=1 python3 check_offline_bundle_inspection.py
+PYTHONDONTWRITEBYTECODE=1 python3 check_projection_deletion.py
+PYTHONDONTWRITEBYTECODE=1 python3 generate_standards_baseline.py
+PYTHONDONTWRITEBYTECODE=1 python3 check_standards_baseline.py
+```
+
+These currently cover 54 hostile fact-manifest cases, seven CLI cases across
+three consumers, independent Reader C parity, offline same/descendant/stale/fork
+delivery, projection deletion, and 13 standards-wrapper vectors. They are
+internal engineering evidence only.
+
 The frozen Phase 0 inputs and v0.800.12 outcome remain unchanged. Phase 1A is a
 separately registered v0.800.13 experiment. Its current custody fixture is the
 exact committed `examples/erdos-formalization` Git tree: accepted state comes
