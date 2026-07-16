@@ -1,0 +1,36 @@
+{
+  "schema": "vela.independent-handoff-packet-result.v1",
+  "recorded_at": "2026-07-16",
+  "status": "blocked_until_participants_named",
+  "registration_root": "sha256:bc17c0a558db59b080c906a124ea9db8b1fb8695216bd8fa81d75fe636549c3d",
+  "release": {
+    "tag": "v0.800.22",
+    "commit": "a5e5631d8fceb6a9a28522b7b9799adb74b9f232",
+    "tree": "b97b8a92de5b05abc34de600b10c69680737cdc2"
+  },
+  "graph_case": {
+    "registration_root": "sha256:eb97998ef600b597269d9d8b8ba73583b1f23c156a3200eef6c655485184977f",
+    "canonical_graph_root": "sha256:a7656843120187c8232b042f735aa8fd69b0d0fade1ed8f03067ebd26d623b8e",
+    "parent_vertices": 11,
+    "parent_edges": 20,
+    "child_vertices": 23
+  },
+  "roles": {
+    "assigned": 0,
+    "required": 8
+  },
+  "checks": {
+    "registered_file_digests": "pass",
+    "release_pin": "pass",
+    "graph_case": "pass",
+    "custody_and_stop_rules": "pass"
+  },
+  "credit": {
+    "scientific": false,
+    "human_authority": false,
+    "independent": false,
+    "external": false,
+    "causal": false,
+    "protocol_promotion": false
+  }
+}

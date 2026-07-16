@@ -1,0 +1,121 @@
+{
+  "schema": "vela.independent-handoff-registration.v1",
+  "status": "blocked_until_participants_named",
+  "release": {
+    "repository": "https://github.com/vela-science/vela",
+    "tag": "v0.800.22",
+    "commit": "a5e5631d8fceb6a9a28522b7b9799adb74b9f232",
+    "tree": "b97b8a92de5b05abc34de600b10c69680737cdc2",
+    "macos_aarch64_sha256": "sha256:08703dfe5193755a0a2feaafe34576f68c2769377f428e5cc7a779418b7958b9",
+    "linux_x86_64_sha256": "sha256:1a1bbd4fa37c1a3931f96f93d00cbe64db0e3749de585aa8da47a82cdffd6603"
+  },
+  "graph_case": {
+    "path": "registration/graph-case.json",
+    "file_sha256": "sha256:db746e9511911cf981fcc1ab46118020b07b58bb0692a44cbe2cebf3a8947b0d",
+    "canonical_root": "sha256:eb97998ef600b597269d9d8b8ba73583b1f23c156a3200eef6c655485184977f",
+    "canonical_graph_root": "sha256:a7656843120187c8232b042f735aa8fd69b0d0fade1ed8f03067ebd26d623b8e"
+  },
+  "profiles": [
+    {
+      "path": "dependency-observation.v0.schema.json",
+      "sha256": "sha256:b80821d49aa19453183ffca15f53c32f0fe09c31611d683bd4bd47c1cba59756"
+    },
+    {
+      "path": "reference/fact_manifest.py",
+      "sha256": "sha256:56d003059d5721716f1bcaec78033c19bb394c2d1c629320f6129e953d690569"
+    },
+    {
+      "path": "reference/reader_c.py",
+      "sha256": "sha256:bdf7d7da91ce032ac218370908c45765f179a0b5ac77d2b90c6ba76e29f85284"
+    },
+    {
+      "path": "reference/standards_baseline.py",
+      "sha256": "sha256:7d56cbfa4aa8d03d4ebf9a1620c44afed17b0d058b52da585667b3fdf455ef6d"
+    },
+    {
+      "path": "reference/projection_cli.py",
+      "sha256": "sha256:afd79d1f249b2bae83cecde7b3483f6c0592ec8df1ef508d406805c3d6b03757"
+    },
+    {
+      "path": "vectors/fact-manifest-projection-cases.json",
+      "sha256": "sha256:89136de878428fdb150bbfa21ec9d970cc7854279c75ed43b188742d862547dc"
+    },
+    {
+      "path": "vectors/standards-baseline-cases.json",
+      "sha256": "sha256:8c10c3daf164dc3b568ba239c19e464966a9f665260156ddca00bc0d9f43450e"
+    }
+  ],
+  "participant_files": [
+    {
+      "path": "independent/README.md",
+      "sha256": "sha256:0eef6426be79c7e059c7db34a7f9f242dcce70e6c6c700c82054da886f2b251e"
+    },
+    {
+      "path": "independent/participant-declaration.md",
+      "sha256": "sha256:d92d3cb93fb033194fa19d71f161b5dc2bd28286f559005e33202be51cdc6d42"
+    },
+    {
+      "path": "independent/producer-a-run.md",
+      "sha256": "sha256:b110f396045c5b0642bf4f2850cb2af3c463425606acd246e507dc6ec4de173c"
+    },
+    {
+      "path": "independent/producer-b-run.md",
+      "sha256": "sha256:e92d80cb59ccb2a341973bbb5c4b36878e82fbbc01556fc4b2219437e08ff65e"
+    },
+    {
+      "path": "independent/reader-c-run.md",
+      "sha256": "sha256:ad6fe8ef0aae569e78612eb9fb51647ffb8cd1f4f9b4e7a91d11664656cc0e17"
+    },
+    {
+      "path": "independent/human-steward-run.md",
+      "sha256": "sha256:5f517b599a72455572476f995635f3a7e60765048e19151cb61a4e975a032df2"
+    },
+    {
+      "path": "independent/baseline-team-run.md",
+      "sha256": "sha256:0621e28d465115770c7bdd6ce2158793dd7fbd6fe69a5a0fffa59f7f258123fc"
+    }
+  ],
+  "roles": {
+    "producer_a": "unassigned",
+    "verifier_v1": "unassigned",
+    "verifier_v2": "unassigned",
+    "human_steward": "unassigned",
+    "producer_b": "unassigned",
+    "reader_c": "unassigned",
+    "red_team": "unassigned",
+    "baseline_team": "unassigned"
+  },
+  "support": {
+    "semantic_maintainer_interventions_allowed": 0,
+    "transport_retry_requires_no_usable_output": true,
+    "allowed": [
+      "frozen public installation instructions",
+      "transport retry before usable output"
+    ],
+    "forbidden": [
+      "artifact editing",
+      "scientific interpretation",
+      "bespoke command repair",
+      "maintainer-only interfaces",
+      "human key access by a nonhuman process"
+    ]
+  },
+  "stop_conditions": [
+    "human_key_exposure",
+    "historical_event_rewrite",
+    "false_strict_pass",
+    "semantic_maintainer_hint",
+    "mismatched_arm_fact_set",
+    "false_independent_credit",
+    "reader_disagreement",
+    "scorer_nonreproduction"
+  ],
+  "credit": {
+    "scientific": false,
+    "human_authority": false,
+    "independent": false,
+    "external": false,
+    "causal": false,
+    "protocol_promotion": false
+  }
+}

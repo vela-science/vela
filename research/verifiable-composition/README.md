@@ -16,6 +16,24 @@ Hard boundaries:
 - no truth-bearing dependency wire object, status reducer, or automatic graph;
 - no benchmark or foundation claim from internal fixture results.
 
+## ADR 0006 independent packet
+
+`registration/independent-handoff-v1.json` binds released Vela `v0.800.22`,
+the existing graph case, both read-only representation profiles, participant
+worksheets, custody, support, and stop rules. Its current status is
+`blocked_until_participants_named`. The protocol team must bind participant
+declarations in a new registration before a blind run starts.
+
+Check the packet with:
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 python3 check_independent_handoff_packet.py
+```
+
+The registered templates live under `independent/`. Canopus `v0.2.0` remains
+gated; this packet supplies no runner, signer, scientific database, or
+independent credit.
+
 ## Phase 1B: one derived fact manifest, two removable profiles
 
 The current Phase 1B candidate keeps one exact, canonical fact manifest and
