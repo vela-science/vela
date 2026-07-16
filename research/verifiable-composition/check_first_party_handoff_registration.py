@@ -80,6 +80,11 @@ def main() -> None:
     )
     require(bool(COMMIT.fullmatch(registration.get("base_commit", ""))), "bad base commit")
     require(
+        registration.get("supersedes_registration_root")
+        == "sha256:55b14e2e1bbc6a66f476dcd99c14402381c2bc1e40671005338bfaf3a2a1f68d",
+        "superseded pre-execution root drift",
+    )
+    require(
         all(
             SHA256.fullmatch(release.get(field, ""))
             for field in ("macos_aarch64_sha256", "linux_x86_64_sha256")
@@ -87,6 +92,22 @@ def main() -> None:
         "released binary root drift",
     )
     require(registration.get("phases") == EXPECTED_PHASES, "phase order drift")
+    tools = registration.get("tools", {})
+    require(
+        tools.get("cadical", {}).get("version") == "3.0.0"
+        and tools.get("drat_trim", {}).get("source_commit")
+        == "2e3b2dc0ecf938addbd779d42877b6ed69d9a985"
+        and tools.get("lrat_check", {}).get("source_commit")
+        == "2e3b2dc0ecf938addbd779d42877b6ed69d9a985",
+        "certificate toolchain drift",
+    )
+    require(
+        all(
+            SHA256.fullmatch(tools.get(label, {}).get("sha256", ""))
+            for label in ("cadical", "drat_trim", "lrat_check")
+        ),
+        "certificate executable root drift",
+    )
     require(
         registration.get("authority", {})
         == {

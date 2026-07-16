@@ -6,5 +6,11 @@
     {"id": "triangle", "mutation": "add_triangle", "expected": "parent_root"},
     {"id": "root-drift", "mutation": "wrong_root", "expected": "parent_root"},
     {"id": "parent-substitution", "mutation": "substitute_parent", "expected": "parent_root"}
+  ],
+  "child_cases": [
+    {"id": "canonical-child", "mutation": "none", "expected": "pass"},
+    {"id": "child-edge-mutation", "mutation": "child_edge", "expected": "child_derivation"},
+    {"id": "child-colouring-mutation", "mutation": "child_colouring", "expected": "colouring_edge"},
+    {"id": "delivered-parent-substitution", "mutation": "delivered_parent", "expected": "child_derivation"}
   ]
 }

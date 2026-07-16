@@ -2,7 +2,8 @@
   "schema": "vela.first-party-handoff-rehearsal.v1",
   "status": "registered_not_run",
   "run_class": "first_party_internal_fixture",
-  "base_commit": "4c24274660b473119288f92b20ddea4ae404cd28",
+  "base_commit": "350fc733eaddf57628745217317853ad158b8132",
+  "supersedes_registration_root": "sha256:55b14e2e1bbc6a66f476dcd99c14402381c2bc1e40671005338bfaf3a2a1f68d",
   "release": {
     "repository": "https://github.com/vela-science/vela",
     "tag": "v0.800.22",
@@ -10,6 +11,23 @@
     "tree": "b97b8a92de5b05abc34de600b10c69680737cdc2",
     "macos_aarch64_sha256": "sha256:08703dfe5193755a0a2feaafe34576f68c2769377f428e5cc7a779418b7958b9",
     "linux_x86_64_sha256": "sha256:1a1bbd4fa37c1a3931f96f93d00cbe64db0e3749de585aa8da47a82cdffd6603"
+  },
+  "tools": {
+    "cadical": {
+      "version": "3.0.0",
+      "distribution": "homebrew-core bottle",
+      "sha256": "sha256:c7b63954503d7fb1c8532efa37689715398683b5dea59d9bf6d80f06169e09b3"
+    },
+    "drat_trim": {
+      "source_repository": "https://github.com/marijnheule/drat-trim",
+      "source_commit": "2e3b2dc0ecf938addbd779d42877b6ed69d9a985",
+      "sha256": "sha256:2b676422e5a550bf65bc51cc2982b7d583abe65cedccffedd79d9e24f4785975"
+    },
+    "lrat_check": {
+      "source_repository": "https://github.com/marijnheule/drat-trim",
+      "source_commit": "2e3b2dc0ecf938addbd779d42877b6ed69d9a985",
+      "sha256": "sha256:b6f29e94ad6ce7ebe4b81fcab0870948622521a936f30c62e077f839f52210f6"
+    }
   },
   "graph_case": {
     "registration_root": "sha256:eb97998ef600b597269d9d8b8ba73583b1f23c156a3200eef6c655485184977f",
@@ -61,7 +79,31 @@
     },
     {
       "path": "check_first_party_handoff_registration.py",
-      "sha256": "sha256:bc3747931201b0593e072d4218410bfb04d0610bf5b22f52115b7bae3e550677"
+      "sha256": "sha256:bec3c73387016549520d8c8ff000ed42bcb5508544f248607b8bb5ae6d6197a9"
+    },
+    {
+      "path": "reference/graph_handoff.py",
+      "sha256": "sha256:23a6a8e833fd8abfe2271e3de6feec138e7dde99ef912f63a7d7d30bfaa6dd68"
+    },
+    {
+      "path": "reference/graph_handoff_v2.py",
+      "sha256": "sha256:6640e0851823175eec3af9e051cd03d6e94ff83ed282b151ca108163f7debe79"
+    },
+    {
+      "path": "vectors/graph-handoff-cases.json",
+      "sha256": "sha256:7f9226095d11dcab64e5df4c9c3d2e06579900a9ccbf5235dba9a08c4e07823e"
+    },
+    {
+      "path": "check_graph_handoff.py",
+      "sha256": "sha256:6dd134ca11e4ab0346ad62fcee2d767d2ed10520ffc743214b8d9dfcc7d96074"
+    },
+    {
+      "path": "run_first_party_handoff_rehearsal.py",
+      "sha256": "sha256:d6fde65aa5d7b5c029f60a30988d28ba2cf72df760281b17a238dbb848cd3cc5"
+    },
+    {
+      "path": "check_first_party_handoff_rehearsal.py",
+      "sha256": "sha256:530c7641480f96185ecc2dd7217d85049ee2069880478b004eeaf8c9c618a8ba"
     }
   ],
   "budgets": {
@@ -96,5 +138,5 @@
     "protocol_promotion": false
   },
   "result_root": null,
-  "registration_root": "sha256:55b14e2e1bbc6a66f476dcd99c14402381c2bc1e40671005338bfaf3a2a1f68d"
+  "registration_root": "sha256:72689a75ce295026dac2ddb9c6df70170bcc9a2e80d25742f19732f89b76dc04"
 }
