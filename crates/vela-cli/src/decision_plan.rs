@@ -1483,7 +1483,16 @@ fn prepare_legacy_retirement_mutation(
         &mut candidate,
         format!("Accepted legacy-policy retirement proposal {proposal_id}"),
     );
-    vela_protocol::sources::materialize_project(&mut candidate);
+    // This governance-only review event changes no scientific source,
+    // evidence, or condition projection. Re-materializing those projections
+    // here is not a no-op for older frontiers whose persisted source records
+    // predate current source merging: it can silently coalesce source
+    // associations in the in-memory candidate, while a clean reload derives
+    // the pre-existing associations from findings. The transaction would then
+    // write a frontier/lock snapshot that immediately fails parity after the
+    // policy bytes are removed. Preserve every scientific projection byte and
+    // update only the aggregate counters affected by the appended review event.
+    vela_protocol::project::recompute_stats(&mut candidate);
 
     let mutation = LegacyRetirementMutation {
         proposal_id: proposal_id.to_string(),
@@ -2451,6 +2460,51 @@ mod tests {
         .unwrap();
         let key = SigningKey::from_bytes(&[0x72; 32]);
         let mut project = vela_protocol::repo::load_from_path(temp.path()).unwrap();
+        for (label, timestamp) in [("A", "2026-07-13T00:01:00Z"), ("B", "2026-07-13T00:02:00Z")] {
+            let finding_proposal = vela_protocol::state::build_add_finding_proposal_at(
+                vela_protocol::state::FindingDraftOptions {
+                    text: format!("Shared-source regression observation {label}"),
+                    assertion_type: "observation".to_string(),
+                    source: "Shared synthetic campaign source".to_string(),
+                    source_type: "synthetic_report".to_string(),
+                    author: "agent:test".to_string(),
+                    confidence: 0.7,
+                    evidence_type: "computational".to_string(),
+                    doi: None,
+                    year: Some(2026),
+                    url: None,
+                    source_authors: vec!["agent:test".to_string()],
+                    source_refs: Vec::new(),
+                    conditions_text: Some("bounded regression fixture".to_string()),
+                    evidence_spans: Vec::new(),
+                    gap: false,
+                    negative_space: false,
+                    replication_attestation: None,
+                },
+                timestamp,
+            )
+            .unwrap();
+            let finding: vela_protocol::bundle::FindingBundle =
+                serde_json::from_value(finding_proposal.payload["finding"].clone()).unwrap();
+            let after_hash = vela_protocol::events::finding_hash(&finding);
+            let event = vela_protocol::events::new_finding_event(
+                vela_protocol::events::FindingEventInput {
+                    kind: "finding.asserted",
+                    finding_id: &finding.id,
+                    actor_id: "agent:test",
+                    actor_type: "agent",
+                    reason: "establish shared-source regression fixture",
+                    before_hash: vela_protocol::events::NULL_HASH,
+                    after_hash: &after_hash,
+                    payload: serde_json::json!({"finding": &finding}),
+                    caveats: Vec::new(),
+                    timestamp: Some(timestamp),
+                },
+            );
+            project.events.push(event);
+            project.findings.push(finding);
+        }
+        vela_protocol::sources::materialize_project(&mut project);
         project.actors.push(ActorRecord {
             id: "reviewer:test".to_string(),
             public_key: hex::encode(key.verifying_key().to_bytes()),
@@ -2506,6 +2560,7 @@ mod tests {
         let proposal_id = answer.proposal_id.clone();
         let confirmed =
             build_unlocked(temp.path(), &[answer], "reviewer:test", DECIDED_AT, None).unwrap();
+        let expected_candidate = clone_project_for_legacy_mutation(&confirmed.candidate).unwrap();
         let key_reads = Cell::new(0usize);
         execute_with_key_loader(temp.path(), &confirmed, || {
             key_reads.set(key_reads.get() + 1);
@@ -2549,6 +2604,25 @@ mod tests {
                 .unwrap()
                 .mode,
             vela_protocol::acceptance_policy::ActivePolicyMode::Absent
+        );
+        let expected = serde_json::to_value(expected_candidate).unwrap();
+        let actual = serde_json::to_value(&project).unwrap();
+        let differing_keys = expected
+            .as_object()
+            .unwrap()
+            .iter()
+            .filter_map(|(key, expected_value)| {
+                (actual.get(key) != Some(expected_value)).then_some(key.as_str())
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            vela_protocol::events::snapshot_hash(&project),
+            vela_protocol::events::snapshot_hash(&confirmed.candidate),
+            "reloaded decision state differs in top-level fields: {differing_keys:?}"
+        );
+        assert!(
+            vela_protocol::frontier_repo::layout_issues(temp.path(), &project).is_empty(),
+            "signed retirement must leave visible state and lock materialized"
         );
     }
 
