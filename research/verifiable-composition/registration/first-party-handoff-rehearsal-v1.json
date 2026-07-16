@@ -1,0 +1,100 @@
+{
+  "schema": "vela.first-party-handoff-rehearsal.v1",
+  "status": "registered_not_run",
+  "run_class": "first_party_internal_fixture",
+  "base_commit": "4c24274660b473119288f92b20ddea4ae404cd28",
+  "release": {
+    "repository": "https://github.com/vela-science/vela",
+    "tag": "v0.800.22",
+    "commit": "a5e5631d8fceb6a9a28522b7b9799adb74b9f232",
+    "tree": "b97b8a92de5b05abc34de600b10c69680737cdc2",
+    "macos_aarch64_sha256": "sha256:08703dfe5193755a0a2feaafe34576f68c2769377f428e5cc7a779418b7958b9",
+    "linux_x86_64_sha256": "sha256:1a1bbd4fa37c1a3931f96f93d00cbe64db0e3749de585aa8da47a82cdffd6603"
+  },
+  "graph_case": {
+    "registration_root": "sha256:eb97998ef600b597269d9d8b8ba73583b1f23c156a3200eef6c655485184977f",
+    "canonical_graph_root": "sha256:a7656843120187c8232b042f735aa8fd69b0d0fade1ed8f03067ebd26d623b8e",
+    "parent_vertices": 11,
+    "parent_edges": 20,
+    "parent_chromatic_number": 4,
+    "child_vertices": 23,
+    "child_chromatic_number": 5
+  },
+  "phases": [
+    "parent_generate",
+    "verifier_v1",
+    "verifier_v2",
+    "pending_handoff",
+    "fixture_authorized_child",
+    "correction_replay",
+    "reader_parity",
+    "standards_baseline"
+  ],
+  "files": [
+    {
+      "path": "registration/graph-case.json",
+      "sha256": "sha256:db746e9511911cf981fcc1ab46118020b07b58bb0692a44cbe2cebf3a8947b0d"
+    },
+    {
+      "path": "reference/fact_manifest.py",
+      "sha256": "sha256:56d003059d5721716f1bcaec78033c19bb394c2d1c629320f6129e953d690569"
+    },
+    {
+      "path": "reference/reader_c.py",
+      "sha256": "sha256:bdf7d7da91ce032ac218370908c45765f179a0b5ac77d2b90c6ba76e29f85284"
+    },
+    {
+      "path": "reference/standards_baseline.py",
+      "sha256": "sha256:7d56cbfa4aa8d03d4ebf9a1620c44afed17b0d058b52da585667b3fdf455ef6d"
+    },
+    {
+      "path": "reference/projection_cli.py",
+      "sha256": "sha256:afd79d1f249b2bae83cecde7b3483f6c0592ec8df1ef508d406805c3d6b03757"
+    },
+    {
+      "path": "vectors/fact-manifest-projection-cases.json",
+      "sha256": "sha256:89136de878428fdb150bbfa21ec9d970cc7854279c75ed43b188742d862547dc"
+    },
+    {
+      "path": "vectors/standards-baseline-cases.json",
+      "sha256": "sha256:8c10c3daf164dc3b568ba239c19e464966a9f665260156ddca00bc0d9f43450e"
+    },
+    {
+      "path": "check_first_party_handoff_registration.py",
+      "sha256": "sha256:bc3747931201b0593e072d4218410bfb04d0610bf5b22f52115b7bae3e550677"
+    }
+  ],
+  "budgets": {
+    "wall_seconds": 1800,
+    "commands": 120,
+    "repairs": 0,
+    "network_requests": 0,
+    "human_key_reads": 0
+  },
+  "authority": {
+    "human_key_access": false,
+    "signing_allowed": false,
+    "accepted_state_claim_allowed": false,
+    "fixture_authority_must_be_labeled_simulated": true
+  },
+  "stop_conditions": [
+    "human_key_exposure",
+    "authority_attempt",
+    "historical_event_rewrite",
+    "false_strict_pass",
+    "parent_substitution",
+    "reader_disagreement",
+    "standards_fact_drift",
+    "unregistered_repair"
+  ],
+  "credit": {
+    "scientific": false,
+    "human_authority": false,
+    "independent": false,
+    "external": false,
+    "causal": false,
+    "protocol_promotion": false
+  },
+  "result_root": null,
+  "registration_root": "sha256:55b14e2e1bbc6a66f476dcd99c14402381c2bc1e40671005338bfaf3a2a1f68d"
+}
