@@ -30,7 +30,9 @@
   and immutable release run
   [29470054208](https://github.com/vela-science/vela/actions/runs/29470054208)
   succeeded at that exact release commit. This is released engineering
-  evidence, not outside-use evidence or a dependency verdict.
+  evidence, not outside-use evidence or a dependency verdict. Follow-up
+  `v0.800.15` repairs task-first work-snapshot replay parity; it does not change
+  this retained-evidence seam or supply new dependency evidence.
 - Scope: exact cross-frontier composition, later-root correction handling, and
   the smallest public contract that independent producers and consumers might
   need.
