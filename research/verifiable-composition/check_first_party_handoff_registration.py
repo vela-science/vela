@@ -81,7 +81,7 @@ def main() -> None:
     require(bool(COMMIT.fullmatch(registration.get("base_commit", ""))), "bad base commit")
     require(
         registration.get("supersedes_registration_root")
-        == "sha256:72689a75ce295026dac2ddb9c6df70170bcc9a2e80d25742f19732f89b76dc04",
+        == "sha256:18255af98a8bc37e942e6589fce2e6741ad0cb1a21ad3c7ddb9f9149aca43a59",
         "superseded pre-execution root drift",
     )
     history = registration.get("registration_history")
@@ -91,6 +91,7 @@ def main() -> None:
         == [
             "sha256:55b14e2e1bbc6a66f476dcd99c14402381c2bc1e40671005338bfaf3a2a1f68d",
             "sha256:72689a75ce295026dac2ddb9c6df70170bcc9a2e80d25742f19732f89b76dc04",
+            "sha256:18255af98a8bc37e942e6589fce2e6741ad0cb1a21ad3c7ddb9f9149aca43a59",
         ],
         "registration history drift",
     )

@@ -38,9 +38,9 @@ def sha(raw: bytes) -> str:
     return f"sha256:{hashlib.sha256(raw).hexdigest()}"
 
 
-def file_record(path: Path) -> dict[str, Any]:
+def file_record(path: Path, base: Path) -> dict[str, Any]:
     raw = path.read_bytes()
-    return {"path": str(path.relative_to(REPO)), "sha256": sha(raw), "bytes": len(raw)}
+    return {"path": str(path.relative_to(base)), "sha256": sha(raw), "bytes": len(raw)}
 
 
 def run(argv: list[str], *, cwd: Path = ROOT, exits: set[int] = {0}) -> dict[str, Any]:
@@ -145,7 +145,7 @@ def main() -> int:
         "schema": "vela.first-party-pending-handoff.v1",
         "registration_root": registration["registration_root"],
         "parent_graph_root": parent["graph_root"],
-        "artifact_roots": [file_record(path)["sha256"] for path in parent_files],
+        "artifact_roots": [file_record(path, args.output)["sha256"] for path in parent_files],
         "verifier_paths": ["python_adjacency_dsat", "python_bitset_static_order", "cadical_drat_to_lrat"],
         "authority_status": "pending_review",
         "hard_dependency_usable": False,
@@ -218,7 +218,7 @@ def main() -> int:
             "child_truth": "not_assessed",
         },
         "standards_baseline": {"vectors": len(standards_vectors), "passed": len(standards_vectors)},
-        "artifacts": [file_record(path) for path in retained],
+        "artifacts": [file_record(path, args.output) for path in retained],
         "commands": commands,
         "measurements": {
             "wall_ms": (time.monotonic_ns() - started) // 1_000_000,

@@ -59,7 +59,7 @@ def main() -> None:
     require(set(value["gap_verdicts"].values()) == {"not_reproduced"}, "unsupported gap")
     paths = set()
     for artifact in value["artifacts"]:
-        path = REPO / artifact["path"]
+        path = RESULT_ROOT / artifact["path"]
         require(path.is_file() and not path.is_symlink(), f"artifact missing: {path}")
         raw = path.read_bytes()
         require(artifact["sha256"] == root(raw) and artifact["bytes"] == len(raw), f"artifact drift: {path}")

@@ -3,7 +3,7 @@
   "status": "registered_not_run",
   "run_class": "first_party_internal_fixture",
   "base_commit": "350fc733eaddf57628745217317853ad158b8132",
-  "supersedes_registration_root": "sha256:72689a75ce295026dac2ddb9c6df70170bcc9a2e80d25742f19732f89b76dc04",
+  "supersedes_registration_root": "sha256:18255af98a8bc37e942e6589fce2e6741ad0cb1a21ad3c7ddb9f9149aca43a59",
   "registration_history": [
     {
       "root": "sha256:55b14e2e1bbc6a66f476dcd99c14402381c2bc1e40671005338bfaf3a2a1f68d",
@@ -14,6 +14,12 @@
       "root": "sha256:72689a75ce295026dac2ddb9c6df70170bcc9a2e80d25742f19732f89b76dc04",
       "outcome": "infrastructure_failure_before_usable_output",
       "reason": "relative artifact paths were interpreted from the controller working directory"
+    },
+    {
+      "root": "sha256:18255af98a8bc37e942e6589fce2e6741ad0cb1a21ad3c7ddb9f9149aca43a59",
+      "outcome": "clean_reproduction_failure_after_local_pass",
+      "result_root": "sha256:243584745a19a06760cbe048ba057196a2f28f42468b9245501e08726634e8ee",
+      "reason": "artifact records required an output directory beneath the source checkout"
     }
   ],
   "release": {
@@ -91,7 +97,7 @@
     },
     {
       "path": "check_first_party_handoff_registration.py",
-      "sha256": "sha256:9df8bf99d06d2059047639f2f4b6786fa3657026659f4d34e80401b162126c0a"
+      "sha256": "sha256:1be24fe793f87c827685833494e9af4c65a5d7719bdda49e9501240f58aec38f"
     },
     {
       "path": "reference/graph_handoff.py",
@@ -111,11 +117,11 @@
     },
     {
       "path": "run_first_party_handoff_rehearsal.py",
-      "sha256": "sha256:8b00ff06db692b06acdf00d4cfab4ae922abd654c0d2700a616d06f385374ecb"
+      "sha256": "sha256:dfde616c84517822bb9a8f4545d00b9c03d799dd4b91ab3c42761d82a07040d8"
     },
     {
       "path": "check_first_party_handoff_rehearsal.py",
-      "sha256": "sha256:530c7641480f96185ecc2dd7217d85049ee2069880478b004eeaf8c9c618a8ba"
+      "sha256": "sha256:68aa01c06603eb9cf7741a01adadfcf3f7f215a879ed82ff19b88f1078ff625c"
     }
   ],
   "budgets": {
@@ -150,5 +156,5 @@
     "protocol_promotion": false
   },
   "result_root": null,
-  "registration_root": "sha256:18255af98a8bc37e942e6589fce2e6741ad0cb1a21ad3c7ddb9f9149aca43a59"
+  "registration_root": "sha256:d2bb58a1386d47e55ef4e40b84eab2bcefc81fb45c728d754d978e7eda81dc53"
 }
