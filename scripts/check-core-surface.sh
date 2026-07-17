@@ -7,6 +7,7 @@ cd "$ROOT"
 # The routine contract exercises Vela's protocol, task-first writer boundary,
 # frozen exact verifiers, and read-only Hub. External Lean is an optional
 # integration lane and must never be pulled into this gate accidentally.
+./scripts/check-prelaunch-surface.sh
 cargo test --quiet -p vela-protocol-core --lib
 cargo test --quiet -p vela-verify --lib
 cargo test --quiet -p vela-protocol --lib \

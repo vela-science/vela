@@ -26,8 +26,6 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: format
         run: cargo fmt --all -- --check
-      - name: prelaunch surface has one writer path
-        run: ./scripts/check-prelaunch-surface.sh
       - name: portable and installed Receipt v1 surfaces
         run: |
           tmp="$(mktemp -d)"
