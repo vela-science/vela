@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.900.2 — 2026-07-17 — Truly read-only product projections
+
+- Make compact status and exact Decision Brief reads verify operation recovery
+  before and after projection without creating frontier lock files. A
+  read-only checkout now remains byte- and mode-clean while incomplete,
+  corrupt, or overlapping transactions still fail closed.
+- Update the shipped frontier skill to teach
+  `vela finding show <dir> <vf_id> --view standing` instead of the retired
+  `vela state` surface.
+- Add a focused filesystem-permission regression proving the compact read path
+  needs no checkout write access and creates no operational state.
+- This compatible patch changes no event, reducer, Receipt, proposal,
+  signature, policy, accepted-state, migration, or key-custody contract.
+
 ## v0.900.1 — 2026-07-17 — Clean legacy migration locks
 
 - Extend the 0.900 repository migration to add the missing

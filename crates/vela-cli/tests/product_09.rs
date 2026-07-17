@@ -142,6 +142,75 @@ fn compact_contract_exposes_only_the_daily_surface_and_bounded_status() {
     }
 }
 
+#[cfg(unix)]
+#[test]
+fn compact_read_projections_work_without_checkout_write_access() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let temp = tempfile::tempdir().unwrap();
+    let frontier = temp.path().join("read-only");
+    let init = run(
+        temp.path(),
+        temp.path(),
+        &[
+            "init",
+            frontier.to_str().unwrap(),
+            "--name",
+            "read-only",
+            "--scope",
+            "Can an exact frontier be inspected without write access?",
+            "--json",
+        ],
+    );
+    assert_success(&init);
+    let journals = frontier.join(".vela/operation-journals");
+    if journals.exists() {
+        std::fs::remove_dir_all(&journals).unwrap();
+    }
+
+    fn set_tree_mode(path: &Path, mode: u32) {
+        if path.is_dir() {
+            for entry in std::fs::read_dir(path).unwrap() {
+                set_tree_mode(&entry.unwrap().path(), mode);
+            }
+        }
+        let mut permissions = std::fs::metadata(path).unwrap().permissions();
+        permissions.set_mode(mode);
+        std::fs::set_permissions(path, permissions).unwrap();
+    }
+    set_tree_mode(&frontier, 0o555);
+
+    let status = run(
+        temp.path(),
+        temp.path(),
+        &["status", frontier.to_str().unwrap(), "--json"],
+    );
+    assert_success(&status);
+    let missing = run(
+        temp.path(),
+        temp.path(),
+        &[
+            "review",
+            "show",
+            frontier.to_str().unwrap(),
+            "vpr_0000000000000000",
+            "--json",
+        ],
+    );
+    assert_eq!(missing.status.code(), Some(1));
+    assert!(
+        !text(&missing).contains("frontier lock"),
+        "{}",
+        text(&missing)
+    );
+
+    set_tree_mode(&frontier, 0o755);
+    assert!(
+        !journals.exists(),
+        "read projections must not create operational state"
+    );
+}
+
 #[test]
 fn init_minimal_requires_bounded_inputs_and_omits_optional_scaffolding() {
     let temp = tempfile::tempdir().unwrap();

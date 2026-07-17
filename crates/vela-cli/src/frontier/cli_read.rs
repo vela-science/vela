@@ -14,9 +14,8 @@ pub(crate) fn cmd_status_compact(path: &Path, json_out: bool) {
     let frontier_dir = frontier_dir_for_source(path);
     let journal_dir = crate::workflow::frontier_transaction_journal_dir(frontier_dir)
         .unwrap_or_else(|error| fail_return(&error));
-    let _barrier =
-        crate::frontier_txn::FrontierTxn::acquire_recovery_barrier(frontier_dir, &journal_dir)
-            .unwrap_or_else(|error| fail_return(&error.to_string()));
+    crate::frontier_txn::FrontierTxn::verify_recovery_barrier_read_only(frontier_dir, &journal_dir)
+        .unwrap_or_else(|error| fail_return(&error.to_string()));
     let observed_at = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Nanos, true);
     let project = vela_protocol::repo::load_from_path(frontier_dir)
         .unwrap_or_else(|error| fail_return(&error));
@@ -145,6 +144,8 @@ pub(crate) fn cmd_status_compact(path: &Path, json_out: bool) {
         },
         "next_action": next_action,
     });
+    crate::frontier_txn::FrontierTxn::verify_recovery_barrier_read_only(frontier_dir, &journal_dir)
+        .unwrap_or_else(|error| fail_return(&error.to_string()));
     if json_out {
         print_json(&payload);
     } else {

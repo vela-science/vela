@@ -243,9 +243,11 @@ impl LoadedReceipt {
 
 /// The single filesystem/clock/pagination seam for Decision Brief reads.
 ///
-/// The frontier recovery barrier is held while Project, policy, the selected
-/// receipts, and Engine previews are read. Ordering keys are built before any
-/// receipt is opened, so a 25-item page never parses 10,000 receipts.
+/// Recovery is verified before and after the projection is loaded. This keeps
+/// the read path usable from a genuinely read-only checkout while still
+/// failing closed if a journal is incomplete or a writer overlaps the read.
+/// Ordering keys are built before any receipt is opened, so a 25-item page
+/// never parses 10,000 receipts.
 pub(crate) struct ReviewProjection;
 
 impl ReviewProjection {
@@ -255,9 +257,8 @@ impl ReviewProjection {
     ) -> Result<ReviewPage, ReviewProjectionError> {
         let journal_dir = crate::workflow::frontier_transaction_journal_dir(frontier)
             .map_err(|error| ReviewProjectionError::new("frontier_unavailable", error))?;
-        let _barrier =
-            crate::frontier_txn::FrontierTxn::acquire_recovery_barrier(frontier, &journal_dir)
-                .map_err(review_barrier_error)?;
+        crate::frontier_txn::FrontierTxn::verify_recovery_barrier_read_only(frontier, &journal_dir)
+            .map_err(review_barrier_error)?;
         let supplied_cursor = request
             .cursor
             .as_deref()
@@ -273,7 +274,7 @@ impl ReviewProjection {
             vela_protocol::acceptance_policy::load_active_policy_snapshot(frontier);
         let engine_policy_observation =
             vela_protocol::frontier_policy::engine_policy_summary_observation(frontier);
-        Self::page_from_locked_snapshot(
+        let page = Self::page_from_locked_snapshot(
             frontier,
             &request,
             supplied_cursor,
@@ -281,7 +282,10 @@ impl ReviewProjection {
             &policy_snapshot,
             &observed_at,
             engine_policy_observation,
-        )
+        )?;
+        crate::frontier_txn::FrontierTxn::verify_recovery_barrier_read_only(frontier, &journal_dir)
+            .map_err(review_barrier_error)?;
+        Ok(page)
     }
 
     /// Read the status project, policy pair, and review preview while holding

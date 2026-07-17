@@ -274,8 +274,9 @@ silently break the reproduction of a banked result.
 ## Reading state
 
 `vela status --json` is the one-screen summary (findings, replay integrity,
-policy state and Permit readiness, sign-queue depth, compounding metrics). `vela state <vf_id>` is
-one finding's claim-state cell; `vela log <dir> <vf_id>` its history. The MCP
+policy state and Permit readiness, sign-queue depth, compounding metrics).
+`vela finding show <dir> <vf_id> --view standing` is one finding's claim-state
+cell; `vela log <dir> <vf_id>` is its history. The MCP
 server (`vela serve . --profile draft`) exposes the read surface plus the
 non-finalizing `work` tool (claim|land|drop);
 `decide` is excluded by construction, so nothing an agent does through MCP

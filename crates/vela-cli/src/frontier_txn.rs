@@ -1542,6 +1542,19 @@ impl FrontierTxnFailpoints for FailAtFrontierTxnStep {
 }
 
 impl FrontierTxn {
+    /// Verify recovery state without creating a frontier lock or any other
+    /// file. Read projections call this before and after loading their inputs.
+    /// An overlapping writer is therefore observed as either an active journal
+    /// or a completed postimage change; a writer that starts after the second
+    /// check simply follows the returned snapshot.
+    pub(crate) fn verify_recovery_barrier_read_only(
+        frontier_root: &Path,
+        journal_dir: &Path,
+    ) -> Result<(), FrontierTxnError> {
+        let root = canonical_frontier_root(frontier_root)?;
+        ensure_recovery_barrier_locked(&root, journal_dir, None)
+    }
+
     /// Acquire the frontier-wide recovery barrier before loading mutable
     /// frontier inputs for a new operation. The returned guard deliberately
     /// holds the write lock through planning and must be consumed by
@@ -3621,6 +3634,11 @@ mod tests {
                 }
             } if operation_id == first_operation.as_str()
         ));
+        assert!(matches!(
+            FrontierTxn::verify_recovery_barrier_read_only(&root, &journals),
+            Err(FrontierTxnError::RecoveryRequired { operation_id, .. })
+                if operation_id == first_operation.as_str()
+        ));
 
         let second_draft = DeltaDraft::prepare(
             &root,
@@ -3644,6 +3662,7 @@ mod tests {
         );
         let barrier = FrontierTxn::acquire_recovery_barrier(&root, &journals).unwrap();
         drop(barrier);
+        FrontierTxn::verify_recovery_barrier_read_only(&root, &journals).unwrap();
     }
 
     #[test]
