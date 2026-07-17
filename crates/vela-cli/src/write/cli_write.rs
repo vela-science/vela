@@ -23,6 +23,14 @@ pub(crate) fn cmd_review(action: ReviewAction) {
                 .iter()
                 .filter(|proposal| proposal.status == status)
                 .map(|proposal| {
+                    let created_at = chrono::DateTime::parse_from_rfc3339(&proposal.created_at)
+                        .unwrap_or_else(|error| {
+                            fail_return(&format!(
+                                "proposal {} has invalid created_at: {error}",
+                                proposal.id
+                            ))
+                        })
+                        .to_utc();
                     let value = serde_json::to_value(proposal).unwrap_or(Value::Null);
                     let claim = value
                         .pointer("/payload/claim")
@@ -38,8 +46,9 @@ pub(crate) fn cmd_review(action: ReviewAction) {
                         .or_else(|| value.pointer("/payload/target/id"))
                         .or_else(|| value.get("finding_id"))
                         .and_then(Value::as_str);
-                    json!({
+                    (created_at, json!({
                         "proposal_id": proposal.id,
+                        "created_at": proposal.created_at,
                         "kind": proposal.kind,
                         "status": proposal.status,
                         "target": target,
@@ -49,23 +58,32 @@ pub(crate) fn cmd_review(action: ReviewAction) {
                             vela_protocol::canonical::sha256_canonical(proposal)
                                 .unwrap_or_else(|error| fail_return(&format!("canonicalize proposal: {error}")))
                         ),
-                    })
+                    }))
                 })
                 .collect::<Vec<_>>();
             items.sort_by(|left, right| {
-                left["proposal_id"]
-                    .as_str()
-                    .cmp(&right["proposal_id"].as_str())
+                right.0.cmp(&left.0).then_with(|| {
+                    left.1["proposal_id"]
+                        .as_str()
+                        .cmp(&right.1["proposal_id"].as_str())
+                })
             });
+            let items = items.into_iter().map(|(_, item)| item).collect::<Vec<_>>();
             let total = items.len();
             let limit = limit.clamp(1, 100);
+            let start = match cursor.as_deref() {
+                None => 0,
+                Some(cursor) => items
+                    .iter()
+                    .position(|item| item["proposal_id"].as_str() == Some(cursor))
+                    .map(|index| index + 1)
+                    .unwrap_or_else(|| {
+                        fail_return("review cursor does not name an exact proposal")
+                    }),
+            };
             let mut page = items
                 .into_iter()
-                .filter(|item| {
-                    cursor.as_deref().is_none_or(|cursor| {
-                        item["proposal_id"].as_str().is_some_and(|id| id > cursor)
-                    })
-                })
+                .skip(start)
                 .take(limit + 1)
                 .collect::<Vec<_>>();
             let has_more = page.len() > limit;
@@ -81,6 +99,7 @@ pub(crate) fn cmd_review(action: ReviewAction) {
                 "event_log_root": format!("sha256:{}", vela_protocol::events::event_log_hash(&project.events)),
                 "proposal_state_root": format!("sha256:{}", proposals::proposal_state_hash(&project.proposals)),
                 "status": status,
+                "order": "created_at_desc_then_proposal_id",
                 "total": total,
                 "returned": page.len(),
                 "next_cursor": next_cursor,
@@ -96,8 +115,9 @@ pub(crate) fn cmd_review(action: ReviewAction) {
                 );
                 for item in payload["items"].as_array().into_iter().flatten() {
                     println!(
-                        "  {}  {}  {}",
+                        "  {}  {}  {}  {}",
                         item["proposal_id"].as_str().unwrap_or(""),
+                        item["created_at"].as_str().unwrap_or(""),
                         item["kind"].as_str().unwrap_or(""),
                         item["claim"].as_str().unwrap_or("")
                     );

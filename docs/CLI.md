@@ -119,8 +119,9 @@ command. The full packet stays in the tracked packet file.
 ### Review queue
 
 `vela review list . --json` emits `vela.review.v1` with compact, paginated
-proposal summaries. `review show` and `review preview` return one Decision
-Brief. `review decide` prepares or approves one exact protected decision.
+proposal summaries ordered by `created_at` newest-first, then full proposal ID.
+Every row carries `created_at`; `review show` and `review preview` return one
+Decision Brief. `review decide` prepares or approves one exact protected decision.
 `review withdraw` lets a Receipt-bound producer close its own pending proposal.
 `review export` writes proposal records without deciding them.
 

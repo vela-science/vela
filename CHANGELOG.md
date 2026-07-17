@@ -11,7 +11,7 @@
   verifies key possession and binary identity, removes the plaintext source
   after protected readback, and zeroizes transient seed buffers. Identity v1
   remains readable.
-- Publish checksum-verified paired bundles for macOS, Windows, and Linux so the
+- Prepare checksum-verified paired bundles for macOS, Windows, and Linux so the
   CLI and exact helper cannot drift. The Linux bundle includes a non-caching
   polkit action; no release installs a daemon, listener, or reusable signing
   socket.
@@ -22,6 +22,10 @@
 - Move historical batch and detached-file `vela sign` compatibility to
   advanced help and add focused transaction, tamper, duplicate, conflict,
   custody, CLI-surface, and cross-implementation reducer vectors.
+- Order the compact review queue newest-first, expose each proposal's exact
+  `created_at`, and make the retired `proposals` hint name the replacement
+  list/show commands. This closes the first-party cold-review discovery defect
+  without changing canonical proposal bytes.
 - Accept ADR 0011 only after the released binary passes the protected Erdős
   terminal test and clean-clone replay.
 

@@ -128,11 +128,85 @@ fn compact_contract_exposes_only_the_daily_surface_and_bounded_status() {
     assert_eq!(review["schema"], "vela.review.v1");
     assert_eq!(review["returned"], 0);
     assert!(review.get("review").is_none());
+
+    let mut project = vela_protocol::repo::load_from_path(&frontier).unwrap();
+    for (index, created_at) in [
+        "2026-07-17T12:00:00Z",
+        "2026-07-17T12:02:00Z",
+        "2026-07-17T12:01:00Z",
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        project
+            .proposals
+            .push(vela_protocol::proposals::new_proposal_at(
+                "finding.add",
+                vela_protocol::events::StateTarget {
+                    r#type: "finding".to_string(),
+                    id: format!("vf_compact_{index}"),
+                },
+                "agent:compact",
+                "agent",
+                format!("compact review fixture {index}"),
+                serde_json::json!({
+                    "finding": {
+                        "id": format!("vf_compact_{index}"),
+                        "assertion": {"text": format!("claim {index}"), "type": "computational"},
+                        "conditions": {"text": "fixture"},
+                        "confidence": {"score": 0.1},
+                        "flags": {"contested": false}
+                    }
+                }),
+                Vec::new(),
+                vec!["fixture only".to_string()],
+                created_at.to_string(),
+            ));
+    }
+    vela_protocol::repo::save_to_path(&frontier, &project).unwrap();
+
+    let first = run(
+        temp.path(),
+        temp.path(),
+        &[
+            "review",
+            "list",
+            frontier.to_str().unwrap(),
+            "--limit",
+            "2",
+            "--json",
+        ],
+    );
+    assert_success(&first);
+    let first: serde_json::Value = serde_json::from_slice(&first.stdout).unwrap();
+    assert_eq!(first["order"], "created_at_desc_then_proposal_id");
+    assert_eq!(first["items"][0]["created_at"], "2026-07-17T12:02:00Z");
+    assert_eq!(first["items"][1]["created_at"], "2026-07-17T12:01:00Z");
+    let cursor = first["next_cursor"].as_str().unwrap();
+    let second = run(
+        temp.path(),
+        temp.path(),
+        &[
+            "review",
+            "list",
+            frontier.to_str().unwrap(),
+            "--limit",
+            "2",
+            "--cursor",
+            cursor,
+            "--json",
+        ],
+    );
+    assert_success(&second);
+    let second: serde_json::Value = serde_json::from_slice(&second.stdout).unwrap();
+    assert_eq!(second["items"][0]["created_at"], "2026-07-17T12:00:00Z");
+    assert_eq!(second["next_cursor"], serde_json::Value::Null);
+
     let retired_validate = run(temp.path(), temp.path(), &["review", "validate", "--help"]);
     assert_eq!(retired_validate.status.code(), Some(2));
 
     for (retired, replacement) in [
-        ("proposals", "vela review"),
+        ("proposals", "vela review list"),
         ("state", "vela finding show"),
         ("hub", "vela-hub"),
         ("atlas", "Canopus"),

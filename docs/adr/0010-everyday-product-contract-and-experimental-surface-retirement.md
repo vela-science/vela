@@ -130,9 +130,10 @@ must remain at most 16 KiB without the packet.
 
 ### `vela.review.v1`
 
-`vela review list --json` returns paginated proposal summaries. `review show`
-returns one full Decision Brief. List output cannot embed the full queue of
-briefs.
+`vela review list --json` returns paginated proposal summaries ordered by
+`created_at` newest-first, then full proposal ID. Every row includes its exact
+`created_at`. `review show` returns one full Decision Brief. List output cannot
+embed the full queue of briefs.
 
 ## Initialization and diagnosis
 

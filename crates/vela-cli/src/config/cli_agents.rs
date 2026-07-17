@@ -143,7 +143,7 @@ fn mcp_json_adapter(root: &Path) -> String {
 /// parity. Edit the plugin file and this const together.
 const SKILL_FRONTMATTER: &str = r##"---
 name: vela-frontier
-description: Working in a repository that has a .vela/ directory (a Vela frontier). Use when picking targets, running verifiers, writing receipts, or landing results — any time vela, receipt.json, frontier state, or the sign queue comes up. The loop is next → work → land; humans sign.
+description: Working in a repository that has a .vela/ directory (a Vela frontier). Use when picking targets, running verifiers, writing receipts, landing results, or inspecting protected review. The producer loop is next → work → land; humans authorize exact decisions.
 ---
 "##;
 
@@ -163,10 +163,10 @@ one.
 
 ## The loop
 
-Four verbs; everything else is reading or plumbing.
+Three producer verbs; everything else is reading, review, or plumbing.
 
 ```text
-next -> work -> land -> sign
+next -> work -> land
 ```
 
 - `vela next --json` — the offer: ranked open targets with the compounding
@@ -188,8 +188,12 @@ next -> work -> land -> sign
 - `vela artifact retract <frontier> <va_id> --as agent:<you> --reason <why>
   --json` — draft retirement of a malformed or obsolete artifact. It remains
   pending; only the human ceremony may remove its active proof-readiness weight.
-- `vela sign` — the one human ceremony. Not yours: it refuses `agent:` actors
-  (exit 4) by design.
+- `vela review list . --json` — the pending queue, newest first. Each compact
+  row includes `created_at`; use `vela review show . <vpr_id> --json` for one
+  exact Decision Brief.
+- `vela review decide . <vpr_id> --accept|--reject --reason <text> --json` — a
+  key-free exact Decision Plan. An agent may prepare and invoke the protected
+  request, but only the registered human may approve its decision card.
 
 For a frozen-verifier witness, run `vela reproduce <witness>` first, then land
 the result through the active work session with `vela land --work <target>
@@ -233,7 +237,7 @@ Landing routes by the frontier's signed policy:
 - **Permit** — admitted canonically with no key ceremony. The human's
   authority arrived earlier, once, as the policy signature; the event carries
   the certificate and replay verifies it.
-- **Defer** — parked in the human's sign queue for `vela sign`.
+- **Defer** — parked for an exact protected human `review decide` decision.
 - **Deny** — refuses canonical admission. The returned structured result states
   what, if anything, was retained; zero-delta Deny is not assumed by clients.
 
@@ -242,8 +246,9 @@ in which an agent's proposal becomes accepted state without a human key.
 
 ## Custody
 
-- Never run `sign`: it is the one key-custody human decision ceremony, and the engine refuses
-  `agent:` actors on them.
+- Never run legacy `sign`. You may inspect `review list` and `review show`, and
+  prepare one exact `review decide` request. Never approve its decision card or
+  claim that requesting it caused acceptance.
 - Every write carries an explicit acting identity: `--as agent:<you>`, or set
   `VELA_ACTOR_ID=agent:<you>` for the session. Never write as a human.
 - Never sign anything, never read or handle key material, never sit in a

@@ -1081,7 +1081,9 @@ pub fn run_from_args() {
         }
         Some(cmd) if !is_science_subcommand(cmd) => {
             let replacement = match cmd {
-                "proposals" => Some("vela review"),
+                "proposals" => Some(
+                    "vela review list <frontier> --json, then vela review show <frontier> <vpr_id> --json",
+                ),
                 "diff" => Some(
                     "vela review preview <frontier> <vpr_id>, or vela frontier diff <left> <right>",
                 ),
