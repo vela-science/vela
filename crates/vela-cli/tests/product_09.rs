@@ -249,6 +249,11 @@ fn migration_previews_exact_files_preserves_roots_and_refuses_dirty_input() {
     let mut manifest = std::fs::read_to_string(&manifest_path).unwrap();
     manifest.push_str("carina:\n  kernel: carina@0.1.0\n");
     std::fs::write(&manifest_path, manifest).unwrap();
+    std::fs::write(
+        frontier.join(".gitignore"),
+        "/.vela/tasks/\n/.vela/workspaces/\n",
+    )
+    .unwrap();
     commit_all(&frontier);
     let canonical_before = canonical_bytes(&frontier);
     let git_before = String::from_utf8(git(&frontier, &["rev-parse", "HEAD^{tree}"]).stdout)
@@ -283,6 +288,26 @@ fn migration_previews_exact_files_preserves_roots_and_refuses_dirty_input() {
             .any(|path| path == "frontier.yaml")
     );
     assert!(
+        check_value["touched"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|path| path == ".gitignore")
+    );
+    assert!(
+        String::from_utf8(
+            git(
+                &frontier,
+                &["status", "--porcelain=v1", "--untracked-files=all"]
+            )
+            .stdout
+        )
+        .unwrap()
+        .trim()
+        .is_empty(),
+        "migration preview must not dirty a legacy checkout"
+    );
+    assert!(
         std::fs::read_to_string(&manifest_path)
             .unwrap()
             .contains("carina:")
@@ -311,6 +336,12 @@ fn migration_previews_exact_files_preserves_roots_and_refuses_dirty_input() {
         !std::fs::read_to_string(&manifest_path)
             .unwrap()
             .contains("carina:")
+    );
+    assert!(
+        std::fs::read_to_string(frontier.join(".gitignore"))
+            .unwrap()
+            .lines()
+            .any(|line| line == "/.vela/operation-journals/")
     );
     let git_after = String::from_utf8(git(&frontier, &["rev-parse", "HEAD^{tree}"]).stdout)
         .unwrap()

@@ -8,6 +8,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 const MIGRATION_OUTPUTS: &[&str] = &[
+    ".gitignore",
     "frontier.yaml",
     "frontier.json",
     "vela.lock",
@@ -17,6 +18,8 @@ const MIGRATION_OUTPUTS: &[&str] = &[
     "proof/freshness.md",
     "proof/hashes.json",
 ];
+
+const OPERATION_JOURNAL_IGNORE: &str = "/.vela/operation-journals/";
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 struct MigrationRoots {
@@ -183,12 +186,48 @@ fn assert_migration_checkout(frontier: &Path) -> Result<(String, String), String
             ));
         }
     }
-    let journals = frontier.join(".vela/operation-journals");
+    // The migration gate must not dirty the checkout it is inspecting. Legacy
+    // frontiers may not yet ignore `.vela/operation-journals`, which is one of
+    // the safety repairs this migration applies. Keep the gate's own lock in
+    // Git-private storage until the repository rule is present.
+    let git_journal = git(
+        frontier,
+        &["rev-parse", "--git-path", "vela/operation-journals"],
+    )?;
+    let journals = {
+        let path = PathBuf::from(git_journal);
+        if path.is_absolute() {
+            path
+        } else {
+            frontier.join(path)
+        }
+    };
     drop(
         crate::frontier_txn::FrontierTxn::acquire_recovery_barrier(frontier, &journals)
             .map_err(|error| error.to_string())?,
     );
     Ok((head, tree))
+}
+
+fn migrated_gitignore(frontier: &Path) -> Result<Vec<u8>, String> {
+    let path = frontier.join(".gitignore");
+    let bytes = std::fs::read(&path).unwrap_or_default();
+    let text = std::str::from_utf8(&bytes)
+        .map_err(|error| format!("parse {} as UTF-8: {error}", path.display()))?;
+    if text
+        .lines()
+        .any(|line| line.trim() == OPERATION_JOURNAL_IGNORE)
+    {
+        return Ok(bytes);
+    }
+    let mut migrated = text.trim_end_matches(['\r', '\n']).to_string();
+    if !migrated.is_empty() {
+        migrated.push_str("\n\n");
+    }
+    migrated.push_str("# Vela operational recovery and frontier locks (non-authoritative).\n");
+    migrated.push_str(OPERATION_JOURNAL_IGNORE);
+    migrated.push('\n');
+    Ok(migrated.into_bytes())
 }
 
 fn migrated_manifest(frontier: &Path) -> Result<(Vec<u8>, bool), String> {
@@ -281,6 +320,9 @@ fn prepare_migration(frontier: &Path) -> Result<MigrationPreview, String> {
     let (manifest, _) = migrated_manifest(&checkout)?;
     std::fs::write(checkout.join("frontier.yaml"), manifest)
         .map_err(|error| format!("write preview frontier.yaml: {error}"))?;
+    let gitignore = migrated_gitignore(&checkout)?;
+    std::fs::write(checkout.join(".gitignore"), gitignore)
+        .map_err(|error| format!("write preview .gitignore: {error}"))?;
     let baseline_project = vela_protocol::repo::load_from_path(&checkout)?;
     let roots_before = migration_roots(&checkout)?;
     let audit = vela_edge::artifact_audit::audit_artifacts(&checkout, &baseline_project);

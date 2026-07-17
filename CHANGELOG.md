@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.900.1 — 2026-07-17 — Clean legacy migration locks
+
+- Extend the 0.900 repository migration to add the missing
+  `/.vela/operation-journals/` safety rule when a legacy `.gitignore` lacks it.
+  Ordinary `status`, `next`, and review reads may create an empty frontier-lock
+  file; it is operational coordination, not canonical state or publishable
+  evidence.
+- Keep the migration preview's own recovery barrier in Git-private storage so
+  checking a legacy frontier cannot dirty the checkout before the ignore rule
+  is applied.
+- Reproduce the defect on the migrated Sidon and formal-conjectures frontiers,
+  preserve all canonical roots and scientific debt classifications, and add a
+  focused regression for clean preview and exact touched-file reporting.
+- This compatible patch changes no event, reducer, Receipt, proposal,
+  signature, policy, accepted-state, or key-custody contract.
+
 ## v0.900.0 — 2026-07-16 — Everyday product contract
 
 - Cut the default CLI to the twelve-command daily path and moved setup nouns
