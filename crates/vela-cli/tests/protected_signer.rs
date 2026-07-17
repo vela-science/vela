@@ -7,6 +7,7 @@ fn run(home: &std::path::Path, args: &[&str]) -> std::process::Output {
         .args(args)
         .env("HOME", home)
         .env("NO_COLOR", "1")
+        .env("VELA_NO_USER_INTERACTION", "1")
         .output()
         .expect("run isolated Vela")
 }
@@ -52,4 +53,27 @@ fn protected_identity_cannot_move_binary_pin_through_legacy_yes_flag() {
     );
     assert!(combined.contains("cannot move its Vela binary pin"));
     assert!(!home.path().join(".vela/binary-pin.json").exists());
+}
+
+#[test]
+fn automated_identity_creation_fails_before_opening_platform_ui() {
+    let home = TempDir::new().unwrap();
+
+    let output = run(
+        home.path(),
+        &["id", "create", "--handle", "no-prompt-fixture", "--json"],
+    );
+    assert!(!output.status.success());
+    let combined = format!(
+        "{}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(
+        combined.contains(
+            "user interaction is disabled; refusing to authenticate protected enrollment"
+        )
+    );
+    assert!(!home.path().join(".vela/identity.json").exists());
+    assert!(!home.path().join(".vela/signer-session.json").exists());
 }

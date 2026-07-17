@@ -53,6 +53,7 @@ impl Approval for SystemApproval {
         }) {
             return Ok(());
         }
+        require_user_interaction("open a signer session")?;
         platform_reauthenticate(&format!(
             "Unlock Vela decisions for reviewer {}",
             request.reviewer_actor
@@ -68,6 +69,7 @@ impl Approval for SystemApproval {
     }
 
     fn approve(&self, request: &SignerRequest) -> Result<bool, String> {
+        require_user_interaction("show a decision card")?;
         let card = decision_card(request);
         // Keep cancellation as the platform default. A stray Return key or a
         // GUI backend that cannot distinguish a closed window from its first
@@ -109,6 +111,7 @@ impl Approval for SystemApproval {
     }
 
     fn reauthenticate(&self, request: &SignerRequest) -> Result<(), String> {
+        require_user_interaction("reauthenticate a protected decision")?;
         platform_reauthenticate(&format!(
             "{} {} at Decision Plan {}",
             capitalize(&request.action),
@@ -122,6 +125,7 @@ impl Approval for SystemApproval {
     }
 
     fn reauthenticate_enrollment(&self, request: &EnrollmentRequest) -> Result<(), String> {
+        require_user_interaction("authenticate protected enrollment")?;
         platform_reauthenticate(&format!("Protect Vela identity {}", request.actor))?;
         save_session_record(&SessionRecord::new(
             &request.actor,
@@ -134,6 +138,7 @@ impl Approval for SystemApproval {
     }
 
     fn reauthenticate_rebind(&self, request: &RebindRequest) -> Result<(), String> {
+        require_user_interaction("authenticate a signer update")?;
         if request.purpose == crate::RebindPurpose::EnrollmentRecovery {
             platform_reauthenticate(&format!(
                 "Resume protected Vela identity enrollment for {}",
@@ -211,6 +216,23 @@ impl Approval for SystemApproval {
         }
         save_session_record(&record)
     }
+}
+
+fn require_user_interaction(operation: &str) -> Result<(), String> {
+    if user_interaction_disabled(std::env::var_os("VELA_NO_USER_INTERACTION").as_deref()) {
+        return Err(format!(
+            "user interaction is disabled; refusing to {operation}"
+        ));
+    }
+    Ok(())
+}
+
+fn user_interaction_disabled(value: Option<&std::ffi::OsStr>) -> bool {
+    value
+        .and_then(std::ffi::OsStr::to_str)
+        .is_some_and(|value| {
+            value == "1" || value.eq_ignore_ascii_case("true") || value.eq_ignore_ascii_case("yes")
+        })
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -718,5 +740,18 @@ mod tests {
             MessageDialogResult::Custom("Accept result".to_string()),
             "Reject proposal"
         ));
+    }
+
+    #[test]
+    fn automated_context_can_disable_every_system_prompt() {
+        for value in ["1", "true", "TRUE", "yes", "YES"] {
+            assert!(user_interaction_disabled(Some(std::ffi::OsStr::new(value))));
+        }
+        for value in ["", "0", "false", "no"] {
+            assert!(!user_interaction_disabled(Some(std::ffi::OsStr::new(
+                value
+            ))));
+        }
+        assert!(!user_interaction_disabled(None));
     }
 }

@@ -11,6 +11,10 @@
   verifies key possession and binary identity, removes the plaintext source
   after protected readback, and zeroizes transient seed buffers. Identity v1
   remains readable.
+- Add an enforced `VELA_NO_USER_INTERACTION=1` latch for conformance and other
+  automated contexts. Any accidental path to platform authentication or a
+  decision card now fails before opening desktop UI or touching protected
+  custody.
 - Prepare checksum-verified paired bundles for macOS, Windows, and Linux so the
   CLI and exact helper cannot drift. The Linux bundle includes a non-caching
   polkit action; no release installs a daemon, listener, or reusable signing

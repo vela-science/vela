@@ -1,8 +1,8 @@
 # ADR 0011: Human-governed authority and producer withdrawal
 
 - Status: Proposed
-- Release gate: pending protected rebind, current-platform UX review,
-  cross-platform package evidence, and final tag publication
+- Release gate: pending protected rebind, current-platform UX review, and final
+  tag publication; cross-platform package evidence passed
 - Target release: Vela `v0.901.0`
 - Protocol effect: one signed, non-scientific `proposal.withdrawn` event
 - Local product effect: protected custody, bounded authority sessions, and identity v2
@@ -214,6 +214,12 @@ The target prompt budget is therefore zero prompts per signature, zero human
 prompts for routine or producer-owned work, one platform authentication when a
 bounded signer session opens or expires, and one concise semantic action only
 when human scientific judgment is actually required.
+
+Automated conformance and fixture processes set `VELA_NO_USER_INTERACTION=1`.
+The signer enforces that latch immediately before every platform authentication
+or decision-card edge. A fixture that accidentally reaches protected custody
+therefore fails headlessly instead of opening a desktop dialog or touching the
+operator's credential store.
 
 ### Routine automation remains policy, not repeated approval
 
