@@ -3297,6 +3297,11 @@ mod workflow_transaction_tests {
         assert!(
             vela_protocol::proposals::verify_proposal_withdrawals(temp.path(), &after).is_empty()
         );
+        assert_eq!(after.stats.event_count, before.stats.event_count + 1);
+        assert!(
+            vela_protocol::frontier_repo::layout_issues(temp.path(), &after).is_empty(),
+            "withdrawal transaction must publish derived views that already match replay"
+        );
 
         let retry = transact_proposal_withdrawal(
             temp.path(),

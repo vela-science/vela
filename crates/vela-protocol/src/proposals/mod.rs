@@ -152,6 +152,10 @@ pub fn apply_proposal_withdrawal(
     proposal.reviewed_by = None;
     proposal.reviewed_at = None;
     proposal.applied_event_id = None;
+    // Stats are part of the materialized snapshot. Keep the in-memory
+    // candidate identical to a subsequent split-repository reload, which
+    // always recomputes them after reading the canonical event files.
+    project::recompute_stats(project);
     Ok(event)
 }
 
