@@ -1,5 +1,25 @@
 # Changelog
 
+## v0.900.0 — 2026-07-16 — Everyday product contract
+
+- Cut the default CLI to the twelve-command daily path and moved setup nouns
+  and advanced verification into separate help sections.
+- Added compact, root-bound status, producer offer, work-session, and review
+  projections with explicit output budgets.
+- Added minimal bounded initialization and a compact doctor response with one
+  next action. Optional MCP, CI, proof, and editor scaffolding no longer ships
+  in a fresh frontier.
+- Added an isolated `migrate --to 0.900` preview and apply path. Migration
+  removes retired manifest fields, regenerates derived views, preserves
+  canonical roots and bytes, and reports stale proof pointers and artifact
+  debt.
+- Retired the core Atlas wrapper, Foundry and external-reproduction paths,
+  legacy proposal/state/credit/publication aliases, and the old Hub wrapper.
+  `vela-hub` remains a separate binary.
+- Added ADR 0010 and focused regressions for help, compact contracts, minimal
+  initialization, migration refusal, and old-frontier replay. This release
+  adds no protocol primitive or authority surface.
+
 ## v0.800.23 — 2026-07-16 — Durable journal boundaries
 
 - Fixed the completed-transaction recovery barrier so a later legitimate

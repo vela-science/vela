@@ -1,374 +1,189 @@
-use crate::cli::{
-    fail, fail_return, fmt_timestamp, frontier_dir_for_source, frontier_label, print_json,
-};
+use crate::cli::{fail, fail_return, fmt_timestamp, frontier_dir_for_source, print_json};
 use colored::Colorize;
 use serde_json::json;
+use sha2::Digest;
 use std::path::Path;
 use vela_edge::doctor;
 use vela_edge::packet;
 use vela_protocol::cli_style as style;
 use vela_protocol::repo;
 
-/// v0.42: One-screen status. The `git status` analogue.
-pub(crate) fn cmd_status(path: &Path, json: bool) {
-    crate::ui::set_mode("status", json);
+/// Stable compact status contract for the 0.9 product surface.
+pub(crate) fn cmd_status_compact(path: &Path, json_out: bool) {
+    crate::ui::set_mode("status", json_out);
     let frontier_dir = frontier_dir_for_source(path);
-    let crate::review_material::StatusSnapshot {
-        project,
-        active_policy,
-        observed_at: now_iso,
-        review_page,
-    } = crate::review_material::ReviewProjection::status_snapshot(
-        frontier_dir,
-        crate::review_material::ReviewRequest {
-            limit: Some(5),
-            ..crate::review_material::ReviewRequest::default()
-        },
-    )
-    .unwrap_or_else(|error| fail_return(&error.to_string()));
-    let policy_assessment = vela_protocol::proposals::policy_accept::assess_policy_readiness(
+    let journal_dir = crate::workflow::frontier_transaction_journal_dir(frontier_dir)
+        .unwrap_or_else(|error| fail_return(&error));
+    let _barrier =
+        crate::frontier_txn::FrontierTxn::acquire_recovery_barrier(frontier_dir, &journal_dir)
+            .unwrap_or_else(|error| fail_return(&error.to_string()));
+    let observed_at = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Nanos, true);
+    let project = vela_protocol::repo::load_from_path(frontier_dir)
+        .unwrap_or_else(|error| fail_return(&error));
+    let active_policy = vela_protocol::acceptance_policy::load_active_policy_snapshot(frontier_dir);
+    let replay = vela_protocol::reducer::verify_replay(&project);
+    let policy = vela_protocol::proposals::policy_accept::assess_policy_readiness(
         &project,
         active_policy.as_ref().map_err(String::as_str),
-        &now_iso,
+        &observed_at,
     );
-    let active_policy_ok = policy_assessment.permit_readiness()
+    let policy_ok = policy.permit_readiness()
         != vela_protocol::proposals::policy_accept::PermitReadiness::Blocked;
-
-    // Replay integrity: the one-line truth a stranger checks first.
-    let replay = vela_protocol::reducer::verify_replay(&project);
-    let replay_line = if replay.ok {
-        "reproduced".to_string()
-    } else {
-        format!("DIVERGED ({} diff(s))", replay.diffs.len())
-    };
-
-    // Production state: live leases, attestations, registrations.
-    let live_leases: Vec<&vela_protocol::project::AttemptClaim> = project
-        .attempt_claims
+    let status_ok = replay.ok && policy_ok;
+    let signals = vela_edge::signals::analyze_at(&project, &[], Some(frontier_dir));
+    let mut blockers_by_code = std::collections::BTreeMap::<String, usize>::new();
+    for signal in &signals.signals {
+        if signal.blocks.iter().any(|block| block == "strict_check") {
+            *blockers_by_code.entry(signal.kind.clone()).or_default() += 1;
+        }
+    }
+    let blocker_count = blockers_by_code.values().sum::<usize>();
+    let pending_review = project
+        .proposals
         .iter()
-        .filter(|c| {
-            chrono::DateTime::parse_from_rfc3339(&c.claimed_at)
-                .map(|t| {
-                    (t + chrono::Duration::seconds(c.lease_ttl_seconds as i64)).to_rfc3339()
-                        > now_iso
-                })
-                .unwrap_or(false)
-        })
-        .collect();
-    let attestation_count = project.statement_attestations.len();
-    let registration_count = project.statement_registrations.len();
-    let last_event_ts = project.events.iter().map(|e| e.timestamp.as_str()).max();
-
-    // Inbox counts.
-    let mut pending_total = 0usize;
-    let mut pending_by_kind: std::collections::BTreeMap<String, usize> =
-        std::collections::BTreeMap::new();
-    for p in &project.proposals {
-        if p.status == "pending_review" {
-            pending_total += 1;
-            *pending_by_kind.entry(p.kind.clone()).or_insert(0) += 1;
-        }
-    }
-    let review_projection = match &review_page {
-        Ok(page) => json!({
-            "snapshot_root": page.snapshot_root,
-            "event_log_root": page.event_log_root,
-            "observed_at": page.observed_at,
-            "total": page.total,
-            "returned": page.returned,
-            "pressure": page.pressure,
-            "items": page.items,
-            "next_cursor": page.next_cursor,
-        }),
-        Err(error) => json!({
-            "error": {"code": error.code, "message": error.message},
-        }),
-    };
-
-    // The memo's epistemic vector: never collapse into one green check.
-    // claimed / evidence-attached / contested / refuted / retracted / stale
-    // are DIFFERENT states, and an agent reading --json gets each count.
-    let mut by_status: std::collections::BTreeMap<String, usize> = Default::default();
-    let mut with_evidence = 0usize;
-    for f in &project.findings {
-        let s = if f.flags.retracted {
-            "retracted"
-        } else if f.flags.contested {
-            "contested"
-        } else if f.flags.superseded {
-            "superseded"
-        } else {
-            "accepted"
-        };
-        *by_status.entry(s.to_string()).or_default() += 1;
-        if !f.evidence.evidence_spans.is_empty()
-            || f.provenance.url.as_deref().is_some_and(|u| !u.is_empty())
-            || f.provenance.doi.as_deref().is_some_and(|d| !d.is_empty())
-        {
-            with_evidence += 1;
-        }
-    }
-    let verdicts: std::collections::BTreeMap<String, usize> = {
-        let mut m: std::collections::BTreeMap<String, usize> = Default::default();
-        for a in &project.statement_attestations {
-            *m.entry(format!("{:?}", a.verdict).to_lowercase())
-                .or_default() += 1;
-        }
-        m
-    };
-
-    // Compounding block (v0.736): is accepted state running on policy rails,
-    // is failure landing channel-attributed, is context being reused — plus
-    // the curated channel map when a channels.yaml sits next to the frontier.
-    let compounding = vela_edge::frontier_health::compounding_metrics(&project);
-    let (channels_cold, channels_total) =
-        match vela_edge::channel_map::ChannelTaxonomy::load_for_frontier(frontier_dir) {
-            Some(taxonomy) => {
-                let map = vela_edge::channel_map::channel_map(&project, &taxonomy);
-                let cold = map
-                    .iter()
-                    .filter(|c| c.status == vela_edge::channel_map::ChannelState::Cold)
-                    .count();
-                (cold, map.len())
-            }
-            None => (0, 0),
-        };
-
-    if json {
-        println!(
-            "{}",
-            serde_json::to_string_pretty(&json!({
-                "ok": active_policy_ok,
-                "command": "status",
-                "frontier": frontier_label(&project),
-                "vfr_id": project.frontier_id(),
-                "replay": {"ok": replay.ok, "diffs": replay.diffs.len()},
-                "findings": {
-                    "total": project.findings.len(),
-                    "by_status": by_status,
-                    "with_evidence": with_evidence,
-                },
-                "judgment": {
-                    "statement_attestations": project.statement_attestations.len(),
-                    "by_verdict": verdicts,
-                },
-                "proof": {
-                    "status": project.proof_state.latest_packet.status,
-                },
-                "policy": {
-                    "state": policy_assessment.state().as_str(),
-                    "permit_readiness": policy_assessment.permit_readiness().as_str(),
-                    "reason_codes": policy_assessment.reason_codes(),
-                    "id": active_policy.as_ref().ok()
-                        .and_then(vela_protocol::acceptance_policy::ActivePolicySnapshot::policy)
-                        .map(|policy| &policy.id),
-                    "error": policy_assessment.detail(),
-                },
-                "events": project.events.len(),
-                "actors": project.actors.len(),
-                "compounding": {
-                    "autonomy_ratio": compounding.autonomy_ratio,
-                    "dead_channel_coverage": compounding.dead_channel_coverage,
-                    "unlock_yield_last": compounding.unlock_yield_last,
-                    "context_reuse_ratio": compounding.context_reuse_ratio,
-                    "attempts_avoided": compounding.attempts_avoided,
-                    "channels": {"cold": channels_cold, "total": channels_total},
-                },
-                "inbox": {
-                    "pending_total": pending_total,
-                    "pending_by_kind": pending_by_kind,
-                    "review": review_projection,
-                },
-                "unpublished_store_files": unpublished_store_files(frontier_dir),
-                "next": if pending_total > 0 {
-                    json!(format!(
-                        "{pending_total} pending proposal(s) await a human key: `vela sign`"
-                    ))
-                } else if !replay.ok {
-                    json!("replay DIVERGED: run `vela check .` and inspect")
-                } else if project.proof_state.latest_packet.status == "stale" {
-                    json!("proof packet stale: `vela frontier materialize .`")
-                } else {
-                    json!(null)
-                },
-            }))
-            .expect("serialize status")
-        );
-        if !active_policy_ok {
-            std::process::exit(1);
-        }
-        return;
-    }
-
-    println!();
-    println!(
-        "  {}",
-        format!("VELA · STATUS · {}", path.display())
-            .to_uppercase()
-            .dimmed()
-    );
-    println!("  {}", style::tick_row(60));
-    println!();
-    println!("  frontier:    {}", frontier_label(&project));
-    println!("  vfr_id:      {}", project.frontier_id());
-    println!(
-        "  replay:      {}",
-        if replay.ok {
-            style::ok(&replay_line)
-        } else {
-            style::warn(&replay_line)
-        }
-    );
-    println!("  last event:  {}", last_event_ts.unwrap_or("none"));
-    if !live_leases.is_empty() {
-        println!("  leases:      {} live", live_leases.len());
-        for l in live_leases.iter().take(5) {
-            let remaining = chrono::DateTime::parse_from_rfc3339(&l.claimed_at)
-                .ok()
-                .map(|t| {
-                    (t + chrono::Duration::seconds(l.lease_ttl_seconds as i64))
-                        .signed_duration_since(chrono::Utc::now())
-                })
-                .map(|d| {
-                    let m = d.num_minutes().max(0);
-                    if m >= 60 {
-                        format!("expires in {}h{:02}m", m / 60, m % 60)
-                    } else {
-                        format!("expires in {m}m")
-                    }
-                })
-                .unwrap_or_else(|| format!("ttl {}s", l.lease_ttl_seconds));
-            println!(
-                "    · {}  {}  ({remaining})",
-                l.obligation_id, l.claimant_actor
-            );
-        }
-        if live_leases.len() > 5 {
-            println!("    … +{} more", live_leases.len() - 5);
-        }
-    }
-    if attestation_count + registration_count > 0 {
-        println!(
-            "  judgment:    {attestation_count} statement attestation(s), {registration_count} registration(s)"
-        );
-    }
-    {
-        let vec_line: Vec<String> = by_status.iter().map(|(k, v)| format!("{v} {k}")).collect();
-        if !vec_line.is_empty() {
-            println!("  state:       {}", vec_line.join(" · "));
-        }
-    }
-    println!(
-        "  findings:    {}    events: {}    actors: {}",
-        project.findings.len(),
-        project.events.len(),
-        project.actors.len(),
-    );
-    let pct = |r: f64| (r * 100.0).round() as i64;
-    println!(
-        "  compounding: autonomy {}% · channels {channels_cold}/{channels_total} cold · reuse {}%",
-        pct(compounding.autonomy_ratio),
-        pct(compounding.context_reuse_ratio),
-    );
-    println!();
-    let policy_id = active_policy
-        .as_ref()
+        .filter(|proposal| proposal.status == "pending_review")
+        .count();
+    let open_work = std::fs::read(frontier_dir.join("targets.json"))
         .ok()
-        .and_then(vela_protocol::acceptance_policy::ActivePolicySnapshot::policy)
-        .map(|policy| format!(" ({})", policy.id))
-        .unwrap_or_default();
-    let policy_line = format!(
-        "{} · Permit {}{}",
-        policy_assessment.state().as_str(),
-        policy_assessment.permit_readiness().as_str(),
-        policy_id
-    );
-    if policy_assessment.permit_readiness()
-        == vela_protocol::proposals::policy_accept::PermitReadiness::Blocked
-    {
-        println!("  policy:      {}", style::lost(&policy_line));
-    } else if policy_assessment.permit_readiness()
-        == vela_protocol::proposals::policy_accept::PermitReadiness::HumanOnly
-    {
-        println!("  policy:      {}", style::warn(&policy_line));
+        .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok())
+        .and_then(|value| {
+            value
+                .get("targets")
+                .and_then(serde_json::Value::as_array)
+                .cloned()
+        })
+        .map(|targets| {
+            targets
+                .iter()
+                .filter(|target| {
+                    target.get("state").and_then(serde_json::Value::as_str) == Some("open")
+                })
+                .count()
+        })
+        .unwrap_or(0);
+    let git_text = |args: &[&str]| {
+        std::process::Command::new("git")
+            .arg("-C")
+            .arg(frontier_dir)
+            .args(args)
+            .output()
+            .ok()
+            .filter(|output| output.status.success())
+            .map(|output| String::from_utf8_lossy(&output.stdout).trim().to_string())
+    };
+    let git_commit = git_text(&["rev-parse", "HEAD^{commit}"]);
+    let git_tree = git_text(&["rev-parse", "HEAD^{tree}"]);
+    let git_clean =
+        git_text(&["status", "--porcelain=v1", "--untracked-files=all"]).is_some_and(|status| {
+            status.lines().all(|line| {
+                line.get(3..)
+                    .is_some_and(|path| path.starts_with(".vela/operation-journals/"))
+            })
+        });
+    let actor_registry_path = frontier_dir.join(".vela/actors.json");
+    let actor_registry_root = std::fs::read(&actor_registry_path)
+        .map(|bytes| format!("sha256:{}", hex::encode(sha2::Sha256::digest(bytes))))
+        .unwrap_or_else(|_| {
+            vela_protocol::canonical::to_canonical_bytes(&project.actors)
+                .map(|bytes| format!("sha256:{}", hex::encode(sha2::Sha256::digest(bytes))))
+                .unwrap_or_else(|error| {
+                    fail_return(&format!("canonicalize actor registry: {error}"))
+                })
+        });
+    let artifact_root = vela_protocol::canonical::to_canonical_bytes(&project.artifacts)
+        .map(|bytes| format!("sha256:{}", hex::encode(sha2::Sha256::digest(bytes))))
+        .unwrap_or_else(|error| fail_return(&format!("canonicalize artifacts: {error}")));
+    let next_action = if !replay.ok {
+        "vela check . --strict"
+    } else if !policy_ok {
+        "vela doctor . --all --json"
+    } else if open_work > 0 {
+        "vela next . --json"
+    } else if pending_review > 0 {
+        "vela review list . --json"
     } else {
-        println!("  policy:      {}", style::ok(&policy_line));
-    }
-    if !policy_assessment.reason_codes().is_empty() {
-        println!(
-            "               {}",
-            style::dim(&policy_assessment.reason_codes().join(", "))
-        );
-    }
-    if let Some(detail) = policy_assessment.detail() {
-        println!("               {}", style::dim(detail));
-    }
-    let unpublished = unpublished_store_files(frontier_dir);
-    if unpublished > 0 {
-        println!(
-            "  {}  {unpublished} store file(s) changed but not committed — signed state that exists only on this machine",
-            style::warn("unpublished")
-        );
-        println!("             publish: git add -A && git commit && git push");
-    }
-    if pending_total > 0 {
-        println!(
-            "  {}  {pending_total} pending proposals",
-            style::warn("sign queue")
-        );
-        for (k, n) in &pending_by_kind {
-            println!("    · {n:>3}  {k}");
-        }
-        match &review_page {
-            Ok(page) => {
-                println!(
-                    "    · review pressure: {}",
-                    crate::review_material::review_pressure_summary(&page.pressure)
-                );
-                for item in &page.items {
-                    let accept = item
-                        .brief
-                        .action("accept")
-                        .map(|action| action.eligibility.as_str())
-                        .unwrap_or("unavailable");
-                    let reject = item
-                        .brief
-                        .action("reject")
-                        .map(|action| action.eligibility.as_str())
-                        .unwrap_or("unavailable");
-                    println!(
-                        "    · {}  {}",
-                        item.brief.audit.proposal_id,
-                        crate::cli::safe_text::inline(&item.brief.change.claim)
-                    );
-                    println!(
-                        "      {} · accept {accept} · reject {reject} · facts {}",
-                        item.brief.authority.route, item.brief.audit.decision_facts_root
-                    );
-                }
-                if page.next_cursor.is_some() {
-                    println!(
-                        "    … {} more available through `vela sign`",
-                        page.total - page.returned
-                    );
-                }
-            }
-            Err(error) => println!(
-                "    · review projection unavailable: {}",
-                crate::cli::safe_text::inline(&error.to_string())
-            ),
-        }
-        println!();
-        println!("  next:  vela sign   (one session, one confirm, one key read)");
-    } else if !replay.ok {
-        println!("  {}  replay diverged", style::warn("!!"));
-        println!();
-        println!("  next:  vela check . --strict");
+        "none"
+    };
+    let payload = json!({
+        "ok": status_ok,
+        "command": "status",
+        "schema": "vela.status.v1",
+        "frontier": {
+            "id": project.frontier_id(),
+            "name": project.project.name,
+        },
+        "git": {
+            "commit": git_commit,
+            "tree": git_tree,
+            "clean": git_clean,
+        },
+        "roots": {
+            "event_log": format!("sha256:{}", vela_protocol::events::event_log_hash(&project.events)),
+            "snapshot": format!("sha256:{}", vela_protocol::events::snapshot_hash(&project)),
+            "proposals": format!("sha256:{}", vela_protocol::proposals::proposal_state_hash(&project.proposals)),
+            "actor_registry": actor_registry_root,
+            "artifacts": artifact_root,
+        },
+        "integrity": {
+            "replay": if replay.ok { "reproduced" } else { "diverged" },
+            "replay_diffs": replay.diffs.len(),
+            "strict": if blocker_count == 0 { "pass" } else { "blocked" },
+            "blocker_count": blocker_count,
+            "blockers_by_code": blockers_by_code,
+        },
+        "counts": {
+            "events": project.events.len(),
+            "findings": project.findings.len(),
+            "open_work": open_work,
+            "pending_review": pending_review,
+        },
+        "policy": {
+            "state": policy.state().as_str(),
+            "permit_readiness": policy.permit_readiness().as_str(),
+            "reason_codes": policy.reason_codes(),
+            "error": policy.detail(),
+        },
+        "next_action": next_action,
+    });
+    if json_out {
+        print_json(&payload);
     } else {
-        println!("  {}  sign queue clean", style::ok("ok"));
+        println!(
+            "vela status · {}",
+            payload["frontier"]["name"].as_str().unwrap_or("frontier")
+        );
+        println!("  frontier  {}", project.frontier_id());
+        println!(
+            "  commit    {}",
+            payload["git"]["commit"].as_str().unwrap_or("unavailable")
+        );
+        println!(
+            "  replay    {}",
+            payload["integrity"]["replay"].as_str().unwrap_or("unknown")
+        );
+        println!("  strict    {} blocker(s)", blocker_count);
+        for (code, count) in payload["integrity"]["blockers_by_code"]
+            .as_object()
+            .into_iter()
+            .flatten()
+        {
+            println!("            {} {}", count, code);
+        }
+        println!("  events    {}", project.events.len());
+        println!("  findings  {}", project.findings.len());
+        println!("  work      {} open", open_work);
+        println!("  review    {} pending", pending_review);
+        println!(
+            "  policy    {} · Permit {}",
+            policy.state().as_str(),
+            policy.permit_readiness().as_str()
+        );
+        if let Some(detail) = policy.detail() {
+            println!("            {detail}");
+        }
+        println!("  next      {next_action}");
     }
-    println!();
-    if !active_policy_ok {
+    if !status_ok {
         std::process::exit(1);
     }
 }
@@ -513,7 +328,7 @@ pub(crate) fn cmd_verify(path: &Path, json_output: bool) {
     }
 }
 
-pub(crate) async fn cmd_doctor(frontier: Option<&Path>, port: u16, json_output: bool) {
+pub(crate) async fn cmd_doctor(frontier: Option<&Path>, port: u16, all: bool, json_output: bool) {
     let report = doctor::run(frontier, port);
     // The local setup/ceremony lane lives crate-side (identity, pin,
     // policy freshness, adapters, registry) and merges into the report.
@@ -523,7 +338,40 @@ pub(crate) async fn cmd_doctor(frontier: Option<&Path>, port: u16, json_output: 
         None
     };
     let setup = crate::config::doctor_setup::run(frontier_dir.as_deref());
-    if json_output {
+    let setup_blockers = setup
+        .iter()
+        .filter(|check| check.status == crate::config::doctor_setup::SetupStatus::Fail)
+        .map(|check| check.name.to_string())
+        .collect::<Vec<_>>();
+    let mut blockers = report.blocking.clone();
+    blockers.extend(setup_blockers);
+    blockers.sort();
+    blockers.dedup();
+    let next_action = setup
+        .iter()
+        .find(|check| {
+            check.status == crate::config::doctor_setup::SetupStatus::Fail && !check.next.is_empty()
+        })
+        .map(|check| check.next.clone())
+        .or_else(|| report.next_commands.first().cloned());
+    if json_output && !all {
+        print_json(&json!({
+            "schema": "vela.doctor.v1",
+            "ok": blockers.is_empty(),
+            "command": "doctor",
+            "binary_version": report.binary_version,
+            "frontier": {
+                "path": report.frontier_path,
+                "kind": report.frontier_kind,
+                "load": if report.frontier_load_ok { "ok" } else { "blocked" },
+            },
+            "policy": if report.policy_ok { "ready" } else { "needs_attention" },
+            "proof": report.proof_status,
+            "evidence_ci": if report.evidence_ci_ok { "ok" } else { "blocked" },
+            "blockers": blockers,
+            "next_action": next_action,
+        }));
+    } else if json_output {
         let mut merged = serde_json::to_value(&report).unwrap_or_default();
         if let Some(obj) = merged.as_object_mut() {
             obj.insert(
@@ -532,7 +380,7 @@ pub(crate) async fn cmd_doctor(frontier: Option<&Path>, port: u16, json_output: 
             );
         }
         print_json(&merged);
-    } else {
+    } else if all {
         println!("vela doctor");
         println!("  binary:      {}", report.binary_version);
         println!("  frontier:    {}", report.frontier_path);
@@ -595,8 +443,40 @@ pub(crate) async fn cmd_doctor(frontier: Option<&Path>, port: u16, json_output: 
                 serde_json::to_string(config).expect("serialize mcp config")
             );
         }
+    } else {
+        println!("vela doctor · {}", report.frontier_path);
+        println!("  binary    {}", report.binary_version);
+        println!(
+            "  frontier  {}",
+            if report.frontier_load_ok {
+                "ok"
+            } else {
+                "blocked"
+            }
+        );
+        println!(
+            "  policy    {}",
+            if report.policy_ok {
+                "ready"
+            } else {
+                "needs attention"
+            }
+        );
+        println!("  proof     {}", report.proof_status);
+        println!(
+            "  blockers  {}",
+            if blockers.is_empty() {
+                "none".to_string()
+            } else {
+                blockers.join(", ")
+            }
+        );
+        if let Some(next) = &next_action {
+            println!("  next      {next}");
+        }
+        println!("  details   vela doctor . --all");
     }
-    if !report.blocking.is_empty() {
+    if !blockers.is_empty() {
         std::process::exit(1);
     }
 }

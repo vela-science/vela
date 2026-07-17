@@ -146,14 +146,6 @@ pub(crate) fn review_pressure_summary(pressure: &ReviewPressureProjection) -> St
     }
 }
 
-pub(crate) struct StatusSnapshot {
-    pub(crate) project: Project,
-    pub(crate) active_policy:
-        Result<vela_protocol::acceptance_policy::ActivePolicySnapshot, String>,
-    pub(crate) observed_at: String,
-    pub(crate) review_page: Result<ReviewPage, ReviewProjectionError>,
-}
-
 /// Lock-neutral review material for an exact caller-selected proposal set.
 ///
 /// The caller must already own the frontier recovery barrier and must pass the
@@ -295,46 +287,6 @@ impl ReviewProjection {
     /// Read the status project, policy pair, and review preview while holding
     /// one recovery barrier. The returned policy assessment and review items
     /// therefore describe the same frontier transaction snapshot.
-    pub(crate) fn status_snapshot(
-        frontier: &Path,
-        request: ReviewRequest,
-    ) -> Result<StatusSnapshot, ReviewProjectionError> {
-        let journal_dir = crate::workflow::frontier_transaction_journal_dir(frontier)
-            .map_err(|error| ReviewProjectionError::new("frontier_unavailable", error))?;
-        let _barrier =
-            crate::frontier_txn::FrontierTxn::acquire_recovery_barrier(frontier, &journal_dir)
-                .map_err(review_barrier_error)?;
-        let supplied_cursor = request
-            .cursor
-            .as_deref()
-            .map(decode_review_cursor)
-            .transpose()?;
-        let observed_at = supplied_cursor.as_ref().map_or_else(
-            || chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Nanos, true),
-            |cursor| cursor.observed_at.clone(),
-        );
-        let project = vela_protocol::repo::load_from_path(frontier)
-            .map_err(|error| ReviewProjectionError::new("frontier_invalid", error))?;
-        let active_policy = vela_protocol::acceptance_policy::load_active_policy_snapshot(frontier);
-        let engine_policy_observation =
-            vela_protocol::frontier_policy::engine_policy_summary_observation(frontier);
-        let review_page = Self::page_from_locked_snapshot(
-            frontier,
-            &request,
-            supplied_cursor,
-            &project,
-            &active_policy,
-            &observed_at,
-            engine_policy_observation,
-        );
-        Ok(StatusSnapshot {
-            project,
-            active_policy,
-            observed_at,
-            review_page,
-        })
-    }
-
     #[allow(clippy::too_many_arguments)]
     fn page_from_locked_snapshot(
         frontier: &Path,
@@ -1676,43 +1628,6 @@ mod tests {
         assert!(!context.credential_valid);
         assert!(!context.independence_satisfied);
         assert!(!context.method_integrity_sound);
-    }
-
-    #[test]
-    fn status_snapshot_binds_policy_and_review_to_one_project_observation() {
-        let temp = initialized_review_frontier();
-        save_pending(temp.path(), vec![pending_with_missing_receipt(0)]);
-
-        let status = ReviewProjection::status_snapshot(
-            temp.path(),
-            ReviewRequest {
-                limit: Some(5),
-                ..ReviewRequest::default()
-            },
-        )
-        .unwrap();
-        let expected_event_log_root = format!(
-            "sha256:{}",
-            vela_protocol::events::event_log_hash(&status.project.events)
-        );
-        let page = status.review_page.unwrap();
-
-        assert_eq!(page.event_log_root, expected_event_log_root);
-        assert_eq!(page.observed_at, status.observed_at);
-        assert_eq!(page.returned, 1);
-        let assessment = vela_protocol::proposals::policy_accept::assess_policy_readiness(
-            &status.project,
-            status.active_policy.as_ref().map_err(String::as_str),
-            &status.observed_at,
-        );
-        assert_eq!(
-            assessment.state(),
-            vela_protocol::proposals::policy_accept::PolicyState::Absent
-        );
-        assert_eq!(
-            assessment.permit_readiness(),
-            vela_protocol::proposals::policy_accept::PermitReadiness::HumanOnly
-        );
     }
 
     #[test]

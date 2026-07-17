@@ -1,131 +1,169 @@
 use crate::cli::{fail_return, print_json};
 use crate::cli_commands::*;
-use serde_json::json;
-use std::path::{Path, PathBuf};
-use vela_protocol::cli_style as style;
+use serde_json::{Value, json};
+use std::path::PathBuf;
 use vela_protocol::proposals;
 use vela_protocol::repo;
 
-pub(crate) fn cmd_proposals(action: ProposalAction) {
+/// Compact 0.9 review surface. Lists never embed Decision Briefs; callers use
+/// `review show` or `review preview` for one exact proposal.
+pub(crate) fn cmd_review(action: ReviewAction) {
     match action {
-        ProposalAction::List {
+        ReviewAction::List {
             frontier,
             status,
+            limit,
+            cursor,
             json,
         } => {
-            let frontier_state =
-                repo::load_from_path(&frontier).unwrap_or_else(|e| fail_return(&e));
-            let proposals_list = proposals::list(&frontier_state, status.as_deref());
+            let project = repo::load_from_path(&frontier).unwrap_or_else(|e| fail_return(&e));
+            let status = status.unwrap_or_else(|| "pending_review".to_string());
+            let mut items = project
+                .proposals
+                .iter()
+                .filter(|proposal| proposal.status == status)
+                .map(|proposal| {
+                    let value = serde_json::to_value(proposal).unwrap_or(Value::Null);
+                    let claim = value
+                        .pointer("/payload/claim")
+                        .or_else(|| value.pointer("/change/claim"))
+                        .or_else(|| value.get("claim"))
+                        .and_then(Value::as_str)
+                        .unwrap_or("")
+                        .chars()
+                        .take(240)
+                        .collect::<String>();
+                    let target = value
+                        .pointer("/target/id")
+                        .or_else(|| value.pointer("/payload/target/id"))
+                        .or_else(|| value.get("finding_id"))
+                        .and_then(Value::as_str);
+                    json!({
+                        "proposal_id": proposal.id,
+                        "kind": proposal.kind,
+                        "status": proposal.status,
+                        "target": target,
+                        "claim": claim,
+                        "content_root": format!(
+                            "sha256:{}",
+                            vela_protocol::canonical::sha256_canonical(proposal)
+                                .unwrap_or_else(|error| fail_return(&format!("canonicalize proposal: {error}")))
+                        ),
+                    })
+                })
+                .collect::<Vec<_>>();
+            items.sort_by(|left, right| {
+                left["proposal_id"]
+                    .as_str()
+                    .cmp(&right["proposal_id"].as_str())
+            });
+            let total = items.len();
+            let limit = limit.clamp(1, 100);
+            let mut page = items
+                .into_iter()
+                .filter(|item| {
+                    cursor.as_deref().is_none_or(|cursor| {
+                        item["proposal_id"].as_str().is_some_and(|id| id > cursor)
+                    })
+                })
+                .take(limit + 1)
+                .collect::<Vec<_>>();
+            let has_more = page.len() > limit;
+            page.truncate(limit);
+            let next_cursor = has_more
+                .then(|| page.last().and_then(|item| item["proposal_id"].as_str()))
+                .flatten();
             let payload = json!({
                 "ok": true,
-                "command": "proposals.list",
-                "frontier": frontier_state.project.name,
-                "status_filter": status,
-                "summary": proposals::summary(&frontier_state),
-                "proposals": proposals_list,
+                "command": "review.list",
+                "schema": "vela.review.v1",
+                "frontier_id": project.frontier_id(),
+                "event_log_root": format!("sha256:{}", vela_protocol::events::event_log_hash(&project.events)),
+                "proposal_state_root": format!("sha256:{}", proposals::proposal_state_hash(&project.proposals)),
+                "status": status,
+                "total": total,
+                "returned": page.len(),
+                "next_cursor": next_cursor,
+                "items": page,
             });
             if json {
                 print_json(&payload);
             } else {
-                println!("vela proposals list");
-                println!("  frontier: {}", frontier_state.project.name);
                 println!(
-                    "  proposals: {}",
-                    payload["proposals"].as_array().map_or(0, Vec::len)
+                    "review · {} {} proposal(s)",
+                    payload["total"],
+                    payload["status"].as_str().unwrap_or("")
                 );
+                for item in payload["items"].as_array().into_iter().flatten() {
+                    println!(
+                        "  {}  {}  {}",
+                        item["proposal_id"].as_str().unwrap_or(""),
+                        item["kind"].as_str().unwrap_or(""),
+                        item["claim"].as_str().unwrap_or("")
+                    );
+                }
             }
         }
-        ProposalAction::Show {
+        ReviewAction::Show {
             frontier,
             proposal_id,
-            json,
-        } => {
-            let frontier_state =
-                repo::load_from_path(&frontier).unwrap_or_else(|e| fail_return(&e));
-            let proposal =
-                proposals::show(&frontier_state, &proposal_id).unwrap_or_else(|e| fail_return(&e));
-            let payload = json!({
-                "ok": true,
-                "command": "proposals.show",
-                "frontier": frontier_state.project.name,
-                "proposal": proposal,
-            });
-            if json {
-                print_json(&payload);
-            } else {
-                println!("vela proposals show");
-                println!("  frontier: {}", frontier_state.project.name);
-                println!("  proposal: {}", proposal_id);
-                println!("  kind: {}", proposal.kind);
-                println!("  status: {}", proposal.status);
-            }
-        }
-        ProposalAction::Preview {
-            frontier,
-            proposal_id,
-            reviewer: _,
             json,
         } => {
             let review = crate::review_material::ReviewProjection::one(&frontier, &proposal_id)
                 .unwrap_or_else(|error| fail_return(&error.to_string()));
             let payload = json!({
                 "ok": true,
-                "command": "proposals.preview",
+                "command": "review.show",
+                "schema": "vela.review.v1",
                 "frontier": frontier.display().to_string(),
+                "proposal_id": proposal_id,
                 "review": review,
             });
             if json {
                 print_json(&payload);
             } else {
-                println!("vela proposals preview");
-                println!("  proposal: {}", proposal_id);
+                println!("review · {proposal_id}");
                 for line in crate::cli::sign_session::render_decision_brief_lines(&review.brief) {
-                    println!("    {line}");
+                    println!("  {line}");
                 }
             }
         }
-        ProposalAction::Validate { source, json } => {
-            let report = proposals::validate_source(&source).unwrap_or_else(|e| fail_return(&e));
+        ReviewAction::Preview {
+            frontier,
+            proposal_id,
+            json,
+        } => {
+            let review = crate::review_material::ReviewProjection::one(&frontier, &proposal_id)
+                .unwrap_or_else(|error| fail_return(&error.to_string()));
             let payload = json!({
-                "ok": report.ok,
-                "command": "proposals.validate",
-                "source": source.display().to_string(),
-                "summary": {
-                    "checked": report.checked,
-                    "valid": report.valid,
-                    "invalid": report.invalid,
-                },
-                "proposal_ids": report.proposal_ids,
-                "errors": report.errors,
+                "ok": true,
+                "command": "review.preview",
+                "schema": "vela.review.v1",
+                "frontier": frontier.display().to_string(),
+                "proposal_id": proposal_id,
+                "review": review,
             });
             if json {
                 print_json(&payload);
-            } else if report.ok {
-                println!("{} validated {} proposals", style::ok("ok"), report.valid);
             } else {
-                println!(
-                    "{} validated {} proposals, {} invalid",
-                    style::lost("lost"),
-                    report.valid,
-                    report.invalid
-                );
-                for error in &report.errors {
-                    println!("  · {error}");
+                println!("review preview · {proposal_id}");
+                for line in crate::cli::sign_session::render_decision_brief_lines(&review.brief) {
+                    println!("  {line}");
                 }
-                std::process::exit(1);
             }
         }
-        ProposalAction::Export {
+        ReviewAction::Export {
             frontier,
             output,
             status,
             json,
         } => {
             let count = proposals::export_to_path(&frontier, &output, status.as_deref())
-                .unwrap_or_else(|e| fail_return(&e));
+                .unwrap_or_else(|error| fail_return(&error));
             let payload = json!({
                 "ok": true,
-                "command": "proposals.export",
+                "command": "review.export",
+                "schema": "vela.review.v1",
                 "frontier": frontier.display().to_string(),
                 "output": output.display().to_string(),
                 "status": status,
@@ -134,55 +172,10 @@ pub(crate) fn cmd_proposals(action: ProposalAction) {
             if json {
                 print_json(&payload);
             } else {
-                println!("sealed · {count} proposals · {}", output.display());
+                println!("exported · {count} proposal(s) · {}", output.display());
             }
         }
     }
-}
-
-/// The derived credit view for a finding (read-only projection). Renders the
-/// accountable human author(s) of record, the disclosed contributors, and the
-/// originating agents. A machine never appears as an author.
-pub(crate) fn cmd_credit(frontier: &Path, finding_id: &str, json_out: bool) {
-    let source = repo::detect(frontier).unwrap_or_else(|e| fail_return(&e));
-    let proj = repo::load(&source).unwrap_or_else(|e| fail_return(&e));
-    let view = vela_protocol::credit::credit(&proj, finding_id)
-        .unwrap_or_else(|| fail_return(&format!("no such finding: {finding_id}")));
-    if json_out {
-        print_json(&json!({
-            "command": "credit",
-            "schema": "vela.credit.v0.1",
-            "credit": view,
-        }));
-        return;
-    }
-    println!("credit · {finding_id}");
-    if view.author_of_record.is_empty() {
-        println!("  author of record: (none — no accountable author yet)");
-    } else {
-        println!("  author of record: {}", view.author_of_record.join(", "));
-    }
-    if view.contributors.is_empty() {
-        println!("  contributors:     (none recorded)");
-    } else {
-        println!("  contributors:");
-        for c in &view.contributors {
-            println!(
-                "    {} [{}] {} — {}",
-                c.agent_id, c.agent_kind, c.role, c.unit
-            );
-        }
-    }
-    if !view.originating_agents.is_empty() {
-        println!("  originating agents (disclosed, not authors):");
-        for c in &view.originating_agents {
-            println!(
-                "    {} [{}] originated {}",
-                c.agent_id, c.agent_kind, c.unit
-            );
-        }
-    }
-    println!("  {}", view.statement);
 }
 
 pub(crate) fn cmd_artifact_retract(

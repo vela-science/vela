@@ -39,27 +39,12 @@ under `.vela/work/`. Do not edit or stage that directory.
 
 ## Run the selected verifier
 
-Use the verifier from the target briefing. For a pinned Lean declaration, run
-the installed adapter:
+Use the verifier profile from the work response. The profile must pin its
+runtime, source, inputs, limits, and replay command. Vela 0.9 keeps
+target-specific producer adapters in Canopus profiles or checked-in parent
+scripts. The core binary runs stored evidence through `vela reproduce`.
 
-```bash
-vela reproduce-external \
-  https://github.com/<owner>/<repository> \
-  <full-source-commit> \
-  <Fully.Qualified.declaration> \
-  --source-path <relative/File.lean> \
-  --land-work <target-id> \
-  --frontier . \
-  --as agent:<your-handle> \
-  --json
-```
-
-The adapter fetches the pinned source before it enters the execution sandbox.
-It records the toolchain, source root, commands, limits, verifier result, and
-artifacts. Lean checks the named formal declaration. That check does not
-establish statement faithfulness, scientific significance, or novelty.
-
-For another verifier, run it first and give `land` the selected artifact:
+Run the selected verifier, then give `land` its artifact:
 
 ```bash
 vela land \

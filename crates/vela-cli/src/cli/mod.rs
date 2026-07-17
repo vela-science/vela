@@ -4,7 +4,6 @@ use vela_edge::lint;
 use vela_edge::signals;
 use vela_edge::state_integrity;
 use vela_edge::validate;
-use vela_protocol::diff;
 use vela_protocol::events;
 use vela_protocol::evidence_ci;
 use vela_protocol::frontier_repo;
@@ -42,19 +41,17 @@ use crate::cli_commands::*;
 pub(crate) use crate::cli_engine::*;
 pub(crate) use crate::cli_finding::*;
 pub(crate) use crate::cli_frontier::*;
-pub(crate) use crate::cli_hub::*;
 pub(crate) use crate::cli_proof::*;
 pub(crate) use crate::cli_read::*;
 pub(crate) use crate::cli_write::*;
 
 mod checks;
 mod frontier_audit;
-mod frontier_diff;
-mod governance;
 pub(crate) mod help_text;
 mod identity;
 mod json_edit;
 mod lifecycle;
+mod migration;
 mod output;
 pub(crate) mod progress;
 pub(crate) mod prompt;
@@ -68,11 +65,10 @@ pub(crate) mod table;
 mod tests;
 pub(crate) use checks::*;
 pub(crate) use frontier_audit::*;
-pub(crate) use frontier_diff::*;
-pub(crate) use governance::*;
 pub(crate) use identity::*;
 pub(crate) use json_edit::*;
 pub(crate) use lifecycle::*;
+pub(crate) use migration::*;
 pub(crate) use output::*;
 pub(crate) use records::*;
 pub(crate) use session::*;
@@ -146,8 +142,9 @@ pub async fn run_command() {
         Commands::Doctor {
             frontier,
             port,
+            all,
             json,
-        } => cmd_doctor(frontier.as_deref(), port, json).await,
+        } => cmd_doctor(frontier.as_deref(), port, all, json).await,
         Commands::Proof {
             frontier,
             out,
@@ -194,7 +191,7 @@ pub async fn run_command() {
             }
         }
         Commands::Status { frontier, json } => {
-            cmd_status(&crate::ui::resolve_frontier(frontier), json)
+            cmd_status_compact(&crate::ui::resolve_frontier(frontier), json)
         }
         Commands::Log {
             frontier,
@@ -220,7 +217,6 @@ pub async fn run_command() {
         }
         Commands::Gate { action } => cmd_gate(action),
         Commands::Agents { action } => crate::cli_agents::cmd_agents(action),
-        Commands::Foundry { action } => crate::cli_engine::cmd_foundry(action),
         Commands::Completions { shell } => {
             use clap::CommandFactory;
             let mut cmd = Cli::command();
@@ -237,27 +233,6 @@ pub async fn run_command() {
         }
 
         Commands::Reproduce { path, json } => cmd_reproduce(&path, json),
-        Commands::ReproduceExternal {
-            repo_url,
-            commit,
-            declaration,
-            source_path,
-            out,
-            land_work,
-            frontier,
-            r#as,
-            json,
-        } => crate::external_lean::cmd_reproduce_external(
-            repo_url,
-            commit,
-            declaration,
-            source_path,
-            out,
-            land_work,
-            frontier,
-            r#as,
-            json,
-        ),
         Commands::Ci { action } => match action {
             crate::server::cli_commands::CiAction::Verdict {
                 frontier,
@@ -267,199 +242,32 @@ pub async fn run_command() {
                 crate::config::cli_policy::cmd_ci_verdict(&frontier, &base, json);
             }
         },
-        Commands::Credit {
-            finding_id,
-            frontier,
-            json,
-        } => cmd_credit(&frontier, &finding_id, json),
         Commands::Id { action } => cmd_id(action),
         Commands::Actor { action } => cmd_actor(action),
         Commands::Frontier { action } => cmd_frontier(action),
-        Commands::Hub { action } => cmd_hub(action).await,
-        Commands::Publication { action } => match action {
-            PublicationAction::Recover {
-                operation,
-                frontier,
-                push,
-                json,
-            } => {
-                crate::ui::set_mode("publication recover", json);
-                let dir = crate::ui::resolve_frontier(frontier);
-                let opts = if push {
-                    crate::config::git_publish::PublishOptions::pushing()
-                } else {
-                    crate::config::git_publish::PublishOptions::new(false)
-                };
-                let publication =
-                    match crate::decision_plan::recover_decision_operation(&dir, &operation) {
-                        Ok(Some(outcome)) => crate::cli::sign_session::publish_exact_decision(
-                            &dir,
-                            &format!("recover decision: {operation}"),
-                            &outcome,
-                            &opts,
-                        ),
-                        Ok(None) => {
-                            crate::config::git_publish::recover_publication(&dir, &operation, &opts)
-                        }
-                        Err(error) => crate::config::git_publish::PublicationOutcome {
-                            state: crate::config::git_publish::PublicationState::Unknown {
-                                reason: error.to_string(),
-                            },
-                            recovery_command: None,
-                        },
-                    };
-                let ok = matches!(
-                    &publication.state,
-                    crate::config::git_publish::PublicationState::Unchanged { .. }
-                        | crate::config::git_publish::PublicationState::CommittedLocal { .. }
-                        | crate::config::git_publish::PublicationState::Pushed { .. }
-                );
-                if json {
-                    print_json(&serde_json::json!({
-                        "ok": ok,
-                        "command": "publication.recover",
-                        "operation_id": operation,
-                        "publication": publication,
-                    }));
-                } else {
-                    crate::ui::header(
-                        "PUBLICATION RECOVER",
-                        &operation,
-                        Some(if ok { "recovered" } else { "not recovered" }),
-                    );
-                    println!(
-                        "  {:<16} {}",
-                        style::dim("publication"),
-                        safe_text::inline(
-                            &serde_json::to_string(&publication)
-                                .unwrap_or_else(|_| "unknown".to_string())
-                        )
-                    );
-                    println!(
-                        "  {:<16} {}",
-                        style::dim("next"),
-                        safe_text::inline(
-                            publication
-                                .recovery_command
-                                .as_deref()
-                                .unwrap_or("git status --short")
-                        )
-                    );
-                }
-                if !ok {
-                    std::process::exit(1);
-                }
-            }
-        },
-        Commands::Init { path, name, json } => cmd_init(&path, &name, json),
-        Commands::Diff {
-            target,
-            frontier_b,
-            frontier,
-            reviewer: _reviewer,
+        Commands::Init {
+            path,
+            name,
+            scope,
             json,
-            quiet,
-        } => {
-            // v0.701: arg-order-insensitive. A `vpr_*` id in EITHER positional
-            // routes to proposal preview; the other positional (or `--frontier`,
-            // else `.`) is the frontier. So `vela diff <frontier> <vpr_>`,
-            // `vela diff <vpr_> <frontier>`, and `vela diff <vpr_>` all work — no
-            // more "Path does not exist" when the args are transposed.
-            let first = target.clone();
-            let vpr = if target.starts_with("vpr_") {
-                Some(target.clone())
-            } else if frontier_b.as_deref().is_some_and(|s| s.starts_with("vpr_")) {
-                frontier_b.clone()
-            } else {
-                None
-            };
-            if let Some(target) = vpr {
-                let frontier_root = frontier
-                    .clone()
-                    .or_else(|| {
-                        // the positional that is NOT the proposal id, if any
-                        if first.starts_with("vpr_") {
-                            frontier_b.clone().map(std::path::PathBuf::from)
-                        } else {
-                            Some(std::path::PathBuf::from(&first))
-                        }
-                    })
-                    .unwrap_or_else(|| std::path::PathBuf::from("."));
-                let review = crate::review_material::ReviewProjection::one(&frontier_root, &target)
-                    .unwrap_or_else(|error| fail_return(&error.to_string()));
-                let payload = json!({
-                    "ok": true,
-                    "command": "diff.proposal",
-                    "frontier": frontier_root.display().to_string(),
-                    "proposal_id": target,
-                    "review": review,
-                });
-                if json {
-                    print_json(&payload);
-                } else {
-                    println!();
-                    println!(
-                        "  {}",
-                        format!("VELA · DIFF · {}", safe_text::inline(&target))
-                            .to_uppercase()
-                            .dimmed()
-                    );
-                    println!("  {}", vela_protocol::cli_style::tick_row(60));
-                    println!("  {}", safe_text::inline(&review.brief.change.claim).bold());
-                    for line in sign_session::render_decision_brief_lines(&review.brief) {
-                        println!("    {}", vela_protocol::cli_style::dim(&line));
-                    }
-                    println!();
-                    println!("  decide:    vela sign");
-                    println!();
-                }
-            } else {
-                let b_str = frontier_b.unwrap_or_else(|| {
-                    fail_return(
-                        "diff: two-frontier mode needs a second positional (filesystem path or `vfr_*` id); for proposal preview pass a `vpr_*` id",
-                    )
-                });
-                // v0.140: when either side is a `vfr_*` id, pull
-                // the frontier through the registry into a temp
-                // dir and run the diff against the pulled path.
-                // The tempdir lives for the duration of the diff
-                // and is reclaimed on drop.
-                let _tmp = if target.starts_with("vfr_") || b_str.starts_with("vfr_") {
-                    Some(
-                        tempfile::Builder::new()
-                            .prefix("vela-diff-")
-                            .tempdir()
-                            .unwrap_or_else(|e| {
-                                fail_return(&format!("tempdir for vfr resolve: {e}"))
-                            }),
-                    )
-                } else {
-                    None
-                };
-                let resolve_side = |side: &str, _slot: &str| -> std::path::PathBuf {
-                    if side.starts_with("vfr_") {
-                        fail_return(
-                            "diff by vfr_ id used the retired hub transport; `git clone` the \
-                             frontier repo and pass its path instead",
-                        )
-                    } else {
-                        std::path::PathBuf::from(side)
-                    }
-                };
-                let frontier_a = resolve_side(&target, "a");
-                let frontier_b_path = resolve_side(&b_str, "b");
-                diff::run(&frontier_a, &frontier_b_path, json, quiet);
-            }
-        }
-        Commands::Proposals { action } => cmd_proposals(action),
+        } => cmd_init(&path, name.as_deref(), scope.as_deref(), json),
+        Commands::Review { action } => cmd_review(action),
+        Commands::Migrate {
+            frontier,
+            target_version,
+            check: _,
+            apply,
+            json,
+        } => cmd_migrate(&frontier, &target_version, apply, json),
         Commands::Finding {
             command:
                 FindingCommands::Show {
                     frontier,
                     finding_id,
+                    view,
                     json,
                 },
-        } => cmd_finding_show(&frontier, &finding_id, json),
+        } => cmd_finding_show(&frontier, &finding_id, &view, json),
 
         Commands::Artifact { command } => match command {
             ArtifactCommands::Retract {
@@ -537,28 +345,49 @@ pub async fn run_command() {
             let dir = crate::ui::resolve_frontier(frontier);
             let project =
                 vela_protocol::repo::load_from_path(&dir).unwrap_or_else(|e| fail_return(&e));
-            let review = crate::review_material::ReviewProjection::page(
-                &dir,
-                crate::review_material::ReviewRequest {
-                    limit: Some(limit.min(crate::review_material::REVIEW_PAGE_MAX)),
-                    ..crate::review_material::ReviewRequest::default()
-                },
-            )
-            .unwrap_or_else(|error| fail_return(&error.to_string()));
+            let observed_at = chrono::Utc::now().to_rfc3339();
             let targets = vela_edge::frontier_next::try_frontier_next(
                 &project,
-                &review.items,
+                &[],
                 Some(&dir),
-                &review.observed_at,
+                &observed_at,
                 limit,
             )
             .unwrap_or_else(|error| fail_return(&error));
             if json {
+                let offers = targets
+                    .iter()
+                    .enumerate()
+                    .map(|(index, target)| {
+                        let packet = target.task.as_ref().and_then(|task| task.get("packet_ref"));
+                        let objective = target
+                            .task
+                            .as_ref()
+                            .and_then(|task| task.get("objective"))
+                            .and_then(serde_json::Value::as_str)
+                            .unwrap_or(&target.why);
+                        serde_json::json!({
+                            "rank": index + 1,
+                            "lane": target.lane,
+                            "target_id": target.id,
+                            "title": target.title,
+                            "objective": objective,
+                            "packet": packet,
+                            "verifier_profile": target.task.as_ref()
+                                .and_then(|task| task.get("verifier_profile"))
+                                .or_else(|| packet.and_then(|packet| packet.get("schema"))),
+                            "lease_state": "available",
+                            "next_command": target.next_command,
+                        })
+                    })
+                    .collect::<Vec<_>>();
                 print_json(&serde_json::json!({
-                    "ok": true, "command": "next",
-                    "review_snapshot_root": review.snapshot_root,
-                    "review_next_cursor": review.next_cursor,
-                    "targets": targets,
+                    "ok": true,
+                    "command": "next",
+                    "schema": "vela.offer.v1",
+                    "frontier_id": project.frontier_id(),
+                    "event_log_root": format!("sha256:{}", vela_protocol::events::event_log_hash(&project.events)),
+                    "targets": offers,
                 }));
             } else {
                 let tg = if targets.len() == 1 {
@@ -664,10 +493,42 @@ pub async fn run_command() {
                     .unwrap_or(86400)
             });
             match crate::workflow::open_session(&dir, &target, &actor, ttl) {
-                Ok(mut opened) => {
+                Ok(opened) => {
                     if json {
-                        opened["command"] = serde_json::json!("work");
-                        print_json(&opened);
+                        let session = &opened["session"];
+                        let briefing = &opened["briefing"];
+                        let task = briefing.get("task");
+                        let packet = task.and_then(|task| task.get("packet_ref"));
+                        print_json(&serde_json::json!({
+                            "ok": true,
+                            "command": "work",
+                            "schema": "vela.work.v1",
+                            "frontier_id": session.get("frontier_id"),
+                            "target_id": target,
+                            "session": {
+                                "id": session.get("session_id"),
+                                "path": opened.get("session_path"),
+                                "actor": session.get("actor"),
+                                "expires_at": session.pointer("/lease/expires_at"),
+                            },
+                            "starting_roots": {
+                                "event_log": session.get("base_event_log_root"),
+                                "nonlease_event_log": session.get("base_nonlease_event_log_root"),
+                                "task_contract": session.get("task_contract_root"),
+                                "git_commit": session.get("source_git_commit_oid"),
+                            },
+                            "task": {
+                                "objective": session.pointer("/task_contract/objective"),
+                                "completion_condition": session.pointer("/task_contract/completion_condition"),
+                                "required_outputs": session.pointer("/task_contract/required_outputs"),
+                                "required_checks": session.pointer("/task_contract/required_checks"),
+                                "authority_ceiling": session.pointer("/task_contract/authority_ceiling"),
+                            },
+                            "packet": packet,
+                            "verifier_profile": task.and_then(|task| task.get("verifier_profile"))
+                                .or_else(|| packet.and_then(|packet| packet.get("schema"))),
+                            "next_command": format!("vela land --work {target} --claim <scoped-result> --type <type> --replayability <class> --artifact <path>:<kind> --caveat <limit> --as <agent> --json"),
+                        }));
                     } else {
                         crate::ui::header("WORK", &target, Some("lease claimed, briefing loaded"));
                         let briefing = opened.get("briefing").unwrap_or(&opened);
@@ -1204,36 +1065,41 @@ pub fn run_from_args() {
             cmd_proof_explain(&frontier);
             return;
         }
-        // The state projections: `vela state <frontier> [vf_]` (claim-state),
-        // `vela state trust|pack|diff …` (trust vector, claim pack, Evidence
-        // Diff), and the read-only math-atlas anchor list `vela state anchors`.
-        // Intercepted ahead of the clap dispatcher (mirroring `proof verify`).
-        // The parser consumes this public argv shape directly.
+        // The pre-0.9 projection namespace was consolidated under `finding`.
         Some("state") => {
-            let mode = args.get(2).map(String::as_str);
-            match mode {
-                Some("anchors") => crate::cli_state::run_anchors(&args),
-                Some("anchor" | "unanchor") => crate::ui::fail_with(
-                    crate::ui::ErrorKind::Usage,
-                    "state is read-only; direct anchor mutation commands were removed",
-                    Some("land the anchor change as a Receipt v1 through `vela land`"),
-                ),
-                _ => crate::cli_state::run(&args),
-            }
-            return;
+            eprintln!("{} `vela state` retired in 0.900", style::err_prefix());
+            eprintln!("use `vela finding show <frontier> <vf_id> --view record|standing|evidence`");
+            std::process::exit(2);
         }
-        // Math Atlas projection: `vela atlas <frontier>...`. Read-only,
-        // cross-frontier; unions claims into cells by HardIdentity anchors.
         Some("atlas") => {
-            crate::cli_atlas::run(&args);
-            return;
-        }
-        Some(cmd) if !is_science_subcommand(cmd) => {
             eprintln!(
-                "{} unknown or non-release command: {cmd}",
+                "{} `vela atlas` retired from the core binary in 0.900",
                 style::err_prefix()
             );
-            eprintln!("run `vela --help` for the strict v0 command surface.");
+            eprintln!("use the campaign reader or a Canopus verifier profile");
+            std::process::exit(2);
+        }
+        Some(cmd) if !is_science_subcommand(cmd) => {
+            let replacement = match cmd {
+                "proposals" => Some("vela review"),
+                "diff" => Some(
+                    "vela review preview <frontier> <vpr_id>, or vela frontier diff <left> <right>",
+                ),
+                "credit" => Some("vela finding show <frontier> <vf_id> --view attribution"),
+                "publication" => Some("vela frontier recover-publication"),
+                "hub" => Some("the separate vela-hub binary"),
+                "foundry" | "reproduce-external" => {
+                    Some("a Canopus verifier profile or parent campaign script")
+                }
+                _ => None,
+            };
+            if let Some(replacement) = replacement {
+                eprintln!("{} `vela {cmd}` retired in 0.900", style::err_prefix());
+                eprintln!("use `{replacement}`");
+            } else {
+                eprintln!("{} unknown command: {cmd}", style::err_prefix());
+                eprintln!("run `vela --help` for the product surface.");
+            }
             std::process::exit(2);
         }
         Some(_) => {}

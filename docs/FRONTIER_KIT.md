@@ -28,7 +28,7 @@ private work-session record.
 
 Record the event-log root shown at the pinned start commit. In current JSON
 output, `vela status . --json` exposes it at
-`inbox.review.event_log_root`. `vela work` copies the same base into the typed
+`roots.event_log`. `vela work` copies the same base into the typed
 private session and binds the task-contract root into a session-built receipt.
 
 ## Copyable contributor path
@@ -83,33 +83,17 @@ Vela signs a same-owner zero-TTL update against the exact prior lease. It
 removes private scratch after the release event commits. Deleting `.vela/work/`
 does not release the frontier lease.
 
-## External Lean path
+## Named verifier profile
 
-The README must pin the canonical repository URL, full source commit, full Lean
-declaration name, Lean version, dependency roots, and selected
-source path when the declaration name is ambiguous. Start the work session,
-then run the installed adapter:
+The README must pin the verifier profile, runtime or container digest, source
+commit, dependency roots, input paths, and replay command. Vela 0.9 does not
+embed target-specific producer adapters in the core binary. Use the released
+Canopus profile or a checked-in parent script named by the work response.
 
-```bash
-vela work <target> --as agent:<name> --json
-
-vela reproduce-external \
-  <https://github.com/owner/repository.git> \
-  <full-commit> \
-  <Namespace.declaration> \
-  --source-path <relative/file.lean> \
-  --land-work <target> \
-  --frontier . \
-  --as agent:<name> \
-  --json
-```
-
-The installed adapter fetches the pin outside the execution sandbox, runs Lean
-with the recorded fail-closed limits, builds Receipt v1, and calls the shared
-landing service. `--out receipt.json` emits a receipt without landing. The
-receipt must state that Lean checked the named formal declaration. The
-producer must describe any remaining gap between kernel checking and the
-faithfulness or significance of the formalization.
+The verifier output remains evidence. For a formal declaration, the receipt
+must state the exact declaration and source root that the kernel checked. The
+producer must retain any gap between kernel checking and the faithfulness or
+significance of the formalization as a caveat.
 
 ## Result and correction rules
 

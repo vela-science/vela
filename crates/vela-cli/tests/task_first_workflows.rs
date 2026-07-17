@@ -93,9 +93,35 @@ fn git_stdout(dir: &Path, args: &[&str]) -> String {
     String::from_utf8(output.stdout).unwrap()
 }
 
+fn work_session_path(work: &serde_json::Value) -> std::path::PathBuf {
+    std::path::PathBuf::from(
+        work["session"]["path"]
+            .as_str()
+            .expect("compact work response has session.path"),
+    )
+}
+
+fn load_work_session(work: &serde_json::Value) -> serde_json::Value {
+    serde_json::from_slice(
+        &std::fs::read(work_session_path(work)).expect("read private work session"),
+    )
+    .expect("parse private work session")
+}
+
 fn init_git_frontier(dir: &Path) {
     assert_success(
-        &run(dir, &["init", ".", "--name", "task-first", "--json"]),
+        &run(
+            dir,
+            &[
+                "init",
+                ".",
+                "--name",
+                "task-first",
+                "--scope",
+                "Exercise the bounded task-first fixture.",
+                "--json",
+            ],
+        ),
         "init frontier",
     );
     assert_success(
@@ -1726,7 +1752,7 @@ fn flag_authored_artifact_read_is_bounded_and_preserves_work_session() {
     );
     assert_success(&work, "open bounded-artifact work session");
     let work = one_json_object(&work);
-    let session_path = std::path::PathBuf::from(work["session_path"].as_str().unwrap());
+    let session_path = work_session_path(&work);
     let session_before = std::fs::read(&session_path).unwrap();
     let scientific_before = snapshot_scientific_tree(tmp.path());
     let head_before = git_stdout(tmp.path(), &["rev-parse", "HEAD"]);
@@ -1839,7 +1865,7 @@ fn archive_artifact_is_retained_as_opaque_bytes_and_never_expanded() {
     let head_before = git_stdout(tmp.path(), &["rev-parse", "HEAD"]);
     let proposal_id = landed["proposal_id"].as_str().unwrap();
     let frontier = tmp.path().to_str().unwrap();
-    let preview = run(tmp.path(), &["proposals", "preview", frontier, proposal_id]);
+    let preview = run(tmp.path(), &["review", "preview", frontier, proposal_id]);
     assert_success(&preview, "preview opaque archive proposal");
     assert_eq!(snapshot_scientific_tree(tmp.path()), scientific_before);
     assert_eq!(git_stdout(tmp.path(), &["rev-parse", "HEAD"]), head_before);
@@ -2378,7 +2404,7 @@ batches:
         .as_array()
         .unwrap()
         .iter()
-        .find(|target| target["id"] == "seed:training-golomb")
+        .find(|target| target["target_id"] == "seed:training-golomb")
         .expect("training target appears in the real next offer");
     assert_eq!(offered["next_command"], "vela work seed:training-golomb");
 
@@ -2397,12 +2423,16 @@ batches:
     );
     assert_success(&work, "open training work session");
     let work = one_json_object(&work);
-    assert_eq!(work["target"], "seed:training-golomb", "{work}");
+    assert_eq!(work["target_id"], "seed:training-golomb", "{work}");
     assert_eq!(
-        work["claim"]["publication"]["state"], "committed_local",
-        "the real work step did not publish its exact lease: {work}"
+        git_stdout(
+            &producer,
+            &["status", "--porcelain=v1", "--untracked-files=all"]
+        ),
+        "",
+        "the real work step did not publish a clean exact lease"
     );
-    let session_path = std::path::PathBuf::from(work["session_path"].as_str().unwrap());
+    let session_path = work_session_path(&work);
     assert!(session_path.is_file());
 
     let reproduced = run(&producer, &["reproduce", ".", "--json"]);
@@ -2575,31 +2605,19 @@ batches:
     assert!(
         targets
             .iter()
-            .any(|target| target["id"] == "seed:443" && target.get("task").is_none()),
+            .any(|target| target["target_id"] == "seed:443"),
         "legacy scalar seed changed shape: {next}"
     );
     let prepared = targets
         .iter()
-        .find(|target| target["id"] == "seed:prepared-target")
+        .find(|target| target["target_id"] == "seed:prepared-target")
         .expect("rich target keeps its explicit id");
     assert_eq!(prepared["next_command"], "vela work seed:prepared-target");
-    assert_eq!(
-        prepared["task"]["fixed_base"]["frontier_id"],
-        before.frontier_id()
-    );
-    assert_eq!(
-        prepared["task"]["fixed_base"]["event_log_root"],
-        expected_base
-    );
-    assert_eq!(
-        prepared["task"]["authority_ceiling"],
-        "Producer evidence only. The session can create a receipt and proposal; it cannot create human acceptance."
-    );
+    assert!(prepared["objective"].as_str().is_some(), "{prepared}");
     assert!(
-        prepared["task"].get("allowed_actions").is_none(),
-        "campaign metadata expanded the authority surface: {prepared}"
+        prepared.get("task").is_none(),
+        "compact offer leaked task body: {prepared}"
     );
-    let offered_task = prepared["task"].clone();
 
     let agent_key = "42".repeat(32);
     let work = run_with_env(
@@ -2609,27 +2627,17 @@ batches:
     );
     assert_success(&work, "open rich campaign work session");
     let work = one_json_object(&work);
-    assert_eq!(work["briefing"]["task"], offered_task);
-    assert_eq!(work["session"]["base_event_log_root"], expected_base);
-    assert_eq!(work["claim"]["state_root_before"], expected_base);
+    assert_eq!(work["starting_roots"]["event_log"], expected_base);
+    assert_eq!(work["starting_roots"]["git_commit"], expected_git_commit);
+    let session = load_work_session(&work);
+    assert_eq!(session["base_event_log_root"], expected_base);
+    assert_eq!(session["source_git_commit_oid"], expected_git_commit);
     assert_eq!(
-        work["claim"]["publication"]["state"], "committed_local",
-        "strict post-work parity must cover the exact published Git delta: {work}"
-    );
-    assert_eq!(
-        work["session"]["base_event_log_root"],
-        work["claim"]["state_root_before"]
-    );
-    assert_eq!(
-        work["session"]["source_git_commit_oid"],
-        expected_git_commit
-    );
-    assert_eq!(
-        work["session"]["task_contract"]["authority_ceiling"],
+        session["task_contract"]["authority_ceiling"],
         "Producer evidence only. The session can create a receipt and proposal; it cannot create human acceptance."
     );
     assert!(
-        work["session"]["task_contract"]["forbidden_actions"]
+        session["task_contract"]["forbidden_actions"]
             .as_array()
             .unwrap()
             .iter()
@@ -2639,13 +2647,7 @@ batches:
         "restrictive Vela task contract was not retained: {work}"
     );
     let after = vela_protocol::repo::load_from_path(tmp.path()).unwrap();
-    assert_eq!(
-        work["claim"]["state_root_after"],
-        format!(
-            "sha256:{}",
-            vela_protocol::events::event_log_hash(&after.events)
-        )
-    );
+    assert_eq!(work["target_id"], "seed:prepared-target");
     assert_ne!(
         format!(
             "sha256:{}",
@@ -2740,29 +2742,34 @@ fn flag_authored_land_closes_only_its_exact_private_work_session() {
     );
     assert_success(&work, "open work session");
     let work = one_json_object(&work);
-    assert_eq!(work["target"], "erdos:session-close", "{work}");
-    let session_record = std::path::PathBuf::from(work["session_path"].as_str().unwrap());
-    let session = session_record.parent().unwrap();
+    assert_eq!(work["target_id"], "erdos:session-close", "{work}");
+    let session_record = work_session_path(&work);
+    let session_dir = session_record.parent().unwrap();
     assert!(session_record.is_file());
-    assert_eq!(work["session"]["schema"], "vela.work-session.internal.v1");
-    assert_eq!(work["session"]["target"], "erdos:session-close");
-    assert_eq!(work["session"]["actor"], "agent:t");
+    let session = load_work_session(&work);
+    assert_eq!(session["schema"], "vela.work-session.internal.v1");
+    assert_eq!(session["target"], "erdos:session-close");
+    assert_eq!(session["actor"], "agent:t");
     assert!(
-        work["session"]["session_id"]
+        work["session"]["id"]
             .as_str()
             .is_some_and(|id| id.starts_with("vws_") && id.len() == 68)
     );
-    let task_contract_root = work["session"]["task_contract_root"]
+    let task_contract_root = work["starting_roots"]["task_contract"]
         .as_str()
         .unwrap()
         .to_string();
     assert!(task_contract_root.starts_with("sha256:"));
     assert_eq!(
-        session.file_name().unwrap().to_string_lossy().len(),
+        session_dir.file_name().unwrap().to_string_lossy().len(),
         "erdos-session-close".len() + 2 + 64,
         "session directory must retain a collision-safe full target digest"
     );
-    std::fs::write(session.join("producer-notes.txt"), "keep this scratch\n").unwrap();
+    std::fs::write(
+        session_dir.join("producer-notes.txt"),
+        "keep this scratch\n",
+    )
+    .unwrap();
 
     let land = run_with_env(
         tmp.path(),
@@ -2793,7 +2800,7 @@ fn flag_authored_land_closes_only_its_exact_private_work_session() {
         "the typed session must close only after the landing installs"
     );
     assert_eq!(
-        std::fs::read_to_string(session.join("producer-notes.txt")).unwrap(),
+        std::fs::read_to_string(session_dir.join("producer-notes.txt")).unwrap(),
         "keep this scratch\n",
         "landing must preserve unrelated producer scratch"
     );
@@ -2859,10 +2866,14 @@ fn flag_authoring_and_file_input_share_canonical_receipt_bytes() {
     assert_success(&opened, "open parity work session");
     let opened = one_json_object(&opened);
     assert_eq!(
-        opened["claim"]["publication"]["state"], "committed_local",
-        "work must publish its exact lease before a portable landing: {opened}"
+        git_stdout(
+            &base,
+            &["status", "--porcelain=v1", "--untracked-files=all"]
+        ),
+        "",
+        "work must publish its exact lease before a portable landing"
     );
-    let session = std::path::PathBuf::from(opened["session_path"].as_str().unwrap());
+    let session = work_session_path(&opened);
     let relative_session = session
         .strip_prefix(base.canonicalize().unwrap())
         .unwrap()
@@ -3029,7 +3040,7 @@ fn receipt_with_a_different_key_cannot_close_an_agents_work_session() {
     );
     assert_success(&work, "open protected work session");
     let work = one_json_object(&work);
-    let session_record = std::path::PathBuf::from(work["session_path"].as_str().unwrap());
+    let session_record = work_session_path(&work);
     let session_relative = session_record
         .parent()
         .unwrap()
@@ -3037,7 +3048,7 @@ fn receipt_with_a_different_key_cannot_close_an_agents_work_session() {
         .unwrap()
         .to_string_lossy()
         .replace('\\', "/");
-    let task_contract_root = work["session"]["task_contract_root"].clone();
+    let task_contract_root = work["starting_roots"]["task_contract"].clone();
 
     write_receipt_with_artifact_as(
         tmp.path(),
@@ -3104,14 +3115,19 @@ fn drop_records_a_signed_exact_release_before_removing_private_scratch() {
     assert_success(&opened, "open lease for signed drop");
     let opened = one_json_object(&opened);
     assert_eq!(
-        opened["claim"]["publication"]["state"], "committed_local",
-        "work claim was not committed before private session handoff: {opened}"
+        git_stdout(
+            tmp.path(),
+            &["status", "--porcelain=v1", "--untracked-files=all"]
+        ),
+        "",
+        "work claim was not committed before private session handoff"
     );
-    let first_claim_event_id = opened["claim"]["claim_event_id"]
+    let opened_session = load_work_session(&opened);
+    let first_claim_event_id = opened_session["lease"]["claim_event_id"]
         .as_str()
         .unwrap()
         .to_string();
-    let session_record = std::path::PathBuf::from(opened["session_path"].as_str().unwrap());
+    let session_record = work_session_path(&opened);
     let before_wrong_owner = vela_protocol::repo::load_from_path(tmp.path()).unwrap();
     let release_state_root_before = format!(
         "sha256:{}",
@@ -3221,10 +3237,14 @@ fn drop_records_a_signed_exact_release_before_removing_private_scratch() {
     );
     assert_success(&reclaimed, "immediate reclaim after signed release");
     let reclaimed = one_json_object(&reclaimed);
-    assert_eq!(reclaimed["claim"]["claimed_by"], "agent:other");
+    assert_eq!(reclaimed["session"]["actor"], "agent:other");
     assert_eq!(
-        reclaimed["claim"]["publication"]["state"], "committed_local",
-        "reclaimed lease was not committed: {reclaimed}"
+        git_stdout(
+            tmp.path(),
+            &["status", "--porcelain=v1", "--untracked-files=all"]
+        ),
+        "",
+        "reclaimed lease was not committed"
     );
 }
 
@@ -3251,9 +3271,7 @@ fn land_inference_filters_by_actor_and_requires_exactly_one_owned_session() {
             &owner_env,
         );
         assert_success(&opened, "open owner session");
-        owner_sessions.push(std::path::PathBuf::from(
-            one_json_object(&opened)["session_path"].as_str().unwrap(),
-        ));
+        owner_sessions.push(work_session_path(&one_json_object(&opened)));
     }
     let other = run_with_env(
         tmp.path(),
@@ -3261,8 +3279,7 @@ fn land_inference_filters_by_actor_and_requires_exactly_one_owned_session() {
         &other_env,
     );
     assert_success(&other, "open other actor session");
-    let other_session =
-        std::path::PathBuf::from(one_json_object(&other)["session_path"].as_str().unwrap());
+    let other_session = work_session_path(&one_json_object(&other));
 
     let ambiguous = run_with_env(
         tmp.path(),
@@ -3344,8 +3361,7 @@ fn denied_work_landing_preserves_the_exact_session_and_all_durable_state() {
         &env,
     );
     assert_success(&opened, "open deny-route session");
-    let session_record =
-        std::path::PathBuf::from(one_json_object(&opened)["session_path"].as_str().unwrap());
+    let session_record = work_session_path(&one_json_object(&opened));
     write_active_deny_policy(tmp.path());
     let scientific_before = snapshot_scientific_tree(tmp.path());
     let head_before = git_stdout(tmp.path(), &["rev-parse", "HEAD"]);
@@ -3806,7 +3822,18 @@ fn mcp_profiles_expose_no_finalizer() {
 fn untrusted_terminal_text_is_escaped() {
     let tmp = tempfile::TempDir::new().unwrap();
     assert_success(
-        &run(tmp.path(), &["init", ".", "--name", "safe-text", "--json"]),
+        &run(
+            tmp.path(),
+            &[
+                "init",
+                ".",
+                "--name",
+                "safe-text",
+                "--scope",
+                "Exercise safe rendering.",
+                "--json",
+            ],
+        ),
         "init frontier",
     );
     let receipt = serde_json::json!({
@@ -4064,7 +4091,7 @@ fn doctor_names_the_supported_missing_policy_head_recovery() {
         vela_protocol::proposals::policy_accept::CAUSALLY_UNBOUNDED_POLICY_EXPIRY,
     );
 
-    let doctor = run(tmp.path(), &["doctor", ".", "--json"]);
+    let doctor = run(tmp.path(), &["doctor", ".", "--all", "--json"]);
     assert_success(
         &doctor,
         "doctor with an active pair missing its causal head",
@@ -4287,7 +4314,7 @@ fn canonical_policy_states_and_readiness_keep_their_routes() {
     assert!(policy_test.get("lane_open").is_none(), "{policy_test}");
     assert!(policy_test.get("mode").is_none(), "{policy_test}");
 
-    let doctor = run(valid.path(), &["doctor", ".", "--json"]);
+    let doctor = run(valid.path(), &["doctor", ".", "--all", "--json"]);
     assert_success(&doctor, "doctor with a valid active pair");
     let doctor = one_json_object(&doctor);
     let policy_check = doctor["setup"]
@@ -4594,27 +4621,26 @@ fn decision_brief_read_surfaces_share_the_same_review_contract() {
     let before = snapshot_scientific_tree(tmp.path());
     let frontier = tmp.path().to_str().unwrap();
 
-    let diff = run(
+    let review_show = run(
         tmp.path(),
-        &["diff", &proposal_id, "--frontier", frontier, "--json"],
+        &["review", "show", frontier, &proposal_id, "--json"],
     );
-    assert_success(&diff, "decision_brief diff");
-    let diff = one_json_object(&diff);
-    assert_eq!(diff["proposal_id"], proposal_id);
+    assert_success(&review_show, "decision_brief review show");
+    let review_show = one_json_object(&review_show);
+    assert_eq!(review_show["proposal_id"], proposal_id);
 
-    let proposals_preview = run(
+    let review_preview = run(
         tmp.path(),
-        &["proposals", "preview", frontier, &proposal_id, "--json"],
+        &["review", "preview", frontier, &proposal_id, "--json"],
     );
-    assert_success(&proposals_preview, "decision_brief proposals preview");
-    let proposals_preview = one_json_object(&proposals_preview);
+    assert_success(&review_preview, "decision_brief review preview");
+    let review_preview = one_json_object(&review_preview);
 
-    let state_diff = run(
-        tmp.path(),
-        &["state", "diff", frontier, &proposal_id, "--json"],
-    );
-    assert_success(&state_diff, "decision_brief state diff");
-    let state_diff = one_json_object(&state_diff);
+    let review_list = run(tmp.path(), &["review", "list", frontier, "--json"]);
+    assert_success(&review_list, "compact review list");
+    let review_list = one_json_object(&review_list);
+    assert_eq!(review_list["items"].as_array().unwrap().len(), 1);
+    assert!(review_list["items"][0].get("brief").is_none());
 
     let sign_preview = run(
         tmp.path(),
@@ -4636,38 +4662,21 @@ fn decision_brief_read_surfaces_share_the_same_review_contract() {
     let status = run(tmp.path(), &["status", frontier, "--json"]);
     assert_success(&status, "decision_brief status");
     let status = one_json_object(&status);
-    let status_review = &status["inbox"]["review"];
-    assert_eq!(status_review["items"].as_array().unwrap().len(), 1);
-
-    let mcp = run_mcp_tool(
-        tmp.path(),
-        "read-only",
-        "orient",
-        serde_json::json!({"limit": 100}),
-    );
-    assert_eq!(mcp["tool"], "orient");
-    assert_eq!(mcp["ok"], true);
-    let mcp_review = &mcp["data"]["pending_review"];
-    assert_eq!(mcp_review["items"].as_array().unwrap().len(), 1);
+    assert_eq!(status["counts"]["pending_review"], 1);
+    assert!(status.get("inbox").is_none());
 
     let contracts = [
-        review_surface_contract(&diff["review"]),
-        review_surface_contract(&proposals_preview["review"]),
-        review_surface_contract(&state_diff),
+        review_surface_contract(&review_show["review"]),
+        review_surface_contract(&review_preview["review"]),
         review_surface_contract(&sign_frontier["items"][0]),
-        review_surface_contract(&status_review["items"][0]),
-        review_surface_contract(&mcp_review["items"][0]),
     ];
     for contract in &contracts[1..] {
         assert_eq!(contract, &contracts[0]);
     }
     let normalized = [
-        normalized_review_snapshot(&diff["review"]),
-        normalized_review_snapshot(&proposals_preview["review"]),
-        normalized_review_snapshot(&state_diff),
+        normalized_review_snapshot(&review_show["review"]),
+        normalized_review_snapshot(&review_preview["review"]),
         normalized_review_snapshot(&sign_frontier["items"][0]),
-        normalized_review_snapshot(&status_review["items"][0]),
-        normalized_review_snapshot(&mcp_review["items"][0]),
     ];
     for snapshot in &normalized[1..] {
         assert_eq!(
@@ -4748,7 +4757,7 @@ fn hostile_review_text_and_command_locator_stay_inert_and_bounded() {
 
     let json_preview = run(
         tmp.path(),
-        &["proposals", "preview", frontier, proposal_id, "--json"],
+        &["review", "preview", frontier, proposal_id, "--json"],
     );
     assert_success(&json_preview, "hostile_review JSON preview");
     assert!(!json_preview.stdout.contains(&0x1b));
@@ -4774,12 +4783,11 @@ fn hostile_review_text_and_command_locator_stay_inert_and_bounded() {
     );
 
     let human_surfaces = [
-        ("diff", vec!["diff", proposal_id, "--frontier", frontier]),
+        ("review show", vec!["review", "show", frontier, proposal_id]),
         (
-            "proposals preview",
-            vec!["proposals", "preview", frontier, proposal_id],
+            "review preview",
+            vec!["review", "preview", frontier, proposal_id],
         ),
-        ("state diff", vec!["state", "diff", frontier, proposal_id]),
         (
             "sign preview",
             vec![
@@ -4791,7 +4799,6 @@ fn hostile_review_text_and_command_locator_stay_inert_and_bounded() {
                 "100",
             ],
         ),
-        ("status", vec!["status", frontier]),
     ];
     for (label, args) in human_surfaces {
         let output = run(tmp.path(), &args);

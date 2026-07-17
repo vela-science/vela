@@ -1,0 +1,471 @@
+//! Root-preserving repository-format migration for the Vela 0.9 product cut.
+
+use super::{fail_return, print_json};
+use serde::Serialize;
+use serde_json::json;
+use sha2::{Digest, Sha256};
+use std::path::{Path, PathBuf};
+use std::process::Command;
+
+const MIGRATION_OUTPUTS: &[&str] = &[
+    "frontier.yaml",
+    "frontier.json",
+    "vela.lock",
+    "proof/latest.json",
+    "proof/events.manifest.jsonl",
+    "proof/replay.trace.jsonl",
+    "proof/freshness.md",
+    "proof/hashes.json",
+];
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+struct MigrationRoots {
+    event_log: String,
+    snapshot: String,
+    proposals: String,
+    actor_registry: String,
+    artifacts: String,
+    canonical_store: String,
+}
+
+fn sha256(bytes: &[u8]) -> String {
+    format!("sha256:{}", hex::encode(Sha256::digest(bytes)))
+}
+
+fn canonical_root<T: Serialize>(value: &T) -> Result<String, String> {
+    vela_protocol::canonical::to_canonical_bytes(value)
+        .map(|bytes| sha256(&bytes))
+        .map_err(|error| error.to_string())
+}
+
+fn collect_files(current: &Path, files: &mut Vec<PathBuf>) -> Result<(), String> {
+    if !current.exists() {
+        return Ok(());
+    }
+    if current.is_file() {
+        files.push(current.to_path_buf());
+        return Ok(());
+    }
+    let mut entries = std::fs::read_dir(current)
+        .map_err(|error| format!("read {}: {error}", current.display()))?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|error| format!("read {}: {error}", current.display()))?;
+    entries.sort_by_key(std::fs::DirEntry::file_name);
+    for entry in entries {
+        let path = entry.path();
+        let metadata = std::fs::symlink_metadata(&path)
+            .map_err(|error| format!("inspect {}: {error}", path.display()))?;
+        if metadata.file_type().is_symlink() {
+            return Err(format!(
+                "canonical store must not contain symlinks: {}",
+                path.display()
+            ));
+        }
+        if metadata.is_dir() {
+            collect_files(&path, files)?;
+        } else if metadata.is_file() {
+            files.push(path);
+        }
+    }
+    Ok(())
+}
+
+fn tree_root(root: &Path, paths: &[PathBuf]) -> Result<String, String> {
+    let mut files = Vec::new();
+    for path in paths {
+        collect_files(path, &mut files)?;
+    }
+    files.sort();
+    let mut hasher = Sha256::new();
+    for path in files {
+        let relative = path
+            .strip_prefix(root)
+            .map_err(|_| format!("{} escaped {}", path.display(), root.display()))?;
+        let bytes =
+            std::fs::read(&path).map_err(|error| format!("read {}: {error}", path.display()))?;
+        hasher.update(relative.to_string_lossy().as_bytes());
+        hasher.update([0]);
+        hasher.update((bytes.len() as u64).to_be_bytes());
+        hasher.update(&bytes);
+    }
+    Ok(format!("sha256:{}", hex::encode(hasher.finalize())))
+}
+
+fn migration_roots(frontier: &Path) -> Result<MigrationRoots, String> {
+    let project = vela_protocol::repo::load_from_path(frontier)?;
+    let actors_path = frontier.join(".vela/actors.json");
+    let actor_registry = if actors_path.is_file() {
+        sha256(
+            &std::fs::read(&actors_path)
+                .map_err(|error| format!("read {}: {error}", actors_path.display()))?,
+        )
+    } else {
+        canonical_root(&project.actors)?
+    };
+    let canonical_paths = [
+        frontier.join(".vela/events"),
+        frontier.join(".vela/proposals"),
+        frontier.join(".vela/artifacts"),
+        frontier.join(".vela/actors.json"),
+        frontier.join(".vela/policies"),
+        frontier.join("review/policy.yaml"),
+        frontier.join("proof/policy.yaml"),
+    ];
+    Ok(MigrationRoots {
+        event_log: format!(
+            "sha256:{}",
+            vela_protocol::events::event_log_hash(&project.events)
+        ),
+        snapshot: format!("sha256:{}", vela_protocol::events::snapshot_hash(&project)),
+        proposals: format!(
+            "sha256:{}",
+            vela_protocol::proposals::proposal_state_hash(&project.proposals)
+        ),
+        actor_registry,
+        artifacts: canonical_root(&project.artifacts)?,
+        canonical_store: tree_root(frontier, &canonical_paths)?,
+    })
+}
+
+fn git(frontier: &Path, args: &[&str]) -> Result<String, String> {
+    let output = Command::new("git")
+        .arg("-C")
+        .arg(frontier)
+        .args(args)
+        .output()
+        .map_err(|error| format!("run git: {error}"))?;
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).trim().to_string());
+    }
+    Ok(String::from_utf8_lossy(&output.stdout)
+        .trim_end()
+        .to_string())
+}
+
+fn assert_migration_checkout(frontier: &Path) -> Result<(String, String), String> {
+    let head = git(frontier, &["rev-parse", "HEAD^{commit}"])?;
+    let tree = git(frontier, &["rev-parse", "HEAD^{tree}"])?;
+    let status = git(
+        frontier,
+        &["status", "--porcelain=v1", "--untracked-files=all"],
+    )?;
+    let disallowed = status
+        .lines()
+        .filter(|line| {
+            let path = line.get(3..).unwrap_or("");
+            !path.starts_with(".vela/operation-journals/")
+        })
+        .collect::<Vec<_>>();
+    if !disallowed.is_empty() {
+        return Err(format!(
+            "migration requires a clean checkout; found {}",
+            disallowed.join(", ")
+        ));
+    }
+    if let Ok(upstream) = git(
+        frontier,
+        &[
+            "rev-parse",
+            "--abbrev-ref",
+            "--symbolic-full-name",
+            "@{upstream}",
+        ],
+    ) {
+        let status = Command::new("git")
+            .arg("-C")
+            .arg(frontier)
+            .args(["merge-base", "--is-ancestor", &upstream, "HEAD"])
+            .status()
+            .map_err(|error| format!("check upstream ancestry: {error}"))?;
+        if !status.success() {
+            return Err(format!(
+                "HEAD is behind or forked from {upstream}; fast-forward or reconcile before migration"
+            ));
+        }
+    }
+    let journals = frontier.join(".vela/operation-journals");
+    drop(
+        crate::frontier_txn::FrontierTxn::acquire_recovery_barrier(frontier, &journals)
+            .map_err(|error| error.to_string())?,
+    );
+    Ok((head, tree))
+}
+
+fn migrated_manifest(frontier: &Path) -> Result<(Vec<u8>, bool), String> {
+    let path = frontier.join("frontier.yaml");
+    let bytes =
+        std::fs::read(&path).map_err(|error| format!("read {}: {error}", path.display()))?;
+    let mut value: serde_yaml::Value = serde_yaml::from_slice(&bytes)
+        .map_err(|error| format!("parse {}: {error}", path.display()))?;
+    let mapping = value
+        .as_mapping_mut()
+        .ok_or_else(|| "frontier.yaml must be a YAML mapping".to_string())?;
+    let removed_carina = mapping
+        .remove(serde_yaml::Value::String("carina".to_string()))
+        .is_some();
+    let vela_key = serde_yaml::Value::String("vela".to_string());
+    let vela = mapping
+        .entry(vela_key)
+        .or_insert_with(|| serde_yaml::Value::Mapping(Default::default()));
+    let vela = vela
+        .as_mapping_mut()
+        .ok_or_else(|| "frontier.yaml vela field must be a mapping".to_string())?;
+    vela.insert(
+        serde_yaml::Value::String("reducer".to_string()),
+        serde_yaml::Value::String("vela@0.900.0".to_string()),
+    );
+    let mut migrated = serde_yaml::to_string(&value)
+        .map_err(|error| format!("encode migrated frontier.yaml: {error}"))?
+        .into_bytes();
+    if !migrated.ends_with(b"\n") {
+        migrated.push(b'\n');
+    }
+    let changed = migrated != bytes;
+    Ok((migrated, changed || removed_carina))
+}
+
+fn atomic_copy(source: &Path, destination: &Path) -> Result<(), String> {
+    let parent = destination
+        .parent()
+        .ok_or_else(|| format!("{} has no parent", destination.display()))?;
+    std::fs::create_dir_all(parent)
+        .map_err(|error| format!("create {}: {error}", parent.display()))?;
+    let bytes =
+        std::fs::read(source).map_err(|error| format!("read {}: {error}", source.display()))?;
+    let mut temporary = tempfile::NamedTempFile::new_in(parent)
+        .map_err(|error| format!("create temporary file in {}: {error}", parent.display()))?;
+    use std::io::Write;
+    temporary
+        .write_all(&bytes)
+        .map_err(|error| format!("write temporary {}: {error}", destination.display()))?;
+    temporary
+        .as_file()
+        .sync_all()
+        .map_err(|error| format!("sync temporary {}: {error}", destination.display()))?;
+    temporary
+        .persist(destination)
+        .map_err(|error| format!("replace {}: {}", destination.display(), error.error))?;
+    Ok(())
+}
+
+struct MigrationPreview {
+    _temporary: tempfile::TempDir,
+    checkout: PathBuf,
+    touched: Vec<String>,
+    roots_before: MigrationRoots,
+    roots_after: MigrationRoots,
+    replay_ok: bool,
+    replay_diffs: usize,
+    materialize: serde_json::Value,
+    proof_status: String,
+    proof_pointer: serde_json::Value,
+    artifact_issue_count: usize,
+    artifact_issues: serde_json::Value,
+}
+
+fn prepare_migration(frontier: &Path) -> Result<MigrationPreview, String> {
+    let temporary = tempfile::tempdir().map_err(|error| format!("create preview: {error}"))?;
+    let checkout = temporary.path().join("frontier");
+    let output = Command::new("git")
+        .args(["clone", "--quiet", "--no-hardlinks", "--no-local"])
+        .arg(frontier)
+        .arg(&checkout)
+        .output()
+        .map_err(|error| format!("create clean migration preview: {error}"))?;
+    if !output.status.success() {
+        return Err(format!(
+            "create clean migration preview: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        ));
+    }
+    let (manifest, _) = migrated_manifest(&checkout)?;
+    std::fs::write(checkout.join("frontier.yaml"), manifest)
+        .map_err(|error| format!("write preview frontier.yaml: {error}"))?;
+    let baseline_project = vela_protocol::repo::load_from_path(&checkout)?;
+    let roots_before = migration_roots(&checkout)?;
+    let audit = vela_edge::artifact_audit::audit_artifacts(&checkout, &baseline_project);
+    let proof_pointer_root = baseline_project
+        .proof_state
+        .latest_packet
+        .event_log_hash
+        .as_deref()
+        .unwrap_or("")
+        .trim_start_matches("sha256:")
+        .to_string();
+    let current_event_root = vela_protocol::events::event_log_hash(&baseline_project.events);
+    let proof_status = if proof_pointer_root.is_empty() {
+        "absent"
+    } else if proof_pointer_root == current_event_root {
+        "current"
+    } else {
+        "stale"
+    }
+    .to_string();
+    let proof_pointer = json!({
+        "effective_status": proof_status,
+        "declared_status": baseline_project.proof_state.latest_packet.status,
+        "pointer_event_log_root": if proof_pointer_root.is_empty() { serde_json::Value::Null } else { json!(format!("sha256:{proof_pointer_root}")) },
+        "current_event_log_root": format!("sha256:{current_event_root}"),
+    });
+    let artifact_issue_count = audit.issue_count;
+    let artifact_issues = serde_json::to_value(audit.issues)
+        .map_err(|error| format!("encode artifact audit: {error}"))?;
+    // These files are pure derived views. Removing them in the isolated clone
+    // forces a 0.9 proof projection instead of taking the current-proof fast
+    // path and preserving an older reducer label.
+    for relative in MIGRATION_OUTPUTS
+        .iter()
+        .copied()
+        .filter(|path| path.starts_with("proof/"))
+    {
+        let path = checkout.join(relative);
+        if path.is_file() {
+            std::fs::remove_file(&path)
+                .map_err(|error| format!("remove preview {}: {error}", path.display()))?;
+        }
+    }
+    let materialize = vela_protocol::frontier_repo::materialize(&checkout)?;
+    let status = git(
+        &checkout,
+        &["status", "--porcelain=v1", "--untracked-files=all"],
+    )?;
+    let mut touched = status
+        .lines()
+        .map(|line| line.get(3..).unwrap_or("").to_string())
+        .filter(|path| !path.is_empty())
+        .collect::<Vec<_>>();
+    touched.sort();
+    touched.dedup();
+    let unexpected = touched
+        .iter()
+        .filter(|path| !MIGRATION_OUTPUTS.contains(&path.as_str()))
+        .cloned()
+        .collect::<Vec<_>>();
+    if !unexpected.is_empty() {
+        return Err(format!(
+            "migration preview touched unsupported files: {}",
+            unexpected.join(", ")
+        ));
+    }
+    let project = vela_protocol::repo::load_from_path(&checkout)?;
+    let replay = vela_protocol::reducer::verify_replay(&project);
+    let roots_after = migration_roots(&checkout)?;
+    Ok(MigrationPreview {
+        _temporary: temporary,
+        checkout,
+        touched,
+        roots_before,
+        roots_after,
+        replay_ok: replay.ok,
+        replay_diffs: replay.diffs.len(),
+        materialize,
+        proof_status,
+        proof_pointer,
+        artifact_issue_count,
+        artifact_issues,
+    })
+}
+
+pub(crate) fn cmd_migrate(frontier: &Path, target: &str, apply: bool, json_out: bool) {
+    crate::ui::set_mode("migrate", json_out);
+    if !matches!(target, "0.900" | "0.900.0") {
+        crate::ui::fail_with(
+            crate::ui::ErrorKind::Usage,
+            &format!("unsupported migration target {target:?}"),
+            Some("use --to 0.900"),
+        );
+    }
+    let frontier = std::fs::canonicalize(frontier)
+        .unwrap_or_else(|error| fail_return(&format!("resolve frontier: {error}")));
+    let (head, tree) =
+        assert_migration_checkout(&frontier).unwrap_or_else(|error| fail_return(&error));
+    let preview = prepare_migration(&frontier).unwrap_or_else(|error| fail_return(&error));
+    let before = preview.roots_before.clone();
+    if before != preview.roots_after {
+        fail_return::<()>(&format!(
+            "migration preview changed canonical roots: before={} after={}",
+            serde_json::to_string(&before).unwrap_or_default(),
+            serde_json::to_string(&preview.roots_after).unwrap_or_default()
+        ));
+    }
+    if !preview.replay_ok {
+        fail_return::<()>(&format!(
+            "migration preview failed replay with {} diff(s)",
+            preview.replay_diffs
+        ));
+    }
+    let touched = preview.touched.clone();
+    if apply {
+        for relative in &touched {
+            atomic_copy(&preview.checkout.join(relative), &frontier.join(relative))
+                .unwrap_or_else(|error| fail_return(&error));
+        }
+    }
+    let after = if apply {
+        migration_roots(&frontier).unwrap_or_else(|error| fail_return(&error))
+    } else {
+        preview.roots_after.clone()
+    };
+    if before != after {
+        fail_return::<()>(&format!(
+            "migration changed canonical roots after apply: before={} after={}",
+            serde_json::to_string(&before).unwrap_or_default(),
+            serde_json::to_string(&after).unwrap_or_default()
+        ));
+    }
+    let (replay_ok, replay_diffs) = if apply {
+        let project = vela_protocol::repo::load_from_path(&frontier)
+            .unwrap_or_else(|error| fail_return(&error));
+        let replay = vela_protocol::reducer::verify_replay(&project);
+        (replay.ok, replay.diffs.len())
+    } else {
+        (preview.replay_ok, preview.replay_diffs)
+    };
+    let payload = json!({
+        "ok": replay_ok,
+        "command": if apply { "migrate.apply" } else { "migrate.check" },
+        "schema": "vela.migration.v1",
+        "target": "0.900.0",
+        "frontier": frontier.display().to_string(),
+        "git": {"commit": head, "tree": tree},
+        "changed": !touched.is_empty(),
+        "touched": touched,
+        "roots": {"before": before, "after": after},
+        "replay": {"ok": replay_ok, "diffs": replay_diffs},
+        "debt": {
+            "proof_status": preview.proof_status,
+            "proof_pointer": preview.proof_pointer,
+            "artifact_issue_count": preview.artifact_issue_count,
+            "artifact_issues": preview.artifact_issues,
+        },
+        "materialize": preview.materialize,
+        "authority": "unchanged",
+    });
+    if json_out {
+        print_json(&payload);
+    } else {
+        println!(
+            "migrate · {} · {}",
+            if apply { "applied" } else { "preview" },
+            frontier.display()
+        );
+        println!(
+            "  touched: {}",
+            if touched.is_empty() {
+                "none".to_string()
+            } else {
+                touched.join(", ")
+            }
+        );
+        println!(
+            "  replay: {}",
+            if replay_ok { "reproduced" } else { "diverged" }
+        );
+        println!("  authority: unchanged");
+        println!("  proof status: {}", preview.proof_status);
+        println!("  artifact debt: {} issue(s)", preview.artifact_issue_count);
+    }
+    if !replay_ok {
+        std::process::exit(1);
+    }
+}

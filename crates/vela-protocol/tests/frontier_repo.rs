@@ -97,28 +97,24 @@ fn init_creates_canonical_frontier_repo_layout() {
         frontier.to_str().unwrap(),
         "--name",
         "Test frontier",
+        "--scope",
+        "Can a minimal frontier replay without optional integrations?",
         "--json",
     ]);
 
     assert_eq!(payload["schema"], "vela.frontier_repo_init.v0.1");
     assert_eq!(payload["layout"], "vela.frontier_repo.v0.1");
-    // The git-clean skeleton: the record + its derived views + the CI/agent
-    // scaffold. No empty section-README stub dirs (those are created on demand
-    // when a section actually holds content).
+    // The git-clean skeleton contains the canonical store, compact derived
+    // views, safety files, and the agent charter. Optional integrations are
+    // explicit follow-up actions.
     for path in [
         "README.md",
         "SCOPE.md",
         "VELA.md",
         ".gitignore",
-        ".github/workflows/vela-frontier.yml",
         "frontier.yaml",
         "frontier.json",
         "vela.lock",
-        "proof/latest.json",
-        "proof/events.manifest.jsonl",
-        "proof/replay.trace.jsonl",
-        "proof/freshness.md",
-        "proof/hashes.json",
         ".vela/config.toml",
         ".vela/findings",
         ".vela/events",
@@ -129,7 +125,15 @@ fn init_creates_canonical_frontier_repo_layout() {
         assert!(frontier.join(path).exists(), "missing {path}");
     }
     // No empty stub directories litter a fresh frontier.
-    for stub in ["sources", "artifacts", "review", "exports"] {
+    for stub in [
+        "sources",
+        "artifacts",
+        "review",
+        "exports",
+        "proof",
+        ".mcp.json",
+        ".github/workflows/vela-frontier.yml",
+    ] {
         assert!(
             !frontier.join(stub).exists(),
             "unexpected empty stub dir: {stub}"
@@ -152,7 +156,7 @@ fn init_creates_canonical_frontier_repo_layout() {
         "vela gate .",
         "attempt the accept",
     ];
-    for relative in ["README.md", "VELA.md", "proof/freshness.md"] {
+    for relative in ["README.md", "VELA.md"] {
         let body = fs::read_to_string(frontier.join(relative)).unwrap();
         for retired in retired_guidance {
             assert!(
@@ -175,14 +179,9 @@ fn init_creates_canonical_frontier_repo_layout() {
             .unwrap()
             .contains("next -> work -> land -> sign")
     );
-    let initial_mcp = fs::read(frontier.join(".mcp.json")).unwrap();
     let sync = run_json(&["agents", "sync", frontier.to_str().unwrap(), "--json"]);
     assert_eq!(sync["command"], "agents sync");
-    assert_eq!(
-        fs::read(frontier.join(".mcp.json")).unwrap(),
-        initial_mcp,
-        "fresh init and agents sync must agree on the MCP adapter"
-    );
+    assert!(frontier.join(".mcp.json").is_file());
     let adapters = run_json(&["agents", "doctor", frontier.to_str().unwrap(), "--json"]);
     assert_eq!(adapters["ok"], true);
     assert!(
@@ -225,11 +224,9 @@ fn init_creates_canonical_frontier_repo_layout() {
     // living contract: both answer, doctor is ok on a fresh init.
     let _status = run_json(&["status", frontier.to_str().unwrap(), "--json"]);
     let next = run_json(&["next", frontier.to_str().unwrap(), "--json"]);
-    assert_eq!(next["targets"][0]["id"], "seed:first");
+    assert_eq!(next["schema"], "vela.offer.v1");
+    assert_eq!(next["targets"][0]["target_id"], "seed:first");
     assert_eq!(next["targets"][0]["next_command"], "vela work seed:first");
-    let proof = run_json(&["proof", "verify", frontier.to_str().unwrap(), "--json"]);
-    assert_eq!(proof["schema"], "vela.frontier_proof_verify.v0.1");
-    assert_eq!(proof["ok"], true);
 }
 
 #[test]
@@ -261,6 +258,8 @@ fn frontier_materialize_writes_frontier_json_and_lock() {
         frontier.to_str().unwrap(),
         "--name",
         "Materialized frontier",
+        "--scope",
+        "Can derived proof views be regenerated from the canonical log?",
         "--json",
     ]);
     fs::remove_file(frontier.join("frontier.json")).expect("remove frontier.json");
@@ -336,6 +335,14 @@ fn strict_check_fails_when_visible_proof_is_tampered() {
         frontier.to_str().unwrap(),
         "--name",
         "Tampered proof frontier",
+        "--scope",
+        "Does strict checking reject a tampered proof projection?",
+        "--json",
+    ]);
+    run_json(&[
+        "frontier",
+        "materialize",
+        frontier.to_str().unwrap(),
         "--json",
     ]);
 
@@ -359,6 +366,14 @@ fn proof_explain_prints_human_readable_repo_chain() {
         frontier.to_str().unwrap(),
         "--name",
         "Explain frontier",
+        "--scope",
+        "Can a reader trace canonical authority to a proof projection?",
+        "--json",
+    ]);
+    run_json(&[
+        "frontier",
+        "materialize",
+        frontier.to_str().unwrap(),
         "--json",
     ]);
 
@@ -381,6 +396,8 @@ fn strict_check_fails_when_visible_frontier_does_not_match_lock() {
         frontier.to_str().unwrap(),
         "--name",
         "Stale frontier",
+        "--scope",
+        "Does strict checking reject a stale visible frontier?",
         "--json",
     ]);
 
@@ -410,6 +427,8 @@ fn integrity_tolerates_missing_lock_for_frontier_repo() {
         frontier.to_str().unwrap(),
         "--name",
         "Missing lock frontier",
+        "--scope",
+        "Can a missing derived lock be regenerated safely?",
         "--json",
     ]);
     fs::remove_file(frontier.join("vela.lock")).expect("remove lock");
@@ -440,6 +459,8 @@ fn repo_without_manifest_requires_materialization() {
         frontier.to_str().unwrap(),
         "--name",
         "Unmaterialized frontier",
+        "--scope",
+        "Does checking report a missing frontier manifest?",
         "--json",
     ]);
     fs::remove_file(frontier.join("frontier.yaml")).expect("remove frontier.yaml");

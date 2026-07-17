@@ -94,14 +94,13 @@ fn key_flag_is_canonical_key_only() {
     );
     let retired = vela(&["attest", "apply", "/tmp/x.json", "--key", "/tmp/nope"]);
     assert!(
-        combined(&retired).contains("unknown or non-release command"),
+        combined(&retired).contains("unknown command"),
         "retired `attest` top-level should 404, got: {}",
         combined(&retired)
     );
 }
 
-/// Every retired top-level spelling 404s with the release-surface error —
-/// no aliases, no shims, the porcelain is the porcelain.
+/// Unknown historical spellings fail with the bounded 0.9 surface error.
 #[test]
 fn retired_top_level_verbs_404() {
     for verb in [
@@ -126,7 +125,6 @@ fn retired_top_level_verbs_404() {
         "inbox",
         "propose",
         "accept",
-        "review",
         "record",
         "pack",
         "attach",
@@ -134,7 +132,7 @@ fn retired_top_level_verbs_404() {
     ] {
         let out = vela(&[verb, "--help"]);
         assert!(
-            combined(&out).contains("unknown or non-release command"),
+            combined(&out).contains("unknown command"),
             "retired verb `{verb}` should 404, got: {}",
             combined(&out)
         );
@@ -146,33 +144,27 @@ fn retired_top_level_verbs_404() {
     }
 }
 
-/// Atlas is a projection only. The retired ingest spellings must stop before
-/// path loading or any canonical event writer can run, and point producers at
-/// the Receipt/land boundary.
+/// Atlas left the core binary. Every old subcommand stops at the same hint.
 #[test]
 fn atlas_ingest_writers_are_retired() {
     for subcommand in ["ingest", "ingest-source", "ingest-graph"] {
         let out = vela(&["atlas", subcommand]);
         let text = combined(&out);
         assert_eq!(out.status.code(), Some(2), "{subcommand}: {text}");
-        assert!(text.contains("Atlas projections are read-only"), "{text}");
-        assert!(text.contains("vela.receipt.v1"), "{text}");
-        assert!(text.contains("vela land"), "{text}");
+        assert!(text.contains("retired from the core binary"), "{text}");
+        assert!(text.contains("Canopus verifier profile"), "{text}");
     }
 }
 
-/// The folded spellings dispatch: hub, foundry planes, id keygen, state.
+/// The 0.9 setup and authority nouns remain reachable.
 #[test]
 fn folded_spellings_dispatch() {
     for args in [
-        vec!["hub", "--help"],
-        vec!["foundry", "campaign", "--help"],
-        vec!["foundry", "lean", "--help"],
-        vec!["foundry", "attempt", "--help"],
-        vec!["foundry", "transfer", "--help"],
-        vec!["foundry", "experiment", "--help"],
         vec!["id", "keygen", "--help"],
         vec!["sign", "--help"],
+        vec!["review", "--help"],
+        vec!["finding", "show", "--help"],
+        vec!["frontier", "diff", "--help"],
     ] {
         let out = vela(&args);
         assert!(
@@ -182,15 +174,11 @@ fn folded_spellings_dispatch() {
             combined(&out)
         );
     }
-    // the pre-clap intercepts: `state` (claim-state projection) and `atlas`
-    // (cross-frontier math atlas) reach their parsers ahead of clap. A usage
-    // error is fine; a 404 ("unknown or non-release command") means the
-    // intercept was dropped in a refactor.
-    for intercept in ["state", "atlas"] {
-        let out = vela(&[intercept]);
+    for retired in ["hub", "foundry", "state", "atlas"] {
+        let out = vela(&[retired]);
         assert!(
-            !combined(&out).contains("unknown or non-release command"),
-            "`{intercept}` should reach the intercept, got: {}",
+            combined(&out).contains("retired"),
+            "`{retired}` should return a migration hint, got: {}",
             combined(&out)
         );
     }
@@ -306,7 +294,7 @@ fn direct_proposal_decision_paths_are_absent() {
         );
         let text = combined(&out);
         assert!(
-            text.contains("unrecognized subcommand") || text.contains("unexpected argument"),
+            text.contains("retired") && text.contains("vela review"),
             "`{}` should be rejected by clap: {text}",
             args.join(" ")
         );
@@ -365,7 +353,9 @@ fn finding_is_read_only_and_legacy_writer_bypasses_are_absent() {
         );
         let text = combined(&out);
         assert!(
-            text.contains("unrecognized subcommand") || text.contains("unexpected argument"),
+            text.contains("unrecognized subcommand")
+                || text.contains("unexpected argument")
+                || text.contains("retired"),
             "`{}` should be rejected by clap: {text}",
             args.join(" ")
         );
@@ -397,8 +387,8 @@ fn direct_writer_bypasses_are_absent() {
         let out = vela(&["state", verb, "."]);
         let text = combined(&out);
         assert_eq!(out.status.code(), Some(2), "{verb}: {text}");
-        assert!(text.contains("state is read-only"), "{verb}: {text}");
-        assert!(text.contains("vela land"), "{verb}: {text}");
+        assert!(text.contains("state` retired"), "{verb}: {text}");
+        assert!(text.contains("vela finding show"), "{verb}: {text}");
     }
 }
 
@@ -417,7 +407,15 @@ fn actor_add_is_configured_identity_bootstrap_only() {
     let init = vela_in(
         home.path(),
         frontier.path(),
-        &["init", ".", "--name", "actor-bootstrap", "--json"],
+        &[
+            "init",
+            ".",
+            "--name",
+            "actor-bootstrap",
+            "--scope",
+            "Exercise actor bootstrap.",
+            "--json",
+        ],
     );
     assert!(init.status.success(), "{}", combined(&init));
 
@@ -596,11 +594,10 @@ fn artifact_retract_has_typed_missing_and_no_apply_escape_hatch() {
     assert!(combined(&apply).contains("--apply"));
 
     let top = vela(&["retract", "--help"]);
-    assert!(combined(&top).contains("unknown or non-release command"));
+    assert!(combined(&top).contains("unknown command"));
 }
 
-/// `reproduce-external` is a normal parsed command. Missing positionals must
-/// therefore use Clap's bounded usage failure, and NO_COLOR must remain clean.
+/// `reproduce-external` stops at the 0.9 Canopus migration hint.
 #[test]
 fn parsed_external_reproduction_has_bounded_colorless_usage_errors() {
     let out = std::process::Command::new(env!("CARGO_BIN_EXE_vela"))
@@ -610,9 +607,8 @@ fn parsed_external_reproduction_has_bounded_colorless_usage_errors() {
         .expect("run vela");
     let err = String::from_utf8_lossy(&out.stderr);
     assert!(
-        err.contains("the following required arguments were not provided")
-            && err.contains("Usage: vela reproduce-external"),
-        "parsed usage error is incomplete: {err}"
+        err.contains("retired in 0.900") && err.contains("Canopus verifier profile"),
+        "migration hint is incomplete: {err}"
     );
     assert!(
         !err.contains('\u{1b}'),

@@ -63,21 +63,27 @@ The echoed time is valid for 15 minutes (with 60 seconds of future clock skew);
 after that, render a fresh preview.
 
 SEE ALSO
-  vela proposals preview · show    inspect pending proposal bytes";
+  vela review preview · show    inspect pending proposal bytes";
 
 pub const STATUS: &str = "\
 EXAMPLES
   vela status .        what awaits, what is live
   vela status . --json the machine view";
 
+pub const REVIEW: &str = "\
+EXAMPLES
+  vela review list . --json           compact pending queue
+  vela review show . vpr_8b49… --json one exact Decision Brief
+  vela review preview . vpr_8b49…     read-only decision preview";
+
+pub const MIGRATE: &str = "\
+EXAMPLES
+  vela migrate . --to 0.900 --check --json  preview exact touched files and roots
+  vela migrate . --to 0.900 --apply --json  apply the verified derived projection";
+
 pub const LOG: &str = "\
 EXAMPLES
   vela log .   the accepted-event history, newest first";
-
-pub const DIFF: &str = "\
-EXAMPLES
-  vela diff vpr_8b49… --frontier projects/formal-conjectures-lean
-  vela diff vpr_8b49… --frontier . --json";
 
 pub const CHECK: &str = "\
 EXAMPLES
@@ -89,19 +95,6 @@ EXAMPLES
   vela reproduce examples/sidon-a309370   re-verify every witness from scratch
 
 No trust required: the frozen verifiers re-derive each stored witness.";
-
-pub const REPRODUCE_EXTERNAL: &str = "\
-EXAMPLES
-  vela reproduce-external https://github.com/owner/repo.git <full-commit> Namespace.theorem \\
-    --source-path Path/File.lean --out receipt.json --as agent:demo --json
-                                             verify and emit Receipt v1 only
-  vela reproduce-external https://github.com/owner/repo.git <full-commit> Namespace.theorem \\
-    --source-path Path/File.lean --land-work erdos:443 --frontier . \\
-    --as agent:demo --json                 verify, build, and land from the session
-
-The installed adapter pins the source before fail-closed sandbox execution.
-Lean checking is evidence about the formal declaration, not acceptance or a
-claim that the translation is faithful or significant.";
 
 pub const PROOF: &str = "\
 EXAMPLES
@@ -116,19 +109,17 @@ EXAMPLES
 For a whole frontier, run `vela check . --strict`; when it stores witnesses,
 also run `vela reproduce .`.";
 
-pub const CREDIT: &str = "\
-EXAMPLES
-  vela credit vf_6d4a…            who contributed, in which role";
-
 pub const INIT: &str = "\
 EXAMPLES
-  vela init ./my-frontier         scaffold a git-native frontier + hooks
+  vela init ./my-frontier --name \"Bounded question\" --scope \"Does X hold?\"
+                                   create the minimal Git-native frontier
 
-Registers the frontier so the gate and `vela sign` discover it.";
+JSON mode requires both --name and --scope. Optional integrations are separate.";
 
 pub const DOCTOR: &str = "\
 EXAMPLES
-  vela doctor                     check identity, binary pin, workspace health";
+  vela doctor                     blockers plus one next action
+  vela doctor --all               full setup and tool diagnostics";
 
 pub const SERVE: &str = "\
 EXAMPLES
@@ -163,31 +154,9 @@ Unsigned anchor members remain legacy and unauthenticated.";
 pub const FRONTIER: &str = "\
 EXAMPLES
   vela frontier materialize .         rebuild derived views
-  vela frontier materialize . --json";
-
-pub const HUB: &str = "\
-EXAMPLES
-  vela hub witness-check <vfr>            do the mirrors agree on the bytes?";
-
-pub const PUBLICATION: &str = "\
-EXAMPLES
-  vela publication recover --operation vop_8b49…
-  vela publication recover --operation vop_8b49… --push
-
-Resumes one retained, path-exact Git transaction after rechecking the
-frontier, checkout, caller index, worktree bytes, and target ref. It never
-signs or changes scientific authority.";
-
-pub const PROPOSALS: &str = "\
-EXAMPLES
-  vela proposals list . --status pending_review --json
-  vela proposals show . vpr_8b49… --json
-  vela proposals preview . vpr_8b49… --json
-  vela proposals export . vpr_8b49… --out pending.json
-
-Proposal commands inspect or export records; they never write frontier state
-or decide. Land external work as Receipt v1. Use `vela sign` for the one
-resumable human Decision Plan ceremony.";
+  vela frontier diff left right       compare two frontiers
+  vela frontier recover-publication --operation vop_…
+                                       resume exact Git publication";
 
 pub const FINDING: &str = "\
 EXAMPLES
@@ -218,13 +187,6 @@ Signing a policy delegates a class of gated work; everything else defers
 to `vela sign`. `retire-legacy` is a narrow prelaunch recovery proposal and
 accepts neither --key nor --yes; its human decision still happens in `vela sign`.
 `--json` requires `--yes` only for signing/revoking ceremonies.";
-
-pub const FOUNDRY: &str = "\
-EXAMPLES
-  vela foundry campaign search sidon --n 7 --restarts 200 --json
-  vela foundry campaign run sidon --n 7 --frontier .  write witness + activity only
-  vela next . --json                              enter the shared work/land loop
-  vela foundry lean-targets --lean-dir ./lean      surface tractable gaps";
 
 pub const AGENTS: &str = "\
 EXAMPLES

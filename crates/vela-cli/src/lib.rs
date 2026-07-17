@@ -11,22 +11,18 @@ use vela_protocol::cli_style as style;
 // before; they now live here and reach into the substrate via
 // `vela_protocol::*`.
 mod atlas;
-pub(crate) use atlas::{atlas_adapters, cli_atlas};
+pub(crate) use atlas::decl_graph;
 mod bounded_file;
 #[allow(dead_code)]
 pub(crate) mod decision_plan;
 mod frontier;
-pub(crate) use frontier::{cli_frontier, cli_hub, cli_read};
+pub(crate) use frontier::{cli_frontier, cli_read};
 mod write;
-pub(crate) use write::{cli_finding, cli_state, cli_write, review_work, solve_diff_triangle};
-mod discovery;
-pub(crate) use discovery::{campaign, cli_campaign};
-#[doc(hidden)]
-pub mod external_lean;
+pub(crate) use write::{cli_finding, cli_write, review_work};
 mod tools;
-pub(crate) use tools::{cli_check, cli_lean, cli_proof};
+pub(crate) use tools::{cli_check, cli_proof};
 mod config;
-pub(crate) use config::{cli_admin, cli_agents, cli_experiment, cli_identity, cli_policy};
+pub(crate) use config::{cli_admin, cli_agents, cli_identity, cli_policy};
 // The full durability seam intentionally lands before every legacy writer is
 // migrated, so some caller-facing pieces remain unused inside this slice.
 #[allow(dead_code)]

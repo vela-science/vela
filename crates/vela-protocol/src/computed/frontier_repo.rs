@@ -350,6 +350,65 @@ pub fn initialize(path: &Path, options: InitOptions<'_>) -> Result<serde_json::V
     Ok(payload)
 }
 
+/// Create the compact 0.9 frontier skeleton. The canonical store, manifest,
+/// visible state, lock, Git safety files, and agent charter are present; proof
+/// projections and optional integrations are generated only when requested.
+pub fn initialize_minimal(
+    path: &Path,
+    options: InitOptions<'_>,
+) -> Result<serde_json::Value, String> {
+    let name = options.name.to_string();
+    let mut payload = initialize(path, options)?;
+    for relative in [".mcp.json", ".github/workflows/vela-frontier.yml"] {
+        let candidate = path.join(relative);
+        if candidate.is_file() {
+            fs::remove_file(&candidate)
+                .map_err(|error| format!("remove {}: {error}", candidate.display()))?;
+        }
+    }
+    let proof_dir = path.join("proof");
+    if proof_dir.exists() {
+        fs::remove_dir_all(&proof_dir)
+            .map_err(|error| format!("remove {}: {error}", proof_dir.display()))?;
+    }
+    let project = crate::repo::load_from_path(path)?;
+    let generated_at = materialization_generated_at(path, &project);
+    let empty_proof = ProofWrite {
+        digest: directory_hash(&proof_dir),
+        freshness: "not_materialized".to_string(),
+        latest: String::new(),
+        events_manifest: String::new(),
+        replay_trace: String::new(),
+    };
+    write_lock(path, &project, &empty_proof, &generated_at)?;
+    payload["name"] = json!(name);
+    payload["wrote"] = json!([
+        "README.md",
+        "SCOPE.md",
+        "frontier.yaml",
+        "frontier.json",
+        "vela.lock",
+        ".gitignore",
+        ".gitattributes",
+        "VELA.md"
+    ]);
+    payload["next_commands"] = json!([
+        format!(
+            "vela doctor {} --json",
+            posix_shell_arg(&path.display().to_string())
+        ),
+        format!(
+            "vela status {} --json",
+            posix_shell_arg(&path.display().to_string())
+        ),
+        format!(
+            "vela next {} --json",
+            posix_shell_arg(&path.display().to_string())
+        )
+    ]);
+    Ok(payload)
+}
+
 fn init_next_commands(path: &Path) -> Vec<String> {
     let target = posix_shell_arg(&path.display().to_string());
     vec![

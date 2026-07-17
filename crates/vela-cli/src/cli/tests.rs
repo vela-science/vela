@@ -96,45 +96,38 @@ mod surface_tests {
         });
     }
 
-    /// The v0.800 prelaunch porcelain: the exact visible surface,
-    /// guarded in both directions. A dropped command fails ("a collapse
-    /// removed it"); a new command fails too ("extend this list
-    /// deliberately"). Growth is a decision, not a drift.
-    const V0800_VISIBLE: &[&str] = &[
+    /// The v0.900 product surface, guarded in both directions. A dropped
+    /// command and an unreviewed addition both fail this test.
+    const V0900_VISIBLE: &[&str] = &[
         "actor",
         "agents",
         "artifact",
         "check",
         "ci",
         "config",
-        "credit",
-        "diff",
         "doctor",
         "finding",
-        "foundry",
         "frontier",
         "gate",
-        "hub",
         "id",
         "init",
         "land",
         "log",
+        "migrate",
         "next",
         "policy",
         "proof",
-        "proposals",
-        "publication",
         "reproduce",
-        "reproduce-external",
+        "review",
         "serve",
         "sign",
         "status",
         "work",
     ];
-    const V0800_HIDDEN: &[&str] = &["completions"];
+    const V0900_HIDDEN: &[&str] = &["completions"];
 
     #[test]
-    fn v0800_surface_is_exact_both_directions() {
+    fn v0900_surface_is_exact_both_directions() {
         on_big_stack(|| {
             let cmd = Cli::command();
             let mut visible: Vec<String> = Vec::new();
@@ -148,8 +141,8 @@ mod surface_tests {
             }
             visible.sort();
             hidden.sort();
-            let want_visible: Vec<String> = V0800_VISIBLE.iter().map(|s| s.to_string()).collect();
-            let want_hidden: Vec<String> = V0800_HIDDEN.iter().map(|s| s.to_string()).collect();
+            let want_visible: Vec<String> = V0900_VISIBLE.iter().map(|s| s.to_string()).collect();
+            let want_hidden: Vec<String> = V0900_HIDDEN.iter().map(|s| s.to_string()).collect();
             assert_eq!(
                 visible, want_visible,
                 "the VISIBLE surface drifted — a removal broke the porcelain, or an \
@@ -188,11 +181,20 @@ mod surface_tests {
                 "inbox",
                 "propose",
                 "accept",
-                "review",
                 "record",
                 "pack",
                 "attach",
                 "queue",
+                // the v0.900 product cut: replaced or moved out of core
+                "atlas",
+                "credit",
+                "diff",
+                "foundry",
+                "hub",
+                "proposals",
+                "publication",
+                "reproduce-external",
+                "state",
             ] {
                 assert!(
                     !is_science_subcommand(name),

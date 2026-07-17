@@ -34,7 +34,15 @@ fn cli_and_mcp_reject_the_same_raw_duplicate_key_receipt() {
     let temp = tempfile::tempdir().unwrap();
     let init = run(
         temp.path(),
-        &["init", ".", "--name", "receipt-parity", "--json"],
+        &[
+            "init",
+            ".",
+            "--name",
+            "receipt-parity",
+            "--scope",
+            "Exercise receipt parity.",
+            "--json",
+        ],
     );
     assert!(
         init.status.success(),

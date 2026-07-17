@@ -1,8 +1,7 @@
 //! `cmd_frontier` and its handler logic, split out of cli.rs.
 
 use crate::cli::{
-    cmd_frontier_audit, cmd_frontier_diff, cmd_frontier_release, cmd_frontier_releases,
-    fail_return, print_json,
+    cmd_frontier_audit, cmd_frontier_release, cmd_frontier_releases, fail_return, print_json,
 };
 use crate::cli_commands::FrontierAction;
 use colored::Colorize;
@@ -168,11 +167,68 @@ pub(crate) fn cmd_frontier(action: FrontierAction) {
             }
         }
         FrontierAction::Diff {
-            frontier,
-            since,
-            week,
+            left,
+            right,
             json,
-        } => cmd_frontier_diff(&frontier, since.as_deref(), week.as_deref(), json),
+            quiet,
+        } => vela_protocol::diff::run(&left, &right, json, quiet),
+        FrontierAction::RecoverPublication {
+            operation,
+            frontier,
+            push,
+            json,
+        } => {
+            crate::ui::set_mode("frontier recover-publication", json);
+            let dir = crate::ui::resolve_frontier(frontier);
+            let opts = if push {
+                crate::config::git_publish::PublishOptions::pushing()
+            } else {
+                crate::config::git_publish::PublishOptions::new(false)
+            };
+            let publication =
+                match crate::decision_plan::recover_decision_operation(&dir, &operation) {
+                    Ok(Some(outcome)) => crate::cli::sign_session::publish_exact_decision(
+                        &dir,
+                        &format!("recover decision: {operation}"),
+                        &outcome,
+                        &opts,
+                    ),
+                    Ok(None) => {
+                        crate::config::git_publish::recover_publication(&dir, &operation, &opts)
+                    }
+                    Err(error) => crate::config::git_publish::PublicationOutcome {
+                        state: crate::config::git_publish::PublicationState::Unknown {
+                            reason: error.to_string(),
+                        },
+                        recovery_command: None,
+                    },
+                };
+            let ok = matches!(
+                &publication.state,
+                crate::config::git_publish::PublicationState::Unchanged { .. }
+                    | crate::config::git_publish::PublicationState::CommittedLocal { .. }
+                    | crate::config::git_publish::PublicationState::Pushed { .. }
+            );
+            let payload = json!({
+                "ok": ok,
+                "command": "frontier.recover-publication",
+                "operation_id": operation,
+                "publication": publication,
+            });
+            if json {
+                print_json(&payload);
+            } else {
+                println!(
+                    "frontier publication recovery · {}",
+                    if ok { "recovered" } else { "blocked" }
+                );
+                println!("  operation: {operation}");
+                println!("  publication: {}", payload["publication"]);
+            }
+            if !ok {
+                std::process::exit(1);
+            }
+        }
         FrontierAction::Release {
             frontier,
             name,

@@ -8,9 +8,9 @@ use vela_protocol::repo;
 use vela_protocol::state;
 
 use colored::Colorize;
-use serde_json::Value;
+use serde_json::{Value, json};
 
-pub(crate) fn cmd_finding_show(frontier: &Path, finding_id: &str, json_out: bool) {
+pub(crate) fn cmd_finding_show(frontier: &Path, finding_id: &str, view: &str, json_out: bool) {
     crate::ui::set_mode("finding.show", json_out);
     let project = repo::load_from_path(frontier).unwrap_or_else(|e| fail_return(&e));
     let ctx = state::finding_context(&project, finding_id).unwrap_or_else(|_| {
@@ -19,8 +19,87 @@ pub(crate) fn cmd_finding_show(frontier: &Path, finding_id: &str, json_out: bool
             "list recent findings: `vela log .` — or search: `vela status .`",
         )
     });
+    let finding = project
+        .findings
+        .iter()
+        .find(|finding| finding.id == finding_id)
+        .expect("finding_context succeeded for the same finding");
+    let attachments = project
+        .verifier_attachments
+        .iter()
+        .filter(|attachment| attachment.target == finding_id)
+        .cloned()
+        .collect::<Vec<_>>();
+    let gate = vela_protocol::verifier_attachment::derive_gate_status(
+        &vela_protocol::verifier_attachment::claim_digest(&finding.assertion.text),
+        &attachments,
+    );
+    let projection = match view {
+        "record" => json!({
+            "ok": true,
+            "command": "finding.show",
+            "schema": "vela.finding-view.v1",
+            "view": "record",
+            "frontier_id": project.frontier_id(),
+            "finding_id": finding_id,
+            "record": ctx,
+        }),
+        "standing" => json!({
+            "ok": true,
+            "command": "finding.show",
+            "schema": "vela.finding-view.v1",
+            "view": "standing",
+            "frontier_id": project.frontier_id(),
+            "finding_id": finding_id,
+            "review_state": finding.flags.review_state,
+            "retracted": finding.flags.retracted,
+            "contested": finding.flags.contested,
+            "superseded": finding.flags.superseded,
+            "trust_tier": ctx.get("trust_tier"),
+            "verification": {
+                "status": gate.status,
+                "reasons": gate.reasons,
+            },
+            "condition_records": ctx.get("condition_records"),
+        }),
+        "evidence" => json!({
+            "ok": true,
+            "command": "finding.show",
+            "schema": "vela.finding-view.v1",
+            "view": "evidence",
+            "frontier_id": project.frontier_id(),
+            "finding_id": finding_id,
+            "evidence_atoms": ctx.get("evidence_atoms"),
+            "verifier_attachments": attachments,
+            "artifacts": project.artifacts.iter()
+                .filter(|artifact| artifact.target_findings.iter().any(|target| target == finding_id))
+                .collect::<Vec<_>>(),
+        }),
+        "attribution" => json!({
+            "ok": true,
+            "command": "finding.show",
+            "schema": "vela.finding-view.v1",
+            "view": "attribution",
+            "frontier_id": project.frontier_id(),
+            "finding_id": finding_id,
+            "attribution": vela_protocol::credit::credit(&project, finding_id),
+        }),
+        other => crate::ui::fail_with(
+            crate::ui::ErrorKind::Usage,
+            &format!("unsupported finding view {other:?}"),
+            Some("use --view record, standing, evidence, or attribution"),
+        ),
+    };
     if json_out {
-        print_json(&ctx);
+        print_json(&projection);
+        return;
+    }
+    if view != "record" {
+        println!("finding · {finding_id} · {view}");
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&projection).expect("serialize finding projection")
+        );
         return;
     }
     let finding = ctx.get("finding").cloned().unwrap_or(Value::Null);

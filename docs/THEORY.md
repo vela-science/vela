@@ -1,6 +1,6 @@
 # Vela theory: the formal boundary
 
-Status: current prelaunch boundary for Vela `0.800.23`.
+Status: current prelaunch boundary for Vela `0.900.0`.
 
 This document says exactly what can be inferred from Vela's protocol, code,
 conformance vectors, and Lean models. It is intentionally smaller than the

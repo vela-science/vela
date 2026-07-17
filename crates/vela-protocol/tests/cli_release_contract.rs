@@ -71,19 +71,14 @@ fn check_missing_frontier_reports_error_without_panic() {
 fn advanced_help_quickstart_uses_release_commands() {
     let help = run_text(&["help", "advanced"]);
 
-    assert!(help.contains("check         The full trust gate"));
-    assert!(
-        help.contains("reproduce     Re-verify stored witnesses from scratch (frozen verifiers)")
-    );
+    assert!(help.contains("check         Replay, signatures, parity, and strict signals"));
+    assert!(help.contains("reproduce     Re-run stored witnesses with frozen verifiers"));
+    assert!(help.contains("migrate       Preview or apply a root-preserving repository migration"));
+    assert!(help.contains("review        List and inspect exact pending Decision Briefs"));
 
     assert!(!help.contains("bridges derive"));
     assert!(!help.contains("vela workbench"));
-    // The v0.700 cut: the help must advertise nothing the binary
-    // cannot run. These were the most prominent removed families.
-    // (`atlas` is NOT here: it is a live first-class noun group —
-    // cross-frontier projection, `vela atlas <frontier>` — and is now
-    // correctly listed in the advanced-help Nouns block alongside
-    // workspace/task/serve. `policy` likewise.)
+    // The help must advertise nothing the binary cannot run.
     for dead in [
         "scout",
         "compile-notes",

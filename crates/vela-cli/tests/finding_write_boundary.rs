@@ -60,7 +60,15 @@ fn initialized_frontier() -> tempfile::TempDir {
     let frontier = tempfile::tempdir().expect("temp frontier");
     let output = run(
         frontier.path(),
-        &["init", ".", "--name", "writer-boundary", "--json"],
+        &[
+            "init",
+            ".",
+            "--name",
+            "writer-boundary",
+            "--scope",
+            "Exercise the writer boundary.",
+            "--json",
+        ],
     );
     assert!(output.status.success(), "{}", text(&output));
     frontier
@@ -97,7 +105,7 @@ fn direct_finding_writers_are_absent_and_have_zero_delta() {
 }
 
 #[test]
-fn proposal_import_is_absent_and_has_zero_delta() {
+fn review_import_is_absent_and_has_zero_delta() {
     let frontier = initialized_frontier();
-    assert_absent_without_delta(frontier.path(), &["proposals", "import"], "import");
+    assert_absent_without_delta(frontier.path(), &["review", "import"], "import");
 }

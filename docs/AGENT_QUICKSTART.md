@@ -1,197 +1,121 @@
-# The agent contract
+# Agent quickstart
 
-Vela is built to be driven by agents the way git is driven by hands:
-**agents propose, verifiers reproduce, humans accept, git publishes.**
-Every agent-drafted result crosses the same Receipt v1 and proposal boundary.
-A human-signed policy may Permit a bounded class; otherwise Vela defers the
-proposal to a human decision. The engine refuses agent actors on human
-decision verbs.
+Vela gives agents a producer boundary, not scientific authority. An agent may
+inspect a frontier, run frozen verifiers, claim work, and land Receipt v1. A
+signed policy may admit a bounded result. A human key holder decides deferred
+proposals.
 
-For the shorter outside-producer path, see
-[Producer quickstart](PRODUCER_QUICKSTART.md).
-
-## The rules (engine-enforced; also your instructions)
+## Rules
 
 Agents may:
 
-- inspect state: `vela status . --json`, `vela next . --json`, `vela log .`,
-  `vela check . --strict`, `vela state <dir> <vf_>`, `vela diff <vpr_>`
-- claim work: `vela work <target> --as agent:<name> --json`; Vela writes one
-  typed private `session.json` under `.vela/work/`. Do not edit or stage it.
-- land session results with flags: `vela land --work <target> --claim …
-  --type … --replayability … --artifact <path>:<kind> --caveat …
-  --as agent:<name> --json`. Omit `--work` only when this actor owns exactly
-  one active session.
-- import `vela land receipt.json` only for canonical Receipt v1 emitted by a
-  foreign or stateless producer
-- everything lands through `vela land` — records, drafts, verifier
-  evidence; the signed policy routes each landing (Permit admits
-  mechanically, Defer waits in the human's sign queue)
-- abandon work with `vela work <target> --drop --reason <why>
-  --as agent:<name> --json`; Vela signs the exact lease release before removing
-  private scratch
-- run the frozen verifiers: `vela reproduce .`
-- rebuild derived views: `vela frontier materialize .`
+- read `status`, `next`, `log`, `finding`, and `review`;
+- run `check` and `reproduce`;
+- claim or release a target through `work`;
+- land a verifier-backed result through `land`; and
+- regenerate derived views with `frontier materialize`.
 
-Agents may not — the engine refuses these for `agent:`/`ci:` actors:
+Agents may not:
 
-- run `vela sign`, `vela policy sign`, or direct accept/reject commands. These
-  are key-custody human ceremonies and decisions.
-- sign anything with a human's key (an agent-actor `record` never
-  auto-resolves the configured human key; it signs only with a key passed
-  explicitly, or stays honestly unsigned)
-- delete private session files as a substitute for a signed lease release
+- run `sign` or a policy signing ceremony;
+- read, copy, or invoke a human key;
+- hand-edit accepted events or derived views; or
+- describe verification or Git publication as scientific acceptance.
 
-Always export `VELA_ACTOR_ID=agent:<your-name>` and pass
-`--as agent:<your-name>` on writes. Never run bare decision verbs.
-
-The identity grammar, in full: `--as <actor>` is THE acting-identity flag
-on every write verb. Producer attribution travels in Receipt v1, and
-`--verifier-actor` names the mechanical identity a frozen-verifier
-attachment is drafted for (e.g. `agent:vela-verify`). Nothing else names
-an identity.
-
-## The loop, end to end
+Use an agent identity on each write:
 
 ```bash
 export VELA_ACTOR_ID=agent:demo
+```
 
-vela status . --json      # where the frontier stands: findings by status,
-                          # verdict distribution, replay integrity, inbox,
-                          # and a `next` hint
-vela next . --json        # ranked targets and their compounding context
-vela work sidon:a17 --as agent:demo --json
-                          # exact lease + briefing + typed private session
-vela land --work sidon:a17 \
-  --claim "a(17) >= 292 for the Sidon frontier" \
+## One bounded loop
+
+```bash
+vela status . --json
+vela next . --limit 1 --json
+vela work <target> --as agent:demo --json
+```
+
+The work response is `vela.work.v1`. It names the exact target, starting roots,
+packet path and root, completion contract, verifier profile, and landing
+command. Read the tracked packet and satisfy the first unresolved checkable
+obligation.
+
+Run the verifier named by the profile. Keep the artifact and replay command.
+Then land one bounded claim:
+
+```bash
+vela land --work <target> \
+  --claim "<bounded result>" \
   --type computational \
   --replayability exact \
-  --artifact witnesses/a17.json:witness \
-  --caveat "lower bound only; optimality not established" \
+  --artifact <path>:<kind> \
+  --caveat "<scope limit>" \
   --as agent:demo \
   --json
-                          # -> records/vrc_<id>.json (content-addressed,
-                          #    head-pinned, artifact-hashed) -> pending
-                          #    proposal -> routed by the signed policy:
-                          #    Permit admits, Defer waits for `vela sign`;
-                          #    both installed routes close session.json
-vela check . --strict     # the full trust gate, locally
-git push                  # publication: CI re-derives the frontier and the
-                          # hub re-indexes from the repo
 ```
 
-In JSON, publication is a separate typed axis: `unchanged`, `uncommitted`,
-`stale`, `committed_local`, `pushed`, or `unknown`. `unchanged` means the
-selected target commit already contains every exact Vela postimage, so Vela
-moved no ref and rewrote no caller index entry. If `--push` was requested,
-Vela still verifies or publishes that exact existing commit upstream instead
-of pretending there was nothing to do.
+A bounded negative search must record its algorithm, range, inputs, counts,
+and replay command. It cannot support a universal nonexistence claim.
 
-Do not ask a human to confirm the agent-authored receipt before this landing.
-Receipt authoring carries producer authority. A human runs `vela sign` only for
-the proposals Vela reports as `deferred`; the ceremony re-renders the exact
-decision before key access. `policy_admitted` means a prior human-signed policy
-authorized the bounded route. Deny or input error preserves the private session
-for repair.
+The landing response separates:
 
-## MCP: the same loop for tool-calling agents
+- verifier result;
+- policy route;
+- accepted-event delta;
+- proposal ID; and
+- Git publication state.
 
-No clone at all? The public hub IS an MCP server: add
-`https://hub.constellate.science/mcp` (streamable HTTP, no auth) to any
-MCP client and you get the read-only tool surface over every live
-frontier. Writes and verifier runs still happen in a clone — the hosted
-endpoint cannot mutate state under any configuration.
+`Deferred` or `pending_review` means the result awaits a human decision.
+`policy_admitted` means an earlier human-signed policy authorized that exact
+class. Neither state lets the agent enter the key path.
 
-Any frontier scaffolded by `vela init` ships `.mcp.json`; any client
-opening the repo gets the nonfinalizing draft profile so the same
-`next -> work -> land` producer loop is available through tools:
+## Stop or release work
 
-```json
-{ "mcpServers": { "vela-local": { "command": "vela",
-    "args": ["serve", ".", "--profile", "draft"] } } }
+Release an abandoned lease through Vela:
+
+```bash
+vela work <target> --drop \
+  --reason "<why the attempt stopped>" \
+  --as agent:demo \
+  --json
 ```
 
-The `draft` profile adds only the nonfinalizing `work` tool to the read
-surface; `decide` is absent by construction. The hosted public MCP remains
-read-only because it has no worktree to mutate.
-Human decisions remain terminal-only through `vela sign`.
+Deleting `.vela/work/` does not release the frontier lease.
 
-The surface is eight tools; each one answers an agent question:
+## Read review state
 
-| Question | Tool |
-|---|---|
-| Where am I / what should I work on? | `orient` — stats, open targets, gaps, recent events; pass `problem` for the full task briefing (the agent entry contract) |
-| What exactly does this finding say? | `finding` — one vf_ with optional `include`: history, dependents, neighborhood |
-| Where is X discussed? | `search` — findings, sources, evidence atoms; cursor-paginated |
-| What is contested / what breaks if X falls? | `graph` — mode=contradictions, mode=impact (blast radius + retraction cascade), mode=traverse |
-| Does the frontier pass the gate / do witnesses reproduce? | `verify` — mode=strict (the same bundle the hub's ingestor enforces), mode=witness (frozen-verifier re-check) |
-| How do I submit work? | `work` (draft profile) — action=claim/land/drop; land accepts Receipt v1 and policy routes it |
-| What agent objects exist here? | `objects` — packs, attestations, evaluations, conflicts, tool descriptors |
-| Is this novel / shareable? | `external` — service=pubmed prior-art count, service=nanopub export |
+```bash
+vela review list . --json
+vela review show . <vpr_id> --json
+```
 
-## JSON contracts
+Review reads do not resolve or read a key. The full Decision Brief appears only
+for one selected proposal.
 
-Every porcelain verb takes `--json` and emits a stable object with `ok`,
-`command`, and command-specific fields. The two an agent reads most:
+## Verification
 
-- `vela status . --json` → `findings.by_status` (accepted / contested /
-  retracted / superseded — never one green check), `judgment.by_verdict`,
-  `replay.ok`, `inbox.pending_total`, `proof.status`, `next`.
-- `vela check . --strict --json` → the gate verdict with signals and the
-  review queue.
+```bash
+vela check . --strict --json
+vela reproduce .
+```
 
-## Discovery (optional, off-porcelain)
+`check` verifies frontier structure, event replay, signatures, roots, policy,
+and strict signals. `reproduce` reruns stored scientific evidence. A frontier
+can replay while strict scientific debt remains; report both states.
 
-The verifier-gated discovery engine lives under `vela foundry`:
-`foundry campaign search <kind> --n <n>` searches, the frozen verifier is
-the gate, and `foundry campaign run` writes only a witness plus an activity
-envelope. Reproduce it, then cross the shared Receipt boundary with `land`.
-Attempts, transfers, Lean anchoring, and experiment receipts are
-`foundry attempt|transfer|lean|experiment …`.
+## Optional tool surface
 
-## Swarms (many agents, one frontier)
+`vela init` creates no MCP configuration. A project may opt into `vela serve`
+after initialization. The draft profile can expose the nonfinalizing producer
+loop. Human decisions stay terminal-only through `vela sign`.
 
-The loop scales by composition, not new machinery:
+## Output contracts
 
-1. **Claim before long work**: `vela work <target> --as agent:<name> --json`
-   or MCP `work` action=claim
-   leases an obligation under your OWN agent key — minted automatically
-   at `~/.vela/agents/<actor>/` from your `VELA_ACTOR_ID` the first time
-   you claim, no key step needed (`VELA_AGENT_KEY_HEX` overrides). A
-   live competing lease returns `already_claimed_by` — route around it.
-   A lease coordinates; it never decides. Vela writes one typed private
-   session bound to the exact lease and task contract after exact-publishing
-   the signed lease event in a local Git commit. JSON exposes that result as
-   `claim.publication`; no manual lease commit belongs between `work` and
-   `land`. A committed Permit or
-   Defer closes `session.json`; Deny and error retain it. Abandoned work uses
-   `work --drop --reason <why>`, which appends a signed same-owner zero-TTL
-   `attempt.claimed` update before removing scratch. An expired lease is
-   ignored by the next claimer. Obligation ids may be frontier-external and namespaced
-   (`erdos:443`); strict replay treats such leases as coordination, not
-   orphaned targets.
-2. **Watch, don't poll blind**: `GET /entries/{vfr}/events/stream?cursor=<event_id>`
-   (SSE, cursor-resumable) streams what changed.
-3. **One receipt per result**: use `vela land --work <target> --claim …
-   --type … --replayability … --artifact <path>:<kind> --caveat …`.
-   Vela builds one Receipt v1 from the typed session. Use file import for a
-   receipt emitted by another producer, not for hand-authored plugin scratch.
-4. **Policy-bound lanes**: inspect both `vela status . --json → .policy.state`
-   and `.policy.permit_readiness`. Only `active` plus `ready` can turn an
-   evaluator Permit into a policy-authorized landing. `human_only` defers to a
-   human key and `blocked` is an integrity error; neither is a Deny. The policy
-   can only tighten the frozen verifier floor, and truth-bearing claims stay
-   human-keyed no matter what.
+- `vela.status.v1`: exact identity, roots, blockers, counts, policy, next action.
+- `vela.offer.v1`: producer ranking only.
+- `vela.work.v1`: one root-bound private session.
+- `vela.review.v1`: compact proposal summaries or one selected brief.
 
-## Doctrine, one paragraph
-
-Activity is not state. A model run, notebook, record, or search hit remains
-source material until it crosses the Receipt and proposal boundary. Accepted
-state needs replayable human-key authority: either a prior signed policy
-certificate or a direct human decision. Your job as an agent is to provide
-hash-bound artifacts, honest caveats, and reproducible verifier runs. You do
-not make the decision.
-
-See also: [PROTOCOL.md](PROTOCOL.md) (the object model and record spec),
-[VERIFICATION.md](VERIFICATION.md) (the gate), [HUB.md](HUB.md)
-(git-native publication), [THREAT_MODEL.md](THREAT_MODEL.md).
+See [CLI.md](CLI.md) for command syntax and [PROTOCOL.md](PROTOCOL.md) for the
+authority model.

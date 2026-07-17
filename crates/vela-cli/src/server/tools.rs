@@ -1532,7 +1532,7 @@ pub(crate) fn decl_premise_slice(
             "note": "target is Mathlib-anchored but the decl-graph artifact (data/mathlib/decl-graph.v1.json) is absent on this worktree; run `vela atlas decl-build`.",
         });
     };
-    let edges = match crate::cli_atlas::load_decl_edges(&path.to_string_lossy()) {
+    let edges = match crate::decl_graph::load_decl_edges(&path.to_string_lossy()) {
         Ok(e) => e,
         Err(e) => {
             return json!({"decl_anchored": true, "graph_present": false, "decls": decls, "error": e});

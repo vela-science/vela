@@ -4,7 +4,6 @@
 pub(crate) mod actor_registration;
 pub mod cli_admin;
 pub mod cli_agents;
-pub mod cli_experiment;
 pub mod cli_identity;
 pub mod cli_policy;
 pub(crate) mod policy_legacy_retirement;

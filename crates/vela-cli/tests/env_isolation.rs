@@ -38,7 +38,14 @@ fn init_frontier(dir: &std::path::Path) {
     let out = Command::new(vela_bin())
         .current_dir(dir)
         .env("HOME", dir)
-        .args(["init", ".", "--name", "envtest"])
+        .args([
+            "init",
+            ".",
+            "--name",
+            "envtest",
+            "--scope",
+            "Exercise environment isolation.",
+        ])
         .output()
         .expect("init");
     assert!(out.status.success(), "init failed: {out:?}");
@@ -143,18 +150,25 @@ fn usage_errors_are_exit_2() {
     assert_eq!(out.status.code(), Some(2), "id rotate same id: {out:?}");
 }
 
-/// The exit-code contract is what an agent branches on. `state` used to
-/// route every failure through the generic exit-1; a missing finding must
-/// be 3 (not found), a malformed invocation 2 (usage).
+/// The exit-code contract is what an agent branches on. A missing finding
+/// must be 3 (not found), while a malformed invocation is 2 (usage).
 #[test]
-fn state_honors_the_exit_code_contract() {
+fn finding_show_honors_the_exit_code_contract() {
     let tmp = tempfile::TempDir::new().unwrap();
     init_frontier(tmp.path());
     let dir = ".";
     // A well-formed but absent finding id → not found (3).
     let out = run_in(
         tmp.path(),
-        &["state", "trust", dir, "vf_ffffffffffffffff", "--json"],
+        &[
+            "finding",
+            "show",
+            dir,
+            "vf_ffffffffffffffff",
+            "--view",
+            "standing",
+            "--json",
+        ],
     );
     assert_eq!(
         out.status.code(),
@@ -162,7 +176,7 @@ fn state_honors_the_exit_code_contract() {
         "missing finding must be exit 3: {out:?}"
     );
     // A malformed invocation (no operands) → usage (2).
-    let out = run_in(tmp.path(), &["state", "--json"]);
+    let out = run_in(tmp.path(), &["finding", "show", "--json"]);
     assert_eq!(
         out.status.code(),
         Some(2),

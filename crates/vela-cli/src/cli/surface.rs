@@ -1,32 +1,36 @@
 //! The released command surface: the deny/curation lists, the derived
 //! `is_science_subcommand` gate, and the curated `vela help advanced`
-//! text. Moved verbatim from `cli/mod.rs`.
+//! text.
 
 use super::*;
 
-// The strict v0.700 command surface. Every name here is a live clap
-// subcommand in `cli_commands.rs::Commands` (plus the pre-clap
-// intercepts matched in `run_from_args`: `help`, `version`,
-// `proof verify|explain`, `state [trust|pack|diff|anchor…]`, `atlas`).
-// This list is the allowlist `run_from_args` consults before handing off
-// to clap; it must advertise nothing the binary cannot run.
-/// Commands intentionally withheld from the released surface. A DENY list,
-/// not an ALLOW list: hiding a command here is safe (the worst case is a
-/// real command stays unreachable until removed from the list), whereas the
-/// old hand-maintained allowlist had the opposite, dangerous failure mode —
-/// a NEW command silently 404'd ("unknown or non-release command") until
-/// someone remembered to add its string. Empty today.
-const RELEASE_DENY: &[&str] = &[];
+/// Names retired from the core binary in v0.900. They remain here so the
+/// dispatch gate cannot accidentally revive a stale alias.
+const RELEASE_DENY: &[&str] = &[
+    "atlas",
+    "credit",
+    "diff",
+    "foundry",
+    "hub",
+    "proposals",
+    "publication",
+    "reproduce-external",
+];
 
-/// Commands that stay fully callable + dispatchable but are curated OUT of the
-/// `vela help advanced` menu (`strict_help_text`) to keep the presented surface
-/// minimal and coherent. This is presentation only: every name here still
-/// resolves through `is_science_subcommand`, so the gate scripts, the web app,
-/// MCP/serve, and any existing invocation keep working unchanged. The
-/// completeness guard (`every_subcommand_is_documented_in_advanced_help`) skips
-/// these so the curated menu can shrink without losing the "no command is
-/// silently undocumented" protection for the canonical set.
-pub(crate) const HIDDEN_FROM_ADVANCED_HELP: &[&str] = &["completions"];
+/// Names omitted from the advanced menu. `completions` remains callable but
+/// hidden; the rest are retired names retained for concise migration guidance.
+#[cfg(test)]
+pub(crate) const HIDDEN_FROM_ADVANCED_HELP: &[&str] = &[
+    "atlas",
+    "completions",
+    "credit",
+    "diff",
+    "foundry",
+    "hub",
+    "proposals",
+    "publication",
+    "reproduce-external",
+];
 
 /// Whether `name` is a released top-level command the dispatcher will hand
 /// to clap. Derived from the clap command tree (`Cli::command()`), not a
@@ -72,7 +76,7 @@ pub(crate) fn print_strict_help() {
 /// so it can never silently omit a newly-added command (the drift the old
 /// hand-maintained allowlist suffered, now caught at the help layer too).
 pub(crate) fn strict_help_text() -> String {
-    let hidden_line = HIDDEN_FROM_ADVANCED_HELP.join(", ");
+    let retired_line = RELEASE_DENY.join(", ");
     format!(
         r#"Vela {}
 Version control for scientific state.
@@ -81,75 +85,42 @@ Agents land. Verifiers reproduce. Humans sign. Git publishes.
 Usage:
   vela <COMMAND>
 
-The loop:
-  next          THE offer: ranked open targets, compounding payload
-                pre-loaded; --json is the agent contract.
-  work          Open a session: claim the lease and write one private typed
-                session.json under .vela/work/. --drop signs the release first.
-  land          Land a result (vela.receipt.v1): record -> propose ->
-                routed by the signed policy. Permit admits; Defer parks
-                it in the sign queue; Deny refuses canonical admission.
-                Use --work <target> when this actor has several sessions.
-  sign          THE human ceremony: everything awaiting your key, one
-                session, one confirm, one key read. Agents are refused.
-  policy        Standing rules (suggest/draft/test/evaluate-proposal/sign/
-                revoke/log): what agents may land without you. Signing a policy
-                IS the autonomy; `suggest` shows the rule that would absorb
-                whatever keeps reaching your key.
+Daily product:
+  init          Create a minimal Git-native frontier
+  status        Compact frontier identity, roots, counts, and next action
+  next          Ranked producer work only
+  work          Claim one target and open a private typed session
+  land          Land Receipt v1; policy admits, defers, or denies
+  review        List and inspect exact pending Decision Briefs
+  sign          Human-only proposal decision ceremony; agents are refused
+  check         Replay, signatures, parity, and strict signals
+  reproduce     Re-run stored witnesses with frozen verifiers
+  log           Recent signed events or one finding's history
+  doctor        Blockers plus one safe next action
+  migrate       Preview or apply a root-preserving repository migration
 
-Read:
-  status        One-screen frontier state
-  log           Recent signed events; `vela log <dir> <vf_>` = one finding's history
-  diff          Two frontiers, or one pending proposal previewed
+Nouns and setup:
+  finding       record, standing, evidence, and attribution views
+  artifact      content-addressed evidence lifecycle
+  frontier      materialize, compare, recover publication, release, audit
+  policy        standing authority rules and their human ceremonies
+  actor         governed frontier identities
+  id            local identity and key custody setup
+  agents        regenerate agent adapters from VELA.md
+  config        closed local/frontier configuration
 
-Verify:
-  check         The full trust gate: replay, signatures, parity (--strict)
-  reproduce     Re-verify stored witnesses from scratch (frozen verifiers)
-  reproduce-external
-                Pull a commit-pinned public Lean declaration into a controlled
-                Lake project and emit an unsigned typed reproduction receipt
-  proof         Export a proof packet; `proof verify` re-checks one, `proof explain`
-  gate          Read-only claim-level verification (grade/check/vocab)
-  ci            CI verbs for a frontier's Action; `ci verdict --base <ref>` is the
-                whole auto-merge decision (exit 0 iff a gate-clean machine_verified beat)
+Advanced verification and integration:
+  gate          claim-level verification projections
+  proof         proof packet export, verify, and explain
+  ci            deterministic CI verdicts
+  serve         read-only or nonfinalizing draft MCP/HTTP surface
 
-Setup (once):
-  init          Initialize a new frontier repo (git-native: .vela is committed,
-                CI gate + agent charter + MCP scaffolded)
-  id            Your key + identity (create/show/import/keygen); then no
-                --key/--as flags
-  config        Plain settings (get/set/list, closed key set, origins
-                shown). Never touches identity, custody, or the record.
-  serve         MCP + HTTP surface: read-only or nonfinalizing draft
-  foundry       The discovery/prover plane: targets/ablate, campaign,
-                lean, attempt, transfer, experiment
-  doctor        First-user diagnosis of checkout/frontier/proof/serve
+Hidden utility:
+  completions   generate shell completion scripts
 
-Publish (git push IS publication):
-  hub           The index: witness-check and verify-chain. Hub
-                operators configure source repositories.
-  publication   Recover one interrupted path-exact Git publication by its
-                private operation id; never signs or changes authority
-
-Nouns (run `vela <noun> --help`):
-  finding       Read one accepted finding; producers write through Receipt v1
-  artifact      Content-addressed evidence lifecycle: retract drafts a
-                retirement for the human sign queue (sole direct draft exception)
-  frontier      Repo-level: new/materialize/list-deps/diff/release/audit
-  proposals     Read/transport only: list/show/preview/validate/export;
-                decisions happen only through sign
-  actor         Frontier identities: one-time configured-id bootstrap, then list
-  agents        VELA.md charter adapters: sync/doctor/diff
-
-Projections (read-only):
-  state         Read-only claim-state, trust, pack, evidence-diff, anchor projections
-  atlas         Read-only math atlas projections; adapter output lands as Receipt v1
-  credit        Derived attribution for a finding: accountable authors,
-                contributors, originating agents (a machine is never an author)
-
-Off-menu (reachable, intentionally undocumented here): {}
+Retired from the core product: {}
 "#,
         env!("CARGO_PKG_VERSION"),
-        hidden_line,
+        retired_line,
     )
 }

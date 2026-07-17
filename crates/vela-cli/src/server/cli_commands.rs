@@ -182,6 +182,9 @@ pub(crate) enum Commands {
         /// Local serve port to check.
         #[arg(long, default_value_t = 3741)]
         port: u16,
+        /// Include tool inventory, setup diagnostics, and every suggested command.
+        #[arg(long)]
+        all: bool,
         /// Output stable JSON.
         #[arg(long)]
         json: bool,
@@ -305,60 +308,6 @@ pub(crate) enum Commands {
         #[arg(long)]
         json: bool,
     },
-    /// Reproduce one commit-pinned external Lean declaration through the
-    /// installed, fail-closed producer. `--out` emits a Receipt v1 without
-    /// landing it; `--land-work` routes the same receipt through `vela land`.
-    #[command(after_long_help = crate::cli::help_text::REPRODUCE_EXTERNAL)]
-    ReproduceExternal {
-        /// Canonical public GitHub repository URL.
-        repo_url: String,
-        /// Full source commit to fetch and retain.
-        commit: String,
-        /// Fully-qualified Lean declaration name.
-        declaration: String,
-        /// Optional repository-relative Lean source path disambiguator.
-        #[arg(long)]
-        source_path: Option<String>,
-        /// Emit a Receipt v1 file only. This never changes frontier state.
-        #[arg(long, conflicts_with = "land_work")]
-        out: Option<PathBuf>,
-        /// Land into this already-active `vela work` target through the shared
-        /// pending/policy-routed write edge.
-        #[arg(long, conflicts_with = "out")]
-        land_work: Option<String>,
-        /// Frontier holding the active work target. Used only with --land-work.
-        #[arg(long)]
-        frontier: Option<PathBuf>,
-        /// Agent/CI producer identity used for Receipt origin binding.
-        #[arg(long, help = HELP_AS)]
-        r#as: Option<String>,
-        /// Output one stable JSON object.
-        #[arg(long)]
-        json: bool,
-    },
-    /// The derived credit view for a finding: the accountable human author(s) of
-    /// record (valid signers only), the disclosed contributors (machines
-    /// included), and which agent originated which unit. A pure projection over
-    /// signatures + provenance — never signed, never authoritative, and it never
-    /// invents an author. A machine holds no key, so it appears only as a
-    /// contributor / originator, never as an author.
-    #[command(after_long_help = crate::cli::help_text::CREDIT)]
-    Credit {
-        /// The finding id (`vf_…`).
-        finding_id: String,
-        /// Frontier directory.
-        #[arg(default_value = ".")]
-        frontier: PathBuf,
-        #[arg(long)]
-        json: bool,
-    },
-    /// The foundry: search, verifier campaigns, targets, attempts, transfers,
-    /// and experiments. State enters a frontier only through `vela land`.
-    #[command(after_long_help = crate::cli::help_text::FOUNDRY)]
-    Foundry {
-        #[command(subcommand)]
-        action: FoundryAction,
-    },
     /// Your Vela identity: set up a key once, then land and sign
     /// with no `--key`/`--actor` flags. `vela id create` is the
     /// one-time onboarding step.
@@ -380,67 +329,42 @@ pub(crate) enum Commands {
         #[command(subcommand)]
         action: FrontierAction,
     },
-    /// Inspect and verify a Git-derived frontier index. Source discovery is
-    /// configured by Hub operators; `git push` publishes frontier history.
-    #[command(after_long_help = crate::cli::help_text::HUB)]
-    Hub {
-        #[command(subcommand)]
-        action: HubAction,
-    },
-    /// Recover an interrupted Git publication transaction. This is private
-    /// operational plumbing: it never signs or changes scientific authority.
-    #[command(after_long_help = crate::cli::help_text::PUBLICATION)]
-    Publication {
-        #[command(subcommand)]
-        action: PublicationAction,
-    },
-    /// Initialize a .vela frontier repo
+    /// Initialize a minimal .vela frontier repository.
     #[command(after_long_help = crate::cli::help_text::INIT)]
     Init {
         #[arg(default_value = ".")]
         path: PathBuf,
-        #[arg(long, default_value = "unnamed")]
-        name: String,
+        /// Human-readable frontier name. Required in --json mode.
+        #[arg(long)]
+        name: Option<String>,
+        /// The bounded research question. Required in --json mode.
+        #[arg(long)]
+        scope: Option<String>,
         #[arg(long)]
         json: bool,
     },
-    /// Compare two frontiers, or preview one pending proposal
-    /// against the current frontier.
-    ///
-    /// v0.74: when the first positional arg starts with `vpr_`,
-    /// route to the existing `proposals preview` path so a single
-    /// `vela diff <proposal_id>` shows the proposal-vs-frontier
-    /// delta the README quotes. The two-arg form
-    /// (`vela diff <frontier_a> <frontier_b>`) keeps its existing
-    /// behavior.
-    #[command(after_long_help = crate::cli::help_text::DIFF)]
-    Diff {
-        /// Frontier path A, a `vpr_*` proposal id for preview
-        /// mode, or a `vfr_*` registry id (v0.140) resolved via
-        /// the registry into a pulled snapshot before diffing.
-        target: String,
-        /// Frontier path B for two-frontier compare. Accepts a
-        /// filesystem path or a `vfr_*` registry id (v0.140). Omit
-        /// when `target` is a proposal id.
-        frontier_b: Option<String>,
-        /// Frontier root for proposal-preview mode. Defaults to
-        /// `.` if the first positional is a proposal id and no
-        /// `--frontier` flag is provided.
-        #[arg(long)]
-        frontier: Option<PathBuf>,
-        /// Reviewer attribution for the proposal-preview mode.
-        #[arg(long, default_value = "reviewer:preview")]
-        reviewer: String,
-        #[arg(long)]
-        json: bool,
-        #[arg(long)]
-        quiet: bool,
-    },
-    /// Inspect, preview, validate, or export proposal records.
-    #[command(after_long_help = crate::cli::help_text::PROPOSALS)]
-    Proposals {
+    /// Read the human review queue and inspect exact Decision Briefs.
+    #[command(after_long_help = crate::cli::help_text::REVIEW)]
+    Review {
         #[command(subcommand)]
-        action: ProposalAction,
+        action: ReviewAction,
+    },
+    /// Migrate a frontier repository format without rewriting canonical state.
+    #[command(after_long_help = crate::cli::help_text::MIGRATE)]
+    Migrate {
+        /// Frontier repository directory.
+        frontier: PathBuf,
+        /// Target repository format.
+        #[arg(long = "to", default_value = "0.900")]
+        target_version: String,
+        /// Preview the exact migration without writing.
+        #[arg(long, conflicts_with = "apply", required_unless_present = "apply")]
+        check: bool,
+        /// Apply the previewed repository-format migration.
+        #[arg(long, conflicts_with = "check", required_unless_present = "check")]
+        apply: bool,
+        #[arg(long)]
+        json: bool,
     },
     /// Inspect finding bundles as the core frontier primitive.
     #[command(after_long_help = crate::cli::help_text::FINDING)]
@@ -644,26 +568,6 @@ pub(crate) enum Commands {
     },
 }
 
-#[derive(Subcommand, Debug)]
-pub(crate) enum PublicationAction {
-    /// Resume one journaled path-exact Git publication after verifying the
-    /// frontier, checkout, caller index, worktree bytes, and target ref.
-    Recover {
-        /// Private vop_ operation identifier printed by the interrupted command.
-        #[arg(long)]
-        operation: String,
-        /// Frontier root; defaults to discovery from the current directory.
-        #[arg(long)]
-        frontier: Option<PathBuf>,
-        /// Push after local ref/index recovery and verify the remote ref.
-        #[arg(long)]
-        push: bool,
-        /// Output one structured JSON object.
-        #[arg(long)]
-        json: bool,
-    },
-}
-
 #[derive(Subcommand)]
 pub(crate) enum IdAction {
     /// Pin the current `vela` binary's hash (a human, confirm-gated act) so
@@ -728,281 +632,6 @@ pub(crate) enum IdAction {
 
 /// Experiment-plane receipts (Inevitability Program Phase 0); nested
 /// under `vela foundry experiment`.
-#[derive(Subcommand)]
-pub(crate) enum ExperimentAction {
-    /// Assemble a content-addressed run-manifest over an experiment's `vac_`
-    /// activity turns (ordered, immutable, complete) so a run can be replayed and
-    /// no turn can be silently dropped.
-    Manifest {
-        /// Frontier directory whose `activity/` holds the run's `vac_` envelopes.
-        frontier: PathBuf,
-        /// Experiment id; filters turns tagged `experiment:<id>`. Use `*` for all.
-        #[arg(long, default_value = "*")]
-        experiment: String,
-        /// Optional path to write the manifest JSON.
-        #[arg(long)]
-        out: Option<PathBuf>,
-        #[arg(long)]
-        json: bool,
-    },
-    /// Project the discharge status of a typed cohort (open / discharged /
-    /// blocked) over the frontier's accepted findings — mechanical, not asserted.
-    Status {
-        /// Cohort JSON: an array of obligations, or `{ "obligations": [...] }`.
-        cohort: PathBuf,
-        /// Frontier directory whose accepted findings discharge obligations.
-        frontier: PathBuf,
-        #[arg(long)]
-        json: bool,
-    },
-    /// Author a content-addressed (`vxo_`) cohort obligation from its fields.
-    Obligation {
-        /// Cohort id this obligation belongs to.
-        #[arg(long)]
-        cohort: String,
-        /// The `vf_` finding id whose acceptance discharges this obligation.
-        #[arg(long)]
-        target: String,
-        /// The exact statement (pins `statement_digest`).
-        #[arg(long)]
-        statement: String,
-        /// Prior accepted judgment ids this obligation depends on (repeatable).
-        #[arg(long = "dep")]
-        deps: Vec<String>,
-        /// How discharge is checked: `lean_kernel` | `vela_verify` | other.
-        #[arg(long, default_value = "lean_kernel")]
-        discharge_kind: String,
-        #[arg(long)]
-        json: bool,
-    },
-}
-
-/// `vela foundry` — discovery and verifier tools feeding the shared work/land loop.
-#[derive(Subcommand)]
-pub(crate) enum FoundryAction {
-    /// The foundry's work-list: the attackable target portfolio with its
-    /// value-to-beat, read from a substrate-native catalog (the HorizonMath
-    /// verifier-attackable subset by default) and cross-referenced against the
-    /// live per-family records (e.g. `frontiers/sidon/records.json`) so the
-    /// gap between the current accepted best and the value-to-beat is legible.
-    /// This is what campaign search selects from; replaces the web/script JSON
-    /// (cohort.json, erdos-wedge.json) as the foundry's portfolio source.
-    Targets {
-        /// Target catalog (a `HorizonMathCatalog`-shaped JSON with a `problems`
-        /// array of `{id, verifier_kind, params, incumbent, status}`).
-        #[arg(long, default_value = "frontiers/horizonmath/catalog.json")]
-        catalog: PathBuf,
-        /// Directory holding live per-family records files (the accepted-best
-        /// model, `bounds.json` template). Read to show the current accepted
-        /// best against each value-to-beat.
-        #[arg(long, default_value = "frontiers")]
-        records: PathBuf,
-        /// Only show targets a `vela campaign` kind can attack (an engine kind).
-        #[arg(long)]
-        attackable_only: bool,
-        /// Optional typed Erdős bounds sidecar (`examples/erdos-problems/bounds.json`,
-        /// the `vela.frontier-bounds.v1` doc emitted by the erdos-deep adapter).
-        /// When present, each problem's typed current-best bound is surfaced as a
-        /// `value_to_beat` row in the portfolio, so the foundry / attack ranking
-        /// sees the Erdős value-to-beat alongside the catalog's incumbents.
-        #[arg(long)]
-        erdos_bounds: Option<PathBuf>,
-        #[arg(long)]
-        json: bool,
-    },
-    /// The continuous-ablation heartbeat (the plan's hard gate): does inherited
-    /// frontier state make the next solver go farther per unit compute? At a
-    /// FIXED budget, treatment concentrates it on the boundary (skip-known-work,
-    /// enabled by inheriting the frontier's solved targets); control spreads the
-    /// same budget across the range it must rediscover. Reports treatment vs
-    /// control boundary-success over N seeds; exits 1 if inheritance does not
-    /// beat control for campaign evaluation.
-    Ablate {
-        /// Frontier directory (its solved targets are the inherited state).
-        frontier: PathBuf,
-        /// Witness kind to ablate (`sidon`, `golomb`, …).
-        #[arg(long)]
-        kind: String,
-        /// Optional per-family records catalog (`records/<family>.json` or
-        /// `bounds.json`): the inherited-state count is read from its accepted,
-        /// reproduce-backed bounds instead of the frontier's accepted findings.
-        /// Lets the compounding measurement run on a family WITHOUT a key-custody
-        /// accept ceremony (the records are already frozen-verified).
-        #[arg(long)]
-        records: Option<PathBuf>,
-        /// The boundary target `n` (the frontier edge being attacked).
-        #[arg(long)]
-        n: usize,
-        /// For `bh`: order `h`.
-        #[arg(long, default_value_t = 2)]
-        h: usize,
-        /// The fixed total search budget (restarts) each arm gets.
-        #[arg(long, default_value_t = 200)]
-        budget: u64,
-        /// Number of seeds to average over.
-        #[arg(long, default_value_t = 5)]
-        seeds: u64,
-        #[arg(long)]
-        json: bool,
-    },
-    /// The prover-in-the-loop work-list: open Lean obligations in a
-    /// formal-conjectures corpus, ranked by tractability. Known proved lemmas
-    /// compose into proofs of open theorems; this surfaces the tractable
-    /// formalization-gap targets (sorry-carrying / `@[category research open]`
-    /// decls) the prove loop attacks. Read-only.
-    LeanTargets {
-        /// The formal-conjectures (or other Lean) corpus root, e.g.
-        /// `/Users/.../formal-conjectures`.
-        #[arg(long)]
-        lean_dir: PathBuf,
-        /// Restrict to a sub-path under the corpus (default: the Erdős problems).
-        #[arg(long, default_value = "FormalConjectures/ErdosProblems")]
-        subdir: String,
-        /// Show every open decl, including the headline research-open problems
-        /// that are not expected to be subagent-closable (off by default).
-        #[arg(long)]
-        all: bool,
-        /// Cap the number of targets emitted.
-        #[arg(long, default_value_t = 40)]
-        limit: usize,
-        #[arg(long)]
-        json: bool,
-    },
-    /// The decisive lemma-inheritance measurement (the memo's "Compounding B"):
-    /// do accepted Lean lemmas widen the closable boundary? Treatment counts the
-    /// open targets that are one-premise-away WITH the inherited lemmas present;
-    /// control demotes those lemmas to Open. Δ>0 means inherited verified state
-    /// makes the next proof reachable — the formal analogue of skip-known-work.
-    LeanAblate {
-        /// Frontier directory with Lean findings + inter-problem premise edges.
-        frontier: PathBuf,
-        /// Explicit inherited-lemma finding ids (comma-separated). Default: every
-        /// finding whose assertion_type marks a Lean formalization.
-        #[arg(long)]
-        lemmas: Option<String>,
-        #[arg(long)]
-        json: bool,
-    },
-    /// Project the typed current-best bounds (value-to-beat) from the erdos-deep
-    /// source into a `vela.frontier-bounds.v1` sidecar. ADDITIVE — it reads the
-    /// staged source through the pure Erdős adapter and writes a NEW
-    /// `bounds.json`; it never touches accepted findings or the frontier
-    /// canonical root, so `vela reproduce` is unaffected. Every bound is
-    /// unattested (`accepted: false`). Deterministic. `foundry targets
-    /// --erdos-bounds <out>` then reads it back as value-to-beat rows.
-    ErdosBounds {
-        /// The staged erdos-deep source (the `read_erdos_deep` adapter input).
-        #[arg(
-            long,
-            default_value = "examples/erdos-problems/sources/erdos-deep.v1.json"
-        )]
-        input: PathBuf,
-        /// Where to write the typed bounds sidecar.
-        #[arg(long, default_value = "examples/erdos-problems/bounds.json")]
-        out: PathBuf,
-        #[arg(long)]
-        json: bool,
-    },
-    /// The discovery engine (search -> frozen-verify -> propose).
-    Campaign {
-        #[command(subcommand)]
-        action: CampaignAction,
-    },
-    /// Lean theorem anchoring + verifier records (vlv_).
-    Lean {
-        #[command(subcommand)]
-        action: LeanAction,
-    },
-    /// Banked attempts (vat_): verify + list.
-    Attempt {
-        #[command(subcommand)]
-        action: AttemptAction,
-    },
-    /// Cross-domain transfers (vtr_): verify, mint, registry.
-    Transfer {
-        #[command(subcommand)]
-        action: TransferAction,
-    },
-    /// Experiment-plane receipts (run manifests, cohort obligations).
-    Experiment {
-        #[command(subcommand)]
-        action: ExperimentAction,
-    },
-}
-
-/// `vela campaign` — the discovery engine over verifier-gated constructions.
-#[derive(Subcommand)]
-pub(crate) enum CampaignAction {
-    /// Run the engine and report the best verified construction found. Writes
-    /// nothing. `--kind` is a verifier kind: gf2_sidon, union_free,
-    /// rook_directions, cap, constant_weight (with `--d`/`--w`), covering (with
-    /// `--k`/`--t`), sidon, bh (with `--h`), golomb, costas, diff_triangle
-    /// (with `--k` as the within-row order J; HorizonMath DTS(I,J) targets).
-    Search {
-        /// Verifier kind to search.
-        kind: String,
-        /// Target parameter n (set size domain / order / ground set, kind-dependent).
-        #[arg(long)]
-        n: usize,
-        /// For `bh`: the order h (h=2 is Sidon). Ignored by other kinds.
-        #[arg(long, default_value_t = 2)]
-        h: usize,
-        /// For `constant_weight`: minimum Hamming distance d.
-        #[arg(long, default_value_t = 0)]
-        d: usize,
-        /// For `constant_weight`: codeword weight w.
-        #[arg(long, default_value_t = 0)]
-        w: usize,
-        /// For `covering`: block size k.
-        #[arg(long, default_value_t = 0)]
-        k: usize,
-        /// For `covering`: cover every t-subset.
-        #[arg(long, default_value_t = 0)]
-        t: usize,
-        /// Number of randomized restarts (the work budget).
-        #[arg(long, default_value_t = 200)]
-        restarts: u64,
-        /// RNG seed; the same seed reproduces the same search.
-        #[arg(long, default_value_t = 24221)]
-        seed: u64,
-        #[arg(long)]
-        json: bool,
-    },
-    /// Search and write the verified witness plus a non-authoritative activity
-    /// envelope. To cross into protocol state, reproduce the witness and use
-    /// the shared `work` / `land` path.
-    Run {
-        /// Verifier kind to search (see `search`).
-        kind: String,
-        #[arg(long)]
-        n: usize,
-        #[arg(long, default_value_t = 2)]
-        h: usize,
-        #[arg(long, default_value_t = 0)]
-        d: usize,
-        #[arg(long, default_value_t = 0)]
-        w: usize,
-        #[arg(long, default_value_t = 0)]
-        k: usize,
-        #[arg(long, default_value_t = 0)]
-        t: usize,
-        #[arg(long, default_value_t = 200)]
-        restarts: u64,
-        #[arg(long, default_value_t = 24221)]
-        seed: u64,
-        /// Witness output path. Defaults to
-        /// `<frontier>/witnesses/<kind>-n<N>.witness.json`.
-        #[arg(long)]
-        out: Option<PathBuf>,
-        /// Frontier directory, used to derive `--out` and bind consumed state.
-        #[arg(long)]
-        frontier: Option<PathBuf>,
-        #[arg(long)]
-        json: bool,
-    },
-}
-
-/// `vela agents` — keep vendor agent-config files generated from `VELA.md`.
 #[derive(Subcommand)]
 pub(crate) enum AgentsAction {
     /// Regenerate the adapter files from VELA.md (idempotent; writes only
@@ -1141,237 +770,6 @@ pub(crate) enum ActorAction {
 }
 
 #[derive(Subcommand)]
-pub(crate) enum LeanAction {
-    /// Anchor every theorem in the substrate registry. Writes
-    /// one `vla_*` anchor JSON per theorem under <output>/.
-    AnchorAll {
-        /// Path to the `lean/` directory (defaults to repo root).
-        #[arg(long)]
-        lean_dir: Option<PathBuf>,
-        /// Output directory for anchor JSON files. Defaults to
-        /// `./theorems/`.
-        #[arg(long, default_value = "./theorems")]
-        out: PathBuf,
-        #[arg(long)]
-        json: bool,
-    },
-    /// Anchor a single theorem by its id (1..=6 in Arc 6 wave 1).
-    Anchor {
-        /// Theorem id (e.g. 1 for T1).
-        id: u32,
-        #[arg(long)]
-        lean_dir: Option<PathBuf>,
-        /// Output path for the anchor record (default: stdout).
-        #[arg(long)]
-        out: Option<PathBuf>,
-        #[arg(long)]
-        json: bool,
-    },
-    /// List the substrate's registered theorems.
-    List {
-        #[arg(long)]
-        json: bool,
-    },
-    /// v0.170: generate a fresh Ed25519 verifier keypair. Writes
-    /// the 32-byte private key (hex) to `--key-out` and the
-    /// public-key spec JSON to `--pub-out`.
-    Keygen {
-        #[arg(long)]
-        key_out: PathBuf,
-        #[arg(long)]
-        pub_out: PathBuf,
-        /// Free-form identity to embed in the public-key spec
-        /// (e.g. "github-action:vela-science/vela:verify-lean-bundle").
-        #[arg(long = "verifier-actor")]
-        actor: String,
-    },
-    /// v0.170: sign verification records for every anchor in
-    /// `--anchors-dir`. Reads `--build-log` and computes its
-    /// sha256 as the verifier_output_hash; the lake build that
-    /// produced that log must have completed cleanly.
-    VerifyAll {
-        /// Directory containing T<N>.anchor.json files (default:
-        /// `./theorems`).
-        #[arg(long, default_value = "./theorems")]
-        anchors_dir: PathBuf,
-        /// Output directory for T<N>.vlv.json verification records
-        /// (default: same as anchors_dir).
-        #[arg(long)]
-        out_dir: Option<PathBuf>,
-        /// Path to a lake build log file. Its sha256 becomes the
-        /// verifier_output_hash; the file content is opaque to
-        /// the substrate.
-        #[arg(long)]
-        build_log: PathBuf,
-        /// Path to the Ed25519 private key. Optional: defaults to your
-        /// configured identity's key (`vela id`).
-        #[arg(long, help = HELP_KEY)]
-        key: Option<PathBuf>,
-        /// Free-form verifier identity (e.g. github-action URL).
-        #[arg(long = "verifier-actor")]
-        actor: String,
-        /// Lean toolchain pin (e.g. `leanprover/lean4:v4.29.1`).
-        /// Defaults to the contents of `lean/lean-toolchain` if
-        /// present.
-        #[arg(long)]
-        lean_toolchain: Option<String>,
-        /// Mathlib revision (e.g. `v4.29.1`). Defaults to the
-        /// `mathlib4.git` pin in `lean/lakefile.lean`.
-        #[arg(long)]
-        mathlib_revision: Option<String>,
-        /// Path to the per-decl axiom report emitted by `Vela/AxiomAudit.lean`
-        /// (lines `AXIOMS <decl> | axiom1, axiom2`). When present, each
-        /// theorem's axioms are classified against the TCB policy and the
-        /// record status is set accordingly. When absent, records are minted
-        /// axiom-unknown (legacy behavior).
-        #[arg(long)]
-        axioms_report: Option<PathBuf>,
-        /// Path to the external kernel re-check log (lean4checker/Lean4Lean).
-        /// Presence of the marker `KERNEL_RECHECK_FAILED` marks the re-check
-        /// failed; an empty/clean log marks it passed; omitting the flag
-        /// marks it not-run.
-        #[arg(long)]
-        kernel_recheck_log: Option<PathBuf>,
-        /// External kernel checker name recorded in the TCB policy
-        /// (e.g. `lean4checker`). Defaults to `none`.
-        #[arg(long, default_value = "none")]
-        kernel_checker: String,
-        /// External kernel checker version pin (e.g. `lean4checker@v4.29.1`).
-        #[arg(long, default_value = "")]
-        kernel_checker_version: String,
-        /// Comma-separated allowlist of axioms. Defaults to the three
-        /// standard classical axioms.
-        #[arg(long)]
-        allowed_axioms: Option<String>,
-        /// Comma-separated forbidden axioms. Defaults to the standard
-        /// compiler-trust / `sorry` set.
-        #[arg(long)]
-        forbidden_axioms: Option<String>,
-        /// Output path for the `vtcb_` policy JSON (default:
-        /// `<out_dir>/policy.vtcb.json`).
-        #[arg(long)]
-        out_tcb: Option<PathBuf>,
-        #[arg(long)]
-        json: bool,
-    },
-    /// v0.170: verify a single `vlv_*` record: signature against
-    /// declared pubkey + id derivation + anchor cross-check.
-    VerifyCheck {
-        record: PathBuf,
-        /// Path to the matching T<N>.anchor.json. Confirms the
-        /// record's anchor_id + module_sha256 still match.
-        #[arg(long)]
-        anchor: Option<PathBuf>,
-        /// Optional path to the `vtcb_` policy JSON. When present,
-        /// re-classifies the record's axioms and asserts the stored
-        /// `axiom_verdict` and `tcb_id` match.
-        #[arg(long)]
-        tcb: Option<PathBuf>,
-        #[arg(long)]
-        json: bool,
-    },
-}
-
-#[derive(Subcommand)]
-pub(crate) enum AttemptAction {
-    /// Verify a banked attempt file: a single `Attempt` JSON, or a
-    /// CanopusAttemptLedger (`{"records": [...]}`, v1 or v2). Each record's
-    /// `vat_` id must re-derive, its claim_digest must match, and its Ed25519
-    /// signature must verify under the declared pubkey. Unsigned records (no
-    /// signature) are reported, not failed.
-    Verify {
-        /// Path to an Attempt JSON or a ledger with a `records` array.
-        file: PathBuf,
-        #[arg(long)]
-        json: bool,
-    },
-    /// List the banked attempts (`vat_`) in a frontier's event log — the
-    /// durable inherited memory (every run's outcome, including failures). The
-    /// next portfolio reads this to avoid repeating searched routes. Filter by
-    /// `--problem`, `--kind`, or `--status`.
-    List {
-        /// Frontier directory or repo.
-        frontier: PathBuf,
-        #[arg(long)]
-        problem: Option<u32>,
-        #[arg(long)]
-        kind: Option<String>,
-        #[arg(long)]
-        status: Option<String>,
-        #[arg(long)]
-        json: bool,
-    },
-}
-
-#[derive(Subcommand)]
-pub(crate) enum TransferAction {
-    /// Verify a cross-domain transfer file: a single `Transfer` JSON, or a
-    /// `{"records": [...]}` ledger. Each record's `vtr_` id must re-derive and
-    /// its Ed25519 signature must verify under the declared pubkey. Unsigned
-    /// records are reported, not failed. (This is the structural check; the
-    /// T1–T5 admission gate runs in the reducer / `derive_transfer_status`.)
-    Verify {
-        /// Path to a Transfer JSON or a ledger with a `records` array.
-        file: PathBuf,
-        /// Re-derive the T1–T5 ADMISSION verdict over real state (the read-time
-        /// `derive_transfer_status`), not just the structural signature check.
-        /// Resolves A's gate from `--frontier`'s accepted attachments, the
-        /// theorem `vlv_` from `--vlv`, and the domain tags.
-        #[arg(long)]
-        admit: bool,
-        /// Source frontier A — its accepted verifier attachments (matching the
-        /// transfer's source_claim_digest) resolve A's gate outcome (T1).
-        #[arg(long)]
-        frontier: Option<PathBuf>,
-        /// The transfer theorem's `vlv_` verification file (the LeanHomomorphism
-        /// T2 witness). Mint it with the explicit `vela lean` verifier flow.
-        #[arg(long)]
-        vlv: Option<PathBuf>,
-        /// A's actual domain for the T3 type-match (defaults to the
-        /// homomorphism's declared source_type).
-        #[arg(long)]
-        source_domain: Option<String>,
-        /// B's premise domain for the T3 type-match (defaults to the
-        /// homomorphism's declared target_type).
-        #[arg(long)]
-        target_domain: Option<String>,
-        #[arg(long)]
-        json: bool,
-    },
-    /// Mint a signed `vtr_` from a draft JSON (the Transfer body minus
-    /// id/signature/signer): source_claim, source_claim_digest, target_claim,
-    /// target_premise_digest, homomorphism{...}. Signs with the Ed25519 key
-    /// (raw 32-byte hex seed) and writes the content-addressed record.
-    Mint {
-        /// Path to the draft JSON.
-        draft: PathBuf,
-        /// Path to the Ed25519 signing key. Optional: defaults to your
-        /// configured identity's key (`vela id`).
-        #[arg(long, help = HELP_KEY)]
-        key: Option<PathBuf>,
-        /// Where to write the signed `vtr_` record.
-        #[arg(long)]
-        out: PathBuf,
-    },
-    /// Index the cross-domain transfers (`vtr_`) into the transfer registry: a
-    /// derived, lane-organized view (certified / target-checked / exploratory)
-    /// grouped by domain pair, with each link's proof roots and structural check.
-    /// Reads `examples/transfers/*.vtr.json` (or `--dir`); a projection, never a
-    /// re-verification or an admission decision.
-    Registry {
-        /// Directory of `*.vtr.json` transfer records (default examples/transfers).
-        #[arg(long)]
-        dir: Option<PathBuf>,
-        /// Emit the registry as JSON (for the web export) instead of a summary.
-        #[arg(long)]
-        json: bool,
-        /// Write the JSON registry to a file as well.
-        #[arg(long)]
-        out: Option<PathBuf>,
-    },
-}
-
-#[derive(Subcommand)]
 pub(crate) enum FrontierAction {
     /// Scaffold a fresh `frontier.json` stub. The result passes
     /// `vela check --strict` immediately and is ready to accept
@@ -1406,29 +804,23 @@ pub(crate) enum FrontierAction {
         #[arg(long)]
         json: bool,
     },
-    /// v0.32: emit a structured diff of findings added, updated, and
-    /// contradicted in a time window. The canonical replacement for the
-    /// `scripts/weekly-diff.sh` Python fallback shipped in v0.31.
-    ///
-    /// Default window is the current ISO week (Monday 00:00 UTC →
-    /// next Monday 00:00 UTC). Use `--since <RFC3339>` for an arbitrary
-    /// start, or `--week YYYY-Www` for a specific ISO week.
-    ///
-    /// Output is JSON if `--json` is set; otherwise a human summary.
-    /// The diff is read-only over the canonical state — it does not
-    /// modify the frontier and does not require a signing key.
+    /// Compare two frontier repositories or snapshots.
     Diff {
-        /// Path to the frontier (project dir, `.vela/` repo, or `.json` file).
-        frontier: PathBuf,
-        /// Compute diff since this RFC 3339 timestamp.
-        /// Mutually exclusive with `--week`.
+        left: PathBuf,
+        right: PathBuf,
         #[arg(long)]
-        since: Option<String>,
-        /// Compute diff for a specific ISO week (e.g. `2026-W18`).
-        /// If absent and no `--since`, defaults to the current ISO week.
+        json: bool,
         #[arg(long)]
-        week: Option<String>,
-        /// Emit JSON to stdout.
+        quiet: bool,
+    },
+    /// Recover one interrupted path-exact Git publication.
+    RecoverPublication {
+        #[arg(long)]
+        operation: String,
+        #[arg(long)]
+        frontier: Option<PathBuf>,
+        #[arg(long)]
+        push: bool,
         #[arg(long)]
         json: bool,
     },
@@ -1486,45 +878,7 @@ pub(crate) enum FrontierAction {
     },
 }
 
-#[derive(Subcommand)]
-pub(crate) enum HubAction {
-    /// Fetch the same frontier-index row from multiple hubs and assert
-    /// byte-identical agreement. Closes part of
-    /// THREAT_MODEL.md A11 (compromised hub) by giving operators a
-    /// substrate-side cross-hub divergence detector. The
-    /// substrate-honest claim: if two or more trustworthy mirrors
-    /// agree on the entry's canonical bytes, a third hub's diverging
-    /// copy is identifiable.
-    WitnessCheck {
-        /// Frontier address (`vfr_…`) to fetch from every hub.
-        vfr_id: String,
-        /// Comma-separated list of hub URLs to query. Requires
-        /// at least two; three or more makes the consensus
-        /// substrate-honest (a majority can outvote a single
-        /// divergent hub).
-        #[arg(long, value_delimiter = ',')]
-        hubs: Vec<String>,
-        #[arg(long)]
-        json: bool,
-    },
-    /// Verify a frontier's owner-epoch chain transcript. Walks each
-    /// transition, loads the corresponding policy, proposal, and attestation
-    /// bundle, and re-runs quorum verification. Surfaces `bootstrap` (no
-    /// transitions), `verified`, or `broken`.
-    VerifyChain {
-        /// Frontier path. The chain is read from
-        /// `<frontier-dir>/.vela/governance/chain.json`.
-        frontier: PathBuf,
-        /// Directory holding the `vgp_*.json`, `vop_*.json`,
-        /// `vab_*.json` artifacts referenced by the chain. Files
-        /// must be named `<id>.json` (e.g. `vop_abc123.json`).
-        #[arg(long)]
-        artifacts: PathBuf,
-        #[arg(long)]
-        json: bool,
-    },
-}
-
+// Finding and artifact nouns stay on the compact 0.9 surface.
 #[derive(Subcommand)]
 pub(crate) enum FindingCommands {
     /// v0.327: Read-only projection of one finding: assertion,
@@ -1536,6 +890,9 @@ pub(crate) enum FindingCommands {
         frontier: PathBuf,
         /// Finding id (`vf_<hex>`)
         finding_id: String,
+        /// record | standing | evidence | attribution
+        #[arg(long, default_value = "record")]
+        view: String,
         /// Emit stable JSON instead of the human view
         #[arg(long)]
         json: bool,
@@ -1564,38 +921,34 @@ pub(crate) enum ArtifactCommands {
 }
 
 #[derive(Subcommand)]
-pub(crate) enum ProposalAction {
-    /// List proposals in a frontier
+pub(crate) enum ReviewAction {
+    /// List compact proposal summaries. Defaults to pending review.
     List {
         frontier: PathBuf,
         #[arg(long)]
         status: Option<String>,
+        #[arg(long, default_value_t = 50)]
+        limit: usize,
+        #[arg(long)]
+        cursor: Option<String>,
         #[arg(long)]
         json: bool,
     },
-    /// Show one proposal
+    /// Show one exact Decision Brief.
     Show {
         frontier: PathBuf,
         proposal_id: String,
         #[arg(long)]
         json: bool,
     },
-    /// Preview applying one proposal without mutating the frontier
+    /// Preview one exact Decision Brief without entering the signing path.
     Preview {
         frontier: PathBuf,
         proposal_id: String,
-        #[arg(long, default_value = "reviewer:preview")]
-        reviewer: String,
         #[arg(long)]
         json: bool,
     },
-    /// Validate standalone proposal files or directories
-    Validate {
-        source: PathBuf,
-        #[arg(long)]
-        json: bool,
-    },
-    /// Export proposal records from a frontier
+    /// Export proposal records from a frontier.
     Export {
         frontier: PathBuf,
         output: PathBuf,
