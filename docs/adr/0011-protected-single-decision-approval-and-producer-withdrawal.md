@@ -1,7 +1,8 @@
 # ADR 0011: Human-governed authority and producer withdrawal
 
-- Status: Proposed
-- Target release: Vela `v0.901.0`; blocked until the redesigned surface passes dogfood
+- Status: Accepted
+- Accepted: 2026-07-17 at the Vela `v0.901.0` release gate
+- Target release: Vela `v0.901.0`
 - Protocol effect: one signed, non-scientific `proposal.withdrawn` event
 - Local product effect: protected custody, bounded authority sessions, and identity v2
 - Authority effect: none
