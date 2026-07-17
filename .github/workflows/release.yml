@@ -92,7 +92,12 @@ jobs:
             test -f "dist/$asset"
             test -f "dist/$asset.sha256"
           done
-          gh release create "$GITHUB_REF_NAME" dist/* \
-            --verify-tag \
-            --title "$GITHUB_REF_NAME" \
+          release_flags=(
+            --verify-tag
+            --title "$GITHUB_REF_NAME"
             --notes-from-tag
+          )
+          if [[ "$GITHUB_REF_NAME" == *-* ]]; then
+            release_flags+=(--prerelease)
+          fi
+          gh release create "$GITHUB_REF_NAME" dist/* "${release_flags[@]}"

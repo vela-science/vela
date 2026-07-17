@@ -171,6 +171,26 @@ This is a release-blocking NO-GO, not a polish issue. The candidate stays
 unreleased, this ADR stays Proposed, and the valid historical rejection is not
 rewritten. Successful cryptography is insufficient acceptance evidence.
 
+### 2026-07-17 cross-platform release-candidate evidence
+
+Release-candidate run
+[`29620812022`](https://github.com/vela-science/vela/actions/runs/29620812022)
+passed the signer contracts and release build on macOS ARM64, Linux x86-64,
+and Windows x86-64. The downloaded checksum sidecars verified independently.
+The archive roots are:
+
+- macOS ARM64: `sha256:e6dd60076310372bd71d3e7455398cb32f394cb466a72ad7bf81af5af8c93f03`;
+- Linux x86-64: `sha256:81a69b195e1896a6a9a4bfed5106552171cdda2e9d82920e23cb2f9a87b2a35b`;
+- Windows x86-64: `sha256:38f242c07952c1434b8a96ec1176e67dd37ce094906d4265a285124158f460d0`.
+
+Every archive contains the paired `vela` and `vela-signer` binaries; the Linux
+archive also contains the scoped polkit policy. The extracted macOS binary
+reports `vela 0.901.0`. This proves packaging and platform compilation, not the
+remaining current-identity rebind or human-facing decision-card acceptance
+gate. An RC publication also exposed a release-workflow defect: a hyphenated
+tag was not marked as a prerelease. The workflow now derives `--prerelease`
+from the tag before publication; immutable release metadata is not rewritten.
+
 ## Decision
 
 Vela makes signing an implementation detail, not a recurring user task. It
