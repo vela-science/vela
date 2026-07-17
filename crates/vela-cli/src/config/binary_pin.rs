@@ -130,9 +130,8 @@ pub(crate) fn verify_for_ceremony() -> Result<Option<BinaryPin>, String> {
             current_path,
             ..
         } => Err(format!(
-            "the running binary does not match your pin: {} now, {} pinned ({} at {}). If you \
-             upgraded deliberately, re-run `vela sign` interactively to re-pin in place; if you \
-             did not, do NOT sign — inspect {} first.",
+            "the running binary does not match your pin: {} now, {} pinned ({} at {}). Refusing \
+             the ceremony; inspect {} before using the identity backend's authenticated rebind.",
             &current_sha[..16],
             &pinned.sha256[..16],
             pinned.version,

@@ -145,12 +145,20 @@ fn protected_rebind_command() -> &'static str {
     "vela id protect --user-presence --remove-source-key --mode session --json"
 }
 
-fn binary_pin_repair() -> &'static str {
+fn protected_identity_configured() -> bool {
     use super::cli_identity::IdentitySigner;
 
-    match super::cli_identity::load_identity().and_then(|identity| identity.signer) {
-        Some(IdentitySigner::Helper { .. }) => protected_rebind_command(),
-        _ => "vela id pin-binary  (after inspecting the binary)",
+    matches!(
+        super::cli_identity::load_identity().and_then(|identity| identity.signer),
+        Some(IdentitySigner::Helper { .. })
+    )
+}
+
+fn binary_pin_repair(protected: bool) -> &'static str {
+    if protected {
+        protected_rebind_command()
+    } else {
+        "vela id pin-binary  (after inspecting the binary)"
     }
 }
 
@@ -161,16 +169,18 @@ fn binary_pin_repair() -> &'static str {
 /// dev-tree binary churns on every alternation. The pen should be an
 /// installed release.
 fn pin_check() -> SetupCheck {
+    let protected = protected_identity_configured();
+    let repair = binary_pin_repair(protected);
     let exe_in_target = std::env::current_exe()
         .ok()
         .map(|p| p.components().any(|c| c.as_os_str() == "target"))
         .unwrap_or(false);
     match super::binary_pin::verify_for_ceremony() {
-        Err(e) => fail("binary pin", e, binary_pin_repair()),
+        Err(e) => fail("binary pin", e, repair),
         Ok(None) => warn(
             "binary pin",
             "unpinned — ceremonies run without a binary anchor",
-            binary_pin_repair(),
+            repair,
         ),
         Ok(Some(pin)) if exe_in_target => warn(
             "binary pin",
@@ -178,7 +188,11 @@ fn pin_check() -> SetupCheck {
                 "pinned {} but this is a workshop build (cargo target dir) — the pin will churn",
                 &pin.sha256[..12]
             ),
-            "cargo install --path crates/vela-cli --locked --force && vela id pin-binary",
+            if protected {
+                "install the inspected release binary outside target/, then run the protected identity rebind"
+            } else {
+                "cargo install --path crates/vela-cli --locked --force && vela id pin-binary"
+            },
         ),
         Ok(Some(pin)) => ok(
             "binary pin",
@@ -359,6 +373,14 @@ mod tests {
         let check = identity_check_loaded(&identity);
         assert_eq!(check.status, SetupStatus::Fail);
         assert_eq!(check.next, protected_rebind_command());
+    }
+
+    #[test]
+    fn protected_binary_pin_repair_never_recommends_legacy_signing() {
+        let repair = binary_pin_repair(true);
+        assert_eq!(repair, protected_rebind_command());
+        assert!(!repair.contains("vela sign"));
+        assert!(!repair.contains("pin-binary"));
     }
 
     /// The workshop heuristic must fire for the test binary itself —
