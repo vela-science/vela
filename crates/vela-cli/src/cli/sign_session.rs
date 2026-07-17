@@ -562,10 +562,11 @@ fn request_helper_signatures(
 fn protected_decision_display(review: &ReviewSnapshot, action: &str) -> vela_signer::SignerDisplay {
     let brief = &review.brief;
     let mut facts = Vec::new();
-    if action == "reject" && !brief.accept_ready() {
-        if let Some(accept) = brief.action("accept") {
-            facts.extend(accept.reasons.iter().map(|reason| humanize_fact(reason)));
-        }
+    if action == "reject"
+        && !brief.accept_ready()
+        && let Some(accept) = brief.action("accept")
+    {
+        facts.extend(accept.reasons.iter().map(|reason| humanize_fact(reason)));
     }
     if facts.is_empty() {
         facts.extend(
