@@ -79,13 +79,48 @@ fn identity_check() -> SetupCheck {
             "vela id create --handle <you>",
         );
     };
-    let key = Path::new(&id.key_path);
+    identity_check_loaded(&id)
+}
+
+fn identity_check_loaded(id: &super::cli_identity::Identity) -> SetupCheck {
+    use super::cli_identity::IdentitySigner;
+
+    if let Some(IdentitySigner::Helper {
+        provider,
+        public_key,
+        pending_source_removal,
+        pending_vela_binary_sha256,
+        ..
+    }) = &id.signer
+    {
+        if provider != "os_store" || public_key != &id.pubkey {
+            return fail(
+                "identity",
+                format!("{} protected signer binding is invalid", id.actor_id),
+                protected_rebind_command(),
+            );
+        }
+        if pending_source_removal.is_some() || pending_vela_binary_sha256.is_some() {
+            return fail(
+                "identity",
+                format!("{} protected identity migration is incomplete", id.actor_id),
+                protected_rebind_command(),
+            );
+        }
+        return ok("identity", format!("{} · protected", id.actor_id));
+    }
+
+    let key_path = match &id.signer {
+        Some(IdentitySigner::File { key_path }) => key_path,
+        _ => &id.key_path,
+    };
+    let key = Path::new(key_path);
     if !key.exists() {
         return fail(
             "identity",
             format!(
                 "{} names a key that does not exist: {}",
-                id.actor_id, id.key_path
+                id.actor_id, key_path
             ),
             "vela id create --handle <you>  (or restore the key file)",
         );
@@ -99,11 +134,24 @@ fn identity_check() -> SetupCheck {
             return warn(
                 "identity",
                 format!("{} key is readable beyond your user", id.actor_id),
-                format!("chmod 600 {}", id.key_path),
+                format!("chmod 600 {key_path}"),
             );
         }
     }
-    ok("identity", id.actor_id)
+    ok("identity", id.actor_id.clone())
+}
+
+fn protected_rebind_command() -> &'static str {
+    "vela id protect --user-presence --remove-source-key --mode session --json"
+}
+
+fn binary_pin_repair() -> &'static str {
+    use super::cli_identity::IdentitySigner;
+
+    match super::cli_identity::load_identity().and_then(|identity| identity.signer) {
+        Some(IdentitySigner::Helper { .. }) => protected_rebind_command(),
+        _ => "vela id pin-binary  (after inspecting the binary)",
+    }
 }
 
 /// Binary pin: recorded, matching, and not a workshop build.
@@ -118,15 +166,11 @@ fn pin_check() -> SetupCheck {
         .map(|p| p.components().any(|c| c.as_os_str() == "target"))
         .unwrap_or(false);
     match super::binary_pin::verify_for_ceremony() {
-        Err(e) => fail(
-            "binary pin",
-            e,
-            "vela id pin-binary  (after inspecting the binary)",
-        ),
+        Err(e) => fail("binary pin", e, binary_pin_repair()),
         Ok(None) => warn(
             "binary pin",
             "unpinned — ceremonies run without a binary anchor",
-            "vela id pin-binary",
+            binary_pin_repair(),
         ),
         Ok(Some(pin)) if exe_in_target => warn(
             "binary pin",
@@ -273,6 +317,49 @@ fn registry_check() -> SetupCheck {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn protected_identity() -> super::super::cli_identity::Identity {
+        super::super::cli_identity::Identity {
+            version: "2.0".to_string(),
+            actor_id: "reviewer:test".to_string(),
+            actor_type: "human".to_string(),
+            key_path: "/removed/private.key".to_string(),
+            pubkey: "11".repeat(32),
+            signer: Some(super::super::cli_identity::IdentitySigner::Helper {
+                provider: "os_store".to_string(),
+                key_id: "vela:test".to_string(),
+                public_key: "11".repeat(32),
+                protection_grade: "user_session".to_string(),
+                mode: "session".to_string(),
+                helper_sha256: format!("sha256:{}", "22".repeat(32)),
+                pending_source_removal: None,
+                pending_vela_binary_sha256: None,
+            }),
+        }
+    }
+
+    #[test]
+    fn protected_identity_does_not_require_a_removed_plaintext_key() {
+        let check = identity_check_loaded(&protected_identity());
+        assert_eq!(check.status, SetupStatus::Ok, "{}", check.detail);
+        assert!(check.detail.contains("protected"));
+    }
+
+    #[test]
+    fn incomplete_protected_identity_names_the_resume_command() {
+        let mut identity = protected_identity();
+        let Some(super::super::cli_identity::IdentitySigner::Helper {
+            pending_source_removal,
+            ..
+        }) = &mut identity.signer
+        else {
+            unreachable!()
+        };
+        *pending_source_removal = Some("/removed/private.key".to_string());
+        let check = identity_check_loaded(&identity);
+        assert_eq!(check.status, SetupStatus::Fail);
+        assert_eq!(check.next, protected_rebind_command());
+    }
 
     /// The workshop heuristic must fire for the test binary itself —
     /// cargo test runs from target/, which is exactly the shape the
