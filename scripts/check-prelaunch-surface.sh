@@ -57,12 +57,12 @@ if grep -nE "$retired_generated_command_pattern" "${generated_guidance_surfaces[
   fail "retired command remains in generated first-run guidance"
 fi
 
-if grep -nF '["serve", ".", "--profile", "read-only"]' docs/AGENT_QUICKSTART.md >/dev/null; then
-  grep -nF '["serve", ".", "--profile", "read-only"]' docs/AGENT_QUICKSTART.md >&2
-  fail "agent quickstart contradicts the generated draft MCP profile"
+if grep -nF '["serve", ".", "--profile", "draft"]' docs/AGENT_QUICKSTART.md >/dev/null; then
+  grep -nF '["serve", ".", "--profile", "draft"]' docs/AGENT_QUICKSTART.md >&2
+  fail "retired generated draft MCP profile remains in the agent quickstart"
 fi
-if ! grep -nF '["serve", ".", "--profile", "draft"]' docs/AGENT_QUICKSTART.md >/dev/null; then
-  fail "agent quickstart does not document the generated draft MCP profile"
+if ! grep -nF 'creates no MCP configuration' docs/AGENT_QUICKSTART.md >/dev/null; then
+  fail "agent quickstart does not document minimal initialization"
 fi
 
 # Carina was a prelaunch duplicate kernel. It must not survive in either the
