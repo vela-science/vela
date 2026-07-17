@@ -11,7 +11,11 @@ pub const REQUEST_SCHEMA: &str = "vela.signer-request.v1";
 pub const RESPONSE_SCHEMA: &str = "vela.signer-response.v1";
 pub const ENROLLMENT_REQUEST_SCHEMA: &str = "vela.signer-enrollment-request.v1";
 pub const ENROLLMENT_RESPONSE_SCHEMA: &str = "vela.signer-enrollment-response.v1";
+pub const REBIND_REQUEST_SCHEMA: &str = "vela.signer-rebind-request.v1";
+pub const REBIND_RESPONSE_SCHEMA: &str = "vela.signer-rebind-response.v1";
 const REQUEST_DOMAIN: &[u8] = b"vela.signer-request.v1\0";
+const REBIND_REQUEST_DOMAIN: &[u8] = b"vela.signer-rebind-request.v1\0";
+const REBIND_AUTHORIZATION_DOMAIN: &[u8] = b"vela.signer-rebind-authorization.v1\0";
 const MAX_REQUEST_LIFETIME_SECONDS: i64 = 120;
 const MAX_CLOCK_SKEW_SECONDS: i64 = 60;
 
@@ -22,10 +26,33 @@ pub enum ProtectionMode {
     Always,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RebindPurpose {
+    Upgrade,
+    EnrollmentRecovery,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SignerEvent {
     pub event: StateEvent,
+}
+
+/// Bounded, plain-language material for the human decision card.
+///
+/// These fields are presentation, not a second authority model. They are
+/// derived from the same Decision Brief as the signed request and included in
+/// the request root so the helper cannot display one decision and sign
+/// another.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SignerDisplay {
+    pub frontier_name: String,
+    pub claim: String,
+    pub requester: String,
+    pub decisive_facts: Vec<String>,
+    pub consequence: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -51,6 +78,7 @@ pub struct SignerRequest {
     pub provider: String,
     pub protection_grade: String,
     pub protection_mode: ProtectionMode,
+    pub display: SignerDisplay,
     pub events: Vec<SignerEvent>,
 }
 
@@ -100,6 +128,7 @@ pub struct EnrollmentResponse {
     pub schema: String,
     pub nonce: String,
     pub helper_version: String,
+    pub vela_binary_sha256: String,
     pub helper_sha256: String,
     pub actor: String,
     pub public_key: String,
@@ -109,6 +138,41 @@ pub struct EnrollmentResponse {
     pub protection_mode: ProtectionMode,
     pub installed_at: String,
     pub source_removed: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RebindRequest {
+    pub schema: String,
+    pub purpose: RebindPurpose,
+    pub nonce: String,
+    pub expires_at: String,
+    pub vela_binary_path: String,
+    pub vela_binary_sha256: String,
+    pub previous_vela_binary_sha256: String,
+    pub helper_sha256: String,
+    pub previous_helper_sha256: String,
+    pub actor: String,
+    pub public_key: String,
+    pub provider: String,
+    pub previous_protection_mode: ProtectionMode,
+    pub protection_mode: ProtectionMode,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RebindResponse {
+    pub schema: String,
+    pub request_root: String,
+    pub actor: String,
+    pub public_key: String,
+    pub helper_version: String,
+    pub helper_sha256: String,
+    pub provider: String,
+    pub protection_grade: String,
+    pub protection_mode: ProtectionMode,
+    pub rebound_at: String,
+    pub signature: String,
 }
 
 pub fn validate_enrollment_request(
@@ -189,6 +253,136 @@ pub fn validate_enrollment_fresh_for_install(
     Ok(())
 }
 
+pub fn rebind_request_root(request: &RebindRequest) -> Result<String, String> {
+    let canonical = vela_protocol::canonical::to_canonical_bytes(request)
+        .map_err(|error| format!("canonicalize signer rebind request: {error}"))?;
+    let mut digest = Sha256::new();
+    digest.update(REBIND_REQUEST_DOMAIN);
+    digest.update(canonical);
+    Ok(format!("sha256:{}", hex::encode(digest.finalize())))
+}
+
+pub fn rebind_response_signing_bytes(response: &RebindResponse) -> Result<Vec<u8>, String> {
+    let mut unsigned = response.clone();
+    unsigned.signature.clear();
+    let canonical = vela_protocol::canonical::to_canonical_bytes(&unsigned)
+        .map_err(|error| format!("canonicalize signer rebind response: {error}"))?;
+    let mut bytes = REBIND_AUTHORIZATION_DOMAIN.to_vec();
+    bytes.extend(canonical);
+    Ok(bytes)
+}
+
+pub fn validate_rebind_request(request: &RebindRequest, now: DateTime<Utc>) -> Result<(), String> {
+    if request.schema != REBIND_REQUEST_SCHEMA {
+        return Err(format!(
+            "signer rebind schema must be {REBIND_REQUEST_SCHEMA}"
+        ));
+    }
+    require_lower_hex("nonce", &request.nonce, 64)?;
+    require_lower_hex("public_key", &request.public_key, 64)?;
+    require_sha256("vela_binary_sha256", &request.vela_binary_sha256)?;
+    require_sha256(
+        "previous_vela_binary_sha256",
+        &request.previous_vela_binary_sha256,
+    )?;
+    require_sha256("helper_sha256", &request.helper_sha256)?;
+    require_sha256("previous_helper_sha256", &request.previous_helper_sha256)?;
+    let unchanged = request.previous_vela_binary_sha256 == request.vela_binary_sha256
+        && request.previous_helper_sha256 == request.helper_sha256
+        && request.previous_protection_mode == request.protection_mode;
+    if request.purpose == RebindPurpose::Upgrade && unchanged {
+        return Err(
+            "signer rebind requires a changed Vela binary, helper digest, or protection mode"
+                .to_string(),
+        );
+    }
+    if request.purpose == RebindPurpose::EnrollmentRecovery && !unchanged {
+        return Err(
+            "enrollment recovery cannot also change the Vela binary, helper, or protection mode"
+                .to_string(),
+        );
+    }
+    for (name, value) in [
+        ("actor", request.actor.as_str()),
+        ("provider", request.provider.as_str()),
+        ("vela_binary_path", request.vela_binary_path.as_str()),
+    ] {
+        if value.trim().is_empty() {
+            return Err(format!("{name} must not be empty"));
+        }
+    }
+    let expiry = DateTime::parse_from_rfc3339(&request.expires_at)
+        .map_err(|error| format!("expires_at is not RFC3339: {error}"))?
+        .with_timezone(&Utc);
+    if expiry < now - Duration::seconds(MAX_CLOCK_SKEW_SECONDS) {
+        return Err("signer rebind request expired".to_string());
+    }
+    if expiry > now + Duration::seconds(MAX_REQUEST_LIFETIME_SECONDS) {
+        return Err("signer rebind expiry exceeds two minutes".to_string());
+    }
+    if file_sha256(Path::new(&request.vela_binary_path))? != request.vela_binary_sha256 {
+        return Err("pinned Vela binary digest does not match rebind request".to_string());
+    }
+    Ok(())
+}
+
+pub fn validate_rebind_fresh(request: &RebindRequest, now: DateTime<Utc>) -> Result<(), String> {
+    let expiry = DateTime::parse_from_rfc3339(&request.expires_at)
+        .map_err(|error| format!("expires_at is not RFC3339: {error}"))?
+        .with_timezone(&Utc);
+    if now > expiry {
+        return Err("signer rebind expired before authentication completed".to_string());
+    }
+    Ok(())
+}
+
+pub fn validate_rebind_response(
+    request: &RebindRequest,
+    response: &RebindResponse,
+) -> Result<(), String> {
+    if response.schema != REBIND_RESPONSE_SCHEMA
+        || response.request_root != rebind_request_root(request)?
+        || response.actor != request.actor
+        || response.public_key != request.public_key
+        || response.helper_sha256 != request.helper_sha256
+        || response.provider != request.provider
+        || response.protection_mode != request.protection_mode
+        || response.protection_grade.trim().is_empty()
+    {
+        return Err("signer rebind response does not match the exact request".to_string());
+    }
+    let rebound_at = DateTime::parse_from_rfc3339(&response.rebound_at)
+        .map_err(|error| format!("rebound_at is not RFC3339: {error}"))?
+        .with_timezone(&Utc);
+    let expires_at = DateTime::parse_from_rfc3339(&request.expires_at)
+        .map_err(|error| format!("expires_at is not RFC3339: {error}"))?
+        .with_timezone(&Utc);
+    if rebound_at > expires_at {
+        return Err("signer rebind response was authorized after expiry".to_string());
+    }
+    let public = hex::decode(&response.public_key)
+        .map_err(|error| format!("invalid rebind public key: {error}"))?;
+    let verifying = VerifyingKey::from_bytes(
+        &public
+            .try_into()
+            .map_err(|_| "rebind public key must be 32 bytes".to_string())?,
+    )
+    .map_err(|error| format!("invalid rebind public key: {error}"))?;
+    let raw = response
+        .signature
+        .strip_prefix("v1:")
+        .ok_or_else(|| "rebind response must use a v1 signature".to_string())?;
+    let bytes = hex::decode(raw).map_err(|error| format!("invalid rebind signature: {error}"))?;
+    let signature = Signature::from_bytes(
+        &bytes
+            .try_into()
+            .map_err(|_| "rebind signature must be 64 bytes".to_string())?,
+    );
+    verifying
+        .verify(&rebind_response_signing_bytes(response)?, &signature)
+        .map_err(|_| "signer rebind signature does not verify".to_string())
+}
+
 pub fn request_root(request: &SignerRequest) -> Result<String, String> {
     let canonical = vela_protocol::canonical::to_canonical_bytes(request)
         .map_err(|error| format!("canonicalize signer request: {error}"))?;
@@ -228,11 +422,16 @@ pub fn validate_request(request: &SignerRequest, now: DateTime<Utc>) -> Result<(
         ("gate_state", request.gate_state.as_str()),
         ("provider", request.provider.as_str()),
         ("protection_grade", request.protection_grade.as_str()),
+        ("frontier_name", request.display.frontier_name.as_str()),
+        ("claim", request.display.claim.as_str()),
+        ("requester", request.display.requester.as_str()),
+        ("consequence", request.display.consequence.as_str()),
     ] {
         if value.trim().is_empty() {
             return Err(format!("{name} must not be empty"));
         }
     }
+    validate_display(&request.display)?;
     let expiry = DateTime::parse_from_rfc3339(&request.expires_at)
         .map_err(|error| format!("expires_at is not RFC3339: {error}"))?
         .with_timezone(&Utc);
@@ -321,6 +520,41 @@ pub fn validate_request(request: &SignerRequest, now: DateTime<Utc>) -> Result<(
     let vela_digest = file_sha256(Path::new(&request.vela_binary_path))?;
     if vela_digest != request.vela_binary_sha256 {
         return Err("pinned Vela binary digest does not match the request".to_string());
+    }
+    Ok(())
+}
+
+fn validate_display(display: &SignerDisplay) -> Result<(), String> {
+    const MAX_FIELD_BYTES: usize = 512;
+    const MAX_FACTS: usize = 4;
+    if display.decisive_facts.is_empty() || display.decisive_facts.len() > MAX_FACTS {
+        return Err(format!(
+            "decision display must contain between one and {MAX_FACTS} decisive facts"
+        ));
+    }
+    for (name, value) in [
+        ("frontier_name", display.frontier_name.as_str()),
+        ("claim", display.claim.as_str()),
+        ("requester", display.requester.as_str()),
+        ("consequence", display.consequence.as_str()),
+    ] {
+        validate_display_text(name, value, MAX_FIELD_BYTES)?;
+    }
+    for fact in &display.decisive_facts {
+        validate_display_text("decisive_fact", fact, MAX_FIELD_BYTES)?;
+    }
+    Ok(())
+}
+
+fn validate_display_text(name: &str, value: &str, maximum: usize) -> Result<(), String> {
+    if value.trim().is_empty() {
+        return Err(format!("{name} must not be empty"));
+    }
+    if value.len() > maximum {
+        return Err(format!("{name} exceeds {maximum} bytes"));
+    }
+    if value.chars().any(char::is_control) {
+        return Err(format!("{name} must not contain control characters"));
     }
     Ok(())
 }
@@ -467,6 +701,13 @@ mod tests {
             provider: "test".to_string(),
             protection_grade: "user_session".to_string(),
             protection_mode: ProtectionMode::Session,
+            display: SignerDisplay {
+                frontier_name: "Fixture frontier".to_string(),
+                claim: "A bounded fixture result".to_string(),
+                requester: "agent:fixture".to_string(),
+                decisive_facts: vec!["No independent verifier evidence".to_string()],
+                consequence: "Keep accepted state unchanged and close this proposal".to_string(),
+            },
             events: vec![SignerEvent { event }],
         };
         (binary, request)
@@ -484,6 +725,21 @@ mod tests {
         let mut value = serde_json::to_value(request).unwrap();
         value["wildcard"] = serde_json::json!(true);
         assert!(serde_json::from_value::<SignerRequest>(value).is_err());
+    }
+
+    #[test]
+    fn signer_contract_rejects_unbounded_or_hostile_display_text() {
+        let (_binary, request) = fixture();
+        let now = "2026-07-17T12:00:00Z".parse().unwrap();
+        let mut control = request.clone();
+        control.display.claim = "safe\nforged button".to_string();
+        assert!(validate_request(&control, now).is_err());
+        let mut empty = request.clone();
+        empty.display.decisive_facts.clear();
+        assert!(validate_request(&empty, now).is_err());
+        let mut many = request;
+        many.display.decisive_facts = vec!["fact".to_string(); 5];
+        assert!(validate_request(&many, now).is_err());
     }
 
     #[test]
@@ -508,5 +764,79 @@ mod tests {
         assert!(validate_request(&request, "2026-07-17T12:04:00Z".parse().unwrap()).is_err());
         binary.write_all(b" drift").unwrap();
         assert!(validate_request(&request, "2026-07-17T12:00:00Z".parse().unwrap()).is_err());
+    }
+
+    #[test]
+    fn signer_rebind_requires_a_real_pinned_change() {
+        let mut binary = tempfile::NamedTempFile::new().unwrap();
+        binary.write_all(b"pinned vela fixture").unwrap();
+        let mut request = RebindRequest {
+            schema: REBIND_REQUEST_SCHEMA.to_string(),
+            purpose: RebindPurpose::Upgrade,
+            nonce: "6".repeat(64),
+            expires_at: "2026-07-17T12:01:00Z".to_string(),
+            vela_binary_path: binary.path().display().to_string(),
+            vela_binary_sha256: file_sha256(binary.path()).unwrap(),
+            previous_vela_binary_sha256: file_sha256(binary.path()).unwrap(),
+            helper_sha256: format!("sha256:{}", "7".repeat(64)),
+            previous_helper_sha256: format!("sha256:{}", "7".repeat(64)),
+            actor: "reviewer:fixture".to_string(),
+            public_key: "8".repeat(64),
+            provider: "test".to_string(),
+            previous_protection_mode: ProtectionMode::Session,
+            protection_mode: ProtectionMode::Session,
+        };
+        let now = "2026-07-17T12:00:00Z".parse().unwrap();
+        assert!(validate_rebind_request(&request, now).is_err());
+        request.protection_mode = ProtectionMode::Always;
+        validate_rebind_request(&request, now).unwrap();
+        request.protection_mode = ProtectionMode::Session;
+        request.helper_sha256 = format!("sha256:{}", "9".repeat(64));
+        validate_rebind_request(&request, now).unwrap();
+        request.helper_sha256 = request.previous_helper_sha256.clone();
+        request.previous_vela_binary_sha256 = format!("sha256:{}", "0".repeat(64));
+        validate_rebind_request(&request, now).unwrap();
+        request.previous_vela_binary_sha256 = request.vela_binary_sha256.clone();
+        request.purpose = RebindPurpose::EnrollmentRecovery;
+        validate_rebind_request(&request, now).unwrap();
+        request.helper_sha256 = format!("sha256:{}", "1".repeat(64));
+        assert!(validate_rebind_request(&request, now).is_err());
+    }
+
+    #[test]
+    fn documented_signer_request_schema_covers_every_root_bound_field() {
+        let (_binary, request) = fixture();
+        let value = serde_json::to_value(request).unwrap();
+        let schema: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../docs/schemas/vela.signer-request.v1.schema.json"
+        ))
+        .unwrap();
+        let required = schema["required"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|value| value.as_str().unwrap())
+            .collect::<BTreeSet<_>>();
+        let actual = value
+            .as_object()
+            .unwrap()
+            .keys()
+            .map(String::as_str)
+            .collect::<BTreeSet<_>>();
+        assert_eq!(required, actual);
+
+        let display_properties = schema["properties"]["display"]["properties"]
+            .as_object()
+            .unwrap()
+            .keys()
+            .map(String::as_str)
+            .collect::<BTreeSet<_>>();
+        let display_actual = value["display"]
+            .as_object()
+            .unwrap()
+            .keys()
+            .map(String::as_str)
+            .collect::<BTreeSet<_>>();
+        assert_eq!(display_properties, display_actual);
     }
 }

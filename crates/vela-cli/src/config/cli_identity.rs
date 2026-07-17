@@ -60,6 +60,8 @@ pub(crate) enum IdentitySigner {
         helper_sha256: String,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         pending_source_removal: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pending_vela_binary_sha256: Option<String>,
     },
 }
 
@@ -68,6 +70,7 @@ pub(crate) struct ProtectedSignerProfile {
     pub(crate) provider: String,
     pub(crate) protection_grade: String,
     pub(crate) mode: vela_signer::ProtectionMode,
+    pub(crate) helper_sha256: String,
 }
 
 fn default_version() -> String {
@@ -175,14 +178,60 @@ pub(crate) fn resolve_key_path(flag: Option<&Path>) -> Option<PathBuf> {
     })
 }
 
-pub(crate) fn protected_signer_account() -> Result<String, String> {
+pub(crate) fn protected_signer_profile() -> Result<ProtectedSignerProfile, String> {
     let identity = load_identity().ok_or_else(|| SETUP_HINT.to_string())?;
-    match identity.signer {
+    protected_signer_profile_for(&identity)
+}
+
+fn protected_signer_profile_for(identity: &Identity) -> Result<ProtectedSignerProfile, String> {
+    let expected_key_id = format!("{}:{}", identity.actor_id, identity.pubkey);
+    match &identity.signer {
         Some(IdentitySigner::Helper {
+            provider,
             key_id,
+            public_key,
+            protection_grade,
+            mode,
+            helper_sha256,
             pending_source_removal: None,
             ..
-        }) => Ok(key_id),
+        }) => {
+            if identity.actor_type != "human"
+                || identity.actor_id.starts_with("agent:")
+                || identity.actor_id.starts_with("ci:")
+                || public_key != &identity.pubkey
+                || key_id != &expected_key_id
+            {
+                return Err("protected identity actor/key binding is invalid".to_string());
+            }
+            if provider != "os_store" {
+                return Err(format!(
+                    "unsupported protected signer provider '{provider}'"
+                ));
+            }
+            if !matches!(
+                protection_grade.as_str(),
+                "user_session" | "app_isolated" | "external_confirmed" | "hardware_nonexportable"
+            ) {
+                return Err(format!(
+                    "unsupported protected signer grade '{protection_grade}'"
+                ));
+            }
+            if helper_sha256.len() != 71
+                || !helper_sha256.starts_with("sha256:")
+                || !helper_sha256[7..]
+                    .bytes()
+                    .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+            {
+                return Err("protected signer helper digest is invalid".to_string());
+            }
+            Ok(ProtectedSignerProfile {
+                provider: provider.clone(),
+                protection_grade: protection_grade.clone(),
+                mode: parse_protection_mode(mode)?,
+                helper_sha256: helper_sha256.clone(),
+            })
+        }
         Some(IdentitySigner::Helper {
             pending_source_removal: Some(path),
             ..
@@ -193,27 +242,6 @@ pub(crate) fn protected_signer_account() -> Result<String, String> {
             "this decision requires a user-presence protected identity; run `vela id protect --user-presence --remove-source-key`"
                 .to_string(),
         ),
-    }
-}
-
-pub(crate) fn protected_signer_profile() -> Result<ProtectedSignerProfile, String> {
-    let identity = load_identity().ok_or_else(|| SETUP_HINT.to_string())?;
-    match identity.signer {
-        Some(IdentitySigner::Helper {
-            provider,
-            protection_grade,
-            mode,
-            pending_source_removal: None,
-            ..
-        }) => Ok(ProtectedSignerProfile {
-            provider,
-            protection_grade,
-            mode: parse_protection_mode(&mode)?,
-        }),
-        _ => {
-            protected_signer_account()?;
-            unreachable!("protected account validation returned without a supported signer")
-        }
     }
 }
 
@@ -293,4 +321,80 @@ pub(crate) fn resolve_co_author_provenance(
         }],
         ..Default::default()
     })
+}
+
+#[cfg(test)]
+mod protected_profile_tests {
+    use super::*;
+
+    fn identity() -> Identity {
+        let public_key = "4".repeat(64);
+        Identity {
+            version: "2.0".to_string(),
+            actor_id: "reviewer:test".to_string(),
+            actor_type: "human".to_string(),
+            key_path: String::new(),
+            pubkey: public_key.clone(),
+            signer: Some(IdentitySigner::Helper {
+                provider: "os_store".to_string(),
+                key_id: format!("reviewer:test:{public_key}"),
+                public_key,
+                protection_grade: "user_session".to_string(),
+                mode: "session".to_string(),
+                helper_sha256: format!("sha256:{}", "a".repeat(64)),
+                pending_source_removal: None,
+                pending_vela_binary_sha256: None,
+            }),
+        }
+    }
+
+    #[test]
+    fn protected_profile_requires_exact_actor_key_and_helper_bindings() {
+        let profile = protected_signer_profile_for(&identity()).unwrap();
+        assert_eq!(profile.provider, "os_store");
+        assert_eq!(profile.mode, vela_signer::ProtectionMode::Session);
+
+        let mut wrong_key_id = identity();
+        if let Some(IdentitySigner::Helper { key_id, .. }) = &mut wrong_key_id.signer {
+            *key_id = "reviewer:other:deadbeef".to_string();
+        }
+        assert!(protected_signer_profile_for(&wrong_key_id).is_err());
+
+        let mut wrong_public_key = identity();
+        if let Some(IdentitySigner::Helper { public_key, .. }) = &mut wrong_public_key.signer {
+            *public_key = "5".repeat(64);
+        }
+        assert!(protected_signer_profile_for(&wrong_public_key).is_err());
+
+        let mut wrong_helper = identity();
+        if let Some(IdentitySigner::Helper { helper_sha256, .. }) = &mut wrong_helper.signer {
+            *helper_sha256 = format!("sha256:{}", "A".repeat(64));
+        }
+        assert!(protected_signer_profile_for(&wrong_helper).is_err());
+    }
+
+    #[test]
+    fn protected_profile_rejects_agents_unknown_modes_and_incomplete_migrations() {
+        let mut agent = identity();
+        agent.actor_id = "agent:test".to_string();
+        agent.actor_type = "agent".to_string();
+        assert!(protected_signer_profile_for(&agent).is_err());
+
+        let mut wrong_mode = identity();
+        if let Some(IdentitySigner::Helper { mode, .. }) = &mut wrong_mode.signer {
+            *mode = "forever".to_string();
+        }
+        assert!(protected_signer_profile_for(&wrong_mode).is_err());
+
+        let mut incomplete = identity();
+        if let Some(IdentitySigner::Helper {
+            pending_source_removal,
+            ..
+        }) = &mut incomplete.signer
+        {
+            *pending_source_removal = Some("/tmp/plaintext.key".to_string());
+        }
+        let error = protected_signer_profile_for(&incomplete).unwrap_err();
+        assert!(error.contains("migration is incomplete"));
+    }
 }

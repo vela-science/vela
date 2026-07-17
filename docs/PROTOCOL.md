@@ -308,7 +308,12 @@ the matching `--confirm-root` and `--confirm-at`. Only after the plan is
 rederived under the frontier transaction barrier and the installed binary pin
 matches does Vela start the pinned one-shot signer helper. The helper uses the
 platform store on macOS, Windows, or Linux and displays one exact decision
-card. Its short authentication session never approves proposal semantics. The
+card. The card names the claim, decisive facts, rationale, consequence, and
+requester with action-specific buttons; full custody and root data remain in
+the machine request. Its short authentication session never approves proposal
+semantics. Identity v2 pins the exact CLI/helper pair; moving either pin or
+changing authentication mode requires one authenticated, key-signed local
+rebind. Interrupted enrollment can resume only with its recorded pair. The
 protected path has no key-path, batch, wildcard, saved-answer, `--yes`, or
 persistent-approval input. Acceptance, rejection, and revision requests leave signed
 append-only decision events. Acceptance also installs the corresponding domain

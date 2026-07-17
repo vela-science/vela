@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vela.science/schemas/vela.signer-rebind-request.v1.schema.json",
+  "title": "Vela protected signer rebind request v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "purpose",
+    "nonce",
+    "expires_at",
+    "vela_binary_path",
+    "vela_binary_sha256",
+    "previous_vela_binary_sha256",
+    "helper_sha256",
+    "previous_helper_sha256",
+    "actor",
+    "public_key",
+    "provider",
+    "previous_protection_mode",
+    "protection_mode"
+  ],
+  "properties": {
+    "schema": { "const": "vela.signer-rebind-request.v1" },
+    "purpose": { "enum": ["upgrade", "enrollment_recovery"] },
+    "nonce": { "$ref": "#/$defs/lowerHex32" },
+    "expires_at": { "type": "string", "format": "date-time" },
+    "vela_binary_path": { "type": "string", "minLength": 1 },
+    "vela_binary_sha256": { "$ref": "#/$defs/sha256" },
+    "previous_vela_binary_sha256": { "$ref": "#/$defs/sha256" },
+    "helper_sha256": { "$ref": "#/$defs/sha256" },
+    "previous_helper_sha256": { "$ref": "#/$defs/sha256" },
+    "actor": { "type": "string", "minLength": 1 },
+    "public_key": { "$ref": "#/$defs/lowerHex32" },
+    "provider": { "type": "string", "minLength": 1 },
+    "previous_protection_mode": { "enum": ["session", "always"] },
+    "protection_mode": { "enum": ["session", "always"] }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "lowerHex32": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+  }
+}

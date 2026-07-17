@@ -44,7 +44,68 @@ pub(crate) fn cmd_id(action: IdAction) {
                     ..
                 })
             );
-            if !already_complete {
+            let mut authorized_local_update = false;
+            let pending_recovery = pending_enrollment_recovery(&identity).unwrap_or_else(|error| {
+                crate::ui::fail_with(crate::ui::ErrorKind::Custody, &error, None)
+            });
+            if let Some(pending) = pending_recovery {
+                if mode != pending.mode {
+                    crate::ui::fail_with(
+                        crate::ui::ErrorKind::Custody,
+                        "finish the interrupted protected enrollment before changing its authentication mode",
+                        Some(&format!("rerun with the original --mode {}", pending.mode)),
+                    );
+                }
+                let vela_binary = std::env::current_exe()
+                    .unwrap_or_else(|error| fail_return(&format!("resolve Vela binary: {error}")));
+                let current_vela_sha256 = vela_signer::contract::file_sha256(&vela_binary)
+                    .unwrap_or_else(|error| fail_return(&error));
+                let helper = crate::cli_identity::signer_helper_path(&vela_binary)
+                    .unwrap_or_else(|error| fail_return(&error));
+                let current_helper_sha256 = vela_signer::contract::file_sha256(&helper)
+                    .unwrap_or_else(|error| fail_return(&error));
+                if current_vela_sha256 != pending.vela_binary_sha256
+                    || current_helper_sha256 != pending.helper_sha256
+                {
+                    crate::ui::fail_with(
+                        crate::ui::ErrorKind::Custody,
+                        "the binaries changed during interrupted protected enrollment",
+                        Some(
+                            "restore the exact Vela package named by `vela id show --json`, then resume enrollment",
+                        ),
+                    );
+                }
+                let response = request_helper_rebind(
+                    &identity,
+                    &pending.vela_binary_sha256,
+                    &pending.helper_sha256,
+                    &pending.mode,
+                    &pending.mode,
+                    vela_signer::RebindPurpose::EnrollmentRecovery,
+                )
+                .unwrap_or_else(|error| {
+                    crate::ui::fail_with(crate::ui::ErrorKind::Custody, &error, None)
+                });
+                if let Some(crate::cli_identity::IdentitySigner::Helper {
+                    provider,
+                    public_key,
+                    protection_grade,
+                    helper_sha256,
+                    pending_source_removal,
+                    pending_vela_binary_sha256,
+                    ..
+                }) = &mut identity.signer
+                {
+                    *provider = response.provider;
+                    *public_key = response.public_key;
+                    *protection_grade = response.protection_grade;
+                    *helper_sha256 = response.helper_sha256;
+                    *pending_source_removal = None;
+                    *pending_vela_binary_sha256 = None;
+                }
+                save_identity(&identity).unwrap_or_else(|error| fail_return(&error));
+                authorized_local_update = true;
+            } else if !already_complete {
                 let source = match &identity.signer {
                     Some(crate::cli_identity::IdentitySigner::File { key_path }) => {
                         key_path.clone()
@@ -69,6 +130,7 @@ pub(crate) fn cmd_id(action: IdAction) {
                     mode: mode.clone(),
                     helper_sha256: enrollment.helper_sha256.clone(),
                     pending_source_removal: Some(source.clone()),
+                    pending_vela_binary_sha256: Some(enrollment.vela_binary_sha256.clone()),
                 });
                 save_identity(&identity).unwrap_or_else(|error| fail_return(&error));
                 if let Err(error) = std::fs::remove_file(&source) {
@@ -84,24 +146,93 @@ pub(crate) fn cmd_id(action: IdAction) {
                 }
                 if let Some(crate::cli_identity::IdentitySigner::Helper {
                     pending_source_removal,
+                    pending_vela_binary_sha256,
                     ..
                 }) = &mut identity.signer
                 {
                     *pending_source_removal = None;
+                    *pending_vela_binary_sha256 = None;
                 }
                 save_identity(&identity).unwrap_or_else(|error| fail_return(&error));
+                authorized_local_update = true;
             } else if let Some(crate::cli_identity::IdentitySigner::Helper {
-                mode: configured_mode,
+                helper_sha256: previous_helper_sha256,
+                mode: previous_mode,
+                public_key,
+                provider,
                 ..
-            }) = &mut identity.signer
-                && configured_mode != &mode
+            }) = identity.signer.as_ref()
             {
-                *configured_mode = mode.clone();
-                save_identity(&identity).unwrap_or_else(|error| fail_return(&error));
+                if public_key != &identity.pubkey || provider != "os_store" {
+                    crate::ui::fail_with(
+                        crate::ui::ErrorKind::Custody,
+                        "protected identity binding does not match its public profile",
+                        None,
+                    );
+                }
+                let vela_binary = std::env::current_exe()
+                    .unwrap_or_else(|error| fail_return(&format!("resolve Vela binary: {error}")));
+                let helper = crate::cli_identity::signer_helper_path(&vela_binary)
+                    .unwrap_or_else(|error| fail_return(&error));
+                let installed_helper_sha256 = vela_signer::contract::file_sha256(&helper)
+                    .unwrap_or_else(|error| fail_return(&error));
+                let (previous_vela_binary_sha256, binary_changed) = protected_binary_rebind_state()
+                    .unwrap_or_else(|error| {
+                        crate::ui::fail_with(crate::ui::ErrorKind::Custody, &error, None)
+                    });
+                if previous_helper_sha256 != &installed_helper_sha256
+                    || previous_mode != &mode
+                    || binary_changed
+                {
+                    let response = request_helper_rebind(
+                        &identity,
+                        &previous_vela_binary_sha256,
+                        previous_helper_sha256,
+                        previous_mode,
+                        &mode,
+                        vela_signer::RebindPurpose::Upgrade,
+                    )
+                    .unwrap_or_else(|error| {
+                        crate::ui::fail_with(crate::ui::ErrorKind::Custody, &error, None)
+                    });
+                    if let Some(crate::cli_identity::IdentitySigner::Helper {
+                        provider,
+                        public_key,
+                        protection_grade,
+                        mode: configured_mode,
+                        helper_sha256,
+                        ..
+                    }) = &mut identity.signer
+                    {
+                        *provider = response.provider;
+                        *public_key = response.public_key;
+                        *protection_grade = response.protection_grade;
+                        *configured_mode = mode.clone();
+                        *helper_sha256 = response.helper_sha256;
+                    }
+                    save_identity(&identity).unwrap_or_else(|error| fail_return(&error));
+                    authorized_local_update = true;
+                }
             }
-            let binary_pin = crate::config::binary_pin::record_pin().unwrap_or_else(|error| {
+            if authorized_local_update {
+                crate::config::binary_pin::record_pin().unwrap_or_else(|error| {
+                    crate::ui::fail_with(
+                        crate::ui::ErrorKind::Custody,
+                        &format!("record authenticated Vela binary pin: {error}"),
+                        Some("rerun the same id protect command to resume the local update"),
+                    )
+                });
+            }
+            let binary_pin = match crate::config::binary_pin::pin_state().unwrap_or_else(|error| {
                 crate::ui::fail_with(crate::ui::ErrorKind::Custody, &error, None)
-            });
+            }) {
+                crate::config::binary_pin::PinState::Match(pin) => pin,
+                _ => crate::ui::fail_with(
+                    crate::ui::ErrorKind::Custody,
+                    "protected identity is not bound to the running Vela binary",
+                    Some("rerun the same id protect command to authorize this exact installation"),
+                ),
+            };
             if json {
                 print_json(&json!({
                     "ok": true,
@@ -175,6 +306,7 @@ pub(crate) fn cmd_id(action: IdAction) {
                     mode: "session".to_string(),
                     helper_sha256: enrollment.helper_sha256,
                     pending_source_removal: Some(key_path.display().to_string()),
+                    pending_vela_binary_sha256: Some(enrollment.vela_binary_sha256),
                 });
                 save_identity(&identity).unwrap_or_else(|error| fail_return(&error));
                 std::fs::remove_file(&key_path).unwrap_or_else(|error| {
@@ -188,13 +320,26 @@ pub(crate) fn cmd_id(action: IdAction) {
                 });
                 if let Some(crate::cli_identity::IdentitySigner::Helper {
                     pending_source_removal,
+                    pending_vela_binary_sha256,
                     ..
                 }) = &mut identity.signer
                 {
                     *pending_source_removal = None;
+                    *pending_vela_binary_sha256 = None;
                 }
             }
             save_identity(&identity).unwrap_or_else(|e| fail_return(&e));
+            if !agent {
+                crate::config::binary_pin::record_pin().unwrap_or_else(|error| {
+                    crate::ui::fail_with(
+                        crate::ui::ErrorKind::Custody,
+                        &format!("record authenticated Vela binary pin: {error}"),
+                        Some(
+                            "rerun `vela id protect --user-presence --remove-source-key` to resume",
+                        ),
+                    )
+                });
+            }
             print_identity_created(&identity, json);
         }
         IdAction::Import {
@@ -248,6 +393,21 @@ pub(crate) fn cmd_id(action: IdAction) {
                     Err(e) => crate::ui::fail_with(crate::ui::ErrorKind::Custody, &e, None),
                 }
                 return;
+            }
+            if matches!(
+                load_identity().and_then(|identity| identity.signer),
+                Some(crate::cli_identity::IdentitySigner::Helper {
+                    pending_source_removal: None,
+                    ..
+                })
+            ) {
+                crate::ui::fail_with(
+                    crate::ui::ErrorKind::Custody,
+                    "a protected identity cannot move its Vela binary pin with the legacy pin command",
+                    Some(
+                        "run `vela id protect --user-presence --remove-source-key` to authorize the exact binary/helper update",
+                    ),
+                );
             }
             // A pin is a HUMAN act: agents may not move the trust anchor.
             let actor = crate::cli_identity::resolve_decision_actor(None);
@@ -303,6 +463,7 @@ pub(crate) fn cmd_id(action: IdAction) {
                         mode,
                         helper_sha256,
                         pending_source_removal,
+                        pending_vela_binary_sha256,
                         ..
                     }) => json!({
                         "kind": "helper",
@@ -311,6 +472,7 @@ pub(crate) fn cmd_id(action: IdAction) {
                         "mode": mode,
                         "helper_sha256": helper_sha256,
                         "plaintext_present": pending_source_removal.is_some(),
+                        "pending_vela_binary_sha256": pending_vela_binary_sha256,
                     }),
                     Some(crate::cli_identity::IdentitySigner::File { .. }) | None => {
                         json!({"kind": "file"})
@@ -419,6 +581,7 @@ fn request_helper_enrollment(
         || response.nonce != request.nonce
         || response.actor != request.actor
         || response.public_key != request.public_key
+        || response.vela_binary_sha256 != request.vela_binary_sha256
         || response.helper_sha256 != helper_sha256
         || response.provider != request.provider
         || response.protection_mode != request.protection_mode
@@ -427,6 +590,126 @@ fn request_helper_enrollment(
         return Err("signer enrollment response does not match the exact request".to_string());
     }
     Ok(response)
+}
+
+fn request_helper_rebind(
+    identity: &crate::cli_identity::Identity,
+    previous_vela_binary_sha256: &str,
+    previous_helper_sha256: &str,
+    previous_mode: &str,
+    mode: &str,
+    purpose: vela_signer::RebindPurpose,
+) -> Result<vela_signer::RebindResponse, String> {
+    use rand::RngCore;
+
+    let vela_binary =
+        std::env::current_exe().map_err(|error| format!("resolve running Vela binary: {error}"))?;
+    let helper = crate::cli_identity::signer_helper_path(&vela_binary)?;
+    let helper_sha256 = vela_signer::contract::file_sha256(&helper)?;
+    let mut nonce = [0_u8; 32];
+    rand::rngs::OsRng.fill_bytes(&mut nonce);
+    let now = chrono::Utc::now();
+    let request = vela_signer::RebindRequest {
+        schema: vela_signer::contract::REBIND_REQUEST_SCHEMA.to_string(),
+        purpose,
+        nonce: hex::encode(nonce),
+        expires_at: (now + chrono::Duration::seconds(120))
+            .to_rfc3339_opts(chrono::SecondsFormat::Nanos, true),
+        vela_binary_path: vela_binary.display().to_string(),
+        vela_binary_sha256: vela_signer::contract::file_sha256(&vela_binary)?,
+        previous_vela_binary_sha256: previous_vela_binary_sha256.to_string(),
+        helper_sha256,
+        previous_helper_sha256: previous_helper_sha256.to_string(),
+        actor: identity.actor_id.clone(),
+        public_key: identity.pubkey.clone(),
+        provider: "os_store".to_string(),
+        previous_protection_mode: protection_mode(previous_mode)?,
+        protection_mode: protection_mode(mode)?,
+    };
+    vela_signer::validate_rebind_request(&request, now)?;
+    let bytes = serde_json::to_vec(&request)
+        .map_err(|error| format!("serialize signer rebind: {error}"))?;
+    let mut child = Command::new(&helper)
+        .arg("rebind")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|error| format!("start signer helper {}: {error}", helper.display()))?;
+    child
+        .stdin
+        .take()
+        .ok_or_else(|| "signer helper stdin is unavailable".to_string())?
+        .write_all(&bytes)
+        .map_err(|error| format!("write signer rebind: {error}"))?;
+    let output = child
+        .wait_with_output()
+        .map_err(|error| format!("wait for signer rebind: {error}"))?;
+    if !output.status.success() {
+        return Err(format!(
+            "signer update authorization failed: {}",
+            crate::cli::safe_text::inline(String::from_utf8_lossy(&output.stderr).trim())
+        ));
+    }
+    let response: vela_signer::RebindResponse = serde_json::from_slice(&output.stdout)
+        .map_err(|error| format!("parse closed rebind response: {error}"))?;
+    vela_signer::validate_rebind_response(&request, &response)?;
+    Ok(response)
+}
+
+fn protected_binary_rebind_state() -> Result<(String, bool), String> {
+    use crate::config::binary_pin::PinState;
+    match crate::config::binary_pin::pin_state()? {
+        PinState::Match(pin) => Ok((format!("sha256:{}", pin.sha256), false)),
+        PinState::Mismatch { pinned, .. } => Ok((format!("sha256:{}", pinned.sha256), true)),
+        PinState::Unpinned => Ok((format!("sha256:{}", "0".repeat(64)), true)),
+    }
+}
+
+struct PendingEnrollmentRecovery {
+    vela_binary_sha256: String,
+    helper_sha256: String,
+    mode: String,
+}
+
+fn pending_enrollment_recovery(
+    identity: &crate::cli_identity::Identity,
+) -> Result<Option<PendingEnrollmentRecovery>, String> {
+    let Some(crate::cli_identity::IdentitySigner::Helper {
+        provider,
+        public_key,
+        mode,
+        helper_sha256,
+        pending_source_removal: Some(source),
+        pending_vela_binary_sha256,
+        ..
+    }) = &identity.signer
+    else {
+        return Ok(None);
+    };
+    if std::path::Path::new(source).is_file() {
+        return Ok(None);
+    }
+    if provider != "os_store" || public_key != &identity.pubkey {
+        return Err("interrupted protected identity binding is invalid".to_string());
+    }
+    let vela_binary_sha256 = pending_vela_binary_sha256.clone().ok_or_else(|| {
+        "interrupted enrollment predates recoverable binary binding; restore the plaintext source from backup before retrying"
+            .to_string()
+    })?;
+    Ok(Some(PendingEnrollmentRecovery {
+        vela_binary_sha256,
+        helper_sha256: helper_sha256.clone(),
+        mode: mode.clone(),
+    }))
+}
+
+fn protection_mode(value: &str) -> Result<vela_signer::ProtectionMode, String> {
+    match value {
+        "session" => Ok(vela_signer::ProtectionMode::Session),
+        "always" => Ok(vela_signer::ProtectionMode::Always),
+        _ => Err(format!("unsupported protected signer mode '{value}'")),
+    }
 }
 
 pub(crate) fn cmd_actor(action: ActorAction) {
@@ -584,5 +867,61 @@ pub(crate) fn cmd_actor(action: ActorAction) {
             confirm_root.as_deref(),
             json,
         ),
+    }
+}
+
+#[cfg(test)]
+mod protected_enrollment_recovery_tests {
+    use super::*;
+
+    fn pending_identity(
+        source: String,
+        binary_digest: Option<String>,
+    ) -> crate::cli_identity::Identity {
+        let public_key = "4".repeat(64);
+        crate::cli_identity::Identity {
+            version: "2.0".to_string(),
+            actor_id: "reviewer:recovery-test".to_string(),
+            actor_type: "human".to_string(),
+            key_path: String::new(),
+            pubkey: public_key.clone(),
+            signer: Some(crate::cli_identity::IdentitySigner::Helper {
+                provider: "os_store".to_string(),
+                key_id: format!("reviewer:recovery-test:{public_key}"),
+                public_key,
+                protection_grade: "user_session".to_string(),
+                mode: "session".to_string(),
+                helper_sha256: format!("sha256:{}", "a".repeat(64)),
+                pending_source_removal: Some(source),
+                pending_vela_binary_sha256: binary_digest,
+            }),
+        }
+    }
+
+    #[test]
+    fn missing_source_resumes_only_with_the_recorded_binary_binding() {
+        let identity = pending_identity(
+            "/definitely/missing/vela-source.key".to_string(),
+            Some(format!("sha256:{}", "b".repeat(64))),
+        );
+        let recovery = pending_enrollment_recovery(&identity).unwrap().unwrap();
+        assert_eq!(recovery.mode, "session");
+        assert_eq!(
+            recovery.vela_binary_sha256,
+            format!("sha256:{}", "b".repeat(64))
+        );
+
+        let unbound = pending_identity("/definitely/missing/vela-source.key".to_string(), None);
+        assert!(pending_enrollment_recovery(&unbound).is_err());
+    }
+
+    #[test]
+    fn existing_source_uses_the_normal_enrollment_resume_path() {
+        let source = tempfile::NamedTempFile::new().unwrap();
+        let identity = pending_identity(
+            source.path().display().to_string(),
+            Some(format!("sha256:{}", "b".repeat(64))),
+        );
+        assert!(pending_enrollment_recovery(&identity).unwrap().is_none());
     }
 }

@@ -1,8 +1,8 @@
 use std::io::Read;
 
 use crate::{
-    Approval, Custody, EnrollmentRequest, ProtectionMode, SessionRecord, SessionState,
-    SignerRequest, approve_and_sign, enroll,
+    Approval, Custody, EnrollmentRequest, ProtectionMode, RebindRequest, SessionRecord,
+    SessionState, SignerRequest, approve_and_sign, enroll, rebind,
 };
 use clap::{Parser, Subcommand};
 use rfd::{MessageButtons, MessageDialog, MessageDialogResult, MessageLevel};
@@ -28,6 +28,8 @@ enum Command {
     Approve,
     /// Read one closed enrollment request from stdin, install and verify custody.
     Enroll,
+    /// Rebind an existing protected identity to this exact helper binary.
+    Rebind,
 }
 
 struct SystemApproval;
@@ -66,27 +68,20 @@ impl Approval for SystemApproval {
     }
 
     fn approve(&self, request: &SignerRequest) -> Result<bool, String> {
-        let title = format!("Vela: {} one proposal", capitalize(&request.action));
-        let description = format!(
-            "{} proposal\n{}\n\nFrontier\n{}\n\nReason\n{}\n\nProposal root\n{}\n\nDecision Plan\n{}\n\nGate\n{}\n\nCustody\n{} / {} ({:?})",
-            capitalize(&request.action),
-            request.proposal_id,
-            request.frontier_id,
-            request.reason,
-            request.proposal_root,
-            request.decision_plan_root,
-            request.gate_state,
-            request.provider,
-            request.protection_grade,
-            request.protection_mode,
-        );
+        let card = decision_card(request);
+        // Keep cancellation as the platform default. A stray Return key or a
+        // GUI backend that cannot distinguish a closed window from its first
+        // button must fail closed rather than authorize scientific state.
         let result = MessageDialog::new()
-            .set_level(MessageLevel::Warning)
-            .set_title(title)
-            .set_description(description)
-            .set_buttons(MessageButtons::YesNo)
+            .set_level(MessageLevel::Info)
+            .set_title(&card.title)
+            .set_description(&card.description)
+            .set_buttons(MessageButtons::OkCancelCustom(
+                "Cancel".to_string(),
+                card.action_label.clone(),
+            ))
             .show();
-        Ok(matches!(result, MessageDialogResult::Yes))
+        Ok(card_approved(result, &card.action_label))
     }
 
     fn record_session_use(
@@ -126,24 +121,6 @@ impl Approval for SystemApproval {
         ))
     }
 
-    fn approve_enrollment(&self, request: &EnrollmentRequest) -> Result<bool, String> {
-        let description = format!(
-            "Protect this Vela human identity?\n\nActor\n{}\n\nPublic key\n{}\n\nProvider\n{} ({:?})\n\nAfter protected readback succeeds, Vela will remove the plaintext source:\n{}",
-            request.actor,
-            request.public_key,
-            request.provider,
-            request.protection_mode,
-            request.source_path,
-        );
-        let result = MessageDialog::new()
-            .set_level(MessageLevel::Warning)
-            .set_title("Vela: Protect human signing identity")
-            .set_description(description)
-            .set_buttons(MessageButtons::YesNo)
-            .show();
-        Ok(matches!(result, MessageDialogResult::Yes))
-    }
-
     fn reauthenticate_enrollment(&self, request: &EnrollmentRequest) -> Result<(), String> {
         platform_reauthenticate(&format!("Protect Vela identity {}", request.actor))?;
         save_session_record(&SessionRecord::new(
@@ -154,6 +131,37 @@ impl Approval for SystemApproval {
             &request.helper_sha256,
             chrono::Utc::now(),
         ))
+    }
+
+    fn reauthenticate_rebind(&self, request: &RebindRequest) -> Result<(), String> {
+        if request.purpose == crate::RebindPurpose::EnrollmentRecovery {
+            platform_reauthenticate(&format!(
+                "Resume protected Vela identity enrollment for {}",
+                request.actor
+            ))?;
+        } else {
+            platform_reauthenticate(&format!(
+                "Authorize Vela signer update for {}: Vela {} to {}; helper {} to {}; mode {:?} to {:?}",
+                request.actor,
+                short_root(&request.previous_vela_binary_sha256),
+                short_root(&request.vela_binary_sha256),
+                short_root(&request.previous_helper_sha256),
+                short_root(&request.helper_sha256),
+                request.previous_protection_mode,
+                request.protection_mode,
+            ))?;
+        }
+        if request.protection_mode == ProtectionMode::Session {
+            save_session_record(&SessionRecord::new(
+                &request.actor,
+                &request.public_key,
+                &request.provider,
+                protection_mode_name(request.protection_mode),
+                &request.helper_sha256,
+                chrono::Utc::now(),
+            ))?;
+        }
+        Ok(())
     }
 
     fn record_enrollment_session(
@@ -179,6 +187,79 @@ impl Approval for SystemApproval {
         }
         save_session_record(&record)
     }
+
+    fn record_rebind_session(
+        &self,
+        request: &RebindRequest,
+        key: &ed25519_dalek::SigningKey,
+    ) -> Result<(), String> {
+        let mut record =
+            load_session_record().ok_or_else(|| "signer rebind session disappeared".to_string())?;
+        let now = chrono::Utc::now();
+        record.touch(now)?;
+        record.sign(key)?;
+        if record.state(
+            &request.actor,
+            &request.public_key,
+            &request.provider,
+            protection_mode_name(request.protection_mode),
+            &request.helper_sha256,
+            now,
+        ) != SessionState::Active
+        {
+            return Err("signer rebind session binding changed".to_string());
+        }
+        save_session_record(&record)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct HumanCard {
+    title: String,
+    description: String,
+    action_label: String,
+}
+
+fn decision_card(request: &SignerRequest) -> HumanCard {
+    let (title, action_label) = match request.action.as_str() {
+        "accept" => ("Accept this result?", "Accept result"),
+        "reject" => ("Reject this proposal?", "Reject proposal"),
+        _ => ("Decide this proposal?", "Confirm decision"),
+    };
+    let facts = request
+        .display
+        .decisive_facts
+        .iter()
+        .map(|fact| format!("• {fact}"))
+        .collect::<Vec<_>>()
+        .join("\n");
+    HumanCard {
+        title: title.to_string(),
+        description: format!(
+            "{}\n\nWhy this needs your decision\n{}\n\nRationale\n{}\n\nWhat changes\n{}\n\nRequested by {} · {}\nProposal {} · Plan {}",
+            request.display.claim,
+            facts,
+            request.reason,
+            request.display.consequence,
+            request.display.requester,
+            request.display.frontier_name,
+            short_id(&request.proposal_id),
+            short_root(&request.decision_plan_root),
+        ),
+        action_label: action_label.to_string(),
+    }
+}
+
+fn short_id(value: &str) -> &str {
+    &value[..value.len().min(20)]
+}
+
+fn short_root(value: &str) -> &str {
+    &value[..value.len().min(15)]
+}
+
+fn card_approved(result: MessageDialogResult, action_label: &str) -> bool {
+    matches!(result, MessageDialogResult::Custom(label) if label == action_label)
 }
 
 fn protection_mode_name(mode: ProtectionMode) -> &'static str {
@@ -298,6 +379,7 @@ fn run() -> Result<(), String> {
     match cli.command {
         Command::Approve => approve_once(),
         Command::Enroll => enroll_once(),
+        Command::Rebind => rebind_once(),
     }
 }
 
@@ -363,6 +445,28 @@ fn enroll_once() -> Result<(), String> {
         "{}",
         serde_json::to_string(&response)
             .map_err(|error| format!("serialize enrollment response: {error}"))?
+    );
+    Ok(())
+}
+
+fn rebind_once() -> Result<(), String> {
+    let mut bytes = read_request_bytes()?;
+    let request: RebindRequest = serde_json::from_slice(&bytes)
+        .map_err(|error| format!("parse closed rebind request: {error}"))?;
+    bytes.zeroize();
+    let helper_path =
+        std::env::current_exe().map_err(|error| format!("resolve running helper path: {error}"))?;
+    let response = rebind(
+        &request,
+        &SystemApproval,
+        &SystemCustody::new(request.protection_mode),
+        &helper_path,
+        chrono::Utc::now(),
+    )?;
+    println!(
+        "{}",
+        serde_json::to_string(&response)
+            .map_err(|error| format!("serialize rebind response: {error}"))?
     );
     Ok(())
 }
@@ -509,4 +613,110 @@ fn linux_process_subject() -> Result<String, String> {
 #[cfg(not(any(unix, target_os = "windows")))]
 fn platform_reauthenticate(_reason: &str) -> Result<(), String> {
     Err("always mode is unsupported on this platform".to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{SignerDisplay, SignerEvent};
+
+    fn request(action: &str) -> SignerRequest {
+        let event = vela_protocol::events::new_review_decision_event(
+            "vpr_0123456789abcdef",
+            "finding.add",
+            if action == "accept" {
+                "accepted"
+            } else {
+                "rejected"
+            },
+            None,
+            "reviewer:fixture",
+            "The result lacks independent evidence.",
+            Some("2026-07-17T12:00:00Z"),
+        )
+        .unwrap();
+        SignerRequest {
+            schema: crate::contract::REQUEST_SCHEMA.to_string(),
+            nonce: "1".repeat(64),
+            expires_at: "2026-07-17T12:01:00Z".to_string(),
+            vela_binary_path: "/bin/vela".to_string(),
+            vela_binary_sha256: format!("sha256:{}", "2".repeat(64)),
+            helper_sha256: format!("sha256:{}", "3".repeat(64)),
+            frontier_id: "vfr_fixture".to_string(),
+            frontier_path: "/tmp/frontier".to_string(),
+            proposal_id: "vpr_0123456789abcdef".to_string(),
+            proposal_root: format!("sha256:{}", "4".repeat(64)),
+            action: action.to_string(),
+            reason: "The result lacks independent evidence.".to_string(),
+            reviewer_actor: "reviewer:fixture".to_string(),
+            reviewer_public_key: "5".repeat(64),
+            observed_at: "2026-07-17T12:00:00Z".to_string(),
+            decision_plan_root: format!("sha256:{}", "6".repeat(64)),
+            gate_state: "accept_ready=false;reject_ready=true".to_string(),
+            provider: "os_store".to_string(),
+            protection_grade: "user_session".to_string(),
+            protection_mode: ProtectionMode::Session,
+            display: SignerDisplay {
+                frontier_name: "Erdos problems".to_string(),
+                claim: "No witness occurs in the bounded interval".to_string(),
+                requester: "agent:canopus".to_string(),
+                decisive_facts: vec![
+                    "No independent verifier attachments".to_string(),
+                    "No surviving adversarial probe".to_string(),
+                ],
+                consequence:
+                    "Keep accepted scientific state unchanged and close this proposal as rejected."
+                        .to_string(),
+            },
+            events: vec![SignerEvent { event }],
+        }
+    }
+
+    #[test]
+    fn decision_card_uses_semantic_actions_and_hides_custody_internals() {
+        let request = request("reject");
+        let card = decision_card(&request);
+        assert_eq!(card.title, "Reject this proposal?");
+        assert_eq!(card.action_label, "Reject proposal");
+        assert!(card.description.contains(&request.display.claim));
+        assert!(
+            card.description
+                .contains("No independent verifier attachments")
+        );
+        assert!(
+            card.description
+                .contains("Keep accepted scientific state unchanged")
+        );
+        assert!(card.description.contains("agent:canopus"));
+        assert!(!card.description.contains(&request.proposal_root));
+        assert!(!card.description.contains(&request.reviewer_public_key));
+        assert!(!card.description.contains("os_store"));
+        assert!(!card.description.contains("Yes"));
+    }
+
+    #[test]
+    fn accept_and_reject_cards_cannot_share_an_action_label() {
+        let accept = decision_card(&request("accept"));
+        let reject = decision_card(&request("reject"));
+        assert_eq!(accept.action_label, "Accept result");
+        assert_eq!(reject.action_label, "Reject proposal");
+        assert_ne!(accept.title, reject.title);
+    }
+
+    #[test]
+    fn only_the_exact_custom_action_can_approve() {
+        assert!(card_approved(
+            MessageDialogResult::Custom("Reject proposal".to_string()),
+            "Reject proposal"
+        ));
+        assert!(!card_approved(MessageDialogResult::Ok, "Reject proposal"));
+        assert!(!card_approved(
+            MessageDialogResult::Custom("Cancel".to_string()),
+            "Reject proposal"
+        ));
+        assert!(!card_approved(
+            MessageDialogResult::Custom("Accept result".to_string()),
+            "Reject proposal"
+        ));
+    }
 }

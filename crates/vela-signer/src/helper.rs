@@ -1,12 +1,14 @@
 use chrono::Utc;
-use ed25519_dalek::SigningKey;
+use ed25519_dalek::{Signer, SigningKey};
 use std::io::Read;
 use zeroize::Zeroize;
 
 use crate::contract::{
     ENROLLMENT_RESPONSE_SCHEMA, EnrollmentRequest, EnrollmentResponse, EventSignature,
-    RESPONSE_SCHEMA, SignerRequest, SignerResponse, file_sha256, request_root,
-    validate_enrollment_fresh_for_install, validate_enrollment_request, validate_request,
+    ProtectionMode, REBIND_RESPONSE_SCHEMA, RESPONSE_SCHEMA, RebindRequest, RebindResponse,
+    SignerRequest, SignerResponse, file_sha256, rebind_request_root, rebind_response_signing_bytes,
+    request_root, validate_enrollment_fresh_for_install, validate_enrollment_request,
+    validate_rebind_fresh, validate_rebind_request, validate_request,
     validate_request_fresh_for_signing,
 };
 
@@ -15,14 +17,69 @@ pub trait Approval {
     fn ensure_session(&self, request: &SignerRequest) -> Result<(), String>;
     fn approve(&self, request: &SignerRequest) -> Result<bool, String>;
     fn record_session_use(&self, request: &SignerRequest, key: &SigningKey) -> Result<(), String>;
-    fn approve_enrollment(&self, request: &EnrollmentRequest) -> Result<bool, String>;
     fn reauthenticate(&self, request: &SignerRequest) -> Result<(), String>;
     fn reauthenticate_enrollment(&self, request: &EnrollmentRequest) -> Result<(), String>;
+    fn reauthenticate_rebind(&self, request: &RebindRequest) -> Result<(), String>;
     fn record_enrollment_session(
         &self,
         request: &EnrollmentRequest,
         key: &SigningKey,
     ) -> Result<(), String>;
+    fn record_rebind_session(
+        &self,
+        request: &RebindRequest,
+        key: &SigningKey,
+    ) -> Result<(), String>;
+}
+
+pub fn rebind<A: Approval, C: Custody>(
+    request: &RebindRequest,
+    approval: &A,
+    custody: &C,
+    helper_path: &std::path::Path,
+    now: chrono::DateTime<Utc>,
+) -> Result<RebindResponse, String> {
+    validate_rebind_request(request, now)?;
+    let helper_sha256 = file_sha256(helper_path)?;
+    if helper_sha256 != request.helper_sha256 {
+        return Err("running helper digest does not match rebind request".to_string());
+    }
+    if custody.provider() != request.provider {
+        return Err("rebind custody provider does not match helper provider".to_string());
+    }
+    approval.reauthenticate_rebind(request)?;
+    let rebound_at = approval.now();
+    validate_rebind_request(request, rebound_at)?;
+    validate_rebind_fresh(request, rebound_at)?;
+
+    let mut seed = custody.load_seed(&request.actor, &request.public_key)?;
+    let key = SigningKey::from_bytes(&seed);
+    seed.zeroize();
+    let derived = hex::encode(key.verifying_key().to_bytes());
+    if derived != request.public_key {
+        return Err("custody seed does not match the rebind public key".to_string());
+    }
+    if request.protection_mode == ProtectionMode::Session {
+        approval.record_rebind_session(request, &key)?;
+    }
+    let request_root = rebind_request_root(request)?;
+    let mut response = RebindResponse {
+        schema: REBIND_RESPONSE_SCHEMA.to_string(),
+        request_root,
+        actor: request.actor.clone(),
+        public_key: request.public_key.clone(),
+        helper_version: env!("CARGO_PKG_VERSION").to_string(),
+        helper_sha256,
+        provider: custody.provider().to_string(),
+        protection_grade: custody.protection_grade().to_string(),
+        protection_mode: request.protection_mode,
+        rebound_at: rebound_at.to_rfc3339_opts(chrono::SecondsFormat::Nanos, true),
+        signature: String::new(),
+    };
+    let signature = key.sign(&rebind_response_signing_bytes(&response)?);
+    response.signature = format!("v1:{}", hex::encode(signature.to_bytes()));
+    drop(key);
+    Ok(response)
 }
 
 pub trait Custody {
@@ -49,9 +106,9 @@ pub fn enroll<A: Approval, C: Custody>(
     if custody.provider() != request.provider {
         return Err("enrollment custody provider does not match helper provider".to_string());
     }
-    if !approval.approve_enrollment(request)? {
-        return Err("protected enrollment declined or cancelled".to_string());
-    }
+    // The explicit `vela id protect` invocation is the enrollment request.
+    // The platform authenticator is its only human ceremony; a preceding
+    // generic Yes/No alert adds fatigue and no independent authorization.
     approval.reauthenticate_enrollment(request)?;
     let installed_at = approval.now();
     validate_enrollment_request(request, installed_at)?;
@@ -98,6 +155,7 @@ pub fn enroll<A: Approval, C: Custody>(
         schema: ENROLLMENT_RESPONSE_SCHEMA.to_string(),
         nonce: request.nonce.clone(),
         helper_version: env!("CARGO_PKG_VERSION").to_string(),
+        vela_binary_sha256: request.vela_binary_sha256.clone(),
         helper_sha256,
         actor: request.actor.clone(),
         public_key: request.public_key.clone(),
@@ -163,14 +221,12 @@ pub fn approve_and_sign<A: Approval, C: Custody>(
     if custody.provider() != request.provider {
         return Err("requested custody provider does not match helper provider".to_string());
     }
-    if request.protection_mode == crate::contract::ProtectionMode::Session {
-        approval.ensure_session(request)?;
-    }
     if !approval.approve(request)? {
         return Err("decision declined or cancelled".to_string());
     }
-    if request.protection_mode == crate::contract::ProtectionMode::Always {
-        approval.reauthenticate(request)?;
+    match request.protection_mode {
+        crate::contract::ProtectionMode::Session => approval.ensure_session(request)?,
+        crate::contract::ProtectionMode::Always => approval.reauthenticate(request)?,
     }
     let approved_at = approval.now();
     validate_request_fresh_for_signing(request, approved_at)?;
@@ -222,6 +278,7 @@ mod tests {
     struct FakeApproval {
         approved: bool,
         reauths: Cell<usize>,
+        recorded_sessions: Cell<usize>,
     }
 
     impl Approval for FakeApproval {
@@ -245,10 +302,6 @@ mod tests {
             Ok(())
         }
 
-        fn approve_enrollment(&self, _request: &EnrollmentRequest) -> Result<bool, String> {
-            Ok(self.approved)
-        }
-
         fn reauthenticate(&self, _request: &SignerRequest) -> Result<(), String> {
             self.reauths.set(self.reauths.get() + 1);
             Ok(())
@@ -259,11 +312,26 @@ mod tests {
             Ok(())
         }
 
+        fn reauthenticate_rebind(&self, _request: &RebindRequest) -> Result<(), String> {
+            self.reauths.set(self.reauths.get() + 1);
+            Ok(())
+        }
+
         fn record_enrollment_session(
             &self,
             _request: &EnrollmentRequest,
             _key: &SigningKey,
         ) -> Result<(), String> {
+            self.recorded_sessions.set(self.recorded_sessions.get() + 1);
+            Ok(())
+        }
+
+        fn record_rebind_session(
+            &self,
+            _request: &RebindRequest,
+            _key: &SigningKey,
+        ) -> Result<(), String> {
+            self.recorded_sessions.set(self.recorded_sessions.get() + 1);
             Ok(())
         }
     }
@@ -350,6 +418,13 @@ mod tests {
             provider: "test".to_string(),
             protection_grade: "user_session".to_string(),
             protection_mode: crate::contract::ProtectionMode::Session,
+            display: crate::contract::SignerDisplay {
+                frontier_name: "Fixture frontier".to_string(),
+                claim: "A bounded fixture result".to_string(),
+                requester: "agent:fixture".to_string(),
+                decisive_facts: vec!["No independent verifier evidence".to_string()],
+                consequence: "Keep accepted state unchanged and close this proposal".to_string(),
+            },
             events: vec![crate::contract::SignerEvent { event }],
         };
         (vela, helper, request, seed)
@@ -399,6 +474,7 @@ mod tests {
         let approval = FakeApproval {
             approved: true,
             reauths: Cell::new(0),
+            recorded_sessions: Cell::new(0),
         };
         let response = approve_and_sign(
             &request,
@@ -413,7 +489,52 @@ mod tests {
     }
 
     #[test]
-    fn protected_signer_cancellation_reads_no_key() {
+    fn protected_signer_cancellation_authenticates_nothing_and_reads_no_key() {
+        struct CancelApproval;
+        impl Approval for CancelApproval {
+            fn now(&self) -> chrono::DateTime<Utc> {
+                "2026-07-17T12:00:30Z".parse().unwrap()
+            }
+            fn ensure_session(&self, _request: &SignerRequest) -> Result<(), String> {
+                panic!("cancellation must not open or refresh a signer session")
+            }
+            fn approve(&self, _request: &SignerRequest) -> Result<bool, String> {
+                Ok(false)
+            }
+            fn record_session_use(
+                &self,
+                _request: &SignerRequest,
+                _key: &SigningKey,
+            ) -> Result<(), String> {
+                panic!("cancellation must not update a signer session")
+            }
+            fn reauthenticate(&self, _request: &SignerRequest) -> Result<(), String> {
+                panic!("cancellation must not authenticate")
+            }
+            fn reauthenticate_enrollment(
+                &self,
+                _request: &EnrollmentRequest,
+            ) -> Result<(), String> {
+                panic!("decision cancellation must not enter enrollment")
+            }
+            fn reauthenticate_rebind(&self, _request: &RebindRequest) -> Result<(), String> {
+                panic!("decision cancellation must not enter rebind")
+            }
+            fn record_enrollment_session(
+                &self,
+                _request: &EnrollmentRequest,
+                _key: &SigningKey,
+            ) -> Result<(), String> {
+                panic!("decision cancellation must not enter enrollment")
+            }
+            fn record_rebind_session(
+                &self,
+                _request: &RebindRequest,
+                _key: &SigningKey,
+            ) -> Result<(), String> {
+                panic!("decision cancellation must not enter rebind")
+            }
+        }
         struct PanicCustody;
         impl Custody for PanicCustody {
             fn provider(&self) -> &str {
@@ -443,10 +564,7 @@ mod tests {
         let (_vela, helper, request, _seed) = fixture();
         let result = approve_and_sign(
             &request,
-            &FakeApproval {
-                approved: false,
-                reauths: Cell::new(0),
-            },
+            &CancelApproval,
             &PanicCustody,
             helper.path(),
             "2026-07-17T12:00:00Z".parse().unwrap(),
@@ -461,6 +579,7 @@ mod tests {
         let approval = FakeApproval {
             approved: true,
             reauths: Cell::new(0),
+            recorded_sessions: Cell::new(0),
         };
         approve_and_sign(
             &request,
@@ -471,6 +590,47 @@ mod tests {
         )
         .unwrap();
         assert_eq!(approval.reauths.get(), 1);
+    }
+
+    #[test]
+    fn protected_signer_rebind_requires_authentication_and_signs_every_response_field() {
+        let (vela, helper, request, seed) = fixture();
+        let rebind_request = RebindRequest {
+            schema: crate::contract::REBIND_REQUEST_SCHEMA.to_string(),
+            purpose: crate::contract::RebindPurpose::Upgrade,
+            nonce: "8".repeat(64),
+            expires_at: "2026-07-17T12:01:00Z".to_string(),
+            vela_binary_path: vela.path().display().to_string(),
+            vela_binary_sha256: file_sha256(vela.path()).unwrap(),
+            previous_vela_binary_sha256: file_sha256(vela.path()).unwrap(),
+            helper_sha256: file_sha256(helper.path()).unwrap(),
+            previous_helper_sha256: format!("sha256:{}", "9".repeat(64)),
+            actor: request.reviewer_actor,
+            public_key: request.reviewer_public_key,
+            provider: "test".to_string(),
+            previous_protection_mode: crate::contract::ProtectionMode::Session,
+            protection_mode: crate::contract::ProtectionMode::Session,
+        };
+        let approval = FakeApproval {
+            approved: true,
+            reauths: Cell::new(0),
+            recorded_sessions: Cell::new(0),
+        };
+        let response = rebind(
+            &rebind_request,
+            &approval,
+            &FakeCustody { seed },
+            helper.path(),
+            "2026-07-17T12:00:00Z".parse().unwrap(),
+        )
+        .unwrap();
+        assert_eq!(approval.reauths.get(), 1);
+        assert_eq!(approval.recorded_sessions.get(), 1);
+        crate::contract::validate_rebind_response(&rebind_request, &response).unwrap();
+
+        let mut tampered = response;
+        tampered.protection_grade = "file".to_string();
+        assert!(crate::contract::validate_rebind_response(&rebind_request, &tampered).is_err());
     }
 
     #[test]
@@ -515,6 +675,7 @@ mod tests {
         let approval = FakeApproval {
             approved: true,
             reauths: Cell::new(0),
+            recorded_sessions: Cell::new(0),
         };
         let custody = EnrollmentCustody {
             stored: RefCell::new(None),
@@ -528,6 +689,7 @@ mod tests {
         )
         .unwrap();
         assert_eq!(approval.reauths.get(), 1);
+        assert_eq!(approval.recorded_sessions.get(), 1);
         assert_eq!(custody.stored.borrow().as_ref(), Some(&seed));
         assert!(source.path().exists());
         assert!(!response.source_removed);
@@ -573,6 +735,7 @@ mod tests {
             &FakeApproval {
                 approved: true,
                 reauths: Cell::new(0),
+                recorded_sessions: Cell::new(0),
             },
             &PanicStore,
             helper.path(),
@@ -602,9 +765,6 @@ mod tests {
             ) -> Result<(), String> {
                 panic!("expired request must not update a session")
             }
-            fn approve_enrollment(&self, _request: &EnrollmentRequest) -> Result<bool, String> {
-                Ok(true)
-            }
             fn reauthenticate(&self, _request: &SignerRequest) -> Result<(), String> {
                 Ok(())
             }
@@ -614,9 +774,19 @@ mod tests {
             ) -> Result<(), String> {
                 Ok(())
             }
+            fn reauthenticate_rebind(&self, _request: &RebindRequest) -> Result<(), String> {
+                Ok(())
+            }
             fn record_enrollment_session(
                 &self,
                 _request: &EnrollmentRequest,
+                _key: &SigningKey,
+            ) -> Result<(), String> {
+                Ok(())
+            }
+            fn record_rebind_session(
+                &self,
+                _request: &RebindRequest,
                 _key: &SigningKey,
             ) -> Result<(), String> {
                 Ok(())

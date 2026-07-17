@@ -51,14 +51,19 @@ pub(crate) fn record_pin() -> Result<BinaryPin, String> {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
-    std::fs::write(
-        &path,
-        format!(
-            "{}\n",
-            serde_json::to_string_pretty(&pin).map_err(|e| e.to_string())?
-        ),
-    )
-    .map_err(|e| e.to_string())?;
+    let temporary = path.with_extension(format!("json.tmp-{}", std::process::id()));
+    let body = format!(
+        "{}\n",
+        serde_json::to_string_pretty(&pin).map_err(|e| e.to_string())?
+    );
+    std::fs::write(&temporary, body).map_err(|e| e.to_string())?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&temporary, std::fs::Permissions::from_mode(0o600))
+            .map_err(|e| e.to_string())?;
+    }
+    std::fs::rename(&temporary, &path).map_err(|e| e.to_string())?;
     Ok(pin)
 }
 

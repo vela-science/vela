@@ -436,6 +436,7 @@ pub(crate) fn execute_confirmed_decision(
 fn execute_confirmed_protected_decision(
     frontier: &Path,
     prepared: &PreparedDecision,
+    review: &ReviewSnapshot,
     action: &str,
     proposal_id: &str,
     proposal_root: &str,
@@ -449,6 +450,7 @@ fn execute_confirmed_protected_decision(
         request_helper_signatures(
             frontier,
             material,
+            review,
             action,
             proposal_id,
             proposal_root,
@@ -464,6 +466,7 @@ fn execute_confirmed_protected_decision(
 fn request_helper_signatures(
     frontier: &Path,
     material: &PreparedSignatureSet,
+    review: &ReviewSnapshot,
     action: &str,
     proposal_id: &str,
     proposal_root: &str,
@@ -478,6 +481,12 @@ fn request_helper_signatures(
         std::env::current_exe().map_err(|error| format!("resolve running Vela binary: {error}"))?;
     let helper = crate::cli_identity::signer_helper_path(&vela_binary)?;
     let helper_sha256 = vela_signer::contract::file_sha256(&helper)?;
+    if helper_sha256 != profile.helper_sha256 {
+        return Err(format!(
+            "installed signer helper {} does not match the protected identity pin {}; run `vela id protect --user-presence --remove-source-key` to authorize this exact helper update",
+            helper_sha256, profile.helper_sha256
+        ));
+    }
     let mut nonce = [0_u8; 32];
     rand::rngs::OsRng.fill_bytes(&mut nonce);
     let now = chrono::Utc::now();
@@ -506,6 +515,7 @@ fn request_helper_signatures(
         provider: profile.provider.clone(),
         protection_grade: profile.protection_grade.clone(),
         protection_mode: profile.mode,
+        display: protected_decision_display(review, action),
         events: material
             .events
             .iter()
@@ -549,6 +559,71 @@ fn request_helper_signatures(
         .collect())
 }
 
+fn protected_decision_display(review: &ReviewSnapshot, action: &str) -> vela_signer::SignerDisplay {
+    let brief = &review.brief;
+    let mut facts = Vec::new();
+    if action == "reject" && !brief.accept_ready() {
+        if let Some(accept) = brief.action("accept") {
+            facts.extend(accept.reasons.iter().map(|reason| humanize_fact(reason)));
+        }
+    }
+    if facts.is_empty() {
+        facts.extend(
+            brief
+                .basis
+                .check_state
+                .gate_reasons
+                .iter()
+                .map(|reason| humanize_fact(reason)),
+        );
+    }
+    if brief.basis.check_state.durable_verifier_count == 0 {
+        facts.push("No independent verifier attachments".to_string());
+    }
+    for warning in &brief.impact.critical_warnings {
+        facts.push(humanize_fact(&warning.code));
+    }
+    facts.sort();
+    facts.dedup();
+    facts.truncate(4);
+    if facts.is_empty() {
+        facts.push("This proposal requires a human scientific judgment".to_string());
+    }
+
+    let consequence = if action == "accept" {
+        let state = brief
+            .change
+            .after
+            .as_ref()
+            .map(|after| after.text.as_str())
+            .unwrap_or(brief.change.requested_action.as_str());
+        format!(
+            "Change accepted state to {state}. {} finding(s) change; {} downstream dependent(s) are recorded.",
+            brief.impact.downstream_effect.changed_findings,
+            brief.impact.downstream_effect.downstream_dependents,
+        )
+    } else {
+        "Keep accepted scientific state unchanged and close this proposal as rejected.".to_string()
+    };
+
+    vela_signer::SignerDisplay {
+        frontier_name: brief.authority.frontier.name.clone(),
+        claim: brief.change.claim.clone(),
+        requester: review.proposal_actor.clone(),
+        decisive_facts: facts,
+        consequence,
+    }
+}
+
+fn humanize_fact(value: &str) -> String {
+    let text = value.trim().trim_end_matches('.').replace(['_', '-'], " ");
+    let mut chars = text.chars();
+    match chars.next() {
+        Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
+        None => "Decision evidence is incomplete".to_string(),
+    }
+}
+
 pub(crate) fn fail_decision(error: DecisionPlanError) -> ! {
     let kind = match error.code {
         "key_unavailable" | "key_mismatch" | "reviewer_unauthorized" | "signing_failed" => {
@@ -557,20 +632,6 @@ pub(crate) fn fail_decision(error: DecisionPlanError) -> ! {
         _ => ErrorKind::Domain,
     };
     ui::fail_with(kind, &error.to_string(), None)
-}
-
-#[cfg(test)]
-fn protected_approval_prompt(
-    action: &str,
-    proposal_id: &str,
-    frontier_id: &str,
-    reason: &str,
-    decision_root: &str,
-) -> String {
-    format!(
-        "{action} proposal {proposal_id} in frontier {frontier_id}. Reason: {reason}. Decision Plan {}",
-        &decision_root[..decision_root.len().min(23)]
-    )
 }
 
 /// Publish only the immutable public delta committed by `FrontierTxn`.
@@ -1499,6 +1560,7 @@ pub(crate) fn cmd_review_decide(
     let outcome = execute_confirmed_protected_decision(
         &frontier,
         &prepared,
+        &review,
         action_name,
         id,
         &answer.proposal_root,
@@ -1836,17 +1898,11 @@ mod tests {
     }
 
     #[test]
-    fn protected_prompt_names_every_human_approval_dimension() {
-        let prompt = protected_approval_prompt(
-            "reject",
-            "vpr_exact",
-            "vfr_exact",
-            "the gate lacks independent evidence",
-            "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    fn decision_fact_codes_are_presented_as_words() {
+        assert_eq!(humanize_fact("engine_gate_blocked"), "Engine gate blocked");
+        assert_eq!(
+            humanize_fact("no-independent-evidence"),
+            "No independent evidence"
         );
-        assert!(prompt.contains("reject proposal vpr_exact"));
-        assert!(prompt.contains("frontier vfr_exact"));
-        assert!(prompt.contains("the gate lacks independent evidence"));
-        assert!(prompt.contains("Decision Plan sha256:0123456789abcdef"));
     }
 }

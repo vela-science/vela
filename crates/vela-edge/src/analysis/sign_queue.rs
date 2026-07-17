@@ -232,6 +232,7 @@ mod tests {
                 created_at: "2026-07-14T11:00:00Z".to_string(),
                 proposal_id: proposal_id.to_string(),
             },
+            proposal_actor: "agent:queue-test".to_string(),
             brief: DecisionBrief {
                 schema: "vela.decision-brief.testing.v1".to_string(),
                 stability: "testing".to_string(),

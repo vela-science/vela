@@ -570,9 +570,10 @@ pub(crate) enum Commands {
 
 #[derive(Subcommand)]
 pub(crate) enum IdAction {
-    /// Move an existing human seed into the local OS-protected signer helper.
-    /// Enrollment authenticates once before reading the plaintext source;
-    /// successful migration removes that source on macOS, Windows, and Linux.
+    /// Move an existing human seed into the local OS-protected signer helper,
+    /// or authorize the exact helper/mode after a package update. Enrollment
+    /// authenticates once before reading the plaintext source; successful
+    /// migration removes that source on macOS, Windows, and Linux.
     Protect {
         #[arg(long)]
         user_presence: bool,

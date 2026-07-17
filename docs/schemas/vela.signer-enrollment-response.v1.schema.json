@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vela.science/schemas/vela.signer-enrollment-response.v1.schema.json",
+  "title": "Vela protected signer enrollment response v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "nonce",
+    "helper_version",
+    "vela_binary_sha256",
+    "helper_sha256",
+    "actor",
+    "public_key",
+    "key_id",
+    "provider",
+    "protection_grade",
+    "protection_mode",
+    "installed_at",
+    "source_removed"
+  ],
+  "properties": {
+    "schema": { "const": "vela.signer-enrollment-response.v1" },
+    "nonce": { "$ref": "#/$defs/lowerHex32" },
+    "helper_version": { "type": "string", "minLength": 1 },
+    "vela_binary_sha256": { "$ref": "#/$defs/sha256" },
+    "helper_sha256": { "$ref": "#/$defs/sha256" },
+    "actor": { "type": "string", "minLength": 1 },
+    "public_key": { "$ref": "#/$defs/lowerHex32" },
+    "key_id": { "type": "string", "minLength": 1 },
+    "provider": { "type": "string", "minLength": 1 },
+    "protection_grade": { "type": "string", "minLength": 1 },
+    "protection_mode": { "enum": ["session", "always"] },
+    "installed_at": { "type": "string", "format": "date-time" },
+    "source_removed": { "const": false }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "lowerHex32": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+  }
+}

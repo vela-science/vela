@@ -412,6 +412,12 @@ pub struct ReviewSnapshot {
     pub observed_at: String,
     pub event_log_root: String,
     pub sort_key: ReviewSortKey,
+    /// Immutable proposal actor used by protected review presentation. It is
+    /// kept out of the testing projection because the attributed producer is
+    /// already rendered in the brief; this field prevents a second repository
+    /// read from supplying display data for a different snapshot.
+    #[serde(skip)]
+    pub proposal_actor: String,
     pub brief: DecisionBrief,
     /// Exact typed source roots available to the private DecisionPlan. These
     /// are intentionally omitted from the testing JSON projection: they bind
@@ -716,6 +722,7 @@ pub fn build_review_snapshot(
         observed_at: input.observed_at.to_string(),
         event_log_root,
         sort_key,
+        proposal_actor: proposal.actor.id.clone(),
         brief: facts.into_brief()?,
         decision_bindings,
     })

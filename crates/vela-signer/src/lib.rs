@@ -10,8 +10,10 @@ pub mod session;
 pub mod system;
 
 pub use contract::{
-    EnrollmentRequest, EnrollmentResponse, EventSignature, ProtectionMode, SignerEvent,
-    SignerRequest, SignerResponse, request_root, validate_request, validate_response,
+    EnrollmentRequest, EnrollmentResponse, EventSignature, ProtectionMode, RebindPurpose,
+    RebindRequest, RebindResponse, SignerDisplay, SignerEvent, SignerRequest, SignerResponse,
+    rebind_request_root, request_root, validate_rebind_request, validate_rebind_response,
+    validate_request, validate_response,
 };
-pub use helper::{Approval, Custody, approve_and_sign, enroll};
+pub use helper::{Approval, Custody, approve_and_sign, enroll, rebind};
 pub use session::{SessionRecord, SessionState};

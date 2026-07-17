@@ -1,9 +1,9 @@
-# ADR 0011: Protected decision sessions and producer withdrawal
+# ADR 0011: Human-governed authority and producer withdrawal
 
 - Status: Proposed
-- Target release: Vela `v0.901.0`
+- Target release: Vela `v0.901.0`; blocked until the redesigned surface passes dogfood
 - Protocol effect: one signed, non-scientific `proposal.withdrawn` event
-- Local product effect: a portable one-shot signer-helper contract and identity v2
+- Local product effect: protected custody, bounded authority sessions, and identity v2
 - Authority effect: none
 - Last research review: 2026-07-17
 
@@ -43,6 +43,32 @@ agent identity binding. After landing, however, the producer cannot close its
 own still-pending proposal when the run is abandoned or superseded. Human
 review is therefore burdened with producer-owned queue hygiene.
 
+## Internal product direction
+
+This ADR follows the architecture already developed in the Constellate memos
+instead of inventing a parallel security ceremony:
+
+- `vela_human_governance_memo.md` gives the governing rule: humans sign
+  policies, delegations, exceptions, and irreversible commitments; machines
+  sign executions, evidence, and receipts. It also says human governance is an
+  authority property rather than a click count and that visible complexity
+  should fall as protocol rigor rises.
+- `vela_research_harness_architecture_memo.md` keeps models outside the human
+  key path and Vela as the sole authority plane. The harness produces evidence
+  and proposals; it does not impersonate a reviewer.
+- `constellate_vela_product_ux_memo.md` defines a State Transition Card and a
+  review inbox modeled on a pull-request workflow. The review object is the
+  scientific change and its evidence, not the cryptographic operation.
+- `vela_agentic_git_entire_cursor_origin_memo_2026-07-10.md` requires autonomy
+  to be consequence-sensitive. Reading and producing evidence are not the same
+  authority tier as accepting canonical scientific state.
+- `vela-adr-audit.md` warns against expanding the protocol before a blind
+  handoff proves the gap and rejects model or browser possession of a human
+  signing path.
+
+The product must preserve the authority boundary while moving human attention
+from routine execution to policy design and genuine exceptions.
+
 ## Research basis
 
 The decision is based on primary standards and current product behavior:
@@ -80,17 +106,92 @@ The decision is based on primary standards and current product behavior:
 - Sigstore keyless signing depends on OIDC, short-lived certificates, and a
   transparency service. That is a different online trust model, not a local
   custody improvement for 0.901.[^sigstore]
+- GitHub's signing guidance treats the signature as an automatic Git operation
+  once signing is configured. It recommends Keychain, Gpg4win, or an agent so
+  people do not re-enter a passphrase for every commit.[^github-signing]
+- 1Password authorizes a key for a specific application or terminal session.
+  Later operations in that process use the key without another prompt until
+  lock, quit, or the configured timeout.[^1p-security]
+- Claude Code uses permission modes and allow rules to make bounded tool use
+  silent. Tools that explicitly require user interaction cannot be approved by
+  a non-interactive permission broker.[^claude-permissions]
+- Apple's alert guidance says alerts must be rare, short, and actionable; use
+  action-specific button labels rather than Yes/No, reserve warning treatment
+  for genuinely unexpected destructive actions, and put advanced material
+  behind disclosure controls.[^apple-alerts]
+- GitHub deployment review presents the pending deployment in its existing
+  workflow context, then offers Approve and deploy or Reject with an optional
+  comment. It does not present a cryptographic signing utility.[^github-review]
 
 These sources support a familiar product pattern: authenticate a bounded local
 session, show the exact consequential action, require one approve/decline
 interaction for that action, bind the authorization to immutable input, and
 verify again at the execution edge.
 
+No cited product uses one prompt to solve every layer. Their relevant behavior
+is:
+
+| Product or standard | What the user authorizes | Prompt lifetime | What Vela should borrow | What Vela must not infer |
+| --- | --- | --- | --- | --- |
+| Git/GitHub signing | use of a configured signing identity | cached by Keychain or an agent | signatures are automatic infrastructure | a valid signature means a person reviewed the content |
+| 1Password SSH agent | one key for one app/process or terminal session | until lock, quit, or timeout | client-bound key-use sessions | SSH authorization is scientific acceptance |
+| Codex | one command/change, a session capability, or a policy amendment | one action, session, or persisted rule | inline approval in the active task and explicit scope | the model may answer its own approval request |
+| Claude Code | a tool rule or permission mode | session/configured rule | bounded operations become silent | `bypassPermissions` is appropriate for authority events |
+| GitHub deployment review | deploy or reject the displayed environment/job | one contextual review action | semantic verbs and optional rationale | the reviewer needs to see signing internals |
+| NIST sessions | continued authenticated use | inactivity and overall timeout | reauthenticate on session boundaries | session possession proves a later semantic decision |
+| OWASP transaction authorization | significant data for one consequential operation | short, operation-bound | What You See Is What You Sign for exceptions | every low-risk execution needs a transaction prompt |
+| WebAuthn/passkeys | an RP-scoped challenge with user presence/verification | normally per assertion | future direct-human credentials | existing Ed25519 identities migrate without governance |
+| Sigstore keyless | workload/person identity for one short-lived signing flow | ephemeral certificate lifetime | producer attribution without long-lived keys | OIDC identity is scientific authority |
+
+The combined conclusion is narrower than the original design. Authentication
+opens custody. Client authorization controls which process may ask for a
+signature. Signed policy controls routine autonomous scope. A contextual review
+action records an exceptional human judgment. The event signature binds the
+result. None of these facts substitutes for another.
+
+### 2026-07-17 dogfood result: security pass, product failure
+
+The first live candidate disproved the original UI design. Enrollment moved
+`reviewer:will-blair` into OS custody, verified the public key, removed the
+plaintext source, and pinned the exact CLI/helper pair. A targeted rejection of
+`vpr_f54338a5a453c1bf` then bound the expected proposal, Receipt, reason, and
+Decision Plan roots and emitted one valid `review.rejected` event. The CLI did
+not read the key and no unrelated proposal changed.
+
+The human-facing surface was nevertheless unacceptable. A generic warning
+alert showed implementation terms, full roots, custody metadata, and Yes/No
+buttons. The user had to leave the active task, scan a wall of text, and infer
+that Yes meant Reject. This is exactly the prompt fatigue and context loss that
+the cited products avoid. It also asked a human to reject under-evidenced agent
+work that the producer should have retained as run evidence or withdrawn.
+
+This is a release-blocking NO-GO, not a polish issue. The candidate stays
+unreleased, this ADR stays Proposed, and the valid historical rejection is not
+rewritten. Successful cryptography is insufficient acceptance evidence.
+
 ## Decision
 
-Vela adds a local one-shot `vela-signer` helper, a two-phase `review decide`
-flow, and one producer-withdrawal event. Only withdrawal changes frontier wire
-semantics.
+Vela makes signing an implementation detail, not a recurring user task. It
+adds one producer-withdrawal event and a local protected-custody boundary. Only
+withdrawal changes frontier wire semantics.
+
+The ordinary product has three lanes:
+
+1. **Routine agent work.** The agent signs its own Receipt and events. Existing
+   signed `Permit` policy may admit a closed verifier and claim class. No human
+   signing or approval prompt occurs.
+2. **Producer lifecycle.** A producer retains a failed/null run as evidence or
+   withdraws its own Receipt-bound pending proposal. A human is not asked to
+   perform queue hygiene.
+3. **Human scientific authority.** A genuinely deferred accept/reject decision
+   appears in the active review context. The person approves the semantic
+   consequence, not a signature. Protected signing follows silently inside the
+   same operation.
+
+The target prompt budget is therefore zero prompts per signature, zero human
+prompts for routine or producer-owned work, one platform authentication when a
+bounded signer session opens or expires, and one concise semantic action only
+when human scientific judgment is actually required.
 
 ### Routine automation remains policy, not repeated approval
 
@@ -100,15 +201,83 @@ matching Receipts can land without a human key. The signer helper is for
 `Defer`, policy administration, recovery, and other exceptional authority
 operations. Vela does not make humans click through routine producer work.
 
-### Portable signer helper
+Canopus must not land a result merely to force a human rejection when the
+durable Engine gate already says it is not reviewable. It preserves the run and
+verifier evidence without a proposal, or uses its retained producer capability
+to withdraw a proposal it already created. Pending review is reserved for work
+that is genuinely ready for human judgment.
 
-The Vela CLI never reads a protected human seed after enrollment. For each
-decision it starts the pinned `vela-signer` executable, sends one closed
-`vela.signer-request.v1` over an inherited input pipe, reads one closed
-`vela.signer-response.v1` from an inherited output pipe, and waits for the
-helper to exit. There is no listener, daemon, forwarded socket, hosted service,
-or persistent signing API. These are local product contracts, not frontier
-objects.
+### Protected custody and the approval edge
+
+The Vela CLI and model never read a protected human seed after enrollment. In
+the 0.901 profile, the one-shot custody helper itself owns the final semantic
+approval card. Any same-user process may request that card, but only the
+person's action on the platform UI can approve it. The helper exits after one
+closed request. A raw command, environment variable, model response, session
+record, or generic OS-store read is never a decision approval.
+
+This deliberately accepts one concise click for a genuinely human scientific
+decision. It does not accept a password or biometric prompt per signature.
+The semantic card answers one exceptional decision; authentication opens or
+refreshes bounded custody only when needed; the signature then happens
+invisibly. A future
+in-process Codex, Claude, or review-inbox adapter may replace the helper's card
+with its native user-interaction channel, but it must return a fresh
+one-operation authorization capability that the model cannot obtain or forge.
+That adapter is not required for the 0.901 protocol boundary and must not add
+an authority service.
+
+Enrollment has no separate Vela confirmation alert. The explicit `vela id
+protect` invocation is the request, and one platform authentication authorizes
+the one-time move into protected custody. Reading the source, installing the
+protected copy, readback, public-key verification, identity replacement, and
+plaintext deletion remain ordered and recoverable. This removes a redundant
+prompt without weakening the only factor that protects the migration.
+
+The identity pins the exact signer-helper digest. A package update cannot use
+the protected key until the person reruns the same explicit command. With no
+plaintext source present, the installed helper authenticates once, proves
+possession of the existing Ed25519 key, and signs a local rebind response that
+covers the old and new helper digests, old and new protection modes, actor,
+public key, old and new Vela binary digests, provider, time, and request root.
+Only then may the CLI update the public identity profile and binary pin. Each
+file is replaced atomically; partial local completion remains fail-closed and
+rerunning the same authenticated command resumes it. An unchanged installation
+does not rewrite either pin. Changing `always` to `session` uses this same
+ceremony; editing the JSON does not.
+
+The pending enrollment record also binds the exact Vela and helper digests.
+If plaintext deletion succeeds but the final identity write is interrupted,
+the exact pair may authenticate, prove possession of the protected key, and
+finish the pending record. Recovery cannot simultaneously upgrade binaries or
+change modes. A pending record without its original source or digest binding
+fails with an explicit restore action.
+
+The local rebind request is closed and root-bound:
+
+```text
+purpose: upgrade | enrollment_recovery
+nonce
+expires_at
+vela_binary_path
+previous_vela_binary_sha256
+vela_binary_sha256
+previous_helper_sha256
+helper_sha256
+actor
+public_key
+provider
+previous_protection_mode
+protection_mode
+```
+
+The response repeats the actor, public key, new helper/provider/mode, request
+root, and authorization time and is signed by the existing protected Ed25519
+key. `upgrade` requires at least one actual pin or mode change;
+`enrollment_recovery` requires all three to remain unchanged. A successful
+session-mode enrollment or rebind signs and opens the new bounded signer
+session, so the next decision does not immediately repeat platform
+authentication.
 
 The request binds:
 
@@ -133,6 +302,13 @@ gate_state
 provider
 protection_grade
 protection_mode
+display {
+  frontier_name
+  claim
+  requester
+  decisive_facts
+  consequence
+}
 events
 ```
 
@@ -152,56 +328,66 @@ protection_mode
 signatures
 ```
 
-The helper accepts one request, requires its nonce and expiry to be valid,
-reconstructs the canonical event signing inputs from the structured unsigned
-events, and verifies that the displayed proposal, action, reason, actor, and
-Decision Plan root match those event cores. It signs those inputs only. The CLI
-verifies the helper digest, response root, public key, and every returned
-signature, rechecks the transaction read set, and writes only if all state is
-unchanged.
+The display material is derived from the same Decision Brief, bounded, stripped
+of control characters, and covered by the request root. The helper reconstructs
+canonical event inputs, signs only those inputs, and returns no secret material.
+Vela then rechecks the complete transaction read set before any write. A future
+client adapter additionally binds its capability to the request root, action,
+proposal, actor, client session, and expiry.
 
-Anonymous inherited pipes avoid a reusable local endpoint. The helper rejects
-terminal arguments, environment-carried requests, additional requests, and
-unknown fields. It disables core dumps/debug attachment where the platform
-permits, zeroizes exported seeds before exit, and never logs secret or signing
-input bytes.
+### Provider sessions and semantic review
 
-### Provider sessions and exact decision cards
-
-The default `session` mode uses the platform authenticator on first use, then
+The default `session` mode uses the platform authenticator after the first
+semantic decision approval in an expired session, then
 records a local signer session with a 15-minute inactivity limit and a one-hour
 overall limit. The record is non-authoritative, contains no factor or secret,
 is mode `0600` where supported, and binds the actor, public key, provider,
 protection mode, and helper digest. The protected identity signs the record,
 so local edits invalidate it. It cannot approve a decision or produce a
-signature. Expiry or binding drift requires platform reauthentication. The underlying OS store
-still controls key release, so locking or invalidating that provider makes the
-next key read fail or reauthenticate according to the provider.
+signature. Expiry or binding drift requires platform reauthentication. The
+underlying OS store still controls key release, so locking or invalidating that
+provider makes the next key read fail or reauthenticate according to the
+provider.
 
 This short receipt gives Vela deterministic prompt timing without inventing a
 password or retaining biometric/passcode material. Deleting or corrupting it
 only forces reauthentication.
 
-Every deferred proposal still receives a separate decision card. It shows:
+Cancellation occurs before session creation, refresh, platform authentication,
+or key access. An expired session therefore does not make a person authenticate
+for a decision they decline.
 
-- accept or reject;
-- full proposal ID and proposal root;
-- frontier ID;
-- exact reason;
-- Decision Plan root;
-- Engine/gate standing;
-- custody provider, protection grade, and provider-session state.
+Every deferred proposal receives a semantic review item. In 0.901, Codex or the
+operator may invoke the exact command, but the human acts only on the platform
+card. A later review inbox may render the same request. The default card
+contains only:
 
-The card has explicit Approve and Decline actions. Approval is unique to one
-nonce and expires with the request. Changing the proposal, action, reason,
-root, event core, or observation time invalidates it. This is the human
-authority act; merely authenticating a signer session is not.
+- the plain-language action, using `Accept result` or `Reject proposal`;
+- the claim or result being decided;
+- the decisive evidence or blocker;
+- the consequence for accepted state; and
+- the requester/producer.
+
+The card includes short proposal and Decision Plan references for correlation.
+Full roots, custody provider, signatures, and event cores remain in the
+key-free JSON preview and machine request; a future review inbox places them
+under one `Technical details` disclosure. They are fully machine-bound but are
+not the primary human language. Buttons name the result and include `Cancel`;
+the UI never uses Yes/No. Warning treatment is reserved for an unexpected
+irreversible consequence, not ordinary review.
+
+The item remains unique to one nonce and request root. Changing the proposal,
+action, reason, root, event core, or observation time invalidates it. The 0.901
+helper returns the signed response only after the exact card action. A future
+trusted client returns a one-operation approval capability. Merely
+authenticating a signer session is never approval.
 
 An optional `always` mode asks the platform authenticator or a confirming
-external agent to reauthenticate for every decision-signing operation after the decision card.
-It is required when the requester can control the desktop UI, or by local
-policy. There is no Vela "approve for session" or "approve all decisions"
-option: the authentication session never authorizes proposal semantics.
+external agent to reauthenticate for every authority operation. The default
+does not. Authentication and client authorization are session-scoped;
+scientific semantics remain policy-scoped or operation-scoped. A client may
+offer a session grant only for an already closed non-scientific capability.
+It may never turn `accept all proposals` into a session permission.
 
 ### Cross-platform custody profiles
 
@@ -223,10 +409,10 @@ The following providers are product profiles, not different frontier protocols:
 
 | Profile | At-rest custody | Authentication | Important limit |
 | --- | --- | --- | --- |
-| macOS | login Keychain through the one-shot helper | LocalAuthentication | raw CLI storage is user-session protection, not app-isolated data-protection Keychain |
-| Windows | current-user DPAPI/Credential Manager in the signed helper | Windows Hello/user consent | DPAPI alone is user-scoped storage, not transaction consent |
-| Linux | Secret Service in the login session | Secret Service prompt plus non-cached polkit reauth | service implementations and process isolation vary |
-| RFC 9987 agent (future profile) | Ed25519 key remains in the external agent | provider policy or confirmation constraint | socket access can steal key use; 0.901 does not ship this profile |
+| macOS | login Keychain through an authorized client | LocalAuthentication at session open or expiry | raw CLI storage is user-session protection, not app-isolated data-protection Keychain |
+| Windows | current-user DPAPI/Credential Manager through an authorized client | Windows Hello/user consent at session open or expiry | DPAPI alone is user-scoped storage, not transaction consent |
+| Linux | Secret Service through an authorized client | Secret Service plus non-cached polkit at session open or expiry | service implementations and process isolation vary |
+| External agent | Ed25519 key remains in 1Password or an RFC 9987 agent | provider application/session policy | a generic agent socket needs explicit client authorization or confirmation constraints |
 
 Vela reports one of these protection grades instead of pretending the profiles
 are equivalent:
@@ -252,24 +438,26 @@ only then deletes the source. A local journal makes interruption resumable.
 Protected decisions remain disabled while source removal is pending. Success is
 never reported while a plaintext source key remains.
 
-### Exact one-proposal decision
+### Review command and future client adapters
 
-```bash
-vela review decide <frontier> <vpr_id> \
-  (--accept | --reject) --reason <text> \
-  [--confirm-root <sha256:...> --confirm-at <RFC3339>] [--json]
-```
+The normal 0.901 entry point is the initiating agent task or `vela review
+decide`. The agent may prepare and invoke the root-bound request; the person
+does not copy commands, roots, or timestamps. The helper shows the State
+Transition Card, not a signing utility. `vela review decide --json` remains the
+adapter and test contract for a later review inbox.
 
-The first phase reads no key and writes nothing. It returns
-`vela.review-decision.v1` containing one exact Decision Brief, action, reason,
-reviewer, observation time, and Decision Plan root.
+The client requests one decision using `vela.review-decision.v1`. The preview
+is key-free and includes the Decision Brief, action, typed rationale, reviewer,
+observation time, and Decision Plan root. Before signing, Vela checks freshness,
+eligibility, reviewer authority, policy and Engine inputs, binary identity, the
+human card result, and the complete transaction read set. A future external
+client also supplies its one-operation authorization capability.
 
-The second phase requires the matching root and time. Before contacting the
-helper, Vela checks confirmation freshness, action eligibility, reviewer
-registration, policy and Engine inputs, binary identity, and the complete
-transaction read set. The protected path has no `--key`, `--yes`, wildcard,
-batch, saved-answer, or persistent-approval input. Cancellation or timeout
-produces no event, proposal change, journal marker, or Git commit.
+The ordinary path has no `--key`, `--yes`, wildcard, saved-answer, or generic
+signing input. A homogeneous, policy-bounded review set may use a visible batch
+manifest with per-item exclusion and one batch root. Heterogeneous semantic or
+governance decisions may not be batched. Cancellation or timeout writes
+nothing.
 
 Success emits the existing signed `review.accepted` or `review.rejected` event
 through the recoverable frontier transaction and exact Git publication path.
@@ -332,21 +520,23 @@ approve its own request.
 ### Require a biometric or passcode for every ordinary decision
 
 This confuses authentication with transaction authorization, creates prompt
-fatigue, and is not portable. The exact decision card is mandatory; repeated
-platform authentication is an optional or policy-required `always` mode.
+fatigue, and is not portable. Platform authentication opens a bounded custody
+session. It recurs only at expiry, provider lock, or an explicit high-assurance
+policy boundary.
 
-### Unlock once and allow blanket session signing
+### Unlock once and let an agent impersonate the human
 
 An authenticated session does not prove approval of later proposal semantics.
-The helper never exposes a generic signing endpoint and never offers an
-"approve all decisions" grant.
+Routine autonomy uses an agent or service identity under a human-signed scoped
+policy. It does not emit events that falsely claim the human reviewed each
+item. A human key never becomes a generic session signing endpoint.
 
 ### Treat Keychain, DPAPI, Secret Service, polkit, or SSH-agent approval as the decision
 
 These mechanisms protect storage, authenticate a user/session, or authorize key
-use. Their prompts do not reliably show the full Vela transaction. They may
-support custody and high-assurance confirmation, but the exact Vela decision
-card and final state recheck remain mandatory.
+use. Their prompts do not reliably show a Vela state transition. They support
+custody and high-assurance confirmation; the contextual review item and final
+state recheck supply semantic authorization.
 
 ### Replace the identity with Secure Enclave, Windows Hello, a passkey, or Sigstore
 
@@ -356,7 +546,9 @@ or trust roots. They cannot silently preserve the existing Ed25519 authority.
 ### Keep batch signing as the ordinary path
 
 Saved answers and queue-wide context are unnecessary inputs for one decision.
-Batch and detached compatibility remain under advanced help.
+A batch is allowed only for a homogeneous, policy-bounded set with visible
+membership, per-item exclusion, and one frozen root. Detached compatibility
+remains under advanced help.
 
 ### Delete producer proposals
 
@@ -374,9 +566,11 @@ non-scientific.
   signature, or mismatched request root fails before frontier writes.
 - Binary replacement, identity drift, registry drift, proposal drift, gate
   drift, or transaction read-set drift invalidates approval.
-- There is no helper socket to steal or forward. The helper accepts exactly one
-  request through inherited pipes, and helper paths or custody endpoints are
-  never mounted into workers or verifiers.
+- A future custody or review-client endpoint authenticates its caller and binds
+  grants to the client process/session, actor, frontier, request root, and
+  expiry. A copied socket, named pipe, bearer capability, or stale client grant
+  cannot authorize another process or decision. The 0.901 one-shot helper does
+  not expose such an endpoint.
 - Desktop automation can click ordinary UI, so an automation-capable requester
   requires `always` mode. Canopus workers receive neither desktop control nor
   helper IPC.
@@ -396,8 +590,8 @@ non-scientific.
 - Existing event, proposal, Receipt, policy, registration, and artifact bytes
   replay unchanged.
 - Existing `review.*` signatures and acceptance rules are unchanged.
-- `proposal.withdrawn` is the sole 0.901 wire addition; 0.900 readers may reject
-  it at the intentional protocol boundary.
+- `proposal.withdrawn` is the sole proposed wire addition; readers from before
+  its eventual release may reject it at the intentional protocol boundary.
 - A frontier remains portable through Git because no canonical event refers to
   an OS credential-store identifier or provider session.
 - Canopus may retain a proposal-scoped copy of its own producer key after a
@@ -415,19 +609,34 @@ Signer and decision tests must prove:
   key, and forged signatures fail closed;
 - helper exit, OS lock, provider lock, identity drift, and binary drift prevent
   continued signing according to the declared provider contract;
-- session mode requires one decision-card approval but does not prompt for a
-  password/biometric on every decision;
-- always mode requires both the exact card and a per-use platform/agent check;
+- an installed Vela binary or helper whose digest differs from its pin cannot
+  sign; binary, helper, or protection-mode rebind requires one platform
+  authentication and a valid response signature from the existing protected
+  key;
+- session mode authenticates at session open or expiry and never prompts merely
+  because another signature is produced;
+- only genuinely deferred human-authority items require a semantic action;
+- routine policy-permitted work and producer withdrawal require no human
+  prompt and never use the human key;
+- always mode requires both the contextual review action and a per-use
+  platform/agent check;
 - cancellation, timeout, authentication failure, and post-approval state drift
   produce zero frontier writes;
+- enrollment has exactly one human-facing platform authentication and no
+  preceding generic confirmation alert;
 - identity v1 replay, successful v1-to-v2 enrollment, crash recovery, readback,
   public-key mismatch, and plaintext removal;
 - the CLI never receives protected seed bytes and rejects an authentic signature
   for the wrong request;
 - macOS, Windows, and Linux profiles satisfy the same behavioral contract,
   with live current-platform custody checks at release;
-- no batch, wildcard, key path, `--yes`, or sign-session state affects
-  `review decide`.
+- no wildcard, key path, `--yes`, legacy sign-session state, or model-produced
+  boolean can authorize a human decision;
+- the default card uses action-specific buttons, contains no caution icon for
+  ordinary review, omits full keys, paths, provider internals, and roots from
+  the primary view, and remains usable by keyboard and screen reader;
+- a homogeneous batch proves visible membership, exclusion, policy bounds, and
+  a frozen root; heterogeneous batches fail closed.
 
 Withdrawal tests must prove valid withdrawal, wrong key/actor, altered
 Receipt/binding, full-ID resolution, tampered event, duplicate conflict,
@@ -453,21 +662,27 @@ The release matrix must compile and test macOS, Windows, and Linux profiles.
 Each release bundle contains the exact `vela` and `vela-signer` pair. The Linux
 bundle also contains the non-caching polkit policy. The installers verify the
 archive checksum before placing either executable.
-The deterministic release union runs once at the actual `v0.901.0` boundary.
-External Lean, Diderot, live-network, hosted authority, browser/MCP signing, and
+The deterministic release union runs once at the eventual release boundary.
+External Lean, Diderot, live-network, hosted authority, model-held signing, and
 unrelated suites remain excluded.
 
 ## Acceptance evidence required
 
-Acceptance requires released packages for macOS, Windows, and Linux plus the
-current-platform live custody fixture. It also requires the released binary to
-reproduce the Erdős baseline at
-`48e7944d29dc773a7c5b74950f9092403c9825fa`, ignore the unrelated legacy
-sign-session file, and render the exact proposal and Receipt roots. Acceptance
-must remain blocked and rejection available. The agent may submit the exact
-rejection request, but only the user's decision-card action may authorize it.
-Approval must change exactly one proposal; cancellation must change none.
-Clean-clone strict replay must agree before this ADR becomes Accepted.
+Acceptance requires packages for macOS, Windows, and Linux, current-platform
+live custody, and cold-use UX evidence. Four fresh users must complete routine
+producer work with zero human prompts and identify that the agent, not the
+human, signed it. Four fresh reviewers must resolve a deferred item from its
+active task or platform card without copying terminal commands or roots,
+encountering signing language, or seeing unexplained OS dialogs. They must
+correctly state the semantic effect, why the item was deferred, and whether
+accepted state changes.
+
+The exact Erdős rejection at commit `0041be301ae2a9aa966e85d2d530de60c6c9192e`
+is retained as a cryptographic success and usability failure. It is not reused
+as positive UX evidence. Future dogfood uses non-authoritative fixtures until
+the user reviews the new surface. Cancellation must change nothing; approval
+must change only the displayed item; clean-clone replay must agree. ADR 0011
+cannot become Accepted merely because signer tests pass.
 
 ## References
 
@@ -481,3 +696,8 @@ Clean-clone strict replay must agree before this ADR becomes Accepted.
 [^linux]: [Secret Service API](https://specifications.freedesktop.org/secret-service/latest-single/) and [polkit reference](https://polkit.pages.freedesktop.org/polkit/polkit.8.html)
 [^webauthn]: [Web Authentication Level 3](https://www.w3.org/TR/webauthn-3/)
 [^sigstore]: [Sigstore signing overview](https://docs.sigstore.dev/cosign/signing/overview/)
+[^github-signing]: [GitHub, Signing commits](https://docs.github.com/en/authentication/managing-commit-signature-verification/signing-commits)
+[^1p-security]: [1Password, About SSH Agent security](https://www.1password.dev/ssh/agent/security)
+[^claude-permissions]: [Claude Code CLI permissions](https://code.claude.com/docs/en/cli-usage)
+[^apple-alerts]: [Apple Human Interface Guidelines, Alerts](https://developer.apple.com/design/human-interface-guidelines/alerts) and [Disclosure controls](https://developer.apple.com/design/human-interface-guidelines/disclosure-controls)
+[^github-review]: [GitHub, Reviewing deployments](https://docs.github.com/en/actions/how-tos/managing-workflow-runs-and-deployments/managing-deployments/reviewing-deployments)
