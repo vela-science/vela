@@ -105,13 +105,27 @@ cargo build --release
 vela completions zsh > ~/.zfunc/_vela   # shell completions (bash/zsh/fish)
 ```
 
-Or install a prebuilt binary on Apple Silicon macOS or Linux x86_64. Other
-platforms must build from source:
+Install the checksum-verified bundle on Apple Silicon macOS or Linux x86-64.
+The bundle keeps the one-shot `vela-signer` beside `vela`; Linux also installs
+the non-caching polkit action used for local authentication.
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.900.2/install.sh \
-  | VELA_VERSION=v0.900.2 bash
+curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.901.0/install.sh \
+  | VELA_VERSION=v0.901.0 bash
 ```
+
+On Windows x86-64, use PowerShell. This installs both executables under the
+current user's local application-data directory and adds that directory to the
+user PATH:
+
+```powershell
+& ([scriptblock]::Create((Invoke-WebRequest https://raw.githubusercontent.com/vela-science/vela/v0.901.0/install.ps1).Content)) -Version v0.901.0
+```
+
+Source installations must install both binaries with
+`cargo install --locked --path crates/vela-cli`. Linux source installations
+must also install `packaging/linux/science.vela.signer.policy` under the system
+polkit actions directory before protected signing is available.
 
 ## The working loop
 
@@ -126,11 +140,16 @@ vela land --frontier <frontier> --work <target> --claim <result> \
   --type computational --replayability exact --artifact <path>:<kind> \
   --caveat <limit> --as agent:<you> --json
 vela reproduce <frontier>
-vela sign                       # key-holding human only
+vela review decide <frontier> <vpr_id> --reject --reason <reason> --json
+                                # key-free exact preview
 ```
 
-An agent may land; only a key-holding human signs. Failed and negative work can
-be retained as scoped receipts instead of disappearing from the next briefing.
+An agent may land and prepare one exact protected decision; only the registered
+human's explicit action on the exact decision card authorizes it. Platform
+authentication starts a short signer session and can be required for every use
+with `--mode always`; it is not repeated blindly for every ordinary decision.
+Failed and negative work can be retained as scoped receipts instead of
+disappearing from the next briefing.
 Large frontiers can expose every problem through the derived, hash-pinned
 [`targets.json` contract](docs/TARGET_INDEX.md); the catalogue is a removable
 work projection, not a second truth store.
@@ -155,8 +174,9 @@ vela land --frontier . --work <target> --claim <result> \
 
 The frontier's signed policy routes the receipt. Permit can admit a narrowly
 pre-authorized class; Defer leaves the proposal for a key-holding human. A
-producer cannot sign, accept, reject, or finalize it. See the
-[producer quickstart](docs/PRODUCER_QUICKSTART.md) for the exact workflow,
+producer cannot sign, accept, reject, or finalize it, but may explicitly
+withdraw its own Receipt-bound pending proposal without deleting its evidence.
+See the [producer quickstart](docs/PRODUCER_QUICKSTART.md) for the exact workflow,
 result classes, Git publication check, and offline path.
 
 ## Project links

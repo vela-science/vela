@@ -40,6 +40,34 @@ pub(crate) struct Identity {
     /// Hex-encoded Ed25519 public key. `vela actor add` verifies this against
     /// the configured private key during one-time empty-registry bootstrap.
     pub pubkey: String,
+    /// v2 signer backend. Absence means the v1 `key_path` file backend.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub signer: Option<IdentitySigner>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub(crate) enum IdentitySigner {
+    File {
+        key_path: String,
+    },
+    Helper {
+        provider: String,
+        key_id: String,
+        public_key: String,
+        protection_grade: String,
+        mode: String,
+        helper_sha256: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pending_source_removal: Option<String>,
+    },
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct ProtectedSignerProfile {
+    pub(crate) provider: String,
+    pub(crate) protection_grade: String,
+    pub(crate) mode: vela_signer::ProtectionMode,
 }
 
 fn default_version() -> String {
@@ -75,7 +103,16 @@ pub(crate) fn save_identity(identity: &Identity) -> Result<(), String> {
     let path = identity_path();
     let json =
         serde_json::to_string_pretty(identity).map_err(|e| format!("serialize identity: {e}"))?;
-    std::fs::write(&path, format!("{json}\n")).map_err(|e| format!("write {}: {e}", path.display()))
+    let temporary = path.with_extension(format!("json.tmp-{}", std::process::id()));
+    std::fs::write(&temporary, format!("{json}\n"))
+        .map_err(|e| format!("write {}: {e}", temporary.display()))?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&temporary, std::fs::Permissions::from_mode(0o600))
+            .map_err(|e| format!("protect {}: {e}", temporary.display()))?;
+    }
+    std::fs::rename(&temporary, &path).map_err(|e| format!("install {}: {e}", path.display()))
 }
 
 // ── Resolvers: flag > VELA_* env > profile > error-with-hint ──────────
@@ -131,7 +168,78 @@ pub(crate) fn resolve_key_path(flag: Option<&Path>) -> Option<PathBuf> {
     {
         return Some(PathBuf::from(p));
     }
-    load_identity().map(|id| PathBuf::from(id.key_path))
+    load_identity().and_then(|id| match id.signer {
+        Some(IdentitySigner::File { key_path }) => Some(PathBuf::from(key_path)),
+        Some(IdentitySigner::Helper { .. }) => None,
+        None => Some(PathBuf::from(id.key_path)),
+    })
+}
+
+pub(crate) fn protected_signer_account() -> Result<String, String> {
+    let identity = load_identity().ok_or_else(|| SETUP_HINT.to_string())?;
+    match identity.signer {
+        Some(IdentitySigner::Helper {
+            key_id,
+            pending_source_removal: None,
+            ..
+        }) => Ok(key_id),
+        Some(IdentitySigner::Helper {
+            pending_source_removal: Some(path),
+            ..
+        }) => Err(format!(
+            "protected identity migration is incomplete; remove the plaintext source {path} by rerunning `vela id protect --user-presence --remove-source-key`"
+        )),
+        _ => Err(
+            "this decision requires a user-presence protected identity; run `vela id protect --user-presence --remove-source-key`"
+                .to_string(),
+        ),
+    }
+}
+
+pub(crate) fn protected_signer_profile() -> Result<ProtectedSignerProfile, String> {
+    let identity = load_identity().ok_or_else(|| SETUP_HINT.to_string())?;
+    match identity.signer {
+        Some(IdentitySigner::Helper {
+            provider,
+            protection_grade,
+            mode,
+            pending_source_removal: None,
+            ..
+        }) => Ok(ProtectedSignerProfile {
+            provider,
+            protection_grade,
+            mode: parse_protection_mode(&mode)?,
+        }),
+        _ => {
+            protected_signer_account()?;
+            unreachable!("protected account validation returned without a supported signer")
+        }
+    }
+}
+
+fn parse_protection_mode(value: &str) -> Result<vela_signer::ProtectionMode, String> {
+    match value {
+        "session" => Ok(vela_signer::ProtectionMode::Session),
+        "always" => Ok(vela_signer::ProtectionMode::Always),
+        _ => Err(format!("unsupported protected signer mode '{value}'")),
+    }
+}
+
+pub(crate) fn signer_helper_path(vela_binary: &Path) -> Result<PathBuf, String> {
+    let directory = vela_binary
+        .parent()
+        .ok_or_else(|| "running Vela binary has no parent directory".to_string())?;
+    #[cfg(target_os = "windows")]
+    let helper = directory.join("vela-signer.exe");
+    #[cfg(not(target_os = "windows"))]
+    let helper = directory.join("vela-signer");
+    if !helper.is_file() {
+        return Err(format!(
+            "pinned signer helper is missing at {}; reinstall the complete Vela package",
+            helper.display()
+        ));
+    }
+    Ok(helper)
 }
 
 /// Resolve and load the signing key, exiting with a setup hint when none

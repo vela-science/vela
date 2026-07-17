@@ -208,6 +208,17 @@ pub(crate) struct PreparedDecision {
     provenance: Option<vela_protocol::provenance::Provenance>,
 }
 
+/// Exact unsigned event set handed to a separate custody process. This is
+/// process-local transaction plumbing, not a frontier object.
+#[derive(Debug, Clone)]
+pub(crate) struct PreparedSignatureSet {
+    pub(crate) frontier_id: String,
+    pub(crate) decision_root: String,
+    pub(crate) reviewer_id: String,
+    pub(crate) reviewer_public_key: String,
+    pub(crate) events: Vec<vela_protocol::events::StateEvent>,
+}
+
 /// One exact mutation prepared by this private, recoverable Decision Plan.
 ///
 /// Ordinary proposal mutations remain protocol-owned. Legacy policy
@@ -262,6 +273,10 @@ impl DecisionPlanError {
 
     fn transaction(error: impl fmt::Display) -> Self {
         Self::new("transaction_failed", error.to_string())
+    }
+
+    pub(crate) fn new_external(code: &'static str, message: impl Into<String>) -> Self {
+        Self::new(code, message)
     }
 }
 
@@ -516,6 +531,34 @@ pub(crate) fn execute_with_key_loader<K>(
 where
     K: FnOnce() -> Result<SigningKey, String>,
 {
+    execute_with_signature_loader(frontier, confirmed, |material| {
+        let signing_key = key_loader()?;
+        let verifying_key = hex::encode(signing_key.verifying_key().to_bytes());
+        if !verifying_key.eq_ignore_ascii_case(&material.reviewer_public_key) {
+            return Err(format!(
+                "loaded key does not match the registered key for {}",
+                material.reviewer_id
+            ));
+        }
+        material
+            .events
+            .iter()
+            .map(|event| vela_protocol::sign::sign_event(event, &signing_key))
+            .collect()
+    })
+}
+
+/// Execute a confirmed plan while delegating only its exact unsigned event
+/// cores to an external signer. The returned signatures are reverified under
+/// the registered reviewer key before any transaction journal is prepared.
+pub(crate) fn execute_with_signature_loader<K>(
+    frontier: &Path,
+    confirmed: &PreparedDecision,
+    signature_loader: K,
+) -> Result<DecisionExecutionOutcome, DecisionPlanError>
+where
+    K: FnOnce(&PreparedSignatureSet) -> Result<Vec<String>, String>,
+{
     ensure_transactional_frontier(frontier)?;
     let computed_root = decision_plan_root(&confirmed.plan)?;
     if computed_root != confirmed.plan.decision_root {
@@ -592,47 +635,59 @@ where
         &chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Nanos, true),
     )?;
 
-    let signing_key =
-        key_loader().map_err(|error| DecisionPlanError::new("key_unavailable", error))?;
+    let events = prepared_external_signing_events(&prepared)?;
+    let signature_set = PreparedSignatureSet {
+        frontier_id: prepared.plan.frontier_id.clone(),
+        decision_root: prepared.plan.decision_root.clone(),
+        reviewer_id: prepared.reviewer_id.clone(),
+        reviewer_public_key: prepared.reviewer_public_key.clone(),
+        events,
+    };
+    let signatures = signature_loader(&signature_set)
+        .map_err(|error| DecisionPlanError::new("key_unavailable", error))?;
     hit_executor_step(DecisionExecutorStep::AfterKeyRead)?;
-    let verifying_key = hex::encode(signing_key.verifying_key().to_bytes());
-    if !verifying_key.eq_ignore_ascii_case(&prepared.reviewer_public_key) {
+    if signatures.len() != signature_set.events.len() {
         return Err(DecisionPlanError::new(
-            "key_mismatch",
-            format!(
-                "loaded key does not match the registered key for {}",
-                prepared.reviewer_id
-            ),
+            "signing_failed",
+            "external signer returned the wrong number of event signatures",
         ));
     }
-    validate_reviewer_for_key_use(
-        &prepared.candidate,
-        &prepared.reviewer_id,
-        &prepared.reviewer_public_key,
-        &chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Nanos, true),
-    )?;
-    for mutation in &prepared.mutations {
-        match mutation {
-            DecisionMutation::Protocol(mutation) => {
-                vela_protocol::proposals::sign_prepared_decision_events(
-                    &mut prepared.candidate,
-                    mutation,
-                    &prepared.reviewer_id,
-                    &signing_key,
+    for (event, signature) in signature_set.events.iter().zip(signatures) {
+        let candidate_event = prepared
+            .candidate
+            .events
+            .iter_mut()
+            .find(|candidate| candidate.id == event.id)
+            .ok_or_else(|| {
+                DecisionPlanError::new(
+                    "signing_failed",
+                    format!("prepared signing event {} disappeared", event.id),
                 )
-                .map_err(|error| DecisionPlanError::new("signing_failed", error))?;
-            }
-            DecisionMutation::LegacyRetirement(mutation) => {
-                sign_legacy_retirement_mutation(
-                    &mut prepared.candidate,
-                    mutation,
-                    &prepared.reviewer_id,
-                    &signing_key,
-                )
-                .map_err(|error| DecisionPlanError::new("signing_failed", error))?;
-            }
+            })?;
+        let candidate_core = vela_protocol::canonical::to_canonical_bytes(candidate_event)
+            .map_err(|error| DecisionPlanError::new("signing_failed", error))?;
+        let requested_core = vela_protocol::canonical::to_canonical_bytes(event)
+            .map_err(|error| DecisionPlanError::new("signing_failed", error))?;
+        if candidate_core != requested_core {
+            return Err(DecisionPlanError::new(
+                "signing_failed",
+                format!("prepared signing event {} drifted", event.id),
+            ));
+        }
+        candidate_event.signature = Some(signature);
+        if !vela_protocol::sign::verify_event_signature(
+            candidate_event,
+            &prepared.reviewer_public_key,
+        )
+        .map_err(|error| DecisionPlanError::new("signing_failed", error))?
+        {
+            return Err(DecisionPlanError::new(
+                "signing_failed",
+                format!("external signature for {} is invalid", event.id),
+            ));
         }
     }
+    validate_prepared_external_signatures(&prepared)?;
 
     let mut writes = PlannedWrite::from_managed_files(
         vela_protocol::repo::render_vela_repo_files(frontier, &prepared.candidate)
@@ -1580,44 +1635,83 @@ fn bind_legacy_retirement_mutation(
     Ok(())
 }
 
-fn sign_legacy_retirement_mutation(
-    project: &mut Project,
-    mutation: &LegacyRetirementMutation,
-    reviewer: &str,
-    signing_key: &SigningKey,
-) -> Result<(), String> {
-    if reviewer != mutation.reviewer {
-        return Err(format!(
-            "prepared reviewer '{}' does not match signing reviewer '{reviewer}'",
-            mutation.reviewer
+fn prepared_external_signing_events(
+    prepared: &PreparedDecision,
+) -> Result<Vec<vela_protocol::events::StateEvent>, DecisionPlanError> {
+    let mut events = Vec::new();
+    for mutation in &prepared.mutations {
+        match mutation {
+            DecisionMutation::Protocol(mutation) => events.extend(
+                vela_protocol::proposals::validate_prepared_decision_for_external_signing(
+                    &prepared.candidate,
+                    mutation,
+                    &prepared.reviewer_id,
+                    true,
+                )
+                .map_err(|error| DecisionPlanError::new("signing_failed", error))?,
+            ),
+            DecisionMutation::LegacyRetirement(mutation) => {
+                if mutation.reviewer != prepared.reviewer_id || mutation.decision_root.is_none() {
+                    return Err(DecisionPlanError::new(
+                        "signing_failed",
+                        "legacy retirement signing material is unbound or has the wrong reviewer",
+                    ));
+                }
+                validate_legacy_retirement_mutation(&prepared.candidate, mutation, true)
+                    .map_err(|error| DecisionPlanError::new("signing_failed", error))?;
+                let event = prepared
+                    .candidate
+                    .events
+                    .get(mutation.first_event)
+                    .expect("legacy mutation invariant validates its event range");
+                vela_protocol::proposals::validate_human_reviewer_authority_at(
+                    &prepared.candidate,
+                    &prepared.reviewer_id,
+                    &event.timestamp,
+                )
+                .map_err(|error| DecisionPlanError::new("reviewer_unauthorized", error))?;
+                events.push(event.clone());
+            }
+        }
+    }
+    let event_ids = events
+        .iter()
+        .map(|event| event.id.as_str())
+        .collect::<Vec<_>>();
+    let expected_ids = prepared
+        .appended_event_ids
+        .iter()
+        .map(String::as_str)
+        .collect::<Vec<_>>();
+    if event_ids != expected_ids {
+        return Err(DecisionPlanError::new(
+            "signing_failed",
+            "prepared external signing event order does not match the Decision Plan",
         ));
     }
-    if mutation.decision_root.is_none() {
-        return Err(
-            "legacy retirement decision must be decision-root bound before signing".to_string(),
-        );
+    Ok(events)
+}
+
+fn validate_prepared_external_signatures(
+    prepared: &PreparedDecision,
+) -> Result<(), DecisionPlanError> {
+    for mutation in &prepared.mutations {
+        match mutation {
+            DecisionMutation::Protocol(mutation) => {
+                vela_protocol::proposals::validate_prepared_decision_for_external_signing(
+                    &prepared.candidate,
+                    mutation,
+                    &prepared.reviewer_id,
+                    false,
+                )
+                .map_err(|error| DecisionPlanError::new("signing_failed", error))?;
+            }
+            DecisionMutation::LegacyRetirement(mutation) => {
+                validate_legacy_retirement_mutation(&prepared.candidate, mutation, false)
+                    .map_err(|error| DecisionPlanError::new("signing_failed", error))?;
+            }
+        }
     }
-    validate_legacy_retirement_mutation(project, mutation, true)?;
-    let event = project
-        .events
-        .get(mutation.first_event)
-        .expect("legacy mutation invariant validates its event range");
-    let actor = vela_protocol::proposals::validate_human_reviewer_authority_at(
-        project,
-        reviewer,
-        &event.timestamp,
-    )?;
-    let derived = hex::encode(signing_key.verifying_key().to_bytes());
-    if !derived.eq_ignore_ascii_case(&actor.public_key) {
-        return Err(format!(
-            "the supplied key does not match {reviewer}'s registered decision key"
-        ));
-    }
-    let signature = vela_protocol::sign::sign_event(event, signing_key)?;
-    let mut candidate = clone_project_for_legacy_mutation(project)?;
-    candidate.events[mutation.first_event].signature = Some(signature);
-    validate_legacy_retirement_mutation(&candidate, mutation, false)?;
-    *project = candidate;
     Ok(())
 }
 
@@ -2376,6 +2470,31 @@ mod tests {
             domain_root(DECISION_PLAN_DOMAIN, &changed_core).unwrap(),
             expected
         );
+    }
+
+    #[test]
+    fn review_decide_confirmation_binds_action_target_reason_and_timestamp() {
+        let fixture: serde_json::Value =
+            serde_json::from_str(include_str!("../../../conformance/decision-binding.json"))
+                .unwrap();
+        let original = fixture["decision_plan"]["preimage"].clone();
+        let expected = domain_root(DECISION_PLAN_DOMAIN, &original).unwrap();
+        for (pointer, replacement) in [
+            ("/ordered_answers/0/action", json!("reject")),
+            ("/ordered_answers/0/proposal_id", json!("vpr_other")),
+            ("/ordered_answers/0/reason", json!("different reason")),
+            (
+                "/semantic_event_cores/0/event/timestamp",
+                json!("2026-07-17T12:00:01Z"),
+            ),
+        ] {
+            let mut changed = original.clone();
+            *changed.pointer_mut(pointer).unwrap() = replacement;
+            assert_ne!(
+                domain_root(DECISION_PLAN_DOMAIN, &changed).unwrap(),
+                expected
+            );
+        }
     }
 
     #[test]

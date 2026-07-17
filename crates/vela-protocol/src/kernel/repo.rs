@@ -583,6 +583,27 @@ fn load_vela_repo(dir: &Path) -> Result<Project, String> {
         }
     }
 
+    // Invalid producer withdrawals never gain terminal standing. Keep their
+    // immutable bytes visible for diagnostics, but project the affected
+    // proposal as pending in ordinary reads; strict checks separately block
+    // on the exact Receipt/signature failure.
+    let invalid_withdrawal_proposals = c
+        .events
+        .iter()
+        .filter(|event| event.kind == crate::events::EVENT_KIND_PROPOSAL_WITHDRAWN)
+        .filter(|event| crate::proposals::verify_proposal_withdrawal_event(dir, &c, event).is_err())
+        .map(|event| event.target.id.clone())
+        .collect::<std::collections::BTreeSet<_>>();
+    for proposal in &mut c.proposals {
+        if invalid_withdrawal_proposals.contains(&proposal.id) {
+            proposal.status = "pending_review".to_string();
+            proposal.reviewed_by = None;
+            proposal.reviewed_at = None;
+            proposal.decision_reason = None;
+            proposal.applied_event_id = None;
+        }
+    }
+
     project::recompute_stats(&mut c);
 
     Ok(c)

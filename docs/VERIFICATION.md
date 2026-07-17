@@ -10,7 +10,7 @@ and presentation. Conflating them is the central failure this gate prevents.
    bytes and inputs.
 3. **Claim binding:** the checked property matches the scoped claim recorded in
    Receipt v1.
-4. **Admission:** a human-signed policy Permit or human `vela sign` decision
+4. **Admission:** a human-signed policy Permit or protected human decision
    authorized the exact state transition.
 
 A signature alone does not prove correctness. A passing verifier alone does not
@@ -72,7 +72,7 @@ verified artifact and scoped claim
     -> vela land
     -> signed policy evaluation
     -> Permit: admit the exact authorized class
-       Defer: preserve the proposal for vela sign
+       Defer: preserve the proposal for protected review decide
        Deny: refuse and return a repairable result
 ```
 
@@ -88,10 +88,13 @@ writer.
 
 ## Human decision
 
-`vela sign` is the only human decision ceremony. It renders the exact Decision
-Brief, binds the current accepted base and policy, records accept, reject, skip,
-or quit, and reads the human key once for the confirmed decision set. Any drift
-forces a new plan.
+`vela review decide` is the ordinary human decision ceremony. Its key-free
+phase renders one exact Decision Brief and binds one proposal, action, reason,
+observation time, accepted base, and policy. Its matching second phase rechecks
+all inputs before starting the one-shot signer helper on macOS, Windows, or
+Linux. The human authorizes the exact card; a short platform-authenticated
+session only controls key use. Any drift forces a new plan. `vela sign` remains
+advanced-only historical compatibility.
 
 Human acceptance is a statement of scoped judgment, not a claim that every
 possible property was verified. The decision record should retain the relevant

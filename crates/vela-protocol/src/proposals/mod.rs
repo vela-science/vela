@@ -15,6 +15,289 @@ use crate::project::{self, Project};
 use crate::propagate::{self, PropagationAction};
 use crate::repo;
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ProposalWithdrawalAuthorization {
+    pub proposal_root: String,
+    pub receipt_root: String,
+    pub receipt_path: String,
+    pub identity_binding: crate::identity::IdentityBinding,
+}
+
+/// Resolve and verify the producer authority already bound by a landed
+/// proposal's exact Receipt v1. This grants only the ability to withdraw that
+/// still-pending proposal; it is never reviewer or accepted-state authority.
+pub fn proposal_withdrawal_authorization(
+    frontier: &Path,
+    proposal: &StateProposal,
+) -> Result<ProposalWithdrawalAuthorization, String> {
+    if proposal.status != "pending_review" {
+        return Err(format!(
+            "proposal {} is {}, not pending_review",
+            proposal.id, proposal.status
+        ));
+    }
+    let submission = proposal
+        .payload
+        .get("vela_submission")
+        .and_then(Value::as_object)
+        .ok_or_else(|| {
+            format!(
+                "proposal {} has no Receipt-bound vela_submission and cannot be producer-withdrawn",
+                proposal.id
+            )
+        })?;
+    let receipt_root = submission
+        .get("receipt_root")
+        .and_then(Value::as_str)
+        .ok_or("vela_submission.receipt_root must be a string")?
+        .to_string();
+    let receipt_path = submission
+        .get("receipt_path")
+        .and_then(Value::as_str)
+        .ok_or("vela_submission.receipt_path must be a string")?
+        .to_string();
+    let relative = Path::new(&receipt_path);
+    if relative.is_absolute()
+        || relative.components().any(|component| {
+            matches!(
+                component,
+                std::path::Component::ParentDir
+                    | std::path::Component::RootDir
+                    | std::path::Component::Prefix(_)
+            )
+        })
+    {
+        return Err("proposal receipt path must remain frontier-relative".to_string());
+    }
+    let bytes = std::fs::read(frontier.join(relative))
+        .map_err(|error| format!("read bound Receipt {receipt_path}: {error}"))?;
+    let receipt = crate::receipt_v1::ReceiptV1::parse(&bytes)
+        .map_err(|error| format!("verify bound Receipt {receipt_path}: {error}"))?;
+    let observed_root = receipt
+        .canonical_root()
+        .map_err(|error| format!("canonicalize bound Receipt: {error}"))?;
+    if observed_root != receipt_root {
+        return Err(format!(
+            "bound Receipt root mismatch: proposal declares {receipt_root}, observed {observed_root}"
+        ));
+    }
+    let binding_value = receipt
+        .as_value()
+        .pointer("/environment/vela:producer_context/identity_binding")
+        .cloned()
+        .ok_or("bound Receipt has no embedded producer identity binding")?;
+    let identity_binding: crate::identity::IdentityBinding = serde_json::from_value(binding_value)
+        .map_err(|error| format!("decode embedded producer identity binding: {error}"))?;
+    identity_binding
+        .verify()
+        .map_err(|error| format!("verify embedded producer identity binding: {error}"))?;
+    if identity_binding.actor_id != proposal.actor.id
+        || identity_binding.actor_class != crate::identity::ActorClass::Agent
+    {
+        return Err("proposal actor does not match its Receipt producer identity".to_string());
+    }
+    let proposal_root = format!(
+        "sha256:{}",
+        canonical::sha256_canonical(proposal)
+            .map_err(|error| format!("canonicalize proposal: {error}"))?
+    );
+    Ok(ProposalWithdrawalAuthorization {
+        proposal_root,
+        receipt_root,
+        receipt_path,
+        identity_binding,
+    })
+}
+
+/// Verify, sign, append, and materialize one producer withdrawal in memory.
+/// Filesystem installation remains the CLI transaction layer's responsibility.
+pub fn apply_proposal_withdrawal(
+    frontier: &Path,
+    project: &mut Project,
+    proposal_id: &str,
+    actor_id: &str,
+    reason: &str,
+    timestamp: &str,
+    key: &ed25519_dalek::SigningKey,
+) -> Result<StateEvent, String> {
+    let index = project
+        .proposals
+        .iter()
+        .position(|proposal| proposal.id == proposal_id)
+        .ok_or_else(|| format!("proposal {proposal_id} does not exist"))?;
+    let authorization = proposal_withdrawal_authorization(frontier, &project.proposals[index])?;
+    if actor_id != project.proposals[index].actor.id
+        || actor_id != authorization.identity_binding.actor_id
+    {
+        return Err("withdrawal actor is not the Receipt-bound proposal producer".to_string());
+    }
+    let actual_key = crate::sign::pubkey_hex(key);
+    if !actual_key.eq_ignore_ascii_case(&authorization.identity_binding.public_key_hex) {
+        return Err("withdrawal key does not match the Receipt-bound producer key".to_string());
+    }
+    let payload = events::ProposalWithdrawalPayload {
+        schema: events::PROPOSAL_WITHDRAWAL_PAYLOAD_SCHEMA.to_string(),
+        proposal_id: proposal_id.to_string(),
+        proposal_root: authorization.proposal_root,
+        receipt_root: authorization.receipt_root,
+        identity_binding_id: authorization.identity_binding.binding_id,
+    };
+    let mut event =
+        events::new_proposal_withdrawal_event(payload, actor_id, reason, Some(timestamp))?;
+    event.signature = Some(crate::sign::sign_event(&event, key)?);
+    project.events.push(event.clone());
+    let proposal = &mut project.proposals[index];
+    proposal.status = "withdrawn".to_string();
+    proposal.decision_reason = Some(reason.to_string());
+    proposal.reviewed_by = None;
+    proposal.reviewed_at = None;
+    proposal.applied_event_id = None;
+    Ok(event)
+}
+
+/// Verify every stored withdrawal against its exact proposal/Receipt binding.
+pub fn verify_proposal_withdrawals(frontier: &Path, project: &Project) -> Vec<String> {
+    project
+        .events
+        .iter()
+        .filter(|event| event.kind == events::EVENT_KIND_PROPOSAL_WITHDRAWN)
+        .filter_map(|event| verify_proposal_withdrawal_event(frontier, project, event).err())
+        .collect()
+}
+
+pub fn verify_proposal_withdrawal_event(
+    frontier: &Path,
+    project: &Project,
+    event: &StateEvent,
+) -> Result<(), String> {
+    if event.kind != events::EVENT_KIND_PROPOSAL_WITHDRAWN {
+        return Err(format!("event {} is not a proposal withdrawal", event.id));
+    }
+    let proposal = project
+        .proposals
+        .iter()
+        .find(|proposal| proposal.id == event.target.id)
+        .ok_or_else(|| {
+            format!(
+                "withdrawal event {} targets missing proposal {}",
+                event.id, event.target.id
+            )
+        })?;
+    let authorization = proposal_withdrawal_authorization_for_terminal(frontier, proposal)
+        .map_err(|error| format!("withdrawal event {}: {error}", event.id))?;
+    let matching_withdrawals = project
+        .events
+        .iter()
+        .filter(|candidate| {
+            candidate.kind == events::EVENT_KIND_PROPOSAL_WITHDRAWN
+                && candidate.target.r#type == "proposal"
+                && candidate.target.id == proposal.id
+        })
+        .count();
+    if matching_withdrawals != 1 {
+        return Err(format!(
+            "withdrawal event {}: proposal {} must have exactly one withdrawal event, found {matching_withdrawals}",
+            event.id, proposal.id
+        ));
+    }
+    if project.events.iter().any(|candidate| {
+        candidate.target.r#type == "proposal"
+            && candidate.target.id == proposal.id
+            && matches!(
+                candidate.kind.as_str(),
+                events::EVENT_KIND_REVIEW_ACCEPTED
+                    | events::EVENT_KIND_REVIEW_REJECTED
+                    | events::EVENT_KIND_REVIEW_REVISION_REQUESTED
+            )
+    }) {
+        return Err(format!(
+            "withdrawal event {} conflicts with a human decision for proposal {}",
+            event.id, proposal.id
+        ));
+    }
+    let payload: events::ProposalWithdrawalPayload = serde_json::from_value(event.payload.clone())
+        .map_err(|error| format!("withdrawal event {} has invalid payload: {error}", event.id))?;
+    if payload.schema != events::PROPOSAL_WITHDRAWAL_PAYLOAD_SCHEMA
+        || payload.proposal_id != proposal.id
+        || event.target.r#type != "proposal"
+        || event.target.id != proposal.id
+        || payload.proposal_root != authorization.proposal_root
+        || payload.receipt_root != authorization.receipt_root
+        || payload.identity_binding_id != authorization.identity_binding.binding_id
+        || event.actor.id != authorization.identity_binding.actor_id
+        || event.actor.r#type != "agent"
+        || event.before_hash != NULL_HASH
+        || event.after_hash != NULL_HASH
+        || event.id != events::compute_event_id(event)
+        || !crate::sign::verify_event_signature(
+            event,
+            &authorization.identity_binding.public_key_hex,
+        )
+        .unwrap_or(false)
+    {
+        return Err(format!(
+            "withdrawal event {} does not match its exact proposal/Receipt producer binding",
+            event.id
+        ));
+    }
+    Ok(())
+}
+
+/// Return the already verified withdrawal for an idempotent retry. A terminal
+/// proposal without exactly one valid matching event fails closed.
+pub fn existing_proposal_withdrawal(
+    frontier: &Path,
+    project: &Project,
+    proposal_id: &str,
+) -> Result<Option<StateEvent>, String> {
+    let Some(proposal) = project
+        .proposals
+        .iter()
+        .find(|proposal| proposal.id == proposal_id)
+    else {
+        return Err(format!("proposal {proposal_id} does not exist"));
+    };
+    if proposal.status != "withdrawn" {
+        return Ok(None);
+    }
+    let matching = project
+        .events
+        .iter()
+        .filter(|event| {
+            event.kind == events::EVENT_KIND_PROPOSAL_WITHDRAWN
+                && event.target.r#type == "proposal"
+                && event.target.id == proposal_id
+        })
+        .cloned()
+        .collect::<Vec<_>>();
+    if matching.len() != 1 {
+        return Err(format!(
+            "withdrawn proposal {proposal_id} must have exactly one withdrawal event, found {}",
+            matching.len()
+        ));
+    }
+    if let Some(error) = verify_proposal_withdrawals(frontier, project)
+        .into_iter()
+        .next()
+    {
+        return Err(error);
+    }
+    Ok(matching.into_iter().next())
+}
+
+fn proposal_withdrawal_authorization_for_terminal(
+    frontier: &Path,
+    proposal: &StateProposal,
+) -> Result<ProposalWithdrawalAuthorization, String> {
+    let mut pending = proposal.clone();
+    pending.status = "pending_review".to_string();
+    pending.decision_reason = None;
+    pending.reviewed_by = None;
+    pending.reviewed_at = None;
+    pending.applied_event_id = None;
+    proposal_withdrawal_authorization(frontier, &pending)
+}
+
 mod decision_inspection;
 pub mod policy_accept;
 mod types;
@@ -164,6 +447,7 @@ pub fn summary(frontier: &Project) -> ProposalSummary {
             "accepted" => out.accepted += 1,
             "rejected" => out.rejected += 1,
             "applied" => out.applied += 1,
+            "withdrawn" => out.withdrawn += 1,
             _ => {}
         }
         if !seen.insert(proposal.id.clone()) {
@@ -756,7 +1040,7 @@ fn validate_proposal_shape(frontier: &Project, proposal: &StateProposal) -> Resu
     }
     if !matches!(
         proposal.status.as_str(),
-        "pending_review" | "accepted" | "rejected" | "applied"
+        "pending_review" | "accepted" | "rejected" | "applied" | "withdrawn"
     ) {
         return Err(format!("Unsupported proposal status '{}'", proposal.status));
     }
@@ -1168,6 +1452,25 @@ fn validate_decision_state(proposal: &StateProposal) -> Result<(), String> {
                     "Applied proposal {} missing applied_event_id",
                     proposal.id
                 ));
+            }
+            Ok(())
+        }
+        "withdrawn" => {
+            if proposal.reviewed_by.is_some()
+                || proposal.reviewed_at.is_some()
+                || proposal.applied_event_id.is_some()
+            {
+                return Err(format!(
+                    "Withdrawn proposal {} must not carry human review fields",
+                    proposal.id
+                ));
+            }
+            if proposal
+                .decision_reason
+                .as_deref()
+                .is_none_or(|reason| reason.trim().is_empty())
+            {
+                return Err(format!("Withdrawn proposal {} missing reason", proposal.id));
             }
             Ok(())
         }
@@ -2855,6 +3158,41 @@ pub fn sign_prepared_decision_events(
     Ok(())
 }
 
+/// Validate the exact event set before or after an external signer operates.
+///
+/// This is the seed-free counterpart to [`sign_prepared_decision_events`]. It
+/// exposes no authority surface: the caller still has to obtain Ed25519
+/// signatures and every returned signature is verified by the decision
+/// executor before a frontier write. The helper exists so a separate custody
+/// process can sign without returning private key material to `vela`.
+pub fn validate_prepared_decision_for_external_signing(
+    frontier: &Project,
+    prepared: &PreparedDecisionMutation,
+    reviewer: &str,
+    require_unsigned: bool,
+) -> Result<Vec<StateEvent>, String> {
+    if reviewer != prepared.reviewer {
+        return Err(format!(
+            "prepared reviewer '{}' does not match signing reviewer '{reviewer}'",
+            prepared.reviewer
+        ));
+    }
+    if !prepared.is_bound() {
+        return Err("prepared decision must be decision-root bound before signing".to_string());
+    }
+    validate_prepared_decision_invariants(frontier, prepared, require_unsigned)?;
+    let decision_event = &frontier.events[prepared.first_event
+        + prepared
+            .appended_event_ids
+            .iter()
+            .position(|event_id| event_id == &prepared.decision_event_id)
+            .expect("prepared invariant checks decision-event membership")];
+    validate_human_reviewer_authority_at(frontier, reviewer, &decision_event.timestamp)?;
+    Ok((prepared.first_event..prepared.event_count_after)
+        .map(|index| frontier.events[index].clone())
+        .collect())
+}
+
 pub(crate) fn apply_proposal(
     frontier: &mut Project,
     proposal: &StateProposal,
@@ -4004,6 +4342,7 @@ pub struct DerivedDecision {
 ///   - `review.rejected` → rejected
 ///   - `review.revision_requested` → needs_revision
 ///   - `review.accepted` → applied
+///   - `proposal.withdrawn` → withdrawn
 ///   - any domain event produced by an accept of this proposal
 ///     (matched via the proposal's `applied_event_id`) → applied
 ///
@@ -4023,11 +4362,13 @@ pub fn proposal_status_from_log(
                 events::EVENT_KIND_REVIEW_ACCEPTED
                     | events::EVENT_KIND_REVIEW_REJECTED
                     | events::EVENT_KIND_REVIEW_REVISION_REQUESTED
+                    | events::EVENT_KIND_PROPOSAL_WITHDRAWN
             );
         if is_review_for_this {
             let status = match event.kind.as_str() {
                 events::EVENT_KIND_REVIEW_ACCEPTED => "applied",
                 events::EVENT_KIND_REVIEW_REJECTED => "rejected",
+                events::EVENT_KIND_PROPOSAL_WITHDRAWN => "withdrawn",
                 _ => "needs_revision",
             };
             decisions.push(DerivedDecision {
@@ -4094,7 +4435,7 @@ pub fn verify_proposal_decision_parity(frontier: &Project) -> Vec<String> {
                     proposal.id
                 ));
             }
-            stored @ ("applied" | "rejected" | "needs_revision") => match derived {
+            stored @ ("applied" | "rejected" | "needs_revision" | "withdrawn") => match derived {
                 None => conflicts.push(format!(
                     "proposal {} is stored '{}' but NO decision event backs it in the log \
                      — a decision with no signed, replayable record (the silent-drop vector)",
@@ -4119,6 +4460,7 @@ pub fn verify_proposal_decision_parity(frontier: &Project) -> Vec<String> {
             events::EVENT_KIND_REVIEW_ACCEPTED
                 | events::EVENT_KIND_REVIEW_REJECTED
                 | events::EVENT_KIND_REVIEW_REVISION_REQUESTED
+                | events::EVENT_KIND_PROPOSAL_WITHDRAWN
         ) && !proposal_ids.contains(event.target.id.as_str())
         {
             conflicts.push(format!(

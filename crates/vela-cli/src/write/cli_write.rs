@@ -152,6 +152,37 @@ pub(crate) fn cmd_review(action: ReviewAction) {
                 }
             }
         }
+        ReviewAction::Decide {
+            frontier,
+            proposal_id,
+            accept,
+            reject,
+            reason,
+            confirm_root,
+            confirm_at,
+            json,
+        } => crate::cli::sign_session::cmd_review_decide(
+            frontier,
+            &proposal_id,
+            if accept {
+                crate::decision_plan::DecisionAction::Accept
+            } else if reject {
+                crate::decision_plan::DecisionAction::Reject
+            } else {
+                unreachable!("clap requires one decision action")
+            },
+            reason,
+            confirm_root.as_deref(),
+            confirm_at.as_deref(),
+            json,
+        ),
+        ReviewAction::Withdraw {
+            frontier,
+            proposal_id,
+            actor,
+            reason,
+            json,
+        } => crate::withdrawal::cmd_review_withdraw(frontier, &proposal_id, &actor, &reason, json),
         ReviewAction::Export {
             frontier,
             output,

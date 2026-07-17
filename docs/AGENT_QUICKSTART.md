@@ -108,7 +108,9 @@ can replay while strict scientific debt remains; report both states.
 
 `vela init` creates no MCP configuration. A project may opt into `vela serve`
 after initialization. The draft profile can expose the nonfinalizing producer
-loop. Human decisions stay terminal-only through `vela sign`.
+loop. An agent may invoke one exact protected `review decide` request, but only
+the registered human can approve the exact local decision card. MCP exposes no
+decision path.
 
 ## Output contracts
 

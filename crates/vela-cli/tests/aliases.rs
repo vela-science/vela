@@ -184,6 +184,62 @@ fn folded_spellings_dispatch() {
     }
 }
 
+/// Protected decisions intentionally have no legacy batch, key-path, or
+/// non-interactive approval inputs. Clap must reject those spellings before
+/// frontier or identity resolution, so saved sign-session state cannot enter
+/// the targeted path.
+#[test]
+fn review_decide_has_no_batch_key_yes_or_wildcard_surface() {
+    let help = vela(&["review", "decide", "--help"]);
+    assert!(help.status.success(), "{}", combined(&help));
+    let help = combined(&help);
+    for required in [
+        "--accept",
+        "--reject",
+        "--reason",
+        "--confirm-root",
+        "--confirm-at",
+    ] {
+        assert!(help.contains(required), "missing {required}: {help}");
+    }
+    for forbidden in ["--key", "--yes", "--batch", "--all"] {
+        assert!(!help.contains(forbidden), "leaked {forbidden}: {help}");
+        let out = vela(&[
+            "review",
+            "decide",
+            "/tmp/vela-nonexistent-frontier",
+            "vpr_0000000000000000",
+            "--reject",
+            "--reason",
+            "fixture",
+            forbidden,
+        ]);
+        assert_eq!(
+            out.status.code(),
+            Some(2),
+            "{forbidden}: {}",
+            combined(&out)
+        );
+        assert!(
+            combined(&out).contains("unexpected argument"),
+            "{forbidden}: {}",
+            combined(&out)
+        );
+    }
+
+    let wildcard = vela(&[
+        "review",
+        "decide",
+        "/tmp/vela-nonexistent-frontier",
+        "*",
+        "--reject",
+        "--reason",
+        "fixture",
+    ]);
+    assert_ne!(wildcard.status.code(), Some(0));
+    assert!(!combined(&wildcard).contains("signed"));
+}
+
 #[test]
 fn legacy_policy_retirement_is_prepare_only_json_porcelain() {
     const POLICY_ID: &str = "vap_e0abc750544408e637bd90e0661bac15";
@@ -399,7 +455,7 @@ fn actor_add_is_configured_identity_bootstrap_only() {
     let created = vela_in(
         home.path(),
         frontier.path(),
-        &["id", "create", "--handle", "bootstrap", "--json"],
+        &["id", "create", "--handle", "bootstrap", "--agent", "--json"],
     );
     assert!(created.status.success(), "{}", combined(&created));
     let identity: serde_json::Value = serde_json::from_slice(&created.stdout).unwrap();
@@ -624,7 +680,7 @@ fn prompts_refuse_piped_stdin() {
     use std::process::Stdio;
     let home = tempfile::TempDir::new().expect("temporary Vela home");
     let setup = Command::new(env!("CARGO_BIN_EXE_vela"))
-        .args(["id", "create", "--handle", "prompt-test"])
+        .args(["id", "create", "--handle", "prompt-test", "--agent"])
         .env("HOME", home.path())
         .env("VELA_NO_PUBLISH", "1")
         .output()
@@ -634,6 +690,18 @@ fn prompts_refuse_piped_stdin() {
         "fixture identity setup failed: {}",
         combined(&setup)
     );
+    // Keep the test key file-backed and isolated while exercising the human
+    // prompt guard. Production human identities default to the platform store.
+    let identity_path = home.path().join(".vela/identity.json");
+    let mut identity: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(&identity_path).unwrap()).unwrap();
+    identity["actor_id"] = serde_json::json!("reviewer:prompt-test");
+    identity["actor_type"] = serde_json::json!("human");
+    std::fs::write(
+        &identity_path,
+        format!("{}\n", serde_json::to_string_pretty(&identity).unwrap()),
+    )
+    .unwrap();
     let out = Command::new(env!("CARGO_BIN_EXE_vela"))
         .args(["id", "pin-binary"])
         .env("HOME", home.path())

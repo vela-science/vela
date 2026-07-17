@@ -6,6 +6,24 @@ use super::*;
 /// Shared success print for `vela id create` / `vela id import`: shows the
 /// identity and the one-time empty-registry bootstrap command.
 pub(crate) fn print_identity_created(identity: &crate::cli_identity::Identity, json: bool) {
+    let signer = match &identity.signer {
+        Some(crate::cli_identity::IdentitySigner::Helper {
+            provider,
+            protection_grade,
+            mode,
+            ..
+        }) => json!({
+            "kind": "helper",
+            "provider": provider,
+            "protection_grade": protection_grade,
+            "mode": mode,
+        }),
+        Some(crate::cli_identity::IdentitySigner::File { key_path }) => json!({
+            "kind": "file",
+            "key_path": key_path,
+        }),
+        None => json!({"kind": "file", "key_path": identity.key_path}),
+    };
     if json {
         print_json(&json!({
             "ok": true,
@@ -13,18 +31,31 @@ pub(crate) fn print_identity_created(identity: &crate::cli_identity::Identity, j
             "actor_id": identity.actor_id,
             "actor_type": identity.actor_type,
             "pubkey": identity.pubkey,
-            "key_path": identity.key_path,
+            "signer": signer,
         }));
         return;
     }
     println!("{} identity · {}", style::ok("ready"), identity.actor_id);
     println!("  public key: {}", identity.pubkey);
-    println!("  key file:   {}", identity.key_path);
+    match &identity.signer {
+        Some(crate::cli_identity::IdentitySigner::Helper {
+            provider,
+            protection_grade,
+            mode,
+            ..
+        }) => {
+            println!("  signer:     Vela helper ({provider}, {protection_grade}, {mode})");
+        }
+        Some(crate::cli_identity::IdentitySigner::File { key_path }) => {
+            println!("  key file:   {key_path}");
+        }
+        None => println!("  key file:   {}", identity.key_path),
+    }
     println!();
     println!("Next: bootstrap a new frontier's empty actor registry with");
     println!("  vela actor add <frontier>");
     println!("Established registries change only through signed governance.");
-    println!("Then `vela land` and `vela sign` need no key flags.");
+    println!("Then `vela land` needs no key flag; human decisions use `vela review decide`.");
 }
 
 pub(crate) fn cmd_id_keygen(out: std::path::PathBuf, json: bool) {

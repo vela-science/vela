@@ -27,11 +27,16 @@ path = "src/lib.rs"
 name = "vela"
 path = "src/main.rs"
 
+[[bin]]
+name = "vela-signer"
+path = "src/bin/vela-signer.rs"
+
 [dependencies]
 vela-protocol = { workspace = true }
 vela-protocol-core = { workspace = true }
 vela-edge = { path = "../vela-edge" }
 vela-verify = { workspace = true }
+vela-signer = { workspace = true }
 tokio = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -52,12 +57,14 @@ sha2 = { workspace = true }
 hex = { workspace = true }
 urlencoding = { workspace = true }
 ed25519-dalek = { workspace = true }
+zeroize = { workspace = true }
 rand = { workspace = true }
 tempfile = { workspace = true }
 # Pure-Rust CDCL SAT solver (no C deps): the structured-search backend for the
 # discovery portfolio. The solver only PRODUCES candidates; the frozen
 # vela-verify re-checks every witness, so trust stays the verifier.
 splr = "0.17"
+same-file = "1.0.6"
 
 [lints]
 workspace = true

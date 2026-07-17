@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vela.science/schemas/vela.signer-response.v1.schema.json",
+  "title": "Vela one-shot signer response v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "request_root",
+    "reviewer_public_key",
+    "helper_version",
+    "helper_sha256",
+    "provider",
+    "protection_grade",
+    "provider_session",
+    "approved_at",
+    "protection_mode",
+    "signatures"
+  ],
+  "properties": {
+    "schema": { "const": "vela.signer-response.v1" },
+    "request_root": { "$ref": "#/$defs/sha256" },
+    "reviewer_public_key": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "helper_version": { "type": "string", "minLength": 1 },
+    "helper_sha256": { "$ref": "#/$defs/sha256" },
+    "provider": { "type": "string", "minLength": 1 },
+    "protection_grade": { "type": "string", "minLength": 1 },
+    "provider_session": { "type": "string", "minLength": 1 },
+    "approved_at": { "type": "string", "format": "date-time" },
+    "protection_mode": { "enum": ["session", "always"] },
+    "signatures": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["event_id", "signature"],
+        "properties": {
+          "event_id": { "type": "string", "pattern": "^vev_" },
+          "signature": { "type": "string", "pattern": "^v1:[0-9a-f]{128}$" }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" }
+  }
+}

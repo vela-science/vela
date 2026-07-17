@@ -79,7 +79,6 @@ fn compact_contract_exposes_only_the_daily_surface_and_bounded_status() {
         "work",
         "land",
         "review",
-        "sign",
         "check",
         "reproduce",
         "log",
@@ -88,6 +87,10 @@ fn compact_contract_exposes_only_the_daily_surface_and_bounded_status() {
     ] {
         assert!(help.contains(command), "missing {command}: {help}");
     }
+    assert!(!help.contains("  sign"), "default help leaked sign: {help}");
+    let advanced = run(temp.path(), temp.path(), &["help", "advanced"]);
+    assert_success(&advanced);
+    assert!(text(&advanced).contains("historical batch and detached-file signing compatibility"));
     for retired in ["proposals", "foundry", "atlas", "hub", "publication"] {
         assert!(
             !help.contains(retired),

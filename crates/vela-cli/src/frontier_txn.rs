@@ -2670,6 +2670,8 @@ fn file_mode(metadata: &fs::Metadata) -> FileMode {
             return FileMode::Executable;
         }
     }
+    #[cfg(not(unix))]
+    let _ = metadata;
     FileMode::Regular
 }
 
@@ -2791,7 +2793,7 @@ fn set_mode(file: &File, mode: FileMode) -> Result<(), FrontierTxnError> {
             .map_err(|error| FrontierTxnError::Io(format!("set transaction file mode: {error}")))?;
     }
     #[cfg(not(unix))]
-    let _ = mode;
+    let _ = (file, mode);
     Ok(())
 }
 

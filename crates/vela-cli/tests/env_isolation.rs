@@ -61,6 +61,19 @@ fn run_in(dir: &std::path::Path, args: &[&str]) -> std::process::Output {
         .expect("spawn vela")
 }
 
+fn promote_fixture_identity_to_human(dir: &std::path::Path, handle: &str) {
+    let path = dir.join(".vela/identity.json");
+    let mut identity: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+    identity["actor_id"] = serde_json::json!(format!("reviewer:{handle}"));
+    identity["actor_type"] = serde_json::json!("human");
+    std::fs::write(
+        path,
+        format!("{}\n", serde_json::to_string_pretty(&identity).unwrap()),
+    )
+    .unwrap();
+}
+
 fn write_current_receipt(dir: &std::path::Path, filename: &str, claim: &str, replayability: &str) {
     let artifact_path = "witnesses/w.json";
     let artifact = std::fs::read(dir.join(artifact_path)).unwrap();
@@ -193,7 +206,7 @@ fn land_is_idempotent_on_the_claim() {
     let tmp = tempfile::TempDir::new().unwrap();
     init_frontier(tmp.path());
     assert!(
-        run_in(tmp.path(), &["id", "create", "--handle", "t"])
+        run_in(tmp.path(), &["id", "create", "--handle", "t", "--agent"])
             .status
             .success()
     );
@@ -235,7 +248,7 @@ fn land_honors_the_replayability_class() {
     let tmp = tempfile::TempDir::new().unwrap();
     init_frontier(tmp.path());
     assert!(
-        run_in(tmp.path(), &["id", "create", "--handle", "t"])
+        run_in(tmp.path(), &["id", "create", "--handle", "t", "--agent"])
             .status
             .success()
     );
@@ -297,10 +310,14 @@ fn pin_binary_warns_on_a_dev_build() {
     let tmp = tempfile::TempDir::new().unwrap();
     init_frontier(tmp.path());
     assert!(
-        run_in(tmp.path(), &["id", "create", "--handle", "probe"])
-            .status
-            .success()
+        run_in(
+            tmp.path(),
+            &["id", "create", "--handle", "probe", "--agent"]
+        )
+        .status
+        .success()
     );
+    promote_fixture_identity_to_human(tmp.path(), "probe");
     let out = run_in(tmp.path(), &["id", "pin-binary", "--yes"]);
     assert!(out.status.success(), "pin should record: {out:?}");
     let text = format!(
@@ -401,8 +418,9 @@ fn stale_pin_blocks_ceremony_not_list() {
             .output()
             .expect("spawn")
     };
-    let out = run(&["id", "create", "--handle", "probe"]);
+    let out = run(&["id", "create", "--handle", "probe", "--agent"]);
     assert!(out.status.success(), "{out:?}");
+    promote_fixture_identity_to_human(tmp.path(), "probe");
     let out = run(&["id", "pin-binary", "--yes"]);
     assert!(out.status.success(), "pin failed: {out:?}");
     // Rewrite the pin to a hash the binary cannot match ("it changed").
@@ -496,8 +514,9 @@ fn tampered_binary_refuses_ceremony() {
             .expect("spawn copy")
     };
     // Identity + pin (human act, --yes for the test).
-    let out = run(&["id", "create", "--handle", "probe"]);
+    let out = run(&["id", "create", "--handle", "probe", "--agent"]);
     assert!(out.status.success(), "{out:?}");
+    promote_fixture_identity_to_human(tmp.path(), "probe");
     let out = run(&["id", "pin-binary", "--yes"]);
     assert!(out.status.success(), "pin failed: {out:?}");
     // Tamper.

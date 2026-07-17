@@ -20,6 +20,7 @@ pub(crate) use frontier::{cli_frontier, cli_read};
 mod write;
 pub(crate) use write::{cli_finding, cli_write, review_work};
 mod tools;
+mod withdrawal;
 pub(crate) use tools::{cli_check, cli_proof};
 mod config;
 pub(crate) use config::{cli_admin, cli_agents, cli_identity, cli_policy};

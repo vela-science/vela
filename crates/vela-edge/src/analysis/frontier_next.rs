@@ -140,6 +140,8 @@ fn read_regular_file(path: &Path, max_bytes: u64, label: &str) -> Result<Vec<u8>
             path.display()
         ));
     }
+    let initial_identity = same_file::Handle::from_path(path)
+        .map_err(|error| format!("identify {label} {}: {error}", path.display()))?;
     let file = std::fs::File::open(path)
         .map_err(|error| format!("open {label} {}: {error}", path.display()))?;
     let opened = file
@@ -151,7 +153,12 @@ fn read_regular_file(path: &Path, max_bytes: u64, label: &str) -> Result<Vec<u8>
             path.display()
         ));
     }
-    if !same_file_identity(&metadata, &opened) {
+    let opened_identity = same_file::Handle::from_file(
+        file.try_clone()
+            .map_err(|error| format!("clone open {label} {}: {error}", path.display()))?,
+    )
+    .map_err(|error| format!("identify open {label} {}: {error}", path.display()))?;
+    if initial_identity != opened_identity {
         return Err(format!(
             "{label} changed while it was being opened: {}",
             path.display()
@@ -169,7 +176,9 @@ fn read_regular_file(path: &Path, max_bytes: u64, label: &str) -> Result<Vec<u8>
     }
     let named = std::fs::symlink_metadata(path)
         .map_err(|error| format!("reinspect {label} {}: {error}", path.display()))?;
-    if named.file_type().is_symlink() || !named.is_file() || !same_file_identity(&opened, &named) {
+    let final_identity = same_file::Handle::from_path(path)
+        .map_err(|error| format!("reidentify {label} {}: {error}", path.display()))?;
+    if named.file_type().is_symlink() || !named.is_file() || opened_identity != final_identity {
         return Err(format!(
             "{label} changed while it was being read: {}",
             path.display()
@@ -529,6 +538,8 @@ fn read_campaign_yaml(dir: &Path) -> Result<Option<Vec<u8>>, String> {
             path.display()
         ));
     }
+    let initial_identity = same_file::Handle::from_path(&path)
+        .map_err(|error| format!("identify campaign file {}: {error}", path.display()))?;
     let file = std::fs::File::open(&path)
         .map_err(|error| format!("open campaign file {}: {error}", path.display()))?;
     let opened = file
@@ -540,7 +551,12 @@ fn read_campaign_yaml(dir: &Path) -> Result<Option<Vec<u8>>, String> {
             path.display()
         ));
     }
-    if !same_file_identity(&metadata, &opened) {
+    let opened_identity = same_file::Handle::from_file(
+        file.try_clone()
+            .map_err(|error| format!("clone campaign file {}: {error}", path.display()))?,
+    )
+    .map_err(|error| format!("identify open campaign file {}: {error}", path.display()))?;
+    if initial_identity != opened_identity {
         return Err(format!(
             "campaign file changed while it was being opened: {}",
             path.display()
@@ -558,33 +574,15 @@ fn read_campaign_yaml(dir: &Path) -> Result<Option<Vec<u8>>, String> {
     }
     let named = std::fs::symlink_metadata(&path)
         .map_err(|error| format!("reinspect campaign file {}: {error}", path.display()))?;
-    if named.file_type().is_symlink() || !named.is_file() || !same_file_identity(&opened, &named) {
+    let final_identity = same_file::Handle::from_path(&path)
+        .map_err(|error| format!("reidentify campaign file {}: {error}", path.display()))?;
+    if named.file_type().is_symlink() || !named.is_file() || opened_identity != final_identity {
         return Err(format!(
             "campaign file changed while it was being read: {}",
             path.display()
         ));
     }
     Ok(Some(bytes))
-}
-
-#[cfg(unix)]
-fn same_file_identity(left: &std::fs::Metadata, right: &std::fs::Metadata) -> bool {
-    use std::os::unix::fs::MetadataExt;
-    left.dev() == right.dev() && left.ino() == right.ino()
-}
-
-#[cfg(windows)]
-fn same_file_identity(left: &std::fs::Metadata, right: &std::fs::Metadata) -> bool {
-    use std::os::windows::fs::MetadataExt;
-    left.volume_serial_number() == right.volume_serial_number()
-        && left.file_index() == right.file_index()
-}
-
-#[cfg(not(any(unix, windows)))]
-fn same_file_identity(left: &std::fs::Metadata, right: &std::fs::Metadata) -> bool {
-    left.len() == right.len()
-        && left.modified().ok() == right.modified().ok()
-        && left.created().ok() == right.created().ok()
 }
 
 fn bounded_campaign_task(value: &serde_yaml::Value) -> Result<Value, String> {

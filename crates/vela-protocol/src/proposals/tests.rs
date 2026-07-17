@@ -6,6 +6,9 @@ use crate::bundle::{
 use crate::project;
 use tempfile::TempDir;
 
+use crate::identity::{ActorClass, IdentityBinding, IdentityBindingDraft};
+use crate::receipt_v1::{ArtifactInput, ReceiptBuilder, ReceiptInput};
+
 pub(crate) fn finding(id: &str) -> FindingBundle {
     FindingBundle {
         id: id.to_string(),
@@ -85,6 +88,233 @@ pub(crate) fn finding(id: &str) -> FindingBundle {
 
         access_tier: crate::access_tier::AccessTier::Public,
     }
+}
+
+fn proposal_withdrawal_fixture() -> (TempDir, Project, ed25519_dalek::SigningKey, String) {
+    let tmp = TempDir::new().unwrap();
+    let key = ed25519_dalek::SigningKey::from_bytes(&[17_u8; 32]);
+    let identity = IdentityBinding::build(
+        IdentityBindingDraft {
+            actor_id: "agent:withdrawal-test".to_string(),
+            actor_class: ActorClass::Agent,
+            created_at: "2026-07-17T00:00:00Z".to_string(),
+        },
+        &key,
+    )
+    .unwrap();
+    let mut project = project::assemble("withdrawal-test", Vec::new(), 0, 0, "test");
+    repo::init_repo(tmp.path(), &project).unwrap();
+    let receipt = ReceiptBuilder::build(
+        ReceiptInput::new(
+            "bounded negative search".to_string(),
+            "computational".to_string(),
+            "exact".to_string(),
+            vec![
+                ArtifactInput::new(
+                    "artifact.json".to_string(),
+                    "witness".to_string(),
+                    Some("a".repeat(64)),
+                    None,
+                )
+                .unwrap(),
+            ],
+            vec!["bounded only".to_string()],
+            Vec::new(),
+            identity.actor_id.clone(),
+            "2026-07-17T00:00:01Z".to_string(),
+            format!("sha256:{}", events::event_log_hash(&project.events)),
+            ".".to_string(),
+            format!("vop_{}", "b".repeat(64)),
+            "urn:vela:policy:none".to_string(),
+        )
+        .unwrap(),
+        &identity,
+    )
+    .unwrap();
+    let receipt_root = receipt.canonical_root().unwrap();
+    let receipt_path = format!(
+        "records/receipts/sha256/{}.json",
+        receipt_root.strip_prefix("sha256:").unwrap()
+    );
+    std::fs::create_dir_all(tmp.path().join("records/receipts/sha256")).unwrap();
+    std::fs::write(
+        tmp.path().join(&receipt_path),
+        receipt.canonical_bytes().unwrap(),
+    )
+    .unwrap();
+    let proposal = new_proposal_at(
+        "finding.review",
+        crate::events::StateTarget {
+            r#type: "finding".to_string(),
+            id: "vf_target".to_string(),
+        },
+        identity.actor_id.clone(),
+        "agent",
+        "land bounded result",
+        json!({
+            "vela_submission": {
+                "schema": "vela.submission-links.internal.v1",
+                "receipt_root": receipt_root,
+                "receipt_path": receipt_path,
+                "record_id": "vrc_0123456789abcdef",
+                "operation_id": format!("vop_{}", "b".repeat(64)),
+                "review_material_path": "records/review/sha256/test.json",
+            }
+        }),
+        Vec::new(),
+        Vec::new(),
+        "2026-07-17T00:00:02Z",
+    );
+    let proposal_id = proposal.id.clone();
+    project.proposals.push(proposal);
+    repo::save_to_path(tmp.path(), &project).unwrap();
+    (tmp, project, key, proposal_id)
+}
+
+#[test]
+fn proposal_withdrawal_is_receipt_bound_signed_and_scientifically_noop() {
+    let (tmp, mut project, key, proposal_id) = proposal_withdrawal_fixture();
+    let finding_root_before = crate::canonical::sha256_canonical(&project.findings).unwrap();
+    let artifact_root_before = crate::canonical::sha256_canonical(&project.artifacts).unwrap();
+    let event = apply_proposal_withdrawal(
+        tmp.path(),
+        &mut project,
+        &proposal_id,
+        "agent:withdrawal-test",
+        "superseded bounded run",
+        "2026-07-17T00:00:03Z",
+        &key,
+    )
+    .unwrap();
+    assert_eq!(event.kind, events::EVENT_KIND_PROPOSAL_WITHDRAWN);
+    assert_eq!(event.before_hash, events::NULL_HASH);
+    assert_eq!(event.after_hash, events::NULL_HASH);
+    assert_eq!(project.proposals[0].status, "withdrawn");
+    assert_eq!(
+        crate::canonical::sha256_canonical(&project.findings).unwrap(),
+        finding_root_before
+    );
+    assert_eq!(
+        crate::canonical::sha256_canonical(&project.artifacts).unwrap(),
+        artifact_root_before
+    );
+    assert!(verify_proposal_withdrawals(tmp.path(), &project).is_empty());
+    assert!(verify_proposal_decision_parity(&project).is_empty());
+}
+
+#[test]
+fn proposal_withdrawal_rejects_wrong_key_and_terminal_decision() {
+    let (tmp, mut project, _key, proposal_id) = proposal_withdrawal_fixture();
+    let wrong = ed25519_dalek::SigningKey::from_bytes(&[19_u8; 32]);
+    assert!(
+        apply_proposal_withdrawal(
+            tmp.path(),
+            &mut project,
+            &proposal_id,
+            "agent:withdrawal-test",
+            "wrong key",
+            "2026-07-17T00:00:03Z",
+            &wrong,
+        )
+        .unwrap_err()
+        .contains("producer key")
+    );
+    project.proposals[0].status = "rejected".to_string();
+    assert!(
+        apply_proposal_withdrawal(
+            tmp.path(),
+            &mut project,
+            &proposal_id,
+            "agent:withdrawal-test",
+            "too late",
+            "2026-07-17T00:00:04Z",
+            &wrong,
+        )
+        .unwrap_err()
+        .contains("not pending_review")
+    );
+}
+
+#[test]
+fn proposal_withdrawal_tampering_fails_closed_and_retry_is_idempotent() {
+    let (tmp, mut project, key, proposal_id) = proposal_withdrawal_fixture();
+    apply_proposal_withdrawal(
+        tmp.path(),
+        &mut project,
+        &proposal_id,
+        "agent:withdrawal-test",
+        "abandoned",
+        "2026-07-17T00:00:03Z",
+        &key,
+    )
+    .unwrap();
+    let existing = existing_proposal_withdrawal(tmp.path(), &project, &proposal_id)
+        .unwrap()
+        .unwrap();
+    assert_eq!(existing.id, project.events.last().unwrap().id);
+    repo::save_to_path(tmp.path(), &project).unwrap();
+    let event_path = tmp
+        .path()
+        .join(format!(".vela/events/{}.json", existing.id));
+    let mut event_value: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(&event_path).unwrap()).unwrap();
+    event_value["reason"] = json!("tampered");
+    std::fs::write(
+        &event_path,
+        serde_json::to_vec_pretty(&event_value).unwrap(),
+    )
+    .unwrap();
+    project.events.last_mut().unwrap().reason = "tampered".to_string();
+    assert!(!verify_proposal_withdrawals(tmp.path(), &project).is_empty());
+    assert!(
+        existing_proposal_withdrawal(tmp.path(), &project, &proposal_id)
+            .unwrap_err()
+            .contains("does not match")
+    );
+    let loaded = repo::load_from_path(tmp.path()).unwrap();
+    assert_eq!(loaded.proposals[0].status, "pending_review");
+    assert!(!verify_proposal_withdrawals(tmp.path(), &loaded).is_empty());
+}
+
+#[test]
+fn proposal_withdrawal_conflicts_with_duplicates_or_human_decisions() {
+    let (tmp, mut project, key, proposal_id) = proposal_withdrawal_fixture();
+    let withdrawal = apply_proposal_withdrawal(
+        tmp.path(),
+        &mut project,
+        &proposal_id,
+        "agent:withdrawal-test",
+        "abandoned",
+        "2026-07-17T00:00:03Z",
+        &key,
+    )
+    .unwrap();
+
+    project.events.push(withdrawal.clone());
+    assert!(
+        verify_proposal_withdrawals(tmp.path(), &project)
+            .iter()
+            .any(|error| error.contains("exactly one withdrawal event"))
+    );
+    project.events.pop();
+
+    let mut review = events::new_review_decision_event(
+        &proposal_id,
+        "finding.review",
+        "rejected",
+        None,
+        "reviewer:fixture",
+        "rejected independently",
+        Some("2026-07-17T00:00:04Z"),
+    )
+    .unwrap();
+    review.signature = Some(format!("v1:{}", "0".repeat(128)));
+    project.events.push(review);
+    assert!(
+        verify_proposal_withdrawals(tmp.path(), &project)
+            .iter()
+            .any(|error| error.contains("conflicts with a human decision"))
+    );
 }
 
 fn artifact(id: &str) -> Artifact {

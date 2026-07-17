@@ -164,6 +164,13 @@ pub const EVENT_KIND_REVIEW_ACCEPTED: &str = "review.accepted";
 pub const EVENT_KIND_REVIEW_REJECTED: &str = "review.rejected";
 pub const EVENT_KIND_REVIEW_REVISION_REQUESTED: &str = "review.revision_requested";
 
+/// A producer closes its own still-pending proposal. This is an audit-only
+/// lifecycle event: it cannot mutate accepted scientific state and is
+/// authorized by the self-signed producer identity embedded in the exact
+/// Receipt v1 already bound by the proposal.
+pub const EVENT_KIND_PROPOSAL_WITHDRAWN: &str = "proposal.withdrawn";
+pub const PROPOSAL_WITHDRAWAL_PAYLOAD_SCHEMA: &str = "vela.proposal-withdrawal.v1";
+
 /// Signed temporal activation of an actor registration. The event is an
 /// audit-only boundary over exact Git/Vela history; it neither authenticates
 /// unsigned legacy events nor mutates scientific state.
@@ -230,6 +237,7 @@ pub const KNOWN_EVENT_KINDS: &[&str] = &[
     "review.accepted",
     "review.rejected",
     "review.revision_requested",
+    "proposal.withdrawn",
     "actor.registration_activated",
     "policy.auto_admitted",
 ];
@@ -351,6 +359,7 @@ event_kinds! {
     ReviewAccepted => "review.accepted",
     ReviewRejected => "review.rejected",
     ReviewRevisionRequested => "review.revision_requested",
+    ProposalWithdrawn => "proposal.withdrawn",
     ActorRegistrationActivated => "actor.registration_activated",
     PolicyAutoAdmitted => "policy.auto_admitted",
 }
@@ -578,6 +587,96 @@ pub struct ReviewDecisionPayload {
     /// For accepts: the domain event id (`vev_…`) the accept produced.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub applied_event_id: Option<String>,
+}
+
+/// Exact authorization material carried by `proposal.withdrawn`.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct ProposalWithdrawalPayload {
+    pub schema: String,
+    pub proposal_id: String,
+    pub proposal_root: String,
+    pub receipt_root: String,
+    pub identity_binding_id: String,
+}
+
+/// Construct an unsigned producer-withdrawal event. The caller verifies the
+/// Receipt-bound producer identity and applies the ordinary event signature.
+pub fn new_proposal_withdrawal_event(
+    payload: ProposalWithdrawalPayload,
+    actor_id: &str,
+    reason: &str,
+    timestamp: Option<&str>,
+) -> Result<StateEvent, String> {
+    if payload.schema != PROPOSAL_WITHDRAWAL_PAYLOAD_SCHEMA {
+        return Err(format!(
+            "proposal withdrawal payload schema must be {PROPOSAL_WITHDRAWAL_PAYLOAD_SCHEMA}"
+        ));
+    }
+    if !payload.proposal_id.starts_with("vpr_") {
+        return Err("proposal withdrawal requires a vpr_ proposal id".to_string());
+    }
+    for (name, root) in [
+        ("proposal_root", payload.proposal_root.as_str()),
+        ("receipt_root", payload.receipt_root.as_str()),
+    ] {
+        if !root.strip_prefix("sha256:").is_some_and(|hex| {
+            hex.len() == 64
+                && hex
+                    .bytes()
+                    .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+        }) {
+            return Err(format!(
+                "proposal withdrawal {name} must be a full sha256 root"
+            ));
+        }
+    }
+    if !payload
+        .identity_binding_id
+        .strip_prefix("vib_")
+        .is_some_and(|hex| {
+            hex.len() == 16
+                && hex
+                    .bytes()
+                    .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+        })
+    {
+        return Err(
+            "proposal withdrawal identity_binding_id must be vib_<16 lowercase hex>".to_string(),
+        );
+    }
+    if actor_kind(actor_id) != "agent" {
+        return Err("only an agent or ci producer may withdraw its proposal".to_string());
+    }
+    if reason.trim().is_empty() {
+        return Err("proposal withdrawal reason must be non-empty".to_string());
+    }
+    let timestamp = timestamp
+        .map(str::to_string)
+        .unwrap_or_else(|| Utc::now().to_rfc3339());
+    let mut event = StateEvent {
+        schema: EVENT_SCHEMA.to_string(),
+        id: String::new(),
+        kind: EVENT_KIND_PROPOSAL_WITHDRAWN.into(),
+        target: StateTarget {
+            r#type: "proposal".to_string(),
+            id: payload.proposal_id.clone(),
+        },
+        actor: StateActor {
+            id: actor_id.to_string(),
+            r#type: "agent".to_string(),
+        },
+        timestamp,
+        reason: reason.to_string(),
+        before_hash: NULL_HASH.to_string(),
+        after_hash: NULL_HASH.to_string(),
+        payload: serde_json::to_value(payload)
+            .map_err(|error| format!("serialize proposal withdrawal payload: {error}"))?,
+        caveats: Vec::new(),
+        signature: None,
+    };
+    event.id = event_id(&event);
+    Ok(event)
 }
 
 /// Construct an unsigned `review.*` event for a proposal decision. The
@@ -1487,6 +1586,18 @@ pub fn validate_event_payload(kind: &str, payload: &Value) -> Result<(), String>
                     ));
                 }
             }
+        }
+        EVENT_KIND_PROPOSAL_WITHDRAWN => {
+            let parsed: ProposalWithdrawalPayload = serde_json::from_value(payload.clone())
+                .map_err(|error| format!("invalid proposal-withdrawal payload: {error}"))?;
+            // Reuse the constructor's closed shape and exact identifier/root
+            // validation without admitting the resulting unsigned event.
+            new_proposal_withdrawal_event(
+                parsed,
+                "agent:payload-validator",
+                "validate proposal withdrawal payload",
+                Some("1970-01-01T00:00:00Z"),
+            )?;
         }
         EVENT_KIND_ACTOR_REGISTRATION_ACTIVATED => {
             let parsed: crate::actor_registration::ActorRegistrationBoundaryPayload =

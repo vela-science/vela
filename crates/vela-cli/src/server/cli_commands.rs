@@ -343,7 +343,7 @@ pub(crate) enum Commands {
         #[arg(long)]
         json: bool,
     },
-    /// Read the human review queue and inspect exact Decision Briefs.
+    /// Inspect, decide, or producer-withdraw one exact proposal.
     #[command(after_long_help = crate::cli::help_text::REVIEW)]
     Review {
         #[command(subcommand)]
@@ -570,6 +570,20 @@ pub(crate) enum Commands {
 
 #[derive(Subcommand)]
 pub(crate) enum IdAction {
+    /// Move an existing human seed into the local OS-protected signer helper.
+    /// Enrollment authenticates once before reading the plaintext source;
+    /// successful migration removes that source on macOS, Windows, and Linux.
+    Protect {
+        #[arg(long)]
+        user_presence: bool,
+        #[arg(long)]
+        remove_source_key: bool,
+        /// session: authenticate a bounded signer session; always: reauthenticate every use.
+        #[arg(long, default_value = "session", value_parser = ["session", "always"])]
+        mode: String,
+        #[arg(long)]
+        json: bool,
+    },
     /// Pin the current `vela` binary's hash (a human, confirm-gated act) so
     /// every ceremony verifies the binary first — the clear-signing invariant.
     /// You rarely need this by hand: the interactive `vela sign` offers to pin
@@ -945,6 +959,34 @@ pub(crate) enum ReviewAction {
     Preview {
         frontier: PathBuf,
         proposal_id: String,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Prepare or approve exactly one protected human decision.
+    Decide {
+        frontier: PathBuf,
+        proposal_id: String,
+        #[arg(long, conflicts_with = "reject", required_unless_present = "reject")]
+        accept: bool,
+        #[arg(long, conflicts_with = "accept", required_unless_present = "accept")]
+        reject: bool,
+        #[arg(long)]
+        reason: String,
+        #[arg(long, requires = "confirm_at")]
+        confirm_root: Option<String>,
+        #[arg(long, requires = "confirm_root")]
+        confirm_at: Option<String>,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Withdraw one pending Receipt-bound proposal as its producer.
+    Withdraw {
+        frontier: PathBuf,
+        proposal_id: String,
+        #[arg(long = "as", help = HELP_AS)]
+        actor: String,
+        #[arg(long)]
+        reason: String,
         #[arg(long)]
         json: bool,
     },

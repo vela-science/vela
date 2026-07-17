@@ -2,6 +2,7 @@ use serde_json::Value;
 
 const ROOT_ACTION: &str = include_str!("../../../action.yml");
 const INSTALLER: &str = include_str!("../../../install.sh");
+const WINDOWS_INSTALLER: &str = include_str!("../../../install.ps1");
 const RELEASE_WORKFLOW: &str = include_str!("../../../.github/workflows/release.yml");
 
 fn parse_action(source: &str) -> Value {
@@ -81,17 +82,22 @@ fn root_action_is_lock_pinned_strict_and_nonfinalizing() {
 }
 
 #[test]
-fn reviewed_tags_publish_both_installer_assets_from_locked_source() {
+fn reviewed_tags_publish_complete_cross_platform_bundles_from_locked_source() {
     assert!(RELEASE_WORKFLOW.contains("tags:\n      - \"v*.*.*\""));
-    assert!(RELEASE_WORKFLOW.contains("cargo build --locked --release -p vela-cli --bin vela"));
-    for asset in ["vela-linux-x86_64", "vela-macos-aarch64"] {
+    assert!(RELEASE_WORKFLOW.contains("cargo build --locked --release -p vela-cli --bins"));
+    assert!(RELEASE_WORKFLOW.contains("target/release/vela-signer"));
+    assert!(RELEASE_WORKFLOW.contains("target/release/vela-signer.exe"));
+    for asset in [
+        "vela-linux-x86_64.tar.gz",
+        "vela-macos-aarch64.tar.gz",
+        "vela-windows-x86_64.zip",
+    ] {
         assert!(RELEASE_WORKFLOW.contains(asset), "missing {asset}");
-        assert!(
-            RELEASE_WORKFLOW.contains(&format!("test -f dist/{asset}.sha256")),
-            "missing checksum assertion for {asset}"
-        );
     }
-    assert!(RELEASE_WORKFLOW.contains("shasum -a 256 vela"));
+    assert!(RELEASE_WORKFLOW.contains("test -f \"dist/$asset.sha256\""));
+    assert!(RELEASE_WORKFLOW.contains("shasum -a 256 \"$ASSET\""));
+    assert!(RELEASE_WORKFLOW.contains("Get-FileHash -Algorithm SHA256"));
+    assert!(RELEASE_WORKFLOW.contains("science.vela.signer.policy"));
     assert!(RELEASE_WORKFLOW.contains("gh release create \"$GITHUB_REF_NAME\" dist/*"));
     assert!(RELEASE_WORKFLOW.contains("--verify-tag"));
     assert!(RELEASE_WORKFLOW.contains("permissions:\n  contents: read"));
@@ -113,6 +119,10 @@ fn reviewed_tags_publish_both_installer_assets_from_locked_source() {
 
 #[test]
 fn installer_points_to_the_nonfinalizing_task_first_path() {
+    assert!(INSTALLER.contains("vela-signer"));
+    assert!(INSTALLER.contains("science.vela.signer.policy"));
+    assert!(WINDOWS_INSTALLER.contains("vela-signer.exe"));
+    assert!(WINDOWS_INSTALLER.contains("Get-FileHash -Algorithm SHA256"));
     assert!(INSTALLER.contains("vela check . --strict --json"));
     assert!(INSTALLER.contains("vela next . --json"));
     assert!(INSTALLER.contains("docs/PRODUCER_QUICKSTART.md"));

@@ -74,7 +74,9 @@ fn advanced_help_quickstart_uses_release_commands() {
     assert!(help.contains("check         Replay, signatures, parity, and strict signals"));
     assert!(help.contains("reproduce     Re-run stored witnesses with frozen verifiers"));
     assert!(help.contains("migrate       Preview or apply a root-preserving repository migration"));
-    assert!(help.contains("review        List and inspect exact pending Decision Briefs"));
+    assert!(
+        help.contains("review        Inspect, decide, or producer-withdraw one exact proposal")
+    );
 
     assert!(!help.contains("bridges derive"));
     assert!(!help.contains("vela workbench"));

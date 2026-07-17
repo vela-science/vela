@@ -163,6 +163,21 @@ pub(crate) fn cmd_check(
         for conflict in parity_conflicts.iter().take(20) {
             println!("  - {conflict}");
         }
+        let withdrawal_conflicts = vela_protocol::proposals::verify_proposal_withdrawals(
+            frontier_dir_for_source(src),
+            &frontier,
+        );
+        println!(
+            "proposal-withdrawal verification: {}",
+            if withdrawal_conflicts.is_empty() {
+                "ok".to_string()
+            } else {
+                format!("{} conflict(s)", withdrawal_conflicts.len())
+            }
+        );
+        for conflict in withdrawal_conflicts.iter().take(20) {
+            println!("  - {conflict}");
+        }
         let policy_lane_errors = if strict {
             vela_protocol::proposals::policy_accept::verify_policy_lane_events(
                 &frontier,

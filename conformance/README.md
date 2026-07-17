@@ -1,6 +1,6 @@
 # Vela conformance vectors
 
-This directory carries the portable test vectors for Vela's prelaunch `0.800`
+This directory carries the portable test vectors for Vela's prelaunch `0.901`
 protocol candidate. Passing them demonstrates agreement on the named byte and
 reducer contracts. It does not certify scientific truth, policy authority, or
 compatibility with future candidates.
@@ -15,7 +15,7 @@ Each `fixtures/cascade-fixture-*.json` contains:
 
 An implementation parses the fixture, replays the event log, projects the same
 effect rows, and compares them with `expected_states`. The current set contains
-14 `fixture_version: 6` fixtures. Its manifest records the byte length and
+15 `fixture_version: 6` fixtures. Its manifest records the byte length and
 SHA-256 of every cascade fixture; the verifier refuses drift.
 
 The source of truth for mutation kinds is

@@ -75,15 +75,21 @@ profile.
 
 ### Decision substitution and stale review
 
-The sign ceremony binds the exact proposal set, accepted base, active policy,
-and derived effect. If any bound input drifts, the saved plan is stale and must
-be rebuilt. Human output is rendered from that bound plan, so a later caller
-cannot silently replace the reviewed bytes.
+The protected decision ceremony binds one proposal, action, reason, accepted
+base, active policy, observation time, and derived effect. If any bound input
+drifts, confirmation fails and the plan must be rebuilt. The cross-platform
+signer card names the exact action, proposal, frontier, reason, and Decision
+Plan root, so a later caller cannot silently replace the reviewed bytes.
 
-`vela sign` reads the key only within the human ceremony. Agent identities are
-refused. The binary integrity pin raises the bar against swapping the executable
-between deliberate installation and signing, but a process that can rewrite
-both the binary and its pin remains outside that protection.
+`vela review decide` never retrieves the protected key. After every key-free
+check passes, it starts a pinned one-shot helper over inherited pipes. The
+helper authenticates a bounded signer session, displays the exact card, and
+uses the OS-protected key only after approval. `always` mode adds per-use
+LocalAuthentication, Windows Hello, or non-cached polkit authentication. Agent
+identities are refused. The local trust record pins Vela. Every request binds
+the current sibling helper digest, the helper verifies its own executable, and
+the CLI verifies the response. A process that can rewrite binaries and their
+local trust records remains outside this `user_session` profile.
 
 ### Duplicate or concurrent publication
 

@@ -76,6 +76,29 @@ pub fn analyze_at(
     let mut signals = Vec::new();
     let actor_registration = actor_registration::assess(frontier, repo_dir);
 
+    if let Some(repo_dir) = repo_dir {
+        for (index, error) in proposals::verify_proposal_withdrawals(repo_dir, frontier)
+            .into_iter()
+            .enumerate()
+        {
+            signals.push(SignalItem {
+                id: signal_id("invalid_proposal_withdrawal", &index.to_string()),
+                kind: "invalid_proposal_withdrawal".to_string(),
+                severity: "error".to_string(),
+                target: SignalTarget {
+                    r#type: "frontier".to_string(),
+                    id: frontier.frontier_id().to_string(),
+                },
+                reason: error,
+                recommended_action: "Treat the proposal as pending and restore the exact Receipt-bound signed withdrawal bytes.".to_string(),
+                blocks: vec!["strict_check".to_string(), "proof_ready".to_string()],
+                caveats: vec![
+                    "An invalid withdrawal grants the producer no terminal standing in either strict or non-strict reads.".to_string(),
+                ],
+            });
+        }
+    }
+
     for diagnostic in diagnostics {
         let severity = diagnostic
             .get("severity")

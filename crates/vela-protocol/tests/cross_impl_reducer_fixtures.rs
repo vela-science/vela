@@ -1259,6 +1259,40 @@ fn build_register_with_finding_edge_log(
     ]
 }
 
+/// `proposal.withdrawn` is a signed audit/standing event. It deliberately
+/// leaves accepted scientific state untouched, so cross-implementation
+/// reducers must recognize it and treat it as a no-op on the finding and
+/// artifact effect digests. Signature and Receipt-binding validation are
+/// covered by the proposal-withdrawal protocol tests.
+fn build_proposal_withdrawn_log(frontier_idx: usize) -> Vec<events::StateEvent> {
+    vec![StateEvent {
+        schema: events::EVENT_SCHEMA.to_string(),
+        id: String::new(),
+        kind: events::EVENT_KIND_PROPOSAL_WITHDRAWN.into(),
+        target: StateTarget {
+            r#type: "proposal".to_string(),
+            id: format!("vpr_{}", "a".repeat(64)),
+        },
+        actor: StateActor {
+            id: "agent:withdrawal-fixture".to_string(),
+            r#type: "agent".to_string(),
+        },
+        timestamp: fixture_timestamp(frontier_idx, 0),
+        reason: "fixture: producer withdrew a Receipt-bound pending proposal".to_string(),
+        before_hash: NULL_HASH.to_string(),
+        after_hash: NULL_HASH.to_string(),
+        payload: json!({
+            "schema": events::PROPOSAL_WITHDRAWAL_PAYLOAD_SCHEMA,
+            "proposal_id": format!("vpr_{}", "a".repeat(64)),
+            "proposal_root": format!("sha256:{}", "b".repeat(64)),
+            "receipt_root": format!("sha256:{}", "c".repeat(64)),
+            "identity_binding_id": format!("vib_{}", "d".repeat(64)),
+        }),
+        caveats: vec!["fixture only".to_string()],
+        signature: Some(format!("v1:{}", "e".repeat(128))),
+    }]
+}
+
 /// v0.220: diff_pack.released / diff_pack.reviewed /
 /// verdict_conflict.resolved fixture builders. These three reducer
 /// arms write to side tables (`released_diff_packs`,
@@ -1802,6 +1836,24 @@ fn export_cross_impl_reducer_fixtures() {
             &out_dir,
             frontier_idx,
             "register_with_finding_edge",
+            findings,
+            event_log,
+        );
+    }
+
+    // Fixture 18 — proposal.withdrawn (v0.901). The event changes proposal
+    // standing outside this reducer-effects projection and must be a no-op on
+    // accepted findings and artifacts in every implementation.
+    {
+        let frontier_idx = FIXTURE_FRONTIER_COUNT + 15;
+        let findings: Vec<FindingBundle> = (0..FINDINGS_PER_FRONTIER)
+            .map(|i| make_finding(frontier_idx, i))
+            .collect();
+        let event_log = build_proposal_withdrawn_log(frontier_idx);
+        export_one(
+            &out_dir,
+            frontier_idx,
+            "proposal_withdrawn",
             findings,
             event_log,
         );

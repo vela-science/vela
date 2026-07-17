@@ -2626,7 +2626,9 @@ fn reject_unrelated_public_dirt(
 
 #[derive(Debug)]
 struct CachedIndexStat {
+    #[cfg(unix)]
     ctime_seconds: u64,
+    #[cfg(unix)]
     ctime_nanos: u32,
     mtime_seconds: u64,
     mtime_nanos: u32,
@@ -2717,13 +2719,17 @@ fn cached_index_stats(
         }
         let (ctime_seconds, ctime_nanos) =
             ctime.ok_or_else(|| format!("Git index debug block omitted ctime at {path}"))?;
+        #[cfg(not(unix))]
+        let _ = (ctime_seconds, ctime_nanos);
         let (mtime_seconds, mtime_nanos) =
             mtime.ok_or_else(|| format!("Git index debug block omitted mtime at {path}"))?;
         let size = size.ok_or_else(|| format!("Git index debug block omitted size at {path}"))?;
         stats.insert(
             path,
             CachedIndexStat {
+                #[cfg(unix)]
                 ctime_seconds,
+                #[cfg(unix)]
                 ctime_nanos,
                 mtime_seconds,
                 mtime_nanos,

@@ -1,5 +1,30 @@
 # Changelog
 
+## v0.901.0 — 2026-07-17 — Protected decisions and producer withdrawal
+
+- Replace ordinary batch signing with `vela review decide`: a key-free exact
+  preview followed by one root- and time-bound decision card. The protected
+  path accepts no key path, batch state, wildcard, `--yes`, or blanket approval.
+- Add identity v2 and a one-shot `vela-signer` for macOS, Windows, and Linux.
+  It uses the platform credential store, a signed 15-minute-idle/one-hour-total
+  authentication session by default, and an optional per-signature mode. It
+  verifies key possession and binary identity, removes the plaintext source
+  after protected readback, and zeroizes transient seed buffers. Identity v1
+  remains readable.
+- Publish checksum-verified paired bundles for macOS, Windows, and Linux so the
+  CLI and exact helper cannot drift. The Linux bundle includes a non-caching
+  polkit action; no release installs a daemon, listener, or reusable signing
+  socket.
+- Add the signed, Receipt-bound, accepted-state-neutral
+  `proposal.withdrawn` event. Only the exact producer key embedded in Receipt
+  v1 can withdraw its own pending proposal; all proposal, Receipt, artifact,
+  record, and event evidence remains immutable.
+- Move historical batch and detached-file `vela sign` compatibility to
+  advanced help and add focused transaction, tamper, duplicate, conflict,
+  custody, CLI-surface, and cross-implementation reducer vectors.
+- Accept ADR 0011 only after the released binary passes the protected Erdős
+  terminal test and clean-clone replay.
+
 ## v0.900.2 — 2026-07-17 — Truly read-only product projections
 
 - Make compact status and exact Decision Brief reads verify operation recovery

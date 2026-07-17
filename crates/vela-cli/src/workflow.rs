@@ -607,6 +607,104 @@ where
     )
 }
 
+pub(crate) fn transact_proposal_withdrawal<F>(
+    frontier: &Path,
+    proposal_id: &str,
+    actor_id: &str,
+    reason: &str,
+    load_key: F,
+) -> Result<Value, String>
+where
+    F: FnOnce() -> Result<ed25519_dalek::SigningKey, String>,
+{
+    if reason.trim().is_empty() {
+        return Err("withdrawal reason must not be empty".to_string());
+    }
+    let journal_dir = frontier_transaction_journal_dir(frontier)?;
+    let barrier =
+        crate::frontier_txn::FrontierTxn::acquire_recovery_barrier(frontier, &journal_dir)
+            .map_err(|error| error.to_string())?;
+    let original = repo::load_from_path(frontier)?;
+    if let Some(event) =
+        vela_protocol::proposals::existing_proposal_withdrawal(frontier, &original, proposal_id)?
+    {
+        if event.actor.id != actor_id {
+            return Err("withdrawn proposal belongs to a different producer".to_string());
+        }
+        return Ok(json!({
+            "ok": true,
+            "command": "review.withdraw",
+            "proposal_id": proposal_id,
+            "withdrawal_event_id": event.id,
+            "withdrawn_at": event.timestamp,
+            "idempotent": true,
+            "key_read": false,
+            "state_root_before": format!("sha256:{}", vela_protocol::events::event_log_hash(&original.events)),
+            "state_root_after": format!("sha256:{}", vela_protocol::events::event_log_hash(&original.events)),
+        }));
+    }
+    let proposal = original
+        .proposals
+        .iter()
+        .find(|proposal| proposal.id == proposal_id)
+        .ok_or_else(|| format!("proposal {proposal_id} does not exist"))?;
+    let authorization =
+        vela_protocol::proposals::proposal_withdrawal_authorization(frontier, proposal)?;
+    if proposal.actor.id != actor_id || authorization.identity_binding.actor_id != actor_id {
+        return Err("withdrawal actor is not the Receipt-bound proposal producer".to_string());
+    }
+    let key = load_key()?;
+    let withdrawn_at = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Nanos, true);
+    let encoded = serde_json::to_value(&original).map_err(|error| error.to_string())?;
+    let mut candidate: vela_protocol::project::Project =
+        serde_json::from_value(encoded).map_err(|error| error.to_string())?;
+    let event = vela_protocol::proposals::apply_proposal_withdrawal(
+        frontier,
+        &mut candidate,
+        proposal_id,
+        actor_id,
+        reason,
+        &withdrawn_at,
+        &key,
+    )?;
+    let state_root_before = format!(
+        "sha256:{}",
+        vela_protocol::events::event_log_hash(&original.events)
+    );
+    let state_root_after = format!(
+        "sha256:{}",
+        vela_protocol::events::event_log_hash(&candidate.events)
+    );
+    let result = json!({
+        "ok": true,
+        "command": "review.withdraw",
+        "proposal_id": proposal_id,
+        "withdrawal_event_id": event.id,
+        "withdrawn_at": withdrawn_at,
+        "idempotent": false,
+        "key_read": true,
+        "state_root_before": state_root_before,
+        "state_root_after": state_root_after,
+    });
+    transact_event_candidate_with_barrier(
+        frontier,
+        barrier,
+        &original,
+        &candidate,
+        result,
+        EventTransactionBinding {
+            operation_namespace: "proposal-withdrawal",
+            request_schema: "vela.proposal-withdrawal-request.internal.v1",
+            request_event_id_field: "withdrawal_event_id",
+            result_event_id_field: "withdrawal_event_id",
+            result_timestamp_field: "withdrawn_at",
+            publication_summary: "review withdraw",
+            preserve_existing_event_bytes: true,
+        },
+        || Ok(()),
+    )
+}
+
 /// The pre-loaded briefing for a target — the compounding payload the
 /// session starts from. Problem-shaped targets get the full task packet;
 /// rich campaign targets also carry their non-authorizing coordination task.
@@ -3071,6 +3169,147 @@ mod workflow_transaction_tests {
         Assertion, Conditions, Confidence, ConfidenceKind, ConfidenceMethod, Evidence, Extraction,
         FindingBundle, Flags, Provenance,
     };
+    use vela_protocol::identity::{ActorClass, IdentityBinding, IdentityBindingDraft};
+    use vela_protocol::receipt_v1::{ArtifactInput, ReceiptBuilder, ReceiptInput};
+
+    fn review_withdraw_fixture() -> (tempfile::TempDir, SigningKey, String) {
+        let temp = tempfile::tempdir().unwrap();
+        let key = SigningKey::from_bytes(&[31_u8; 32]);
+        let actor = "agent:workflow-withdrawal";
+        let identity = IdentityBinding::build(
+            IdentityBindingDraft {
+                actor_id: actor.to_string(),
+                actor_class: ActorClass::Agent,
+                created_at: "2026-07-17T00:00:00Z".to_string(),
+            },
+            &key,
+        )
+        .unwrap();
+        let mut project =
+            vela_protocol::project::assemble("workflow-withdrawal", Vec::new(), 0, 0, "test");
+        vela_protocol::repo::init_repo(temp.path(), &project).unwrap();
+        let receipt = ReceiptBuilder::build(
+            ReceiptInput::new(
+                "bounded workflow result".to_string(),
+                "computational".to_string(),
+                "exact".to_string(),
+                vec![
+                    ArtifactInput::new(
+                        "artifact.json".to_string(),
+                        "witness".to_string(),
+                        Some("a".repeat(64)),
+                        None,
+                    )
+                    .unwrap(),
+                ],
+                vec!["bounded only".to_string()],
+                Vec::new(),
+                actor.to_string(),
+                "2026-07-17T00:00:01Z".to_string(),
+                format!(
+                    "sha256:{}",
+                    vela_protocol::events::event_log_hash(&project.events)
+                ),
+                ".".to_string(),
+                format!("vop_{}", "b".repeat(64)),
+                "urn:vela:policy:none".to_string(),
+            )
+            .unwrap(),
+            &identity,
+        )
+        .unwrap();
+        let receipt_root = receipt.canonical_root().unwrap();
+        let receipt_path = format!(
+            "records/receipts/sha256/{}.json",
+            receipt_root.strip_prefix("sha256:").unwrap()
+        );
+        std::fs::create_dir_all(temp.path().join("records/receipts/sha256")).unwrap();
+        std::fs::write(
+            temp.path().join(&receipt_path),
+            receipt.canonical_bytes().unwrap(),
+        )
+        .unwrap();
+        let proposal = vela_protocol::proposals::new_proposal_at(
+            "finding.review",
+            vela_protocol::events::StateTarget {
+                r#type: "finding".to_string(),
+                id: "vf_workflow_target".to_string(),
+            },
+            actor,
+            "agent",
+            "land bounded result",
+            json!({
+                "vela_submission": {
+                    "schema": "vela.submission-links.internal.v1",
+                    "receipt_root": receipt_root,
+                    "receipt_path": receipt_path,
+                    "record_id": "vrc_0123456789abcdef",
+                    "operation_id": format!("vop_{}", "b".repeat(64)),
+                    "review_material_path": "records/review/sha256/test.json",
+                }
+            }),
+            Vec::new(),
+            Vec::new(),
+            "2026-07-17T00:00:02Z",
+        );
+        let proposal_id = proposal.id.clone();
+        project.proposals.push(proposal);
+        vela_protocol::repo::save_to_path(temp.path(), &project).unwrap();
+        for args in [
+            vec!["init", "-q"],
+            vec!["config", "user.name", "Vela Test"],
+            vec!["config", "user.email", "vela-test@example.invalid"],
+            vec!["add", "."],
+            vec!["commit", "-q", "-m", "fixture"],
+        ] {
+            let status = std::process::Command::new("git")
+                .args(args)
+                .current_dir(temp.path())
+                .status()
+                .unwrap();
+            assert!(status.success());
+        }
+        (temp, key, proposal_id)
+    }
+
+    #[test]
+    fn review_withdraw_transaction_is_receipt_bound_and_idempotent_without_second_key_read() {
+        let (temp, key, proposal_id) = review_withdraw_fixture();
+        let before = vela_protocol::repo::load_from_path(temp.path()).unwrap();
+        let before_findings = vela_protocol::canonical::sha256_canonical(&before.findings).unwrap();
+        let first = transact_proposal_withdrawal(
+            temp.path(),
+            &proposal_id,
+            "agent:workflow-withdrawal",
+            "superseded fixture",
+            || Ok(key.clone()),
+        )
+        .unwrap();
+        assert_eq!(first["idempotent"], false);
+        assert_eq!(first["key_read"], true);
+
+        let after = vela_protocol::repo::load_from_path(temp.path()).unwrap();
+        assert_eq!(after.proposals[0].status, "withdrawn");
+        assert_eq!(
+            vela_protocol::canonical::sha256_canonical(&after.findings).unwrap(),
+            before_findings
+        );
+        assert!(
+            vela_protocol::proposals::verify_proposal_withdrawals(temp.path(), &after).is_empty()
+        );
+
+        let retry = transact_proposal_withdrawal(
+            temp.path(),
+            &proposal_id,
+            "agent:workflow-withdrawal",
+            "ignored on verified retry",
+            || panic!("idempotent withdrawal must not read the producer key"),
+        )
+        .unwrap();
+        assert_eq!(retry["idempotent"], true);
+        assert_eq!(retry["key_read"], false);
+        assert_eq!(retry["withdrawal_event_id"], first["withdrawal_event_id"]);
+    }
 
     fn work_session_size_fixture(padding: usize) -> WorkSession {
         let contract = TaskContract {

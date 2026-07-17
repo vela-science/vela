@@ -523,7 +523,8 @@ function applyEvent(state: ReducerState, event: Event): void {
     kind === "review.accepted" ||
     kind === "review.rejected" ||
     kind === "review.revision_requested" ||
-    kind === "actor.registration_activated"
+    kind === "actor.registration_activated" ||
+    kind === "proposal.withdrawn"
   )
     return;
   // policy.auto_admitted (Phase 1A): deterministic machine-verified admission

@@ -125,7 +125,7 @@ fn init_git_frontier(dir: &Path) {
         "init frontier",
     );
     assert_success(
-        &run(dir, &["id", "create", "--handle", "t"]),
+        &run(dir, &["id", "create", "--handle", "t", "--agent"]),
         "create test identity",
     );
     assert_success(

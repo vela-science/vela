@@ -1,13 +1,13 @@
 # Vela protocol: current contract
 
-Status: current prelaunch contract for Vela `0.900.2`.
+Status: current prelaunch contract for Vela `0.901.0`.
 
 This document defines the small protocol surface that Vela ships now. Git
 stores and transports immutable bytes. Vela gives a scientific meaning to a
 bounded subset of those bytes, records who had authority to change accepted
 state, and deterministically rebuilds the current frontier from the event log.
 
-The workspace release (`0.900.2`), finding-bundle schema (`0.10.0`), and wire
+The workspace release (`0.901.0`), finding-bundle schema (`0.10.0`), and wire
 schema names such as `vela.event.v0.1` are separate identifiers. New work uses
 the current forms below. Older micro-version chronology belongs in Git history
 and `CHANGELOG.md`, not in the active protocol.
@@ -53,7 +53,7 @@ Vela separates capabilities that other systems often collapse.
 | Producer or agent | inspect state, claim a work lease, run tools, emit a Receipt, land evidence, draft a correction | accept, reject, revise, sign as a human, or invent a policy certificate |
 | Verifier | evaluate exact bytes under a named method and emit a bound result | decide significance, acceptance, or authorship |
 | Signed policy | permit only the bounded class and causal state named by a prior human ceremony | widen its own scope, treat model output as authority, or sign new policy |
-| Human key holder | accept, reject, or request revision through `vela sign`; sign and revoke policy | delegate the private key to an agent or unsigned service |
+| Human key holder | approve one exact accept/reject through protected `review decide`; sign and revoke policy | delegate the private key or OS approval to an agent or unsigned service |
 | Git host | preserve and transport commits and refs | turn a commit, merge, or pull request into scientific acceptance |
 | Hub | clone configured Git sources, verify them, and serve read projections | register sources through a public write API, sign, accept, store canonical witness authority, or mutate a frontier |
 
@@ -165,6 +165,25 @@ events are signed. Policy-routed admission is accompanied by a verified
 certificate from the applicable signed policy. Coordination and audit events
 are explicitly distinguished from scientific state transitions.
 
+`proposal.withdrawn` is a signed, non-scientific lifecycle event with payload
+schema `vela.proposal-withdrawal.v1`. It binds the exact pending proposal root,
+Receipt root, and embedded producer identity-binding ID. The ordinary event
+signature must verify under that Receipt-bound agent key. A valid event changes
+only proposal standing to `withdrawn`; it cannot delete evidence or change
+accepted findings. Invalid withdrawal bytes are reported and projected as
+pending, and block strict verification.
+
+Its closed payload is:
+
+```text
+schema, proposal_id, proposal_root, receipt_root, identity_binding_id
+```
+
+The event targets the exact proposal, uses an agent actor and null scientific
+before/after roots, and requires a non-empty reason. A proposal with a human
+decision event, more than one withdrawal event, no Receipt v1 binding, or a
+mismatched producer key cannot gain withdrawn standing.
+
 The event type, known-kind registry, validation, and constructors live in
 [`crates/vela-protocol/src/kernel/events.rs`](../crates/vela-protocol/src/kernel/events.rs).
 
@@ -272,7 +291,7 @@ not change the policy route or scientific authority.
 Deferred proposals enter the terminal-only ceremony:
 
 ```bash
-vela sign --frontier <frontier>
+vela review decide <frontier> <vpr_id> --accept|--reject --reason <text>
 ```
 
 The ceremony renders a Decision Brief from canonical frontier state. Internally
@@ -282,10 +301,18 @@ ordered event intents. The Decision Plan is private process plumbing, not a new
 authority object.
 
 Any change to the proposal, frontier head, evidence, policy, actor registry, or
-semantic effect invalidates the prepared decision. The key is read only after
-the exact plan is shown and confirmed. Acceptance, rejection, and revision
-requests all leave signed append-only decision events. Acceptance also installs
-the corresponding domain event in the same transaction.
+semantic effect invalidates the prepared decision. The first invocation is
+key-free and returns `vela.review-decision.v1` with the exact brief, action,
+reason, observation time, and Decision Plan root. A second invocation must echo
+the matching `--confirm-root` and `--confirm-at`. Only after the plan is
+rederived under the frontier transaction barrier and the installed binary pin
+matches does Vela start the pinned one-shot signer helper. The helper uses the
+platform store on macOS, Windows, or Linux and displays one exact decision
+card. Its short authentication session never approves proposal semantics. The
+protected path has no key-path, batch, wildcard, saved-answer, `--yes`, or
+persistent-approval input. Acceptance, rejection, and revision requests leave signed
+append-only decision events. Acceptance also installs the corresponding domain
+event in the same transaction.
 
 A signed policy uses the same causal discipline. It can permit a predeclared
 class without a per-item human ceremony, but only while its ID, signature,

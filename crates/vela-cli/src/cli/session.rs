@@ -34,15 +34,15 @@ pub(crate) fn print_session_help() {
         env!("CARGO_PKG_VERSION")
     );
     println!();
-    println!("  Agents land. Verifiers reproduce. Humans sign. Git publishes.");
+    println!("  Agents land. Verifiers reproduce. Humans approve. Git publishes.");
     println!();
     println!("  USAGE");
     println!("    vela <command> [options]");
     println!();
     println!("  COMMANDS");
     println!("    init       status     next       work");
-    println!("    land       review     sign       check");
-    println!("    reproduce  log        doctor     migrate");
+    println!("    land       review     check      reproduce");
+    println!("    log        doctor     migrate");
     println!();
     println!("  Run `vela help advanced` for setup nouns and advanced verification.");
     println!();

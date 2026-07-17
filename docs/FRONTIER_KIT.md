@@ -67,7 +67,7 @@ producers.
 
 A committed Permit or Defer closes the session record. Permit records the
 policy certificate that authorized admission. Defer leaves the proposal for
-`vela sign`. Deny and invalid input leave the session intact and return a
+protected `vela review decide`. Deny and invalid input leave the session intact and return a
 repair action.
 
 Release an abandoned lease through Vela:

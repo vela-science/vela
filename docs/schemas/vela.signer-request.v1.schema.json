@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vela.science/schemas/vela.signer-request.v1.schema.json",
+  "title": "Vela one-shot signer request v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "nonce",
+    "expires_at",
+    "vela_binary_path",
+    "vela_binary_sha256",
+    "helper_sha256",
+    "frontier_id",
+    "frontier_path",
+    "proposal_id",
+    "proposal_root",
+    "action",
+    "reason",
+    "reviewer_actor",
+    "reviewer_public_key",
+    "observed_at",
+    "decision_plan_root",
+    "gate_state",
+    "provider",
+    "protection_grade",
+    "protection_mode",
+    "events"
+  ],
+  "properties": {
+    "schema": { "const": "vela.signer-request.v1" },
+    "nonce": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "expires_at": { "type": "string", "format": "date-time" },
+    "vela_binary_path": { "type": "string", "minLength": 1 },
+    "vela_binary_sha256": { "$ref": "#/$defs/sha256" },
+    "helper_sha256": { "$ref": "#/$defs/sha256" },
+    "frontier_id": { "type": "string", "pattern": "^vfr_" },
+    "frontier_path": { "type": "string", "minLength": 1 },
+    "proposal_id": { "type": "string", "pattern": "^vpr_" },
+    "proposal_root": { "$ref": "#/$defs/sha256" },
+    "action": { "enum": ["accept", "reject"] },
+    "reason": { "type": "string", "minLength": 1 },
+    "reviewer_actor": { "type": "string", "minLength": 1 },
+    "reviewer_public_key": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "observed_at": { "type": "string", "format": "date-time" },
+    "decision_plan_root": { "$ref": "#/$defs/sha256" },
+    "gate_state": { "type": "string", "minLength": 1 },
+    "provider": { "type": "string", "minLength": 1 },
+    "protection_grade": { "type": "string", "minLength": 1 },
+    "protection_mode": { "enum": ["session", "always"] },
+    "events": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["event"],
+        "properties": { "event": { "type": "object" } }
+      }
+    }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" }
+  }
+}

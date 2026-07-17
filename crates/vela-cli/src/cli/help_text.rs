@@ -41,7 +41,7 @@ select one explicitly. A committed Permit or Defer closes session.json; Deny
 or invalid input leaves it available for repair.
 
 SEE ALSO
-  vela sign   decide what the policy deferred to you";
+  vela review decide   approve one exact deferred proposal";
 
 pub const SIGN: &str = "\
 EXAMPLES
@@ -74,7 +74,14 @@ pub const REVIEW: &str = "\
 EXAMPLES
   vela review list . --json           compact pending queue
   vela review show . vpr_8b49… --json one exact Decision Brief
-  vela review preview . vpr_8b49…     read-only decision preview";
+  vela review preview . vpr_8b49…     read-only Decision Brief
+  vela review decide . vpr_8b49… --reject --reason \"insufficient evidence\" --json
+                                        key-free exact Decision Plan preview
+  vela review decide . vpr_8b49… --reject --reason \"insufficient evidence\" \\
+    --confirm-root sha256:… --confirm-at 2026-07-17T12:00:00Z
+                                        one exact protected decision card
+  vela review withdraw . vpr_8b49… --as agent:producer --reason \"superseded\"
+                                        close your own Receipt-bound proposal";
 
 pub const MIGRATE: &str = "\
 EXAMPLES

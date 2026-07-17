@@ -648,6 +648,7 @@ fn descriptor_identity(
 }
 
 #[cfg(windows)]
+#[allow(unsafe_code)]
 fn windows_descriptor_identity(file: &std::fs::File) -> Result<(u64, u64), std::io::Error> {
     use std::ffi::c_void;
     use std::mem::MaybeUninit;

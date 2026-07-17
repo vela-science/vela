@@ -13,6 +13,7 @@ members = [
     "crates/vela-edge",
     "crates/vela-protocol-core",
     "crates/vela-cli",
+    "crates/vela-signer",
     "crates/vela-hub",
     "crates/vela-verify",
 ]
@@ -27,7 +28,7 @@ resolver = "3"
 # Release numbering uses `0.RRR.P`, where RRR names the release train and P is
 # the compatible patch within that train. Older `v0.X` markers in comments and
 # research documents are historical proof-slice labels.
-version = "0.900.2"
+version = "0.901.0"
 edition = "2024"
 license = "Apache-2.0 OR MIT"
 repository = "https://github.com/vela-science/vela"
@@ -63,7 +64,8 @@ tower-http = { version = "0.6", features = ["cors", "fs"] }
 # vela-hub re-adds the heavier `postgres` driver in its own manifest, so
 # the protocol library and its pure consumers don't build it.
 sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "tls-rustls", "sqlite"] }
-ed25519-dalek = { version = "2", features = ["rand_core"] }
+ed25519-dalek = { version = "2", features = ["rand_core", "zeroize"] }
+zeroize = "1"
 base64 = "0.22"
 unicode-normalization = "0.1"
 rand = "0.8"
@@ -72,9 +74,10 @@ tempfile = "3"
 
 # Internal crates. `version` is required so cargo publish can resolve
 # the dep against crates.io; `path` is used for in-workspace builds.
-vela-protocol = { path = "crates/vela-protocol", version = "0.900.2" }
-vela-protocol-core = { path = "crates/vela-protocol-core", version = "0.900.2" }
-vela-verify = { path = "crates/vela-verify", version = "0.900.2" }
+vela-protocol = { path = "crates/vela-protocol", version = "0.901.0" }
+vela-protocol-core = { path = "crates/vela-protocol-core", version = "0.901.0" }
+vela-verify = { path = "crates/vela-verify", version = "0.901.0" }
+vela-signer = { path = "crates/vela-signer", version = "0.901.0" }
 
 [workspace.lints.rust]
 unsafe_code = "deny"

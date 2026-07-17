@@ -6,10 +6,10 @@ class. A human key holder decides deferred proposals. Git publishes the bytes.
 
 ## Daily path
 
-Default help exposes twelve commands:
+Default help exposes eleven commands:
 
 ```text
-init status next work land review sign check reproduce log doctor migrate
+init status next work land review check reproduce log doctor migrate
 ```
 
 The ordinary producer loop is:
@@ -46,7 +46,6 @@ signed policy. An agent cannot accept or reject the result.
 | `work` | Claim one target and write a private, typed session. |
 | `land` | Build or import Receipt v1, run policy, and publish the resulting bytes when requested. |
 | `review` | List proposal summaries or inspect one exact Decision Brief. |
-| `sign` | Run the human-only proposal decision ceremony. |
 | `check` | Verify schemas, replay, signatures, roots, policy, and strict signals. |
 | `reproduce` | Run stored evidence through its frozen verifier. |
 | `log` | Read accepted event history. |
@@ -121,7 +120,9 @@ command. The full packet stays in the tracked packet file.
 
 `vela review list . --json` emits `vela.review.v1` with compact, paginated
 proposal summaries. `review show` and `review preview` return one Decision
-Brief. `review export` writes proposal records without deciding them.
+Brief. `review decide` prepares or approves one exact protected decision.
+`review withdraw` lets a Receipt-bound producer close its own pending proposal.
+`review export` writes proposal records without deciding them.
 
 ## Initialization
 
@@ -147,11 +148,41 @@ Agents may run:
 vela review list . --json
 vela review show . <vpr_id> --json
 vela review preview . <vpr_id> --json
+vela review decide . <vpr_id> --reject --reason <text> --json
 ```
 
-Only a human may run `vela sign`. Scripted decisions use a key-free preview,
-then bind the exact Decision Plan root and observation time. Interactive and
-scripted paths reject agent identities before key access.
+The first `review decide` call is key-free and returns a
+`vela.review-decision.v1` preview. Codex may invoke the second call with the
+matching `--confirm-root` and `--confirm-at`; only the registered human's exact
+decision-card action authorizes the helper to use the protected key. The command accepts no key
+path, `--yes`, batch, wildcard, or saved-session input. `vela sign` remains in
+advanced help for historical batch sessions and detached files.
+
+A human identity moves its seed into the local OS credential store through the
+one-shot helper. Enrollment authenticates once before reading the source:
+
+```bash
+vela id protect --user-presence --remove-source-key --mode session --json
+vela id show --json
+```
+
+Enrollment verifies the public key, installs identity v2 atomically, removes
+the plaintext source, and pins the exact Vela binary. Every request binds and
+self-verifies the current sibling helper. An
+interrupted cleanup leaves protected decisions disabled until the same command
+safely resumes. The default session has 15-minute inactivity and one-hour
+overall limits. `--mode always` additionally requires LocalAuthentication,
+Windows Hello, or non-cached polkit authentication for every decision-signing
+operation. Agent identities continue to use file keys.
+
+A producer may close only its own Receipt-bound pending proposal:
+
+```bash
+vela review withdraw . <vpr_id> --as agent:<producer> --reason <text> --json
+```
+
+Withdrawal retains every proposal, Receipt, record, and artifact byte. It
+changes no accepted scientific state.
 
 Git publication cannot accept a claim. It publishes the proposal, verifier
 evidence, or signed decision bytes that already exist.

@@ -9,7 +9,9 @@
 //! exist for single items (`sign <id>` preview, then exact root/time echo)
 //! and detached artifact bytes (`sign <path>`).
 
+use std::io::Write;
 use std::path::{Path, PathBuf};
+use std::process::{Command, Stdio};
 
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -21,7 +23,8 @@ use colored::Colorize;
 use vela_protocol::cli_style as style;
 
 use crate::decision_plan::{
-    DecisionAction, DecisionExecutionOutcome, DecisionPlanError, PreparedDecision, SavedAnswer,
+    DecisionAction, DecisionExecutionOutcome, DecisionPlanError, PreparedDecision,
+    PreparedSignatureSet, SavedAnswer,
 };
 use crate::ui::{self, ErrorKind};
 
@@ -430,6 +433,122 @@ pub(crate) fn execute_confirmed_decision(
     })
 }
 
+fn execute_confirmed_protected_decision(
+    frontier: &Path,
+    prepared: &PreparedDecision,
+    action: &str,
+    proposal_id: &str,
+    proposal_root: &str,
+    reason: &str,
+    observed_at: &str,
+    gate_state: &str,
+) -> Result<DecisionExecutionOutcome, DecisionPlanError> {
+    let profile = crate::cli_identity::protected_signer_profile()
+        .map_err(|error| DecisionPlanError::new_external("key_unavailable", error))?;
+    crate::decision_plan::execute_with_signature_loader(frontier, prepared, |material| {
+        request_helper_signatures(
+            frontier,
+            material,
+            action,
+            proposal_id,
+            proposal_root,
+            reason,
+            observed_at,
+            gate_state,
+            &profile,
+        )
+    })
+}
+
+#[allow(clippy::too_many_arguments)]
+fn request_helper_signatures(
+    frontier: &Path,
+    material: &PreparedSignatureSet,
+    action: &str,
+    proposal_id: &str,
+    proposal_root: &str,
+    reason: &str,
+    observed_at: &str,
+    gate_state: &str,
+    profile: &crate::cli_identity::ProtectedSignerProfile,
+) -> Result<Vec<String>, String> {
+    use rand::RngCore;
+
+    let vela_binary =
+        std::env::current_exe().map_err(|error| format!("resolve running Vela binary: {error}"))?;
+    let helper = crate::cli_identity::signer_helper_path(&vela_binary)?;
+    let helper_sha256 = vela_signer::contract::file_sha256(&helper)?;
+    let mut nonce = [0_u8; 32];
+    rand::rngs::OsRng.fill_bytes(&mut nonce);
+    let now = chrono::Utc::now();
+    let request = vela_signer::SignerRequest {
+        schema: vela_signer::contract::REQUEST_SCHEMA.to_string(),
+        nonce: hex::encode(nonce),
+        expires_at: (now + chrono::Duration::seconds(120))
+            .to_rfc3339_opts(chrono::SecondsFormat::Nanos, true),
+        vela_binary_path: vela_binary.display().to_string(),
+        vela_binary_sha256: vela_signer::contract::file_sha256(&vela_binary)?,
+        helper_sha256,
+        frontier_id: material.frontier_id.clone(),
+        frontier_path: std::fs::canonicalize(frontier)
+            .unwrap_or_else(|_| frontier.to_path_buf())
+            .display()
+            .to_string(),
+        proposal_id: proposal_id.to_string(),
+        proposal_root: proposal_root.to_string(),
+        action: action.to_string(),
+        reason: reason.to_string(),
+        reviewer_actor: material.reviewer_id.clone(),
+        reviewer_public_key: material.reviewer_public_key.clone(),
+        observed_at: observed_at.to_string(),
+        decision_plan_root: material.decision_root.clone(),
+        gate_state: gate_state.to_string(),
+        provider: profile.provider.clone(),
+        protection_grade: profile.protection_grade.clone(),
+        protection_mode: profile.mode,
+        events: material
+            .events
+            .iter()
+            .cloned()
+            .map(|event| vela_signer::SignerEvent { event })
+            .collect(),
+    };
+    vela_signer::validate_request(&request, now)?;
+    let bytes = serde_json::to_vec(&request)
+        .map_err(|error| format!("serialize signer request: {error}"))?;
+    let mut child = Command::new(&helper)
+        .arg("approve")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|error| format!("start pinned signer helper {}: {error}", helper.display()))?;
+    child
+        .stdin
+        .take()
+        .ok_or_else(|| "signer helper stdin is unavailable".to_string())?
+        .write_all(&bytes)
+        .map_err(|error| format!("write signer request: {error}"))?;
+    let output = child
+        .wait_with_output()
+        .map_err(|error| format!("wait for signer helper: {error}"))?;
+    if !output.status.success() {
+        let detail = String::from_utf8_lossy(&output.stderr);
+        return Err(format!(
+            "signer helper declined or failed: {}",
+            safe_inline(detail.trim())
+        ));
+    }
+    let response: vela_signer::SignerResponse = serde_json::from_slice(&output.stdout)
+        .map_err(|error| format!("parse closed signer response: {error}"))?;
+    vela_signer::validate_response(&request, &response)?;
+    Ok(response
+        .signatures
+        .into_iter()
+        .map(|signed| signed.signature)
+        .collect())
+}
+
 pub(crate) fn fail_decision(error: DecisionPlanError) -> ! {
     let kind = match error.code {
         "key_unavailable" | "key_mismatch" | "reviewer_unauthorized" | "signing_failed" => {
@@ -438,6 +557,20 @@ pub(crate) fn fail_decision(error: DecisionPlanError) -> ! {
         _ => ErrorKind::Domain,
     };
     ui::fail_with(kind, &error.to_string(), None)
+}
+
+#[cfg(test)]
+fn protected_approval_prompt(
+    action: &str,
+    proposal_id: &str,
+    frontier_id: &str,
+    reason: &str,
+    decision_root: &str,
+) -> String {
+    format!(
+        "{action} proposal {proposal_id} in frontier {frontier_id}. Reason: {reason}. Decision Plan {}",
+        &decision_root[..decision_root.len().min(23)]
+    )
 }
 
 /// Publish only the immutable public delta committed by `FrontierTxn`.
@@ -1232,6 +1365,187 @@ fn record_pin_or_warn() {
     }
 }
 
+/// `vela review decide` is the ordinary one-proposal authority path. Its
+/// first phase is entirely read-only. Its second phase accepts only the exact
+/// root/time pair emitted by that preview and loads the human key exclusively
+/// through the user-presence protected signer.
+pub(crate) fn cmd_review_decide(
+    frontier: PathBuf,
+    id: &str,
+    action: DecisionAction,
+    reason: String,
+    confirm_root: Option<&str>,
+    confirm_at: Option<&str>,
+    json: bool,
+) {
+    if reason.trim().is_empty() {
+        ui::fail_with(ErrorKind::Usage, "--reason must not be empty", None);
+    }
+    if confirm_root.is_some() != confirm_at.is_some() {
+        ui::fail_with(
+            ErrorKind::Usage,
+            "protected confirmation requires both --confirm-root and --confirm-at from the same preview",
+            Some("rerun without either flag to render a fresh key-free preview"),
+        );
+    }
+    if let Some(observed_at) = confirm_at {
+        crate::decision_plan::validate_scripted_confirmation_time(observed_at)
+            .unwrap_or_else(|error| fail_decision(error));
+    }
+
+    let actor = crate::cli_identity::resolve_decision_actor(None);
+    let review = match confirm_at {
+        Some(observed_at) => {
+            crate::review_material::ReviewProjection::one_at(&frontier, id, observed_at)
+        }
+        None => crate::review_material::ReviewProjection::one_read_only(&frontier, id),
+    }
+    .unwrap_or_else(|error| ui::fail_with(ErrorKind::Domain, &error.to_string(), None));
+    let (action_name, available) = match action {
+        DecisionAction::Accept => ("accept", review.brief.accept_ready()),
+        DecisionAction::Reject => ("reject", review.brief.reject_ready()),
+    };
+    if !available {
+        let explanation = review
+            .brief
+            .action(action_name)
+            .map(|entry| entry.reasons.join("; "))
+            .filter(|reason| !reason.is_empty())
+            .unwrap_or_else(|| format!("{action_name} is unavailable for this proposal"));
+        ui::fail_with(ErrorKind::Domain, &explanation, None);
+    }
+
+    let answer = saved_answer_from_review(&review, action, reason);
+    let provenance = crate::cli_identity::resolve_co_author_provenance(None, None);
+    let prepared = crate::decision_plan::build_read_only_preview(
+        &frontier,
+        std::slice::from_ref(&answer),
+        &actor,
+        &review.observed_at,
+        provenance,
+    )
+    .unwrap_or_else(|error| fail_decision(error));
+    let summary = final_decision_summary(&[&review], std::slice::from_ref(&answer), &prepared);
+
+    let Some(confirmed_root) = confirm_root else {
+        let payload = serde_json::json!({
+            "ok": true,
+            "command": "review.decide",
+            "schema": "vela.review-decision.v1",
+            "frontier": frontier.display().to_string(),
+            "proposal_id": id,
+            "reviewer": actor,
+            "action": action_name,
+            "reason": answer.reason,
+            "decision_brief": review.brief,
+            "decision": summary,
+            "confirm_root": prepared.plan.decision_root,
+            "confirm_at": review.observed_at,
+            "signed": false,
+            "key_read": false,
+        });
+        if json {
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&payload).expect("decision preview JSON")
+            );
+        } else {
+            render_final_decision_set(&[&review], std::slice::from_ref(&answer), &prepared);
+            println!("  · preview only; no key was read and nothing changed");
+            println!(
+                "  · approve this exact {action_name} with --confirm-root {} --confirm-at {}",
+                safe_inline(&prepared.plan.decision_root),
+                safe_inline(&review.observed_at),
+            );
+        }
+        return;
+    };
+    if confirmed_root != prepared.plan.decision_root {
+        ui::fail_with(
+            ErrorKind::Domain,
+            &format!(
+                "confirmed decision root {confirmed_root} does not match the current exact root {}; no protected key was requested",
+                prepared.plan.decision_root
+            ),
+            Some("rerun without the confirmation pair to render a fresh preview"),
+        );
+    }
+
+    // A protected decision is never allowed to repin or continue unpinned.
+    ceremony_binary_gate(false);
+    if crate::config::binary_pin::load_pin().is_none() {
+        ui::fail_with(
+            ErrorKind::Custody,
+            "protected decisions require an exact binary pin",
+            Some(
+                "rerun `vela id protect --user-presence --remove-source-key` with the installed release",
+            ),
+        );
+    }
+    if !json {
+        render_final_decision_set(&[&review], std::slice::from_ref(&answer), &prepared);
+        println!(
+            "  · requesting one exact decision card for {action_name} {} at root {}",
+            safe_inline(id),
+            safe_inline(&prepared.plan.decision_root[..prepared.plan.decision_root.len().min(23)]),
+        );
+    }
+
+    let gate_state = format!(
+        "accept_ready={};reject_ready={}",
+        review.brief.accept_ready(),
+        review.brief.reject_ready()
+    );
+    let outcome = execute_confirmed_protected_decision(
+        &frontier,
+        &prepared,
+        action_name,
+        id,
+        &answer.proposal_root,
+        &answer.reason,
+        &review.observed_at,
+        &gate_state,
+    )
+    .unwrap_or_else(|error| fail_decision(error));
+    let publication = publish_exact_decision(
+        &frontier,
+        "review decide",
+        &outcome,
+        &crate::config::git_publish::PublishOptions::new(false),
+    );
+    let payload = serde_json::json!({
+        "ok": true,
+        "command": "review.decide",
+        "schema": "vela.review-decision.v1",
+        "frontier": frontier.display().to_string(),
+        "proposal_id": id,
+        "reviewer": actor,
+        "action": action_name,
+        "decision": summary,
+        "operation_id": outcome.operation_id,
+        "event_id": outcome.event_ids.first(),
+        "event_ids": outcome.event_ids,
+        "publication": publication,
+        "signed": true,
+        "key_read_by_cli": false,
+        "signer": "vela-signer",
+    });
+    if json {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&payload).expect("decision result JSON")
+        );
+    } else {
+        println!("  · signed {action_name} for {id}");
+        println!(
+            "  · publication {}",
+            safe_inline(
+                serde_json::to_string(&publication).unwrap_or_else(|_| "unknown".to_string())
+            )
+        );
+    }
+}
+
 /// `vela sign <vpr_id>` — scripted preview first, then an exact-root accept.
 pub(crate) fn cmd_sign_one(
     frontier: Option<PathBuf>,
@@ -1519,5 +1833,20 @@ mod tests {
         assert!(transcript.contains("2 preview line(s) omitted; sha256:"));
         assert!(transcript.contains("why you: policy deferred this claim"));
         assert!(transcript.contains("vpr_review"));
+    }
+
+    #[test]
+    fn protected_prompt_names_every_human_approval_dimension() {
+        let prompt = protected_approval_prompt(
+            "reject",
+            "vpr_exact",
+            "vfr_exact",
+            "the gate lacks independent evidence",
+            "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        );
+        assert!(prompt.contains("reject proposal vpr_exact"));
+        assert!(prompt.contains("frontier vfr_exact"));
+        assert!(prompt.contains("the gate lacks independent evidence"));
+        assert!(prompt.contains("Decision Plan sha256:0123456789abcdef"));
     }
 }

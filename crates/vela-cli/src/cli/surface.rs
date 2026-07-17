@@ -80,7 +80,7 @@ pub(crate) fn strict_help_text() -> String {
     format!(
         r#"Vela {}
 Version control for scientific state.
-Agents land. Verifiers reproduce. Humans sign. Git publishes.
+Agents land. Verifiers reproduce. Humans approve. Git publishes.
 
 Usage:
   vela <COMMAND>
@@ -91,8 +91,7 @@ Daily product:
   next          Ranked producer work only
   work          Claim one target and open a private typed session
   land          Land Receipt v1; policy admits, defers, or denies
-  review        List and inspect exact pending Decision Briefs
-  sign          Human-only proposal decision ceremony; agents are refused
+  review        Inspect, decide, or producer-withdraw one exact proposal
   check         Replay, signatures, parity, and strict signals
   reproduce     Re-run stored witnesses with frozen verifiers
   log           Recent signed events or one finding's history
@@ -114,6 +113,7 @@ Advanced verification and integration:
   proof         proof packet export, verify, and explain
   ci            deterministic CI verdicts
   serve         read-only or nonfinalizing draft MCP/HTTP surface
+  sign          historical batch and detached-file signing compatibility
 
 Hidden utility:
   completions   generate shell completion scripts

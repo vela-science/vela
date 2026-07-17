@@ -171,6 +171,8 @@ pub struct ProposalSummary {
     pub rejected: usize,
     pub applied: usize,
     #[serde(default)]
+    pub withdrawn: usize,
+    #[serde(default)]
     pub by_kind: BTreeMap<String, usize>,
     #[serde(default)]
     pub duplicate_ids: Vec<String>,

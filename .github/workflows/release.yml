@@ -16,29 +16,50 @@ jobs:
       matrix:
         include:
           - runner: ubuntu-24.04
-            asset: vela-linux-x86_64
+            asset: vela-linux-x86_64.tar.gz
           - runner: macos-15
-            asset: vela-macos-aarch64
+            asset: vela-macos-aarch64.tar.gz
+          - runner: windows-2025
+            asset: vela-windows-x86_64.zip
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
       - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable 2026-07-15
       - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
-      - name: Build release binary
-        run: cargo build --locked --release -p vela-cli --bin vela
+      - name: Test signer contracts and platform profile
+        run: cargo test --locked -p vela-signer
+      - name: Build release binaries
+        run: cargo build --locked --release -p vela-cli --bins
       - name: Check exact fixture-signature state
-        if: matrix.asset == 'vela-linux-x86_64'
+        if: runner.os == 'Linux'
         run: cargo test --locked -p vela-protocol --test fixture_manifest_signature
-      - name: Prepare binary and installer checksum
+      - name: Prepare Unix bundle and checksum
+        if: runner.os != 'Windows'
         env:
           ASSET: ${{ matrix.asset }}
         run: |
-          mkdir -p dist
-          cp target/release/vela "dist/$ASSET"
+          mkdir -p dist stage
+          cp target/release/vela target/release/vela-signer stage/
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            mkdir -p stage/share/polkit-1/actions
+            cp packaging/linux/science.vela.signer.policy stage/share/polkit-1/actions/
+          fi
+          tar -C stage -czf "dist/$ASSET" .
           (
-            cd target/release
-            shasum -a 256 vela > "../../dist/$ASSET.sha256"
+            cd dist
+            shasum -a 256 "$ASSET" > "$ASSET.sha256"
           )
+      - name: Prepare Windows bundle and checksum
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          ASSET: ${{ matrix.asset }}
+        run: |
+          New-Item -ItemType Directory -Force dist, stage | Out-Null
+          Copy-Item target/release/vela.exe, target/release/vela-signer.exe stage/
+          Compress-Archive -Path stage/vela.exe, stage/vela-signer.exe -DestinationPath "dist/$env:ASSET"
+          $hash = (Get-FileHash -Algorithm SHA256 "dist/$env:ASSET").Hash.ToLowerInvariant()
+          "$hash  $env:ASSET" | Set-Content -NoNewline "dist/$env:ASSET.sha256"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: ${{ matrix.asset }}
@@ -63,10 +84,14 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          test -f dist/vela-linux-x86_64
-          test -f dist/vela-linux-x86_64.sha256
-          test -f dist/vela-macos-aarch64
-          test -f dist/vela-macos-aarch64.sha256
+          for asset in \
+            vela-linux-x86_64.tar.gz \
+            vela-macos-aarch64.tar.gz \
+            vela-windows-x86_64.zip
+          do
+            test -f "dist/$asset"
+            test -f "dist/$asset.sha256"
+          done
           gh release create "$GITHUB_REF_NAME" dist/* \
             --verify-tag \
             --title "$GITHUB_REF_NAME" \

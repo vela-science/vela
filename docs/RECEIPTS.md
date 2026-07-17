@@ -213,8 +213,8 @@ receipt schema does not churn as adapters arrive:
 5. **Verifier separation** - receipts suggest verifier attachments; they do not
    set gate status.
 6. **Human-acceptance separation** - an agent or system can produce a receipt,
-   but accepted frontier state requires the key ceremony (`vela sign`) or a
-   human-signed policy admitting the lane.
+   but accepted frontier state requires a protected human `review decide`
+   approval or a human-signed policy admitting the lane.
 
 ## Status vocabularies - three layers, not one enum
 

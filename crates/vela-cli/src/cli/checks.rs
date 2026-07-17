@@ -181,6 +181,28 @@ pub(crate) fn check_json_payload(src: &Path, schema_only: bool, strict: bool) ->
             })
         }));
     }
+    let withdrawal_conflicts: Vec<String> = loaded
+        .as_ref()
+        .map(|frontier| {
+            vela_protocol::proposals::verify_proposal_withdrawals(
+                frontier_dir_for_source(src),
+                frontier,
+            )
+        })
+        .unwrap_or_default();
+    diagnostics.extend(withdrawal_conflicts.iter().map(|conflict| {
+        json!({
+            "severity": "error",
+            "rule_id": "invalid_proposal_withdrawal",
+            "check": "proposals",
+            "finding_id": null,
+            "field_path": null,
+            "message": conflict,
+            "suggestion": "Treat the proposal as pending and restore the exact Receipt-bound signed withdrawal bytes.",
+            "fixable": false,
+            "normalize_action": null,
+        })
+    }));
     // Active-pair integrity and current Permit readiness are assessed once.
     // Historical admissions remain the separate strict `policy_lane` check.
     let frontier_dir = frontier_dir_for_source(src);

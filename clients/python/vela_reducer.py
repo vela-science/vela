@@ -556,6 +556,7 @@ def apply_event(state: dict, event: dict) -> None:
         "review.rejected",
         "review.revision_requested",
         "actor.registration_activated",
+        "proposal.withdrawn",
     ):
         return
     # policy.auto_admitted (Phase 1A): deterministic machine-verified admission

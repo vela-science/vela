@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vela.science/schemas/vela.signer-session.v1.schema.json",
+  "title": "Vela bounded signer session",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "actor",
+    "public_key",
+    "provider",
+    "protection_mode",
+    "helper_sha256",
+    "session_id",
+    "authenticated_at",
+    "last_used_at",
+    "expires_at",
+    "signature"
+  ],
+  "properties": {
+    "schema": { "const": "vela.signer-session.v1" },
+    "actor": { "type": "string", "minLength": 1 },
+    "public_key": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "provider": { "const": "os_store" },
+    "protection_mode": { "enum": ["session", "always"] },
+    "helper_sha256": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "session_id": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "authenticated_at": { "type": "string", "format": "date-time" },
+    "last_used_at": { "type": "string", "format": "date-time" },
+    "expires_at": { "type": "string", "format": "date-time" },
+    "signature": { "type": "string", "pattern": "^v1:[0-9a-f]{128}$" }
+  }
+}

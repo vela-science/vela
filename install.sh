@@ -2,66 +2,78 @@
 set -euo pipefail
 
 REPO="vela-science/vela"
-BINARY="vela"
 PREFIX="${VELA_INSTALL_PREFIX:-/usr/local}"
 BINDIR="${VELA_INSTALL_BINDIR:-$PREFIX/bin}"
+POLICYDIR="${VELA_POLKIT_POLICY_DIR:-/usr/share/polkit-1/actions}"
 
-# Detect OS and arch
 OS=$(uname -s | tr '[:upper:]' '[:lower:]')
 ARCH=$(uname -m)
 
 case "${OS}-${ARCH}" in
-  darwin-arm64|darwin-aarch64) NAME="vela-macos-aarch64" ;;
-  linux-x86_64)  NAME="vela-linux-x86_64" ;;
+  darwin-arm64|darwin-aarch64) ASSET="vela-macos-aarch64.tar.gz" ;;
+  linux-x86_64) ASSET="vela-linux-x86_64.tar.gz" ;;
   darwin-x86_64)
-    echo "No prebuilt binary for Intel macOS (x86_64) — Apple Silicon and Linux only." >&2
-    echo "Build from source:" >&2
-    echo "  git clone https://github.com/${REPO}.git && cd vela && cargo build --release -p vela-cli" >&2
+    echo "No prebuilt bundle for Intel macOS (x86_64). Build both binaries from source:" >&2
+    echo "  cargo install --locked --path crates/vela-cli" >&2
     exit 1
     ;;
-  *) echo "Unsupported: ${OS}-${ARCH}"; exit 1 ;;
+  *) echo "Unsupported: ${OS}-${ARCH}" >&2; exit 1 ;;
 esac
 
-# Resolve the release tag. VELA_VERSION pins an exact tag (e.g. v0.710.0) — used
-# by CI (the vela-check action) so a frontier gate is reproducible; empty falls
-# back to the latest release.
 TAG="${VELA_VERSION:-}"
 if [ -z "$TAG" ]; then
   TAG=$(curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/')
 fi
-URL="https://github.com/${REPO}/releases/download/${TAG}/${NAME}"
+URL="https://github.com/${REPO}/releases/download/${TAG}/${ASSET}"
 SUM_URL="${URL}.sha256"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
-echo "Installing vela ${TAG} for ${OS}/${ARCH}..."
-curl -fsSL "$URL" -o "$TMP/$BINARY"
-
-# Fail closed: a release asset without its checksum companion is not
-# installable. Silent unverified installs are how supply chains rot.
-curl -fsSL "$SUM_URL" -o "$TMP/$BINARY.sha256" || {
-  echo "ERROR: checksum file missing for ${NAME} (${SUM_URL}); refusing an unverified install." >&2
+echo "Installing Vela ${TAG} for ${OS}/${ARCH}..."
+curl -fsSL "$URL" -o "$TMP/$ASSET"
+curl -fsSL "$SUM_URL" -o "$TMP/$ASSET.sha256" || {
+  echo "ERROR: checksum missing for ${ASSET}; refusing an unverified install." >&2
   exit 1
 }
 (
   cd "$TMP"
-  shasum -a 256 -c "$BINARY.sha256"
+  shasum -a 256 -c "$ASSET.sha256"
 )
+mkdir -p "$TMP/unpack"
+tar -C "$TMP/unpack" -xzf "$TMP/$ASSET"
+for binary in vela vela-signer; do
+  test -f "$TMP/unpack/$binary"
+  chmod +x "$TMP/unpack/$binary"
+done
 
-chmod +x "$TMP/$BINARY"
 mkdir -p "$BINDIR" 2>/dev/null || true
-if [[ -w "$BINDIR" ]]; then
-  install "$TMP/$BINARY" "$BINDIR/$BINARY"
-else
-  sudo install "$TMP/$BINARY" "$BINDIR/$BINARY"
+for binary in vela vela-signer; do
+  if [[ -w "$BINDIR" ]]; then
+    install "$TMP/unpack/$binary" "$BINDIR/$binary"
+  else
+    sudo install "$TMP/unpack/$binary" "$BINDIR/$binary"
+  fi
+done
+
+if [ "$OS" = "linux" ]; then
+  POLICY="$TMP/unpack/share/polkit-1/actions/science.vela.signer.policy"
+  test -f "$POLICY"
+  if [[ -w "$POLICYDIR" ]]; then
+    mkdir -p "$POLICYDIR"
+    install -m 0644 "$POLICY" "$POLICYDIR/science.vela.signer.policy"
+  else
+    sudo mkdir -p "$POLICYDIR"
+    sudo install -m 0644 "$POLICY" "$POLICYDIR/science.vela.signer.policy"
+  fi
 fi
 
-echo "Installed vela to $BINDIR/$BINARY"
-"$BINDIR/$BINARY" --version
+echo "Installed vela and vela-signer to $BINDIR"
+"$BINDIR/vela" --version
+"$BINDIR/vela-signer" --version
 
-if ! command -v "$BINDIR/$BINARY" >/dev/null 2>&1 && [[ ":$PATH:" != *":$BINDIR:"* ]]; then
+if [[ ":$PATH:" != *":$BINDIR:"* ]]; then
   echo
-  echo "Note: $BINDIR is not on PATH. Add it before running vela directly."
+  echo "Note: $BINDIR is not on PATH. Add it before running Vela."
 fi
 
 echo
@@ -70,9 +82,3 @@ echo "  1) verify:  vela check . --strict --json"
 echo "  2) inspect: vela next . --json"
 echo "  3) claim:   vela work <target> --frontier . --as agent:<you> --json"
 echo "Producer guide: https://github.com/vela-science/vela/blob/${TAG}/docs/PRODUCER_QUICKSTART.md"
-echo
-echo "To re-verify a reference witness set from scratch, clone the repo and run:"
-echo "  git clone https://github.com/vela-science/vela.git"
-echo "  cd vela"
-echo "  vela reproduce examples/sidon-a309370     # 9/9 Sidon witnesses, every pairwise sum recomputed"
-echo "  vela reproduce examples/erdos-problems    # 32/32 Erdős certificates re-checked from the witness"

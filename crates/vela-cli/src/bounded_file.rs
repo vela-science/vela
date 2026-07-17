@@ -82,6 +82,13 @@ pub(crate) fn read_bounded_file(
         ));
     }
 
+    let inspected_identity = same_file::Handle::from_path(path).map_err(|error| {
+        BoundedFileError::new(
+            "inspect_failed",
+            format!("identify {label} {}: {error}", path.display()),
+            false,
+        )
+    })?;
     let file = std::fs::File::open(path).map_err(|error| {
         BoundedFileError::new(
             "open_failed",
@@ -103,7 +110,21 @@ pub(crate) fn read_bounded_file(
             true,
         ));
     }
-    verify_metadata_identity(&metadata, &opened, path, label, true)?;
+    let opened_identity = same_file::Handle::from_file(file.try_clone().map_err(|error| {
+        BoundedFileError::new(
+            "inspect_open_failed",
+            format!("clone open {label} {}: {error}", path.display()),
+            true,
+        )
+    })?)
+    .map_err(|error| {
+        BoundedFileError::new(
+            "inspect_open_failed",
+            format!("identify open {label} {}: {error}", path.display()),
+            true,
+        )
+    })?;
+    verify_handle_identity(&inspected_identity, &opened_identity, path, label, true)?;
     if opened.len() > max_bytes {
         return Err(BoundedFileError::new(
             "oversized",
@@ -114,7 +135,7 @@ pub(crate) fn read_bounded_file(
             true,
         ));
     }
-    verify_named_path_identity(path, &opened, label, true)?;
+    verify_named_path_identity(path, &opened_identity, label, true)?;
 
     let mut bytes = Vec::new();
     file.take(max_bytes.saturating_add(1))
@@ -136,7 +157,7 @@ pub(crate) fn read_bounded_file(
             true,
         ));
     }
-    verify_named_path_identity(path, &opened, label, true)?;
+    verify_named_path_identity(path, &opened_identity, label, true)?;
     Ok(bytes)
 }
 
@@ -169,7 +190,7 @@ pub(crate) fn read_bounded_frontier_file(
     })?;
     let components = relative.components().collect::<Vec<_>>();
     let mut current = root.clone();
-    let mut inspected_leaf = None;
+    let mut inspected_identity = None;
     for (index, component) in components.iter().enumerate() {
         let Component::Normal(component) = component else {
             unreachable!("relative components were validated")
@@ -218,7 +239,13 @@ pub(crate) fn read_bounded_frontier_file(
                     false,
                 ));
             }
-            inspected_leaf = Some(metadata);
+            inspected_identity = Some(same_file::Handle::from_path(&current).map_err(|error| {
+                BoundedFileError::new(
+                    "inspect_failed",
+                    format!("identify {label} {}: {error}", current.display()),
+                    false,
+                )
+            })?);
         } else if !metadata.is_dir() {
             return Err(BoundedFileError::new(
                 "ancestor_not_directory",
@@ -252,7 +279,7 @@ pub(crate) fn read_bounded_frontier_file(
             true,
         ));
     }
-    let inspected_leaf = inspected_leaf.ok_or_else(|| {
+    let inspected_identity = inspected_identity.ok_or_else(|| {
         BoundedFileError::new(
             "path_invalid",
             format!(
@@ -262,7 +289,21 @@ pub(crate) fn read_bounded_frontier_file(
             true,
         )
     })?;
-    verify_metadata_identity(&inspected_leaf, &opened, &current, label, true)?;
+    let opened_identity = same_file::Handle::from_file(file.try_clone().map_err(|error| {
+        BoundedFileError::new(
+            "inspect_open_failed",
+            format!("clone open {label} {}: {error}", current.display()),
+            true,
+        )
+    })?)
+    .map_err(|error| {
+        BoundedFileError::new(
+            "inspect_open_failed",
+            format!("identify open {label} {}: {error}", current.display()),
+            true,
+        )
+    })?;
+    verify_handle_identity(&inspected_identity, &opened_identity, &current, label, true)?;
     if opened.len() > max_bytes {
         return Err(BoundedFileError::new(
             "oversized",
@@ -273,7 +314,7 @@ pub(crate) fn read_bounded_frontier_file(
             true,
         ));
     }
-    verify_open_path_identity(&root, &current, &opened, label, true)?;
+    verify_open_path_identity(&root, &current, &opened_identity, label, true)?;
 
     let mut bytes = Vec::new();
     file.take(max_bytes.saturating_add(1))
@@ -295,14 +336,14 @@ pub(crate) fn read_bounded_frontier_file(
             true,
         ));
     }
-    verify_open_path_identity(&root, &current, &opened, label, true)?;
+    verify_open_path_identity(&root, &current, &opened_identity, label, true)?;
     Ok(bytes)
 }
 
 fn verify_open_path_identity(
     root: &Path,
     current: &Path,
-    opened: &std::fs::Metadata,
+    opened: &same_file::Handle,
     label: &str,
     descriptor_opened: bool,
 ) -> Result<(), BoundedFileError> {
@@ -329,7 +370,7 @@ fn verify_open_path_identity(
 
 fn verify_named_path_identity(
     current: &Path,
-    opened: &std::fs::Metadata,
+    opened: &same_file::Handle,
     label: &str,
     descriptor_opened: bool,
 ) -> Result<(), BoundedFileError> {
@@ -350,56 +391,27 @@ fn verify_named_path_identity(
             descriptor_opened,
         ));
     }
-    let named = std::fs::metadata(current).map_err(|error| {
+    let named = same_file::Handle::from_path(current).map_err(|error| {
         BoundedFileError::new(
             "path_changed",
             format!("reinspect named {label} {}: {error}", current.display()),
             descriptor_opened,
         )
     })?;
-    verify_metadata_identity(&named, opened, current, label, descriptor_opened)
+    verify_handle_identity(&named, opened, current, label, descriptor_opened)
 }
 
-fn verify_metadata_identity(
-    inspected: &std::fs::Metadata,
-    opened: &std::fs::Metadata,
+fn verify_handle_identity(
+    inspected: &same_file::Handle,
+    opened: &same_file::Handle,
     current: &Path,
     label: &str,
     descriptor_opened: bool,
 ) -> Result<(), BoundedFileError> {
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::MetadataExt;
-        if opened.dev() != inspected.dev() || opened.ino() != inspected.ino() {
-            return Err(BoundedFileError::new(
-                "path_changed",
-                format!("{label} path changed while open: {}", current.display()),
-                descriptor_opened,
-            ));
-        }
-    }
-    #[cfg(windows)]
-    {
-        use std::os::windows::fs::MetadataExt;
-        if opened.volume_serial_number() != inspected.volume_serial_number()
-            || opened.file_index() != inspected.file_index()
-        {
-            return Err(BoundedFileError::new(
-                "path_changed",
-                format!("{label} path changed while open: {}", current.display()),
-                descriptor_opened,
-            ));
-        }
-    }
-    #[cfg(not(any(unix, windows)))]
-    {
-        let _ = (inspected, opened);
+    if inspected != opened {
         return Err(BoundedFileError::new(
-            "identity_unsupported",
-            format!(
-                "{label} cannot bind file identity on this platform: {}",
-                current.display()
-            ),
+            "path_changed",
+            format!("{label} path changed while open: {}", current.display()),
             descriptor_opened,
         ));
     }
@@ -469,14 +481,11 @@ mod tests {
         let substituted_path = directory.path().join("substituted.json");
         fs::write(&inspected_path, b"inspected").unwrap();
         fs::write(&substituted_path, b"substituted").unwrap();
-        let inspected = fs::symlink_metadata(&inspected_path).unwrap();
-        let substituted = fs::File::open(&substituted_path)
-            .unwrap()
-            .metadata()
-            .unwrap();
+        let inspected = same_file::Handle::from_path(&inspected_path).unwrap();
+        let substituted = same_file::Handle::from_path(&substituted_path).unwrap();
 
         let error =
-            verify_metadata_identity(&inspected, &substituted, &inspected_path, "receipt", true)
+            verify_handle_identity(&inspected, &substituted, &inspected_path, "receipt", true)
                 .unwrap_err();
         assert_eq!(error.code, "path_changed");
         assert!(error.opened);
