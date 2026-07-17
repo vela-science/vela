@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.901.0 — 2026-07-17 — Protected decisions and producer withdrawal
+## v0.901.0 — Unreleased — Protected decisions and producer withdrawal
 
 - Replace ordinary batch signing with `vela review decide`: a key-free exact
   preview followed by one root- and time-bound decision card. The protected
