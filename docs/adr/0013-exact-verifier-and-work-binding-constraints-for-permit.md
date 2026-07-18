@@ -110,8 +110,8 @@ Permit lane.
 The first real positive-only profile is `sidon-a24-improve` at Canopus commit
 `7ab8236c89d6253a3adc09bc9ce535a3d6892b7c`. It binds:
 
-- Sidon commit `342061330a57676c911ca02b66a67954436c96db` and packet root
-  `sha256:da2ecf8b213c3166ff258834a1b81f2a21f7c8d6074589098261fe4cf1e82df1`;
+- Sidon commit `f557bb3f63c409c725df4944391c52ae7995fcca` and packet root
+  `sha256:bfa12fbedb3cd6ce0faf854ed1e506bb52b739ba2b1f03207567d33ef1f43b15`;
 - profile root
   `sha256:75ad68706fd74650b6d82c2820dc9aae78d20995e7d89b0045519383bbb4ed92`;
 - Linux arm64 capsule root
@@ -137,7 +137,7 @@ unchanged. Producer-reported Receipt `verifier_runs` rows remain provenance.
 
 The prior unsigned shadow policy named superseded profile and capsule roots
 and must not be activated. A disposable exact-head rehearsal derives the new
-candidate `vap_7faf6c1c208c986d52e60f8bd766806c`; it remains unsigned and is not
+candidate `vap_540ab5be1b4cb70f011d1b52ec155c5f`; it remains unsigned and is not
 installed in the live frontier. The live candidate is regenerated only from
 the released Vela binary and the roots above. Protected activation remains
 gated on the focused release tests and exact Sidon no-land preflight; lowering
