@@ -28,17 +28,42 @@ fn read_bounded(path: &Path) -> Vec<u8> {
 fn main() {
     let mut arguments = std::env::args_os();
     let _binary = arguments.next();
-    let Some(path) = arguments.next() else {
-        fail("usage: vela-verify <witness.json>");
+    let first = arguments
+        .next()
+        .unwrap_or_else(|| fail("usage: vela-verify [--claim <exact-claim>] <witness.json>"));
+    let (claim, path) = if first == "--claim" {
+        let claim = arguments
+            .next()
+            .unwrap_or_else(|| fail("usage: vela-verify [--claim <exact-claim>] <witness.json>"));
+        let path = arguments
+            .next()
+            .unwrap_or_else(|| fail("usage: vela-verify [--claim <exact-claim>] <witness.json>"));
+        (Some(claim), path)
+    } else {
+        (None, first)
     };
     if arguments.next().is_some() {
-        fail("usage: vela-verify <witness.json>");
+        fail("usage: vela-verify [--claim <exact-claim>] <witness.json>");
     }
     let path = Path::new(&path);
     let bytes = read_bounded(path);
     let witness: vela_verify::Witness = serde_json::from_slice(&bytes)
         .unwrap_or_else(|error| fail(format!("parse {}: {error}", path.display())));
-    let result = vela_verify::verify_witness(&witness);
+    let mut result = vela_verify::verify_witness(&witness);
+    if result.ok
+        && let Some(claim) = claim
+    {
+        let claim = claim
+            .to_str()
+            .unwrap_or_else(|| fail("exact claim must be valid UTF-8"));
+        let faithfulness = vela_verify::claim_witness_faithful(claim, &witness);
+        if !faithfulness.faithful {
+            result = vela_verify::VerifyResult::fail(format!(
+                "claim is not faithful to the witness: {}",
+                faithfulness.reasons.join("; ")
+            ));
+        }
+    }
     println!(
         "{}",
         serde_json::to_string(&result).expect("VerifyResult serializes")

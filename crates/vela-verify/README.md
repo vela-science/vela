@@ -39,3 +39,14 @@ set than the witness it ships.
 
 Ported from the campaign's `scripts/verify_construction.py`; the Python
 reference and this Rust port agree on every witness.
+
+The executable can also bind the verified witness to an exact claim:
+
+```bash
+vela-verify --claim \
+  'There exists a Sidon subset of {0,1}^8 with at least 33 elements.' \
+  witness.json
+```
+
+The claim check fails closed on a wrong kind, dimension, parameter, or lower
+bound. A construction witness cannot establish equality or optimality.
