@@ -49,21 +49,22 @@ fn main() {
     let bytes = read_bounded(path);
     let witness: vela_verify::Witness = serde_json::from_slice(&bytes)
         .unwrap_or_else(|error| fail(format!("parse {}: {error}", path.display())));
-    let mut result = vela_verify::verify_witness(&witness);
-    if result.ok
-        && let Some(claim) = claim
-    {
+    let result = if let Some(claim) = claim {
         let claim = claim
             .to_str()
             .unwrap_or_else(|| fail("exact claim must be valid UTF-8"));
-        let faithfulness = vela_verify::claim_witness_faithful(claim, &witness);
-        if !faithfulness.faithful {
-            result = vela_verify::VerifyResult::fail(format!(
+        let (verification, faithfulness) = vela_verify::verify_witness_with_claim(claim, &witness);
+        if verification.ok && !faithfulness.faithful {
+            vela_verify::VerifyResult::fail(format!(
                 "claim is not faithful to the witness: {}",
                 faithfulness.reasons.join("; ")
-            ));
+            ))
+        } else {
+            verification
         }
-    }
+    } else {
+        vela_verify::verify_witness(&witness)
+    };
     println!(
         "{}",
         serde_json::to_string(&result).expect("VerifyResult serializes")

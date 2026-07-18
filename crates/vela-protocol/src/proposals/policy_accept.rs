@@ -667,11 +667,11 @@ fn exact_receipt_floor(
     }
     let witness: vela_verify::Witness = serde_json::from_slice(&bytes)
         .map_err(|error| format!("parse exact-floor vela-witness: {error}"))?;
-    let verified = vela_verify::verify_witness(&witness);
+    let (verified, faithfulness) = vela_verify::verify_witness_with_claim(claim, &witness);
     if !verified.ok {
         return Ok(false);
     }
-    Ok(vela_verify::claim_witness_faithful(claim, &witness).faithful)
+    Ok(faithfulness.faithful)
 }
 
 /// Derive a submission context under the exact policy-language version.

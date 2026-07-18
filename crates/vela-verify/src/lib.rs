@@ -1381,6 +1381,30 @@ pub fn parse_claim(assertion_text: &str) -> Option<ParsedClaim> {
 /// lane. Fail-closed throughout: any parse miss, kind/dimension mismatch,
 /// size shortfall, or internal-validity failure yields `faithful: false`.
 pub fn claim_witness_faithful(assertion_text: &str, witness: &Witness) -> Faithfulness {
+    verify_witness_with_claim(assertion_text, witness).1
+}
+
+/// Verify the witness and bind an exact claim with one mechanical pass.
+///
+/// Callers that need both results should use this function instead of invoking
+/// [`verify_witness`] and [`claim_witness_faithful`] separately. Large exact
+/// constructions can make verification expensive; the claim check consumes
+/// the result produced here and never reruns the verifier.
+pub fn verify_witness_with_claim(
+    assertion_text: &str,
+    witness: &Witness,
+) -> (VerifyResult, Faithfulness) {
+    let verification = verify_witness(witness);
+    let faithfulness =
+        claim_witness_faithful_from_verification(assertion_text, witness, &verification);
+    (verification, faithfulness)
+}
+
+fn claim_witness_faithful_from_verification(
+    assertion_text: &str,
+    witness: &Witness,
+    verification: &VerifyResult,
+) -> Faithfulness {
     let mut reasons = Vec::new();
 
     let Some(parsed) = parse_claim(assertion_text) else {
@@ -1397,9 +1421,8 @@ pub fn claim_witness_faithful(assertion_text: &str, witness: &Witness) -> Faithf
     };
 
     // The witness must be internally valid first (a genuine Sidon set, etc.).
-    let vr = verify_witness(witness);
-    if !vr.ok {
-        reasons.push(format!("witness does not verify: {}", vr.message));
+    if !verification.ok {
+        reasons.push(format!("witness does not verify: {}", verification.message));
         return Faithfulness {
             faithful: false,
             reasons,
