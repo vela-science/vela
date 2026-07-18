@@ -489,9 +489,41 @@ fn yaml_scalar_string(value: &serde_yaml::Value) -> Option<String> {
     }
 }
 
+fn scientific_target_punctuation_is_balanced(target: &str) -> bool {
+    let mut bracket_depth = 0_u8;
+    for byte in target.bytes() {
+        match byte {
+            b'[' => {
+                bracket_depth = match bracket_depth.checked_add(1) {
+                    Some(depth) if depth <= 2 => depth,
+                    _ => return false,
+                };
+            }
+            b']' if bracket_depth > 0 => bracket_depth -= 1,
+            b']' => return false,
+            b',' if bracket_depth > 0 => {}
+            b',' => return false,
+            _ => {}
+        }
+    }
+    bracket_depth == 0
+}
+
+fn shell_target_argument(target: &str) -> String {
+    if target.bytes().all(|byte| {
+        byte.is_ascii_alphanumeric() || matches!(byte, b':' | b'.' | b'_' | b'-')
+    }) {
+        target.to_string()
+    } else {
+        // The external-target grammar never admits quotes. Scientific notation
+        // such as [[10,1,4]] is therefore safe and copyable as one quoted argv.
+        format!("'{target}'")
+    }
+}
+
 /// The single grammar shared by campaign offers and the lease write edge.
-/// Keeping this shell-safe means `next_command` can remain a plain positional
-/// command without quoting or option ambiguity.
+/// It admits a bounded square-bracket notation for conventional scientific
+/// identifiers and quotes those identifiers in the human `next_command`.
 pub fn validate_external_target_id(target: &str) -> Result<(), String> {
     if target.is_empty() || target.len() > EXTERNAL_TARGET_ID_MAX_BYTES {
         return Err(format!(
@@ -509,10 +541,14 @@ pub fn validate_external_target_id(target: &str) -> Result<(), String> {
             .any(|segment| segment.is_empty() || segment.starts_with('-'))
         || !target
             .bytes()
-            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b':' | b'.' | b'_' | b'-'))
+            .all(|byte| {
+                byte.is_ascii_alphanumeric()
+                    || matches!(byte, b':' | b'.' | b'_' | b'-' | b'[' | b']' | b',')
+            })
+        || !scientific_target_punctuation_is_balanced(target)
     {
         return Err(
-            "external target id must have non-empty, non-option-like ':'-separated segments using only ASCII letters, digits, '.', '_', and '-'"
+            "external target id must have non-empty, non-option-like ':'-separated segments using ASCII letters, digits, '.', '_', '-', or balanced square-bracket notation"
                 .to_string(),
         );
     }
@@ -879,7 +915,7 @@ pub fn try_frontier_next(
                     id: target.id.clone(),
                     title: target.title.clone(),
                     why: target.why.clone(),
-                    next_command: format!("vela work {}", target.id),
+                    next_command: format!("vela work {}", shell_target_argument(&target.id)),
                     task: Some(pinned_target_index_task(project, &loaded, target)),
                 });
             }
@@ -913,7 +949,7 @@ pub fn try_frontier_next(
                 why: seed.why.unwrap_or_else(|| {
                     "open campaign seed: no live lease, no landed statement".into()
                 }),
-                next_command: format!("vela work {obligation}"),
+                next_command: format!("vela work {}", shell_target_argument(&obligation)),
                 task,
             });
         }
@@ -1346,6 +1382,10 @@ batches:
             ":foo",
             "-seed:foo",
             "seed:-foo",
+            "quantum:[10,1,4",
+            "quantum:10,1,4",
+            "quantum:[[[10,1,4]]]",
+            "quantum:[[10,1,4]]'",
         ] {
             assert!(
                 validate_external_target_id(invalid).is_err(),
@@ -1353,6 +1393,11 @@ batches:
             );
         }
         assert!(validate_external_target_id("seed:prepared-target").is_ok());
+        assert!(validate_external_target_id("quantum:[[10,1,4]]").is_ok());
+        assert_eq!(
+            shell_target_argument("quantum:[[10,1,4]]"),
+            "'quantum:[[10,1,4]]'"
+        );
 
         let temp = tempfile::tempdir().unwrap();
         std::fs::write(
