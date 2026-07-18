@@ -32,6 +32,10 @@ pub struct ArtifactAudit {
     pub historical_issue_count: usize,
     #[serde(default)]
     pub historical_issues: Vec<ArtifactAuditIssue>,
+    #[serde(default)]
+    pub provisional_target_count: usize,
+    #[serde(default)]
+    pub provisional_targets: Vec<ArtifactAuditProvisionalTarget>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -41,6 +45,14 @@ pub struct ArtifactAuditIssue {
     pub message: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
+pub struct ArtifactAuditProvisionalTarget {
+    pub artifact_id: String,
+    pub finding_id: String,
+    pub proposal_id: String,
+    pub proposal_status: String,
+}
+
 pub fn audit_artifacts(source: &Path, project: &Project) -> ArtifactAudit {
     let root = artifact_root(source);
     let finding_ids = project
@@ -48,8 +60,25 @@ pub fn audit_artifacts(source: &Path, project: &Project) -> ArtifactAudit {
         .iter()
         .map(|finding| finding.id.as_str())
         .collect::<HashSet<_>>();
+    let mut pending_finding_adds = BTreeMap::<String, Vec<String>>::new();
+    for proposal in &project.proposals {
+        if proposal.kind == "finding.add"
+            && proposal.target.r#type == "finding"
+            && proposal.status == "pending_review"
+        {
+            pending_finding_adds
+                .entry(proposal.target.id.clone())
+                .or_default()
+                .push(proposal.id.clone());
+        }
+    }
+    for proposal_ids in pending_finding_adds.values_mut() {
+        proposal_ids.sort();
+        proposal_ids.dedup();
+    }
     let mut issues = Vec::new();
     let mut historical_issues = Vec::new();
+    let mut provisional_targets = Vec::new();
     let mut by_kind = BTreeMap::new();
     let mut by_storage_mode = BTreeMap::new();
     let mut checked_local_blobs = 0usize;
@@ -63,7 +92,14 @@ pub fn audit_artifacts(source: &Path, project: &Project) -> ArtifactAudit {
             .entry(artifact.storage_mode.clone())
             .or_insert(0) += 1;
         let mut artifact_issues = Vec::new();
-        audit_artifact_shape(artifact, &finding_ids, &mut artifact_issues);
+        let mut artifact_provisional_targets = Vec::new();
+        audit_artifact_shape(
+            artifact,
+            &finding_ids,
+            &pending_finding_adds,
+            &mut artifact_issues,
+            &mut artifact_provisional_targets,
+        );
         let local_stats = if matches!(artifact.storage_mode.as_str(), "local_blob" | "local_file") {
             if let Some(root) = root.as_deref() {
                 audit_local_blob(root, artifact, &mut artifact_issues)
@@ -86,11 +122,15 @@ pub fn audit_artifacts(source: &Path, project: &Project) -> ArtifactAudit {
         }
         active_artifact_count += 1;
         issues.extend(artifact_issues);
+        provisional_targets.extend(artifact_provisional_targets);
         if let Some((checked, bytes)) = local_stats {
             checked_local_blobs += usize::from(checked);
             local_blob_bytes += bytes;
         }
     }
+
+    provisional_targets.sort();
+    provisional_targets.dedup();
 
     ArtifactAudit {
         schema: "vela.artifact_audit.v2".to_string(),
@@ -111,13 +151,17 @@ pub fn audit_artifacts(source: &Path, project: &Project) -> ArtifactAudit {
         issues,
         historical_issue_count: historical_issues.len(),
         historical_issues,
+        provisional_target_count: provisional_targets.len(),
+        provisional_targets,
     }
 }
 
 fn audit_artifact_shape(
     artifact: &Artifact,
     finding_ids: &HashSet<&str>,
+    pending_finding_adds: &BTreeMap<String, Vec<String>>,
     issues: &mut Vec<ArtifactAuditIssue>,
+    provisional_targets: &mut Vec<ArtifactAuditProvisionalTarget>,
 ) {
     if !artifact.id.starts_with("va_") {
         push_issue(
@@ -160,13 +204,33 @@ fn audit_artifact_shape(
         );
     }
     for finding_id in &artifact.target_findings {
-        if !finding_ids.contains(finding_id.as_str()) {
-            push_issue(
+        if finding_ids.contains(finding_id.as_str()) {
+            continue;
+        }
+        match pending_finding_adds.get(finding_id).map(Vec::as_slice) {
+            Some([proposal_id]) => {
+                provisional_targets.push(ArtifactAuditProvisionalTarget {
+                    artifact_id: artifact.id.clone(),
+                    finding_id: finding_id.clone(),
+                    proposal_id: proposal_id.clone(),
+                    proposal_status: "pending_review".to_string(),
+                });
+            }
+            Some(proposal_ids) => push_issue(
+                issues,
+                &artifact.id,
+                "target_findings",
+                format!(
+                    "ambiguous provisional finding id {finding_id}: pending proposals {}",
+                    proposal_ids.join(", ")
+                ),
+            ),
+            None => push_issue(
                 issues,
                 &artifact.id,
                 "target_findings",
                 format!("unknown finding id: {finding_id}"),
-            );
+            ),
         }
     }
     if matches!(artifact.storage_mode.as_str(), "remote" | "pointer")
@@ -393,7 +457,9 @@ mod tests {
     use vela_protocol::bundle::{
         Assertion, Conditions, Confidence, Evidence, Extraction, Flags, Provenance,
     };
+    use vela_protocol::events::StateTarget;
     use vela_protocol::project;
+    use vela_protocol::proposals::new_proposal;
 
     #[test]
     fn local_blob_hash_and_size_are_checked() {
@@ -601,6 +667,139 @@ mod tests {
                 .iter()
                 .any(|issue| issue.field == "locator" && issue.message.contains("missing"))
         );
+    }
+
+    #[test]
+    fn one_pending_finding_add_is_a_reported_provisional_target() {
+        let mut project = project_with_one_finding();
+        let finding_id = "vf_1111111111111111";
+        project
+            .proposals
+            .push(pending_finding_add(finding_id, "propose a new result"));
+        project.artifacts.push(pointer_artifact(finding_id));
+
+        let audit = audit_artifacts(Path::new("."), &project);
+
+        assert!(audit.ok, "{:?}", audit.issues);
+        assert_eq!(audit.provisional_target_count, 1);
+        assert_eq!(
+            audit.provisional_targets,
+            vec![ArtifactAuditProvisionalTarget {
+                artifact_id: project.artifacts[0].id.clone(),
+                finding_id: finding_id.to_string(),
+                proposal_id: project.proposals[0].id.clone(),
+                proposal_status: "pending_review".to_string(),
+            }]
+        );
+    }
+
+    #[test]
+    fn rejected_or_withdrawn_finding_add_does_not_exempt_unknown_target() {
+        for status in ["rejected", "withdrawn"] {
+            let mut project = project_with_one_finding();
+            let finding_id = "vf_2222222222222222";
+            let mut proposal = pending_finding_add(finding_id, "historical proposal");
+            proposal.status = status.to_string();
+            project.proposals.push(proposal);
+            project.artifacts.push(pointer_artifact(finding_id));
+
+            let audit = audit_artifacts(Path::new("."), &project);
+
+            assert!(!audit.ok, "{status} proposal must not grant an exemption");
+            assert_eq!(audit.provisional_target_count, 0);
+            assert!(audit.issues.iter().any(|issue| {
+                issue.field == "target_findings"
+                    && issue.message == format!("unknown finding id: {finding_id}")
+            }));
+        }
+    }
+
+    #[test]
+    fn multiple_pending_finding_adds_are_ambiguous_and_block() {
+        let mut project = project_with_one_finding();
+        let finding_id = "vf_3333333333333333";
+        project
+            .proposals
+            .push(pending_finding_add(finding_id, "first proposal"));
+        project
+            .proposals
+            .push(pending_finding_add(finding_id, "second proposal"));
+        project.artifacts.push(pointer_artifact(finding_id));
+
+        let audit = audit_artifacts(Path::new("."), &project);
+
+        assert!(!audit.ok);
+        assert_eq!(audit.provisional_target_count, 0);
+        assert!(audit.issues.iter().any(|issue| {
+            issue.field == "target_findings"
+                && issue
+                    .message
+                    .starts_with("ambiguous provisional finding id vf_3333333333333333")
+        }));
+    }
+
+    #[test]
+    fn accepted_finding_target_remains_ordinary() {
+        let mut project = project_with_one_finding();
+        let finding_id = project.findings[0].id.clone();
+        project.artifacts.push(pointer_artifact(&finding_id));
+
+        let audit = audit_artifacts(Path::new("."), &project);
+
+        assert!(audit.ok, "{:?}", audit.issues);
+        assert_eq!(audit.provisional_target_count, 0);
+        assert!(audit.provisional_targets.is_empty());
+    }
+
+    fn pending_finding_add(
+        finding_id: &str,
+        reason: &str,
+    ) -> vela_protocol::proposals::StateProposal {
+        new_proposal(
+            "finding.add",
+            StateTarget {
+                r#type: "finding".to_string(),
+                id: finding_id.to_string(),
+            },
+            "agent:test",
+            "agent",
+            reason,
+            json!({"finding": {"id": finding_id}}),
+            Vec::new(),
+            Vec::new(),
+        )
+    }
+
+    fn pointer_artifact(finding_id: &str) -> Artifact {
+        Artifact::new(
+            "other",
+            "provisional finding witness",
+            "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            None,
+            Some("application/json".to_string()),
+            "pointer",
+            Some("https://example.test/witness.json".to_string()),
+            Some("https://example.test/witness.json".to_string()),
+            Some("CC0-1.0".to_string()),
+            vec![finding_id.to_string()],
+            Provenance {
+                source_type: "model_output".to_string(),
+                doi: None,
+                title: "provisional finding witness".to_string(),
+                authors: vec![],
+                year: Some(2026),
+                url: Some("https://example.test/witness.json".to_string()),
+                license: Some("CC0-1.0".to_string()),
+                publisher: None,
+                funders: vec![],
+                extraction: test_extraction(),
+                review: None,
+                contributions: Vec::new(),
+            },
+            BTreeMap::new(),
+            AccessTier::Public,
+        )
+        .expect("artifact")
     }
 
     fn project_with_one_finding() -> Project {
