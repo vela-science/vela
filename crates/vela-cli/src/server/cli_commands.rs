@@ -580,6 +580,18 @@ pub(crate) enum Commands {
         /// result.
         #[arg(long)]
         counterevidence: Vec<String>,
+        /// Full root of the exact target packet executed by this producer.
+        #[arg(long, conflicts_with = "receipt", requires_all = ["profile_root", "verifier_capsule_root", "result_contract_root"])]
+        packet_root: Option<String>,
+        /// Full root of the exact producer profile used for this result.
+        #[arg(long, conflicts_with = "receipt", requires_all = ["packet_root", "verifier_capsule_root", "result_contract_root"])]
+        profile_root: Option<String>,
+        /// Full root of the exact frozen verifier capsule.
+        #[arg(long, conflicts_with = "receipt", requires_all = ["packet_root", "profile_root", "result_contract_root"])]
+        verifier_capsule_root: Option<String>,
+        /// Full root of the exact positive result contract checked by the capsule.
+        #[arg(long, conflicts_with = "receipt", requires_all = ["packet_root", "profile_root", "verifier_capsule_root"])]
+        result_contract_root: Option<String>,
         /// Select the active work target explicitly. Required when this actor
         /// owns more than one active session.
         #[arg(long)]

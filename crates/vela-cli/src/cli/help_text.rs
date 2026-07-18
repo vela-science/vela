@@ -34,11 +34,17 @@ EXAMPLES
   vela land receipt.json                       record → propose → route by policy
   vela land --work erdos:443 --claim \"a(7) >= 22\" --artifact w.json:witness
                                                build from the selected work session
+  vela land --work sidon:a24 --claim \"a(24) > 7179\" --packet-root sha256:…
+                                               exact binding also needs profile,
+                                               capsule, and result roots
   vela land receipt.json --push                commit locally AND publish now
 
 With one active session for this actor, --work is inferred. With several,
 select one explicitly. A committed Permit or Defer closes session.json; Deny
 or invalid input leaves it available for repair.
+
+The four exact roots are all-or-nothing whole-Receipt-bound evidence. They do
+not grant authority; only a matching signed v0.2 policy can Permit that result.
 
 SEE ALSO
   vela review decide   approve one exact deferred proposal";

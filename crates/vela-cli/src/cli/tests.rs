@@ -195,6 +195,52 @@ mod surface_tests {
         });
     }
 
+    #[test]
+    fn land_execution_binding_is_all_or_nothing_and_file_exclusive() {
+        on_big_stack(|| {
+            let roots = [
+                "--packet-root",
+                "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+                "--profile-root",
+                "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+                "--verifier-capsule-root",
+                "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+                "--result-contract-root",
+                "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+            ];
+            let mut complete = vec![
+                "vela",
+                "land",
+                "--claim",
+                "bounded result",
+                "--type",
+                "computational",
+                "--replayability",
+                "exact",
+            ];
+            complete.extend(roots);
+            assert!(Cli::try_parse_from(complete).is_ok());
+            assert!(
+                Cli::try_parse_from([
+                    "vela",
+                    "land",
+                    "--claim",
+                    "bounded result",
+                    "--type",
+                    "computational",
+                    "--replayability",
+                    "exact",
+                    "--packet-root",
+                    "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+                ])
+                .is_err()
+            );
+            let mut foreign = vec!["vela", "land", "receipt.json"];
+            foreign.extend(roots);
+            assert!(Cli::try_parse_from(foreign).is_err());
+        });
+    }
+
     /// The v0.900 product surface, guarded in both directions. A dropped
     /// command and an unreviewed addition both fail this test.
     const V0900_VISIBLE: &[&str] = &[

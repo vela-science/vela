@@ -2842,6 +2842,14 @@ fn flag_authoring_and_file_input_share_canonical_receipt_bytes() {
     const PREDICTION: &str = "The exact replay emits the same witness checksum.";
     const PERFORMED_TEST: &str = "Re-ran the frozen fixture verifier.";
     const RESULT: &str = "The verifier passed with the expected checksum.";
+    const PACKET_ROOT: &str =
+        "sha256:1111111111111111111111111111111111111111111111111111111111111111";
+    const PROFILE_ROOT: &str =
+        "sha256:2222222222222222222222222222222222222222222222222222222222222222";
+    const CAPSULE_ROOT: &str =
+        "sha256:3333333333333333333333333333333333333333333333333333333333333333";
+    const RESULT_CONTRACT_ROOT: &str =
+        "sha256:4444444444444444444444444444444444444444444444444444444444444444";
 
     let tmp = tempfile::TempDir::new().unwrap();
     let base = tmp.path().join("base");
@@ -2928,6 +2936,14 @@ fn flag_authoring_and_file_input_share_canonical_receipt_bytes() {
             "artifacts/input-parity.json",
             "--counterevidence",
             "records/attempts/prior-mismatch.json",
+            "--packet-root",
+            PACKET_ROOT,
+            "--profile-root",
+            PROFILE_ROOT,
+            "--verifier-capsule-root",
+            CAPSULE_ROOT,
+            "--result-contract-root",
+            RESULT_CONTRACT_ROOT,
             "--as",
             "agent:t",
             "--json",
@@ -2959,6 +2975,16 @@ fn flag_authoring_and_file_input_share_canonical_receipt_bytes() {
             "result": RESULT,
             "evidence": ["artifacts/input-parity.json"],
             "counterevidence": ["records/attempts/prior-mismatch.json"],
+        })
+    );
+    assert_eq!(
+        authored["environment"]["vela:execution_binding"],
+        serde_json::json!({
+            "schema": "vela.execution-binding.v1",
+            "packet_root": PACKET_ROOT,
+            "profile_root": PROFILE_ROOT,
+            "verifier_capsule_root": CAPSULE_ROOT,
+            "result_contract_root": RESULT_CONTRACT_ROOT,
         })
     );
 

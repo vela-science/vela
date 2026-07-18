@@ -36,6 +36,21 @@ vela check . --strict --json
 `land` builds or imports Receipt v1 and routes the proposal through the active
 signed policy. An agent cannot accept or reject the result.
 
+An exact delegated producer may additionally pass all four full roots:
+
+```bash
+vela land --work <target> ... \
+  --packet-root <sha256:...> \
+  --profile-root <sha256:...> \
+  --verifier-capsule-root <sha256:...> \
+  --result-contract-root <sha256:...>
+```
+
+Vela validates the all-or-nothing set and authors the closed
+`vela.execution-binding.v1` extension through the same Receipt builder. The
+roots are evidence, not an authority request; only an already signed matching
+AcceptancePolicy v0.2 can Permit the positive result.
+
 ## Commands
 
 | Command | Contract |

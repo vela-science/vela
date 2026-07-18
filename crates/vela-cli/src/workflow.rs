@@ -1547,6 +1547,7 @@ pub(crate) fn author_receipt(
     result: Option<String>,
     evidence: Vec<String>,
     counterevidence: Vec<String>,
+    execution_binding: Option<vela_protocol::receipt_v1::ExecutionBindingV1>,
 ) -> Result<ReceiptV1, String> {
     use vela_protocol::identity::{ActorClass, IdentityBinding, IdentityBindingDraft};
     use vela_protocol::receipt_v1::{
@@ -1642,6 +1643,7 @@ pub(crate) fn author_receipt(
         "artifacts": normalized_artifacts,
         "caveats": caveats,
         "scientific_chain": scientific_chain.as_ref().map(ScientificChainAssertion::as_value),
+        "execution_binding": execution_binding,
         "policy_ref": policy_ref,
     }))?;
     let operation_id = crate::operation_journal::operation_id("land", &operation_preimage);
@@ -1673,6 +1675,11 @@ pub(crate) fn author_receipt(
     if let Some(scientific_chain) = scientific_chain {
         input = input
             .with_scientific_chain(scientific_chain)
+            .map_err(|error| error.to_string())?;
+    }
+    if let Some(execution_binding) = execution_binding {
+        input = input
+            .with_execution_binding(execution_binding)
             .map_err(|error| error.to_string())?;
     }
     ReceiptBuilder::build(input, &identity).map_err(|error| error.to_string())

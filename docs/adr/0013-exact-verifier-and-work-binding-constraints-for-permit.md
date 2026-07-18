@@ -75,6 +75,12 @@ All four flags are required together. The result is a staged unsigned v0.2
 policy. Authority still arrives only through one exact protected
 `vela policy decide` approval. Legacy `policy sign` remains advanced-only.
 
+The existing flag-authored producer path accepts the same four roots on
+`vela land`. Vela validates them together and inserts the closed extension
+before deriving the operation id, whole-Receipt attestation, Receipt root, and
+policy context. Canopus therefore composes through the sole Vela Receipt
+builder instead of duplicating attestation or identity-binding code.
+
 ## Compatibility and conformance
 
 - Policy v0.1 and every historical policy-lane event replay byte-for-byte.

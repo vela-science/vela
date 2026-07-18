@@ -125,6 +125,13 @@ short digest, uppercase digest, altered Receipt, wrong packet/profile/capsule,
 or wrong result contract cannot satisfy an exact v0.2 Permit rule. Policy v0.1
 ignores the extension for routing, preserving historical replay.
 
+The native flag-authoring path accepts the same four fields as
+`--packet-root`, `--profile-root`, `--verifier-capsule-root`, and
+`--result-contract-root`. They are required together, cannot accompany an
+imported Receipt file, and enter the operation preimage before Vela builds the
+whole-Receipt binding. External producers may emit the closed extension in
+their own complete Receipt v1 instead.
+
 ## Landing is one write edge
 
 CLI flags, file import, MCP, and adapters converge on the same strict Receipt

@@ -2541,9 +2541,10 @@ mod authoring {
     use serde_json::{Value, json};
 
     use super::{
-        ACCEPTANCE_MECHANISM, INTOTO_PAYLOAD_TYPE, NEUTRAL_RECEIPT_GENERATOR, NO_ACTIVE_POLICY_REF,
-        ReceiptV1, ReceiptV1Error, SCIENTIFIC_CHAIN_SCHEMA, canonical_receipt_bytes, error, object,
-        statement_projection, validate_scientific_chain_extension,
+        ACCEPTANCE_MECHANISM, ExecutionBindingV1, INTOTO_PAYLOAD_TYPE, NEUTRAL_RECEIPT_GENERATOR,
+        NO_ACTIVE_POLICY_REF, ReceiptV1, ReceiptV1Error, SCIENTIFIC_CHAIN_SCHEMA,
+        canonical_receipt_bytes, error, object, statement_projection,
+        validate_scientific_chain_extension,
     };
     use crate::identity::{ActorClass, IdentityBinding};
 
@@ -2794,6 +2795,7 @@ mod authoring {
         policy_ref: String,
         task_contract_root: Option<String>,
         scientific_chain: Option<ScientificChainAssertion>,
+        execution_binding: Option<ExecutionBindingV1>,
     }
 
     impl NeutralReceiptInput {
@@ -2827,6 +2829,7 @@ mod authoring {
                 policy_ref,
                 task_contract_root: None,
                 scientific_chain: None,
+                execution_binding: None,
             };
             validate_neutral_input(&input)?;
             Ok(input)
@@ -2858,6 +2861,22 @@ mod authoring {
             self.scientific_chain = Some(scientific_chain);
             Ok(self)
         }
+
+        /// Bind one exact producer packet/profile/capsule/result contract into
+        /// the complete Receipt body. This is evidence identity, not authority.
+        pub fn with_execution_binding(
+            mut self,
+            execution_binding: ExecutionBindingV1,
+        ) -> Result<Self, ReceiptV1Error> {
+            execution_binding.validate().map_err(|cause| {
+                error(
+                    "$.environment.vela:execution_binding",
+                    format!("is invalid: {cause}"),
+                )
+            })?;
+            self.execution_binding = Some(execution_binding);
+            Ok(self)
+        }
     }
 
     #[derive(Debug, Clone)]
@@ -2870,6 +2889,7 @@ mod authoring {
         verifier_runs: Vec<VerifierRunInput>,
         producer: ProducerContext,
         scientific_chain: Option<ScientificChainAssertion>,
+        execution_binding: Option<ExecutionBindingV1>,
     }
 
     impl ReceiptInput {
@@ -2892,6 +2912,7 @@ mod authoring {
                 verifier_runs,
                 producer,
                 scientific_chain: None,
+                execution_binding: None,
             };
             validate_input(&input)?;
             Ok(input)
@@ -2920,6 +2941,7 @@ mod authoring {
             )?;
             let task_contract_root = input.task_contract_root.clone();
             let scientific_chain = input.scientific_chain.clone();
+            let execution_binding = input.execution_binding.clone();
             let NeutralReceiptInput {
                 claim,
                 claim_type,
@@ -2940,6 +2962,7 @@ mod authoring {
             )?;
             validated.producer.task_contract_root = task_contract_root;
             validated.scientific_chain = scientific_chain;
+            validated.execution_binding = execution_binding;
             Self::build_validated(validated)
         }
 
@@ -3085,6 +3108,15 @@ mod authoring {
             if let Some(scientific_chain) = input.scientific_chain {
                 receipt["environment"]["vela:scientific_chain"] = scientific_chain.as_value();
             }
+            if let Some(execution_binding) = input.execution_binding {
+                receipt["environment"]["vela:execution_binding"] =
+                    serde_json::to_value(execution_binding).map_err(|cause| {
+                        error(
+                            "$.environment.vela:execution_binding",
+                            format!("serialize exact binding: {cause}"),
+                        )
+                    })?;
+            }
             let statement = statement_projection(object(&receipt, "$")?)?;
             let payload = canonical_receipt_bytes(&statement)
                 .map_err(|cause| error("$.attestation.statement", cause.to_string()))?;
@@ -3148,6 +3180,14 @@ mod authoring {
         if let Some(scientific_chain) = &input.scientific_chain {
             validate_scientific_chain_assertion(scientific_chain)?;
         }
+        if let Some(execution_binding) = &input.execution_binding {
+            execution_binding.validate().map_err(|cause| {
+                error(
+                    "$.environment.vela:execution_binding",
+                    format!("is invalid: {cause}"),
+                )
+            })?;
+        }
         Ok(())
     }
 
@@ -3180,6 +3220,14 @@ mod authoring {
         )?;
         if let Some(scientific_chain) = &input.scientific_chain {
             validate_scientific_chain_assertion(scientific_chain)?;
+        }
+        if let Some(execution_binding) = &input.execution_binding {
+            execution_binding.validate().map_err(|cause| {
+                error(
+                    "$.environment.vela:execution_binding",
+                    format!("is invalid: {cause}"),
+                )
+            })?;
         }
         Ok(())
     }
@@ -3436,24 +3484,26 @@ mod tests {
 
     #[test]
     fn execution_binding_is_closed_full_digest_and_body_bound() {
-        let mut value = build(Vec::new()).into_value();
-        let original_root = ReceiptV1::from_trusted_value(value.clone())
-            .unwrap()
-            .canonical_root()
-            .unwrap();
-        value["environment"]["vela:execution_binding"] = json!({
-            "schema": EXECUTION_BINDING_SCHEMA,
-            "packet_root": format!("sha256:{}", "1".repeat(64)),
-            "profile_root": format!("sha256:{}", "2".repeat(64)),
-            "verifier_capsule_root": format!("sha256:{}", "3".repeat(64)),
-            "result_contract_root": format!("sha256:{}", "4".repeat(64)),
-        });
-        refresh_bound_attestation(&mut value);
-        let bytes = serde_json::to_vec(&value).unwrap();
-        let receipt = ReceiptV1::parse(&bytes).unwrap();
-        let binding = receipt.execution_binding().unwrap().unwrap();
+        let original_root = build(Vec::new()).canonical_root().unwrap();
+        let binding = ExecutionBindingV1 {
+            schema: EXECUTION_BINDING_SCHEMA.to_string(),
+            packet_root: format!("sha256:{}", "1".repeat(64)),
+            profile_root: format!("sha256:{}", "2".repeat(64)),
+            verifier_capsule_root: format!("sha256:{}", "3".repeat(64)),
+            result_contract_root: format!("sha256:{}", "4".repeat(64)),
+        };
+        let receipt = ReceiptBuilder::build(
+            input(Vec::new())
+                .with_execution_binding(binding.clone())
+                .unwrap(),
+            &identity("agent:receipt-test"),
+        )
+        .unwrap();
+        let value = receipt.as_value().clone();
+        let parsed = ReceiptV1::parse(&receipt.canonical_bytes().unwrap()).unwrap();
+        let binding = parsed.execution_binding().unwrap().unwrap();
         assert_eq!(binding.schema, EXECUTION_BINDING_SCHEMA);
-        assert_ne!(receipt.canonical_root().unwrap(), original_root);
+        assert_ne!(parsed.canonical_root().unwrap(), original_root);
 
         for (field, replacement) in [
             ("packet_root", json!(format!("sha256:{}", "a".repeat(63)))),

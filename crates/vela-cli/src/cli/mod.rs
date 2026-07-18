@@ -590,6 +590,10 @@ pub async fn run_command() {
             result,
             evidence,
             counterevidence,
+            packet_root,
+            profile_root,
+            verifier_capsule_root,
+            result_contract_root,
             work,
             r#as,
             push,
@@ -615,6 +619,10 @@ pub async fn run_command() {
                     "result": result,
                     "evidence": evidence,
                     "counterevidence": counterevidence,
+                    "packet_root": packet_root,
+                    "profile_root": profile_root,
+                    "verifier_capsule_root": verifier_capsule_root,
+                    "result_contract_root": result_contract_root,
                     "work": work,
                     "push": push,
                 }))
@@ -668,6 +676,39 @@ pub async fn run_command() {
                         "flag authoring needs --replayability (exact, bounded, approximate, unavailable, or unknown)".to_string(),
                     )
                 });
+                let execution_binding = match (
+                    packet_root,
+                    profile_root,
+                    verifier_capsule_root,
+                    result_contract_root,
+                ) {
+                    (
+                        Some(packet_root),
+                        Some(profile_root),
+                        Some(verifier_capsule_root),
+                        Some(result_contract_root),
+                    ) => {
+                        let binding = vela_protocol::receipt_v1::ExecutionBindingV1 {
+                            schema: vela_protocol::receipt_v1::EXECUTION_BINDING_SCHEMA.to_string(),
+                            packet_root,
+                            profile_root,
+                            verifier_capsule_root,
+                            result_contract_root,
+                        };
+                        binding.validate().unwrap_or_else(|error| {
+                            fail_preflight(
+                                crate::ui::ErrorKind::Usage,
+                                format!("invalid exact execution binding: {error}"),
+                            )
+                        });
+                        Some(binding)
+                    }
+                    (None, None, None, None) => None,
+                    _ => fail_preflight(
+                        crate::ui::ErrorKind::Usage,
+                        "exact execution binding requires all four full roots".to_string(),
+                    ),
+                };
                 crate::workflow::author_receipt(
                     &dir,
                     &actor,
@@ -683,6 +724,7 @@ pub async fn run_command() {
                     result,
                     evidence,
                     counterevidence,
+                    execution_binding,
                 )
                 .unwrap_or_else(|error| {
                     fail_preflight(
