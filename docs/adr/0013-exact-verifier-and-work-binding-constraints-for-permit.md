@@ -15,9 +15,11 @@ roots. A human who intends to delegate one frozen search therefore cannot yet
 state that exact restriction in the signed policy language.
 
 This was a candidate gap, not permission to add a general method registry. The
-entry test froze three otherwise equivalent A3 contexts: the intended Sidon
+entry test froze three otherwise equivalent A3 contexts: the then-current Sidon
 `a(24)>7179` search, a different capsule in the same computational class, and a
-different target/packet.
+different target/packet. Before the live run was frozen, retained repository
+evidence reproduced 7,192 points, so the non-duplicate target was tightened to
+`a(24)>7192`; the decision criterion and hostile result are unchanged.
 
 The registered fixture is
 `conformance/fixtures/permit-shadow-v1.json`, with byte root
@@ -102,3 +104,22 @@ The `v0.920.0` release still requires the v0.1/v0.2 cross-implementation
 vector, exact policy-display coverage, one real Sidon run, and clean-clone
 replay. A negative Sidon search is never eligible for this positive-witness
 Permit lane.
+
+## Frozen live candidate
+
+The first real positive-only profile is `sidon-a24-improve` at Canopus commit
+`c972388be6ec154915521c2e8480ca8ef6c8a626`. It binds:
+
+- Sidon commit `342061330a57676c911ca02b66a67954436c96db` and packet root
+  `sha256:da2ecf8b213c3166ff258834a1b81f2a21f7c8d6074589098261fe4cf1e82df1`;
+- profile root
+  `sha256:470f1a36594b63edacdbb96b2fcbc6f1f53d06da043b9649ed644c64d4f478a4`;
+- Linux arm64 capsule root
+  `sha256:372cbd0d71f82f33953499c677182d00d9c6b97f6098562a093450d063fbfc5e`;
+  and
+- positive result-contract root
+  `sha256:b6c553dfa0205c001d6d71cbad64397035d8ae6904b5799b9bdb3e0df893385f`.
+
+The unsigned shadow policy is `vap_4226ba1b929b4bb9f348156397967c64`.
+It remains non-authoritative until an exact protected activation. A capsule,
+profile, packet, or result-contract substitution does not match its v0.2 rule.
