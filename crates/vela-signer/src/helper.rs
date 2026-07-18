@@ -22,9 +22,6 @@ pub trait Approval {
     fn approve(&self, request: &SignerRequest) -> Result<bool, String>;
     fn record_session_use(&self, request: &SignerRequest, key: &SigningKey) -> Result<(), String>;
     fn reauthenticate(&self, request: &SignerRequest) -> Result<(), String>;
-    fn ensure_policy_session(&self, _request: &PolicySignerRequest) -> Result<(), String> {
-        Err("policy approval sessions are unsupported by this approval provider".to_string())
-    }
     fn approve_policy(&self, _request: &PolicySignerRequest) -> Result<bool, String> {
         Err("policy approval cards are unsupported by this approval provider".to_string())
     }
@@ -306,10 +303,11 @@ pub fn approve_and_sign_policy<A: Approval, C: Custody>(
     if !approval.approve_policy(request)? {
         return Err("policy decision declined or cancelled".to_string());
     }
-    match request.protection_mode {
-        ProtectionMode::Session => approval.ensure_policy_session(request)?,
-        ProtectionMode::Always => approval.reauthenticate_policy(request)?,
-    }
+    // Standing scientific delegation is a high-risk authority change. The
+    // semantic card comes first, then every activation, rotation, or
+    // revocation receives fresh platform authentication even when ordinary
+    // proposal decisions share a bounded custody session.
+    approval.reauthenticate_policy(request)?;
     let approved_at = approval.now();
     validate_policy_request_fresh(request, approved_at)?;
 

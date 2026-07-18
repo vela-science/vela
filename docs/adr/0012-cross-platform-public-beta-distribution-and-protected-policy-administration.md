@@ -22,6 +22,14 @@ canonical Git state, projected task context, executable plans, bounded patches,
 and explicit admission. They do not establish a need for an active context
 graph, temporal claim primitive, generic memory layer, or method registry.
 
+A July 18 authority review also identified limits that the beta must state
+honestly. Generic OS credential storage does not provide uniform same-user
+process isolation, a signed local session record is tamper-evident rather than
+caller-bound, and an OS authentication surface is not a scientific decision
+surface. Vela therefore reports the current cross-platform grade as
+`user_session`, not `app_isolated` or hardware-backed, and makes no claim to
+resist a compromised OS or arbitrary same-user malware.
+
 ## Decision
 
 Vela 0.910 is a product and release-trust change with no event, reducer,
@@ -56,10 +64,29 @@ Receipt, proposal, signature-algorithm, or accepted-state change.
    remain advanced replay/compatibility surfaces and are never consumed by
    `policy decide`.
 
+6. A replacement policy is a complete desired rule set. Rotation never carries
+   an omitted rule forward implicitly. The key-free plan and protected card
+   show added, removed, changed, and unchanged authority counts, with removed
+   rule IDs named explicitly.
+7. The signer derives the policy card from the exact typed selected policy,
+   prior policy, action, and event material. It does not accept caller-authored
+   policy facts or consequences. The rationale remains caller-supplied text and
+   is visibly bound into the exact plan.
+8. Policy activation, rotation, and revocation are rare standing-authority
+   changes and always request fresh platform authentication after the semantic
+   card. Ordinary one-proposal decisions may continue to use a bounded custody
+   session; that session never approves later semantics.
+
 The policy card names the action, policy ID and full root, frontier, expiry,
-rule summary, reason, and plan-root prefix. A bounded custody session may avoid
-re-entering a password; it never approves policy semantics. Every semantic
-policy action still receives its own exact card.
+rule summary, authority diff, reason, and plan-root prefix. Every policy action
+receives its own exact card and fresh authentication.
+
+This release deliberately does not add a resident authority daemon, TUF root,
+passkey actor, generic signing socket, or new policy language. A later broker
+may move session state behind a signed application boundary and independently
+replay the complete frontier. That work requires a separate threat-model ADR
+and platform evidence. Until then, routine binary rebind remains an explicit
+beta limitation rather than being hidden behind an unauthenticated update path.
 
 ## Compatibility and failure semantics
 
@@ -78,6 +105,8 @@ policy action still receives its own exact card.
 - cancellation and authentication failure produce zero writes;
 - wrong action, policy, reason, timestamp, binary, registry, or roots fail
   before the helper request;
+- omitted policy rules are removed, authority diffs are exact, and every policy
+  action reauthenticates after the card;
 - old policy events and identities replay unchanged;
 - archive checksum, SBOM, attestation, notarization, and Authenticode checks;
 - fresh install, upgrade, rebind, and uninstall on macOS Apple silicon,

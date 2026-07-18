@@ -45,7 +45,7 @@ pub struct SignerEvent {
 /// derived from the same Decision Brief as the signed request and included in
 /// the request root so the helper cannot display one decision and sign
 /// another.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SignerDisplay {
     pub frontier_name: String,

@@ -18,7 +18,8 @@ pub use contract::{
 };
 pub use helper::{Approval, Custody, approve_and_sign, approve_and_sign_policy, enroll, rebind};
 pub use policy_contract::{
-    POLICY_REQUEST_SCHEMA, POLICY_RESPONSE_SCHEMA, PolicyDecisionAction, PolicySignerRequest,
-    PolicySignerResponse, policy_request_root, validate_policy_request, validate_policy_response,
+    POLICY_REQUEST_SCHEMA, POLICY_RESPONSE_SCHEMA, PolicyAuthorityDiff, PolicyDecisionAction,
+    PolicySignerRequest, PolicySignerResponse, policy_authority_diff, policy_request_root,
+    policy_signer_display, validate_policy_request, validate_policy_response,
 };
 pub use session::{SessionRecord, SessionState};

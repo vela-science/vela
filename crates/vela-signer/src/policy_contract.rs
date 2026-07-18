@@ -5,6 +5,7 @@
 //! so the helper can derive every signing input it approves. It never accepts
 //! caller-supplied opaque bytes.
 
+use std::collections::BTreeMap;
 use std::path::Path;
 
 use chrono::{DateTime, Duration, Utc};
@@ -18,9 +19,7 @@ use vela_protocol::proposals::policy_accept::{
     POLICY_HEAD_PROPOSAL_KIND, PolicyHeadAction, PolicyHeadPayload,
 };
 
-use crate::contract::{
-    ProtectionMode, SignerDisplay, file_sha256, validate_display, validate_hex_signature,
-};
+use crate::contract::{ProtectionMode, SignerDisplay, file_sha256, validate_hex_signature};
 
 pub const POLICY_REQUEST_SCHEMA: &str = "vela.policy-signer-request.v1";
 pub const POLICY_RESPONSE_SCHEMA: &str = "vela.policy-signer-response.v1";
@@ -68,12 +67,74 @@ pub struct PolicySignerRequest {
     pub provider: String,
     pub protection_grade: String,
     pub protection_mode: ProtectionMode,
-    pub display: SignerDisplay,
     /// Exact selected policy for every action. Revoke does not sign a new
     /// envelope, but still binds and displays the authority it closes.
     pub policy: AcceptancePolicy,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub prior_policy: Option<AcceptancePolicy>,
     pub proposal: StateProposal,
     pub event: StateEvent,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct PolicyAuthorityDiff {
+    pub added: Vec<String>,
+    pub removed: Vec<String>,
+    pub changed: Vec<String>,
+    pub unchanged: Vec<String>,
+}
+
+pub fn policy_authority_diff(
+    prior: Option<&AcceptancePolicy>,
+    selected: &AcceptancePolicy,
+    action: PolicyDecisionAction,
+) -> Result<PolicyAuthorityDiff, String> {
+    let before = prior
+        .map(|policy| {
+            policy
+                .rules
+                .iter()
+                .map(|rule| {
+                    vela_protocol::canonical::sha256_canonical(rule)
+                        .map(|root| (rule.id.clone(), root))
+                })
+                .collect::<Result<BTreeMap<_, _>, _>>()
+        })
+        .transpose()
+        .map_err(|error| format!("canonicalize prior policy rules: {error}"))?
+        .unwrap_or_default();
+    let after = if action == PolicyDecisionAction::Revoke {
+        BTreeMap::new()
+    } else {
+        selected
+            .rules
+            .iter()
+            .map(|rule| {
+                vela_protocol::canonical::sha256_canonical(rule).map(|root| (rule.id.clone(), root))
+            })
+            .collect::<Result<BTreeMap<_, _>, _>>()
+            .map_err(|error| format!("canonicalize selected policy rules: {error}"))?
+    };
+    let mut diff = PolicyAuthorityDiff {
+        added: Vec::new(),
+        removed: Vec::new(),
+        changed: Vec::new(),
+        unchanged: Vec::new(),
+    };
+    for (id, root) in &after {
+        match before.get(id) {
+            None => diff.added.push(id.clone()),
+            Some(previous) if previous == root => diff.unchanged.push(id.clone()),
+            Some(_) => diff.changed.push(id.clone()),
+        }
+    }
+    for id in before.keys() {
+        if !after.contains_key(id) {
+            diff.removed.push(id.clone());
+        }
+    }
+    Ok(diff)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -137,7 +198,6 @@ pub fn validate_policy_request(
             return Err(format!("{name} must not be empty"));
         }
     }
-    validate_display(&request.display)?;
     validate_window(&request.expires_at, now)?;
     let observed_at = DateTime::parse_from_rfc3339(&request.observed_at)
         .map_err(|error| format!("observed_at is not RFC3339: {error}"))?;
@@ -194,6 +254,41 @@ pub fn validate_policy_request(
             }
         }
     }
+    match request.action {
+        PolicyDecisionAction::Activate if request.prior_policy.is_some() => {
+            return Err("policy activation must not carry prior authority".to_string());
+        }
+        PolicyDecisionAction::Rotate => {
+            if let Some(prior) = request.prior_policy.as_ref()
+                && (!prior.id_is_valid()
+                    || prior.frontier_id != request.frontier_id
+                    || prior.id == request.policy.id)
+            {
+                return Err("policy rotation prior authority is invalid".to_string());
+            }
+        }
+        PolicyDecisionAction::Revoke => {
+            let prior = request
+                .prior_policy
+                .as_ref()
+                .ok_or_else(|| "policy revocation must carry the exact prior policy".to_string())?;
+            if prior.id != request.policy.id
+                || vela_protocol::canonical::sha256_canonical(prior)?
+                    != vela_protocol::canonical::sha256_canonical(&request.policy)?
+            {
+                return Err(
+                    "policy revocation prior authority differs from the selected policy"
+                        .to_string(),
+                );
+            }
+        }
+        _ => {}
+    }
+    policy_authority_diff(
+        request.prior_policy.as_ref(),
+        &request.policy,
+        request.action,
+    )?;
 
     let event = &request.event;
     if event.signature.is_some() || vela_protocol::events::compute_event_id(event) != event.id {
@@ -239,6 +334,65 @@ pub fn validate_policy_request(
         return Err("pinned Vela binary digest does not match the request".to_string());
     }
     Ok(())
+}
+
+pub fn policy_signer_display(request: &PolicySignerRequest) -> SignerDisplay {
+    let diff = policy_authority_diff(
+        request.prior_policy.as_ref(),
+        &request.policy,
+        request.action,
+    )
+    .expect("validated policy request has a canonical authority diff");
+    let mut rules = request
+        .policy
+        .rules
+        .iter()
+        .map(|rule| {
+            format!(
+                "{}: {:?} {} (assurance >= {}, independence {}, method integrity {})",
+                rule.id,
+                rule.effect,
+                rule.claim_classes.join(","),
+                rule.constraints.required_assurance_min,
+                rule.constraints.require_independence,
+                rule.constraints.require_method_integrity,
+            )
+        })
+        .collect::<Vec<_>>();
+    rules.sort();
+    rules.truncate(1);
+    rules.push(format!(
+        "authority diff: +{} -{} ~{} ={}",
+        diff.added.len(),
+        diff.removed.len(),
+        diff.changed.len(),
+        diff.unchanged.len()
+    ));
+    if !diff.removed.is_empty() {
+        rules.push(format!("removed: {}", diff.removed.join(",")));
+    }
+    rules.push(format!("expires {}", request.policy.expires_at));
+    rules.truncate(4);
+    SignerDisplay {
+        frontier_name: request.frontier_id.clone(),
+        claim: format!(
+            "{} policy {}",
+            request.action.as_str(),
+            request.selected_policy_id
+        ),
+        requester: request.reviewer_actor.clone(),
+        decisive_facts: rules,
+        consequence: match request.action {
+            PolicyDecisionAction::Activate | PolicyDecisionAction::Rotate => {
+                "Matching future receipts may enter the Permit lane; all other work still defers."
+                    .to_string()
+            }
+            PolicyDecisionAction::Revoke => {
+                "Future automatic Permit routing closes; historical admissions remain verifiable."
+                    .to_string()
+            }
+        },
+    }
 }
 
 pub fn validate_policy_request_fresh(
@@ -428,14 +582,8 @@ mod tests {
             provider: "test_store".to_string(),
             protection_grade: "test".to_string(),
             protection_mode: ProtectionMode::Session,
-            display: SignerDisplay {
-                frontier_name: "fixture".to_string(),
-                claim: "activate exact policy".to_string(),
-                requester: "reviewer:test".to_string(),
-                decisive_facts: vec!["default defer".to_string()],
-                consequence: "bounded receipts may permit".to_string(),
-            },
             policy,
+            prior_policy: None,
             proposal,
             event,
         };
@@ -489,5 +637,19 @@ mod tests {
         event.event.reason = "different reason".to_string();
         event.event.id = vela_protocol::events::compute_event_id(&event.event);
         assert!(validate_policy_request(&event, "2026-07-18T12:00:30Z".parse().unwrap()).is_err());
+    }
+
+    #[test]
+    fn policy_card_is_derived_from_typed_signing_material() {
+        let (_binary, _key, mut request) = fixture();
+        let first = policy_signer_display(&request);
+        request.reason = "caller changed only its rationale".to_string();
+        request.event.reason = request.reason.clone();
+        request.event.id = vela_protocol::events::compute_event_id(&request.event);
+        let second = policy_signer_display(&request);
+        assert_eq!(first, second);
+        assert!(first.claim.contains(request.action.as_str()));
+        assert!(first.claim.contains(&request.selected_policy_id));
+        assert!(first.consequence.contains("Permit lane"));
     }
 }

@@ -104,21 +104,6 @@ impl Approval for SystemApproval {
         ))
     }
 
-    fn ensure_policy_session(&self, request: &PolicySignerRequest) -> Result<(), String> {
-        ensure_bound_session(
-            &request.reviewer_actor,
-            &request.reviewer_public_key,
-            &request.provider,
-            request.protection_mode,
-            &request.helper_sha256,
-            "open a protected policy session",
-            &format!(
-                "Unlock Vela policy decisions for {}",
-                request.reviewer_actor
-            ),
-        )
-    }
-
     fn approve_policy(&self, request: &PolicySignerRequest) -> Result<bool, String> {
         require_user_interaction("show a policy decision card")?;
         let card = policy_decision_card(request);
@@ -351,9 +336,9 @@ fn decision_card(request: &SignerRequest) -> HumanCard {
 }
 
 fn policy_decision_card(request: &PolicySignerRequest) -> HumanCard {
+    let display = crate::policy_signer_display(request);
     let action = capitalize(request.action.as_str());
-    let facts = request
-        .display
+    let facts = display
         .decisive_facts
         .iter()
         .map(|fact| format!("• {fact}"))
@@ -363,11 +348,11 @@ fn policy_decision_card(request: &PolicySignerRequest) -> HumanCard {
         title: format!("{action} this policy?"),
         description: format!(
             "{}\n\nExact scope\n{}\n\nRationale\n{}\n\nWhat changes\n{}\n\nFrontier {}\nPolicy {} · Plan {}",
-            request.display.claim,
+            display.claim,
             facts,
             request.reason,
-            request.display.consequence,
-            request.display.frontier_name,
+            display.consequence,
+            display.frontier_name,
             short_id(&request.selected_policy_id),
             short_root(&request.decision_plan_root),
         ),

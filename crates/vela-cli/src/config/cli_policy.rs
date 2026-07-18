@@ -361,8 +361,8 @@ fn draft_policy(
 
 /// The sealing core, decoupled from the template ladder so suggested
 /// rules and templates share one path. Same contract as before the
-/// split: content-addressed id, epoch+1, Defer default, causal validity,
-/// rotation carries prior rules and quorum forward.
+/// split: content-addressed id, epoch+1, Defer default, and causal validity.
+/// A replacement is the complete desired rule set; omitted grants disappear.
 fn seal_policy(
     frontier: &Path,
     rules: Vec<PolicyRule>,
@@ -442,23 +442,6 @@ fn seal_policy_with_issued_by(
         }
     }
 
-    // A rotation carries the standing grants forward: the new epoch is
-    // the prior authority PLUS the template's rule, not a reset — a
-    // signed lane must never close as a side effect of opening another.
-    // A template rule with the same id supersedes (that IS the edit).
-    let mut rules = rules;
-    if let Some(old) = prior.as_ref().filter(|_| replaced_signed) {
-        let new_ids: std::collections::HashSet<&str> =
-            rules.iter().map(|r| r.id.as_str()).collect();
-        let mut carried: Vec<PolicyRule> = old
-            .rules
-            .iter()
-            .filter(|r| !new_ids.contains(r.id.as_str()))
-            .cloned()
-            .collect();
-        carried.append(&mut rules);
-        rules = carried;
-    }
     let quorum = prior
         .as_ref()
         .filter(|_| replaced_signed)
@@ -2530,6 +2513,7 @@ pub(crate) struct PolicyDecisionPlan {
     selected_policy_root: String,
     policy_expires_at: String,
     rule_summary: Vec<String>,
+    authority_diff: vela_signer::PolicyAuthorityDiff,
     reviewer: String,
     reviewer_public_key: String,
     reason: String,
@@ -2548,6 +2532,7 @@ pub(crate) struct PolicyDecisionPlan {
 struct PreparedProtectedPolicyDecision {
     plan: PolicyDecisionPlan,
     policy: AcceptancePolicy,
+    prior_policy: Option<AcceptancePolicy>,
     proposal: StateProposal,
     event: vela_protocol::events::StateEvent,
 }
@@ -2723,6 +2708,33 @@ fn build_protected_policy_decision(
         vela_signer::PolicyDecisionAction::Rotate => PolicyHeadAction::Rotate,
         vela_signer::PolicyDecisionAction::Revoke => PolicyHeadAction::Revoke,
     };
+    let prior_policy = current
+        .as_ref()
+        .and_then(|head| head.policy_id.as_ref())
+        .map(|policy_id| {
+            let path = policies_dir(frontier).join(format!("{policy_id}.json"));
+            let bytes = std::fs::read(&path).map_err(|error| {
+                transaction_error(format!(
+                    "read prior policy {} for protected authority diff: {error}",
+                    path.display()
+                ))
+            })?;
+            let policy: AcceptancePolicy = serde_json::from_slice(&bytes).map_err(|error| {
+                transaction_error(format!(
+                    "parse prior policy {} for protected authority diff: {error}",
+                    path.display()
+                ))
+            })?;
+            if policy.id != *policy_id || !policy.id_is_valid() {
+                return Err(transaction_error(
+                    "prior policy snapshot does not rederive the signed policy-head id",
+                ));
+            }
+            Ok(policy)
+        })
+        .transpose()?;
+    let authority_diff = vela_signer::policy_authority_diff(prior_policy.as_ref(), &policy, action)
+        .map_err(transaction_error)?;
     let head_policy_id = if action == vela_signer::PolicyDecisionAction::Revoke {
         None
     } else {
@@ -2770,6 +2782,7 @@ fn build_protected_policy_decision(
         selected_policy_root,
         policy_expires_at: policy.expires_at.clone(),
         rule_summary: policy_rule_summary(&policy),
+        authority_diff,
         reviewer: reviewer.to_string(),
         reviewer_public_key: actor.public_key,
         reason: reason.to_string(),
@@ -2792,45 +2805,10 @@ fn build_protected_policy_decision(
     Ok(PreparedProtectedPolicyDecision {
         plan,
         policy,
+        prior_policy,
         proposal: prepared.proposal,
         event,
     })
-}
-
-fn protected_policy_display(
-    prepared: &PreparedProtectedPolicyDecision,
-) -> vela_signer::SignerDisplay {
-    let plan = &prepared.plan;
-    let mut facts = plan
-        .rule_summary
-        .iter()
-        .take(2)
-        .cloned()
-        .collect::<Vec<_>>();
-    facts.push(format!("expires {}", plan.policy_expires_at));
-    facts.push(format!("event log {}", plan.event_log_root));
-    facts.truncate(4);
-    vela_signer::SignerDisplay {
-        frontier_name: plan.frontier_id.clone(),
-        claim: format!(
-            "{} policy {}",
-            plan.action.as_str(),
-            plan.selected_policy_id
-        ),
-        requester: plan.reviewer.clone(),
-        decisive_facts: facts,
-        consequence: match plan.action {
-            vela_signer::PolicyDecisionAction::Activate
-            | vela_signer::PolicyDecisionAction::Rotate => {
-                "Matching future receipts may enter the Permit lane; all other work still defers."
-                    .to_string()
-            }
-            vela_signer::PolicyDecisionAction::Revoke => {
-                "Future automatic Permit routing closes; historical admissions remain verifiable."
-                    .to_string()
-            }
-        },
-    }
 }
 
 fn request_protected_policy_signatures(
@@ -2876,8 +2854,8 @@ fn request_protected_policy_signatures(
         provider: profile.provider.clone(),
         protection_grade: profile.protection_grade.clone(),
         protection_mode: profile.mode,
-        display: protected_policy_display(prepared),
         policy: prepared.policy.clone(),
+        prior_policy: prepared.prior_policy.clone(),
         proposal: prepared.proposal.clone(),
         event: prepared.event.clone(),
     };
@@ -3252,6 +3230,19 @@ pub(crate) fn cmd_policy_decide(
             println!("  expiry       {}", prepared.plan.policy_expires_at);
             for rule in &prepared.plan.rule_summary {
                 println!("  rule         {}", crate::cli::safe_text::inline(rule));
+            }
+            println!(
+                "  authority    +{} -{} ~{} ={}",
+                prepared.plan.authority_diff.added.len(),
+                prepared.plan.authority_diff.removed.len(),
+                prepared.plan.authority_diff.changed.len(),
+                prepared.plan.authority_diff.unchanged.len(),
+            );
+            if !prepared.plan.authority_diff.removed.is_empty() {
+                println!(
+                    "  removed      {}",
+                    prepared.plan.authority_diff.removed.join(", ")
+                );
             }
             println!("  reason       {}", crate::cli::safe_text::inline(reason));
             println!("  plan         {}", prepared.plan.decision_plan_root);
@@ -5027,10 +5018,10 @@ mod tests {
         );
     }
 
-    /// Rotating a signed policy must carry its rules into the new epoch:
-    /// opening one lane may never close another as a side effect.
+    /// A replacement policy is complete desired state. Omitted grants must
+    /// disappear rather than surviving an authority rotation implicitly.
     #[test]
-    fn replace_carries_the_prior_rules_forward() {
+    fn replacement_removes_omitted_rules_instead_of_carrying_authority_forward() {
         let tmp = TempDir::new().unwrap();
         let dir = init_frontier(&tmp);
         register_transaction_reviewer(&dir);
@@ -5041,18 +5032,14 @@ mod tests {
         assert!(replaced);
         assert_eq!(second.epoch, first.epoch + 1);
         let ids: Vec<&str> = second.rules.iter().map(|r| r.id.as_str()).collect();
-        assert!(
-            ids.contains(&"witness-rederivation-v1"),
-            "the standing grant must survive the rotation: {ids:?}"
-        );
-        assert!(ids.contains(&"statement-drafts-v1"), "{ids:?}");
+        assert_eq!(ids, vec!["statement-drafts-v1"]);
         // The outgoing signed pair is snapshotted under its content address.
         assert!(
             policies_dir(&dir)
                 .join(format!("{}.json", first.id))
                 .exists()
         );
-        // Re-drafting the SAME template supersedes, not duplicates.
+        // Re-drafting the same complete policy cannot duplicate a rule.
         transactionally_sign_policy(&dir, &second.id, "2099-04-01T00:00:01Z");
         let (third, _) = draft_policy(&dir, "statement-drafts", true).unwrap();
         let dup = third
@@ -5060,7 +5047,7 @@ mod tests {
             .iter()
             .filter(|r| r.id == "statement-drafts-v1")
             .count();
-        assert_eq!(dup, 1, "same-id template rule supersedes the carried one");
+        assert_eq!(dup, 1, "a complete replacement must contain each rule once");
     }
 
     #[test]
