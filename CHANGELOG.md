@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.901.0 — Unreleased — Protected decisions and producer withdrawal
+## v0.901.0 — 2026-07-17 — Protected decisions and producer withdrawal
 
 - Replace ordinary batch signing with `vela review decide`: a key-free exact
   preview followed by one root- and time-bound decision card. The protected
@@ -30,8 +30,9 @@
   `created_at`, and make the retired `proposals` hint name the replacement
   list/show commands. This closes the first-party cold-review discovery defect
   without changing canonical proposal bytes.
-- Accept ADR 0011 only after the released binary passes the protected Erdős
-  terminal test and clean-clone replay.
+- Accept ADR 0011 after the exact release pair passes the protected Erdős
+  terminal test, current-platform rebind and semantic-card review, unchanged
+  root audit, and clean-clone replay.
 
 ## v0.900.2 — 2026-07-17 — Truly read-only product projections
 

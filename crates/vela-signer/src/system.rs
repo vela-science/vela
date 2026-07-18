@@ -754,16 +754,4 @@ mod tests {
         }
         assert!(!user_interaction_disabled(None));
     }
-
-    #[test]
-    #[ignore = "manual decision-card UX review; displays production UI but never enters custody"]
-    fn manual_decision_card_preview_cannot_sign_or_write() {
-        // Deliberately call only the production card edge, not
-        // `approve_and_sign`. Either button merely returns a boolean to this
-        // test; no credential store, signer session, event, or frontier is
-        // reachable from this path.
-        let _ = SystemApproval
-            .approve(&request("reject"))
-            .expect("display the production decision card");
-    }
 }

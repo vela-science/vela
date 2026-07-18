@@ -110,8 +110,8 @@ The bundle keeps the one-shot `vela-signer` beside `vela`; Linux also installs
 the non-caching polkit action used for local authentication.
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.900.2/install.sh \
-  | VELA_VERSION=v0.900.2 bash
+curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.901.0/install.sh \
+  | VELA_VERSION=v0.901.0 bash
 ```
 
 On Windows x86-64, use PowerShell. This installs both executables under the
@@ -119,7 +119,7 @@ current user's local application-data directory and adds that directory to the
 user PATH:
 
 ```powershell
-& ([scriptblock]::Create((Invoke-WebRequest https://raw.githubusercontent.com/vela-science/vela/v0.900.2/install.ps1).Content)) -Version v0.900.2
+& ([scriptblock]::Create((Invoke-WebRequest https://raw.githubusercontent.com/vela-science/vela/v0.901.0/install.ps1).Content)) -Version v0.901.0
 ```
 
 Source installations must install both binaries with

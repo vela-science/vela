@@ -1,8 +1,8 @@
 # ADR 0011: Human-governed authority and producer withdrawal
 
-- Status: Proposed
-- Release gate: pending protected rebind, current-platform UX review, and final
-  tag publication; cross-platform package evidence passed
+- Status: Accepted
+- Release gate: satisfied 2026-07-17 by protected rebind, current-platform UX
+  review, cross-platform package evidence, and final release verification
 - Target release: Vela `v0.901.0`
 - Protocol effect: one signed, non-scientific `proposal.withdrawn` event
 - Local product effect: protected custody, bounded authority sessions, and identity v2
@@ -167,9 +167,10 @@ that Yes meant Reject. This is exactly the prompt fatigue and context loss that
 the cited products avoid. It also asked a human to reject under-evidenced agent
 work that the producer should have retained as run evidence or withdrawn.
 
-This is a release-blocking NO-GO, not a polish issue. The candidate stays
-unreleased, this ADR stays Proposed, and the valid historical rejection is not
-rewritten. Successful cryptography is insufficient acceptance evidence.
+This was a release-blocking NO-GO, not a polish issue. At that point the
+candidate stayed unreleased, this ADR stayed Proposed, and the valid historical
+rejection was not rewritten. Successful cryptography is insufficient
+acceptance evidence.
 
 ### 2026-07-17 cross-platform release-candidate evidence
 
@@ -191,6 +192,28 @@ gate. The first RC publication exposed a release-workflow defect: a hyphenated
 tag was not marked as a prerelease. The workflow now derives `--prerelease`
 from the tag before publication, and `v0.901.0-rc.2` is correctly published as
 a prerelease. Immutable RC1 metadata is not rewritten.
+
+### 2026-07-17 current-platform acceptance evidence
+
+The user authorized one exact rebind of `reviewer:will-blair`. macOS
+LocalAuthentication approved the transition to CLI
+`sha256:fd0653884b75e46ba10417db517179a2924ea4f41163db117b9ff6c0e38f6340`
+and helper
+`sha256:28303f09a3cc9a011326d1c5aa6728fa26543571b176f9b32cf29fb836b70c88`.
+The resulting signed `vela.signer-session.v1` record binds the same actor,
+public key, provider, session mode, and helper root. `vela id show` reports no
+plaintext source and no pending binary update.
+
+The user then reviewed the production semantic card on the macOS main UI
+thread through a disposable no-custody QA build. It displayed the semantic
+`Reject proposal` action instead of Yes/No and returned without a credential
+read, signature, event, session mutation, or frontier write regardless of the
+selected button. The QA source was removed after the observation; rebuilding
+the optimized release pair reproduced the two authorized binary roots exactly.
+Erdős remained at commit `fde5e1da5816445e3f7a71f3d5a3cc3167b0b2c0`,
+tree `a88302ca445c7cb705963ecfe82baacdc009705f`, 2,188 events, twelve pending
+proposals, and the same event, proposal, snapshot, registry, and artifact
+roots. No scientific or Git state changed during either UX check.
 
 ## Decision
 
@@ -688,11 +711,8 @@ python3 conformance/verify.py
 ```
 
 The explicitly human-observed, no-custody UI check is separate from automated
-conformance:
-
-```bash
-cargo test -p vela-signer manual_decision_card_preview_cannot_sign_or_write -- --ignored --nocapture
-```
+conformance and must execute the production card on the platform main UI
+thread. It is release evidence, not a shipped CLI or reusable approval path.
 
 The release matrix must compile and test macOS, Windows, and Linux profiles.
 Each release bundle contains the exact `vela` and `vela-signer` pair. The Linux
@@ -714,9 +734,10 @@ terminal roots or using the legacy signer and correctly state the semantic
 effect, why the item was deferred, and whether accepted state changes. The
 reader must recover the same standing and reproduction command from the exact
 site bundle. Current-platform release review then requires one real protected
-rebind and one production decision-card preview through the ignored no-custody
-test; that test can display the exact card but cannot read a key, sign, open a
-session, or write a frontier regardless of which button is pressed.
+rebind and one production decision-card preview through a disposable
+main-thread no-custody build; it can display the exact card but cannot read a
+key, sign, open a session, or write a frontier regardless of which button is
+pressed. The QA build is not retained as a product interface.
 
 The exact Erdős rejection at commit `0041be301ae2a9aa966e85d2d530de60c6c9192e`
 is retained as a cryptographic success and usability failure. It is not reused
