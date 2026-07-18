@@ -1,7 +1,7 @@
 # Vela conformance vectors
 
-This directory carries the portable test vectors for Vela's prelaunch `0.901`
-protocol candidate. Passing them demonstrates agreement on the named byte and
+This directory carries the portable test vectors for Vela's current pre-1.0
+protocol candidates. Passing them demonstrates agreement on the named byte and
 reducer contracts. It does not certify scientific truth, policy authority, or
 compatibility with future candidates.
 
