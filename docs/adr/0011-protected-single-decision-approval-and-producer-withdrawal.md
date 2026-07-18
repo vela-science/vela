@@ -687,6 +687,13 @@ python3 conformance/verify.py
 ./scripts/full-conformance.sh --suite frontier --mode=ci
 ```
 
+The explicitly human-observed, no-custody UI check is separate from automated
+conformance:
+
+```bash
+cargo test -p vela-signer manual_decision_card_preview_cannot_sign_or_write -- --ignored --nocapture
+```
+
 The release matrix must compile and test macOS, Windows, and Linux profiles.
 Each release bundle contains the exact `vela` and `vela-signer` pair. The Linux
 bundle also contains the non-caching polkit policy. The installers verify the
@@ -698,13 +705,18 @@ unrelated suites remain excluded.
 ## Acceptance evidence required
 
 Acceptance requires packages for macOS, Windows, and Linux, current-platform
-live custody, and cold-use UX evidence. Four fresh users must complete routine
-producer work with zero human prompts and identify that the agent, not the
-human, signed it. Four fresh reviewers must resolve a deferred item from its
-active task or platform card without copying terminal commands or roots,
-encountering signing language, or seeing unexplained OS dialogs. They must
-correctly state the semantic effect, why the item was deferred, and whether
-accepted state changes.
+live custody, and the four frozen first-party cold-use diagnostics required by
+the product plan: one fresh operator, producer, reviewer, and reader session.
+These sessions receive no independent or scientific credit. Routine producer
+work must create zero human prompts and identify that the agent, not the human,
+signed it. The reviewer must resolve one exact deferred item without copying
+terminal roots or using the legacy signer and correctly state the semantic
+effect, why the item was deferred, and whether accepted state changes. The
+reader must recover the same standing and reproduction command from the exact
+site bundle. Current-platform release review then requires one real protected
+rebind and one production decision-card preview through the ignored no-custody
+test; that test can display the exact card but cannot read a key, sign, open a
+session, or write a frontier regardless of which button is pressed.
 
 The exact Erdős rejection at commit `0041be301ae2a9aa966e85d2d530de60c6c9192e`
 is retained as a cryptographic success and usability failure. It is not reused
