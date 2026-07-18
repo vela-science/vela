@@ -34,6 +34,9 @@ try {
   if ($Expected -ne $Observed) {
     throw "Checksum mismatch for $Asset; refusing installation."
   }
+  if ($env:VELA_EXPECTED_SHA256 -and $Observed -ne $env:VELA_EXPECTED_SHA256.ToLowerInvariant()) {
+    throw "$Asset differs from the ecosystem-lock SHA-256; refusing installation."
+  }
   if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
     throw "GitHub CLI is required to verify build provenance: https://cli.github.com/"
   }

@@ -69,6 +69,13 @@ curl -fsSL "$SUM_URL" -o "$TMP/$ASSET.sha256" || {
   cd "$TMP"
   shasum -a 256 -c "$ASSET.sha256"
 )
+if [ -n "${VELA_EXPECTED_SHA256:-}" ]; then
+  OBSERVED_SHA256=$(shasum -a 256 "$TMP/$ASSET" | awk '{print $1}')
+  if [ "$OBSERVED_SHA256" != "$VELA_EXPECTED_SHA256" ]; then
+    echo "ERROR: ${ASSET} differs from the ecosystem-lock SHA-256; refusing installation." >&2
+    exit 1
+  fi
+fi
 gh attestation verify "$TMP/$ASSET" \
   --repo "$REPO" \
   --signer-workflow "$REPO/.github/workflows/release.yml" \
