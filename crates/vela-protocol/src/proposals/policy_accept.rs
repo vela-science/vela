@@ -388,6 +388,7 @@ pub struct PolicyContextInputs<'a> {
     pub finding: &'a FindingBundle,
     pub attachments: &'a [crate::verifier_attachment::VerifierAttachment],
     pub replayability: Option<&'a str>,
+    pub execution_binding: Option<&'a crate::receipt_v1::ExecutionBindingV1>,
     pub receipt_is_body_bound: bool,
     pub credential_valid: bool,
     pub target_contested: bool,
@@ -448,6 +449,7 @@ pub fn derive_policy_context(input: PolicyContextInputs<'_>) -> PolicyContext {
         } else {
             "unknown".to_string()
         },
+        execution_binding: input.execution_binding.cloned(),
     }
 }
 
@@ -555,6 +557,9 @@ pub fn derive_submission_policy_context(
         .get("replayability")
         .and_then(serde_json::Value::as_str)
         .unwrap_or("unknown");
+    let execution_binding = receipt
+        .execution_binding()
+        .map_err(|error| format!("derive receipt execution binding: {error}"))?;
     let target_contested = finding.flags.contested
         || submission
             .get("same_claim_findings")
@@ -586,6 +591,7 @@ pub fn derive_submission_policy_context(
         finding: &finding,
         attachments: &relevant,
         replayability: Some(replayability),
+        execution_binding: execution_binding.as_ref(),
         receipt_is_body_bound: true,
         credential_valid: receipt_producer_credential_valid(frontier, receipt, decision_time),
         target_contested,
@@ -2816,6 +2822,7 @@ mod tests {
                     allow_governance_mutation: false,
                     require_independence: true,
                     require_method_integrity: true,
+                    ..Constraints::default()
                 },
             }],
             default: Outcome::Defer,
@@ -2932,6 +2939,7 @@ mod tests {
             credential_valid: true,
             has_unknown_fields: false,
             replayability: "exact".to_string(),
+            execution_binding: None,
         }
     }
 

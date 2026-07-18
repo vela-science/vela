@@ -1,0 +1,157 @@
+{
+  "schema": "vela.permit-shadow-experiment.v1",
+  "frontier": {
+    "id": "vfr_496956067dc5ad79",
+    "git_commit": "08aa8aba053f3aba8277cd298469d658382307c3",
+    "git_tree": "2f3732e1ce7e13dd0f40cecaf2854f352dbd9586",
+    "event_log_root": "sha256:5f85d0896688fec7b5a6517928f9e954c0136c8f345ade51011b95b42b9d6cb6",
+    "snapshot_root": "sha256:a09958d8bdb66ddcbbd274c345c6beab2fbf409b60e2e940ae4902487d952ce4",
+    "proposal_root": "sha256:378798850a42f954df2572c64df196de16043dbaf765207d423ff90e8d1d2f7f",
+    "actor_registry_root": "sha256:56255ef713f476f7b5dbce3a52003d1a6e7d6eef92f4895c4e9edb545c173cfa"
+  },
+  "decision_time": "2026-07-18T20:00:00Z",
+  "policy": {
+    "schema": "vela.acceptance_policy.v0.1",
+    "id": "",
+    "frontier_id": "vfr_496956067dc5ad79",
+    "epoch": 1,
+    "issued_by": [
+      "reviewer:will-blair"
+    ],
+    "quorum": {
+      "threshold": 1,
+      "eligible_roles": [
+        "reviewer"
+      ]
+    },
+    "rules": [
+      {
+        "id": "search-witness-v1",
+        "effect": "permit",
+        "claim_classes": [
+          "receipt_computational"
+        ],
+        "constraints": {
+          "max_changed_findings": 1,
+          "max_downstream_dependents": 0,
+          "required_assurance_min": 2,
+          "allow_semantic_text_change": true,
+          "allow_contested": false,
+          "allow_governance_mutation": false,
+          "require_independence": false,
+          "require_method_integrity": true
+        }
+      }
+    ],
+    "default": "defer",
+    "expires_at": "9999-12-31T23:59:59Z",
+    "revocation_ref": null
+  },
+  "cases": [
+    {
+      "id": "intended_sidon_a24",
+      "kind": "intended",
+      "target_id": "sidon:a24-improve",
+      "binding": {
+        "schema": "vela.execution-binding.v1",
+        "packet_root": "sha256:11320193bf7e08348c39460030b3f9394bf10f261c6676c400807882b32006ef",
+        "profile_root": "sha256:d02eb6e31b2edde0c6b676094b4c8dfa47c741efe50ab33e37a0e339edb6117e",
+        "verifier_capsule_root": "sha256:47f1834a049561ad512d226d5c5a849626c2a084f9e78339007557ce01ab343a",
+        "result_contract_root": "sha256:5fed4f8e1618d2bdd7178d9c2f7b8b98e7d591177c55536de3768fd074ccf2c3"
+      },
+      "root_preimages": {
+        "packet_root": "sidon:a24-improve packet v1",
+        "profile_root": "sidon:a24-improve canopus profile v2",
+        "verifier_capsule_root": "sidon:a24 verifier intended v1",
+        "result_contract_root": "sidon:a24 positive witness >7179 result contract v1"
+      },
+      "policy_context": {
+        "claim_class": "receipt_computational",
+        "assurance_level": 3,
+        "impact_tier": 1,
+        "changed_findings": 1,
+        "downstream_dependents": 0,
+        "assertion_text_mutated": true,
+        "target_contested": false,
+        "governance_mutation": false,
+        "independence_satisfied": true,
+        "method_integrity_sound": true,
+        "credential_valid": true,
+        "has_unknown_fields": false,
+        "replayability": "exact"
+      },
+      "expected_v0_1": "permit",
+      "expected_v0_2": "permit"
+    },
+    {
+      "id": "hostile_capsule_substitution",
+      "kind": "wrong_capsule_same_class",
+      "target_id": "sidon:a24-improve",
+      "binding": {
+        "schema": "vela.execution-binding.v1",
+        "packet_root": "sha256:11320193bf7e08348c39460030b3f9394bf10f261c6676c400807882b32006ef",
+        "profile_root": "sha256:808605319b75725c749c226dfd095c3a49aa6f462b75bf4cac7668f991a2813d",
+        "verifier_capsule_root": "sha256:76fd5361cf885a295f8aa369a1be817ff0e433719fc4526814a3b4361d726027",
+        "result_contract_root": "sha256:5fed4f8e1618d2bdd7178d9c2f7b8b98e7d591177c55536de3768fd074ccf2c3"
+      },
+      "root_preimages": {
+        "packet_root": "sidon:a24-improve packet v1",
+        "profile_root": "sidon:a24 alternate canopus profile v2",
+        "verifier_capsule_root": "sidon:a24 alternate generic verifier v1",
+        "result_contract_root": "sidon:a24 positive witness >7179 result contract v1"
+      },
+      "policy_context": {
+        "claim_class": "receipt_computational",
+        "assurance_level": 3,
+        "impact_tier": 1,
+        "changed_findings": 1,
+        "downstream_dependents": 0,
+        "assertion_text_mutated": true,
+        "target_contested": false,
+        "governance_mutation": false,
+        "independence_satisfied": true,
+        "method_integrity_sound": true,
+        "credential_valid": true,
+        "has_unknown_fields": false,
+        "replayability": "exact"
+      },
+      "expected_v0_1": "permit",
+      "expected_v0_2": "defer"
+    },
+    {
+      "id": "hostile_target_packet_substitution",
+      "kind": "wrong_target_and_packet",
+      "target_id": "sidon:a23-improve",
+      "binding": {
+        "schema": "vela.execution-binding.v1",
+        "packet_root": "sha256:303ad21ec220397bebc42de3fd8637c3ba66f5c89781c55bbe80a0be568d4fc2",
+        "profile_root": "sha256:eaa57cd6adb6d8eac43a609da67577c44f1d9c374f3d367df14f598beb1bab8a",
+        "verifier_capsule_root": "sha256:e8bfc4c5e2e473944dcc0bb2037f3728734e9647ce250f212e3300ef978b8b5a",
+        "result_contract_root": "sha256:355e910b4e495d3b59feff8fda4b8b76fac43510a90ab76137d2079398fe8c76"
+      },
+      "root_preimages": {
+        "packet_root": "sidon:a23-improve packet v1",
+        "profile_root": "sidon:a23-improve canopus profile v2",
+        "verifier_capsule_root": "sidon:a23 verifier v1",
+        "result_contract_root": "sidon:a23 positive witness >5179 result contract v1"
+      },
+      "policy_context": {
+        "claim_class": "receipt_computational",
+        "assurance_level": 3,
+        "impact_tier": 1,
+        "changed_findings": 1,
+        "downstream_dependents": 0,
+        "assertion_text_mutated": true,
+        "target_contested": false,
+        "governance_mutation": false,
+        "independence_satisfied": true,
+        "method_integrity_sound": true,
+        "credential_valid": true,
+        "has_unknown_fields": false,
+        "replayability": "exact"
+      },
+      "expected_v0_1": "permit",
+      "expected_v0_2": "defer"
+    }
+  ]
+}

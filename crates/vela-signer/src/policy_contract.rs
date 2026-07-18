@@ -361,6 +361,40 @@ pub fn policy_signer_display(request: &PolicySignerRequest) -> SignerDisplay {
         .collect::<Vec<_>>();
     rules.sort();
     rules.truncate(1);
+    if let Some(rule) = request
+        .policy
+        .rules
+        .iter()
+        .find(|rule| rule.effect == vela_protocol::acceptance_policy::Outcome::Permit)
+        && let (Some(packet), Some(profile), Some(capsule), Some(result), Some(replayability)) = (
+            rule.constraints
+                .allowed_packet_roots
+                .as_ref()
+                .and_then(|roots| roots.first()),
+            rule.constraints
+                .allowed_profile_roots
+                .as_ref()
+                .and_then(|roots| roots.first()),
+            rule.constraints
+                .allowed_verifier_capsule_roots
+                .as_ref()
+                .and_then(|roots| roots.first()),
+            rule.constraints
+                .allowed_result_contract_roots
+                .as_ref()
+                .and_then(|roots| roots.first()),
+            rule.constraints.required_replayability.as_ref(),
+        )
+    {
+        let short = |root: &str| root.chars().take(19).collect::<String>();
+        rules.push(format!(
+            "exact roots p={} f={} v={} r={} replay={replayability}",
+            short(packet),
+            short(profile),
+            short(capsule),
+            short(result),
+        ));
+    }
     rules.push(format!(
         "authority diff: +{} -{} ~{} ={}",
         diff.added.len(),
@@ -500,7 +534,7 @@ fn require_lower_hex(name: &str, value: &str, length: usize) -> Result<(), Strin
 mod tests {
     use super::*;
     use ed25519_dalek::{Signer, SigningKey};
-    use vela_protocol::acceptance_policy::{Outcome, Quorum};
+    use vela_protocol::acceptance_policy::{Constraints, Outcome, PolicyRule, Quorum};
     use vela_protocol::events::StateTarget;
 
     fn fixture() -> (tempfile::NamedTempFile, SigningKey, PolicySignerRequest) {
@@ -651,5 +685,40 @@ mod tests {
         assert!(first.claim.contains(request.action.as_str()));
         assert!(first.claim.contains(&request.selected_policy_id));
         assert!(first.consequence.contains("Permit lane"));
+    }
+
+    #[test]
+    fn exact_policy_card_names_every_execution_root() {
+        let (_binary, _key, mut request) = fixture();
+        let root = |digit: char| format!("sha256:{}", digit.to_string().repeat(64));
+        request.policy.schema = "vela.acceptance_policy.v0.2".to_string();
+        request.policy.rules = vec![PolicyRule {
+            id: "sidon-a24-exact".to_string(),
+            effect: Outcome::Permit,
+            claim_classes: vec!["receipt_computational".to_string()],
+            constraints: Constraints {
+                allowed_packet_roots: Some(vec![root('1')]),
+                allowed_profile_roots: Some(vec![root('2')]),
+                allowed_verifier_capsule_roots: Some(vec![root('3')]),
+                allowed_result_contract_roots: Some(vec![root('4')]),
+                required_replayability: Some("exact".to_string()),
+                ..Constraints::default()
+            },
+        }];
+        request.policy.id = request.policy.content_address();
+        request.selected_policy_id = request.policy.id.clone();
+        let facts = policy_signer_display(&request).decisive_facts.join("\n");
+        for expected in [
+            "p=sha256:111111111111",
+            "f=sha256:222222222222",
+            "v=sha256:333333333333",
+            "r=sha256:444444444444",
+            "replay=exact",
+        ] {
+            assert!(
+                facts.contains(expected),
+                "missing `{expected}` from {facts}"
+            );
+        }
     }
 }

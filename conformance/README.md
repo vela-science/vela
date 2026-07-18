@@ -45,6 +45,10 @@ vectors, then runs the TypeScript reducer when Node supports native TypeScript.
 - `canonical-hashing.json` pins `vela.canonical-json/v1` bytes and digests.
 - `attempt-id.json` pins deterministic attempt identifiers.
 - `decision-binding.json` pins decision preimages and their consumed roots.
+- `fixtures/permit-shadow-v1.json` freezes the three-case Sidon shadow
+  experiment that proves AcceptancePolicy v0.1 cannot distinguish the intended
+  packet/profile/capsule from same-class verifier or target substitution. Rust
+  and Python both require v0.2 to Permit only the intended full-root binding.
 - `pre-adr-0003-replay.json` freezes every canonical `.vela` byte from one
   pre-ADR 0003 frontier plus its strict replay roots and counts. The focused
   CLI integration test replays a temporary copy; it performs no signing,

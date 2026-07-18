@@ -27,6 +27,8 @@ use serde_json::{Map, Value};
 use sha2::{Digest, Sha256};
 use std::{collections::HashSet, fmt};
 
+use crate::receipt_v1::{ExecutionBindingV1, is_full_sha256_root};
+
 /// The three routing outcomes. `defer` is the safe default and carries the reason
 /// the transition needs a named human; `deny` is a structural/authority/explicit
 /// prohibition.
@@ -84,6 +86,11 @@ pub struct PolicyContext {
     /// `unknown` explicitly for non-receipt transitions. A policy MAY require
     /// `exact` to auto-admit a serious claim class.
     pub replayability: String,
+    /// Optional closed Receipt v1 execution identity. It is absent from
+    /// historical contexts and ignored by policy v0.1; policy v0.2 may require
+    /// exact full-root matches before Permit.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub execution_binding: Option<ExecutionBindingV1>,
 }
 
 impl Default for PolicyContext {
@@ -104,6 +111,7 @@ impl Default for PolicyContext {
             credential_valid: false,
             has_unknown_fields: true,
             replayability: "unknown".to_string(),
+            execution_binding: None,
         }
     }
 }
@@ -144,6 +152,16 @@ pub struct Constraints {
     /// Require MethodIntegrity::Sound.
     #[serde(default)]
     pub require_method_integrity: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub allowed_packet_roots: Option<Vec<String>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub allowed_profile_roots: Option<Vec<String>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub allowed_verifier_capsule_roots: Option<Vec<String>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub allowed_result_contract_roots: Option<Vec<String>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub required_replayability: Option<String>,
 }
 
 impl Default for Constraints {
@@ -157,6 +175,11 @@ impl Default for Constraints {
             allow_governance_mutation: false,
             require_independence: true,
             require_method_integrity: true,
+            allowed_packet_roots: None,
+            allowed_profile_roots: None,
+            allowed_verifier_capsule_roots: None,
+            allowed_result_contract_roots: None,
+            required_replayability: None,
         }
     }
 }
@@ -211,10 +234,12 @@ pub struct AcceptancePolicy {
     pub revocation_ref: Option<String>,
 }
 
-const ACCEPTANCE_POLICY_SCHEMA: &str = "vela.acceptance_policy.v0.1";
+const ACCEPTANCE_POLICY_V0_1_SCHEMA: &str = "vela.acceptance_policy.v0.1";
+const ACCEPTANCE_POLICY_V0_2_SCHEMA: &str = "vela.acceptance_policy.v0.2";
 
 /// The evaluator version, bound into every decision for replay.
 pub const EVALUATOR_VERSION: &str = "vela-policy@0.1.0";
+pub const EVALUATOR_VERSION_V0_2: &str = "vela-policy@0.2.0";
 
 impl AcceptancePolicy {
     /// Content address of the policy's normative body (everything but `id`), so
@@ -278,6 +303,11 @@ pub struct Decision {
 /// push toward `defer`/`deny`.
 #[must_use]
 pub fn evaluate(policy: &AcceptancePolicy, ctx: &PolicyContext, now_rfc3339: &str) -> Decision {
+    let evaluator = if policy.schema == ACCEPTANCE_POLICY_V0_2_SCHEMA {
+        EVALUATOR_VERSION_V0_2
+    } else {
+        EVALUATOR_VERSION
+    };
     let mk = |outcome: Outcome, rules: Vec<String>, reasons: Vec<String>| Decision {
         outcome,
         matched_rule_ids: rules,
@@ -286,12 +316,15 @@ pub fn evaluate(policy: &AcceptancePolicy, ctx: &PolicyContext, now_rfc3339: &st
         } else {
             reasons
         },
-        evaluator: EVALUATOR_VERSION.to_string(),
+        evaluator: evaluator.to_string(),
         policy_id: policy.id.clone(),
     };
 
     // (0) Policy integrity + lifecycle: structural DENY.
-    if policy.schema != ACCEPTANCE_POLICY_SCHEMA {
+    if !matches!(
+        policy.schema.as_str(),
+        ACCEPTANCE_POLICY_V0_1_SCHEMA | ACCEPTANCE_POLICY_V0_2_SCHEMA
+    ) {
         return mk(
             Outcome::Deny,
             vec![],
@@ -310,6 +343,9 @@ pub fn evaluate(policy: &AcceptancePolicy, ctx: &PolicyContext, now_rfc3339: &st
     if !matches!(policy.default, Outcome::Defer | Outcome::Deny) {
         // A permit default is rejected at evaluation time, defense in depth.
         return mk(Outcome::Deny, vec![], vec!["illegal_permit_default".into()]);
+    }
+    if let Some(reason) = binding_policy_error(policy) {
+        return mk(Outcome::Deny, vec![], vec![reason]);
     }
 
     // (1) Explicit DENY rules win over everything below.
@@ -367,6 +403,54 @@ pub fn evaluate(policy: &AcceptancePolicy, ctx: &PolicyContext, now_rfc3339: &st
         if c.require_method_integrity && !ctx.method_integrity_sound {
             blocked.push("method_integrity_unattested".into());
         }
+        if policy.schema == ACCEPTANCE_POLICY_V0_2_SCHEMA {
+            let Some(binding) = ctx.execution_binding.as_ref() else {
+                blocked.push("execution_binding_missing".into());
+                escalations.extend(
+                    blocked
+                        .into_iter()
+                        .map(|reason| format!("{}:{reason}", r.id)),
+                );
+                continue;
+            };
+            if binding.validate().is_err() {
+                blocked.push("execution_binding_invalid".into());
+                escalations.extend(
+                    blocked
+                        .into_iter()
+                        .map(|reason| format!("{}:{reason}", r.id)),
+                );
+                continue;
+            }
+            for (field, allowlist, actual) in [
+                ("packet_root", &c.allowed_packet_roots, &binding.packet_root),
+                (
+                    "profile_root",
+                    &c.allowed_profile_roots,
+                    &binding.profile_root,
+                ),
+                (
+                    "verifier_capsule_root",
+                    &c.allowed_verifier_capsule_roots,
+                    &binding.verifier_capsule_root,
+                ),
+                (
+                    "result_contract_root",
+                    &c.allowed_result_contract_roots,
+                    &binding.result_contract_root,
+                ),
+            ] {
+                if !allowlist
+                    .as_ref()
+                    .is_some_and(|roots| roots.iter().any(|root| root == actual))
+                {
+                    blocked.push(format!("{field}_not_allowed"));
+                }
+            }
+            if c.required_replayability.as_deref() != Some(ctx.replayability.as_str()) {
+                blocked.push("replayability_not_allowed".into());
+            }
+        }
 
         if blocked.is_empty() {
             return mk(
@@ -391,6 +475,53 @@ pub fn evaluate(policy: &AcceptancePolicy, ctx: &PolicyContext, now_rfc3339: &st
         vec![],
         vec![format!("default_{}", policy.default.as_str())],
     )
+}
+
+fn binding_policy_error(policy: &AcceptancePolicy) -> Option<String> {
+    for rule in policy
+        .rules
+        .iter()
+        .filter(|rule| rule.effect == Outcome::Permit)
+    {
+        let constraints = &rule.constraints;
+        let v2_fields_present = constraints.allowed_packet_roots.is_some()
+            || constraints.allowed_profile_roots.is_some()
+            || constraints.allowed_verifier_capsule_roots.is_some()
+            || constraints.allowed_result_contract_roots.is_some()
+            || constraints.required_replayability.is_some();
+        if policy.schema == ACCEPTANCE_POLICY_V0_1_SCHEMA {
+            if v2_fields_present {
+                return Some("policy_v0_2_constraints_under_v0_1".to_string());
+            }
+            continue;
+        }
+        if policy.schema != ACCEPTANCE_POLICY_V0_2_SCHEMA {
+            continue;
+        }
+        for (field, roots) in [
+            ("packet", &constraints.allowed_packet_roots),
+            ("profile", &constraints.allowed_profile_roots),
+            (
+                "verifier_capsule",
+                &constraints.allowed_verifier_capsule_roots,
+            ),
+            (
+                "result_contract",
+                &constraints.allowed_result_contract_roots,
+            ),
+        ] {
+            let Some(roots) = roots.as_ref() else {
+                return Some(format!("policy_{field}_allowlist_missing"));
+            };
+            if roots.is_empty() || roots.iter().any(|root| !is_full_sha256_root(root)) {
+                return Some(format!("policy_{field}_allowlist_invalid"));
+            }
+        }
+        if constraints.required_replayability.as_deref() != Some("exact") {
+            return Some("policy_exact_replayability_required".to_string());
+        }
+    }
+    None
 }
 
 /// First 16 bytes of a digest as hex (mirrors the substrate's short-id style).
@@ -519,7 +650,7 @@ mod tests {
 
     fn exact_sidon_policy() -> AcceptancePolicy {
         let mut p = AcceptancePolicy {
-            schema: ACCEPTANCE_POLICY_SCHEMA.to_string(),
+            schema: ACCEPTANCE_POLICY_V0_1_SCHEMA.to_string(),
             id: String::new(),
             frontier_id: "vfr_test".into(),
             epoch: 1,
@@ -541,6 +672,7 @@ mod tests {
                     allow_governance_mutation: false,
                     require_independence: true,
                     require_method_integrity: true,
+                    ..Constraints::default()
                 },
             }],
             default: Outcome::Defer,
@@ -566,6 +698,7 @@ mod tests {
             credential_valid: true,
             has_unknown_fields: false,
             replayability: "unknown".to_string(),
+            execution_binding: None,
         }
     }
 
@@ -766,6 +899,15 @@ mod tests {
         variants.push(value);
         let mut value = baseline.clone();
         value.replayability = "exact".to_string();
+        variants.push(value);
+        let mut value = baseline.clone();
+        value.execution_binding = Some(ExecutionBindingV1 {
+            schema: crate::receipt_v1::EXECUTION_BINDING_SCHEMA.to_string(),
+            packet_root: format!("sha256:{}", "1".repeat(64)),
+            profile_root: format!("sha256:{}", "2".repeat(64)),
+            verifier_capsule_root: format!("sha256:{}", "3".repeat(64)),
+            result_contract_root: format!("sha256:{}", "4".repeat(64)),
+        });
         variants.push(value);
 
         for variant in variants {
@@ -1433,11 +1575,17 @@ fn validate_rfc3339(label: &str, value: &str) -> Result<(), String> {
 }
 
 fn validate_supported_policy(policy: &AcceptancePolicy, label: &str) -> Result<(), String> {
-    if policy.schema != ACCEPTANCE_POLICY_SCHEMA {
+    if !matches!(
+        policy.schema.as_str(),
+        ACCEPTANCE_POLICY_V0_1_SCHEMA | ACCEPTANCE_POLICY_V0_2_SCHEMA
+    ) {
         return Err(format!(
-            "{label} schema must be {ACCEPTANCE_POLICY_SCHEMA}, got {}",
+            "{label} schema must be {ACCEPTANCE_POLICY_V0_1_SCHEMA} or {ACCEPTANCE_POLICY_V0_2_SCHEMA}, got {}",
             policy.schema
         ));
+    }
+    if let Some(reason) = binding_policy_error(policy) {
+        return Err(format!("{label} binding constraints are invalid: {reason}"));
     }
     validate_rfc3339(&format!("{label} expires_at"), &policy.expires_at)
 }

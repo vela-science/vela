@@ -53,6 +53,7 @@ const RECEIPT_PREDICATE_SCHEMA: &str = "vela.receipt.predicate.v1";
 const NEUTRAL_RECEIPT_GENERATOR: &str = "vela-protocol/neutral-receipt-v1";
 const NO_ACTIVE_POLICY_REF: &str = "urn:vela:policy:none";
 const SCIENTIFIC_CHAIN_SCHEMA: &str = "vela.scientific-chain.producer.v1";
+pub const EXECUTION_BINDING_SCHEMA: &str = "vela.execution-binding.v1";
 const SCIENTIFIC_CHAIN_MAX_TEXT_BYTES: usize = 16 * 1024;
 const SCIENTIFIC_CHAIN_MAX_REFERENCE_BYTES: usize = 16 * 1024;
 const SCIENTIFIC_CHAIN_MAX_REFERENCES: usize = 64;
@@ -193,6 +194,49 @@ impl fmt::Display for ReceiptV1Error {
 
 impl std::error::Error for ReceiptV1Error {}
 
+/// Closed, body-bound execution identity used only by AcceptancePolicy v0.2.
+///
+/// This is a namespaced Receipt v1 extension, not a new receipt or authority
+/// object. Every field is a full SHA-256 root; mutable names and short handles
+/// cannot cross the Permit boundary.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ExecutionBindingV1 {
+    pub schema: String,
+    pub packet_root: String,
+    pub profile_root: String,
+    pub verifier_capsule_root: String,
+    pub result_contract_root: String,
+}
+
+impl ExecutionBindingV1 {
+    pub fn validate(&self) -> Result<(), String> {
+        if self.schema != EXECUTION_BINDING_SCHEMA {
+            return Err(format!("schema must be {EXECUTION_BINDING_SCHEMA}"));
+        }
+        for (field, value) in [
+            ("packet_root", &self.packet_root),
+            ("profile_root", &self.profile_root),
+            ("verifier_capsule_root", &self.verifier_capsule_root),
+            ("result_contract_root", &self.result_contract_root),
+        ] {
+            if !is_full_sha256_root(value) {
+                return Err(format!("{field} must be a full lowercase sha256 root"));
+            }
+        }
+        Ok(())
+    }
+}
+
+pub(crate) fn is_full_sha256_root(value: &str) -> bool {
+    value.strip_prefix("sha256:").is_some_and(|digest| {
+        digest.len() == 64
+            && digest
+                .bytes()
+                .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+    })
+}
+
 /// A validated Receipt v1 retaining the complete producer JSON value.
 ///
 /// This type intentionally does not implement `Deserialize`: a generic Serde
@@ -282,6 +326,11 @@ impl ReceiptV1 {
     /// change instead of relying on Receipt v1's open-object schema.
     pub fn validate_safe_public_artifact_descriptors(&self) -> Result<(), ReceiptV1Error> {
         validate_safe_public_artifact_descriptors(object(&self.value, "$")?)
+    }
+
+    /// Return the validated optional execution binding carried by this receipt.
+    pub fn execution_binding(&self) -> Result<Option<ExecutionBindingV1>, ReceiptV1Error> {
+        parse_execution_binding_extension(object(&self.value, "$")?)
     }
 }
 
@@ -1299,6 +1348,7 @@ fn validate_semantics(value: &Value, limits: ReceiptLimits) -> Result<(), Receip
     }
     validate_safe_public_artifact_descriptors(receipt)?;
     validate_scientific_chain_extension(receipt)?;
+    validate_execution_binding_extension(receipt)?;
 
     let caveats = array(required(receipt, "caveats", "$")?, "$.caveats")?;
     if caveats.is_empty() {
@@ -1424,6 +1474,34 @@ fn validate_scientific_chain_extension(receipt: &Map<String, Value>) -> Result<(
         false,
     )?;
     Ok(())
+}
+
+fn parse_execution_binding_extension(
+    receipt: &Map<String, Value>,
+) -> Result<Option<ExecutionBindingV1>, ReceiptV1Error> {
+    let environment = object(&receipt["environment"], "$.environment")?;
+    let Some(value) = environment.get("vela:execution_binding") else {
+        return Ok(None);
+    };
+    let binding: ExecutionBindingV1 = serde_json::from_value(value.clone()).map_err(|cause| {
+        error(
+            "$.environment.vela:execution_binding",
+            format!("must match the closed {EXECUTION_BINDING_SCHEMA} shape: {cause}"),
+        )
+    })?;
+    binding.validate().map_err(|cause| {
+        error(
+            "$.environment.vela:execution_binding",
+            format!("is invalid: {cause}"),
+        )
+    })?;
+    Ok(Some(binding))
+}
+
+fn validate_execution_binding_extension(
+    receipt: &Map<String, Value>,
+) -> Result<(), ReceiptV1Error> {
+    parse_execution_binding_extension(receipt).map(|_| ())
 }
 
 fn scientific_chain_text<'a>(value: &'a Value, path: &str) -> Result<&'a str, ReceiptV1Error> {
@@ -3353,6 +3431,54 @@ mod tests {
             !String::from_utf8(receipt.canonical_bytes().unwrap())
                 .unwrap()
                 .contains("_fixture")
+        );
+    }
+
+    #[test]
+    fn execution_binding_is_closed_full_digest_and_body_bound() {
+        let mut value = build(Vec::new()).into_value();
+        let original_root = ReceiptV1::from_trusted_value(value.clone())
+            .unwrap()
+            .canonical_root()
+            .unwrap();
+        value["environment"]["vela:execution_binding"] = json!({
+            "schema": EXECUTION_BINDING_SCHEMA,
+            "packet_root": format!("sha256:{}", "1".repeat(64)),
+            "profile_root": format!("sha256:{}", "2".repeat(64)),
+            "verifier_capsule_root": format!("sha256:{}", "3".repeat(64)),
+            "result_contract_root": format!("sha256:{}", "4".repeat(64)),
+        });
+        refresh_bound_attestation(&mut value);
+        let bytes = serde_json::to_vec(&value).unwrap();
+        let receipt = ReceiptV1::parse(&bytes).unwrap();
+        let binding = receipt.execution_binding().unwrap().unwrap();
+        assert_eq!(binding.schema, EXECUTION_BINDING_SCHEMA);
+        assert_ne!(receipt.canonical_root().unwrap(), original_root);
+
+        for (field, replacement) in [
+            ("packet_root", json!(format!("sha256:{}", "a".repeat(63)))),
+            ("profile_root", json!(format!("sha256:{}", "A".repeat(64)))),
+            ("verifier_capsule_root", json!("vf_short")),
+            ("result_contract_root", Value::Null),
+        ] {
+            let mut malformed = value.clone();
+            malformed["environment"]["vela:execution_binding"][field] = replacement;
+            refresh_bound_attestation(&mut malformed);
+            let error = ReceiptV1::parse(&serde_json::to_vec(&malformed).unwrap()).unwrap_err();
+            assert!(
+                error.path().contains("vela:execution_binding"),
+                "{field}: {error}"
+            );
+        }
+
+        let mut unknown = value;
+        unknown["environment"]["vela:execution_binding"]["target_alias"] = json!("sidon:a24");
+        refresh_bound_attestation(&mut unknown);
+        assert!(
+            ReceiptV1::parse(&serde_json::to_vec(&unknown).unwrap())
+                .unwrap_err()
+                .path()
+                .contains("vela:execution_binding")
         );
     }
 

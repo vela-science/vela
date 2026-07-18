@@ -96,7 +96,12 @@
     },
     "environment": {
       "type": "object",
-      "additionalProperties": true
+      "additionalProperties": true,
+      "properties": {
+        "vela:execution_binding": {
+          "$ref": "#/$defs/execution_binding"
+        }
+      }
     },
     "provenance": {
       "type": "object",
@@ -216,6 +221,38 @@
     }
   },
   "$defs": {
+    "execution_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "packet_root",
+        "profile_root",
+        "verifier_capsule_root",
+        "result_contract_root"
+      ],
+      "properties": {
+        "schema": {
+          "const": "vela.execution-binding.v1"
+        },
+        "packet_root": {
+          "$ref": "#/$defs/full_sha256_root"
+        },
+        "profile_root": {
+          "$ref": "#/$defs/full_sha256_root"
+        },
+        "verifier_capsule_root": {
+          "$ref": "#/$defs/full_sha256_root"
+        },
+        "result_contract_root": {
+          "$ref": "#/$defs/full_sha256_root"
+        }
+      }
+    },
+    "full_sha256_root": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
     "artifact": {
       "type": "object",
       "additionalProperties": true,

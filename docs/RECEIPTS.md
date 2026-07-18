@@ -102,6 +102,29 @@ that root and compare the statement's subject, machine, acceptance,
 distillation, lineage, contributors, signature identities, and provenance with
 the receipt body. A missing, malformed, or stale binding fails validation.
 
+## Exact execution binding
+
+AcceptancePolicy v0.2 can narrow Permit to one frozen producer contract using
+this optional Receipt v1 environment extension:
+
+```json
+{
+  "vela:execution_binding": {
+    "schema": "vela.execution-binding.v1",
+    "packet_root": "sha256:<64 lowercase hex>",
+    "profile_root": "sha256:<64 lowercase hex>",
+    "verifier_capsule_root": "sha256:<64 lowercase hex>",
+    "result_contract_root": "sha256:<64 lowercase hex>"
+  }
+}
+```
+
+The shape is closed and whole-body-bound. It names no mutable tag, verifier
+service, target alias, authority, or verdict. A missing field, extra field,
+short digest, uppercase digest, altered Receipt, wrong packet/profile/capsule,
+or wrong result contract cannot satisfy an exact v0.2 Permit rule. Policy v0.1
+ignores the extension for routing, preserving historical replay.
+
 ## Landing is one write edge
 
 CLI flags, file import, MCP, and adapters converge on the same strict Receipt

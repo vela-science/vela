@@ -99,6 +99,14 @@ impl CmdError {
 const TEMPLATES: &str =
     "witness-rederivation, lean-rederivation, statement-drafts, search-witness, notes-threshold";
 
+#[derive(Debug, Clone)]
+pub(crate) struct ExactPermitBinding {
+    pub packet_root: String,
+    pub profile_root: String,
+    pub verifier_capsule_root: String,
+    pub result_contract_root: String,
+}
+
 /// The hardcoded template ladder, ordered by how much a signature delegates.
 /// Every template defaults to `Defer` (never a permit default) and uses signed
 /// causal rotation/revocation as its validity boundary. An unsigned event
@@ -146,6 +154,7 @@ fn template_policy(name: &str) -> Option<(Vec<PolicyRule>, &'static str)> {
                     allow_governance_mutation: false,
                     require_independence: true,
                     require_method_integrity: true,
+                    ..Constraints::default()
                 },
             }],
             "exact witnesses the frozen gate re-derived land themselves",
@@ -181,6 +190,7 @@ fn template_policy(name: &str) -> Option<(Vec<PolicyRule>, &'static str)> {
                     // are the integrity this lane stands on.
                     require_independence: false,
                     require_method_integrity: true,
+                    ..Constraints::default()
                 },
             }],
             // Signing THIS policy is the fidelity delegation: the maintainer
@@ -214,6 +224,7 @@ fn template_policy(name: &str) -> Option<(Vec<PolicyRule>, &'static str)> {
                     // false — requiring it here would permit nothing.
                     require_independence: false,
                     require_method_integrity: true,
+                    ..Constraints::default()
                 },
             }],
             "statement drafts (theoretical receipts) land at A2 (drafts ARE text)",
@@ -249,6 +260,7 @@ fn template_policy(name: &str) -> Option<(Vec<PolicyRule>, &'static str)> {
                     // this lane stands on.
                     require_independence: false,
                     require_method_integrity: true,
+                    ..Constraints::default()
                 },
             }],
             "frozen-verified computational witnesses (bounds, finite confirmations) land at A2",
@@ -267,6 +279,7 @@ fn template_policy(name: &str) -> Option<(Vec<PolicyRule>, &'static str)> {
                     allow_governance_mutation: false,
                     require_independence: false,
                     require_method_integrity: false,
+                    ..Constraints::default()
                 },
             }],
             "notes attach without ceremony; anything touching claims defers",
@@ -344,18 +357,57 @@ fn read_sealed_active(frontier: &Path) -> Result<AcceptancePolicy, CmdError> {
 /// (past admissions keep verifying) and makes Permit human-only until the new
 /// draft is signed. Returns the sealed policy and whether a signed policy was
 /// rotated out.
+#[cfg(test)]
 fn draft_policy(
     frontier: &Path,
     template: &str,
     replace: bool,
 ) -> Result<(AcceptancePolicy, bool), CmdError> {
-    let (rules, _) = template_policy(template).ok_or_else(|| {
+    draft_policy_with_binding(frontier, template, None, replace)
+}
+
+fn draft_policy_with_binding(
+    frontier: &Path,
+    template: &str,
+    exact_binding: Option<&ExactPermitBinding>,
+    replace: bool,
+) -> Result<(AcceptancePolicy, bool), CmdError> {
+    let (mut rules, _) = template_policy(template).ok_or_else(|| {
         CmdError::hinted(
             ErrorKind::Usage,
             format!("unknown template `{template}`"),
             format!("templates: {TEMPLATES}"),
         )
     })?;
+    if let Some(binding) = exact_binding {
+        if template != "search-witness" {
+            return Err(CmdError::hinted(
+                ErrorKind::Usage,
+                "exact execution roots are supported only by the search-witness template",
+                "use `vela policy draft search-witness` with all four full roots",
+            ));
+        }
+        let candidate = vela_protocol::receipt_v1::ExecutionBindingV1 {
+            schema: vela_protocol::receipt_v1::EXECUTION_BINDING_SCHEMA.to_string(),
+            packet_root: binding.packet_root.clone(),
+            profile_root: binding.profile_root.clone(),
+            verifier_capsule_root: binding.verifier_capsule_root.clone(),
+            result_contract_root: binding.result_contract_root.clone(),
+        };
+        candidate.validate().map_err(|error| {
+            CmdError::hinted(
+                ErrorKind::Usage,
+                format!("invalid exact execution binding: {error}"),
+                "use full lowercase sha256:<64-hex> roots from the frozen packet and profile",
+            )
+        })?;
+        let constraints = &mut rules[0].constraints;
+        constraints.allowed_packet_roots = Some(vec![candidate.packet_root]);
+        constraints.allowed_profile_roots = Some(vec![candidate.profile_root]);
+        constraints.allowed_verifier_capsule_roots = Some(vec![candidate.verifier_capsule_root]);
+        constraints.allowed_result_contract_roots = Some(vec![candidate.result_contract_root]);
+        constraints.required_replayability = Some("exact".to_string());
+    }
     seal_policy(frontier, rules, replace)
 }
 
@@ -455,8 +507,20 @@ fn seal_policy_with_issued_by(
             eligible_roles: vec!["reviewer".to_string()],
         });
 
+    let schema = if rules.iter().any(|rule| {
+        let constraints = &rule.constraints;
+        constraints.allowed_packet_roots.is_some()
+            || constraints.allowed_profile_roots.is_some()
+            || constraints.allowed_verifier_capsule_roots.is_some()
+            || constraints.allowed_result_contract_roots.is_some()
+            || constraints.required_replayability.is_some()
+    }) {
+        "vela.acceptance_policy.v0.2"
+    } else {
+        "vela.acceptance_policy.v0.1"
+    };
     let mut policy = AcceptancePolicy {
-        schema: "vela.acceptance_policy.v0.1".to_string(),
+        schema: schema.to_string(),
         id: String::new(),
         frontier_id: project.frontier_id.clone().unwrap_or_default(),
         epoch: prior_epoch
@@ -1794,6 +1858,30 @@ fn constraints_summary(c: &Constraints) -> String {
     if c.allow_governance_mutation {
         parts.push("governance allowed".to_string());
     }
+    if let (Some(packet), Some(profile), Some(capsule), Some(result), Some(replayability)) = (
+        c.allowed_packet_roots
+            .as_ref()
+            .and_then(|roots| roots.first()),
+        c.allowed_profile_roots
+            .as_ref()
+            .and_then(|roots| roots.first()),
+        c.allowed_verifier_capsule_roots
+            .as_ref()
+            .and_then(|roots| roots.first()),
+        c.allowed_result_contract_roots
+            .as_ref()
+            .and_then(|roots| roots.first()),
+        c.required_replayability.as_ref(),
+    ) {
+        let short = |root: &str| root.chars().take(19).collect::<String>();
+        parts.push(format!(
+            "exact packet={} profile={} capsule={} result={} replay={replayability}",
+            short(packet),
+            short(profile),
+            short(capsule),
+            short(result),
+        ));
+    }
     parts.join(" · ")
 }
 
@@ -2086,7 +2174,7 @@ pub(crate) fn cmd_policy_show(frontier: &Path, json: bool) {
 
 /// `vela policy suggest` — the histogram of asks plus the covering rules.
 /// Pure read: it seals nothing and signs nothing. The next command it
-/// hands is `draft` (a template or --from-suggest), then `sign`.
+/// hands is `draft` (a template or --from-suggest), then protected `decide`.
 pub(crate) fn cmd_policy_suggest(frontier: &Path, json: bool) {
     let project =
         repo::load_from_path(frontier).unwrap_or_else(|e| fail_with(ErrorKind::Domain, &e, None));
@@ -2140,10 +2228,12 @@ pub(crate) fn cmd_policy_suggest(frontier: &Path, json: bool) {
         let replace_flag = if has_signed { " --replace" } else { "" };
         match &s.template {
             Some(t) => {
-                println!("  next: `vela policy draft {t} .{replace_flag} && vela policy sign .`")
+                println!(
+                    "  next: `vela policy draft {t} .{replace_flag}`, then protect the exact vap_ id with `vela policy decide`"
+                )
             }
             None => println!(
-                "  next: `vela policy draft --from-suggest .{replace_flag} && vela policy sign .`"
+                "  next: `vela policy draft --from-suggest .{replace_flag}`, then protect the exact vap_ id with `vela policy decide`"
             ),
         }
     }
@@ -2164,7 +2254,7 @@ pub(crate) fn suggest_hint(frontier: &Path) -> Option<String> {
 }
 
 /// `vela policy draft --from-suggest` — seal the suggested covering
-/// rules (still unsigned; authority arrives with `vela policy sign`).
+/// rules (still unsigned; authority arrives with protected `policy decide`).
 pub(crate) fn cmd_policy_draft_from_suggest(frontier: &Path, replace: bool, json: bool) {
     let project =
         repo::load_from_path(frontier).unwrap_or_else(|e| fail_with(ErrorKind::Domain, &e, None));
@@ -2180,6 +2270,7 @@ pub(crate) fn cmd_policy_draft_from_suggest(frontier: &Path, replace: bool, json
     }
     let rules: Vec<PolicyRule> = suggested.iter().map(|s| s.rule.clone()).collect();
     let (policy, replaced) = seal_policy(frontier, rules, replace).unwrap_or_else(|e| e.fail());
+    let next = protected_policy_next(&policy, replaced);
 
     if json {
         print_json(&json!({
@@ -2193,7 +2284,7 @@ pub(crate) fn cmd_policy_draft_from_suggest(frontier: &Path, replace: bool, json
             "permit_readiness": "human_only",
             "reason_codes": ["policy_unsigned"],
             "policy": serde_json::to_value(&policy).unwrap_or_default(),
-            "next": "vela policy sign",
+            "next": next,
         }));
         return;
     }
@@ -2212,17 +2303,25 @@ pub(crate) fn cmd_policy_draft_from_suggest(frontier: &Path, replace: bool, json
         );
     }
     println!("  sealed — carries no authority yet");
-    println!("  review the rules above, then: `vela policy sign` (one confirm, one key read)");
+    println!("  review the rules above, then: `{next}`");
 }
 
 /// `vela policy draft <template>` — seal a policy from the template ladder.
 /// Sealing fixes the content-addressed id so the exact rules a human reviews
 /// are the exact rules the signature covers. No authority until `sign`.
-pub(crate) fn cmd_policy_draft(frontier: &Path, template: &str, replace: bool, json: bool) {
-    let (policy, replaced) = draft_policy(frontier, template, replace).unwrap_or_else(|e| e.fail());
+pub(crate) fn cmd_policy_draft(
+    frontier: &Path,
+    template: &str,
+    exact_binding: Option<&ExactPermitBinding>,
+    replace: bool,
+    json: bool,
+) {
+    let (policy, replaced) = draft_policy_with_binding(frontier, template, exact_binding, replace)
+        .unwrap_or_else(|error| error.fail());
     let summary = template_policy(template)
         .map(|(_, s)| s)
         .unwrap_or_default();
+    let next = protected_policy_next(&policy, replaced);
 
     if json {
         print_json(&json!({
@@ -2238,7 +2337,7 @@ pub(crate) fn cmd_policy_draft(frontier: &Path, template: &str, replace: bool, j
             "permit_readiness": "human_only",
             "reason_codes": ["policy_unsigned"],
             "policy": serde_json::to_value(&policy).unwrap_or_default(),
-            "next": "vela policy sign",
+            "next": next,
         }));
         return;
     }
@@ -2255,7 +2354,15 @@ pub(crate) fn cmd_policy_draft(frontier: &Path, template: &str, replace: bool, j
         );
     }
     println!("  sealed — carries no authority yet");
-    println!("  review the rules above, then: `vela policy sign` (one confirm, one key read)");
+    println!("  review the rules above, then: `{next}`");
+}
+
+fn protected_policy_next(policy: &AcceptancePolicy, replaced: bool) -> String {
+    let action = if replaced { "rotate" } else { "activate" };
+    format!(
+        "vela policy decide . --{action} {} --reason <reason>",
+        policy.id
+    )
 }
 
 /// `vela policy test` — dry-run the active (or still-sealed) policy over
@@ -2593,14 +2700,34 @@ fn policy_rule_summary(policy: &AcceptancePolicy) -> Vec<String> {
         .rules
         .iter()
         .map(|rule| {
+            let constraints = &rule.constraints;
+            let exact = match (
+                &constraints.allowed_packet_roots,
+                &constraints.allowed_profile_roots,
+                &constraints.allowed_verifier_capsule_roots,
+                &constraints.allowed_result_contract_roots,
+                &constraints.required_replayability,
+            ) {
+                (Some(packet), Some(profile), Some(capsule), Some(result), Some(replayability)) => {
+                    format!(
+                        "; packet={}; profile={}; capsule={}; result={}; replayability={replayability}",
+                        packet.join(","),
+                        profile.join(","),
+                        capsule.join(","),
+                        result.join(","),
+                    )
+                }
+                _ => String::new(),
+            };
             format!(
-                "{}: {:?} {} (assurance >= {}, independence {}, method integrity {})",
+                "{}: {:?} {} (assurance >= {}, independence {}, method integrity {}{})",
                 rule.id,
                 rule.effect,
                 rule.claim_classes.join(","),
                 rule.constraints.required_assurance_min,
                 rule.constraints.require_independence,
                 rule.constraints.require_method_integrity,
+                exact,
             )
         })
         .collect::<Vec<_>>();
@@ -3919,6 +4046,42 @@ mod tests {
         SigningKey::from_bytes(&[7u8; 32])
     }
 
+    #[test]
+    fn exact_search_witness_draft_uses_policy_v0_2_and_full_allowlists() {
+        let tmp = TempDir::new().unwrap();
+        let dir = init_frontier(&tmp);
+        let full = |digit: char| format!("sha256:{}", digit.to_string().repeat(64));
+        let binding = ExactPermitBinding {
+            packet_root: full('1'),
+            profile_root: full('2'),
+            verifier_capsule_root: full('3'),
+            result_contract_root: full('4'),
+        };
+        let (policy, replaced) =
+            draft_policy_with_binding(&dir, "search-witness", Some(&binding), false).unwrap();
+        assert!(!replaced);
+        assert_eq!(policy.schema, "vela.acceptance_policy.v0.2");
+        let constraints = &policy.rules[0].constraints;
+        assert_eq!(
+            constraints.allowed_packet_roots.as_deref(),
+            Some(&[binding.packet_root.clone()][..])
+        );
+        assert_eq!(
+            constraints.allowed_profile_roots.as_deref(),
+            Some(&[binding.profile_root.clone()][..])
+        );
+        assert_eq!(
+            constraints.allowed_verifier_capsule_roots.as_deref(),
+            Some(&[binding.verifier_capsule_root.clone()][..])
+        );
+        assert_eq!(
+            constraints.allowed_result_contract_roots.as_deref(),
+            Some(&[binding.result_contract_root.clone()][..])
+        );
+        assert_eq!(constraints.required_replayability.as_deref(), Some("exact"));
+        assert!(policy.id_is_valid());
+    }
+
     fn register_transaction_reviewer(dir: &Path) {
         let key = throwaway_key();
         let mut project = repo::load_from_path(dir).unwrap();
@@ -4888,6 +5051,7 @@ mod tests {
             credential_valid: true,
             has_unknown_fields: false,
             replayability: "unknown".to_string(),
+            execution_binding: None,
         };
         let d = vela_protocol::acceptance_policy::evaluate(&policy, &ctx, AT);
         assert_eq!(
@@ -4937,6 +5101,7 @@ mod tests {
             credential_valid: true,
             has_unknown_fields: false,
             replayability: "exact".to_string(),
+            execution_binding: None,
         };
         let clean = vela_protocol::acceptance_policy::evaluate(&policy, &ctx(true), AT);
         assert_eq!(
@@ -4996,6 +5161,7 @@ mod tests {
             credential_valid: true,
             has_unknown_fields: false,
             replayability: "unknown".to_string(),
+            execution_binding: None,
         };
         assert_eq!(
             vela_protocol::acceptance_policy::evaluate(&policy, &verified, AT).outcome,

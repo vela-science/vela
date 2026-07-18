@@ -770,6 +770,10 @@ pub async fn run_command() {
                 operands,
                 from_suggest,
                 replace,
+                packet_root,
+                profile_root,
+                verifier_capsule_root,
+                result_contract_root,
                 json,
             } => {
                 crate::ui::set_mode("policy", json);
@@ -790,7 +794,36 @@ pub async fn run_command() {
                         fail_return("policy draft needs a template or --from-suggest")
                     });
                     let frontier = crate::ui::resolve_frontier(operands.get(1).map(PathBuf::from));
-                    crate::config::cli_policy::cmd_policy_draft(&frontier, &template, replace, json)
+                    let exact_binding = match (
+                        packet_root,
+                        profile_root,
+                        verifier_capsule_root,
+                        result_contract_root,
+                    ) {
+                        (Some(packet), Some(profile), Some(capsule), Some(result)) => {
+                            Some(crate::config::cli_policy::ExactPermitBinding {
+                                packet_root: packet,
+                                profile_root: profile,
+                                verifier_capsule_root: capsule,
+                                result_contract_root: result,
+                            })
+                        }
+                        (None, None, None, None) => None,
+                        _ => crate::ui::fail_with(
+                            crate::ui::ErrorKind::Usage,
+                            "exact policy binding requires all four full roots",
+                            Some(
+                                "provide --packet-root, --profile-root, --verifier-capsule-root, and --result-contract-root",
+                            ),
+                        ),
+                    };
+                    crate::config::cli_policy::cmd_policy_draft(
+                        &frontier,
+                        &template,
+                        exact_binding.as_ref(),
+                        replace,
+                        json,
+                    )
                 }
             }
             PolicyAction::Test { frontier, json } => {

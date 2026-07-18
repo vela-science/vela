@@ -162,10 +162,20 @@ advanced help for historical batch sessions and detached files.
 Policy administration uses the same exact-request flow:
 
 ```bash
+vela policy draft search-witness . \
+  --packet-root <sha256:...> \
+  --profile-root <sha256:...> \
+  --verifier-capsule-root <sha256:...> \
+  --result-contract-root <sha256:...>
 vela policy decide . --activate <vap_id> --reason <text> --json
 vela policy decide . --rotate <vap_id> --reason <text> --json
 vela policy decide . --revoke --reason <text> --json
 ```
+
+The four exact-root flags are an advanced, all-or-nothing authoring path for a
+positive computational Permit lane. They seal AcceptancePolicy v0.2; the
+policy remains unsigned and carries no authority until protected activation or
+rotation. Negative results and mismatched roots Defer.
 
 The first call returns a key-free `vela.policy-decision.v1` plan. A second call
 with its exact `--confirm-root` and `--confirm-at` rechecks Git and frontier

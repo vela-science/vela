@@ -91,6 +91,18 @@ pub enum PolicyAction {
         /// Replace an existing SIGNED active policy (deliberate act).
         #[arg(long)]
         replace: bool,
+        /// Full root of the exact target packet eligible for Permit.
+        #[arg(long, conflicts_with = "from_suggest", requires_all = ["profile_root", "verifier_capsule_root", "result_contract_root"])]
+        packet_root: Option<String>,
+        /// Full root of the exact producer profile eligible for Permit.
+        #[arg(long, conflicts_with = "from_suggest", requires_all = ["packet_root", "verifier_capsule_root", "result_contract_root"])]
+        profile_root: Option<String>,
+        /// Full root of the exact frozen verifier capsule eligible for Permit.
+        #[arg(long, conflicts_with = "from_suggest", requires_all = ["packet_root", "profile_root", "result_contract_root"])]
+        verifier_capsule_root: Option<String>,
+        /// Full root of the exact positive result contract eligible for Permit.
+        #[arg(long, conflicts_with = "from_suggest", requires_all = ["packet_root", "profile_root", "verifier_capsule_root"])]
+        result_contract_root: Option<String>,
         #[arg(long)]
         json: bool,
     },

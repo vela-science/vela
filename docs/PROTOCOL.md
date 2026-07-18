@@ -113,6 +113,14 @@ reject duplicate JSON names, malformed or stale whole-body bindings, unsafe
 paths, unsupported replayability values, invalid artifact references, and
 producer attempts to claim Vela-side authority.
 
+Receipt v1 may carry the closed namespaced extension
+`environment["vela:execution_binding"]` with schema
+`vela.execution-binding.v1`. It contains only full SHA-256 roots for the exact
+target packet, producer profile, verifier capsule, and positive result
+contract. The extension is evidence about execution identity, not authority;
+it matters to Permit only when a signed AcceptancePolicy v0.2 names the exact
+roots.
+
 Public local artifacts are retained by content digest. Public remote artifacts
 need an immutable locator, digest, and size. Restricted material uses an opaque
 `custodian:` or `opaque:` reference; the public Receipt must not disclose the
@@ -215,6 +223,13 @@ An acceptance policy (`vap_`) is human-signed, frontier-scoped, and bounded by
 its current causal head. The current lane is `vela.policy-lane.v2`; an
 unbound, unknown, revoked, stale, or out-of-scope policy cannot authorize a
 Permit. Policy suggestions and tests are derived advice, not authority.
+
+AcceptancePolicy v0.1 retains the historical generic claim-class language.
+AcceptancePolicy v0.2 adds exact full-root allowlists for Receipt execution
+bindings and requires exact replayability. A v0.2 Permit rule without all four
+nonempty allowlists, a valid retained binding, and `replayability = exact`
+fails closed. Existing v0.1 policies and policy-lane events retain their
+original bytes, content addresses, evaluator version, and replay behavior.
 
 The relevant current implementations are:
 

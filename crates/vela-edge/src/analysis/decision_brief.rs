@@ -2374,6 +2374,7 @@ mod tests {
                 credential_valid: true,
                 has_unknown_fields: false,
                 replayability: "exact".to_string(),
+                execution_binding: None,
             },
             policy_decision: Decision {
                 outcome: Outcome::Defer,

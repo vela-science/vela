@@ -27,6 +27,7 @@ Exit codes:
 from __future__ import annotations
 
 import argparse
+import copy
 import hashlib
 import json
 import subprocess
@@ -187,6 +188,12 @@ def main() -> int:
         return 1
     print("vela conformance: ok  [canonical-hashing]")
 
+    permit_rc = _run_permit_shadow(repo_root)
+    if permit_rc != 0:
+        print("vela conformance: FAIL  [permit-shadow]")
+        return 1
+    print("vela conformance: ok  [permit-shadow v0.1/v0.2]")
+
     # Second implementation: the TypeScript reducer. Gating it here is
     # what keeps it from silently drifting — an unrun reducer rots (the
     # retired `vela_reducer.mjs` fell three fixture_versions behind
@@ -217,6 +224,179 @@ def _run_canonical_hashing(repo_root: Path) -> int:
         print(f"  canonical-hashing invocation failed: {e}", file=sys.stderr)
         return 1
     return result.returncode
+
+
+def _canonical_bytes(value: object) -> bytes:
+    return json.dumps(
+        value, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+    ).encode("utf-8")
+
+
+def _policy_id(policy: dict) -> str:
+    body = copy.deepcopy(policy)
+    body["id"] = ""
+    if body.get("revocation_ref") is None:
+        body.pop("revocation_ref", None)
+    return "vap_" + hashlib.sha256(_canonical_bytes(body)).hexdigest()[:32]
+
+
+def _full_root(value: object) -> bool:
+    if not isinstance(value, str) or not value.startswith("sha256:"):
+        return False
+    digest = value[7:]
+    return len(digest) == 64 and all(char in "0123456789abcdef" for char in digest)
+
+
+def _evaluate_permit_shadow(policy: dict, context: dict) -> str:
+    schema = policy.get("schema")
+    if schema not in {"vela.acceptance_policy.v0.1", "vela.acceptance_policy.v0.2"}:
+        return "deny"
+    if policy.get("id") != _policy_id(policy) or policy.get("default") == "permit":
+        return "deny"
+    for rule in policy.get("rules", []):
+        if rule.get("effect") != "permit":
+            continue
+        if context.get("claim_class") not in rule.get("claim_classes", []):
+            continue
+        constraints = rule.get("constraints", {})
+        v2_names = [
+            "allowed_packet_roots",
+            "allowed_profile_roots",
+            "allowed_verifier_capsule_roots",
+            "allowed_result_contract_roots",
+            "required_replayability",
+        ]
+        if schema == "vela.acceptance_policy.v0.1" and any(
+            name in constraints for name in v2_names
+        ):
+            return "deny"
+        blocked = []
+        if context.get("has_unknown_fields") or not context.get("credential_valid"):
+            blocked.append("unknown_or_invalid")
+        if context.get("assurance_level", 0) < constraints.get(
+            "required_assurance_min", 4
+        ):
+            blocked.append("assurance")
+        if context.get("changed_findings", 2**32 - 1) > constraints.get(
+            "max_changed_findings", 0
+        ):
+            blocked.append("changed")
+        if context.get("downstream_dependents", 2**32 - 1) > constraints.get(
+            "max_downstream_dependents", 0
+        ):
+            blocked.append("downstream")
+        if context.get("assertion_text_mutated") and not constraints.get(
+            "allow_semantic_text_change", False
+        ):
+            blocked.append("text")
+        if context.get("target_contested") and not constraints.get(
+            "allow_contested", False
+        ):
+            blocked.append("contested")
+        if context.get("governance_mutation") and not constraints.get(
+            "allow_governance_mutation", False
+        ):
+            blocked.append("governance")
+        if constraints.get("require_independence") and not context.get(
+            "independence_satisfied"
+        ):
+            blocked.append("independence")
+        if constraints.get("require_method_integrity") and not context.get(
+            "method_integrity_sound"
+        ):
+            blocked.append("method")
+        if schema == "vela.acceptance_policy.v0.2":
+            allowlists = [
+                ("packet_root", "allowed_packet_roots"),
+                ("profile_root", "allowed_profile_roots"),
+                ("verifier_capsule_root", "allowed_verifier_capsule_roots"),
+                ("result_contract_root", "allowed_result_contract_roots"),
+            ]
+            for _, allowlist_name in allowlists:
+                allowlist = constraints.get(allowlist_name)
+                if (
+                    not isinstance(allowlist, list)
+                    or not allowlist
+                    or not all(_full_root(root) for root in allowlist)
+                ):
+                    return "deny"
+            if constraints.get("required_replayability") != "exact":
+                return "deny"
+            binding = context.get("execution_binding")
+            if not isinstance(binding, dict) or binding.get("schema") != "vela.execution-binding.v1":
+                blocked.append("binding")
+            else:
+                for field, allowlist_name in allowlists:
+                    actual = binding.get(field)
+                    if not _full_root(actual) or actual not in constraints[allowlist_name]:
+                        blocked.append(field)
+                if context.get("replayability") != constraints["required_replayability"]:
+                    blocked.append("replayability")
+        return "defer" if blocked else "permit"
+    return policy.get("default", "deny")
+
+
+def _run_permit_shadow(repo_root: Path) -> int:
+    path = repo_root / "conformance" / "fixtures" / "permit-shadow-v1.json"
+    try:
+        fixture = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        print(f"  permit-shadow fixture load failed: {error}", file=sys.stderr)
+        return 1
+    if fixture.get("schema") != "vela.permit-shadow-experiment.v1":
+        print("  permit-shadow fixture schema mismatch", file=sys.stderr)
+        return 1
+    cases = fixture.get("cases", [])
+    if len(cases) != 3:
+        print("  permit-shadow fixture must contain exactly three cases", file=sys.stderr)
+        return 1
+    for case in cases:
+        for field, preimage in case.get("root_preimages", {}).items():
+            expected = "sha256:" + hashlib.sha256(preimage.encode("utf-8")).hexdigest()
+            if case.get("binding", {}).get(field) != expected:
+                print(f"  {case.get('id')}: {field} content root drift", file=sys.stderr)
+                return 1
+    digests = {
+        "sha256:" + hashlib.sha256(_canonical_bytes(case["policy_context"])).hexdigest()
+        for case in cases
+    }
+    expected_digest = "sha256:05f4c43817a4301da40e476393639ba042756f593d48582718135e92b653c7ac"
+    if digests != {expected_digest}:
+        print("  permit-shadow v0.1 context digest drift", file=sys.stderr)
+        return 1
+    policy_v1 = copy.deepcopy(fixture["policy"])
+    policy_v1["id"] = _policy_id(policy_v1)
+    if any(
+        _evaluate_permit_shadow(policy_v1, case["policy_context"])
+        != case["expected_v0_1"]
+        for case in cases
+    ):
+        print("  permit-shadow v0.1 outcome mismatch", file=sys.stderr)
+        return 1
+    intended = cases[0]["binding"]
+    policy_v2 = copy.deepcopy(policy_v1)
+    policy_v2["schema"] = "vela.acceptance_policy.v0.2"
+    constraints = policy_v2["rules"][0]["constraints"]
+    constraints.update(
+        {
+            "allowed_packet_roots": [intended["packet_root"]],
+            "allowed_profile_roots": [intended["profile_root"]],
+            "allowed_verifier_capsule_roots": [intended["verifier_capsule_root"]],
+            "allowed_result_contract_roots": [intended["result_contract_root"]],
+            "required_replayability": "exact",
+        }
+    )
+    policy_v2["id"] = _policy_id(policy_v2)
+    for case in cases:
+        context = copy.deepcopy(case["policy_context"])
+        context["execution_binding"] = case["binding"]
+        if _evaluate_permit_shadow(policy_v2, context) != case["expected_v0_2"]:
+            print(f"  {case.get('id')}: v0.2 outcome mismatch", file=sys.stderr)
+            return 1
+    if _evaluate_permit_shadow(policy_v2, cases[0]["policy_context"]) != "defer":
+        print("  permit-shadow missing v0.2 binding did not defer", file=sys.stderr)
+        return 1
+    return 0
 
 
 def _run_ts_reducer(repo_root: Path, fixtures_dir: Path) -> int:

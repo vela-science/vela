@@ -151,6 +151,12 @@ producer may also formalize a weaker statement than the prose claims. Vela
 therefore records verifier identity, environment, inputs, outcome, and caveats,
 and keeps statement faithfulness and significance separate from a kernel pass.
 
+For a deliberately delegated computational lane, AcceptancePolicy v0.2 can
+also bind Permit to the full roots of one packet, producer profile, verifier
+capsule, and positive result contract. This blocks same-class verifier and
+target substitution; it does not make the selected verifier scientifically
+adequate. That semantic judgment remains part of the human policy approval.
+
 New verifiers need positive fixtures, meaningful negative controls, resource
 bounds, and independent review of what their result means. A verifier maintained
 by the producer is evidence with a disclosed conflict, not independent

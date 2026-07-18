@@ -110,6 +110,22 @@ mod surface_tests {
                     "--json",
                 ],
                 vec!["vela", "policy", "draft", ".", "--from-suggest", "--json"],
+                vec![
+                    "vela",
+                    "policy",
+                    "draft",
+                    "search-witness",
+                    ".",
+                    "--packet-root",
+                    "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+                    "--profile-root",
+                    "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+                    "--verifier-capsule-root",
+                    "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+                    "--result-contract-root",
+                    "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+                    "--json",
+                ],
                 vec!["vela", "policy", "test", ".", "--json"],
                 vec![
                     "vela",
@@ -162,6 +178,19 @@ mod surface_tests {
                 ])
                 .is_err(),
                 "draft must not accept more than its typed operand budget"
+            );
+            assert!(
+                Cli::try_parse_from([
+                    "vela",
+                    "policy",
+                    "draft",
+                    "search-witness",
+                    ".",
+                    "--packet-root",
+                    "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+                ])
+                .is_err(),
+                "an incomplete exact binding must fail in the typed parser"
             );
         });
     }

@@ -599,6 +599,7 @@ fn install_active_permit_policy(path: &Path, project: &Project) -> String {
                 allow_governance_mutation: false,
                 require_independence: false,
                 require_method_integrity: false,
+                ..Constraints::default()
             },
         }],
         default: Outcome::Defer,

@@ -236,6 +236,7 @@ fn custom_rule(class: &str) -> PolicyRule {
             allow_governance_mutation: false,
             require_independence: !receipt,
             require_method_integrity: true,
+            ..Constraints::default()
         },
     }
 }

@@ -45,7 +45,9 @@ the documented exceptions. Pinned by `every_visible_command_offers_json`.
   with exit 2 rather than hang or assume "no". Pinned by
   `prompts_refuse_piped_stdin`.
 - Shared input lives in `cli/prompt.rs` (`read_line`, `confirm`). Scriptable
-  alternatives always exist (`--yes`, `sign … --yes` / `--batch`).
+  alternatives exist for ordinary non-authority prompts. Protected review and
+  policy decisions deliberately accept no `--yes`, batch, wildcard, or saved
+  session approval.
 - **No TUI.** `docs/CLI.md`: "the interactivity of this era belongs to the
   agent, and the pen belongs to you." No raw-mode arrow-key selectors,
   especially not in the signing path. A picker, if ever needed outside the
@@ -62,13 +64,13 @@ const in the same edit that adds it to the surface. Pinned by
 
 The surface is a deliberate hybrid, not drift:
 
-- **Flat loop verbs** for daily cadence: `next · work · land · sign ·
-  status · log · diff · check · reproduce · proof · credit · init · doctor
-  · serve`.
+- **Flat loop verbs** for daily cadence: `init · status · next · work · land ·
+  review · check · reproduce · log · doctor · migrate`.
 - **Noun-verb** for everything else: `finding <verb>`, `frontier <verb>`,
   `policy <verb>`, `config <verb>`, `id <verb>`, …
-- **One human decision entry** (`sign`, the ceremony). Producers cross the
-  boundary through Receipt v1 and `land`; `finding` is read-only.
+- **One exact human decision entry per authority scope** (`review decide` and
+  `policy decide`). Producers cross the boundary through Receipt v1 and
+  `land`; legacy `sign` and `policy sign` are advanced compatibility surfaces.
 - No new top-level verb without a deliberate `V0738_VISIBLE` edit. Growth
   is a decision, not a drift (pinned both directions).
 
