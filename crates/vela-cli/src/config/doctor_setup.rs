@@ -192,7 +192,7 @@ fn binary_pin_repair(protected: bool) -> &'static str {
     if protected {
         protected_rebind_command()
     } else {
-        "vela id pin-binary  (after inspecting the binary)"
+        "vela id pin-binary (after inspecting the binary)"
     }
 }
 
@@ -415,6 +415,13 @@ mod tests {
         assert_eq!(repair, protected_rebind_command());
         assert!(!repair.contains("vela sign"));
         assert!(!repair.contains("pin-binary"));
+    }
+
+    #[test]
+    fn file_identity_binary_pin_repair_is_a_complete_command() {
+        let repair = binary_pin_repair(false);
+        assert!(repair.starts_with("vela id pin-binary "));
+        assert!(!repair.contains("pin-binary  "));
     }
 
     /// The workshop heuristic must fire for the test binary itself —
