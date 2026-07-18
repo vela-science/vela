@@ -952,16 +952,49 @@ pub fn preview_engine_verdict_in_frontier(
 }
 
 pub fn record_proof_export(frontier: &mut Project, record: ProofPacketRecord) {
+    let nonlease_event_log_hash = (record.event_log_hash
+        == events::event_log_hash(&frontier.events))
+    .then(|| events::nonlease_event_log_hash(&frontier.events));
     frontier.proof_state.latest_packet = ProofPacketState {
         generated_at: Some(record.generated_at),
         snapshot_hash: Some(record.snapshot_hash),
         event_log_hash: Some(record.event_log_hash),
+        // The derived exemption is granted only when the exporter supplied
+        // the exact current full event root. A malformed or mismatched record
+        // retains the historical shape and fails freshness normally.
+        nonlease_event_log_hash,
         packet_manifest_hash: Some(record.packet_manifest_hash),
         status: "current".to_string(),
     };
     frontier.proof_state.last_event_at_export =
         frontier.events.last().map(|event| event.timestamp.clone());
     frontier.proof_state.stale_reason = None;
+}
+
+/// Upgrade a historical proof-state record to the explicit non-lease
+/// commitment only when its old full-root commitment already proves that no
+/// non-lease event has changed.
+///
+/// Returning `false` is deliberately non-mutating. A stale, incomplete, or
+/// ambiguous record must be re-exported rather than repaired by inference.
+pub fn backfill_nonlease_proof_root(frontier: &mut Project) -> bool {
+    let state = &frontier.proof_state.latest_packet;
+    if state.status == "never_exported"
+        || state.status == "stale"
+        || state.nonlease_event_log_hash.is_some()
+    {
+        return false;
+    }
+    let Some(recorded_event_root) = state.event_log_hash.as_deref() else {
+        return false;
+    };
+    let full_root = events::event_log_hash(&frontier.events);
+    let nonlease_root = events::nonlease_event_log_hash(&frontier.events);
+    if recorded_event_root != full_root && recorded_event_root != nonlease_root {
+        return false;
+    }
+    frontier.proof_state.latest_packet.nonlease_event_log_hash = Some(nonlease_root);
+    true
 }
 
 pub fn mark_proof_stale(frontier: &mut Project, reason: String) {

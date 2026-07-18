@@ -1033,6 +1033,23 @@ pub fn event_log_hash(events: &[StateEvent]) -> String {
     hex::encode(Sha256::digest(bytes))
 }
 
+/// Commit to every canonical event except the signed coordination leases used
+/// by `vela work`.
+///
+/// Proof exports describe scientific and authority state. A later
+/// `attempt.claimed` event changes who is coordinating work, but it does not
+/// change that proof subject. Keep this exclusion closed to the one named
+/// event kind: every scientific, provenance, authority, and unknown future
+/// event remains in the commitment and therefore stales the proof.
+pub fn nonlease_event_log_hash(events: &[StateEvent]) -> String {
+    let nonlease = events
+        .iter()
+        .filter(|event| event.kind != EVENT_KIND_ATTEMPT_CLAIMED)
+        .cloned()
+        .collect::<Vec<_>>();
+    event_log_hash(&nonlease)
+}
+
 pub fn snapshot_hash(frontier: &Project) -> String {
     let value = serde_json::to_value(frontier).unwrap_or(Value::Null);
     let mut value = value;

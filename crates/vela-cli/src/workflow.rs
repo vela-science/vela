@@ -907,14 +907,9 @@ fn sha256_root(value: &impl Serialize) -> Result<String, String> {
 }
 
 fn nonlease_event_log_root(events: &[vela_protocol::events::StateEvent]) -> String {
-    let nonlease = events
-        .iter()
-        .filter(|event| event.kind != vela_protocol::events::EVENT_KIND_ATTEMPT_CLAIMED)
-        .cloned()
-        .collect::<Vec<_>>();
     format!(
         "sha256:{}",
-        vela_protocol::events::event_log_hash(&nonlease)
+        vela_protocol::events::nonlease_event_log_hash(events)
     )
 }
 
@@ -1375,6 +1370,10 @@ where
     )?;
     let args = lease_args(frontier, target, actor, ttl_seconds, None, None);
     let mut candidate = clone_project(&base_project)?;
+    // Historical proof-state records predate the explicit non-lease root.
+    // Bind it only while the old full root still proves that every non-lease
+    // event is unchanged, then append the operational coordination event.
+    vela_protocol::proposals::backfill_nonlease_proof_root(&mut candidate);
     let claim = vela_edge::vela_agent_mcp::apply_claim_task_to_project(&args, &mut candidate)?;
     if claim.get("ok").and_then(Value::as_bool) != Some(true) {
         let owner = claim

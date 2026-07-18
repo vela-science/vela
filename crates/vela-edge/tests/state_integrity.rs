@@ -180,6 +180,149 @@ fn state_integrity_reports_stale_proof_after_accepted_event() {
     );
 }
 
+fn append_work_lease(frontier: &mut Project, obligation_id: &str, actor_id: &str, at: &str) {
+    let event = events::new_finding_event(FindingEventInput {
+        kind: events::EVENT_KIND_ATTEMPT_CLAIMED,
+        finding_id: obligation_id,
+        actor_id,
+        actor_type: "agent",
+        reason: "proof freshness coordination fixture",
+        before_hash: NULL_HASH,
+        after_hash: NULL_HASH,
+        payload: json!({
+            "obligation_id": obligation_id,
+            "lease_ttl_seconds": 86_400,
+            "claimant_actor": actor_id,
+            "claimant_pubkey": "11".repeat(32),
+        }),
+        caveats: Vec::new(),
+        timestamp: Some(at),
+    });
+    vela_protocol::reducer::apply_event(frontier, &event).expect("apply work lease");
+    frontier.events.push(event);
+    project::recompute_stats(frontier);
+}
+
+#[test]
+fn work_lease_does_not_stale_an_explicit_nonlease_proof_commitment() {
+    let mut frontier = frontier_with_one_finding();
+    let snapshot_hash = events::snapshot_hash(&frontier);
+    let event_log_hash = events::event_log_hash(&frontier.events);
+    record_proof_export(
+        &mut frontier,
+        ProofPacketRecord {
+            generated_at: "2026-07-18T00:00:00Z".to_string(),
+            snapshot_hash,
+            event_log_hash: event_log_hash.clone(),
+            packet_manifest_hash: "aa".repeat(32),
+        },
+    );
+    assert_eq!(
+        frontier
+            .proof_state
+            .latest_packet
+            .nonlease_event_log_hash
+            .as_deref(),
+        Some(event_log_hash.as_str())
+    );
+
+    let target = frontier.findings[0].id.clone();
+    append_work_lease(
+        &mut frontier,
+        &target,
+        "agent:proof-freshness",
+        "2026-07-18T00:00:01Z",
+    );
+    let report = state_integrity::analyze(&frontier);
+
+    assert_eq!(report.proof_freshness, "fresh");
+    assert!(
+        report
+            .structural_errors
+            .iter()
+            .all(|issue| issue.rule_id != "stale_proof_packet")
+    );
+}
+
+#[test]
+fn legacy_proof_root_exempts_only_lease_drift() {
+    let mut frontier = frontier_with_one_finding();
+    let snapshot_hash = events::snapshot_hash(&frontier);
+    let event_log_hash = events::event_log_hash(&frontier.events);
+    record_proof_export(
+        &mut frontier,
+        ProofPacketRecord {
+            generated_at: "2026-07-18T00:00:00Z".to_string(),
+            snapshot_hash,
+            event_log_hash,
+            packet_manifest_hash: "bb".repeat(32),
+        },
+    );
+    frontier.proof_state.latest_packet.nonlease_event_log_hash = None;
+    let target = frontier.findings[0].id.clone();
+    append_work_lease(
+        &mut frontier,
+        &target,
+        "agent:legacy-proof",
+        "2026-07-18T00:00:01Z",
+    );
+
+    assert_eq!(
+        state_integrity::analyze(&frontier).proof_freshness,
+        "fresh",
+        "an exact historical full root may match the current non-lease event set"
+    );
+
+    frontier
+        .events
+        .push(events::new_finding_event(FindingEventInput {
+            kind: "research_trace.review",
+            finding_id: &target,
+            actor_id: "agent:legacy-proof",
+            actor_type: "agent",
+            reason: "unknown non-lease event must remain committed",
+            before_hash: NULL_HASH,
+            after_hash: NULL_HASH,
+            payload: json!({}),
+            caveats: Vec::new(),
+            timestamp: Some("2026-07-18T00:00:02Z"),
+        }));
+    assert_eq!(state_integrity::analyze(&frontier).proof_freshness, "stale");
+}
+
+#[test]
+fn invalid_nonlease_proof_root_grants_no_exemption() {
+    let mut frontier = frontier_with_one_finding();
+    let snapshot_hash = events::snapshot_hash(&frontier);
+    let event_log_hash = events::event_log_hash(&frontier.events);
+    record_proof_export(
+        &mut frontier,
+        ProofPacketRecord {
+            generated_at: "2026-07-18T00:00:00Z".to_string(),
+            snapshot_hash,
+            event_log_hash,
+            packet_manifest_hash: "cc".repeat(32),
+        },
+    );
+    frontier.proof_state.latest_packet.nonlease_event_log_hash = Some("00".repeat(32));
+    let target = frontier.findings[0].id.clone();
+    append_work_lease(
+        &mut frontier,
+        &target,
+        "agent:invalid-proof-root",
+        "2026-07-18T00:00:01Z",
+    );
+
+    let report = state_integrity::analyze(&frontier);
+    assert_eq!(report.proof_freshness, "stale");
+    assert!(
+        report
+            .structural_errors
+            .iter()
+            .any(|issue| issue.rule_id == "stale_proof_packet")
+    );
+}
+
 #[test]
 fn integrity_cli_json_reports_state_integrity() {
     let dir = tempfile::tempdir().expect("tempdir");

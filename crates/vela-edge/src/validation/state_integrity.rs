@@ -396,10 +396,20 @@ fn proof_freshness(frontier: &Project) -> String {
         return "stale".to_string();
     }
     let current_event_hash = events::event_log_hash(&frontier.events);
-    match state.event_log_hash.as_deref() {
-        Some(hash) if hash == current_event_hash => "fresh".to_string(),
-        Some(_) => "stale".to_string(),
-        None => "unknown".to_string(),
+    let Some(recorded_event_hash) = state.event_log_hash.as_deref() else {
+        return "unknown".to_string();
+    };
+    if recorded_event_hash == current_event_hash {
+        return "fresh".to_string();
+    }
+    let current_nonlease_hash = events::nonlease_event_log_hash(&frontier.events);
+    match state.nonlease_event_log_hash.as_deref() {
+        Some(hash) if hash == current_nonlease_hash => "fresh".to_string(),
+        // A historical proof exported before this field existed can still
+        // prove freshness when its exact full event root equals the current
+        // event set with only work leases removed.
+        None if recorded_event_hash == current_nonlease_hash => "fresh".to_string(),
+        Some(_) | None => "stale".to_string(),
     }
 }
 

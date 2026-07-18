@@ -195,6 +195,10 @@ pub struct ProofPacketState {
     pub generated_at: Option<String>,
     pub snapshot_hash: Option<String>,
     pub event_log_hash: Option<String>,
+    /// Event-set commitment with only `attempt.claimed` coordination leases
+    /// removed. Optional so historical proof-state records remain readable.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub nonlease_event_log_hash: Option<String>,
     pub packet_manifest_hash: Option<String>,
     pub status: String,
 }
@@ -205,6 +209,7 @@ impl Default for ProofPacketState {
             generated_at: None,
             snapshot_hash: None,
             event_log_hash: None,
+            nonlease_event_log_hash: None,
             packet_manifest_hash: None,
             status: "never_exported".to_string(),
         }

@@ -176,6 +176,89 @@ fn register_deterministic_reviewer(dir: &Path, seed: u8) -> std::path::PathBuf {
 }
 
 #[test]
+fn work_lease_preserves_strict_freshness_of_a_recorded_proof() {
+    let tmp = tempfile::tempdir().unwrap();
+    let packet = tempfile::tempdir().unwrap();
+    init_git_frontier(tmp.path());
+
+    let proof = run(
+        tmp.path(),
+        &[
+            "proof",
+            ".",
+            "--out",
+            packet.path().to_str().unwrap(),
+            "--record-proof-state",
+            "--json",
+        ],
+    );
+    assert_success(&proof, "record exact proof state");
+    let mut historical = vela_protocol::repo::load_from_path(tmp.path()).unwrap();
+    assert!(
+        historical
+            .proof_state
+            .latest_packet
+            .nonlease_event_log_hash
+            .is_some(),
+        "new proof exports must record the explicit non-lease root"
+    );
+    // Model the exact pre-fix Sidon record. The work path may backfill this
+    // optional derived field only while the historical full event root still
+    // proves that the non-lease event set is unchanged.
+    historical.proof_state.latest_packet.nonlease_event_log_hash = None;
+    vela_protocol::repo::save_to_path(tmp.path(), &historical).unwrap();
+    assert_success(&git(tmp.path(), &["add", "-A"]), "stage proof state");
+    assert_success(
+        &git(tmp.path(), &["commit", "-qm", "record proof state"]),
+        "commit proof state",
+    );
+    let before = vela_protocol::repo::load_from_path(tmp.path()).unwrap();
+    let before_event_root = vela_protocol::events::event_log_hash(&before.events);
+    assert!(
+        before
+            .proof_state
+            .latest_packet
+            .nonlease_event_log_hash
+            .is_none(),
+        "fixture must reach work with the historical proof-state shape"
+    );
+
+    let key = "64".repeat(32);
+    let work = run_with_env(
+        tmp.path(),
+        &["work", "seed:proof-freshness", "--as", "agent:t", "--json"],
+        &[("VELA_AGENT_KEY_HEX", key.as_str())],
+    );
+    assert_success(&work, "claim work without staling proof");
+
+    let check = run(tmp.path(), &["check", ".", "--strict", "--json"]);
+    assert_success(&check, "strict check after coordination lease");
+    let check = one_json_object(&check);
+    assert_eq!(check["state_integrity"]["proof_freshness"], "fresh");
+
+    let after = vela_protocol::repo::load_from_path(tmp.path()).unwrap();
+    assert_eq!(
+        after
+            .proof_state
+            .latest_packet
+            .nonlease_event_log_hash
+            .as_deref(),
+        Some(before_event_root.as_str()),
+        "work must backfill the exact non-lease commitment before appending its lease"
+    );
+    assert_ne!(
+        vela_protocol::events::event_log_hash(&after.events),
+        before_event_root,
+        "the test must append a real signed work lease"
+    );
+    assert_eq!(
+        vela_protocol::events::nonlease_event_log_hash(&after.events),
+        vela_protocol::events::nonlease_event_log_hash(&before.events),
+        "the lease must be the only event-set change"
+    );
+}
+
+#[test]
 fn temporal_actor_registration_strict_check_preserves_legacy_history() {
     use ed25519_dalek::SigningKey;
     use serde_json::json;
