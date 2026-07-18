@@ -108,18 +108,31 @@ Permit lane.
 ## Frozen live candidate
 
 The first real positive-only profile is `sidon-a24-improve` at Canopus commit
-`c972388be6ec154915521c2e8480ca8ef6c8a626`. It binds:
+`b9f1567498b7c0ebc80007a304a8847353c66734`. It binds:
 
 - Sidon commit `342061330a57676c911ca02b66a67954436c96db` and packet root
   `sha256:da2ecf8b213c3166ff258834a1b81f2a21f7c8d6074589098261fe4cf1e82df1`;
 - profile root
-  `sha256:470f1a36594b63edacdbb96b2fcbc6f1f53d06da043b9649ed644c64d4f478a4`;
+  `sha256:4c5669b5f85c2f10461e0c8ab13ad97fdaed542d95615c99e88d118717ddf5cb`;
 - Linux arm64 capsule root
   `sha256:372cbd0d71f82f33953499c677182d00d9c6b97f6098562a093450d063fbfc5e`;
   and
 - positive result-contract root
-  `sha256:b6c553dfa0205c001d6d71cbad64397035d8ae6904b5799b9bdb3e0df893385f`.
+  `sha256:7dfe79ca2a616d9afb8438aad71a1a0ae134d3325c7d536d45ed8cf3d567e967`.
 
-The unsigned shadow policy is `vap_4226ba1b929b4bb9f348156397967c64`.
+The result contract fixes the exact claim to “There exists a Sidon subset of
+`{0,1}^24` with at least 7,193 elements.” Canopus replaces model-authored
+claim prose with those registered bytes only after the exact verifier passes.
+
+The unsigned shadow policy is `vap_4e88fea478811f0553d8ce6c9c91fc45`.
 It remains non-authoritative until an exact protected activation. A capsule,
 profile, packet, or result-contract substitution does not match its v0.2 rule.
+
+The full Permit path is not yet eligible for protected activation. Live audit
+after freezing these roots showed that `vela land` correctly derives assurance
+only from retained, event-derived verifier attachments; a producer-declared
+Receipt `verifier_runs` row is not load-bearing. Canopus currently emits no
+such pre-state evidence, so the exact search-witness rule would Defer at A0.
+The release gate therefore requires a fresh exact verification floor or
+retained event evidence that strict replay can rederive. Lowering the policy's
+A2 floor or treating self-reported verifier success as assurance is forbidden.
