@@ -121,6 +121,15 @@ contract. The extension is evidence about execution identity, not authority;
 it matters to Permit only when a signed AcceptancePolicy v0.2 names the exact
 roots.
 
+For AcceptancePolicy v0.2 only, an exact Receipt carrying exactly one public
+artifact of kind `vela-witness` may establish an A2 method-integrity floor.
+Vela reopens the frontier-relative regular file without following symlinks,
+checks its Receipt digest, runs the frozen `vela-verify` implementation, and
+checks that the proposal's exact claim is faithful to the witness. Missing,
+duplicate, altered, invalid, or claim-incoherent witness bytes grant no floor.
+Producer-reported verifier rows remain non-authoritative. Policy v0.1 does not
+perform this derivation, preserving historical context and replay bytes.
+
 Public local artifacts are retained by content digest. Public remote artifacts
 need an immutable locator, digest, and size. Restricted material uses an opaque
 `custodian:` or `opaque:` reference; the public Receipt must not disclose the

@@ -108,31 +108,37 @@ Permit lane.
 ## Frozen live candidate
 
 The first real positive-only profile is `sidon-a24-improve` at Canopus commit
-`b9f1567498b7c0ebc80007a304a8847353c66734`. It binds:
+`9c81e9752774d42ab80d118b7b33b99658e1ca91`. It binds:
 
 - Sidon commit `342061330a57676c911ca02b66a67954436c96db` and packet root
   `sha256:da2ecf8b213c3166ff258834a1b81f2a21f7c8d6074589098261fe4cf1e82df1`;
 - profile root
-  `sha256:4c5669b5f85c2f10461e0c8ab13ad97fdaed542d95615c99e88d118717ddf5cb`;
+  `sha256:29b1bc18cc04ad715bace77ab536f03ec46573bec3a5fbfcbeeb33aa285d4da6`;
 - Linux arm64 capsule root
-  `sha256:372cbd0d71f82f33953499c677182d00d9c6b97f6098562a093450d063fbfc5e`;
+  `sha256:7a75bef8c0cbe29e6385f5b9426e6f9a2ef65368142311843a3a9f16ac8bdf4f`;
+- Linux x86-64 capsule root
+  `sha256:afa5f28a617f3a9e879be5d1e94df59669cccd29a089c4b6a2350a3f914da75c`;
   and
 - positive result-contract root
-  `sha256:7dfe79ca2a616d9afb8438aad71a1a0ae134d3325c7d536d45ed8cf3d567e967`.
+  `sha256:092c30d5309701b6e2bd61c37b6c47f6a9abfcb768a326d06ba85aabf10dc6ca`.
 
 The result contract fixes the exact claim to “There exists a Sidon subset of
 `{0,1}^24` with at least 7,193 elements.” Canopus replaces model-authored
 claim prose with those registered bytes only after the exact verifier passes.
 
-The unsigned shadow policy is `vap_4e88fea478811f0553d8ce6c9c91fc45`.
-It remains non-authoritative until an exact protected activation. A capsule,
-profile, packet, or result-contract substitution does not match its v0.2 rule.
+Canopus now emits one `vela-witness` JSON artifact and packages the generic
+`vela-verify` executable built from Vela commit `d8902d6a`. The prior
+target-specific C++ verifier was removed after both Linux architectures passed
+claim-inflation and collision tests. Vela reopens the retained artifact,
+verifies its full Receipt digest, reruns the same pure verifier, and checks the
+exact proposal claim during landing and strict replay. That establishes A2 and
+method integrity only for AcceptancePolicy v0.2; v0.1 context bytes remain
+unchanged. Producer-reported Receipt `verifier_runs` rows remain provenance.
 
-The full Permit path is not yet eligible for protected activation. Live audit
-after freezing these roots showed that `vela land` correctly derives assurance
-only from retained, event-derived verifier attachments; a producer-declared
-Receipt `verifier_runs` row is not load-bearing. Canopus currently emits no
-such pre-state evidence, so the exact search-witness rule would Defer at A0.
-The release gate therefore requires a fresh exact verification floor or
-retained event evidence that strict replay can rederive. Lowering the policy's
-A2 floor or treating self-reported verifier success as assurance is forbidden.
+The prior unsigned shadow policy named superseded profile and capsule roots
+and must not be activated. A disposable exact-head rehearsal derives the new
+candidate `vap_e37ad7410458f1b351c58b0e626aa317`; it remains unsigned and is not
+installed in the live frontier. The live candidate is regenerated only from
+the released Vela binary and the roots above. Protected activation remains
+gated on the focused release tests and exact Sidon no-land preflight; lowering
+A2 or trusting self-reported verifier success remains forbidden.

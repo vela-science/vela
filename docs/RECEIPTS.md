@@ -125,6 +125,15 @@ short digest, uppercase digest, altered Receipt, wrong packet/profile/capsule,
 or wrong result contract cannot satisfy an exact v0.2 Permit rule. Policy v0.1
 ignores the extension for routing, preserving historical replay.
 
+A v0.2 exact positive lane may also rederive A2 from one retained public
+artifact whose kind is exactly `vela-witness`, whose byte digest matches the
+Receipt, and whose Vela-native verifier and claim-fidelity checks both pass.
+This is not a producer verdict or a second Receipt extension. The retained
+artifact bytes are re-read during strict replay; missing files, symlinks,
+digest drift, duplicate `vela-witness` descriptors, invalid constructions,
+wrong dimensions, inflated bounds, and equality/optimality claims fail closed.
+Policy v0.1 never receives this floor.
+
 The native flag-authoring path accepts the same four fields as
 `--packet-root`, `--profile-root`, `--verifier-capsule-root`, and
 `--result-contract-root`. They are required together, cannot accompany an

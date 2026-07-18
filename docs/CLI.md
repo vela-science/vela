@@ -51,6 +51,16 @@ Vela validates the all-or-nothing set and authors the closed
 roots are evidence, not an authority request; only an already signed matching
 AcceptancePolicy v0.2 can Permit the positive result.
 
+For the v0.2 exact-witness floor, declare one retained public artifact as
+`<path>:vela-witness`. The executable verifier can check the same bytes and
+claim independently:
+
+```bash
+vela-verify --claim '<exact lower-bound claim>' <witness.json>
+```
+
+A valid construction with a substituted or inflated claim exits nonzero.
+
 ## Commands
 
 | Command | Contract |
