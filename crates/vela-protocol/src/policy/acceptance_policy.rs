@@ -234,8 +234,8 @@ pub struct AcceptancePolicy {
     pub revocation_ref: Option<String>,
 }
 
-const ACCEPTANCE_POLICY_V0_1_SCHEMA: &str = "vela.acceptance_policy.v0.1";
-const ACCEPTANCE_POLICY_V0_2_SCHEMA: &str = "vela.acceptance_policy.v0.2";
+pub const ACCEPTANCE_POLICY_V0_1_SCHEMA: &str = "vela.acceptance_policy.v0.1";
+pub const ACCEPTANCE_POLICY_V0_2_SCHEMA: &str = "vela.acceptance_policy.v0.2";
 
 /// The evaluator version, bound into every decision for replay.
 pub const EVALUATOR_VERSION: &str = "vela-policy@0.1.0";

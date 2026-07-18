@@ -103,6 +103,8 @@ pub(crate) fn ask_histogram(project: &Project, frontier: &Path) -> Result<Vec<As
                         let receipt =
                             crate::review_material::frontier_receipt_for_proposal(frontier, p);
                         let ctx = crate::review_material::derive_existing_proposal_policy_context(
+                            Some(frontier),
+                            Some(&vp.policy.schema),
                             project,
                             &p.id,
                             receipt.as_ref(),

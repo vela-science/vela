@@ -30,6 +30,7 @@ import argparse
 import copy
 import hashlib
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -193,6 +194,12 @@ def main() -> int:
         print("vela conformance: FAIL  [permit-shadow]")
         return 1
     print("vela conformance: ok  [permit-shadow v0.1/v0.2]")
+
+    floor_rc = _run_exact_witness_floor(repo_root)
+    if floor_rc != 0:
+        print("vela conformance: FAIL  [exact-witness-floor]")
+        return 1
+    print("vela conformance: ok  [exact-witness-floor v0.2]")
 
     # Second implementation: the TypeScript reducer. Gating it here is
     # what keeps it from silently drifting — an unrun reducer rots (the
@@ -395,6 +402,92 @@ def _run_permit_shadow(repo_root: Path) -> int:
             return 1
     if _evaluate_permit_shadow(policy_v2, cases[0]["policy_context"]) != "defer":
         print("  permit-shadow missing v0.2 binding did not defer", file=sys.stderr)
+        return 1
+    return 0
+
+
+def _verify_sidon_witness(witness: object) -> bool:
+    """Independent exact check for the small public Sidon floor vector."""
+    if not isinstance(witness, dict) or witness.get("kind") != "sidon":
+        return False
+    n = witness.get("n")
+    points = witness.get("points")
+    claimed_size = witness.get("claimed_size")
+    if not isinstance(n, int) or n < 0 or not isinstance(points, list):
+        return False
+    if claimed_size is not None and claimed_size != len(points):
+        return False
+    normalized = []
+    for point in points:
+        if (
+            not isinstance(point, list)
+            or len(point) != n
+            or any(value not in (0, 1) for value in point)
+        ):
+            return False
+        normalized.append(tuple(point))
+    if len(set(normalized)) != len(normalized):
+        return False
+    sums: set[tuple[int, ...]] = set()
+    for left_index, left in enumerate(normalized):
+        for right in normalized[left_index:]:
+            pair_sum = tuple(a + b for a, b in zip(left, right, strict=True))
+            if pair_sum in sums:
+                return False
+            sums.add(pair_sum)
+    return True
+
+
+def _sidon_claim_faithful(claim: object, witness: object) -> bool:
+    """Independent claim check for the exact public Sidon floor vector."""
+    if not isinstance(claim, str) or not _verify_sidon_witness(witness):
+        return False
+    lowered = claim.lower()
+    if "sidon" not in lowered or "exactly" in lowered or "maximum" in lowered:
+        return False
+    dimensions = re.findall(r"\{\s*0\s*,\s*1\s*\}\s*\^\s*(\d+)", lowered)
+    bounds = re.findall(r"(?:at\s+least|>=)\s*(\d+)", lowered)
+    if len(dimensions) != 1 or len(bounds) != 1:
+        return False
+    return int(dimensions[0]) == witness.get("n") and int(bounds[0]) <= len(
+        witness.get("points", [])
+    )
+
+
+def _run_exact_witness_floor(repo_root: Path) -> int:
+    path = repo_root / "conformance" / "fixtures" / "exact-witness-floor-v1.json"
+    try:
+        fixture = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        print(f"  exact-witness-floor fixture load failed: {error}", file=sys.stderr)
+        return 1
+    if fixture.get("schema") != "vela.exact-witness-floor-fixture.v1":
+        print("  exact-witness-floor fixture schema mismatch", file=sys.stderr)
+        return 1
+    if fixture.get("artifact_kind") != "vela-witness":
+        print("  exact-witness-floor artifact kind drift", file=sys.stderr)
+        return 1
+    if fixture.get("replayability") != "exact":
+        print("  exact-witness-floor replayability drift", file=sys.stderr)
+        return 1
+    witness = fixture.get("witness")
+    expected_root = "sha256:" + hashlib.sha256(_canonical_bytes(witness)).hexdigest()
+    if fixture.get("witness_sha256") != expected_root:
+        print("  exact-witness-floor witness root drift", file=sys.stderr)
+        return 1
+    if not _verify_sidon_witness(witness):
+        print("  exact-witness-floor intended witness did not verify", file=sys.stderr)
+        return 1
+    for case in fixture.get("claims", []):
+        actual = _sidon_claim_faithful(case.get("text"), witness)
+        if actual is not case.get("faithful"):
+            print(
+                f"  exact-witness-floor claim mismatch: {case.get('id')}",
+                file=sys.stderr,
+            )
+            return 1
+    if _verify_sidon_witness(fixture.get("corrupted_witness")):
+        print("  exact-witness-floor corrupted witness passed", file=sys.stderr)
         return 1
     return 0
 

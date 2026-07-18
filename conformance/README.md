@@ -49,6 +49,10 @@ vectors, then runs the TypeScript reducer when Node supports native TypeScript.
   experiment that proves AcceptancePolicy v0.1 cannot distinguish the intended
   packet/profile/capsule from same-class verifier or target substitution. Rust
   and Python both require v0.2 to Permit only the intended full-root binding.
+- `fixtures/exact-witness-floor-v1.json` freezes the retained Vela-native
+  witness, full byte root, exact lower-bound claim, claim-substitution cases,
+  and corrupted-witness case used by AcceptancePolicy v0.2. Rust and Python
+  independently rederive the same verifier and claim-fidelity outcomes.
 - `pre-adr-0003-replay.json` freezes every canonical `.vela` byte from one
   pre-ADR 0003 frontier plus its strict replay roots and counts. The focused
   CLI integration test replays a temporary copy; it performs no signing,

@@ -39,6 +39,7 @@ base64.workspace = true
 unicode-normalization.workspace = true
 rand.workspace = true
 toml.workspace = true
+vela-verify.workspace = true
 tempfile.workspace = true
 
 [dev-dependencies]

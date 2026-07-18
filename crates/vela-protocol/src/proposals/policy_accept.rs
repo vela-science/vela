@@ -42,6 +42,7 @@
 
 use serde::{Deserialize, Serialize};
 use serde_json::json;
+use sha2::{Digest, Sha256};
 use std::collections::{BTreeSet, HashMap, HashSet};
 use std::io::Read;
 use std::path::{Component, Path, PathBuf};
@@ -50,9 +51,9 @@ use crate::bundle::FindingBundle;
 use crate::events;
 use crate::independence::independence_from_attachments;
 use crate::policy::acceptance_policy::{
-    ActivePolicyMode, ActivePolicySnapshot, AuthorityMode, Decision, DecisionCertificate, Outcome,
-    PolicyAuthority, PolicyContext, VerifiedPolicy, evaluate, resolve_policy_authority,
-    verify_policy_signature_bytes,
+    ACCEPTANCE_POLICY_V0_2_SCHEMA, ActivePolicyMode, ActivePolicySnapshot, AuthorityMode, Decision,
+    DecisionCertificate, Outcome, PolicyAuthority, PolicyContext, VerifiedPolicy, evaluate,
+    resolve_policy_authority, verify_policy_signature_bytes,
 };
 use crate::project;
 use crate::receipt_v1::ReceiptV1;
@@ -599,6 +600,123 @@ pub fn derive_submission_policy_context(
     }))
 }
 
+const EXACT_FLOOR_ARTIFACT_KIND: &str = "vela-witness";
+const MAX_EXACT_FLOOR_WITNESS_BYTES: u64 = 64 * 1024 * 1024;
+
+fn exact_receipt_floor(
+    frontier_dir: &Path,
+    receipt: &ReceiptV1,
+    claim: &str,
+) -> Result<bool, String> {
+    if receipt
+        .as_value()
+        .get("replayability")
+        .and_then(serde_json::Value::as_str)
+        != Some("exact")
+    {
+        return Ok(false);
+    }
+    let artifacts = receipt
+        .as_value()
+        .get("artifacts")
+        .and_then(serde_json::Value::as_array)
+        .ok_or_else(|| "exact-floor receipt has no artifacts".to_string())?;
+    let witnesses = artifacts
+        .iter()
+        .filter(|artifact| {
+            artifact.get("kind").and_then(serde_json::Value::as_str)
+                == Some(EXACT_FLOOR_ARTIFACT_KIND)
+        })
+        .collect::<Vec<_>>();
+    if witnesses.is_empty() {
+        return Ok(false);
+    }
+    if witnesses.len() != 1 {
+        return Err(
+            "exact-floor receipt must contain exactly one vela-witness artifact".to_string(),
+        );
+    }
+    let descriptor = witnesses[0];
+    let relative = descriptor
+        .get("path")
+        .and_then(serde_json::Value::as_str)
+        .ok_or_else(|| "exact-floor vela-witness has no path".to_string())?;
+    let relative = Path::new(relative);
+    if relative.is_absolute()
+        || !relative
+            .components()
+            .all(|component| matches!(component, Component::Normal(_)))
+    {
+        return Err("exact-floor vela-witness path is not frontier-relative".to_string());
+    }
+    let declared = descriptor
+        .get("sha256")
+        .and_then(serde_json::Value::as_str)
+        .ok_or_else(|| "exact-floor vela-witness has no sha256".to_string())?;
+    let bytes = read_frontier_regular_file(
+        frontier_dir,
+        relative,
+        MAX_EXACT_FLOOR_WITNESS_BYTES,
+        "exact-floor vela-witness",
+    )?;
+    let actual = format!("{:x}", Sha256::digest(&bytes));
+    if actual != declared {
+        return Err(format!(
+            "exact-floor vela-witness digest mismatch: declared {declared}, got {actual}"
+        ));
+    }
+    let witness: vela_verify::Witness = serde_json::from_slice(&bytes)
+        .map_err(|error| format!("parse exact-floor vela-witness: {error}"))?;
+    let verified = vela_verify::verify_witness(&witness);
+    if !verified.ok {
+        return Ok(false);
+    }
+    Ok(vela_verify::claim_witness_faithful(claim, &witness).faithful)
+}
+
+/// Derive a submission context under the exact policy-language version.
+///
+/// Policy v0.1 retains its historical context bytes. Policy v0.2 may raise a
+/// new `finding.add` from A0 to A2 only by re-reading one retained,
+/// digest-bound Vela-native witness and passing both the frozen verifier and
+/// the claim-fidelity check. Producer-reported verifier rows remain provenance.
+pub fn derive_submission_policy_context_for_policy(
+    frontier_dir: &Path,
+    frontier: &project::Project,
+    proposal_id: &str,
+    receipt: &ReceiptV1,
+    decision_time: &str,
+    policy_schema: &str,
+) -> Result<PolicyContext, String> {
+    let mut context =
+        derive_submission_policy_context(frontier, proposal_id, receipt, decision_time)?;
+    if policy_schema != ACCEPTANCE_POLICY_V0_2_SCHEMA {
+        return Ok(context);
+    }
+    if exact_receipt_floor(
+        frontier_dir,
+        receipt,
+        &context_claim(frontier, proposal_id)?,
+    )? {
+        context.assurance_level = context.assurance_level.max(2);
+        context.method_integrity_sound = true;
+    }
+    Ok(context)
+}
+
+fn context_claim(frontier: &project::Project, proposal_id: &str) -> Result<String, String> {
+    frontier
+        .proposals
+        .iter()
+        .find(|proposal| proposal.id == proposal_id)
+        .and_then(|proposal| proposal.payload.get("finding"))
+        .and_then(|finding| finding.get("assertion"))
+        .and_then(|assertion| assertion.get("text"))
+        .and_then(serde_json::Value::as_str)
+        .map(ToString::to_string)
+        .ok_or_else(|| "receipt-backed proposal has no assertion text".to_string())
+}
+
 /// Derive policy facts for a proposal already retained in a frontier.
 ///
 /// A parsed receipt is used only when the complete strict submission
@@ -626,6 +744,42 @@ pub fn derive_existing_proposal_policy_context(
     if let Some(receipt) = receipt
         && let Ok(context) =
             derive_submission_policy_context(frontier, proposal_id, receipt, decision_time)
+    {
+        return context;
+    }
+    PolicyContext {
+        claim_class,
+        ..PolicyContext::default()
+    }
+}
+
+/// Policy-version-aware retained-proposal projection used by policy previews.
+#[must_use]
+pub fn derive_existing_proposal_policy_context_for_policy(
+    frontier_dir: &Path,
+    frontier: &project::Project,
+    proposal_id: &str,
+    receipt: Option<&ReceiptV1>,
+    decision_time: &str,
+    policy_schema: &str,
+) -> PolicyContext {
+    let Some(proposal) = frontier
+        .proposals
+        .iter()
+        .find(|proposal| proposal.id == proposal_id)
+    else {
+        return PolicyContext::default();
+    };
+    let claim_class = proposal_claim_class(proposal);
+    if let Some(receipt) = receipt
+        && let Ok(context) = derive_submission_policy_context_for_policy(
+            frontier_dir,
+            frontier,
+            proposal_id,
+            receipt,
+            decision_time,
+            policy_schema,
+        )
     {
         return context;
     }
@@ -932,8 +1086,22 @@ pub fn stage_policy_route_in_frontier_at(
                 .to_string(),
         ));
     }
-    let context = derive_submission_policy_context(frontier, proposal_id, receipt, now)
-        .map_err(PolicyLaneRefusal::Error)?;
+    let policy_schema = snapshot
+        .verified
+        .as_ref()
+        .map(|verified| verified.policy.schema.as_str());
+    let context = match policy_schema {
+        Some(schema) => derive_submission_policy_context_for_policy(
+            path,
+            frontier,
+            proposal_id,
+            receipt,
+            now,
+            schema,
+        ),
+        None => derive_submission_policy_context(frontier, proposal_id, receipt, now),
+    }
+    .map_err(PolicyLaneRefusal::Error)?;
     // Causal producer bindings are required before a signed policy can make an
     // autonomous decision. A closed or merely staged-unsigned lane has no
     // authority to exercise, so portable foreign receipts remain landable as
@@ -2188,8 +2356,14 @@ fn verify_policy_lane_event_v2(
             lane.parent_event_log_root
         ));
     }
-    let context =
-        derive_submission_policy_context(&prestate, &proposal.id, &receipt, &lane.decision_time)?;
+    let context = derive_submission_policy_context_for_policy(
+        frontier_dir,
+        &prestate,
+        &proposal.id,
+        &receipt,
+        &lane.decision_time,
+        &verified.policy.schema,
+    )?;
     if lane.context != context {
         return Err(format!(
             "policy_lane context differs from retained evidence (stamped {}, rederived {}; stamped={:?}; rederived={:?})",
@@ -2792,6 +2966,324 @@ mod tests {
 
     fn test_signing_key() -> ed25519_dalek::SigningKey {
         ed25519_dalek::SigningKey::from_bytes(&[7u8; 32])
+    }
+
+    #[test]
+    fn exact_receipt_floor_rederives_one_native_witness_and_claim() {
+        let tmp = TempDir::new().unwrap();
+        let relative = "artifacts/sidon.witness.json";
+        std::fs::create_dir_all(tmp.path().join("artifacts")).unwrap();
+        let witness = vela_verify::Witness::Sidon {
+            n: 3,
+            points: vec![vec![0, 0, 0], vec![1, 0, 0], vec![0, 1, 0], vec![0, 0, 1]],
+            claimed_size: Some(4),
+        };
+        let bytes = serde_json::to_vec(&witness).unwrap();
+        std::fs::write(tmp.path().join(relative), &bytes).unwrap();
+        let digest = format!("{:x}", Sha256::digest(&bytes));
+        let key = ed25519_dalek::SigningKey::from_bytes(&[0x37; 32]);
+        let identity = IdentityBinding::build(
+            IdentityBindingDraft {
+                actor_id: "agent:floor-test".to_string(),
+                actor_class: ActorClass::Agent,
+                created_at: "2026-07-02T00:00:00Z".to_string(),
+            },
+            &key,
+        )
+        .unwrap();
+        let claim = "There exists a Sidon subset of {0,1}^3 with at least 4 elements.";
+        let build_receipt = |replayability: &str, artifacts: Vec<ArtifactInput>| {
+            ReceiptBuilder::build(
+                ReceiptInput::new(
+                    claim.to_string(),
+                    "computational".to_string(),
+                    replayability.to_string(),
+                    artifacts,
+                    vec!["No optimality claim.".to_string()],
+                    Vec::new(),
+                    "agent:floor-test".to_string(),
+                    "2026-07-02T00:00:00Z".to_string(),
+                    format!("sha256:{}", "a".repeat(64)),
+                    ".".to_string(),
+                    format!("vop_{}", "b".repeat(64)),
+                    "urn:vela:policy:none".to_string(),
+                )
+                .unwrap(),
+                &identity,
+            )
+            .unwrap()
+        };
+        let descriptor = || {
+            ArtifactInput::new(
+                relative.to_string(),
+                EXACT_FLOOR_ARTIFACT_KIND.to_string(),
+                Some(digest.clone()),
+                None,
+            )
+            .unwrap()
+        };
+        let receipt = build_receipt("exact", vec![descriptor()]);
+
+        assert!(exact_receipt_floor(tmp.path(), &receipt, claim).unwrap());
+        assert!(
+            !exact_receipt_floor(
+                tmp.path(),
+                &receipt,
+                "There exists a Sidon subset of {0,1}^3 with at least 5 elements."
+            )
+            .unwrap()
+        );
+        assert!(
+            !exact_receipt_floor(
+                tmp.path(),
+                &build_receipt("bounded", vec![descriptor()]),
+                claim
+            )
+            .unwrap()
+        );
+        assert!(
+            !exact_receipt_floor(
+                tmp.path(),
+                &build_receipt(
+                    "exact",
+                    vec![
+                        ArtifactInput::new(
+                            relative.to_string(),
+                            "search-log".to_string(),
+                            Some(digest.clone()),
+                            None,
+                        )
+                        .unwrap(),
+                    ],
+                ),
+                claim
+            )
+            .unwrap()
+        );
+        assert!(
+            exact_receipt_floor(
+                tmp.path(),
+                &build_receipt("exact", vec![descriptor(), descriptor()]),
+                claim
+            )
+            .unwrap_err()
+            .contains("exactly one")
+        );
+
+        std::fs::write(tmp.path().join(relative), b"{}\n").unwrap();
+        assert!(
+            exact_receipt_floor(tmp.path(), &receipt, claim)
+                .unwrap_err()
+                .contains("digest mismatch")
+        );
+
+        std::fs::remove_file(tmp.path().join(relative)).unwrap();
+        assert!(
+            exact_receipt_floor(tmp.path(), &receipt, claim)
+                .unwrap_err()
+                .contains("inspect exact-floor vela-witness")
+        );
+
+        let invalid = vela_verify::Witness::Sidon {
+            n: 3,
+            points: vec![vec![0, 0, 0], vec![1, 0, 0], vec![0, 1, 0], vec![1, 1, 0]],
+            claimed_size: Some(4),
+        };
+        let invalid_bytes = serde_json::to_vec(&invalid).unwrap();
+        std::fs::write(tmp.path().join(relative), &invalid_bytes).unwrap();
+        let invalid_receipt = build_receipt(
+            "exact",
+            vec![
+                ArtifactInput::new(
+                    relative.to_string(),
+                    EXACT_FLOOR_ARTIFACT_KIND.to_string(),
+                    Some(format!("{:x}", Sha256::digest(&invalid_bytes))),
+                    None,
+                )
+                .unwrap(),
+            ],
+        );
+        assert!(!exact_receipt_floor(tmp.path(), &invalid_receipt, claim).unwrap());
+    }
+
+    #[test]
+    fn policy_v0_2_raises_only_the_exact_native_witness_floor() {
+        use crate::receipt_v1::ExecutionBindingV1;
+
+        let tmp = TempDir::new().unwrap();
+        crate::frontier_repo::initialize(
+            tmp.path(),
+            crate::frontier_repo::InitOptions {
+                name: "exact-floor-test",
+                initialize_git: false,
+            },
+        )
+        .unwrap();
+        let relative = "artifacts/sidon.witness.json";
+        std::fs::create_dir_all(tmp.path().join("artifacts")).unwrap();
+        let claim = "There exists a Sidon subset of {0,1}^3 with at least 4 elements.";
+        let witness = vela_verify::Witness::Sidon {
+            n: 3,
+            points: vec![vec![0, 0, 0], vec![1, 0, 0], vec![0, 1, 0], vec![0, 0, 1]],
+            claimed_size: Some(4),
+        };
+        let bytes = serde_json::to_vec(&witness).unwrap();
+        std::fs::write(tmp.path().join(relative), &bytes).unwrap();
+        let binding = ExecutionBindingV1 {
+            schema: "vela.execution-binding.v1".to_string(),
+            packet_root: format!("sha256:{}", "1".repeat(64)),
+            profile_root: format!("sha256:{}", "2".repeat(64)),
+            verifier_capsule_root: format!("sha256:{}", "3".repeat(64)),
+            result_contract_root: format!("sha256:{}", "4".repeat(64)),
+        };
+        let producer_key = ed25519_dalek::SigningKey::from_bytes(&[0x37; 32]);
+        let identity = IdentityBinding::build(
+            IdentityBindingDraft {
+                actor_id: "agent:floor-test".to_string(),
+                actor_class: ActorClass::Agent,
+                created_at: "2026-07-02T00:00:00Z".to_string(),
+            },
+            &producer_key,
+        )
+        .unwrap();
+        let receipt = ReceiptBuilder::build(
+            ReceiptInput::new(
+                claim.to_string(),
+                "computational".to_string(),
+                "exact".to_string(),
+                vec![
+                    ArtifactInput::new(
+                        relative.to_string(),
+                        EXACT_FLOOR_ARTIFACT_KIND.to_string(),
+                        Some(format!("{:x}", Sha256::digest(&bytes))),
+                        None,
+                    )
+                    .unwrap(),
+                ],
+                vec!["No optimality claim.".to_string()],
+                Vec::new(),
+                "agent:floor-test".to_string(),
+                "2026-07-02T00:00:00Z".to_string(),
+                format!("sha256:{}", "a".repeat(64)),
+                ".".to_string(),
+                format!("vop_{}", "b".repeat(64)),
+                "urn:vela:policy:none".to_string(),
+            )
+            .unwrap()
+            .with_execution_binding(binding.clone())
+            .unwrap(),
+            &identity,
+        )
+        .unwrap();
+
+        let mut project = repo::load_from_path(tmp.path()).unwrap();
+        project.actors.push(crate::sign::ActorRecord {
+            id: "agent:floor-test".to_string(),
+            public_key: hex::encode(producer_key.verifying_key().to_bytes()),
+            algorithm: "ed25519".to_string(),
+            created_at: "2026-07-01T00:00:00Z".to_string(),
+            tier: None,
+            orcid: None,
+            access_clearance: None,
+            revoked_at: None,
+            revoked_reason: None,
+        });
+        let mut finding = crate::proposals::tests::finding("vf_exact_floor");
+        finding.assertion.text = claim.to_string();
+        finding.assertion.assertion_type = "computational".to_string();
+        let receipt_root = receipt.canonical_root().unwrap();
+        let proposal = new_proposal_at(
+            "finding.add",
+            crate::events::StateTarget {
+                r#type: "finding".to_string(),
+                id: finding.id.clone(),
+            },
+            "agent:floor-test",
+            "agent",
+            "exact native witness",
+            json!({
+                "finding": finding,
+                "vela_submission": {
+                    "schema": "vela.submission-links.internal.v1",
+                    "receipt_root": receipt_root,
+                }
+            }),
+            Vec::new(),
+            Vec::new(),
+            "2026-07-02T00:00:01Z",
+        );
+        let proposal_id = proposal.id.clone();
+        project.proposals.push(proposal);
+
+        let historical =
+            derive_submission_policy_context(&project, &proposal_id, &receipt, DECISION_AT)
+                .unwrap();
+        let v1 = derive_submission_policy_context_for_policy(
+            tmp.path(),
+            &project,
+            &proposal_id,
+            &receipt,
+            DECISION_AT,
+            crate::policy::acceptance_policy::ACCEPTANCE_POLICY_V0_1_SCHEMA,
+        )
+        .unwrap();
+        assert_eq!(v1, historical, "v0.1 context bytes must not change");
+        assert_eq!(v1.assurance_level, 0);
+        assert!(!v1.method_integrity_sound);
+
+        let v2 = derive_submission_policy_context_for_policy(
+            tmp.path(),
+            &project,
+            &proposal_id,
+            &receipt,
+            DECISION_AT,
+            ACCEPTANCE_POLICY_V0_2_SCHEMA,
+        )
+        .unwrap();
+        assert_eq!(v2.assurance_level, 2);
+        assert!(v2.method_integrity_sound);
+        assert!(v2.assertion_text_mutated);
+        assert_eq!(v2.execution_binding.as_ref(), Some(&binding));
+
+        let mut policy = AcceptancePolicy {
+            schema: ACCEPTANCE_POLICY_V0_2_SCHEMA.to_string(),
+            id: String::new(),
+            frontier_id: "frontier:test".to_string(),
+            epoch: 1,
+            issued_by: vec!["reviewer:test".to_string()],
+            quorum: Quorum {
+                threshold: 1,
+                eligible_roles: vec!["reviewer".to_string()],
+            },
+            rules: vec![PolicyRule {
+                id: "exact-native-witness".to_string(),
+                effect: Outcome::Permit,
+                claim_classes: vec!["receipt_computational".to_string()],
+                constraints: Constraints {
+                    max_changed_findings: 1,
+                    max_downstream_dependents: 0,
+                    required_assurance_min: 2,
+                    allow_semantic_text_change: true,
+                    allow_contested: false,
+                    allow_governance_mutation: false,
+                    require_independence: false,
+                    require_method_integrity: true,
+                    allowed_packet_roots: Some(vec![binding.packet_root.clone()]),
+                    allowed_profile_roots: Some(vec![binding.profile_root.clone()]),
+                    allowed_verifier_capsule_roots: Some(vec![
+                        binding.verifier_capsule_root.clone(),
+                    ]),
+                    allowed_result_contract_roots: Some(vec![binding.result_contract_root.clone()]),
+                    required_replayability: Some("exact".to_string()),
+                },
+            }],
+            default: Outcome::Defer,
+            expires_at: CAUSALLY_UNBOUNDED_POLICY_EXPIRY.to_string(),
+            revocation_ref: None,
+        };
+        policy.id = policy.content_address();
+        assert_eq!(evaluate(&policy, &v1, DECISION_AT).outcome, Outcome::Defer);
+        assert_eq!(evaluate(&policy, &v2, DECISION_AT).outcome, Outcome::Permit);
     }
 
     fn clone_project(project: &project::Project) -> project::Project {

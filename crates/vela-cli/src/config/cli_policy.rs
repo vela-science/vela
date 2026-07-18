@@ -1769,6 +1769,8 @@ fn evaluate_pending(
                 crate::review_material::frontier_receipt_for_proposal(frontier, p)
             });
             let ctx = crate::review_material::derive_existing_proposal_policy_context(
+                frontier,
+                Some(&policy.schema),
                 project,
                 &p.id,
                 receipt.as_ref(),

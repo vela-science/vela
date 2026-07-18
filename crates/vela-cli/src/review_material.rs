@@ -28,11 +28,23 @@ use vela_protocol::receipt_v1::ReceiptV1;
 /// projections agree with the landing derivation without letting a projection
 /// manufacture facts that were never retained.
 pub(crate) fn derive_existing_proposal_policy_context(
+    frontier_dir: Option<&Path>,
+    policy_schema: Option<&str>,
     project: &Project,
     proposal_id: &str,
     receipt: Option<&ReceiptV1>,
     decision_time: &str,
 ) -> PolicyContext {
+    if let (Some(frontier_dir), Some(policy_schema)) = (frontier_dir, policy_schema) {
+        return vela_protocol::proposals::policy_accept::derive_existing_proposal_policy_context_for_policy(
+            frontier_dir,
+            project,
+            proposal_id,
+            receipt,
+            decision_time,
+            policy_schema,
+        );
+    }
     vela_protocol::proposals::policy_accept::derive_existing_proposal_policy_context(
         project,
         proposal_id,
@@ -1492,6 +1504,8 @@ mod tests {
             .expect("typed retained receipt must load");
         let decision_time = "2026-07-13T01:00:00Z";
         let actual = derive_existing_proposal_policy_context(
+            None,
+            None,
             &project,
             &proposal.id,
             Some(&loaded),
@@ -1534,6 +1548,8 @@ mod tests {
         project.proposals.push(proposal.clone());
 
         let context = derive_existing_proposal_policy_context(
+            None,
+            None,
             &project,
             &proposal.id,
             Some(&receipt),
@@ -1618,6 +1634,8 @@ mod tests {
         project.proposals.push(proposal.clone());
 
         let context = derive_existing_proposal_policy_context(
+            None,
+            None,
             &project,
             &proposal.id,
             None,

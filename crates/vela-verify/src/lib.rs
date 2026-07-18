@@ -1734,6 +1734,44 @@ pub fn verify_sidon(points: &[Vec<i64>], n: usize) -> VerifyResult {
         return bad;
     }
     let m = points.len();
+    if n <= 32 {
+        let Some(pair_count) = m
+            .checked_add(1)
+            .and_then(|next| m.checked_mul(next))
+            .map(|value| value / 2)
+        else {
+            return VerifyResult::fail("pairwise-sum count overflows this platform");
+        };
+        let expanded = points
+            .iter()
+            .map(|point| {
+                point
+                    .iter()
+                    .enumerate()
+                    .fold(0_u64, |packed, (index, value)| {
+                        packed | ((*value as u64) << (2 * index))
+                    })
+            })
+            .collect::<Vec<_>>();
+        let mut sums = Vec::new();
+        if sums.try_reserve_exact(pair_count).is_err() {
+            return VerifyResult::fail("insufficient memory for pairwise-sum check");
+        }
+        for i in 0..m {
+            for j in i..m {
+                // Each coordinate occupies two bits and sums to at most two,
+                // so ordinary integer addition cannot carry between lanes.
+                sums.push(expanded[i] + expanded[j]);
+            }
+        }
+        sums.sort_unstable();
+        if sums.windows(2).any(|pair| pair[0] == pair[1]) {
+            return VerifyResult::fail("pairwise-sum collision (not Sidon)");
+        }
+        return VerifyResult::ok(format!(
+            "Sidon verified: {m} points, {pair_count} pairwise sums all distinct"
+        ));
+    }
     let mut sums: HashSet<Vec<i64>> = HashSet::new();
     let mut count = 0usize;
     for i in 0..m {
@@ -3632,6 +3670,17 @@ mod tests {
         let mut bad = small_sidon();
         bad.push(vec![1, 1, 0]);
         assert!(!verify_sidon(&bad, 3).ok, "corrupted Sidon must fail");
+    }
+
+    #[test]
+    fn packed_binary_sidon_path_matches_coordinate_semantics() {
+        let good = small_sidon();
+        let result = verify_sidon(&good, 3);
+        assert!(result.ok, "{}", result.message);
+        assert!(result.message.contains("10 pairwise sums"));
+
+        let collision = vec![vec![0, 0, 0], vec![1, 0, 0], vec![0, 1, 0], vec![1, 1, 0]];
+        assert!(!verify_sidon(&collision, 3).ok);
     }
 
     #[test]
