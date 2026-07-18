@@ -1,0 +1,87 @@
+# ADR 0012: Cross-platform public-beta distribution and protected policy administration
+
+- Status: Proposed
+- Target: Vela `v0.910.0`
+- Protocol effect: none
+
+## Context
+
+Vela `v0.901.0` proved protected one-proposal decisions on macOS and compiled
+the signer contracts on Linux and Windows. Its release assets are checksum
+addressed, but are not yet an adoption-grade distribution: they carry no SBOM
+or build attestation, macOS is not Developer-ID signed and notarized, Windows
+is not Authenticode signed, and the protected policy ceremony still teaches a
+legacy key path and `--yes` flow.
+
+Canopus and the site are deliberately removable. Moving Canopus into Vela's
+Rust workspace would obscure that boundary without improving replay. The
+composition problem is version pinning, not source ownership.
+
+The July 17–18 Science Frontier briefs reinforce the same product shape:
+canonical Git state, projected task context, executable plans, bounded patches,
+and explicit admission. They do not establish a need for an active context
+graph, temporal claim primitive, generic memory layer, or method registry.
+
+## Decision
+
+Vela 0.910 is a product and release-trust change with no event, reducer,
+Receipt, proposal, signature-algorithm, or accepted-state change.
+
+1. The parent publishes `vela.ecosystem-lock.v1`, explicitly labeled
+   non-protocol composition. It binds exact Vela, Canopus, site, and Codex
+   releases and artifacts. Canopus remains a separate repository and is not a
+   submodule.
+2. Release assets carry checksums, an SBOM, and GitHub build attestations.
+   macOS artifacts and the signer helper are Developer-ID signed and notarized.
+   Windows executables are Authenticode signed and RFC 3161 timestamped.
+3. First-party Unix and PowerShell installers verify the locked archive before
+   installation. They never inspect or edit a frontier.
+4. `doctor --all` and `id show` report installed binary/helper identity,
+   protected backend health, stale rebind state, and one recovery action, but
+   no custody bytes.
+5. Ordinary policy administration becomes the same two-phase protected flow
+   as `review decide`:
+
+   ```text
+   vela policy decide <frontier> --activate <vap_id> --reason <text>
+   vela policy decide <frontier> --rotate <vap_id> --reason <text>
+   vela policy decide <frontier> --revoke --reason <text>
+   ```
+
+   A preview is key-free and returns `vela.policy-decision.v1`. Confirmation
+   supplies only the exact plan root and observation time. Vela rederives the
+   policy, action, frontier roots, signer authority, binary pin, and transaction
+   read set before requesting one protected OS decision card. Cancellation or
+   authentication failure writes nothing. Legacy `policy sign` and `--key`
+   remain advanced replay/compatibility surfaces and are never consumed by
+   `policy decide`.
+
+The policy card names the action, policy ID and full root, frontier, expiry,
+rule summary, reason, and plan-root prefix. A bounded custody session may avoid
+re-entering a password; it never approves policy semantics. Every semantic
+policy action still receives its own exact card.
+
+## Compatibility and failure semantics
+
+- Existing identity v1/v2 records, policy v0.1 bytes, policy-head events, and
+  historical frontiers replay unchanged.
+- Missing signing credentials block the corresponding public-beta platform;
+  unsigned candidates must not be described as released public-beta assets.
+- Any binary/helper drift, root drift, stale policy, wrong actor, invalid
+  confirmation, or unavailable protected backend fails before custody access.
+- The ecosystem lock grants no authority and cannot override Vela replay or a
+  signed frontier policy.
+
+## Conformance
+
+- exact preview/confirmation binding for activate, rotate, and revoke;
+- cancellation and authentication failure produce zero writes;
+- wrong action, policy, reason, timestamp, binary, registry, or roots fail
+  before the helper request;
+- old policy events and identities replay unchanged;
+- archive checksum, SBOM, attestation, notarization, and Authenticode checks;
+- fresh install, upgrade, rebind, and uninstall on macOS Apple silicon,
+  Ubuntu 24.04 x86-64, and Windows 11 x86-64.
+
+ADR 0012 becomes Accepted only when the exact released artifacts and live
+platform ceremonies pass. Candidate code does not satisfy the release gate.

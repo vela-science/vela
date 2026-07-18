@@ -1,10 +1,18 @@
 param(
   [string]$Version = $env:VELA_VERSION,
-  [string]$InstallDir = $(if ($env:VELA_INSTALL_BINDIR) { $env:VELA_INSTALL_BINDIR } else { Join-Path $env:LOCALAPPDATA "Vela\bin" })
+  [string]$InstallDir = $(if ($env:VELA_INSTALL_BINDIR) { $env:VELA_INSTALL_BINDIR } else { Join-Path $env:LOCALAPPDATA "Vela\bin" }),
+  [ValidateSet("Install", "Upgrade", "Uninstall")][string]$Action = "Install"
 )
 
 $ErrorActionPreference = "Stop"
 $Repo = "vela-science/vela"
+if ($Action -eq "Uninstall") {
+  foreach ($Binary in @("vela.exe", "vela-signer.exe")) {
+    Remove-Item -Force -ErrorAction SilentlyContinue (Join-Path $InstallDir $Binary)
+  }
+  Write-Host "Removed Vela binaries. Frontier and identity data were preserved."
+  exit 0
+}
 if (-not [Environment]::Is64BitOperatingSystem) {
   throw "Vela publishes a Windows x86-64 bundle only."
 }
@@ -26,12 +34,21 @@ try {
   if ($Expected -ne $Observed) {
     throw "Checksum mismatch for $Asset; refusing installation."
   }
+  if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
+    throw "GitHub CLI is required to verify build provenance: https://cli.github.com/"
+  }
+  & gh attestation verify $Archive --repo $Repo --signer-workflow "$Repo/.github/workflows/release.yml" --source-ref "refs/tags/$Version" | Out-Null
+  if ($LASTEXITCODE -ne 0) { throw "GitHub build provenance verification failed for $Asset" }
   $Unpack = Join-Path $Temp "unpack"
   Expand-Archive $Archive -DestinationPath $Unpack
   New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
   foreach ($Binary in @("vela.exe", "vela-signer.exe")) {
     $Source = Join-Path $Unpack $Binary
     if (-not (Test-Path $Source -PathType Leaf)) { throw "$Binary is missing from $Asset" }
+    $Signature = Get-AuthenticodeSignature $Source
+    if ($Signature.Status -ne "Valid") {
+      throw "$Binary has an invalid Authenticode signature: $($Signature.Status)"
+    }
     Copy-Item -Force $Source (Join-Path $InstallDir $Binary)
   }
   $UserPath = [Environment]::GetEnvironmentVariable("Path", "User")

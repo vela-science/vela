@@ -73,6 +73,21 @@ pub(crate) struct ProtectedSignerProfile {
     pub(crate) helper_sha256: String,
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub(crate) struct SignerHealth {
+    pub(crate) state: &'static str,
+    pub(crate) platform: &'static str,
+    pub(crate) integration: &'static str,
+    pub(crate) integration_ready: bool,
+    pub(crate) binary_version: &'static str,
+    pub(crate) binary_path: String,
+    pub(crate) binary_sha256: Option<String>,
+    pub(crate) helper_path: Option<String>,
+    pub(crate) helper_sha256: Option<String>,
+    pub(crate) pinned_helper_sha256: Option<String>,
+    pub(crate) next_action: Option<String>,
+}
+
 fn default_version() -> String {
     "1.0".to_string()
 }
@@ -181,6 +196,113 @@ pub(crate) fn resolve_key_path(flag: Option<&Path>) -> Option<PathBuf> {
 pub(crate) fn protected_signer_profile() -> Result<ProtectedSignerProfile, String> {
     let identity = load_identity().ok_or_else(|| SETUP_HINT.to_string())?;
     protected_signer_profile_for(&identity)
+}
+
+pub(crate) fn signer_health(identity: &Identity) -> SignerHealth {
+    let platform = std::env::consts::OS;
+    let (integration, integration_ready, integration_repair) =
+        platform_signer_integration(platform);
+    let binary = std::env::current_exe().ok();
+    let binary_sha256 = binary
+        .as_deref()
+        .and_then(|path| vela_signer::contract::file_sha256(path).ok());
+    let helper = binary
+        .as_deref()
+        .and_then(|path| signer_helper_path(path).ok());
+    let helper_sha256 = helper
+        .as_deref()
+        .and_then(|path| vela_signer::contract::file_sha256(path).ok());
+    let (pinned_helper_sha256, incomplete) = match &identity.signer {
+        Some(IdentitySigner::Helper {
+            helper_sha256,
+            pending_source_removal,
+            pending_vela_binary_sha256,
+            ..
+        }) => (
+            Some(helper_sha256.clone()),
+            pending_source_removal.is_some() || pending_vela_binary_sha256.is_some(),
+        ),
+        _ => (None, false),
+    };
+    let protected = pinned_helper_sha256.is_some();
+    let (state, next_action) = if incomplete {
+        (
+            "incomplete",
+            Some(
+                "vela id protect --user-presence --remove-source-key --mode session --json"
+                    .to_string(),
+            ),
+        )
+    } else if protected && !integration_ready {
+        ("missing_integration", integration_repair)
+    } else if let Some(pinned) = pinned_helper_sha256.as_ref() {
+        if helper_sha256.as_ref() == Some(pinned) {
+            ("ready", None)
+        } else {
+            (
+                "stale",
+                Some(
+                    "vela id protect --user-presence --remove-source-key --mode session --json"
+                        .to_string(),
+                ),
+            )
+        }
+    } else {
+        (
+            "file_key",
+            (identity.actor_type == "human").then(|| {
+                "vela id protect --user-presence --remove-source-key --mode session --json"
+                    .to_string()
+            }),
+        )
+    };
+    SignerHealth {
+        state,
+        platform,
+        integration,
+        integration_ready,
+        binary_version: env!("CARGO_PKG_VERSION"),
+        binary_path: binary
+            .as_deref()
+            .map(|path| path.display().to_string())
+            .unwrap_or_else(|| "unavailable".to_string()),
+        binary_sha256,
+        helper_path: helper.map(|path| path.display().to_string()),
+        helper_sha256,
+        pinned_helper_sha256,
+        next_action,
+    }
+}
+
+fn platform_signer_integration(platform: &str) -> (&'static str, bool, Option<String>) {
+    match platform {
+        "macos" => ("Keychain + LocalAuthentication", true, None),
+        "windows" => ("Credential Manager + Windows Hello", true, None),
+        "linux" => {
+            let pkcheck = std::env::var_os("PATH").is_some_and(|path| {
+                std::env::split_paths(&path).any(|directory| directory.join("pkcheck").is_file())
+            });
+            let policy = [
+                "/usr/share/polkit-1/actions/science.vela.signer.policy",
+                "/usr/local/share/polkit-1/actions/science.vela.signer.policy",
+            ]
+            .iter()
+            .any(|path| Path::new(path).is_file());
+            (
+                "Secret Service + polkit",
+                pkcheck && policy,
+                (!(pkcheck && policy)).then(|| {
+                    "re-run the provenance-verified Vela installer to install pkcheck support and science.vela.signer.policy"
+                        .to_string()
+                }),
+            )
+        }
+        _ => (
+            "file-key compatibility only",
+            false,
+            Some("protected human signing is unsupported on this platform".to_string()),
+        ),
+    }
 }
 
 fn protected_signer_profile_for(identity: &Identity) -> Result<ProtectedSignerProfile, String> {
@@ -371,6 +493,14 @@ mod protected_profile_tests {
             *helper_sha256 = format!("sha256:{}", "A".repeat(64));
         }
         assert!(protected_signer_profile_for(&wrong_helper).is_err());
+    }
+
+    #[test]
+    fn unsupported_platform_never_claims_protected_signer_readiness() {
+        let (integration, ready, repair) = platform_signer_integration("unsupported-test-os");
+        assert_eq!(integration, "file-key compatibility only");
+        assert!(!ready);
+        assert!(repair.unwrap().contains("unsupported"));
     }
 
     #[test]

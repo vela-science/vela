@@ -70,13 +70,24 @@ pub enum PolicyAction {
         #[arg(long)]
         json: bool,
     },
+    /// Summarize recent deferred asks and the smallest policy template that
+    /// would cover them. This command is read-only and grants no authority.
+    Suggest {
+        frontier: Option<PathBuf>,
+        #[arg(long)]
+        json: bool,
+    },
     /// Seal a policy from a template (witness-rederivation,
     /// statement-drafts, notes-threshold). Sealed carries NO authority
     /// until `vela policy sign`.
     Draft {
-        /// Template name.
-        template: String,
-        frontier: Option<PathBuf>,
+        /// Template followed by an optional frontier, or only the frontier
+        /// with --from-suggest.
+        #[arg(num_args = 0..=2)]
+        operands: Vec<String>,
+        /// Seal the exact rules returned by `vela policy suggest`.
+        #[arg(long)]
+        from_suggest: bool,
         /// Replace an existing SIGNED active policy (deliberate act).
         #[arg(long)]
         replace: bool,
@@ -89,6 +100,40 @@ pub enum PolicyAction {
         #[arg(long)]
         json: bool,
     },
+    /// Evaluate one pending proposal against the current policy without
+    /// mutating the frontier. Intended for CI and diagnostic tooling.
+    EvaluateProposal {
+        /// Proposal id and optional frontier, in either order.
+        #[arg(num_args = 1..=2)]
+        operands: Vec<String>,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Prepare or execute one protected, exact policy-head decision. Without
+    /// --confirm-root/--confirm-at this command is key-free and read-only.
+    Decide {
+        frontier: Option<PathBuf>,
+        /// Activate the first signed policy head for this exact policy id.
+        #[arg(long, conflicts_with_all = ["rotate", "revoke"])]
+        activate: Option<String>,
+        /// Rotate the signed policy head to this exact policy id.
+        #[arg(long, conflicts_with_all = ["activate", "revoke"])]
+        rotate: Option<String>,
+        /// Revoke the current signed policy head.
+        #[arg(long, conflicts_with_all = ["activate", "rotate"])]
+        revoke: bool,
+        /// Human-readable rationale bound into the Decision Plan and event.
+        #[arg(long)]
+        reason: String,
+        /// Exact root returned by the key-free preview.
+        #[arg(long, requires = "confirm_at")]
+        confirm_root: Option<String>,
+        /// Exact observation time returned by the key-free preview.
+        #[arg(long, requires = "confirm_root")]
+        confirm_at: Option<String>,
+        #[arg(long)]
+        json: bool,
+    },
     /// THE ceremony: review the sealed policy, one confirm, one key
     /// read — standing policy authority is reassessed. Humans only.
     Sign {
@@ -98,6 +143,8 @@ pub enum PolicyAction {
         /// Skip the confirm prompt (the policy is still shown).
         #[arg(long)]
         yes: bool,
+        #[arg(long)]
+        json: bool,
     },
     /// Close the lane with one signed causal review; the active signature
     /// loses authority while snapshots retain past admissions.
@@ -110,6 +157,8 @@ pub enum PolicyAction {
         key: Option<PathBuf>,
         #[arg(long)]
         yes: bool,
+        #[arg(long)]
+        json: bool,
     },
     /// Prepare a pending human-governance proposal that retires an unused
     /// prelaunch policy byte pair which current policy parsing rejects. This

@@ -759,19 +759,39 @@ pub async fn run_command() {
                     json,
                 )
             }
+            PolicyAction::Suggest { frontier, json } => {
+                crate::ui::set_mode("policy", json);
+                crate::config::cli_policy::cmd_policy_suggest(
+                    &crate::ui::resolve_frontier(frontier),
+                    json,
+                )
+            }
             PolicyAction::Draft {
-                frontier,
-                template,
+                operands,
+                from_suggest,
                 replace,
                 json,
             } => {
                 crate::ui::set_mode("policy", json);
-                crate::config::cli_policy::cmd_policy_draft(
-                    &crate::ui::resolve_frontier(frontier),
-                    &template,
-                    replace,
-                    json,
-                )
+                if from_suggest {
+                    if operands.len() > 1 {
+                        crate::ui::fail_with(
+                            crate::ui::ErrorKind::Usage,
+                            "policy draft --from-suggest accepts only an optional frontier",
+                            Some("vela policy draft --from-suggest <frontier>"),
+                        );
+                    }
+                    let frontier = crate::ui::resolve_frontier(operands.first().map(PathBuf::from));
+                    crate::config::cli_policy::cmd_policy_draft_from_suggest(
+                        &frontier, replace, json,
+                    )
+                } else {
+                    let template = operands.first().cloned().unwrap_or_else(|| {
+                        fail_return("policy draft needs a template or --from-suggest")
+                    });
+                    let frontier = crate::ui::resolve_frontier(operands.get(1).map(PathBuf::from));
+                    crate::config::cli_policy::cmd_policy_draft(&frontier, &template, replace, json)
+                }
             }
             PolicyAction::Test { frontier, json } => {
                 crate::ui::set_mode("policy", json);
@@ -780,16 +800,81 @@ pub async fn run_command() {
                     json,
                 )
             }
-            // NB: `policy` is intercepted before clap (cli_policy.rs owns the
-            // live dispatch); these arms are shadowed. `json=false` keeps them
-            // type-checking without pretending to route JSON they never see.
-            PolicyAction::Sign { frontier, key, yes } => {
-                crate::ui::set_mode("policy", false);
+            PolicyAction::EvaluateProposal { operands, json } => {
+                crate::ui::set_mode("policy", json);
+                let proposal_id = operands
+                    .iter()
+                    .find(|value| value.starts_with("vpr_"))
+                    .cloned()
+                    .unwrap_or_else(|| {
+                        fail_return("policy evaluate-proposal needs one vpr_ proposal id")
+                    });
+                let frontier = operands
+                    .iter()
+                    .find(|value| !value.starts_with("vpr_"))
+                    .map(PathBuf::from);
+                crate::config::cli_policy::cmd_policy_evaluate_proposal(
+                    &crate::ui::resolve_frontier(frontier),
+                    &proposal_id,
+                    json,
+                )
+            }
+            PolicyAction::Decide {
+                frontier,
+                activate,
+                rotate,
+                revoke,
+                reason,
+                confirm_root,
+                confirm_at,
+                json,
+            } => {
+                crate::ui::set_mode("policy", json);
+                let action = match (activate, rotate, revoke) {
+                    (Some(policy_id), None, false) => {
+                        (vela_signer::PolicyDecisionAction::Activate, policy_id)
+                    }
+                    (None, Some(policy_id), false) => {
+                        (vela_signer::PolicyDecisionAction::Rotate, policy_id)
+                    }
+                    (None, None, true) => {
+                        (vela_signer::PolicyDecisionAction::Revoke, String::new())
+                    }
+                    _ => crate::ui::fail_with(
+                        crate::ui::ErrorKind::Usage,
+                        "policy decide requires exactly one of --activate, --rotate, or --revoke",
+                        Some("vela policy decide <frontier> --activate <vap_id> --reason <why>"),
+                    ),
+                };
+                crate::config::cli_policy::cmd_policy_decide(
+                    &crate::ui::resolve_frontier(frontier),
+                    action.0,
+                    &action.1,
+                    &reason,
+                    confirm_root.as_deref(),
+                    confirm_at.as_deref(),
+                    json,
+                )
+            }
+            PolicyAction::Sign {
+                frontier,
+                key,
+                yes,
+                json,
+            } => {
+                crate::ui::set_mode("policy", json);
+                if json && !yes {
+                    crate::ui::fail_with(
+                        crate::ui::ErrorKind::Usage,
+                        "policy sign --json requires --yes (JSON mode is non-interactive)",
+                        Some("vela policy sign <frontier> --yes --json"),
+                    );
+                }
                 crate::config::cli_policy::cmd_policy_sign(
                     &crate::ui::resolve_frontier(frontier),
                     key.as_deref(),
                     yes,
-                    false,
+                    json,
                 )
             }
             PolicyAction::Revoke {
@@ -797,14 +882,22 @@ pub async fn run_command() {
                 key,
                 reason,
                 yes,
+                json,
             } => {
-                crate::ui::set_mode("policy", false);
+                crate::ui::set_mode("policy", json);
+                if json && !yes {
+                    crate::ui::fail_with(
+                        crate::ui::ErrorKind::Usage,
+                        "policy revoke --json requires --yes (JSON mode is non-interactive)",
+                        Some("vela policy revoke <frontier> --reason <why> --yes --json"),
+                    );
+                }
                 crate::config::cli_policy::cmd_policy_revoke(
                     &crate::ui::resolve_frontier(frontier),
                     key.as_deref(),
                     &reason,
                     yes,
-                    false,
+                    json,
                 )
             }
             PolicyAction::RetireLegacy {
@@ -1017,10 +1110,6 @@ pub fn run_from_args() {
         }
         Some("-V" | "--version" | "version") => {
             println!("vela {}", env!("CARGO_PKG_VERSION"));
-            return;
-        }
-        Some("policy") => {
-            crate::cli_policy::run(&args);
             return;
         }
         Some("proof") if args.get(2).map(String::as_str) == Some("verify") => {

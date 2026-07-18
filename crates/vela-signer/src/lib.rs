@@ -6,6 +6,7 @@
 
 pub mod contract;
 pub mod helper;
+pub mod policy_contract;
 pub mod session;
 pub mod system;
 
@@ -15,5 +16,9 @@ pub use contract::{
     rebind_request_root, request_root, validate_rebind_request, validate_rebind_response,
     validate_request, validate_response,
 };
-pub use helper::{Approval, Custody, approve_and_sign, enroll, rebind};
+pub use helper::{Approval, Custody, approve_and_sign, approve_and_sign_policy, enroll, rebind};
+pub use policy_contract::{
+    POLICY_REQUEST_SCHEMA, POLICY_RESPONSE_SCHEMA, PolicyDecisionAction, PolicySignerRequest,
+    PolicySignerResponse, policy_request_root, validate_policy_request, validate_policy_response,
+};
 pub use session::{SessionRecord, SessionState};

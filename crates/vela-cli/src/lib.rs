@@ -23,7 +23,7 @@ mod tools;
 mod withdrawal;
 pub(crate) use tools::{cli_check, cli_proof};
 mod config;
-pub(crate) use config::{cli_admin, cli_agents, cli_identity, cli_policy};
+pub(crate) use config::{cli_admin, cli_agents, cli_identity};
 // The full durability seam intentionally lands before every legacy writer is
 // migrated, so some caller-facing pieces remain unused inside this slice.
 #[allow(dead_code)]

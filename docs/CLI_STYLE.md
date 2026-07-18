@@ -22,9 +22,11 @@ One module speaks for every porcelain verb. A dispatch arm calls
 ## `--json` universality
 
 Every porcelain verb takes `--json` and emits `{ok, command, …}`. No prose
-ever leaks into a `--json` stream. JSON mode is non-interactive: a verb
-that would prompt (`policy sign`, `policy revoke`) requires `--yes` under
-`--json`. Off-menu utilities (`completions`, `serve`, `init`, `doctor`) are
+ever leaks into a `--json` stream. JSON mode is non-interactive: a historical
+compatibility verb that would prompt (`policy sign`, `policy revoke`) requires
+`--yes` under `--json`. The ordinary `policy decide` preview is key-free;
+execution requires an exact root/time confirmation and a protected OS card,
+never `--yes`. Off-menu utilities (`completions`, `serve`, `init`, `doctor`) are
 the documented exceptions. Pinned by `every_visible_command_offers_json`.
 
 ## Color (`cli_style.rs`)

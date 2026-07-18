@@ -159,6 +159,23 @@ decision-card action authorizes the helper to use the protected key. The command
 path, `--yes`, batch, wildcard, or saved-session input. `vela sign` remains in
 advanced help for historical batch sessions and detached files.
 
+Policy administration uses the same exact-request flow:
+
+```bash
+vela policy decide . --activate <vap_id> --reason <text> --json
+vela policy decide . --rotate <vap_id> --reason <text> --json
+vela policy decide . --revoke --reason <text> --json
+```
+
+The first call returns a key-free `vela.policy-decision.v1` plan. A second call
+with its exact `--confirm-root` and `--confirm-at` rechecks Git and frontier
+identity, event and actor-registry roots, the full policy bytes, rule summary,
+reviewer authority, current policy head, binary pin, and transaction read set
+before showing one protected policy card. Cancellation writes no policy
+signature, event, journal commit marker, or Git commit. Historical `policy
+sign`, `policy revoke --key`, and `--yes` remain advanced compatibility paths;
+ordinary documentation does not teach them.
+
 A human identity moves its seed into the local OS credential store through the
 one-shot helper. Enrollment authenticates once before reading the source:
 

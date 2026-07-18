@@ -5,7 +5,7 @@ mod surface_tests {
     //! command rejected as "unknown or non-release") can never recur, and
     //! so the curated `help advanced` reference can never omit a command.
     use crate::cli::*;
-    use clap::CommandFactory;
+    use clap::{CommandFactory, Parser};
 
     /// Building the ~226-node clap tree needs more than a default test
     /// thread's 2 MiB stack (it is fine on the 8 MiB main thread, where the
@@ -68,8 +68,7 @@ mod surface_tests {
     /// (gh/clig.dev). The block is an `after_long_help` const in
     /// `cli/help_text.rs`; a new verb without one fails here. `policy` is
     /// intercepted before clap and carries its examples in the hand-rolled
-    /// usage string, but the clap arm still sets `after_long_help`, so it
-    /// passes the same check.
+    /// typed command tree and carries the same `after_long_help` contract.
     #[test]
     fn every_visible_command_has_examples() {
         on_big_stack(|| {
@@ -92,6 +91,77 @@ mod surface_tests {
                 missing.is_empty(),
                 "these visible commands lack an EXAMPLES block (add a const in \
                  cli/help_text.rs and wire `#[command(after_long_help = …)]`): {missing:?}"
+            );
+        });
+    }
+
+    #[test]
+    fn policy_has_one_typed_parser_for_every_released_verb() {
+        on_big_stack(|| {
+            for args in [
+                vec!["vela", "policy", "show", ".", "--json"],
+                vec!["vela", "policy", "suggest", ".", "--json"],
+                vec![
+                    "vela",
+                    "policy",
+                    "draft",
+                    "witness-rederivation",
+                    ".",
+                    "--json",
+                ],
+                vec!["vela", "policy", "draft", ".", "--from-suggest", "--json"],
+                vec!["vela", "policy", "test", ".", "--json"],
+                vec![
+                    "vela",
+                    "policy",
+                    "evaluate-proposal",
+                    ".",
+                    "vpr_example",
+                    "--json",
+                ],
+                vec![
+                    "vela",
+                    "policy",
+                    "decide",
+                    ".",
+                    "--activate",
+                    "vap_example",
+                    "--reason",
+                    "bounded rules",
+                    "--json",
+                ],
+                vec!["vela", "policy", "sign", ".", "--yes", "--json"],
+                vec![
+                    "vela", "policy", "revoke", ".", "--reason", "rotate", "--yes", "--json",
+                ],
+                vec![
+                    "vela",
+                    "policy",
+                    "retire-legacy",
+                    ".",
+                    "--reason",
+                    "retire",
+                    "--as",
+                    "agent:test",
+                    "--json",
+                ],
+                vec!["vela", "policy", "log", ".", "--json"],
+            ] {
+                Cli::try_parse_from(&args).unwrap_or_else(|error| {
+                    panic!("typed policy parse failed for {args:?}: {error}")
+                });
+            }
+            assert!(
+                Cli::try_parse_from([
+                    "vela",
+                    "policy",
+                    "draft",
+                    "witness-rederivation",
+                    ".",
+                    "unexpected-third-operand",
+                ])
+                .is_err(),
+                "draft must not accept more than its typed operand budget"
             );
         });
     }

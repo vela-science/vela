@@ -11,6 +11,10 @@ use crate::contract::{
     validate_rebind_fresh, validate_rebind_request, validate_request,
     validate_request_fresh_for_signing,
 };
+use crate::policy_contract::{
+    POLICY_RESPONSE_SCHEMA, PolicySignerRequest, PolicySignerResponse, policy_request_root,
+    validate_policy_request, validate_policy_request_fresh,
+};
 
 pub trait Approval {
     fn now(&self) -> chrono::DateTime<Utc>;
@@ -18,6 +22,22 @@ pub trait Approval {
     fn approve(&self, request: &SignerRequest) -> Result<bool, String>;
     fn record_session_use(&self, request: &SignerRequest, key: &SigningKey) -> Result<(), String>;
     fn reauthenticate(&self, request: &SignerRequest) -> Result<(), String>;
+    fn ensure_policy_session(&self, _request: &PolicySignerRequest) -> Result<(), String> {
+        Err("policy approval sessions are unsupported by this approval provider".to_string())
+    }
+    fn approve_policy(&self, _request: &PolicySignerRequest) -> Result<bool, String> {
+        Err("policy approval cards are unsupported by this approval provider".to_string())
+    }
+    fn record_policy_session_use(
+        &self,
+        _request: &PolicySignerRequest,
+        _key: &SigningKey,
+    ) -> Result<(), String> {
+        Err("policy approval sessions are unsupported by this approval provider".to_string())
+    }
+    fn reauthenticate_policy(&self, _request: &PolicySignerRequest) -> Result<(), String> {
+        Err("policy approvals are unsupported by this approval provider".to_string())
+    }
     fn reauthenticate_enrollment(&self, request: &EnrollmentRequest) -> Result<(), String>;
     fn reauthenticate_rebind(&self, request: &RebindRequest) -> Result<(), String>;
     fn record_enrollment_session(
@@ -265,6 +285,72 @@ pub fn approve_and_sign<A: Approval, C: Custody>(
         approved_at: approved_at.to_rfc3339_opts(chrono::SecondsFormat::Nanos, true),
         protection_mode: request.protection_mode,
         signatures,
+    })
+}
+
+pub fn approve_and_sign_policy<A: Approval, C: Custody>(
+    request: &PolicySignerRequest,
+    approval: &A,
+    custody: &C,
+    helper_path: &std::path::Path,
+    now: chrono::DateTime<Utc>,
+) -> Result<PolicySignerResponse, String> {
+    validate_policy_request(request, now)?;
+    let helper_sha256 = file_sha256(helper_path)?;
+    if helper_sha256 != request.helper_sha256 {
+        return Err("running helper digest does not match policy request".to_string());
+    }
+    if custody.provider() != request.provider {
+        return Err("requested policy custody provider does not match helper provider".to_string());
+    }
+    if !approval.approve_policy(request)? {
+        return Err("policy decision declined or cancelled".to_string());
+    }
+    match request.protection_mode {
+        ProtectionMode::Session => approval.ensure_policy_session(request)?,
+        ProtectionMode::Always => approval.reauthenticate_policy(request)?,
+    }
+    let approved_at = approval.now();
+    validate_policy_request_fresh(request, approved_at)?;
+
+    let mut seed = custody.load_seed(&request.reviewer_actor, &request.reviewer_public_key)?;
+    let key = SigningKey::from_bytes(&seed);
+    seed.zeroize();
+    let public_key = hex::encode(key.verifying_key().to_bytes());
+    if public_key != request.reviewer_public_key {
+        return Err("custody seed does not match the requested policy reviewer key".to_string());
+    }
+    let policy_signature = request
+        .action
+        .ne(&crate::policy_contract::PolicyDecisionAction::Revoke)
+        .then(|| {
+            vela_protocol::acceptance_policy::policy_signature_preimage(
+                &request.policy,
+                &request.observed_at,
+            )
+            .map(|bytes| hex::encode(key.sign(&bytes).to_bytes()))
+        })
+        .transpose()?;
+    let event_signature = vela_protocol::sign::sign_event(&request.event, &key)?;
+    if request.protection_mode == ProtectionMode::Session {
+        approval.record_policy_session_use(request, &key)?;
+    }
+    drop(key);
+
+    Ok(PolicySignerResponse {
+        schema: POLICY_RESPONSE_SCHEMA.to_string(),
+        request_root: policy_request_root(request)?,
+        reviewer_public_key: public_key,
+        helper_version: env!("CARGO_PKG_VERSION").to_string(),
+        helper_sha256,
+        provider: custody.provider().to_string(),
+        protection_grade: custody.protection_grade().to_string(),
+        provider_session: custody.provider_session()?,
+        approved_at: approved_at.to_rfc3339_opts(chrono::SecondsFormat::Nanos, true),
+        protection_mode: request.protection_mode,
+        policy_signature,
+        event_id: request.event.id.clone(),
+        event_signature,
     })
 }
 

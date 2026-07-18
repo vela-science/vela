@@ -61,6 +61,9 @@ fn fail(name: &'static str, detail: impl Into<String>, next: impl Into<String>) 
 pub(crate) fn run(frontier: Option<&Path>) -> Vec<SetupCheck> {
     let mut out = Vec::new();
     out.push(identity_check());
+    if let Some(identity) = super::cli_identity::load_identity() {
+        out.push(signer_check(&identity));
+    }
     out.push(pin_check());
     if let Some(dir) = frontier {
         out.push(policy_check(dir));
@@ -68,6 +71,37 @@ pub(crate) fn run(frontier: Option<&Path>) -> Vec<SetupCheck> {
     }
     out.push(registry_check());
     out
+}
+
+fn signer_check(identity: &super::cli_identity::Identity) -> SetupCheck {
+    let health = super::cli_identity::signer_health(identity);
+    let binary = health
+        .binary_sha256
+        .as_deref()
+        .map(|root| &root[..root.len().min(19)])
+        .unwrap_or("unavailable");
+    let detail = format!(
+        "vela {} {binary} · {} · {}",
+        health.binary_version, health.platform, health.integration
+    );
+    match health.state {
+        "ready" => ok("signer", format!("{detail} · protected helper ready")),
+        "file_key" => warn(
+            "signer",
+            format!("{detail} · plaintext file-key backend"),
+            health.next_action.unwrap_or_default(),
+        ),
+        "incomplete" | "stale" | "missing_integration" => fail(
+            "signer",
+            format!("{detail} · protected backend {}", health.state),
+            health.next_action.unwrap_or_default(),
+        ),
+        state => fail(
+            "signer",
+            format!("{detail} · unsupported backend state {state}"),
+            health.next_action.unwrap_or_default(),
+        ),
+    }
 }
 
 /// Identity + key custody: the file exists and is not world-readable.
@@ -248,13 +282,13 @@ fn policy_check(dir: &Path) -> SetupCheck {
                         | "policy_authority_invalid"
                 )
             }) {
-                "vela policy draft <template> --replace  (then one human `vela policy sign`)"
+                "vela policy draft <template> --replace, then preview `vela policy decide . --rotate <vap_id> --reason <why>`"
             } else if assessment
                 .reason_codes()
                 .iter()
                 .any(|code| code == "policy_unsigned")
             {
-                "vela policy sign ."
+                "preview `vela policy decide . --activate <vap_id> --reason <why>`"
             } else if assessment
                 .reason_codes()
                 .iter()

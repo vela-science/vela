@@ -17,7 +17,8 @@ Agents may:
 
 Agents may not:
 
-- run `sign` or a policy signing ceremony;
+- approve a protected review or policy card, run legacy `sign`, or handle a
+  human key (an agent may only prepare and invoke one exact protected request);
 - read, copy, or invoke a human key;
 - hand-edit accepted events or derived views; or
 - describe verification or Git publication as scientific acceptance.

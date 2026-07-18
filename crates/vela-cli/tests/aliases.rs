@@ -301,7 +301,7 @@ fn legacy_policy_retirement_is_prepare_only_json_porcelain() {
         "/tmp/never-read",
     ]);
     assert_eq!(keyed.status.code(), Some(2));
-    assert!(combined(&keyed).contains("prepare-only"));
+    assert!(combined(&keyed).contains("unexpected argument '--key'"));
 
     let bare_key = vela(&[
         "policy",
@@ -314,7 +314,7 @@ fn legacy_policy_retirement_is_prepare_only_json_porcelain() {
         "--key",
     ]);
     assert_eq!(bare_key.status.code(), Some(2));
-    assert!(combined(&bare_key).contains("prepare-only"));
+    assert!(combined(&bare_key).contains("unexpected argument '--key'"));
 }
 
 /// Sanity: a genuinely-unknown flag is rejected (so the checks above mean

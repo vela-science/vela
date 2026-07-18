@@ -524,7 +524,7 @@ pub fn validate_request(request: &SignerRequest, now: DateTime<Utc>) -> Result<(
     Ok(())
 }
 
-fn validate_display(display: &SignerDisplay) -> Result<(), String> {
+pub(crate) fn validate_display(display: &SignerDisplay) -> Result<(), String> {
     const MAX_FIELD_BYTES: usize = 512;
     const MAX_FACTS: usize = 4;
     if display.decisive_facts.is_empty() || display.decisive_facts.len() > MAX_FACTS {
@@ -544,6 +544,16 @@ fn validate_display(display: &SignerDisplay) -> Result<(), String> {
         validate_display_text("decisive_fact", fact, MAX_FIELD_BYTES)?;
     }
     Ok(())
+}
+
+pub(crate) fn validate_hex_signature(name: &str, value: &str) -> Result<Signature, String> {
+    let raw = value.strip_prefix("v1:").unwrap_or(value);
+    let bytes = hex::decode(raw).map_err(|error| format!("invalid {name} hex: {error}"))?;
+    Ok(Signature::from_bytes(
+        &bytes
+            .try_into()
+            .map_err(|_| format!("{name} must be 64 bytes"))?,
+    ))
 }
 
 fn validate_display_text(name: &str, value: &str, maximum: usize) -> Result<(), String> {

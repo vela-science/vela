@@ -185,15 +185,17 @@ pub const POLICY: &str = "\
 EXAMPLES
   vela policy draft lean-rederivation projects/formal-conjectures-lean
   vela policy test  projects/formal-conjectures-lean   dry-run, mutates nothing
-  vela policy sign  projects/formal-conjectures-lean   your key opens the lane
-  vela policy revoke --reason \"…\"                     close the lane
+  vela policy decide . --activate vap_… --reason \"bounded verifier lane\"
+                                                        key-free exact plan
+  vela policy decide . --revoke --reason \"close this lane\"
+                                                        key-free exact plan
   vela policy retire-legacy . --reason \"prelaunch bytes\" --as agent:cleanup --json
                                                         prepare only; keyless
 
-Signing a policy delegates a class of gated work; everything else defers
-to `vela sign`. `retire-legacy` is a narrow prelaunch recovery proposal and
-accepts neither --key nor --yes; its human decision still happens in `vela sign`.
-`--json` requires `--yes` only for signing/revoking ceremonies.";
+`policy decide` previews one root-bound action without reading a key; its exact
+confirmation requests one protected human card. Everything outside the signed
+policy still defers to human review. `policy sign` and key flags are advanced
+historical compatibility surfaces. `retire-legacy` remains prepare-only.";
 
 pub const AGENTS: &str = "\
 EXAMPLES

@@ -455,6 +455,7 @@ pub(crate) fn cmd_id(action: IdAction) {
                 }
                 return;
             };
+            let health = crate::cli_identity::signer_health(&identity);
             if json {
                 let signer = match &identity.signer {
                     Some(crate::cli_identity::IdentitySigner::Helper {
@@ -485,11 +486,25 @@ pub(crate) fn cmd_id(action: IdAction) {
                     "actor_type": identity.actor_type,
                     "pubkey": identity.pubkey,
                     "signer": signer,
+                    "release": {
+                        "version": health.binary_version,
+                        "binary_path": health.binary_path,
+                        "binary_sha256": health.binary_sha256,
+                    },
+                    "protected_backend": health,
                 }));
             } else {
                 println!("{}", style::ok("identity"));
                 println!("  actor:  {}", identity.actor_id);
                 println!("  pubkey: {}", identity.pubkey);
+                println!(
+                    "  binary: vela {} · {}",
+                    health.binary_version,
+                    health
+                        .binary_sha256
+                        .as_deref()
+                        .unwrap_or("digest unavailable")
+                );
                 match &identity.signer {
                     Some(crate::cli_identity::IdentitySigner::Helper {
                         provider,

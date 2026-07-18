@@ -1,8 +1,9 @@
 use std::io::Read;
 
 use crate::{
-    Approval, Custody, EnrollmentRequest, ProtectionMode, RebindRequest, SessionRecord,
-    SessionState, SignerRequest, approve_and_sign, enroll, rebind,
+    Approval, Custody, EnrollmentRequest, PolicySignerRequest, ProtectionMode, RebindRequest,
+    SessionRecord, SessionState, SignerRequest, approve_and_sign, approve_and_sign_policy, enroll,
+    rebind,
 };
 use clap::{Parser, Subcommand};
 use rfd::{MessageButtons, MessageDialog, MessageDialogResult, MessageLevel};
@@ -26,6 +27,8 @@ struct Cli {
 enum Command {
     /// Read one closed request from stdin, show one decision card, sign, exit.
     Approve,
+    /// Read one closed policy request from stdin, show one exact card, sign, exit.
+    ApprovePolicy,
     /// Read one closed enrollment request from stdin, install and verify custody.
     Enroll,
     /// Rebind an existing protected identity to this exact helper binary.
@@ -40,32 +43,18 @@ impl Approval for SystemApproval {
     }
 
     fn ensure_session(&self, request: &SignerRequest) -> Result<(), String> {
-        let now = chrono::Utc::now();
-        if load_session_record().is_some_and(|record| {
-            record.state(
-                &request.reviewer_actor,
-                &request.reviewer_public_key,
-                &request.provider,
-                protection_mode_name(request.protection_mode),
-                &request.helper_sha256,
-                now,
-            ) == SessionState::Active
-        }) {
-            return Ok(());
-        }
-        require_user_interaction("open a signer session")?;
-        platform_reauthenticate(&format!(
-            "Unlock Vela decisions for reviewer {}",
-            request.reviewer_actor
-        ))?;
-        save_session_record(&SessionRecord::new(
+        ensure_bound_session(
             &request.reviewer_actor,
             &request.reviewer_public_key,
             &request.provider,
-            protection_mode_name(request.protection_mode),
+            request.protection_mode,
             &request.helper_sha256,
-            chrono::Utc::now(),
-        ))
+            "open a signer session",
+            &format!(
+                "Unlock Vela decisions for reviewer {}",
+                request.reviewer_actor
+            ),
+        )
     }
 
     fn approve(&self, request: &SignerRequest) -> Result<bool, String> {
@@ -91,23 +80,14 @@ impl Approval for SystemApproval {
         request: &SignerRequest,
         key: &ed25519_dalek::SigningKey,
     ) -> Result<(), String> {
-        let mut record = load_session_record()
-            .ok_or_else(|| "signer session disappeared before completion".to_string())?;
-        let now = chrono::Utc::now();
-        record.touch(now)?;
-        record.sign(key)?;
-        if record.state(
+        record_bound_session_use(
             &request.reviewer_actor,
             &request.reviewer_public_key,
             &request.provider,
-            protection_mode_name(request.protection_mode),
+            request.protection_mode,
             &request.helper_sha256,
-            now,
-        ) != SessionState::Active
-        {
-            return Err("signer session binding changed before completion".to_string());
-        }
-        save_session_record(&record)
+            key,
+        )
     }
 
     fn reauthenticate(&self, request: &SignerRequest) -> Result<(), String> {
@@ -121,6 +101,61 @@ impl Approval for SystemApproval {
                 .chars()
                 .take(23)
                 .collect::<String>()
+        ))
+    }
+
+    fn ensure_policy_session(&self, request: &PolicySignerRequest) -> Result<(), String> {
+        ensure_bound_session(
+            &request.reviewer_actor,
+            &request.reviewer_public_key,
+            &request.provider,
+            request.protection_mode,
+            &request.helper_sha256,
+            "open a protected policy session",
+            &format!(
+                "Unlock Vela policy decisions for {}",
+                request.reviewer_actor
+            ),
+        )
+    }
+
+    fn approve_policy(&self, request: &PolicySignerRequest) -> Result<bool, String> {
+        require_user_interaction("show a policy decision card")?;
+        let card = policy_decision_card(request);
+        let result = MessageDialog::new()
+            .set_level(MessageLevel::Info)
+            .set_title(&card.title)
+            .set_description(&card.description)
+            .set_buttons(MessageButtons::OkCancelCustom(
+                "Cancel".to_string(),
+                card.action_label.clone(),
+            ))
+            .show();
+        Ok(card_approved(result, &card.action_label))
+    }
+
+    fn record_policy_session_use(
+        &self,
+        request: &PolicySignerRequest,
+        key: &ed25519_dalek::SigningKey,
+    ) -> Result<(), String> {
+        record_bound_session_use(
+            &request.reviewer_actor,
+            &request.reviewer_public_key,
+            &request.provider,
+            request.protection_mode,
+            &request.helper_sha256,
+            key,
+        )
+    }
+
+    fn reauthenticate_policy(&self, request: &PolicySignerRequest) -> Result<(), String> {
+        require_user_interaction("reauthenticate a protected policy decision")?;
+        platform_reauthenticate(&format!(
+            "{} policy {} at Decision Plan {}",
+            capitalize(request.action.as_str()),
+            request.selected_policy_id,
+            short_root(&request.decision_plan_root)
         ))
     }
 
@@ -174,23 +209,14 @@ impl Approval for SystemApproval {
         request: &EnrollmentRequest,
         key: &ed25519_dalek::SigningKey,
     ) -> Result<(), String> {
-        let mut record = load_session_record()
-            .ok_or_else(|| "signer enrollment session disappeared".to_string())?;
-        let now = chrono::Utc::now();
-        record.touch(now)?;
-        record.sign(key)?;
-        if record.state(
+        record_bound_session_use(
             &request.actor,
             &request.public_key,
             &request.provider,
-            protection_mode_name(request.protection_mode),
+            request.protection_mode,
             &request.helper_sha256,
-            now,
-        ) != SessionState::Active
-        {
-            return Err("signer enrollment session binding changed".to_string());
-        }
-        save_session_record(&record)
+            key,
+        )
     }
 
     fn record_rebind_session(
@@ -198,24 +224,76 @@ impl Approval for SystemApproval {
         request: &RebindRequest,
         key: &ed25519_dalek::SigningKey,
     ) -> Result<(), String> {
-        let mut record =
-            load_session_record().ok_or_else(|| "signer rebind session disappeared".to_string())?;
-        let now = chrono::Utc::now();
-        record.touch(now)?;
-        record.sign(key)?;
-        if record.state(
+        record_bound_session_use(
             &request.actor,
             &request.public_key,
             &request.provider,
-            protection_mode_name(request.protection_mode),
+            request.protection_mode,
             &request.helper_sha256,
-            now,
-        ) != SessionState::Active
-        {
-            return Err("signer rebind session binding changed".to_string());
-        }
-        save_session_record(&record)
+            key,
+        )
     }
+}
+
+fn ensure_bound_session(
+    actor: &str,
+    public_key: &str,
+    provider: &str,
+    mode: ProtectionMode,
+    helper_sha256: &str,
+    operation: &str,
+    prompt: &str,
+) -> Result<(), String> {
+    let now = chrono::Utc::now();
+    if load_session_record().is_some_and(|record| {
+        record.state(
+            actor,
+            public_key,
+            provider,
+            protection_mode_name(mode),
+            helper_sha256,
+            now,
+        ) == SessionState::Active
+    }) {
+        return Ok(());
+    }
+    require_user_interaction(operation)?;
+    platform_reauthenticate(prompt)?;
+    save_session_record(&SessionRecord::new(
+        actor,
+        public_key,
+        provider,
+        protection_mode_name(mode),
+        helper_sha256,
+        chrono::Utc::now(),
+    ))
+}
+
+fn record_bound_session_use(
+    actor: &str,
+    public_key: &str,
+    provider: &str,
+    mode: ProtectionMode,
+    helper_sha256: &str,
+    key: &ed25519_dalek::SigningKey,
+) -> Result<(), String> {
+    let mut record =
+        load_session_record().ok_or_else(|| "signer session disappeared".to_string())?;
+    let now = chrono::Utc::now();
+    record.touch(now)?;
+    record.sign(key)?;
+    if record.state(
+        actor,
+        public_key,
+        provider,
+        protection_mode_name(mode),
+        helper_sha256,
+        now,
+    ) != SessionState::Active
+    {
+        return Err("signer session binding changed before completion".to_string());
+    }
+    save_session_record(&record)
 }
 
 fn require_user_interaction(operation: &str) -> Result<(), String> {
@@ -269,6 +347,31 @@ fn decision_card(request: &SignerRequest) -> HumanCard {
             short_root(&request.decision_plan_root),
         ),
         action_label: action_label.to_string(),
+    }
+}
+
+fn policy_decision_card(request: &PolicySignerRequest) -> HumanCard {
+    let action = capitalize(request.action.as_str());
+    let facts = request
+        .display
+        .decisive_facts
+        .iter()
+        .map(|fact| format!("• {fact}"))
+        .collect::<Vec<_>>()
+        .join("\n");
+    HumanCard {
+        title: format!("{action} this policy?"),
+        description: format!(
+            "{}\n\nExact scope\n{}\n\nRationale\n{}\n\nWhat changes\n{}\n\nFrontier {}\nPolicy {} · Plan {}",
+            request.display.claim,
+            facts,
+            request.reason,
+            request.display.consequence,
+            request.display.frontier_name,
+            short_id(&request.selected_policy_id),
+            short_root(&request.decision_plan_root),
+        ),
+        action_label: format!("{action} policy"),
     }
 }
 
@@ -400,9 +503,32 @@ fn run() -> Result<(), String> {
     let cli = Cli::parse();
     match cli.command {
         Command::Approve => approve_once(),
+        Command::ApprovePolicy => approve_policy_once(),
         Command::Enroll => enroll_once(),
         Command::Rebind => rebind_once(),
     }
+}
+
+fn approve_policy_once() -> Result<(), String> {
+    let mut bytes = read_request_bytes()?;
+    let request: PolicySignerRequest = serde_json::from_slice(&bytes)
+        .map_err(|error| format!("parse closed policy signer request: {error}"))?;
+    bytes.zeroize();
+    let helper_path =
+        std::env::current_exe().map_err(|error| format!("resolve running helper path: {error}"))?;
+    let response = approve_and_sign_policy(
+        &request,
+        &SystemApproval,
+        &SystemCustody::new(request.protection_mode),
+        &helper_path,
+        chrono::Utc::now(),
+    )?;
+    println!(
+        "{}",
+        serde_json::to_string(&response)
+            .map_err(|error| format!("serialize policy signer response: {error}"))?
+    );
+    Ok(())
 }
 
 #[cfg(unix)]

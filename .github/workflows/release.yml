@@ -18,10 +18,14 @@ jobs:
           - runner: ubuntu-24.04
             asset: vela-linux-x86_64.tar.gz
           - runner: macos-15
-            asset: vela-macos-aarch64.tar.gz
+            asset: vela-macos-aarch64.zip
           - runner: windows-2025
             asset: vela-windows-x86_64.zip
     runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
     steps:
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
       - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable 2026-07-15
@@ -30,10 +34,73 @@ jobs:
         run: cargo test --locked -p vela-signer
       - name: Build release binaries
         run: cargo build --locked --release -p vela-cli --bins
+      - name: Require macOS public-beta signing credentials
+        if: runner.os == 'macOS'
+        shell: bash
+        env:
+          DEVELOPER_ID_P12: ${{ secrets.MACOS_DEVELOPER_ID_P12 }}
+          DEVELOPER_ID_P12_PASSWORD: ${{ secrets.MACOS_DEVELOPER_ID_P12_PASSWORD }}
+          SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        run: |
+          for name in DEVELOPER_ID_P12 DEVELOPER_ID_P12_PASSWORD SIGNING_IDENTITY APPLE_ID APPLE_TEAM_ID APPLE_APP_PASSWORD; do
+            test -n "${!name}" || { echo "missing required macOS release credential: $name" >&2; exit 1; }
+          done
+      - name: Developer-ID sign macOS binaries
+        if: runner.os == 'macOS'
+        shell: bash
+        env:
+          DEVELOPER_ID_P12: ${{ secrets.MACOS_DEVELOPER_ID_P12 }}
+          DEVELOPER_ID_P12_PASSWORD: ${{ secrets.MACOS_DEVELOPER_ID_P12_PASSWORD }}
+          SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
+        run: |
+          KEYCHAIN="$RUNNER_TEMP/vela-signing.keychain-db"
+          KEYCHAIN_PASSWORD="$(openssl rand -hex 32)"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          printf '%s' "$DEVELOPER_ID_P12" | base64 --decode > "$RUNNER_TEMP/developer-id.p12"
+          security import "$RUNNER_TEMP/developer-id.p12" -k "$KEYCHAIN" -P "$DEVELOPER_ID_P12_PASSWORD" -T /usr/bin/codesign
+          security list-keychains -d user -s "$KEYCHAIN"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          codesign --force --options runtime --timestamp --sign "$SIGNING_IDENTITY" target/release/vela target/release/vela-signer
+          codesign --verify --strict --verbose=2 target/release/vela target/release/vela-signer
+          rm -f "$RUNNER_TEMP/developer-id.p12"
+      - name: Require Windows public-beta signing credentials
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          AUTHENTICODE_PFX: ${{ secrets.WINDOWS_AUTHENTICODE_PFX }}
+          AUTHENTICODE_PFX_PASSWORD: ${{ secrets.WINDOWS_AUTHENTICODE_PFX_PASSWORD }}
+        run: |
+          if (-not $env:AUTHENTICODE_PFX -or -not $env:AUTHENTICODE_PFX_PASSWORD) {
+            throw "Windows public-beta release requires WINDOWS_AUTHENTICODE_PFX and WINDOWS_AUTHENTICODE_PFX_PASSWORD"
+          }
+      - name: Authenticode-sign and timestamp Windows binaries
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          AUTHENTICODE_PFX: ${{ secrets.WINDOWS_AUTHENTICODE_PFX }}
+          AUTHENTICODE_PFX_PASSWORD: ${{ secrets.WINDOWS_AUTHENTICODE_PFX_PASSWORD }}
+        run: |
+          $pfx = Join-Path $env:RUNNER_TEMP "vela-authenticode.pfx"
+          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:AUTHENTICODE_PFX))
+          $signtool = (Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin" -Recurse -Filter signtool.exe |
+            Where-Object FullName -Match '\\x64\\signtool.exe$' |
+            Sort-Object FullName -Descending |
+            Select-Object -First 1).FullName
+          if (-not $signtool) { throw "SignTool x64 not found" }
+          foreach ($binary in @("target/release/vela.exe", "target/release/vela-signer.exe")) {
+            & $signtool sign /f $pfx /p $env:AUTHENTICODE_PFX_PASSWORD /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 $binary
+            & $signtool verify /pa /v $binary
+          }
+          Remove-Item -Force $pfx
       - name: Check exact fixture-signature state
         if: runner.os == 'Linux'
         run: cargo test --locked -p vela-protocol --test fixture_manifest_signature
-      - name: Prepare Unix bundle and checksum
+      - name: Stage Unix bundle
         if: runner.os != 'Windows'
         env:
           ASSET: ${{ matrix.asset }}
@@ -44,22 +111,63 @@ jobs:
             mkdir -p stage/share/polkit-1/actions
             cp packaging/linux/science.vela.signer.policy stage/share/polkit-1/actions/
           fi
-          tar -C stage -czf "dist/$ASSET" .
-          (
-            cd dist
-            shasum -a 256 "$ASSET" > "$ASSET.sha256"
-          )
-      - name: Prepare Windows bundle and checksum
+      - name: Stage Windows bundle
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist, stage | Out-Null
+          Copy-Item target/release/vela.exe, target/release/vela-signer.exe stage/
+      - name: Generate SPDX SBOM
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
+        with:
+          path: stage
+          format: spdx-json
+          output-file: dist/${{ matrix.asset }}.spdx.json
+          upload-artifact: false
+          upload-release-assets: false
+      - name: Prepare Linux archive
+        if: runner.os == 'Linux'
+        env:
+          ASSET: ${{ matrix.asset }}
+        run: tar -C stage -czf "dist/$ASSET" .
+      - name: Prepare and notarize macOS archive
+        if: runner.os == 'macOS'
+        shell: bash
+        env:
+          ASSET: ${{ matrix.asset }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        run: |
+          ditto -c -k --norsrc stage/ "dist/$ASSET"
+          xcrun notarytool submit "dist/$ASSET" \
+            --apple-id "$APPLE_ID" \
+            --team-id "$APPLE_TEAM_ID" \
+            --password "$APPLE_APP_PASSWORD" \
+            --wait
+          spctl --assess --type execute --verbose=2 target/release/vela
+          spctl --assess --type execute --verbose=2 target/release/vela-signer
+      - name: Prepare Windows archive
         if: runner.os == 'Windows'
         shell: pwsh
         env:
           ASSET: ${{ matrix.asset }}
         run: |
-          New-Item -ItemType Directory -Force dist, stage | Out-Null
-          Copy-Item target/release/vela.exe, target/release/vela-signer.exe stage/
           Compress-Archive -Path stage/vela.exe, stage/vela-signer.exe -DestinationPath "dist/$env:ASSET"
-          $hash = (Get-FileHash -Algorithm SHA256 "dist/$env:ASSET").Hash.ToLowerInvariant()
-          "$hash  $env:ASSET" | Set-Content -NoNewline "dist/$env:ASSET.sha256"
+      - name: Write archive and SBOM checksums
+        shell: bash
+        env:
+          ASSET: ${{ matrix.asset }}
+        run: |
+          cd dist
+          shasum -a 256 "$ASSET" > "$ASSET.sha256"
+          shasum -a 256 "$ASSET.spdx.json" > "$ASSET.spdx.json.sha256"
+      - name: Attest archive and SBOM provenance
+        uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
+        with:
+          subject-path: |
+            dist/${{ matrix.asset }}
+            dist/${{ matrix.asset }}.spdx.json
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: ${{ matrix.asset }}
@@ -86,11 +194,13 @@ jobs:
         run: |
           for asset in \
             vela-linux-x86_64.tar.gz \
-            vela-macos-aarch64.tar.gz \
+            vela-macos-aarch64.zip \
             vela-windows-x86_64.zip
           do
             test -f "dist/$asset"
             test -f "dist/$asset.sha256"
+            test -f "dist/$asset.spdx.json"
+            test -f "dist/$asset.spdx.json.sha256"
           done
           release_flags=(
             --verify-tag

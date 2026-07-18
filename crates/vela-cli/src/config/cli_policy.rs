@@ -25,6 +25,7 @@ use std::path::{Path, PathBuf};
 
 use chrono::Utc;
 use ed25519_dalek::Signer;
+use serde::Serialize;
 use serde_json::json;
 use vela_protocol::acceptance_policy::{
     AcceptancePolicy, ActivePolicyMode, ActivePolicySnapshot, Constraints, EVALUATOR_VERSION,
@@ -1077,27 +1078,26 @@ fn hit_policy_ceremony_failpoint(value: u8) -> Result<(), CmdError> {
     Ok(())
 }
 
+struct PreparedPolicyHeadMutation {
+    candidate: Project,
+    proposal: StateProposal,
+    mutation: vela_protocol::proposals::PreparedDecisionMutation,
+}
+
+struct PolicyHeadAuthorization {
+    event_signature: String,
+    writes: Vec<crate::frontier_txn::PlannedWrite>,
+}
+
 #[allow(clippy::too_many_arguments)]
-fn commit_policy_head_transaction(
-    frontier: &Path,
-    barrier: crate::frontier_txn::FrontierRecoveryBarrier,
+fn prepare_policy_head_mutation(
     original: &Project,
     actor: &str,
-    key: &ed25519_dalek::SigningKey,
     reason: &str,
     fixed_at: &str,
     action: PolicyHeadAction,
     policy_id: Option<String>,
-    request_root: crate::frontier_txn::ContentDigest,
-    operation_id: crate::frontier_txn::OperationId,
-    extra_writes: Vec<crate::frontier_txn::PlannedWrite>,
-    read_set: Vec<crate::frontier_txn::InputBinding>,
-) -> Result<PolicyHead, CmdError> {
-    use crate::frontier_txn::{
-        ContentDigest, DeltaDraft, FrontierBinding, FrontierTxn, FrontierTxnPlan,
-        FrontierTxnPlanSpec, OperationKind, PlannedWrite,
-    };
-
+) -> Result<PreparedPolicyHeadMutation, CmdError> {
     let current = current_policy_head(original).map_err(transaction_error)?;
     let (epoch, prior_head_event_id) = match (action, current.as_ref()) {
         (PolicyHeadAction::Activate, None) => (1, None),
@@ -1156,7 +1156,7 @@ fn commit_policy_head_transaction(
         serde_json::to_value(PolicyHeadPayload {
             schema: POLICY_HEAD_SCHEMA.to_string(),
             action,
-            policy_id: policy_id.clone(),
+            policy_id,
             prior_head_event_id,
             expected_parent_event_log_root,
             parent_event_ids,
@@ -1171,17 +1171,72 @@ fn commit_policy_head_transaction(
     let mut candidate: Project =
         serde_json::from_value(serde_json::to_value(original).map_err(transaction_error)?)
             .map_err(transaction_error)?;
-    vela_protocol::proposals::insert_pending_in_frontier(&mut candidate, proposal)
+    vela_protocol::proposals::insert_pending_in_frontier(&mut candidate, proposal.clone())
         .map_err(transaction_error)?;
-    let head_event_id = vela_protocol::proposals::accept_policy_head_proposal_in_frontier_at(
+    let prepared = vela_protocol::proposals::prepare_proposal_accept_in_memory_at(
         &mut candidate,
         &proposal_id,
         actor,
         reason,
-        key,
+        None,
         fixed_at,
     )
     .map_err(transaction_error)?;
+    if prepared.appended_event_ids().len() != 1 {
+        return Err(transaction_error(
+            "policy-head preparation must append exactly one authority event",
+        ));
+    }
+    Ok(PreparedPolicyHeadMutation {
+        candidate,
+        proposal,
+        mutation: prepared,
+    })
+}
+
+#[allow(clippy::too_many_arguments)]
+fn commit_policy_head_transaction<S>(
+    frontier: &Path,
+    barrier: crate::frontier_txn::FrontierRecoveryBarrier,
+    original: &Project,
+    actor: &str,
+    sign_event: S,
+    reason: &str,
+    fixed_at: &str,
+    action: PolicyHeadAction,
+    policy_id: Option<String>,
+    request_root: crate::frontier_txn::ContentDigest,
+    operation_id: crate::frontier_txn::OperationId,
+    extra_writes: Vec<crate::frontier_txn::PlannedWrite>,
+    read_set: Vec<crate::frontier_txn::InputBinding>,
+) -> Result<PolicyHead, CmdError>
+where
+    S: FnOnce(
+        &StateProposal,
+        &vela_protocol::events::StateEvent,
+    ) -> Result<PolicyHeadAuthorization, CmdError>,
+{
+    use crate::frontier_txn::{
+        ContentDigest, DeltaDraft, FrontierBinding, FrontierTxn, FrontierTxnPlan,
+        FrontierTxnPlanSpec, OperationKind, PlannedWrite,
+    };
+
+    let prepared =
+        prepare_policy_head_mutation(original, actor, reason, fixed_at, action, policy_id.clone())?;
+    let mut candidate = prepared.candidate;
+    let head_event_id = prepared.mutation.decision_event_id().to_string();
+    let event = candidate
+        .events
+        .iter()
+        .find(|event| event.id == head_event_id)
+        .ok_or_else(|| transaction_error("prepared policy-head event disappeared"))?;
+    let authorization = sign_event(&prepared.proposal, event)?;
+    candidate
+        .events
+        .iter_mut()
+        .find(|event| event.id == head_event_id)
+        .expect("prepared policy-head event was just found")
+        .signature = Some(authorization.event_signature);
     vela_protocol::project::recompute_stats(&mut candidate);
     let head = current_policy_head(&candidate)
         .map_err(transaction_error)?
@@ -1197,6 +1252,7 @@ fn commit_policy_head_transaction(
     )
     .map_err(transaction_error)?;
     writes.extend(extra_writes);
+    writes.extend(authorization.writes);
     let draft = DeltaDraft::prepare(frontier, writes).map_err(transaction_error)?;
     let layout = vela_protocol::canonical::to_canonical_bytes(&json!({
         "schema": "vela.frontier-layout.internal.v1",
@@ -1416,7 +1472,13 @@ where
         barrier,
         &original,
         actor,
-        &key,
+        |_, event| {
+            Ok(PolicyHeadAuthorization {
+                event_signature: vela_protocol::sign::sign_event(event, &key)
+                    .map_err(transaction_error)?,
+                writes: Vec::new(),
+            })
+        },
         REASON,
         &signed_at,
         action,
@@ -1604,7 +1666,13 @@ where
         barrier,
         &original,
         actor,
-        &key,
+        |_, event| {
+            Ok(PolicyHeadAuthorization {
+                event_signature: vela_protocol::sign::sign_event(event, &key)
+                    .map_err(transaction_error)?,
+                writes: Vec::new(),
+            })
+        },
         reason,
         &revoked_at,
         PolicyHeadAction::Revoke,
@@ -2447,6 +2515,798 @@ pub(crate) fn cmd_policy_evaluate_proposal(frontier: &Path, proposal_id: &str, j
     }
 }
 
+const POLICY_DECISION_SCHEMA: &str = "vela.policy-decision.v1";
+const POLICY_DECISION_DOMAIN: &[u8] = b"vela.policy-decision.v1\0";
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub(crate) struct PolicyDecisionPlan {
+    schema: String,
+    frontier_id: String,
+    frontier_path: String,
+    git_commit: String,
+    git_tree: String,
+    action: vela_signer::PolicyDecisionAction,
+    selected_policy_id: String,
+    selected_policy_root: String,
+    policy_expires_at: String,
+    rule_summary: Vec<String>,
+    reviewer: String,
+    reviewer_public_key: String,
+    reason: String,
+    observed_at: String,
+    vela_binary_sha256: String,
+    event_log_root: String,
+    actor_registry_root: String,
+    current_policy_head_root: String,
+    proposal_id: String,
+    proposal_root: String,
+    authority_event_id: String,
+    authority_event_root: String,
+    decision_plan_root: String,
+}
+
+struct PreparedProtectedPolicyDecision {
+    plan: PolicyDecisionPlan,
+    policy: AcceptancePolicy,
+    proposal: StateProposal,
+    event: vela_protocol::events::StateEvent,
+}
+
+fn git_value(frontier: &Path, args: &[&str]) -> Result<String, CmdError> {
+    let output = std::process::Command::new("git")
+        .arg("-C")
+        .arg(frontier)
+        .args(args)
+        .output()
+        .map_err(transaction_error)?;
+    if !output.status.success() {
+        return Err(transaction_error(format!(
+            "git {} failed: {}",
+            args.join(" "),
+            String::from_utf8_lossy(&output.stderr).trim()
+        )));
+    }
+    Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
+}
+
+fn require_clean_policy_decision_checkout(frontier: &Path) -> Result<(), CmdError> {
+    let status = git_value(
+        frontier,
+        &["status", "--porcelain=v1", "--untracked-files=all"],
+    )?;
+    let unrelated = status
+        .lines()
+        .filter(|line| {
+            !line
+                .get(3..)
+                .is_some_and(|path| path.starts_with(".vela/operation-journals/"))
+        })
+        .collect::<Vec<_>>();
+    if !unrelated.is_empty() {
+        return Err(CmdError::hinted(
+            ErrorKind::Domain,
+            "protected policy decisions require a clean tracked frontier checkout",
+            "commit or remove unrelated work, then regenerate the Decision Plan",
+        ));
+    }
+    Ok(())
+}
+
+fn root_bytes(bytes: &[u8]) -> String {
+    use sha2::{Digest, Sha256};
+    format!("sha256:{}", hex::encode(Sha256::digest(bytes)))
+}
+
+fn root_canonical(value: &impl Serialize) -> Result<String, CmdError> {
+    vela_protocol::canonical::to_canonical_bytes(value)
+        .map(|bytes| root_bytes(&bytes))
+        .map_err(transaction_error)
+}
+
+fn policy_rule_summary(policy: &AcceptancePolicy) -> Vec<String> {
+    let mut rows = policy
+        .rules
+        .iter()
+        .map(|rule| {
+            format!(
+                "{}: {:?} {} (assurance >= {}, independence {}, method integrity {})",
+                rule.id,
+                rule.effect,
+                rule.claim_classes.join(","),
+                rule.constraints.required_assurance_min,
+                rule.constraints.require_independence,
+                rule.constraints.require_method_integrity,
+            )
+        })
+        .collect::<Vec<_>>();
+    rows.sort();
+    rows
+}
+
+fn policy_decision_plan_root(plan: &PolicyDecisionPlan) -> Result<String, CmdError> {
+    use sha2::{Digest, Sha256};
+    let mut value = serde_json::to_value(plan).map_err(transaction_error)?;
+    value
+        .as_object_mut()
+        .expect("PolicyDecisionPlan serializes as an object")
+        .remove("decision_plan_root");
+    let bytes = vela_protocol::canonical::to_canonical_bytes(&value).map_err(transaction_error)?;
+    let mut digest = Sha256::new();
+    digest.update(POLICY_DECISION_DOMAIN);
+    digest.update(bytes);
+    Ok(format!("sha256:{}", hex::encode(digest.finalize())))
+}
+
+fn build_protected_policy_decision(
+    frontier: &Path,
+    action: vela_signer::PolicyDecisionAction,
+    requested_policy_id: &str,
+    reviewer: &str,
+    reason: &str,
+    observed_at: &str,
+) -> Result<PreparedProtectedPolicyDecision, CmdError> {
+    if reason.trim().is_empty() {
+        return Err(CmdError::new(
+            ErrorKind::Usage,
+            "policy decision reason must not be empty",
+        ));
+    }
+    chrono::DateTime::parse_from_rfc3339(observed_at)
+        .map_err(|error| transaction_error(format!("policy decision time is invalid: {error}")))?;
+    require_clean_policy_decision_checkout(frontier)?;
+    let canonical_frontier = frontier.canonicalize().map_err(transaction_error)?;
+    let project = repo::load_from_path(frontier).map_err(transaction_error)?;
+    let actor = vela_protocol::proposals::validate_human_reviewer_authority_at(
+        &project,
+        reviewer,
+        observed_at,
+    )
+    .map_err(transaction_error)?;
+    let policy = read_sealed_active(frontier)?;
+    let current = current_policy_head(&project).map_err(transaction_error)?;
+    let selected_policy_id = match action {
+        vela_signer::PolicyDecisionAction::Activate => {
+            if current.is_some() {
+                return Err(CmdError::hinted(
+                    ErrorKind::Domain,
+                    "--activate requires an empty policy-head chain",
+                    "use --rotate for a frontier that already has a signed policy head",
+                ));
+            }
+            requested_policy_id.to_string()
+        }
+        vela_signer::PolicyDecisionAction::Rotate => {
+            let Some(head) = current.as_ref() else {
+                return Err(CmdError::hinted(
+                    ErrorKind::Domain,
+                    "--rotate requires an existing signed policy head",
+                    "use --activate for the first policy head",
+                ));
+            };
+            if head.action != PolicyHeadAction::Revoke
+                && head.policy_id.as_deref() == Some(requested_policy_id)
+            {
+                return Err(CmdError::new(
+                    ErrorKind::Exists,
+                    "policy rotation must select a different policy id",
+                ));
+            }
+            requested_policy_id.to_string()
+        }
+        vela_signer::PolicyDecisionAction::Revoke => {
+            let head = current.as_ref().ok_or_else(|| {
+                CmdError::new(ErrorKind::Domain, "--revoke requires an active policy head")
+            })?;
+            if head.action == PolicyHeadAction::Revoke {
+                return Err(CmdError::new(
+                    ErrorKind::Exists,
+                    "the current policy head is already revoked",
+                ));
+            }
+            head.policy_id.clone().ok_or_else(|| {
+                CmdError::new(ErrorKind::Domain, "the current policy head names no policy")
+            })?
+        }
+    };
+    if policy.id != selected_policy_id {
+        return Err(CmdError::hinted(
+            ErrorKind::Domain,
+            format!(
+                "selected policy {} does not match sealed active policy {}",
+                selected_policy_id, policy.id
+            ),
+            "inspect `vela policy show` and select the exact sealed policy id",
+        ));
+    }
+    let head_action = match action {
+        vela_signer::PolicyDecisionAction::Activate => PolicyHeadAction::Activate,
+        vela_signer::PolicyDecisionAction::Rotate => PolicyHeadAction::Rotate,
+        vela_signer::PolicyDecisionAction::Revoke => PolicyHeadAction::Revoke,
+    };
+    let head_policy_id = if action == vela_signer::PolicyDecisionAction::Revoke {
+        None
+    } else {
+        Some(policy.id.clone())
+    };
+    let prepared = prepare_policy_head_mutation(
+        &project,
+        reviewer,
+        reason,
+        observed_at,
+        head_action,
+        head_policy_id,
+    )?;
+    let event = prepared
+        .candidate
+        .events
+        .iter()
+        .find(|event| event.id == prepared.mutation.decision_event_id())
+        .cloned()
+        .ok_or_else(|| transaction_error("prepared policy authority event disappeared"))?;
+    let selected_policy_root = root_canonical(&policy)?;
+    let current_policy_head_root = root_canonical(&current.as_ref().map(|head| {
+        json!({
+            "event_id": head.event_id,
+            "policy_id": head.policy_id,
+            "epoch": head.epoch,
+            "action": head.action,
+            "reviewed_at": head.reviewed_at,
+            "parent_event_ids": head.parent_event_ids,
+        })
+    }))?;
+    let proposal_root = root_canonical(&prepared.proposal)?;
+    let authority_event_root = root_canonical(&event)?;
+    let actor_registry_root =
+        root_bytes(&std::fs::read(frontier.join(".vela/actors.json")).map_err(transaction_error)?);
+    let vela_binary = std::env::current_exe().map_err(transaction_error)?;
+    let mut plan = PolicyDecisionPlan {
+        schema: POLICY_DECISION_SCHEMA.to_string(),
+        frontier_id: project.frontier_id().to_string(),
+        frontier_path: canonical_frontier.display().to_string(),
+        git_commit: git_value(frontier, &["rev-parse", "HEAD^{commit}"])?,
+        git_tree: git_value(frontier, &["rev-parse", "HEAD^{tree}"])?,
+        action,
+        selected_policy_id,
+        selected_policy_root,
+        policy_expires_at: policy.expires_at.clone(),
+        rule_summary: policy_rule_summary(&policy),
+        reviewer: reviewer.to_string(),
+        reviewer_public_key: actor.public_key,
+        reason: reason.to_string(),
+        observed_at: observed_at.to_string(),
+        vela_binary_sha256: vela_signer::contract::file_sha256(&vela_binary)
+            .map_err(transaction_error)?,
+        event_log_root: format!(
+            "sha256:{}",
+            vela_protocol::events::event_log_hash(&project.events)
+        ),
+        actor_registry_root,
+        current_policy_head_root,
+        proposal_id: prepared.proposal.id.clone(),
+        proposal_root,
+        authority_event_id: event.id.clone(),
+        authority_event_root,
+        decision_plan_root: String::new(),
+    };
+    plan.decision_plan_root = policy_decision_plan_root(&plan)?;
+    Ok(PreparedProtectedPolicyDecision {
+        plan,
+        policy,
+        proposal: prepared.proposal,
+        event,
+    })
+}
+
+fn protected_policy_display(
+    prepared: &PreparedProtectedPolicyDecision,
+) -> vela_signer::SignerDisplay {
+    let plan = &prepared.plan;
+    let mut facts = plan
+        .rule_summary
+        .iter()
+        .take(2)
+        .cloned()
+        .collect::<Vec<_>>();
+    facts.push(format!("expires {}", plan.policy_expires_at));
+    facts.push(format!("event log {}", plan.event_log_root));
+    facts.truncate(4);
+    vela_signer::SignerDisplay {
+        frontier_name: plan.frontier_id.clone(),
+        claim: format!(
+            "{} policy {}",
+            plan.action.as_str(),
+            plan.selected_policy_id
+        ),
+        requester: plan.reviewer.clone(),
+        decisive_facts: facts,
+        consequence: match plan.action {
+            vela_signer::PolicyDecisionAction::Activate
+            | vela_signer::PolicyDecisionAction::Rotate => {
+                "Matching future receipts may enter the Permit lane; all other work still defers."
+                    .to_string()
+            }
+            vela_signer::PolicyDecisionAction::Revoke => {
+                "Future automatic Permit routing closes; historical admissions remain verifiable."
+                    .to_string()
+            }
+        },
+    }
+}
+
+fn request_protected_policy_signatures(
+    prepared: &PreparedProtectedPolicyDecision,
+    profile: &crate::cli_identity::ProtectedSignerProfile,
+) -> Result<vela_signer::PolicySignerResponse, CmdError> {
+    use rand::RngCore;
+    use std::io::Write;
+    use std::process::{Command, Stdio};
+
+    let vela_binary = std::env::current_exe().map_err(transaction_error)?;
+    let helper =
+        crate::cli_identity::signer_helper_path(&vela_binary).map_err(transaction_error)?;
+    let helper_sha256 = vela_signer::contract::file_sha256(&helper).map_err(transaction_error)?;
+    if helper_sha256 != profile.helper_sha256 {
+        return Err(CmdError::hinted(
+            ErrorKind::Custody,
+            "installed signer helper does not match the protected identity pin",
+            "run `vela id protect --user-presence --remove-source-key` to authorize this helper update",
+        ));
+    }
+    let mut nonce = [0_u8; 32];
+    rand::rngs::OsRng.fill_bytes(&mut nonce);
+    let now = Utc::now();
+    let request = vela_signer::PolicySignerRequest {
+        schema: vela_signer::POLICY_REQUEST_SCHEMA.to_string(),
+        nonce: hex::encode(nonce),
+        expires_at: (now + chrono::Duration::seconds(120))
+            .to_rfc3339_opts(chrono::SecondsFormat::Nanos, true),
+        vela_binary_path: vela_binary.display().to_string(),
+        vela_binary_sha256: prepared.plan.vela_binary_sha256.clone(),
+        helper_sha256,
+        frontier_id: prepared.plan.frontier_id.clone(),
+        frontier_path: prepared.plan.frontier_path.clone(),
+        action: prepared.plan.action,
+        selected_policy_id: prepared.plan.selected_policy_id.clone(),
+        selected_policy_root: prepared.plan.selected_policy_root.clone(),
+        reason: prepared.plan.reason.clone(),
+        reviewer_actor: prepared.plan.reviewer.clone(),
+        reviewer_public_key: prepared.plan.reviewer_public_key.clone(),
+        observed_at: prepared.plan.observed_at.clone(),
+        decision_plan_root: prepared.plan.decision_plan_root.clone(),
+        provider: profile.provider.clone(),
+        protection_grade: profile.protection_grade.clone(),
+        protection_mode: profile.mode,
+        display: protected_policy_display(prepared),
+        policy: prepared.policy.clone(),
+        proposal: prepared.proposal.clone(),
+        event: prepared.event.clone(),
+    };
+    vela_signer::validate_policy_request(&request, now).map_err(transaction_error)?;
+    let bytes = serde_json::to_vec(&request).map_err(transaction_error)?;
+    let mut child = Command::new(&helper)
+        .arg("approve-policy")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(transaction_error)?;
+    child
+        .stdin
+        .take()
+        .ok_or_else(|| transaction_error("signer helper stdin is unavailable"))?
+        .write_all(&bytes)
+        .map_err(transaction_error)?;
+    let output = child.wait_with_output().map_err(transaction_error)?;
+    if !output.status.success() {
+        return Err(CmdError::new(
+            ErrorKind::Custody,
+            format!(
+                "signer helper declined or failed: {}",
+                crate::cli::safe_text::inline(String::from_utf8_lossy(&output.stderr).trim())
+            ),
+        ));
+    }
+    let response: vela_signer::PolicySignerResponse =
+        serde_json::from_slice(&output.stdout).map_err(transaction_error)?;
+    vela_signer::validate_policy_response(&request, &response).map_err(transaction_error)?;
+    Ok(response)
+}
+
+fn protected_policy_operation(
+    plan: &PolicyDecisionPlan,
+) -> Result<
+    (
+        crate::frontier_txn::ContentDigest,
+        crate::frontier_txn::OperationId,
+    ),
+    CmdError,
+> {
+    let root = crate::frontier_txn::ContentDigest::parse(plan.decision_plan_root.clone())
+        .map_err(transaction_error)?;
+    let operation =
+        crate::frontier_txn::OperationId::derive("policy-head", root.as_str().as_bytes());
+    Ok((root, operation))
+}
+
+fn resume_confirmed_policy_decision(
+    frontier: &Path,
+    confirmed_root: &str,
+) -> Result<Option<PolicyHead>, CmdError> {
+    let request_root = crate::frontier_txn::ContentDigest::parse(confirmed_root.to_string())
+        .map_err(transaction_error)?;
+    let operation_id =
+        crate::frontier_txn::OperationId::derive("policy-head", request_root.as_str().as_bytes());
+    let journal_dir = policy_transaction_journal_dir(frontier)?;
+    resume_policy_ceremony(frontier, &journal_dir, &operation_id, &request_root)?
+        .map(|result| policy_head_from_transaction_result(frontier, &result))
+        .transpose()
+}
+
+fn execute_protected_policy_decision(
+    frontier: &Path,
+    confirmed: &PreparedProtectedPolicyDecision,
+    profile: &crate::cli_identity::ProtectedSignerProfile,
+) -> Result<PolicyHead, CmdError> {
+    execute_protected_policy_decision_with(frontier, confirmed, |locked| {
+        request_protected_policy_signatures(locked, profile)
+    })
+}
+
+fn execute_protected_policy_decision_with<S>(
+    frontier: &Path,
+    confirmed: &PreparedProtectedPolicyDecision,
+    authorize: S,
+) -> Result<PolicyHead, CmdError>
+where
+    S: FnOnce(
+        &PreparedProtectedPolicyDecision,
+    ) -> Result<vela_signer::PolicySignerResponse, CmdError>,
+{
+    use crate::frontier_txn::{FrontierTxn, InputBinding, PlannedWrite, RepoPath, WriteClass};
+
+    let journal_dir = policy_transaction_journal_dir(frontier)?;
+    let (request_root, operation_id) = protected_policy_operation(&confirmed.plan)?;
+    if let Some(result) =
+        resume_policy_ceremony(frontier, &journal_dir, &operation_id, &request_root)?
+    {
+        return policy_head_from_transaction_result(frontier, &result);
+    }
+    let barrier =
+        FrontierTxn::acquire_recovery_barrier(frontier, &journal_dir).map_err(transaction_error)?;
+    let locked = build_protected_policy_decision(
+        frontier,
+        confirmed.plan.action,
+        &confirmed.plan.selected_policy_id,
+        &confirmed.plan.reviewer,
+        &confirmed.plan.reason,
+        &confirmed.plan.observed_at,
+    )?;
+    if locked.plan != confirmed.plan {
+        return Err(CmdError::hinted(
+            ErrorKind::Domain,
+            format!(
+                "confirmed policy Decision Plan {} rederived as {}",
+                confirmed.plan.decision_plan_root, locked.plan.decision_plan_root
+            ),
+            "inspect the new key-free plan before approving anything",
+        ));
+    }
+    barrier
+        .verify_read_set(&[
+            InputBinding::existing_file(
+                frontier,
+                RepoPath::parse(".vela/policies/active.json").map_err(transaction_error)?,
+            )
+            .map_err(transaction_error)?,
+            InputBinding::existing_file(
+                frontier,
+                RepoPath::parse(".vela/actors.json").map_err(transaction_error)?,
+            )
+            .map_err(transaction_error)?,
+        ])
+        .map_err(transaction_error)?;
+
+    let action = match locked.plan.action {
+        vela_signer::PolicyDecisionAction::Activate => PolicyHeadAction::Activate,
+        vela_signer::PolicyDecisionAction::Rotate => PolicyHeadAction::Rotate,
+        vela_signer::PolicyDecisionAction::Revoke => PolicyHeadAction::Revoke,
+    };
+    let policy_id = (action != PolicyHeadAction::Revoke).then(|| locked.policy.id.clone());
+    let mut static_writes = Vec::new();
+    let mut read_set = vec![
+        InputBinding::existing_file(
+            frontier,
+            RepoPath::parse(".vela/policies/active.json").map_err(transaction_error)?,
+        )
+        .map_err(transaction_error)?,
+        InputBinding::existing_file(
+            frontier,
+            RepoPath::parse(".vela/actors.json").map_err(transaction_error)?,
+        )
+        .map_err(transaction_error)?,
+    ];
+    if action == PolicyHeadAction::Revoke {
+        let active_bytes = std::fs::read(active_path(frontier)).map_err(transaction_error)?;
+        let signature_bytes =
+            std::fs::read(active_sig_path(frontier)).map_err(transaction_error)?;
+        let marker = json!({
+            "schema": "vela.policy_revocation.v0.1",
+            "policy_id": locked.policy.id,
+            "revoked_at": locked.plan.observed_at,
+            "revoked_by": locked.plan.reviewer,
+            "reason": locked.plan.reason,
+        });
+        let mut marker_bytes = serde_json::to_vec_pretty(&marker).map_err(transaction_error)?;
+        marker_bytes.push(b'\n');
+        static_writes.extend([
+            PlannedWrite::write(
+                RepoPath::parse(format!(".vela/policies/{}.json", locked.policy.id))
+                    .map_err(transaction_error)?,
+                WriteClass::CanonicalEvidence,
+                active_bytes,
+            ),
+            PlannedWrite::write(
+                RepoPath::parse(format!(".vela/policies/{}.sig.json", locked.policy.id))
+                    .map_err(transaction_error)?,
+                WriteClass::Authority,
+                signature_bytes,
+            ),
+            PlannedWrite::delete(
+                RepoPath::parse(".vela/policies/active.sig.json").map_err(transaction_error)?,
+                WriteClass::Authority,
+            ),
+            PlannedWrite::write(
+                RepoPath::parse(format!(".vela/policies/revoked-{}.json", locked.policy.id))
+                    .map_err(transaction_error)?,
+                WriteClass::Authority,
+                marker_bytes,
+            ),
+        ]);
+        read_set.push(
+            InputBinding::existing_file(
+                frontier,
+                RepoPath::parse(".vela/policies/active.sig.json").map_err(transaction_error)?,
+            )
+            .map_err(transaction_error)?,
+        );
+    }
+
+    let original = repo::load_from_path(frontier).map_err(transaction_error)?;
+    let selected_policy = locked.policy.clone();
+    let locked_proposal_root = locked.plan.proposal_root.clone();
+    let locked_event_root = locked.plan.authority_event_root.clone();
+    let signed_at = locked.plan.observed_at.clone();
+    let signer_public_key = locked.plan.reviewer_public_key.clone();
+    let head = commit_policy_head_transaction(
+        frontier,
+        barrier,
+        &original,
+        &locked.plan.reviewer,
+        |proposal, event| {
+            if root_canonical(proposal)? != locked_proposal_root
+                || root_canonical(event)? != locked_event_root
+            {
+                return Err(transaction_error(
+                    "locked policy signing material drifted before helper approval",
+                ));
+            }
+            let response = authorize(&locked)?;
+            let mut writes = Vec::new();
+            if action != PolicyHeadAction::Revoke {
+                let policy_signature = response.policy_signature.ok_or_else(|| {
+                    transaction_error("protected helper omitted the policy envelope signature")
+                })?;
+                let record = PolicySignatureRecord {
+                    policy_id: selected_policy.id.clone(),
+                    signer_pubkey_hex: signer_public_key.clone(),
+                    signature: policy_signature,
+                    signed_at: signed_at.clone(),
+                };
+                let mut signature_bytes =
+                    serde_json::to_vec_pretty(&record).map_err(transaction_error)?;
+                signature_bytes.push(b'\n');
+                let active_bytes =
+                    std::fs::read(active_path(frontier)).map_err(transaction_error)?;
+                writes.extend([
+                    PlannedWrite::write(
+                        RepoPath::parse(".vela/policies/active.sig.json")
+                            .map_err(transaction_error)?,
+                        WriteClass::Authority,
+                        signature_bytes.clone(),
+                    ),
+                    PlannedWrite::write(
+                        RepoPath::parse(format!(".vela/policies/{}.json", selected_policy.id))
+                            .map_err(transaction_error)?,
+                        WriteClass::CanonicalEvidence,
+                        active_bytes,
+                    ),
+                    PlannedWrite::write(
+                        RepoPath::parse(format!(".vela/policies/{}.sig.json", selected_policy.id))
+                            .map_err(transaction_error)?,
+                        WriteClass::Authority,
+                        signature_bytes,
+                    ),
+                ]);
+            }
+            Ok(PolicyHeadAuthorization {
+                event_signature: response.event_signature,
+                writes,
+            })
+        },
+        &locked.plan.reason,
+        &locked.plan.observed_at,
+        action,
+        policy_id,
+        request_root,
+        operation_id,
+        static_writes,
+        read_set,
+    )?;
+    match action {
+        PolicyHeadAction::Activate | PolicyHeadAction::Rotate => {
+            let verified = load_active_policy(frontier)
+                .map_err(transaction_error)?
+                .ok_or_else(|| {
+                    transaction_error("protected policy decision did not open the lane")
+                })?;
+            if verified.policy.id != selected_policy.id {
+                return Err(transaction_error(
+                    "protected policy decision opened a different policy",
+                ));
+            }
+        }
+        PolicyHeadAction::Revoke => {
+            if load_active_policy(frontier)
+                .map_err(transaction_error)?
+                .is_some()
+            {
+                return Err(transaction_error(
+                    "protected revocation left an active policy signature",
+                ));
+            }
+        }
+    }
+    Ok(head)
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn cmd_policy_decide(
+    frontier: &Path,
+    action: vela_signer::PolicyDecisionAction,
+    requested_policy_id: &str,
+    reason: &str,
+    confirm_root: Option<&str>,
+    confirm_at: Option<&str>,
+    json: bool,
+) {
+    let reviewer = crate::cli_identity::resolve_decision_actor(None);
+    if let Some(confirmed_root) = confirm_root {
+        if let Some(head) = resume_confirmed_policy_decision(frontier, confirmed_root)
+            .unwrap_or_else(|error| error.fail())
+        {
+            if json {
+                print_json(&json!({
+                    "ok": true,
+                    "command": "policy.decide",
+                    "mode": "recovered",
+                    "action": action.as_str(),
+                    "policy_id": requested_policy_id,
+                    "decision_plan_root": confirmed_root,
+                    "policy_head_event_id": head.event_id,
+                    "policy_head_epoch": head.epoch,
+                }));
+            } else {
+                println!(
+                    "  {} {} · head {} · epoch {} (recovered)",
+                    style::ok(action.as_str()),
+                    requested_policy_id,
+                    head.event_id,
+                    head.epoch
+                );
+            }
+            return;
+        }
+    }
+    let observed_at = confirm_at
+        .map(ToString::to_string)
+        .unwrap_or_else(|| Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Nanos, true));
+    let prepared = build_protected_policy_decision(
+        frontier,
+        action,
+        requested_policy_id,
+        &reviewer,
+        reason,
+        &observed_at,
+    )
+    .unwrap_or_else(|error| error.fail());
+    if confirm_root.is_none() {
+        if json {
+            print_json(&json!({
+                "ok": true,
+                "command": "policy.decide",
+                "mode": "preview",
+                "plan": prepared.plan,
+                "confirm_root": prepared.plan.decision_plan_root,
+                "confirm_at": prepared.plan.observed_at,
+                "next": format!(
+                    "vela policy decide {} --{} {} --reason <same> --confirm-root {} --confirm-at {} --json",
+                    frontier.display(),
+                    action.as_str(),
+                    if action == vela_signer::PolicyDecisionAction::Revoke {
+                        String::new()
+                    } else {
+                        prepared.plan.selected_policy_id.clone()
+                    },
+                    prepared.plan.decision_plan_root,
+                    prepared.plan.observed_at,
+                ),
+            }));
+        } else {
+            ui::header(
+                "POLICY",
+                &prepared.plan.selected_policy_id,
+                Some("exact decision plan"),
+            );
+            println!("  action       {}", action.as_str());
+            println!("  frontier     {}", prepared.plan.frontier_id);
+            println!("  expiry       {}", prepared.plan.policy_expires_at);
+            for rule in &prepared.plan.rule_summary {
+                println!("  rule         {}", crate::cli::safe_text::inline(rule));
+            }
+            println!("  reason       {}", crate::cli::safe_text::inline(reason));
+            println!("  plan         {}", prepared.plan.decision_plan_root);
+            println!("  observed     {}", prepared.plan.observed_at);
+            println!();
+            println!(
+                "  Re-run with the exact --confirm-root and --confirm-at to request one protected approval."
+            );
+        }
+        return;
+    }
+    let confirmed_root = confirm_root.expect("checked above");
+    if confirmed_root != prepared.plan.decision_plan_root {
+        CmdError::hinted(
+            ErrorKind::Domain,
+            format!(
+                "confirmed policy Decision Plan {confirmed_root} rederived as {}",
+                prepared.plan.decision_plan_root
+            ),
+            "inspect the changed key-free plan; no protected approval was requested",
+        )
+        .fail();
+    }
+    crate::cli::sign_session::ceremony_binary_gate(false);
+    let profile = crate::cli_identity::protected_signer_profile().unwrap_or_else(|error| {
+        fail_with(
+            ErrorKind::Custody,
+            &error,
+            Some("run `vela id protect --user-presence --remove-source-key --mode session`"),
+        )
+    });
+    let head = execute_protected_policy_decision(frontier, &prepared, &profile)
+        .unwrap_or_else(|error| error.fail());
+    if json {
+        print_json(&json!({
+            "ok": true,
+            "command": "policy.decide",
+            "mode": "executed",
+            "action": action.as_str(),
+            "policy_id": prepared.plan.selected_policy_id,
+            "decision_plan_root": prepared.plan.decision_plan_root,
+            "policy_head_event_id": head.event_id,
+            "policy_head_epoch": head.epoch,
+        }));
+    } else {
+        println!(
+            "  {} {} · head {} · epoch {}",
+            style::ok(action.as_str()),
+            prepared.plan.selected_policy_id,
+            head.event_id,
+            head.epoch
+        );
+    }
+}
+
 /// `vela ci verdict --base <ref>` — the whole auto-merge decision in one verb, so
 /// a frontier's GitHub Action is ~15 lines. Discovers the proposals a PR adds
 /// (diffed against `<base>`), re-derives each one's exact-lane `machine_verified`
@@ -3017,176 +3877,6 @@ pub(crate) fn cmd_policy_log(frontier: &Path, json: bool) {
     }
 }
 
-// ── Transitional argv shim ─────────────────────────────────────────────
-
-/// TRANSITIONAL: the pre-clap `vela policy` intercept in
-/// `cli/mod.rs::run_from_args` still routes raw argv here. The clap surface
-/// (`Commands::Policy` → the typed `cmd_policy_*` functions above) is the
-/// real dispatch; once the lead deletes that intercept, delete this shim —
-/// it exists only so both paths speak the same verbs meanwhile.
-pub(crate) fn run(args: &[String]) {
-    let verb = args.get(2).map(String::as_str).unwrap_or("");
-    let json = args.iter().any(|a| a == "--json");
-    let replace = args.iter().any(|a| a == "--replace");
-    let from_suggest = args.iter().any(|a| a == "--from-suggest");
-    let yes = args.iter().any(|a| a == "--yes");
-    let value_of = |name: &str| -> Option<String> {
-        args.iter()
-            .position(|a| a == name)
-            .and_then(|i| args.get(i + 1))
-            .cloned()
-    };
-    let key = value_of("--key").map(PathBuf::from);
-    let reason = value_of("--reason");
-    let actor = value_of("--as");
-
-    // Positional operands after the verb, skipping flags and their values.
-    let mut positionals: Vec<String> = Vec::new();
-    let mut i = 3;
-    while i < args.len() {
-        let a = &args[i];
-        if a == "--key" || a == "--reason" || a == "--as" {
-            i += 2;
-            continue;
-        }
-        if a.starts_with('-') {
-            i += 1;
-            continue;
-        }
-        positionals.push(a.clone());
-        i += 1;
-    }
-
-    // `policy` is intercepted before clap, so its help is hand-rolled; fold
-    // in the same EXAMPLES block the clap verbs carry (Phase 1: both surfaces).
-    let usage = format!(
-        "usage: vela policy <show|suggest|draft <template>|test|evaluate-proposal <vpr_>|\
-                 sign|revoke --reason <why>|retire-legacy --reason <why> --as <actor>|log> \
-                 [frontier] [--json] [--replace] [--from-suggest] [--yes] [--key <path>]\n\n{}",
-        crate::cli::help_text::POLICY
-    );
-    match verb {
-        "evaluate-proposal" => {
-            ui::set_mode("policy", json);
-            // Operands are `<vpr_id>` and an optional frontier, order-free: the
-            // vpr_ token is the proposal, the other positional is the frontier.
-            let pid = positionals
-                .iter()
-                .find(|p| p.starts_with("vpr_"))
-                .cloned()
-                .unwrap_or_else(|| {
-                    fail_with(
-                        ErrorKind::Usage,
-                        "evaluate-proposal needs a proposal id (vpr_…)",
-                        Some("vela policy evaluate-proposal . vpr_… --json"),
-                    )
-                });
-            let dir = ui::resolve_frontier(
-                positionals
-                    .iter()
-                    .find(|p| !p.starts_with("vpr_"))
-                    .map(PathBuf::from),
-            );
-            cmd_policy_evaluate_proposal(&dir, &pid, json);
-        }
-        "suggest" => {
-            ui::set_mode("policy", json);
-            let dir = ui::resolve_frontier(positionals.first().map(PathBuf::from));
-            cmd_policy_suggest(&dir, json);
-        }
-        "retire-legacy" => {
-            ui::set_mode("policy", json);
-            let custody_flag_present = args
-                .iter()
-                .any(|arg| arg == "--key" || arg.starts_with("--key="));
-            if custody_flag_present || yes {
-                fail_with(
-                    ErrorKind::Usage,
-                    "retire-legacy is prepare-only and does not accept --key or --yes",
-                    Some(
-                        "prepare the proposal, then use the existing isolated `vela sign` ceremony",
-                    ),
-                );
-            }
-            let reason = reason.unwrap_or_else(|| {
-                fail_with(
-                    ErrorKind::Usage,
-                    "retire-legacy needs --reason <why>",
-                    Some(
-                        "vela policy retire-legacy . --reason \"retire unsupported prelaunch bytes\" --as agent:<you>",
-                    ),
-                )
-            });
-            let actor = actor.unwrap_or_else(|| {
-                fail_with(
-                    ErrorKind::Usage,
-                    "retire-legacy needs --as <stable actor>",
-                    Some(
-                        "vela policy retire-legacy . --reason \"retire unsupported prelaunch bytes\" --as agent:<you>",
-                    ),
-                )
-            });
-            let dir = ui::resolve_frontier(positionals.first().map(PathBuf::from));
-            crate::config::policy_legacy_retirement::cmd_policy_retire_legacy(
-                &dir, &reason, &actor, json,
-            );
-        }
-        "show" | "test" | "log" | "sign" | "revoke" => {
-            let interactive = matches!(verb, "sign" | "revoke");
-            ui::set_mode("policy", json);
-            // JSON is non-interactive (clig.dev): a signing/revoking verb
-            // under --json must carry --yes, or it would try to prompt into
-            // a stream that must stay pure.
-            if json && interactive && !yes {
-                fail_with(
-                    ErrorKind::Usage,
-                    &format!("policy {verb} --json requires --yes (JSON mode is non-interactive)"),
-                    Some(&format!("vela policy {verb} … --yes --json")),
-                );
-            }
-            let dir = ui::resolve_frontier(positionals.first().map(PathBuf::from));
-            match verb {
-                "show" => cmd_policy_show(&dir, json),
-                "test" => cmd_policy_test(&dir, json),
-                "log" => cmd_policy_log(&dir, json),
-                "sign" => cmd_policy_sign(&dir, key.as_deref(), yes, json),
-                "revoke" => {
-                    let reason = reason.unwrap_or_else(|| {
-                        fail_with(
-                            ErrorKind::Usage,
-                            "revoke needs --reason <why>",
-                            Some("vela policy revoke --reason \"rotating epochs\""),
-                        )
-                    });
-                    cmd_policy_revoke(&dir, key.as_deref(), &reason, yes, json);
-                }
-                _ => unreachable!(),
-            }
-        }
-        "draft" => {
-            ui::set_mode("policy", json);
-            if from_suggest {
-                let dir = ui::resolve_frontier(positionals.first().map(PathBuf::from));
-                cmd_policy_draft_from_suggest(&dir, replace, json);
-                return;
-            }
-            let template = positionals.first().cloned().unwrap_or_else(|| {
-                fail_with(
-                    ErrorKind::Usage,
-                    &format!("draft needs a template (templates: {TEMPLATES}) or --from-suggest"),
-                    Some("vela policy draft witness-rederivation"),
-                )
-            });
-            let dir = ui::resolve_frontier(positionals.get(1).map(PathBuf::from));
-            cmd_policy_draft(&dir, &template, replace, json);
-        }
-        _ => {
-            ui::set_mode("policy", json);
-            fail_with(ErrorKind::Usage, &usage, None);
-        }
-    }
-}
-
 // ── Tests ──────────────────────────────────────────────────────────────
 
 #[cfg(test)]
@@ -3256,6 +3946,47 @@ mod tests {
         repo::save_to_path(dir, &project).unwrap();
     }
 
+    fn commit_frontier(dir: &Path) {
+        let run = |args: &[&str]| {
+            let output = std::process::Command::new("git")
+                .arg("-C")
+                .arg(dir)
+                .args(args)
+                .output()
+                .unwrap();
+            assert!(
+                output.status.success(),
+                "git {} failed: {}",
+                args.join(" "),
+                String::from_utf8_lossy(&output.stderr)
+            );
+        };
+        run(&["init", "-b", "main"]);
+        run(&["config", "user.name", "Vela Test"]);
+        run(&["config", "user.email", "vela@example.invalid"]);
+        run(&["add", "."]);
+        run(&["commit", "-m", "fixture"]);
+    }
+
+    fn commit_frontier_changes(dir: &Path, message: &str) {
+        let run = |args: &[&str]| {
+            let output = std::process::Command::new("git")
+                .arg("-C")
+                .arg(dir)
+                .args(args)
+                .output()
+                .unwrap();
+            assert!(
+                output.status.success(),
+                "git {} failed: {}",
+                args.join(" "),
+                String::from_utf8_lossy(&output.stderr)
+            );
+        };
+        run(&["add", "."]);
+        run(&["commit", "-m", message]);
+    }
+
     fn transactionally_sign_policy(dir: &Path, policy_id: &str, signed_at: &str) -> PolicyHead {
         sign_active_policy_transactional(
             dir,
@@ -3271,6 +4002,316 @@ mod tests {
     const AT: &str = "2026-07-03T00:00:00Z";
 
     #[test]
+    fn protected_policy_plan_is_exact_stable_and_key_free() {
+        let tmp = TempDir::new().unwrap();
+        let dir = init_frontier(&tmp);
+        register_transaction_reviewer(&dir);
+        let (policy, _) = draft_policy(&dir, "witness-rederivation", false).unwrap();
+        commit_frontier(&dir);
+        let at = "2026-12-01T00:00:00Z";
+        let first = build_protected_policy_decision(
+            &dir,
+            vela_signer::PolicyDecisionAction::Activate,
+            &policy.id,
+            "reviewer:test",
+            "bounded exact verifier lane",
+            at,
+        )
+        .unwrap();
+        let second = build_protected_policy_decision(
+            &dir,
+            vela_signer::PolicyDecisionAction::Activate,
+            &policy.id,
+            "reviewer:test",
+            "bounded exact verifier lane",
+            at,
+        )
+        .unwrap();
+        assert_eq!(first.plan, second.plan);
+        assert!(first.event.signature.is_none());
+        assert!(first.plan.decision_plan_root.starts_with("sha256:"));
+        assert_eq!(
+            policy_decision_plan_root(&first.plan).unwrap(),
+            first.plan.decision_plan_root
+        );
+
+        let changed = build_protected_policy_decision(
+            &dir,
+            vela_signer::PolicyDecisionAction::Activate,
+            &policy.id,
+            "reviewer:test",
+            "different reason",
+            at,
+        )
+        .unwrap();
+        assert_ne!(
+            first.plan.decision_plan_root,
+            changed.plan.decision_plan_root
+        );
+        assert!(
+            build_protected_policy_decision(
+                &dir,
+                vela_signer::PolicyDecisionAction::Rotate,
+                &policy.id,
+                "reviewer:test",
+                "wrong lifecycle action",
+                at,
+            )
+            .is_err()
+        );
+    }
+
+    fn fake_policy_response(
+        prepared: &PreparedProtectedPolicyDecision,
+    ) -> vela_signer::PolicySignerResponse {
+        let key = throwaway_key();
+        let policy_signature = (prepared.plan.action != vela_signer::PolicyDecisionAction::Revoke)
+            .then(|| {
+                hex::encode(
+                    key.sign(
+                        &vela_protocol::acceptance_policy::policy_signature_preimage(
+                            &prepared.policy,
+                            &prepared.plan.observed_at,
+                        )
+                        .unwrap(),
+                    )
+                    .to_bytes(),
+                )
+            });
+        vela_signer::PolicySignerResponse {
+            schema: vela_signer::POLICY_RESPONSE_SCHEMA.to_string(),
+            request_root: prepared.plan.decision_plan_root.clone(),
+            reviewer_public_key: prepared.plan.reviewer_public_key.clone(),
+            helper_version: "test".to_string(),
+            helper_sha256: format!("sha256:{}", "1".repeat(64)),
+            provider: "test".to_string(),
+            protection_grade: "test".to_string(),
+            provider_session: "test".to_string(),
+            approved_at: prepared.plan.observed_at.clone(),
+            protection_mode: vela_signer::ProtectionMode::Session,
+            policy_signature,
+            event_id: prepared.event.id.clone(),
+            event_signature: vela_protocol::sign::sign_event(&prepared.event, &key).unwrap(),
+        }
+    }
+
+    #[test]
+    fn protected_policy_execution_uses_one_transaction_and_cancellation_writes_nothing() {
+        let tmp = TempDir::new().unwrap();
+        let dir = init_frontier(&tmp);
+        register_transaction_reviewer(&dir);
+        let (policy, _) = draft_policy(&dir, "witness-rederivation", false).unwrap();
+        commit_frontier(&dir);
+        let at = "2026-12-01T00:00:00Z";
+        let prepared = build_protected_policy_decision(
+            &dir,
+            vela_signer::PolicyDecisionAction::Activate,
+            &policy.id,
+            "reviewer:test",
+            "bounded exact verifier lane",
+            at,
+        )
+        .unwrap();
+        let original_event_root = prepared.plan.event_log_root.clone();
+        let original_signature = std::fs::read(active_sig_path(&dir)).ok();
+        let cancelled = execute_protected_policy_decision_with(&dir, &prepared, |_| {
+            Err(CmdError::new(ErrorKind::Custody, "cancelled"))
+        })
+        .unwrap_err();
+        assert_eq!(cancelled.kind, ErrorKind::Custody);
+        assert_eq!(
+            std::fs::read(active_sig_path(&dir)).ok(),
+            original_signature
+        );
+        assert_eq!(
+            format!(
+                "sha256:{}",
+                vela_protocol::events::event_log_hash(&repo::load_from_path(&dir).unwrap().events)
+            ),
+            original_event_root
+        );
+
+        let calls = std::cell::Cell::new(0_usize);
+        let head = execute_protected_policy_decision_with(&dir, &prepared, |locked| {
+            calls.set(calls.get() + 1);
+            Ok(fake_policy_response(locked))
+        })
+        .unwrap();
+        assert_eq!(calls.get(), 1);
+        assert_eq!(head.action, PolicyHeadAction::Activate);
+        assert_eq!(head.policy_id.as_deref(), Some(policy.id.as_str()));
+        let verified = load_active_policy(&dir).unwrap().unwrap();
+        assert_eq!(verified.policy.id, policy.id);
+        let project = repo::load_from_path(&dir).unwrap();
+        let event = project
+            .events
+            .iter()
+            .find(|event| event.id == head.event_id)
+            .unwrap();
+        assert!(
+            vela_protocol::sign::verify_event_signature(
+                event,
+                &hex::encode(throwaway_key().verifying_key().to_bytes()),
+            )
+            .unwrap()
+        );
+    }
+
+    #[test]
+    fn protected_policy_confirmation_recovers_without_reprompting_or_rebuilding_a_dirty_plan() {
+        let tmp = TempDir::new().unwrap();
+        let dir = init_frontier(&tmp);
+        register_transaction_reviewer(&dir);
+        let (policy, _) = draft_policy(&dir, "witness-rederivation", false).unwrap();
+        commit_frontier(&dir);
+        let prepared = build_protected_policy_decision(
+            &dir,
+            vela_signer::PolicyDecisionAction::Activate,
+            &policy.id,
+            "reviewer:test",
+            "recover the exact approved policy decision",
+            "2026-12-01T00:00:00Z",
+        )
+        .unwrap();
+
+        set_policy_ceremony_failpoint(1);
+        let interrupted = execute_protected_policy_decision_with(&dir, &prepared, |locked| {
+            Ok(fake_policy_response(locked))
+        })
+        .unwrap_err();
+        set_policy_ceremony_failpoint(0);
+        assert!(
+            interrupted
+                .message
+                .contains("injected policy ceremony failure")
+        );
+
+        let head =
+            resume_confirmed_policy_decision(&dir, prepared.plan.decision_plan_root.as_str())
+                .unwrap()
+                .expect("the exact confirmed journal must be recoverable");
+        assert_eq!(head.action, PolicyHeadAction::Activate);
+        assert_eq!(head.policy_id.as_deref(), Some(policy.id.as_str()));
+        assert!(load_active_policy(&dir).unwrap().is_some());
+        assert!(
+            resume_confirmed_policy_decision(&dir, prepared.plan.decision_plan_root.as_str(),)
+                .unwrap()
+                .is_some(),
+            "completed recovery is idempotent"
+        );
+    }
+
+    #[test]
+    fn protected_policy_rotation_and_revocation_share_the_exact_transaction_path() {
+        let tmp = TempDir::new().unwrap();
+        let dir = init_frontier(&tmp);
+        register_transaction_reviewer(&dir);
+        let (first_policy, _) = draft_policy(&dir, "witness-rederivation", false).unwrap();
+        commit_frontier(&dir);
+
+        let activate = build_protected_policy_decision(
+            &dir,
+            vela_signer::PolicyDecisionAction::Activate,
+            &first_policy.id,
+            "reviewer:test",
+            "activate the first exact lane",
+            "2026-12-01T00:00:00Z",
+        )
+        .unwrap();
+        execute_protected_policy_decision_with(&dir, &activate, |locked| {
+            Ok(fake_policy_response(locked))
+        })
+        .unwrap();
+        commit_frontier_changes(&dir, "activate policy");
+
+        let (second_policy, replaced) = draft_policy(&dir, "lean-rederivation", true).unwrap();
+        assert!(replaced);
+        commit_frontier_changes(&dir, "stage replacement policy");
+        let rotate = build_protected_policy_decision(
+            &dir,
+            vela_signer::PolicyDecisionAction::Rotate,
+            &second_policy.id,
+            "reviewer:test",
+            "rotate to a different exact verifier lane",
+            "2026-12-02T00:00:00Z",
+        )
+        .unwrap();
+        let rotated = execute_protected_policy_decision_with(&dir, &rotate, |locked| {
+            Ok(fake_policy_response(locked))
+        })
+        .unwrap();
+        assert_eq!(rotated.action, PolicyHeadAction::Rotate);
+        assert_eq!(
+            rotated.policy_id.as_deref(),
+            Some(second_policy.id.as_str())
+        );
+        commit_frontier_changes(&dir, "rotate policy");
+
+        let revoke = build_protected_policy_decision(
+            &dir,
+            vela_signer::PolicyDecisionAction::Revoke,
+            &second_policy.id,
+            "reviewer:test",
+            "close the automatic Permit lane",
+            "2026-12-03T00:00:00Z",
+        )
+        .unwrap();
+        let revoked = execute_protected_policy_decision_with(&dir, &revoke, |locked| {
+            Ok(fake_policy_response(locked))
+        })
+        .unwrap();
+        assert_eq!(revoked.action, PolicyHeadAction::Revoke);
+        assert_eq!(revoked.policy_id, None);
+        assert!(load_active_policy(&dir).unwrap().is_none());
+    }
+
+    #[test]
+    fn protected_policy_state_drift_fails_before_authorization() {
+        let tmp = TempDir::new().unwrap();
+        let dir = init_frontier(&tmp);
+        register_transaction_reviewer(&dir);
+        let (policy, _) = draft_policy(&dir, "witness-rederivation", false).unwrap();
+        commit_frontier(&dir);
+        let prepared = build_protected_policy_decision(
+            &dir,
+            vela_signer::PolicyDecisionAction::Activate,
+            &policy.id,
+            "reviewer:test",
+            "bind the exact actor registry",
+            "2026-12-01T00:00:00Z",
+        )
+        .unwrap();
+
+        let mut project = repo::load_from_path(&dir).unwrap();
+        project.actors.push(vela_protocol::sign::ActorRecord {
+            id: "agent:registry-drift".to_string(),
+            public_key: hex::encode(
+                SigningKey::from_bytes(&[8_u8; 32])
+                    .verifying_key()
+                    .to_bytes(),
+            ),
+            algorithm: "ed25519".to_string(),
+            created_at: "2026-12-01T00:00:01Z".to_string(),
+            tier: None,
+            orcid: None,
+            access_clearance: None,
+            revoked_at: None,
+            revoked_reason: None,
+        });
+        repo::save_to_path(&dir, &project).unwrap();
+        commit_frontier_changes(&dir, "change actor registry");
+
+        let calls = std::cell::Cell::new(0_usize);
+        let error = execute_protected_policy_decision_with(&dir, &prepared, |locked| {
+            calls.set(calls.get() + 1);
+            Ok(fake_policy_response(locked))
+        })
+        .unwrap_err();
+        assert_eq!(calls.get(), 0);
+        assert!(error.message.contains("rederived"));
+    }
+
+    #[test]
     fn draft_seals_a_content_addressed_policy() {
         let tmp = TempDir::new().unwrap();
         let dir = init_frontier(&tmp);
@@ -3280,7 +4321,6 @@ mod tests {
         assert!(policy.id_is_valid());
         assert_eq!(policy.epoch, 1);
         assert_eq!(policy.default, Outcome::Defer);
-        assert_eq!(policy.expires_at, CAUSALLY_UNBOUNDED_POLICY_EXPIRY);
         assert_eq!(policy.expires_at, CAUSALLY_UNBOUNDED_POLICY_EXPIRY);
         // The sealed file on disk re-derives its own id.
         let raw = std::fs::read_to_string(active_path(&dir)).unwrap();
