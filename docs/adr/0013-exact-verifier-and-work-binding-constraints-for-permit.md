@@ -108,16 +108,16 @@ Permit lane.
 ## Frozen live candidate
 
 The first real positive-only profile is `sidon-a24-improve` at Canopus commit
-`9c81e9752774d42ab80d118b7b33b99658e1ca91`. It binds:
+`7ab8236c89d6253a3adc09bc9ce535a3d6892b7c`. It binds:
 
 - Sidon commit `342061330a57676c911ca02b66a67954436c96db` and packet root
   `sha256:da2ecf8b213c3166ff258834a1b81f2a21f7c8d6074589098261fe4cf1e82df1`;
 - profile root
-  `sha256:29b1bc18cc04ad715bace77ab536f03ec46573bec3a5fbfcbeeb33aa285d4da6`;
+  `sha256:75ad68706fd74650b6d82c2820dc9aae78d20995e7d89b0045519383bbb4ed92`;
 - Linux arm64 capsule root
-  `sha256:7a75bef8c0cbe29e6385f5b9426e6f9a2ef65368142311843a3a9f16ac8bdf4f`;
+  `sha256:7641fdaf11a3ad0c4110ade53b7d905c1ce1dae5a16234ed0d4e8d1dc79f548c`;
 - Linux x86-64 capsule root
-  `sha256:afa5f28a617f3a9e879be5d1e94df59669cccd29a089c4b6a2350a3f914da75c`;
+  `sha256:799b6ba5afb372dd74abd7952b76640d19a2edca9fdd9c54aecb024de5e100cd`;
   and
 - positive result-contract root
   `sha256:092c30d5309701b6e2bd61c37b6c47f6a9abfcb768a326d06ba85aabf10dc6ca`.
@@ -127,7 +127,7 @@ The result contract fixes the exact claim to “There exists a Sidon subset of
 claim prose with those registered bytes only after the exact verifier passes.
 
 Canopus now emits one `vela-witness` JSON artifact and packages the generic
-`vela-verify` executable built from Vela commit `d8902d6a`. The prior
+`vela-verify` executable built from Vela commit `234cc34a`. The prior
 target-specific C++ verifier was removed after both Linux architectures passed
 claim-inflation and collision tests. Vela reopens the retained artifact,
 verifies its full Receipt digest, reruns the same pure verifier, and checks the
@@ -137,7 +137,7 @@ unchanged. Producer-reported Receipt `verifier_runs` rows remain provenance.
 
 The prior unsigned shadow policy named superseded profile and capsule roots
 and must not be activated. A disposable exact-head rehearsal derives the new
-candidate `vap_e37ad7410458f1b351c58b0e626aa317`; it remains unsigned and is not
+candidate `vap_7faf6c1c208c986d52e60f8bd766806c`; it remains unsigned and is not
 installed in the live frontier. The live candidate is regenerated only from
 the released Vela binary and the roots above. Protected activation remains
 gated on the focused release tests and exact Sidon no-land preflight; lowering
