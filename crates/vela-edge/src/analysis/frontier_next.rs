@@ -510,9 +510,10 @@ fn scientific_target_punctuation_is_balanced(target: &str) -> bool {
 }
 
 fn shell_target_argument(target: &str) -> String {
-    if target.bytes().all(|byte| {
-        byte.is_ascii_alphanumeric() || matches!(byte, b':' | b'.' | b'_' | b'-')
-    }) {
+    if target
+        .bytes()
+        .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b':' | b'.' | b'_' | b'-'))
+    {
         target.to_string()
     } else {
         // The external-target grammar never admits quotes. Scientific notation
@@ -539,12 +540,10 @@ pub fn validate_external_target_id(target: &str) -> Result<(), String> {
         || target
             .split(':')
             .any(|segment| segment.is_empty() || segment.starts_with('-'))
-        || !target
-            .bytes()
-            .all(|byte| {
-                byte.is_ascii_alphanumeric()
-                    || matches!(byte, b':' | b'.' | b'_' | b'-' | b'[' | b']' | b',')
-            })
+        || !target.bytes().all(|byte| {
+            byte.is_ascii_alphanumeric()
+                || matches!(byte, b':' | b'.' | b'_' | b'-' | b'[' | b']' | b',')
+        })
         || !scientific_target_punctuation_is_balanced(target)
     {
         return Err(

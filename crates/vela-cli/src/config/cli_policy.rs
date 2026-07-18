@@ -3158,32 +3158,31 @@ pub(crate) fn cmd_policy_decide(
     json: bool,
 ) {
     let reviewer = crate::cli_identity::resolve_decision_actor(None);
-    if let Some(confirmed_root) = confirm_root {
-        if let Some(head) = resume_confirmed_policy_decision(frontier, confirmed_root)
+    if let Some(confirmed_root) = confirm_root
+        && let Some(head) = resume_confirmed_policy_decision(frontier, confirmed_root)
             .unwrap_or_else(|error| error.fail())
-        {
-            if json {
-                print_json(&json!({
-                    "ok": true,
-                    "command": "policy.decide",
-                    "mode": "recovered",
-                    "action": action.as_str(),
-                    "policy_id": requested_policy_id,
-                    "decision_plan_root": confirmed_root,
-                    "policy_head_event_id": head.event_id,
-                    "policy_head_epoch": head.epoch,
-                }));
-            } else {
-                println!(
-                    "  {} {} · head {} · epoch {} (recovered)",
-                    style::ok(action.as_str()),
-                    requested_policy_id,
-                    head.event_id,
-                    head.epoch
-                );
-            }
-            return;
+    {
+        if json {
+            print_json(&json!({
+                "ok": true,
+                "command": "policy.decide",
+                "mode": "recovered",
+                "action": action.as_str(),
+                "policy_id": requested_policy_id,
+                "decision_plan_root": confirmed_root,
+                "policy_head_event_id": head.event_id,
+                "policy_head_epoch": head.epoch,
+            }));
+        } else {
+            println!(
+                "  {} {} · head {} · epoch {} (recovered)",
+                style::ok(action.as_str()),
+                requested_policy_id,
+                head.event_id,
+                head.epoch
+            );
         }
+        return;
     }
     let observed_at = confirm_at
         .map(ToString::to_string)

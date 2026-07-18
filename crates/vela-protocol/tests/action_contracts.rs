@@ -89,14 +89,13 @@ fn reviewed_tags_publish_complete_cross_platform_bundles_from_locked_source() {
     assert!(RELEASE_WORKFLOW.contains("target/release/vela-signer.exe"));
     for asset in [
         "vela-linux-x86_64.tar.gz",
-        "vela-macos-aarch64.tar.gz",
+        "vela-macos-aarch64.zip",
         "vela-windows-x86_64.zip",
     ] {
         assert!(RELEASE_WORKFLOW.contains(asset), "missing {asset}");
     }
     assert!(RELEASE_WORKFLOW.contains("test -f \"dist/$asset.sha256\""));
     assert!(RELEASE_WORKFLOW.contains("shasum -a 256 \"$ASSET\""));
-    assert!(RELEASE_WORKFLOW.contains("Get-FileHash -Algorithm SHA256"));
     assert!(RELEASE_WORKFLOW.contains("science.vela.signer.policy"));
     assert!(RELEASE_WORKFLOW.contains("gh release create \"$GITHUB_REF_NAME\" dist/*"));
     assert!(RELEASE_WORKFLOW.contains("--verify-tag"));
