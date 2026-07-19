@@ -47,6 +47,28 @@ fn assert_no_finalizing_commands(action: &Value) {
     }
 }
 
+fn root_action_release_pin() -> &'static str {
+    ROOT_ACTION
+        .lines()
+        .find_map(|line| {
+            let trimmed = line.trim();
+            trimmed
+                .strip_prefix('#')
+                .map(str::trim)
+                .unwrap_or(trimmed)
+                .strip_prefix("- uses: vela-science/vela@v")
+        })
+        .expect("root action must pin one exact Vela release")
+}
+
+fn is_stable_semver(version: &str) -> bool {
+    let fields = version.split('.').collect::<Vec<_>>();
+    fields.len() == 3
+        && fields
+            .iter()
+            .all(|field| !field.is_empty() && field.bytes().all(|byte| byte.is_ascii_digit()))
+}
+
 #[test]
 fn root_action_is_lock_pinned_strict_and_nonfinalizing() {
     let action = parse_action(ROOT_ACTION);
@@ -74,16 +96,27 @@ fn root_action_is_lock_pinned_strict_and_nonfinalizing() {
 
     assert!(!ROOT_ACTION.contains("constellate-science/vela"));
     assert!(!ROOT_ACTION.contains("/main/install.sh"));
-    assert!(ROOT_ACTION.contains(&format!(
-        "uses: vela-science/vela@v{}",
-        env!("CARGO_PKG_VERSION")
-    )));
+    let package_version = env!("CARGO_PKG_VERSION");
+    let action_version = root_action_release_pin();
+    if package_version.contains('-') {
+        assert!(
+            is_stable_semver(action_version),
+            "prerelease source must keep the root action on one stable release, got {action_version}"
+        );
+    } else {
+        assert_eq!(
+            action_version, package_version,
+            "final source and root action release must match"
+        );
+    }
     assert_no_finalizing_commands(&action);
 }
 
 #[test]
 fn reviewed_tags_publish_complete_cross_platform_bundles_from_locked_source() {
     assert!(RELEASE_WORKFLOW.contains("tags:\n      - \"v*.*.*\""));
+    assert!(RELEASE_WORKFLOW.contains("cargo pkgid --locked -p \"$1\""));
+    assert!(RELEASE_WORKFLOW.contains("test \"v$version\" = \"$GITHUB_REF_NAME\""));
     assert!(RELEASE_WORKFLOW.contains("cargo build --locked --release -p vela-cli --bins"));
     assert!(RELEASE_WORKFLOW.contains("target/release/vela-signer"));
     assert!(RELEASE_WORKFLOW.contains("target/release/vela-signer.exe"));
