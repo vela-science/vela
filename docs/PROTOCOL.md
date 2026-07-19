@@ -113,6 +113,10 @@ reject duplicate JSON names, malformed or stale whole-body bindings, unsafe
 paths, unsupported replayability values, invalid artifact references, and
 producer attempts to claim Vela-side authority.
 
+Vela uses several deliberately different commitment domains. The full
+[root and identifier taxonomy](ROOTS.md) defines which canonicalization
+profile and object each root binds, and the substitutions that must fail.
+
 Receipt v1 may carry the closed namespaced extension
 `environment["vela:execution_binding"]` with schema
 `vela.execution-binding.v1`. It contains only full SHA-256 roots for the exact

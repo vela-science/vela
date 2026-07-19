@@ -184,6 +184,7 @@ result classes, Git publication check, and offline path.
 - Repository: https://github.com/vela-science/vela
 - Releases: https://github.com/vela-science/vela/releases
 - Protocol: [docs/PROTOCOL.md](docs/PROTOCOL.md)
+- Roots and identifiers: [docs/ROOTS.md](docs/ROOTS.md)
 
 ## License
 
