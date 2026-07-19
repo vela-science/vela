@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.910.0-rc.1 — unreleased public-beta candidate
+
+- Give the unreleased public-beta train a distinct SemVer identity so candidate
+  binaries cannot be mistaken for the published `v0.901.0` artifacts.
+- Preserve all historical protocol bytes and released tags. This identifier is
+  provenance metadata only; it does not accept ADR 0012 or satisfy platform
+  signing, notarization, attestation, or fresh-install release gates.
+
 ## v0.901.0 — 2026-07-17 — Protected decisions and producer withdrawal
 
 - Replace ordinary batch signing with `vela review decide`: a key-free exact
