@@ -6,6 +6,8 @@ const WINDOWS_INSTALLER: &str = include_str!("../../../install.ps1");
 const RELEASE_WORKFLOW: &str = include_str!("../../../.github/workflows/release.yml");
 const CONFORMANCE_WORKFLOW: &str = include_str!("../../../.github/workflows/conformance.yml");
 const LEAN_WORKFLOW: &str = include_str!("../../../.github/workflows/lean.yml");
+const UNIX_RELEASE_SMOKE: &str = include_str!("../../../scripts/smoke-release-bundle.sh");
+const WINDOWS_RELEASE_SMOKE: &str = include_str!("../../../scripts/smoke-release-bundle.ps1");
 
 fn parse_action(source: &str) -> Value {
     serde_yaml::from_str(source).expect("action source must be valid YAML")
@@ -139,7 +141,10 @@ fn root_action_is_lock_pinned_strict_and_nonfinalizing() {
 
 #[test]
 fn reviewed_tags_publish_complete_cross_platform_bundles_from_locked_source() {
+    assert!(RELEASE_WORKFLOW.contains("workflow_dispatch:"));
     assert!(RELEASE_WORKFLOW.contains("tags:\n      - \"v*.*.*\""));
+    assert!(RELEASE_WORKFLOW.contains("manual release-candidate builds must use main"));
+    assert!(RELEASE_WORKFLOW.contains("manual release-candidate builds require a prerelease"));
     assert!(RELEASE_WORKFLOW.contains("cargo pkgid --locked -p \"$1\""));
     assert!(RELEASE_WORKFLOW.contains("test \"v$version\" = \"$GITHUB_REF_NAME\""));
     assert!(RELEASE_WORKFLOW.contains("cargo build --locked --release -p vela-cli --bins"));
@@ -156,6 +161,8 @@ fn reviewed_tags_publish_complete_cross_platform_bundles_from_locked_source() {
     assert!(RELEASE_WORKFLOW.contains("shasum -a 256 \"$ASSET\""));
     assert!(RELEASE_WORKFLOW.contains("science.vela.signer.policy"));
     assert!(RELEASE_WORKFLOW.contains("gh release create \"$GITHUB_REF_NAME\" dist/*"));
+    assert!(RELEASE_WORKFLOW.contains("needs: [build, smoke]"));
+    assert!(RELEASE_WORKFLOW.contains("if: github.event_name == 'push'"));
     assert!(RELEASE_WORKFLOW.contains("--verify-tag"));
     assert!(RELEASE_WORKFLOW.contains("permissions:\n  contents: read"));
     assert!(RELEASE_WORKFLOW.contains("permissions:\n      contents: write"));
@@ -172,6 +179,47 @@ fn reviewed_tags_publish_complete_cross_platform_bundles_from_locked_source() {
         );
     }
     assert!(!RELEASE_WORKFLOW.contains("vela sign"));
+}
+
+#[test]
+fn fresh_runner_smoke_precedes_publication_and_preserves_platform_checks() {
+    assert!(RELEASE_WORKFLOW.contains("name: smoke-${{ matrix.asset }}"));
+    assert!(RELEASE_WORKFLOW.contains("scripts/smoke-release-bundle.sh"));
+    assert!(RELEASE_WORKFLOW.contains("scripts/smoke-release-bundle.ps1"));
+    for asset in [
+        "vela-linux-x86_64.tar.gz",
+        "vela-macos-aarch64.zip",
+        "vela-windows-x86_64.zip",
+    ] {
+        assert!(
+            RELEASE_WORKFLOW.contains(asset),
+            "smoke matrix is missing {asset}"
+        );
+    }
+    for token in [
+        "shasum -a 256 -c",
+        "vela-signer $EXPECTED_VERSION",
+        "codesign --verify --strict",
+        "spctl --assess --type execute",
+        "install -m 0755",
+    ] {
+        assert!(
+            UNIX_RELEASE_SMOKE.contains(token),
+            "Unix smoke is missing {token}"
+        );
+    }
+    for token in [
+        "Get-FileHash -Algorithm SHA256",
+        "Get-AuthenticodeSignature",
+        "vela-signer $ExpectedVersion",
+        "Copy-Item -Force",
+        "Remove-Item -Force",
+    ] {
+        assert!(
+            WINDOWS_RELEASE_SMOKE.contains(token),
+            "Windows smoke is missing {token}"
+        );
+    }
 }
 
 #[test]

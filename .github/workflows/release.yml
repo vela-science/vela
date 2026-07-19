@@ -1,6 +1,7 @@
 name: release
 
 on:
+  workflow_dispatch:
   push:
     tags:
       - "v*.*.*"
@@ -9,7 +10,41 @@ permissions:
   contents: read
 
 jobs:
+  metadata:
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - name: Bind the candidate or release identity
+        id: version
+        shell: bash
+        run: |
+          version="$(python3 - <<'PY'
+          import tomllib
+          with open("Cargo.toml", "rb") as source:
+              print(tomllib.load(source)["workspace"]["package"]["version"])
+          PY
+          )"
+          if [ "$GITHUB_EVENT_NAME" = "push" ]; then
+            test "v$version" = "$GITHUB_REF_NAME" || {
+              echo "release tag $GITHUB_REF_NAME does not match Vela workspace version v$version" >&2
+              exit 1
+            }
+          else
+            test "$GITHUB_REF" = "refs/heads/main" || {
+              echo "manual release-candidate builds must use main" >&2
+              exit 1
+            }
+            case "$version" in
+              *-*) ;;
+              *) echo "manual release-candidate builds require a prerelease workspace version" >&2; exit 1 ;;
+            esac
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
   build:
+    needs: metadata
     name: build-${{ matrix.asset }}
     strategy:
       fail-fast: true
@@ -29,8 +64,10 @@ jobs:
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable 2026-07-19
-      - name: Require the tag to match every Vela workspace package
+      - name: Require every Vela workspace package to match the bound version
         shell: bash
+        env:
+          EXPECTED_VERSION: ${{ needs.metadata.outputs.version }}
         run: |
           package_version() {
             local package_id
@@ -38,6 +75,10 @@ jobs:
             printf '%s' "${package_id##*@}"
           }
           version="$(package_version vela-cli)"
+          test "$version" = "$EXPECTED_VERSION" || {
+            echo "Vela workspace version $version does not match bound version $EXPECTED_VERSION" >&2
+            exit 1
+          }
           for package in vela-edge vela-hub vela-protocol vela-protocol-core vela-signer vela-verify; do
             observed="$(package_version "$package")"
             test "$observed" = "$version" || {
@@ -45,17 +86,13 @@ jobs:
               exit 1
             }
           done
-          test "v$version" = "$GITHUB_REF_NAME" || {
-            echo "release tag $GITHUB_REF_NAME does not match Vela workspace version v$version" >&2
-            exit 1
-          }
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
       - name: Test signer contracts and platform profile
         run: cargo test --locked -p vela-signer
       - name: Build release binaries
         run: cargo build --locked --release -p vela-cli --bins
       - name: Require macOS public-beta signing credentials
-        if: runner.os == 'macOS'
+        if: runner.os == 'macOS' && github.event_name == 'push'
         shell: bash
         env:
           DEVELOPER_ID_P12: ${{ secrets.MACOS_DEVELOPER_ID_P12 }}
@@ -69,7 +106,7 @@ jobs:
             test -n "${!name}" || { echo "missing required macOS release credential: $name" >&2; exit 1; }
           done
       - name: Developer-ID sign macOS binaries
-        if: runner.os == 'macOS'
+        if: runner.os == 'macOS' && github.event_name == 'push'
         shell: bash
         env:
           DEVELOPER_ID_P12: ${{ secrets.MACOS_DEVELOPER_ID_P12 }}
@@ -89,7 +126,7 @@ jobs:
           codesign --verify --strict --verbose=2 target/release/vela target/release/vela-signer
           rm -f "$RUNNER_TEMP/developer-id.p12"
       - name: Require Windows public-beta signing credentials
-        if: runner.os == 'Windows'
+        if: runner.os == 'Windows' && github.event_name == 'push'
         shell: pwsh
         env:
           AUTHENTICODE_PFX: ${{ secrets.WINDOWS_AUTHENTICODE_PFX }}
@@ -99,7 +136,7 @@ jobs:
             throw "Windows public-beta release requires WINDOWS_AUTHENTICODE_PFX and WINDOWS_AUTHENTICODE_PFX_PASSWORD"
           }
       - name: Authenticode-sign and timestamp Windows binaries
-        if: runner.os == 'Windows'
+        if: runner.os == 'Windows' && github.event_name == 'push'
         shell: pwsh
         env:
           AUTHENTICODE_PFX: ${{ secrets.WINDOWS_AUTHENTICODE_PFX }}
@@ -150,8 +187,14 @@ jobs:
         env:
           ASSET: ${{ matrix.asset }}
         run: tar -C stage -czf "dist/$ASSET" .
-      - name: Prepare and notarize macOS archive
+      - name: Prepare macOS archive
         if: runner.os == 'macOS'
+        shell: bash
+        env:
+          ASSET: ${{ matrix.asset }}
+        run: ditto -c -k --norsrc stage/ "dist/$ASSET"
+      - name: Notarize macOS archive
+        if: runner.os == 'macOS' && github.event_name == 'push'
         shell: bash
         env:
           ASSET: ${{ matrix.asset }}
@@ -159,7 +202,6 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
         run: |
-          ditto -c -k --norsrc stage/ "dist/$ASSET"
           xcrun notarytool submit "dist/$ASSET" \
             --apple-id "$APPLE_ID" \
             --team-id "$APPLE_TEAM_ID" \
@@ -194,8 +236,46 @@ jobs:
           path: dist/*
           if-no-files-found: error
 
+  smoke:
+    needs: [metadata, build]
+    name: smoke-${{ matrix.asset }}
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            asset: vela-linux-x86_64.tar.gz
+          - runner: macos-15
+            asset: vela-macos-aarch64.zip
+          - runner: windows-2025
+            asset: vela-windows-x86_64.zip
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: ${{ matrix.asset }}
+          path: dist
+      - name: Smoke exact Unix bundle in a fresh prefix
+        if: runner.os != 'Windows'
+        shell: bash
+        env:
+          ASSET: ${{ matrix.asset }}
+          EXPECTED_VERSION: ${{ needs.metadata.outputs.version }}
+          REQUIRE_PLATFORM_SIGNATURE: ${{ github.event_name == 'push' && runner.os == 'macOS' }}
+        run: scripts/smoke-release-bundle.sh "dist/$ASSET" "$EXPECTED_VERSION" "$REQUIRE_PLATFORM_SIGNATURE"
+      - name: Smoke exact Windows bundle in a fresh prefix
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          ASSET: ${{ matrix.asset }}
+          EXPECTED_VERSION: ${{ needs.metadata.outputs.version }}
+          REQUIRE_PLATFORM_SIGNATURE: ${{ github.event_name == 'push' }}
+        run: scripts/smoke-release-bundle.ps1 -Archive "dist/$env:ASSET" -ExpectedVersion $env:EXPECTED_VERSION -RequirePlatformSignature ($env:REQUIRE_PLATFORM_SIGNATURE -eq "true")
+
   publish:
-    needs: build
+    if: github.event_name == 'push'
+    needs: [build, smoke]
     runs-on: ubuntu-24.04
     permissions:
       contents: write

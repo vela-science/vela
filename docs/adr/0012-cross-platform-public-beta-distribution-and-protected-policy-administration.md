@@ -41,7 +41,11 @@ Receipt, proposal, signature-algorithm, or accepted-state change.
    submodule.
 2. Release assets carry checksums, an SBOM, and GitHub build attestations.
    macOS artifacts and the signer helper are Developer-ID signed and notarized.
-   Windows executables are Authenticode signed and RFC 3161 timestamped.
+   Windows executables are Authenticode signed and RFC 3161 timestamped. The
+   exact uploaded bundles must pass checksum, SBOM, version, fresh-prefix
+   install, in-place upgrade, and uninstall smoke on new hosted runners before
+   publication. A manual run may exercise the same build and smoke path for a
+   prerelease version on `main`, but skips platform signing and cannot publish.
 3. First-party Unix and PowerShell installers verify the locked archive before
    installation. They never inspect or edit a frontier.
 4. `doctor --all` and `id show` report installed binary/helper identity,
