@@ -159,6 +159,19 @@ impl Approval for SystemApproval {
 
     fn reauthenticate_rebind(&self, request: &RebindRequest) -> Result<(), String> {
         require_user_interaction("authenticate a signer update")?;
+        let card = rebind_card(request);
+        let result = MessageDialog::new()
+            .set_level(MessageLevel::Info)
+            .set_title(&card.title)
+            .set_description(&card.description)
+            .set_buttons(MessageButtons::OkCancelCustom(
+                "Cancel".to_string(),
+                card.action_label.clone(),
+            ))
+            .show();
+        if !card_approved(result, &card.action_label) {
+            return Err("signer update declined or cancelled".to_string());
+        }
         if request.purpose == crate::RebindPurpose::EnrollmentRecovery {
             platform_reauthenticate(&format!(
                 "Resume protected Vela identity enrollment for {}",
@@ -357,6 +370,35 @@ fn policy_decision_card(request: &PolicySignerRequest) -> HumanCard {
             short_root(&request.decision_plan_root),
         ),
         action_label: format!("{action} policy"),
+    }
+}
+
+fn rebind_card(request: &RebindRequest) -> HumanCard {
+    let (title, consequence) = if request.purpose == crate::RebindPurpose::EnrollmentRecovery {
+        (
+            "Resume Vela identity protection?",
+            "Complete the interrupted protected identity enrollment without changing the scientific key.",
+        )
+    } else {
+        (
+            "Update the Vela signer?",
+            "Authorize only these exact installed Vela and signer-helper bytes. This does not approve a policy or scientific decision.",
+        )
+    };
+    HumanCard {
+        title: title.to_string(),
+        description: format!(
+            "Actor\n{}\n\nVela binary\n{} → {}\n\nSigner helper\n{} → {}\n\nProtection\n{:?} → {:?}\n\n{}",
+            request.actor,
+            short_root(&request.previous_vela_binary_sha256),
+            short_root(&request.vela_binary_sha256),
+            short_root(&request.previous_helper_sha256),
+            short_root(&request.helper_sha256),
+            request.previous_protection_mode,
+            request.protection_mode,
+            consequence,
+        ),
+        action_label: "Authorize update".to_string(),
     }
 }
 
@@ -629,10 +671,24 @@ fn capitalize(value: &str) -> String {
 #[allow(unsafe_code)]
 fn platform_reauthenticate(reason: &str) -> Result<(), String> {
     use block2::RcBlock;
+    use objc2::MainThreadMarker;
+    use objc2_app_kit::{NSApplication, NSApplicationActivationPolicy};
     use objc2_foundation::{NSError, NSString};
     use objc2_local_authentication::{LAContext, LAPolicy};
     use std::sync::mpsc;
     use std::time::Duration;
+
+    // LocalAuthentication can cancel immediately when a command-line helper
+    // has no foreground application identity. Register this one-shot helper as
+    // an accessory app and activate it before asking macOS to display the
+    // system-owned prompt. The helper still exits after this request and owns
+    // no persistent approval state.
+    let mtm = MainThreadMarker::new()
+        .ok_or_else(|| "macOS authentication must start on the main thread".to_string())?;
+    let app = NSApplication::sharedApplication(mtm);
+    let _ = app.setActivationPolicy(NSApplicationActivationPolicy::Accessory);
+    #[allow(deprecated)]
+    app.activateIgnoringOtherApps(true);
 
     let context = unsafe { LAContext::new() };
     unsafe {
@@ -642,8 +698,18 @@ fn platform_reauthenticate(reason: &str) -> Result<(), String> {
     }
     let localized_reason = NSString::from_str(reason);
     let (tx, rx) = mpsc::sync_channel(1);
-    let reply = RcBlock::new(move |success: objc2::runtime::Bool, _error: *mut NSError| {
-        let _ = tx.send(success.as_bool());
+    let reply = RcBlock::new(move |success: objc2::runtime::Bool, error: *mut NSError| {
+        let result = if success.as_bool() {
+            Ok(())
+        } else if let Some(error) = unsafe { error.as_ref() } {
+            Err(format!(
+                "macOS reauthentication failed (LAError {}): {error}",
+                error.code()
+            ))
+        } else {
+            Err("macOS reauthentication failed without a platform error".to_string())
+        };
+        let _ = tx.send(result);
     });
     unsafe {
         context.evaluatePolicy_localizedReason_reply(
@@ -653,8 +719,7 @@ fn platform_reauthenticate(reason: &str) -> Result<(), String> {
         );
     }
     match rx.recv_timeout(Duration::from_secs(120)) {
-        Ok(true) => Ok(()),
-        Ok(false) => Err("platform reauthentication was cancelled or failed".to_string()),
+        Ok(result) => result,
         Err(mpsc::RecvTimeoutError::Timeout) => {
             unsafe { context.invalidate() };
             Err("platform reauthentication timed out".to_string())
@@ -834,6 +899,36 @@ mod tests {
         assert_eq!(accept.action_label, "Accept result");
         assert_eq!(reject.action_label, "Reject proposal");
         assert_ne!(accept.title, reject.title);
+    }
+
+    #[test]
+    fn signer_update_card_names_exact_binary_changes_and_disclaims_authority() {
+        let request = RebindRequest {
+            schema: crate::contract::REBIND_REQUEST_SCHEMA.to_string(),
+            purpose: crate::RebindPurpose::Upgrade,
+            nonce: "1".repeat(64),
+            expires_at: "2026-07-17T12:01:00Z".to_string(),
+            vela_binary_path: "/bin/vela".to_string(),
+            vela_binary_sha256: format!("sha256:{}", "2".repeat(64)),
+            previous_vela_binary_sha256: format!("sha256:{}", "3".repeat(64)),
+            helper_sha256: format!("sha256:{}", "4".repeat(64)),
+            previous_helper_sha256: format!("sha256:{}", "5".repeat(64)),
+            actor: "reviewer:fixture".to_string(),
+            public_key: "6".repeat(64),
+            provider: "os_store".to_string(),
+            previous_protection_mode: ProtectionMode::Session,
+            protection_mode: ProtectionMode::Session,
+        };
+        let card = rebind_card(&request);
+        assert_eq!(card.title, "Update the Vela signer?");
+        assert_eq!(card.action_label, "Authorize update");
+        assert!(card.description.contains("reviewer:fixture"));
+        assert!(card.description.contains("sha256:3333333"));
+        assert!(card.description.contains("sha256:2222222"));
+        assert!(card.description.contains("sha256:5555555"));
+        assert!(card.description.contains("sha256:4444444"));
+        assert!(card.description.contains("does not approve a policy"));
+        assert!(!card.description.contains(&request.public_key));
     }
 
     #[test]
