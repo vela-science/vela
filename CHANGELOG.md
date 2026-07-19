@@ -9,6 +9,11 @@
   signing, notarization, attestation, or fresh-install release gates.
 - Make the release workflow reject any Git tag that differs from the one exact
   version shared by all Vela workspace packages, before building artifacts.
+- Treat `.vela/proof-state.json` as derived export bookkeeping in new frontier
+  transactions, and let completed historical journals survive a legitimate
+  proof re-export. Active recovery and transaction completion still require
+  exact postimages, while authority, proposals, Receipts, artifacts, and other
+  canonical evidence remain fail-closed.
 
 ## v0.901.0 — 2026-07-17 — Protected decisions and producer withdrawal
 

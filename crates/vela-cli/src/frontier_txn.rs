@@ -388,6 +388,10 @@ fn managed_write_class(path: &RepoPath) -> WriteClass {
         WriteClass::Authority
     } else if path.as_str().starts_with(".vela/proposals/") {
         WriteClass::PublicReview
+    } else if path.as_str() == ".vela/proof-state.json" {
+        // Proof export bookkeeping is excluded from the scientific snapshot
+        // root and is legitimately regenerated after an accepted event.
+        WriteClass::Derived
     } else if path.as_str().starts_with(".vela/") {
         WriteClass::CanonicalEvidence
     } else {
@@ -1324,6 +1328,16 @@ fn postimage_reaches_current(
     false
 }
 
+fn completed_postimage_is_rematerializable(write: &StagedWrite) -> bool {
+    write.class == WriteClass::Derived
+        // Journals written before proof-state received its derived write class
+        // record this exact path as canonical_evidence. Preserve those durable
+        // plans while allowing the same legitimate proof re-export as new
+        // journals. This exception applies only to completed-history checks;
+        // installation and completion still verify the exact postimage.
+        || write.path.as_str() == ".vela/proof-state.json"
+}
+
 fn verify_completed_history(
     root: &Path,
     completed: &[(FrontierTxnPaths, FrontierTxnJournal)],
@@ -1371,7 +1385,7 @@ fn verify_completed_history(
             .canonical_delta
             .writes()
             .iter()
-            .filter(|write| write.class != WriteClass::Derived)
+            .filter(|write| !completed_postimage_is_rematerializable(write))
         {
             let actual = inspect_file_state(root, &write.path)?;
             if postimage_reaches_current(&write.path, &write.postimage, &actual, &current_head) {
@@ -3702,6 +3716,54 @@ mod tests {
             FrontierTxn::acquire_recovery_barrier(&root, &journals),
             Err(FrontierTxnError::CompletedPostimageMismatch { .. })
         ));
+    }
+
+    #[test]
+    fn managed_proof_state_is_derived() {
+        assert_eq!(
+            managed_write_class(&RepoPath::parse(".vela/proof-state.json").unwrap()),
+            WriteClass::Derived
+        );
+        assert_eq!(
+            managed_write_class(&RepoPath::parse(".vela/receipts/example.json").unwrap()),
+            WriteClass::CanonicalEvidence
+        );
+    }
+
+    #[test]
+    fn completed_legacy_journal_allows_proof_state_reexport() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path().join("frontier");
+        let journals = temp.path().join("journals");
+        fs::create_dir_all(root.join(".vela")).unwrap();
+
+        // Reproduce the write class recorded by policy and decision journals
+        // before proof-state was recognized as derived.
+        let draft = DeltaDraft::prepare(
+            &root,
+            vec![PlannedWrite::write(
+                RepoPath::parse(".vela/proof-state.json").unwrap(),
+                WriteClass::CanonicalEvidence,
+                b"stale proof state".to_vec(),
+            )],
+        )
+        .unwrap();
+        let plan = fixture_plan(&root, &draft, b"legacy proof-state class");
+        let operation_id = plan.operation_id.clone();
+        let mut txn = FrontierTxn::prepare(&root, &journals, plan, draft).unwrap();
+        txn.mark_committed().unwrap();
+        txn.install().unwrap();
+        txn.complete().unwrap();
+        drop(txn);
+
+        fs::write(root.join(".vela/proof-state.json"), b"fresh proof state").unwrap();
+
+        let reopened = FrontierTxn::open_if_present(&root, &journals, &operation_id)
+            .unwrap()
+            .expect("completed legacy journal");
+        assert_eq!(reopened.recovery_state(), &RecoveryState::Completed);
+        drop(reopened);
+        drop(FrontierTxn::acquire_recovery_barrier(&root, &journals).unwrap());
     }
 
     #[test]
