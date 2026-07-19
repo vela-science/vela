@@ -157,6 +157,7 @@ pub enum PolicyAction {
     },
     /// THE ceremony: review the sealed policy, one confirm, one key
     /// read — standing policy authority is reassessed. Humans only.
+    #[command(hide = true)]
     Sign {
         frontier: Option<PathBuf>,
         #[arg(long, help = HELP_KEY)]
@@ -169,6 +170,7 @@ pub enum PolicyAction {
     },
     /// Close the lane with one signed causal review; the active signature
     /// loses authority while snapshots retain past admissions.
+    #[command(hide = true)]
     Revoke {
         /// Why (recorded next to the revocation).
         #[arg(long)]
@@ -184,6 +186,7 @@ pub enum PolicyAction {
     /// Prepare a pending human-governance proposal that retires an unused
     /// prelaunch policy byte pair which current policy parsing rejects. This
     /// command is keyless; only the existing `vela sign` ceremony can accept.
+    #[command(hide = true)]
     RetireLegacy {
         frontier: Option<PathBuf>,
         /// Why these unsupported prelaunch bytes should be retired.
@@ -378,9 +381,8 @@ pub(crate) enum Commands {
         #[arg(long)]
         json: bool,
     },
-    /// Your Vela identity: set up a key once, then land and sign
-    /// with no `--key`/`--actor` flags. `vela id create` is the
-    /// one-time onboarding step.
+    /// Your Vela identity and protected approval session. Agents use their
+    /// own identities; humans approve exact exceptions and standing policy.
     #[command(after_long_help = crate::cli::help_text::ID)]
     Id {
         #[command(subcommand)]
@@ -635,7 +637,8 @@ pub(crate) enum Commands {
     /// Standing rules: the ceremony that pays compound interest. A
     /// policy you sign ONCE lets agents land whole classes of gated
     /// work with no per-item key ceremony; everything outside policy
-    /// waits in `vela sign`. show / draft / test / sign / revoke / log.
+    /// waits for exact human review. Use `policy decide` for protected
+    /// activation, rotation, and revocation.
     #[command(after_long_help = crate::cli::help_text::POLICY)]
     Policy {
         #[command(subcommand)]
@@ -652,10 +655,9 @@ pub(crate) enum Commands {
 
 #[derive(Subcommand)]
 pub(crate) enum IdAction {
-    /// Move an existing human seed into the local OS-protected signer helper,
-    /// or authorize the exact helper/mode after a package update. Enrollment
-    /// authenticates once before reading the plaintext source; successful
-    /// migration removes that source on macOS, Windows, and Linux.
+    /// Protect an existing human approval identity, or authorize its exact
+    /// local helper after a package update. Safe defaults authenticate first,
+    /// verify the public key, and remove the plaintext source.
     Protect {
         /// Retained for 0.901 script compatibility. Protection always requires
         /// platform authentication.
@@ -682,6 +684,7 @@ pub(crate) enum IdAction {
     /// You rarely need this by hand: the interactive `vela sign` offers to pin
     /// on first run and to re-pin in place when it sees the binary changed.
     /// Use `--status` to inspect the pin.
+    #[command(hide = true)]
     PinBinary {
         /// Show the pin state without recording.
         #[arg(long)]
@@ -691,7 +694,7 @@ pub(crate) enum IdAction {
         yes: bool,
     },
     /// One-time setup: generate a key, store it, and remember your actor id
-    /// After this, `vela land` / `vela sign` need no `--key`/`--actor` flags.
+    /// After this, agent `vela land` needs no `--key`/`--actor` flags.
     Create {
         /// Your handle, e.g. `alice`. Becomes `reviewer:alice` (or
         /// `agent:alice` with --agent). Defaults to `$USER`.
@@ -714,6 +717,7 @@ pub(crate) enum IdAction {
     },
     /// Adopt an existing private key as your identity (e.g. one a
     /// teammate generated, or a key you already use elsewhere).
+    #[command(hide = true)]
     Import {
         /// Path to the existing Ed25519 private key (hex seed).
         #[arg(long)]
@@ -729,6 +733,7 @@ pub(crate) enum IdAction {
         json: bool,
     },
     /// Generate a fresh Ed25519 keypair (files only; registers nothing).
+    #[command(hide = true)]
     Keygen {
         #[arg(long, default_value = ".vela/keys")]
         out: PathBuf,

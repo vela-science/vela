@@ -370,6 +370,42 @@ fn ergonomics_verbs_are_reachable() {
 }
 
 #[test]
+fn ordinary_identity_and_policy_help_hide_legacy_key_ceremonies() {
+    let identity = combined(&vela(&["id", "--help"]));
+    for hidden in ["pin-binary", "import", "keygen"] {
+        assert!(
+            !identity.contains(hidden),
+            "id help leaked {hidden}: {identity}"
+        );
+    }
+    for visible in ["create", "protect", "show", "lock"] {
+        assert!(
+            identity.contains(visible),
+            "id help omitted {visible}: {identity}"
+        );
+    }
+
+    let policy = combined(&vela(&["policy", "--help"]));
+    for hidden in ["  sign", "  revoke", "retire-legacy"] {
+        assert!(
+            !policy.contains(hidden),
+            "policy help leaked {hidden}: {policy}"
+        );
+    }
+    for visible in ["show", "suggest", "draft", "test", "decide", "log"] {
+        assert!(
+            policy.contains(visible),
+            "policy help omitted {visible}: {policy}"
+        );
+    }
+
+    // Hidden compatibility commands remain directly addressable for old
+    // frontiers and recovery instructions.
+    assert!(vela(&["id", "keygen", "--help"]).status.success());
+    assert!(vela(&["policy", "sign", "--help"]).status.success());
+}
+
+#[test]
 fn finding_is_read_only_and_legacy_writer_bypasses_are_absent() {
     let show = vela(&["finding", "show", "--help"]);
     assert!(show.status.success(), "{}", combined(&show));

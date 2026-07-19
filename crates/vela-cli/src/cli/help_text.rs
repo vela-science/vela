@@ -153,8 +153,7 @@ EXAMPLES
   vela id create        one-time: generate a key and remember the actor
   vela id protect       one-time: protect a human approval identity
   vela id show          the current identity
-  vela id lock          close the bounded local approval session
-  vela id pin-binary    pin this binary's hash (ceremonies verify it first)";
+  vela id lock          close the bounded local approval session";
 
 pub const ACTOR: &str = "\
 EXAMPLES
@@ -197,14 +196,11 @@ EXAMPLES
                                                         key-free exact plan
   vela policy decide . --revoke --reason \"close this lane\"
                                                         key-free exact plan
-  vela policy retire-legacy . --reason \"prelaunch bytes\" --as agent:cleanup --json
-                                                        prepare only; keyless
-
 `policy decide` previews one root-bound action without reading a key; its exact
 confirmation requests one protected human card. Everything outside the signed
 policy defers to human review, while exact matching agent work needs no prompt.
 `policy sign` and key flags are advanced
-historical compatibility surfaces. `retire-legacy` remains prepare-only.";
+historical compatibility surfaces.";
 
 pub const AGENTS: &str = "\
 EXAMPLES
