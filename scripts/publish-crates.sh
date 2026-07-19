@@ -13,6 +13,13 @@ PY
 )"
 TAG="v$VERSION"
 CRATES=(vela-protocol-core vela-verify vela-protocol vela-signer vela-edge vela-cli)
+CRATES_API_USER_AGENT="vela-release-publisher/$VERSION (https://github.com/vela-science/vela)"
+
+crate_exists() {
+  local crate="$1"
+  curl -A "$CRATES_API_USER_AGENT" -fsS \
+    "https://crates.io/api/v1/crates/$crate/$VERSION" >/dev/null 2>&1
+}
 
 case "$MODE" in
   check)
@@ -44,7 +51,7 @@ case "$MODE" in
     }
 
     for crate in "${CRATES[@]}"; do
-      if curl -fsS "https://crates.io/api/v1/crates/$crate/$VERSION" >/dev/null 2>&1; then
+      if crate_exists "$crate"; then
         printf '%s\n' "$crate $VERSION already exists; preserving immutable registry bytes"
         continue
       fi
@@ -53,7 +60,7 @@ case "$MODE" in
       # the registry index. Bound the wait and never republish an existing crate.
       ready=false
       for _ in $(seq 1 24); do
-        if curl -fsS "https://crates.io/api/v1/crates/$crate/$VERSION" >/dev/null 2>&1; then
+        if crate_exists "$crate"; then
           ready=true
           break
         fi
