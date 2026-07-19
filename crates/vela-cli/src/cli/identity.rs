@@ -38,13 +38,8 @@ pub(crate) fn print_identity_created(identity: &crate::cli_identity::Identity, j
     println!("{} identity · {}", style::ok("ready"), identity.actor_id);
     println!("  public key: {}", identity.pubkey);
     match &identity.signer {
-        Some(crate::cli_identity::IdentitySigner::Helper {
-            provider,
-            protection_grade,
-            mode,
-            ..
-        }) => {
-            println!("  signer:     Vela helper ({provider}, {protection_grade}, {mode})");
+        Some(crate::cli_identity::IdentitySigner::Helper { mode, .. }) => {
+            println!("  approval:   protected · {mode}");
         }
         Some(crate::cli_identity::IdentitySigner::File { key_path }) => {
             println!("  key file:   {key_path}");

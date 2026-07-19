@@ -30,7 +30,7 @@ path = "src/bin/vela-signer.rs"
 [dependencies]
 vela-protocol = { workspace = true }
 vela-protocol-core = { workspace = true }
-vela-edge = { path = "../vela-edge" }
+vela-edge.workspace = true
 vela-verify = { workspace = true }
 vela-signer = { workspace = true }
 tokio = { workspace = true }

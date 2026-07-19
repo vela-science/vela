@@ -52,6 +52,7 @@ if [ -z "$TAG" ]; then
 fi
 URL="https://github.com/${REPO}/releases/download/${TAG}/${ASSET}"
 SUM_URL="${URL}.sha256"
+TRUST_URL="${URL}.trust.json"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
@@ -65,9 +66,18 @@ curl -fsSL "$SUM_URL" -o "$TMP/$ASSET.sha256" || {
   echo "ERROR: checksum missing for ${ASSET}; refusing an unverified install." >&2
   exit 1
 }
+curl -fsSL "$TRUST_URL" -o "$TMP/$ASSET.trust.json" || {
+  echo "ERROR: release trust metadata missing for ${ASSET}; refusing installation." >&2
+  exit 1
+}
+curl -fsSL "${TRUST_URL}.sha256" -o "$TMP/$ASSET.trust.json.sha256" || {
+  echo "ERROR: release trust-metadata checksum missing for ${ASSET}; refusing installation." >&2
+  exit 1
+}
 (
   cd "$TMP"
   shasum -a 256 -c "$ASSET.sha256"
+  shasum -a 256 -c "$ASSET.trust.json.sha256"
 )
 if [ -n "${VELA_EXPECTED_SHA256:-}" ]; then
   OBSERVED_SHA256=$(shasum -a 256 "$TMP/$ASSET" | awk '{print $1}')
@@ -80,6 +90,18 @@ gh attestation verify "$TMP/$ASSET" \
   --repo "$REPO" \
   --signer-workflow "$REPO/.github/workflows/release.yml" \
   --source-ref "refs/tags/$TAG" >/dev/null
+gh attestation verify "$TMP/$ASSET.trust.json" \
+  --repo "$REPO" \
+  --signer-workflow "$REPO/.github/workflows/release.yml" \
+  --source-ref "refs/tags/$TAG" >/dev/null
+grep -Fq '"schema":"vela.release-trust.v1"' "$TMP/$ASSET.trust.json"
+grep -Fq "\"artifact\":\"$ASSET\"" "$TMP/$ASSET.trust.json"
+grep -Fq '"artifact_class":"portable"' "$TMP/$ASSET.trust.json"
+PLATFORM_SIGNATURE=$(sed -n 's/.*"platform_signature":"\([^"]*\)".*/\1/p' "$TMP/$ASSET.trust.json")
+test -n "$PLATFORM_SIGNATURE" || {
+  echo "ERROR: release trust metadata omits platform_signature." >&2
+  exit 1
+}
 mkdir -p "$TMP/unpack"
 if [ "$OS" = "darwin" ]; then
   ditto -x -k "$TMP/$ASSET" "$TMP/unpack"
@@ -92,10 +114,17 @@ for binary in vela vela-signer; do
 done
 
 if [ "$OS" = "darwin" ]; then
-  for binary in vela vela-signer; do
-    codesign --verify --strict --verbose=2 "$TMP/unpack/$binary"
-    spctl --assess --type execute --verbose=2 "$TMP/unpack/$binary"
-  done
+  if [ "$PLATFORM_SIGNATURE" = "developer_id_notarized" ]; then
+    for binary in vela vela-signer; do
+      codesign --verify --strict --verbose=2 "$TMP/unpack/$binary"
+      spctl --assess --type execute --verbose=2 "$TMP/unpack/$binary"
+    done
+  elif [ "$PLATFORM_SIGNATURE" = "absent" ]; then
+    echo "Note: this is a GitHub-attested portable build without Apple Developer ID notarization."
+  else
+    echo "ERROR: unsupported macOS platform-signature tier: $PLATFORM_SIGNATURE" >&2
+    exit 1
+  fi
 fi
 
 mkdir -p "$BINDIR" 2>/dev/null || true

@@ -122,7 +122,9 @@ user PATH:
 & ([scriptblock]::Create((Invoke-WebRequest https://raw.githubusercontent.com/vela-science/vela/v0.901.0/install.ps1).Content)) -Version v0.901.0
 ```
 
-Source installations must install both binaries with
+Install the exact public package with
+`cargo install --locked vela-cli --version <exact-version>`. A source checkout
+can instead install both binaries with
 `cargo install --locked --path crates/vela-cli`. Linux source installations
 must also install `packaging/linux/science.vela.signer.policy` under the system
 polkit actions directory before protected signing is available.

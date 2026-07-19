@@ -657,13 +657,23 @@ pub(crate) enum IdAction {
     /// authenticates once before reading the plaintext source; successful
     /// migration removes that source on macOS, Windows, and Linux.
     Protect {
-        #[arg(long)]
+        /// Retained for 0.901 script compatibility. Protection always requires
+        /// platform authentication.
+        #[arg(long, hide = true)]
         user_presence: bool,
-        #[arg(long)]
+        /// Retained for 0.901 script compatibility. Successful human
+        /// protection always removes the plaintext source.
+        #[arg(long, hide = true)]
         remove_source_key: bool,
         /// session: authenticate a bounded signer session; always: reauthenticate every use.
         #[arg(long, default_value = "session", value_parser = ["session", "always"])]
         mode: String,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Close the bounded local approval session. The protected identity and
+    /// every frontier remain unchanged.
+    Lock {
         #[arg(long)]
         json: bool,
     },

@@ -6,115 +6,183 @@
 
 ## Context
 
-Vela `v0.901.0` proved protected one-proposal decisions on macOS and compiled
-the signer contracts on Linux and Windows. Its release assets are checksum
-addressed, but are not yet an adoption-grade distribution: they carry no SBOM
-or build attestation, macOS is not Developer-ID signed and notarized, Windows
-is not Authenticode signed, and the protected policy ceremony still teaches a
-legacy key path and `--yes` flow.
+Vela `v0.901.0` proved that one exact proposal decision can remain human-governed
+without giving a model the human seed. It also exposed a product failure: custody,
+authentication, transaction approval, scientific authority, and release signing
+were presented as if they were one Apple-shaped identity ceremony. They are not.
 
-Canopus and the site are deliberately removable. Moving Canopus into Vela's
-Rust workspace would obscure that boundary without improving replay. The
-composition problem is version pinning, not source ownership.
+The Vela identity is the registered Ed25519 actor and public key. Keychain,
+Credential Manager, Secret Service, and external agents are replaceable local
+custody adapters. Touch ID, a device passcode, Windows Hello, and polkit establish
+or refresh a local authenticated session. A semantic decision card authorizes one
+exact state transition. A signed frontier policy delegates a closed class of
+routine work to an agent. Developer ID, Authenticode, package-registry provenance,
+and GitHub attestations authenticate distributed software, not scientific actors.
 
-The July 17–18 Science Frontier briefs reinforce the same product shape:
-canonical Git state, projected task context, executable plans, bounded patches,
-and explicit admission. They do not establish a need for an active context
-graph, temporal claim primitive, generic memory layer, or method registry.
+Conflating these layers creates the worst of both worlds: repeated prompts that
+encourage workarounds, implementation details in human-facing cards, and the false
+impression that an operating-system account is a Vela authority. Letting a model
+use the human key would remove the prompt but would also remove the meaning of the
+human signature. The useful automation boundary is delegation: an agent signs its
+own executions and Receipts, while a previously human-signed exact policy decides
+whether matching work may enter accepted state or must Defer.
 
-A July 18 authority review also identified limits that the beta must state
-honestly. Generic OS credential storage does not provide uniform same-user
-process isolation, a signed local session record is tamper-evident rather than
-caller-bound, and an OS authentication surface is not a scientific decision
-surface. Vela therefore reports the current cross-platform grade as
-`user_session`, not `app_isolated` or hardware-backed, and makes no claim to
-resist a compromised OS or arbitrary same-user malware.
+NIST SP 800-63B-4 distinguishes authentication from session continuity and
+supports inactivity, overall, and step-up reauthentication. OWASP transaction
+authorization requires the consequential operation to remain visible and bound to
+one short-lived authorization. Codex approval requests likewise keep requester and
+approver separate and bind the response to the active operation. ADR 0011 applies
+that model to one-proposal decisions; this ADR makes it the whole product model.
+
+Release trust has a separate portability problem. Apple Developer ID is required
+for a normal Gatekeeper experience for direct-download macOS binaries. Microsoft
+offers managed Artifact Signing for Windows executables. Neither credential should
+be required to publish a source-installable, provenance-verifiable public beta on
+all platforms. Requiring both made two vendor accounts a universal Vela release
+gate and kept already verified source and packages artificially unreleased.
+
+Canopus and the site remain deliberately removable. Moving Canopus into Vela's
+Rust workspace would obscure the authority boundary without improving replay. The
+composition problem is exact version and artifact binding, handled by the
+non-protocol ecosystem lock.
 
 ## Decision
 
-Vela 0.910 is a product and release-trust change with no event, reducer,
-Receipt, proposal, signature-algorithm, or accepted-state change.
+Vela 0.910 is a product, custody, and release-trust change. It adds no event,
+reducer rule, Receipt field, proposal schema, signature algorithm, actor type, or
+accepted-state authority.
 
-1. The parent publishes `vela.ecosystem-lock.v1`, explicitly labeled
-   non-protocol composition. It binds exact Vela, Canopus, site, and Codex
-   releases and artifacts. Canopus remains a separate repository and is not a
-   submodule.
-2. Release assets carry checksums, an SBOM, and GitHub build attestations.
-   macOS artifacts and the signer helper are Developer-ID signed and notarized.
-   Windows executables are Authenticode signed and RFC 3161 timestamped. The
-   exact uploaded bundles must pass checksum, SBOM, version, fresh-prefix
-   install, in-place upgrade, and uninstall smoke on new hosted runners before
-   publication. A manual run may exercise the same build and smoke path for a
-   prerelease version on `main`, but skips platform signing and cannot publish.
-3. First-party Unix and PowerShell installers verify the locked archive before
-   installation. They never inspect or edit a frontier.
-4. `doctor --all` and `id show` report installed binary/helper identity,
-   protected backend health, stale rebind state, and one recovery action, but
-   no custody bytes.
-5. Ordinary policy administration becomes the same two-phase protected flow
-   as `review decide`:
+### One identity, several hidden custody adapters
 
-   ```text
-   vela policy decide <frontier> --activate <vap_id> --reason <text>
-   vela policy decide <frontier> --rotate <vap_id> --reason <text>
-   vela policy decide <frontier> --revoke --reason <text>
-   ```
+The only Vela identity shown in ordinary product language is the actor ID and
+registered public key. Identity v2 retains the existing helper record for replay,
+but ordinary output calls it a protected approval identity. Provider names,
+credential-store paths, helper roots, binary roots, and protection grades appear
+only in `--json` or `doctor --all` diagnostics.
 
-   A preview is key-free and returns `vela.policy-decision.v1`. Confirmation
-   supplies only the exact plan root and observation time. Vela rederives the
-   policy, action, frontier roots, signer authority, binary pin, and transaction
-   read set before requesting one protected OS decision card. Cancellation or
-   authentication failure writes nothing. Legacy `policy sign` and `--key`
-   remain advanced replay/compatibility surfaces and are never consumed by
-   `policy decide`.
+`vela id protect` becomes a one-time setup command with safe defaults. It
+authenticates before reading the plaintext seed, verifies the derived public key,
+stores and reads back the seed through the platform adapter, atomically installs
+identity v2, and removes the plaintext source. Existing explicit safety flags
+remain accepted for script compatibility but disappear from ordinary help.
 
-6. A replacement policy is a complete desired rule set. Rotation never carries
-   an omitted rule forward implicitly. The key-free plan and protected card
-   show added, removed, changed, and unchanged authority counts, with removed
-   rule IDs named explicitly.
-7. The signer derives the policy card from the exact typed selected policy,
-   prior policy, action, and event material. It does not accept caller-authored
-   policy facts or consequences. The rationale remains caller-supplied text and
-   is visibly bound into the exact plan.
-8. Policy activation, rotation, and revocation are rare standing-authority
-   changes and always request fresh platform authentication after the semantic
-   card. Ordinary one-proposal decisions may continue to use a bounded custody
-   session; that session never approves later semantics.
+The default is `session` mode. A successful platform authentication opens a
+signed, actor-, public-key-, provider-, helper-, and mode-bound local session with
+a 15-minute inactivity limit and one-hour overall limit. `vela id show` reports
+whether that session is active, expired, invalid, or closed. `vela id lock`
+deletes only local session state and never touches the protected seed, actor
+record, frontier, or Git state. `always` remains an explicit high-assurance mode
+for environments where the requester can automate the desktop.
 
-The policy card names the action, policy ID and full root, frontier, expiry,
-rule summary, authority diff, reason, and plan-root prefix. Every policy action
-receives its own exact card and fresh authentication.
+No automated fixture may display an OS prompt. `VELA_NO_USER_INTERACTION=1` is a
+fail-closed latch at every authentication and semantic-card edge, and all automated
+tests use injected approval and custody fakes. A fixture identity, including an
+`atlas-fixture` identity, is never enrolled into an operator's real credential
+store.
 
-This release deliberately does not add a resident authority daemon, TUF root,
-passkey actor, generic signing socket, or new policy language. A later broker
-may move session state behind a signed application boundary and independently
-replay the complete frontier. That work requires a separate threat-model ADR
-and platform evidence. Until then, routine binary rebind remains an explicit
-beta limitation rather than being hidden behind an unauthenticated update path.
+### Signing becomes exceptional
+
+The ordinary product has three paths:
+
+1. **Routine agent work.** An agent signs its own lease, evidence, Receipt, and
+   producer events. A human-signed AcceptancePolicy may Permit only the exact
+   target, packet, profile, verifier capsule, result contract, and producer
+   credential it names. Matching work needs no human prompt. Everything outside
+   the closed policy Defer or fails.
+2. **Human exception.** `vela review decide` displays one semantic card for one
+   proposal and action. A live bounded session avoids another biometric or
+   passcode prompt, but never pre-approves the semantic card. The card uses action
+   verbs and scientific consequences; it does not display custody internals.
+3. **Standing-authority change.** `vela policy decide` displays one exact policy
+   activation, rotation, or revocation card and then requires fresh step-up
+   authentication. Policy changes are rare and can authorize many subsequent
+   routine runs. A policy session can never become `accept all`.
+
+An agent may prepare and invoke either exact request. It may not answer the card,
+control the protected UI, access the human seed, or emit a human event. Model or
+requester provenance never changes the registered signer. Legacy `vela sign`,
+key paths, `--yes`, saved answers, and batch compatibility remain advanced-only.
+
+The first call to `review decide` or `policy decide` remains key-free and returns
+the complete typed plan. Confirmation supplies only its exact root and observation
+time. Vela rederives eligibility, actor authority, policy or Engine inputs, binary
+identity, frontier roots, and transaction read set before the helper is invoked.
+Cancellation or authentication failure writes no event, proposal mutation,
+journal commit marker, or Git commit.
+
+### Provenance-first public-beta distribution
+
+The public beta has one universal release identity and optional platform-native
+trust tiers:
+
+1. The source tag, crates.io packages, checksums, SPDX SBOMs, and GitHub build
+   attestations bind the exact source and built artifacts. The crates are published
+   in dependency order and are immutable. `cargo install vela-cli --locked
+   --version <exact>` is the universal source-build installation contract.
+2. A first-party Homebrew tap may provide a source-built macOS formula bound to
+   the exact crate or source archive and checksum. It does not pretend a locally
+   built binary is Developer-ID notarized.
+3. GitHub release archives remain provenance-verifiable portable artifacts. An
+   unsigned or unnotarized archive is labeled `portable, platform signature
+   absent`; it is never described as a platform-trusted native installer.
+4. Developer-ID signing and notarization are the macOS native-download tier. They
+   remain required before advertising a no-warning direct-download macOS build.
+5. Windows native signing uses managed Azure Artifact Signing with GitHub OIDC
+   when available, avoiding a reusable PFX secret. It remains required before
+   advertising a platform-trusted Windows download.
+
+Absence of Apple or Microsoft signing credentials does not block the universal
+source/package-manager public beta. It blocks only the corresponding native trust
+tier. This separation is explicit in release metadata, installers, the ecosystem
+lock, site copy, and `doctor`.
+
+The parent publishes `vela.ecosystem-lock.v1`, labeled non-protocol composition,
+binding exact Vela, Canopus, site, Codex, package integrity, source commits,
+attestations, and available platform trust tiers. The lock grants no frontier
+authority.
 
 ## Compatibility and failure semantics
 
-- Existing identity v1/v2 records, policy v0.1 bytes, policy-head events, and
-  historical frontiers replay unchanged.
-- Missing signing credentials block the corresponding public-beta platform;
-  unsigned candidates must not be described as released public-beta assets.
-- Any binary/helper drift, root drift, stale policy, wrong actor, invalid
-  confirmation, or unavailable protected backend fails before custody access.
-- The ecosystem lock grants no authority and cannot override Vela replay or a
-  signed frontier policy.
+- Existing identity v1/v2 records, policy bytes, policy-head events, signer
+  sessions, and historical frontiers replay unchanged.
+- Existing explicit `id protect` safety flags remain accepted. The simpler command
+  changes only CLI defaults and help.
+- Missing, expired, invalid, or drifted sessions cause reauthentication; they do
+  not authorize or deny a scientific decision.
+- Binary/helper drift, stale roots, wrong actor, ineligible action, invalid
+  confirmation, unavailable custody, or a changed transaction read set fails
+  before a frontier write.
+- A valid session proves authenticated custody continuity, not approval of a later
+  proposal or policy.
+- A compromised operating system or arbitrary same-user GUI automation is outside
+  the `session` profile. Operators needing resistance to desktop automation use
+  `always` mode and accept per-operation user presence.
+- A missing native platform signature downgrades only that distribution artifact.
+  It never changes replay, policy, event, or scientific standing.
 
 ## Conformance
 
-- exact preview/confirmation binding for activate, rotate, and revoke;
-- cancellation and authentication failure produce zero writes;
-- wrong action, policy, reason, timestamp, binary, registry, or roots fail
-  before the helper request;
-- omitted policy rules are removed, authority diffs are exact, and every policy
-  action reauthenticates after the card;
-- old policy events and identities replay unchanged;
-- archive checksum, SBOM, attestation, notarization, and Authenticode checks;
-- fresh install, upgrade, rebind, and uninstall on macOS Apple silicon,
-  Ubuntu 24.04 x86-64, and Windows 11 x86-64.
+- simple and legacy-compatible identity protection; v1 replay and v1-to-v2 crash
+  recovery; seed/public-key mismatch and plaintext-removal failure;
+- session active, idle-expired, overall-expired, invalid, and explicitly locked
+  states; locking changes no protected key or frontier byte;
+- no automated fixture can reach an OS authentication or semantic-card edge;
+- exact review and policy preview/confirmation binding; cancellation and
+  authentication failure produce zero writes;
+- wrong action, policy, proposal, reason, timestamp, binary, helper, registry,
+  roots, or transaction read set fails before key use;
+- policy replacement is complete, authority diffs are exact, and policy actions
+  always step up after the exact card;
+- a matching agent Receipt can Permit without a human prompt, while missing or
+  substituted target, packet, profile, capsule, result contract, or producer
+  credential cannot;
+- dependency-ordered `cargo package` and publish/install smoke from exact registry
+  bytes on macOS Apple silicon, Ubuntu 24.04 x86-64, and Windows 11 x86-64;
+- checksum, SBOM, GitHub attestation, archive labeling, and ecosystem-lock checks;
+- Developer ID/notarization and Azure Artifact Signing checks only when the
+  corresponding native trust tier is declared.
 
-ADR 0012 becomes Accepted only when the exact released artifacts and live
-platform ceremonies pass. Candidate code does not satisfy the release gate.
+ADR 0012 becomes Accepted only when the exact `v0.910.0` source tag, crates.io
+package graph, attestations, clean-platform installs, protected-policy ceremony,
+and old-frontier replay pass. Native platform tiers remain independently gated and
+must not be inferred from the universal beta release.

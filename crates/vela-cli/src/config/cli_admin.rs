@@ -13,18 +13,11 @@ pub(crate) fn cmd_id(action: IdAction) {
     use crate::cli_identity::{Identity, identity_path, load_identity, save_identity, vela_home};
     match action {
         IdAction::Protect {
-            user_presence,
-            remove_source_key,
+            user_presence: _,
+            remove_source_key: _,
             mode,
             json,
         } => {
-            if !user_presence || !remove_source_key {
-                crate::ui::fail_with(
-                    crate::ui::ErrorKind::Usage,
-                    "protected migration requires both --user-presence and --remove-source-key",
-                    Some("the flags make the approval and plaintext-key removal explicit"),
-                );
-            }
             let mut identity =
                 load_identity().unwrap_or_else(|| fail_return("no identity configured"));
             if identity.actor_type != "human"
@@ -255,6 +248,25 @@ pub(crate) fn cmd_id(action: IdAction) {
                 );
             }
         }
+        IdAction::Lock { json } => {
+            let removed = vela_signer::system::lock_local_session().unwrap_or_else(|error| {
+                crate::ui::fail_with(crate::ui::ErrorKind::Custody, &error, None)
+            });
+            if json {
+                print_json(&json!({
+                    "ok": true,
+                    "command": "id.lock",
+                    "session": "closed",
+                    "changed": removed,
+                    "identity_changed": false,
+                    "frontier_changed": false,
+                }));
+            } else {
+                println!("{} approval session closed", style::ok("locked"));
+                println!("  protected identity: unchanged");
+                println!("  frontier state: unchanged");
+            }
+        }
         IdAction::Keygen { out, json } => crate::cli::cmd_id_keygen(out, json),
         IdAction::Create {
             handle,
@@ -466,15 +478,30 @@ pub(crate) fn cmd_id(action: IdAction) {
                         pending_source_removal,
                         pending_vela_binary_sha256,
                         ..
-                    }) => json!({
-                        "kind": "helper",
-                        "provider": provider,
-                        "protection_grade": protection_grade,
-                        "mode": mode,
-                        "helper_sha256": helper_sha256,
-                        "plaintext_present": pending_source_removal.is_some(),
-                        "pending_vela_binary_sha256": pending_vela_binary_sha256,
-                    }),
+                    }) => {
+                        let session_state = protection_mode(mode)
+                            .map(|mode| {
+                                vela_signer::system::local_session_state(
+                                    &identity.actor_id,
+                                    &identity.pubkey,
+                                    provider,
+                                    mode,
+                                    helper_sha256,
+                                    chrono::Utc::now(),
+                                )
+                            })
+                            .unwrap_or(vela_signer::system::LocalSessionState::Invalid);
+                        json!({
+                            "kind": "protected",
+                            "provider": provider,
+                            "protection_grade": protection_grade,
+                            "mode": mode,
+                            "helper_sha256": helper_sha256,
+                            "plaintext_present": pending_source_removal.is_some(),
+                            "pending_vela_binary_sha256": pending_vela_binary_sha256,
+                            "session": session_state.as_str(),
+                        })
+                    }
                     Some(crate::cli_identity::IdentitySigner::File { .. }) | None => {
                         json!({"kind": "file"})
                     }
@@ -507,19 +534,32 @@ pub(crate) fn cmd_id(action: IdAction) {
                 );
                 match &identity.signer {
                     Some(crate::cli_identity::IdentitySigner::Helper {
-                        provider,
-                        protection_grade,
                         mode,
                         pending_source_removal,
+                        helper_sha256,
+                        provider,
                         ..
                     }) => {
-                        println!("  signer: Vela helper ({provider}, {protection_grade}, {mode})");
+                        let session_state = protection_mode(mode)
+                            .map(|mode| {
+                                vela_signer::system::local_session_state(
+                                    &identity.actor_id,
+                                    &identity.pubkey,
+                                    provider,
+                                    mode,
+                                    helper_sha256,
+                                    chrono::Utc::now(),
+                                )
+                            })
+                            .unwrap_or(vela_signer::system::LocalSessionState::Invalid);
+                        println!("  approval: protected · {mode}");
+                        println!("  session:  {}", session_state.as_str());
                         println!(
-                            "  plaintext: {}",
+                            "  secret:   {}",
                             if pending_source_removal.is_some() {
                                 "cleanup required"
                             } else {
-                                "absent"
+                                "protected; plaintext absent"
                             }
                         );
                         println!("  protection: {}", health.state);

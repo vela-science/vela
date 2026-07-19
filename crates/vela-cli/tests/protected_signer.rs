@@ -77,3 +77,50 @@ fn automated_identity_creation_fails_before_opening_platform_ui() {
     assert!(!home.path().join(".vela/identity.json").exists());
     assert!(!home.path().join(".vela/signer-session.json").exists());
 }
+
+#[test]
+fn simple_protect_command_uses_safe_defaults() {
+    let home = TempDir::new().unwrap();
+    let output = run(home.path(), &["id", "protect", "--json"]);
+    assert!(!output.status.success());
+    let combined = format!(
+        "{}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(combined.contains("no identity configured"));
+    assert!(!combined.contains("requires both --user-presence"));
+}
+
+#[test]
+fn lock_removes_only_local_session_state_and_hides_provider_jargon() {
+    let home = TempDir::new().unwrap();
+    write_protected_identity(home.path());
+    let session = home.path().join(".vela/signer-session.json");
+    let identity = home.path().join(".vela/identity.json");
+    let identity_before = std::fs::read(&identity).unwrap();
+    std::fs::write(&session, b"invalid fixture session").unwrap();
+
+    let show = run(home.path(), &["id", "show"]);
+    assert!(show.status.success());
+    let human = String::from_utf8_lossy(&show.stdout);
+    assert!(human.contains("approval: protected · session"));
+    assert!(human.contains("session:  invalid"));
+    assert!(!human.contains("os_store"));
+
+    let lock = run(home.path(), &["id", "lock", "--json"]);
+    assert!(lock.status.success());
+    let payload: serde_json::Value = serde_json::from_slice(&lock.stdout).unwrap();
+    assert_eq!(payload["command"], "id.lock");
+    assert_eq!(payload["session"], "closed");
+    assert_eq!(payload["changed"], true);
+    assert_eq!(payload["identity_changed"], false);
+    assert_eq!(payload["frontier_changed"], false);
+    assert!(!session.exists());
+    assert_eq!(std::fs::read(&identity).unwrap(), identity_before);
+
+    let repeat = run(home.path(), &["id", "lock", "--json"]);
+    assert!(repeat.status.success());
+    let payload: serde_json::Value = serde_json::from_slice(&repeat.stdout).unwrap();
+    assert_eq!(payload["changed"], false);
+}

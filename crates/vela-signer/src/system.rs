@@ -440,6 +440,81 @@ fn session_path() -> Result<std::path::PathBuf, String> {
         .join("signer-session.json"))
 }
 
+/// User-facing state of the bounded local approval session. This is local
+/// custody state only; it grants no scientific authority and contains no
+/// bearer material.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LocalSessionState {
+    Closed,
+    Active,
+    Invalid,
+    IdleExpired,
+    OverallExpired,
+}
+
+impl LocalSessionState {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Closed => "closed",
+            Self::Active => "active",
+            Self::Invalid => "invalid",
+            Self::IdleExpired => "idle_expired",
+            Self::OverallExpired => "overall_expired",
+        }
+    }
+}
+
+/// Inspect the signed local session without reading the protected seed.
+pub fn local_session_state(
+    actor: &str,
+    public_key: &str,
+    provider: &str,
+    mode: ProtectionMode,
+    helper_sha256: &str,
+    now: chrono::DateTime<chrono::Utc>,
+) -> LocalSessionState {
+    let Ok(path) = session_path() else {
+        return LocalSessionState::Invalid;
+    };
+    let bytes = match std::fs::read(path) {
+        Ok(bytes) => bytes,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            return LocalSessionState::Closed;
+        }
+        Err(_) => return LocalSessionState::Invalid,
+    };
+    let Ok(record) = serde_json::from_slice::<SessionRecord>(&bytes) else {
+        return LocalSessionState::Invalid;
+    };
+    match record.state(
+        actor,
+        public_key,
+        provider,
+        protection_mode_name(mode),
+        helper_sha256,
+        now,
+    ) {
+        SessionState::Active => LocalSessionState::Active,
+        SessionState::Invalid => LocalSessionState::Invalid,
+        SessionState::IdleExpired => LocalSessionState::IdleExpired,
+        SessionState::OverallExpired => LocalSessionState::OverallExpired,
+    }
+}
+
+/// Close the bounded approval session. The protected seed and identity record
+/// are deliberately untouched.
+pub fn lock_local_session() -> Result<bool, String> {
+    remove_session_at(&session_path()?)
+}
+
+fn remove_session_at(path: &std::path::Path) -> Result<bool, String> {
+    match std::fs::remove_file(path) {
+        Ok(()) => Ok(true),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(false),
+        Err(error) => Err(format!("close signer session: {error}")),
+    }
+}
+
 fn load_session_record() -> Option<SessionRecord> {
     let bytes = std::fs::read(session_path().ok()?).ok()?;
     serde_json::from_slice(&bytes).ok()
@@ -959,5 +1034,19 @@ mod tests {
             ))));
         }
         assert!(!user_interaction_disabled(None));
+    }
+
+    #[test]
+    fn locking_a_session_is_idempotent_and_does_not_touch_siblings() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("signer-session.json");
+        let sibling = temp.path().join("identity.json");
+        std::fs::write(&path, b"session").unwrap();
+        std::fs::write(&sibling, b"identity").unwrap();
+
+        assert!(remove_session_at(&path).unwrap());
+        assert!(!path.exists());
+        assert_eq!(std::fs::read(&sibling).unwrap(), b"identity");
+        assert!(!remove_session_at(&path).unwrap());
     }
 }

@@ -12,9 +12,9 @@ publish = true
 name = "vela_edge"
 path = "src/lib.rs"
 [dependencies]
-vela-protocol = { path = "../vela-protocol" }
+vela-protocol.workspace = true
 vela-protocol-core = { workspace = true }
-vela-verify = { path = "../vela-verify" }
+vela-verify.workspace = true
 reqwest.workspace = true
 serde.workspace = true
 serde_json.workspace = true
@@ -32,6 +32,6 @@ toml.workspace = true
 same-file = "1.0.6"
 [dev-dependencies]
 tempfile.workspace = true
-vela-protocol = { path = "../vela-protocol", features = ["test-support"] }
+vela-protocol = { workspace = true, features = ["test-support"] }
 [lints]
 workspace = true

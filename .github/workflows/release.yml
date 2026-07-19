@@ -92,69 +92,6 @@ jobs:
         run: cargo test --locked -p vela-signer
       - name: Build release binaries
         run: cargo build --locked --release -p vela-cli --bins
-      - name: Require macOS public-beta signing credentials
-        if: runner.os == 'macOS' && github.event_name == 'push'
-        shell: bash
-        env:
-          DEVELOPER_ID_P12: ${{ secrets.MACOS_DEVELOPER_ID_P12 }}
-          DEVELOPER_ID_P12_PASSWORD: ${{ secrets.MACOS_DEVELOPER_ID_P12_PASSWORD }}
-          SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
-        run: |
-          for name in DEVELOPER_ID_P12 DEVELOPER_ID_P12_PASSWORD SIGNING_IDENTITY APPLE_ID APPLE_TEAM_ID APPLE_APP_PASSWORD; do
-            test -n "${!name}" || { echo "missing required macOS release credential: $name" >&2; exit 1; }
-          done
-      - name: Developer-ID sign macOS binaries
-        if: runner.os == 'macOS' && github.event_name == 'push'
-        shell: bash
-        env:
-          DEVELOPER_ID_P12: ${{ secrets.MACOS_DEVELOPER_ID_P12 }}
-          DEVELOPER_ID_P12_PASSWORD: ${{ secrets.MACOS_DEVELOPER_ID_P12_PASSWORD }}
-          SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
-        run: |
-          KEYCHAIN="$RUNNER_TEMP/vela-signing.keychain-db"
-          KEYCHAIN_PASSWORD="$(openssl rand -hex 32)"
-          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
-          security set-keychain-settings -lut 21600 "$KEYCHAIN"
-          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
-          printf '%s' "$DEVELOPER_ID_P12" | base64 --decode > "$RUNNER_TEMP/developer-id.p12"
-          security import "$RUNNER_TEMP/developer-id.p12" -k "$KEYCHAIN" -P "$DEVELOPER_ID_P12_PASSWORD" -T /usr/bin/codesign
-          security list-keychains -d user -s "$KEYCHAIN"
-          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
-          codesign --force --options runtime --timestamp --sign "$SIGNING_IDENTITY" target/release/vela target/release/vela-signer
-          codesign --verify --strict --verbose=2 target/release/vela target/release/vela-signer
-          rm -f "$RUNNER_TEMP/developer-id.p12"
-      - name: Require Windows public-beta signing credentials
-        if: runner.os == 'Windows' && github.event_name == 'push'
-        shell: pwsh
-        env:
-          AUTHENTICODE_PFX: ${{ secrets.WINDOWS_AUTHENTICODE_PFX }}
-          AUTHENTICODE_PFX_PASSWORD: ${{ secrets.WINDOWS_AUTHENTICODE_PFX_PASSWORD }}
-        run: |
-          if (-not $env:AUTHENTICODE_PFX -or -not $env:AUTHENTICODE_PFX_PASSWORD) {
-            throw "Windows public-beta release requires WINDOWS_AUTHENTICODE_PFX and WINDOWS_AUTHENTICODE_PFX_PASSWORD"
-          }
-      - name: Authenticode-sign and timestamp Windows binaries
-        if: runner.os == 'Windows' && github.event_name == 'push'
-        shell: pwsh
-        env:
-          AUTHENTICODE_PFX: ${{ secrets.WINDOWS_AUTHENTICODE_PFX }}
-          AUTHENTICODE_PFX_PASSWORD: ${{ secrets.WINDOWS_AUTHENTICODE_PFX_PASSWORD }}
-        run: |
-          $pfx = Join-Path $env:RUNNER_TEMP "vela-authenticode.pfx"
-          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:AUTHENTICODE_PFX))
-          $signtool = (Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin" -Recurse -Filter signtool.exe |
-            Where-Object FullName -Match '\\x64\\signtool.exe$' |
-            Sort-Object FullName -Descending |
-            Select-Object -First 1).FullName
-          if (-not $signtool) { throw "SignTool x64 not found" }
-          foreach ($binary in @("target/release/vela.exe", "target/release/vela-signer.exe")) {
-            & $signtool sign /f $pfx /p $env:AUTHENTICODE_PFX_PASSWORD /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 $binary
-            & $signtool verify /pa /v $binary
-          }
-          Remove-Item -Force $pfx
       - name: Check exact fixture-signature state
         if: runner.os == 'Linux'
         run: cargo test --locked -p vela-protocol --test fixture_manifest_signature
@@ -194,22 +131,6 @@ jobs:
         env:
           ASSET: ${{ matrix.asset }}
         run: ditto -c -k --norsrc stage/ "dist/$ASSET"
-      - name: Notarize macOS archive
-        if: runner.os == 'macOS' && github.event_name == 'push'
-        shell: bash
-        env:
-          ASSET: ${{ matrix.asset }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
-        run: |
-          xcrun notarytool submit "dist/$ASSET" \
-            --apple-id "$APPLE_ID" \
-            --team-id "$APPLE_TEAM_ID" \
-            --password "$APPLE_APP_PASSWORD" \
-            --wait
-          spctl --assess --type execute --verbose=2 target/release/vela
-          spctl --assess --type execute --verbose=2 target/release/vela-signer
       - name: Prepare Windows archive
         if: runner.os == 'Windows'
         shell: pwsh
@@ -217,6 +138,33 @@ jobs:
           ASSET: ${{ matrix.asset }}
         run: |
           Compress-Archive -Path stage/vela.exe, stage/vela-signer.exe -DestinationPath "dist/$env:ASSET"
+      - name: Record the exact portable trust tier
+        shell: bash
+        env:
+          ASSET: ${{ matrix.asset }}
+          VERSION: ${{ needs.metadata.outputs.version }}
+        run: |
+          python3 - "$ASSET" "$VERSION" "$GITHUB_SHA" > "dist/$ASSET.trust.json" <<'PY'
+          import json
+          import sys
+
+          asset, version, commit = sys.argv[1:]
+          platform = (
+              "macos" if "macos" in asset else
+              "windows" if "windows" in asset else
+              "linux"
+          )
+          print(json.dumps({
+              "schema": "vela.release-trust.v1",
+              "artifact": asset,
+              "artifact_class": "portable",
+              "github_attestation": "required",
+              "platform": platform,
+              "platform_signature": "absent",
+              "source_commit": commit,
+              "version": version,
+          }, sort_keys=True, separators=(",", ":")))
+          PY
       - name: Write archive and SBOM checksums on Unix
         if: runner.os != 'Windows'
         shell: bash
@@ -226,6 +174,7 @@ jobs:
           cd dist
           shasum -a 256 "$ASSET" > "$ASSET.sha256"
           shasum -a 256 "$ASSET.spdx.json" > "$ASSET.spdx.json.sha256"
+          shasum -a 256 "$ASSET.trust.json" > "$ASSET.trust.json.sha256"
       - name: Write archive and SBOM checksums on Windows
         if: runner.os == 'Windows'
         shell: pwsh
@@ -233,7 +182,7 @@ jobs:
           ASSET: ${{ matrix.asset }}
         run: |
           Set-Location dist
-          foreach ($name in @($env:ASSET, "$($env:ASSET).spdx.json")) {
+          foreach ($name in @($env:ASSET, "$($env:ASSET).spdx.json", "$($env:ASSET).trust.json")) {
             $digest = (Get-FileHash -Algorithm SHA256 $name).Hash.ToLowerInvariant()
             Set-Content -Encoding ascii -Path "$name.sha256" -Value "$digest  $name"
           }
@@ -243,6 +192,7 @@ jobs:
           subject-path: |
             dist/${{ matrix.asset }}
             dist/${{ matrix.asset }}.spdx.json
+            dist/${{ matrix.asset }}.trust.json
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ${{ matrix.asset }}
@@ -275,7 +225,7 @@ jobs:
         env:
           ASSET: ${{ matrix.asset }}
           EXPECTED_VERSION: ${{ needs.metadata.outputs.version }}
-          REQUIRE_PLATFORM_SIGNATURE: ${{ github.event_name == 'push' && runner.os == 'macOS' }}
+          REQUIRE_PLATFORM_SIGNATURE: false
         run: scripts/smoke-release-bundle.sh "dist/$ASSET" "$EXPECTED_VERSION" "$REQUIRE_PLATFORM_SIGNATURE"
       - name: Smoke exact Windows bundle in a fresh prefix
         if: runner.os == 'Windows'
@@ -283,12 +233,33 @@ jobs:
         env:
           ASSET: ${{ matrix.asset }}
           EXPECTED_VERSION: ${{ needs.metadata.outputs.version }}
-          REQUIRE_PLATFORM_SIGNATURE: ${{ github.event_name == 'push' }}
+          REQUIRE_PLATFORM_SIGNATURE: false
         run: scripts/smoke-release-bundle.ps1 -Archive "dist/$env:ASSET" -ExpectedVersion $env:EXPECTED_VERSION -RequirePlatformSignature ($env:REQUIRE_PLATFORM_SIGNATURE -eq "true")
+
+  registry-smoke:
+    if: github.event_name == 'push'
+    needs: metadata
+    name: registry-smoke-${{ matrix.os }}
+    strategy:
+      fail-fast: true
+      matrix:
+        os: [ubuntu-24.04, macos-15, windows-2025]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable 2026-07-19
+      - name: Install exact immutable crates.io package
+        shell: bash
+        env:
+          VERSION: ${{ needs.metadata.outputs.version }}
+        run: |
+          root="$RUNNER_TEMP/vela-registry-install"
+          cargo install --locked vela-cli --version "$VERSION" --root "$root"
+          "$root/bin/vela" --version | grep -F "vela $VERSION"
+          "$root/bin/vela-signer" --version | grep -F "vela-signer $VERSION"
 
   publish:
     if: github.event_name == 'push'
-    needs: [build, smoke]
+    needs: [build, smoke, registry-smoke]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -314,6 +285,8 @@ jobs:
             test -f "dist/$asset.sha256"
             test -f "dist/$asset.spdx.json"
             test -f "dist/$asset.spdx.json.sha256"
+            test -f "dist/$asset.trust.json"
+            test -f "dist/$asset.trust.json.sha256"
           done
           release_flags=(
             --verify-tag

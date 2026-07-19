@@ -151,7 +151,9 @@ Layered: flag > VELA_* env > frontier .vela/config.toml > user ~/.vela/config.to
 pub const ID: &str = "\
 EXAMPLES
   vela id create        one-time: generate a key and remember the actor
+  vela id protect       one-time: protect a human approval identity
   vela id show          the current identity
+  vela id lock          close the bounded local approval session
   vela id pin-binary    pin this binary's hash (ceremonies verify it first)";
 
 pub const ACTOR: &str = "\
@@ -178,14 +180,14 @@ EXAMPLES
                                     submit new work as Receipt v1
 
 Finding is read-only. Receipt v1 plus `vela land` is the only producer write
-path; policy routes it, and deferred work reaches the normal `vela sign` queue.";
+path; policy routes it, and deferred work reaches `vela review decide`.";
 
 pub const ARTIFACT: &str = "\
 EXAMPLES
   vela artifact retract . va_417333a3e62df44a --reason \"legacy unpinned pointer\" --as agent:cleanup
 
 This is the sole direct draft-retirement exception. It creates only a pending
-proposal and never an accepted event; `vela sign` is the human decision.";
+proposal and never an accepted event; `vela review decide` is the human decision.";
 
 pub const POLICY: &str = "\
 EXAMPLES
@@ -200,7 +202,8 @@ EXAMPLES
 
 `policy decide` previews one root-bound action without reading a key; its exact
 confirmation requests one protected human card. Everything outside the signed
-policy still defers to human review. `policy sign` and key flags are advanced
+policy defers to human review, while exact matching agent work needs no prompt.
+`policy sign` and key flags are advanced
 historical compatibility surfaces. `retire-legacy` remains prepare-only.";
 
 pub const AGENTS: &str = "\

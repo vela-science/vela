@@ -140,7 +140,7 @@ fn root_action_is_lock_pinned_strict_and_nonfinalizing() {
 }
 
 #[test]
-fn reviewed_tags_publish_complete_cross_platform_bundles_from_locked_source() {
+fn reviewed_tags_publish_provenance_labeled_cross_platform_bundles() {
     assert!(RELEASE_WORKFLOW.contains("workflow_dispatch:"));
     assert!(RELEASE_WORKFLOW.contains("tags:\n      - \"v*.*.*\""));
     assert!(RELEASE_WORKFLOW.contains("manual release-candidate builds must use main"));
@@ -163,9 +163,14 @@ fn reviewed_tags_publish_complete_cross_platform_bundles_from_locked_source() {
     assert!(RELEASE_WORKFLOW.contains("shasum -a 256 \"$ASSET\""));
     assert!(RELEASE_WORKFLOW.contains("Get-FileHash -Algorithm SHA256 $name"));
     assert!(RELEASE_WORKFLOW.contains("-Path \"$name.sha256\" -Value \"$digest  $name\""));
+    assert!(RELEASE_WORKFLOW.contains("vela.release-trust.v1"));
+    assert!(RELEASE_WORKFLOW.contains("\"artifact_class\": \"portable\""));
+    assert!(RELEASE_WORKFLOW.contains("\"platform_signature\": \"absent\""));
+    assert!(RELEASE_WORKFLOW.contains("test -f \"dist/$asset.trust.json\""));
     assert!(RELEASE_WORKFLOW.contains("science.vela.signer.policy"));
     assert!(RELEASE_WORKFLOW.contains("gh release create \"$GITHUB_REF_NAME\" dist/*"));
-    assert!(RELEASE_WORKFLOW.contains("needs: [build, smoke]"));
+    assert!(RELEASE_WORKFLOW.contains("needs: [build, smoke, registry-smoke]"));
+    assert!(RELEASE_WORKFLOW.contains("cargo install --locked vela-cli --version \"$VERSION\""));
     assert!(RELEASE_WORKFLOW.contains("if: github.event_name == 'push'"));
     assert!(RELEASE_WORKFLOW.contains("--verify-tag"));
     assert!(RELEASE_WORKFLOW.contains("permissions:\n  contents: read"));
@@ -182,6 +187,8 @@ fn reviewed_tags_publish_complete_cross_platform_bundles_from_locked_source() {
             "release workflow retains mutable action ref {mutable_ref}"
         );
     }
+    assert!(!RELEASE_WORKFLOW.contains("WINDOWS_AUTHENTICODE_PFX"));
+    assert!(!RELEASE_WORKFLOW.contains("MACOS_DEVELOPER_ID_P12"));
     assert!(!RELEASE_WORKFLOW.contains("vela sign"));
 }
 

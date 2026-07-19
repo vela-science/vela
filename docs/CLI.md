@@ -222,18 +222,22 @@ A human identity moves its seed into the local OS credential store through the
 one-shot helper. Enrollment authenticates once before reading the source:
 
 ```bash
-vela id protect --user-presence --remove-source-key --mode session --json
+vela id protect --json
 vela id show --json
+vela id lock --json
 ```
 
-Enrollment verifies the public key, installs identity v2 atomically, removes
-the plaintext source, and pins the exact Vela binary. Every request binds and
-self-verifies the current sibling helper. An
+Protection uses safe defaults: it authenticates the human, verifies the public
+key, installs identity v2 atomically, removes the plaintext source, and pins the
+exact Vela binary. The 0.901 safety flags remain accepted but are not needed.
+Every request binds and self-verifies the current sibling helper. An
 interrupted cleanup leaves protected decisions disabled until the same command
 safely resumes. The default session has 15-minute inactivity and one-hour
 overall limits. `--mode always` additionally requires LocalAuthentication,
 Windows Hello, or non-cached polkit authentication for every decision-signing
-operation. Agent identities continue to use file keys.
+operation. `id lock` closes only the bounded local session; it does not alter
+the protected identity or a frontier. Agent identities continue to use file
+keys. Provider and binary details are diagnostics, not the human identity.
 
 A producer may close only its own Receipt-bound pending proposal:
 
