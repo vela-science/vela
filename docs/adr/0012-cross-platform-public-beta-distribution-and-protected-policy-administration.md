@@ -1,6 +1,6 @@
 # ADR 0012: Cross-platform public-beta distribution and protected policy administration
 
-- Status: Proposed
+- Status: Accepted (2026-07-19)
 - Target: Vela `v0.910.0`
 - Protocol effect: none
 
@@ -182,7 +182,25 @@ authority.
 - Developer ID/notarization and Azure Artifact Signing checks only when the
   corresponding native trust tier is declared.
 
-ADR 0012 becomes Accepted only when the exact `v0.910.0` source tag, crates.io
-package graph, attestations, clean-platform installs, protected-policy ceremony,
-and old-frontier replay pass. Native platform tiers remain independently gated and
-must not be inferred from the universal beta release.
+ADR 0012 is accepted for `v0.910.0` on the following release evidence:
+
+- the exact stable candidate at commit
+  `8796ef94b296faefc308cca6c657096f477a1856` built and passed fresh
+  install/upgrade/uninstall smoke on macOS ARM64, Linux x86-64, and Windows
+  x86-64 in GitHub Actions run
+  [29695967268](https://github.com/vela-science/vela/actions/runs/29695967268);
+- the deterministic local release union passed 45 gates with zero failures;
+  the one warning is the already-declared Sidon/formal frontier reconciliation
+  boundary, and external Lean and live-network suites remained excluded;
+- protected signer, review-decision, policy-decision, cancellation, help-surface,
+  package, installer, action, and old-replay conformance passed against exact
+  `0.910.0` bytes; and
+- the release publisher is required to publish and then verify the immutable
+  six-crate graph before the public tag is pushed. A failed publication or final
+  registry smoke prevents the release rather than weakening this decision.
+
+No live scientific policy was activated merely to test the product. The first
+real policy approval remains an exact human ceremony for a concrete frontier;
+deterministic fakes cover the protected card and cancellation paths without
+creating synthetic authority history. Native platform tiers remain independently
+gated and must not be inferred from the universal beta release.
