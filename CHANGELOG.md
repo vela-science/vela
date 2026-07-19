@@ -1,6 +1,23 @@
 # Changelog
 
-## v0.910.0-rc.1 — unreleased public-beta candidate
+## v0.910.0 — 2026-07-19 — Cross-platform public beta
+
+- Make the registered Ed25519 actor the only Vela identity shown in ordinary
+  product language. Platform credential stores are hidden custody adapters;
+  `vela id protect` uses safe one-command defaults, `vela id show` reports the
+  bounded approval session, and `vela id lock` closes only that local session.
+- Keep routine agent work prompt-free under exact signed policy. Ordinary help
+  now teaches protected `review decide` and `policy decide` flows while hiding
+  legacy batch signing, raw key import, key generation, and binary pinning.
+- Publish a provenance-first six-crate package graph and prove exact
+  `cargo install --locked vela-cli --version 0.910.0` on macOS, Linux, and
+  Windows. GitHub bundles carry checksums, SPDX SBOMs, build attestations, and
+  explicit portable/native trust metadata rather than pretending an Apple or
+  Windows platform signature exists.
+- Separate optional native distribution credentials from scientific identity.
+  Developer ID/notarization and managed Windows Artifact Signing may add
+  no-warning native tiers later; they do not block the universal source and
+  package-manager beta.
 
 - Add a Proposed AcceptancePolicy v0.3 candidate for an exact Permit lane
   scoped to one full producer credential root already retained in Receipt v1.
