@@ -2375,6 +2375,7 @@ mod tests {
                 has_unknown_fields: false,
                 replayability: "exact".to_string(),
                 execution_binding: None,
+                producer_credential_root: None,
             },
             policy_decision: Decision {
                 outcome: Outcome::Defer,
