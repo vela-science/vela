@@ -19,13 +19,13 @@ jobs:
       run:
         working-directory: lean
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - name: install Lean toolchain manager
         run: |
           curl -sSfL https://elan.lean-lang.org/elan-init.sh | sh -s -- -y --default-toolchain none
           echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
       - name: cache pinned dependencies and build artifacts
-        uses: actions/cache@v4
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: lean/.lake
           key: lake-${{ runner.os }}-${{ hashFiles('lean/lake-manifest.json', 'lean/lean-toolchain') }}

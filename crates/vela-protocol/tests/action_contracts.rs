@@ -4,6 +4,8 @@ const ROOT_ACTION: &str = include_str!("../../../action.yml");
 const INSTALLER: &str = include_str!("../../../install.sh");
 const WINDOWS_INSTALLER: &str = include_str!("../../../install.ps1");
 const RELEASE_WORKFLOW: &str = include_str!("../../../.github/workflows/release.yml");
+const CONFORMANCE_WORKFLOW: &str = include_str!("../../../.github/workflows/conformance.yml");
+const LEAN_WORKFLOW: &str = include_str!("../../../.github/workflows/lean.yml");
 
 fn parse_action(source: &str) -> Value {
     serde_yaml::from_str(source).expect("action source must be valid YAML")
@@ -67,6 +69,29 @@ fn is_stable_semver(version: &str) -> bool {
         && fields
             .iter()
             .all(|field| !field.is_empty() && field.bytes().all(|byte| byte.is_ascii_digit()))
+}
+
+fn assert_immutable_action_pins(name: &str, workflow: &str) {
+    for line in workflow.lines() {
+        let trimmed = line.trim();
+        let Some(use_clause) = trimmed
+            .strip_prefix("- uses: ")
+            .or_else(|| trimmed.strip_prefix("uses: "))
+        else {
+            continue;
+        };
+        let (_, reference) = use_clause
+            .split_once('@')
+            .unwrap_or_else(|| panic!("{name} has malformed action use {use_clause}"));
+        let reference = reference
+            .split_whitespace()
+            .next()
+            .expect("action reference must not be empty");
+        assert!(
+            reference.len() == 40 && reference.bytes().all(|byte| byte.is_ascii_hexdigit()),
+            "{name} action must use one immutable commit SHA: {use_clause}"
+        );
+    }
 }
 
 #[test]
@@ -147,6 +172,17 @@ fn reviewed_tags_publish_complete_cross_platform_bundles_from_locked_source() {
         );
     }
     assert!(!RELEASE_WORKFLOW.contains("vela sign"));
+}
+
+#[test]
+fn every_hosted_action_is_pinned_by_commit() {
+    for (name, workflow) in [
+        ("conformance", CONFORMANCE_WORKFLOW),
+        ("lean", LEAN_WORKFLOW),
+        ("release", RELEASE_WORKFLOW),
+    ] {
+        assert_immutable_action_pins(name, workflow);
+    }
 }
 
 #[test]
