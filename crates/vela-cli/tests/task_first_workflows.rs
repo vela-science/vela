@@ -2471,9 +2471,16 @@ batches:
         br#"{"kind":"golomb","length":6,"marks":[0,1,4,6]}"#,
     )
     .unwrap();
+    let legacy_blob = ".vela/artifact-blobs/sha256/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+    std::fs::create_dir_all(producer.join(".vela/artifact-blobs/sha256")).unwrap();
+    std::fs::write(producer.join(legacy_blob), b"legacy public evidence\n").unwrap();
     assert_success(
         &git(&producer, &["add", "campaign.yaml", "witnesses"]),
         "stage training frontier",
+    );
+    assert_success(
+        &git(&producer, &["add", "-f", "--", legacy_blob]),
+        "stage legacy artifact layout",
     );
     assert_success(
         &git(&producer, &["commit", "-qm", "add bounded training target"]),
@@ -2514,6 +2521,11 @@ batches:
         ),
         "",
         "the real work step did not publish a clean exact lease"
+    );
+    assert_eq!(
+        git_stdout(&producer, &["show", &format!("HEAD:{legacy_blob}")]),
+        "legacy public evidence\n",
+        "work publication dropped pre-0.9 artifact evidence"
     );
     let session_path = work_session_path(&work);
     assert!(session_path.is_file());

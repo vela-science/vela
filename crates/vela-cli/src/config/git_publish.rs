@@ -2945,11 +2945,12 @@ fn tree_entries(runner: &GitRunner, tree: &GitOid, specs: &[String]) -> Result<T
         let (header, path) = line
             .split_once('\t')
             .ok_or_else(|| format!("malformed ls-tree row `{line}`"))?;
-        if is_private_vela_path(path, specs) {
-            return Err(format!(
-                "expected tree contains tracked private Vela scratch path {path}; remove it explicitly before publication"
-            ));
-        }
+        // Some pre-0.9 frontiers tracked artifact blobs below `.vela/` as
+        // public evidence. Exact publication must preserve those immutable
+        // parent entries so old artifact locators keep replaying. Private
+        // paths still cannot appear in a PublicationDelta, and the candidate
+        // index is built from this exact parent tree, so caller-local private
+        // dirt cannot be swept into the commit.
         let mut fields = header.split_whitespace();
         let mode = fields
             .next()
@@ -5243,6 +5244,51 @@ mod tests {
             String::from_utf8_lossy(written).trim()
         );
         assert!(!path.join("frontier.json").exists());
+    }
+
+    #[test]
+    fn exact_publication_preserves_legacy_tracked_artifact_blobs() {
+        let temporary = frontier();
+        let path = temporary.path();
+        let legacy = ".vela/artifact-blobs/sha256/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+        fs::create_dir_all(path.join(".vela/artifact-blobs/sha256")).unwrap();
+        fs::write(path.join(legacy), b"legacy public evidence\n").unwrap();
+        sh(path, &["add", "-f", "--", legacy]);
+        sh(path, &["commit", "-q", "-m", "legacy artifact layout"]);
+
+        let written = b"[\n  {\"actor_id\":\"agent:legacy-compatible\"}\n]\n";
+        let delta = exact_delta(
+            "legacy-tracked-artifact",
+            vec![exact_write(path, ".vela/actors.json", written)],
+        );
+        let opts = PublishOptions::new(true);
+        let preflight = exact_publication_preflight(path, &delta, &opts).unwrap();
+        fs::write(path.join(".vela/actors.json"), written).unwrap();
+
+        let outcome = publish_exact_delta(
+            path,
+            "preserve legacy artifact layout",
+            &[],
+            &delta,
+            preflight,
+            &opts,
+        )
+        .unwrap();
+        assert!(matches!(
+            outcome.state,
+            PublicationState::CommittedLocal { .. }
+        ));
+        assert_eq!(
+            sh(
+                path,
+                &["diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD"]
+            ),
+            ".vela/actors.json"
+        );
+        assert_eq!(
+            sh(path, &["show", &format!("HEAD:{legacy}")]),
+            "legacy public evidence"
+        );
     }
 
     #[test]
