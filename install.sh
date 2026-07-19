@@ -110,12 +110,16 @@ done
 if [ "$OS" = "linux" ]; then
   POLICY="$TMP/unpack/share/polkit-1/actions/science.vela.signer.policy"
   test -f "$POLICY"
-  if [[ -w "$POLICYDIR" ]]; then
-    mkdir -p "$POLICYDIR"
+  if mkdir -p "$POLICYDIR" 2>/dev/null && [[ -w "$POLICYDIR" ]]; then
     install -m 0644 "$POLICY" "$POLICYDIR/science.vela.signer.policy"
   else
     sudo mkdir -p "$POLICYDIR"
     sudo install -m 0644 "$POLICY" "$POLICYDIR/science.vela.signer.policy"
+  fi
+  if [ "$POLICYDIR" != "/usr/share/polkit-1/actions" ]; then
+    echo "Staged the Linux signer policy under the explicit prefix at $POLICYDIR."
+    echo "Protected decisions remain disabled until an administrator installs it:"
+    echo "  sudo install -m 0644 '$POLICYDIR/science.vela.signer.policy' /usr/share/polkit-1/actions/science.vela.signer.policy"
   fi
 fi
 

@@ -120,6 +120,8 @@ fn reviewed_tags_publish_complete_cross_platform_bundles_from_locked_source() {
 fn installer_points_to_the_nonfinalizing_task_first_path() {
     assert!(INSTALLER.contains("vela-signer"));
     assert!(INSTALLER.contains("science.vela.signer.policy"));
+    assert!(INSTALLER.contains("mkdir -p \"$POLICYDIR\" 2>/dev/null"));
+    assert!(INSTALLER.contains("Protected decisions remain disabled"));
     assert!(WINDOWS_INSTALLER.contains("vela-signer.exe"));
     assert!(WINDOWS_INSTALLER.contains("Get-FileHash -Algorithm SHA256"));
     assert!(INSTALLER.contains("VELA_EXPECTED_SHA256"));
