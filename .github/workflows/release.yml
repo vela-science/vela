@@ -32,19 +32,19 @@ jobs:
       - name: Require the tag to match every Vela workspace package
         shell: bash
         run: |
-          version="$({ cargo metadata --locked --no-deps --format-version 1; } | node -e '
-            const fs = require("node:fs");
-            const metadata = JSON.parse(fs.readFileSync(0, "utf8"));
-            const versions = new Set(
-              metadata.packages
-                .filter((item) => item.name === "vela-cli" || item.name.startsWith("vela-"))
-                .map((item) => item.version),
-            );
-            if (versions.size !== 1) {
-              throw new Error(`Vela workspace versions disagree: ${[...versions].sort().join(", ")}`);
+          package_version() {
+            local package_id
+            package_id="$(cargo pkgid --locked -p "$1")"
+            printf '%s' "${package_id##*@}"
+          }
+          version="$(package_version vela-cli)"
+          for package in vela-edge vela-hub vela-protocol vela-protocol-core vela-signer vela-verify; do
+            observed="$(package_version "$package")"
+            test "$observed" = "$version" || {
+              echo "Vela workspace version mismatch: vela-cli=$version, $package=$observed" >&2
+              exit 1
             }
-            process.stdout.write([...versions][0]);
-          ')"
+          done
           test "v$version" = "$GITHUB_REF_NAME" || {
             echo "release tag $GITHUB_REF_NAME does not match Vela workspace version v$version" >&2
             exit 1
