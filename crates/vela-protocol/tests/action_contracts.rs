@@ -144,7 +144,11 @@ fn reviewed_tags_publish_provenance_labeled_cross_platform_bundles() {
     assert!(RELEASE_WORKFLOW.contains("workflow_dispatch:"));
     assert!(RELEASE_WORKFLOW.contains("tags:\n      - \"v*.*.*\""));
     assert!(RELEASE_WORKFLOW.contains("manual release-candidate builds must use main"));
-    assert!(RELEASE_WORKFLOW.contains("manual release-candidate builds require a prerelease"));
+    assert!(RELEASE_WORKFLOW.contains("stable-candidate:"));
+    assert!(
+        RELEASE_WORKFLOW
+            .contains("a stable-version manual candidate requires stable-candidate=true")
+    );
     assert!(RELEASE_WORKFLOW.contains("cargo pkgid --locked -p \"$1\""));
     assert!(RELEASE_WORKFLOW.contains("package_id=\"${package_id##*#}\""));
     assert!(RELEASE_WORKFLOW.contains("${package_id##*@}"));

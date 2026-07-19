@@ -2,6 +2,12 @@ name: release
 
 on:
   workflow_dispatch:
+    inputs:
+      stable-candidate:
+        description: Build and smoke a stable-version commit without publishing it.
+        required: false
+        type: boolean
+        default: false
   push:
     tags:
       - "v*.*.*"
@@ -38,7 +44,12 @@ jobs:
             }
             case "$version" in
               *-*) ;;
-              *) echo "manual release-candidate builds require a prerelease workspace version" >&2; exit 1 ;;
+              *)
+                test "${{ inputs['stable-candidate'] }}" = "true" || {
+                  echo "a stable-version manual candidate requires stable-candidate=true" >&2
+                  exit 1
+                }
+                ;;
             esac
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
