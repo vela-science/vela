@@ -522,6 +522,10 @@ pub(crate) fn cmd_id(action: IdAction) {
                                 "absent"
                             }
                         );
+                        println!("  protection: {}", health.state);
+                        if let Some(next_action) = &health.next_action {
+                            println!("  next: {next_action}");
+                        }
                     }
                     _ => println!("  key:    {}", identity.key_path),
                 }

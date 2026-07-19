@@ -82,6 +82,8 @@ pub(crate) struct SignerHealth {
     pub(crate) binary_version: &'static str,
     pub(crate) binary_path: String,
     pub(crate) binary_sha256: Option<String>,
+    pub(crate) binary_pin_state: &'static str,
+    pub(crate) pinned_binary_sha256: Option<String>,
     pub(crate) helper_path: Option<String>,
     pub(crate) helper_sha256: Option<String>,
     pub(crate) pinned_helper_sha256: Option<String>,
@@ -212,6 +214,17 @@ pub(crate) fn signer_health(identity: &Identity) -> SignerHealth {
     let helper_sha256 = helper
         .as_deref()
         .and_then(|path| vela_signer::contract::file_sha256(path).ok());
+    let (binary_pin_state, pinned_binary_sha256, binary_pin_ready) =
+        match crate::config::binary_pin::pin_state() {
+            Ok(crate::config::binary_pin::PinState::Match(pin)) => {
+                ("match", Some(format!("sha256:{}", pin.sha256)), true)
+            }
+            Ok(crate::config::binary_pin::PinState::Mismatch { pinned, .. }) => {
+                ("mismatch", Some(format!("sha256:{}", pinned.sha256)), false)
+            }
+            Ok(crate::config::binary_pin::PinState::Unpinned) => ("unpinned", None, false),
+            Err(_) => ("unavailable", None, false),
+        };
     let (pinned_helper_sha256, incomplete) = match &identity.signer {
         Some(IdentitySigner::Helper {
             helper_sha256,
@@ -236,7 +249,7 @@ pub(crate) fn signer_health(identity: &Identity) -> SignerHealth {
     } else if protected && !integration_ready {
         ("missing_integration", integration_repair)
     } else if let Some(pinned) = pinned_helper_sha256.as_ref() {
-        if helper_sha256.as_ref() == Some(pinned) {
+        if protected_backend_ready(helper_sha256.as_deref(), pinned, binary_pin_ready) {
             ("ready", None)
         } else {
             (
@@ -267,11 +280,21 @@ pub(crate) fn signer_health(identity: &Identity) -> SignerHealth {
             .map(|path| path.display().to_string())
             .unwrap_or_else(|| "unavailable".to_string()),
         binary_sha256,
+        binary_pin_state,
+        pinned_binary_sha256,
         helper_path: helper.map(|path| path.display().to_string()),
         helper_sha256,
         pinned_helper_sha256,
         next_action,
     }
+}
+
+fn protected_backend_ready(
+    observed_helper_sha256: Option<&str>,
+    pinned_helper_sha256: &str,
+    binary_pin_ready: bool,
+) -> bool {
+    observed_helper_sha256 == Some(pinned_helper_sha256) && binary_pin_ready
 }
 
 fn platform_signer_integration(platform: &str) -> (&'static str, bool, Option<String>) {
@@ -501,6 +524,14 @@ mod protected_profile_tests {
         assert_eq!(integration, "file-key compatibility only");
         assert!(!ready);
         assert!(repair.unwrap().contains("unsupported"));
+    }
+
+    #[test]
+    fn protected_backend_requires_both_helper_and_binary_pins() {
+        let helper = format!("sha256:{}", "a".repeat(64));
+        assert!(protected_backend_ready(Some(&helper), &helper, true));
+        assert!(!protected_backend_ready(Some(&helper), &helper, false));
+        assert!(!protected_backend_ready(None, &helper, true));
     }
 
     #[test]

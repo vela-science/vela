@@ -491,6 +491,10 @@ fn migration_previews_exact_files_preserves_roots_and_refuses_dirty_input() {
     );
     let migrated_ignore = std::fs::read_to_string(frontier.join(".gitignore")).unwrap();
     assert!(
+        migrated_ignore.lines().any(|line| line == "/.vela/work/"),
+        "migration must keep private work-session records out of Git"
+    );
+    assert!(
         !migrated_ignore
             .lines()
             .any(|line| matches!(line.trim(), "proof/" | "/proof/" | "records/" | "/records/")),

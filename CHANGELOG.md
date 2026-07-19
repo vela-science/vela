@@ -14,6 +14,13 @@
   proof re-export. Active recovery and transaction completion still require
   exact postimages, while authority, proposals, Receipts, artifacts, and other
   canonical evidence remain fail-closed.
+- Make `vela id show` use the same protected-readiness rule as ceremony and
+  doctor checks: both the signer helper and the running Vela binary must match
+  their authenticated pins. A rebuilt binary is now reported as stale with
+  the exact rebind action instead of incorrectly appearing ready.
+- Make `vela migrate --to 0.900` add the current `/.vela/work/` ignore rule as
+  well as the operation-journal rule. Private work-session coordination no
+  longer appears as publishable source dirt on migrated frontiers.
 
 ## v0.901.0 — 2026-07-17 — Protected decisions and producer withdrawal
 
