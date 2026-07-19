@@ -146,6 +146,8 @@ fn reviewed_tags_publish_complete_cross_platform_bundles_from_locked_source() {
     assert!(RELEASE_WORKFLOW.contains("manual release-candidate builds must use main"));
     assert!(RELEASE_WORKFLOW.contains("manual release-candidate builds require a prerelease"));
     assert!(RELEASE_WORKFLOW.contains("cargo pkgid --locked -p \"$1\""));
+    assert!(RELEASE_WORKFLOW.contains("package_id=\"${package_id##*#}\""));
+    assert!(RELEASE_WORKFLOW.contains("${package_id##*@}"));
     assert!(RELEASE_WORKFLOW.contains("test \"v$version\" = \"$GITHUB_REF_NAME\""));
     assert!(RELEASE_WORKFLOW.contains("cargo build --locked --release -p vela-cli --bins"));
     assert!(RELEASE_WORKFLOW.contains("target/release/vela-signer"));

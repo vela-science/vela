@@ -72,6 +72,7 @@ jobs:
           package_version() {
             local package_id
             package_id="$(cargo pkgid --locked -p "$1")"
+            package_id="${package_id##*#}"
             printf '%s' "${package_id##*@}"
           }
           version="$(package_version vela-cli)"
