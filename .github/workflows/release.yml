@@ -217,7 +217,8 @@ jobs:
           ASSET: ${{ matrix.asset }}
         run: |
           Compress-Archive -Path stage/vela.exe, stage/vela-signer.exe -DestinationPath "dist/$env:ASSET"
-      - name: Write archive and SBOM checksums
+      - name: Write archive and SBOM checksums on Unix
+        if: runner.os != 'Windows'
         shell: bash
         env:
           ASSET: ${{ matrix.asset }}
@@ -225,6 +226,17 @@ jobs:
           cd dist
           shasum -a 256 "$ASSET" > "$ASSET.sha256"
           shasum -a 256 "$ASSET.spdx.json" > "$ASSET.spdx.json.sha256"
+      - name: Write archive and SBOM checksums on Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          ASSET: ${{ matrix.asset }}
+        run: |
+          Set-Location dist
+          foreach ($name in @($env:ASSET, "$($env:ASSET).spdx.json")) {
+            $digest = (Get-FileHash -Algorithm SHA256 $name).Hash.ToLowerInvariant()
+            Set-Content -Encoding ascii -NoNewline "$name.sha256" "$digest  $name`n"
+          }
       - name: Attest archive and SBOM provenance
         uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
         with:
