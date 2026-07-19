@@ -29,6 +29,26 @@ jobs:
     steps:
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
       - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable 2026-07-15
+      - name: Require the tag to match every Vela workspace package
+        shell: bash
+        run: |
+          version="$({ cargo metadata --locked --no-deps --format-version 1; } | node -e '
+            const fs = require("node:fs");
+            const metadata = JSON.parse(fs.readFileSync(0, "utf8"));
+            const versions = new Set(
+              metadata.packages
+                .filter((item) => item.name === "vela-cli" || item.name.startsWith("vela-"))
+                .map((item) => item.version),
+            );
+            if (versions.size !== 1) {
+              throw new Error(`Vela workspace versions disagree: ${[...versions].sort().join(", ")}`);
+            }
+            process.stdout.write([...versions][0]);
+          ')"
+          test "v$version" = "$GITHUB_REF_NAME" || {
+            echo "release tag $GITHUB_REF_NAME does not match Vela workspace version v$version" >&2
+            exit 1
+          }
       - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
       - name: Test signer contracts and platform profile
         run: cargo test --locked -p vela-signer

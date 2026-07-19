@@ -7,6 +7,8 @@
 - Preserve all historical protocol bytes and released tags. This identifier is
   provenance metadata only; it does not accept ADR 0012 or satisfy platform
   signing, notarization, attestation, or fresh-install release gates.
+- Make the release workflow reject any Git tag that differs from the one exact
+  version shared by all Vela workspace packages, before building artifacts.
 
 ## v0.901.0 — 2026-07-17 — Protected decisions and producer withdrawal
 
