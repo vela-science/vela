@@ -344,7 +344,7 @@ pub struct CodeArtifact {
     /// reproducibility; `None` means "unpinned" and weakens the
     /// substrate claim.
     pub git_commit: Option<String>,
-    /// Path within the repository (e.g. `crates/vela-scientist/src/notes.rs`).
+    /// Path within the repository (e.g. `crates/producer/src/notes.rs`).
     pub path: String,
     /// Optional line range as `(start, end)`, both inclusive.
     pub line_range: Option<(u32, u32)>,

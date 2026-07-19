@@ -812,10 +812,12 @@ pub async fn run_command() {
                 operands,
                 from_suggest,
                 replace,
+                from_proposal,
                 packet_root,
                 profile_root,
                 verifier_capsule_root,
                 result_contract_root,
+                producer_credential_root,
                 json,
             } => {
                 crate::ui::set_mode("policy", json);
@@ -836,28 +838,59 @@ pub async fn run_command() {
                         fail_return("policy draft needs a template or --from-suggest")
                     });
                     let frontier = crate::ui::resolve_frontier(operands.get(1).map(PathBuf::from));
-                    let exact_binding = match (
-                        packet_root,
-                        profile_root,
-                        verifier_capsule_root,
-                        result_contract_root,
-                    ) {
-                        (Some(packet), Some(profile), Some(capsule), Some(result)) => {
-                            Some(crate::config::cli_policy::ExactPermitBinding {
-                                packet_root: packet,
-                                profile_root: profile,
-                                verifier_capsule_root: capsule,
-                                result_contract_root: result,
-                            })
+                    let exact_binding = if let Some(proposal_id) = from_proposal {
+                        if template != "search-witness" {
+                            crate::ui::fail_with(
+                                crate::ui::ErrorKind::Usage,
+                                "--from-proposal is supported only by the search-witness template",
+                                Some(
+                                    "use `vela policy draft search-witness <frontier> --from-proposal <vpr_id>`",
+                                ),
+                            );
                         }
-                        (None, None, None, None) => None,
-                        _ => crate::ui::fail_with(
-                            crate::ui::ErrorKind::Usage,
-                            "exact policy binding requires all four full roots",
-                            Some(
-                                "provide --packet-root, --profile-root, --verifier-capsule-root, and --result-contract-root",
+                        Some(
+                            crate::config::cli_policy::exact_permit_binding_from_proposal(
+                                &frontier,
+                                &proposal_id,
+                            )
+                            .unwrap_or_else(|error| error.fail()),
+                        )
+                    } else {
+                        match (
+                            packet_root,
+                            profile_root,
+                            verifier_capsule_root,
+                            result_contract_root,
+                        ) {
+                            (Some(packet), Some(profile), Some(capsule), Some(result)) => {
+                                Some(crate::config::cli_policy::ExactPermitBinding {
+                                    packet_root: packet,
+                                    profile_root: profile,
+                                    verifier_capsule_root: capsule,
+                                    result_contract_root: result,
+                                    producer_credential_root,
+                                })
+                            }
+                            (None, None, None, None) => {
+                                if producer_credential_root.is_some() {
+                                    crate::ui::fail_with(
+                                        crate::ui::ErrorKind::Usage,
+                                        "producer credential binding requires all four exact execution roots",
+                                        Some(
+                                            "provide --packet-root, --profile-root, --verifier-capsule-root, and --result-contract-root",
+                                        ),
+                                    );
+                                }
+                                None
+                            }
+                            _ => crate::ui::fail_with(
+                                crate::ui::ErrorKind::Usage,
+                                "exact policy binding requires all four full roots",
+                                Some(
+                                    "provide --packet-root, --profile-root, --verifier-capsule-root, and --result-contract-root",
+                                ),
                             ),
-                        ),
+                        }
                     };
                     crate::config::cli_policy::cmd_policy_draft(
                         &frontier,

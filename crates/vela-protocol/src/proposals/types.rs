@@ -57,7 +57,7 @@ pub struct StateProposal {
 ///
 /// Doctrine: the substrate stays model-agnostic. Agents — Literature
 /// Scout, Notes Compiler, Code Analyst, etc. — sit in the
-/// `vela-scientist` crate (or external code) and write proposals into
+/// external producer code and write proposals into
 /// a frontier through the existing protocol. This struct is the
 /// reviewer-facing record of *who proposed what, with what model,
 /// during which run* — never used as access control or trust

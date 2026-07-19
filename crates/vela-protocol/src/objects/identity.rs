@@ -101,6 +101,14 @@ impl IdentityBinding {
         ))
     }
 
+    /// Full typed credential identity over the same canonical preimage used by
+    /// the readable `vib_` handle. The short handle is routing only; authority
+    /// comparisons use this complete root.
+    pub fn credential_root(&self) -> Result<String, String> {
+        let bytes = self.id_preimage_bytes()?;
+        Ok(format!("sha256:{}", hex::encode(Sha256::digest(&bytes))))
+    }
+
     /// Verify: id re-derives, and the signature is valid under
     /// `public_key_hex` — i.e. the key being bound actually signed this. That
     /// equality (signer == bound key) is the proof of possession.
@@ -229,6 +237,12 @@ mod tests {
     fn self_signed_binding_verifies() {
         let b = IdentityBinding::build(draft(), &key()).unwrap();
         assert!(b.binding_id.starts_with("vib_"));
+        let full = b.credential_root().unwrap();
+        assert!(full.starts_with("sha256:"));
+        assert_eq!(
+            &full["sha256:".len()..][..16],
+            &b.binding_id["vib_".len()..]
+        );
         b.verify().unwrap();
     }
 

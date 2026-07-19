@@ -79,7 +79,7 @@ pub enum PolicyAction {
     },
     /// Seal a policy from a template (witness-rederivation,
     /// statement-drafts, notes-threshold). Sealed carries NO authority
-    /// until `vela policy sign`.
+    /// until a protected `vela policy decide` activation or rotation.
     Draft {
         /// Template followed by an optional frontier, or only the frontier
         /// with --from-suggest.
@@ -91,6 +91,10 @@ pub enum PolicyAction {
         /// Replace an existing SIGNED active policy (deliberate act).
         #[arg(long)]
         replace: bool,
+        /// Derive all four execution roots and the full producer credential
+        /// root from one exact retained pending proposal.
+        #[arg(long, conflicts_with_all = ["from_suggest", "packet_root", "profile_root", "verifier_capsule_root", "result_contract_root", "producer_credential_root"])]
+        from_proposal: Option<String>,
         /// Full root of the exact target packet eligible for Permit.
         #[arg(long, conflicts_with = "from_suggest", requires_all = ["profile_root", "verifier_capsule_root", "result_contract_root"])]
         packet_root: Option<String>,
@@ -103,6 +107,11 @@ pub enum PolicyAction {
         /// Full root of the exact positive result contract eligible for Permit.
         #[arg(long, conflicts_with = "from_suggest", requires_all = ["packet_root", "profile_root", "verifier_capsule_root"])]
         result_contract_root: Option<String>,
+        /// Full root of the exact self-signed producer credential eligible for
+        /// this Permit lane. Supplying it selects policy v0.3 and narrows every
+        /// producer, including registered actors, to this allowlist.
+        #[arg(long, conflicts_with = "from_suggest", requires_all = ["packet_root", "profile_root", "verifier_capsule_root", "result_contract_root"])]
+        producer_credential_root: Option<String>,
         #[arg(long)]
         json: bool,
     },

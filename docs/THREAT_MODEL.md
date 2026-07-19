@@ -157,6 +157,13 @@ capsule, and positive result contract. This blocks same-class verifier and
 target substitution; it does not make the selected verifier scientifically
 adequate. That semantic judgment remains part of the human policy approval.
 
+AcceptancePolicy v0.3 can further bind that exact lane to the full root of one
+retained Receipt identity binding. This avoids granting a replaceable producer
+frontier-wide registry meaning. It is not open self-enrollment: the protected
+policy plan rederives the full binding, the human-signed rule names it exactly,
+and even a globally registered actor cannot substitute another key or omit the
+v0.3 root.
+
 New verifiers need positive fixtures, meaningful negative controls, resource
 bounds, and independent review of what their result means. A verifier maintained
 by the producer is evidence with a disclosed conflict, not independent

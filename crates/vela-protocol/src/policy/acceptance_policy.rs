@@ -87,10 +87,15 @@ pub struct PolicyContext {
     /// `exact` to auto-admit a serious claim class.
     pub replayability: String,
     /// Optional closed Receipt v1 execution identity. It is absent from
-    /// historical contexts and ignored by policy v0.1; policy v0.2 may require
-    /// exact full-root matches before Permit.
+    /// historical contexts and ignored by policy v0.1; policy v0.2/v0.3 may
+    /// require exact full-root matches before Permit.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub execution_binding: Option<ExecutionBindingV1>,
+    /// Full root of the verified Receipt v1 producer identity binding. It is
+    /// absent from historical contexts and populated only for policy v0.3 so
+    /// v0.1/v0.2 decision certificates retain their exact context bytes.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub producer_credential_root: Option<String>,
 }
 
 impl Default for PolicyContext {
@@ -112,6 +117,7 @@ impl Default for PolicyContext {
             has_unknown_fields: true,
             replayability: "unknown".to_string(),
             execution_binding: None,
+            producer_credential_root: None,
         }
     }
 }
@@ -161,6 +167,8 @@ pub struct Constraints {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub allowed_result_contract_roots: Option<Vec<String>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub allowed_producer_credential_roots: Option<Vec<String>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub required_replayability: Option<String>,
 }
 
@@ -179,6 +187,7 @@ impl Default for Constraints {
             allowed_profile_roots: None,
             allowed_verifier_capsule_roots: None,
             allowed_result_contract_roots: None,
+            allowed_producer_credential_roots: None,
             required_replayability: None,
         }
     }
@@ -236,10 +245,12 @@ pub struct AcceptancePolicy {
 
 pub const ACCEPTANCE_POLICY_V0_1_SCHEMA: &str = "vela.acceptance_policy.v0.1";
 pub const ACCEPTANCE_POLICY_V0_2_SCHEMA: &str = "vela.acceptance_policy.v0.2";
+pub const ACCEPTANCE_POLICY_V0_3_SCHEMA: &str = "vela.acceptance_policy.v0.3";
 
 /// The evaluator version, bound into every decision for replay.
 pub const EVALUATOR_VERSION: &str = "vela-policy@0.1.0";
 pub const EVALUATOR_VERSION_V0_2: &str = "vela-policy@0.2.0";
+pub const EVALUATOR_VERSION_V0_3: &str = "vela-policy@0.3.0";
 
 impl AcceptancePolicy {
     /// Content address of the policy's normative body (everything but `id`), so
@@ -303,10 +314,10 @@ pub struct Decision {
 /// push toward `defer`/`deny`.
 #[must_use]
 pub fn evaluate(policy: &AcceptancePolicy, ctx: &PolicyContext, now_rfc3339: &str) -> Decision {
-    let evaluator = if policy.schema == ACCEPTANCE_POLICY_V0_2_SCHEMA {
-        EVALUATOR_VERSION_V0_2
-    } else {
-        EVALUATOR_VERSION
+    let evaluator = match policy.schema.as_str() {
+        ACCEPTANCE_POLICY_V0_2_SCHEMA => EVALUATOR_VERSION_V0_2,
+        ACCEPTANCE_POLICY_V0_3_SCHEMA => EVALUATOR_VERSION_V0_3,
+        _ => EVALUATOR_VERSION,
     };
     let mk = |outcome: Outcome, rules: Vec<String>, reasons: Vec<String>| Decision {
         outcome,
@@ -323,7 +334,9 @@ pub fn evaluate(policy: &AcceptancePolicy, ctx: &PolicyContext, now_rfc3339: &st
     // (0) Policy integrity + lifecycle: structural DENY.
     if !matches!(
         policy.schema.as_str(),
-        ACCEPTANCE_POLICY_V0_1_SCHEMA | ACCEPTANCE_POLICY_V0_2_SCHEMA
+        ACCEPTANCE_POLICY_V0_1_SCHEMA
+            | ACCEPTANCE_POLICY_V0_2_SCHEMA
+            | ACCEPTANCE_POLICY_V0_3_SCHEMA
     ) {
         return mk(
             Outcome::Deny,
@@ -373,7 +386,16 @@ pub fn evaluate(policy: &AcceptancePolicy, ctx: &PolicyContext, now_rfc3339: &st
         if ctx.has_unknown_fields {
             blocked.push("unknown_fields".into());
         }
-        if !ctx.credential_valid {
+        if policy.schema == ACCEPTANCE_POLICY_V0_3_SCHEMA {
+            match ctx.producer_credential_root.as_ref() {
+                Some(root)
+                    if c.allowed_producer_credential_roots
+                        .as_ref()
+                        .is_some_and(|roots| roots.iter().any(|allowed| allowed == root)) => {}
+                Some(_) => blocked.push("producer_credential_root_not_allowed".into()),
+                None => blocked.push("producer_credential_root_missing".into()),
+            }
+        } else if !ctx.credential_valid {
             blocked.push("credential_invalid".into());
         }
         if ctx.governance_mutation && !c.allow_governance_mutation {
@@ -403,7 +425,10 @@ pub fn evaluate(policy: &AcceptancePolicy, ctx: &PolicyContext, now_rfc3339: &st
         if c.require_method_integrity && !ctx.method_integrity_sound {
             blocked.push("method_integrity_unattested".into());
         }
-        if policy.schema == ACCEPTANCE_POLICY_V0_2_SCHEMA {
+        if matches!(
+            policy.schema.as_str(),
+            ACCEPTANCE_POLICY_V0_2_SCHEMA | ACCEPTANCE_POLICY_V0_3_SCHEMA
+        ) {
             let Some(binding) = ctx.execution_binding.as_ref() else {
                 blocked.push("execution_binding_missing".into());
                 escalations.extend(
@@ -489,13 +514,20 @@ fn binding_policy_error(policy: &AcceptancePolicy) -> Option<String> {
             || constraints.allowed_verifier_capsule_roots.is_some()
             || constraints.allowed_result_contract_roots.is_some()
             || constraints.required_replayability.is_some();
+        let v3_fields_present = constraints.allowed_producer_credential_roots.is_some();
         if policy.schema == ACCEPTANCE_POLICY_V0_1_SCHEMA {
-            if v2_fields_present {
+            if v2_fields_present || v3_fields_present {
                 return Some("policy_v0_2_constraints_under_v0_1".to_string());
             }
             continue;
         }
-        if policy.schema != ACCEPTANCE_POLICY_V0_2_SCHEMA {
+        if policy.schema == ACCEPTANCE_POLICY_V0_2_SCHEMA && v3_fields_present {
+            return Some("policy_v0_3_constraints_under_v0_2".to_string());
+        }
+        if !matches!(
+            policy.schema.as_str(),
+            ACCEPTANCE_POLICY_V0_2_SCHEMA | ACCEPTANCE_POLICY_V0_3_SCHEMA
+        ) {
             continue;
         }
         for (field, roots) in [
@@ -519,6 +551,38 @@ fn binding_policy_error(policy: &AcceptancePolicy) -> Option<String> {
         }
         if constraints.required_replayability.as_deref() != Some("exact") {
             return Some("policy_exact_replayability_required".to_string());
+        }
+        if policy.schema == ACCEPTANCE_POLICY_V0_3_SCHEMA {
+            let Some(roots) = constraints.allowed_producer_credential_roots.as_ref() else {
+                return Some("policy_producer_credential_allowlist_missing".to_string());
+            };
+            if roots.is_empty() || roots.iter().any(|root| !is_full_sha256_root(root)) {
+                return Some("policy_producer_credential_allowlist_invalid".to_string());
+            }
+            let unique = roots.iter().collect::<HashSet<_>>();
+            if unique.len() != roots.len() {
+                return Some("policy_producer_credential_allowlist_duplicate".to_string());
+            }
+            if roots.len() != 1 {
+                return Some("policy_producer_credential_allowlist_invalid".to_string());
+            }
+            for (_, allowed) in [
+                ("packet", &constraints.allowed_packet_roots),
+                ("profile", &constraints.allowed_profile_roots),
+                (
+                    "verifier_capsule",
+                    &constraints.allowed_verifier_capsule_roots,
+                ),
+                (
+                    "result_contract",
+                    &constraints.allowed_result_contract_roots,
+                ),
+            ] {
+                let roots = allowed.as_ref().expect("v0.3 exact roots validated above");
+                if roots.iter().collect::<HashSet<_>>().len() != roots.len() {
+                    return Some("policy_exact_allowlist_duplicate".to_string());
+                }
+            }
         }
     }
     None
@@ -699,6 +763,7 @@ mod tests {
             has_unknown_fields: false,
             replayability: "unknown".to_string(),
             execution_binding: None,
+            producer_credential_root: None,
         }
     }
 
@@ -821,6 +886,73 @@ mod tests {
     }
 
     #[test]
+    fn policy_scoped_producer_credential_is_exact_and_narrower_than_registry_status() {
+        let root = |digit: char| format!("sha256:{}", digit.to_string().repeat(64));
+        let binding = ExecutionBindingV1 {
+            schema: crate::receipt_v1::EXECUTION_BINDING_SCHEMA.to_string(),
+            packet_root: root('1'),
+            profile_root: root('2'),
+            verifier_capsule_root: root('3'),
+            result_contract_root: root('4'),
+        };
+        let credential = root('5');
+        let mut policy = exact_sidon_policy();
+        policy.schema = ACCEPTANCE_POLICY_V0_3_SCHEMA.to_string();
+        let constraints = &mut policy.rules[0].constraints;
+        constraints.allowed_packet_roots = Some(vec![binding.packet_root.clone()]);
+        constraints.allowed_profile_roots = Some(vec![binding.profile_root.clone()]);
+        constraints.allowed_verifier_capsule_roots =
+            Some(vec![binding.verifier_capsule_root.clone()]);
+        constraints.allowed_result_contract_roots =
+            Some(vec![binding.result_contract_root.clone()]);
+        constraints.allowed_producer_credential_roots = Some(vec![credential.clone()]);
+        constraints.required_replayability = Some("exact".to_string());
+        policy.id = policy.content_address();
+
+        let mut context = clean_exact_ctx();
+        context.credential_valid = false;
+        context.replayability = "exact".to_string();
+        context.execution_binding = Some(binding);
+        context.producer_credential_root = Some(credential.clone());
+        let decision = evaluate(&policy, &context, NOW);
+        assert_eq!(decision.outcome, Outcome::Permit, "{decision:?}");
+        assert_eq!(decision.evaluator, EVALUATOR_VERSION_V0_3);
+
+        context.credential_valid = true;
+        context.producer_credential_root = Some(root('6'));
+        let wrong = evaluate(&policy, &context, NOW);
+        assert_eq!(wrong.outcome, Outcome::Defer);
+        assert!(
+            wrong
+                .reasons
+                .iter()
+                .any(|reason| reason.ends_with("producer_credential_root_not_allowed"))
+        );
+
+        context.producer_credential_root = None;
+        let missing = evaluate(&policy, &context, NOW);
+        assert_eq!(missing.outcome, Outcome::Defer);
+        assert!(
+            missing
+                .reasons
+                .iter()
+                .any(|reason| reason.ends_with("producer_credential_root_missing"))
+        );
+
+        let mut duplicate = policy.clone();
+        duplicate.rules[0]
+            .constraints
+            .allowed_producer_credential_roots = Some(vec![credential.clone(), credential]);
+        duplicate.id = duplicate.content_address();
+        let denied = evaluate(&duplicate, &context, NOW);
+        assert_eq!(denied.outcome, Outcome::Deny);
+        assert_eq!(
+            denied.reasons,
+            vec!["policy_producer_credential_allowlist_duplicate"]
+        );
+    }
+
+    #[test]
     fn tampered_policy_id_denies() {
         let mut p = exact_sidon_policy();
         p.rules[0].constraints.required_assurance_min = 0; // change body, keep old id
@@ -908,6 +1040,9 @@ mod tests {
             verifier_capsule_root: format!("sha256:{}", "3".repeat(64)),
             result_contract_root: format!("sha256:{}", "4".repeat(64)),
         });
+        variants.push(value);
+        let mut value = baseline.clone();
+        value.producer_credential_root = Some(format!("sha256:{}", "5".repeat(64)));
         variants.push(value);
 
         for variant in variants {
@@ -1577,10 +1712,12 @@ fn validate_rfc3339(label: &str, value: &str) -> Result<(), String> {
 fn validate_supported_policy(policy: &AcceptancePolicy, label: &str) -> Result<(), String> {
     if !matches!(
         policy.schema.as_str(),
-        ACCEPTANCE_POLICY_V0_1_SCHEMA | ACCEPTANCE_POLICY_V0_2_SCHEMA
+        ACCEPTANCE_POLICY_V0_1_SCHEMA
+            | ACCEPTANCE_POLICY_V0_2_SCHEMA
+            | ACCEPTANCE_POLICY_V0_3_SCHEMA
     ) {
         return Err(format!(
-            "{label} schema must be {ACCEPTANCE_POLICY_V0_1_SCHEMA} or {ACCEPTANCE_POLICY_V0_2_SCHEMA}, got {}",
+            "{label} schema must be {ACCEPTANCE_POLICY_V0_1_SCHEMA}, {ACCEPTANCE_POLICY_V0_2_SCHEMA}, or {ACCEPTANCE_POLICY_V0_3_SCHEMA}, got {}",
             policy.schema
         ));
     }

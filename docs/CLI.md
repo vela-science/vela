@@ -188,19 +188,26 @@ Policy administration uses the same exact-request flow:
 
 ```bash
 vela policy draft search-witness . \
-  --packet-root <sha256:...> \
-  --profile-root <sha256:...> \
-  --verifier-capsule-root <sha256:...> \
-  --result-contract-root <sha256:...>
+  --from-proposal <vpr_id> \
+  --replace \
+  --json
+# Run the returned policy-only Git commit command.
 vela policy decide . --activate <vap_id> --reason <text> --json
 vela policy decide . --rotate <vap_id> --reason <text> --json
 vela policy decide . --revoke --reason <text> --json
 ```
 
-The four exact-root flags are an advanced, all-or-nothing authoring path for a
-positive computational Permit lane. They seal AcceptancePolicy v0.2; the
-policy remains unsigned and carries no authority until protected activation or
-rotation. Negative results and mismatched roots Defer.
+`--from-proposal` derives the packet, profile, verifier-capsule,
+result-contract, and producer-credential roots from one retained pending
+Receipt. It seals the narrower AcceptancePolicy v0.3 contract: even a globally
+registered producer must match the exact credential root named by the rule.
+The four execution-root flags plus `--producer-credential-root` remain an
+advanced, all-or-nothing authoring path. Omitting the producer credential seals
+the registry-backed v0.2 contract. The draft remains unsigned and carries no
+authority until protected activation or rotation. Draft output separates the
+required policy-only Git commit from the subsequent Decision Plan request so
+the protected path never encounters an unexpectedly dirty checkout. Negative
+results and mismatched roots Defer.
 
 The first call returns a key-free `vela.policy-decision.v1` plan. A second call
 with its exact `--confirm-root` and `--confirm-at` rechecks Git and frontier

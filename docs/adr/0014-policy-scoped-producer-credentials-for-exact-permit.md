@@ -45,7 +45,7 @@ membership roster as the only credential source.
 If accepted, add one optional AcceptancePolicy v0.3 constraint:
 
 ```text
-allowed_producer_credential_roots: [sha256:<64 lowercase hex>, ...]
+allowed_producer_credential_roots: [sha256:<64 lowercase hex>]
 ```
 
 A producer credential root is SHA-256 over the Vela-canonical
@@ -54,10 +54,11 @@ the same full preimage whose first 16 hexadecimal characters form the readable
 `vib_` handle. The full root is the authorization identity; `vib_` remains a
 routing handle and is never sufficient in a policy.
 
-For a Permit rule, `credential_valid` is true when either:
-
-1. the existing actor-registry validation succeeds unchanged; or
-2. every policy-scoped check below succeeds.
+AcceptancePolicy v0.1 and v0.2 continue to derive `credential_valid` from the
+frontier actor registry exactly as before. AcceptancePolicy v0.3 is deliberately
+stricter: every matching Permit must name the producer's full credential root,
+including producers that are also globally registered. Registry membership is
+not an implicit bypass around the v0.3 allowlist.
 
 The scoped checks are closed and conjunctive:
 
@@ -73,10 +74,28 @@ The scoped checks are closed and conjunctive:
 - the retained Receipt and proposal bytes match the inputs from which the
   policy context was derived.
 
-The policy plan and protected card must show the producer actor, public-key
-fingerprint, full credential root, and whether the credential is global or
-policy-scoped. Activation or rotation remains one exact human decision. The
-producer never receives a human key and cannot add itself to the allowlist.
+The policy plan and protected card must resolve each allowed root from the full
+retained Receipt identity binding and show the producer actor, public-key
+fingerprint, and full credential root. A missing or ambiguous retained binding
+fails before the protected prompt. Activation or rotation remains one exact
+human decision. The producer never receives a human key and cannot add itself
+to the allowlist.
+
+The ordinary authoring path derives the five exact roots from one retained,
+pending Receipt-bound proposal:
+
+```bash
+vela policy draft search-witness <frontier> \
+  --from-proposal <vpr_id> \
+  --replace \
+  --json
+```
+
+Explicit full-root flags remain available for advanced authoring. A policy
+draft is canonical evidence but carries no authority; it must be committed
+before `policy decide` can derive a clean, Git-bound Decision Plan. Draft JSON
+therefore returns the exact policy-only commit command and the subsequent
+protected-decision command as separate steps.
 
 The scoped credential authorizes only the matching Permit rule. It does not:
 
@@ -110,9 +129,10 @@ record.
 
 The rule reduces trust-boundary friction because a replaceable producer can be
 authorized for one content-addressed job without a permanent global registry
-mutation. It does not weaken authority: current registry validation remains a
-valid path, every scoped fact is full-root-bound and human-approved, and any
-unknown or mismatch continues to Defer or Deny.
+mutation. It does not weaken authority: v0.1/v0.2 registry validation remains
+unchanged, v0.3 requires an explicit full-root credential even for registered
+actors, every scoped fact is human-approved, and any unknown or mismatch
+continues to Defer or Deny.
 
 ## Alternatives
 
@@ -156,8 +176,11 @@ proposals.
 
 - AcceptancePolicy v0.1 and v0.2 bytes, decisions, and historical policy-lane
   events replay unchanged.
-- An absent `allowed_producer_credential_roots` field preserves current global
-  registry semantics exactly.
+- V0.1 and v0.2 preserve current global registry semantics exactly and reject
+  the v0.3 field.
+- Every v0.3 Permit rule requires exactly one full-root producer credential in
+  its allowlist. An absent, malformed, repeated, or unmatched list fails
+  closed. Another producer requires a separately reviewed rule or policy.
 - A v0.3 Permit rule using scoped credentials must also carry the four ADR 0013
   allowlists and exact replayability. It cannot broaden a generic rule.
 - Older binaries may reject v0.3 as an intentional pre-1.0 policy-version
@@ -205,7 +228,8 @@ Focused fixtures must prove:
 4. Removing or changing any one of the five roots Defer/Deny; no partial match
    is accepted.
 5. An unregistered producer with a valid but unlisted self-signed binding
-   remains invalid.
+   remains invalid, and a globally registered producer with the wrong or
+   missing v0.3 root also remains invalid.
 6. Wrong actor, key, actor class, signature, Receipt submitter, binding ID,
    full root, policy frontier, causal policy head, or replay mode fails closed.
 7. Backdated bindings, duplicate roots, truncated collisions, malformed roots,
@@ -233,9 +257,11 @@ accepted and a real release is cut.
 ## Acceptance gate
 
 The reproduced Sidon Defer is sufficient to draft this ADR, not to accept it.
-Acceptance requires review of the exact credential-root derivation, hostile
-fixtures showing that self-signing alone grants nothing, a protected policy
-preview showing the full scoped credential, and confirmation that an
-equivalent one-proposal protected decision would be preferable if the intended
-authority is not genuinely reusable. Until then, the current Defer is correct
+The candidate implementation now includes full-root derivation from retained
+Receipt v1 bytes, hostile v0.2/v0.3 comparison fixtures, and a key-free
+protected-policy preview path. Acceptance still requires review of those
+artifacts and confirmation that an equivalent one-proposal protected decision
+would not better match the intended authority. Until then, the live Sidon v0.2
+Defer is correct, no v0.3 policy is active, and no accepted-state mutation is
+authorized.
 and no policy or credential rule changes.

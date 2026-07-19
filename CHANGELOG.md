@@ -2,6 +2,17 @@
 
 ## v0.910.0-rc.1 — unreleased public-beta candidate
 
+- Add a Proposed AcceptancePolicy v0.3 candidate for an exact Permit lane
+  scoped to one full producer credential root already retained in Receipt v1.
+  V0.1/v0.2 registry-backed replay is unchanged; v0.3 requires both the four
+  execution roots and an explicit producer root even for globally registered
+  actors. Missing, malformed, duplicate, or substituted roots fail closed.
+- Add `policy draft search-witness --from-proposal <vpr_id>` so one retained
+  pending Receipt supplies all five full roots. Protected previews rederive
+  the complete identity binding and display its actor, key fingerprint, and
+  root. Draft output now makes the required policy-only Git commit explicit
+  before the clean-checkout Decision Plan request.
+
 - Give the unreleased public-beta train a distinct SemVer identity so candidate
   binaries cannot be mistaken for the published `v0.901.0` artifacts.
 - Preserve all historical protocol bytes and released tags. This identifier is

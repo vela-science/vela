@@ -195,6 +195,12 @@ def main() -> int:
         return 1
     print("vela conformance: ok  [permit-shadow v0.1/v0.2]")
 
+    credential_rc = _run_policy_scoped_credential(repo_root)
+    if credential_rc != 0:
+        print("vela conformance: FAIL  [policy-scoped-credential]")
+        return 1
+    print("vela conformance: ok  [policy-scoped-credential v0.2/v0.3]")
+
     floor_rc = _run_exact_witness_floor(repo_root)
     if floor_rc != 0:
         print("vela conformance: FAIL  [exact-witness-floor]")
@@ -256,7 +262,11 @@ def _full_root(value: object) -> bool:
 
 def _evaluate_permit_shadow(policy: dict, context: dict) -> str:
     schema = policy.get("schema")
-    if schema not in {"vela.acceptance_policy.v0.1", "vela.acceptance_policy.v0.2"}:
+    if schema not in {
+        "vela.acceptance_policy.v0.1",
+        "vela.acceptance_policy.v0.2",
+        "vela.acceptance_policy.v0.3",
+    }:
         return "deny"
     if policy.get("id") != _policy_id(policy) or policy.get("default") == "permit":
         return "deny"
@@ -273,13 +283,31 @@ def _evaluate_permit_shadow(policy: dict, context: dict) -> str:
             "allowed_result_contract_roots",
             "required_replayability",
         ]
+        v3_names = ["allowed_producer_credential_roots"]
         if schema == "vela.acceptance_policy.v0.1" and any(
-            name in constraints for name in v2_names
+            name in constraints for name in v2_names + v3_names
+        ):
+            return "deny"
+        if schema == "vela.acceptance_policy.v0.2" and any(
+            name in constraints for name in v3_names
         ):
             return "deny"
         blocked = []
-        if context.get("has_unknown_fields") or not context.get("credential_valid"):
-            blocked.append("unknown_or_invalid")
+        if context.get("has_unknown_fields"):
+            blocked.append("unknown")
+        if schema == "vela.acceptance_policy.v0.3":
+            credentials = constraints.get("allowed_producer_credential_roots")
+            if (
+                not isinstance(credentials, list)
+                or len(credentials) != 1
+                or not all(_full_root(root) for root in credentials)
+                or len(set(credentials)) != len(credentials)
+            ):
+                return "deny"
+            if context.get("producer_credential_root") not in credentials:
+                blocked.append("producer_credential")
+        elif not context.get("credential_valid"):
+            blocked.append("credential")
         if context.get("assurance_level", 0) < constraints.get(
             "required_assurance_min", 4
         ):
@@ -312,7 +340,7 @@ def _evaluate_permit_shadow(policy: dict, context: dict) -> str:
             "method_integrity_sound"
         ):
             blocked.append("method")
-        if schema == "vela.acceptance_policy.v0.2":
+        if schema in {"vela.acceptance_policy.v0.2", "vela.acceptance_policy.v0.3"}:
             allowlists = [
                 ("packet_root", "allowed_packet_roots"),
                 ("profile_root", "allowed_profile_roots"),
@@ -326,6 +354,10 @@ def _evaluate_permit_shadow(policy: dict, context: dict) -> str:
                     or not allowlist
                     or not all(_full_root(root) for root in allowlist)
                 ):
+                    return "deny"
+                if schema == "vela.acceptance_policy.v0.3" and len(
+                    set(allowlist)
+                ) != len(allowlist):
                     return "deny"
             if constraints.get("required_replayability") != "exact":
                 return "deny"
@@ -402,6 +434,67 @@ def _run_permit_shadow(repo_root: Path) -> int:
             return 1
     if _evaluate_permit_shadow(policy_v2, cases[0]["policy_context"]) != "defer":
         print("  permit-shadow missing v0.2 binding did not defer", file=sys.stderr)
+        return 1
+    return 0
+
+
+def _run_policy_scoped_credential(repo_root: Path) -> int:
+    path = (
+        repo_root
+        / "conformance"
+        / "fixtures"
+        / "policy-scoped-producer-credential-v1.json"
+    )
+    try:
+        fixture = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        print(f"  policy-scoped credential fixture load failed: {error}", file=sys.stderr)
+        return 1
+    if fixture.get("schema") != "vela.policy-scoped-producer-credential-fixture.v1":
+        print("  policy-scoped credential fixture schema mismatch", file=sys.stderr)
+        return 1
+    binding = copy.deepcopy(fixture.get("identity_binding"))
+    if not isinstance(binding, dict):
+        print("  policy-scoped identity binding is missing", file=sys.stderr)
+        return 1
+    declared_id = binding.get("binding_id")
+    binding["binding_id"] = ""
+    binding["signature"] = ""
+    derived = "sha256:" + hashlib.sha256(_canonical_bytes(binding)).hexdigest()
+    if derived != fixture.get("producer_credential_root"):
+        print("  policy-scoped credential root drift", file=sys.stderr)
+        return 1
+    if declared_id != "vib_" + derived[7:23]:
+        print("  policy-scoped credential handle drift", file=sys.stderr)
+        return 1
+
+    v2 = copy.deepcopy(fixture["policy"])
+    v2["id"] = _policy_id(v2)
+    v3 = copy.deepcopy(v2)
+    v3["schema"] = "vela.acceptance_policy.v0.3"
+    v3["rules"][0]["constraints"]["allowed_producer_credential_roots"] = [derived]
+    v3["id"] = _policy_id(v3)
+    for case in fixture.get("cases", []):
+        v2_context = copy.deepcopy(fixture["context"])
+        v2_context["credential_valid"] = case["credential_valid"]
+        if _evaluate_permit_shadow(v2, v2_context) != case["expected_v0_2"]:
+            print(f"  {case.get('id')}: v0.2 credential outcome mismatch", file=sys.stderr)
+            return 1
+        v3_context = copy.deepcopy(v2_context)
+        credential = case.get("producer_credential_root")
+        if credential is not None:
+            v3_context["producer_credential_root"] = credential
+        if _evaluate_permit_shadow(v3, v3_context) != case["expected_v0_3"]:
+            print(f"  {case.get('id')}: v0.3 credential outcome mismatch", file=sys.stderr)
+            return 1
+    duplicate = copy.deepcopy(v3)
+    duplicate["rules"][0]["constraints"]["allowed_producer_credential_roots"] = [
+        derived,
+        derived,
+    ]
+    duplicate["id"] = _policy_id(duplicate)
+    if _evaluate_permit_shadow(duplicate, fixture["context"]) != "deny":
+        print("  duplicate producer credentials did not fail closed", file=sys.stderr)
         return 1
     return 0
 

@@ -49,6 +49,10 @@ vectors, then runs the TypeScript reducer when Node supports native TypeScript.
   experiment that proves AcceptancePolicy v0.1 cannot distinguish the intended
   packet/profile/capsule from same-class verifier or target substitution. Rust
   and Python both require v0.2 to Permit only the intended full-root binding.
+- `fixtures/policy-scoped-producer-credential-v1.json` freezes the live Sidon
+  Receipt identity binding and its full credential root. Rust and Python retain
+  v0.2 registry semantics, require v0.3 to match the exact scoped credential,
+  and prove that global registration cannot bypass a v0.3 allowlist.
 - `fixtures/exact-witness-floor-v1.json` freezes the retained Vela-native
   witness, full byte root, exact lower-bound claim, claim-substitution cases,
   and corrupted-witness case used by AcceptancePolicy v0.2. Rust and Python

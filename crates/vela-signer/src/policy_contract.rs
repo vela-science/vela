@@ -5,7 +5,7 @@
 //! so the helper can derive every signing input it approves. It never accepts
 //! caller-supplied opaque bytes.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
 use chrono::{DateTime, Duration, Utc};
@@ -14,6 +14,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use vela_protocol::acceptance_policy::AcceptancePolicy;
 use vela_protocol::events::{EVENT_KIND_REVIEW_ACCEPTED, StateEvent};
+use vela_protocol::identity::{ActorClass, IdentityBinding};
 use vela_protocol::proposals::StateProposal;
 use vela_protocol::proposals::policy_accept::{
     POLICY_HEAD_PROPOSAL_KIND, PolicyHeadAction, PolicyHeadPayload,
@@ -70,6 +71,10 @@ pub struct PolicySignerRequest {
     /// Exact selected policy for every action. Revoke does not sign a new
     /// envelope, but still binds and displays the authority it closes.
     pub policy: AcceptancePolicy,
+    /// Verified producer bindings whose full roots are named by a v0.3 rule.
+    /// The helper rederives every root before displaying actor/key facts.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub producer_credentials: Vec<IdentityBinding>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub prior_policy: Option<AcceptancePolicy>,
     pub proposal: StateProposal,
@@ -238,6 +243,30 @@ pub fn validate_policy_request(
     if policy_root != request.selected_policy_root {
         return Err("selected policy root does not match the request".to_string());
     }
+    let allowed_credentials = policy
+        .rules
+        .iter()
+        .filter_map(|rule| rule.constraints.allowed_producer_credential_roots.as_ref())
+        .flatten()
+        .cloned()
+        .collect::<BTreeSet<_>>();
+    let mut supplied_credentials = BTreeSet::new();
+    for binding in &request.producer_credentials {
+        binding.verify()?;
+        if binding.actor_class != ActorClass::Agent {
+            return Err("policy-scoped producer credential must be agent-class".to_string());
+        }
+        let root = binding.credential_root()?;
+        if !supplied_credentials.insert(root) {
+            return Err("policy signer request repeats a producer credential".to_string());
+        }
+    }
+    if supplied_credentials != allowed_credentials {
+        return Err(
+            "policy signer producer credentials do not match the exact policy allowlist"
+                .to_string(),
+        );
+    }
     match request.action {
         PolicyDecisionAction::Activate | PolicyDecisionAction::Rotate => {
             if payload.policy_id.as_deref() != Some(request.selected_policy_id.as_str()) {
@@ -361,6 +390,9 @@ pub fn policy_signer_display(request: &PolicySignerRequest) -> SignerDisplay {
         .collect::<Vec<_>>();
     rules.sort();
     rules.truncate(1);
+    if let Some(summary) = rules.first_mut() {
+        summary.push_str(&format!("; expires {}", request.policy.expires_at));
+    }
     if let Some(rule) = request
         .policy
         .rules
@@ -387,25 +419,43 @@ pub fn policy_signer_display(request: &PolicySignerRequest) -> SignerDisplay {
         )
     {
         let short = |root: &str| root.chars().take(19).collect::<String>();
+        let credential = rule
+            .constraints
+            .allowed_producer_credential_roots
+            .as_ref()
+            .and_then(|roots| roots.first())
+            .map(|root| format!(" c={}", short(root)))
+            .unwrap_or_default();
         rules.push(format!(
-            "exact roots p={} f={} v={} r={} replay={replayability}",
+            "exact roots p={} f={} v={} r={}{} replay={replayability}",
             short(packet),
             short(profile),
             short(capsule),
             short(result),
+            credential,
         ));
     }
-    rules.push(format!(
+    for binding in &request.producer_credentials {
+        let short_key = binding.public_key_hex.chars().take(16).collect::<String>();
+        let root = binding
+            .credential_root()
+            .expect("validated policy request has a rederivable credential root");
+        rules.push(format!(
+            "producer {} key={} credential={}",
+            binding.actor_id, short_key, root
+        ));
+    }
+    let mut diff_summary = format!(
         "authority diff: +{} -{} ~{} ={}",
         diff.added.len(),
         diff.removed.len(),
         diff.changed.len(),
         diff.unchanged.len()
-    ));
+    );
     if !diff.removed.is_empty() {
-        rules.push(format!("removed: {}", diff.removed.join(",")));
+        diff_summary.push_str(&format!("; removed {}", diff.removed.join(",")));
     }
-    rules.push(format!("expires {}", request.policy.expires_at));
+    rules.push(diff_summary);
     rules.truncate(4);
     SignerDisplay {
         frontier_name: request.frontier_id.clone(),
@@ -617,6 +667,7 @@ mod tests {
             protection_grade: "test".to_string(),
             protection_mode: ProtectionMode::Session,
             policy,
+            producer_credentials: Vec::new(),
             prior_policy: None,
             proposal,
             event,
@@ -720,5 +771,52 @@ mod tests {
                 "missing `{expected}` from {facts}"
             );
         }
+    }
+
+    #[test]
+    fn scoped_policy_card_names_the_full_credential_root() {
+        let (_binary, _key, mut request) = fixture();
+        let root = |digit: char| format!("sha256:{}", digit.to_string().repeat(64));
+        let producer_key = SigningKey::from_bytes(&[8_u8; 32]);
+        let credential = IdentityBinding::build(
+            vela_protocol::identity::IdentityBindingDraft {
+                actor_id: "agent:sidon".to_string(),
+                actor_class: ActorClass::Agent,
+                created_at: "2026-07-19T00:00:00Z".to_string(),
+            },
+            &producer_key,
+        )
+        .unwrap();
+        let credential_root = credential.credential_root().unwrap();
+        request.policy.schema = "vela.acceptance_policy.v0.3".to_string();
+        request.policy.rules = vec![PolicyRule {
+            id: "sidon-a24-scoped".to_string(),
+            effect: Outcome::Permit,
+            claim_classes: vec!["receipt_computational".to_string()],
+            constraints: Constraints {
+                allowed_packet_roots: Some(vec![root('1')]),
+                allowed_profile_roots: Some(vec![root('2')]),
+                allowed_verifier_capsule_roots: Some(vec![root('3')]),
+                allowed_result_contract_roots: Some(vec![root('4')]),
+                allowed_producer_credential_roots: Some(vec![credential_root.clone()]),
+                required_replayability: Some("exact".to_string()),
+                ..Constraints::default()
+            },
+        }];
+        request.policy.id = request.policy.content_address();
+        request.selected_policy_id = request.policy.id.clone();
+        request.producer_credentials = vec![credential.clone()];
+        let facts = policy_signer_display(&request).decisive_facts.join("\n");
+        assert!(
+            facts.contains(&format!("c={}", &credential_root[..19])),
+            "missing scoped producer credential from {facts}"
+        );
+        assert!(
+            facts.contains(&format!(
+                "producer agent:sidon key={} credential={credential_root}",
+                &credential.public_key_hex[..16]
+            )),
+            "{facts}"
+        );
     }
 }

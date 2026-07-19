@@ -1,9 +1,10 @@
 [workspace]
-# The consolidated six-crate substrate (0.800):
+# The consolidated Vela workspace:
 #   vela-protocol       the protocol kernel (events, reducer, objects)
 #   vela-protocol-core  shared primitives under the kernel
 #   vela-edge           derived views and adapters over kernel state
-#   vela-cli            the `vela` binary (CLI + serve + MCP)
+#   vela-cli            the `vela` product binary
+#   vela-signer         one-shot protected human signer
 #   vela-hub            the hub server (registry, event streams)
 #   vela-verify         frozen, dependency-light exact verifiers; the
 #                       reference registry `vela gate` / `vela reproduce`
@@ -17,11 +18,6 @@ members = [
     "crates/vela-hub",
     "crates/vela-verify",
 ]
-# Reserved crates.io namespace names for the ten-year ecosystem ontology
-# (the placeholder namespace-stubs/ dirs are removed; the crates.io
-# reservations stand independent of the local stubs): vela-navigator,
-# vela-registry, vela-canopus, vela-observatory, constellate-studio,
-# constellate-commons.
 resolver = "3"
 
 [workspace.package]
@@ -33,8 +29,8 @@ edition = "2024"
 license = "Apache-2.0 OR MIT"
 repository = "https://github.com/vela-science/vela"
 homepage = "https://github.com/vela-science/vela"
-# Per-crate `publish` is set explicitly: `vela-protocol` and `vela-cli`
-# publish to crates.io; `vela-hub` stays unpublished (server-only hub).
+# Per-crate `publish` is explicit. Reusable libraries and product binaries are
+# publishable; `vela-hub` remains an unpublished server deployment.
 publish = false
 
 [workspace.dependencies]

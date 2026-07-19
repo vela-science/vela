@@ -122,10 +122,10 @@ Receipt v1 may carry the closed namespaced extension
 `vela.execution-binding.v1`. It contains only full SHA-256 roots for the exact
 target packet, producer profile, verifier capsule, and positive result
 contract. The extension is evidence about execution identity, not authority;
-it matters to Permit only when a signed AcceptancePolicy v0.2 names the exact
-roots.
+it matters to Permit only when a signed AcceptancePolicy v0.2 or v0.3 names
+the exact roots.
 
-For AcceptancePolicy v0.2 only, an exact Receipt carrying exactly one public
+For AcceptancePolicy v0.2 or v0.3, an exact Receipt carrying exactly one public
 artifact of kind `vela-witness` may establish an A2 method-integrity floor.
 Vela reopens the frontier-relative regular file without following symlinks,
 checks its Receipt digest, runs the frozen `vela-verify` implementation, and
@@ -243,6 +243,13 @@ bindings and requires exact replayability. A v0.2 Permit rule without all four
 nonempty allowlists, a valid retained binding, and `replayability = exact`
 fails closed. Existing v0.1 policies and policy-lane events retain their
 original bytes, content addresses, evaluator version, and replay behavior.
+
+AcceptancePolicy v0.3 additionally requires each Permit rule to name exactly
+one full producer credential root derived from a retained Receipt v1 identity
+bindings. The full root, not the short `vib_` handle, is the authorization
+identity. Global registry membership does not bypass a v0.3 allowlist. Missing,
+unretained, malformed, repeated, or unmatched credentials Defer or Deny and
+grant no authority. V0.1/v0.2 registry-backed decisions replay unchanged.
 
 The relevant current implementations are:
 

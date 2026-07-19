@@ -51,9 +51,10 @@ use crate::bundle::FindingBundle;
 use crate::events;
 use crate::independence::independence_from_attachments;
 use crate::policy::acceptance_policy::{
-    ACCEPTANCE_POLICY_V0_2_SCHEMA, ActivePolicyMode, ActivePolicySnapshot, AuthorityMode, Decision,
-    DecisionCertificate, Outcome, PolicyAuthority, PolicyContext, VerifiedPolicy, evaluate,
-    resolve_policy_authority, verify_policy_signature_bytes,
+    ACCEPTANCE_POLICY_V0_2_SCHEMA, ACCEPTANCE_POLICY_V0_3_SCHEMA, ActivePolicyMode,
+    ActivePolicySnapshot, AuthorityMode, Decision, DecisionCertificate, Outcome, PolicyAuthority,
+    PolicyContext, VerifiedPolicy, evaluate, resolve_policy_authority,
+    verify_policy_signature_bytes,
 };
 use crate::project;
 use crate::receipt_v1::ReceiptV1;
@@ -451,6 +452,7 @@ pub fn derive_policy_context(input: PolicyContextInputs<'_>) -> PolicyContext {
             "unknown".to_string()
         },
         execution_binding: input.execution_binding.cloned(),
+        producer_credential_root: None,
     }
 }
 
@@ -676,10 +678,12 @@ fn exact_receipt_floor(
 
 /// Derive a submission context under the exact policy-language version.
 ///
-/// Policy v0.1 retains its historical context bytes. Policy v0.2 may raise a
-/// new `finding.add` from A0 to A2 only by re-reading one retained,
+/// Policy v0.1 retains its historical context bytes. Policy v0.2/v0.3 may raise
+/// a new `finding.add` from A0 to A2 only by re-reading one retained,
 /// digest-bound Vela-native witness and passing both the frozen verifier and
-/// the claim-fidelity check. Producer-reported verifier rows remain provenance.
+/// the claim-fidelity check. Policy v0.3 retains that floor and additionally
+/// derives the full producer credential root from the Receipt's verified
+/// identity binding. Producer-reported verifier rows remain provenance.
 pub fn derive_submission_policy_context_for_policy(
     frontier_dir: &Path,
     frontier: &project::Project,
@@ -690,7 +694,10 @@ pub fn derive_submission_policy_context_for_policy(
 ) -> Result<PolicyContext, String> {
     let mut context =
         derive_submission_policy_context(frontier, proposal_id, receipt, decision_time)?;
-    if policy_schema != ACCEPTANCE_POLICY_V0_2_SCHEMA {
+    if !matches!(
+        policy_schema,
+        ACCEPTANCE_POLICY_V0_2_SCHEMA | ACCEPTANCE_POLICY_V0_3_SCHEMA
+    ) {
         return Ok(context);
     }
     if exact_receipt_floor(
@@ -700,6 +707,9 @@ pub fn derive_submission_policy_context_for_policy(
     )? {
         context.assurance_level = context.assurance_level.max(2);
         context.method_integrity_sound = true;
+    }
+    if policy_schema == ACCEPTANCE_POLICY_V0_3_SCHEMA {
+        context.producer_credential_root = receipt_producer_credential_root(receipt)?;
     }
     Ok(context)
 }
@@ -858,22 +868,9 @@ pub fn receipt_producer_credential_valid(
     receipt: &ReceiptV1,
     decision_time: &str,
 ) -> bool {
-    let Some(binding_value) = receipt
-        .as_value()
-        .get("environment")
-        .and_then(|value| value.get("vela:producer_context"))
-        .and_then(|value| value.get("identity_binding"))
-        .cloned()
-    else {
+    let Ok(Some(binding)) = receipt.producer_identity_binding() else {
         return false;
     };
-    let Ok(binding) = serde_json::from_value::<crate::identity::IdentityBinding>(binding_value)
-    else {
-        return false;
-    };
-    if binding.verify().is_err() {
-        return false;
-    }
     let (Ok(decision_at), Ok(binding_at)) = (
         chrono::DateTime::parse_from_rfc3339(decision_time),
         chrono::DateTime::parse_from_rfc3339(&binding.created_at),
@@ -907,6 +904,16 @@ pub fn receipt_producer_credential_valid(
         Some(revoked_at) => chrono::DateTime::parse_from_rfc3339(revoked_at)
             .is_ok_and(|revoked_at| revoked_at > decision_at),
     }
+}
+
+/// Derive the full security identity of the Receipt's self-signed producer
+/// credential. Missing legacy bindings remain `None`; malformed bindings fail.
+pub fn receipt_producer_credential_root(receipt: &ReceiptV1) -> Result<Option<String>, String> {
+    receipt
+        .producer_identity_binding()
+        .map_err(|error| error.to_string())?
+        .map(|binding| binding.credential_root())
+        .transpose()
 }
 
 /// Accept a pending proposal under the frontier's active, human-signed
@@ -3274,6 +3281,7 @@ mod tests {
                         binding.verifier_capsule_root.clone(),
                     ]),
                     allowed_result_contract_roots: Some(vec![binding.result_contract_root.clone()]),
+                    allowed_producer_credential_roots: None,
                     required_replayability: Some("exact".to_string()),
                 },
             }],
@@ -3284,6 +3292,30 @@ mod tests {
         policy.id = policy.content_address();
         assert_eq!(evaluate(&policy, &v1, DECISION_AT).outcome, Outcome::Defer);
         assert_eq!(evaluate(&policy, &v2, DECISION_AT).outcome, Outcome::Permit);
+
+        let mut unregistered = clone_project(&project);
+        unregistered.actors.clear();
+        let v3 = derive_submission_policy_context_for_policy(
+            tmp.path(),
+            &unregistered,
+            &proposal_id,
+            &receipt,
+            DECISION_AT,
+            ACCEPTANCE_POLICY_V0_3_SCHEMA,
+        )
+        .unwrap();
+        assert!(!v3.credential_valid);
+        let credential_root = identity.credential_root().unwrap();
+        assert_eq!(
+            v3.producer_credential_root.as_deref(),
+            Some(credential_root.as_str())
+        );
+        policy.schema = ACCEPTANCE_POLICY_V0_3_SCHEMA.to_string();
+        policy.rules[0]
+            .constraints
+            .allowed_producer_credential_roots = Some(vec![credential_root]);
+        policy.id = policy.content_address();
+        assert_eq!(evaluate(&policy, &v3, DECISION_AT).outcome, Outcome::Permit);
     }
 
     fn clone_project(project: &project::Project) -> project::Project {
@@ -3432,6 +3464,7 @@ mod tests {
             has_unknown_fields: false,
             replayability: "exact".to_string(),
             execution_binding: None,
+            producer_credential_root: None,
         }
     }
 

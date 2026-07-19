@@ -11,13 +11,9 @@ keywords = ["science", "frontier", "protocol", "cli", "replay"]
 categories = ["science", "command-line-utilities"]
 publish = true
 
-# The `vela` command-line binary. Lives in its own crate (instead of
-# alongside the substrate lib) so it can depend on both the substrate
-# crate (`vela-protocol`) and the agent crate (`vela-scientist`)
-# without inducing a cyclic Cargo dependency.
-#
-# The lib stays a pure substrate library; agent behaviour is wired
-# in here at startup via `register_scout_handler`.
+# The `vela` product binary remains separate from the reusable protocol
+# kernel so command handling and application dependencies do not enter the
+# protocol crate.
 
 [lib]
 name = "vela_cli"

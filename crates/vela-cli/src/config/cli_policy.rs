@@ -20,7 +20,7 @@
 //! here is byte-for-byte the one [`load_active_policy`] checks before any
 //! policy-lane accept.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
 use chrono::Utc;
@@ -33,6 +33,7 @@ use vela_protocol::acceptance_policy::{
     load_active_policy_snapshot,
 };
 use vela_protocol::cli_style as style;
+use vela_protocol::identity::IdentityBinding;
 use vela_protocol::project::Project;
 use vela_protocol::proposals::StateProposal;
 use vela_protocol::proposals::policy_accept::{
@@ -66,7 +67,7 @@ fn revoked_marker_path(frontier: &Path, policy_id: &str) -> PathBuf {
 // ── Errors: testable cores return these; cmd_ wrappers fail_with them ──
 
 #[derive(Debug)]
-struct CmdError {
+pub(crate) struct CmdError {
     kind: ErrorKind,
     message: String,
     hint: Option<String>,
@@ -89,7 +90,7 @@ impl CmdError {
         }
     }
 
-    fn fail(self) -> ! {
+    pub(crate) fn fail(self) -> ! {
         fail_with(self.kind, &self.message, self.hint.as_deref())
     }
 }
@@ -105,6 +106,78 @@ pub(crate) struct ExactPermitBinding {
     pub profile_root: String,
     pub verifier_capsule_root: String,
     pub result_contract_root: String,
+    pub producer_credential_root: Option<String>,
+}
+
+pub(crate) fn exact_permit_binding_from_proposal(
+    frontier: &Path,
+    proposal_id: &str,
+) -> Result<ExactPermitBinding, CmdError> {
+    let project =
+        repo::load_from_path(frontier).map_err(|error| CmdError::new(ErrorKind::Domain, error))?;
+    let proposal = project
+        .proposals
+        .iter()
+        .find(|proposal| proposal.id == proposal_id)
+        .ok_or_else(|| {
+            CmdError::hinted(
+                ErrorKind::NotFound,
+                format!("proposal `{proposal_id}` was not found"),
+                "use the complete vpr_ id from `vela review list --json`",
+            )
+        })?;
+    if proposal.status != "pending_review" {
+        return Err(CmdError::new(
+            ErrorKind::Domain,
+            format!(
+                "proposal `{proposal_id}` has standing `{}`; a scoped policy source must be pending_review",
+                proposal.status
+            ),
+        ));
+    }
+    let receipt = crate::review_material::frontier_receipt_for_proposal(frontier, proposal)
+        .ok_or_else(|| {
+            CmdError::hinted(
+                ErrorKind::Domain,
+                format!("proposal `{proposal_id}` has no valid retained Receipt v1"),
+                "restore the exact receipt bytes and root before authoring authority",
+            )
+        })?;
+    let execution = receipt
+        .execution_binding()
+        .map_err(|error| CmdError::new(ErrorKind::Domain, error.to_string()))?
+        .ok_or_else(|| {
+            CmdError::new(
+                ErrorKind::Domain,
+                format!("proposal `{proposal_id}` has no vela.execution-binding.v1"),
+            )
+        })?;
+    let identity = receipt
+        .producer_identity_binding()
+        .map_err(|error| CmdError::new(ErrorKind::Domain, error.to_string()))?
+        .ok_or_else(|| {
+            CmdError::new(
+                ErrorKind::Domain,
+                format!("proposal `{proposal_id}` has no producer identity binding"),
+            )
+        })?;
+    if proposal.actor.id != identity.actor_id {
+        return Err(CmdError::new(
+            ErrorKind::Domain,
+            "proposal actor differs from its retained producer identity binding",
+        ));
+    }
+    Ok(ExactPermitBinding {
+        packet_root: execution.packet_root,
+        profile_root: execution.profile_root,
+        verifier_capsule_root: execution.verifier_capsule_root,
+        result_contract_root: execution.result_contract_root,
+        producer_credential_root: Some(
+            identity
+                .credential_root()
+                .map_err(|error| CmdError::new(ErrorKind::Domain, error))?,
+        ),
+    })
 }
 
 /// The hardcoded template ladder, ordered by how much a signature delegates.
@@ -407,6 +480,16 @@ fn draft_policy_with_binding(
         constraints.allowed_verifier_capsule_roots = Some(vec![candidate.verifier_capsule_root]);
         constraints.allowed_result_contract_roots = Some(vec![candidate.result_contract_root]);
         constraints.required_replayability = Some("exact".to_string());
+        if let Some(root) = &binding.producer_credential_root {
+            if !vela_protocol::receipt_v1::is_full_sha256_root(root) {
+                return Err(CmdError::hinted(
+                    ErrorKind::Usage,
+                    "invalid producer credential root",
+                    "use the full lowercase sha256:<64-hex> root derived from the retained Receipt identity binding",
+                ));
+            }
+            constraints.allowed_producer_credential_roots = Some(vec![root.clone()]);
+        }
     }
     seal_policy(frontier, rules, replace)
 }
@@ -513,9 +596,17 @@ fn seal_policy_with_issued_by(
             || constraints.allowed_profile_roots.is_some()
             || constraints.allowed_verifier_capsule_roots.is_some()
             || constraints.allowed_result_contract_roots.is_some()
+            || constraints.allowed_producer_credential_roots.is_some()
             || constraints.required_replayability.is_some()
     }) {
-        "vela.acceptance_policy.v0.2"
+        if rules
+            .iter()
+            .any(|rule| rule.constraints.allowed_producer_credential_roots.is_some())
+        {
+            "vela.acceptance_policy.v0.3"
+        } else {
+            "vela.acceptance_policy.v0.2"
+        }
     } else {
         "vela.acceptance_policy.v0.1"
     };
@@ -1884,6 +1975,17 @@ fn constraints_summary(c: &Constraints) -> String {
             short(result),
         ));
     }
+    if let Some(credentials) = &c.allowed_producer_credential_roots {
+        let short = |root: &str| root.chars().take(19).collect::<String>();
+        parts.push(format!(
+            "producer credential={}",
+            credentials
+                .iter()
+                .map(|root| short(root))
+                .collect::<Vec<_>>()
+                .join(",")
+        ));
+    }
     parts.join(" · ")
 }
 
@@ -2272,6 +2374,7 @@ pub(crate) fn cmd_policy_draft_from_suggest(frontier: &Path, replace: bool, json
     }
     let rules: Vec<PolicyRule> = suggested.iter().map(|s| s.rule.clone()).collect();
     let (policy, replaced) = seal_policy(frontier, rules, replace).unwrap_or_else(|e| e.fail());
+    let commit = policy_draft_commit_next(&policy);
     let next = protected_policy_next(&policy, replaced);
 
     if json {
@@ -2286,6 +2389,8 @@ pub(crate) fn cmd_policy_draft_from_suggest(frontier: &Path, replace: bool, json
             "permit_readiness": "human_only",
             "reason_codes": ["policy_unsigned"],
             "policy": serde_json::to_value(&policy).unwrap_or_default(),
+            "commit_required": true,
+            "commit": commit,
             "next": next,
         }));
         return;
@@ -2305,7 +2410,10 @@ pub(crate) fn cmd_policy_draft_from_suggest(frontier: &Path, replace: bool, json
         );
     }
     println!("  sealed — carries no authority yet");
-    println!("  review the rules above, then: `{next}`");
+    println!("  review the rules above, then commit only the policy draft:");
+    println!("  `{commit}`");
+    println!("  request the protected decision from the clean commit:");
+    println!("  `{next}`");
 }
 
 /// `vela policy draft <template>` — seal a policy from the template ladder.
@@ -2323,6 +2431,7 @@ pub(crate) fn cmd_policy_draft(
     let summary = template_policy(template)
         .map(|(_, s)| s)
         .unwrap_or_default();
+    let commit = policy_draft_commit_next(&policy);
     let next = protected_policy_next(&policy, replaced);
 
     if json {
@@ -2339,6 +2448,8 @@ pub(crate) fn cmd_policy_draft(
             "permit_readiness": "human_only",
             "reason_codes": ["policy_unsigned"],
             "policy": serde_json::to_value(&policy).unwrap_or_default(),
+            "commit_required": true,
+            "commit": commit,
             "next": next,
         }));
         return;
@@ -2356,7 +2467,17 @@ pub(crate) fn cmd_policy_draft(
         );
     }
     println!("  sealed — carries no authority yet");
-    println!("  review the rules above, then: `{next}`");
+    println!("  review the rules above, then commit only the policy draft:");
+    println!("  `{commit}`");
+    println!("  request the protected decision from the clean commit:");
+    println!("  `{next}`");
+}
+
+fn policy_draft_commit_next(policy: &AcceptancePolicy) -> String {
+    format!(
+        "git add -A -- .vela/policies && git -c commit.gpgsign=false commit -m 'Stage Vela policy {}'",
+        policy.id
+    )
 }
 
 fn protected_policy_next(policy: &AcceptancePolicy, replaced: bool) -> String {
@@ -2622,6 +2743,8 @@ pub(crate) struct PolicyDecisionPlan {
     selected_policy_root: String,
     policy_expires_at: String,
     rule_summary: Vec<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    producer_credentials: Vec<IdentityBinding>,
     authority_diff: vela_signer::PolicyAuthorityDiff,
     reviewer: String,
     reviewer_public_key: String,
@@ -2636,6 +2759,64 @@ pub(crate) struct PolicyDecisionPlan {
     authority_event_id: String,
     authority_event_root: String,
     decision_plan_root: String,
+}
+
+fn resolve_policy_producer_credentials(
+    frontier: &Path,
+    project: &Project,
+    policy: &AcceptancePolicy,
+) -> Result<Vec<IdentityBinding>, CmdError> {
+    let expected = policy
+        .rules
+        .iter()
+        .filter_map(|rule| rule.constraints.allowed_producer_credential_roots.as_ref())
+        .flatten()
+        .cloned()
+        .collect::<BTreeSet<_>>();
+    if expected.is_empty() {
+        return Ok(Vec::new());
+    }
+    let mut resolved = BTreeMap::<String, IdentityBinding>::new();
+    for proposal in &project.proposals {
+        let Some(receipt) =
+            crate::review_material::frontier_receipt_for_proposal(frontier, proposal)
+        else {
+            continue;
+        };
+        let Some(binding) = receipt
+            .producer_identity_binding()
+            .map_err(|error| transaction_error(error.to_string()))?
+        else {
+            continue;
+        };
+        let root = binding.credential_root().map_err(transaction_error)?;
+        if !expected.contains(&root) {
+            continue;
+        }
+        if let Some(existing) = resolved.insert(root.clone(), binding.clone())
+            && existing != binding
+        {
+            return Err(transaction_error(format!(
+                "producer credential root {root} resolves to different retained bindings"
+            )));
+        }
+    }
+    let resolved_roots = resolved.keys().cloned().collect::<BTreeSet<_>>();
+    let missing = expected
+        .difference(&resolved_roots)
+        .cloned()
+        .collect::<Vec<_>>();
+    if !missing.is_empty() {
+        return Err(CmdError::hinted(
+            ErrorKind::Domain,
+            format!(
+                "policy producer credential roots do not resolve from retained Receipt v1 bytes: {}",
+                missing.join(", ")
+            ),
+            "restore the exact proposal Receipt before requesting protected policy authority",
+        ));
+    }
+    Ok(resolved.into_values().collect())
 }
 
 struct PreparedProtectedPolicyDecision {
@@ -2721,8 +2902,13 @@ fn policy_rule_summary(policy: &AcceptancePolicy) -> Vec<String> {
                 }
                 _ => String::new(),
             };
+            let credential = constraints
+                .allowed_producer_credential_roots
+                .as_ref()
+                .map(|roots| format!("; producer_credential={}", roots.join(",")))
+                .unwrap_or_default();
             format!(
-                "{}: {:?} {} (assurance >= {}, independence {}, method integrity {}{})",
+                "{}: {:?} {} (assurance >= {}, independence {}, method integrity {}{}{})",
                 rule.id,
                 rule.effect,
                 rule.claim_classes.join(","),
@@ -2730,6 +2916,7 @@ fn policy_rule_summary(policy: &AcceptancePolicy) -> Vec<String> {
                 rule.constraints.require_independence,
                 rule.constraints.require_method_integrity,
                 exact,
+                credential,
             )
         })
         .collect::<Vec<_>>();
@@ -2900,6 +3087,7 @@ fn build_protected_policy_decision(
     let actor_registry_root =
         root_bytes(&std::fs::read(frontier.join(".vela/actors.json")).map_err(transaction_error)?);
     let vela_binary = std::env::current_exe().map_err(transaction_error)?;
+    let producer_credentials = resolve_policy_producer_credentials(frontier, &project, &policy)?;
     let mut plan = PolicyDecisionPlan {
         schema: POLICY_DECISION_SCHEMA.to_string(),
         frontier_id: project.frontier_id().to_string(),
@@ -2911,6 +3099,7 @@ fn build_protected_policy_decision(
         selected_policy_root,
         policy_expires_at: policy.expires_at.clone(),
         rule_summary: policy_rule_summary(&policy),
+        producer_credentials,
         authority_diff,
         reviewer: reviewer.to_string(),
         reviewer_public_key: actor.public_key,
@@ -2984,6 +3173,7 @@ fn request_protected_policy_signatures(
         protection_grade: profile.protection_grade.clone(),
         protection_mode: profile.mode,
         policy: prepared.policy.clone(),
+        producer_credentials: prepared.plan.producer_credentials.clone(),
         prior_policy: prepared.prior_policy.clone(),
         proposal: prepared.proposal.clone(),
         event: prepared.event.clone(),
@@ -4004,7 +4194,11 @@ mod tests {
     use ed25519_dalek::SigningKey;
     use tempfile::TempDir;
     use vela_protocol::events::StateTarget;
+    use vela_protocol::identity::{ActorClass, IdentityBinding, IdentityBindingDraft};
     use vela_protocol::proposals::new_proposal;
+    use vela_protocol::receipt_v1::{
+        ArtifactInput, ExecutionBindingV1, ReceiptBuilder, ReceiptInput,
+    };
 
     #[test]
     fn parse_sidon_bound_reads_the_canonical_claim() {
@@ -4058,6 +4252,7 @@ mod tests {
             profile_root: full('2'),
             verifier_capsule_root: full('3'),
             result_contract_root: full('4'),
+            producer_credential_root: None,
         };
         let (policy, replaced) =
             draft_policy_with_binding(&dir, "search-witness", Some(&binding), false).unwrap();
@@ -4082,6 +4277,133 @@ mod tests {
         );
         assert_eq!(constraints.required_replayability.as_deref(), Some("exact"));
         assert!(policy.id_is_valid());
+    }
+
+    #[test]
+    fn scoped_search_witness_draft_uses_policy_v0_3_and_full_credential_root() {
+        let tmp = TempDir::new().unwrap();
+        let dir = init_frontier(&tmp);
+        let full = |digit: char| format!("sha256:{}", digit.to_string().repeat(64));
+        let binding = ExactPermitBinding {
+            packet_root: full('1'),
+            profile_root: full('2'),
+            verifier_capsule_root: full('3'),
+            result_contract_root: full('4'),
+            producer_credential_root: Some(full('5')),
+        };
+        let (policy, replaced) =
+            draft_policy_with_binding(&dir, "search-witness", Some(&binding), false).unwrap();
+        assert!(!replaced);
+        assert_eq!(policy.schema, "vela.acceptance_policy.v0.3");
+        assert_eq!(
+            policy.rules[0]
+                .constraints
+                .allowed_producer_credential_roots
+                .as_deref(),
+            Some(&[binding.producer_credential_root.clone().unwrap()][..])
+        );
+        assert!(policy.id_is_valid());
+        let commit = policy_draft_commit_next(&policy);
+        assert!(commit.contains("git add -A -- .vela/policies"));
+        assert!(commit.contains("commit.gpgsign=false"));
+        assert!(commit.contains(&policy.id));
+    }
+
+    #[test]
+    fn scoped_binding_is_derived_from_one_retained_pending_proposal() {
+        let tmp = TempDir::new().unwrap();
+        let dir = init_frontier(&tmp);
+        let key = SigningKey::from_bytes(&[0x37; 32]);
+        let identity = IdentityBinding::build(
+            IdentityBindingDraft {
+                actor_id: "agent:test".to_string(),
+                actor_class: ActorClass::Agent,
+                created_at: "2026-07-19T00:00:00Z".to_string(),
+            },
+            &key,
+        )
+        .unwrap();
+        let full = |digit: char| format!("sha256:{}", digit.to_string().repeat(64));
+        let execution = ExecutionBindingV1 {
+            schema: vela_protocol::receipt_v1::EXECUTION_BINDING_SCHEMA.to_string(),
+            packet_root: full('1'),
+            profile_root: full('2'),
+            verifier_capsule_root: full('3'),
+            result_contract_root: full('4'),
+        };
+        let receipt = ReceiptBuilder::build(
+            ReceiptInput::new(
+                "There exists a verified test witness.".to_string(),
+                "computational".to_string(),
+                "exact".to_string(),
+                vec![
+                    ArtifactInput::new(
+                        "artifact.json".to_string(),
+                        "vela-witness".to_string(),
+                        Some("a".repeat(64)),
+                        Some("https://example.test/artifact.json".to_string()),
+                    )
+                    .unwrap(),
+                ],
+                vec!["fixture only".to_string()],
+                Vec::new(),
+                identity.actor_id.clone(),
+                "2026-07-19T00:00:00Z".to_string(),
+                full('b'),
+                ".".to_string(),
+                format!("vop_{}", "c".repeat(64)),
+                "urn:vela:policy:none".to_string(),
+            )
+            .unwrap()
+            .with_execution_binding(execution.clone())
+            .unwrap(),
+            &identity,
+        )
+        .unwrap();
+        let receipt_root = receipt.canonical_root().unwrap();
+        let receipt_path = format!(
+            "records/receipts/sha256/{}.json",
+            receipt_root.strip_prefix("sha256:").unwrap()
+        );
+        let proposal = new_proposal(
+            "finding.add",
+            StateTarget {
+                r#type: "finding".to_string(),
+                id: "vf_fixture".to_string(),
+            },
+            &identity.actor_id,
+            "agent",
+            "fixture",
+            json!({
+                "vela_submission": {
+                    "receipt_path": receipt_path,
+                    "receipt_root": receipt_root,
+                }
+            }),
+            Vec::new(),
+            Vec::new(),
+        );
+        let proposal_id = proposal.id.clone();
+        let mut project = repo::load_from_path(&dir).unwrap();
+        project.proposals.push(proposal);
+        repo::save_to_path(&dir, &project).unwrap();
+        let absolute = dir.join(&receipt_path);
+        std::fs::create_dir_all(absolute.parent().unwrap()).unwrap();
+        std::fs::write(absolute, receipt.canonical_bytes().unwrap()).unwrap();
+
+        let derived = exact_permit_binding_from_proposal(&dir, &proposal_id).unwrap();
+        assert_eq!(derived.packet_root, execution.packet_root);
+        assert_eq!(derived.profile_root, execution.profile_root);
+        assert_eq!(
+            derived.verifier_capsule_root,
+            execution.verifier_capsule_root
+        );
+        assert_eq!(derived.result_contract_root, execution.result_contract_root);
+        let credential_root = identity.credential_root().unwrap();
+        assert_eq!(
+            derived.producer_credential_root.as_deref(),
+            Some(credential_root.as_str())
+        );
     }
 
     fn register_transaction_reviewer(dir: &Path) {
@@ -5054,6 +5376,7 @@ mod tests {
             has_unknown_fields: false,
             replayability: "unknown".to_string(),
             execution_binding: None,
+            producer_credential_root: None,
         };
         let d = vela_protocol::acceptance_policy::evaluate(&policy, &ctx, AT);
         assert_eq!(
@@ -5104,6 +5427,7 @@ mod tests {
             has_unknown_fields: false,
             replayability: "exact".to_string(),
             execution_binding: None,
+            producer_credential_root: None,
         };
         let clean = vela_protocol::acceptance_policy::evaluate(&policy, &ctx(true), AT);
         assert_eq!(
@@ -5164,6 +5488,7 @@ mod tests {
             has_unknown_fields: false,
             replayability: "unknown".to_string(),
             execution_binding: None,
+            producer_credential_root: None,
         };
         assert_eq!(
             vela_protocol::acceptance_policy::evaluate(&policy, &verified, AT).outcome,

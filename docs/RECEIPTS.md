@@ -104,8 +104,8 @@ the receipt body. A missing, malformed, or stale binding fails validation.
 
 ## Exact execution binding
 
-AcceptancePolicy v0.2 can narrow Permit to one frozen producer contract using
-this optional Receipt v1 environment extension:
+AcceptancePolicy v0.2 and v0.3 can narrow Permit to one frozen producer
+contract using this optional Receipt v1 environment extension:
 
 ```json
 {
@@ -122,10 +122,18 @@ this optional Receipt v1 environment extension:
 The shape is closed and whole-body-bound. It names no mutable tag, verifier
 service, target alias, authority, or verdict. A missing field, extra field,
 short digest, uppercase digest, altered Receipt, wrong packet/profile/capsule,
-or wrong result contract cannot satisfy an exact v0.2 Permit rule. Policy v0.1
-ignores the extension for routing, preserving historical replay.
+or wrong result contract cannot satisfy an exact v0.2/v0.3 Permit rule. Policy
+v0.1 ignores the extension for routing, preserving historical replay.
 
-A v0.2 exact positive lane may also rederive A2 from one retained public
+Policy v0.3 additionally commits to the full SHA-256 root of the Receipt's
+self-signed `vela.identity_binding.v0.1`, canonically encoded with
+`binding_id` and `signature` cleared. The readable `vib_` prefix is not an
+authorization digest. The protected policy path must resolve every allowed
+root back to complete retained Receipt bytes before it can show a human card.
+Self-signing alone grants nothing, and actor-registry membership does not
+bypass the v0.3 list.
+
+A v0.2 or v0.3 exact positive lane may also rederive A2 from one retained public
 artifact whose kind is exactly `vela-witness`, whose byte digest matches the
 Receipt, and whose Vela-native verifier and claim-fidelity checks both pass.
 This is not a producer verdict or a second Receipt extension. The retained

@@ -15,10 +15,8 @@ publish = true
 name = "vela_protocol"
 path = "src/lib.rs"
 
-# v0.22 (Agent Inbox): the `vela` CLI lives in `crates/vela-cli` so
-# it can depend on both vela-protocol (substrate) and vela-scientist
-# (agents) without inducing a cyclic Cargo dependency. The library
-# in this crate stays a pure substrate library.
+# The product CLI lives in `crates/vela-cli`; this crate remains the reusable
+# protocol kernel without application command handling.
 
 [features]
 test-support = []

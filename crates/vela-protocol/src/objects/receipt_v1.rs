@@ -228,7 +228,7 @@ impl ExecutionBindingV1 {
     }
 }
 
-pub(crate) fn is_full_sha256_root(value: &str) -> bool {
+pub fn is_full_sha256_root(value: &str) -> bool {
     value.strip_prefix("sha256:").is_some_and(|digest| {
         digest.len() == 64
             && digest
@@ -331,6 +331,36 @@ impl ReceiptV1 {
     /// Return the validated optional execution binding carried by this receipt.
     pub fn execution_binding(&self) -> Result<Option<ExecutionBindingV1>, ReceiptV1Error> {
         parse_execution_binding_extension(object(&self.value, "$")?)
+    }
+
+    /// Return the validated producer proof-of-possession embedded by the
+    /// neutral Vela Receipt builder. Older foreign Receipts may not carry one.
+    pub fn producer_identity_binding(
+        &self,
+    ) -> Result<Option<crate::identity::IdentityBinding>, ReceiptV1Error> {
+        let environment = object(&self.value["environment"], "$.environment")?;
+        let Some(context_value) = environment.get("vela:producer_context") else {
+            return Ok(None);
+        };
+        let context = object(context_value, "$.environment.vela:producer_context")?;
+        let Some(binding_value) = context.get("identity_binding") else {
+            return Ok(None);
+        };
+        let binding =
+            serde_json::from_value::<crate::identity::IdentityBinding>(binding_value.clone())
+                .map_err(|cause| {
+                    error(
+                        "$.environment.vela:producer_context.identity_binding",
+                        format!("must be a complete IdentityBinding: {cause}"),
+                    )
+                })?;
+        binding.verify().map_err(|cause| {
+            error(
+                "$.environment.vela:producer_context.identity_binding",
+                format!("does not verify proof of possession: {cause}"),
+            )
+        })?;
+        Ok(Some(binding))
     }
 }
 
