@@ -14,6 +14,9 @@ editorial cartography backdrop. It contains no frontier data or scientific
 claim. The foreground copy and identity were composed deterministically; the
 background plate was generated for this presentation asset.
 
+`vela-state-flow.svg` is a deterministic explanatory diagram. It describes the
+released product boundary but is not a protocol schema or scientific record.
+
 Do not redesign or reinterpret the sail in this repository. Brand changes are
 made at the canonical source, verified against its export manifest, and then
 synced here as a release asset.

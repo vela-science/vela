@@ -87,17 +87,9 @@ own Receipt-bound pending proposal, but cannot accept, reject, or finalize it.
 
 ## How state moves
 
-```mermaid
-flowchart LR
-  offer["Ranked work offer"] --> work["Bounded producer work"]
-  work --> artifact["Content-addressed artifact"]
-  artifact --> verify["Exact verifier"]
-  verify --> receipt["Receipt v1"]
-  receipt --> route{"Signed policy"}
-  route -->|"Permit: exact allowed class"| frontier["Accepted frontier state"]
-  route -->|"Defer"| review["Protected human review"]
-  review --> frontier
-```
+<p align="center">
+  <img src="assets/brand/vela-state-flow.svg" width="960" alt="Vela keeps the evidence path mechanically checkable and the authority path explicit." />
+</p>
 
 The website and Hub are read-only projections. Neither can sign, accept a
 proposal, or become a second source of truth.
