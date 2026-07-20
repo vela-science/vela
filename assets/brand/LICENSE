@@ -9,6 +9,11 @@ outlined wordmark maintained by the governed brand package in
 `vela-science/vela-web`. Its geometry comes from the canonical SVG source; the
 paper field is a GitHub-readable presentation layer for light and dark themes.
 
+`vela-readme-hero.jpg` uses that exact sail and wordmark over a non-authoritative
+editorial cartography backdrop. It contains no frontier data or scientific
+claim. The foreground copy and identity were composed deterministically; the
+background plate was generated for this presentation asset.
+
 Do not redesign or reinterpret the sail in this repository. Brand changes are
 made at the canonical source, verified against its export manifest, and then
 synced here as a release asset.

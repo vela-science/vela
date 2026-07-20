@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/brand/vela-logo-wordmark.svg" width="420" alt="Vela" />
+  <img src="assets/brand/vela-readme-hero.jpg" width="960" alt="Vela — scientific state, made inspectable." />
 </p>
 
 <p align="center"><strong>Version control for scientific state.</strong></p>
