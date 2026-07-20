@@ -1,8 +1,14 @@
-Vela brand assets are Apache-2.0 alongside the rest of the repository.
+Vela name and marks
+===================
 
-Mark, wordmark, favicon, and rete motif are derived from the public astrolabe
-vocabulary — rings, alidade, engraved ticks, a signal star. No third-party
-trademarks are incorporated.
+The Vela name, sail, wordmark, and lockups are trademark rights reserved. They
+are not licensed under the repository's Apache-2.0 OR MIT code license.
 
-The brand canon now lives in docs/PRODUCT.md and docs/DESIGN.md.
-Use those files for current color, voice, type, and asset rules.
+`vela-logo-wordmark.svg` is a public delivery copy of the locked Vela sail and
+outlined wordmark maintained by the governed brand package in
+`vela-science/vela-web`. Its geometry comes from the canonical SVG source; the
+paper field is a GitHub-readable presentation layer for light and dark themes.
+
+Do not redesign or reinterpret the sail in this repository. Brand changes are
+made at the canonical source, verified against its export manifest, and then
+synced here as a release asset.

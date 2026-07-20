@@ -1,13 +1,17 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 56" fill="none">
-  
-  <g transform="translate(4 4)">
-    <circle cx="24" cy="24" r="22" stroke="#1B1F27" stroke-width="1"></circle>
-    <circle cx="24" cy="24" r="15" stroke="#1B1F27" stroke-width="1"></circle>
-    <circle cx="24" cy="24" r="8" stroke="#1B1F27" stroke-width="1"></circle>
-    <line x1="6" y1="24" x2="42" y2="24" stroke="#1B1F27" stroke-width="1" transform="rotate(-25 24 24)"></line>
-    <circle cx="24" cy="24" r="1.4" fill="#1B1F27"></circle>
-    <circle cx="39" cy="16" r="1" fill="#3B5BDB"></circle>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1480 420" fill="none" role="img" aria-labelledby="title desc">
+  <title id="title">Vela</title>
+  <desc id="desc">The Vela sail and outlined wordmark on a paper field.</desc>
+  <rect width="1480" height="420" rx="24" fill="#F7F6F2"/>
+  <g transform="translate(18 22) scale(.47)">
+    <path fill="#081224" d="M80 650 C300 646 560 610 800 82 C742 286 638 506 520 650 Z"/>
+    <path fill="#081224" d="M520 650 C628 590 724 392 800 82 C770 322 734 516 690 650 Z"/>
+    <path stroke="#081224" stroke-linecap="round" stroke-width="12" d="M818 116 L818 650"/>
+    <path stroke="#C9A664" stroke-linecap="round" stroke-width="12" d="M65 657 C320 651 585 623 915 670"/>
   </g>
-  
-  <text x="62" y="36" font-family="Spectral, Georgia, serif" font-size="28" font-weight="400" fill="#1B1F27" letter-spacing="-0.01em">vela</text>
+  <g transform="translate(510 118) scale(1.45)">
+    <path fill="#081224" d="M0 0H28L72 132L116 0H144L87 174H57L0 0Z"/>
+    <path fill="#081224" d="M190 0H310V23H216V74H296V97H216V151H313V174H190V0Z"/>
+    <path fill="#081224" d="M359 0H385V151H476V174H359V0Z"/>
+    <path fill="#081224" fill-rule="evenodd" d="M561 0H591L660 174H631L613 127H539L521 174H492L561 0ZM548 104H604L576 31L548 104Z"/>
+  </g>
 </svg>

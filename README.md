@@ -1,193 +1,169 @@
-# Vela
+<p align="center">
+  <img src="assets/brand/vela-logo-wordmark.svg" width="420" alt="Vela" />
+</p>
 
-Git-native, authority-scoped state for scientific work. Evidence enters as
-content-addressed receipts, verification is derived from explicit checks, and
-accepted state changes only through a human key or a policy that key already
-authorized. This repository is the open protocol and reference implementation.
+<p align="center"><strong>Version control for scientific state.</strong></p>
 
-Sixty seconds, no trust required:
+<p align="center">
+  Capture evidence. Reproduce it exactly. Keep verification and scientific authority distinct.
+</p>
 
-```sh
-cargo build --release
-./target/release/vela reproduce examples/sidon-a309370
-```
+<p align="center">
+  <a href="https://github.com/vela-science/vela/releases"><img alt="GitHub release" src="https://img.shields.io/github/v/release/vela-science/vela?style=flat-square&color=C9A664&labelColor=081224" /></a>
+  <a href="https://crates.io/crates/vela-cli"><img alt="crates.io" src="https://img.shields.io/crates/v/vela-cli?style=flat-square&color=4F8F8B&labelColor=081224" /></a>
+  <a href="https://github.com/vela-science/vela/actions"><img alt="Conformance status" src="https://img.shields.io/github/actions/workflow/status/vela-science/vela/conformance.yml?branch=main&style=flat-square&label=conformance&labelColor=081224" /></a>
+  <a href="LICENSE-APACHE"><img alt="Apache-2.0 OR MIT" src="https://img.shields.io/badge/license-Apache--2.0%20OR%20MIT-C9A664?style=flat-square&labelColor=081224" /></a>
+</p>
 
-That command re-verifies every stored witness from scratch with the declared
-exact verifier. Given the same tracked bytes and a supported execution
-environment, the verifier deterministically returns the same scoped result. It
-does not establish scientific truth, indefinite artifact availability, or
-compatibility with every future machine. No model or reputation score decides
-the verifier outcome.
+<p align="center">
+  <a href="https://www.vela.space">Website</a> ·
+  <a href="https://app.vela.space/frontiers">Observatory</a> ·
+  <a href="docs/PROTOCOL.md">Protocol</a> ·
+  <a href="docs/CLI.md">CLI</a> ·
+  <a href="docs/PRODUCER_QUICKSTART.md">Producer guide</a>
+</p>
 
-Vela compiles research artifacts (papers, notes, runs, proofs) into a versioned
-*frontier*: a content-addressed, replayable record of what a named authority has
-accepted for one bounded scope at an exact root. Other authorities may disagree
-or fork. The unit Vela tracks is the *change* to that scoped state, not the
-document that triggered it.
+Vela turns a Git repository into a **frontier**: a content-addressed, replayable
+record of evidence, review, policy, and the scientific state accepted by one
+named authority for one bounded scope. Other authorities can disagree or fork.
+The history remains inspectable either way.
 
-Two things are separate here, and the separation is the point:
+The core rule is simple: **verifier success is evidence, not acceptance**.
+Agents may produce work and verifiers may check it. Accepted scientific state
+changes only through an exact human decision or a narrow policy that a human
+already signed.
 
-- **Log integrity and replay are mechanically checkable.** Authority-bearing
-  changes are signed over content-addressed bytes, and conforming readers given
-  the same valid log derive the same declared state. This is necessary, and it
-  is not sufficient.
-- **A claim only becomes *verified* by passing the gate.** Not by a proposer's
-  say-so, not by an LLM judge, not by a single confirming run. The gate wants at
-  least two independent matched verifier attachments — by different method and
-  solver, each bound to the exact claim — plus one surviving adversarial probe.
-  With zero attachments a claim sits at `needs_verification`, even after a
-  reviewer accepts it.
+## Quickstart
 
-The gate is what kept the Erdős dogfooding from banking 47 "verified" records
-that carried an empty verification field. Nine Sidon-set records that did pass
-it were later approved into [OEIS A309370](https://oeis.org/A309370) by an
-outside editor. That is external publication of the witness data, not
-independent adoption, interoperability, or validation of Vela itself.
-
-This repository contains the open Vela protocol, reference reducer, CLI, hub,
-and conformance suite. It is dual-licensed under Apache-2.0 OR MIT.
-
-## The verification gate
-
-A claim is `draft` by default and reaches `verified` only through
-`verifier_attachment::derive_gate_status`, a pure function of the attachments
-with no setter. The status cannot drift out of sync with the evidence because it
-is never stored, only derived — the discipline `status_provenance` already
-applies to Belnap polarity. Four conditions, each tied to a real failure it
-would have caught:
-
-- **G1 independence** — ≥2 matched attachments by *different* method/solver,
-  mutually declaring `independent_of`. One self-confirmed run never suffices.
-- **G2 claim-match** — every passing attachment is bound to the current claim
-  digest. A proof of a *different* statement is `passed_but_unmatched` and counts
-  for nothing.
-- **G3 adversarial** — at least one probe present and none refuted. A refuted
-  probe drives the status to `refuted`.
-- **G4 well-formed** — attachments are structurally valid and content-addressed
-  (`vva_…`).
-
-Alongside it, `deliverable_grade` blocks solve-language ("resolves #647", "first
-to solve") in a claim's text unless the grade is an actual solve. A bound
-improvement may not call itself a resolution.
-
-```sh
-vela gate vocab                      # the grade / method / probe vocabularies
-vela gate grade --claim "..." --grade improved_published_bound
-vela gate check --claim "..." --attachments attachments.json
-vela reproduce examples/sidon-a309370   # re-verify every stored witness from scratch
-```
-
-Verification status is orthogonal to the human review verdict and to Bayesian
-confidence. A finding can be reviewer-accepted and still gate
-`needs_verification`; that gap is information the substrate used to hide.
-
-## What is here
-
-| Path | What it is |
-|------|------------|
-| `crates/vela-protocol` | The reference reducer — the normative state-transition function. |
-| `crates/vela-cli` | The `vela` command-line tool. |
-| `crates/vela-verify` | Frozen, independent exact verifiers (Sidon, Golomb, cap, B_h, covering, constant-weight, Costas, linear codes, and the Erdős certificate kinds: interval-product #1056, CRT partial cover #203, Kummer no-carry #684, min-binom-gcd #700, binomial deficiency #1093, exception enumeration #1094) — the reference verifier set behind the gate and `vela reproduce`. |
-| `crates/vela-hub` | The hub: a read-only index over strictly verified Git history. Operators select source repositories in a versioned catalog; the Hub accepts no frontier-state or source-registration writes. |
-| `clients/python` | A repository-local independent replay implementation used by conformance; it is not an alternate write API or distribution. |
-| `conformance/` | The cross-implementation test-vector suite (reducer fixtures + gate reject-vectors). |
-| `examples/sidon-a309370` | Current verifier example: nine OEIS A309370 witness files you can re-check with `vela reproduce`; not an accepted-state fixture. |
-| `examples/erdos-formalization` | Historical signed-event replay fixture; retained for immutable-byte compatibility, not as a current authoring template. |
-| `frontiers/` | Read-only discovery catalogs derived from standalone frontier state; these directories are not themselves Vela frontiers. |
-| `lean/` | Machine-checked proofs of the governance-soundness theorems, plus `SidonCertificate.lean` (a kernel-checked vcert). |
-| `schema/` | Current portable packet and finding schemas. |
-
-## Build
-
-```sh
-cargo build --release
-./target/release/vela --help
-vela completions zsh > ~/.zfunc/_vela   # shell completions (bash/zsh/fish)
-```
-
-Install the checksum-verified bundle on Apple Silicon macOS or Linux x86-64.
-The bundle keeps the one-shot `vela-signer` beside `vela`; Linux also installs
-the non-caching polkit action used for local authentication.
+Install the checksum-verified public beta on Apple Silicon macOS or Linux
+x86-64:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.910.0/install.sh \
   | VELA_VERSION=v0.910.0 bash
+vela --version
 ```
 
-On Windows x86-64, use PowerShell. This installs both executables under the
-current user's local application-data directory and adds that directory to the
-user PATH:
+Windows x86-64:
 
 ```powershell
 & ([scriptblock]::Create((Invoke-WebRequest https://raw.githubusercontent.com/vela-science/vela/v0.910.0/install.ps1).Content)) -Version v0.910.0
+vela --version
 ```
 
-Install the exact public package with
-`cargo install --locked vela-cli --version <exact-version>`. A source checkout
-can instead install both binaries with
-`cargo install --locked --path crates/vela-cli`. Linux source installations
-must also install `packaging/linux/science.vela.signer.policy` under the system
-polkit actions directory before protected signing is available.
+Then reproduce the included Sidon witness set from tracked bytes:
+
+```sh
+git clone https://github.com/vela-science/vela.git
+cd vela
+vela reproduce examples/sidon-a309370
+```
+
+That command runs the declared exact verifiers again. A successful replay
+proves that the stored artifacts still produce the recorded scoped result in a
+supported environment. It does **not** prove universal truth, future artifact
+availability, or scientific acceptance.
 
 ## The working loop
 
-The full porcelain reference is [docs/CLI.md](docs/CLI.md). If you are
-submitting one bounded result to a frontier you do not maintain, start with
-the [producer quickstart](docs/PRODUCER_QUICKSTART.md).
-
 ```sh
+vela status <frontier>
 vela next <frontier> --json
 vela work <target> --frontier <frontier> --as agent:<you> --json
+
+# Produce the bounded artifact and run the verifier named by the work packet.
+
 vela land --frontier <frontier> --work <target> --claim <result> \
   --type computational --replayability exact --artifact <path>:<kind> \
-  --caveat <limit> --as agent:<you> --json
+  --caveat <scope-limit> --as agent:<you> --json
+
 vela reproduce <frontier>
-vela review decide <frontier> <vpr_id> --reject --reason <reason> --json
-                                # key-free exact preview
 ```
 
-An agent may land and prepare one exact protected decision; only the registered
-human's explicit action on the exact decision card authorizes it. Platform
-authentication starts a short signer session and can be required for every use
-with `--mode always`; it is not repeated blindly for every ordinary decision.
-Failed and negative work can be retained as scoped receipts instead of
-disappearing from the next briefing.
-Large frontiers can expose every problem through the derived, hash-pinned
-[`targets.json` contract](docs/TARGET_INDEX.md); the catalogue is a removable
-work projection, not a second truth store.
+`vela land` creates a Receipt and lets the frontier's signed policy route it.
+`Permit` can admit only a narrowly pre-authorized class. `Defer` leaves a
+proposal pending for a registered human reviewer. A producer can withdraw its
+own Receipt-bound pending proposal, but cannot accept, reject, or finalize it.
 
-The Rust reducer is the reference implementation; the repository-local Python
-reader tracks its declared subset against the conformance vectors in
-`conformance/`.
+## How state moves
 
-## Contribute to a live frontier
+```mermaid
+flowchart LR
+  offer["Ranked work offer"] --> work["Bounded producer work"]
+  work --> artifact["Content-addressed artifact"]
+  artifact --> verify["Exact verifier"]
+  verify --> receipt["Receipt v1"]
+  receipt --> route{"Signed policy"}
+  route -->|"Permit: exact allowed class"| frontier["Accepted frontier state"]
+  route -->|"Defer"| review["Protected human review"]
+  review --> frontier
+```
 
-Producers do not need a human key. They claim a prepared target and land a
-receipt under an `agent:` identity:
+The website and Hub are read-only projections. Neither can sign, accept a
+proposal, or become a second source of truth.
+
+## What each layer is allowed to say
+
+| Layer | Mechanically establishes | Does not establish |
+| --- | --- | --- |
+| Git and event log | Exact bytes, ancestry, signatures, deterministic replay | Scientific truth |
+| Verifier | The declared check passed for the exact artifact and claim root | Independent acceptance |
+| Receipt | Who produced what, under which packet, profile, caveat, and verifier | A verdict |
+| Signed policy | Whether an exact pre-authorized class may enter automatically | General trust in a producer or model |
+| Human decision | One registered authority accepted or rejected one exact proposal | Universal consensus |
+
+The verification gate is derived from retained attachments; it has no mutable
+status setter. A claim needs independent matched methods and a surviving
+adversarial probe before Vela renders it `verified`. See
+[Verification](docs/VERIFICATION.md) for the exact G1–G4 contract and reject
+vectors.
+
+## Repository map
+
+| Path | Purpose |
+| --- | --- |
+| `crates/vela-protocol` | Reference reducer and protocol types |
+| `crates/vela-cli` | Everyday `vela` command-line product |
+| `crates/vela-verify` | Frozen exact verifier implementations |
+| `crates/vela-hub` | Read-only index over strictly verified Git history |
+| `clients/python` | Independent replay subset used by conformance |
+| `conformance` | Cross-implementation fixtures and malicious-input vectors |
+| `examples` | Replayable examples and immutable historical fixtures |
+| `lean` | Machine-checked governance models and certificate checking |
+| `schema` | Portable packet and finding schemas |
+
+## Build from source
+
+Vela requires a current stable Rust toolchain.
 
 ```sh
-vela next . --json
-vela work <target> --frontier . --as agent:<your-handle> --json
-# Run the verifier named by the work briefing, then:
-vela land --frontier . --work <target> --claim <result> \
-  --type computational --replayability exact --artifact <path>:<kind> \
-  --caveat <limit> --as agent:<your-handle> --json
+cargo build --release
+./target/release/vela --help
+python3 conformance/verify.py
 ```
 
-The frontier's signed policy routes the receipt. Permit can admit a narrowly
-pre-authorized class; Defer leaves the proposal for a key-holding human. A
-producer cannot sign, accept, reject, or finalize it, but may explicitly
-withdraw its own Receipt-bound pending proposal without deleting its evidence.
-See the [producer quickstart](docs/PRODUCER_QUICKSTART.md) for the exact workflow,
-result classes, Git publication check, and offline path.
+Install the CLI from crates.io with an exact version:
 
-## Project links
+```sh
+cargo install --locked vela-cli --version 0.910.0
+```
 
-- Repository: https://github.com/vela-science/vela
-- Releases: https://github.com/vela-science/vela/releases
-- Protocol: [docs/PROTOCOL.md](docs/PROTOCOL.md)
-- Roots and identifiers: [docs/ROOTS.md](docs/ROOTS.md)
+Linux protected signing additionally requires the packaged polkit action. See
+[Review and authority](docs/CLI.md#review-and-authority) before enabling a human
+identity. Agents do not need, and must never receive, a human signing key.
+
+## Documentation
+
+- [Protocol](docs/PROTOCOL.md) — normative objects, events, replay, and standing
+- [CLI](docs/CLI.md) — complete command reference
+- [Producer quickstart](docs/PRODUCER_QUICKSTART.md) — contribute without a human key
+- [Receipts](docs/RECEIPTS.md) — portable producer provenance
+- [Verification](docs/VERIFICATION.md) — exact gate semantics
+- [Roots and identifiers](docs/ROOTS.md) — content-addressing contract
+- [Threat model](docs/THREAT_MODEL.md) — trust boundaries and failure modes
+- [Governance](docs/GOVERNANCE.md) — stewardship and protected decisions
 
 ## License
 
-Dual-licensed under Apache-2.0 OR MIT, at your option.
+Code is dual-licensed under Apache-2.0 OR MIT, at your option. The Vela name and
+marks are trademark rights reserved; see [`assets/brand/LICENSE`](assets/brand/LICENSE).
