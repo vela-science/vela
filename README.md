@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/brand/vela-readme-hero.jpg" width="960" alt="Vela — scientific state, made inspectable." />
+  <img src="assets/brand/vela-readme-hero.jpg" width="960" alt="Vela: scientific state, made inspectable." />
 </p>
 
 <p align="center"><strong>Version control for scientific state.</strong></p>
@@ -23,17 +23,16 @@
   <a href="docs/PRODUCER_QUICKSTART.md">Producer guide</a>
 </p>
 
-Vela turns a Git repository into a **frontier**: a content-addressed, replayable
-record of evidence, review, policy, and the scientific state accepted by one
-named authority for one bounded scope. Other authorities can disagree or fork.
-The history remains inspectable either way.
+Vela turns a Git repository into a **frontier**: a content-addressed,
+replayable record of evidence, review, policy, and the scientific state accepted
+by one named authority for one bounded scope.
 
 The core rule is simple: **verifier success is evidence, not acceptance**.
 Agents may produce work and verifiers may check it. Accepted scientific state
 changes only through an exact human decision or a narrow policy that a human
 already signed.
 
-## Quickstart
+## Start with a replay
 
 Install the checksum-verified public beta on Apple Silicon macOS or Linux
 x86-64:
@@ -51,7 +50,7 @@ Windows x86-64:
 vela --version
 ```
 
-Then reproduce the included Sidon witness set from tracked bytes:
+Reproduce the included Sidon witness set from tracked bytes:
 
 ```sh
 git clone https://github.com/vela-science/vela.git
@@ -59,19 +58,15 @@ cd vela
 vela reproduce examples/sidon-a309370
 ```
 
-That command runs the declared exact verifiers again. A successful replay
-proves that the stored artifacts still produce the recorded scoped result in a
-supported environment. It does **not** prove universal truth, future artifact
-availability, or scientific acceptance.
+Success means the retained bytes still produce the recorded scoped result. It
+does not mean the result is universally true or scientifically accepted.
 
-## The working loop
+## Produce bounded work
 
 ```sh
 vela status <frontier>
 vela next <frontier> --json
 vela work <target> --frontier <frontier> --as agent:<you> --json
-
-# Produce the bounded artifact and run the verifier named by the work packet.
 
 vela land --frontier <frontier> --work <target> --claim <result> \
   --type computational --replayability exact --artifact <path>:<kind> \
@@ -80,10 +75,9 @@ vela land --frontier <frontier> --work <target> --claim <result> \
 vela reproduce <frontier>
 ```
 
-`vela land` creates a Receipt and lets the frontier's signed policy route it.
-`Permit` can admit only a narrowly pre-authorized class. `Defer` leaves a
-proposal pending for a registered human reviewer. A producer can withdraw its
-own Receipt-bound pending proposal, but cannot accept, reject, or finalize it.
+`vela land` creates a Receipt. A signed policy may `Permit` an exact,
+pre-authorized result class or `Defer` it for human review. Producers can
+withdraw their own pending work; they cannot accept or reject it.
 
 ## How state moves
 
@@ -91,38 +85,16 @@ own Receipt-bound pending proposal, but cannot accept, reject, or finalize it.
   <img src="assets/brand/vela-state-flow.svg" width="960" alt="Vela keeps the evidence path mechanically checkable and the authority path explicit." />
 </p>
 
-The website and Hub are read-only projections. Neither can sign, accept a
-proposal, or become a second source of truth.
+## The boundary
 
-## What each layer is allowed to say
-
-| Layer | Mechanically establishes | Does not establish |
-| --- | --- | --- |
-| Git and event log | Exact bytes, ancestry, signatures, deterministic replay | Scientific truth |
-| Verifier | The declared check passed for the exact artifact and claim root | Independent acceptance |
-| Receipt | Who produced what, under which packet, profile, caveat, and verifier | A verdict |
-| Signed policy | Whether an exact pre-authorized class may enter automatically | General trust in a producer or model |
-| Human decision | One registered authority accepted or rejected one exact proposal | Universal consensus |
-
-The verification gate is derived from retained attachments; it has no mutable
-status setter. A claim needs independent matched methods and a surviving
-adversarial probe before Vela renders it `verified`. See
-[Verification](docs/VERIFICATION.md) for the exact G1–G4 contract and reject
-vectors.
-
-## Repository map
-
-| Path | Purpose |
+| Evidence path | Authority path |
 | --- | --- |
-| `crates/vela-protocol` | Reference reducer and protocol types |
-| `crates/vela-cli` | Everyday `vela` command-line product |
-| `crates/vela-verify` | Frozen exact verifier implementations |
-| `crates/vela-hub` | Read-only index over strictly verified Git history |
-| `clients/python` | Independent replay subset used by conformance |
-| `conformance` | Cross-implementation fixtures and malicious-input vectors |
-| `examples` | Replayable examples and immutable historical fixtures |
-| `lean` | Machine-checked governance models and certificate checking |
-| `schema` | Portable packet and finding schemas |
+| Git fixes exact bytes and ancestry. | Signed policy can route only an exact allowed class. |
+| Verifiers check one declared claim and artifact. | A protected human decision accepts or rejects one proposal. |
+| Receipts preserve producer, packet, caveat, and verifier roots. | The Observatory and Hub remain read-only projections. |
+
+Verification is derived from retained attachments, not a mutable status field.
+See [Verification](docs/VERIFICATION.md) for the exact gate and reject vectors.
 
 ## Build from source
 
@@ -134,26 +106,17 @@ cargo build --release
 python3 conformance/verify.py
 ```
 
-Install the CLI from crates.io with an exact version:
-
-```sh
-cargo install --locked vela-cli --version 0.910.0
-```
-
-Linux protected signing additionally requires the packaged polkit action. See
-[Review and authority](docs/CLI.md#review-and-authority) before enabling a human
-identity. Agents do not need, and must never receive, a human signing key.
+To install from crates.io, run
+`cargo install --locked vela-cli --version 0.910.0`. Human signing setup is
+documented under [Review and authority](docs/CLI.md#review-and-authority); agents
+must never receive a human key.
 
 ## Documentation
 
-- [Protocol](docs/PROTOCOL.md) — normative objects, events, replay, and standing
-- [CLI](docs/CLI.md) — complete command reference
-- [Producer quickstart](docs/PRODUCER_QUICKSTART.md) — contribute without a human key
-- [Receipts](docs/RECEIPTS.md) — portable producer provenance
-- [Verification](docs/VERIFICATION.md) — exact gate semantics
-- [Roots and identifiers](docs/ROOTS.md) — content-addressing contract
-- [Threat model](docs/THREAT_MODEL.md) — trust boundaries and failure modes
-- [Governance](docs/GOVERNANCE.md) — stewardship and protected decisions
+- [Use Vela](docs/PRODUCER_QUICKSTART.md): produce work without a human key
+- [Understand the protocol](docs/PROTOCOL.md): objects, events, replay, and standing
+- [Inspect exact contracts](docs/RECEIPTS.md): Receipts, roots, and provenance
+- [Operate safely](docs/THREAT_MODEL.md): trust boundaries and governance
 
 ## License
 
