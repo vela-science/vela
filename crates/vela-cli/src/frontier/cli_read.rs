@@ -89,9 +89,7 @@ pub(crate) fn cmd_status_compact(path: &Path, json_out: bool) {
         "vela check . --strict"
     } else if !policy_ok {
         "vela doctor . --all --json"
-    } else if available_work > 0 {
-        "vela next . --json"
-    } else if leased_work > 0 {
+    } else if available_work > 0 || leased_work > 0 {
         "vela next . --json"
     } else if pending_review > 0 {
         "vela review list . --json"
