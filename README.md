@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/brand/vela-readme-hero.jpg" width="960" alt="Vela: scientific state, made inspectable." />
+  <img src="assets/brand/vela-readme-hero.jpg" width="960" alt="The read-only Vela Observatory showing exact frontier state, replay status, and event roots." />
 </p>
 
 <p align="center"><strong>Version control for scientific state.</strong></p>
@@ -78,12 +78,6 @@ vela reproduce <frontier>
 `vela land` creates a Receipt. A signed policy may `Permit` an exact,
 pre-authorized result class or `Defer` it for human review. Producers can
 withdraw their own pending work; they cannot accept or reject it.
-
-## How state moves
-
-<p align="center">
-  <img src="assets/brand/vela-state-flow.svg" width="960" alt="Vela keeps the evidence path mechanically checkable and the authority path explicit." />
-</p>
 
 ## The boundary
 
