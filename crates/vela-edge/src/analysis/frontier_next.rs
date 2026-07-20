@@ -45,6 +45,41 @@ pub struct NextTarget {
     pub task: Option<Value>,
 }
 
+/// One configured producer target withheld from the offer list by a live
+/// coordination lease. This is a read-only projection: it carries no key
+/// material and grants no authority to the claimant.
+#[derive(Debug, Clone, Serialize)]
+pub struct LeasedProducerTarget {
+    pub target_id: String,
+    pub title: String,
+    pub actor: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub claim_event_id: Option<String>,
+    pub claimed_at: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub expires_at: Option<String>,
+}
+
+/// Counts for the configured producer queue before and after live leases are
+/// applied. Review and structural verification suggestions are intentionally
+/// excluded: they are not configured producer targets.
+#[derive(Debug, Clone, Default, Serialize)]
+pub struct ProducerWorkAvailability {
+    pub configured_open: usize,
+    pub available: usize,
+    pub leased: usize,
+    pub leased_targets: Vec<LeasedProducerTarget>,
+}
+
+/// The complete read-only `next` projection. `targets` preserves the existing
+/// ranked offer contract; `producer_work` explains why an otherwise open
+/// configured target may be absent from that list.
+#[derive(Debug, Clone, Serialize)]
+pub struct FrontierNextProjection {
+    pub targets: Vec<NextTarget>,
+    pub producer_work: ProducerWorkAvailability,
+}
+
 const PRODUCER_AUTHORITY_CEILING: &str = "Producer evidence only. The session can create a receipt and proposal; it cannot create human acceptance.";
 const CAMPAIGN_YAML_MAX_BYTES: u64 = 1024 * 1024;
 const CAMPAIGN_TASK_MAX_BYTES: usize = 256 * 1024;
@@ -467,6 +502,29 @@ fn lease_live_at(
         .unwrap_or(true)
 }
 
+fn lease_expires_at(lease: &vela_protocol::project::AttemptClaim) -> Option<String> {
+    let seconds = i64::try_from(lease.lease_ttl_seconds).ok()?;
+    chrono::DateTime::parse_from_rfc3339(&lease.claimed_at)
+        .ok()?
+        .checked_add_signed(chrono::Duration::try_seconds(seconds)?)
+        .map(|time| time.to_rfc3339_opts(chrono::SecondsFormat::Secs, true))
+}
+
+fn leased_producer_target(
+    lease: &vela_protocol::project::AttemptClaim,
+    target_id: &str,
+    title: String,
+) -> LeasedProducerTarget {
+    LeasedProducerTarget {
+        target_id: target_id.to_string(),
+        title,
+        actor: lease.claimant_actor.clone(),
+        claim_event_id: lease.claim_event_id.clone(),
+        claimed_at: lease.claimed_at.clone(),
+        expires_at: lease_expires_at(lease),
+    }
+}
+
 /// Does any assertion reference seed `n` as a `#n` token
 /// (word-boundary on the right, so `#44` does not cover `#443`)?
 fn seed_covered<'a>(mut assertions: impl Iterator<Item = &'a str>, n: &str) -> bool {
@@ -841,18 +899,19 @@ fn lease_namespace(project: &Project) -> String {
         .unwrap_or_else(|| "seed".to_string())
 }
 
-pub fn try_frontier_next(
+pub fn try_frontier_next_projection(
     project: &Project,
     reviews: &[ReviewSnapshot],
     frontier_dir: Option<&Path>,
     observed_at: &str,
     limit: usize,
-) -> Result<Vec<NextTarget>, String> {
+) -> Result<FrontierNextProjection, String> {
     let observed_at = chrono::DateTime::parse_from_rfc3339(observed_at)
         .ok()
         .map(|time| time.to_utc());
     let mut review_targets = Vec::new();
     let mut actionable_targets = Vec::new();
+    let mut producer_work = ProducerWorkAvailability::default();
 
     // ── review: the same selected Decision Briefs used everywhere else ──
     for review in reviews {
@@ -883,18 +942,19 @@ pub fn try_frontier_next(
     // ── attack: open target-index entries and campaign seeds ───────────
     if let Some(dir) = frontier_dir {
         let ns = lease_namespace(project);
-        let live_leases: std::collections::BTreeSet<String> = project
-            .attempt_claims
-            .iter()
-            .filter(|lease| {
-                lease_live_at(
-                    &lease.claimed_at,
-                    lease.lease_ttl_seconds,
-                    observed_at.as_ref(),
-                )
-            })
-            .map(|l| l.obligation_id.clone())
-            .collect();
+        let live_leases: std::collections::BTreeMap<&str, &vela_protocol::project::AttemptClaim> =
+            project
+                .attempt_claims
+                .iter()
+                .filter(|lease| {
+                    lease_live_at(
+                        &lease.claimed_at,
+                        lease.lease_ttl_seconds,
+                        observed_at.as_ref(),
+                    )
+                })
+                .map(|lease| (lease.obligation_id.as_str(), lease))
+                .collect();
         let mut indexed_ids = std::collections::BTreeSet::new();
         if let Some(loaded) = load_target_index(project, dir)? {
             let mut indexed = loaded
@@ -906,9 +966,17 @@ pub fn try_frontier_next(
             indexed.sort_by(|left, right| left.rank.cmp(&right.rank).then(left.id.cmp(&right.id)));
             for target in indexed {
                 indexed_ids.insert(target.id.clone());
-                if live_leases.contains(&target.id) {
+                producer_work.configured_open += 1;
+                if let Some(lease) = live_leases.get(target.id.as_str()) {
+                    producer_work.leased += 1;
+                    producer_work.leased_targets.push(leased_producer_target(
+                        lease,
+                        &target.id,
+                        target.title.clone(),
+                    ));
                     continue;
                 }
+                producer_work.available += 1;
                 actionable_targets.push(NextTarget {
                     lane: "attack".into(),
                     id: target.id.clone(),
@@ -924,9 +992,6 @@ pub fn try_frontier_next(
             if indexed_ids.contains(&obligation) {
                 continue;
             }
-            if live_leases.contains(&obligation) || live_leases.contains(&seed.handle) {
-                continue;
-            }
             if let Some(token) = seed.coverage_token.as_deref()
                 && seed_covered(
                     project.findings.iter().map(|b| b.assertion.text.as_str()),
@@ -935,6 +1000,24 @@ pub fn try_frontier_next(
             {
                 continue;
             }
+            let title = seed
+                .title
+                .clone()
+                .unwrap_or_else(|| format!("{} seed {}", seed.batch, seed.handle));
+            producer_work.configured_open += 1;
+            if let Some(lease) = live_leases
+                .get(obligation.as_str())
+                .or_else(|| live_leases.get(seed.handle.as_str()))
+            {
+                producer_work.leased += 1;
+                producer_work.leased_targets.push(leased_producer_target(
+                    lease,
+                    &obligation,
+                    title,
+                ));
+                continue;
+            }
+            producer_work.available += 1;
             let task = seed
                 .task
                 .as_ref()
@@ -942,9 +1025,7 @@ pub fn try_frontier_next(
             actionable_targets.push(NextTarget {
                 lane: "attack".into(),
                 id: obligation.clone(),
-                title: seed
-                    .title
-                    .unwrap_or_else(|| format!("{} seed {}", seed.batch, seed.handle)),
+                title,
                 why: seed.why.unwrap_or_else(|| {
                     "open campaign seed: no live lease, no landed statement".into()
                 }),
@@ -1016,7 +1097,7 @@ pub fn try_frontier_next(
     // coordination, not scientific content or authority: the producer must
     // state a bounded claim and land a Receipt before anything enters review.
     // Hide it while another producer holds the bootstrap lease.
-    let bootstrap_lease_live = project.attempt_claims.iter().any(|lease| {
+    let bootstrap_lease = project.attempt_claims.iter().find(|lease| {
         lease.obligation_id == "seed:first"
             && lease_live_at(
                 &lease.claimed_at,
@@ -1026,30 +1107,49 @@ pub fn try_frontier_next(
     });
     if review_targets.is_empty()
         && actionable_targets.is_empty()
+        && producer_work.configured_open == 0
         && project.findings.is_empty()
         && project.proposals.is_empty()
-        && !bootstrap_lease_live
     {
-        actionable_targets.push(NextTarget {
-            lane: "seed".into(),
-            id: "seed:first".into(),
-            title: "Define the first bounded research result".into(),
-            why: "new frontier: land one scoped Receipt with an artifact and explicit caveat"
-                .into(),
-            next_command: "vela work seed:first".into(),
-            task: None,
-        });
+        let title = "Define the first bounded research result".to_string();
+        producer_work.configured_open += 1;
+        if let Some(lease) = bootstrap_lease {
+            producer_work.leased += 1;
+            producer_work
+                .leased_targets
+                .push(leased_producer_target(lease, "seed:first", title));
+        } else {
+            producer_work.available += 1;
+            actionable_targets.push(NextTarget {
+                lane: "seed".into(),
+                id: "seed:first".into(),
+                title,
+                why: "new frontier: land one scoped Receipt with an artifact and explicit caveat"
+                    .into(),
+                next_command: "vela work seed:first".into(),
+                task: None,
+            });
+        }
     }
 
     if limit == 0 {
-        return Ok(Vec::new());
+        return Ok(FrontierNextProjection {
+            targets: Vec::new(),
+            producer_work,
+        });
     }
     if actionable_targets.is_empty() {
         review_targets.truncate(limit);
-        return Ok(review_targets);
+        return Ok(FrontierNextProjection {
+            targets: review_targets,
+            producer_work,
+        });
     }
     if limit == 1 {
-        return Ok(actionable_targets.into_iter().take(1).collect());
+        return Ok(FrontierNextProjection {
+            targets: actionable_targets.into_iter().take(1).collect(),
+            producer_work,
+        });
     }
     let mut targets = Vec::with_capacity(limit);
     if let Some(review) = review_targets.first().cloned() {
@@ -1063,7 +1163,23 @@ pub fn try_frontier_next(
     targets.extend(review_targets);
     targets.extend(actionable_targets);
     targets.truncate(limit);
-    Ok(targets)
+    Ok(FrontierNextProjection {
+        targets,
+        producer_work,
+    })
+}
+
+/// Compatibility wrapper for callers that only need the ranked available
+/// targets. New product surfaces should use `try_frontier_next_projection` so
+/// they can explain lease-withheld work.
+pub fn try_frontier_next(
+    project: &Project,
+    reviews: &[ReviewSnapshot],
+    frontier_dir: Option<&Path>,
+    observed_at: &str,
+    limit: usize,
+) -> Result<Vec<NextTarget>, String> {
+    Ok(try_frontier_next_projection(project, reviews, frontier_dir, observed_at, limit)?.targets)
 }
 
 #[cfg(test)]
@@ -1148,6 +1264,52 @@ mod tests {
         assert_eq!(loaded["packet"]["problem"], 443);
         assert_eq!(loaded["packet_ref"]["path"], "packets/443.json");
         assert_eq!(loaded["index"]["stale_against_loaded_frontier"], false);
+    }
+
+    #[test]
+    fn live_lease_is_explained_without_becoming_an_available_offer() {
+        let temp = tempfile::tempdir().unwrap();
+        let mut project =
+            vela_protocol::project::assemble("leased-target", Vec::new(), 0, 0, "fixture");
+        write_target_index(
+            temp.path(),
+            &project,
+            br#"{"schema":"fixture.problem.v1","problem":443}"#,
+            None,
+        );
+        project
+            .attempt_claims
+            .push(vela_protocol::project::AttemptClaim {
+                obligation_id: "erdos:443".to_string(),
+                claimant_actor: "agent:bounded-worker".to_string(),
+                claimant_pubkey: "00".repeat(32),
+                claimed_at: "2026-07-16T12:00:00Z".to_string(),
+                lease_ttl_seconds: 3600,
+                claim_event_id: Some("vev_lease_fixture".to_string()),
+            });
+
+        let projection = try_frontier_next_projection(
+            &project,
+            &[],
+            Some(temp.path()),
+            "2026-07-16T12:30:00Z",
+            10,
+        )
+        .unwrap();
+        assert!(
+            projection
+                .targets
+                .iter()
+                .all(|target| target.id != "erdos:443")
+        );
+        assert_eq!(projection.producer_work.configured_open, 1);
+        assert_eq!(projection.producer_work.available, 0);
+        assert_eq!(projection.producer_work.leased, 1);
+        let lease = &projection.producer_work.leased_targets[0];
+        assert_eq!(lease.target_id, "erdos:443");
+        assert_eq!(lease.actor, "agent:bounded-worker");
+        assert_eq!(lease.claim_event_id.as_deref(), Some("vev_lease_fixture"));
+        assert_eq!(lease.expires_at.as_deref(), Some("2026-07-16T13:00:00Z"));
     }
 
     #[test]

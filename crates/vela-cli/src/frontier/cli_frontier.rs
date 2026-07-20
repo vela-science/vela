@@ -266,6 +266,10 @@ fn cmd_frontier_rank(frontier: &std::path::Path, limit: usize, json: bool) {
         print_json(&json!({
             "command": "frontier rank",
             "schema": "vela.frontier_rank.v0.1",
+            "ranking_kind": "structural_opportunity",
+            "authority": "advice_only",
+            "work_queue": false,
+            "producer_work_command": "vela next . --json",
             "frontier_id": proj.frontier_id(),
             "open_total": ranked.len(),
             "candidates": shown,
@@ -274,11 +278,13 @@ fn cmd_frontier_rank(frontier: &std::path::Path, limit: usize, json: bool) {
         return;
     }
     if ranked.is_empty() {
-        println!("no open findings to rank — the frontier has no open work surfaced.");
+        println!(
+            "no structural opportunities are currently surfaced; use `vela next . --json` for producer work."
+        );
         return;
     }
     println!(
-        "frontier rank: {} open finding(s), most-solvable first (structural support)",
+        "frontier rank: {} structural opportunity candidate(s) (advice only, not the producer work queue)",
         ranked.len()
     );
     for (i, c) in shown.iter().enumerate() {
@@ -311,5 +317,7 @@ fn cmd_frontier_rank(frontier: &std::path::Path, limit: usize, json: bool) {
             );
         }
     }
-    println!("\n  advice, not authority: claim one with `vela work <id>`; the verifier decides.");
+    println!(
+        "\n  structural advice, not authority. Use `vela next . --json` for canonical producer offers; verification is not acceptance."
+    );
 }

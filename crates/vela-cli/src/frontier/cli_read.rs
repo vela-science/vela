@@ -42,24 +42,17 @@ pub(crate) fn cmd_status_compact(path: &Path, json_out: bool) {
         .iter()
         .filter(|proposal| proposal.status == "pending_review")
         .count();
-    let open_work = std::fs::read(frontier_dir.join("targets.json"))
-        .ok()
-        .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok())
-        .and_then(|value| {
-            value
-                .get("targets")
-                .and_then(serde_json::Value::as_array)
-                .cloned()
-        })
-        .map(|targets| {
-            targets
-                .iter()
-                .filter(|target| {
-                    target.get("state").and_then(serde_json::Value::as_str) == Some("open")
-                })
-                .count()
-        })
-        .unwrap_or(0);
+    let work_projection = vela_edge::frontier_next::try_frontier_next_projection(
+        &project,
+        &[],
+        Some(frontier_dir),
+        &observed_at,
+        1,
+    )
+    .unwrap_or_else(|error| fail_return(&error));
+    let open_work = work_projection.producer_work.configured_open;
+    let available_work = work_projection.producer_work.available;
+    let leased_work = work_projection.producer_work.leased;
     let git_text = |args: &[&str]| {
         std::process::Command::new("git")
             .arg("-C")
@@ -96,7 +89,9 @@ pub(crate) fn cmd_status_compact(path: &Path, json_out: bool) {
         "vela check . --strict"
     } else if !policy_ok {
         "vela doctor . --all --json"
-    } else if open_work > 0 {
+    } else if available_work > 0 {
+        "vela next . --json"
+    } else if leased_work > 0 {
         "vela next . --json"
     } else if pending_review > 0 {
         "vela review list . --json"
@@ -134,6 +129,8 @@ pub(crate) fn cmd_status_compact(path: &Path, json_out: bool) {
             "events": project.events.len(),
             "findings": project.findings.len(),
             "open_work": open_work,
+            "available_work": available_work,
+            "leased_work": leased_work,
             "pending_review": pending_review,
         },
         "policy": {
@@ -172,7 +169,10 @@ pub(crate) fn cmd_status_compact(path: &Path, json_out: bool) {
         }
         println!("  events    {}", project.events.len());
         println!("  findings  {}", project.findings.len());
-        println!("  work      {} open", open_work);
+        println!(
+            "  work      {} available · {} leased · {} configured open",
+            available_work, leased_work, open_work
+        );
         println!("  review    {} pending", pending_review);
         println!(
             "  policy    {} · Permit {}",

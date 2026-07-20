@@ -117,6 +117,35 @@ fn compact_contract_exposes_only_the_daily_surface_and_bounded_status() {
     );
     assert!(value.get("inbox").is_none());
     assert!(value.get("testing").is_none());
+    assert_eq!(value["counts"]["open_work"], 1);
+    assert_eq!(value["counts"]["available_work"], 1);
+    assert_eq!(value["counts"]["leased_work"], 0);
+
+    let next = run(
+        temp.path(),
+        temp.path(),
+        &["next", frontier.to_str().unwrap(), "--limit", "1", "--json"],
+    );
+    assert_success(&next);
+    let next: serde_json::Value = serde_json::from_slice(&next.stdout).unwrap();
+    assert_eq!(next["schema"], "vela.offer.v1");
+    assert_eq!(next["availability"]["configured_open"], 1);
+    assert_eq!(next["availability"]["available"], 1);
+    assert_eq!(next["availability"]["leased"], 0);
+    assert_eq!(next["targets"][0]["target_id"], "seed:first");
+    assert_eq!(next["leased_targets"], serde_json::json!([]));
+
+    let graph_rank = run(
+        temp.path(),
+        temp.path(),
+        &["frontier", "rank", frontier.to_str().unwrap(), "--json"],
+    );
+    assert_success(&graph_rank);
+    let graph_rank: serde_json::Value = serde_json::from_slice(&graph_rank.stdout).unwrap();
+    assert_eq!(graph_rank["ranking_kind"], "structural_opportunity");
+    assert_eq!(graph_rank["authority"], "advice_only");
+    assert_eq!(graph_rank["work_queue"], false);
+    assert_eq!(graph_rank["producer_work_command"], "vela next . --json");
 
     let review = run(
         temp.path(),

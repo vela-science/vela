@@ -346,7 +346,7 @@ pub async fn run_command() {
             let project =
                 vela_protocol::repo::load_from_path(&dir).unwrap_or_else(|e| fail_return(&e));
             let observed_at = chrono::Utc::now().to_rfc3339();
-            let targets = vela_edge::frontier_next::try_frontier_next(
+            let projection = vela_edge::frontier_next::try_frontier_next_projection(
                 &project,
                 &[],
                 Some(&dir),
@@ -354,6 +354,7 @@ pub async fn run_command() {
                 limit,
             )
             .unwrap_or_else(|error| fail_return(&error));
+            let targets = &projection.targets;
             if json {
                 let offers = targets
                     .iter()
@@ -387,6 +388,12 @@ pub async fn run_command() {
                     "schema": "vela.offer.v1",
                     "frontier_id": project.frontier_id(),
                     "event_log_root": format!("sha256:{}", vela_protocol::events::event_log_hash(&project.events)),
+                    "availability": {
+                        "configured_open": projection.producer_work.configured_open,
+                        "available": projection.producer_work.available,
+                        "leased": projection.producer_work.leased,
+                    },
+                    "leased_targets": projection.producer_work.leased_targets,
                     "targets": offers,
                 }));
             } else {
@@ -396,7 +403,7 @@ pub async fn run_command() {
                     "targets"
                 };
                 crate::ui::header("NEXT", ".", Some(&format!("{} {tg}", targets.len())));
-                for t in &targets {
+                for t in targets {
                     let chip = match t.lane.as_str() {
                         "attack" => vela_protocol::cli_style::brass("attack"),
                         "verify" => vela_protocol::cli_style::moss("verify"),
@@ -416,7 +423,23 @@ pub async fn run_command() {
                     );
                 }
                 if targets.is_empty() {
-                    println!("  · nothing open — the frontier is waiting on new seeds");
+                    if projection.producer_work.leased > 0 {
+                        println!(
+                            "  · {} configured producer target(s) are currently leased",
+                            projection.producer_work.leased
+                        );
+                        for target in &projection.producer_work.leased_targets {
+                            let expiry = target.expires_at.as_deref().unwrap_or("unknown expiry");
+                            println!(
+                                "      {} · {} · expires {}",
+                                safe_text::inline(&target.target_id),
+                                safe_text::inline(&target.actor),
+                                safe_text::inline(expiry),
+                            );
+                        }
+                    } else {
+                        println!("  · no producer target is currently available");
+                    }
                 }
             }
         }
