@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/brand/vela-readme-hero.jpg" width="960" alt="The read-only Vela Observatory showing exact frontier state, replay status, and event roots." />
+  <img src="assets/brand/vela-readme-hero.jpg" width="960" alt="Vela preserves evidence through reproduction and review, while accepted state changes only at an exact authority boundary." />
 </p>
 
 <p align="center"><strong>Version control for scientific state.</strong></p>
