@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.911.0 — 2026-07-20 — Explain work availability
+
+- Preserve the compact `vela.offer.v1` target array while adding configured,
+  available, and leased producer-work counts plus bounded lease summaries.
+  A live lease no longer makes `vela next` claim that a frontier needs seeds.
+- Add `available_work` and `leased_work` to `vela.status.v1` while preserving
+  `open_work` as the configured-open compatibility count.
+- Mark `vela frontier rank` as advice-only structural opportunity ranking and
+  direct producers to `vela next`; graph leverage is not a work queue,
+  verifier verdict, or authority decision.
+- Change no event, Receipt, proposal, policy, signature, reducer, or accepted
+  state schema. Existing canonical frontier history replays unchanged.
+
 ## v0.910.0 — 2026-07-19 — Cross-platform public beta
 
 - Make the registered Ed25519 actor the only Vela identity shown in ordinary
