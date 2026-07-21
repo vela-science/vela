@@ -28,7 +28,9 @@ next -> work -> land
   Trust the ranking; it already encodes what the frontier knows.
 - `vela work <target> --as agent:<you> --json` — claim the lease, load the
   briefing, and write one typed private `session.json` under `.vela/work/`.
-  Read the returned briefing before working; do not edit the session record.
+  A same-actor retry returns that exact active session without another lease
+  event. Read the returned briefing before working; do not edit the session
+  record.
 - `vela land --work <target> --claim <result> --artifact <path>:<kind>
   --caveat <limit> --as agent:<you> --json` — build Receipt v1 from the exact
   session and use the shared write edge. With exactly one active session for

@@ -1346,6 +1346,40 @@ where
     // the session and optional campaign task describe what state the producer
     // actually started from.
     let base_project = repo::load_from_path(frontier)?;
+    if let Some(current) = base_project
+        .attempt_claims
+        .iter()
+        .find(|claim| claim.obligation_id == target)
+        .filter(|claim| claim.claimant_actor == actor && claim.lease_ttl_seconds > 0)
+    {
+        let expires = chrono::DateTime::parse_from_rfc3339(&current.claimed_at)
+            .map_err(|error| format!("work lease timestamp: {error}"))?
+            + chrono::Duration::seconds(current.lease_ttl_seconds as i64);
+        if expires > chrono::Utc::now() {
+            let path = session_dir(frontier, target).join("session.json");
+            let session = parse_work_session(&path).map_err(|error| {
+                format!(
+                    "work target {target} already has an active lease for {actor}, but its private session is unavailable: {error}; wait for the in-flight `vela work` command or release the lease with `vela work {target} --drop --as {actor}`"
+                )
+            })?;
+            validate_active_session(frontier, actor, &session)?;
+            return Ok(json!({
+                "ok": true,
+                "idempotent": true,
+                "target": target,
+                "claim": {
+                    "ok": true,
+                    "idempotent": true,
+                    "claim_event_id": &session.lease.claim_event_id,
+                    "claimant_pubkey": &session.lease.claimant_pubkey,
+                    "claimed_at": &session.lease.claimed_at,
+                },
+                "briefing": &session.briefing,
+                "session": session,
+                "session_path": path.display().to_string(),
+            }));
+        }
+    }
     let briefing = briefing_from_project(frontier, target, &base_project)?;
     let base_event_log_root = format!(
         "sha256:{}",
@@ -1450,6 +1484,7 @@ where
     let path = write_work_session(frontier, &session)?;
     Ok(json!({
         "ok": true,
+        "idempotent": false,
         "target": target,
         "claim": claim,
         "briefing": briefing,

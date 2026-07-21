@@ -526,6 +526,7 @@ pub async fn run_command() {
                             "ok": true,
                             "command": "work",
                             "schema": "vela.work.v1",
+                            "idempotent": opened.get("idempotent").and_then(serde_json::Value::as_bool).unwrap_or(false),
                             "frontier_id": session.get("frontier_id"),
                             "target_id": target,
                             "session": {

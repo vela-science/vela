@@ -2767,6 +2767,55 @@ batches:
 }
 
 #[test]
+fn repeated_work_claim_returns_the_exact_active_session_without_a_second_event() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    init_git_frontier(tmp.path());
+    let agent_key = "42".repeat(32);
+    let env = [("VELA_AGENT_KEY_HEX", agent_key.as_str())];
+    let args = [
+        "work",
+        "erdos:retry-safe",
+        "--as",
+        "agent:retry-safe",
+        "--json",
+    ];
+
+    let first = run_with_env(tmp.path(), &args, &env);
+    assert_success(&first, "open first retry-safe session");
+    let first = one_json_object(&first);
+    assert_eq!(first["idempotent"], false, "{first}");
+    let session_path = work_session_path(&first);
+    let session_bytes = std::fs::read(&session_path).unwrap();
+    let after_first = vela_protocol::repo::load_from_path(tmp.path()).unwrap();
+    let event_root = vela_protocol::events::event_log_hash(&after_first.events);
+    let event_count = after_first.events.len();
+    let head = git_stdout(tmp.path(), &["rev-parse", "HEAD"]);
+
+    let retry = run_with_env(tmp.path(), &args, &env);
+    assert_success(&retry, "retry exact active work session");
+    let retry = one_json_object(&retry);
+    assert_eq!(retry["idempotent"], true, "{retry}");
+    assert_eq!(retry["session"]["id"], first["session"]["id"]);
+    assert_eq!(retry["session"]["path"], first["session"]["path"]);
+    assert_eq!(std::fs::read(&session_path).unwrap(), session_bytes);
+
+    let after_retry = vela_protocol::repo::load_from_path(tmp.path()).unwrap();
+    assert_eq!(after_retry.events.len(), event_count);
+    assert_eq!(
+        vela_protocol::events::event_log_hash(&after_retry.events),
+        event_root
+    );
+    assert_eq!(git_stdout(tmp.path(), &["rev-parse", "HEAD"]), head);
+    assert_eq!(
+        git_stdout(
+            tmp.path(),
+            &["status", "--porcelain=v1", "--untracked-files=all"]
+        ),
+        ""
+    );
+}
+
+#[test]
 fn invalid_campaign_bytes_targets_and_duplicates_fail_before_lease() {
     let cases = [
         (

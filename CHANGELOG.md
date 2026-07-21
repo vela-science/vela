@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.911.1 — 2026-07-20 — Make work claims retry-safe
+
+- Return the exact active private session when the same actor repeats
+  `vela work` for the same still-leased target. The retry appends no lease
+  event, changes no root, and reports `idempotent: true`.
+- Fail closed when a matching active lease exists but its private session is
+  unavailable, instead of silently refreshing the lease and masking an
+  in-flight or interrupted claim.
+- Change no event, Receipt, proposal, policy, signature, reducer, or accepted
+  state schema. Existing frontier history replays unchanged.
+
 ## v0.911.0 — 2026-07-20 — Explain work availability
 
 - Preserve the compact `vela.offer.v1` target array while adding configured,

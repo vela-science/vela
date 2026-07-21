@@ -139,7 +139,10 @@ and next command.
 
 `vela work <target> --json` emits `vela.work.v1`. It binds the session, starting
 roots, exact packet, completion contract, verifier profile, and landing
-command. The full packet stays in the tracked packet file.
+command. Repeating the same claim by the same actor while its lease remains
+active returns the exact session with `idempotent: true`; it does not refresh
+the lease or append another event. The full packet stays in the tracked packet
+file.
 
 ### Review queue
 

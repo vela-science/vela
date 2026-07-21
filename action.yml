@@ -3,10 +3,10 @@
 # Consume from any frontier repo:
 #
 #   - uses: actions/checkout@v5
-#   - uses: vela-science/vela@v0.911.0
+#   - uses: vela-science/vela@v0.911.1
 #     with:
 #       frontier: .
-#       vela-version: v0.911.0
+#       vela-version: v0.911.1
 #
 # It replays the signed event log from the clean checkout and proves the
 # committed materialized state (frontier.json / vela.lock / proof/) reproduces:
