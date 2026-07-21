@@ -24,6 +24,7 @@ use vela_protocol::events::{event_log_hash, snapshot_hash};
 /// Authority mode recorded on frontiers whose index rows derive from a
 /// verified Git remote rather than an HTTP-delivered manifest.
 pub const AUTHORITY_GIT_INGESTED: &str = "git_ingested";
+pub const AUTHORITY_GIT_REPLAYED_STRICT_BLOCKED: &str = "git_replayed_strict_blocked";
 pub const SOURCE_CATALOG_SCHEMA: &str = "vela.hub-source-catalog.v1";
 
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -135,6 +136,14 @@ pub struct GitIngestConfig {
     /// Scratch directory for clones (persisted between ticks so ingests
     /// after the first are incremental fetches).
     pub scratch_dir: PathBuf,
+    /// Permit an integrity-valid, exactly replayable frontier to enter a
+    /// read-only projection while retaining its strict blockers as data.
+    /// The hosted Hub remains strict by default; the Observatory indexer opts
+    /// in explicitly.
+    pub retain_strict_blocked: bool,
+    /// Rebuild an unchanged projection, used when the derived read schema
+    /// changes without a canonical Git change.
+    pub force_refresh: bool,
 }
 
 impl GitIngestConfig {
@@ -146,9 +155,15 @@ impl GitIngestConfig {
         let scratch_dir = std::env::var("VELA_HUB_GIT_INGEST_DIR")
             .map(PathBuf::from)
             .unwrap_or_else(|_| std::env::temp_dir().join("vela-hub-git-ingest"));
+        let retain_strict_blocked = std::env::var("VELA_HUB_RETAIN_STRICT_BLOCKED")
+            .is_ok_and(|value| value == "1" || value.eq_ignore_ascii_case("true"));
+        let force_refresh = std::env::var("VELA_HUB_FORCE_REFRESH")
+            .is_ok_and(|value| value == "1" || value.eq_ignore_ascii_case("true"));
         Self {
             interval_secs,
             scratch_dir,
+            retain_strict_blocked,
+            force_refresh,
         }
     }
 }
@@ -219,7 +234,7 @@ async fn ingest_one(
     let dir = cfg.scratch_dir.join(vfr_id);
     fetch_repo(remote, git_ref, &dir).await?;
     let commit = rev_parse_head(&dir).await?;
-    if Some(commit.as_str()) == last_commit {
+    if !cfg.force_refresh && Some(commit.as_str()) == last_commit {
         return Ok(None);
     }
     if let Some(previous) = last_commit
@@ -235,10 +250,28 @@ async fn ingest_one(
     // The strict bar is defined ONCE, in `vela_edge::verify` — the same
     // bundle any indexer must hold a frontier to.
     let dir_cloned = dir.clone();
-    let (project, fid) =
-        tokio::task::spawn_blocking(move || vela_edge::verify::verify_frontier_strict(&dir_cloned))
-            .await
-            .map_err(|e| format!("verify task: {e}"))??;
+    let retain_strict_blocked = cfg.retain_strict_blocked;
+    let verified = tokio::task::spawn_blocking(move || {
+        let replayed = vela_edge::verify::verify_frontier_replayable(&dir_cloned)?;
+        if !retain_strict_blocked && !replayed.strict_blockers.is_empty() {
+            let errors = replayed
+                .strict_blockers
+                .iter()
+                .map(|signal| format!("{}: {}", signal.kind, signal.reason))
+                .collect::<Vec<_>>()
+                .join(" | ");
+            return Err(format!(
+                "strict verification failed ({} error signal(s)): {errors}",
+                replayed.strict_blockers.len()
+            ));
+        }
+        Ok::<_, String>(replayed)
+    })
+    .await
+    .map_err(|e| format!("verify task: {e}"))??;
+    let project = verified.project;
+    let fid = verified.frontier_id;
+    let strict_blockers = verified.strict_blockers;
 
     // The repo must BE the catalogued frontier: a remote that replays to a
     // different frontier_id is a source error (or a swap attack), not an
@@ -260,8 +293,22 @@ async fn ingest_one(
         .actors
         .iter()
         .find(|actor| actor.id == owner_actor_id)
-        .map(|actor| actor.public_key.clone())
-        .ok_or_else(|| format!("genesis actor {owner_actor_id} has no actor record"))?;
+        .map(|actor| actor.public_key.clone());
+
+    let mut blockers_by_code = std::collections::BTreeMap::<String, usize>::new();
+    for blocker in &strict_blockers {
+        *blockers_by_code.entry(blocker.kind.clone()).or_default() += 1;
+    }
+    let strict_status = if strict_blockers.is_empty() {
+        "passed"
+    } else {
+        "blocked"
+    };
+    let authority_mode = if strict_blockers.is_empty() {
+        AUTHORITY_GIT_INGESTED
+    } else {
+        AUTHORITY_GIT_REPLAYED_STRICT_BLOCKED
+    };
 
     // Internal projection cursor. The promoted state was verified
     // event-by-event above; no second manifest signature is created. The owner
@@ -270,12 +317,21 @@ async fn ingest_one(
         vfr_id: vfr_id.to_string(),
         name: project.project.name.clone(),
         owner_actor_id,
-        owner_pubkey,
+        owner_pubkey: owner_pubkey.clone().unwrap_or_default(),
         latest_snapshot_hash: snapshot_hash(&project),
         latest_event_log_hash: event_log_hash(&project.events),
         source_commit_at: commit_time,
+        projection_verification: serde_json::json!({
+            "schema": "vela.read-projection-verification.v1",
+            "integrity": "passed",
+            "replay": "passed",
+            "strict": strict_status,
+            "strict_blocker_count": strict_blockers.len(),
+            "strict_blockers_by_code": blockers_by_code,
+            "owner_actor_registered": owner_pubkey.is_some(),
+        }),
     };
-    db.promote_frontier_snapshot(&entry, &project, AUTHORITY_GIT_INGESTED)
+    db.promote_frontier_snapshot(&entry, &project, authority_mode)
         .await?;
     Ok(Some(commit))
 }

@@ -9,6 +9,10 @@ description = "Vela hub: read-only HTTP index over verified Git frontier project
 name = "vela-hub"
 path = "src/main.rs"
 
+[[bin]]
+name = "vela-hub-index"
+path = "src/bin/vela-hub-index.rs"
+
 [dependencies]
 axum.workspace = true
 tokio.workspace = true

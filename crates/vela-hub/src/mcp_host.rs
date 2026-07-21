@@ -241,6 +241,15 @@ mod tests {
             latest_snapshot_hash: snapshot_hash(&project),
             latest_event_log_hash: event_log_hash(&project.events),
             source_commit_at: "2026-07-03T00:00:00Z".to_string(),
+            projection_verification: serde_json::json!({
+                "schema": "vela.read-projection-verification.v1",
+                "integrity": "passed",
+                "replay": "passed",
+                "strict": "passed",
+                "strict_blocker_count": 0,
+                "strict_blockers_by_code": {},
+                "owner_actor_registered": true,
+            }),
         };
         db.upsert_git_source(&fid, "https://example.test/erdos-formalization.git", "main")
             .await
