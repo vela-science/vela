@@ -265,6 +265,7 @@ pub fn actor_kind(id: &str) -> &'static str {
     if id.starts_with("agent:")
         || id.starts_with("sim:")
         || id.starts_with("ci:")
+        || id.starts_with("verifier:")
         || id.starts_with("policy:")
         || handle.ends_with("-bot")
         || handle.ends_with("-sim")
@@ -1197,10 +1198,23 @@ pub fn summarize(frontier: &Project) -> EventLogSummary {
         let external_obligation = event.kind == "attempt.claimed"
             && event.target.id.contains(':')
             && !event.target.id.starts_with("vf_");
+        let pending_proposal_evidence = event.kind == EVENT_KIND_VERIFIER_ATTACHMENT_ADDED
+            && event
+                .payload
+                .get("proposal_id")
+                .and_then(Value::as_str)
+                .is_some_and(|proposal_id| {
+                    frontier.proposals.iter().any(|proposal| {
+                        proposal.id == proposal_id
+                            && proposal.status == "pending_review"
+                            && proposal.target.id == event.target.id
+                    })
+                });
         if event.target.r#type == "finding"
             && !finding_ids.contains(event.target.id.as_str())
             && event.kind != "finding.retracted"
             && !external_obligation
+            && !pending_proposal_evidence
         {
             orphan_targets.insert(event.target.id.clone());
         }
@@ -1808,13 +1822,19 @@ pub fn validate_event_payload(kind: &str, payload: &Value) -> Result<(), String>
             // claim, so it needs no human accept. Either way the embedded
             // attachment object is the load-bearing payload, and the reducer
             // re-verifies its content-addressed id on apply.
-            if let Some(v) = object.get("proposal_id")
-                && !v.is_string()
-            {
-                return Err(
-                    "verifier_attachment.added payload.proposal_id must be a string when present"
-                        .to_string(),
-                );
+            if let Some(v) = object.get("proposal_id") {
+                let Some(proposal_id) = v.as_str() else {
+                    return Err(
+                        "verifier_attachment.added payload.proposal_id must be a string when present"
+                            .to_string(),
+                    );
+                };
+                if !proposal_id.starts_with("vpr_") {
+                    return Err(
+                        "verifier_attachment.added payload.proposal_id must start with vpr_"
+                            .to_string(),
+                    );
+                }
             }
             if !object.get("attachment").is_some_and(|v| v.is_object()) {
                 return Err(

@@ -5,6 +5,59 @@ use std::path::PathBuf;
 use vela_protocol::proposals;
 use vela_protocol::repo;
 
+fn proposal_next_actions(frontier: &std::path::Path, proposal_id: &str) -> Vec<Value> {
+    let Ok(project) = repo::load_from_path(frontier) else {
+        return Vec::new();
+    };
+    let Some(proposal) = project
+        .proposals
+        .iter()
+        .find(|proposal| proposal.id == proposal_id)
+    else {
+        return Vec::new();
+    };
+    if proposal.status != "pending_review" || proposal.kind != "finding.add" {
+        return Vec::new();
+    }
+    let finding = proposal.payload.get("finding").cloned().and_then(|value| {
+        serde_json::from_value::<vela_protocol::bundle::FindingBundle>(value).ok()
+    });
+    let Some(finding) = finding else {
+        return Vec::new();
+    };
+    let attachments = project
+        .verifier_attachments
+        .iter()
+        .filter(|attachment| attachment.target == finding.id)
+        .cloned()
+        .collect::<Vec<_>>();
+    let gate = vela_protocol::verifier_attachment::derive_gate_status(
+        &vela_protocol::verifier_attachment::claim_digest(&finding.assertion.text),
+        &attachments,
+    );
+    let mut actions = vec![json!({
+        "kind": "reproduce_pending_artifact",
+        "authority": "read_only",
+        "command": format!("vela reproduce {} --proposal {proposal_id}", frontier.display()),
+        "reason": "Re-run only the immutable artifacts bound to this pending proposal."
+    })];
+    if gate.status != vela_protocol::verifier_attachment::GateStatus::Verified {
+        actions.push(json!({
+            "kind": "add_verifier_evidence",
+            "authority": "evidence_only",
+            "command": format!("vela verify attach {} <attachment.json> --proposal {proposal_id} --as verifier:<actor>", frontier.display()),
+            "reason": gate.reasons.first().cloned().unwrap_or_else(|| "Additional verification evidence is required.".to_string())
+        }));
+    }
+    actions.push(json!({
+        "kind": "human_decision",
+        "authority": "human_key_required",
+        "command": format!("vela review decide {} {proposal_id} --accept|--reject --reason <why> --json", frontier.display()),
+        "reason": "Verification evidence never accepts the proposal; a protected human decision remains separate."
+    }));
+    actions
+}
+
 /// Compact 0.9 review surface. Lists never embed Decision Briefs; callers use
 /// `review show` or `review preview` for one exact proposal.
 pub(crate) fn cmd_review(action: ReviewAction) {
@@ -131,6 +184,7 @@ pub(crate) fn cmd_review(action: ReviewAction) {
         } => {
             let review = crate::review_material::ReviewProjection::one(&frontier, &proposal_id)
                 .unwrap_or_else(|error| fail_return(&error.to_string()));
+            let next_actions = proposal_next_actions(&frontier, &proposal_id);
             let payload = json!({
                 "ok": true,
                 "command": "review.show",
@@ -138,6 +192,7 @@ pub(crate) fn cmd_review(action: ReviewAction) {
                 "frontier": frontier.display().to_string(),
                 "proposal_id": proposal_id,
                 "review": review,
+                "next_actions": next_actions,
             });
             if json {
                 print_json(&payload);
@@ -145,6 +200,10 @@ pub(crate) fn cmd_review(action: ReviewAction) {
                 println!("review · {proposal_id}");
                 for line in crate::cli::sign_session::render_decision_brief_lines(&review.brief) {
                     println!("  {line}");
+                }
+                println!("  next actions:");
+                for action in &next_actions {
+                    println!("    {}", action["command"].as_str().unwrap_or(""));
                 }
             }
         }

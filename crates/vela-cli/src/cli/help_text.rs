@@ -122,6 +122,19 @@ EXAMPLES
 For a whole frontier, run `vela check . --strict`; when it stores witnesses,
 also run `vela reproduce .`.";
 
+pub const VERIFY: &str = "\
+EXAMPLES
+  vela verify attach . attachment.json --proposal vpr_8b49… \\
+    --as verifier:independent-check --json
+        retain signed, proposal-scoped evidence without accepting the proposal
+
+The attachment must bind the exact finding and full claim root, one explicit
+implementation, retained execution roots, and rooted adversarial probes.
+
+SEE ALSO
+  vela reproduce . --proposal vpr_8b49…   replay only pending evidence
+  vela review show . vpr_8b49…             exact next actions";
+
 pub const INIT: &str = "\
 EXAMPLES
   vela init ./my-frontier --name \"Bounded question\" --scope \"Does X hold?\"

@@ -480,6 +480,7 @@ mod tests {
             kind: ProbeKind::CounterexampleSearch,
             result: ProbeResult::Survived,
             note: String::new(),
+            evidence_root: String::new(),
         };
         let mk = |method, solver: &str, indep: Vec<String>| {
             VerifierAttachment::build(AttachmentDraft {

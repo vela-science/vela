@@ -180,6 +180,7 @@ fn attach(
             kind: ProbeKind::CounterexampleSearch,
             result: ProbeResult::Survived,
             note: String::new(),
+            evidence_root: String::new(),
         }],
         outcome: AttachmentOutcome::Passed,
         verifier_actor: "ci:vela-verify".to_string(),

@@ -6,10 +6,10 @@ class. A human key holder decides deferred proposals. Git publishes the bytes.
 
 ## Daily path
 
-Default help exposes eleven commands:
+Default help exposes twelve commands:
 
 ```text
-init status next work land review check reproduce log doctor migrate
+init status next work land review check reproduce verify log doctor migrate
 ```
 
 The ordinary producer loop is:
@@ -73,6 +73,7 @@ A valid construction with a substituted or inflated claim exits nonzero.
 | `review` | List proposal summaries or inspect one exact Decision Brief. |
 | `check` | Verify schemas, replay, signatures, roots, policy, and strict signals. |
 | `reproduce` | Run stored evidence through its frozen verifier. |
+| `verify attach` | Retain signed verifier evidence against one exact pending proposal; never accept it. |
 | `log` | Read accepted event history. |
 | `doctor` | Report blockers and one repair action. `--all` adds diagnostics. |
 | `migrate` | Preview or apply a root-preserving repository-format migration. |

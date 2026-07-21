@@ -94,6 +94,7 @@ Daily product:
   review        Inspect, decide, or producer-withdraw one exact proposal
   check         Replay, signatures, parity, and strict signals
   reproduce     Re-run stored witnesses with frozen verifiers
+  verify        Retain non-authorizing proposal-scoped verifier evidence
   log           Recent signed events or one finding's history
   doctor        Blockers plus one safe next action
   migrate       Preview or apply a root-preserving repository migration

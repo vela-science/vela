@@ -324,9 +324,10 @@ pub fn agent_signing_key(explicit_actor: Option<&str>) -> Result<SigningKey, Str
                 "no agent identity: set VELA_ACTOR_ID=agent:<name> (or {AGENT_KEY_ENV} for an explicit key)"
             )
         })?;
-    if !actor.starts_with("agent:") && !actor.starts_with("ci:") {
+    if !actor.starts_with("agent:") && !actor.starts_with("ci:") && !actor.starts_with("verifier:")
+    {
         return Err(format!(
-            "agent key auto-mint is for agent:/ci: actors, not '{actor}' — humans run `vela id create`"
+            "agent key auto-mint is for agent:/ci:/verifier: actors, not '{actor}' — humans run `vela id create`"
         ));
     }
     let home = std::env::var("HOME").map_err(|_| "HOME unset".to_string())?;

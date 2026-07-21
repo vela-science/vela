@@ -196,6 +196,10 @@ pub struct AdversarialProbe {
     pub result: ProbeResult,
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub note: String,
+    /// Full content root of the retained probe input/output record. Optional
+    /// for legacy attachments; durable CLI attachment requires it.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub evidence_root: String,
 }
 
 /// Whether the verifier confirmed it checked the *exact* frozen claim.
@@ -277,6 +281,10 @@ pub struct VerifierAttachment {
     /// [`claim_digest`] of the exact claim text checked. G2 compares
     /// this to the current claim's digest.
     pub claim_digest: String,
+    /// Full digest of the exact trimmed claim. Optional for legacy records;
+    /// durable proposal-scoped attachment requires it.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub claim_root: String,
     pub verifier_method: VerifierMethod,
     /// Identifies the independent solver/tool that produced this check
     /// (e.g. `cp-sat`, `pulp-cbc`, `lean4@4.29.1`). G1 independence
@@ -306,6 +314,11 @@ pub struct VerifierAttachment {
     /// diversity — the gate's reasons distinguish them.
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub implementation_id: String,
+    /// Full content roots for the retained execution transcript, verifier
+    /// report, or equivalent frozen run evidence. Optional for legacy
+    /// attachments; durable CLI attachment requires at least one.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub execution_evidence_roots: Vec<String>,
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub toolchain_hash: String,
     /// Undischarged hypotheses the proof assumes (optional; absent on legacy
@@ -396,6 +409,7 @@ impl VerifierAttachment {
             id: String::new(),
             target: draft.target,
             claim_digest: draft.claim_digest,
+            claim_root: String::new(),
             verifier_method: draft.verifier_method,
             solver_id: draft.solver_id,
             independent_of: draft.independent_of,
@@ -406,6 +420,7 @@ impl VerifierAttachment {
             verifier_actor: draft.verifier_actor,
             note: draft.note,
             implementation_id: String::new(),
+            execution_evidence_roots: Vec::new(),
             lineage_couplings: Vec::new(),
             supersedes: None,
             toolchain_hash: derive_toolchain_hash(&draft.verifier_method),
@@ -426,6 +441,18 @@ impl VerifierAttachment {
         Ok(self)
     }
 
+    /// Bind the full exact-claim digest and re-derive the attachment id.
+    pub fn with_claim_root(mut self, root: &str) -> Result<Self, String> {
+        if !crate::receipt_v1::is_full_sha256_root(root) {
+            return Err(format!(
+                "claim root must be a full lowercase sha256 root, got '{root}'"
+            ));
+        }
+        self.claim_root = root.to_string();
+        self.id = self.derive_id()?;
+        Ok(self)
+    }
+
     /// Set the implementation id and re-derive the content-addressed id.
     /// `implementation_id` is part of the canonical body, so a producer that
     /// records which implementation ran (the exact-lane monoculture guard reads
@@ -435,6 +462,20 @@ impl VerifierAttachment {
     /// `with_method_integrity` (it is the last mutation) so the id is final.
     pub fn with_implementation_id(mut self, implementation_id: &str) -> Result<Self, String> {
         self.implementation_id = implementation_id.to_string();
+        self.id = self.derive_id()?;
+        Ok(self)
+    }
+
+    /// Bind retained execution evidence and re-derive the attachment id.
+    pub fn with_execution_evidence_roots(mut self, roots: Vec<String>) -> Result<Self, String> {
+        for root in &roots {
+            if !crate::receipt_v1::is_full_sha256_root(root) {
+                return Err(format!(
+                    "execution evidence root must be a full lowercase sha256 root, got '{root}'"
+                ));
+            }
+        }
+        self.execution_evidence_roots = roots;
         self.id = self.derive_id()?;
         Ok(self)
     }
@@ -496,6 +537,30 @@ impl VerifierAttachment {
                 "attachment id must start with `vva_`, got `{}`",
                 self.id
             ));
+        }
+        if !self.claim_root.is_empty() && !crate::receipt_v1::is_full_sha256_root(&self.claim_root)
+        {
+            return Err(format!(
+                "attachment claim_root must be a full lowercase sha256 root, got '{}'",
+                self.claim_root
+            ));
+        }
+        for root in &self.execution_evidence_roots {
+            if !crate::receipt_v1::is_full_sha256_root(root) {
+                return Err(format!(
+                    "attachment execution_evidence_roots contains invalid root '{root}'"
+                ));
+            }
+        }
+        for probe in &self.adversarial_probes {
+            if !probe.evidence_root.is_empty()
+                && !crate::receipt_v1::is_full_sha256_root(&probe.evidence_root)
+            {
+                return Err(format!(
+                    "attachment adversarial probe contains invalid evidence_root '{}'",
+                    probe.evidence_root
+                ));
+            }
         }
         let derived = self.derive_id()?;
         if derived != self.id {
@@ -876,6 +941,7 @@ mod tests {
             kind: ProbeKind::CounterexampleSearch,
             result: ProbeResult::Survived,
             note: String::new(),
+            evidence_root: String::new(),
         }
     }
 
@@ -906,6 +972,7 @@ mod tests {
             kind: ProbeKind::FormalismFidelity,
             result: ProbeResult::Survived,
             note: String::new(),
+            evidence_root: String::new(),
         }
     }
 
@@ -978,6 +1045,38 @@ mod tests {
         let (admit, reasons) = exact_lane_attachment_admit(&digest, &[a1, a2]);
         assert!(admit, "should auto-admit, refused for: {reasons:?}");
         assert!(reasons.is_empty());
+    }
+
+    #[test]
+    fn durable_evidence_fields_are_content_addressed_and_root_checked() {
+        let root = format!("sha256:{}", "a".repeat(64));
+        let mut probe = surviving_probe();
+        probe.evidence_root = root.clone();
+        let attachment = attach(
+            &claim_digest("claim X"),
+            VerifierMethod::ComputationalSearch,
+            "frozen-checker",
+            vec![],
+            vec![probe],
+        )
+        .with_claim_root(&root)
+        .unwrap()
+        .with_implementation_id("impl:frozen-checker")
+        .unwrap()
+        .with_execution_evidence_roots(vec![root.clone()])
+        .unwrap();
+        attachment.verify().unwrap();
+        assert_eq!(attachment.claim_root, root);
+        assert_eq!(attachment.execution_evidence_roots.len(), 1);
+        assert!(
+            attachment
+                .clone()
+                .with_execution_evidence_roots(vec!["sha256:short".to_string()])
+                .is_err()
+        );
+        let mut forged = attachment;
+        forged.adversarial_probes[0].evidence_root = "sha256:short".to_string();
+        assert!(forged.verify().unwrap_err().contains("evidence_root"));
     }
 
     // The forged-id attack the relaxed Guard 4 must not open: a single actor
@@ -1061,6 +1160,7 @@ mod tests {
                 kind: ProbeKind::FormalismFidelity,
                 result: ProbeResult::Refuted,
                 note: String::new(),
+                evidence_root: String::new(),
             }],
             MethodIntegrity::Sound,
             "impl-cp-sat",
@@ -1363,6 +1463,7 @@ mod tests {
             kind: ProbeKind::CaseBConfig,
             result: ProbeResult::Refuted,
             note: "Case B breaks it".to_string(),
+            evidence_root: String::new(),
         };
         let a1 = attach(
             &digest,
@@ -1438,6 +1539,7 @@ mod tests {
             kind: ProbeKind::FormalismFidelity,
             result: ProbeResult::Refuted,
             note: "statement and its negation both provable".to_string(),
+            evidence_root: String::new(),
         };
         let a1 = attach(
             &digest,

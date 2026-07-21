@@ -216,6 +216,7 @@ pub async fn run_command() {
             }
         }
         Commands::Gate { action } => cmd_gate(action),
+        Commands::Verify { action } => cmd_verify_evidence(action),
         Commands::Agents { action } => crate::cli_agents::cmd_agents(action),
         Commands::Completions { shell } => {
             use clap::CommandFactory;
@@ -232,7 +233,11 @@ pub async fn run_command() {
             clap_complete::generate(shell_kind, &mut cmd, name, &mut std::io::stdout());
         }
 
-        Commands::Reproduce { path, json } => cmd_reproduce(&path, json),
+        Commands::Reproduce {
+            path,
+            proposal,
+            json,
+        } => cmd_reproduce(&path, proposal.as_deref(), json),
         Commands::Ci { action } => match action {
             crate::server::cli_commands::CiAction::Verdict {
                 frontier,

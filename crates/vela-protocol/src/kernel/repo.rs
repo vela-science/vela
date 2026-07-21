@@ -1181,6 +1181,7 @@ mod tests {
                 kind: ProbeKind::CounterexampleSearch,
                 result: ProbeResult::Survived,
                 note: String::new(),
+                evidence_root: String::new(),
             }],
             outcome: AttachmentOutcome::Passed,
             verifier_actor: "reviewer:test".to_string(),

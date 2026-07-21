@@ -705,6 +705,125 @@ where
     )
 }
 
+/// Retain one verifier's proposal-scoped evidence without crossing any
+/// acceptance boundary. The attachment event is signed by the mechanical
+/// verifier identity and installed through the ordinary recoverable frontier
+/// transaction used by other canonical evidence events.
+pub(crate) fn attach_proposal_verifier(
+    frontier: &Path,
+    proposal_id: &str,
+    attachment: vela_protocol::verifier_attachment::VerifierAttachment,
+    actor: &str,
+) -> Result<Value, String> {
+    let journal_dir = frontier_transaction_journal_dir(frontier)?;
+    let barrier =
+        crate::frontier_txn::FrontierTxn::acquire_recovery_barrier(frontier, &journal_dir)
+            .map_err(|error| error.to_string())?;
+    let original = repo::load_from_path(frontier)?;
+    let proposal = original
+        .proposals
+        .iter()
+        .find(|proposal| proposal.id == proposal_id)
+        .ok_or_else(|| format!("proposal {proposal_id} does not exist"))?;
+    let finding: vela_protocol::bundle::FindingBundle = serde_json::from_value(
+        proposal
+            .payload
+            .get("finding")
+            .ok_or("proposal has no payload.finding")?
+            .clone(),
+    )
+    .map_err(|error| format!("parse proposal finding: {error}"))?;
+    let gate_projection = |project: &vela_protocol::project::Project| {
+        let attachments = project
+            .verifier_attachments
+            .iter()
+            .filter(|candidate| candidate.target == finding.id)
+            .cloned()
+            .collect::<Vec<_>>();
+        let gate = vela_protocol::verifier_attachment::derive_gate_status(
+            &vela_protocol::verifier_attachment::claim_digest(&finding.assertion.text),
+            &attachments,
+        );
+        let next_missing_condition = gate.reasons.first().cloned();
+        (attachments.len(), gate, next_missing_condition)
+    };
+    if let Some(event) = original.events.iter().find(|event| {
+        event.kind == vela_protocol::events::EVENT_KIND_VERIFIER_ATTACHMENT_ADDED
+            && event.payload.get("proposal_id").and_then(Value::as_str) == Some(proposal_id)
+            && event
+                .payload
+                .pointer("/attachment/id")
+                .and_then(Value::as_str)
+                == Some(attachment.id.as_str())
+    }) {
+        let (count, gate, next_missing_condition) = gate_projection(&original);
+        return Ok(json!({
+            "ok": true,
+            "command": "verify.attach",
+            "proposal_id": proposal_id,
+            "finding_id": finding.id,
+            "attachment_id": attachment.id,
+            "attachment_event_id": event.id,
+            "attached_at": event.timestamp,
+            "idempotent": true,
+            "accepted_state_delta": 0,
+            "canonical_event_delta": 0,
+            "attachment_count": count,
+            "gate": { "status": gate.status, "reasons": gate.reasons },
+            "next_missing_condition": next_missing_condition,
+            "state_root_before": format!("sha256:{}", vela_protocol::events::event_log_hash(&original.events)),
+            "state_root_after": format!("sha256:{}", vela_protocol::events::event_log_hash(&original.events)),
+            "publication": null,
+        }));
+    }
+    let key = vela_edge::vela_agent_mcp::agent_signing_key(Some(actor))?;
+    let mut candidate = clone_project(&original)?;
+    let attached_at = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Nanos, true);
+    let event = vela_protocol::proposals::append_proposal_verifier_attachment(
+        &mut candidate,
+        proposal_id,
+        attachment.clone(),
+        actor,
+        &attached_at,
+        &key,
+    )?;
+    let (count, gate, next_missing_condition) = gate_projection(&candidate);
+    let result = json!({
+        "ok": true,
+        "command": "verify.attach",
+        "proposal_id": proposal_id,
+        "finding_id": finding.id,
+        "attachment_id": attachment.id,
+        "attachment_event_id": event.id,
+        "attached_at": attached_at,
+        "idempotent": false,
+        "accepted_state_delta": 0,
+        "canonical_event_delta": 1,
+        "attachment_count": count,
+        "gate": { "status": gate.status, "reasons": gate.reasons },
+        "next_missing_condition": next_missing_condition,
+        "state_root_before": format!("sha256:{}", vela_protocol::events::event_log_hash(&original.events)),
+        "state_root_after": format!("sha256:{}", vela_protocol::events::event_log_hash(&candidate.events)),
+    });
+    transact_event_candidate_with_barrier(
+        frontier,
+        barrier,
+        &original,
+        &candidate,
+        result,
+        EventTransactionBinding {
+            operation_namespace: "verifier-attachment",
+            request_schema: "vela.verifier-attachment-request.internal.v1",
+            request_event_id_field: "attachment_event_id",
+            result_event_id_field: "attachment_event_id",
+            result_timestamp_field: "attached_at",
+            publication_summary: "verify attach",
+            preserve_existing_event_bytes: true,
+        },
+        || Ok(()),
+    )
+}
+
 /// The pre-loaded briefing for a target — the compounding payload the
 /// session starts from. Problem-shaped targets get the full task packet;
 /// rich campaign targets also carry their non-authorizing coordination task.

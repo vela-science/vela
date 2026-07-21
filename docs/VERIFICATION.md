@@ -36,6 +36,16 @@ vela check . --strict --json
 vela reproduce .
 ```
 
+To reproduce only immutable verifier-tagged artifacts bound to one pending
+proposal, use:
+
+```bash
+vela reproduce . --proposal <vpr_id> --json
+```
+
+The output names its scope `pending_proposal` rather than
+`accepted_frontier`, and reports `authority_effect: none`.
+
 ## Verifier evidence
 
 Receipt v1 records verifier runs as attributed evidence:
@@ -62,6 +72,21 @@ That status is computed, not set by a writer. The gate checks attachment
 well-formedness, claim matching, declared method independence, and surviving
 negative probes. It is one input to signed policy, never a separate acceptance
 command.
+
+Durable independent evidence is retained with:
+
+```bash
+vela verify attach . attachment.json --proposal <vpr_id> \
+  --as verifier:<actor> --json
+```
+
+This evidence event requires a content-addressed attachment, the proposal's
+exact full claim root, an explicit implementation, full execution-evidence
+roots, and a rooted record for every adversarial probe. It rejects stale claim
+bindings and declared independence across shared lineage couplings. The event
+may change the derived verification gate; it cannot accept, reject, or finalize
+the proposal. `vela review show` reports the exact next reproduction,
+attachment, and protected human-decision commands as separate actions.
 
 ## Landing and admission
 

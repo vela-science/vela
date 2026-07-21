@@ -4,10 +4,57 @@ use crate::cli::{
 };
 use crate::cli_commands::*;
 use serde_json::{Value, json};
-use std::path::Path;
+use std::path::{Component, Path, PathBuf};
 use vela_protocol::cli_style as style;
 use vela_protocol::evidence_ci;
 use vela_protocol::repo;
+
+pub(crate) fn cmd_verify_evidence(action: VerifyAction) {
+    match action {
+        VerifyAction::Attach {
+            frontier,
+            attachment,
+            proposal,
+            actor,
+            json,
+        } => {
+            crate::ui::set_mode("verify.attach", json);
+            let bytes = std::fs::read(&attachment).unwrap_or_else(|error| {
+                fail_return(&format!("read {}: {error}", attachment.display()))
+            });
+            let record: vela_protocol::verifier_attachment::VerifierAttachment =
+                serde_json::from_slice(&bytes).unwrap_or_else(|error| {
+                    fail_return(&format!(
+                        "parse {} as VerifierAttachment: {error}",
+                        attachment.display()
+                    ))
+                });
+            let result =
+                crate::workflow::attach_proposal_verifier(&frontier, &proposal, record, &actor)
+                    .unwrap_or_else(|error| fail_return(&error));
+            if json {
+                print_json(&result);
+            } else {
+                println!(
+                    "verify attach: retained {} for proposal {}",
+                    result["attachment_id"].as_str().unwrap_or("attachment"),
+                    proposal
+                );
+                println!("  acceptance: unchanged (delta 0)");
+                println!(
+                    "  gate: {}",
+                    result
+                        .pointer("/gate/status")
+                        .and_then(Value::as_str)
+                        .unwrap_or("unknown")
+                );
+                if let Some(next) = result["next_missing_condition"].as_str() {
+                    println!("  next: {next}");
+                }
+            }
+        }
+    }
+}
 
 pub(crate) fn cmd_gate(action: GateAction) {
     use vela_edge::deliverable_grade::{self, DeliverableGrade, GradeGate};
@@ -438,17 +485,223 @@ fn reproduce_finding_witness(
     )
 }
 
-pub(crate) fn cmd_reproduce(path: &Path, json_output: bool) {
+fn verified_local_artifact(
+    frontier: &Path,
+    artifact: &vela_protocol::bundle::Artifact,
+) -> Result<PathBuf, String> {
+    verified_frontier_file(
+        frontier,
+        &artifact.id,
+        &artifact.storage_mode,
+        artifact.locator.as_deref(),
+        &artifact.content_hash,
+    )
+}
+
+fn verified_frontier_file(
+    frontier: &Path,
+    artifact_id: &str,
+    storage_mode: &str,
+    locator: Option<&str>,
+    expected_root: &str,
+) -> Result<PathBuf, String> {
+    if !matches!(storage_mode, "local_blob" | "local_file") {
+        return Err(format!(
+            "proposal verifier artifact {} is not locally reproducible",
+            artifact_id
+        ));
+    }
+    let locator = locator
+        .ok_or_else(|| format!("proposal verifier artifact {artifact_id} has no locator"))?;
+    let relative = Path::new(locator);
+    if relative.is_absolute()
+        || relative.components().any(|component| {
+            matches!(
+                component,
+                Component::ParentDir | Component::RootDir | Component::Prefix(_)
+            )
+        })
+    {
+        return Err(format!(
+            "proposal verifier artifact {} locator must remain frontier-relative",
+            artifact_id
+        ));
+    }
+    let frontier_root = std::fs::canonicalize(frontier)
+        .map_err(|error| format!("resolve frontier root: {error}"))?;
+    let file = frontier.join(relative);
+    let metadata = std::fs::symlink_metadata(&file).map_err(|error| {
+        format!(
+            "inspect proposal verifier artifact {}: {error}",
+            artifact_id
+        )
+    })?;
+    if !metadata.file_type().is_file() || metadata.file_type().is_symlink() {
+        return Err(format!(
+            "proposal verifier artifact {} must be a regular non-symlink file",
+            artifact_id
+        ));
+    }
+    let resolved = std::fs::canonicalize(&file).map_err(|error| {
+        format!(
+            "resolve proposal verifier artifact {}: {error}",
+            artifact_id
+        )
+    })?;
+    if !resolved.starts_with(&frontier_root) {
+        return Err(format!(
+            "proposal verifier artifact {} resolves outside the frontier",
+            artifact_id
+        ));
+    }
+    use sha2::{Digest, Sha256};
+    let bytes = std::fs::read(&resolved)
+        .map_err(|error| format!("read proposal verifier artifact {}: {error}", artifact_id))?;
+    let observed = format!("sha256:{}", hex::encode(Sha256::digest(&bytes)));
+    if observed != expected_root {
+        return Err(format!(
+            "proposal verifier artifact {} content root does not match retained bytes",
+            artifact_id
+        ));
+    }
+    Ok(resolved)
+}
+
+fn reproduction_result_path(frontier: &Path, file: &Path, proposal_scoped: bool) -> String {
+    if !proposal_scoped {
+        return file.display().to_string();
+    }
+    let root = std::fs::canonicalize(frontier).unwrap_or_else(|_| frontier.to_path_buf());
+    let resolved = std::fs::canonicalize(file).unwrap_or_else(|_| file.to_path_buf());
+    resolved.strip_prefix(&root).map_or_else(
+        |_| {
+            file.file_name().map_or_else(
+                || "artifact".to_string(),
+                |name| name.to_string_lossy().into(),
+            )
+        },
+        |relative| relative.display().to_string(),
+    )
+}
+
+pub(crate) fn cmd_reproduce(path: &Path, proposal_id: Option<&str>, json_output: bool) {
     crate::ui::set_mode("reproduce", json_output);
+    let mut scope = if path.is_file() {
+        "standalone_artifact"
+    } else {
+        "accepted_frontier"
+    };
     if !json_output {
         crate::ui::header("REPRODUCE", &path.display().to_string(), None);
     }
-    let mut files = collect_witness_files(path);
+    let mut files = if let Some(proposal_id) = proposal_id {
+        scope = "pending_proposal";
+        let project = repo::load_from_path(path)
+            .unwrap_or_else(|error| fail_return(&format!("load proposal frontier: {error}")));
+        let proposal = project
+            .proposals
+            .iter()
+            .find(|proposal| proposal.id == proposal_id)
+            .unwrap_or_else(|| fail_return(&format!("proposal {proposal_id} does not exist")));
+        if proposal.status != "pending_review" {
+            fail_return::<()>(&format!(
+                "proposal {proposal_id} is {}, not pending_review",
+                proposal.status
+            ));
+        }
+        if proposal.kind != "finding.add" {
+            fail_return::<()>(&format!(
+                "proposal-scoped reproduction requires finding.add, got {}",
+                proposal.kind
+            ));
+        }
+        let finding_id = proposal.target.id.as_str();
+        let retained = project
+            .artifacts
+            .iter()
+            .filter(|artifact| {
+                artifact.media_type.as_deref() == Some("application/json")
+                    && artifact.metadata.contains_key("verifier")
+                    && artifact
+                        .target_findings
+                        .iter()
+                        .any(|target| target == finding_id)
+            })
+            .collect::<Vec<_>>();
+        if !retained.is_empty() {
+            retained
+                .into_iter()
+                .map(|artifact| verified_local_artifact(path, artifact))
+                .collect::<Result<Vec<_>, _>>()
+                .unwrap_or_else(|error| fail_return(&error))
+        } else {
+            let submission = proposal
+                .payload
+                .get("vela_submission")
+                .and_then(Value::as_object)
+                .unwrap_or_else(|| fail_return("pending proposal has no Receipt binding"));
+            let receipt_path = submission
+                .get("receipt_path")
+                .and_then(Value::as_str)
+                .unwrap_or_else(|| fail_return("proposal Receipt path is unavailable"));
+            let expected_root = submission
+                .get("receipt_root")
+                .and_then(Value::as_str)
+                .unwrap_or_else(|| fail_return("proposal Receipt root is unavailable"));
+            let receipt_bytes = std::fs::read(path.join(receipt_path)).unwrap_or_else(|error| {
+                fail_return(&format!("read proposal Receipt {receipt_path}: {error}"))
+            });
+            let receipt = vela_protocol::receipt_v1::ReceiptV1::parse(&receipt_bytes)
+                .unwrap_or_else(|error| fail_return(&format!("parse proposal Receipt: {error}")));
+            let observed_root = receipt
+                .canonical_root()
+                .unwrap_or_else(|error| fail_return(&format!("root proposal Receipt: {error}")));
+            if observed_root != expected_root {
+                fail_return::<()>("proposal Receipt root does not match its retained bytes");
+            }
+            receipt
+                .as_value()
+                .get("artifacts")
+                .and_then(Value::as_array)
+                .into_iter()
+                .flatten()
+                .filter(|artifact| {
+                    artifact
+                        .get("kind")
+                        .and_then(Value::as_str)
+                        .is_some_and(|kind| kind.contains("witness"))
+                        || artifact
+                            .get("path")
+                            .and_then(Value::as_str)
+                            .is_some_and(|path| path.ends_with(".witness.json"))
+                })
+                .filter_map(|artifact| artifact.get("sha256").and_then(Value::as_str))
+                .map(|digest| {
+                    use sha2::{Digest, Sha256};
+                    let file = path.join(format!("records/artifacts/sha256/{digest}"));
+                    let bytes = std::fs::read(&file).unwrap_or_else(|error| {
+                        fail_return(&format!(
+                            "read proposal artifact {}: {error}",
+                            file.display()
+                        ))
+                    });
+                    let observed = hex::encode(Sha256::digest(&bytes));
+                    if observed != digest {
+                        fail_return::<()>("proposal artifact digest does not match retained bytes");
+                    }
+                    file
+                })
+                .collect::<Vec<_>>()
+        }
+    } else {
+        collect_witness_files(path)
+    };
     // Also re-verify content-addressed witness blobs landed as verifier-tagged
     // artifacts under `.vela/artifact-blobs/`, bound to their findings rather
     // than stored as loose files. Cover any blob not already present as a loose
     // witness (deduped by content hash).
-    if let Ok(source) = repo::detect(path)
+    if proposal_id.is_none()
+        && let Ok(source) = repo::detect(path)
         && let Ok(proj) = repo::load(&source)
     {
         use sha2::{Digest, Sha256};
@@ -490,14 +743,15 @@ pub(crate) fn cmd_reproduce(path: &Path, json_output: bool) {
     let mut passed = 0usize;
     let mut failed = 0usize;
     for file in &files {
+        let result_path = reproduction_result_path(path, file, proposal_id.is_some());
         let raw = match std::fs::read_to_string(file) {
             Ok(r) => r,
             Err(e) => {
                 failed += 1;
                 if !json_output {
-                    println!("  FAIL  {}  ·  read error: {e}", file.display());
+                    println!("  FAIL  {result_path}  ·  read error: {e}");
                 }
-                results.push(json!({"path": file.display().to_string(), "ok": false, "message": format!("read error: {e}")}));
+                results.push(json!({"path": result_path, "ok": false, "message": format!("read error: {e}")}));
                 continue;
             }
         };
@@ -506,9 +760,9 @@ pub(crate) fn cmd_reproduce(path: &Path, json_output: bool) {
             Err(e) => {
                 failed += 1;
                 if !json_output {
-                    println!("  FAIL  {}  ·  parse error: {e}", file.display());
+                    println!("  FAIL  {result_path}  ·  parse error: {e}");
                 }
-                results.push(json!({"path": file.display().to_string(), "ok": false, "message": format!("parse error: {e}")}));
+                results.push(json!({"path": result_path, "ok": false, "message": format!("parse error: {e}")}));
                 continue;
             }
         };
@@ -554,13 +808,13 @@ pub(crate) fn cmd_reproduce(path: &Path, json_output: bool) {
             let status = if outcome.ok { "ok  " } else { "FAIL" };
             println!(
                 "  {status}  {} [{}]  ·  {}",
-                file.display(),
+                result_path,
                 witness.kind(),
                 outcome.message
             );
         }
         results.push(json!({
-            "path": file.display().to_string(),
+            "path": result_path,
             "kind": witness.kind(),
             "ok": outcome.ok,
             "message": outcome.message,
@@ -574,6 +828,9 @@ pub(crate) fn cmd_reproduce(path: &Path, json_output: bool) {
             "{}",
             serde_json::to_string_pretty(&json!({
                 "command": "reproduce",
+                "scope": scope,
+                "proposal_id": proposal_id,
+                "authority_effect": "none",
                 "witnesses": files.len(),
                 "passed": passed,
                 "failed": failed,
@@ -583,6 +840,10 @@ pub(crate) fn cmd_reproduce(path: &Path, json_output: bool) {
         );
     } else {
         println!();
+        println!("  scope: {scope}");
+        if let Some(proposal_id) = proposal_id {
+            println!("  proposal: {proposal_id} (pending; acceptance unchanged)");
+        }
         if failed == 0 {
             println!(
                 "  reproduce: ok ({passed}/{}) — every witness re-verified from scratch by the frozen verifiers.",
@@ -672,6 +933,7 @@ pub(crate) fn cmd_evidence_ci(frontier: &Path, json: bool) {
 #[cfg(test)]
 mod gate_tests {
     use super::*;
+    use sha2::{Digest, Sha256};
 
     // The exact-lane vouch gate. An adversarial review showed the prior vouch
     // (a "registered non-agent reviewer" signing a verifier_attachment.added
@@ -720,5 +982,47 @@ mod gate_tests {
                 "the refusal names the missing owner-rooted vouch: {reason}"
             );
         }
+    }
+
+    #[test]
+    fn proposal_reproduction_reads_only_rooted_frontier_files() {
+        let frontier = tempfile::tempdir().unwrap();
+        std::fs::create_dir(frontier.path().join("records")).unwrap();
+        let bytes = br#"{"schema":"fixture"}"#;
+        std::fs::write(frontier.path().join("records/witness.json"), bytes).unwrap();
+        let root = format!("sha256:{}", hex::encode(Sha256::digest(bytes)));
+        let resolved = verified_frontier_file(
+            frontier.path(),
+            "va_fixture",
+            "local_file",
+            Some("records/witness.json"),
+            &root,
+        )
+        .unwrap();
+        assert!(resolved.starts_with(std::fs::canonicalize(frontier.path()).unwrap()));
+        assert_eq!(
+            reproduction_result_path(frontier.path(), &resolved, true),
+            "records/witness.json"
+        );
+
+        let traversal = verified_frontier_file(
+            frontier.path(),
+            "va_fixture",
+            "local_file",
+            Some("../secret.json"),
+            &root,
+        )
+        .unwrap_err();
+        assert!(traversal.contains("frontier-relative"));
+
+        let tampered = verified_frontier_file(
+            frontier.path(),
+            "va_fixture",
+            "local_file",
+            Some("records/witness.json"),
+            &format!("sha256:{}", "0".repeat(64)),
+        )
+        .unwrap_err();
+        assert!(tampered.contains("content root"));
     }
 }

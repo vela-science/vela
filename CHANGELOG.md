@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.912.0 — 2026-07-20 — Retain proposal-scoped verification
+
+- Add `vela verify attach` for signed, retry-safe verifier evidence bound to
+  one pending proposal, its exact claim root, execution evidence, probe
+  evidence, implementation, and declared lineage.
+- Add `vela reproduce --proposal` with explicit `pending_proposal` scope and no
+  authority effect, plus deterministic `review show` next actions.
+- Preserve all legacy attachment IDs by omitting the new optional evidence
+  fields from historical records. Verification evidence remains orthogonal to
+  human acceptance and cannot change accepted state by itself.
+
 ## v0.911.1 — 2026-07-20 — Make work claims retry-safe
 
 - Return the exact active private session when the same actor repeats

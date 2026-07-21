@@ -241,9 +241,9 @@ mod surface_tests {
         });
     }
 
-    /// The v0.900 product surface, guarded in both directions. A dropped
+    /// The v0.912 product surface, guarded in both directions. A dropped
     /// command and an unreviewed addition both fail this test.
-    const V0900_VISIBLE: &[&str] = &[
+    const V0912_VISIBLE: &[&str] = &[
         "actor",
         "agents",
         "artifact",
@@ -267,6 +267,7 @@ mod surface_tests {
         "serve",
         "sign",
         "status",
+        "verify",
         "work",
     ];
     const V0900_HIDDEN: &[&str] = &["completions"];
@@ -286,7 +287,7 @@ mod surface_tests {
             }
             visible.sort();
             hidden.sort();
-            let want_visible: Vec<String> = V0900_VISIBLE.iter().map(|s| s.to_string()).collect();
+            let want_visible: Vec<String> = V0912_VISIBLE.iter().map(|s| s.to_string()).collect();
             let want_hidden: Vec<String> = V0900_HIDDEN.iter().map(|s| s.to_string()).collect();
             assert_eq!(
                 visible, want_visible,
@@ -304,7 +305,6 @@ mod surface_tests {
     fn retired_verbs_are_not_reachable() {
         on_big_stack(|| {
             for name in [
-                "verify",
                 "history",
                 "accept-batch",
                 "normalize",
@@ -346,6 +346,38 @@ mod surface_tests {
                     "retired verb `{name}` is still reachable — the cut regressed"
                 );
             }
+        });
+    }
+
+    #[test]
+    fn proposal_scoped_verification_commands_parse_exactly() {
+        on_big_stack(|| {
+            assert!(
+                Cli::try_parse_from([
+                    "vela",
+                    "verify",
+                    "attach",
+                    ".",
+                    "attachment.json",
+                    "--proposal",
+                    "vpr_fixture",
+                    "--as",
+                    "verifier:independent",
+                    "--json",
+                ])
+                .is_ok()
+            );
+            assert!(
+                Cli::try_parse_from([
+                    "vela",
+                    "reproduce",
+                    ".",
+                    "--proposal",
+                    "vpr_fixture",
+                    "--json",
+                ])
+                .is_ok()
+            );
         });
     }
 }

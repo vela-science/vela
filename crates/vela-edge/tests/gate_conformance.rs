@@ -49,11 +49,13 @@ fn build_attachment(spec: &Value, claim: &str, prior_ids: &[String]) -> Verifier
             kind: ProbeKind::CounterexampleSearch,
             result: ProbeResult::Survived,
             note: String::new(),
+            evidence_root: String::new(),
         }],
         "refuted" => vec![AdversarialProbe {
             kind: ProbeKind::CounterexampleSearch,
             result: ProbeResult::Refuted,
             note: String::new(),
+            evidence_root: String::new(),
         }],
         "none" => vec![],
         other => panic!("unknown probe {other}"),

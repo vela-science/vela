@@ -231,6 +231,7 @@ pub fn draft_from_log(
                 ProbeResult::Refuted
             },
             note: format!("inspect adversarial sample {}", sample_id(&s.id)),
+            evidence_root: String::new(),
         });
     }
 

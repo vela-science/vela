@@ -3490,6 +3490,7 @@ mod tests {
                 kind: ProbeKind::FormalismFidelity,
                 result: ProbeResult::Survived,
                 note: String::new(),
+                evidence_root: String::new(),
             }],
             outcome: AttachmentOutcome::Passed,
             verifier_actor: "ci:test".to_string(),

@@ -3698,6 +3698,145 @@ fn apply_artifact_retract(
 /// Bind a verifier attachment to a finding (`target.type == "finding"`). Appends
 /// to the sidecar `verifier_attachments` collection and emits
 /// `verifier_attachment.added`. Per-finding trust-gate status is derived on read.
+pub fn append_proposal_verifier_attachment(
+    frontier: &mut Project,
+    proposal_id: &str,
+    attachment: crate::verifier_attachment::VerifierAttachment,
+    verifier_actor: &str,
+    timestamp: &str,
+    key: &ed25519_dalek::SigningKey,
+) -> Result<StateEvent, String> {
+    let proposal = frontier
+        .proposals
+        .iter()
+        .find(|proposal| proposal.id == proposal_id)
+        .ok_or_else(|| format!("proposal {proposal_id} does not exist"))?;
+    if proposal.status != "pending_review" {
+        return Err(format!(
+            "proposal {proposal_id} is {}, not pending_review",
+            proposal.status
+        ));
+    }
+    if proposal.kind != "finding.add" || proposal.target.r#type != "finding" {
+        return Err(format!(
+            "proposal-scoped verifier evidence requires a pending finding.add proposal, got {} targeting {}",
+            proposal.kind, proposal.target.r#type
+        ));
+    }
+    let finding: FindingBundle = serde_json::from_value(
+        proposal
+            .payload
+            .get("finding")
+            .ok_or("finding.add proposal missing payload.finding")?
+            .clone(),
+    )
+    .map_err(|error| format!("parse proposal finding: {error}"))?;
+    attachment.verify()?;
+    if attachment.target != finding.id || proposal.target.id != finding.id {
+        return Err(format!(
+            "attachment target {} does not bind proposal finding {}",
+            attachment.target, finding.id
+        ));
+    }
+    let expected_digest = crate::verifier_attachment::claim_digest(&finding.assertion.text);
+    if attachment.claim_digest != expected_digest {
+        return Err(format!(
+            "attachment claim_digest is stale: expected {expected_digest}, got {}",
+            attachment.claim_digest
+        ));
+    }
+    let expected_root = format!(
+        "sha256:{}",
+        hex::encode(Sha256::digest(finding.assertion.text.trim().as_bytes()))
+    );
+    if attachment.claim_root != expected_root {
+        return Err(format!(
+            "attachment claim_root is stale: expected {expected_root}, got {}",
+            attachment.claim_root
+        ));
+    }
+    if attachment.verifier_actor != verifier_actor {
+        return Err(format!(
+            "attachment verifier_actor {} does not match --as {verifier_actor}",
+            attachment.verifier_actor
+        ));
+    }
+    if crate::events::actor_kind(verifier_actor) != "agent" {
+        return Err(
+            "verifier attachment actor must use agent:, ci:, or verifier: identity".to_string(),
+        );
+    }
+    if attachment.implementation_id.trim().is_empty() {
+        return Err("durable verifier attachment requires implementation_id".to_string());
+    }
+    if attachment.execution_evidence_roots.is_empty() {
+        return Err("durable verifier attachment requires execution_evidence_roots".to_string());
+    }
+    if attachment.adversarial_probes.is_empty()
+        || attachment
+            .adversarial_probes
+            .iter()
+            .any(|probe| probe.evidence_root.is_empty())
+    {
+        return Err(
+            "durable verifier attachment requires at least one adversarial probe and an evidence_root for every probe"
+                .to_string(),
+        );
+    }
+    for prior_id in &attachment.independent_of {
+        let prior = frontier
+            .verifier_attachments
+            .iter()
+            .find(|candidate| candidate.id == *prior_id)
+            .ok_or_else(|| format!("independent_of references unknown attachment {prior_id}"))?;
+        let shared = attachment
+            .lineage_couplings
+            .iter()
+            .filter(|tag| prior.lineage_couplings.contains(tag))
+            .cloned()
+            .collect::<Vec<_>>();
+        if !shared.is_empty() {
+            return Err(format!(
+                "attachment falsely declares independence from {prior_id}; shared failure domain [{}]",
+                shared.join(", ")
+            ));
+        }
+    }
+    if frontier
+        .verifier_attachments
+        .iter()
+        .any(|existing| existing.id == attachment.id)
+    {
+        return Err(format!(
+            "verifier attachment {} is already retained",
+            attachment.id
+        ));
+    }
+    let reason = format!("retain proposal-scoped verifier evidence for {proposal_id}");
+    let mut event = events::new_finding_event(events::FindingEventInput {
+        kind: events::EVENT_KIND_VERIFIER_ATTACHMENT_ADDED,
+        finding_id: &finding.id,
+        actor_id: verifier_actor,
+        actor_type: events::actor_kind(verifier_actor),
+        reason: &reason,
+        before_hash: NULL_HASH,
+        after_hash: NULL_HASH,
+        payload: json!({
+            "proposal_id": proposal_id,
+            "attachment": attachment,
+        }),
+        caveats: vec![
+            "Verifier evidence does not accept, approve, or finalize the proposal.".to_string(),
+        ],
+        timestamp: Some(timestamp),
+    });
+    event.signature = Some(crate::sign::sign_event(&event, key)?);
+    crate::reducer::apply_event(frontier, &event)?;
+    frontier.events.push(event.clone());
+    project::recompute_stats(frontier);
+    Ok(event)
+}
+
 fn apply_verifier_attach(
     frontier: &mut Project,
     proposal: &StateProposal,

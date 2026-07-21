@@ -358,6 +358,12 @@ pub(crate) enum Commands {
         #[command(subcommand)]
         action: GateAction,
     },
+    /// Retain and inspect non-authorizing verifier evidence.
+    #[command(after_long_help = crate::cli::help_text::VERIFY)]
+    Verify {
+        #[command(subcommand)]
+        action: VerifyAction,
+    },
     /// Generate vendor agent-config adapters from the canonical `VELA.md`
     /// (one source of truth; the adapter files are disposable, regenerable
     /// leaves). `AGENTS.md`, `CLAUDE.md`, `.cursor/rules/vela.mdc`,
@@ -378,6 +384,9 @@ pub(crate) enum Commands {
         /// `*.witness.json` under it, or a `witnesses/` subdir).
         #[arg(default_value = ".")]
         path: PathBuf,
+        /// Reproduce only the immutable artifacts bound to this proposal.
+        #[arg(long)]
+        proposal: Option<String>,
         #[arg(long)]
         json: bool,
     },
@@ -827,6 +836,22 @@ pub(crate) enum GateAction {
     /// Print the deliverable-grade taxonomy and verifier-method /
     /// probe-kind vocabularies (the closed sets the gate accepts).
     Vocab {
+        #[arg(long)]
+        json: bool,
+    },
+}
+
+/// `vela verify` — durable, non-authorizing verifier evidence.
+#[derive(Subcommand)]
+pub(crate) enum VerifyAction {
+    /// Attach one content-addressed verifier record to a pending proposal.
+    Attach {
+        frontier: PathBuf,
+        attachment: PathBuf,
+        #[arg(long)]
+        proposal: String,
+        #[arg(long = "as", help = HELP_AS)]
+        actor: String,
         #[arg(long)]
         json: bool,
     },

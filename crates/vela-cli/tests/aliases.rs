@@ -104,7 +104,6 @@ fn key_flag_is_canonical_key_only() {
 #[test]
 fn retired_top_level_verbs_404() {
     for verb in [
-        "verify",
         "history",
         "accept-batch",
         "normalize",

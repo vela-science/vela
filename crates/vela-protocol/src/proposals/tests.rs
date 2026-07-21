@@ -9,6 +9,171 @@ use tempfile::TempDir;
 use crate::identity::{ActorClass, IdentityBinding, IdentityBindingDraft};
 use crate::receipt_v1::{ArtifactInput, ReceiptBuilder, ReceiptInput};
 
+fn durable_attachment(
+    finding: &FindingBundle,
+    actor: &str,
+    method: crate::verifier_attachment::VerifierMethod,
+) -> crate::verifier_attachment::VerifierAttachment {
+    use crate::verifier_attachment::{
+        AdversarialProbe, AttachmentDraft, AttachmentOutcome, MatchToClaim, ProbeKind, ProbeResult,
+        VerifierAttachment,
+    };
+    let root = format!("sha256:{}", "a".repeat(64));
+    VerifierAttachment::build(AttachmentDraft {
+        target: finding.id.clone(),
+        claim_digest: crate::verifier_attachment::claim_digest(&finding.assertion.text),
+        verifier_method: method,
+        solver_id: "frozen-test-solver".to_string(),
+        independent_of: Vec::new(),
+        match_to_claim: MatchToClaim {
+            matches: true,
+            checker_actor: actor.to_string(),
+        },
+        adversarial_probes: vec![AdversarialProbe {
+            kind: ProbeKind::CounterexampleSearch,
+            result: ProbeResult::Survived,
+            note: "bounded negative probe".to_string(),
+            evidence_root: root.clone(),
+        }],
+        outcome: AttachmentOutcome::Passed,
+        verifier_actor: actor.to_string(),
+        note: "independent frozen re-check".to_string(),
+    })
+    .unwrap()
+    .with_claim_root(&format!(
+        "sha256:{}",
+        hex::encode(Sha256::digest(finding.assertion.text.trim().as_bytes()))
+    ))
+    .unwrap()
+    .with_method_integrity(crate::verifier_attachment::MethodIntegrity::Sound)
+    .unwrap()
+    .with_implementation_id("impl:frozen-test")
+    .unwrap()
+    .with_execution_evidence_roots(vec![root])
+    .unwrap()
+}
+
+fn copy_project(project: &Project) -> Project {
+    serde_json::from_value(serde_json::to_value(project).unwrap()).unwrap()
+}
+
+#[test]
+fn proposal_verifier_attachment_is_evidence_only_and_fails_closed() {
+    use crate::verifier_attachment::VerifierMethod;
+    let actor = "verifier:test";
+    let key = ed25519_dalek::SigningKey::from_bytes(&[29_u8; 32]);
+    let finding = finding("vf_0123456789abcdef");
+    let proposal = new_proposal_at(
+        "finding.add",
+        StateTarget {
+            r#type: "finding".to_string(),
+            id: finding.id.clone(),
+        },
+        "agent:producer",
+        "agent",
+        "bounded candidate",
+        json!({ "finding": finding }),
+        Vec::new(),
+        vec!["pending human review".to_string()],
+        "2026-07-20T00:00:00Z",
+    );
+    let finding: FindingBundle =
+        serde_json::from_value(proposal.payload["finding"].clone()).unwrap();
+    let mut project = project::assemble("attachment-test", Vec::new(), 0, 0, "test");
+    project.proposals.push(proposal.clone());
+    let attachment = durable_attachment(&finding, actor, VerifierMethod::ComputationalSearch);
+    let event = append_proposal_verifier_attachment(
+        &mut project,
+        &proposal.id,
+        attachment.clone(),
+        actor,
+        "2026-07-20T00:01:00Z",
+        &key,
+    )
+    .unwrap();
+    assert_eq!(
+        project.findings.len(),
+        0,
+        "evidence must not accept the finding"
+    );
+    assert_eq!(project.proposals[0].status, "pending_review");
+    assert_eq!(project.verifier_attachments, vec![attachment.clone()]);
+    assert!(event.signature.is_some());
+
+    let mut stale = durable_attachment(&finding, actor, VerifierMethod::ExactArithmeticRecompute);
+    stale.claim_digest = "0000000000000000".to_string();
+    stale.id = stale.derive_id().unwrap();
+    let mut stale_project = copy_project(&project);
+    assert!(
+        append_proposal_verifier_attachment(
+            &mut stale_project,
+            &proposal.id,
+            stale,
+            actor,
+            "2026-07-20T00:02:00Z",
+            &key,
+        )
+        .unwrap_err()
+        .contains("claim_digest is stale")
+    );
+
+    let mut forged = durable_attachment(&finding, actor, VerifierMethod::ExactArithmeticRecompute);
+    forged.id = "vva_forged00000000".to_string();
+    let mut forged_project = copy_project(&project);
+    assert!(
+        append_proposal_verifier_attachment(
+            &mut forged_project,
+            &proposal.id,
+            forged,
+            actor,
+            "2026-07-20T00:02:00Z",
+            &key,
+        )
+        .unwrap_err()
+        .contains("id mismatch")
+    );
+
+    let mut missing = durable_attachment(&finding, actor, VerifierMethod::ExactArithmeticRecompute);
+    missing.execution_evidence_roots.clear();
+    missing.id = missing.derive_id().unwrap();
+    let mut missing_project = copy_project(&project);
+    assert!(
+        append_proposal_verifier_attachment(
+            &mut missing_project,
+            &proposal.id,
+            missing,
+            actor,
+            "2026-07-20T00:02:00Z",
+            &key,
+        )
+        .unwrap_err()
+        .contains("execution_evidence_roots")
+    );
+
+    let first = project.verifier_attachments[0]
+        .clone()
+        .with_lineage_couplings(vec!["code:shared".to_string()])
+        .unwrap();
+    project.verifier_attachments[0] = first.clone();
+    let mut shared = durable_attachment(&finding, actor, VerifierMethod::ExactArithmeticRecompute)
+        .with_lineage_couplings(vec!["code:shared".to_string()])
+        .unwrap();
+    shared.independent_of = vec![first.id.clone()];
+    shared.id = shared.derive_id().unwrap();
+    assert!(
+        append_proposal_verifier_attachment(
+            &mut project,
+            &proposal.id,
+            shared,
+            actor,
+            "2026-07-20T00:03:00Z",
+            &key,
+        )
+        .unwrap_err()
+        .contains("shared failure domain")
+    );
+}
+
 pub(crate) fn finding(id: &str) -> FindingBundle {
     FindingBundle {
         id: id.to_string(),
@@ -860,6 +1025,7 @@ fn verifier_attach_accepts_and_derives_verified() {
                 kind: ProbeKind::CounterexampleSearch,
                 result: ProbeResult::Survived,
                 note: String::new(),
+                evidence_root: String::new(),
             }],
             outcome: AttachmentOutcome::Passed,
             verifier_actor: "opus".to_string(),
@@ -939,6 +1105,7 @@ fn admit_ready_fixture() -> (
                 kind: ProbeKind::FormalismFidelity,
                 result: ProbeResult::Survived,
                 note: String::new(),
+                evidence_root: String::new(),
             }],
             outcome: AttachmentOutcome::Passed,
             verifier_actor: "verifier:vela-verify".to_string(),
