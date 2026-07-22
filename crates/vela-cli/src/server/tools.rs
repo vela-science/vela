@@ -42,8 +42,8 @@ pub(crate) fn tool_orient(
     });
     if source_path.is_none() {
         notes.push(
-            "campaign-seed lane skipped: this transport serves no frontier directory \
-             (hosted or merged mode), so open targets list only review and verify lanes"
+            "producer work omitted: this transport serves no frontier directory \
+             (hosted or merged mode); review and structural advice remain separate surfaces"
                 .to_string(),
         );
     }

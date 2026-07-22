@@ -210,7 +210,9 @@ fn compact_contract_exposes_only_the_daily_surface_and_bounded_status() {
     let first: serde_json::Value = serde_json::from_slice(&first.stdout).unwrap();
     assert_eq!(first["order"], "created_at_desc_then_proposal_id");
     assert_eq!(first["items"][0]["created_at"], "2026-07-17T12:02:00Z");
+    assert_eq!(first["items"][0]["claim"], "claim 1");
     assert_eq!(first["items"][1]["created_at"], "2026-07-17T12:01:00Z");
+    assert_eq!(first["items"][1]["claim"], "claim 2");
     let cursor = first["next_cursor"].as_str().unwrap();
     let second = run(
         temp.path(),

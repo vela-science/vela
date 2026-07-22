@@ -5,15 +5,12 @@
 //! answer to the first question every worker asks. This module derives
 //! one, read-only, from state the frontier already carries:
 //!
-//! - **review** — undecided packs and loose pending proposals: the
-//!   human's decisions, listed first because a decision unblocks
-//!   everything behind it.
 //! - **attack** — open entries from a derived, hash-pinned `targets.json`
 //!   catalogue and open campaign seeds (`campaign.yaml`, when present).
 //!   Neither projection is authority; both only prepare a work target.
-//! - **verify** — accepted findings the gate still holds at
-//!   `needs_verification`: the honest accepted-but-unverified gap,
-//!   closest-to-the-bar first.
+//! Review has its own `vela review` surface and structural opportunities have
+//! `vela frontier rank`. Mixing either into `vela.offer.v1` would make advice
+//! or human work look like an executable producer target.
 //!
 //! A ranking is advice, never authority: nothing here mutates state,
 //! and claiming a target still goes through the lease tool.
@@ -25,13 +22,12 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use vela_protocol::project::Project;
-use vela_protocol::verifier_attachment::{GateStatus, claim_digest, derive_gate_status};
 
 use super::decision_brief::ReviewSnapshot;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct NextTarget {
-    /// "seed" | "review" | "attack" | "verify"
+    /// "seed" | "attack"
     pub lane: String,
     /// The target handle: `vsd_…` / `vpr_…` / a seed obligation id / `vf_…`.
     pub id: String,
@@ -71,9 +67,9 @@ pub struct ProducerWorkAvailability {
     pub leased_targets: Vec<LeasedProducerTarget>,
 }
 
-/// The complete read-only `next` projection. `targets` preserves the existing
-/// ranked offer contract; `producer_work` explains why an otherwise open
-/// configured target may be absent from that list.
+/// The complete read-only `next` projection. `targets` contains producer work
+/// only; `producer_work` explains why an otherwise open configured target may
+/// be absent from that list.
 #[derive(Debug, Clone, Serialize)]
 pub struct FrontierNextProjection {
     pub targets: Vec<NextTarget>,
@@ -901,7 +897,7 @@ fn lease_namespace(project: &Project) -> String {
 
 pub fn try_frontier_next_projection(
     project: &Project,
-    reviews: &[ReviewSnapshot],
+    _reviews: &[ReviewSnapshot],
     frontier_dir: Option<&Path>,
     observed_at: &str,
     limit: usize,
@@ -909,35 +905,8 @@ pub fn try_frontier_next_projection(
     let observed_at = chrono::DateTime::parse_from_rfc3339(observed_at)
         .ok()
         .map(|time| time.to_utc());
-    let mut review_targets = Vec::new();
     let mut actionable_targets = Vec::new();
     let mut producer_work = ProducerWorkAvailability::default();
-
-    // ── review: the same selected Decision Briefs used everywhere else ──
-    for review in reviews {
-        review_targets.push(NextTarget {
-            lane: "review".into(),
-            id: review.brief.audit.proposal_id.clone(),
-            title: review.brief.change.claim.chars().take(80).collect(),
-            why: format!(
-                "{} · accept {} · reject {} · facts {}",
-                review.brief.authority.route,
-                review
-                    .brief
-                    .action("accept")
-                    .map(|action| action.eligibility.as_str())
-                    .unwrap_or("unavailable"),
-                review
-                    .brief
-                    .action("reject")
-                    .map(|action| action.eligibility.as_str())
-                    .unwrap_or("unavailable"),
-                review.brief.audit.decision_facts_root,
-            ),
-            next_command: format!("vela diff {}", review.brief.audit.proposal_id),
-            task: None,
-        });
-    }
 
     // ── attack: open target-index entries and campaign seeds ───────────
     if let Some(dir) = frontier_dir {
@@ -1035,64 +1004,6 @@ pub fn try_frontier_next_projection(
         }
     }
 
-    // ── verify: accepted findings the gate refuses ─────────────────────
-    let mut by_target: std::collections::HashMap<&str, Vec<_>> = std::collections::HashMap::new();
-    for a in &project.verifier_attachments {
-        by_target.entry(a.target.as_str()).or_default().push(a);
-    }
-    // Structural leverage: how many findings rest on X as a required premise
-    // (`depends`/`synthesized_from`/`derived_from`/`discharges`). Verifying a
-    // high-leverage finding unblocks more downstream work — the structural
-    // signal from `frontier_identification`, applied as the verify-lane tiebreak.
-    let mut unlock: std::collections::HashMap<&str, usize> = std::collections::HashMap::new();
-    for f in &project.findings {
-        for l in &f.links {
-            if matches!(
-                l.link_type.as_str(),
-                "depends" | "synthesized_from" | "derived_from" | "discharges"
-            ) {
-                *unlock.entry(l.target.as_str()).or_default() += 1;
-            }
-        }
-    }
-    // (attachment_count, unlock_count, target)
-    let mut verify: Vec<(usize, usize, NextTarget)> = Vec::new();
-    for bundle in &project.findings {
-        use vela_protocol::bundle::ReviewState;
-        if !matches!(bundle.flags.review_state, Some(ReviewState::Accepted)) {
-            continue;
-        }
-        let attachments: Vec<_> = by_target
-            .get(bundle.id.as_str())
-            .map(|v| v.iter().map(|a| (*a).clone()).collect())
-            .unwrap_or_default();
-        let outcome = derive_gate_status(&claim_digest(&bundle.assertion.text), &attachments);
-        if outcome.status == GateStatus::NeedsVerification {
-            let lev = unlock.get(bundle.id.as_str()).copied().unwrap_or(0);
-            let why = match outcome.reasons.first() {
-                Some(r) if lev > 0 => format!("{r} ({lev} finding(s) rest on this)"),
-                Some(r) => r.clone(),
-                None => "accepted but unverified".into(),
-            };
-            verify.push((
-                attachments.len(),
-                lev,
-                NextTarget {
-                    lane: "verify".into(),
-                    id: bundle.id.clone(),
-                    title: bundle.assertion.text.chars().take(80).collect(),
-                    why,
-                    next_command: format!("vela work {}", bundle.id),
-                    task: None,
-                },
-            ));
-        }
-    }
-    // Closest to the bar first (more attachments = one run from verified), then
-    // highest structural leverage (unblocks the most downstream work), then id.
-    verify.sort_by(|a, b| b.0.cmp(&a.0).then(b.1.cmp(&a.1)).then(a.2.id.cmp(&b.2.id)));
-    actionable_targets.extend(verify.into_iter().map(|(_, _, target)| target));
-
     // A brand-new frontier must still answer its first `next`. This offer is
     // coordination, not scientific content or authority: the producer must
     // state a bounded claim and land a Receipt before anything enters review.
@@ -1105,8 +1016,7 @@ pub fn try_frontier_next_projection(
                 observed_at.as_ref(),
             )
     });
-    if review_targets.is_empty()
-        && actionable_targets.is_empty()
+    if actionable_targets.is_empty()
         && producer_work.configured_open == 0
         && project.findings.is_empty()
         && project.proposals.is_empty()
@@ -1132,37 +1042,24 @@ pub fn try_frontier_next_projection(
         }
     }
 
-    if limit == 0 {
-        return Ok(FrontierNextProjection {
-            targets: Vec::new(),
-            producer_work,
-        });
+    let mut unique_ids = std::collections::BTreeSet::new();
+    for target in &actionable_targets {
+        if !unique_ids.insert(target.id.as_str()) {
+            return Err(format!(
+                "producer work projection contains duplicate target id {}",
+                target.id
+            ));
+        }
     }
-    if actionable_targets.is_empty() {
-        review_targets.truncate(limit);
-        return Ok(FrontierNextProjection {
-            targets: review_targets,
-            producer_work,
-        });
+    if actionable_targets.len() != producer_work.available {
+        return Err(format!(
+            "producer work projection count mismatch: {} available but {} offers",
+            producer_work.available,
+            actionable_targets.len()
+        ));
     }
-    if limit == 1 {
-        return Ok(FrontierNextProjection {
-            targets: actionable_targets.into_iter().take(1).collect(),
-            producer_work,
-        });
-    }
-    let mut targets = Vec::with_capacity(limit);
-    if let Some(review) = review_targets.first().cloned() {
-        targets.push(review);
-        review_targets.remove(0);
-    }
-    if let Some(actionable) = actionable_targets.first().cloned() {
-        targets.push(actionable);
-        actionable_targets.remove(0);
-    }
-    targets.extend(review_targets);
-    targets.extend(actionable_targets);
-    targets.truncate(limit);
+
+    let targets = actionable_targets.into_iter().take(limit).collect();
     Ok(FrontierNextProjection {
         targets,
         producer_work,
@@ -1185,6 +1082,57 @@ pub fn try_frontier_next(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use vela_protocol::bundle::{
+        Assertion, Conditions, Confidence, Evidence, Extraction, FindingBundle, Flags, Provenance,
+        ReviewState,
+    };
+
+    fn accepted_unverified_finding(id: &str) -> FindingBundle {
+        let mut finding = FindingBundle::new(
+            Assertion {
+                text: "Accepted result awaiting more verifier evidence".into(),
+                assertion_type: "computational".into(),
+                entities: Vec::new(),
+                relation: None,
+                direction: None,
+                causal_claim: None,
+                causal_evidence_grade: None,
+            },
+            Evidence {
+                evidence_type: "computational".into(),
+                model_system: String::new(),
+                method: "fixture".into(),
+                replicated: false,
+                replication_count: None,
+                evidence_spans: Vec::new(),
+            },
+            Conditions {
+                text: "fixture".into(),
+                duration: None,
+            },
+            Confidence::raw(0.5, "fixture", 0.5),
+            Provenance {
+                source_type: "agent_run".into(),
+                doi: None,
+                url: None,
+                title: "Producer offer separation fixture".into(),
+                authors: Vec::new(),
+                year: None,
+                license: None,
+                publisher: None,
+                funders: Vec::new(),
+                extraction: Extraction::default(),
+                review: None,
+                contributions: Vec::new(),
+            },
+            Flags {
+                review_state: Some(ReviewState::Accepted),
+                ..Flags::default()
+            },
+        );
+        finding.id = id.to_string();
+        finding
+    }
 
     fn write_target_index(
         dir: &Path,
@@ -1264,6 +1212,36 @@ mod tests {
         assert_eq!(loaded["packet"]["problem"], 443);
         assert_eq!(loaded["packet_ref"]["path"], "packets/443.json");
         assert_eq!(loaded["index"]["stale_against_loaded_frontier"], false);
+    }
+
+    #[test]
+    fn producer_offers_exclude_structural_verification_advice() {
+        let temp = tempfile::tempdir().unwrap();
+        let mut project =
+            vela_protocol::project::assemble("producer-only", Vec::new(), 0, 0, "fixture");
+        project
+            .findings
+            .push(accepted_unverified_finding("vf_structural_advice"));
+        write_target_index(
+            temp.path(),
+            &project,
+            br#"{"schema":"fixture.problem.v1","problem":443}"#,
+            None,
+        );
+
+        let projection = try_frontier_next_projection(
+            &project,
+            &[],
+            Some(temp.path()),
+            "2026-07-16T12:00:00Z",
+            10,
+        )
+        .unwrap();
+        assert_eq!(projection.producer_work.configured_open, 1);
+        assert_eq!(projection.producer_work.available, 1);
+        assert_eq!(projection.targets.len(), 1);
+        assert_eq!(projection.targets[0].id, "erdos:443");
+        assert_eq!(projection.targets[0].lane, "attack");
     }
 
     #[test]

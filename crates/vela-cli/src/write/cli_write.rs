@@ -60,6 +60,19 @@ fn proposal_next_actions(frontier: &std::path::Path, proposal_id: &str) -> Vec<V
 
 /// Compact 0.9 review surface. Lists never embed Decision Briefs; callers use
 /// `review show` or `review preview` for one exact proposal.
+fn compact_proposal_claim(value: &Value) -> String {
+    value
+        .pointer("/payload/claim")
+        .or_else(|| value.pointer("/payload/finding/assertion/text"))
+        .or_else(|| value.pointer("/change/claim"))
+        .or_else(|| value.get("claim"))
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .chars()
+        .take(240)
+        .collect()
+}
+
 pub(crate) fn cmd_review(action: ReviewAction) {
     match action {
         ReviewAction::List {
@@ -85,15 +98,7 @@ pub(crate) fn cmd_review(action: ReviewAction) {
                         })
                         .to_utc();
                     let value = serde_json::to_value(proposal).unwrap_or(Value::Null);
-                    let claim = value
-                        .pointer("/payload/claim")
-                        .or_else(|| value.pointer("/change/claim"))
-                        .or_else(|| value.get("claim"))
-                        .and_then(Value::as_str)
-                        .unwrap_or("")
-                        .chars()
-                        .take(240)
-                        .collect::<String>();
+                    let claim = compact_proposal_claim(&value);
                     let target = value
                         .pointer("/target/id")
                         .or_else(|| value.pointer("/payload/target/id"))
