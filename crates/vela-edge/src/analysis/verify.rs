@@ -18,29 +18,12 @@
 //! The frontier must also DECLARE its identity: a project that replays to
 //! no `frontier_id` is not a verifiable frontier, it is a pile of files.
 
-use crate::signals::SignalItem;
 use std::path::Path;
 use vela_protocol::project::Project;
 
-/// A frontier that is structurally valid and exactly replayable, together
-/// with every strict error signal. Read-only projections may retain this
-/// result so that blocked frontiers remain inspectable without describing
-/// them as strict-clean.
-pub struct ReplayableFrontier {
-    pub project: Project,
-    pub frontier_id: String,
-    pub strict_blockers: Vec<SignalItem>,
-}
-
-/// Load a frontier through every integrity and replay check, but return strict
-/// signals as data instead of treating their presence as a load failure.
-///
-/// This is intentionally narrower than `verify_frontier_strict`: content
-/// mutation, reducer failure, replay conflict, and policy-lane failure still
-/// fail closed. The only retained failures are derived strict classifications
-/// which a reader needs to display honestly.
-pub fn verify_frontier_replayable(dir: &Path) -> Result<ReplayableFrontier, String> {
-    // Load a frontier directory and hold it to the integrity and replay bar.
+/// Load a frontier directory and hold it to the full strict bar.
+/// Returns the loaded project and its (required) frontier id.
+pub fn verify_frontier_strict(dir: &Path) -> Result<(Project, String), String> {
     let validation = crate::validate::validate(dir);
     if !validation.errors.is_empty() {
         let first = validation
@@ -92,26 +75,10 @@ pub fn verify_frontier_replayable(dir: &Path) -> Result<ReplayableFrontier, Stri
     }
 
     let signals = crate::signals::analyze_at(&project, &[], Some(dir));
-    let strict_blockers: Vec<SignalItem> = signals
+    let errors: Vec<String> = signals
         .signals
         .iter()
         .filter(|s| s.severity == "error")
-        .cloned()
-        .collect();
-    Ok(ReplayableFrontier {
-        project,
-        frontier_id,
-        strict_blockers,
-    })
-}
-
-/// Load a frontier directory and hold it to the full strict bar.
-/// Returns the loaded project and its (required) frontier id.
-pub fn verify_frontier_strict(dir: &Path) -> Result<(Project, String), String> {
-    let verified = verify_frontier_replayable(dir)?;
-    let errors: Vec<String> = verified
-        .strict_blockers
-        .iter()
         .map(|s| format!("{}: {}", s.kind, s.reason))
         .collect();
     if !errors.is_empty() {
@@ -122,5 +89,5 @@ pub fn verify_frontier_strict(dir: &Path) -> Result<(Project, String), String> {
         ));
     }
 
-    Ok((verified.project, verified.frontier_id))
+    Ok((project, frontier_id))
 }

@@ -28,9 +28,6 @@ pub struct VerifiedFrontierIndex {
     pub latest_snapshot_hash: String,
     pub latest_event_log_hash: String,
     pub source_commit_at: String,
-    /// Derived, non-authoritative verification metadata retained beside the
-    /// replayed projection. It is not included in the canonical snapshot hash.
-    pub projection_verification: Value,
 }
 
 #[derive(Debug, Clone)]
@@ -894,14 +891,8 @@ impl HubDb {
             ));
         }
 
-        let mut snapshot_value =
+        let snapshot_value =
             serde_json::to_value(project).map_err(|e| format!("serialize project: {e}"))?;
-        if let Value::Object(map) = &mut snapshot_value {
-            map.insert(
-                "_projection_verification".to_string(),
-                entry.projection_verification.clone(),
-            );
-        }
         let snapshot_skeleton = frontier_skeleton(&snapshot_value);
         let snapshot_skeleton_json =
             serde_json::to_string(&snapshot_skeleton).map_err(|e| format!("project json: {e}"))?;
