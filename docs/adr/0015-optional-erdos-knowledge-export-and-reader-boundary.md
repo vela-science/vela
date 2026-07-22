@@ -1,10 +1,10 @@
 # ADR 0015: Optional Erdős knowledge export and reader boundary
 
-- Status: Proposed
+- Status: Rejected — no change (2026-07-22)
 - Protocol target: none
-- Candidate implementation target: a bounded adapter in the existing read
-  layer; no new repository, service, database, or release is scheduled
-- Evidence gate: one correction-aware, three-to-five-problem Erdős fixture
+- Implementation target: none
+- Evidence gate outcome: the exact Erdős baseline found two smaller reader
+  defects and no demonstrated need for the proposed export
 
 ## Context
 
@@ -49,7 +49,33 @@ of scientific state, ontology authority, package registry, database, or hosted
 service. Removing it must leave every frontier replayable and every Vela
 decision unchanged.
 
-## Decision
+## Outcome
+
+The proposal was rejected before implementation. The frozen Erdős baseline at
+commit `6692f284c1a34e0faf07de8bfa0dfd01db10c118` showed that the existing
+root-bound Observatory already exposes the exact work target, packet, Receipt,
+proposal, verifier distinction, terminal decision, standing, strict debt, and
+typed graph relations needed for the representative current-work, rejection,
+and conditional-result cases.
+
+The audit found two real but narrower reader defects:
+
+1. recorded `statement_edit` activity does not expose the exact source-Git
+   revision chain and prior statement bytes; and
+2. finding pages do not group typed dependencies and contradictions already
+   retained in graph rows.
+
+Neither defect requires RO-Crate, JSON-LD, PROV-O, SKOS, another package,
+another database, or a Vela protocol change. If user testing prioritizes them,
+they belong as ordinary read-projection and record-page improvements inside
+the existing Vela Web owner. The experiment therefore stops with no adapter,
+artifact, schema, package, service, repository, or release.
+
+The exact comparison evidence is recorded in the parent integration report
+`docs/reports/ERDOS_READER_BASELINE_2026-07-22.md`. Rejecting this ADR changes
+no canonical frontier byte, Vela replay result, decision, or public contract.
+
+## Proposed decision (not implemented)
 
 Run one evidence-gated experiment: export a frozen Erdős slice as a small
 RO-Crate 1.3 JSON-LD research object plus an explicit loss report. Implement
