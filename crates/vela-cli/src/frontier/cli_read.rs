@@ -44,7 +44,6 @@ pub(crate) fn cmd_status_compact(path: &Path, json_out: bool) {
         .count();
     let work_projection = vela_edge::frontier_next::try_frontier_next_projection(
         &project,
-        &[],
         Some(frontier_dir),
         &observed_at,
         1,

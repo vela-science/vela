@@ -353,7 +353,6 @@ pub async fn run_command() {
             let observed_at = chrono::Utc::now().to_rfc3339();
             let projection = vela_edge::frontier_next::try_frontier_next_projection(
                 &project,
-                &[],
                 Some(&dir),
                 &observed_at,
                 limit,
