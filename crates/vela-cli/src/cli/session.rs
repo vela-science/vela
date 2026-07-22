@@ -165,32 +165,19 @@ pub(crate) fn run_session() {
             );
         }
     }
-    let next_review = crate::review_material::ReviewProjection::page(
-        &repo_path,
-        crate::review_material::ReviewRequest {
-            limit: Some(3),
-            ..crate::review_material::ReviewRequest::default()
-        },
-    );
-    let targets = match next_review {
-        Ok(review) => match vela_edge::frontier_next::try_frontier_next(
-            &project,
-            &review.items,
-            Some(&repo_path),
-            &review.observed_at,
-            3,
-        ) {
-            Ok(targets) => targets,
-            Err(error) => {
-                println!(
-                    "  {}  next projection failed: {error}",
-                    style::lost("blocked")
-                );
-                Vec::new()
-            }
-        },
+    let observed_at = chrono::Utc::now().to_rfc3339();
+    let targets = match vela_edge::frontier_next::try_frontier_next(
+        &project,
+        Some(&repo_path),
+        &observed_at,
+        3,
+    ) {
+        Ok(targets) => targets,
         Err(error) => {
-            println!("  {}  next review failed: {error}", style::lost("blocked"));
+            println!(
+                "  {}  next projection failed: {error}",
+                style::lost("blocked")
+            );
             Vec::new()
         }
     };

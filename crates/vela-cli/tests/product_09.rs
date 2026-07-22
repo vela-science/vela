@@ -167,30 +167,32 @@ fn compact_contract_exposes_only_the_daily_surface_and_bounded_status() {
     .into_iter()
     .enumerate()
     {
-        project
-            .proposals
-            .push(vela_protocol::proposals::new_proposal_at(
-                "finding.add",
-                vela_protocol::events::StateTarget {
-                    r#type: "finding".to_string(),
-                    id: format!("vf_compact_{index}"),
-                },
-                "agent:compact",
-                "agent",
-                format!("compact review fixture {index}"),
-                serde_json::json!({
-                    "finding": {
-                        "id": format!("vf_compact_{index}"),
-                        "assertion": {"text": format!("claim {index}"), "type": "computational"},
-                        "conditions": {"text": "fixture"},
-                        "confidence": {"score": 0.1},
-                        "flags": {"contested": false}
-                    }
-                }),
-                Vec::new(),
-                vec!["fixture only".to_string()],
-                created_at.to_string(),
-            ));
+        let mut proposal = vela_protocol::proposals::new_proposal_at(
+            "finding.add",
+            vela_protocol::events::StateTarget {
+                r#type: "finding".to_string(),
+                id: format!("vf_compact_{index}"),
+            },
+            "agent:compact",
+            "agent",
+            format!("compact review fixture {index}"),
+            serde_json::json!({
+                "finding": {
+                    "id": format!("vf_compact_{index}"),
+                    "assertion": {"text": format!("claim {index}"), "type": "computational"},
+                    "conditions": {"text": "fixture"},
+                    "confidence": {"score": 0.1},
+                    "flags": {"contested": false}
+                }
+            }),
+            Vec::new(),
+            vec!["fixture only".to_string()],
+            created_at.to_string(),
+        );
+        if index == 1 {
+            proposal.payload["claim"] = serde_json::json!("misleading sibling claim");
+        }
+        project.proposals.push(proposal);
     }
     vela_protocol::repo::save_to_path(&frontier, &project).unwrap();
 

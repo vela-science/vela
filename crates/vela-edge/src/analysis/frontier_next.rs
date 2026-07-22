@@ -23,8 +23,6 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use vela_protocol::project::Project;
 
-use super::decision_brief::ReviewSnapshot;
-
 #[derive(Debug, Clone, Serialize)]
 pub struct NextTarget {
     /// "seed" | "attack"
@@ -897,7 +895,6 @@ fn lease_namespace(project: &Project) -> String {
 
 pub fn try_frontier_next_projection(
     project: &Project,
-    _reviews: &[ReviewSnapshot],
     frontier_dir: Option<&Path>,
     observed_at: &str,
     limit: usize,
@@ -1071,12 +1068,11 @@ pub fn try_frontier_next_projection(
 /// they can explain lease-withheld work.
 pub fn try_frontier_next(
     project: &Project,
-    reviews: &[ReviewSnapshot],
     frontier_dir: Option<&Path>,
     observed_at: &str,
     limit: usize,
 ) -> Result<Vec<NextTarget>, String> {
-    Ok(try_frontier_next_projection(project, reviews, frontier_dir, observed_at, limit)?.targets)
+    Ok(try_frontier_next_projection(project, frontier_dir, observed_at, limit)?.targets)
 }
 
 #[cfg(test)]
@@ -1196,8 +1192,7 @@ mod tests {
         );
 
         let targets =
-            try_frontier_next(&project, &[], Some(temp.path()), "2026-07-16T12:00:00Z", 10)
-                .unwrap();
+            try_frontier_next(&project, Some(temp.path()), "2026-07-16T12:00:00Z", 10).unwrap();
         assert_eq!(targets[0].id, "erdos:443");
         assert_eq!(targets[0].lane, "attack");
         assert_eq!(targets[0].task.as_ref().unwrap()["kind"], "target_packet");
@@ -1229,14 +1224,9 @@ mod tests {
             None,
         );
 
-        let projection = try_frontier_next_projection(
-            &project,
-            &[],
-            Some(temp.path()),
-            "2026-07-16T12:00:00Z",
-            10,
-        )
-        .unwrap();
+        let projection =
+            try_frontier_next_projection(&project, Some(temp.path()), "2026-07-16T12:00:00Z", 10)
+                .unwrap();
         assert_eq!(projection.producer_work.configured_open, 1);
         assert_eq!(projection.producer_work.available, 1);
         assert_eq!(projection.targets.len(), 1);
@@ -1266,14 +1256,9 @@ mod tests {
                 claim_event_id: Some("vev_lease_fixture".to_string()),
             });
 
-        let projection = try_frontier_next_projection(
-            &project,
-            &[],
-            Some(temp.path()),
-            "2026-07-16T12:30:00Z",
-            10,
-        )
-        .unwrap();
+        let projection =
+            try_frontier_next_projection(&project, Some(temp.path()), "2026-07-16T12:30:00Z", 10)
+                .unwrap();
         assert!(
             projection
                 .targets
@@ -1343,8 +1328,7 @@ mod tests {
         .unwrap();
 
         let targets =
-            try_frontier_next(&project, &[], Some(temp.path()), "2026-07-16T12:00:00Z", 10)
-                .unwrap();
+            try_frontier_next(&project, Some(temp.path()), "2026-07-16T12:00:00Z", 10).unwrap();
         assert!(targets.iter().all(|target| target.id != "erdos:443"));
         assert!(
             target_index_packet_for_target(&project, temp.path(), "erdos:443")
@@ -1424,7 +1408,7 @@ mod tests {
     #[test]
     fn empty_frontier_offers_one_non_authorizing_bootstrap_target() {
         let project = vela_protocol::project::assemble("empty frontier", Vec::new(), 0, 0, "empty");
-        let targets = try_frontier_next(&project, &[], None, "2026-07-15T12:00:00Z", 10).unwrap();
+        let targets = try_frontier_next(&project, None, "2026-07-15T12:00:00Z", 10).unwrap();
         assert_eq!(targets.len(), 1);
         assert_eq!(targets[0].lane, "seed");
         assert_eq!(targets[0].id, "seed:first");

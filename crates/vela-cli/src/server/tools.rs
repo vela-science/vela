@@ -47,7 +47,7 @@ pub(crate) fn tool_orient(
                 .to_string(),
         );
     }
-    let (pending_review, review_items, review_observed_at) = match frontier_dir {
+    let pending_review = match frontier_dir {
         Some(frontier) => {
             match crate::review_material::ReviewProjection::page(
                 frontier,
@@ -60,31 +60,19 @@ pub(crate) fn tool_orient(
                     proposal_id: None,
                 },
             ) {
-                Ok(page) => {
-                    let items = page.items.clone();
-                    let observed_at = page.observed_at.clone();
-                    (
-                        json!({
-                            "snapshot_root": page.snapshot_root,
-                            "event_log_root": page.event_log_root,
-                            "observed_at": page.observed_at,
-                            "total": page.total,
-                            "returned": page.returned,
-                            "pressure": page.pressure,
-                            "items": page.items,
-                            "next_cursor": page.next_cursor,
-                        }),
-                        items,
-                        observed_at,
-                    )
-                }
+                Ok(page) => json!({
+                    "snapshot_root": page.snapshot_root,
+                    "event_log_root": page.event_log_root,
+                    "observed_at": page.observed_at,
+                    "total": page.total,
+                    "returned": page.returned,
+                    "pressure": page.pressure,
+                    "items": page.items,
+                    "next_cursor": page.next_cursor,
+                }),
                 Err(error) => {
                     notes.push(format!("pending review unavailable: {error}"));
-                    (
-                        json!({"error": {"code": error.code, "message": error.message}}),
-                        Vec::new(),
-                        chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Nanos, true),
-                    )
+                    json!({"error": {"code": error.code, "message": error.message}})
                 }
             }
         }
@@ -93,21 +81,13 @@ pub(crate) fn tool_orient(
                 "pending review omitted: this transport has no retained frontier directory"
                     .to_string(),
             );
-            (
-                Value::Null,
-                Vec::new(),
-                chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Nanos, true),
-            )
+            Value::Null
         }
     };
-    let targets = vela_edge::frontier_next::try_frontier_next(
-        project,
-        &review_items,
-        frontier_dir,
-        &review_observed_at,
-        limit,
-    )
-    .map_err(ToolError::classify)?;
+    let observed_at = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Nanos, true);
+    let targets =
+        vela_edge::frontier_next::try_frontier_next(project, frontier_dir, &observed_at, limit)
+            .map_err(ToolError::classify)?;
 
     // Solvability ranking: OPEN findings ordered by accumulating structural
     // support (which is a verifier-run from done), with the popularity baseline
