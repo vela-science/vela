@@ -1,11 +1,16 @@
 # ADR 0014: Policy-scoped producer credentials for exact Permit
 
-- Status: Proposed
-- Candidate target: Vela `v0.920.0`
+- Status: Accepted
+- Proposed in: `16757211a97f36dc8c319c2b60803d635160b2a3`
+- Implemented in: `6c13c3786550e8c378d9280b715e4091606327ca`
+- First released in: Vela `v0.910.0`
+  (`273a82db549673ae336c9fa3374393e7ea19be04`)
+- Confirmed in: Vela `v0.912.0`
+  (`9e6620ad77f4e4ad50154cf81f5ed106e700ac9e`)
 - Entry gate: passed; exact Sidon policy binding deferred solely on producer
   registry membership
-- Protocol effect if accepted: AcceptancePolicy-only; no new event kind,
-  registry service, or accepted-state rule
+- Protocol effect: AcceptancePolicy-only; no new event kind, registry service,
+  or accepted-state rule
 
 ## Context
 
@@ -42,7 +47,7 @@ membership roster as the only credential source.
 
 ## Decision
 
-If accepted, add one optional AcceptancePolicy v0.3 constraint:
+AcceptancePolicy v0.3 adds one optional constraint:
 
 ```text
 allowed_producer_credential_roots: [sha256:<64 lowercase hex>]
@@ -241,27 +246,34 @@ Focused fixtures must prove:
 10. Clean-clone replay of the Sidon vector produces the same policy context,
     proposal standing, accepted-event delta, and exact roots.
 
-Future implementation checks are limited initially to:
+Focused implementation checks are:
 
 ```bash
-cargo test -p vela-protocol policy_scoped_producer_credential
-cargo test -p vela-cli --test policy_workflows scoped_producer_credential
+cargo test -p vela-protocol --test policy_scoped_credential_fixture
+cargo test -p vela-protocol policy_scoped_producer_credential_is_exact_and_narrower_than_registry_status
+cargo test -p vela-cli scoped_search_witness_draft_uses_policy_v0_3_and_full_credential_root
+cargo test -p vela-cli scoped_binding_is_derived_from_one_retained_pending_proposal
+cargo test -p vela-signer scoped_policy_card_names_the_full_credential_root
 cargo test -p vela-protocol --test cross_impl_reducer_fixtures
 python3 conformance/verify.py
 ```
 
 No external Lean, Diderot, live-network, site, or broad release suite is part
-of the ADR decision. The ordinary release union runs once only if the ADR is
-accepted and a real release is cut.
+of the ADR decision.
 
-## Acceptance gate
+## Resolution history
 
-The reproduced Sidon Defer is sufficient to draft this ADR, not to accept it.
-The candidate implementation now includes full-root derivation from retained
-Receipt v1 bytes, hostile v0.2/v0.3 comparison fixtures, and a key-free
-protected-policy preview path. Acceptance still requires review of those
-artifacts and confirmation that an equivalent one-proposal protected decision
-would not better match the intended authority. Until then, the live Sidon v0.2
-Defer is correct, no v0.3 policy is active, and no accepted-state mutation is
-authorized.
-and no policy or credential rule changes.
+The design was proposed and implemented on 2026-07-19, then first shipped in
+Vela `v0.910.0`. An exact-tag audit of `v0.912.0` confirmed the same v0.3
+constraint, Receipt-root derivation, proposal-derived authoring path, protected
+policy-card binding, hostile v0.2/v0.3 fixture, and fail-closed evaluator. The
+focused Rust fixture and evaluator tests passed, and `conformance/verify.py`
+confirmed the policy-scoped v0.2/v0.3 cases across the Rust, Python, and
+TypeScript references.
+
+An exact one-proposal protected decision remains the correct path for an
+individual result. AcceptancePolicy v0.3 serves a different, narrower purpose:
+the human may authorize a reusable lane only when the producer credential and
+all four execution roots match the signed rule. Accepting this ADR records that
+already-released distinction. It does not activate a v0.3 policy, change the
+live Sidon v0.2 Defer, or authorize any accepted-state mutation.
