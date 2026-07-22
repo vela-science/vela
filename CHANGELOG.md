@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.913.0 — 2026-07-22 — Keep producer work and review legible
+
+- Restore the retained assertion text in compact `finding.add` review rows so
+  a reviewer can choose one proposal before opening its exact Decision Brief.
+- Make `vela next` return configured producer work only. Human review remains
+  in `vela review`, and advice-only structural opportunities remain in
+  `vela frontier rank`; neither can masquerade as a packet-bound work offer.
+- Fail closed if the derived producer offer list contains duplicate target IDs
+  or disagrees with its available-work count. Change no event, Receipt,
+  proposal, policy, signature, reducer, standing, or accepted-state schema.
+
 ## v0.912.0 — 2026-07-20 — Retain proposal-scoped verification
 
 - Add `vela verify attach` for signed, retry-safe verifier evidence bound to

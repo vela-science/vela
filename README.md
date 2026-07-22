@@ -38,15 +38,15 @@ Install the checksum-verified public beta on Apple Silicon macOS or Linux
 x86-64:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.912.0/install.sh \
-  | VELA_VERSION=v0.912.0 bash
+curl -fsSL https://raw.githubusercontent.com/vela-science/vela/v0.913.0/install.sh \
+  | VELA_VERSION=v0.913.0 bash
 vela --version
 ```
 
 Windows x86-64:
 
 ```powershell
-& ([scriptblock]::Create((Invoke-WebRequest https://raw.githubusercontent.com/vela-science/vela/v0.912.0/install.ps1).Content)) -Version v0.912.0
+& ([scriptblock]::Create((Invoke-WebRequest https://raw.githubusercontent.com/vela-science/vela/v0.913.0/install.ps1).Content)) -Version v0.913.0
 vela --version
 ```
 
@@ -101,7 +101,7 @@ python3 conformance/verify.py
 ```
 
 To install from crates.io, run
-`cargo install --locked vela-cli --version 0.912.0`. Human signing setup is
+`cargo install --locked vela-cli --version 0.913.0`. Human signing setup is
 documented under [Review and authority](docs/CLI.md#review-and-authority); agents
 must never receive a human key.
 
