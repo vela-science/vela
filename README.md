@@ -85,7 +85,7 @@ withdraw their own pending work; they cannot accept or reject it.
 | --- | --- |
 | Git fixes exact bytes and ancestry. | Signed policy can route only an exact allowed class. |
 | Verifiers check one declared claim and artifact. | A protected human decision accepts or rejects one proposal. |
-| Receipts preserve producer, packet, caveat, and verifier roots. | The Observatory and Hub remain read-only projections. |
+| Receipts preserve producer, packet, caveat, and verifier roots. | The Observatory and other replaceable readers remain read-only projections. |
 
 Verification is derived from retained attachments, not a mutable status field.
 See [Verification](docs/VERIFICATION.md) for the exact gate and reject vectors.

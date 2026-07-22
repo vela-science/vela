@@ -33,7 +33,7 @@ A Git pull request is the collaboration and branch-review mechanism. Vela's
 scientific contribution path inside that repository remains:
 
 ```text
-next -> work -> land -> signed policy route -> Permit | Defer -> sign
+next -> work -> land -> signed policy route -> Permit | Defer -> protected human decision
 ```
 
 `land` records the exact Receipt v1 contribution and its routed effect. The Git
@@ -41,15 +41,16 @@ host may run `vela check --strict` and selected frozen verifiers, but CI cannot
 use a human key or turn a deferred proposal into accepted state. A merge is
 publication of the committed bytes, not an independent acceptance mechanism.
 
-## Hub discovery
+## Read-only discovery
 
-The Hub is a read-only index. An operator may add the repository URL, ref, and
-expected `vfr_id` to a versioned `vela.hub-source-catalog.v1` file. The Hub then
-fetches, strictly replays, and indexes the Git history.
+The Observatory projector is a read-only consumer. Its checked source registry
+binds a repository URL, exact commit, and expected `vfr_id`; it fetches,
+replays, and projects that exact Git history into a disposable query cache.
 
-Catalog inclusion is not registration or endorsement. The Hub can lag, omit a
-source, or disappear without changing the repository's history. Consumers use
-the catalogued URL as a locator and verify an exact clone locally.
+Projection inclusion is not registration or endorsement. The Observatory can
+lag, omit a source, or disappear without changing the repository's history.
+Consumers use the displayed Git source as a locator and verify an exact clone
+locally.
 
 ## Frozen release archives
 
@@ -88,8 +89,8 @@ wire contracts.
 
 Cite the frontier repository and exact commit or release tag. Include the
 frontier ID and relevant finding or artifact IDs so another reader can locate
-the accepted state and reproduce its checks. A Hub URL may be included as a
-convenience link, but it should not be the only locator.
+the accepted state and reproduce its checks. An Observatory URL may be included
+as a convenience link, but it should not be the only locator.
 
 Describe Vela accurately: it records a replayable frontier and the authority
 that admitted its transitions. It does not certify that a claim is important or

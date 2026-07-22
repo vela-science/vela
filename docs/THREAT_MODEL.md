@@ -20,13 +20,13 @@ untrusted producer or adapter
     -> Receipt v1 + artifacts
     -> validation, frozen verification, and policy routing
     -> Permit under an existing human-signed policy, or Defer
-    -> human sign ceremony when deferred
+    -> protected human decision when deferred
     -> accepted events in a standalone Git repository
     -> deterministic replay and disposable read projections
 ```
 
 Git hosts provide byte distribution and repository access control. Vela events
-and policies provide scientific authority. The Hub, MCP, proof packets,
+and policies provide scientific authority. The Observatory, MCP, proof packets,
 materialized snapshots, graphs, and wikis are projections and are not trust
 roots.
 
@@ -42,7 +42,7 @@ roots.
    authority until the accepted history revokes or replaces it.
 4. **Compromised Git host or repository credential.** Can hide, reorder, or
    replace hosted refs and may publish attacker-controlled bytes.
-5. **Compromised Hub or other projection service.** Can omit, delay, or forge
+5. **Compromised Observatory or other projection service.** Can omit, delay, or forge
    index answers, but does not possess frontier authority.
 6. **Compromised build or install channel.** Can distribute a malicious Vela
    binary that misrenders or mishandles a ceremony.

@@ -1,11 +1,15 @@
 # Vela Hub
 
+> **Status: released local compatibility surface; no current public Vela Hub
+> deployment.** The read-only Observatory is the active public reader. Do not
+> create a new hosted Hub. Retirement is evidence-gated by
+> [`plans/2026-07-22-hub-and-derived-projection-retirement.md`](plans/2026-07-22-hub-and-derived-projection-retirement.md)
+> because the `vela-hub` crate appeared in prior releases.
+
 The Hub is a disposable, read-only index over strictly replayed frontier Git
 repositories. It improves discovery and cross-frontier queries. It does not own
 frontier bytes, accept scientific state, register sources through an API, sign
 tree heads, serve proof authority, or participate in a peer-consensus protocol.
-
-The public deployment is <https://hub.constellate.science>.
 
 ## Authority boundary
 
@@ -135,11 +139,11 @@ Postgres uses the same derived schema. The executable schema definition is in
 `crates/vela-hub/src/db.rs`. Back up the catalog and Git source identities, not
 the disposable projection database.
 
-## Operational checks
+## Local compatibility checks
 
 ```bash
-curl -fsS https://hub.constellate.science/healthz | jq
-curl -fsS https://hub.constellate.science/entries | jq
+curl -fsS http://127.0.0.1:8080/healthz | jq
+curl -fsS http://127.0.0.1:8080/entries | jq
 ```
 
 If ingest fails, inspect the source's `ingest_error`, reproduce the failure from
