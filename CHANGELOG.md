@@ -10,6 +10,9 @@
 - Fail closed if the derived producer offer list contains duplicate target IDs
   or disagrees with its available-work count. Change no event, Receipt,
   proposal, policy, signature, reducer, standing, or accepted-state schema.
+- Remove the unshipped standalone Hub projection-indexer experiment. Canonical
+  Git frontiers remain the source of truth, and hosted read models stay outside
+  the Vela authority and product boundary.
 
 ## v0.912.0 — 2026-07-20 — Retain proposal-scoped verification
 

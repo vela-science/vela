@@ -893,6 +893,25 @@ fn lease_namespace(project: &Project) -> String {
         .unwrap_or_else(|| "seed".to_string())
 }
 
+fn validate_producer_targets(targets: &[NextTarget], available: usize) -> Result<(), String> {
+    let mut unique_ids = std::collections::BTreeSet::new();
+    for target in targets {
+        if !unique_ids.insert(target.id.as_str()) {
+            return Err(format!(
+                "producer work projection contains duplicate target id {}",
+                target.id
+            ));
+        }
+    }
+    if targets.len() != available {
+        return Err(format!(
+            "producer work projection count mismatch: {available} available but {} offers",
+            targets.len()
+        ));
+    }
+    Ok(())
+}
+
 pub fn try_frontier_next_projection(
     project: &Project,
     frontier_dir: Option<&Path>,
@@ -1039,22 +1058,7 @@ pub fn try_frontier_next_projection(
         }
     }
 
-    let mut unique_ids = std::collections::BTreeSet::new();
-    for target in &actionable_targets {
-        if !unique_ids.insert(target.id.as_str()) {
-            return Err(format!(
-                "producer work projection contains duplicate target id {}",
-                target.id
-            ));
-        }
-    }
-    if actionable_targets.len() != producer_work.available {
-        return Err(format!(
-            "producer work projection count mismatch: {} available but {} offers",
-            producer_work.available,
-            actionable_targets.len()
-        ));
-    }
+    validate_producer_targets(&actionable_targets, producer_work.available)?;
 
     let targets = actionable_targets.into_iter().take(limit).collect();
     Ok(FrontierNextProjection {
@@ -1232,6 +1236,28 @@ mod tests {
         assert_eq!(projection.targets.len(), 1);
         assert_eq!(projection.targets[0].id, "erdos:443");
         assert_eq!(projection.targets[0].lane, "attack");
+    }
+
+    #[test]
+    fn producer_offer_output_rejects_duplicate_ids_and_count_drift() {
+        let target = NextTarget {
+            lane: "attack".into(),
+            id: "fixture:one".into(),
+            title: "Fixture".into(),
+            why: "Fixture".into(),
+            next_command: "vela work fixture:one".into(),
+            task: None,
+        };
+        assert!(
+            validate_producer_targets(&[target.clone(), target.clone()], 2)
+                .unwrap_err()
+                .contains("duplicate target id fixture:one")
+        );
+        assert!(
+            validate_producer_targets(&[target], 2)
+                .unwrap_err()
+                .contains("2 available but 1 offers")
+        );
     }
 
     #[test]
