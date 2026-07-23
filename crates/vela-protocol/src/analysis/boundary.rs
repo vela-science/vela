@@ -395,6 +395,26 @@ mod tests {
     }
 
     #[test]
+    fn verified_but_unreviewed_premise_remains_outside_established_boundary() {
+        let a = synth_finding(0, vec![]);
+        let b = synth_finding(1, vec![link_typed(&a.id, "depends")]);
+        let b_id = b.id.clone();
+        let attachments = crate::test_support::verified_attachment_pair(&a);
+        let mut project = assemble("bd-verified-open", vec![], 0, 0, "test");
+        project.findings = vec![a, b];
+        project.verifier_attachments = attachments;
+
+        let boundary = Boundary::derive(&project);
+        assert!(
+            boundary
+                .one_premise_away
+                .iter()
+                .all(|item| item.finding != b_id),
+            "a verified method result is not an accepted premise"
+        );
+    }
+
+    #[test]
     fn isolated_open_is_stale_open() {
         let a = synth_finding(0, vec![]);
         let a_id = a.id.clone();

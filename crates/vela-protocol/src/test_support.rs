@@ -8,6 +8,10 @@
 
 use crate::bundle::*;
 use crate::project::{self, Project};
+use crate::verifier_attachment::{
+    AdversarialProbe, AttachmentDraft, AttachmentOutcome, MatchToClaim, ProbeKind, ProbeResult,
+    VerifierAttachment, VerifierMethod, claim_digest,
+};
 
 /// A synthetic, fully-populated finding with one entity and a raw-confidence
 /// prior. `score` sets the confidence value.
@@ -88,4 +92,51 @@ pub fn make_finding(id: &str, score: f64, assertion_type: &str) -> FindingBundle
 /// Assemble a `Project` from findings, with placeholder counts and description.
 pub fn make_project(name: &str, findings: Vec<FindingBundle>) -> Project {
     project::assemble(name, findings, 10, 0, "Test project")
+}
+
+/// Two claim-matched, independently declared attachments that derive a
+/// [`crate::verifier_attachment::GateStatus::Verified`] gate for `finding`.
+/// Review-state tests use this to prove that verification remains orthogonal to
+/// authority-bearing review verdicts.
+pub fn verified_attachment_pair(finding: &FindingBundle) -> Vec<VerifierAttachment> {
+    let digest = claim_digest(&finding.assertion.text);
+    let probe = AdversarialProbe {
+        kind: ProbeKind::CounterexampleSearch,
+        result: ProbeResult::Survived,
+        note: String::new(),
+        evidence_root: String::new(),
+    };
+    let first = VerifierAttachment::build(AttachmentDraft {
+        target: finding.id.clone(),
+        claim_digest: digest.clone(),
+        verifier_method: VerifierMethod::ComputationalSearch,
+        solver_id: "solver-a".to_string(),
+        independent_of: vec![],
+        match_to_claim: MatchToClaim {
+            matches: true,
+            checker_actor: "verifier:a".to_string(),
+        },
+        adversarial_probes: vec![probe.clone()],
+        outcome: AttachmentOutcome::Passed,
+        verifier_actor: "verifier:a".to_string(),
+        note: String::new(),
+    })
+    .expect("build first verified attachment fixture");
+    let second = VerifierAttachment::build(AttachmentDraft {
+        target: finding.id.clone(),
+        claim_digest: digest,
+        verifier_method: VerifierMethod::ExactArithmeticRecompute,
+        solver_id: "solver-b".to_string(),
+        independent_of: vec![first.id.clone()],
+        match_to_claim: MatchToClaim {
+            matches: true,
+            checker_actor: "verifier:b".to_string(),
+        },
+        adversarial_probes: vec![probe],
+        outcome: AttachmentOutcome::Passed,
+        verifier_actor: "verifier:b".to_string(),
+        note: String::new(),
+    })
+    .expect("build second verified attachment fixture");
+    vec![first, second]
 }

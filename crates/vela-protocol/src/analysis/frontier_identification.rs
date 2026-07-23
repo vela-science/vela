@@ -1,9 +1,11 @@
 //! Frontier identification: rank OPEN findings by accumulating structural
 //! support — the graded, evaluable generalization of [`crate::boundary`]'s
-//! binary `one_premise_away`. It is Vela's answer to "what should I work on
-//! next?", and a deliberate adaptation of Prashant Garg's *Frontier Graph*
-//! method ("What Should Economics Ask Next?", 2026) to a verifier-gated
-//! substrate.
+//! binary `one_premise_away`. It answers "where does accumulated structure
+//! suggest an opportunity?", and is a deliberate adaptation of Prashant Garg's
+//! *Frontier Graph* method ("What Should Economics Ask Next?", 2026) to a
+//! verifier-gated substrate. It is exposed as `vela frontier rank` and as
+//! structural advice inside the read-only MCP `orient` tool; it is not the
+//! configured producer queue returned by `vela next`.
 //!
 //! ## What transfers, and what we deliberately change
 //!
@@ -30,10 +32,11 @@
 //!    flag.) The forward foundry+verifier loop is the ground truth, not a
 //!    publication backtest.
 //! 2. **Advice, never authority.** Like [`crate::boundary`], this is a pure
-//!    projection over the typed [`FrontierGraph`]. It reorders `vela next`; it
-//!    never mutates state, and it carries the *inspectable evidence* (the
-//!    established premises and mediating support) behind every score so a human
-//!    can judge the suggestion.
+//!    projection over the typed [`FrontierGraph`]. It feeds `vela frontier
+//!    rank` and MCP orientation only; it never reorders `vela next`, mutates
+//!    state, or becomes a producer target. It carries the *inspectable
+//!    evidence* (the established premises and mediating support) behind every
+//!    score so a human can judge the suggestion.
 //!
 //! The preferential-attachment score is computed alongside every candidate so a
 //! consumer can always show the lift over popularity, not just the rank.
@@ -287,10 +290,10 @@ mod tests {
 
     #[test]
     fn solvable_open_finding_outranks_isolated_one() {
-        // The invariant `vela next` will rely on: an open finding whose premise
-        // is already established (a verifier-run from done) ranks above an
-        // isolated open finding with no scaffolding — and above the popularity
-        // baseline's blindness (both open findings have low raw degree).
+        // The structural-advice invariant: an open finding whose premise is
+        // already established ranks above an isolated open finding with no
+        // scaffolding — and above the popularity baseline's blindness (both
+        // open findings have low raw degree). This does not affect `vela next`.
         let mut a = synth_finding(0, vec![]); // established premise
         a.flags.review_state = Some(ReviewState::Accepted);
         a.confidence.score = 0.9;
@@ -350,6 +353,31 @@ mod tests {
         assert!(
             b_cand.score > 0.0 && b_cand.premises_established == 0,
             "b scores on raw structure alone (0 established), got {b_cand:?}"
+        );
+    }
+
+    #[test]
+    fn verified_but_unreviewed_findings_remain_structural_candidates() {
+        let a = synth_finding(0, vec![]);
+        let b = synth_finding(1, vec![link_typed(&a.id, "depends")]);
+        let (a_id, b_id) = (a.id.clone(), b.id.clone());
+        let attachments = crate::test_support::verified_attachment_pair(&a);
+        let mut project = assemble("fi-verified-open", vec![], 0, 0, "test");
+        project.findings = vec![a, b];
+        project.verifier_attachments = attachments;
+
+        let ranked = frontier_identification(&project);
+        assert!(
+            ranked.iter().any(|candidate| candidate.id == a_id),
+            "verified-only a remains Open and eligible for structural advice"
+        );
+        let b_candidate = ranked
+            .iter()
+            .find(|candidate| candidate.id == b_id)
+            .expect("b remains an open structural candidate");
+        assert_eq!(
+            b_candidate.premises_established, 0,
+            "verification must not count as accepted premise establishment"
         );
     }
 

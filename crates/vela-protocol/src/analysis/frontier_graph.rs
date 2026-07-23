@@ -168,34 +168,22 @@ impl FindingState {
         }
     }
 
-    /// Derive a finding's state from its flags + confidence + verifier gate.
-    /// Pure and total. The gate is the substrate's establishment signal on a
-    /// verifier-gated frontier (most math findings carry no human "accept" but
-    /// a passing frozen-verifier attachment), so it is folded in alongside the
-    /// review verdict. Precedence, strongest disqualifier first:
-    /// 1. an adversarial probe refuted the claim (`gate == Refuted`) → `Refuted`;
-    /// 2. a rejected review verdict → `Refuted`;
-    /// 3. a contested/needs-revision verdict or the legacy `contested` flag →
+    /// Derive a finding's state from its review flags and confidence.
+    /// Pure and total. Precedence, strongest disqualifier first:
+    /// 1. a rejected review verdict → `Refuted`;
+    /// 2. a contested/needs-revision verdict or the legacy `contested` flag →
     ///    `Contested`;
-    /// 4. the verifier gate passed → `Established` unconditionally (a verified
-    ///    finding is not "thin ground", so the confidence floor does not apply);
-    /// 5. else an accepted review verdict → `Established`, or `Fragile` when
+    /// 3. an accepted review verdict → `Established`, or `Fragile` when
     ///    confidence sits below `FRAGILE_CONFIDENCE` (accepted but thin);
-    /// 6. everything else → `Open`.
+    /// 4. everything else → `Open`.
     ///
-    /// `gate` is `None` when no gate was computed (e.g. a graph built without
-    /// attachment context); then only the review verdict drives the state.
+    /// Verifier-gate status is deliberately excluded. Verification and review
+    /// authority are orthogonal planes: a frozen verifier can establish that
+    /// its method accepted the claim, but only a review verdict can change this
+    /// product-facing review state.
     #[must_use]
-    pub fn derive(
-        flags: &crate::bundle::Flags,
-        confidence: f64,
-        gate: Option<crate::verifier_attachment::GateStatus>,
-    ) -> Self {
+    pub fn derive(flags: &crate::bundle::Flags, confidence: f64) -> Self {
         use crate::bundle::ReviewState;
-        use crate::verifier_attachment::GateStatus;
-        if gate == Some(GateStatus::Refuted) {
-            return Self::Refuted;
-        }
         match flags.review_state {
             Some(ReviewState::Rejected) => return Self::Refuted,
             Some(ReviewState::Contested) | Some(ReviewState::NeedsRevision) => {
@@ -204,13 +192,6 @@ impl FindingState {
             None if flags.contested => return Self::Contested,
             _ => {}
         }
-        // A passing frozen-verifier gate IS the verification: the finding is
-        // Established regardless of the confidence prior (verified is not thin).
-        if gate == Some(GateStatus::Verified) {
-            return Self::Established;
-        }
-        // A human accept of an as-yet-unverified claim establishes it, but stays
-        // Fragile below the confidence floor — accepted, resting on thin ground.
         if flags.review_state == Some(ReviewState::Accepted) {
             if confidence < FRAGILE_CONFIDENCE {
                 Self::Fragile
@@ -222,18 +203,16 @@ impl FindingState {
         }
     }
 
-    /// Verdict-only state derivation (no verifier gate). Equivalent to
-    /// [`Self::derive`] with `gate = None`.
+    /// Explicit verdict-only alias retained for callers that use the review
+    /// plane directly.
     #[must_use]
     pub fn of(flags: &crate::bundle::Flags, confidence: f64) -> Self {
-        Self::derive(flags, confidence, None)
+        Self::derive(flags, confidence)
     }
 }
 
-/// A review-accepted (but not verifier-gated) finding below this confidence is
+/// A review-accepted finding below this confidence is
 /// `Fragile` rather than `Established` — accepted, but resting on thin ground.
-/// The floor does NOT apply to a `gate == Verified` finding: a passing frozen
-/// verifier is the verification, so it is Established at any confidence prior.
 pub const FRAGILE_CONFIDENCE: f64 = 0.6;
 
 /// A claim node: a finding plus the small slice of state the graph
@@ -539,31 +518,9 @@ impl FrontierGraph {
     /// known [`EdgeKind`] becomes a typed edge.
     #[must_use]
     pub fn from_project(project: &Project) -> Self {
-        // Index verifier attachments by target so each finding's state can
-        // fold in its derived gate status — the establishment signal on a
-        // verifier-gated frontier. The gate is recomputed (never a stored
-        // flag), so the graph never trusts a persisted "verified" bit.
-        let mut attachments_by_target: HashMap<
-            &str,
-            Vec<crate::verifier_attachment::VerifierAttachment>,
-        > = HashMap::new();
-        for a in &project.verifier_attachments {
-            attachments_by_target
-                .entry(a.target.as_str())
-                .or_default()
-                .push(a.clone());
-        }
-
         let mut nodes = BTreeMap::new();
         for f in &project.findings {
             let label = f.assertion.text.chars().take(120).collect::<String>();
-            let gate = attachments_by_target.get(f.id.as_str()).map(|atts| {
-                crate::verifier_attachment::derive_gate_status(
-                    &crate::verifier_attachment::claim_digest(&f.assertion.text),
-                    atts,
-                )
-                .status
-            });
             nodes.insert(
                 f.id.clone(),
                 Node {
@@ -572,7 +529,7 @@ impl FrontierGraph {
                     contested: f.flags.contested,
                     gap: f.flags.gap,
                     confidence: f.confidence.score,
-                    state: FindingState::derive(&f.flags, f.confidence.score, gate),
+                    state: FindingState::derive(&f.flags, f.confidence.score),
                 },
             );
         }
@@ -1180,31 +1137,75 @@ mod tests {
     }
 
     #[test]
-    fn gate_verified_establishes_regardless_of_confidence() {
+    fn review_verdict_matrix_is_independent_of_verifier_status() {
         use crate::bundle::{Flags, ReviewState};
-        use crate::verifier_attachment::GateStatus;
-        // A passing frozen-verifier gate IS the verification: Established even at a
-        // low confidence prior (verified is not "thin ground").
-        let flags = Flags::default();
+        let cases = [
+            (None, false, 0.9, FindingState::Open),
+            (
+                Some(ReviewState::Accepted),
+                false,
+                0.3,
+                FindingState::Fragile,
+            ),
+            (
+                Some(ReviewState::Accepted),
+                false,
+                0.9,
+                FindingState::Established,
+            ),
+            (
+                Some(ReviewState::Rejected),
+                false,
+                0.9,
+                FindingState::Refuted,
+            ),
+            (
+                Some(ReviewState::Contested),
+                false,
+                0.9,
+                FindingState::Contested,
+            ),
+            (
+                Some(ReviewState::NeedsRevision),
+                false,
+                0.9,
+                FindingState::Contested,
+            ),
+            (None, true, 0.9, FindingState::Contested),
+        ];
+
+        for (review_state, contested, confidence, expected) in cases {
+            let flags = Flags {
+                review_state,
+                contested,
+                ..Default::default()
+            };
+            assert_eq!(FindingState::derive(&flags, confidence), expected);
+        }
+    }
+
+    #[test]
+    fn verified_gate_does_not_establish_an_unreviewed_graph_node() {
+        use crate::verifier_attachment::{GateStatus, claim_digest, derive_gate_status};
+
+        let finding = synth_finding(0, vec![]);
+        let digest = claim_digest(&finding.assertion.text);
+        let attachments = crate::test_support::verified_attachment_pair(&finding);
         assert_eq!(
-            FindingState::derive(&flags, 0.3, Some(GateStatus::Verified)),
-            FindingState::Established,
-            "gate=Verified at confidence 0.3 must be Established"
+            derive_gate_status(&digest, &attachments).status,
+            GateStatus::Verified,
+            "the direct verifier gate remains fully functional"
         );
-        // A human accept of an as-yet-unverified low-confidence claim stays Fragile
-        // (the floor applies only to the review-verdict path)…
-        let accepted = Flags {
-            review_state: Some(ReviewState::Accepted),
-            ..Default::default()
-        };
+
+        let finding_id = finding.id.clone();
+        let mut project = assemble("review-only-state", vec![], 0, 0, "test");
+        project.findings = vec![finding];
+        project.verifier_attachments = attachments;
+        let graph = FrontierGraph::from_project(&project);
         assert_eq!(
-            FindingState::derive(&accepted, 0.3, None),
-            FindingState::Fragile
-        );
-        // …and lifts to Established once its confidence clears the floor.
-        assert_eq!(
-            FindingState::derive(&accepted, 0.9, None),
-            FindingState::Established
+            graph.node(&finding_id).expect("finding node").state,
+            FindingState::Open,
+            "verification must not be folded into the review-verdict state"
         );
     }
 
