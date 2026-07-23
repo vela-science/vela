@@ -241,8 +241,12 @@ Dependencies are exact closed records sorted by `(frontier_id,
 identity_root)` with fields `frontier_id`, `identity_root`,
 `scientific_state_root`, `git_object_format`, `git_commit`, and `git_tree`;
 alternate ordering and duplicate keys are invalid. Retrieval locators are not
-part of this security identity. The dependency-list root is recomputed from
-canonical JSON. `temporalize_existing` requires `trust_mode: tofu`, a null
+part of this security identity. `frontier_id + identity_root` identify the
+authenticated dependency repository; the scientific-state root and exact Git
+commit/tree identify the selected state of that repository. The dependency
+record supplies context, not scientific evidence, transfer validity, standing,
+or acceptance. The dependency-list root is recomputed from canonical JSON.
+`temporalize_existing` requires `trust_mode: tofu`, a null
 previous identity event, and a legacy identity root recomputed from the payload
 anchor.
 The first dependency update of a new v1 Frontier requires `trust_mode:

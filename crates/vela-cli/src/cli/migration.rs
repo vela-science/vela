@@ -578,6 +578,10 @@ fn dependency_migration(
         .collect::<Vec<_>>();
     let mut exact = Vec::with_capacity(input.entries.len());
     for entry in &mut input.entries {
+        entry
+            .exact
+            .validate()
+            .map_err(|error| format!("invalid expected exact dependency: {error}"))?;
         let Some(index) = unmatched
             .iter()
             .position(|candidate| candidate == &entry.legacy)
@@ -651,15 +655,26 @@ fn dependency_migration(
                 boundary,
                 Some(&entry.trust_anchor),
             )?;
-        let derived = vela_edge::frontier_repository::derive_exact_dependency_at_boundary(
-            &dependency_project,
-            &repository,
-            boundary,
-            &entry.trust_anchor,
-        )?;
+        let derived = if entry.exact.git_commit == context.anchor.git_commit {
+            vela_edge::frontier_repository::derive_exact_dependency_at_boundary(
+                &dependency_project,
+                &repository,
+                boundary,
+                &entry.trust_anchor,
+            )?
+        } else {
+            vela_edge::frontier_repository::derive_exact_dependency_at_temporalized_ancestor(
+                &dependency_project,
+                &repository,
+                boundary,
+                &entry.trust_anchor,
+                &entry.exact.git_commit,
+                &legacy_snapshot,
+            )?
+        };
         if derived != entry.exact {
             return Err(format!(
-                "dependency {:?} exact v1 pin does not match the verified boundary anchor",
+                "dependency {:?} exact v1 pin does not match the authenticated exact dependency state",
                 entry.legacy.name
             ));
         }
@@ -669,9 +684,13 @@ fn dependency_migration(
                 entry.legacy.name
             ));
         }
-        if context.anchor.snapshot_root != legacy_snapshot {
+        let resolved_facts = vela_edge::frontier_repository::derive_repository_anchor_facts(
+            &repository,
+            &derived.git_commit,
+        )?;
+        if resolved_facts.snapshot_root != legacy_snapshot {
             return Err(format!(
-                "dependency {:?} legacy snapshot pin does not match the boundary anchor",
+                "dependency {:?} legacy snapshot pin does not match the authenticated exact dependency state",
                 entry.legacy.name
             ));
         }
@@ -3056,5 +3075,252 @@ mod tests {
         });
         let error = dependency_migration(fixture.frontier.path(), &project, None).unwrap_err();
         assert!(error.contains("--dependency-input"), "{error}");
+    }
+
+    #[test]
+    fn migration_historical_dependency_preview_uses_authenticated_ancestor() {
+        let fixture = fixture();
+        let before = tree_bytes(fixture.frontier.path());
+        let dependency = tempfile::tempdir().unwrap();
+        run(dependency.path(), &["init", "-q", "-b", "main"]);
+        run(dependency.path(), &["config", "user.name", "Vela Test"]);
+        run(
+            dependency.path(),
+            &["config", "user.email", "vela@example.invalid"],
+        );
+
+        let administrator_key = SigningKey::from_bytes(&[57; 32]);
+        let administrator = ActorRecord {
+            id: "reviewer:dependency-administrator".to_string(),
+            public_key: pubkey_hex(&administrator_key),
+            algorithm: "ed25519".to_string(),
+            created_at: "2026-07-20T00:00:00Z".to_string(),
+            tier: None,
+            orcid: None,
+            access_clearance: None,
+            revoked_at: None,
+            revoked_reason: None,
+        };
+        let mut historical = vela_protocol::project::assemble(
+            "Historical dependency fixture",
+            Vec::new(),
+            0,
+            0,
+            "Authenticate one retained ancestor",
+        );
+        historical.frontier_id = Some("vfr_fedcba9876543210".to_string());
+        historical.actors = vec![administrator.clone()];
+        vela_protocol::repo::save(
+            &vela_protocol::repo::VelaSource::VelaRepo(dependency.path().to_path_buf()),
+            &historical,
+        )
+        .unwrap();
+        run(dependency.path(), &["add", "."]);
+        run(
+            dependency.path(),
+            &["commit", "-qm", "historical dependency state"],
+        );
+        let historical_commit = git(dependency.path(), &["rev-parse", "HEAD^{commit}"]).unwrap();
+        let historical_facts = vela_edge::frontier_repository::derive_repository_anchor_facts(
+            dependency.path(),
+            &historical_commit,
+        )
+        .unwrap();
+
+        let mut anchored: Project =
+            serde_json::from_value(serde_json::to_value(&historical).unwrap()).unwrap();
+        let mut retained_event = StateEvent {
+            schema: vela_protocol::events::EVENT_SCHEMA.to_string(),
+            id: String::new(),
+            kind: "frontier.observation_reviewed".into(),
+            target: vela_protocol::events::StateTarget {
+                r#type: "frontier".to_string(),
+                id: anchored.frontier_id(),
+            },
+            actor: vela_protocol::events::StateActor {
+                r#type: "agent".to_string(),
+                id: "agent:dependency-fixture".to_string(),
+            },
+            timestamp: "2026-07-20T00:00:30Z".to_string(),
+            reason: "Retain one descendant event before temporalization.".to_string(),
+            before_hash: vela_protocol::events::NULL_HASH.to_string(),
+            after_hash: vela_protocol::events::NULL_HASH.to_string(),
+            payload: serde_json::json!({
+                "proposal_id": "vpr_fedcba9876543210",
+                "proposal_kind": "research_trace.review",
+                "status": "accepted"
+            }),
+            caveats: Vec::new(),
+            signature: None,
+        };
+        retained_event.id = vela_protocol::events::compute_event_id(&retained_event);
+        anchored.events.push(retained_event);
+        vela_protocol::repo::save(
+            &vela_protocol::repo::VelaSource::VelaRepo(dependency.path().to_path_buf()),
+            &anchored,
+        )
+        .unwrap();
+        run(dependency.path(), &["add", "."]);
+        run(
+            dependency.path(),
+            &["commit", "-qm", "later temporalization anchor"],
+        );
+        let anchor_commit = git(dependency.path(), &["rev-parse", "HEAD^{commit}"]).unwrap();
+        let anchor_facts = vela_edge::frontier_repository::derive_repository_anchor_facts(
+            dependency.path(),
+            &anchor_commit,
+        )
+        .unwrap();
+        let legacy_identity_root =
+            vela_edge::frontier_repository::derive_legacy_identity_preimage_root(&anchored)
+                .unwrap();
+        let identity_root = LegacyFrontierOriginV1 {
+            schema: vela_protocol::frontier_repository::LEGACY_FRONTIER_ORIGIN_SCHEMA.to_string(),
+            frontier_id: anchored.frontier_id(),
+            legacy_identity_preimage_root: legacy_identity_root.clone(),
+            git_object_format: anchor_facts.git_object_format,
+            anchor_git_commit: anchor_facts.git_commit.clone(),
+            anchor_git_tree: anchor_facts.git_tree.clone(),
+            anchor_event_log_root: anchor_facts.event_log_root.clone(),
+            anchor_event_count: anchor_facts.event_count,
+        }
+        .identity_root()
+        .unwrap();
+        let empty_dependency_root =
+            vela_protocol::frontier_repository::exact_dependency_root(&[]).unwrap();
+        let mut boundary = new_repository_boundary_event(
+            FrontierRepositoryBoundaryPayloadV1 {
+                schema: FRONTIER_REPOSITORY_BOUNDARY_SCHEMA.to_string(),
+                mode: FrontierRepositoryBoundaryMode::TemporalizeExisting,
+                frontier_id: anchored.frontier_id(),
+                identity_root: identity_root.clone(),
+                observed_profile_root: sha256_root(b"dependency profile"),
+                dependency_root: empty_dependency_root.clone(),
+                dependencies: Vec::new(),
+                previous_identity_event_root: None,
+                legacy_identity_preimage_root: Some(legacy_identity_root),
+                administrator_actor_id: administrator.id.clone(),
+                administrator_public_key: administrator.public_key.clone(),
+                administrator_algorithm: administrator.algorithm.clone(),
+                trust_mode: FrontierRepositoryTrustMode::Tofu,
+                git_object_format: anchor_facts.git_object_format,
+                anchor_git_commit: anchor_facts.git_commit.clone(),
+                anchor_git_tree: anchor_facts.git_tree.clone(),
+                anchor_event_log_root: anchor_facts.event_log_root.clone(),
+                anchor_event_count: anchor_facts.event_count,
+                anchor_snapshot_root: anchor_facts.snapshot_root.clone(),
+                anchor_snapshot_schema: anchor_facts.snapshot_schema.clone(),
+                anchor_proposal_root: anchor_facts.proposal_root.clone(),
+                anchor_actor_registry_root: anchor_facts.actor_registry_root.clone(),
+                anchor_artifact_registry_root: anchor_facts.artifact_registry_root.clone(),
+                anchor_canonical_store_root: anchor_facts.canonical_store_root.clone(),
+            },
+            "Authenticate retained dependency history.",
+            "2026-07-20T00:01:00Z",
+        )
+        .unwrap();
+        boundary.signature = Some(sign_event(&boundary, &administrator_key).unwrap());
+        anchored.events.push(boundary.clone());
+        vela_protocol::repo::save(
+            &vela_protocol::repo::VelaSource::VelaRepo(dependency.path().to_path_buf()),
+            &anchored,
+        )
+        .unwrap();
+        run(dependency.path(), &["add", "."]);
+        run(
+            dependency.path(),
+            &["commit", "-qm", "install signed temporalization boundary"],
+        );
+
+        let exact = ExactFrontierDependencyV1 {
+            frontier_id: historical.frontier_id(),
+            identity_root,
+            scientific_state_root: vela_protocol::scientific_state::scientific_state_root_v2(
+                &historical,
+                &vela_protocol::frontier_repository::repository_boundary_payload_from_event_shape(
+                    &boundary,
+                )
+                .unwrap()
+                .identity_root,
+                &empty_dependency_root,
+            )
+            .unwrap(),
+            git_object_format: historical_facts.git_object_format,
+            git_commit: historical_facts.git_commit.clone(),
+            git_tree: historical_facts.git_tree,
+        };
+        let legacy_dependency = ProjectDependency {
+            name: "historical-dependency".to_string(),
+            source: "git".to_string(),
+            version: Some("historical".to_string()),
+            pinned_hash: None,
+            vfr_id: Some(historical.frontier_id()),
+            locator: Some(dependency.path().display().to_string()),
+            pinned_snapshot_hash: Some(historical_facts.snapshot_root),
+        };
+        let mut migrating = vela_protocol::repo::load_from_path(fixture.frontier.path()).unwrap();
+        migrating.project.dependencies = vec![legacy_dependency.clone()];
+        let trust_anchor = vela_edge::frontier_repository::RepositoryTrustAnchor {
+            boundary_content_root: repository_identity_event_content_root(&boundary).unwrap(),
+            administrator_public_key: administrator.public_key,
+        };
+        let input = DependencyMigrationInputV1 {
+            schema: MIGRATION_DEPENDENCY_INPUT_SCHEMA.to_string(),
+            entries: vec![DependencyMigrationEntryV1 {
+                legacy: LegacyDependencyDescriptorV1::from(&legacy_dependency),
+                repository_path: dependency.path().display().to_string(),
+                boundary_content_root: trust_anchor.boundary_content_root.clone(),
+                trust_anchor,
+                exact: exact.clone(),
+            }],
+        };
+        let mut input_file = tempfile::NamedTempFile::new().unwrap();
+        use std::io::Write;
+        input_file
+            .write_all(&serde_json::to_vec_pretty(&input).unwrap())
+            .unwrap();
+
+        let (commitment, resolved) =
+            dependency_migration(fixture.frontier.path(), &migrating, Some(input_file.path()))
+                .unwrap();
+        assert_eq!(resolved, vec![exact]);
+        assert_eq!(commitment.entries.len(), 1);
+        assert_eq!(tree_bytes(fixture.frontier.path()), before);
+
+        let mut wrong_tree = input.clone();
+        wrong_tree.entries[0].exact.git_tree = "0".repeat(40);
+        let mut wrong_tree_file = tempfile::NamedTempFile::new().unwrap();
+        wrong_tree_file
+            .write_all(&serde_json::to_vec_pretty(&wrong_tree).unwrap())
+            .unwrap();
+        let error = dependency_migration(
+            fixture.frontier.path(),
+            &migrating,
+            Some(wrong_tree_file.path()),
+        )
+        .unwrap_err();
+        assert!(
+            error.contains("exact v1 pin does not match the authenticated exact dependency state"),
+            "{error}"
+        );
+
+        let mut wrong_trust = input;
+        wrong_trust.entries[0].trust_anchor.boundary_content_root =
+            format!("sha256:{}", "0".repeat(64));
+        let mut wrong_trust_file = tempfile::NamedTempFile::new().unwrap();
+        wrong_trust_file
+            .write_all(&serde_json::to_vec_pretty(&wrong_trust).unwrap())
+            .unwrap();
+        let error = dependency_migration(
+            fixture.frontier.path(),
+            &migrating,
+            Some(wrong_trust_file.path()),
+        )
+        .unwrap_err();
+        assert!(
+            error.contains("repository trust anchor boundary root mismatch"),
+            "{error}"
+        );
+        assert_eq!(tree_bytes(fixture.frontier.path()), before);
     }
 }

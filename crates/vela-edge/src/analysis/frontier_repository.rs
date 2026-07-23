@@ -99,6 +99,141 @@ pub fn derive_exact_dependency_at_boundary(
     })
 }
 
+/// Derive an exact historical dependency state authenticated by the first
+/// temporalization boundary of a fully verified repository chain.
+///
+/// This is deliberately narrower than arbitrary historical resolution. The
+/// selected commit must be an exact retained ancestor of the signed
+/// temporalization anchor, every historical canonical object must remain in
+/// that anchor, and both states must have the empty dependency context. The
+/// boundary authenticates stable repository identity; it does not
+/// retroactively attribute historical events to the administrator or confer
+/// scientific standing.
+pub fn derive_exact_dependency_at_temporalized_ancestor(
+    project: &Project,
+    repo_path: &Path,
+    boundary_event: &StateEvent,
+    trust_anchor: &RepositoryTrustAnchor,
+    historical_commit: &str,
+    expected_legacy_snapshot_root: &str,
+) -> Result<ExactFrontierDependencyV1, String> {
+    validate_sha256_root(
+        "expected historical legacy snapshot root",
+        expected_legacy_snapshot_root,
+    )?;
+    verify_repository_boundary_context_with_trust_anchor(
+        project,
+        repo_path,
+        boundary_event,
+        Some(trust_anchor),
+    )?;
+
+    let chain = select_unique_boundary_chain(&project.events, boundary_event)?;
+    let temporalization = chain
+        .entries
+        .first()
+        .ok_or_else(|| "repository boundary chain is empty".to_string())?;
+    if temporalization.payload.mode
+        != vela_protocol::frontier_repository::FrontierRepositoryBoundaryMode::TemporalizeExisting
+    {
+        return Err(
+            "historical dependency state requires a legacy temporalization boundary".to_string(),
+        );
+    }
+
+    let boundary_anchor =
+        anchored_repository(repo_path, &temporalization.payload.anchor_git_commit)?;
+    let historical = anchored_repository(repo_path, historical_commit)
+        .map_err(|error| format!("historical dependency state unavailable: {error}"))?;
+    let historical_replay = vela_protocol::reducer::verify_replay(&historical.project);
+    if !historical_replay.ok {
+        return Err(format!(
+            "historical dependency state does not replay exactly: found {} diff(s)",
+            historical_replay.diffs.len()
+        ));
+    }
+    if historical.facts.git_object_format != boundary_anchor.facts.git_object_format {
+        return Err(
+            "historical dependency Git object format does not match the temporalization anchor"
+                .to_string(),
+        );
+    }
+    verify_anchor_descends_from(
+        repo_path,
+        &historical.facts.git_commit,
+        &boundary_anchor.facts.git_commit,
+    )
+    .map_err(|_| {
+        "historical dependency commit is not an ancestor of the signed temporalization anchor"
+            .to_string()
+    })?;
+    if historical.project.frontier_id() != temporalization.payload.frontier_id {
+        return Err(
+            "historical dependency Frontier ID does not match the signed temporalization boundary"
+                .to_string(),
+        );
+    }
+
+    let historical_legacy_identity = derive_legacy_identity_preimage_root(&historical.project)?;
+    if temporalization
+        .payload
+        .legacy_identity_preimage_root
+        .as_deref()
+        != Some(historical_legacy_identity.as_str())
+    {
+        return Err(
+            "historical dependency legacy identity preimage does not match the temporalization boundary"
+                .to_string(),
+        );
+    }
+    verify_event_membership(&boundary_anchor.project, &historical.project)
+        .map_err(|error| format!("historical dependency event history is not retained: {error}"))?;
+    verify_anchored_proposal_history(&boundary_anchor.project, &historical.project).map_err(
+        |error| format!("historical dependency proposal history is not retained: {error}"),
+    )?;
+    verify_retained_manifest_membership(
+        &boundary_anchor.retained_manifest,
+        &historical.retained_manifest,
+    )?;
+
+    if !historical.project.project.dependencies.is_empty()
+        || !boundary_anchor.project.project.dependencies.is_empty()
+        || !temporalization.payload.dependencies.is_empty()
+    {
+        return Err(
+            "historical dependency authentication currently requires an empty dependency context"
+                .to_string(),
+        );
+    }
+    let empty_dependency_root = vela_protocol::frontier_repository::exact_dependency_root(&[])?;
+    if temporalization.payload.dependency_root != empty_dependency_root {
+        return Err(
+            "temporalization boundary does not bind the canonical empty dependency root"
+                .to_string(),
+        );
+    }
+    if historical.facts.snapshot_root != expected_legacy_snapshot_root {
+        return Err(format!(
+            "historical dependency legacy snapshot mismatch: expected {expected_legacy_snapshot_root}, derived {}",
+            historical.facts.snapshot_root
+        ));
+    }
+
+    let scientific_state_root = vela_protocol::scientific_state::scientific_state_root_v2(
+        &historical.project,
+        &temporalization.payload.identity_root,
+        &empty_dependency_root,
+    )?;
+    Ok(ExactFrontierDependencyV1 {
+        frontier_id: temporalization.payload.frontier_id.clone(),
+        identity_root: temporalization.payload.identity_root.clone(),
+        scientific_state_root,
+        git_object_format: historical.facts.git_object_format,
+        git_commit: historical.facts.git_commit,
+        git_tree: historical.facts.git_tree,
+    })
+}
+
 /// Compute the exact raw retained-store root after appending one signed
 /// migration boundary to an immutable anchor.
 ///
@@ -1235,6 +1370,36 @@ fn verify_event_membership(current: &Project, anchored: &Project) -> Result<(), 
     Ok(())
 }
 
+/// Prove that every retained canonical object in an older exact state remains
+/// byte-identical at a later temporalization anchor.
+fn verify_retained_manifest_membership(
+    later: &RetainedObjectManifestV1,
+    historical: &RetainedObjectManifestV1,
+) -> Result<(), String> {
+    later.validate()?;
+    historical.validate()?;
+    let later_by_path = later
+        .0
+        .iter()
+        .map(|entry| (entry.path.as_str(), entry))
+        .collect::<BTreeMap<_, _>>();
+    for expected in &historical.0 {
+        let Some(observed) = later_by_path.get(expected.path.as_str()) else {
+            return Err(format!(
+                "historical retained object {:?} is absent from the temporalization anchor",
+                expected.path
+            ));
+        };
+        if *observed != expected {
+            return Err(format!(
+                "historical retained object {:?} changed path, mode, size, or digest before the temporalization anchor",
+                expected.path
+            ));
+        }
+    }
+    Ok(())
+}
+
 /// Derive the exact legacy v0.1 fallback-identity preimage root.
 ///
 /// Migration planners must call this function instead of trusting a supplied
@@ -2344,6 +2509,75 @@ mod tests {
         fixture
     }
 
+    fn append_ancestor_test_event(project: &mut Project, timestamp: &str, reason: &str) {
+        let mut event = project.events[0].clone();
+        event.id.clear();
+        event.timestamp = timestamp.to_string();
+        event.reason = reason.to_string();
+        event.signature = None;
+        event.id = events::compute_event_id(&event);
+        project.events.push(event);
+    }
+
+    fn fixture_with_historical_ancestor() -> (Fixture, RepositoryAnchorFacts) {
+        let mut fixture = fixture();
+        let historical = fixture.anchor.clone();
+        fixture.project.events.pop();
+        append_ancestor_test_event(
+            &mut fixture.project,
+            "2026-07-22T00:00:30Z",
+            "retained post-history event",
+        );
+        let anchor = commit_project(
+            fixture.directory.path(),
+            &fixture.project,
+            "later temporalization anchor",
+        );
+        replace_anchor(&mut fixture.boundary, &anchor, &fixture.key);
+        fixture.anchor = anchor;
+        fixture.project.events.push(fixture.boundary.clone());
+        (fixture, historical)
+    }
+
+    fn fixture_with_changed_historical_blob(
+        replacement: Option<&[u8]>,
+    ) -> (Fixture, RepositoryAnchorFacts) {
+        let mut fixture = fixture();
+        fixture.project.events.pop();
+        let blob_path = fixture
+            .directory
+            .path()
+            .join(".vela/artifact-blobs/sha256/historical.bin");
+        fs::create_dir_all(blob_path.parent().unwrap()).unwrap();
+        fs::write(&blob_path, b"historical retained bytes").unwrap();
+        run(fixture.directory.path(), &["add", "."]);
+        run(
+            fixture.directory.path(),
+            &["commit", "-qm", "retain historical blob"],
+        );
+        let historical_commit = run(fixture.directory.path(), &["rev-parse", "HEAD"]);
+        let historical =
+            derive_repository_anchor_facts(fixture.directory.path(), &historical_commit).unwrap();
+
+        if let Some(bytes) = replacement {
+            fs::write(&blob_path, bytes).unwrap();
+        } else {
+            fs::remove_file(&blob_path).unwrap();
+        }
+        run(fixture.directory.path(), &["add", "-A"]);
+        run(
+            fixture.directory.path(),
+            &["commit", "-qm", "change historical blob"],
+        );
+        let anchor_commit = run(fixture.directory.path(), &["rev-parse", "HEAD"]);
+        let anchor =
+            derive_repository_anchor_facts(fixture.directory.path(), &anchor_commit).unwrap();
+        replace_anchor(&mut fixture.boundary, &anchor, &fixture.key);
+        fixture.anchor = anchor;
+        fixture.project.events.push(fixture.boundary.clone());
+        (fixture, historical)
+    }
+
     #[test]
     fn frontier_repository_bound_exact_anchor() {
         let fixture = fixture();
@@ -2381,6 +2615,371 @@ mod tests {
                 &payload.dependency_root,
             )
             .unwrap()
+        );
+    }
+
+    #[test]
+    fn authenticated_ancestor_dependency_derives_exact_v1_pin() {
+        let (fixture, historical) = fixture_with_historical_ancestor();
+        let exact = derive_exact_dependency_at_temporalized_ancestor(
+            &fixture.project,
+            fixture.directory.path(),
+            &fixture.boundary,
+            &trust_anchor(&fixture.boundary),
+            &historical.git_commit,
+            &historical.snapshot_root,
+        )
+        .unwrap();
+        let historical_project =
+            anchored_repository(fixture.directory.path(), &historical.git_commit).unwrap();
+        let payload = repository_boundary_payload_from_event_shape(&fixture.boundary).unwrap();
+
+        assert_eq!(exact.frontier_id, fixture.project.frontier_id());
+        assert_eq!(exact.identity_root, payload.identity_root);
+        assert_eq!(exact.git_commit, historical.git_commit);
+        assert_eq!(exact.git_tree, historical.git_tree);
+        assert_eq!(
+            exact.scientific_state_root,
+            vela_protocol::scientific_state::scientific_state_root_v2(
+                &historical_project.project,
+                &payload.identity_root,
+                &exact_dependency_root(&[]).unwrap(),
+            )
+            .unwrap()
+        );
+    }
+
+    #[test]
+    fn authenticated_ancestor_dependency_uses_temporalization_identity() {
+        let (fixture, historical) = fixture_with_historical_ancestor();
+        let mut project = clone_project(&fixture.project);
+        let update_anchor = commit_project(
+            fixture.directory.path(),
+            &project,
+            "retain temporalization boundary for dependency update",
+        );
+        let mut update = dependency_update(
+            &fixture.boundary,
+            &update_anchor,
+            &fixture.key,
+            "advance dependency context",
+            "2026-07-22T00:02:00Z",
+        );
+        let mut update_payload = repository_boundary_payload_from_event_shape(&update).unwrap();
+        update_payload.dependencies = vec![ExactFrontierDependencyV1 {
+            frontier_id: "vfr_abcdef0123456789".to_string(),
+            identity_root: sha256_root(b"later dependency identity"),
+            scientific_state_root: sha256_root(b"later dependency state"),
+            git_object_format: update_anchor.git_object_format,
+            git_commit: update_anchor.git_commit.clone(),
+            git_tree: update_anchor.git_tree.clone(),
+        }];
+        update_payload.dependency_root =
+            exact_dependency_root(&update_payload.dependencies).unwrap();
+        update.payload = serde_json::to_value(&update_payload).unwrap();
+        resign(&mut update, &fixture.key);
+        project.events.push(update.clone());
+
+        let exact = derive_exact_dependency_at_temporalized_ancestor(
+            &project,
+            fixture.directory.path(),
+            &update,
+            &trust_anchor(&fixture.boundary),
+            &historical.git_commit,
+            &historical.snapshot_root,
+        )
+        .unwrap();
+        let historical_project =
+            anchored_repository(fixture.directory.path(), &historical.git_commit).unwrap();
+        let temporalization_payload =
+            repository_boundary_payload_from_event_shape(&fixture.boundary).unwrap();
+        let root_context_state = vela_protocol::scientific_state::scientific_state_root_v2(
+            &historical_project.project,
+            &temporalization_payload.identity_root,
+            &temporalization_payload.dependency_root,
+        )
+        .unwrap();
+        let leaf_context_state = vela_protocol::scientific_state::scientific_state_root_v2(
+            &historical_project.project,
+            &update_payload.identity_root,
+            &update_payload.dependency_root,
+        )
+        .unwrap();
+
+        assert_eq!(exact.identity_root, temporalization_payload.identity_root);
+        assert_eq!(exact.scientific_state_root, root_context_state);
+        assert_ne!(exact.scientific_state_root, leaf_context_state);
+        assert_eq!(exact.git_commit, historical.git_commit);
+        assert_eq!(exact.git_tree, historical.git_tree);
+    }
+
+    #[test]
+    fn authenticated_ancestor_dependency_rejects_missing_or_forked_history() {
+        let (fixture, historical) = fixture_with_historical_ancestor();
+        run(
+            fixture.directory.path(),
+            &["checkout", "-qb", "sibling-history", &historical.git_commit],
+        );
+        let mut sibling = vela_protocol::repo::load_from_path(fixture.directory.path()).unwrap();
+        append_ancestor_test_event(
+            &mut sibling,
+            "2026-07-22T00:00:45Z",
+            "sibling history event",
+        );
+        let sibling_anchor = commit_project(fixture.directory.path(), &sibling, "sibling history");
+        run(fixture.directory.path(), &["checkout", "-q", "main"]);
+
+        let error = derive_exact_dependency_at_temporalized_ancestor(
+            &fixture.project,
+            fixture.directory.path(),
+            &fixture.boundary,
+            &trust_anchor(&fixture.boundary),
+            &sibling_anchor.git_commit,
+            &sibling_anchor.snapshot_root,
+        )
+        .unwrap_err();
+        assert!(
+            error.contains(
+                "historical dependency commit is not an ancestor of the signed temporalization anchor"
+            ),
+            "{error}"
+        );
+
+        let missing = "f".repeat(historical.git_commit.len());
+        let error = derive_exact_dependency_at_temporalized_ancestor(
+            &fixture.project,
+            fixture.directory.path(),
+            &fixture.boundary,
+            &trust_anchor(&fixture.boundary),
+            &missing,
+            &historical.snapshot_root,
+        )
+        .unwrap_err();
+        assert!(
+            error.contains("historical dependency state unavailable"),
+            "{error}"
+        );
+    }
+
+    #[test]
+    fn authenticated_ancestor_dependency_rejects_snapshot_mismatch() {
+        let (fixture, historical) = fixture_with_historical_ancestor();
+        let error = derive_exact_dependency_at_temporalized_ancestor(
+            &fixture.project,
+            fixture.directory.path(),
+            &fixture.boundary,
+            &trust_anchor(&fixture.boundary),
+            &historical.git_commit,
+            &sha256_root(b"wrong historical snapshot"),
+        )
+        .unwrap_err();
+        assert!(
+            error.contains("historical dependency legacy snapshot mismatch"),
+            "{error}"
+        );
+    }
+
+    #[test]
+    fn authenticated_ancestor_dependency_rejects_nonreplayable_history() {
+        let mut fixture = fixture();
+        fixture.project.events.pop();
+        let asserted = make_finding("vf_nonreplayable_history", 0.75, "computational");
+        let mut assertion = StateEvent {
+            schema: EVENT_SCHEMA.to_string(),
+            id: String::new(),
+            kind: "finding.asserted".into(),
+            target: StateTarget {
+                r#type: "finding".to_string(),
+                id: asserted.id.clone(),
+            },
+            actor: StateActor {
+                r#type: "human".to_string(),
+                id: "reviewer:administrator".to_string(),
+            },
+            timestamp: "2026-07-22T00:00:15Z".to_string(),
+            reason: "assert exact historical finding".to_string(),
+            before_hash: NULL_HASH.to_string(),
+            after_hash: events::finding_hash(&asserted),
+            payload: json!({"finding": asserted}),
+            caveats: vec![],
+            signature: None,
+        };
+        assertion.id = events::compute_event_id(&assertion);
+        fixture.project.events.push(assertion);
+        fixture.project.findings = vec![make_finding(
+            "vf_nonreplayable_history",
+            0.25,
+            "computational",
+        )];
+        let historical = commit_project(
+            fixture.directory.path(),
+            &fixture.project,
+            "historical non-replayable state",
+        );
+        append_ancestor_test_event(
+            &mut fixture.project,
+            "2026-07-22T00:00:45Z",
+            "retain non-replayable historical state",
+        );
+        let anchor = commit_project(
+            fixture.directory.path(),
+            &fixture.project,
+            "later temporalization anchor over non-replayable history",
+        );
+        replace_anchor(&mut fixture.boundary, &anchor, &fixture.key);
+        fixture.anchor = anchor;
+        fixture.project.events.push(fixture.boundary.clone());
+
+        let error = derive_exact_dependency_at_temporalized_ancestor(
+            &fixture.project,
+            fixture.directory.path(),
+            &fixture.boundary,
+            &trust_anchor(&fixture.boundary),
+            &historical.git_commit,
+            &historical.snapshot_root,
+        )
+        .unwrap_err();
+        assert!(
+            error.contains("historical dependency state does not replay exactly"),
+            "{error}"
+        );
+    }
+
+    #[test]
+    fn authenticated_ancestor_dependency_rejects_retained_object_loss_or_mutation() {
+        for (replacement, expected) in [
+            (None, "is absent from the temporalization anchor"),
+            (
+                Some(b"mutated retained bytes".as_slice()),
+                "changed path, mode, size, or digest",
+            ),
+        ] {
+            let (fixture, historical) = fixture_with_changed_historical_blob(replacement);
+            let error = derive_exact_dependency_at_temporalized_ancestor(
+                &fixture.project,
+                fixture.directory.path(),
+                &fixture.boundary,
+                &trust_anchor(&fixture.boundary),
+                &historical.git_commit,
+                &historical.snapshot_root,
+            )
+            .unwrap_err();
+            assert!(error.contains(expected), "{error}");
+        }
+    }
+
+    #[test]
+    fn authenticated_ancestor_dependency_rejects_event_signature_or_proposal_loss() {
+        let mut signed_fixture = fixture();
+        signed_fixture.project.events.pop();
+        signed_fixture.project.events[0].signature =
+            Some(sign_event(&signed_fixture.project.events[0], &signed_fixture.key).unwrap());
+        let signed_history = commit_project(
+            signed_fixture.directory.path(),
+            &signed_fixture.project,
+            "signed historical event",
+        );
+        signed_fixture.project.events[0].signature = None;
+        let stripped_anchor = commit_project(
+            signed_fixture.directory.path(),
+            &signed_fixture.project,
+            "strip historical signature",
+        );
+        replace_anchor(
+            &mut signed_fixture.boundary,
+            &stripped_anchor,
+            &signed_fixture.key,
+        );
+        signed_fixture.anchor = stripped_anchor;
+        signed_fixture
+            .project
+            .events
+            .push(signed_fixture.boundary.clone());
+        let error = derive_exact_dependency_at_temporalized_ancestor(
+            &signed_fixture.project,
+            signed_fixture.directory.path(),
+            &signed_fixture.boundary,
+            &trust_anchor(&signed_fixture.boundary),
+            &signed_history.git_commit,
+            &signed_history.snapshot_root,
+        )
+        .unwrap_err();
+        assert!(error.contains("lost its historical signature"), "{error}");
+
+        let mut proposal_fixture = fixture_with_anchored_proposal();
+        let proposal_history = proposal_fixture.anchor.clone();
+        proposal_fixture.project.events.pop();
+        proposal_fixture.project.proposals.clear();
+        let proposal_loss_anchor = commit_project(
+            proposal_fixture.directory.path(),
+            &proposal_fixture.project,
+            "remove historical proposal",
+        );
+        replace_anchor(
+            &mut proposal_fixture.boundary,
+            &proposal_loss_anchor,
+            &proposal_fixture.key,
+        );
+        proposal_fixture.anchor = proposal_loss_anchor;
+        proposal_fixture
+            .project
+            .events
+            .push(proposal_fixture.boundary.clone());
+        let error = derive_exact_dependency_at_temporalized_ancestor(
+            &proposal_fixture.project,
+            proposal_fixture.directory.path(),
+            &proposal_fixture.boundary,
+            &trust_anchor(&proposal_fixture.boundary),
+            &proposal_history.git_commit,
+            &proposal_history.snapshot_root,
+        )
+        .unwrap_err();
+        assert!(
+            error.contains("proposal history is not retained"),
+            "{error}"
+        );
+    }
+
+    #[test]
+    fn authenticated_ancestor_dependency_rejects_nonempty_dependency_context() {
+        let mut fixture = fixture();
+        fixture.project.events.pop();
+        fixture
+            .project
+            .project
+            .dependencies
+            .push(vela_protocol::project::ProjectDependency {
+                name: "nonempty-context".to_string(),
+                source: "fixture".to_string(),
+                version: Some("1".to_string()),
+                pinned_hash: Some(sha256_root(b"dependency")),
+                vfr_id: None,
+                locator: None,
+                pinned_snapshot_hash: None,
+            });
+        let anchor = commit_project(
+            fixture.directory.path(),
+            &fixture.project,
+            "nonempty dependency context",
+        );
+        replace_anchor(&mut fixture.boundary, &anchor, &fixture.key);
+        fixture.anchor = anchor.clone();
+        fixture.project.events.push(fixture.boundary.clone());
+
+        let error = derive_exact_dependency_at_temporalized_ancestor(
+            &fixture.project,
+            fixture.directory.path(),
+            &fixture.boundary,
+            &trust_anchor(&fixture.boundary),
+            &anchor.git_commit,
+            &anchor.snapshot_root,
+        )
+        .unwrap_err();
+        assert!(
+            error.contains(
+                "historical dependency authentication currently requires an empty dependency context"
+            ),
+            "{error}"
         );
     }
 

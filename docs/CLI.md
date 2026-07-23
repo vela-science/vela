@@ -384,6 +384,14 @@ vela migrate . --to frontier-repo-v1 --apply \
 When the legacy profile has dependencies, add
 `--dependency-input ../dependency-migration.json` to either command.
 
+Vela `0.914.0` requires each entry's exact state to equal the verified signed
+dependency-boundary anchor. The Proposed ADR 0018 candidate keeps the same
+closed input and exact dependency record but may rederive a named historical
+commit as a retained ancestor of the independently pinned first
+temporalization anchor. It never accepts a branch, tag, timestamp, short ID,
+current-state substitution, or unverified Git ancestry. The pin remains
+context rather than evidence or authority.
+
 The preview is key-free. It binds the candidate files, signer, reason, Git and
 Vela roots, exact touched paths, before/after root families, dependency
 resolutions, sealed target index, and one planned non-scientific boundary

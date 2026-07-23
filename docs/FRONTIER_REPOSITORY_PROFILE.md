@@ -105,6 +105,19 @@ Profile metadata is not the Frontier identity. Vela derives:
 
 Remote URLs and mutable refs are retrieval hints, never dependency identity.
 Every resolved dependency must match all full roots in its signed record.
+The identity fields name one authenticated repository; the scientific-state
+and Git fields name one exact state within it. An exact pin is repository
+context only. It cannot become evidence, a transfer edge, scientific standing,
+or acceptance without a separately retained class-specific object and the
+ordinary authority path.
+
+Vela `0.914.0` migration resolves only the signed dependency-boundary anchor.
+The Proposed ADR 0018 candidate additionally permits one exact historical
+commit when it is rederived as a byte-retained ancestor of the independently
+pinned first temporalization anchor. That candidate changes no wire record and
+currently requires the historical and temporalization states to have the
+canonical empty dependency context. It remains unreleased until its focused
+adversarial fixtures and the real Formal/Erdős read-only vector pass.
 
 Repository administration begins with a signed, non-scientific
 `frontier.repository_bound` event. It binds the exact identity, dependency
@@ -282,4 +295,7 @@ artifact-registry, and retained historical object roots do not.
 Never relabel a v0.1 checkout, hand-edit its generated views, or copy a v1
 profile over it. Preview the exact migration, review its candidate profile,
 dependency resolutions, target-index candidate, touched paths, and root
-families, then apply the matching protected plan.
+families, then apply the matching protected plan. A historical dependency
+selection is eligible only through the Proposed ADR 0018 ancestor proof;
+branch names, tags, timestamps, short IDs, current-state substitution, and Git
+ancestry without retained Vela-byte verification remain invalid.
